@@ -80,7 +80,7 @@ export const useCompletedTasks = (context: BusinessAppContextProps): UseComplete
       const batches = await Promise.all(batchPromises)
       const allTasks = batches.flatMap(b => b.tasks)
 
-      const sortedTasks = allTasks.sort((a, b) => {
+      const sortedTasks = [...allTasks].sort((a, b) => {
         const aTime = new Date(a.completedAt || a.createdAt || 0).getTime()
         const bTime = new Date(b.completedAt || b.createdAt || 0).getTime()
         return bTime - aTime
@@ -160,7 +160,7 @@ export const useCompletedTasks = (context: BusinessAppContextProps): UseComplete
       const batch = await fetchBatch(nextOffset)
 
       const newAllTasks = [...allFetchedTasks, ...batch.tasks]
-      const sortedTasks = newAllTasks.sort((a, b) => {
+      const sortedTasks = [...newAllTasks].sort((a, b) => {
         const aTime = new Date(a.completedAt || a.createdAt || 0).getTime()
         const bTime = new Date(b.completedAt || b.createdAt || 0).getTime()
         return bTime - aTime

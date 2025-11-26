@@ -19,6 +19,21 @@ import {
   TransactionConfirmationDetailsSection
 } from './components'
 
+/**
+ * Extended interface for additionalData with form-specific properties
+ */
+interface ExtendedAdditionalData {
+  [k: string]: unknown
+  psi_taskCompletedAt?: string
+  psi_taskPayload?: {
+    [k: string]: unknown
+  }
+  psi_processMetadata?: {
+    [k: string]: unknown
+  }
+  psi_taskStatus?: string
+}
+
 interface PayTransferAdvPaymentV2Props extends BusinessAppContextProps {
   onClose?: () => void
 }
@@ -29,11 +44,14 @@ const PayTransferAdvPaymentV2Content: React.FC<PayTransferAdvPaymentV2Props> = (
   userInfo,
   onClose
 }) => {
+  // Cast additionalData to extended interface for proper typing
+  const extendedAdditionalData = additionalData as ExtendedAdditionalData | undefined
+
   // Extract paymentId from additionalData or URL parameters
   const paymentId =
     additionalData?.paymentId ||
     additionalData?.psi_taskPayload?.advancePayment?.id ||
-    new URLSearchParams(window.location.search).get('paymentId')
+    new URLSearchParams(globalThis.location.search).get('paymentId')
 
   const [isConfirming, setIsConfirming] = useState(false)
   const [transactionDate, setTransactionDate] = useState<string>('')
@@ -45,14 +63,14 @@ const PayTransferAdvPaymentV2Content: React.FC<PayTransferAdvPaymentV2Props> = (
   const taskPayload = additionalData?.psi_taskPayload || {}
   const processMetadata = additionalData?.psi_processMetadata || {}
   const taskStatus = additionalData?.psi_taskStatus || processMetadata?.status || 'IN_PROGRESS'
-  const taskCompletedAt = processMetadata?.completedAt || (additionalData as any)?.psi_taskCompletedAt
+  const taskCompletedAt = processMetadata?.completedAt || extendedAdditionalData?.psi_taskCompletedAt
   // Task is completed if status is COMPLETED OR if completedAt exists
   const isTaskCompleted = taskStatus === 'COMPLETED' || !!taskCompletedAt
   const taskTitle =
     processMetadata?.referenceTaskName ||
     processMetadata?.nodeName ||
     getTranslationFromI18nKeyAndLabel('lowcoder:pay_transfer_advance_payment.title', 'Hand out Advance Payment')
-  const taskSource: 'kogito' | 'cflow' = processMetadata?.source || (processMetadata?.endpoint ? 'kogito' : 'kogito')
+  const taskSource: 'kogito' | 'cflow' = processMetadata?.source || 'kogito'
   const creatorName = taskPayload?.creatorName as string | undefined
 
   // Use generic hooks for entity dates (request created)
@@ -99,9 +117,9 @@ const PayTransferAdvPaymentV2Content: React.FC<PayTransferAdvPaymentV2Props> = (
       }
     }
 
-    window.addEventListener('beforeunload', handleBeforeUnload)
+    globalThis.addEventListener('beforeunload', handleBeforeUnload)
     return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload)
+      globalThis.removeEventListener('beforeunload', handleBeforeUnload)
     }
   }, [])
 
@@ -224,7 +242,7 @@ const PayTransferAdvPaymentV2Content: React.FC<PayTransferAdvPaymentV2Props> = (
         />
       }
       footer={
-        !isTaskCompleted ? (
+        isTaskCompleted ? undefined : (
           <TaskDetailFooter
             data-testid="pay-transfer-adv-payment-v2-actions"
             actions={[
@@ -240,7 +258,7 @@ const PayTransferAdvPaymentV2Content: React.FC<PayTransferAdvPaymentV2Props> = (
               }
             ]}
           />
-        ) : undefined
+        )
       }
       contentClassName="gba:space-y-6"
     >

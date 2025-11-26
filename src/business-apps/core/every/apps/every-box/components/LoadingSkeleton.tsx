@@ -15,7 +15,7 @@ export const LoadingSkeleton: React.FC<LoadingSkeletonProps> = ({ count = 3, typ
   return (
     <div className="gba:space-y-3" data-testid={`loading-skeleton-${type}`}>
       {Array.from({ length: count }).map((_, index) => (
-        <Card key={index}>
+        <Card key={`skeleton-${type}-${index}`}>
           <CardContent className="gba:p-4">
             <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">
               <div className="gba:flex-1 gba:space-y-3">

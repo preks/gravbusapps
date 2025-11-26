@@ -27,6 +27,20 @@ import {
 import { useEmployeeAvatar } from '../hooks/useEmployeeAvatar'
 import { base64ToObjectURL } from '../utils/avatarUtils'
 
+// Helper function to get step status icon color class
+const getStepStatusIconClass = (status: string): { className: string; filled: boolean } => {
+  switch (status) {
+    case 'COMPLETED':
+      return { className: 'gba:text-success', filled: false }
+    case 'IN_PROGRESS':
+      return { className: 'gba:text-info gba:fill-current', filled: true }
+    case 'FAILED':
+      return { className: 'gba:text-destructive gba:fill-current', filled: true }
+    default:
+      return { className: 'gba:text-muted-foreground', filled: false }
+  }
+}
+
 interface FlowDetailDialogProps {
   flow: Flow | null
   onClose: () => void
@@ -300,36 +314,40 @@ export const FlowDetailDialog: React.FC<FlowDetailDialogProps> = ({ flow, onClos
               <div>
                 <h4 className="gba:font-semibold gba:mb-3">Flow Steps</h4>
                 <div className="gba:space-y-3">
-                  {flow.steps.map((step, index) => (
-                    <div key={index} className="gba:flex gba:items-start gba:gap-3" data-testid={`flow-step-${index}`}>
-                      <div className="gba:mt-1">
-                        {step.status === 'COMPLETED' ? (
-                          <CheckCircle className="gba:h-5 gba:w-5 gba:text-success" />
-                        ) : step.status === 'IN_PROGRESS' ? (
-                          <Circle className="gba:h-5 gba:w-5 gba:text-info gba:fill-current" />
-                        ) : step.status === 'FAILED' ? (
-                          <Circle className="gba:h-5 gba:w-5 gba:text-destructive gba:fill-current" />
-                        ) : (
-                          <Circle className="gba:h-5 gba:w-5 gba:text-muted-foreground" />
-                        )}
-                      </div>
-                      <div className="gba:flex-1">
-                        <div className="gba:font-medium gba:text-sm">
-                          Step {step.stepIndex + 1}: {step.title}
+                  {flow.steps.map(step => {
+                    const statusIconClass = getStepStatusIconClass(step.status)
+                    const stepKey = `step-${step.stepIndex}-${step.title}`
+                    return (
+                      <div
+                        key={stepKey}
+                        className="gba:flex gba:items-start gba:gap-3"
+                        data-testid={`flow-step-${step.stepIndex}`}
+                      >
+                        <div className="gba:mt-1">
+                          {step.status === 'COMPLETED' ? (
+                            <CheckCircle className={`gba:h-5 gba:w-5 ${statusIconClass.className}`} />
+                          ) : (
+                            <Circle className={`gba:h-5 gba:w-5 ${statusIconClass.className}`} />
+                          )}
                         </div>
-                        <div className="gba:text-xs gba:text-muted-foreground">
-                          {step.type}
-                          {step.assignedTo && ` • Assigned to: ${step.assignedTo}`}
-                          {step.completedBy && ` • Completed by: ${step.completedBy}`}
-                        </div>
-                        {step.completedAt && (
-                          <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-                            Completed {formatRelativeTime(step.completedAt)}
+                        <div className="gba:flex-1">
+                          <div className="gba:font-medium gba:text-sm">
+                            Step {step.stepIndex + 1}: {step.title}
                           </div>
-                        )}
+                          <div className="gba:text-xs gba:text-muted-foreground">
+                            {step.type}
+                            {step.assignedTo && ` • Assigned to: ${step.assignedTo}`}
+                            {step.completedBy && ` • Completed by: ${step.completedBy}`}
+                          </div>
+                          {step.completedAt && (
+                            <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
+                              Completed {formatRelativeTime(step.completedAt)}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
             </>

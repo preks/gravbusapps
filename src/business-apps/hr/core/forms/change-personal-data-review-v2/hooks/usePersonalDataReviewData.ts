@@ -20,6 +20,22 @@ interface EmployeeData {
   position?: string
 }
 
+/**
+ * Raw employee data from GraphQL query with nested position structure
+ */
+interface EmployeeQueryResult {
+  id: string
+  firstName: string
+  lastName: string
+  displayName?: string
+  picture?: string
+  employeePosition?: {
+    jobPosition?: {
+      name?: string
+    }
+  }
+}
+
 interface CatalogEntry {
   id: string
   value: string
@@ -77,6 +93,49 @@ const GET_PERSONAL_DATA_CATALOGS = `
   }
 `
 
+// Helper: Transform raw employee query result to expected format
+const transformEmployeeData = (employee: EmployeeQueryResult): EmployeeData => ({
+  id: employee.id,
+  firstName: employee.firstName,
+  lastName: employee.lastName,
+  displayName: employee.displayName || `${employee.firstName} ${employee.lastName}`,
+  picture: employee.picture,
+  position: employee.employeePosition?.jobPosition?.name
+})
+
+// Helper: Collect catalog IDs from personal information
+const collectCatalogIds = (newInfo: PersonalInformationData, oldInfo: PersonalInformationData): string[] => {
+  return Array.from(
+    new Set(
+      [
+        newInfo?.salutationRef,
+        oldInfo?.salutationRef,
+        newInfo?.genderRef,
+        oldInfo?.genderRef,
+        newInfo?.nationalityRef,
+        oldInfo?.nationalityRef,
+        newInfo?.languageRef,
+        oldInfo?.languageRef,
+        newInfo?.maritalStatusRef,
+        oldInfo?.maritalStatusRef,
+        newInfo?.schoolQualificationRef,
+        oldInfo?.schoolQualificationRef
+      ]
+        .filter(Boolean)
+        .map(String)
+    )
+  )
+}
+
+// Helper: Build catalog map from entries
+const buildCatalogMap = (entries: CatalogEntry[] | undefined): Record<string, CatalogEntry> => {
+  const catalog: Record<string, CatalogEntry> = {}
+  for (const entry of entries || []) {
+    catalog[String(entry.id)] = entry
+  }
+  return catalog
+}
+
 export const usePersonalDataReviewData = ({
   accessToken,
   employeeId,
@@ -90,84 +149,44 @@ export const usePersonalDataReviewData = ({
 
   const graphqlClient = useGraphQLClient(accessToken)
 
+  const fetchEmployeeData = useCallback(async () => {
+    if (!employeeId) return
+    try {
+      const result = await graphqlClient.request<{ employee: EmployeeQueryResult }>(GET_EMPLOYEE_DATA, { employeeId })
+      if (result.employee) {
+        setEmployeeData(transformEmployeeData(result.employee))
+      }
+    } catch (err) {
+      console.error('Error fetching employee:', err)
+    }
+  }, [employeeId, graphqlClient])
+
+  const fetchCatalogData = useCallback(async () => {
+    const catalogIds = collectCatalogIds(newPersonalInformation, oldPersonalInformation)
+    if (catalogIds.length === 0) return
+    try {
+      const result = await graphqlClient.request<{ entries: CatalogEntry[] }>(GET_PERSONAL_DATA_CATALOGS, {
+        ids: catalogIds,
+        activeUserLocale: getCurrentActiveUserLocale()
+      })
+      setCatalogMap(buildCatalogMap(result?.entries))
+    } catch (err) {
+      console.error('Error fetching catalog data:', err)
+    }
+  }, [graphqlClient, newPersonalInformation, oldPersonalInformation])
+
   const fetchData = useCallback(async () => {
     setLoading(true)
     setError(null)
-
     try {
-      // Fetch employee data
-      if (employeeId) {
-        try {
-          const employeeResult = await graphqlClient.request<{ employee: EmployeeData }>(GET_EMPLOYEE_DATA, {
-            employeeId
-          })
-
-          if (employeeResult.employee) {
-            // Transform employee data to match expected format
-            const employee = employeeResult.employee
-            setEmployeeData({
-              id: employee.id,
-              firstName: employee.firstName,
-              lastName: employee.lastName,
-              displayName: employee.displayName || `${employee.firstName} ${employee.lastName}`,
-              picture: employee.picture,
-              position: (employee as any).employeePosition?.jobPosition?.name
-            })
-          }
-        } catch (err) {
-          console.error('Error fetching employee:', err)
-          // Don't fail completely if employee fetch fails
-        }
-      }
-
-      // Collect catalog IDs to fetch
-      const catalogIds = Array.from(
-        new Set(
-          [
-            newPersonalInformation?.salutationRef,
-            oldPersonalInformation?.salutationRef,
-            newPersonalInformation?.genderRef,
-            oldPersonalInformation?.genderRef,
-            newPersonalInformation?.nationalityRef,
-            oldPersonalInformation?.nationalityRef,
-            newPersonalInformation?.languageRef,
-            oldPersonalInformation?.languageRef,
-            newPersonalInformation?.maritalStatusRef,
-            oldPersonalInformation?.maritalStatusRef,
-            newPersonalInformation?.schoolQualificationRef,
-            oldPersonalInformation?.schoolQualificationRef
-          ]
-            .filter(Boolean)
-            .map(String)
-        )
-      )
-
-      // Fetch catalog data if needed
-      if (catalogIds.length) {
-        try {
-          const result = await graphqlClient.request<any>(GET_PERSONAL_DATA_CATALOGS, {
-            ids: catalogIds,
-            activeUserLocale: getCurrentActiveUserLocale()
-          })
-
-          // Build catalog map
-          const catalog: Record<string, CatalogEntry> = {}
-          for (const entry of result?.entries || []) {
-            catalog[String(entry.id)] = entry
-          }
-          setCatalogMap(catalog)
-        } catch (err) {
-          console.error('Error fetching catalog data:', err)
-          // Don't fail completely if catalog fetch fails
-        }
-      }
+      await Promise.all([fetchEmployeeData(), fetchCatalogData()])
     } catch (err) {
       console.error('Error in usePersonalDataReviewData:', err)
       setError(err instanceof Error ? err.message : 'Failed to load personal data review data')
     } finally {
       setLoading(false)
     }
-  }, [accessToken, employeeId, graphqlClient, newPersonalInformation, oldPersonalInformation])
+  }, [fetchEmployeeData, fetchCatalogData])
 
   useEffect(() => {
     if (accessToken) {

@@ -19,6 +19,20 @@ interface TaskCardProps {
   isDetailViewOpen?: boolean
 }
 
+// Helper function to get due date text
+const getDueDateText = (overdue: boolean, dueSoon: boolean, dueDate?: string | null): string => {
+  if (overdue) return 'Overdue'
+  if (dueSoon) return 'Due soon'
+  return `Due ${formatRelativeTime(dueDate)}`
+}
+
+// Helper function to get due date styling class
+const getDueDateClass = (overdue: boolean, dueSoon: boolean): string => {
+  if (overdue) return 'gba:text-destructive gba:font-semibold'
+  if (dueSoon) return 'gba:text-warning gba:font-semibold'
+  return 'gba:text-muted-foreground'
+}
+
 export const TaskCard: React.FC<TaskCardProps> = memo(
   ({ task, onView, employeeMap, isSelected = false, isDetailViewOpen = false }) => {
     // Check if task is completed
@@ -135,7 +149,7 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
                     {creatorName}
                   </span>
                 </div>
-                {task.status === 'COMPLETED' && task.completedAt ? (
+                {task.status === 'COMPLETED' && task.completedAt && (
                   <div className="gba:flex gba:items-center gba:gap-1">
                     <Clock className="gba:h-3 gba:w-3 gba:text-success" />
                     <span
@@ -145,7 +159,8 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
                       ✓ {formatDateTime(task.completedAt)}
                     </span>
                   </div>
-                ) : createdAt ? (
+                )}
+                {!(task.status === 'COMPLETED' && task.completedAt) && createdAt && (
                   <div className="gba:flex gba:items-center gba:gap-1">
                     <Clock className="gba:h-3 gba:w-3 gba:text-muted-foreground" />
                     <span
@@ -155,7 +170,7 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
                       {formatDateTime(createdAt)}
                     </span>
                   </div>
-                ) : null}
+                )}
               </div>
               {/* Module Icon - Vertically centered with title and description */}
               <span title={moduleInfo.name} className="gba:flex-shrink-0 gba:self-center">
@@ -210,17 +225,8 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
                     ) : (
                       <Clock className="gba:h-3 gba:w-3" />
                     )}
-                    <span
-                      className={`gba:text-xs ${
-                        overdue
-                          ? 'gba:text-destructive gba:font-semibold'
-                          : dueSoon
-                            ? 'gba:text-warning gba:font-semibold'
-                            : 'gba:text-muted-foreground'
-                      }`}
-                      data-testid="task-due-date"
-                    >
-                      {overdue ? 'Overdue' : dueSoon ? 'Due soon' : `Due ${formatRelativeTime(task.dueDate)}`}
+                    <span className={`gba:text-xs ${getDueDateClass(overdue, dueSoon)}`} data-testid="task-due-date">
+                      {getDueDateText(overdue, dueSoon, task.dueDate)}
                     </span>
                   </div>
                 )}

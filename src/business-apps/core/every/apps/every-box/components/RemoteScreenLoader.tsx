@@ -62,11 +62,9 @@ export const RemoteScreenLoader: React.FC<RemoteScreenLoaderProps> = ({
       .join('')
   }, [componentPath])
 
-  // CDN base URL (use dev CDN for now, can be configured)
+  // CDN base URL (using dev CDN for both development and production until prod CDN is ready)
   const CDN_BASE = useMemo(() => {
-    return process.env.NODE_ENV === 'production'
-      ? 'https://nwcdndevfiles.blob.core.windows.net/screens' // TODO: Switch to prod CDN when ready
-      : 'https://nwcdndevfiles.blob.core.windows.net/screens'
+    return 'https://nwcdndevfiles.blob.core.windows.net/screens'
   }, [])
 
   // Expose dependencies once on mount
@@ -96,8 +94,8 @@ export const RemoteScreenLoader: React.FC<RemoteScreenLoaderProps> = ({
           timeout: 10000 // 10 second timeout
         })
 
-        // Get the loaded component from window
-        const loadedComponent = (window as any)[componentName]
+        // Get the loaded component from globalThis
+        const loadedComponent = (globalThis as any)[componentName]
 
         if (!loadedComponent) {
           throw new Error(

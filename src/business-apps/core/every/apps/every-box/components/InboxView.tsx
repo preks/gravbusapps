@@ -47,7 +47,7 @@ interface InboxViewProps extends BusinessAppContextProps {
  * Get initial task ID from URL
  */
 const getInitialTaskId = (): string | null => {
-  const urlParams = new URLSearchParams(window.location.search)
+  const urlParams = new URLSearchParams(globalThis.location.search)
   return urlParams.get('taskId')
 }
 
@@ -55,7 +55,7 @@ const getInitialTaskId = (): string | null => {
  * Update URL with task ID
  */
 const updateTaskUrl = (taskId: string | null) => {
-  const urlParams = new URLSearchParams(window.location.search)
+  const urlParams = new URLSearchParams(globalThis.location.search)
 
   if (taskId) {
     urlParams.set('taskId', taskId)
@@ -63,8 +63,28 @@ const updateTaskUrl = (taskId: string | null) => {
     urlParams.delete('taskId')
   }
 
-  const newUrl = `${window.location.pathname}?${urlParams.toString()}`
-  window.history.replaceState({}, '', newUrl)
+  const newUrl = `${globalThis.location.pathname}?${urlParams.toString()}`
+  globalThis.history.replaceState({}, '', newUrl)
+}
+
+/**
+ * Get empty state message based on search query and filter type
+ */
+const getEmptyStateMessage = (searchQuery: string, filterType: TaskFilterType): string => {
+  if (searchQuery.trim()) {
+    return `No tasks found matching "${searchQuery}"`
+  }
+
+  switch (filterType) {
+    case 'blinks':
+      return 'No Blink tasks at the moment'
+    case 'approvals':
+      return 'No approval tasks at the moment'
+    case 'completed':
+      return 'No completed tasks yet'
+    default:
+      return 'No tasks assigned to you at the moment'
+  }
 }
 
 export const InboxView: React.FC<InboxViewProps> = ({
@@ -165,8 +185,8 @@ export const InboxView: React.FC<InboxViewProps> = ({
       }
     }
 
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
+    globalThis.addEventListener('popstate', handlePopState)
+    return () => globalThis.removeEventListener('popstate', handlePopState)
   }, [localTasks, localCompletedTasks])
 
   // Handler to select a task and update URL
@@ -340,8 +360,8 @@ export const InboxView: React.FC<InboxViewProps> = ({
       }
     }
 
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    globalThis.addEventListener('keydown', handleKeyDown)
+    return () => globalThis.removeEventListener('keydown', handleKeyDown)
   }, [
     selectedTask,
     localTasks,
@@ -626,20 +646,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
         {/* Task List - Scrollable */}
         <div className="gba:flex-1 gba:overflow-y-auto gba:pr-2">
           {filteredTasks.length === 0 ? (
-            <EmptyState
-              type="inbox"
-              message={
-                searchQuery.trim()
-                  ? `No tasks found matching "${searchQuery}"`
-                  : filterType === 'blinks'
-                    ? 'No Blink tasks at the moment'
-                    : filterType === 'approvals'
-                      ? 'No approval tasks at the moment'
-                      : filterType === 'completed'
-                        ? 'No completed tasks yet'
-                        : 'No tasks assigned to you at the moment'
-              }
-            />
+            <EmptyState type="inbox" message={getEmptyStateMessage(searchQuery, filterType)} />
           ) : (
             <>
               <div className="gba:space-y-0" data-testid="inbox-task-list">

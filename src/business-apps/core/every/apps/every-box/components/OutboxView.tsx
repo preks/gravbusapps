@@ -31,7 +31,7 @@ interface OutboxViewProps {
  * Get initial flow ID from URL
  */
 const getInitialFlowId = (): string | null => {
-  const urlParams = new URLSearchParams(window.location.search)
+  const urlParams = new URLSearchParams(globalThis.location.search)
   return urlParams.get('flowId')
 }
 
@@ -39,7 +39,7 @@ const getInitialFlowId = (): string | null => {
  * Update URL with flow ID
  */
 const updateFlowUrl = (flowId: string | null) => {
-  const urlParams = new URLSearchParams(window.location.search)
+  const urlParams = new URLSearchParams(globalThis.location.search)
 
   if (flowId) {
     urlParams.set('flowId', flowId)
@@ -47,8 +47,26 @@ const updateFlowUrl = (flowId: string | null) => {
     urlParams.delete('flowId')
   }
 
-  const newUrl = `${window.location.pathname}?${urlParams.toString()}`
-  window.history.replaceState({}, '', newUrl)
+  const newUrl = `${globalThis.location.pathname}?${urlParams.toString()}`
+  globalThis.history.replaceState({}, '', newUrl)
+}
+
+/**
+ * Get empty state message based on search query and filter type
+ */
+const getEmptyFlowMessage = (searchQuery: string, filterType: FlowFilterType): string => {
+  if (searchQuery.trim()) {
+    return `No workflows found matching "${searchQuery}"`
+  }
+
+  switch (filterType) {
+    case 'blinks':
+      return 'No blinks sent yet'
+    case 'requests':
+      return 'No requests initiated yet'
+    default:
+      return 'You have not initiated any workflows yet'
+  }
 }
 
 export const OutboxView: React.FC<OutboxViewProps> = ({ flows, isLoading, error, onRefresh, accessToken }) => {
@@ -117,8 +135,8 @@ export const OutboxView: React.FC<OutboxViewProps> = ({ flows, isLoading, error,
       }
     }
 
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
+    globalThis.addEventListener('popstate', handlePopState)
+    return () => globalThis.removeEventListener('popstate', handlePopState)
   }, [flows])
 
   // Handler to select a flow and update URL
@@ -269,18 +287,7 @@ export const OutboxView: React.FC<OutboxViewProps> = ({ flows, isLoading, error,
         {/* Flow List - Scrollable */}
         <div className="gba:flex-1 gba:overflow-y-auto gba:pr-2">
           {filteredFlows.length === 0 ? (
-            <EmptyState
-              type="outbox"
-              message={
-                searchQuery.trim()
-                  ? `No workflows found matching "${searchQuery}"`
-                  : filterType === 'blinks'
-                    ? 'No blinks sent yet'
-                    : filterType === 'requests'
-                      ? 'No requests initiated yet'
-                      : 'You have not initiated any workflows yet'
-              }
-            />
+            <EmptyState type="outbox" message={getEmptyFlowMessage(searchQuery, filterType)} />
           ) : (
             <div className="gba:space-y-2" data-testid="outbox-flow-list">
               {filteredFlows.map(flow => (

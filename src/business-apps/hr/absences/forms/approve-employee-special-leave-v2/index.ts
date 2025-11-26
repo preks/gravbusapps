@@ -3,6 +3,4 @@
  * Entry point for the special leave approval form
  */
 
-import ApproveEmployeeSpecialLeaveV2 from './ApproveEmployeeSpecialLeaveV2'
-
-export default ApproveEmployeeSpecialLeaveV2
+export { default } from './ApproveEmployeeSpecialLeaveV2'

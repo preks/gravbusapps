@@ -97,7 +97,6 @@ export const useOutboxFlows = (context: BusinessAppContextProps) => {
       if (newFlowData !== lastFlowDataRef.current) {
         lastFlowDataRef.current = newFlowData
         setFlows(groupedFlows)
-      } else {
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load flows'
@@ -136,17 +135,17 @@ const transformFlow = (rawFlow: any): Flow => {
   const assignedUserId = tags.assignedUserId || undefined
 
   return {
-    id: (rawFlow as any).flowId || rawFlow.workflowId,
-    templateName: (rawFlow as any).flowName || rawFlow.templateName || rawFlow.name || 'Unnamed Flow',
+    id: rawFlow.flowId || rawFlow.workflowId,
+    templateName: rawFlow.flowName || rawFlow.templateName || rawFlow.name || 'Unnamed Flow',
     templateId: rawFlow.templateId,
     status,
-    initiatedBy: (rawFlow as any).initiatedBy || rawFlow.initiator || '',
-    startedAt: (rawFlow as any).startTime || rawFlow.createdAt,
-    completedAt: (rawFlow as any).endTime || rawFlow.completedAt,
-    currentStep: (rawFlow as any).currentStep || 0,
-    totalSteps: (rawFlow as any).stepStatus?.total || 0,
+    initiatedBy: rawFlow.initiatedBy || rawFlow.initiator || '',
+    startedAt: rawFlow.startTime || rawFlow.createdAt,
+    completedAt: rawFlow.endTime || rawFlow.completedAt,
+    currentStep: rawFlow.currentStep || 0,
+    totalSteps: rawFlow.stepStatus?.total || 0,
     steps: [],
-    progressPercentage: (rawFlow as any).progressPercentage,
+    progressPercentage: rawFlow.progressPercentage,
     tags: rawFlow.tags, // Include tags for filtering and badge display
     blinkGroupId, // Add blinkGroupId for grouping
     assignedUserId, // Add assignedUserId to identify who this workflow is for

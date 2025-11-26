@@ -13,6 +13,41 @@ interface ApprovalDetailsSectionProps {
   prefixDataTestId?: string
 }
 
+// Helper function to get status class
+const getStatusClass = (isApproved: boolean, isRejected: boolean): string => {
+  if (isApproved) return 'gba:text-success'
+  if (isRejected) return 'gba:text-destructive'
+  return ''
+}
+
+// Helper function to render status display
+const renderStatusDisplay = (isApproved: boolean, isRejected: boolean, approvalStatus: string): React.ReactNode => {
+  if (isApproved) {
+    return (
+      <>
+        <CheckCircle className="gba:h-4 gba:w-4" />
+        Approved
+      </>
+    )
+  }
+  if (isRejected) {
+    return (
+      <>
+        <AlertCircle className="gba:h-4 gba:w-4" />
+        Rejected
+      </>
+    )
+  }
+  return approvalStatus
+}
+
+// Helper function to get comment display
+const getCommentDisplay = (approvalComment: string | null | undefined, isRejected: boolean): string => {
+  if (approvalComment?.trim()) return approvalComment.trim()
+  if (isRejected) return 'No comment provided'
+  return ''
+}
+
 const ApprovalDetailsSection: React.FC<ApprovalDetailsSectionProps> = ({
   approvalStatus,
   approvalComment,
@@ -64,23 +99,9 @@ const ApprovalDetailsSection: React.FC<ApprovalDetailsSectionProps> = ({
         <div>
           <Label className="gba:text-sm gba:text-muted-foreground">Status</Label>
           <div
-            className={`gba:text-sm gba:font-medium gba:mt-1 gba:flex gba:items-center gba:gap-2 ${
-              isApproved ? 'gba:text-success' : isRejected ? 'gba:text-destructive' : ''
-            }`}
+            className={`gba:text-sm gba:font-medium gba:mt-1 gba:flex gba:items-center gba:gap-2 ${getStatusClass(isApproved, isRejected)}`}
           >
-            {isApproved ? (
-              <>
-                <CheckCircle className="gba:h-4 gba:w-4" />
-                Approved
-              </>
-            ) : isRejected ? (
-              <>
-                <AlertCircle className="gba:h-4 gba:w-4" />
-                Rejected
-              </>
-            ) : (
-              approvalStatus
-            )}
+            {renderStatusDisplay(isApproved, isRejected, approvalStatus || '')}
           </div>
         </div>
 
@@ -113,7 +134,7 @@ const ApprovalDetailsSection: React.FC<ApprovalDetailsSectionProps> = ({
             <div>
               <Label className="gba:text-sm gba:text-muted-foreground">Comment</Label>
               <p className="gba:text-sm gba:text-muted-foreground gba:mt-1 gba:whitespace-pre-wrap">
-                {approvalComment?.trim() || (isRejected ? 'No comment provided' : '')}
+                {getCommentDisplay(approvalComment, isRejected)}
               </p>
             </div>
           </>

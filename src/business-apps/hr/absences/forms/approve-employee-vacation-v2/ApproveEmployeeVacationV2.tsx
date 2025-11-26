@@ -24,6 +24,50 @@ import { useEntityDates } from '@/common/data/common/hooks/useEntityDates'
 import { useApproverData } from '@/common/data/employee/hooks/useApproverData'
 import dayjs from 'dayjs'
 
+/**
+ * Extended interface for additionalData with form-specific properties
+ * This provides proper typing for dynamic task payload properties
+ */
+interface ExtendedAdditionalData {
+  [k: string]: unknown
+  formData?: {
+    approval?: string
+    approvalNote?: string
+  }
+  psi_taskCompletedAt?: string
+  psi_taskPayload?: {
+    endpoint?: string
+    [k: string]: unknown
+  }
+  psi_processMetadata?: {
+    [k: string]: unknown
+  }
+  psi_taskStatus?: string
+  endpoint?: string
+}
+
+/**
+ * Formats working days and hours into a readable string
+ */
+const formatWorkingDaysAndHours = (workingDays?: number, workingHours?: number): string => {
+  const parts: string[] = []
+
+  if (workingDays !== undefined) {
+    parts.push(`${workingDays} ${workingDays === 1 ? 'day' : 'days'}`)
+  }
+
+  if (workingHours !== undefined) {
+    const hoursText = `(${workingHours} ${workingHours === 1 ? 'hour' : 'hours'})`
+    if (parts.length > 0) {
+      parts.push(` ${hoursText}`)
+    } else {
+      parts.push(hoursText)
+    }
+  }
+
+  return parts.join('')
+}
+
 interface ApproveEmployeeVacationV2Props extends BusinessAppContextProps {
   // Additional props from task payload
   onClose?: () => void // Optional callback to close the modal
@@ -37,6 +81,9 @@ const ApproveEmployeeVacationV2: React.FC<ApproveEmployeeVacationV2Props> = ({
   onClose,
   onTaskUpdated
 }) => {
+  // Cast additionalData to extended interface for proper typing
+  const extendedAdditionalData = additionalData as ExtendedAdditionalData | undefined
+
   const [showComment, setShowComment] = useState(false)
   const [comment, setComment] = useState('')
   const [isApproving, setIsApproving] = useState(false)
@@ -55,7 +102,7 @@ const ApproveEmployeeVacationV2: React.FC<ApproveEmployeeVacationV2Props> = ({
 
   // Extract task data from additionalData
   const taskPayload = additionalData?.psi_taskPayload || {}
-  const employeeAbsence = taskPayload?.employeeAbsence as any
+  const employeeAbsence = taskPayload?.employeeAbsence
   const creatorName = taskPayload?.creatorName as string | undefined
   const processMetadata = additionalData?.psi_processMetadata || {}
 
@@ -99,8 +146,8 @@ const ApproveEmployeeVacationV2: React.FC<ApproveEmployeeVacationV2Props> = ({
     }
 
     // Check formData
-    if ((additionalData as any)?.formData?.approval) {
-      return (additionalData as any).formData.approval
+    if (extendedAdditionalData?.formData?.approval) {
+      return extendedAdditionalData.formData.approval
     }
 
     return null
@@ -125,19 +172,17 @@ const ApproveEmployeeVacationV2: React.FC<ApproveEmployeeVacationV2Props> = ({
     }
 
     // Check formData
-    if ((additionalData as any)?.formData?.approvalNote) {
-      return (additionalData as any).formData.approvalNote
+    if (extendedAdditionalData?.formData?.approvalNote) {
+      return extendedAdditionalData.formData.approvalNote
     }
 
     return null
   }, [isTaskCompleted, processMetadata, taskPayload, additionalData])
 
-  const completedAt = processMetadata?.completedAt || (additionalData as any)?.psi_taskCompletedAt || null
+  const completedAt = processMetadata?.completedAt || extendedAdditionalData?.psi_taskCompletedAt || null
 
   // Get task source from process metadata (fallback to 'kogito' if not available)
-  // Source can be 'kogito' or 'cflow'
-  // If source is not explicitly set, infer from endpoint (Kogito tasks have endpoint)
-  const taskSource: 'kogito' | 'cflow' = processMetadata?.source || (processMetadata?.endpoint ? 'kogito' : 'kogito')
+  const taskSource: 'kogito' | 'cflow' = processMetadata?.source || 'kogito'
 
   // Use custom hook for data fetching
   const {
@@ -233,7 +278,7 @@ const ApproveEmployeeVacationV2: React.FC<ApproveEmployeeVacationV2Props> = ({
               rejectionStatus === 'REJECTED_BY_HR'
             ) {
               // Try to get comment from taskPayload or other sources
-              const commentFromPayload = taskPayload?.approvalNote || (additionalData as any)?.formData?.approvalNote
+              const commentFromPayload = taskPayload?.approvalNote || extendedAdditionalData?.formData?.approvalNote
               setActualApprovalNote(commentFromPayload || null)
             } else {
               setActualApprovalNote(null)
@@ -294,8 +339,8 @@ const ApproveEmployeeVacationV2: React.FC<ApproveEmployeeVacationV2Props> = ({
       // Extract endpoint from processMetadata or additionalData
       const endpoint =
         processMetadata?.endpoint ||
-        (additionalData as any)?.psi_taskPayload?.endpoint ||
-        ((additionalData as any)?.endpoint as string | undefined)
+        extendedAdditionalData?.psi_taskPayload?.endpoint ||
+        extendedAdditionalData?.endpoint
       console.log('🔍 Approve - Endpoint:', endpoint)
 
       if (!endpoint) {
@@ -405,8 +450,8 @@ const ApproveEmployeeVacationV2: React.FC<ApproveEmployeeVacationV2Props> = ({
       // Extract endpoint from processMetadata or additionalData
       const endpoint =
         processMetadata?.endpoint ||
-        (additionalData as any)?.psi_taskPayload?.endpoint ||
-        ((additionalData as any)?.endpoint as string | undefined)
+        extendedAdditionalData?.psi_taskPayload?.endpoint ||
+        extendedAdditionalData?.endpoint
       console.log('🔍 Reject - Endpoint:', endpoint)
       console.log('🔍 Reject - ProcessMetadata:', processMetadata)
       console.log('🔍 Reject - AdditionalData:', additionalData)
@@ -543,7 +588,7 @@ const ApproveEmployeeVacationV2: React.FC<ApproveEmployeeVacationV2Props> = ({
       }
       footer={
         // Action Footer - Only show when task is not completed
-        !isTaskCompleted ? (
+        isTaskCompleted ? undefined : (
           <TaskDetailFooter
             data-testid="action-footer"
             actions={[
@@ -568,7 +613,7 @@ const ApproveEmployeeVacationV2: React.FC<ApproveEmployeeVacationV2Props> = ({
               }
             ]}
           />
-        ) : undefined
+        )
       }
       contentClassName="gba:space-y-6"
     >
@@ -626,12 +671,7 @@ const ApproveEmployeeVacationV2: React.FC<ApproveEmployeeVacationV2Props> = ({
                     Working Days:
                   </span>
                   <span className="gba:text-sm gba:flex-1">
-                    {employeeAbsence.workingDays !== undefined
-                      ? `${employeeAbsence.workingDays} ${employeeAbsence.workingDays === 1 ? 'day' : 'days'}`
-                      : ''}
-                    {employeeAbsence.workingDays !== undefined && employeeAbsence.workingHours !== undefined && ' '}
-                    {employeeAbsence.workingHours !== undefined &&
-                      `(${employeeAbsence.workingHours} ${employeeAbsence.workingHours === 1 ? 'hour' : 'hours'})`}
+                    {formatWorkingDaysAndHours(employeeAbsence.workingDays, employeeAbsence.workingHours)}
                   </span>
                 </div>
               )}

@@ -24,7 +24,7 @@ export const base64ToObjectURL = (base64Data: string): string | undefined => {
     const binaryString = atob(base64)
     const bytes = new Uint8Array(binaryString.length)
     for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i)
+      bytes[i] = binaryString.codePointAt(i) ?? 0
     }
 
     // Create blob and generate Object URL

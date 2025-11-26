@@ -159,12 +159,13 @@ export const useFlowStepData = ({
    * Find step by stepReference (e.g., "step_0", "step_1")
    */
   const findStepByReference = useCallback((steps: FlowStep[], stepReference: string): FlowStep | null => {
-    const stepIndexMatch = stepReference.match(/step_(\d+)/)
+    const stepIndexRegex = /step_(\d+)/
+    const stepIndexMatch = stepIndexRegex.exec(stepReference)
     if (!stepIndexMatch) {
       return null
     }
 
-    const stepIndex = parseInt(stepIndexMatch[1])
+    const stepIndex = Number.parseInt(stepIndexMatch[1], 10)
     const step = steps.find(s => s.stepIndex === stepIndex)
 
     if (step) {

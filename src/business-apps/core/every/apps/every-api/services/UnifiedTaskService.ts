@@ -79,7 +79,6 @@ export function parseFilters(filters?: Partial<TaskFilters>): ParsedTaskFilters 
 export function applyFilters(tasks: UnifiedTask[], filters: ParsedTaskFilters): UnifiedTask[] {
   let filtered = [...tasks]
 
-
   // Filter by source
   if (filters.source && filters.source !== 'all') {
     filtered = filtered.filter(task => task.source === filters.source)
@@ -201,9 +200,13 @@ export function applyFilters(tasks: UnifiedTask[], filters: ParsedTaskFilters): 
     }
 
     if (filters.sortOrder === 'asc') {
-      return aValue > bValue ? 1 : aValue < bValue ? -1 : 0
+      if (aValue > bValue) return 1
+      if (aValue < bValue) return -1
+      return 0
     } else {
-      return aValue < bValue ? 1 : aValue > bValue ? -1 : 0
+      if (aValue < bValue) return 1
+      if (aValue > bValue) return -1
+      return 0
     }
   })
 
@@ -463,7 +466,6 @@ export async function fetchCompletedUserTasks(
   // Wait for all fetches to complete
   await Promise.all(fetchPromises)
 
-
   // Add warnings if partial results
   if (errors.length > 0 && allTasks.length > 0) {
     warnings.push('Partial results: Some task sources failed to respond')
@@ -494,7 +496,8 @@ export async function fetchTaskById(taskId: string, userId: string, accessToken?
       const adapted = adaptCflowTasks([cflowTask])
       return adapted[0]
     }
-  } catch (error) {
+  } catch {
+    // Cflow lookup failed, try Kogito
   }
 
   // Try Kogito
@@ -504,7 +507,8 @@ export async function fetchTaskById(taskId: string, userId: string, accessToken?
       const adapted = adaptKogitoTasks([kogitoTask], userId)
       return adapted[0]
     }
-  } catch (error) {
+  } catch {
+    // Kogito lookup failed
   }
 
   return null
@@ -562,8 +566,10 @@ export async function fetchTaskStatistics(userId: string, accessToken?: string):
     // Aggregate priority counts
     if (cflowStats.byPriority && statistics.byPriority) {
       Object.entries(cflowStats.byPriority).forEach(([priority, count]) => {
-        const byPriority = statistics.byPriority as Record<string, number>
-        byPriority[priority] = (byPriority[priority] || 0) + (count as number)
+        const byPriority = statistics.byPriority
+        if (byPriority) {
+          byPriority[priority] = (byPriority[priority] || 0) + (count as number)
+        }
       })
     }
   } catch (error) {
@@ -579,7 +585,6 @@ export async function fetchTaskStatistics(userId: string, accessToken?: string):
     const kogitoStats = await fetchKogitoTaskStats(userId, accessToken)
     statistics.bySource.kogito = kogitoStats.total || 0
     statistics.total += kogitoStats.total || 0
-
 
     // Aggregate status counts from Kogito
     if (kogitoStats.byStatus) {
@@ -612,7 +617,6 @@ export async function fetchTaskStatistics(userId: string, accessToken?: string):
   if (errors.length > 0 && statistics.total > 0) {
     warnings.push('Partial statistics: Some sources failed to respond')
   }
-
 
   return {
     statistics,

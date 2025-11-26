@@ -74,9 +74,23 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
     taskTitle: task?.title || task?.name
   })
 
+  // Create a stable empty task for the hook when task is null
+  const emptyTask: UnifiedTask = React.useMemo(
+    () => ({
+      id: '',
+      name: '',
+      title: '',
+      status: 'PENDING' as const,
+      source: 'kogito' as const,
+      priority: 'MEDIUM' as const,
+      createdAt: new Date().toISOString()
+    }),
+    []
+  )
+
   // Use Kogito process hook for proper API calls with query parameters
   const { continueProcess } = useKogitoProcess({
-    task: task || ({} as UnifiedTask),
+    task: task ?? emptyTask,
     accessToken,
     onSuccess: () => {
       // Show success message
@@ -126,10 +140,10 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
       }
     }
 
-    window.addEventListener('com.newwork.process.continue', handleProcessContinue)
+    globalThis.addEventListener('com.newwork.process.continue', handleProcessContinue)
 
     return () => {
-      window.removeEventListener('com.newwork.process.continue', handleProcessContinue)
+      globalThis.removeEventListener('com.newwork.process.continue', handleProcessContinue)
     }
   }, [task?.id, task?.source, task?.sourceMetadata?.endpoint, continueProcess, onClose, onTaskUpdated, onTaskCompleted])
 
@@ -512,6 +526,85 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
     loadScreenMetadata()
   }, [task?.id, task?.source, generateScreenKey, fetchScreenByKey, extractProcessAndTaskNames])
 
+  // Helper function to render the appropriate task content based on metadata
+  const renderTaskContent = () => {
+    // Loading state
+    if (loadingScreen) {
+      return (
+        <div className="gba:flex gba:items-center gba:justify-center gba:h-full">
+          <div className="gba:text-muted-foreground">Loading task details...</div>
+        </div>
+      )
+    }
+
+    // Universal cFLOW view when no screen metadata
+    if (task.source === 'cflow' && !screenMetadata) {
+      return (
+        <UniversalCflowTaskDetails
+          task={task}
+          accessToken={accessToken}
+          userId={userId}
+          onClose={onClose}
+          onTaskCompleted={onTaskCompleted}
+          onTaskUpdated={onTaskUpdated}
+          flowStepData={currentStepData}
+          isLoadingFlowData={isLoadingFlowData}
+        />
+      )
+    }
+
+    // Native screen loader
+    if (screenMetadata?.builderType === 'NATIVE_SCREEN' && screenMetadata.componentPath) {
+      return (
+        <RemoteScreenLoader
+          componentPath={screenMetadata.componentPath}
+          version={screenMetadata.version}
+          accessToken={accessToken}
+          userInfo={userInfo}
+          additionalData={{
+            psi_taskPayload: taskInputs,
+            psi_processMetadata: task.sourceMetadata,
+            psi_taskStatus: task.status,
+            psi_availableActions: task.availableActions,
+            psi_flowStepData: currentStepData,
+            psi_flowOverview: flowOverview,
+            psi_currentStep: currentStep
+          }}
+          onClose={onClose}
+          onTaskCompleted={onTaskCompleted}
+          onTaskUpdated={onTaskUpdated}
+          isLoadingMetadata={false}
+        />
+      )
+    }
+
+    // Lowcoder screen loader
+    if (screenMetadata?.builderType === 'LOWCODER' && screenMetadata.appId) {
+      return (
+        <LowcoderScreenLoader
+          appId={screenMetadata.appId}
+          appName={screenMetadata.appName || 'Lowcoder Screen'}
+          accessToken={accessToken}
+          userInfo={userInfo}
+          additionalData={{
+            psi_taskPayload: taskInputs,
+            psi_processMetadata: task.sourceMetadata,
+            psi_taskStatus: task.status,
+            psi_availableActions: task.availableActions,
+            psi_flowStepData: currentStepData,
+            psi_flowOverview: flowOverview,
+            psi_currentStep: currentStep
+          }}
+          onClose={onClose}
+          onTaskCompleted={onTaskCompleted}
+          onTaskUpdated={onTaskUpdated}
+        />
+      )
+    }
+
+    return null
+  }
+
   return (
     <Card className="gba:h-full gba:flex gba:flex-col gba:shadow-lg nw:pt-6 nw:pb-0" data-testid="task-detail-dialog">
       {/* 
@@ -620,62 +713,7 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
             : 'gba:pt-4 gba:px-4 gba:overflow-y-auto'
         )}
       >
-        {/* Use universal cFLOW view if no screen metadata and task is cFLOW */}
-        {task.source === 'cflow' && !screenMetadata && !loadingScreen ? (
-          <UniversalCflowTaskDetails
-            task={task}
-            accessToken={accessToken}
-            userId={userId}
-            onClose={onClose}
-            onTaskCompleted={onTaskCompleted}
-            onTaskUpdated={onTaskUpdated}
-            flowStepData={currentStepData}
-            isLoadingFlowData={isLoadingFlowData}
-          />
-        ) : screenMetadata && screenMetadata.builderType === 'NATIVE_SCREEN' && screenMetadata.componentPath ? (
-          <RemoteScreenLoader
-            componentPath={screenMetadata.componentPath}
-            version={screenMetadata.version}
-            accessToken={accessToken}
-            userInfo={userInfo}
-            additionalData={{
-              psi_taskPayload: taskInputs,
-              psi_processMetadata: task.sourceMetadata,
-              psi_taskStatus: task.status,
-              psi_availableActions: task.availableActions,
-              psi_flowStepData: currentStepData, // Flow step data from /flows/{flowId}/steps/{stepNo}/data
-              psi_flowOverview: flowOverview, // Flow overview with steps
-              psi_currentStep: currentStep // Current step info
-            }}
-            onClose={onClose}
-            onTaskCompleted={onTaskCompleted}
-            onTaskUpdated={onTaskUpdated}
-            isLoadingMetadata={false}
-          />
-        ) : screenMetadata && screenMetadata.builderType === 'LOWCODER' && screenMetadata.appId ? (
-          <LowcoderScreenLoader
-            appId={screenMetadata.appId}
-            appName={screenMetadata.appName || 'Lowcoder Screen'}
-            accessToken={accessToken}
-            userInfo={userInfo}
-            additionalData={{
-              psi_taskPayload: taskInputs,
-              psi_processMetadata: task.sourceMetadata,
-              psi_taskStatus: task.status,
-              psi_availableActions: task.availableActions,
-              psi_flowStepData: currentStepData, // Flow step data from /flows/{flowId}/steps/{stepNo}/data
-              psi_flowOverview: flowOverview, // Flow overview with steps
-              psi_currentStep: currentStep // Current step info
-            }}
-            onClose={onClose}
-            onTaskCompleted={onTaskCompleted}
-            onTaskUpdated={onTaskUpdated}
-          />
-        ) : loadingScreen ? (
-          <div className="gba:flex gba:items-center gba:justify-center gba:h-full">
-            <div className="gba:text-muted-foreground">Loading task details...</div>
-          </div>
-        ) : null}
+        {renderTaskContent()}
       </CardContent>
 
       {/* Action buttons - Fixed at bottom (hidden when native screen is loaded or universal cFLOW view is shown) */}

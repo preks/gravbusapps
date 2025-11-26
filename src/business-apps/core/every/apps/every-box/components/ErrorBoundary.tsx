@@ -32,7 +32,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     }
   }
 
-  componentDidCatch(): void {}
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
+    // Log error to console for debugging purposes
+    console.error('[ErrorBoundary] Caught error:', error, errorInfo)
+  }
 
   handleReset = (): void => {
     this.setState({

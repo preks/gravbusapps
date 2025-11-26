@@ -47,7 +47,7 @@ export async function handleGetUserTasks(request: Request, userId: string, acces
     }
 
     if (params.priority) {
-      filters.priority = parseInt(params.priority, 10)
+      filters.priority = Number.parseInt(params.priority, 10)
     }
 
     if (params.taskCategory) {
@@ -59,11 +59,11 @@ export async function handleGetUserTasks(request: Request, userId: string, acces
     }
 
     if (params.limit) {
-      filters.limit = parseInt(params.limit, 10)
+      filters.limit = Number.parseInt(params.limit, 10)
     }
 
     if (params.offset) {
-      filters.offset = parseInt(params.offset, 10)
+      filters.offset = Number.parseInt(params.offset, 10)
     }
 
     if (params.sortBy) {
@@ -207,7 +207,7 @@ export async function handleTaskRequest(request: Request, accessToken?: string):
   }
 
   // Route: GET /tasks/user/:userId/stats
-  if (pathname.match(/\/tasks\/user\/[^\/]+\/stats$/)) {
+  if (/\/tasks\/user\/[^\/]+\/stats$/.exec(pathname)) {
     const userId = extractUserId(pathname)
     if (!userId) {
       return createErrorResponse('Invalid user ID', 400)
@@ -216,7 +216,7 @@ export async function handleTaskRequest(request: Request, accessToken?: string):
   }
 
   // Route: GET /tasks/user/:userId
-  if (pathname.match(/\/tasks\/user\/[^\/]+$/)) {
+  if (/\/tasks\/user\/[^\/]+$/.exec(pathname)) {
     const userId = extractUserId(pathname)
     if (!userId) {
       return createErrorResponse('Invalid user ID', 400)
@@ -225,7 +225,7 @@ export async function handleTaskRequest(request: Request, accessToken?: string):
   }
 
   // Route: GET /tasks/:taskId
-  if (pathname.match(/\/tasks\/[^\/]+$/)) {
+  if (/\/tasks\/[^\/]+$/.exec(pathname)) {
     const taskId = extractTaskId(pathname)
     if (!taskId) {
       return createErrorResponse('Invalid task ID', 400)

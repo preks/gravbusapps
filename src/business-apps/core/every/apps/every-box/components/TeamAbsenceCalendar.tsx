@@ -65,20 +65,20 @@ const useIsMobile = (breakpoint: number = 768) => {
   const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
-    // Check if window is available (SSR safety)
-    if (typeof window === 'undefined') return
+    // Check if globalThis/window is available (SSR safety)
+    if (typeof globalThis === 'undefined' || typeof globalThis.window === 'undefined') return
 
     const checkIsMobile = () => {
-      setIsMobile(window.innerWidth < breakpoint)
+      setIsMobile(globalThis.innerWidth < breakpoint)
     }
 
     // Initial check
     checkIsMobile()
 
     // Add resize listener
-    window.addEventListener('resize', checkIsMobile)
+    globalThis.addEventListener('resize', checkIsMobile)
 
-    return () => window.removeEventListener('resize', checkIsMobile)
+    return () => globalThis.removeEventListener('resize', checkIsMobile)
   }, [breakpoint])
 
   return isMobile
@@ -243,8 +243,8 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
       }
 
       // Mark all days in the absence range (only within the week range)
-      const currentDate = new Date(absStart < weekRange.weekStart ? weekRange.weekStart : absStart)
-      const rangeEnd = absEnd > weekRange.weekEnd ? weekRange.weekEnd : absEnd
+      const currentDate = new Date(Math.max(absStart.getTime(), weekRange.weekStart.getTime()))
+      const rangeEnd = new Date(Math.min(absEnd.getTime(), weekRange.weekEnd.getTime()))
 
       while (currentDate <= rangeEnd) {
         const dateStr = currentDate.toISOString().split('T')[0]
@@ -354,15 +354,16 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
             {position && <div className="gba:text-xs gba:text-muted-foreground gba:truncate">{position}</div>}
             {/* Summary line */}
             <div className="gba:flex gba:flex-wrap gba:gap-1 gba:mt-2">
-              {groupedAbsences.slice(0, isExpanded ? undefined : 2).map((group, idx) => {
+              {groupedAbsences.slice(0, isExpanded ? undefined : 2).map(group => {
                 const firstDay = group.days[0]
                 const lastDay = group.days[group.days.length - 1]
                 const dayDate = new Date(firstDay.dateString + 'T12:00:00')
                 const isCurrentAbsenceDay = isCurrentAbsence && dayDate >= absStart && dayDate <= absEnd
+                const groupKey = `${group.type}-${firstDay.dateString}-${lastDay.dateString}`
 
                 return (
                   <span
-                    key={idx}
+                    key={groupKey}
                     className={`${group.color} gba:text-white gba:text-[10px] gba:px-2 gba:py-0.5 gba:rounded gba:font-medium ${
                       isCurrentAbsenceDay ? 'gba:ring-1 gba:ring-primary gba:ring-offset-1' : ''
                     }`}

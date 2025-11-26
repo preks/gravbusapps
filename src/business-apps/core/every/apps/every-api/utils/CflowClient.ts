@@ -82,7 +82,6 @@ export async function fetchCflowUserTasks(
   const params = new URLSearchParams(cleanParams)
   const url = `${endpoint}/api/tasks/user/${userId}${params.toString() ? '?' + params.toString() : ''}`
 
-
   const headers: HeadersInit = {
     'Content-Type': 'application/json'
   }
@@ -97,7 +96,6 @@ export async function fetchCflowUserTasks(
       headers,
       signal: AbortSignal.timeout(30000) // 30 second timeout
     })
-
 
     if (!response.ok) {
       const errorText = await response.text()
@@ -142,7 +140,6 @@ export async function fetchCflowCompletedTasks(
   const params = new URLSearchParams(cleanParams)
   const url = `${endpoint}/api/tasks/user/${userId}/completed${params.toString() ? '?' + params.toString() : ''}`
 
-
   const headers: HeadersInit = {
     'Content-Type': 'application/json'
   }
@@ -157,7 +154,6 @@ export async function fetchCflowCompletedTasks(
       headers,
       signal: AbortSignal.timeout(30000) // 30 second timeout
     })
-
 
     if (!response.ok) {
       const errorText = await response.text()
@@ -209,7 +205,8 @@ export async function fetchCflowTask(taskId: string, userId: string, accessToken
     const data = await response.json()
     return data.task || data
   } catch (error) {
-    throw error
+    const errorMsg = error instanceof Error ? error.message : String(error)
+    throw new Error(`Custom Flow Engine task fetch error: ${errorMsg}`)
   }
 }
 
@@ -266,6 +263,7 @@ export async function fetchCflowTaskStats(
 
     return statistics
   } catch (error) {
-    throw error
+    const errorMsg = error instanceof Error ? error.message : String(error)
+    throw new Error(`Custom Flow Engine stats fetch error: ${errorMsg}`)
   }
 }

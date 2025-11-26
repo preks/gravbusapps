@@ -47,12 +47,13 @@ export async function everyApiHandler(request: Request, accessToken?: string): P
     // Validate configuration on first request
     const configValidation = validateConfig()
     if (!configValidation.valid) {
+      // Configuration validation errors are non-fatal - service can still operate with defaults
+      // Errors are logged elsewhere if needed
     }
 
     // Handle the request
     return await handleTaskRequest(request, accessToken)
   } catch (error) {
-
     return new Response(
       JSON.stringify({
         status: 'error',

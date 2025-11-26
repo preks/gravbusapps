@@ -9,8 +9,6 @@ import Pill from '@/components/pill'
 
 interface EnhancedTripSectionProps {
   expenseRequestTrip: ExpenseRequestTrip[]
-  startDate?: string
-  endDate?: string
   prefixDataTestId?: string
 }
 
@@ -159,7 +157,10 @@ const EnhancedTripSection: React.FC<EnhancedTripSectionProps> = ({
           </TableHeader>
           <TableBody>
             {sortedTrips.map((trip, index) => (
-              <TableRow key={index} data-testid={`${prefixDataTestId}-trip-table-row-${index}`}>
+              <TableRow
+                key={trip.id || `trip-${trip.tripOrder ?? index}`}
+                data-testid={`${prefixDataTestId}-trip-table-row-${index}`}
+              >
                 <TableCell className="gba:text-center">{trip.tripOrder ?? index + 1}</TableCell>
                 <TableCell>{formatDateTime(trip.tripDateTime)}</TableCell>
                 <TableCell>
@@ -215,7 +216,7 @@ const EnhancedTripSection: React.FC<EnhancedTripSectionProps> = ({
 
           return (
             <div
-              key={index}
+              key={trip.id || `trip-${trip.tripOrder ?? index}`}
               className={`gba:relative gba:pl-8 gba:pb-4 ${
                 index < sortedTrips.length - 1 ? 'gba:border-l-2 gba:border-border' : ''
               }`}

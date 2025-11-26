@@ -4,21 +4,53 @@
  */
 
 import React from 'react'
-import { Inbox, Send, CheckCircle } from 'lucide-react'
+import { Inbox, Send, CheckCircle, LucideIcon } from 'lucide-react'
 
 interface EmptyStateProps {
   type: 'inbox' | 'outbox' | 'completed'
   message?: string
 }
 
+// Helper function to get the icon based on type
+const getEmptyStateIcon = (type: 'inbox' | 'outbox' | 'completed'): LucideIcon => {
+  switch (type) {
+    case 'inbox':
+      return Inbox
+    case 'outbox':
+      return Send
+    case 'completed':
+      return CheckCircle
+  }
+}
+
+// Helper function to get the default message based on type
+const getDefaultMessage = (type: 'inbox' | 'outbox' | 'completed'): string => {
+  switch (type) {
+    case 'inbox':
+      return 'No tasks assigned to you at the moment'
+    case 'outbox':
+      return 'You have not initiated any workflows yet'
+    case 'completed':
+      return 'No completed tasks yet'
+  }
+}
+
+// Helper function to get the title based on type
+const getEmptyStateTitle = (type: 'inbox' | 'outbox' | 'completed'): string => {
+  switch (type) {
+    case 'inbox':
+      return 'Inbox Empty'
+    case 'outbox':
+      return 'No Workflows Started'
+    case 'completed':
+      return 'No Completed Tasks'
+  }
+}
+
 export const EmptyState: React.FC<EmptyStateProps> = ({ type, message }) => {
-  const Icon = type === 'inbox' ? Inbox : type === 'outbox' ? Send : CheckCircle
-  const defaultMessage =
-    type === 'inbox'
-      ? 'No tasks assigned to you at the moment'
-      : type === 'outbox'
-        ? 'You have not initiated any workflows yet'
-        : 'No completed tasks yet'
+  const Icon = getEmptyStateIcon(type)
+  const defaultMessage = getDefaultMessage(type)
+  const title = getEmptyStateTitle(type)
 
   return (
     <div
@@ -28,9 +60,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ type, message }) => {
       <div className="gba:mb-4 gba:rounded-full gba:bg-muted gba:p-6">
         <Icon className="gba:h-12 gba:w-12 gba:text-muted-foreground" />
       </div>
-      <h3 className="gba:text-lg gba:font-semibold gba:mb-2">
-        {type === 'inbox' ? 'Inbox Empty' : type === 'outbox' ? 'No Workflows Started' : 'No Completed Tasks'}
-      </h3>
+      <h3 className="gba:text-lg gba:font-semibold gba:mb-2">{title}</h3>
       <p className="gba:text-sm gba:text-muted-foreground gba:max-w-md">{message || defaultMessage}</p>
     </div>
   )

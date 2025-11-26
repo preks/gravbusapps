@@ -85,6 +85,45 @@ const GET_BANK_REVIEW_AUX = `
   }
 `
 
+// Helper: Collect catalog IDs from bank account data
+const collectBankCatalogIds = (newAccount: BankAccountData, oldAccount: BankAccountData): string[] => {
+  return Array.from(
+    new Set(
+      [
+        newAccount?.countryRef,
+        oldAccount?.countryRef,
+        newAccount?.currencyRef,
+        oldAccount?.currencyRef,
+        newAccount?.routingNumberType,
+        oldAccount?.routingNumberType
+      ]
+        .filter(Boolean)
+        .map(String)
+    )
+  )
+}
+
+// Helper: Build catalog map from entries
+const buildCatalogMap = (entries: CatalogEntry[] | undefined): Record<string, CatalogEntry> => {
+  const catalog: Record<string, CatalogEntry> = {}
+  for (const entry of entries || []) {
+    catalog[String(entry.id)] = entry
+  }
+  return catalog
+}
+
+// Helper: Build address type map from query result
+const buildAddressTypeMap = (oldAddress: unknown, newAddress: unknown): Record<string, string> => {
+  const addressTypes: Record<string, string> = {}
+  const oldEntry = Array.isArray(oldAddress) ? oldAddress[0] : oldAddress
+  const newEntry = Array.isArray(newAddress) ? newAddress[0] : newAddress
+
+  if (oldEntry?.id) addressTypes[oldEntry.id] = String(oldEntry.type || '')
+  if (newEntry?.id) addressTypes[newEntry.id] = String(newEntry.type || '')
+
+  return addressTypes
+}
+
 export const useBankAccountReviewData = ({
   accessToken,
   employeeId,
@@ -99,83 +138,58 @@ export const useBankAccountReviewData = ({
 
   const graphqlClient = useGraphQLClient(accessToken)
 
+  const fetchEmployeeData = useCallback(async () => {
+    if (!employeeId) return
+    try {
+      const result = await graphqlClient.request<{ employee: EmployeeData }>(GET_EMPLOYEE_NAME, { employeeId })
+      setEmployeeData(result.employee)
+    } catch (err) {
+      console.error('Error fetching employee:', err)
+    }
+  }, [employeeId, graphqlClient])
+
+  const fetchAuxData = useCallback(async () => {
+    const catalogIds = collectBankCatalogIds(newBankAccount, oldBankAccount)
+    const oldAddressId = String(oldBankAccount?.employeeAddress || '').trim() || null
+    const newAddressId = String(newBankAccount?.employeeAddress || '').trim() || null
+
+    if (catalogIds.length === 0 && !oldAddressId && !newAddressId) return
+
+    try {
+      const result = await graphqlClient.request<{
+        entries: CatalogEntry[]
+        oldAddress: unknown
+        newAddress: unknown
+      }>(GET_BANK_REVIEW_AUX, {
+        ids: catalogIds,
+        activeUserLocale: getCurrentActiveUserLocale(),
+        oldAddressId,
+        newAddressId
+      })
+
+      setCatalogMap(buildCatalogMap(result?.entries))
+
+      const addressTypes = buildAddressTypeMap(result?.oldAddress, result?.newAddress)
+      if (Object.keys(addressTypes).length > 0) {
+        setAddressTypeMap(addressTypes)
+      }
+    } catch (err) {
+      console.error('Error fetching catalog/address data:', err)
+    }
+  }, [graphqlClient, newBankAccount, oldBankAccount])
+
   const fetchData = useCallback(async () => {
     setLoading(true)
     setError(null)
-
     try {
-      // Fetch employee data
-      if (employeeId) {
-        try {
-          const employeeResult = await graphqlClient.request<{ employee: EmployeeData }>(GET_EMPLOYEE_NAME, {
-            employeeId
-          })
-          setEmployeeData(employeeResult.employee)
-        } catch (err) {
-          console.error('Error fetching employee:', err)
-          // Don't fail completely if employee fetch fails
-        }
-      }
-
-      // Collect catalog IDs to fetch
-      const catalogIds = Array.from(
-        new Set(
-          [
-            newBankAccount?.countryRef,
-            oldBankAccount?.countryRef,
-            newBankAccount?.currencyRef,
-            oldBankAccount?.currencyRef,
-            newBankAccount?.routingNumberType,
-            oldBankAccount?.routingNumberType
-          ]
-            .filter(Boolean)
-            .map(String)
-        )
-      )
-
-      const oldAddressId = String(oldBankAccount?.employeeAddress || '').trim()
-      const newAddressId = String(newBankAccount?.employeeAddress || '').trim()
-
-      // Fetch catalog and address data if needed
-      if (catalogIds.length || oldAddressId || newAddressId) {
-        try {
-          const result = await graphqlClient.request<any>(GET_BANK_REVIEW_AUX, {
-            ids: catalogIds,
-            activeUserLocale: getCurrentActiveUserLocale(),
-            oldAddressId: oldAddressId || null,
-            newAddressId: newAddressId || null
-          })
-
-          // Build catalog map
-          const catalog: Record<string, CatalogEntry> = {}
-          for (const entry of result?.entries || []) {
-            catalog[String(entry.id)] = entry
-          }
-          setCatalogMap(catalog)
-
-          // Build address type map
-          const addressTypes: Record<string, string> = {}
-          const oldEntry = Array.isArray(result?.oldAddress) ? result.oldAddress[0] : result?.oldAddress
-          const newEntry = Array.isArray(result?.newAddress) ? result.newAddress[0] : result?.newAddress
-
-          if (oldEntry?.id) addressTypes[oldEntry.id] = String(oldEntry.type || '')
-          if (newEntry?.id) addressTypes[newEntry.id] = String(newEntry.type || '')
-
-          if (Object.keys(addressTypes).length) {
-            setAddressTypeMap(addressTypes)
-          }
-        } catch (err) {
-          console.error('Error fetching catalog/address data:', err)
-          // Don't fail completely if catalog fetch fails
-        }
-      }
+      await Promise.all([fetchEmployeeData(), fetchAuxData()])
     } catch (err) {
       console.error('Error in useBankAccountReviewData:', err)
       setError(err instanceof Error ? err.message : 'Failed to load bank account review data')
     } finally {
       setLoading(false)
     }
-  }, [accessToken, employeeId, graphqlClient, newBankAccount, oldBankAccount])
+  }, [fetchEmployeeData, fetchAuxData])
 
   useEffect(() => {
     if (accessToken) {

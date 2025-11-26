@@ -3,16 +3,16 @@
  * This utility creates the necessary global proxy systems for remote component loading
  */
 export function injectImportProxy(): void {
-  if (typeof window === 'undefined') return
+  if (typeof globalThis === 'undefined') return
 
   // Check if the proxy has already been injected
-  if ((window as any).__REACT_IMPORT_PROXY_INJECTED) {
+  if ((globalThis as any).__REACT_IMPORT_PROXY_INJECTED) {
     console.log('Import proxy already injected, skipping')
     return
   }
 
   // Mark as injected to prevent multiple injections
-  ;(window as any).__REACT_IMPORT_PROXY_INJECTED = true
+  ;(globalThis as any).__REACT_IMPORT_PROXY_INJECTED = true
 
   // Create a script element to add our proxy code
   const proxyScript = document.createElement('script')

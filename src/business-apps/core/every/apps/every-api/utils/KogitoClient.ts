@@ -45,7 +45,6 @@ export async function fetchKogitoUserTasks(
     return []
   }
 
-
   try {
     const client = new FlowMetricsClient(accessToken)
 
@@ -66,7 +65,6 @@ export async function fetchKogitoUserTasks(
       filterProcessName: params?.processName,
       ...(isCompletedRequest && { filterState: ['Closed'] }) // Only for completed tasks
     })
-
 
     // Handle both response formats (processingStates or content)
     const tasks = response.processingStates || response.content || []
@@ -91,7 +89,8 @@ export async function fetchKogitoTask(taskId: string, accessToken?: string): Pro
     const task = await client.getFlowExecutionTask(taskId)
 
     return task
-  } catch (error) {
+  } catch {
+    // Task not found or API error - return null to try other sources
     return null
   }
 }
@@ -120,12 +119,12 @@ export async function fetchKogitoTaskStats(
       byStatus[taskState] = (byStatus[taskState] || 0) + 1
     })
 
-
     return {
       total: tasks.length,
       byStatus
     }
-  } catch (error) {
+  } catch {
+    // Return empty stats on error - stats are optional and non-critical
     return {
       total: 0,
       byStatus: {}

@@ -92,6 +92,15 @@ function mapCflowStatus(status: string): TaskStatus {
 }
 
 /**
+ * Get priority value from various input types
+ */
+function getPriorityValue(priority: number | string | undefined): number | undefined {
+  if (typeof priority === 'number') return priority
+  if (typeof priority === 'string') return Number.parseInt(priority, 10)
+  return undefined
+}
+
+/**
  * Map Kogito state to unified status
  */
 function mapKogitoState(state: string): TaskStatus {
@@ -139,9 +148,7 @@ export function adaptCflowTask(cflowTask: CflowTask): UnifiedTask {
   const creatorUserId = flowInitiatedBy // This is userId - need to fetch employee by userId
   const creatorName = (cflowTask as any).flowInitiatedByName
 
-  // Debug: Log completedAt field
-  if (cflowTask.status === 'COMPLETED') {
-  }
+  // Task completion handling is done in the unified task mapping below
 
   const unifiedTask: UnifiedTask = {
     id: cflowTask.id,
@@ -238,12 +245,7 @@ export function adaptKogitoTask(kogitoTask: KogitoTask, userId?: string): Unifie
     name: kogitoTask.name,
     title: kogitoTask.name,
     status: mapKogitoState(taskState),
-    priority:
-      typeof kogitoTask.priority === 'number'
-        ? kogitoTask.priority
-        : typeof kogitoTask.priority === 'string'
-          ? parseInt(kogitoTask.priority, 10)
-          : undefined,
+    priority: getPriorityValue(kogitoTask.priority),
     createdAt: createdDate, // Use createdAt or started for proper sorting
     scheduledAt: kogitoTask.started || kogitoTask.createdAt,
     completedAt: kogitoTask.completed,

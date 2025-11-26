@@ -104,7 +104,7 @@ export const useKogitoProcess = ({ task, accessToken, onSuccess, onError }: UseK
           const error = new Error('Cannot complete task: missing process instance ID and no original endpoint')
           message.error(error.message)
           onError?.(error)
-          return Promise.reject(error)
+          throw error
         }
 
         // Extract taskName from task
@@ -113,32 +113,29 @@ export const useKogitoProcess = ({ task, accessToken, onSuccess, onError }: UseK
         completionEndpoint = `${kogitoBaseUrl}/processes/${domain}/${processName}/${processInstanceId}/${taskName}/${task.id}`
       }
 
-      try {
-        const response = await fetch(`${completionEndpoint}?phase=complete${userId ? `&user=${userId}` : ''}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${accessToken}`
-          },
-          body: JSON.stringify(payload)
-        })
+      const userParam = userId ? `&user=${userId}` : ''
+      const response = await fetch(`${completionEndpoint}?phase=complete${userParam}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify(payload)
+      })
 
-        if (!response.ok) {
-          const errorText = await response.text()
-          throw new Error(`HTTP ${response.status}: ${errorText}`)
-        }
-
-        const result = await response.json()
-
-        // Call success callback
-        onSuccess?.()
-        return Promise.resolve(result)
-      } catch (error) {
-        const err = error instanceof Error ? error : new Error('Unknown error')
+      if (!response.ok) {
+        const errorText = await response.text()
+        const err = new Error(`HTTP ${response.status}: ${errorText}`)
         message.error(`Failed to complete task: ${err.message}`)
         onError?.(err)
-        return Promise.reject(err)
+        throw err
       }
+
+      const result = await response.json()
+
+      // Call success callback
+      onSuccess?.()
+      return result
     },
     [processInstanceId, task, accessToken, onSuccess, onError]
   )

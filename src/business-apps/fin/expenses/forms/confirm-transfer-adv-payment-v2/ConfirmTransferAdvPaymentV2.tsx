@@ -30,6 +30,21 @@ import SupervisorInfoSection from './components/SupervisorInfoSection'
 import TransactionSection from './components/TransactionSection'
 import TransactionConfirmationDetailsSection from './components/TransactionConfirmationDetailsSection'
 
+/**
+ * Extended interface for additionalData with form-specific properties
+ */
+interface ExtendedAdditionalData {
+  [k: string]: unknown
+  psi_taskCompletedAt?: string
+  psi_taskPayload?: {
+    [k: string]: unknown
+  }
+  psi_processMetadata?: {
+    [k: string]: unknown
+  }
+  psi_taskStatus?: string
+}
+
 interface ConfirmTransferAdvPaymentV2Props extends BusinessAppContextProps {
   onClose?: () => void
 }
@@ -40,6 +55,9 @@ const ConfirmTransferAdvPaymentV2Content: React.FC<ConfirmTransferAdvPaymentV2Pr
   userInfo,
   onClose
 }) => {
+  // Cast additionalData to extended interface for proper typing
+  const extendedAdditionalData = additionalData as ExtendedAdditionalData | undefined
+
   const [paymentData, setPaymentData] = useState<AdvancePaymentData | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -54,11 +72,11 @@ const ConfirmTransferAdvPaymentV2Content: React.FC<ConfirmTransferAdvPaymentV2Pr
   // Extract task metadata
   const processMetadata = additionalData?.psi_processMetadata || {}
   const taskStatus = additionalData?.psi_taskStatus || processMetadata?.status || 'IN_PROGRESS'
-  const taskCompletedAt = processMetadata?.completedAt || (additionalData as any)?.psi_taskCompletedAt
+  const taskCompletedAt = processMetadata?.completedAt || extendedAdditionalData?.psi_taskCompletedAt
   const isTaskCompleted = taskStatus === 'COMPLETED' || !!taskCompletedAt
   const taskTitle =
     processMetadata?.referenceTaskName || processMetadata?.nodeName || 'Confirm Advance Payment Transfer'
-  const taskSource: 'kogito' | 'cflow' = processMetadata?.source || (processMetadata?.endpoint ? 'kogito' : 'kogito')
+  const taskSource: 'kogito' | 'cflow' = processMetadata?.source || 'kogito'
 
   const formatDateToISO = (dateString: string): string => {
     if (!dateString) {
@@ -334,7 +352,7 @@ const ConfirmTransferAdvPaymentV2Content: React.FC<ConfirmTransferAdvPaymentV2Pr
         />
       }
       footer={
-        !isTaskCompleted ? (
+        isTaskCompleted ? undefined : (
           <TaskDetailFooter
             data-testid="confirm-transfer-adv-payment-v2-actions"
             actions={[
@@ -350,7 +368,7 @@ const ConfirmTransferAdvPaymentV2Content: React.FC<ConfirmTransferAdvPaymentV2Pr
               }
             ]}
           />
-        ) : undefined
+        )
       }
       contentClassName="gba:space-y-4"
     >

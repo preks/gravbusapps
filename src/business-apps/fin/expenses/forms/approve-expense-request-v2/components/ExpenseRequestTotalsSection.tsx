@@ -3,7 +3,6 @@ import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/commo
 
 interface ExpenseRequestTotalsSectionProps {
   totalAmount: number
-  reimbursableAmount: number
   nonReimbursableAmount: number
   advancePaymentAmount: number
   currencyCode: string
@@ -33,7 +32,7 @@ const ExpenseRequestTotalsSection: React.FC<ExpenseRequestTotalsSectionProps> = 
     if (difference === 0) {
       return {
         description:
-          window?.lowcoder?.translate?.(
+          (globalThis as any)?.lowcoder?.translate?.(
             'lowcoder:approve_expense_request.comparison_with_plan_equal',
             'Equals planned amount'
           ) || 'Equals planned amount',
@@ -41,12 +40,12 @@ const ExpenseRequestTotalsSection: React.FC<ExpenseRequestTotalsSectionProps> = 
       }
     } else if (difference < 0) {
       return {
-        description: `${absDifference} ${currencyCode} ${window?.lowcoder?.translate?.('lowcoder:approve_expense_request.comparison_with_plan_less', 'Less than planned') || 'Less than planned'}`,
+        description: `${absDifference} ${currencyCode} ${(globalThis as any)?.lowcoder?.translate?.('lowcoder:approve_expense_request.comparison_with_plan_less', 'Less than planned') || 'Less than planned'}`,
         color: '#0ab874'
       }
     } else if (difference > 0) {
       return {
-        description: `${absDifference} ${currencyCode} ${window?.lowcoder?.translate?.('lowcoder:approve_expense_request.comparison_with_plan_more', 'More than planned') || 'More than planned'}`,
+        description: `${absDifference} ${currencyCode} ${(globalThis as any)?.lowcoder?.translate?.('lowcoder:approve_expense_request.comparison_with_plan_more', 'More than planned') || 'More than planned'}`,
         color: '#ffc61a'
       }
     }

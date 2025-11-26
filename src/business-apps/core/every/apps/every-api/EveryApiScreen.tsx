@@ -18,7 +18,7 @@ export const EveryApiScreen: React.FC<EveryApiScreenProps> = ({ userInfo, access
     const handleApiRequest = async () => {
       try {
         // Parse the current URL to determine what API call to make
-        const url = new URL(window.location.href)
+        const url = new URL(globalThis.location.href)
         const pathname = url.pathname
         const searchParams = url.searchParams
 
@@ -44,9 +44,9 @@ export const EveryApiScreen: React.FC<EveryApiScreenProps> = ({ userInfo, access
             source: (searchParams.get('source') as any) || 'all',
             status: searchParams.get('status') as any,
             search: searchParams.get('search') || undefined,
-            priority: searchParams.get('priority') ? parseInt(searchParams.get('priority')!) : undefined,
-            limit: searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 20,
-            offset: searchParams.get('offset') ? parseInt(searchParams.get('offset')!) : 0,
+            priority: searchParams.get('priority') ? Number.parseInt(searchParams.get('priority')!, 10) : undefined,
+            limit: searchParams.get('limit') ? Number.parseInt(searchParams.get('limit')!, 10) : 20,
+            offset: searchParams.get('offset') ? Number.parseInt(searchParams.get('offset')!, 10) : 0,
             sortBy: searchParams.get('sortBy') as any,
             sortOrder: searchParams.get('sortOrder') as any,
             claimableOnly: searchParams.get('claimableOnly') === 'true',
@@ -76,15 +76,15 @@ export const EveryApiScreen: React.FC<EveryApiScreenProps> = ({ userInfo, access
 
           const task = await fetchTaskById(taskId, userId, accessToken)
 
-          if (!task) {
-            jsonData = {
-              status: 'error',
-              message: 'Task not found'
-            }
-          } else {
+          if (task) {
             jsonData = {
               status: 'success',
               task
+            }
+          } else {
+            jsonData = {
+              status: 'error',
+              message: 'Task not found'
             }
           }
         } else {
@@ -110,12 +110,9 @@ export const EveryApiScreen: React.FC<EveryApiScreenProps> = ({ userInfo, access
           }
         }
 
-        // Replace the entire document with JSON
-        document.open()
-        document.write(
+        // Replace the entire document with JSON using innerHTML instead of deprecated document.write
+        document.body.innerHTML =
           '<pre style="font-family: monospace; padding: 20px;">' + JSON.stringify(jsonData, null, 2) + '</pre>'
-        )
-        document.close()
       } catch (error) {
         const errorData = {
           status: 'error',
@@ -123,9 +120,7 @@ export const EveryApiScreen: React.FC<EveryApiScreenProps> = ({ userInfo, access
           details: String(error)
         }
 
-        document.open()
-        document.write('<pre>' + JSON.stringify(errorData, null, 2) + '</pre>')
-        document.close()
+        document.body.innerHTML = '<pre>' + JSON.stringify(errorData, null, 2) + '</pre>'
       }
     }
 

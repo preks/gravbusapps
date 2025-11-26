@@ -91,7 +91,7 @@ export const useInboxTasks = (context: BusinessAppContextProps): UseInboxTasksRe
       const allTasks = batches.flatMap(b => b.tasks)
 
       // Sort globally by timestamp (newest first)
-      const sortedTasks = allTasks.sort((a, b) => {
+      const sortedTasks = [...allTasks].sort((a, b) => {
         const aTime = new Date(a.createdAt || a.scheduledAt || 0).getTime()
         const bTime = new Date(b.createdAt || b.scheduledAt || 0).getTime()
         return bTime - aTime
@@ -188,7 +188,7 @@ export const useInboxTasks = (context: BusinessAppContextProps): UseInboxTasksRe
       const batch = await fetchBatch(nextOffset)
 
       const newAllTasks = [...allFetchedTasks, ...batch.tasks]
-      const sortedTasks = newAllTasks.sort((a, b) => {
+      const sortedTasks = [...newAllTasks].sort((a, b) => {
         const aTime = new Date(a.createdAt || a.scheduledAt || 0).getTime()
         const bTime = new Date(b.createdAt || b.scheduledAt || 0).getTime()
         return bTime - aTime

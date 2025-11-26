@@ -22,6 +22,35 @@ import {
 } from './components'
 import { AllowancesSection } from '../../reusable-components/approval'
 
+/**
+ * Extended interface for additionalData with form-specific properties
+ */
+interface ExtendedAdditionalData {
+  [k: string]: unknown
+  formData?: {
+    approval?: string
+    approvalNote?: string
+  }
+  psi_taskCompletedAt?: string
+  psi_taskPayload?: {
+    [k: string]: unknown
+  }
+  psi_processMetadata?: {
+    [k: string]: unknown
+  }
+  psi_taskStatus?: string
+}
+
+/**
+ * Extended interface for expense request with optional employeeId
+ */
+interface ExtendedExpenseRequest {
+  id?: string
+  employee?: { id?: string }
+  employeeId?: string
+  [k: string]: unknown
+}
+
 interface ApproveExpenseRequestV2Props extends BusinessAppContextProps {
   onClose?: () => void // Optional callback to close the modal
 }
@@ -32,6 +61,9 @@ const ApproveExpenseRequestV2Content: React.FC<ApproveExpenseRequestV2Props> = (
   userInfo,
   onClose
 }) => {
+  // Cast additionalData to extended interface for proper typing
+  const extendedAdditionalData = additionalData as ExtendedAdditionalData | undefined
+
   // Extract task metadata first
   const taskPayload = additionalData?.psi_taskPayload || {}
 
@@ -42,7 +74,7 @@ const ApproveExpenseRequestV2Content: React.FC<ApproveExpenseRequestV2Props> = (
   const expenseId =
     additionalData?.expenseId ||
     payloadExpenseRequest?.id ||
-    new URLSearchParams(window.location.search).get('expenseId')
+    new URLSearchParams(globalThis.location.search).get('expenseId')
 
   const [isApproving, setIsApproving] = useState(false)
   const [isRejecting, setIsRejecting] = useState(false)
@@ -55,7 +87,7 @@ const ApproveExpenseRequestV2Content: React.FC<ApproveExpenseRequestV2Props> = (
   })
   const processMetadata = additionalData?.psi_processMetadata || {}
   const taskStatus = additionalData?.psi_taskStatus || processMetadata?.status || 'IN_PROGRESS'
-  const taskCompletedAt = processMetadata?.completedAt || (additionalData as any)?.psi_taskCompletedAt
+  const taskCompletedAt = processMetadata?.completedAt || extendedAdditionalData?.psi_taskCompletedAt
   // Task is completed if status is COMPLETED OR if completedAt exists (matching InboxView logic)
   const isTaskCompleted = taskStatus === 'COMPLETED' || !!taskCompletedAt
   const taskTitle =
@@ -63,7 +95,7 @@ const ApproveExpenseRequestV2Content: React.FC<ApproveExpenseRequestV2Props> = (
     processMetadata?.nodeName ||
     expenseRequest?.title ||
     'Approve Expense Request'
-  const taskSource: 'kogito' | 'cflow' = processMetadata?.source || (processMetadata?.endpoint ? 'kogito' : 'kogito')
+  const taskSource: 'kogito' | 'cflow' = processMetadata?.source || 'kogito'
   const creatorName = taskPayload?.creatorName as string | undefined
 
   // Use generic hooks for entity dates (request created)
@@ -99,8 +131,8 @@ const ApproveExpenseRequestV2Content: React.FC<ApproveExpenseRequestV2Props> = (
     }
 
     // Check formData
-    if ((additionalData as any)?.formData?.approval) {
-      return (additionalData as any).formData.approval
+    if (extendedAdditionalData?.formData?.approval) {
+      return extendedAdditionalData.formData.approval
     }
 
     return null
@@ -125,14 +157,14 @@ const ApproveExpenseRequestV2Content: React.FC<ApproveExpenseRequestV2Props> = (
     }
 
     // Check formData
-    if ((additionalData as any)?.formData?.approvalNote) {
-      return (additionalData as any).formData.approvalNote
+    if (extendedAdditionalData?.formData?.approvalNote) {
+      return extendedAdditionalData.formData.approvalNote
     }
 
     return null
   }, [isTaskCompleted, processMetadata, taskPayload, additionalData])
 
-  const completedAt = processMetadata?.completedAt || (additionalData as any)?.psi_taskCompletedAt || null
+  const completedAt = processMetadata?.completedAt || extendedAdditionalData?.psi_taskCompletedAt || null
 
   // Extract approval data from expenseRequestComment (for completed tasks)
   const approvalCommentFromRequest = useMemo(() => {
@@ -235,10 +267,10 @@ const ApproveExpenseRequestV2Content: React.FC<ApproveExpenseRequestV2Props> = (
     }
 
     // Listen for beforeunload event (browser close, refresh, navigation)
-    window.addEventListener('beforeunload', handleBeforeUnload)
+    globalThis.addEventListener('beforeunload', handleBeforeUnload)
 
     return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload)
+      globalThis.removeEventListener('beforeunload', handleBeforeUnload)
     }
   }, [])
 
@@ -357,7 +389,7 @@ const ApproveExpenseRequestV2Content: React.FC<ApproveExpenseRequestV2Props> = (
       }
     })) || []
 
-  const { expenseAllowances: itemAllowances, expenseItems } = splitExpenseItems(transformedExpenseItems as any)
+  const { expenseAllowances: itemAllowances, expenseItems } = splitExpenseItems(transformedExpenseItems)
 
   // Transform expense allowances to match component expectations
   const allowanceItems =
@@ -382,14 +414,15 @@ const ApproveExpenseRequestV2Content: React.FC<ApproveExpenseRequestV2Props> = (
   const statusDisplay = getStatusDisplay(approvalStatus || undefined)
 
   // Get employee ID - check multiple possible locations
-  const employeeId = expenseRequest?.employee?.id || (expenseRequest as any)?.employeeId
+  const extendedExpenseRequest = expenseRequest as ExtendedExpenseRequest
+  const employeeId = expenseRequest?.employee?.id || extendedExpenseRequest?.employeeId
 
   // Debug: Log employee data structure
   console.log('🔍 [ApproveExpenseRequestV2] Employee data:', {
     employeeId,
     employeeObject: expenseRequest?.employee,
     hasId: !!expenseRequest?.employee?.id,
-    directEmployeeId: (expenseRequest as any)?.employeeId
+    directEmployeeId: extendedExpenseRequest?.employeeId
   })
 
   return (
@@ -415,7 +448,7 @@ const ApproveExpenseRequestV2Content: React.FC<ApproveExpenseRequestV2Props> = (
         />
       }
       footer={
-        !isTaskCompleted ? (
+        isTaskCompleted ? undefined : (
           <TaskDetailFooter
             data-testid="approve-expense-request-v2-actions"
             actions={[
@@ -440,7 +473,7 @@ const ApproveExpenseRequestV2Content: React.FC<ApproveExpenseRequestV2Props> = (
               }
             ]}
           />
-        ) : undefined
+        )
       }
       contentClassName="gba:space-y-6"
     >

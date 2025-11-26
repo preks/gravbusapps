@@ -86,7 +86,7 @@ export const LowcoderScreenLoader: React.FC<LowcoderScreenLoaderProps> = ({
       }
     }
 
-    window.addEventListener('message', handleMessage)
+    globalThis.addEventListener('message', handleMessage)
 
     // Set timeout for loading state
     const loadingTimeout = setTimeout(() => {
@@ -96,7 +96,7 @@ export const LowcoderScreenLoader: React.FC<LowcoderScreenLoaderProps> = ({
     }, 5000)
 
     return () => {
-      window.removeEventListener('message', handleMessage)
+      globalThis.removeEventListener('message', handleMessage)
       clearTimeout(loadingTimeout)
     }
   }, [loading, onClose, onTaskCompleted, onTaskUpdated])

@@ -145,11 +145,11 @@ export const TaskDetailFooter: React.FC<TaskDetailFooterProps> = ({
       <div className="gba:px-6 gba:py-4 gba:flex gba:items-center gba:justify-end gba:gap-2">
         {generatedActions && generatedActions.length > 0
           ? // Render generated or manual actions
-            generatedActions.map((action, index) => {
+            generatedActions.map(action => {
               const Icon = action.icon
               return (
                 <Button
-                  key={index}
+                  key={action.testId || action.label}
                   variant={action.variant || 'default'}
                   onClick={action.onClick}
                   disabled={action.disabled || action.loading}

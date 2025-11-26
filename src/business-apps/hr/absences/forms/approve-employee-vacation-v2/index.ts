@@ -3,6 +3,4 @@
  * Entry point for the vacation approval form
  */
 
-import ApproveEmployeeVacationV2 from './ApproveEmployeeVacationV2'
-
-export default ApproveEmployeeVacationV2
+export { default } from './ApproveEmployeeVacationV2'

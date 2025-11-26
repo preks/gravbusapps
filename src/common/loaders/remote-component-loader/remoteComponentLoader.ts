@@ -210,19 +210,19 @@ interface ComponentRegistry {
 
 // Create global component registry if it doesn't exist
 const initRegistry = (): ComponentRegistry => {
-  if (typeof window === 'undefined')
+  if (typeof globalThis === 'undefined')
     return {
       loadingComponents: {},
       registeredComponents: {},
       componentErrors: {}
     }
-  ;(window as any).__componentRegistry = (window as any).__componentRegistry ?? {
+  ;(globalThis as any).__componentRegistry = (globalThis as any).__componentRegistry ?? {
     loadingComponents: {},
     registeredComponents: {},
     componentErrors: {}
   }
 
-  return (window as any).__componentRegistry
+  return (globalThis as any).__componentRegistry
 }
 
 /**
@@ -265,7 +265,7 @@ export function loadRemoteComponent(options: RemoteComponentLoaderOptions): Prom
       injectImportProxy()
 
       // Cast to unknown first to avoid TypeScript error
-      const windowExtended = window as unknown as RemoteWindowExtensions
+      const windowExtended = globalThis as unknown as RemoteWindowExtensions
 
       // Reset component loading state in the registry
       registry.loadingComponents[componentName] = true
@@ -495,19 +495,15 @@ export function loadRemoteComponent(options: RemoteComponentLoaderOptions): Prom
       if (componentPath) {
         const existingScripts = document.querySelectorAll(`script[data-component-path="${componentPath}"]`)
         existingScripts.forEach(script => {
-          if (script.parentNode) {
-            console.log(`Removing old script for component '${componentName}' (by path)`)
-            script.parentNode.removeChild(script)
-          }
+          console.log(`Removing old script for component '${componentName}' (by path)`)
+          script.remove()
         })
       } else {
         // Fallback: clean up by component name when path is not available
         const existingScripts = document.querySelectorAll(`script[data-component-name="${componentName}"]`)
         existingScripts.forEach(script => {
-          if (script.parentNode) {
-            console.log(`Removing old script for component '${componentName}' (by name)`)
-            script.parentNode.removeChild(script)
-          }
+          console.log(`Removing old script for component '${componentName}' (by name)`)
+          script.remove()
         })
       }
 
@@ -519,7 +515,7 @@ export function loadRemoteComponent(options: RemoteComponentLoaderOptions): Prom
       // Add identifying attributes for cleanup
       if (componentPath) {
         scriptTag.dataset.componentPath = componentPath
-        scriptTag.id = `remote-component-js-${componentPath.replace(/\//g, '-')}-${version || 'latest'}`
+        scriptTag.id = `remote-component-js-${componentPath.replaceAll('/', '-')}-${version || 'latest'}`
       } else {
         // Fallback ID based on component name when path is not available
         scriptTag.id = `remote-component-js-${componentName}-${version || 'latest'}`
@@ -651,7 +647,7 @@ export function loadRemoteComponent(options: RemoteComponentLoaderOptions): Prom
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function cleanupComponentResources(componentPath?: string, componentName?: string): void {
-  if (typeof window === 'undefined') return
+  if (typeof globalThis === 'undefined') return
 
   // Clean up script tags
   const scriptSelectors = []
@@ -665,10 +661,8 @@ function cleanupComponentResources(componentPath?: string, componentName?: strin
   scriptSelectors.forEach(selector => {
     const scripts = document.querySelectorAll(selector)
     scripts.forEach(script => {
-      if (script.parentNode) {
-        console.log(`Cleaning up script for component: ${componentName || componentPath}`)
-        script.parentNode.removeChild(script)
-      }
+      console.log(`Cleaning up script for component: ${componentName || componentPath}`)
+      script.remove()
     })
   })
 
@@ -676,23 +670,21 @@ function cleanupComponentResources(componentPath?: string, componentName?: strin
   if (componentPath) {
     const cssLinks = document.querySelectorAll(`link[data-component-path="${componentPath}"]`)
     cssLinks.forEach(link => {
-      if (link.parentNode) {
-        console.log(`Cleaning up CSS for component: ${componentPath}`)
-        link.parentNode.removeChild(link)
-      }
+      console.log(`Cleaning up CSS for component: ${componentPath}`)
+      link.remove()
     })
   }
 
   // Clean up from global registry
   if (componentName) {
-    const windowExtended = window as any
-    delete windowExtended[componentName]
+    const globalExtended = globalThis as any
+    delete globalExtended[componentName]
 
     // Clean up from component registry if it exists
-    if (windowExtended.__componentRegistry) {
-      delete windowExtended.__componentRegistry.loadingComponents[componentName]
-      delete windowExtended.__componentRegistry.registeredComponents[componentName]
-      delete windowExtended.__componentRegistry.componentErrors[componentName]
+    if (globalExtended.__componentRegistry) {
+      delete globalExtended.__componentRegistry.loadingComponents[componentName]
+      delete globalExtended.__componentRegistry.registeredComponents[componentName]
+      delete globalExtended.__componentRegistry.componentErrors[componentName]
     }
   }
 }
@@ -701,10 +693,10 @@ function cleanupComponentResources(componentPath?: string, componentName?: strin
  * Exposes React and antd to the window for remote component usage
  */
 export function exposeRequiredDependencies(): void {
-  if (typeof window === 'undefined') return
+  if (typeof globalThis === 'undefined') return
 
   // Cast to unknown first to avoid TypeScript error
-  const windowExtended = window as unknown as RemoteWindowExtensions
+  const windowExtended = globalThis as unknown as RemoteWindowExtensions
 
   // Expose base libraries to window - use imported modules directly instead of require()
   windowExtended.React = windowExtended.React ?? React

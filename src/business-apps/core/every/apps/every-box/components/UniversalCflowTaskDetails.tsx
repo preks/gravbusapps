@@ -21,6 +21,25 @@ import { useEmployeeAvatar } from '../hooks/useEmployeeAvatar'
 import { InputRenderer } from '@/business-apps/flow/apps/creator/components/shared/InputRenderer'
 import { navigateTo } from '@/common/utils/navigationUtils'
 
+/**
+ * Converts a picture thumbnail to a data URL format
+ */
+const formatAvatarUrl = (pictureThumbnail: string | undefined): string | undefined => {
+  if (!pictureThumbnail) return undefined
+  if (pictureThumbnail.startsWith('data:')) return pictureThumbnail
+  return `data:image/jpeg;base64,${pictureThumbnail}`
+}
+
+/**
+ * Gets the display value for a form field during loading or with data
+ */
+const getFieldDisplayValue = (isLoadingData: boolean, fieldValue: any, inputValue: any, defaultValue: any): any => {
+  if (isLoadingData) return ''
+  if (fieldValue !== undefined) return fieldValue
+  if (inputValue !== undefined) return inputValue
+  return defaultValue || ''
+}
+
 interface UniversalCflowTaskDetailsProps {
   task: UnifiedTask
   accessToken: string
@@ -182,8 +201,8 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
                       processedFormData[fieldName] = null
                     }
                   } else {
-                    const numValue = typeof value === 'string' ? parseFloat(value) : Number(value)
-                    if (!isNaN(numValue)) {
+                    const numValue = typeof value === 'string' ? Number.parseFloat(value) : Number(value)
+                    if (!Number.isNaN(numValue)) {
                       processedFormData[fieldName] = numValue
                     } else if (field.required) {
                       // If required and invalid, include as null
@@ -334,11 +353,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
                   displayName: creatorEmployeeData.displayName,
                   firstName: creatorEmployeeData.firstName,
                   lastName: creatorEmployeeData.lastName,
-                  avatarUrl: creatorEmployeeData.pictureThumbnail
-                    ? creatorEmployeeData.pictureThumbnail.startsWith('data:')
-                      ? creatorEmployeeData.pictureThumbnail
-                      : `data:image/jpeg;base64,${creatorEmployeeData.pictureThumbnail}`
-                    : undefined,
+                  avatarUrl: formatAvatarUrl(creatorEmployeeData.pictureThumbnail),
                   position: creatorEmployeeData.position
                 }
               : undefined
@@ -381,14 +396,14 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
                 Attachments ({documentLinks.length})
               </div>
               <div className="gba:space-y-2">
-                {documentLinks.map((link, index) => (
+                {documentLinks.map(link => (
                   <a
-                    key={index}
+                    key={link.url || link.name}
                     href={link.url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="gba:flex gba:items-center gba:gap-3 gba:p-2 gba:-mx-2 gba:rounded-md hover:gba:bg-accent gba:transition-colors gba:no-underline gba:group"
-                    data-testid={`task-document-link-${index}`}
+                    data-testid={`task-document-link-${link.name}`}
                   >
                     <FileText className="gba:h-4 gba:w-4 gba:text-blue-500 gba:shrink-0" />
                     <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate gba:flex-1 group-hover:gba:underline">
@@ -443,11 +458,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
                 displayName: creatorEmployeeData.displayName,
                 firstName: creatorEmployeeData.firstName,
                 lastName: creatorEmployeeData.lastName,
-                avatarUrl: creatorEmployeeData.pictureThumbnail
-                  ? creatorEmployeeData.pictureThumbnail.startsWith('data:')
-                    ? creatorEmployeeData.pictureThumbnail
-                    : `data:image/jpeg;base64,${creatorEmployeeData.pictureThumbnail}`
-                  : undefined,
+                avatarUrl: formatAvatarUrl(creatorEmployeeData.pictureThumbnail),
                 position: creatorEmployeeData.position
               }
             : undefined
@@ -489,14 +500,14 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
               Attachments ({documentLinks.length})
             </div>
             <div className="gba:space-y-2">
-              {documentLinks.map((link, index) => (
+              {documentLinks.map(link => (
                 <a
-                  key={index}
+                  key={link.url || link.name}
                   href={link.url}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="gba:flex gba:items-center gba:gap-3 gba:p-2 gba:-mx-2 gba:rounded-md hover:gba:bg-accent gba:transition-colors gba:no-underline gba:group"
-                  data-testid={`task-document-link-${index}`}
+                  data-testid={`task-document-link-${link.name}`}
                 >
                   <FileText className="gba:h-4 gba:w-4 gba:text-blue-500 gba:shrink-0" />
                   <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate gba:flex-1 group-hover:gba:underline">
@@ -543,20 +554,14 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
                   const isLoadingData = !formInitialized
 
                   // While loading, show empty values; once loaded, show the actual values
-                  const displayValue = isLoadingData
-                    ? '' // Empty while loading
-                    : fieldValue !== undefined
-                      ? fieldValue
-                      : input.value !== undefined
-                        ? input.value
-                        : input.defaultValue || ''
+                  const displayValue = getFieldDisplayValue(isLoadingData, fieldValue, input.value, input.defaultValue)
 
                   // Determine if this field should be read-only (loading, completed tasks, OR field marked as readOnly)
                   const isFieldReadOnly = isLoadingData || isCompleted || input.readOnly === true
 
                   return (
                     <InputRenderer
-                      key={index}
+                      key={fieldName}
                       input={input}
                       index={index}
                       readOnly={isFieldReadOnly}

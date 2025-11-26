@@ -41,7 +41,7 @@ const base64ToObjectURL = (base64Data: string): string | undefined => {
     const byteCharacters = atob(base64Data)
     const byteNumbers = new Array(byteCharacters.length)
     for (let i = 0; i < byteCharacters.length; i++) {
-      byteNumbers[i] = byteCharacters.charCodeAt(i)
+      byteNumbers[i] = byteCharacters.codePointAt(i) ?? 0
     }
     const byteArray = new Uint8Array(byteNumbers)
     const blob = new Blob([byteArray], { type: 'image/jpeg' })
@@ -206,7 +206,11 @@ export const useEmployeeAvatarsBatch = (accessToken: string, userIds: string[], 
       setEmployeeMap(new Map())
       setError(null)
     }
-  }, [JSON.stringify(userIds.sort()), JSON.stringify(employeeIds.sort()), fetchEmployees])
+  }, [
+    JSON.stringify([...userIds].sort((a, b) => a.localeCompare(b))),
+    JSON.stringify([...employeeIds].sort((a, b) => a.localeCompare(b))),
+    fetchEmployees
+  ])
 
   return {
     employeeMap,

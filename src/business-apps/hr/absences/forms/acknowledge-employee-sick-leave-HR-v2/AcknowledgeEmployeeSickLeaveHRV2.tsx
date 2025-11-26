@@ -18,6 +18,28 @@ import { formatDateTime } from '@/business-apps/core/every/apps/every-box/utils/
 import { useEntityDates } from '@/common/data/common/hooks/useEntityDates'
 import dayjs from 'dayjs'
 
+/**
+ * Formats working days and hours into a readable string
+ */
+const formatWorkingDaysAndHours = (workingDays?: number, workingHours?: number): string => {
+  const parts: string[] = []
+
+  if (workingDays !== undefined) {
+    parts.push(`${workingDays} ${workingDays === 1 ? 'day' : 'days'}`)
+  }
+
+  if (workingHours !== undefined) {
+    const hoursText = `(${workingHours} ${workingHours === 1 ? 'hour' : 'hours'})`
+    if (parts.length > 0) {
+      parts.push(` ${hoursText}`)
+    } else {
+      parts.push(hoursText)
+    }
+  }
+
+  return parts.join('')
+}
+
 interface AcknowledgeEmployeeSickLeaveHRV2Props extends BusinessAppContextProps {
   // Additional props from task payload
   onClose?: () => void // Optional callback to close the modal
@@ -35,7 +57,7 @@ const AcknowledgeEmployeeSickLeaveHRV2: React.FC<AcknowledgeEmployeeSickLeaveHRV
 
   // Extract task data from additionalData
   const taskPayload = additionalData?.psi_taskPayload || {}
-  const employeeAbsence = taskPayload?.employeeAbsence as any
+  const employeeAbsence = taskPayload?.employeeAbsence
   const creatorName = taskPayload?.creatorName as string | undefined
   const processMetadata = additionalData?.psi_processMetadata || {}
 
@@ -54,9 +76,7 @@ const AcknowledgeEmployeeSickLeaveHRV2: React.FC<AcknowledgeEmployeeSickLeaveHRV
   })
 
   // Get task source from process metadata (fallback to 'kogito' if not available)
-  // Source can be 'kogito' or 'cflow'
-  // If source is not explicitly set, infer from endpoint (Kogito tasks have endpoint)
-  const taskSource: 'kogito' | 'cflow' = processMetadata?.source || (processMetadata?.endpoint ? 'kogito' : 'kogito')
+  const taskSource: 'kogito' | 'cflow' = processMetadata?.source || 'kogito'
 
   // Use custom hook for data fetching (reuse from vacation approval)
   const {
@@ -146,7 +166,7 @@ const AcknowledgeEmployeeSickLeaveHRV2: React.FC<AcknowledgeEmployeeSickLeaveHRV
         />
       }
       footer={
-        !isTaskCompleted ? (
+        isTaskCompleted ? undefined : (
           <TaskDetailFooter
             data-testid="action-footer"
             actions={[
@@ -162,7 +182,7 @@ const AcknowledgeEmployeeSickLeaveHRV2: React.FC<AcknowledgeEmployeeSickLeaveHRV
               }
             ]}
           />
-        ) : undefined
+        )
       }
       contentClassName="gba:space-y-6"
     >
@@ -230,12 +250,7 @@ const AcknowledgeEmployeeSickLeaveHRV2: React.FC<AcknowledgeEmployeeSickLeaveHRV
                     Working Days:
                   </span>
                   <span className="gba:text-sm gba:flex-1">
-                    {employeeAbsence.workingDays !== undefined
-                      ? `${employeeAbsence.workingDays} ${employeeAbsence.workingDays === 1 ? 'day' : 'days'}`
-                      : ''}
-                    {employeeAbsence.workingDays !== undefined && employeeAbsence.workingHours !== undefined && ' '}
-                    {employeeAbsence.workingHours !== undefined &&
-                      `(${employeeAbsence.workingHours} ${employeeAbsence.workingHours === 1 ? 'hour' : 'hours'})`}
+                    {formatWorkingDaysAndHours(employeeAbsence.workingDays, employeeAbsence.workingHours)}
                   </span>
                 </div>
               )}

@@ -25,12 +25,7 @@ export const useScreenManagementApi = (accessToken: string) => {
           const responseData = await response.json()
 
           // Check if response has data array
-          if (
-            !responseData ||
-            !responseData.data ||
-            !Array.isArray(responseData.data) ||
-            responseData.data.length === 0
-          ) {
+          if (!Array.isArray(responseData?.data) || responseData.data.length === 0) {
             return null
           }
 
@@ -38,7 +33,7 @@ export const useScreenManagementApi = (accessToken: string) => {
           const data = responseData.data[0]
 
           // Check if screen was found
-          if (!data || !data.screenKey) {
+          if (!data?.screenKey) {
             return null
           }
 

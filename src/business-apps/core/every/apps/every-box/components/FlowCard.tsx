@@ -85,7 +85,12 @@ export const FlowCard: React.FC<FlowCardProps> = memo(({ flow, onView, accessTok
   // For blinks, calculate assignee progress (for single-user blinks, it's 1 assignee)
   const shouldShowAssigneeProgress = isBlinkFlow
   const assigneeCount = flow.isGrouped ? flow.assigneeCount || 1 : 1
-  const completedAssignees = flow.isGrouped ? flow.completedAssignees || 0 : flow.status === 'COMPLETED' ? 1 : 0
+  // Calculate completed assignees based on flow type
+  const getCompletedAssignees = (): number => {
+    if (flow.isGrouped) return flow.completedAssignees || 0
+    return flow.status === 'COMPLETED' ? 1 : 0
+  }
+  const completedAssignees = getCompletedAssignees()
 
   // Get assignee user IDs for displaying avatars
   const assigneeUserIds = useMemo(() => {

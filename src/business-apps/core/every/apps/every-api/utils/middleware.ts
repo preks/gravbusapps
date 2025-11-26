@@ -76,7 +76,7 @@ export function requireQueryParam(params: Record<string, string>, paramName: str
  */
 export function extractUserId(pathname: string): string | null {
   // Match pattern: /tasks/user/:userId or /tasks/user/:userId.json
-  const match = pathname.match(/\/tasks\/user\/([^\/\.]+)/)
+  const match = /\/tasks\/user\/([^\/\.]+)/.exec(pathname)
   return match ? match[1] : null
 }
 
@@ -85,18 +85,30 @@ export function extractUserId(pathname: string): string | null {
  */
 export function extractTaskId(pathname: string): string | null {
   // Match pattern: /tasks/:taskId or /tasks/:taskId.json
-  const match = pathname.match(/\/tasks\/([^\/\.]+)(?:\.json)?$/)
+  const match = /\/tasks\/([^\/\.]+)(?:\.json)?$/.exec(pathname)
   return match ? match[1] : null
 }
 
 /**
+ * Enable debug logging for API requests/errors
+ * Set to true for local debugging, false for production
+ */
+const DEBUG_LOGGING = false
+
+/**
  * Log API request
  */
-export function logRequest(method: string, path: string, params?: Record<string, any>): void {
+export function logRequest(method: string, path: string, params?: Record<string, unknown>): void {
+  if (DEBUG_LOGGING) {
+    console.log(`[API] ${method} ${path}`, params)
+  }
 }
 
 /**
  * Log API error
  */
-export function logError(method: string, path: string, error: any): void {
+export function logError(method: string, path: string, error: unknown): void {
+  if (DEBUG_LOGGING) {
+    console.error(`[API Error] ${method} ${path}`, error)
+  }
 }

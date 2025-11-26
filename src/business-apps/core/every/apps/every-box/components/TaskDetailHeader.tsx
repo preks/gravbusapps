@@ -35,6 +35,25 @@ import { X } from 'lucide-react'
 import { getInitials } from '../utils/avatarUtils'
 import { useEmployeeData } from '../hooks/useEmployeeData'
 
+// Helper function to get initials from employee data or creator name
+const getAvatarInitials = (
+  employeeData?: { firstName?: string; lastName?: string; displayName?: string } | null,
+  creatorName?: string
+): string => {
+  if (employeeData?.firstName || employeeData?.lastName) {
+    return getInitials(employeeData.firstName, employeeData.lastName)
+  }
+  if (employeeData?.displayName) {
+    const parts = employeeData.displayName.split(' ')
+    return getInitials(parts[0], parts.slice(1).join(' '))
+  }
+  if (creatorName) {
+    const parts = creatorName.split(' ')
+    return getInitials(parts[0], parts.slice(1).join(' '))
+  }
+  return '?'
+}
+
 export interface TaskDetailHeaderProps {
   // Task info (required)
   title: string
@@ -136,16 +155,7 @@ export const TaskDetailHeader: React.FC<TaskDetailHeaderProps> = ({
                   <AvatarImage src={employeeData.avatarUrl} alt={employeeData.displayName || 'Employee avatar'} />
                 )}
                 <AvatarFallback className="gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white gba:text-xs">
-                  {employeeData?.firstName || employeeData?.lastName
-                    ? getInitials(employeeData.firstName, employeeData.lastName)
-                    : employeeData?.displayName
-                      ? getInitials(
-                          employeeData.displayName.split(' ')[0],
-                          employeeData.displayName.split(' ').slice(1).join(' ')
-                        )
-                      : creatorName
-                        ? getInitials(creatorName.split(' ')[0], creatorName.split(' ').slice(1).join(' '))
-                        : '?'}
+                  {getAvatarInitials(employeeData, creatorName)}
                 </AvatarFallback>
               </Avatar>
             )}

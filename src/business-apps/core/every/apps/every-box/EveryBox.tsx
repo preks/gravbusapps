@@ -57,7 +57,7 @@ type ViewType = 'inbox' | 'outbox'
  * Get initial view from URL
  */
 const getInitialView = (): ViewType => {
-  const urlParams = new URLSearchParams(window.location.search)
+  const urlParams = new URLSearchParams(globalThis.location.search)
   const view = urlParams.get('view')
   return view === 'outbox' ? 'outbox' : 'inbox'
 }
@@ -66,10 +66,10 @@ const getInitialView = (): ViewType => {
  * Update URL with view parameter
  */
 const updateViewUrl = (view: ViewType) => {
-  const urlParams = new URLSearchParams(window.location.search)
+  const urlParams = new URLSearchParams(globalThis.location.search)
   urlParams.set('view', view)
-  const newUrl = `${window.location.pathname}?${urlParams.toString()}`
-  window.history.replaceState({}, '', newUrl)
+  const newUrl = `${globalThis.location.pathname}?${urlParams.toString()}`
+  globalThis.history.replaceState({}, '', newUrl)
 }
 
 // Staggered polling intervals for different data types
@@ -93,10 +93,7 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
   const previewFeature = useFeature(Feature.Preview.Enabled.Key)
   const isPreviewEnabled = previewFeature !== false // true if undefined (development) or 'true'
 
-  if (!isPreviewEnabled) {
-    return null
-  }
-
+  // All hooks must be called before any early return to satisfy React's rules of hooks
   // Separate interval refs for each data source (for staggered polling)
   const activeTasksIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const completedTasksIntervalRef = useRef<NodeJS.Timeout | null>(null)
@@ -104,9 +101,6 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
 
   const [isQuickTaskModalOpen, setIsQuickTaskModalOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<ViewType>(getInitialView())
-
-  // Debug logging
-  useEffect(() => {}, [])
 
   // Fetch inbox tasks (active)
   const {
@@ -141,22 +135,25 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
 
   // Initialize URL with view parameter if not present
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search)
+    if (!isPreviewEnabled) return
+    const urlParams = new URLSearchParams(globalThis.location.search)
     if (!urlParams.has('view')) {
       updateViewUrl(activeTab)
     }
-  }, [])
+  }, [isPreviewEnabled, activeTab])
 
   // Handle browser back/forward navigation
   useEffect(() => {
+    if (!isPreviewEnabled) return
+
     const handlePopState = () => {
       const newView = getInitialView()
       setActiveTab(newView)
     }
 
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
-  }, [])
+    globalThis.addEventListener('popstate', handlePopState)
+    return () => globalThis.removeEventListener('popstate', handlePopState)
+  }, [isPreviewEnabled])
 
   // Handler to change tab and update URL
   const handleTabChange = (value: string) => {
@@ -167,6 +164,8 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
 
   // Set up staggered polling intervals (SMART POLLING - no UI disruption)
   useEffect(() => {
+    if (!isPreviewEnabled) return
+
     // Active tasks polling - uses backgroundRefresh (no UI reload)
     if (POLLING_CONFIG.activeTasks.enabled) {
       activeTasksIntervalRef.current = setInterval(() => {
@@ -200,7 +199,12 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
         clearInterval(outboxFlowsIntervalRef.current)
       }
     }
-  }, [backgroundRefreshInbox, backgroundRefreshCompleted, refetchFlows])
+  }, [isPreviewEnabled, backgroundRefreshInbox, backgroundRefreshCompleted, refetchFlows])
+
+  // Feature flag guard - render null if preview is disabled (after all hooks)
+  if (!isPreviewEnabled) {
+    return null
+  }
 
   // Handle Quick Task (Blink) submission
   const handleQuickTaskSubmit = async (data: QuickTaskFormData) => {

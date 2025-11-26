@@ -76,7 +76,7 @@ const RequestDetailsSection: React.FC<RequestDetailsSectionProps> = ({
             <Label className="gba:text-sm gba:text-muted-foreground gba:mb-1">
               {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')}
             </Label>
-            <Badge variant={(statusConfig as any).badgeVariant || 'outline'} className="gba:text-xs">
+            <Badge variant={statusConfig.badgeVariant || 'outline'} className="gba:text-xs">
               {statusConfig.label}
             </Badge>
           </div>

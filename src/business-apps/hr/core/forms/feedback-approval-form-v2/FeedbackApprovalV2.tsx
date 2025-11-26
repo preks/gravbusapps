@@ -71,7 +71,9 @@ const FeedbackApprovalV2: React.FC<FeedbackApprovalV2Props> = ({ accessToken, ad
       employeeId: feedback.employeeId,
       typeRef: feedback.typeRef,
       // Use feedbackPublic (from Kogito) or fallback to public
-      public: feedback.feedbackPublic !== undefined ? feedback.feedbackPublic : feedback.public
+      public: feedback.feedbackPublic !== undefined ? feedback.feedbackPublic : feedback.public,
+      // Include approverId for completed task lookup
+      approverId: feedback.approverId as string | undefined
     }
   }, [additionalData])
 
@@ -79,7 +81,7 @@ const FeedbackApprovalV2: React.FC<FeedbackApprovalV2Props> = ({ accessToken, ad
   // TaskDetailHeader will auto-fetch using employeeId prop + accessToken
 
   // Get task source from process metadata (fallback to 'kogito' if not available)
-  const taskSource: 'kogito' | 'cflow' = processMetadata?.source || (processMetadata?.endpoint ? 'kogito' : 'kogito')
+  const taskSource: 'kogito' | 'cflow' = processMetadata?.source || 'kogito'
 
   // Use generic hooks for entity dates (request created)
   const { createdAt: requestCreatedAt, isLoading: isLoadingRequestDate } = useEntityDates({
@@ -91,7 +93,7 @@ const FeedbackApprovalV2: React.FC<FeedbackApprovalV2Props> = ({ accessToken, ad
   // For completed tasks, fetch approver name (assuming feedback has approverId field)
   const { approverName, isLoading: isLoadingApproverName } = useApproverData({
     accessToken,
-    approverId: isTaskCompleted && feedbackData ? (feedbackData as any).approverId : null
+    approverId: isTaskCompleted && feedbackData ? feedbackData.approverId : null
   })
 
   // Format feedback date

@@ -36,6 +36,25 @@ import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/comp
 import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
 import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
 
+/**
+ * Extended interface for additionalData with form-specific properties
+ */
+interface ExtendedAdditionalData {
+  [k: string]: unknown
+  formData?: {
+    approval?: string
+    approvalNote?: string
+  }
+  psi_taskCompletedAt?: string
+  psi_taskPayload?: {
+    [k: string]: unknown
+  }
+  psi_processMetadata?: {
+    [k: string]: unknown
+  }
+  psi_taskStatus?: string
+}
+
 interface ApproveExpensePlanV2Props extends BusinessAppContextProps {
   onClose?: () => void
 }
@@ -46,11 +65,14 @@ const ApproveExpensePlanV2Content: React.FC<ApproveExpensePlanV2Props> = ({
   userInfo,
   onClose
 }) => {
+  // Cast additionalData to extended interface for proper typing
+  const extendedAdditionalData = additionalData as ExtendedAdditionalData | undefined
+
   // Extract planId from additionalData or URL parameters
   const planId =
     additionalData?.planId ||
     additionalData?.psi_taskPayload?.expensePlan?.id ||
-    new URLSearchParams(window.location.search).get('planId')
+    new URLSearchParams(globalThis.location.search).get('planId')
 
   const [isApproving, setIsApproving] = useState(false)
   const [isRejecting, setIsRejecting] = useState(false)
@@ -61,12 +83,12 @@ const ApproveExpensePlanV2Content: React.FC<ApproveExpensePlanV2Props> = ({
   const taskPayload = additionalData?.psi_taskPayload || {}
   const processMetadata = additionalData?.psi_processMetadata || {}
   const taskStatus = additionalData?.psi_taskStatus || processMetadata?.status || 'IN_PROGRESS'
-  const taskCompletedAt = processMetadata?.completedAt || (additionalData as any)?.psi_taskCompletedAt
+  const taskCompletedAt = processMetadata?.completedAt || extendedAdditionalData?.psi_taskCompletedAt
   // Task is completed if status is COMPLETED OR if completedAt exists (matching InboxView logic)
   const isTaskCompleted = taskStatus === 'COMPLETED' || !!taskCompletedAt
   const taskTitle =
     processMetadata?.referenceTaskName || processMetadata?.nodeName || expensePlan?.title || 'Approve Expense Plan'
-  const taskSource: 'kogito' | 'cflow' = processMetadata?.source || (processMetadata?.endpoint ? 'kogito' : 'kogito')
+  const taskSource: 'kogito' | 'cflow' = processMetadata?.source || 'kogito'
   const creatorName = taskPayload?.creatorName as string | undefined
 
   // Use generic hooks for entity dates (request created)
@@ -106,8 +128,8 @@ const ApproveExpensePlanV2Content: React.FC<ApproveExpensePlanV2Props> = ({
     }
 
     // Check formData
-    if ((additionalData as any)?.formData?.approval) {
-      return (additionalData as any).formData.approval
+    if (extendedAdditionalData?.formData?.approval) {
+      return extendedAdditionalData.formData.approval
     }
 
     return null
@@ -132,14 +154,14 @@ const ApproveExpensePlanV2Content: React.FC<ApproveExpensePlanV2Props> = ({
     }
 
     // Check formData
-    if ((additionalData as any)?.formData?.approvalNote) {
-      return (additionalData as any).formData.approvalNote
+    if (extendedAdditionalData?.formData?.approvalNote) {
+      return extendedAdditionalData.formData.approvalNote
     }
 
     return null
   }, [isTaskCompleted, processMetadata, taskPayload, additionalData])
 
-  const completedAt = processMetadata?.completedAt || (additionalData as any)?.psi_taskCompletedAt || null
+  const completedAt = processMetadata?.completedAt || extendedAdditionalData?.psi_taskCompletedAt || null
 
   // Extract approval data from expensePlanComment (for completed tasks)
   const approvalCommentFromPlan = useMemo(() => {
@@ -239,9 +261,9 @@ const ApproveExpensePlanV2Content: React.FC<ApproveExpensePlanV2Props> = ({
       }
     }
 
-    window.addEventListener('beforeunload', handleBeforeUnload)
+    globalThis.addEventListener('beforeunload', handleBeforeUnload)
     return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload)
+      globalThis.removeEventListener('beforeunload', handleBeforeUnload)
     }
   }, [])
 
@@ -410,7 +432,7 @@ const ApproveExpensePlanV2Content: React.FC<ApproveExpensePlanV2Props> = ({
         />
       }
       footer={
-        !isTaskCompleted ? (
+        isTaskCompleted ? undefined : (
           <TaskDetailFooter
             data-testid="approve-expense-plan-v2-actions"
             actions={[
@@ -435,7 +457,7 @@ const ApproveExpensePlanV2Content: React.FC<ApproveExpensePlanV2Props> = ({
               }
             ]}
           />
-        ) : undefined
+        )
       }
       contentClassName="gba:space-y-6"
     >

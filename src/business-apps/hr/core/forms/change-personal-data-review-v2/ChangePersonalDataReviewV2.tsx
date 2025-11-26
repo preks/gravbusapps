@@ -37,6 +37,21 @@ import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/compon
 import { usePersonalDataReviewData } from './hooks/usePersonalDataReviewData'
 import dayjs from 'dayjs'
 
+/**
+ * Extended interface for additionalData with form-specific properties
+ */
+interface ExtendedAdditionalData {
+  [k: string]: unknown
+  psi_taskCompletedAt?: string
+  psi_taskPayload?: {
+    [k: string]: unknown
+  }
+  psi_processMetadata?: {
+    [k: string]: unknown
+  }
+  psi_taskStatus?: string
+}
+
 interface ChangePersonalDataReviewV2Props extends BusinessAppContextProps {
   onClose?: () => void
 }
@@ -67,6 +82,9 @@ const ChangePersonalDataReviewV2Content: React.FC<ChangePersonalDataReviewV2Prop
   userInfo,
   onClose
 }) => {
+  // Cast additionalData to extended interface for proper typing
+  const extendedAdditionalData = additionalData as ExtendedAdditionalData | undefined
+
   const [isAcknowledging, setIsAcknowledging] = useState(false)
   const [isUnchangedExpanded, setIsUnchangedExpanded] = useState(false)
 
@@ -74,10 +92,10 @@ const ChangePersonalDataReviewV2Content: React.FC<ChangePersonalDataReviewV2Prop
   const taskPayload = additionalData?.psi_taskPayload || {}
   const processMetadata = additionalData?.psi_processMetadata || {}
   const taskStatus = additionalData?.psi_taskStatus || processMetadata?.status || 'IN_PROGRESS'
-  const taskCompletedAt = processMetadata?.completedAt || (additionalData as any)?.psi_taskCompletedAt
+  const taskCompletedAt = processMetadata?.completedAt || extendedAdditionalData?.psi_taskCompletedAt
   const isTaskCompleted = taskStatus === 'COMPLETED' || !!taskCompletedAt
   const taskTitle = processMetadata?.referenceTaskName || processMetadata?.nodeName || 'Review Personal Data Change'
-  const taskSource: 'kogito' | 'cflow' = processMetadata?.source || (processMetadata?.endpoint ? 'kogito' : 'kogito')
+  const taskSource: 'kogito' | 'cflow' = processMetadata?.source || 'kogito'
   const creatorName = taskPayload?.creatorName as string | undefined
 
   // Extract personal information data from payload
@@ -104,6 +122,18 @@ const ChangePersonalDataReviewV2Content: React.FC<ChangePersonalDataReviewV2Prop
 
   const changeMode = hasOldPersonalInformation ? 'UPDATE' : 'INSERT'
   const isInsertMode = changeMode === 'INSERT'
+
+  // Helper function to get alert description message (extracted to reduce nested ternaries)
+  const getAlertDescriptionMessage = (mode: string, hasOld: boolean, changes: number): string => {
+    if (mode === 'INSERT') {
+      return 'This is new personal data being added to the employee record.'
+    }
+    if (hasOld && changes > 0) {
+      const changeWord = changes === 1 ? 'change' : 'changes'
+      return `This is an update with ${changes} ${changeWord} to the existing personal data. Changed fields are highlighted below.`
+    }
+    return 'This is an update to existing personal data in the employee record.'
+  }
 
   // Count total changes - MUST BE BEFORE CONDITIONAL RETURNS
   const changesCount = useMemo(() => {
@@ -329,11 +359,7 @@ const ChangePersonalDataReviewV2Content: React.FC<ChangePersonalDataReviewV2Prop
       <Alert>
         <FileText className="gba:h-4 gba:w-4" />
         <AlertDescription>
-          {changeMode === 'INSERT'
-            ? 'This is new personal data being added to the employee record.'
-            : hasOldPersonalInformation && changesCount > 0
-              ? `This is an update with ${changesCount} ${changesCount === 1 ? 'change' : 'changes'} to the existing personal data. Changed fields are highlighted below.`
-              : 'This is an update to existing personal data in the employee record.'}
+          {getAlertDescriptionMessage(changeMode, hasOldPersonalInformation, changesCount)}
         </AlertDescription>
       </Alert>
 

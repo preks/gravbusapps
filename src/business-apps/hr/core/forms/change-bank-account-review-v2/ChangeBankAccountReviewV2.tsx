@@ -33,6 +33,21 @@ import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/comp
 import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
 import { useBankAccountReviewData } from './hooks/useBankAccountReviewData'
 
+/**
+ * Extended interface for additionalData with form-specific properties
+ */
+interface ExtendedAdditionalData {
+  [k: string]: unknown
+  psi_taskCompletedAt?: string
+  psi_taskPayload?: {
+    [k: string]: unknown
+  }
+  psi_processMetadata?: {
+    [k: string]: unknown
+  }
+  psi_taskStatus?: string
+}
+
 interface ChangeBankAccountReviewV2Props extends BusinessAppContextProps {
   onClose?: () => void
 }
@@ -58,6 +73,9 @@ const ChangeBankAccountReviewV2Content: React.FC<ChangeBankAccountReviewV2Props>
   userInfo,
   onClose
 }) => {
+  // Cast additionalData to extended interface for proper typing
+  const extendedAdditionalData = additionalData as ExtendedAdditionalData | undefined
+
   const [isAcknowledging, setIsAcknowledging] = useState(false)
   const [isUnchangedExpanded, setIsUnchangedExpanded] = useState(false)
 
@@ -65,7 +83,7 @@ const ChangeBankAccountReviewV2Content: React.FC<ChangeBankAccountReviewV2Props>
   const taskPayload = additionalData?.psi_taskPayload || {}
   const processMetadata = additionalData?.psi_processMetadata || {}
   const taskStatus = additionalData?.psi_taskStatus || processMetadata?.status || 'IN_PROGRESS'
-  const taskCompletedAt = processMetadata?.completedAt || (additionalData as any)?.psi_taskCompletedAt
+  const taskCompletedAt = processMetadata?.completedAt || extendedAdditionalData?.psi_taskCompletedAt
   const isTaskCompleted = taskStatus === 'COMPLETED' || !!taskCompletedAt
   const taskTitle = processMetadata?.referenceTaskName || processMetadata?.nodeName || 'Review Bank Account Change'
   const taskSource: 'kogito' | 'cflow' = processMetadata?.source || (processMetadata?.endpoint ? 'kogito' : 'kogito')
