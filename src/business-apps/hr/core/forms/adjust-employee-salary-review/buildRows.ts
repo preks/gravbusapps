@@ -39,6 +39,13 @@ const extractCurrencyCode = (currencyRef: string | null): string => {
 }
 
 /**
+ * Format currency value or return '-' if null/undefined
+ */
+function formatCurrencyOrDash(value: number | null | undefined, currencyCode: string, locale: string): string {
+  return value === null || value === undefined ? '-' : formatCurrencyString(value, { currency: currencyCode, locale })
+}
+
+/**
  * Build salary comparison rows (old vs new) - only actual salary changes
  */
 export function buildSalaryComparisonRows(params: {
@@ -73,8 +80,8 @@ export function buildSalaryComparisonRows(params: {
   const monthlyRow: ReviewRow = {
     key: 'monthlySalary',
     label: t('adjust-salary-review-monthly-gross-salary', { defaultValue: 'Monthly Gross Salary' }),
-    oldValue: oldMonthly != null ? formatCurrencyString(oldMonthly, { currency: currencyCode, locale }) : '-',
-    newValue: newMonthly != null ? formatCurrencyString(newMonthly, { currency: currencyCode, locale }) : '-'
+    oldValue: formatCurrencyOrDash(oldMonthly, currencyCode, locale),
+    newValue: formatCurrencyOrDash(newMonthly, currencyCode, locale)
   }
 
   rows.push(annualRow, monthlyRow)
@@ -83,12 +90,14 @@ export function buildSalaryComparisonRows(params: {
   const oldHourly = oldCompensation.hourlyGrossSalary
   const newHourly = newSalaryData.hourlyGrossSalary
 
-  if (oldHourly != null || newHourly != null) {
+  const hasOldHourly = oldHourly !== null && oldHourly !== undefined
+  const hasNewHourly = newHourly !== null && newHourly !== undefined
+  if (hasOldHourly || hasNewHourly) {
     const hourlyRow: ReviewRow = {
       key: 'hourlySalary',
       label: t('adjust-salary-review-hourly-gross-salary', { defaultValue: 'Hourly Gross Salary' }),
-      oldValue: oldHourly != null ? formatCurrencyString(oldHourly, { currency: currencyCode, locale }) : '-',
-      newValue: newHourly != null ? formatCurrencyString(newHourly, { currency: currencyCode, locale }) : '-'
+      oldValue: formatCurrencyOrDash(oldHourly, currencyCode, locale),
+      newValue: formatCurrencyOrDash(newHourly, currencyCode, locale)
     }
     rows.push(hourlyRow)
   }
@@ -170,7 +179,7 @@ function calculateAnnualIncreaseSummary(
   }
 
   // Fallback: show adjustment value if annual comparison isn't meaningful
-  return adjustmentValueDisplay !== '-' ? adjustmentValueDisplay : '-'
+  return adjustmentValueDisplay === '-' ? '-' : adjustmentValueDisplay
 }
 
 /**
