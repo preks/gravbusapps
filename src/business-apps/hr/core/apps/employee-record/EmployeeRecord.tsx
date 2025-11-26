@@ -494,7 +494,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
             }
           ]
         : []),
-      ...(!previewFeatureFlag
+      ...(previewFeatureFlag
         ? [
             {
               key: TAB_KEYS.serviceRequests,
