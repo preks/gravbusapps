@@ -216,8 +216,26 @@ export const VoiceOverlay: React.FC<VoiceOverlayProps> = ({
         </div>
         <div>
           <h2 className="gba:text-lg gba:font-bold gba:text-foreground">EveryAI Voice</h2>
-          <p className="gba:text-sm gba:text-muted-foreground">
-            {isListening ? 'Listening...' : isSpeaking ? 'Speaking...' : isLoading ? 'Processing...' : 'Ready'}
+          <p className="gba:text-sm gba:text-muted-foreground gba:flex gba:items-center gba:gap-2">
+            {isListening && (
+              <>
+                <span className="gba:inline-block gba:h-2 gba:w-2 gba:rounded-full gba:bg-success gba:animate-pulse" />
+                Listening to you...
+              </>
+            )}
+            {isSpeaking && (
+              <>
+                <span className="gba:inline-block gba:h-2 gba:w-2 gba:rounded-full gba:bg-info gba:animate-pulse" />
+                Speaking...
+              </>
+            )}
+            {isLoading && !isSpeaking && (
+              <>
+                <span className="gba:inline-block gba:h-2 gba:w-2 gba:rounded-full gba:bg-warning gba:animate-pulse" />
+                Thinking...
+              </>
+            )}
+            {!isListening && !isSpeaking && !isLoading && 'Ready — speak anytime'}
           </p>
         </div>
       </div>
@@ -229,10 +247,15 @@ export const VoiceOverlay: React.FC<VoiceOverlayProps> = ({
         style={{ width: '400px', height: '400px' }}
       />
 
-      {/* Transcript Display */}
+      {/* Transcript Display - Shows what user said or what AI is saying */}
       <div className="gba:absolute gba:bottom-32 gba:left-0 gba:right-0 gba:px-8 gba:text-center">
+        {/* User's speech transcript */}
         {(transcript || interimTranscript) && isListening && (
-          <div className="gba:max-w-2xl gba:mx-auto gba:p-6 gba:rounded-2xl gba:bg-card/80 gba:backdrop-blur-md gba:border gba:border-border gba:shadow-lg">
+          <div className="gba:max-w-2xl gba:mx-auto gba:p-6 gba:rounded-2xl gba:bg-card/80 gba:backdrop-blur-md gba:border gba:border-border gba:shadow-lg gba:animate-in gba:fade-in gba:duration-200">
+            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+              <div className="gba:h-2 gba:w-2 gba:rounded-full gba:bg-success gba:animate-pulse" />
+              <span className="gba:text-xs gba:text-muted-foreground gba:font-medium">You're saying...</span>
+            </div>
             <p className="gba:text-lg gba:text-foreground gba:leading-relaxed">
               {transcript}
               {interimTranscript && (
@@ -242,9 +265,45 @@ export const VoiceOverlay: React.FC<VoiceOverlayProps> = ({
           </div>
         )}
 
-        {currentSpeechText && isSpeaking && (
-          <div className="gba:max-w-2xl gba:mx-auto gba:p-6 gba:rounded-2xl gba:bg-info/10 gba:backdrop-blur-md gba:border gba:border-info/30 gba:shadow-lg">
-            <p className="gba:text-lg gba:text-foreground gba:leading-relaxed gba:line-clamp-3">{currentSpeechText}</p>
+        {/* AI preparing response - show loading indicator */}
+        {isLoading && !isSpeaking && !isListening && (
+          <div className="gba:max-w-md gba:mx-auto gba:p-4 gba:rounded-xl gba:bg-info/10 gba:backdrop-blur-sm gba:border gba:border-info/30">
+            <div className="gba:flex gba:items-center gba:justify-center gba:gap-3">
+              <div className="gba:flex gba:items-center gba:gap-1">
+                {[0, 1, 2].map(i => (
+                  <div
+                    key={i}
+                    className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-info gba:animate-bounce"
+                    style={{ animationDelay: `${i * 0.15}s` }}
+                  />
+                ))}
+              </div>
+              <span className="gba:text-sm gba:text-info gba:font-medium">Preparing response...</span>
+            </div>
+          </div>
+        )}
+
+        {/* AI's speech response - Only show when actually speaking or finished */}
+        {currentSpeechText && (isSpeaking || (!isLoading && !isListening)) && (
+          <div className="gba:max-w-2xl gba:mx-auto gba:p-6 gba:rounded-2xl gba:bg-gradient-to-br gba:from-info/15 gba:to-primary/10 gba:backdrop-blur-md gba:border gba:border-info/40 gba:shadow-xl gba:animate-in gba:fade-in gba:duration-200">
+            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
+              <div
+                className={`gba:h-2 gba:w-2 gba:rounded-full gba:bg-info ${isSpeaking ? 'gba:animate-pulse' : ''}`}
+              />
+              <span className="gba:text-xs gba:text-info gba:font-semibold">
+                {isSpeaking ? 'EveryAI' : 'EveryAI said:'}
+              </span>
+            </div>
+            <p className="gba:text-lg gba:text-foreground gba:leading-relaxed">{currentSpeechText}</p>
+          </div>
+        )}
+
+        {/* Idle state - Ready to listen (only show if no AI text visible) */}
+        {!isListening && !isSpeaking && !isLoading && !transcript && !currentSpeechText && (
+          <div className="gba:max-w-md gba:mx-auto gba:p-4 gba:rounded-xl gba:bg-muted/30 gba:backdrop-blur-sm gba:animate-pulse">
+            <p className="gba:text-sm gba:text-muted-foreground gba:text-center">
+              🎤 <span className="gba:font-semibold">Listening...</span> — speak anytime
+            </p>
           </div>
         )}
       </div>
@@ -261,7 +320,7 @@ export const VoiceOverlay: React.FC<VoiceOverlayProps> = ({
             <svg className="gba:h-6 gba:w-6 gba:mr-2" fill="currentColor" viewBox="0 0 24 24">
               <rect x="6" y="6" width="12" height="12" rx="2" />
             </svg>
-            Done Speaking
+            Send Now
           </Button>
         ) : isSpeaking ? (
           <Button
@@ -284,14 +343,30 @@ export const VoiceOverlay: React.FC<VoiceOverlayProps> = ({
                 d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"
               />
             </svg>
-            Stop
+            Interrupt
+          </Button>
+        ) : isLoading ? (
+          <Button
+            size="lg"
+            className="gba:h-16 gba:px-8 gba:rounded-full gba:bg-muted gba:text-muted-foreground gba:shadow-lg gba:text-lg gba:font-semibold"
+            disabled
+            data-testid="voice-loading"
+          >
+            <svg
+              className="gba:h-6 gba:w-6 gba:mr-2 gba:animate-spin"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            Thinking...
           </Button>
         ) : (
           <Button
             size="lg"
-            className="gba:h-16 gba:px-8 gba:rounded-full gba:bg-gradient-to-r gba:from-primary gba:to-info gba:text-primary-foreground gba:shadow-lg gba:text-lg gba:font-semibold hover:gba:shadow-xl gba:transition-all"
+            className="gba:h-16 gba:px-8 gba:rounded-full gba:bg-gradient-to-r gba:from-primary gba:to-info gba:text-primary-foreground gba:shadow-lg gba:text-lg gba:font-semibold hover:gba:shadow-xl gba:transition-all gba:animate-pulse"
             onClick={onStartListening}
-            disabled={isLoading}
             data-testid="voice-start-listening"
           >
             <svg className="gba:h-6 gba:w-6 gba:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -302,7 +377,7 @@ export const VoiceOverlay: React.FC<VoiceOverlayProps> = ({
                 d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
               />
             </svg>
-            {isLoading ? 'Processing...' : 'Tap to Speak'}
+            Start Speaking
           </Button>
         )}
       </div>

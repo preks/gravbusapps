@@ -73,7 +73,7 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
     }
   }, [])
 
-  // Internal speak function
+  // Internal speak function with streaming audio playback
   const speakTextInternal = useCallback(
     async (text: string): Promise<void> => {
       if (!text.trim()) return
@@ -85,11 +85,13 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
         currentText: text
       }))
 
-      // Create abort controller for this request
       abortControllerRef.current = new AbortController()
 
       try {
-        const baseUrl = env('NEXT_PUBLIC_BASE_URL') || 'https://newwork-dev.newwork.com'
+        const isLocalDev = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+        const baseUrl = isLocalDev
+          ? 'http://localhost:8000'
+          : env('NEXT_PUBLIC_BASE_URL') || 'https://newwork-dev.newwork.com'
         const url = `${baseUrl}/flowbot/api/agent/tts`
 
         const response = await fetch(url, {
@@ -110,69 +112,15 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
           throw new Error(`TTS request failed: ${response.statusText}`)
         }
 
-        // Get audio blob
-        const audioBlob = await response.blob()
-        const audioUrl = URL.createObjectURL(audioBlob)
+        // Try streaming playback with MediaSource API
+        const canStreamMp3 = typeof MediaSource !== 'undefined' && MediaSource.isTypeSupported('audio/mpeg')
 
-        // Create and play audio
-        return new Promise((resolve, reject) => {
-          cleanupAudio()
-
-          const audio = new Audio(audioUrl)
-          audioRef.current = audio
-
-          audio.onloadedmetadata = () => {
-            setState(prev => ({ ...prev, isLoading: false, isSpeaking: true }))
-            onStart?.()
-          }
-
-          audio.ontimeupdate = () => {
-            if (audio.duration > 0) {
-              const progress = audio.currentTime / audio.duration
-              setState(prev => ({ ...prev, progress }))
-            }
-          }
-
-          audio.onended = () => {
-            URL.revokeObjectURL(audioUrl)
-            setState(prev => ({
-              ...prev,
-              isSpeaking: false,
-              currentText: null,
-              progress: 0
-            }))
-            onEnd?.()
-            resolve()
-          }
-
-          audio.onerror = () => {
-            URL.revokeObjectURL(audioUrl)
-            const errorMsg = 'Failed to play audio'
-            setState(prev => ({
-              ...prev,
-              isLoading: false,
-              isSpeaking: false,
-              error: errorMsg,
-              currentText: null,
-              progress: 0
-            }))
-            onError?.(errorMsg)
-            reject(new Error(errorMsg))
-          }
-
-          audio.play().catch(err => {
-            // Auto-play might be blocked - handle gracefully
-            console.warn('Auto-play blocked:', err)
-            setState(prev => ({
-              ...prev,
-              isLoading: false,
-              isSpeaking: false,
-              error: 'Auto-play blocked. Click to enable audio.',
-              currentText: null
-            }))
-            resolve() // Don't reject, just continue
-          })
-        })
+        if (canStreamMp3 && response.body) {
+          await playWithStreaming(response.body)
+        } else {
+          // Fallback: download full audio then play
+          await playWithFullDownload(response)
+        }
       } catch (err) {
         if ((err as Error).name === 'AbortError') {
           setState(prev => ({
@@ -186,6 +134,7 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
         }
 
         const errorMsg = err instanceof Error ? err.message : 'Unknown TTS error'
+        console.error('[TTS] Error:', errorMsg)
         setState(prev => ({
           ...prev,
           isLoading: false,
@@ -198,6 +147,158 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
       }
     },
     [accessToken, voice, speed, onStart, onEnd, onError, cleanupAudio]
+  )
+
+  // Stream audio using MediaSource API - starts playing immediately
+  const playWithStreaming = useCallback(
+    async (body: ReadableStream<Uint8Array>): Promise<void> => {
+      return new Promise((resolve, reject) => {
+        cleanupAudio()
+
+        const mediaSource = new MediaSource()
+        const audio = new Audio()
+        audioRef.current = audio
+        audio.src = URL.createObjectURL(mediaSource)
+
+        mediaSource.addEventListener('sourceopen', async () => {
+          try {
+            const sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg')
+            const reader = body.getReader()
+            let hasStartedPlaying = false
+            let totalBytes = 0
+
+            const appendNextChunk = async () => {
+              const { done, value } = await reader.read()
+
+              if (done) {
+                // End of stream
+                if (mediaSource.readyState === 'open') {
+                  mediaSource.endOfStream()
+                }
+                return
+              }
+
+              totalBytes += value.length
+
+              // Wait for buffer to be ready
+              if (sourceBuffer.updating) {
+                await new Promise<void>(r => {
+                  sourceBuffer.addEventListener('updateend', () => r(), { once: true })
+                })
+              }
+
+              sourceBuffer.appendBuffer(value)
+
+              // Start playing after we have some data (8KB minimum for MP3 header + first frames)
+              if (!hasStartedPlaying && totalBytes > 8000) {
+                hasStartedPlaying = true
+                setState(prev => ({ ...prev, isLoading: false, isSpeaking: true }))
+                onStart?.()
+                audio.play().catch(err => {
+                  console.warn('[TTS] Auto-play blocked:', err)
+                })
+              }
+
+              // Wait for this chunk to be processed
+              await new Promise<void>(r => {
+                sourceBuffer.addEventListener('updateend', () => r(), { once: true })
+              })
+
+              // Continue reading
+              await appendNextChunk()
+            }
+
+            await appendNextChunk()
+          } catch (err) {
+            console.error('[TTS] Streaming error:', err)
+            reject(err)
+          }
+        })
+
+        audio.onended = () => {
+          URL.revokeObjectURL(audio.src)
+          setState(prev => ({ ...prev, isSpeaking: false, progress: 1 }))
+          onEnd?.()
+          resolve()
+        }
+
+        audio.onerror = () => {
+          URL.revokeObjectURL(audio.src)
+          setState(prev => ({
+            ...prev,
+            isLoading: false,
+            isSpeaking: false,
+            error: 'Streaming playback failed',
+            currentText: null,
+            progress: 0
+          }))
+          onError?.('Streaming playback failed')
+          reject(new Error('Streaming playback failed'))
+        }
+
+        audio.ontimeupdate = () => {
+          if (audio.duration > 0 && isFinite(audio.duration)) {
+            setState(prev => ({ ...prev, progress: audio.currentTime / audio.duration }))
+          }
+        }
+      })
+    },
+    [cleanupAudio, onStart, onEnd, onError]
+  )
+
+  // Fallback: download full audio then play
+  const playWithFullDownload = useCallback(
+    async (response: Response): Promise<void> => {
+      const audioBlob = await response.blob()
+      const audioUrl = URL.createObjectURL(audioBlob)
+
+      return new Promise((resolve, reject) => {
+        cleanupAudio()
+
+        const audio = new Audio()
+        audioRef.current = audio
+
+        audio.oncanplay = () => {
+          setState(prev => ({ ...prev, isLoading: false, isSpeaking: true }))
+          onStart?.()
+          audio.play().catch(err => {
+            console.warn('[TTS] Auto-play blocked:', err)
+            resolve()
+          })
+        }
+
+        audio.ontimeupdate = () => {
+          if (audio.duration > 0) {
+            setState(prev => ({ ...prev, progress: audio.currentTime / audio.duration }))
+          }
+        }
+
+        audio.onended = () => {
+          URL.revokeObjectURL(audioUrl)
+          setState(prev => ({ ...prev, isSpeaking: false, progress: 1 }))
+          onEnd?.()
+          resolve()
+        }
+
+        audio.onerror = () => {
+          URL.revokeObjectURL(audioUrl)
+          setState(prev => ({
+            ...prev,
+            isLoading: false,
+            isSpeaking: false,
+            error: 'Failed to play audio',
+            currentText: null,
+            progress: 0
+          }))
+          onError?.('Failed to play audio')
+          reject(new Error('Failed to play audio'))
+        }
+
+        audio.preload = 'auto'
+        audio.src = audioUrl
+      })
+    },
+    [cleanupAudio, onStart, onEnd, onError]
   )
 
   // Public speak function (queues text)

@@ -378,8 +378,18 @@ export function useFlowBot(accessToken: string) {
 
         files.forEach(file => form.append('files', file))
 
-        const baseUrl = env('NEXT_PUBLIC_FLOWBOT') || env('NEXT_PUBLIC_BASE_URL') || 'https://newwork-dev.newwork.com'
+// Use local FlowBot in development
+        const isLocalDev = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+        const baseUrl = isLocalDev
+          ? 'http://localhost:8000'
+          : env('NEXT_PUBLIC_FLOWBOT') || env('NEXT_PUBLIC_BASE_URL') || 'https://newwork-dev.newwork.com'
         const url = `${baseUrl}/flowbot/api/agent/v2/chat`
+
+        // Debug log only in development
+        if (isLocalDev) {
+          console.log('📤 [FlowBot] Sending to local:', userInputText.substring(0, 50))
+        }
+
         const res = await fetch(url, {
           method: 'POST',
           headers: {

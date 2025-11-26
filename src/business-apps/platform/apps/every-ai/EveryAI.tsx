@@ -28,6 +28,7 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [showRemindersPanel, setShowRemindersPanel] = useState(false)
   const [isSpeechMode, setIsSpeechMode] = useState(false)
+  const isSpeechModeRef = useRef(false) // Ref for use in callbacks
   const lastSpokenTurnIndexRef = useRef<number>(-1)
 
   const { conversation, isLoading, sendMessage, clearConversation, nextStepProposals, isPrechatLoading } =
@@ -36,18 +37,37 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
   // Fetch current user's picture
   const { pictureThumbnail } = useCurrentUserPicture(userInfo?.employeeDetails?.employeeId, accessToken)
 
-  // Voice input hook
+  // Handle sending voice transcript (defined before voiceInput hook)
+  const handleVoiceSendRef = useRef<(text: string) => void>(() => {})
+
+  // Voice input hook with onEnd callback to auto-send
   const voiceInput = useVoiceInput({
     language: 'en-US',
     continuous: false,
-    interimResults: true
+    interimResults: true,
+    onEnd: (finalTranscript: string) => {
+      if (finalTranscript.trim() && isSpeechModeRef.current) {
+        handleVoiceSendRef.current(finalTranscript)
+      }
+    }
   })
 
-  // Voice synthesis hook
+  // Voice synthesis hook with auto-restart listening on end
   const voiceSynthesis = useVoiceSynthesis({
     voice: 'nova',
     speed: 1.0,
-    accessToken
+    accessToken,
+    onEnd: () => {
+      // Auto-restart listening after AI finishes speaking
+      if (isSpeechModeRef.current && !voiceInput.isListening) {
+        console.log('🎤 [Voice] Auto-restarting listening after AI speech')
+        setTimeout(() => {
+          if (isSpeechModeRef.current) {
+            voiceInput.startListening()
+          }
+        }, 300) // Small delay for natural conversation flow
+      }
+    }
   })
 
   // Toggle speech mode
@@ -55,12 +75,21 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
     if (isSpeechMode) {
       // Exiting speech mode
       setIsSpeechMode(false)
+      isSpeechModeRef.current = false
       voiceInput.cancelListening()
       voiceSynthesis.stop()
     } else {
-      // Entering speech mode
+      // Entering speech mode - auto-start listening
       setIsSpeechMode(true)
+      isSpeechModeRef.current = true
       lastSpokenTurnIndexRef.current = conversation.length - 1
+      // Auto-start listening after a brief delay for UI to render
+      setTimeout(() => {
+        if (isSpeechModeRef.current) {
+          console.log('🎤 [Voice] Auto-starting listening on speech mode entry')
+          voiceInput.startListening()
+        }
+      }, 200)
     }
   }, [isSpeechMode, voiceInput, voiceSynthesis, conversation.length])
 
@@ -76,13 +105,14 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isSpeechMode, toggleSpeechMode])
 
-  // Auto-speak new AI responses in speech mode
+  // Auto-speak new AI responses in speech mode - trigger as soon as answer appears
   useEffect(() => {
-    if (!isSpeechMode || isLoading) return
+    if (!isSpeechMode) return
 
-    // Find the latest agent turn with an answer
+    // Find the latest agent turn with an answer (don't wait for isLoading to finish)
     for (let i = conversation.length - 1; i > lastSpokenTurnIndexRef.current; i--) {
       const turn = conversation[i]
+
       if (turn.side === 'agent') {
         // Find the answer output
         const answerOutput = turn.outputs?.find((o: OutputItem): o is AnswerOutput => o.type === 'answer')
@@ -110,24 +140,34 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
             const textToSpeak = textParts.join('. ')
             // Limit to first ~500 characters to avoid very long speeches
             const truncatedText = textToSpeak.length > 500 ? textToSpeak.substring(0, 500) + '...' : textToSpeak
+            console.log('🔊 [TTS] Speaking:', truncatedText.substring(0, 80) + '...')
             voiceSynthesis.speak(truncatedText)
             lastSpokenTurnIndexRef.current = i
           }
         }
       }
     }
-  }, [conversation, isSpeechMode, isLoading, voiceSynthesis])
+  }, [conversation, isSpeechMode, voiceSynthesis])
 
   // Handle sending voice transcript
   const handleVoiceSend = useCallback(
     (text: string) => {
-      if (text.trim()) {
-        sendMessage(text, [], false, false, undefined)
+      if (text && typeof text === 'string' && text.trim()) {
+        const cleanText = text.trim()
+        console.log('🎤 [Voice] Sending:', cleanText)
+        // Clear old AI response text before sending new message
+        voiceSynthesis.stop()
+        sendMessage(cleanText, [], false, false, undefined)
         voiceInput.resetTranscript()
       }
     },
-    [sendMessage, voiceInput]
+    [sendMessage, voiceInput, voiceSynthesis]
   )
+
+  // Update ref for use in useVoiceInput callback
+  useEffect(() => {
+    handleVoiceSendRef.current = handleVoiceSend
+  }, [handleVoiceSend])
 
   const extendedConversation = useMemo(() => {
     // Don't add loading if conversation already has it

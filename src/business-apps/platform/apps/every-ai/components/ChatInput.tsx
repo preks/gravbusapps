@@ -207,19 +207,18 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           </div>
         )}
 
-        {/* Premium Input Container with glow */}
+        {/* Input Container - Responsive for sidepanel */}
         <div className="gba:relative gba:group">
-          <div className="gba:absolute gba:inset-0 gba:bg-gradient-to-r gba:from-primary gba:to-info gba:rounded-2xl gba:blur-xl gba:opacity-0 group-hover:gba:opacity-20 gba:transition-opacity" />
-
-          <div className="gba:rounded-2xl gba:border-2 gba:border-border hover:gba:border-primary/50 gba:bg-card gba:shadow-lg gba:p-3 gba:transition-all gba:relative">
-            <div className="gba:flex gba:items-end gba:gap-2">
+          <div className="gba:rounded-2xl gba:border-2 gba:border-border hover:gba:border-primary/50 gba:bg-card gba:shadow-lg gba:p-2 gba:transition-all gba:relative">
+            <div className="gba:flex gba:items-end gba:gap-1.5">
               {/* File Upload Button */}
               <Button
                 variant="ghost"
                 size="sm"
-                className="gba:h-10 gba:w-10 gba:rounded-xl gba:bg-muted hover:gba:bg-primary hover:gba:text-primary-foreground gba:transition-all gba:shadow-sm"
+                className="gba:h-10 gba:w-10 gba:rounded-xl gba:bg-muted hover:gba:bg-primary hover:gba:text-primary-foreground gba:transition-all gba:shadow-sm gba:flex-shrink-0"
                 onClick={() => fileInputRef.current?.click()}
                 aria-label="Attach file"
+                title="Attach file"
                 disabled={disabled}
               >
                 <svg
@@ -234,13 +233,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 </svg>
               </Button>
 
-              {/* Premium Textarea */}
+              {/* Textarea - Flexible width */}
               <Textarea
                 ref={textareaRef}
                 value={value}
                 onChange={e => setValue(e.target.value)}
                 placeholder={placeholder}
-                className="gba:min-h-[40px] gba:max-h-48 gba:resize-none gba:bg-transparent gba:border-none focus-visible:gba:ring-0 gba:text-base placeholder:gba:text-muted-foreground/70"
+                className="gba:flex-1 gba:min-w-0 gba:min-h-[40px] gba:max-h-48 gba:resize-none gba:bg-transparent gba:border-none focus-visible:gba:ring-0 gba:text-base placeholder:gba:text-muted-foreground/70"
                 onKeyDown={e => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault()
@@ -250,96 +249,99 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 disabled={disabled}
               />
 
-              {/* Web Search Toggle with glow */}
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`gba:h-10 gba:w-10 gba:rounded-xl gba:transition-all gba:shadow-sm ${
-                  isSearching
-                    ? 'gba:bg-gradient-to-br gba:from-success gba:to-info gba:text-primary-foreground gba:shadow-lg'
-                    : 'gba:bg-muted hover:gba:bg-success hover:gba:text-primary-foreground'
-                }`}
-                onClick={() => setIsSearching(!isSearching)}
-                aria-label="Toggle web search"
-                disabled={disabled}
-                title={isSearching ? 'Web search enabled' : 'Enable web search'}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  className="gba:h-5 gba:w-5"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="2" y1="12" x2="22" y2="12" />
-                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                </svg>
-              </Button>
-
-              {/* Voice Mode Button - Premium Feature */}
-              {voiceModeSupported && (
-                <VoiceModeButton
-                  isActive={isSpeechMode}
-                  isListening={isListening}
-                  isSpeaking={isSpeaking}
-                  isLoading={isVoiceLoading}
-                  volume={voiceVolume}
-                  onToggle={onToggleVoiceMode}
-                  onStopSpeaking={onStopSpeaking}
+              {/* Action Buttons Container - Compact for sidepanel */}
+              <div className="gba:flex gba:items-center gba:gap-1.5 gba:flex-shrink-0">
+                {/* Web Search Toggle */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={`gba:h-10 gba:w-10 gba:rounded-xl gba:transition-all gba:shadow-sm ${
+                    isSearching
+                      ? 'gba:bg-success gba:text-success-foreground'
+                      : 'gba:bg-muted hover:gba:bg-success hover:gba:text-success-foreground'
+                  }`}
+                  onClick={() => setIsSearching(!isSearching)}
+                  aria-label="Toggle web search"
                   disabled={disabled}
-                  size="md"
-                />
-              )}
-
-              {/* Clear Button */}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gba:h-10 gba:w-10 gba:rounded-xl gba:bg-muted hover:gba:bg-destructive hover:gba:text-destructive-foreground gba:transition-all gba:shadow-sm"
-                onClick={() => {
-                  setValue('')
-                  clearFiles()
-                  onClear()
-                  focusTextarea()
-                }}
-                aria-label="Clear session"
-                disabled={disabled}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  className="gba:h-5 gba:w-5"
+                  title={isSearching ? 'Web search enabled' : 'Enable web search'}
                 >
-                  <path d="M18 6 6 18M6 6l12 12" />
-                </svg>
-              </Button>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    className="gba:h-5 gba:w-5"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="2" y1="12" x2="22" y2="12" />
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                  </svg>
+                </Button>
 
-              {/* Premium Send Button with gradient */}
-              <Button
-                variant="default"
-                size="sm"
-                className="gba:h-10 gba:w-10 gba:rounded-xl gba:bg-gradient-to-br gba:from-primary gba:to-info hover:gba:shadow-lg gba:transition-all gba:relative gba:group"
-                onClick={handleSend}
-                aria-label="Send"
-                disabled={disabled || (!value.trim() && files.length === 0)}
-              >
-                <div className="gba:absolute gba:inset-0 gba:bg-gradient-to-br gba:from-primary gba:to-info gba:rounded-xl gba:blur-md gba:opacity-0 group-hover:gba:opacity-50 gba:transition-opacity" />
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  className="gba:h-5 gba:w-5 gba:relative gba:z-10"
+                {/* Voice Mode Button */}
+                {voiceModeSupported && (
+                  <VoiceModeButton
+                    isActive={isSpeechMode}
+                    isListening={isListening}
+                    isSpeaking={isSpeaking}
+                    isLoading={isVoiceLoading}
+                    volume={voiceVolume}
+                    onToggle={onToggleVoiceMode}
+                    onStopSpeaking={onStopSpeaking}
+                    disabled={disabled}
+                  />
+                )}
+
+                {/* Clear Button */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gba:h-10 gba:w-10 gba:rounded-xl gba:bg-muted hover:gba:bg-destructive hover:gba:text-destructive-foreground gba:transition-all gba:shadow-sm"
+                  onClick={() => {
+                    setValue('')
+                    clearFiles()
+                    onClear()
+                    focusTextarea()
+                  }}
+                  aria-label="Clear session"
+                  disabled={disabled}
+                  title="Clear conversation"
                 >
-                  <path d="m5 12 14-7-7 14-1-6-6-1Z" />
-                </svg>
-              </Button>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    className="gba:h-5 gba:w-5"
+                  >
+                    <path d="M18 6 6 18M6 6l12 12" />
+                  </svg>
+                </Button>
+
+                {/* Send Button */}
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="gba:h-10 gba:w-10 gba:rounded-xl gba:bg-gradient-to-br gba:from-primary gba:to-info hover:gba:shadow-lg gba:transition-all"
+                  onClick={handleSend}
+                  aria-label="Send"
+                  title="Send message"
+                  disabled={disabled || (!value.trim() && files.length === 0)}
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    className="gba:h-5 gba:w-5"
+                  >
+                    <path d="m5 12 14-7-7 14-1-6-6-1Z" />
+                  </svg>
+                </Button>
+              </div>
             </div>
           </div>
         </div>
