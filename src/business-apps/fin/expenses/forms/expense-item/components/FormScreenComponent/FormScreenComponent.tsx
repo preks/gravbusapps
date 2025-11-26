@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react'
+import React, { useCallback, useEffect, useRef } from 'react'
 import { Button, DateInputField, Divider, InputField, SelectField, Switch } from '@newwork/gravity-ui-catalog'
 import { Form, Row, Col } from 'antd'
 import { ExpensePosition, ExpenseGroup, ExpenseType, CostCenter, Currency, CustomField } from '../../types'
@@ -71,6 +71,18 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
     useExpenseItem()
 
   const selectedExpenseRequestId = Form.useWatch('expenseRequestId', form)
+  const hadBackendRequestRef = useRef(false)
+
+  useEffect(() => {
+    if (hadBackendRequestRef.current || !isEditMode) {
+      return
+    }
+
+    const initialRequestId = selectedExpenseRequestId || form.getFieldValue('expenseRequestId')
+    if (initialRequestId && initialRequestId !== '0') {
+      hadBackendRequestRef.current = true
+    }
+  }, [form, isEditMode, selectedExpenseRequestId])
 
   const expenseRequestOptions = expenseRequests.map(request => ({
     id: request.id,
@@ -78,7 +90,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
   }))
 
   const hasBackendPreselectedRequest =
-    (isEditMode && selectedExpenseRequestId && selectedExpenseRequestId !== '0') ||
+    hadBackendRequestRef.current ||
     !!(additionalData?.expenseRequestId || additionalData?.psi_taskPayload?.psi_initialParameters?.expenseRequest)
 
   const filteredExpenseRequestOptions = hasBackendPreselectedRequest
@@ -378,6 +390,17 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
             name="expenseRequestId"
             data-testid="expense-request-select"
             data={filteredExpenseRequestOptions}
+            value={
+              selectedExpenseRequestId
+                ? {
+                    id: selectedExpenseRequestId,
+                    name:
+                      filteredExpenseRequestOptions.find(option => option.id === selectedExpenseRequestId)?.name ||
+                      expenseRequestOptions.find(option => option.id === selectedExpenseRequestId)?.name ||
+                      selectedExpenseRequestId
+                  }
+                : undefined
+            }
             onChange={(value: any) => {
               form.setFieldsValue({ expenseRequestId: value.value })
             }}
@@ -412,7 +435,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         <Button
           variant="primary"
           onClick={handleCreateClick}
-          disabled={isProcessingFiles}
+          disabled={isProcessingFiles || (isEditMode && hadBackendRequestRef.current && !selectedExpenseRequestId)}
           className="gba:min-w-[100px] gba:border-2 gba:text-base gba:font-semibold gba:px-4"
           style={{ borderRadius: '22px', width: 'auto', height: '40px' }}
           data-testid="submit-button"
