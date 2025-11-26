@@ -46,7 +46,6 @@ export const IncrementTypesVersion: React.FC<IncrementTypesVersionProps> = ({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  console.log(incrementTypeVersions, 'incrementTypeVersions')
   const handleSearch = useCallback((value: string) => {
     setSearchTerm(value)
   }, [])
