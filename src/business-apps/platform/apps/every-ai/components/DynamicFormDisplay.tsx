@@ -17,6 +17,8 @@ interface SchemaFieldProps {
   disabled?: boolean
   value: any
   onChange: (value: any) => void
+  formData: Record<string, any>
+  onFieldValueChange?: (path: string, value: any) => void
 }
 
 const sanitizeControlId = (value: string): string => value.replace(/[^a-zA-Z0-9-_:.]/g, '-').toLowerCase()
@@ -47,7 +49,17 @@ const toOptionId = (value: unknown): string => {
   return toDisplayString(value)
 }
 
-const SchemaField: React.FC<SchemaFieldProps> = ({ name, path, schema, required, disabled, value, onChange }) => {
+const SchemaField: React.FC<SchemaFieldProps> = ({
+  name,
+  path,
+  schema,
+  required,
+  disabled,
+  value,
+  onChange,
+  formData,
+  onFieldValueChange
+}) => {
   const fieldPath = path ? `${path}.${name}` : name
   const controlId = sanitizeControlId(fieldPath)
 
@@ -66,6 +78,94 @@ const SchemaField: React.FC<SchemaFieldProps> = ({ name, path, schema, required,
   }
 
   const label = formatFieldName(name)
+
+  // ============================================================================
+  // CONDITIONAL DISPLAY LOGIC
+  // ============================================================================
+
+  const displayCondition = schema?.['x-display']
+
+  // Check if field should be displayed based on condition
+  const shouldShowField = useMemo(() => {
+    if (!displayCondition?.condition) {
+      return true
+    }
+
+    const { field, operator, value: conditionValue } = displayCondition.condition
+
+    // Build the actual field path for the dependent field
+    const dependentFieldPath = path ? `${path}.${field}` : field
+
+    // Get the dependent field value from formData
+    const getNestedValue = (obj: any, path: string): any => {
+      return path.split('.').reduce((current, key) => current?.[key], obj)
+    }
+
+    const fieldValue = getNestedValue(formData, dependentFieldPath)
+
+    // Handle array values (checkboxes, multi-select)
+    if (Array.isArray(fieldValue)) {
+      switch (operator) {
+        case 'equals':
+          // Check if array contains the condition value
+          return fieldValue.includes(conditionValue)
+        case 'notEquals':
+          // Check if array does not contain the condition value
+          return !fieldValue.includes(conditionValue)
+        case 'contains':
+          // Check if any array item contains the condition value
+          return fieldValue.some(v => String(v || '').includes(String(conditionValue || '')))
+        case 'notContains':
+          // Check if no array item contains the condition value
+          return !fieldValue.some(v => String(v || '').includes(String(conditionValue || '')))
+        default:
+          return fieldValue.includes(conditionValue)
+      }
+    }
+
+    // Evaluate condition based on operator for non-array values
+    switch (operator) {
+      case 'equals':
+        // Handle boolean vs string comparison
+        if (typeof fieldValue === 'boolean' && typeof conditionValue === 'string') {
+          return fieldValue === (conditionValue.toLowerCase() === 'yes' || conditionValue.toLowerCase() === 'true')
+        }
+        if (typeof conditionValue === 'boolean' && typeof fieldValue === 'string') {
+          return (fieldValue.toLowerCase() === 'yes' || fieldValue.toLowerCase() === 'true') === conditionValue
+        }
+        return fieldValue === conditionValue
+      case 'notEquals':
+        // Handle boolean vs string comparison
+        if (typeof fieldValue === 'boolean' && typeof conditionValue === 'string') {
+          return fieldValue !== (conditionValue.toLowerCase() === 'yes' || conditionValue.toLowerCase() === 'true')
+        }
+        if (typeof conditionValue === 'boolean' && typeof fieldValue === 'string') {
+          return (fieldValue.toLowerCase() === 'yes' || fieldValue.toLowerCase() === 'true') !== conditionValue
+        }
+        return fieldValue !== conditionValue
+      case 'contains':
+        return String(fieldValue || '').includes(String(conditionValue || ''))
+      case 'notContains':
+        return !String(fieldValue || '').includes(String(conditionValue || ''))
+      default:
+        return fieldValue === conditionValue
+    }
+  }, [displayCondition, formData, path, name])
+
+  // Clear field value when it becomes hidden
+  useEffect(() => {
+    if (!shouldShowField && fieldPath && onFieldValueChange) {
+      const currentValue = value
+      if (currentValue !== undefined && currentValue !== null && currentValue !== '') {
+        onFieldValueChange(fieldPath, '')
+      }
+    }
+  }, [shouldShowField, fieldPath, value, onFieldValueChange])
+
+  // Don't render if condition is not met
+  if (!shouldShowField) {
+    return null
+  }
 
   // Skip technical fields
   if (
@@ -121,7 +221,7 @@ const SchemaField: React.FC<SchemaFieldProps> = ({ name, path, schema, required,
           })
 
           const selectedOptionId = String(
-            options.find(opt => deepEquals(opt.rawValue, value))?.id ??
+            options.find((opt: { id: string; label: string; rawValue: any }) => deepEquals(opt.rawValue, value))?.id ??
               (value === undefined || value === null ? '' : toOptionId(value))
           )
 
@@ -131,7 +231,9 @@ const SchemaField: React.FC<SchemaFieldProps> = ({ name, path, schema, required,
               className="gba:w-full gba:rounded-md gba:border gba:border-border gba:bg-card gba:px-3 gba:py-2 gba:text-sm gba:text-foreground focus:gba:outline-none focus:gba:ring-2 focus:gba:ring-primary disabled:gba:cursor-not-allowed disabled:gba:opacity-50"
               value={selectedOptionId}
               onChange={e => {
-                const selected = options.find(opt => opt.id === e.target.value)
+                const selected = options.find(
+                  (opt: { id: string; label: string; rawValue: any }) => opt.id === e.target.value
+                )
                 onChange(selected ? selected.rawValue : e.target.value)
               }}
               disabled={disabled}
@@ -139,7 +241,7 @@ const SchemaField: React.FC<SchemaFieldProps> = ({ name, path, schema, required,
               <option value="" disabled>
                 Select {String(label)}
               </option>
-              {options.map((option, idx) => (
+              {options.map((option: { id: string; label: string; rawValue: any }, idx: number) => (
                 <option key={`${controlId}-opt-${idx}`} value={String(option.id)}>
                   {String(option.label)}
                 </option>
@@ -244,6 +346,8 @@ const SchemaField: React.FC<SchemaFieldProps> = ({ name, path, schema, required,
                 disabled={disabled}
                 value={value?.[propName]}
                 onChange={newValue => onChange({ ...value, [propName]: newValue })}
+                formData={formData}
+                onFieldValueChange={onFieldValueChange}
               />
             ))}
           </div>
@@ -280,6 +384,28 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({ data, on
   const currentFormState = getFormState(formKey)
   const [uiState, setUiState] = useState(currentFormState)
   const [formData, setFormData] = useState<Record<string, any>>({})
+
+  // Handler for clearing hidden field values
+  const handleFieldValueChange = useCallback((path: string, value: any) => {
+    setFormData(prev => {
+      const newData = { ...prev }
+      const pathParts = path.split('.')
+
+      // Navigate to the parent object
+      let current: any = newData
+      for (let i = 0; i < pathParts.length - 1; i++) {
+        if (!current[pathParts[i]]) {
+          current[pathParts[i]] = {}
+        }
+        current = current[pathParts[i]]
+      }
+
+      // Set the value
+      current[pathParts[pathParts.length - 1]] = value
+
+      return newData
+    })
+  }, [])
 
   useEffect(() => {
     setUiState(currentFormState)
@@ -518,6 +644,8 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({ data, on
                     disabled={isCompleted}
                     value={formData[fieldName]}
                     onChange={value => setFormData(prev => ({ ...prev, [fieldName]: value }))}
+                    formData={formData}
+                    onFieldValueChange={handleFieldValueChange}
                   />
                 )
               } catch (error) {
