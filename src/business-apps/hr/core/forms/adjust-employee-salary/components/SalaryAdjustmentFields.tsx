@@ -47,18 +47,17 @@ const SalaryAdjustmentFields: React.FC<SalaryAdjustmentFieldsProps> = ({ control
 
   // Build adjustment reasons from catalog entries
   const adjustmentReasons = useMemo(() => {
-    return salaryAdjustReasonEntries
-      .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
-      .map(entry => {
-        // Build catalog reference format: SalaryAdjustReason:v1:promotion
-        const catalogRef = `${entry.catalog.identifier}:${entry.catalog.version}:${entry.code}`
-        const displayValue = getCatalogValue(entry) || entry.value || entry.code
+    const sortedEntries = [...salaryAdjustReasonEntries].sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
+    return sortedEntries.map(entry => {
+      // Build catalog reference format: SalaryAdjustReason:v1:promotion
+      const catalogRef = `${entry.catalog.identifier}:${entry.catalog.version}:${entry.code}`
+      const displayValue = getCatalogValue(entry) || entry.value || entry.code
 
-        return {
-          value: catalogRef, // Store full catalog reference
-          label: displayValue
-        }
-      })
+      return {
+        value: catalogRef, // Store full catalog reference
+        label: displayValue
+      }
+    })
   }, [salaryAdjustReasonEntries])
 
   return (
