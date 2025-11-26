@@ -3,7 +3,7 @@ import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { Alert, AlertDescription, Badge, Spinner } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import type { Contact } from '@/common/data/relations/types/contactTypes'
 
 export interface ContactDeletePopupValues {
@@ -121,7 +121,6 @@ const ContactDeletePopup: React.FC<ContactDeletePopupProps> = ({
       validateForm={validateForm}
       submitButtonText={getTranslationFromI18nKeyAndLabel('common.delete', 'Delete')}
       submitButtonVariant="destructive"
-      businessAppContext={props}
       data-testid={formatDataTestId(prefixDataTestId, 'form')}
     >
       <div className="gba:space-y-4" data-testid={formatDataTestId(prefixDataTestId, 'container')}>
@@ -160,7 +159,7 @@ const ContactDeletePopup: React.FC<ContactDeletePopupProps> = ({
                 <p className="gba:mt-1">
                   <strong>{getTranslationFromI18nKeyAndLabel('common.createdAt', 'Created At')}:</strong>{' '}
                   <Badge variant="outline" className="gba:ml-1">
-                    {new Date(contact.createdAt).toLocaleString()}
+                    {formatDate(contact.createdAt)}
                   </Badge>
                 </p>
                 <p className="gba:mt-1">

@@ -3,7 +3,7 @@ import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { Alert, AlertDescription, Badge, Spinner } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import type { Opportunity } from '@/common/data/relations/types/opportunityTypes'
 
 export interface OpportunityDeletePopupValues {
@@ -124,7 +124,6 @@ const OpportunityDeletePopup: React.FC<OpportunityDeletePopupProps> = ({
       validateForm={validateForm}
       submitButtonText={getTranslationFromI18nKeyAndLabel('common.delete', 'Delete')}
       submitButtonVariant="destructive"
-      businessAppContext={props}
       data-testid={formatDataTestId(prefixDataTestId, 'form')}
     >
       <div className="gba:space-y-4" data-testid={formatDataTestId(prefixDataTestId, 'container')}>
@@ -163,7 +162,7 @@ const OpportunityDeletePopup: React.FC<OpportunityDeletePopupProps> = ({
                 <p className="gba:mt-1">
                   <strong>{getTranslationFromI18nKeyAndLabel('common.createdAt', 'Created At')}:</strong>{' '}
                   <Badge variant="outline" className="gba:ml-1">
-                    {new Date(opportunity.createdAt).toLocaleString()}
+                    {formatDate(opportunity.createdAt)}
                   </Badge>
                 </p>
                 <p className="gba:mt-1">

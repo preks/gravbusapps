@@ -4,7 +4,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { Alert, AlertDescription, Badge, Spinner } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 
 export interface SalesCampaignDeletePopupValues {
   campaignId: string
@@ -157,7 +157,6 @@ const SalesCampaignDeletePopup: React.FC<SalesCampaignDeletePopupProps> = ({ ini
       validateForm={validateForm}
       submitButtonText={getTranslationFromI18nKeyAndLabel('common.delete', 'Delete')}
       submitButtonVariant="destructive"
-      businessAppContext={props}
       data-testid={formatDataTestId(prefixDataTestId, 'form')}
     >
       <div className="gba:space-y-4" data-testid={formatDataTestId(prefixDataTestId, 'container')}>
@@ -201,7 +200,7 @@ const SalesCampaignDeletePopup: React.FC<SalesCampaignDeletePopupProps> = ({ ini
                 <p className="gba:mt-1">
                   <strong>{getTranslationFromI18nKeyAndLabel('common.createdAt', 'Created At')}:</strong>{' '}
                   <Badge variant="outline" className="gba:ml-1">
-                    {new Date(campaign.createdAt).toLocaleString()}
+                    {formatDate(campaign.createdAt)}
                   </Badge>
                 </p>
                 <p className="gba:mt-2 gba:font-medium gba:text-destructive">

@@ -3,7 +3,7 @@ import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { Alert, AlertDescription, Badge, Spinner } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import type { Account } from '@/common/data/relations/types/accountTypes'
 
 export interface AccountDeletePopupValues {
@@ -121,7 +121,6 @@ const AccountDeletePopup: React.FC<AccountDeletePopupProps> = ({
       validateForm={validateForm}
       submitButtonText={getTranslationFromI18nKeyAndLabel('common.delete', 'Delete')}
       submitButtonVariant="destructive"
-      businessAppContext={props}
       data-testid={formatDataTestId(prefixDataTestId, 'form')}
     >
       <div className="gba:space-y-4" data-testid={formatDataTestId(prefixDataTestId, 'container')}>
@@ -160,7 +159,7 @@ const AccountDeletePopup: React.FC<AccountDeletePopupProps> = ({
                 <p className="gba:mt-1">
                   <strong>{getTranslationFromI18nKeyAndLabel('common.createdAt', 'Created At')}:</strong>{' '}
                   <Badge variant="outline" className="gba:ml-1">
-                    {new Date(account.createdAt).toLocaleString()}
+                    {formatDate(account.createdAt)}
                   </Badge>
                 </p>
                 <p className="gba:mt-1">
