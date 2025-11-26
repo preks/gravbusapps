@@ -299,10 +299,26 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
 
   const supervisorEmployeeId = employee?.employeePosition?.supervisorEmployeeId
   const supervisorIdFromRelation = employee?.employeePosition?.supervisor?.id
-  const managerId = supervisorEmployeeId || supervisorIdFromRelation
-  const isManager = !!(managerId && currentUserEmployeeId && managerId === currentUserEmployeeId)
-  const hasManagerEmployeeGrowthPermission =
-    isManager && !employeeGrowthPermission.loading && employeeGrowthPermission.hasPermission === true
+  const employeeSupervisorId = supervisorEmployeeId || supervisorIdFromRelation
+
+  const isManager = !!(
+    employee &&
+    employeeSupervisorId &&
+    currentUserEmployeeId &&
+    employeeSupervisorId === currentUserEmployeeId
+  )
+
+  const isManagerWithPermissionButNotDirect = !!(
+    !isManager &&
+    !employeeGrowthPermission.loading &&
+    employeeGrowthPermission.hasPermission === true
+  )
+
+  const isDirectManagerWithPermission = !!(
+    isManager &&
+    !employeeGrowthPermission.loading &&
+    employeeGrowthPermission.hasPermission === true
+  )
 
   // Centralized compensation permissions
   const compensationPermissions = useCompensationPermissions({
@@ -402,7 +418,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
               hasHrNotesAccess = hasRegularPermission && hasScope
             }
           }
-          if (hasManagerEmployeeGrowthPermission) {
+          if (isDirectManagerWithPermission) {
             hasHrNotesAccess = true
           }
 
@@ -530,11 +546,9 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       }
 
       if (tabKey === TAB_KEYS.absences) {
-        return (
-          isSelfView ||
-          hasManagerEmployeeGrowthPermission ||
-          (employeeRecordAllHrBackoffice?.hasPermission === true && !employeeGrowthPermission.hasPermission)
-        )
+        const visible =
+          isSelfView || isDirectManagerWithPermission || employeeRecordAllHrBackoffice?.hasPermission === true
+        return visible
       }
 
       if (tabKey === TAB_KEYS.serviceRequests) {
@@ -542,11 +556,9 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       }
 
       if (tabKey === TAB_KEYS.timeTracking) {
-        return (
-          isSelfView ||
-          hasManagerEmployeeGrowthPermission ||
-          (employeeRecordAllHrBackoffice?.hasPermission === true && !employeeGrowthPermission.hasPermission)
-        )
+        const visible =
+          isSelfView || isDirectManagerWithPermission || employeeRecordAllHrBackoffice?.hasPermission === true
+        return visible
       }
 
       if (tabKey === TAB_KEYS.compensation) {
@@ -554,39 +566,46 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       }
 
       if (tabKey === TAB_KEYS.hrAdmin) {
-        return (
-          isSelfView ||
-          hasManagerEmployeeGrowthPermission ||
-          (employeeRecordAllHrBackoffice?.hasPermission === true && !employeeGrowthPermission.hasPermission)
-        )
+        const visible =
+          isSelfView || isDirectManagerWithPermission || employeeRecordAllHrBackoffice?.hasPermission === true
+        return visible
       }
 
       if (tabKey === TAB_KEYS.summary) {
-        return (
+        const visible =
           isSelfView ||
+          isDirectManagerWithPermission ||
           tabPermissions?.[tabKey]?.hasAccess === true ||
-          employeeRecordAllEmployees?.hasPermission === true
-        )
+          employeeRecordAllEmployees?.hasPermission === true ||
+          isManagerWithPermissionButNotDirect
+        return visible
       }
 
       if (tabKey === TAB_KEYS.hrGrowth) {
-        const hasSkillsAccess = tabPermissions?.['skills']?.hasAccess !== false
-        const hasFeedbackAccess = devFeatureFlag && tabPermissions?.['feedback']?.hasAccess === true
+        const hasSkillsAccess =
+          isDirectManagerWithPermission ||
+          tabPermissions?.['skills']?.hasAccess !== false ||
+          employeeRecordAllEmployees?.hasPermission === true ||
+          isManagerWithPermissionButNotDirect
+        const hasFeedbackAccess =
+          isDirectManagerWithPermission ||
+          (devFeatureFlag && tabPermissions?.['feedback']?.hasAccess === true) ||
+          employeeRecordAllEmployees?.hasPermission === true ||
+          isManagerWithPermissionButNotDirect
         const hasPerformanceAccess =
-          isSelfView ||
-          hasManagerEmployeeGrowthPermission ||
-          (employeeRecordAllHrBackoffice?.hasPermission === true && !employeeGrowthPermission.hasPermission)
-        return (
+          isSelfView || isDirectManagerWithPermission || employeeRecordAllHrBackoffice?.hasPermission === true
+        const visible =
           employeeRecordAllEmployees?.hasPermission === true ||
           hasSkillsAccess ||
           hasFeedbackAccess ||
           hasPerformanceAccess ||
           devFeatureFlag
-        )
+        return visible
       }
 
       if (tabKey === TAB_KEYS.assets) {
-        return isSelfView || hasManagerEmployeeGrowthPermission || employeeRecordAllItAdmin?.hasPermission === true
+        const visible = isSelfView || isDirectManagerWithPermission || employeeRecordAllItAdmin?.hasPermission === true
+        return visible
       }
 
       return true
