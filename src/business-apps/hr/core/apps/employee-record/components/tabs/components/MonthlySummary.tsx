@@ -60,7 +60,7 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, a
         )
       : getTranslationFromI18nKeyAndLabel(
           'lowcoder:time_tracking.summary.header.welcome',
-          `Wellcome ${employeeName} to the new way of working!`,
+          `Welcome ${employeeName} to the new way of working!`,
           {
             employeeName
           }
