@@ -1,11 +1,12 @@
 'use client'
 
 import React from 'react'
-import { Card, Button, Alert } from '@newwork/nw-design-system'
+import { Card, Alert, Badge, Icon } from '@newwork/nw-design-system'
 import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useTimeInterventions } from '../hooks/useTimeInterventions'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { CalendarXIcon, WarningCircleIcon, ArrowsClockwiseIcon } from '@phosphor-icons/react'
 
 interface InterventionsTableProps {
   employeeId: string
@@ -29,11 +30,51 @@ const formatHm = (minutes: number) => {
 
 export const InterventionsTable: React.FC<InterventionsTableProps> = ({ employeeId, accessToken, workingHours }) => {
   const locale = getCurrentActiveUserLocale()
-  const { items, isLoading, error, currentMonth, nextMonth, prevMonth } = useTimeInterventions({
+  const { items, isLoading, error } = useTimeInterventions({
     employeeId,
     accessToken,
     workingHours
   })
+
+  const getReason = (reason: string) => {
+    if (reason === 'MISSING_HOURS')
+      return getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.interventions.missing_hours', 'Missing hours')
+    if (reason === 'NO_ATTENDANCE')
+      return getTranslationFromI18nKeyAndLabel(
+        'lowcoder:time_tracking.interventions.no_attendance',
+        'No attendance recorded'
+      )
+    return getTranslationFromI18nKeyAndLabel(
+      'lowcoder:time_tracking.interventions.absence_with_attendance',
+      'Absence and attendance overlap'
+    )
+  }
+
+  const getBadgeVariant = (reason: string): any => {
+    switch (reason) {
+      case 'MISSING_HOURS':
+        return 'warning'
+      case 'NO_ATTENDANCE':
+        return 'info'
+      case 'ABSENCE_WITH_ATTENDANCE':
+        return 'destructive'
+      default:
+        return 'secondary'
+    }
+  }
+
+  const getReasonIcon = (reason: string) => {
+    switch (reason) {
+      case 'MISSING_HOURS':
+        return WarningCircleIcon
+      case 'NO_ATTENDANCE':
+        return CalendarXIcon
+      case 'ABSENCE_WITH_ATTENDANCE':
+        return ArrowsClockwiseIcon
+      default:
+        return WarningCircleIcon
+    }
+  }
 
   return (
     <Card className="gba:p-4 gba:mt-4" data-testid="time-interventions-card">
@@ -41,17 +82,7 @@ export const InterventionsTable: React.FC<InterventionsTableProps> = ({ employee
         <div className="gba:text-lg gba:font-semibold">
           {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.interventions.title', 'Days needing intervention')}
         </div>
-        <div className="gba:flex gba:gap-2">
-          <Button variant="outline" onClick={prevMonth} data-testid="interventions-prev">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.common.prev', 'Prev')}
-          </Button>
-          <div className="gba:self-center">
-            {currentMonth.toLocaleString(locale, { month: 'long', year: 'numeric' })}
-          </div>
-          <Button variant="outline" onClick={nextMonth} data-testid="interventions-next">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.common.next', 'Next')}
-          </Button>
-        </div>
+        {/* Navigation removed as requested */}
       </div>
 
       {error && (
@@ -60,64 +91,49 @@ export const InterventionsTable: React.FC<InterventionsTableProps> = ({ employee
         </Alert>
       )}
 
-      <div className="gba:w-full gba:overflow-x-auto" data-testid="time-interventions-table">
-        <table className="gba:w-full gba:text-sm">
-          <thead>
-            <tr className="gba:text-muted-foreground">
-              <th className="gba:text-left gba:py-2">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:common.date', 'Date')}
-              </th>
-              <th className="gba:text-left gba:py-2">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.planned', 'Planned')}
-              </th>
-              <th className="gba:text-left gba:py-2">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.worked', 'Worked')}
-              </th>
-              <th className="gba:text-left gba:py-2">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:common.reason', 'Reason')}
-              </th>
-              <th className="gba:text-left gba:py-2 gba:w-[60px]">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.actions', 'Actions')}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              <tr>
-                <td className="gba:py-3" colSpan={4}>
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:common.loading', 'Loading...')}
-                </td>
-              </tr>
-            ) : items.length === 0 ? (
-              <tr>
-                <td className="gba:py-3" colSpan={4}>
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.interventions.empty', 'No issues found')}
-                </td>
-              </tr>
-            ) : (
-              items.map(item => (
-                <tr key={item.date} className="gba:border-t gba:border-muted">
-                  <td className="gba:py-2">{new Date(item.date).toLocaleDateString(locale)}</td>
-                  <td className="gba:py-2">{formatHm(item.plannedMinutes)}</td>
-                  <td className="gba:py-2">{formatHm(item.workedMinutes)}</td>
-                  <td className="gba:py-2">
-                    {item.reason === 'MISSING_HOURS' &&
-                      getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:time_tracking.interventions.missing_hours',
-                        'Missing hours'
-                      )}
-                    {item.reason === 'NO_ATTENDANCE' &&
-                      getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:time_tracking.interventions.no_attendance',
-                        'No attendance recorded'
-                      )}
-                    {item.reason === 'ABSENCE_WITH_ATTENDANCE' &&
-                      getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:time_tracking.interventions.absence_with_attendance',
-                        'Absence and attendance overlap'
-                      )}
-                  </td>
-                  <td className="gba:py-2">
+      <div className="gba:w-full" data-testid="time-interventions-list">
+        {isLoading ? (
+          <div className="gba:py-3">{getTranslationFromI18nKeyAndLabel('lowcoder:common.loading', 'Loading...')}</div>
+        ) : items.length === 0 ? (
+          <div className="gba:py-3">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.interventions.empty', 'No issues found')}
+          </div>
+        ) : (
+          <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:lg:grid-cols-3 gba:gap-3">
+            {items.map(item => {
+              const IconCmp = getReasonIcon(item.reason)
+              const dateText = new Date(item.date).toLocaleDateString(locale, {
+                weekday: 'short',
+                month: 'numeric',
+                day: 'numeric'
+              })
+              const deficit = Math.max(0, item.plannedMinutes - item.workedMinutes)
+              return (
+                <Card key={item.date} className="gba:p-3" data-testid={`time-interventions-item-${item.date}`}>
+                  <div className="gba:flex gba:items-start gba:justify-between gba:gap-3">
+                    <div className="gba:flex gba:items-center gba:gap-3">
+                      <div className="gba:flex gba:h-9 gba:w-9 gba:items-center gba:justify-center gba:rounded-full gba:bg-muted gba:text-muted-foreground">
+                        <Icon icon={IconCmp} />
+                      </div>
+                      <div className="gba:flex gba:flex-col">
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <div className="gba:font-medium">{dateText}</div>
+                          <Badge
+                            variant={getBadgeVariant(item.reason)}
+                            data-testid={`time-interventions-reason-${item.date}`}
+                          >
+                            {getReason(item.reason)}
+                          </Badge>
+                        </div>
+                        <div className="gba:text-sm gba:text-muted-foreground">
+                          {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.planned', 'Planned')}{' '}
+                          {formatHm(item.plannedMinutes)} •{' '}
+                          {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.worked', 'Worked')}{' '}
+                          {formatHm(item.workedMinutes)}
+                          {deficit > 0 ? ` • -${formatHm(deficit)}` : ''}
+                        </div>
+                      </div>
+                    </div>
                     <div className="gba:flex gba:justify-start">
                       <AppActionButton
                         data-testid={`time-interventions-update-button-${item.date}`}
@@ -135,12 +151,12 @@ export const InterventionsTable: React.FC<InterventionsTableProps> = ({ employee
                         onClick={e => e.stopPropagation()}
                       />
                     </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+                  </div>
+                </Card>
+              )
+            })}
+          </div>
+        )}
       </div>
     </Card>
   )
