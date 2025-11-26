@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -35,6 +35,7 @@ import {
   TabsContent
 } from '@newwork/nw-design-system'
 import IncrementTypeDetails from './IncrementTypeDetails'
+import { useVersionOverlapCheck } from '../hooks/useVersionOverlapCheck'
 
 export interface ConfigureIncrementTypeProps {
   incrementTypeVersion: TransformedIncrementTypeVersion | null
@@ -80,7 +81,6 @@ const ConfigureIncrementType: React.FC<ConfigureIncrementTypeProps> = ({
   const [loading, setLoading] = useState(false)
   const [currentIncrementTypeVersion, setCurrentIncrementTypeVersion] =
     useState<TransformedIncrementTypeVersion | null>(incrementTypeVersion)
-  const [overlapWarning, setOverlapWarning] = useState<string | null>(null)
 
   // Update currentIncrementTypeVersion when incrementTypeVersion prop changes
   useEffect(() => {
@@ -110,10 +110,24 @@ const ConfigureIncrementType: React.FC<ConfigureIncrementTypeProps> = ({
     }
   }, [currentIncrementTypeVersion, form])
 
+  // Check for date overlap when creating or editing a version
+  const { overlapWarning } = useVersionOverlapCheck({
+    currentVersion: currentIncrementTypeVersion,
+    allVersions: incrementTypeVersions,
+    watch: form.watch,
+    entityIdFieldName: 'incrementType',
+    activeFromFieldName: 'validFrom',
+    activeToFieldName: 'validTo',
+    getEntityIdFromVersion: version => version.incrementType?.id || null
+  })
+
   // Check if save button should be disabled
   const isSaveDisabled = useMemo(() => {
     // Disable during loading
     if (loading) return true
+
+    // Disable if there are overlap warnings
+    if (overlapWarning) return true
 
     // Check if form is valid
     const isValid = form.formState.isValid
@@ -128,73 +142,7 @@ const ConfigureIncrementType: React.FC<ConfigureIncrementTypeProps> = ({
 
     // For edit: must have changes (isDirty) and form must be valid
     return !isDirty || !isValid
-  }, [loading, form.formState.isValid, form.formState.isDirty, currentIncrementTypeVersion])
-
-  // Find the latest version for a given incrementType
-  const findLatestVersion = useCallback(
-    (incrementTypeId: string): TransformedIncrementTypeVersion | null => {
-      if (!incrementTypeId) return null
-
-      // Filter versions for this incrementType
-      const versionsForIncrementType = incrementTypeVersions.filter(
-        version => version.incrementType?.id === incrementTypeId && version.id !== currentIncrementTypeVersion?.id
-      )
-
-      if (versionsForIncrementType.length === 0) return null
-
-      // Sort by activeTo descending (most recent first) or by activeFrom if activeTo is null
-      const sortedVersions = [...versionsForIncrementType].sort((a, b) => {
-        const dateA = a.activeTo ? new Date(a.activeTo).getTime() : new Date(a.activeFrom || '').getTime()
-        const dateB = b.activeTo ? new Date(b.activeTo).getTime() : new Date(b.activeFrom || '').getTime()
-        return dateB - dateA // Descending order
-      })
-
-      return sortedVersions[0] || null
-    },
-    [incrementTypeVersions, currentIncrementTypeVersion]
-  )
-
-  // Check for date overlap when creating a new version
-  useEffect(() => {
-    const isNewVersion =
-      !currentIncrementTypeVersion || !currentIncrementTypeVersion.id || currentIncrementTypeVersion.id === ''
-    if (!isNewVersion) {
-      setOverlapWarning(null)
-      return
-    }
-
-    const incrementTypeId = form.watch('incrementType')
-    const validFrom = form.watch('validFrom')
-
-    if (!incrementTypeId || !validFrom) {
-      setOverlapWarning(null)
-      return
-    }
-
-    const latestVersion = findLatestVersion(incrementTypeId)
-    if (!latestVersion || !latestVersion.activeTo) {
-      setOverlapWarning(null)
-      return
-    }
-
-    const newValidFrom = new Date(validFrom)
-    const latestValidTo = new Date(latestVersion.activeTo)
-
-    // Check if new validFrom is before or equal to latest validTo (overlap)
-    if (newValidFrom <= latestValidTo) {
-      // Calculate suggested start date (one day after latest validTo)
-      const suggestedDate = new Date(latestValidTo)
-      suggestedDate.setDate(suggestedDate.getDate() + 1)
-      const suggestedDateStr = suggestedDate.toISOString().split('T')[0]
-
-      setOverlapWarning(
-        `A version already exists for this period. The existing version ends on ${latestValidTo.toLocaleDateString()}. ` +
-          `Please either modify the existing version or create the new version starting from ${suggestedDateStr}.`
-      )
-    } else {
-      setOverlapWarning(null)
-    }
-  }, [form.watch('incrementType'), form.watch('validFrom'), currentIncrementTypeVersion, findLatestVersion])
+  }, [loading, overlapWarning, form.formState.isValid, form.formState.isDirty, currentIncrementTypeVersion])
 
   // Helper function to convert date string (YYYY-MM-DD) to ISO 8601 Instant format
   const convertDateToInstant = (dateString: string): string => {
@@ -207,6 +155,12 @@ const ConfigureIncrementType: React.FC<ConfigureIncrementTypeProps> = ({
 
   const handleSaveChanges = async (data: IncrementTypeConfigFormData) => {
     try {
+      // Prevent save if there are overlap warnings
+      if (overlapWarning) {
+        console.warn('Cannot save: Date overlap detected', overlapWarning)
+        return
+      }
+
       setLoading(true)
 
       // Check if this is an update (has valid id) or create (no id or empty id)
