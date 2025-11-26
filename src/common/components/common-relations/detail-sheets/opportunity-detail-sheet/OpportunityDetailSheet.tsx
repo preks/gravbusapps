@@ -19,7 +19,8 @@ import {
   SheetTitle,
   Tooltip,
   TooltipContent,
-  TooltipTrigger
+  TooltipTrigger,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   CalendarIcon,
@@ -38,6 +39,7 @@ import { getOpportunityStatusBadgeVariant, formatCurrency } from './utils'
 import dayjs from 'dayjs'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getCatalogEntryValue } from '@/common/data/catalog/utils/catalogTranslationUtils'
+import translations from './_i18n'
 
 interface OpportunityDetailSheetProps {
   opportunity: Opportunity | null
@@ -81,12 +83,14 @@ export const OpportunityDetailSheet: React.FC<OpportunityDetailSheetProps> = ({
   buildContactUrl,
   'data-testid': dataTestId
 }) => {
+  const { t } = useTranslation(translations)
+
   return (
-    <Sheet open={open} onOpenChange={onOpenChange} title="Opportunity Details">
+    <Sheet open={open} onOpenChange={onOpenChange} title={t('title')}>
       <SheetContent className="gba:!w-[500px] gba:sm:!w-[500px] gba:!max-w-[90vw] gba:p-0 gba:flex gba:flex-col">
         <SheetHeader className="gba:px-6 gba:py-6 gba:border-b gba:border-border gba:shrink-0">
           <SheetTitle className="gba:text-xl gba:font-semibold gba:text-left">
-            {opportunity?.name || 'Opportunity Details'}
+            {opportunity?.name || t('title')}
           </SheetTitle>
         </SheetHeader>
         <div className="gba:flex-1 gba:overflow-hidden gba:px-6">
@@ -99,7 +103,7 @@ export const OpportunityDetailSheet: React.FC<OpportunityDetailSheetProps> = ({
               data-testid={dataTestId}
             />
           ) : (
-            <div className="gba:p-4 gba:text-center gba:text-muted-foreground">No opportunity selected</div>
+            <div className="gba:p-4 gba:text-center gba:text-muted-foreground">{t('no-opportunity-selected')}</div>
           )}
         </div>
       </SheetContent>
@@ -125,6 +129,8 @@ const OpportunityDetailContent: React.FC<OpportunityDetailContentProps> = ({
   buildContactUrl,
   'data-testid': dataTestId
 }) => {
+  const { t } = useTranslation(translations)
+
   const formatDate = (dateString: string | undefined) => {
     if (!dateString) return '-'
     const date = dayjs(dateString)
@@ -211,7 +217,7 @@ const OpportunityDetailContent: React.FC<OpportunityDetailContentProps> = ({
         className="gba:p-4 gba:text-center gba:text-muted-foreground"
         data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-no-data`}
       >
-        No opportunity data available
+        {t('no-opportunity-data')}
       </div>
     )
   }
@@ -221,21 +227,21 @@ const OpportunityDetailContent: React.FC<OpportunityDetailContentProps> = ({
       <div className="gba:space-y-4 gba:p-1" data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-container`}>
         <Card data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-details-card`}>
           <CardHeader className="gba:pb-3 gba:flex gba:flex-row gba:items-center gba:justify-between gba:space-y-0">
-            <CardTitle className="gba:text-base gba:font-medium gba:text-muted-foreground">Details</CardTitle>
+            <CardTitle className="gba:text-base gba:font-medium gba:text-muted-foreground">{t('details')}</CardTitle>
             <Button
               variant="outline"
               size="sm"
               onClick={handleGoToRecord}
               data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-go-to-record-button`}
             >
-              Go to Record
+              {t('go-to-record')}
             </Button>
           </CardHeader>
           <CardContent className="gba:space-y-1">
             {/* Status */}
             <FieldRow
               icon={ChartLineUpIcon}
-              label="Status"
+              label={t('status')}
               testId={`${dataTestId || DATA_TEST_ID_PREFIX}-status-field`}
             >
               {opportunity.opportunityStatus ? (
@@ -248,7 +254,7 @@ const OpportunityDetailContent: React.FC<OpportunityDetailContentProps> = ({
             </FieldRow>
 
             {/* Owner */}
-            <FieldRow icon={UserIcon} label="Owner" testId={`${dataTestId || DATA_TEST_ID_PREFIX}-owner-field`}>
+            <FieldRow icon={UserIcon} label={t('owner')} testId={`${dataTestId || DATA_TEST_ID_PREFIX}-owner-field`}>
               {opportunity.ownerEmployee ? (
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -261,7 +267,7 @@ const OpportunityDetailContent: React.FC<OpportunityDetailContentProps> = ({
                         {opportunity.ownerEmployee.pictureThumbnail && (
                           <AvatarImage
                             src={`data:image/gif;base64,${opportunity.ownerEmployee.pictureThumbnail}`}
-                            alt={opportunity.ownerEmployee.displayName || 'Employee'}
+                            alt={opportunity.ownerEmployee.displayName || t('employee')}
                           />
                         )}
                         <AvatarFallback className="gba:text-xs">
@@ -271,22 +277,22 @@ const OpportunityDetailContent: React.FC<OpportunityDetailContentProps> = ({
                       <span className="gba:text-sm gba:font-medium">
                         {opportunity.ownerEmployee.displayName ||
                           `${opportunity.ownerEmployee.firstName} ${opportunity.ownerEmployee.lastName}`.trim() ||
-                          'Unknown'}
+                          t('unknown')}
                       </span>
                       <ArrowSquareOutIcon size={12} className="gba:text-muted-foreground" />
                     </div>
                   </TooltipTrigger>
-                  <TooltipContent>View employee profile</TooltipContent>
+                  <TooltipContent>{t('view-employee-profile')}</TooltipContent>
                 </Tooltip>
               ) : (
-                <span className="gba:text-sm gba:text-muted-foreground gba:px-2 gba:py-1">Unassigned</span>
+                <span className="gba:text-sm gba:text-muted-foreground gba:px-2 gba:py-1">{t('unassigned')}</span>
               )}
             </FieldRow>
 
             {/* Account */}
             <FieldRow
               icon={BuildingsIcon}
-              label="Account"
+              label={t('account')}
               testId={`${dataTestId || DATA_TEST_ID_PREFIX}-account-field`}
             >
               {opportunity.account ? (
@@ -301,16 +307,20 @@ const OpportunityDetailContent: React.FC<OpportunityDetailContentProps> = ({
                       <ArrowSquareOutIcon size={12} className="gba:text-muted-foreground" />
                     </div>
                   </TooltipTrigger>
-                  <TooltipContent>View account record</TooltipContent>
+                  <TooltipContent>{t('view-account-record')}</TooltipContent>
                 </Tooltip>
               ) : (
-                <span className="gba:text-sm gba:text-muted-foreground">No account</span>
+                <span className="gba:text-sm gba:text-muted-foreground">{t('no-account')}</span>
               )}
             </FieldRow>
 
             {/* Lead (if exists) */}
             {opportunity.lead && (
-              <FieldRow icon={UserCircleIcon} label="Lead" testId={`${dataTestId || DATA_TEST_ID_PREFIX}-lead-field`}>
+              <FieldRow
+                icon={UserCircleIcon}
+                label={t('lead')}
+                testId={`${dataTestId || DATA_TEST_ID_PREFIX}-lead-field`}
+              >
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div
@@ -322,7 +332,7 @@ const OpportunityDetailContent: React.FC<OpportunityDetailContentProps> = ({
                       <ArrowSquareOutIcon size={12} className="gba:text-muted-foreground" />
                     </div>
                   </TooltipTrigger>
-                  <TooltipContent>View lead record</TooltipContent>
+                  <TooltipContent>{t('view-lead-record')}</TooltipContent>
                 </Tooltip>
               </FieldRow>
             )}
@@ -333,7 +343,7 @@ const OpportunityDetailContent: React.FC<OpportunityDetailContentProps> = ({
             {pipeline && (
               <FieldRow
                 icon={ChartLineUpIcon}
-                label="Pipeline"
+                label={t('pipeline')}
                 testId={`${dataTestId || DATA_TEST_ID_PREFIX}-pipeline-field`}
               >
                 <Badge variant="outline" className="gba:text-xs">
@@ -346,7 +356,7 @@ const OpportunityDetailContent: React.FC<OpportunityDetailContentProps> = ({
             {stage && (
               <FieldRow
                 icon={ChartLineUpIcon}
-                label="Stage"
+                label={t('stage')}
                 testId={`${dataTestId || DATA_TEST_ID_PREFIX}-stage-field`}
               >
                 <Badge variant="info" className="gba:text-xs">
@@ -359,7 +369,7 @@ const OpportunityDetailContent: React.FC<OpportunityDetailContentProps> = ({
             {displayAmount !== undefined && displayAmount !== null && (
               <FieldRow
                 icon={CurrencyCircleDollarIcon}
-                label="Amount"
+                label={t('amount')}
                 testId={`${dataTestId || DATA_TEST_ID_PREFIX}-amount-field`}
               >
                 <span className="gba:text-sm gba:font-bold gba:text-foreground">
@@ -372,7 +382,7 @@ const OpportunityDetailContent: React.FC<OpportunityDetailContentProps> = ({
             {opportunity.closeDate && (
               <FieldRow
                 icon={CalendarIcon}
-                label="Close Date"
+                label={t('close-date')}
                 testId={`${dataTestId || DATA_TEST_ID_PREFIX}-close-date-field`}
               >
                 <span className="gba:text-sm gba:text-foreground">{formatDate(opportunity.closeDate)}</span>
@@ -384,7 +394,7 @@ const OpportunityDetailContent: React.FC<OpportunityDetailContentProps> = ({
             {/* Created At */}
             <FieldRow
               icon={ClockCounterClockwiseIcon}
-              label="Created"
+              label={t('created')}
               testId={`${dataTestId || DATA_TEST_ID_PREFIX}-created-field`}
             >
               <span className="gba:text-sm gba:text-muted-foreground">{formatDateTime(opportunity.createdAt)}</span>
@@ -394,7 +404,7 @@ const OpportunityDetailContent: React.FC<OpportunityDetailContentProps> = ({
             {opportunity.description && (
               <FieldRow
                 icon={TextAlignLeftIcon}
-                label="Description"
+                label={t('description')}
                 testId={`${dataTestId || DATA_TEST_ID_PREFIX}-description-field`}
               >
                 <p className="gba:text-sm gba:text-foreground gba:whitespace-pre-wrap">{opportunity.description}</p>
@@ -408,7 +418,7 @@ const OpportunityDetailContent: React.FC<OpportunityDetailContentProps> = ({
           <Card data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-contacts-card`}>
             <CardHeader className="gba:pb-3">
               <CardTitle className="gba:text-base gba:font-medium gba:text-muted-foreground">
-                Contacts ({contacts.length})
+                {t('contacts')} ({contacts.length})
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -432,7 +442,7 @@ const OpportunityDetailContent: React.FC<OpportunityDetailContentProps> = ({
                       </Avatar>
                       <div className="gba:flex-1 gba:min-w-0">
                         <div className="gba:text-sm gba:font-medium gba:text-foreground">
-                          {`${contact.firstName || ''} ${contact.lastName || ''}`.trim() || 'Unknown'}
+                          {`${contact.firstName || ''} ${contact.lastName || ''}`.trim() || t('unknown')}
                         </div>
                         {contact.jobTitle && (
                           <div className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">{contact.jobTitle}</div>

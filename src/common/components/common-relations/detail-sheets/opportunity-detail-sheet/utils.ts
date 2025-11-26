@@ -1,3 +1,5 @@
+import { formatNumberFunction, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+
 type BadgeVariant =
   | 'default'
   | 'destructive'
@@ -28,15 +30,50 @@ export const getOpportunityStatusBadgeVariant = (statusCode: string): BadgeVaria
   }
 }
 
+/**
+ * Formats currency display based on active user locale
+ * - English (en-US): EUR 1,234
+ * - German (de-DE): 1.234 EUR
+ * - Romanian (ro-RO): 1 234 EUR
+ */
 export const formatCurrency = (amount: number, currencyCode: string = 'EUR'): string => {
+  // Handle null/undefined amounts
+  if (amount === null || amount === undefined) {
+    return `0 ${currencyCode}`
+  }
+
+  const userLocale = getCurrentActiveUserLocale()
+
+  let formattedAmount: string
   try {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currencyCode,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2
-    }).format(amount)
+    if (formatNumberFunction) {
+      const result = formatNumberFunction(Number(amount))
+      if (result && result !== 'undefined' && result !== 'null') {
+        formattedAmount = result
+      } else {
+        formattedAmount = new Intl.NumberFormat(userLocale).format(Number(amount))
+      }
+    } else {
+      formattedAmount = new Intl.NumberFormat(userLocale).format(Number(amount))
+    }
   } catch {
-    return `${currencyCode} ${amount.toLocaleString()}`
+    formattedAmount = String(amount)
+  }
+
+  if (!formattedAmount || formattedAmount === 'undefined' || formattedAmount === 'null') {
+    formattedAmount = new Intl.NumberFormat(userLocale).format(Number(amount))
+  }
+
+  const language = userLocale.split('-')[0].toLowerCase()
+
+  switch (language) {
+    case 'de':
+      return `${formattedAmount} ${currencyCode}` // 1.234,56 EUR
+    case 'ro':
+      return `${formattedAmount} ${currencyCode}` // 1 234,56 EUR
+    case 'en':
+      return `${currencyCode} ${formattedAmount}` // EUR 1,234.56
+    default:
+      return `${formattedAmount} ${currencyCode}`
   }
 }

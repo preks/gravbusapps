@@ -8,6 +8,10 @@ import { FileText } from 'lucide-react'
 import type { GenericOpportunityForBoard, OpportunityBoardConfig } from '../config/opportunityBoardTypes'
 import { OpportunityDetailSheet } from '@/common/components/common-relations/detail-sheets/opportunity-detail-sheet'
 
+// Click detection thresholds
+const CLICK_TIMEOUT_MS = 300 // Maximum duration for a click (vs drag)
+const DRAG_THRESHOLD_PX = 5 // Maximum movement distance for a click (vs drag)
+
 export interface OpportunityBoardLayoutProps<T extends GenericOpportunityForBoard> extends BusinessAppContextProps {
   // Configuration
   config: OpportunityBoardConfig
@@ -152,8 +156,8 @@ export function OpportunityBoardLayout<T extends GenericOpportunityForBoard>(
               const dx = Math.abs(e.clientX - mouseDownPos.current.x)
               const dy = Math.abs(e.clientY - mouseDownPos.current.y)
 
-              // If quick click (< 300ms) and minimal movement (< 5px), treat as click
-              if (timeDiff < 300 && dx < 5 && dy < 5) {
+              // If quick click and minimal movement, treat as click (not drag)
+              if (timeDiff < CLICK_TIMEOUT_MS && dx < DRAG_THRESHOLD_PX && dy < DRAG_THRESHOLD_PX) {
                 e.stopPropagation()
                 handleCardClick(opp)
               }
