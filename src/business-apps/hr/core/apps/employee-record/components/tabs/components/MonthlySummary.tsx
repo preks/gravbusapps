@@ -37,22 +37,63 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, a
     return `${h}:${String(m).padStart(2, '0')}`
   }
 
+  const employeeName =
+    employee?.displayName || getTranslationFromI18nKeyAndLabel('lowcoder:common.employee', 'Employee')
+
+  // Build header text with optional secondary line for clocked-in state
+  const isClockedOutWithWork = !isClockedIn && todaysWorkedMinutes > 0
+  const headerPrimary = isClockedIn
+    ? getTranslationFromI18nKeyAndLabel(
+        'lowcoder:time_tracking.header.on_the_clock_primary',
+        `You're on the clock, ${employeeName} — keep up the great work!`
+      )
+    : isClockedOutWithWork
+      ? getTranslationFromI18nKeyAndLabel(
+          'lowcoder:time_tracking.header.clock_out',
+          `Clocked out! Time to recharge, ${employeeName}`
+        )
+      : getTranslationFromI18nKeyAndLabel(
+          'lowcoder:time_tracking.header.welcome',
+          `Wellcome ${employeeName} to the new way of working!`
+        )
+  const headerSecondary = isClockedIn
+    ? getTranslationFromI18nKeyAndLabel(
+        'lowcoder:time_tracking.header.on_the_clock_secondary',
+        "Let's make this day count."
+      )
+    : isClockedOutWithWork
+      ? getTranslationFromI18nKeyAndLabel(
+          'lowcoder:time_tracking.header.clock_out_secondary',
+          'Let’s set things in motion — your hours start with a single click.'
+        )
+      : getTranslationFromI18nKeyAndLabel(
+          'lowcoder:time_tracking.header.welcome_secondary',
+          'Great work today — see you tomorrow, fresh and focused.'
+        )
+
   return (
     <div data-testid="monthly-summary-container">
       {/* Top grid: Time card, Actions, Right-side info */}
-      <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4" data-testid="timeclock-top-grid">
+      <div
+        className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4 gba:items-stretch"
+        data-testid="timeclock-top-grid"
+      >
         {/* Left column: separate time/date and employee status panels */}
-        <div className="gba:flex gba:flex-col gba:gap-4">
+        <div className="gba:flex gba:flex-col gba:gap-4 gba:h-full">
           {/* Current time/date */}
-          <Card className="gba:p-4" data-testid="timeclock-now-card">
+          <Card
+            className="gba:p-4 gba:h-full gba:flex gba:items-center gba:justify-center"
+            data-testid="timeclock-now-card"
+          >
             <LiveClock className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:text-center" />
           </Card>
         </div>
 
         {/* Actions */}
         <Card className="gba:p-4" data-testid="timeclock-actions-card">
-          <div className="gba:text-center gba:font-semibold gba:mb-3">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.title', 'Time Tracking')}
+          <div className="gba:text-center gba:mb-3" data-testid="timeclock-header-text">
+            <div className="gba:text-xl gba:font-semibold">{headerPrimary}</div>
+            {headerSecondary && <div className="gba:mt-1 gba:text-base gba:font-normal">{headerSecondary}</div>}
           </div>
           <div className="gba:space-y-2">
             <Button
@@ -129,8 +170,8 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, a
         </Card>
 
         {/* Right column: Employee status */}
-        <div className="gba:flex gba:flex-col gba:gap-4" data-testid="timeclock-right-column">
-          <Card className="gba:p-4" data-testid="timeclock-employee-card">
+        <div className="gba:flex gba:flex-col gba:gap-4 gba:h-full" data-testid="timeclock-right-column">
+          <Card className="gba:p-4 gba:h-full" data-testid="timeclock-employee-card">
             <div className="gba:flex gba:items-center gba:gap-2 gba:text-base gba:font-semibold">
               <Icon icon={UserIcon} />
               {employee?.displayName || getTranslationFromI18nKeyAndLabel('lowcoder:common.employee', 'Employee')}
