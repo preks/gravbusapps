@@ -168,6 +168,9 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
   const employeeIdForEffect = employeeAbsenceForEffect?.employeeId
   const creatorNameForEffect = taskInputsForEffect?.creatorName as string | undefined
 
+  // Task inputs for passing to remote screen loaders
+  const taskInputs = task?.sourceMetadata?.inputs || task?.inputs
+
   // Fetch employee data for approveEmployeeVacation tasks
   // NOTE: Must be called before any conditional returns to satisfy React hooks rules
   React.useEffect(() => {
