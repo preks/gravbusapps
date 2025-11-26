@@ -149,6 +149,9 @@ export enum FlowContextName {
   /// Investment KPI Forecasts
   investmentKpiForecastUpdate = 'investmentKpiForecastUpdate',
 
+  /// Investment Liquidity Forecasts (Real Estate)
+  investmentLiquidityForecastUpdate = 'investmentLiquidityForecastUpdate',
+
   /// Investment Reports
   investmentReportUpload = 'investmentReportUpload',
   investmentReportEntity = 'investmentReportEntity', // Integrate
@@ -173,6 +176,7 @@ export enum FlowContextName {
   employeeAdditionalProperties = 'updateEmployeeAdditionalAttributes',
   employeeProfilePicture = 'employeeProfilePicture',
   employeeAttendanceCorrectionRequest = 'employeeAttendanceCorrectionRequest',
+  employeeBenefitRequest = 'employeeBenefitRequest',
 
   updateEmployeePersonalData = 'updateEmployeePersonalData',
   updateEmployeeAddress = 'updateEmployeeAddress',
@@ -183,6 +187,8 @@ export enum FlowContextName {
   updateEmployeeSkill = 'updateEmployeeSkill',
   updateEmployeeWorkingCondition = 'updateEmployeeWorkingCondition',
   updateEmployeeWorkingHours = 'updateEmployeeWorkingHours',
+  adjustEmployeeSalary = 'adjustEmployeeSalary',
+  grantEmployeeBonus = 'grantEmployeeBonus',
 
   createEmployee = 'createEmployee',
   createJobPosition = 'createJobPosition'

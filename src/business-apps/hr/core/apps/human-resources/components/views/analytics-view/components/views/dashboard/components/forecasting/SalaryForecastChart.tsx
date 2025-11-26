@@ -1,21 +1,15 @@
 import React from 'react'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
-import { Card } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { Card, useTranslation } from '@newwork/nw-design-system'
+import translations from './_i18n'
 import { MonthlySalaryForecast } from '../../../../../hooks/useMonthlySalaryForecast'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
 interface SalaryForecastChartProps {
   data: MonthlySalaryForecast[]
 }
 
-const formatCurrency = (value: number) => {
-  if (value >= 1_000_000) {
-    return `$${(value / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 })}M`
-  }
-  return `$${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
-}
-
-const CustomTooltip = ({ active, payload }: any) => {
+const CustomTooltip = ({ active, payload, t }: any) => {
   if (active && payload && payload.length) {
     const d = payload[0].payload
     return (
@@ -24,26 +18,24 @@ const CustomTooltip = ({ active, payload }: any) => {
         data-testid="salary-forecast-tooltip"
       >
         <div className="gba:font-semibold gba:text-base gba:mb-1 gba:text-foreground">
-          {d.month && new Date(d.month + '-01').toLocaleString(undefined, { month: 'short', year: 'numeric' })}
+          {d.month &&
+            new Date(d.month + '-01').toLocaleString(getCurrentActiveUserLocale() ?? 'en-US', {
+              month: 'short',
+              year: 'numeric'
+            })}
         </div>
         <div className="gba:text-foreground gba:text-sm">
           <div>
-            <span className="gba:font-medium">
-              {getTranslationFromI18nKeyAndLabel('salary_forecast_total_salary', 'Total Salary')}:
-            </span>{' '}
-            {formatCurrency(d.totalSalary)}
+            <span className="gba:font-medium">{t('salary-forecast-total-salary')}:</span>{' '}
+            {d.totalSalary >= 1_000_000
+              ? `${(d.totalSalary / 1_000_000).toLocaleString(getCurrentActiveUserLocale() ?? 'en-US', { maximumFractionDigits: 2 })}M`
+              : d.totalSalary.toLocaleString(getCurrentActiveUserLocale() ?? 'en-US', { maximumFractionDigits: 0 })}
           </div>
           <div>
-            <span className="gba:font-medium">
-              {getTranslationFromI18nKeyAndLabel('salary_forecast_headcount', 'Headcount')}:
-            </span>{' '}
-            {d.headcount}
+            <span className="gba:font-medium">{t('salary-forecast-headcount')}:</span> {d.headcount}
           </div>
           <div className="gba:text-success">
-            <span className="gba:font-medium">
-              {getTranslationFromI18nKeyAndLabel('salary_forecast_new_hires', 'New Hires')}:
-            </span>{' '}
-            +{d.newHires}
+            <span className="gba:font-medium">{t('salary-forecast-new-hires')}:</span> +{d.newHires}
           </div>
         </div>
       </div>
@@ -53,6 +45,15 @@ const CustomTooltip = ({ active, payload }: any) => {
 }
 
 const SalaryForecastChart: React.FC<SalaryForecastChartProps> = ({ data }) => {
+  const { t } = useTranslation(translations)
+
+  const formatCurrency = (value: number) => {
+    if (value >= 1_000_000) {
+      return `${(value / 1_000_000).toLocaleString(getCurrentActiveUserLocale() ?? 'en-US', { maximumFractionDigits: 2 })}M`
+    }
+    return `${value.toLocaleString(getCurrentActiveUserLocale() ?? 'en-US', { maximumFractionDigits: 0 })}`
+  }
+
   return (
     <Card
       className="gba:shadow gba:rounded gba:p-4 gba:mb-6 gba:border-border"
@@ -60,14 +61,9 @@ const SalaryForecastChart: React.FC<SalaryForecastChartProps> = ({ data }) => {
     >
       {/* Header */}
       <div className="gba:mb-4">
-        <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:m-0">
-          {getTranslationFromI18nKeyAndLabel('salary_forecast_title', 'Company Salary Forecast')}
-        </h3>
+        <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:m-0">{t('salary-forecast-title')}</h3>
         <div className="gba:text-muted-foreground gba:text-sm gba:mt-1" data-testid="salary-forecast-description">
-          {getTranslationFromI18nKeyAndLabel(
-            'salary_forecast_description',
-            'Total monthly salary expenses and growth trends'
-          )}
+          {t('salary-forecast-description')}
         </div>
       </div>
 
@@ -78,12 +74,15 @@ const SalaryForecastChart: React.FC<SalaryForecastChartProps> = ({ data }) => {
           <XAxis
             dataKey="month"
             tickFormatter={month =>
-              new Date(month + '-01').toLocaleString(undefined, { month: 'short', year: 'numeric' })
+              new Date(month + '-01').toLocaleString(getCurrentActiveUserLocale() ?? 'en-US', {
+                month: 'short',
+                year: 'numeric'
+              })
             }
             className="gba:text-xs"
           />
           <YAxis tickFormatter={val => formatCurrency(val)} className="gba:text-xs" domain={[0, 'dataMax']} />
-          <Tooltip content={<CustomTooltip />} />
+          <Tooltip content={<CustomTooltip t={t} />} />
           <Line
             type="monotone"
             dataKey="totalSalary"
@@ -91,7 +90,7 @@ const SalaryForecastChart: React.FC<SalaryForecastChartProps> = ({ data }) => {
             strokeWidth={3}
             dot={{ r: 5 }}
             activeDot={{ r: 8 }}
-            name={getTranslationFromI18nKeyAndLabel('salary_forecast_total_salary', 'Total Salary')}
+            name={t('salary-forecast-total-salary')}
             data-testid="salary-forecast-line"
           />
         </LineChart>

@@ -404,8 +404,12 @@ export const REAL_ESTATE_INVESTMENT_REF = `
     occupancyPercent
     size
     sizeMeasurementUnitRef
+    sizeMeasurementUnit {
+        ${CATALOG_ENTRY}
+    }
     locality
     postalCode
+    liquidityForecast
     additionalProperties
 `
 

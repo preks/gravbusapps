@@ -3,9 +3,9 @@ import useInformationExtraction, { UseInformationExtractionReturn } from '@/comm
 import {
   useGetInvestmentActivitiesByLeadId,
   useGetInvestmentNotesByLeadId,
-  useGetInvestmentTasksByLeadId,
-  useGetInvestmentLeadById
+  useGetInvestmentTasksByLeadId
 } from '@/common/data/investment/hooks/useInvestmentLeads'
+import { useInvestmentLead } from '@/common/data/investment/hooks/useInvestmentLead'
 
 const taskDescription = `You are an assistant that summarises CRM lead timelines. 
 Provide a concise executive summary in plain language, the total number of activities mentioned, 
@@ -20,15 +20,14 @@ type SummarySchema = z.infer<typeof summarySchema>
 type UseAiSummaryReturn = UseInformationExtractionReturn<SummarySchema>
 
 export function useAiSummary(leadId: string, accessToken: string): UseAiSummaryReturn {
-  const { fetchInvestmentLeadById } = useGetInvestmentLeadById({ accessToken })
+  const { lead } = useInvestmentLead(accessToken, leadId)
   const { fetchInvestmentActivitiesByLeadId } = useGetInvestmentActivitiesByLeadId({ accessToken })
   const { fetchInvestmentNotesByLeadId } = useGetInvestmentNotesByLeadId({ accessToken })
   const { fetchInvestmentTasksByLeadId } = useGetInvestmentTasksByLeadId({ accessToken })
 
   const generateInputData = async () => {
-    // get lead data using central hook
-    const leadResult = await fetchInvestmentLeadById(leadId)
-    const lead = leadResult.lead
+    // get lead data using new declarative hook
+    // lead is already available from the hook
 
     // get activity data
     const activityResult = await fetchInvestmentActivitiesByLeadId(leadId)

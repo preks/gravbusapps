@@ -31,7 +31,7 @@ import {
   BarChartData,
   LineChartData,
   findTileById
-} from '@/business-apps/irm/investments/records/investment-record/tiles'
+} from '@/common/components/investment/tiles'
 
 const prefixDataTestId = 'investment-chart-tile-component'
 

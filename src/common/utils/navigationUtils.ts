@@ -13,10 +13,15 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
 
   ///  Core: Records
   '/platform/crm/account-record': 'crm/core/records/account-record',
-  '/platform/crm/campaign-record': 'crm/core/records/campaign-record', // Future: Marketing Module
   '/platform/crm/contact-record': 'crm/core/records/contact-record',
   '/platform/crm/lead-record': 'crm/core/records/lead-record',
   '/platform/crm/opportunity-record': 'crm/core/records/opportunity-record',
+
+  /// Campaigns: Apps
+  '/platform/crm/campaign-management': 'crm/campaigns/apps/campaign-management', // Standalone Campaigns Module
+
+  /// Campaigns: Records
+  '/platform/crm/campaign-record': 'crm/campaigns/records/campaign-record', // Standalone Campaigns Module
 
   /// Performance: Apps
   '/platform/crm/team-performance': 'crm/performance/apps/sales-team-performance', // TODO: Naming
@@ -53,10 +58,8 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
 
   // HR
   '/platform/employee-record': 'hr/core/apps/employee-record',
-
-  // SALES-DEMO (Service Requests)
-  '/platform/sales-demo/service-launcher': 'sales-demo/core/apps/service-launcher',
-
+  '/platform/sales-demo/service-desk': 'ser/apps/service-desk',
+  '/platform/sales-demo/service-launcher': 'ser/apps/service-portal',
   '/platform/mdm/pipeline-data': 'mdm/apps/pipeline-data',
   '/platform/mdm/lead-data': 'mdm/apps/lead-data',
   '/platform/mdm/operation-data': 'mdm/apps/operation-data',

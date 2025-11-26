@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import { Alert, AlertTitle, AlertDescription, Button, Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -7,6 +7,7 @@ import { useInvestmentPortalIntegration } from './hooks/useInvestmentPortalInteg
 import { InvestmentExpandableCard } from './components/InvestmentExpandableCard'
 import { InvestmentSearch } from './components/InvestmentSearch'
 import { InvestmentPortalBanner } from './components/InvestmentPortalBanner'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 
 interface InvestmentPortalProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -25,6 +26,68 @@ export const InvestmentPortal: React.FC<InvestmentPortalProps> = ({
     userInfo,
     additionalData
   })
+
+  // Listen for process completion (tile creation) and refresh data
+  useProcessCompletion({
+    onSuccess: () => {
+      console.log('Process completed successfully, refreshing investment data')
+      refetch()
+    }
+  })
+
+  // URL state management for expanded card and active tab
+  const [expandedInvestmentId, setExpandedInvestmentId] = useState<string | null>(() => {
+    const params = new URLSearchParams(globalThis.location.search)
+    return params.get('investmentId')
+  })
+
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    const params = new URLSearchParams(globalThis.location.search)
+    return params.get('tab') || 'documents'
+  })
+
+  // Update URL when state changes
+  const updateUrl = (investmentId: string | null, tab: string) => {
+    const params = new URLSearchParams(globalThis.location.search)
+
+    if (investmentId) {
+      params.set('investmentId', investmentId)
+      params.set('tab', tab)
+    } else {
+      params.delete('investmentId')
+      params.delete('tab')
+    }
+
+    const newUrl = `${globalThis.location.pathname}?${params.toString()}`
+    globalThis.history.replaceState({}, '', newUrl)
+  }
+
+  const handleExpandCard = (investmentId: string) => {
+    setExpandedInvestmentId(investmentId)
+    updateUrl(investmentId, activeTab)
+  }
+
+  const handleCollapseCard = () => {
+    setExpandedInvestmentId(null)
+    updateUrl(null, 'documents')
+  }
+
+  const handleTabChange = (investmentId: string, tab: string) => {
+    setActiveTab(tab)
+    updateUrl(investmentId, tab)
+  }
+
+  // Handle browser back/forward
+  useEffect(() => {
+    const handlePopState = () => {
+      const params = new URLSearchParams(globalThis.location.search)
+      setExpandedInvestmentId(params.get('investmentId'))
+      setActiveTab(params.get('tab') || 'documents')
+    }
+
+    globalThis.addEventListener('popstate', handlePopState)
+    return () => globalThis.removeEventListener('popstate', handlePopState)
+  }, [])
 
   // Get user-relevant investments
   const userInvestments = useMemo(() => {
@@ -158,18 +221,27 @@ export const InvestmentPortal: React.FC<InvestmentPortalProps> = ({
 
         {/* Investment Cards */}
         <div className="gba:space-y-4">
-          {filteredInvestments.map(investment => (
-            <InvestmentExpandableCard
-              key={investment.id}
-              investment={investment}
-              accessToken={accessToken}
-              userInfo={userInfo}
-              additionalData={additionalData}
-              prefixDataTestId={`${prefixDataTestId}-card`}
-              defaultExpanded={!hasMultipleInvestments}
-              showExpandButton={hasMultipleInvestments}
-            />
-          ))}
+          {filteredInvestments.map(investment => {
+            const isCurrentlyExpanded = expandedInvestmentId === investment.id
+            return (
+              <InvestmentExpandableCard
+                key={investment.id}
+                investment={investment}
+                accessToken={accessToken}
+                userInfo={userInfo}
+                additionalData={additionalData}
+                prefixDataTestId={`${prefixDataTestId}-card`}
+                defaultExpanded={!hasMultipleInvestments}
+                showExpandButton={hasMultipleInvestments}
+                isExpandedFromUrl={isCurrentlyExpanded}
+                activeTabFromUrl={isCurrentlyExpanded ? activeTab : undefined}
+                onExpandChange={(investmentId, isExpanded) =>
+                  isExpanded ? handleExpandCard(investmentId) : handleCollapseCard()
+                }
+                onTabChange={handleTabChange}
+              />
+            )
+          })}
         </div>
 
         {/* Empty Search Results */}

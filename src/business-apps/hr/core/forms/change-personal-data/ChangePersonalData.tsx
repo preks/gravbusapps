@@ -216,8 +216,9 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
               if (fileList && fileList.length > 0 && fileList[0]?.originFileObj) {
                 const file: File = fileList[0].originFileObj as File
                 const employeeId =
+                  additionalData?.employeeId ||
                   additionalData?.psi_taskPayload?.employeeId ||
-                  additionalData?.psi_taskPayload?.initialParameters?.employeeId ||
+                  additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId ||
                   data?.employee?.EmployeeByPk?.id ||
                   data?.employee?.EmployeeByPk?.employeeId
 
@@ -273,6 +274,9 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
           }}
           onSubmit={async (values: PersonalDataFormValues) => {
             const uploadedEmployeeDocumentId = values.employeeDocumentId || ''
+            const firstName = values.firstName || ''
+            const lastName = values.lastName || ''
+            const fullName = [firstName, lastName].filter(Boolean).join(' ')
             const payload = {
               event: 'pse_submit',
               employeeDocument: null,
@@ -284,10 +288,11 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
                 version: employee?.version ?? 0,
                 academicTitleRef: values.academicTitleRefs || [],
                 salutationRef: values.salutationRef || '',
-                firstName: values.firstName || '',
-                lastName: values.lastName || '',
+                firstName: firstName,
+                lastName: lastName,
                 preferredName: values.preferredName || '',
                 displayName: values.displayName || '',
+                fullName: fullName,
                 birthName: values.birthName || '',
                 birthDate: values.birthDate ? formatDateToISO(new Date(values.birthDate)) : '',
                 genderRef: values.genderRef || '',
@@ -306,7 +311,7 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
                 salutationRef: employee?.salutationRef || '',
                 firstName: employee?.firstName || '',
                 lastName: employee?.lastName || '',
-                displayName: employee?.displayName || '',
+                fullName: employee?.fullName || '',
                 preferredName: employee?.preferredName || '',
                 birthName: employee?.birthName || '',
                 birthDate: employee?.birthDate ? formatDateToISO(new Date(employee.birthDate)) : '',
@@ -317,7 +322,9 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
                 birthPlace: employee?.birthPlace || '',
                 severelyDisabilityDegree: employee?.severelyDisabilityDegree ?? '',
                 schoolQualificationRef: employee?.schoolQualificationRef || '',
-                userId: employee?.userId || ''
+                userId: employee?.userId || '',
+                notes: employee?.notes || '',
+                title: employee?.title || ''
               }
             }
             return payload

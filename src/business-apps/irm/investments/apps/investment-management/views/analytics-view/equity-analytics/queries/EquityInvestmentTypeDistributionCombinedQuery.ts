@@ -61,9 +61,7 @@ const BUILD_ALL_INVESTMENT_TYPES_AGGREGATE_QUERY = (
 ): string => {
   const countConditions = (investmentTypeRef: string) => {
     const currencyCondition =
-      countCurrency && countCurrency !== 'All' && countCurrency !== 'All Currencies'
-        ? `currency: { code: { _eq: "${countCurrency}" } }`
-        : ''
+      countCurrency && countCurrency !== 'All' ? `currency: { code: { _eq: "${countCurrency}" } }` : ''
 
     const conditions = [
       'isDeleted: { _eq: false }',

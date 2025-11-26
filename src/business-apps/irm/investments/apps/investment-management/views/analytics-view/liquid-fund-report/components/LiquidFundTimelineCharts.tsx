@@ -17,7 +17,7 @@ import {
   SelectValue
 } from '@newwork/nw-design-system'
 import { Line, XAxis, YAxis, Bar, ComposedChart } from 'recharts'
-import { formatCurrency } from '@/common/data/investment'
+import { formatCurrency } from '@/common/data/investment/utils/formatters'
 import { formatCompactNumber } from '@/common/utils/numberFormatter'
 import { ChartLineUpIcon, TrendUpIcon } from '@phosphor-icons/react'
 import { LiquidFundInvestmentSummary } from '../../shared/types'

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 export interface InvestmentListControllerParams {
@@ -40,7 +40,6 @@ export const useInvestmentListController = (): InvestmentListController => {
   const [initialParams] = useState(() => {
     const urlParams = new URLSearchParams(window.location.search)
     return {
-      search: urlParams.get('search') || '',
       page: parseInt(urlParams.get('page') || '1', 10),
       pageSize: parseInt(urlParams.get('pageSize') || '20', 10),
       sortField: urlParams.get('sortField') || '',
@@ -48,7 +47,7 @@ export const useInvestmentListController = (): InvestmentListController => {
     }
   })
 
-  // State management
+  // State management - search is NOT synced with URL
   const [search, setSearch] = useState('')
   const [currentPage, setCurrentPage] = useState(initialParams.page)
   const [pageSize, setPageSize] = useState(initialParams.pageSize)
@@ -56,24 +55,13 @@ export const useInvestmentListController = (): InvestmentListController => {
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>(initialParams.sortOrder as 'ASC' | 'DESC')
   const initialLoadDone = useRef(false)
 
-  // Initialize search from URL if not already set - ONLY ONCE
-  useEffect(() => {
-    if (initialParams.search && !search) {
-      setSearch(initialParams.search)
-    }
-  }, []) // Remove dependencies to prevent re-running
-
   // Update URL parameters using standard web APIs
+  // NOTE: search is intentionally NOT included to prevent it from persisting across tabs
   const updateURLParams = useCallback((params: InvestmentListControllerParams) => {
     const newSearchParams = new URLSearchParams(window.location.search)
 
-    if (params.search !== undefined) {
-      if (params.search) {
-        newSearchParams.set('search', params.search)
-      } else {
-        newSearchParams.delete('search')
-      }
-    }
+    // Always ensure search param is removed from URL
+    newSearchParams.delete('search')
 
     if (params.page !== undefined) {
       if (params.page > 1) {

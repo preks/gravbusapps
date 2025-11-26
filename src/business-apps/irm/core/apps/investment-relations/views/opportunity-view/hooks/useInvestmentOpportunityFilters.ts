@@ -15,6 +15,7 @@ export const useInvestmentOpportunityFilters = (context: BusinessAppContextProps
   const [pipelines, setPipelines] = useState<SimpleItem[]>([])
   const [accounts, setAccounts] = useState<SimpleItem[]>([])
   const [statuses, setStatuses] = useState<SimpleItem[]>([])
+  const [forecasts, setForecasts] = useState<SimpleItem[]>([])
   const [amountRange, setAmountRange] = useState<{ min: number; max: number }>({ min: 0, max: 1000000 })
 
   const loadOwners = useCallback(async () => {
@@ -138,6 +139,36 @@ export const useInvestmentOpportunityFilters = (context: BusinessAppContextProps
     }
   }, [context.accessToken, graphqlClient])
 
+  const loadForecasts = useCallback(async () => {
+    if (!context.accessToken) return
+    try {
+      const res = await graphqlClient.request<{
+        InvestmentOpportunity: Array<{
+          opportunityForecast?: { id: string; code?: string; value?: string; additionalValue1?: string } | null
+        }>
+      }>(`
+        query GetOppForecasts {
+          InvestmentOpportunity(where: { isDeleted: { _eq: false } }, distinctOn: [opportunityForecastRef], limit: 50) {
+            opportunityForecast { id code value additionalValue1 }
+          }
+        }
+      `)
+      const map = new Map<string, string>()
+      ;(res?.InvestmentOpportunity || []).forEach(r => {
+        const f = r.opportunityForecast
+        if (f?.id) {
+          const value = f.value || f.code || f.id
+          const additionalValue1 = f.additionalValue1 || ''
+          const label = additionalValue1 ? `${value}: ${additionalValue1}` : value
+          map.set(f.id, label)
+        }
+      })
+      setForecasts(Array.from(map.entries()).map(([id, label]) => ({ id, label })))
+    } catch {
+      setForecasts([])
+    }
+  }, [context.accessToken, graphqlClient])
+
   const loadAmountRange = useCallback(async () => {
     if (!context.accessToken) return
     try {
@@ -172,8 +203,9 @@ export const useInvestmentOpportunityFilters = (context: BusinessAppContextProps
     loadPipelines()
     loadAccounts()
     loadStatuses()
+    loadForecasts()
     loadAmountRange()
-  }, [loadOwners, loadStages, loadPipelines, loadAccounts, loadStatuses, loadAmountRange])
+  }, [loadOwners, loadStages, loadPipelines, loadAccounts, loadStatuses, loadForecasts, loadAmountRange])
 
-  return { owners, stages, pipelines, accounts, statuses, amountRange }
+  return { owners, stages, pipelines, accounts, statuses, forecasts, amountRange }
 }

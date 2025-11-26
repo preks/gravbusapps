@@ -2,7 +2,7 @@ import React from 'react'
 import { HomeOutlined, BarChartOutlined, DollarOutlined, BuildOutlined } from '@ant-design/icons'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { formatNumber, formatPercentage } from '@/common/data/investment'
+import { formatNumber, formatPercentage } from '@/common/data/investment/utils/formatters'
 import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
 
 interface RealEstateKPICardsProps {

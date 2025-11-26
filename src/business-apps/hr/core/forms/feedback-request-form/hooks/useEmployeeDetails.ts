@@ -1,4 +1,4 @@
-import { useEmployeeById } from '@/business-apps/crm/core/forms/lead-form/hooks/useEmployeeById' // TODO: Extract to common urgent
+import { useEmployeeById } from '@/common/data/employee/hooks/useEmployeeById'
 import { EmployeeOption } from '../types'
 
 export const useEmployeeDetails = (accessToken: string, employeeId?: string) => {

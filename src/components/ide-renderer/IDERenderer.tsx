@@ -128,6 +128,7 @@ export const IDERenderer: React.FC<IDERendererProps> = ({
     return (
       <Dialog open={dialogVisible} onOpenChange={open => !open && handleDialogClose()}>
         <DialogContent
+          aria-describedby={undefined}
           className={`${maxWidth} ${width} gba:flex gba:flex-col gba:bg-background`}
           style={{
             height: selectedApp.type === 'form' || selectedApp.type === 'window' ? 'calc(100vh - 120px)' : 'auto',

@@ -1,13 +1,5 @@
-/**
- * GraphQL queries and mutations for Asset Management
- *
- * This file contains all GraphQL operations for the Asset and EmployeeAsset tables
- * in the nw_employee schema.
- */
-
 import { AssetStatus } from '../types'
 
-// Asset fragment with all fields matching actual database schema
 export const ASSET_FIELDS = `
   id
   model
@@ -58,7 +50,6 @@ export const ASSET_FIELDS = `
   }
 `
 
-// EmployeeAsset fragment with all fields matching actual database schema
 export const EMPLOYEE_ASSET_FIELDS = `
   id
   assetId
@@ -91,9 +82,6 @@ export const EMPLOYEE_ASSET_FIELDS = `
   }
 `
 
-/**
- * Query to fetch all assets with optional filtering
- */
 export const GET_ASSETS = `
   query GetAssets(
     $limit: Int
@@ -117,9 +105,6 @@ export const GET_ASSETS = `
   }
 `
 
-/**
- * Query to fetch a single asset by ID
- */
 export const GET_ASSET_BY_ID = `
   query GetAssetById($id: uuid!) {
     Asset(where: { id: { _eq: $id }, isDeleted: { _eq: false } }) {
@@ -128,12 +113,14 @@ export const GET_ASSET_BY_ID = `
   }
 `
 
-/**
- * Query to fetch asset statistics
- */
 export const GET_ASSET_STATISTICS = `
   query GetAssetStatistics {
-    totalAssets: AssetAggregate(where: { isDeleted: { _eq: false } }) {
+    totalAssets: AssetAggregate(
+      where: {
+        isDeleted: { _eq: false }
+        assetStatus: { _neq: "${AssetStatus.RETIRED}" }
+      }
+    ) {
       aggregate {
         count
       }
@@ -158,10 +145,10 @@ export const GET_ASSET_STATISTICS = `
         count
       }
     }
-    retiredAssets: AssetAggregate(
+    underRepairAssets: AssetAggregate(
       where: {
         isDeleted: { _eq: false }
-        assetStatus: { _eq: "${AssetStatus.RETIRED}" }
+        assetStatus: { _eq: "${AssetStatus.UNDER_REPAIR}" }
       }
     ) {
       aggregate {
@@ -171,9 +158,6 @@ export const GET_ASSET_STATISTICS = `
   }
 `
 
-/**
- * Mutation to insert a new asset
- */
 export const INSERT_ASSET = `
   mutation InsertAsset($asset: AssetInsertInput!) {
     insert_Asset_one(object: $asset) {
@@ -182,9 +166,6 @@ export const INSERT_ASSET = `
   }
 `
 
-/**
- * Mutation to update an existing asset
- */
 export const UPDATE_ASSET = `
   mutation UpdateAsset($id: uuid!, $version: Int!, $changes: AssetSetInput!) {
     update_Asset(
@@ -198,9 +179,6 @@ export const UPDATE_ASSET = `
   }
 `
 
-/**
- * Mutation to soft delete an asset
- */
 export const DELETE_ASSET = `
   mutation DeleteAsset($id: uuid!, $version: Int!) {
     update_Asset(
@@ -214,9 +192,6 @@ export const DELETE_ASSET = `
   }
 `
 
-/**
- * Query to fetch employee assets (allocations) for a specific asset
- */
 export const GET_EMPLOYEE_ASSETS_BY_ASSET = `
   query GetEmployeeAssetsByAsset($assetId: uuid!) {
     EmployeeAsset(
@@ -228,9 +203,6 @@ export const GET_EMPLOYEE_ASSETS_BY_ASSET = `
   }
 `
 
-/**
- * Query to fetch current allocation for an asset
- */
 export const GET_CURRENT_ALLOCATION = `
   query GetCurrentAllocation($assetId: uuid!) {
     EmployeeAsset(
@@ -246,9 +218,6 @@ export const GET_CURRENT_ALLOCATION = `
   }
 `
 
-/**
- * Mutation to allocate an asset to an employee
- */
 export const ALLOCATE_ASSET = `
   mutation AllocateAsset($allocation: EmployeeAssetInsertInput!) {
     insert_EmployeeAsset_one(object: $allocation) {
@@ -256,10 +225,6 @@ export const ALLOCATE_ASSET = `
     }
   }
 `
-
-/**
- * Mutation to deallocate an asset (set end date)
- */
 export const DEALLOCATE_ASSET = `
   mutation DeallocateAsset(
     $id: uuid!
@@ -278,7 +243,6 @@ export const DEALLOCATE_ASSET = `
   }
 `
 
-// TypeScript interfaces for query variables and responses
 export interface AssetQueryVariables {
   limit?: number
   offset?: number
@@ -295,7 +259,6 @@ export interface AssetStatisticsResponse {
   allocatedAssets: { aggregate: { count: number } }
   availableAssets: { aggregate: { count: number } }
   underRepairAssets: { aggregate: { count: number } }
-  retiredAssets: { aggregate: { count: number } }
 }
 
 export interface InsertAssetVariables {

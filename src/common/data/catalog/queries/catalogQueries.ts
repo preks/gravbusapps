@@ -23,7 +23,6 @@ export interface CatalogQueryOptions extends CatalogQueryVariables, CatalogInclu
 // Helper function to build where conditions for catalogs
 const buildCatalogWhereCondition = (variables: CatalogQueryOptions): string => {
   const conditions: string[] = ['{ isDeleted: { _neq: true } }']
-
   // Filter by specific catalog identifiers (identifier:version format)
   if (variables.catalogIdentifiers && variables.catalogIdentifiers.length > 0) {
     const identifierConditions = variables.catalogIdentifiers.map(identifierVersion => {

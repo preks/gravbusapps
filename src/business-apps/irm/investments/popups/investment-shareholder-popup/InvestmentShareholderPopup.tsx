@@ -18,7 +18,8 @@ import {
 import { Plus } from 'lucide-react'
 import { AppActionForm } from '@/components/app-action-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useGetInvestmentShareholdersByInvestmentId, useGetInvestmentById } from '@/common/data/investment'
+import { useGetInvestmentShareholdersByInvestmentId } from '@/common/data/investment/hooks/useInvestmentShareholders'
+import { useGetInvestmentById } from '@/common/data/investment/hooks/useInvestments'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {

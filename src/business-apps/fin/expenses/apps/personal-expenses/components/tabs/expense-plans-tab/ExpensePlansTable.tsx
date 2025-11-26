@@ -79,9 +79,10 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
   const savedPageBeforeSearchRef = useRef<number | null>(null)
   const prevSearchRef = useRef<string>('')
 
-  // Track if any filters are active to show conditional messages
   const hasActiveFilters = useMemo(() => {
-    return search || selectedFilters.length > 0
+    const trimmedSearch = (search || '').trim()
+    const nonCurrencyFilters = (selectedFilters || []).filter(f => !f.startsWith('currency:'))
+    return trimmedSearch !== '' || nonCurrencyFilters.length > 0
   }, [search, selectedFilters])
 
   // Server-side sorting state - managed by parent component
@@ -262,12 +263,6 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
       <div className="">
         <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
           <CardContent className="gba:p-0">
-            {isLoading && (
-              <div className="gba:flex gba:justify-center gba:p-4">
-                <Spinner />
-              </div>
-            )}
-
             <div className="gba:overflow-x-auto">
               <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
                 <TableHeader>
@@ -380,7 +375,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {!isLoading && (!plans || plans.length === 0) ? (
+                  {!isLoading && totalCount === 0 && (!plans || plans.length === 0) ? (
                     <TableRow>
                       <TableCell colSpan={9} className="gba:py-8 gba:text-center">
                         <div className="gba:text-gray-500">
@@ -658,7 +653,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
                           >
                             {record.reimbursableAmount
                               ? formatCurrencyDisplay(record.reimbursableAmount, record.currency?.code)
-                              : formatCurrencyDisplay(0, 'EUR')}
+                              : formatCurrencyDisplay(0, record.currency?.code)}
                           </div>
                         </TableCell>
                         <TableCell
@@ -756,7 +751,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
                   </div>
                 </div>
               </div>
-            ) : (
+            ) : totalCount > 0 ? (
               <div
                 className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4"
                 data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info-single-page`}
@@ -781,7 +776,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
                   </select>
                 </div>
               </div>
-            )}
+            ) : null}
           </CardContent>
         </Card>
       </div>
@@ -815,8 +810,21 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
             ;(props.currencyStats || []).forEach(cs => {
               currencyLabelMap[`currency:${cs.ref}`] = cs.code
             })
+
+            // Ensure selected currency filters always have a readable label (e.g. "EUR"),
+            // even when currencyStats is empty or does not include the selected ref.
+            ;(props.selectedFilters || [])
+              .filter(token => token.startsWith('currency:'))
+              .forEach(token => {
+                if (!currencyLabelMap[token]) {
+                  const ref = token.substring('currency:'.length)
+                  const codeFromRef = (ref.split(':').pop() || '').toUpperCase()
+                  currencyLabelMap[token] = codeFromRef || ref
+                }
+              })
+
             return { ...props.filterLabelMap, ...currencyLabelMap }
-          }, [props.filterLabelMap, props.currencyStats]),
+          }, [props.filterLabelMap, props.currencyStats, props.selectedFilters]),
           placeholder:
             getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.job_search', 'Search') +
             '...',
