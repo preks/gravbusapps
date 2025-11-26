@@ -44,31 +44,40 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, a
   const isClockedOutWithWork = !isClockedIn && todaysWorkedMinutes > 0
   const headerPrimary = isClockedIn
     ? getTranslationFromI18nKeyAndLabel(
-        'lowcoder:time_tracking.header.on_the_clock_primary',
-        `You're on the clock, ${employeeName} — keep up the great work!`
+        'lowcoder:time_tracking.summary.header.clock_in',
+        `You're on the clock, ${employeeName} — keep up the great work!`,
+        {
+          employeeName
+        }
       )
     : isClockedOutWithWork
       ? getTranslationFromI18nKeyAndLabel(
-          'lowcoder:time_tracking.header.clock_out',
-          `Clocked out! Time to recharge, ${employeeName}`
+          'lowcoder:time_tracking.summary.header.clock_out',
+          `Clocked out! Time to recharge, ${employeeName}`,
+          {
+            employeeName
+          }
         )
       : getTranslationFromI18nKeyAndLabel(
-          'lowcoder:time_tracking.header.welcome',
-          `Wellcome ${employeeName} to the new way of working!`
+          'lowcoder:time_tracking.summary.header.welcome',
+          `Wellcome ${employeeName} to the new way of working!`,
+          {
+            employeeName
+          }
         )
   const headerSecondary = isClockedIn
     ? getTranslationFromI18nKeyAndLabel(
-        'lowcoder:time_tracking.header.on_the_clock_secondary',
+        'lowcoder:time_tracking.summary.header.clock_IN_secondary',
         "Let's make this day count."
       )
     : isClockedOutWithWork
       ? getTranslationFromI18nKeyAndLabel(
-          'lowcoder:time_tracking.header.clock_out_secondary',
-          'Let’s set things in motion — your hours start with a single click.'
+          'lowcoder:time_tracking.summary.header.clock_OUT_secondary',
+          'Great work today — see you tomorrow, fresh and focused.'
         )
       : getTranslationFromI18nKeyAndLabel(
-          'lowcoder:time_tracking.header.welcome_secondary',
-          'Great work today — see you tomorrow, fresh and focused.'
+          'lowcoder:time_tracking.summary.header.welcome_secondary',
+          'Let’s set things in motion — your hours start with a single click.'
         )
 
   return (
@@ -191,6 +200,10 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, a
                   </span>
                   <span className="gba:font-semibold">{clockInSince}</span>
                 </div>
+              ) : isClockedOutWithWork ? (
+                <span>
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.status.clocked_out', 'Clocked out')}
+                </span>
               ) : (
                 <span>
                   {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.status.not_clocked_in', 'Not clocked in')}

@@ -122,24 +122,36 @@ export const InterventionsTable: React.FC<InterventionsTableProps> = ({ employee
               <>
                 <span>NEWWORK </span>
                 <span className="gba:bg-gradient-to-r gba:from-primary gba:via-info gba:to-success gba:bg-clip-text gba:text-transparent">
-                  EveryAI
+                  EveryAI Assistant
                 </span>
-                <span> Assistant noticed ...</span>
+                <span>
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:time_tracking.interventions.header_expanded_suffix',
+                    ' noticed ...'
+                  )}
+                </span>
               </>
             ) : (
               <>
                 <span>NEWWORK </span>
                 <span className="gba:bg-gradient-to-r gba:from-primary gba:via-info gba:to-success gba:bg-clip-text gba:text-transparent">
-                  EveryAI
+                  EveryAI Assistant
                 </span>
-                <span> Assistant noticed data that need your attention!</span>
+                <span>
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:time_tracking.interventions.header_collapsed_suffix',
+                    ' noticed data that need your attention!'
+                  )}
+                </span>
               </>
             )}
           </div>
         </button>
         <div>
           <Button variant="ghost" size="sm" onClick={toggleExpanded} data-testid="time-interventions-toggle-button">
-            {isExpanded ? 'Hide' : 'Review'}
+            {isExpanded
+              ? getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.interventions.hide', 'Hide')
+              : getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.interventions.review', 'Review')}
           </Button>
         </div>
       </div>
@@ -189,9 +201,15 @@ export const InterventionsTable: React.FC<InterventionsTableProps> = ({ employee
                               </Badge>
                             </div>
                             <div className="gba:text-sm gba:text-muted-foreground">
-                              {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.planned', 'Planned')}{' '}
+                              {getTranslationFromI18nKeyAndLabel(
+                                'lowcoder:time_tracking.interventions.planned',
+                                'Planned'
+                              )}{' '}
                               {formatHm(item.plannedMinutes)} •{' '}
-                              {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.worked', 'Worked')}{' '}
+                              {getTranslationFromI18nKeyAndLabel(
+                                'lowcoder:time_tracking.interventions.worked',
+                                'Worked'
+                              )}{' '}
                               {formatHm(item.workedMinutes)}
                               {deficit > 0 ? ` • -${formatHm(deficit)}` : ''}
                             </div>

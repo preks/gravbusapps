@@ -54,7 +54,7 @@ const TimeTrackingTab: React.FC<TimeTrackingTabProps> = ({ employee, accessToken
           </TabsTrigger>
           <TabsTrigger value="history" data-testid="history-subtab" className="gba:flex-1">
             <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
-              <span>{getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.history.title', 'History')}</span>
+              <span>{getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.history', 'History')}</span>
             </div>
           </TabsTrigger>
           {/* Disable smart booking tab for now until it is implemented on BE */}
