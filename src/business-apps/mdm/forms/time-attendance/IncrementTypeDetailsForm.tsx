@@ -228,7 +228,7 @@ const IncrementTypeDetailsForm: React.FC<IncrementTypeDetailsFormProps> = ({
                 <Input
                   {...field}
                   type="number"
-                  onChange={e => field.onChange(parseInt(e.target.value) || 0)}
+                  onChange={e => field.onChange(Number.parseInt(e.target.value) || 0)}
                   value={field.value}
                   placeholder="0"
                 />
@@ -383,7 +383,7 @@ const IncrementTypeDetailsForm: React.FC<IncrementTypeDetailsFormProps> = ({
                   {...field}
                   type="number"
                   step="0.01"
-                  onChange={e => field.onChange(e.target.value ? parseFloat(e.target.value) : null)}
+                  onChange={e => field.onChange(e.target.value ? Number.parseFloat(e.target.value) : null)}
                   value={field.value ?? ''}
                   placeholder="0.00"
                 />
@@ -443,7 +443,7 @@ const IncrementTypeDetailsForm: React.FC<IncrementTypeDetailsFormProps> = ({
                     <SelectContent>
                       {alternativeOptions.map(option => (
                         <SelectItem key={option.id} value={option.id}>
-                          {option.fixedValue !== null ? option.fixedValue.toString() : 'N/A'}
+                          {option.fixedValue === null ? 'N/A' : option.fixedValue.toString()}
                         </SelectItem>
                       ))}
                     </SelectContent>

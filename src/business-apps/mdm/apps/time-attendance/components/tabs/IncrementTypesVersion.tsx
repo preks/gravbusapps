@@ -8,10 +8,10 @@ import {
   DialogDescription,
   DialogFooter,
   DialogClose,
-  Badge
+  Badge,
+  Button
 } from '@newwork/nw-design-system'
 import { ColumnDef } from '@tanstack/react-table'
-import { Button } from '@newwork/nw-design-system'
 import { MagnifyingGlassIcon, PencilSimpleLineIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react'
 import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
@@ -225,7 +225,9 @@ export const IncrementTypesVersion: React.FC<IncrementTypesVersionProps> = ({
               <WarningIcon className="gba:text-destructive" />
               Delete Increment Type Version
             </DialogTitle>
-            <DialogDescription>{`Are you sure you want to delete ${`${selectedIncrementTypeVersion?.incrementType?.name} Version`}?`}</DialogDescription>
+            <DialogDescription>
+              {`Are you sure you want to delete ${selectedIncrementTypeVersion?.incrementType?.name ?? ''} Version?`}
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <DialogClose asChild>

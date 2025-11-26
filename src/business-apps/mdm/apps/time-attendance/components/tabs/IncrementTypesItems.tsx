@@ -7,10 +7,10 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-  DialogClose
+  DialogClose,
+  Button
 } from '@newwork/nw-design-system'
 import { ColumnDef } from '@tanstack/react-table'
-import { Button } from '@newwork/nw-design-system'
 import { MagnifyingGlassIcon, PencilSimpleLineIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react'
 import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
@@ -23,7 +23,7 @@ import { env } from '@/common/env/EnvUtils'
 interface IncrementTypesItemsProps {
   incrementTypes: SimpleIncrementType[]
   incrementTypeVersions: TransformedIncrementTypeVersion[]
-  refetch: () => void
+  refetch: () => Promise<void>
   accessToken: string
   prefixDataTestId?: string
   onConfigure: (incrementTypeVersion: TransformedIncrementTypeVersion) => void
@@ -89,6 +89,7 @@ export const IncrementTypesItems: React.FC<IncrementTypesItemsProps> = ({
           activeVersion: '',
           activeFrom: null,
           activeTo: null,
+          increments: 0,
           version: 0,
           incrementType: {
             id: incrementType.id,

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useCallback, useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Button, DataTable, Badge } from '@newwork/nw-design-system'
 import { ColumnDef, SortingState } from '@tanstack/react-table'
 import { PlusIcon, PencilSimpleLineIcon, TrashIcon, CheckIcon } from '@phosphor-icons/react'
@@ -12,6 +12,10 @@ import IncrementTypeDetailsForm, {
 } from '@/business-apps/mdm/forms/time-attendance/IncrementTypeDetailsForm'
 import { TransformedIncrementTypeVersionDetail } from '../types/increment-type-version-details'
 import { useTimeTypesData } from '../hooks/useTimeTypesData'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+import { env } from '@/common/env/EnvUtils'
+import { DeleteDialog } from './DeleteDialog'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export interface IncrementTypeDetailsProps {
   incrementTypeVersionId: string | null
@@ -28,6 +32,11 @@ export const IncrementTypeDetails: React.FC<IncrementTypeDetailsProps> = ({
 }) => {
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
   const [sorting, setSorting] = useState<SortingState>([])
+  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
+  const [selectedIncrementTypeVersionDetail, setSelectedIncrementTypeVersionDetail] =
+    useState<TransformedIncrementTypeVersionDetail | null>(null)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // Fetch increment type version details using the hook
   const { incrementTypeVersionDetails, loading, error, refetch } = useIncrementTypeVersionDetailsData({
@@ -57,6 +66,38 @@ export const IncrementTypeDetails: React.FC<IncrementTypeDetailsProps> = ({
   const findIncludeExcludeOption = (code: string) => {
     return INCLUDE_EXCLUDE_OPTIONS.find(option => option.code === code)
   }
+
+  const handleDeleteIncrementTypeVersionDetail = useCallback(
+    async (incrementTypeVersionDetail?: TransformedIncrementTypeVersionDetail | null) => {
+      if (!incrementTypeVersionDetail) return
+      setIsDeleting(true)
+
+      try {
+        await restClient.post(
+          '/employee-time/deleteIncrementTypeVersionDetail',
+          {
+            changeMode: 'DELETE',
+            incrementTypeVersionDetail: {
+              id: incrementTypeVersionDetail.id,
+              version: incrementTypeVersionDetail.version
+            }
+          },
+          {
+            headers: { Authorization: `Bearer ${accessToken}` }
+          }
+        )
+
+        await refetch()
+      } catch (error) {
+        console.error('Error deleting increment type version detail:', error)
+      } finally {
+        setIsDeleting(false)
+        setIsDeleteDialogOpen(false)
+        setSelectedIncrementTypeVersionDetail(null)
+      }
+    },
+    [restClient, accessToken, refetch]
+  )
 
   // Table columns
   const incrementTypeDetailsColumns: ColumnDef<TransformedIncrementTypeVersionDetail>[] = useMemo(
@@ -142,7 +183,7 @@ export const IncrementTypeDetails: React.FC<IncrementTypeDetailsProps> = ({
         header: 'Value',
         enableSorting: true,
         cell: ({ row }) => {
-          return row.original.fixedValue !== null ? row.original.fixedValue.toString() : '-'
+          return row.original.fixedValue === null ? '-' : row.original.fixedValue.toString()
         }
       },
       {
@@ -190,8 +231,10 @@ export const IncrementTypeDetails: React.FC<IncrementTypeDetailsProps> = ({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => {
-                  // TODO: Implement delete functionality
+                onClick={event => {
+                  event.stopPropagation()
+                  setSelectedIncrementTypeVersionDetail(row.original)
+                  setIsDeleteDialogOpen(true)
                 }}
                 data-testid={formatDataTestId(dataTestId, `delete-row-button-${row.original.id}`)}
               >
@@ -264,6 +307,21 @@ export const IncrementTypeDetails: React.FC<IncrementTypeDetailsProps> = ({
           </div>
         )}
       </CardContent>
+
+      <DeleteDialog
+        isOpen={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        onConfirm={() => handleDeleteIncrementTypeVersionDetail(selectedIncrementTypeVersionDetail)}
+        isDeleting={isDeleting}
+        titleKey={getTranslationFromI18nKeyAndLabel(
+          'master-data:hr.time_attendance.increment_type_versions.actions.delete_increment_type_detail',
+          'Delete Increment Type Detail'
+        )}
+        description={getTranslationFromI18nKeyAndLabel(
+          'master-data:hr.time_attendance.increment_type_versions.actions.delete_increment_type_detail_message',
+          'Are you sure you want to delete this increment type detail?'
+        )}
+      />
     </Card>
   )
 }

@@ -16,16 +16,7 @@ import {
   FormItem,
   FormLabel,
   FormControl,
-  FormMessage
-} from '@newwork/nw-design-system'
-import { ArrowLeftIcon, XIcon, FloppyDiskIcon } from '@phosphor-icons/react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { useRestClient } from '@/common/network/rest/useRestClient'
-import { env } from '@/common/env/EnvUtils'
-import { TransformedIncrementTypeVersion } from '../types/increment-type-versions'
-import {
+  FormMessage,
   Alert,
   AlertTitle,
   AlertDescription,
@@ -34,6 +25,13 @@ import {
   TabsTrigger,
   TabsContent
 } from '@newwork/nw-design-system'
+import { ArrowLeftIcon, XIcon, FloppyDiskIcon } from '@phosphor-icons/react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+import { env } from '@/common/env/EnvUtils'
+import { TransformedIncrementTypeVersion } from '../types/increment-type-versions'
 import IncrementTypeDetails from './IncrementTypeDetails'
 import { useVersionOverlapCheck } from '../hooks/useVersionOverlapCheck'
 
