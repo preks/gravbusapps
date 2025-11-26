@@ -50,9 +50,6 @@ export const PositionFormFields: React.FC<PositionFormFieldsProps> = ({
 
   return (
     <>
-      {(() => {
-        return null
-      })()}
       <ExpenseGroupField
         index={index}
         value={position.expenseGroup}
