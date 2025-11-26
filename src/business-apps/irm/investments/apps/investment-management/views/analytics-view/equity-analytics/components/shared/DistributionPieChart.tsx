@@ -15,7 +15,8 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
+  Spinner
 } from '@newwork/nw-design-system'
 import type { Icon } from '@phosphor-icons/react'
 
@@ -38,6 +39,8 @@ interface DistributionPieChartProps {
   onCurrencyChange?: (currency: string) => void
   availableCurrencies?: string[]
   formatCurrency?: (amount: number, currency: string) => string
+  isLoading?: boolean
+  error?: string | null
 }
 
 // Custom tooltip component for distribution pie charts
@@ -94,26 +97,47 @@ export const DistributionPieChart: React.FC<DistributionPieChartProps> = ({
   currency,
   onCurrencyChange,
   availableCurrencies,
-  formatCurrency
+  formatCurrency,
+  isLoading = false,
+  error = null
 }) => {
-  // Generate chart configuration
+  // Transform data for chart and filter out zero/undefined values
+  const chartData = useMemo(() => {
+    return data
+      .filter((item: any) => {
+        const value = valueType === 'count' ? item.count : item.totalAmount
+        // Strict validation: must have type, value must be positive number
+        return (
+          item.type &&
+          item.type.trim() !== '' &&
+          value &&
+          typeof value === 'number' &&
+          value > 0 &&
+          !Number.isNaN(value)
+        )
+      })
+      .map((item: any) => {
+        const normalizedName = item.type.toLowerCase().replaceAll(/\s+/g, '')
+        return {
+          ...item,
+          name: normalizedName,
+          type: item.type,
+          value: valueType === 'count' ? item.count : item.totalAmount
+        }
+      })
+  }, [data, valueType])
+
+  // Generate chart configuration only for items with actual values
   const chartConfig = useMemo(() => {
     const config: Record<string, { label: string }> = {}
-    for (const item of data) {
-      const key = item.type.toLowerCase().replaceAll(/\s+/g, '')
-      config[key] = { label: item.type }
-    }
+    // Only add config for items that are in chartData
+    chartData.forEach(item => {
+      if (item.name && item.name.trim() !== '') {
+        config[item.name] = { label: item.type }
+      }
+    })
     return config
-  }, [data])
-
-  // Transform data for chart
-  const chartData = useMemo(() => {
-    return data.map((item: any) => ({
-      ...item,
-      name: item.type.toLowerCase().replaceAll(/\s+/g, ''),
-      value: valueType === 'count' ? item.count : item.totalAmount
-    }))
-  }, [data, valueType])
+  }, [chartData])
 
   // Memoized tooltip render function
   const renderTooltip = useCallback(
@@ -127,6 +151,22 @@ export const DistributionPieChart: React.FC<DistributionPieChartProps> = ({
       />
     ),
     [valueType, currency, formatCurrency, chartData]
+  )
+
+  // Custom legend that only shows items in chartData
+  const customLegendContent = useCallback(
+    (props: any) => {
+      const { payload } = props
+      if (!payload || !Array.isArray(payload)) return null
+
+      // Only show legend items that have data
+      const filteredPayload = payload.filter((item: any) => {
+        return chartData.some((dataItem: any) => dataItem.name === item.value)
+      })
+
+      return <ChartLegendContent {...props} payload={filteredPayload} />
+    },
+    [chartData]
   )
 
   return (
@@ -159,26 +199,59 @@ export const DistributionPieChart: React.FC<DistributionPieChartProps> = ({
         </div>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="gba:h-[350px] gba:w-full">
-          <PieChart>
-            <Pie
-              data={chartData}
-              cx="50%"
-              cy="50%"
-              outerRadius={80}
-              fill="var(--color-default)"
-              dataKey="value"
-              nameKey="name"
-            >
-              {data.map((entry: any) => {
-                const key = entry.type.toLowerCase().replaceAll(/\s+/g, '')
-                return <Cell key={`cell-${key}`} fill={`var(--color-${key})`} />
-              })}
-            </Pie>
-            <ChartTooltip content={renderTooltip} />
-            <ChartLegend content={<ChartLegendContent />} />
-          </PieChart>
-        </ChartContainer>
+        {(() => {
+          // Show loading state
+          if (isLoading) {
+            return (
+              <div className="gba:h-[350px] gba:w-full gba:flex gba:items-center gba:justify-center">
+                <Spinner size="lg" />
+              </div>
+            )
+          }
+
+          // Show error state
+          if (error) {
+            return (
+              <div className="gba:h-[350px] gba:w-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-2">
+                <span className="gba:text-destructive gba:text-sm gba:font-medium">Error loading data</span>
+                <span className="gba:text-gray-500 gba:text-xs">{error}</span>
+              </div>
+            )
+          }
+
+          // Show chart or empty state
+          if (chartData.length > 0) {
+            return (
+              <ChartContainer config={chartConfig} className="gba:h-[350px] gba:w-full">
+                <PieChart>
+                  <Pie
+                    data={chartData}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    fill="var(--color-default)"
+                    dataKey="value"
+                    nameKey="name"
+                  >
+                    {chartData.map((entry: any) => (
+                      <Cell key={`cell-${entry.name}`} fill={`var(--color-${entry.name})`} />
+                    ))}
+                  </Pie>
+                  <ChartTooltip content={renderTooltip} />
+                  <ChartLegend content={customLegendContent} />
+                </PieChart>
+              </ChartContainer>
+            )
+          }
+
+          // Show empty state only if not loading and no data
+          return (
+            <div className="gba:h-[350px] gba:w-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-2">
+              <span className="gba:text-gray-500 gba:text-sm gba:font-medium">No data available</span>
+              <span className="gba:text-gray-400 gba:text-xs">Try selecting a different currency</span>
+            </div>
+          )
+        })()}
       </CardContent>
     </Card>
   )

@@ -31,10 +31,7 @@ export interface EquityRoleDistributionIntegration {
  */
 const buildCountQuery = (roles: RoleInfo[], currency?: string): string => {
   const countConditions = (roleRef: string) => {
-    const currencyCondition =
-      currency && currency !== 'All' && currency !== 'All Currencies'
-        ? `currency: { code: { _eq: "${currency}" } }`
-        : ''
+    const currencyCondition = currency && currency !== 'All' ? `currency: { code: { _eq: "${currency}" } }` : ''
 
     const conditions = [
       'isDeleted: { _eq: false }',
@@ -148,7 +145,7 @@ interface AmountResponse {
  * This prevents duplicate GetDistinctEquityRoles queries
  *
  * @param context - Business app context with access token
- * @param countCurrency - Currency for count distribution (supports 'All Currencies')
+ * @param countCurrency - Currency for count distribution (supports 'All')
  * @param amountCurrency - Currency for amount distribution (specific currency only)
  * @returns Combined role distribution data with loading/error states
  */

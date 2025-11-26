@@ -13,7 +13,7 @@ export interface GroupCountDistributionIntegration {
  * Hook that fetches Portfolio group count distribution using server-side queries
  *
  * @param context - Business app context with access token
- * @param currency - Currency filter (supports "All Currencies")
+ * @param currency - Currency filter (supports "All")
  * @returns Group count distribution data with loading/error states
  */
 export const usePortfolioGroupCountDistribution = (

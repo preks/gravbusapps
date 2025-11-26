@@ -28,6 +28,8 @@ import {
   buildOpportunityFragment
 } from '@/common/data/relations/queries/relationFragments'
 
+import { CUSTOMER_CAMPAIGN_REF } from './fragments/customerReferenceFragments'
+
 // Import Customer Fields
 import { CustomerActivityFields } from '../types/customerActivityTypes'
 import { CustomerDocumentFields } from '../types/customerDocumentTypes'
@@ -54,10 +56,7 @@ export const buildCustomerLeadQuery = (fields: typeof CustomerLeadFields = Custo
 /**
  * Build Customer Lead by ID query
  */
-export const buildCustomerLeadByIdQuery = (
-  fields: typeof CustomerLeadFields = CustomerLeadFields,
-  id: string
-): string => {
+export const buildCustomerLeadByIdQuery = (fields: typeof CustomerLeadFields = CustomerLeadFields): string => {
   // Build relation builders and fields for common relations
   const relationBuilders: LeadRelationBuilders = {
     buildActivityFragment,
@@ -79,7 +78,15 @@ export const buildCustomerLeadByIdQuery = (
     opportunityFields: CustomerOpportunityFields
   }
 
-  return buildLeadByIdQuery('Lead', id, fields, relationBuilders, relationFields, undefined, 'SalesLeadStatus')
+  // CRM-specific additional fields: salesCampaign and salesCampaignId
+  const additionalFields = `
+    salesCampaign {
+      ${CUSTOMER_CAMPAIGN_REF}
+    }
+    salesCampaignId
+  `
+
+  return buildLeadByIdQuery('Lead', fields, relationBuilders, relationFields, additionalFields)
 }
 
 /**

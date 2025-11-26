@@ -173,6 +173,7 @@ export enum FlowContextName {
   employeeAdditionalProperties = 'updateEmployeeAdditionalAttributes',
   employeeProfilePicture = 'employeeProfilePicture',
   employeeAttendanceCorrectionRequest = 'employeeAttendanceCorrectionRequest',
+  employeeBenefitRequest = 'employeeBenefitRequest',
 
   updateEmployeePersonalData = 'updateEmployeePersonalData',
   updateEmployeeAddress = 'updateEmployeeAddress',
@@ -183,6 +184,8 @@ export enum FlowContextName {
   updateEmployeeSkill = 'updateEmployeeSkill',
   updateEmployeeWorkingCondition = 'updateEmployeeWorkingCondition',
   updateEmployeeWorkingHours = 'updateEmployeeWorkingHours',
+  adjustEmployeeSalary = 'adjustEmployeeSalary',
+  grantEmployeeBonus = 'grantEmployeeBonus',
 
   createEmployee = 'createEmployee',
   createJobPosition = 'createJobPosition'

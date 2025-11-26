@@ -238,7 +238,7 @@ const ConditionSection: React.FC<ConditionSectionProps> = memo(
               </Badge>
             </div>
 
-            <div className="gba:space-y-3 gba:max-h-96 gba:overflow-y-auto gba:pr-1">
+            <div className="gba:space-y-3">
               {sortedStageConditions.length > 0 ? (
                 sortedStageConditions.map(condition => (
                   <ConditionCard

@@ -19,6 +19,7 @@ current-bonus = bonus
 current-bonuses = bonuses
 current-annually = Annually
 current-monthly = Monthly
+current-hourly = Hourly
 
 # Compensation Band
 band-title = Compensation Band
@@ -127,7 +128,7 @@ modal-request-title = Request Benefit
 modal-request-description = Complete the form below to request this benefit
 modal-request-provider-label = Benefit Provider
 modal-request-provider-placeholder = Select a provider
-modal-request-value-label = Yearly Benefit Value (Optional)
+modal-request-value-label = Yearly Benefit Value
 modal-request-value-placeholder = Enter estimated yearly value
 modal-request-value-help = Optional: Estimated annual value of this benefit
 modal-request-start-date-label = Start Date
@@ -228,6 +229,8 @@ action-deactivate = Deactivate
 action-download = Download
 action-view = View
 action-close = Close
+action-select-placeholder = Please Select
+action-enter-placeholder = Please Enter
 
 # Benefits Catalog Section
 benefit-per-year = /yr

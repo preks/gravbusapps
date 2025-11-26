@@ -88,6 +88,8 @@ export interface CatalogEntry {
   catalogId?: string
   parentEntryId?: string
   displayOrder?: number
+  childEntries?: CatalogEntry[]
+  parentEntry?: CatalogEntry
   translations?: CatalogEntryTranslation[]
 }
 

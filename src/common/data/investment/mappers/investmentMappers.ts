@@ -9,8 +9,8 @@ import {
   RealEstateInvestment,
   BaseLiquidFundInvestment,
   LiquidFundInvestment
-} from '../types'
-import { toInvestmentAccount } from '@/common/data/investment/mappers/investmentAccountMappers'
+} from '../types/investmentTypes'
+import { toInvestmentAccount } from '../types/investmentAccountTypes'
 
 /**
  * Transform BaseInvestment (GraphQL response) to Investment (enhanced with computed fields)

@@ -19,6 +19,7 @@ current-bonus = bonus
 current-bonuses = bonusuri
 current-annually = Anual
 current-monthly = Lunar
+current-hourly = Pe oră
 
 # Compensation Band
 band-title = Bandă de compensare
@@ -127,7 +128,7 @@ modal-request-title = Solicită beneficiu
 modal-request-description = Completați formularul de mai jos pentru a solicita acest beneficiu
 modal-request-provider-label = Furnizor beneficiu
 modal-request-provider-placeholder = Selectați un furnizor
-modal-request-value-label = Valoare anuală beneficiu (Opțional)
+modal-request-value-label = Valoare anuală beneficiu
 modal-request-value-placeholder = Introduceți valoarea anuală estimată
 modal-request-value-help = Opțional: Valoarea anuală estimată a acestui beneficiu
 modal-request-start-date-label = Data de început
@@ -228,6 +229,8 @@ action-deactivate = Dezactivează
 action-download = Descarcă
 action-view = Vezi
 action-close = Închide
+action-select-placeholder = Vă rugăm să selectați
+action-enter-placeholder = Vă rugăm să introduceți
 
 # Benefits Catalog Section
 benefit-per-year = /an

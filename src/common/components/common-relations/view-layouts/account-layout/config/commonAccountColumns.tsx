@@ -1,10 +1,11 @@
 import type { ColumnDef } from '@tanstack/react-table'
-import { Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
+import { Avatar, AvatarImage, AvatarFallback, Badge } from '@newwork/nw-design-system'
 import { Building2, Mail, Phone, Globe, Calendar, MapPin } from 'lucide-react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { formatAddress } from '@/common/utils/addressFormatter'
 import { type Account, createAccountDescriptors, AccountFields } from '@/common/data/relations/types/accountTypes'
 import { deriveSortableColumns, deriveAvailableColumns } from '@/common/network/graphql/descriptorUtils'
+import { getAccountPriorityBadgeVariant } from '@/common/utils/badgeUtils'
 
 // Helper to safely convert values to strings
 const safeString = (value: any): string => {
@@ -283,6 +284,39 @@ export const commonAccountColumns: ColumnDef<Account>[] = [
     }
   },
   {
+    id: 'accountPriority',
+    accessorFn: row => {
+      const priority = row.accountPriority
+      if (!priority) return ''
+      const value = safeString(priority.value || priority.code)
+      const additionalValue1 = safeString(priority.additionalValue1)
+      return additionalValue1 ? `${value}: ${additionalValue1}` : value
+    },
+    header: 'Priority',
+    size: 140,
+    minSize: 120,
+    maxSize: 180,
+    enableResizing: false,
+    cell: ({ row }) => {
+      if (!row.original.accountPriority) {
+        return <span className="gba:text-sm gba:text-muted-foreground">No priority</span>
+      }
+      const priority = row.original.accountPriority
+      const value = safeString(priority.value || priority.code)
+      const additionalValue1 = safeString(priority.additionalValue1)
+      const displayValue = additionalValue1 ? `${value}: ${additionalValue1}` : value
+      return (
+        <Badge
+          variant={getAccountPriorityBadgeVariant(priority)}
+          className="gba:text-sm"
+          data-testid={`account-priority-cell-${row.original.id}`}
+        >
+          {displayValue}
+        </Badge>
+      )
+    }
+  },
+  {
     id: 'industryClass',
     accessorFn: row => row.industryClass?.value || row.industryClass?.code || '',
     header: 'Industry',
@@ -455,6 +489,7 @@ export const commonAccountColumns: ColumnDef<Account>[] = [
  */
 const ACCOUNT_COLUMN_LABELS: Record<string, string> = {
   name: 'Account Name',
+  accountPriority: 'Priority',
   industryClass: 'Industry',
   legalForm: 'Legal Form',
   size: 'Size',
@@ -476,6 +511,7 @@ export const defaultVisibleAccountColumns = [
   'name',
   'communicationChannels',
   'addresses',
+  'accountPriority',
   'industryClass',
   'legalForm',
   'size',

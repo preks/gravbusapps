@@ -1,5 +1,13 @@
 import type { ColumnDef } from '@tanstack/react-table'
-import { Badge, Avatar, AvatarFallback, Tooltip, TooltipTrigger, TooltipContent } from '@newwork/nw-design-system'
+import {
+  Badge,
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent
+} from '@newwork/nw-design-system'
 import { User, Building2, Calendar, MapPin, Flag, Mail, Phone } from 'lucide-react'
 import { type Lead, createLeadDescriptors, LeadFields } from '@/common/data/relations/types/leadTypes'
 import { getCatalogEntryValue } from '@/common/data/catalog/utils/catalogTranslationUtils'
@@ -345,6 +353,9 @@ export const commonLeadColumns = (): ColumnDef<Lead>[] => [
           data-testid={`owner-link-${row.original.id}`}
         >
           <Avatar className="gba:w-8 gba:h-8 gba:outline gba:outline-2 gba:outline-offset-2 gba:outline-transparent gba:group-hover:[outline-color:var(--nw-color-primary-500)] gba:transition-all">
+            {owner.pictureThumbnail ? (
+              <AvatarImage src={`data:image/jpeg;base64,${owner.pictureThumbnail}`} alt={ownerName} />
+            ) : null}
             <AvatarFallback>
               {(() => {
                 if (ownerName === '-') return 'O'

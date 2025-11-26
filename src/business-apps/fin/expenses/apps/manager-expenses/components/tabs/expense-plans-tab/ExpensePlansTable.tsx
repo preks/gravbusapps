@@ -110,16 +110,10 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
   } = props
 
   const hasActiveFilters = useMemo(() => {
-    if (totalCount === 0 && !loading) {
-      return false
-    }
-
     const hasSearch = (props.search || '').trim() !== ''
     const hasStatusFilters = Array.isArray(props.activeFilter) && props.activeFilter.length > 0
-    const hasCurrencyFilter = !!props.currencyFilter
-
-    return hasSearch || hasStatusFilters || hasCurrencyFilter
-  }, [totalCount, loading, props.search, props.activeFilter, props.currencyFilter])
+    return hasSearch || hasStatusFilters
+  }, [props.search, props.activeFilter])
 
   // Reset page to 1 when filter changes (fixes pagination issue when switching filters)
   const prevFilterRef = useRef<ExpenseStatus[] | null>(null)
@@ -384,8 +378,8 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
                     <div className="gba:text-muted-foreground">
                       {hasActiveFilters
                         ? getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:create_expense_request.no_plans_found_search',
-                            'No expense plans found'
+                            'lowcoder:team_expenses_page.dashboard_tab.no_data_found',
+                            'No data available'
                           )
                         : getTranslationFromI18nKeyAndLabel(
                             'lowcoder:manager_expense_landing_page.no_plans_created_by_team',

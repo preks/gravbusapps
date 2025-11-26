@@ -23,12 +23,13 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null)
   const [isPanelOpen, setIsPanelOpen] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
-  const [pageSize] = useState(10)
+  const [pageSize, setPageSize] = useState(10)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [sortField, setSortField] = useState<string>('')
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC')
   const [currentLocale, setCurrentLocale] = useState(getCurrentActiveUserLocale())
 
-  // Track locale changes to ensure translations update
   useEffect(() => {
     const checkLocale = () => {
       const newLocale = getCurrentActiveUserLocale()
@@ -48,15 +49,24 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
     assets,
     totalCount,
     isLoading: assetsLoading,
-    error: assetsError,
     statistics,
-    refetch: refetchAssets
+    statisticsLoading,
+    statisticsError,
+    refetch: refetchAssets,
+    refetchStatistics
   } = useAssets(props, {
     page: currentPage,
     pageSize,
     search: searchQuery,
-    statusFilter
+    statusFilter,
+    sortField: sortField || undefined,
+    sortOrder: sortField ? sortOrder : undefined
   })
+
+  const memoizedStatistics = useMemo(
+    () => statistics,
+    [statistics.totalAssets, statistics.allocatedAssets, statistics.availableAssets, statistics.underRepairAssets]
+  )
 
   const { getAllocationsForAsset } = useAssetService(props)
   const [selectedAssetAllocations, setSelectedAssetAllocations] = useState<any[]>([])
@@ -85,10 +95,39 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
     setIsPanelOpen(true)
   }
 
-  const handlePanelClose = () => {
+  const handlePanelClose = useCallback(() => {
     setIsPanelOpen(false)
     setTimeout(() => setSelectedAsset(null), 300)
-  }
+  }, [])
+
+  const handleStatusFilterChange = useCallback((status: string) => {
+    setStatusFilter(status)
+    setCurrentPage(1)
+  }, [])
+
+  const handleSearchChange = useCallback((search: string) => {
+    setSearchQuery(search)
+    setCurrentPage(1)
+  }, [])
+
+  // Handle sort change
+  const handleSortChange = useCallback((field: string, order: 'ASC' | 'DESC' | '') => {
+    if (order === '') {
+      // Clear sorting - reset to default
+      setSortField('')
+      setSortOrder('DESC')
+    } else {
+      setSortField(field)
+      setSortOrder(order)
+    }
+    setCurrentPage(1) // Reset to first page when sorting changes
+  }, [])
+
+  // Handle page size change
+  const handlePageSizeChange = useCallback((newPageSize: number) => {
+    setPageSize(newPageSize)
+    setCurrentPage(1) // Reset to first page when page size changes
+  }, [])
 
   const handleUpdateAsset = useCallback(
     (assetId: string) => {
@@ -170,7 +209,6 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
     onCloseDialogs: dialogs.closeAll
   })
 
-  // Memoize dialog titles to update with locale changes
   const allocateDialogTitle = useMemo(
     () => getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.allocate_asset', 'Allocate Asset'),
     [currentLocale]
@@ -218,10 +256,12 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
       >
         <div className="gba:space-y-6">
           <AssetStatistics
-            statistics={statistics}
-            isLoading={assetsLoading}
-            error={assetsError}
-            onRetry={refetchAssets}
+            statistics={memoizedStatistics}
+            isLoading={statisticsLoading}
+            error={statisticsError}
+            onRetry={refetchStatistics}
+            onStatusFilterChange={handleStatusFilterChange}
+            activeStatusFilter={statusFilter}
           />
 
           <div className="gba:space-y-4">
@@ -245,15 +285,15 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
               isLoading={assetsLoading}
               currentPage={currentPage}
               pageSize={pageSize}
+              statusFilter={statusFilter}
+              searchQuery={searchQuery}
+              sortField={sortField}
+              sortOrder={sortOrder}
               onPageChange={setCurrentPage}
-              onSearchChange={search => {
-                setSearchQuery(search)
-                setCurrentPage(1)
-              }}
-              onStatusFilterChange={status => {
-                setStatusFilter(status)
-                setCurrentPage(1)
-              }}
+              onPageSizeChange={handlePageSizeChange}
+              onSearchChange={handleSearchChange}
+              onStatusFilterChange={handleStatusFilterChange}
+              onSortChange={handleSortChange}
               onAssetClick={handleAssetClick}
               onAllocateAsset={handleAllocateAsset}
               onUpdateAsset={handleUpdateAsset}

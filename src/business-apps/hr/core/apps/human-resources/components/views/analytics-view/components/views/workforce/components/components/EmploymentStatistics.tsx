@@ -1,5 +1,6 @@
 import React from 'react'
-import { SectionKpiCards, KpiCardData, useTranslation } from '@newwork/nw-design-system'
+import { SectionKpiCards, KpiCardData, useTranslation, Icon } from '@newwork/nw-design-system'
+import { UsersIcon, CalendarIcon, EnvelopeIcon } from '@phosphor-icons/react'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 export interface EmploymentStatistics {
@@ -26,8 +27,10 @@ const EmploymentStatistics: React.FC<EmploymentStatisticsProps> = ({ statistics,
     {
       id: 'fte-employee-count',
       title: t('hr-analytics-fte-employee-count'),
-      value: isLoading ? t('hr-data-filter-loading') : `${statistics.totalFte.toFixed(1)} / ${statistics.employeeCount}`,
-      icon: 'users',
+      value: isLoading
+        ? t('hr-data-filter-loading')
+        : `${statistics.totalFte.toFixed(1)} / ${statistics.employeeCount}`,
+      icon: <Icon icon={UsersIcon} size="sm" decorative />,
       iconColor: 'var(--nw-info)',
       footer: t('hr-analytics-fte-ratio')
     },
@@ -35,7 +38,7 @@ const EmploymentStatistics: React.FC<EmploymentStatisticsProps> = ({ statistics,
       id: 'average-tenure',
       title: t('hr-analytics-average-tenure'),
       value: isLoading ? t('hr-data-filter-loading') : statistics.averageTenure,
-      icon: 'calendar',
+      icon: <Icon icon={CalendarIcon} size="sm" decorative />,
       iconColor: 'var(--nw-info)',
       footer: t('hr-analytics-company-wide-average')
     },
@@ -43,7 +46,7 @@ const EmploymentStatistics: React.FC<EmploymentStatisticsProps> = ({ statistics,
       id: 'gap-rate',
       title: t('hr-analytics-gap-rate'),
       value: isLoading ? t('hr-data-filter-loading') : `${statistics.gapRate.toFixed(1)}%`,
-      icon: 'mail',
+      icon: <Icon icon={EnvelopeIcon} size="sm" decorative />,
       iconColor:
         statistics.gapRate > 15
           ? 'var(--nw-destructive)'
@@ -56,7 +59,7 @@ const EmploymentStatistics: React.FC<EmploymentStatisticsProps> = ({ statistics,
       id: 'probation-rate',
       title: t('hr-analytics-probation-rate'),
       value: isLoading ? t('hr-data-filter-loading') : `${statistics.probationRate.toFixed(1)}%`,
-      icon: 'users',
+      icon: <Icon icon={UsersIcon} size="sm" decorative />,
       iconColor:
         statistics.probationRate > 20
           ? 'var(--nw-destructive)'
@@ -71,7 +74,7 @@ const EmploymentStatistics: React.FC<EmploymentStatisticsProps> = ({ statistics,
     // Create loading placeholder cards
     const loadingCards: KpiCardData[] = kpiCards.map(card => ({
       ...card,
-      value: 'Loading...'
+      value: t('hr-data-filter-loading')
     }))
 
     return (

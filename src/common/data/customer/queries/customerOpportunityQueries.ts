@@ -71,11 +71,11 @@ export const buildCustomerOpportunityQuery = (
     }
     
     # CRM duplicate relations (mapped to main relations in mapper)
-    crmDocument(where: { isDeleted: { _eq: false } }) {
+    ${fields.documents}(where: { isDeleted: { _eq: false } }) {
       ${buildDocumentFragment(CustomerDocumentFields)}
     }
     
-    crmNote(where: { isDeleted: { _eq: false } }) {
+    ${fields.notes}(where: { isDeleted: { _eq: false } }) {
       ${buildNoteFragment(CustomerNoteFields)}
     }
     
@@ -83,6 +83,7 @@ export const buildCustomerOpportunityQuery = (
     salesCampaign {
       ${CUSTOMER_CAMPAIGN_REF}
     }
+    salesCampaignId
   `
   return buildOpportunityQuery('Opportunity', fields, entityFields)
 }
@@ -91,18 +92,12 @@ export const buildCustomerOpportunityQuery = (
  * Build Customer Opportunity by ID query
  */
 export const buildCustomerOpportunityByIdQuery = (
-  fields: typeof CustomerOpportunityFields = CustomerOpportunityFields,
-  id: string
+  fields: typeof CustomerOpportunityFields = CustomerOpportunityFields
 ): string => {
   // Build relation builders and fields for common relations
-  // Use wrapper function to include relations (website, addresses, communicationChannels) in account fragment
-  const buildAccountFragmentWithRelations = (accountFields: any) => {
-    return buildAccountFragment(accountFields, true, CUSTOMER_ADDRESS_FRAGMENT)
-  }
-
   const relationBuilders: OpportunityRelationBuilders = {
     buildActivityFragment,
-    buildAccountFragment: buildAccountFragmentWithRelations,
+    buildAccountFragment,
     buildContactFragment,
     buildDocumentFragment,
     buildLeadFragment,
@@ -134,11 +129,11 @@ export const buildCustomerOpportunityByIdQuery = (
     }
     
     # CRM duplicate relations (mapped to main relations in mapper)
-    crmDocument(where: { isDeleted: { _eq: false } }) {
+    ${fields.documents}(where: { isDeleted: { _eq: false } }) {
       ${buildDocumentFragment(CustomerDocumentFields)}
     }
     
-    crmNote(where: { isDeleted: { _eq: false } }) {
+    ${fields.notes}(where: { isDeleted: { _eq: false } }) {
       ${buildNoteFragment(CustomerNoteFields)}
     }
     
@@ -146,9 +141,10 @@ export const buildCustomerOpportunityByIdQuery = (
     salesCampaign {
       ${CUSTOMER_CAMPAIGN_REF}
     }
+    salesCampaignId
   `
 
-  return buildOpportunityByIdQuery('Opportunity', id, fields, relationBuilders, relationFields, entityFields)
+  return buildOpportunityByIdQuery('Opportunity', fields, relationBuilders, relationFields, entityFields)
 }
 
 /**
