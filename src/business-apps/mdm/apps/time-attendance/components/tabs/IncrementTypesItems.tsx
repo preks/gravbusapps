@@ -14,6 +14,7 @@ import { ColumnDef } from '@tanstack/react-table'
 import { MagnifyingGlassIcon, PencilSimpleLineIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react'
 import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import IncrementTypeForm from '@/business-apps/mdm/forms/time-attendance/IncrementTypeForm'
 import { TransformedIncrementTypeVersion } from '../../types/increment-type-versions'
 import { SimpleIncrementType } from '../../types/increment-types'
@@ -141,17 +142,17 @@ export const IncrementTypesItems: React.FC<IncrementTypesItemsProps> = ({
   const columns: ColumnDef<SimpleIncrementType>[] = [
     {
       accessorKey: 'code',
-      header: 'Code',
+      header: getTranslationFromI18nKeyAndLabel('master-data:forms.capability.fields.code.label', 'Code'),
       enableSorting: true
     },
     {
       accessorKey: 'name',
-      header: 'Name',
+      header: getTranslationFromI18nKeyAndLabel('master-data:forms.capability.fields.name.label', 'Name'),
       enableSorting: true
     },
     {
       id: 'actions',
-      header: 'Actions',
+      header: getTranslationFromI18nKeyAndLabel('translation:actions.actions', 'Actions'),
       enableSorting: false,
       enableHiding: true,
       cell: ({ row }) => {
@@ -196,14 +197,20 @@ export const IncrementTypesItems: React.FC<IncrementTypesItemsProps> = ({
           <DebouncedInput
             value={searchTerm}
             onChange={handleSearch}
-            placeholder="Search increment types..."
+            placeholder={getTranslationFromI18nKeyAndLabel(
+              'master-data:hr.time_attendance.increment_types.actions.search_placeholder',
+              'Search increment types...'
+            )}
             icon={<MagnifyingGlassIcon size={16} />}
             data-testid={formatDataTestId(dataTestId, 'search-input')}
             className="gba:max-w-md"
           />
         </div>
         <div className="gba:text-sm gba:text-gray-600">
-          {filteredIncrementTypes.length} of {incrementTypes.length} increment types
+          {`${filteredIncrementTypes.length} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} ${incrementTypes.length} ${getTranslationFromI18nKeyAndLabel(
+            'master-data:hr.time_attendance.increment_types.title',
+            'increment types'
+          ).toLowerCase()}`}
         </div>
       </div>
       <DataTable
@@ -218,16 +225,31 @@ export const IncrementTypesItems: React.FC<IncrementTypesItemsProps> = ({
           <DialogHeader>
             <DialogTitle className="gba:flex gba:items-center gba:gap-2">
               <WarningIcon className="gba:text-destructive" />
-              Delete Increment Type
+              {getTranslationFromI18nKeyAndLabel(
+                'master-data:hr.time_attendance.increment_types.actions.delete_title',
+                'Delete Increment Type'
+              )}
             </DialogTitle>
-            <DialogDescription>{`Are you sure you want to delete ${selectedIncrementType?.name ?? ''}?`}</DialogDescription>
+            <DialogDescription>
+              {getTranslationFromI18nKeyAndLabel(
+                'master-data:hr.time_attendance.increment_types.actions.delete_message',
+                `Are you sure you want to delete ${selectedIncrementType?.name ?? ''}?`
+              )}
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="outline">Cancel</Button>
+              <Button variant="outline">
+                {getTranslationFromI18nKeyAndLabel('master-data:forms.common.buttons.cancel', 'Cancel')}
+              </Button>
             </DialogClose>
             <Button variant="destructive" onClick={() => handleDeleteIncrementType(selectedIncrementType)}>
-              {isDeleting ? 'Deleting...' : 'Delete'}
+              {isDeleting
+                ? getTranslationFromI18nKeyAndLabel(
+                    'master-data:hr.time_attendance.increment_types.actions.deleting',
+                    'Deleting...'
+                  )
+                : getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_table.delete', 'Delete')}
             </Button>
           </DialogFooter>
         </DialogContent>

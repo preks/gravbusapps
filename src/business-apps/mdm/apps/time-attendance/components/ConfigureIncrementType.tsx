@@ -34,6 +34,7 @@ import { env } from '@/common/env/EnvUtils'
 import { TransformedIncrementTypeVersion } from '../types/increment-type-versions'
 import IncrementTypeDetails from './IncrementTypeDetails'
 import { useVersionOverlapCheck } from '../hooks/useVersionOverlapCheck'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export interface ConfigureIncrementTypeProps {
   incrementTypeVersion: TransformedIncrementTypeVersion | null
@@ -48,10 +49,42 @@ export interface ConfigureIncrementTypeProps {
 // Validation schema
 const incrementTypeConfigSchema = z
   .object({
-    incrementType: z.string().min(1, 'Increment Type is required'),
-    validFrom: z.string().min(1, 'Valid From is required'),
-    validTo: z.string().min(1, 'Valid To is required'),
-    activeVersion: z.string().min(1, 'Version is required')
+    incrementType: z
+      .string()
+      .min(
+        1,
+        getTranslationFromI18nKeyAndLabel(
+          'master-data:hr.time_attendance.increment_type_versions.increment_type_required',
+          'Increment Type is required'
+        )
+      ),
+    validFrom: z
+      .string()
+      .min(
+        1,
+        getTranslationFromI18nKeyAndLabel(
+          'master-data:hr.time_attendance.day_type_versions.valid_from_required',
+          'Valid From is required'
+        )
+      ),
+    validTo: z
+      .string()
+      .min(
+        1,
+        getTranslationFromI18nKeyAndLabel(
+          'master-data:hr.time_attendance.day_type_versions.valid_to_required',
+          'Valid To is required'
+        )
+      ),
+    activeVersion: z
+      .string()
+      .min(
+        1,
+        getTranslationFromI18nKeyAndLabel(
+          'master-data:hr.time_attendance.day_type_versions.version_required',
+          'Version is required'
+        )
+      )
   })
   .refine(
     data => {
@@ -59,7 +92,10 @@ const incrementTypeConfigSchema = z
       return new Date(data.validTo) >= new Date(data.validFrom)
     },
     {
-      message: 'Valid To date cannot be earlier than Valid From date',
+      message: getTranslationFromI18nKeyAndLabel(
+        'master-data:hr.time_attendance.day_type_versions.warnings.valid_to_date_cannot_be_earlier_than_valid_from_date',
+        'Valid To date cannot be earlier than Valid From date'
+      ),
       path: ['validTo']
     }
   )
@@ -116,7 +152,12 @@ const ConfigureIncrementType: React.FC<ConfigureIncrementTypeProps> = ({
     entityIdFieldName: 'incrementType',
     activeFromFieldName: 'validFrom',
     activeToFieldName: 'validTo',
-    getEntityIdFromVersion: version => version.incrementType?.id || null
+    getEntityIdFromVersion: version => version.incrementType?.id || null,
+    translationKeys: {
+      versionWithoutEndDate: 'master-data:hr.time_attendance.increment_type_versions.warnings.version_without_end_date',
+      plannedVersionAfterStart: 'master-data:hr.time_attendance.day_type_versions.warnings.planned_version_after_start',
+      periodOverlap: 'master-data:hr.time_attendance.day_type_versions.warnings.period_overlap'
+    }
   })
 
   // Check if save button should be disabled
@@ -222,29 +263,47 @@ const ConfigureIncrementType: React.FC<ConfigureIncrementTypeProps> = ({
             data-testid={`${prefixDataTestId || ''}-back-to-overview-button`}
           >
             <ArrowLeftIcon size={16} />
-            Back to Overview
+            {getTranslationFromI18nKeyAndLabel(
+              'master-data:hr.time_attendance.day_type_versions.back_to_overview',
+              'Back to Overview'
+            )}
           </Button>
           <div>
             <h1 className="gba:text-2xl gba:font-semibold gba:leading-none gba:tracking-tight">
               {currentIncrementTypeVersion?.id && currentIncrementTypeVersion.id !== ''
-                ? `Configure Increment Type Version: ${currentIncrementTypeVersion.incrementType?.code || currentIncrementTypeVersion.id}`
-                : 'Create Increment Type Version Configuration'}
+                ? `${getTranslationFromI18nKeyAndLabel(
+                    'master-data:hr.time_attendance.increment_type_versions.configure_increment_type_version',
+                    'Configure Increment Type Version'
+                  )}: ${currentIncrementTypeVersion.incrementType?.code || currentIncrementTypeVersion.id}`
+                : getTranslationFromI18nKeyAndLabel(
+                    'master-data:hr.time_attendance.increment_type_versions.create_increment_type_version',
+                    'Create Increment Type Version Configuration'
+                  )}
             </h1>
             <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">
               {currentIncrementTypeVersion?.id && currentIncrementTypeVersion.id !== ''
-                ? 'Edit increment type version configuration'
-                : 'Create new increment type version configuration'}
+                ? getTranslationFromI18nKeyAndLabel(
+                    'master-data:hr.time_attendance.increment_type_versions.edit_description',
+                    'Edit increment type version configuration'
+                  )
+                : getTranslationFromI18nKeyAndLabel(
+                    'master-data:hr.time_attendance.increment_type_versions.create_description',
+                    'Create new increment type version configuration'
+                  )}
             </p>
           </div>
         </div>
         <div className="gba:flex gba:items-center gba:gap-2">
           <Button variant="outline" onClick={handleCancel}>
             <XIcon className="gba:h-4 gba:w-4 gba:mr-2" />
-            Cancel
+            {getTranslationFromI18nKeyAndLabel('master-data:forms.common.buttons.cancel', 'Cancel')}
           </Button>
           <Button onClick={form.handleSubmit(handleSaveChanges)} disabled={isSaveDisabled}>
             <FloppyDiskIcon className="gba:h-4 gba:w-4 gba:mr-2" />
-            Save Changes
+            {getTranslationFromI18nKeyAndLabel(
+              'master-data:hr.time_attendance.day_type_versions.actions.save_changes',
+              'Save Changes'
+            )}
           </Button>
         </div>
       </div>
@@ -252,7 +311,12 @@ const ConfigureIncrementType: React.FC<ConfigureIncrementTypeProps> = ({
       {/* Overlap Warning */}
       {overlapWarning && (
         <Alert variant="destructive" data-testid={`${prefixDataTestId || ''}-overlap-warning`}>
-          <AlertTitle>Date Overlap Detected</AlertTitle>
+          <AlertTitle>
+            {getTranslationFromI18nKeyAndLabel(
+              'master-data:hr.time_attendance.increment_type_versions.date_overlap_detected',
+              'Date Overlap Detected'
+            )}
+          </AlertTitle>
           <AlertDescription>{overlapWarning}</AlertDescription>
         </Alert>
       )}
@@ -260,7 +324,12 @@ const ConfigureIncrementType: React.FC<ConfigureIncrementTypeProps> = ({
       {/* Increment Type Configuration */}
       <Card>
         <CardHeader>
-          <CardTitle>Increment Type Configuration</CardTitle>
+          <CardTitle>
+            {getTranslationFromI18nKeyAndLabel(
+              'master-data:hr.time_attendance.increment_type_versions.increment_type_configuration',
+              'Increment Type Configuration'
+            )}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -271,7 +340,12 @@ const ConfigureIncrementType: React.FC<ConfigureIncrementTypeProps> = ({
                   name="incrementType"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Increment Type</FormLabel>
+                      <FormLabel>
+                        {getTranslationFromI18nKeyAndLabel(
+                          'master-data:hr.time_attendance.increment_type_versions.single_increment_type',
+                          'Increment Type'
+                        )}
+                      </FormLabel>
                       <Select
                         onValueChange={field.onChange}
                         defaultValue={field.value}
@@ -279,7 +353,12 @@ const ConfigureIncrementType: React.FC<ConfigureIncrementTypeProps> = ({
                       >
                         <FormControl>
                           <SelectTrigger className="gba:w-full">
-                            <SelectValue placeholder="Select increment type" />
+                            <SelectValue
+                              placeholder={getTranslationFromI18nKeyAndLabel(
+                                'master-data:hr.time_attendance.increment_type_versions.select_increment_type',
+                                'Select increment type'
+                              )}
+                            />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -299,13 +378,21 @@ const ConfigureIncrementType: React.FC<ConfigureIncrementTypeProps> = ({
                   name="validFrom"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Valid From</FormLabel>
+                      <FormLabel>
+                        {getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:expense_calculation_rule.expense_table.valid_from',
+                          'Valid From'
+                        )}
+                      </FormLabel>
                       <FormControl>
                         <Input
                           {...field}
                           data-testid={`${prefixDataTestId || ''}-valid-from-input`}
                           type="date"
-                          placeholder="Valid From"
+                          placeholder={getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:expense_calculation_rule.expense_table.valid_from',
+                            'Valid From'
+                          )}
                         />
                       </FormControl>
                       <FormMessage />
@@ -317,13 +404,21 @@ const ConfigureIncrementType: React.FC<ConfigureIncrementTypeProps> = ({
                   name="validTo"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Valid To</FormLabel>
+                      <FormLabel>
+                        {getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:expense_calculation_rule.expense_table.valid_to',
+                          'Valid To'
+                        )}
+                      </FormLabel>
                       <FormControl>
                         <Input
                           {...field}
                           data-testid={`${prefixDataTestId || ''}-valid-to-input`}
                           type="date"
-                          placeholder="Valid To"
+                          placeholder={getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:expense_calculation_rule.expense_table.valid_to',
+                            'Valid To'
+                          )}
                         />
                       </FormControl>
                       <FormMessage />
@@ -335,12 +430,20 @@ const ConfigureIncrementType: React.FC<ConfigureIncrementTypeProps> = ({
                   name="activeVersion"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Version</FormLabel>
+                      <FormLabel>
+                        {getTranslationFromI18nKeyAndLabel(
+                          'flow:formio.form_builder.component_settings.data_source.version',
+                          'Version'
+                        )}
+                      </FormLabel>
                       <FormControl>
                         <Input
                           {...field}
                           data-testid={`${prefixDataTestId || ''}-version-input`}
-                          placeholder="Version"
+                          placeholder={getTranslationFromI18nKeyAndLabel(
+                            'flow:formio.form_builder.component_settings.data_source.version',
+                            'Version'
+                          )}
                         />
                       </FormControl>
                       <FormMessage />
@@ -356,8 +459,15 @@ const ConfigureIncrementType: React.FC<ConfigureIncrementTypeProps> = ({
       {/* Tabs */}
       <Tabs defaultValue="details" className="gba:w-full">
         <TabsList className="gba:grid gba:w-full gba:grid-cols-2">
-          <TabsTrigger value="details">Details</TabsTrigger>
-          <TabsTrigger value="usage">Usage</TabsTrigger>
+          <TabsTrigger value="details">
+            {getTranslationFromI18nKeyAndLabel(
+              'master-data:hr.time_attendance.increment_type_versions.details',
+              'Details'
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="usage">
+            {getTranslationFromI18nKeyAndLabel('master-data:hr.time_attendance.increment_type_versions.usage', 'Usage')}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="details">
@@ -375,11 +485,21 @@ const ConfigureIncrementType: React.FC<ConfigureIncrementTypeProps> = ({
         <TabsContent value="usage">
           <Card>
             <CardHeader>
-              <CardTitle>Usage</CardTitle>
+              <CardTitle>
+                {getTranslationFromI18nKeyAndLabel(
+                  'master-data:hr.time_attendance.increment_type_versions.usage',
+                  'Usage'
+                )}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="gba:text-center gba:py-12">
-                <p className="gba:text-muted-foreground">Usage content will be implemented here.</p>
+                <p className="gba:text-muted-foreground">
+                  {getTranslationFromI18nKeyAndLabel(
+                    'master-data:hr.time_attendance.increment_type_versions.usage_content',
+                    'Usage content will be implemented here.'
+                  )}
+                </p>
               </div>
             </CardContent>
           </Card>

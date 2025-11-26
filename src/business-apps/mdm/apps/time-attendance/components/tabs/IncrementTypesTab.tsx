@@ -17,6 +17,7 @@ import {
 import { PlusIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import IncrementTypeForm from '../../../../forms/time-attendance/IncrementTypeForm'
 import { useSimpleIncrementTypesData } from '../../hooks/useSimpleIncrementTypesData'
 import { useIncrementTypeVersionsData } from '../../hooks/useIncrementTypeVersionsData'
@@ -86,7 +87,12 @@ export const IncrementTypesTab: React.FC<IncrementTypesProps> = ({ accessToken, 
   if (error) {
     return (
       <Alert variant="destructive" data-testid={formatDataTestId(dataTestId, 'error-alert')}>
-        <AlertTitle>Error Loading Increment Types</AlertTitle>
+        <AlertTitle>
+          {getTranslationFromI18nKeyAndLabel(
+            'master-data:hr.time_attendance.increment_types.error_loading',
+            'Error Loading Increment Types'
+          )}
+        </AlertTitle>
         <AlertDescription>{error.message}</AlertDescription>
       </Alert>
     )
@@ -99,12 +105,23 @@ export const IncrementTypesTab: React.FC<IncrementTypesProps> = ({ accessToken, 
           <div className="gba:flex gba:justify-between gba:items-center gba:w-full">
             <div className="gba:flex gba:flex-col gba:gap-2 gba:h-full">
               <CardTitle className="gba:text-2xl gba:font-semibold gba:leading-none gba:tracking-tight">
-                {activeTab === 'items'
-                  ? `Increment Types (${simpleIncrementTypes.length})`
-                  : `Increment Type Versions (${incrementTypeVersions.length})`}
+                {`${
+                  activeTab === 'items'
+                    ? getTranslationFromI18nKeyAndLabel(
+                        'master-data:hr.time_attendance.increment_types.title',
+                        'Increment Types'
+                      )
+                    : getTranslationFromI18nKeyAndLabel(
+                        'master-data:hr.time_attendance.increment_type_versions.title',
+                        'Increment Type Versions'
+                      )
+                } (${simpleIncrementTypes.length})`}
               </CardTitle>
               <CardDescription className="gba:text-sm gba:text-muted-foreground">
-                Configure increment types for time calculations.
+                {getTranslationFromI18nKeyAndLabel(
+                  'master-data:hr.time_attendance.increment_types.description',
+                  'Configure increment types for time calculations.'
+                )}
               </CardDescription>
             </div>
             <div className="gba:flex gba:gap-2">
@@ -119,7 +136,10 @@ export const IncrementTypesTab: React.FC<IncrementTypesProps> = ({ accessToken, 
                       className="gba:flex gba:items-center gba:gap-2"
                     >
                       <PlusIcon size={16} />
-                      Add Increment Type
+                      {getTranslationFromI18nKeyAndLabel(
+                        'master-data:hr.time_attendance.increment_types.actions.add',
+                        'Add Increment Type'
+                      )}
                     </Button>
                   }
                   refetch={refetchSimple}
@@ -137,7 +157,10 @@ export const IncrementTypesTab: React.FC<IncrementTypesProps> = ({ accessToken, 
                   className="gba:flex gba:items-center gba:gap-2"
                 >
                   <PlusIcon size={16} />
-                  Add Increment Type Version
+                  {getTranslationFromI18nKeyAndLabel(
+                    'master-data:hr.time_attendance.increment_type_versions.actions.add',
+                    'Add Increment Type Version'
+                  )}
                 </Button>
               )}
             </div>
@@ -149,10 +172,16 @@ export const IncrementTypesTab: React.FC<IncrementTypesProps> = ({ accessToken, 
         <Tabs value={activeTab} onValueChange={setActiveTab} data-testid={formatDataTestId(dataTestId, 'tabs')}>
           <TabsList className="gba:w-full gba:justify-start">
             <TabsTrigger value="items" data-testid={formatDataTestId(dataTestId, 'tab-items')}>
-              Increment Types
+              {getTranslationFromI18nKeyAndLabel(
+                'master-data:hr.time_attendance.increment_types.title',
+                'Increment Types'
+              )}
             </TabsTrigger>
             <TabsTrigger value="versions" data-testid={formatDataTestId(dataTestId, 'tab-versions')}>
-              Increment Type Versions
+              {getTranslationFromI18nKeyAndLabel(
+                'master-data:hr.time_attendance.increment_type_versions.title',
+                'Increment Type Versions'
+              )}
             </TabsTrigger>
           </TabsList>
 

@@ -22,6 +22,7 @@ import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
 import { useTimeTypesData } from '../../apps/time-attendance/hooks/useTimeTypesData'
 import { TransformedIncrementTypeVersionDetail } from '../../apps/time-attendance/types/increment-type-version-details'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export const APPLIED_DAYS_OPTIONS = [
   { code: 'UNKNOWN_APPLIED_DAY', displayValue: 'Unknown' },
@@ -58,18 +59,90 @@ export const INCLUDE_EXCLUDE_OPTIONS = [
 
 // Validation schema
 const incrementTypeDetailsSchema = z.object({
-  timeIssueType: z.string().min(1, 'Time Issue Type is required'),
-  displayOrder: z.number().min(0, 'Display Order must be 0 or greater'),
+  timeIssueType: z
+    .string()
+    .min(
+      1,
+      getTranslationFromI18nKeyAndLabel(
+        'master-data:hr.time_attendance.increment_type_versions.fields.time_issue_type_required',
+        'Time Issue Type is required'
+      )
+    ),
+  displayOrder: z
+    .number()
+    .min(
+      0,
+      getTranslationFromI18nKeyAndLabel(
+        'master-data:hr.time_attendance.increment_type_versions.fields.display_order_required',
+        'Display Order must be 0 or greater'
+      )
+    ),
   includeBreaks: z.boolean(),
-  fromAppliedDay: z.string().min(1, 'Day From is required'),
-  startTime: z.string().min(1, 'Start Time is required'),
-  toAppliedDate: z.string().min(1, 'Day To is required'),
-  endTime: z.string().min(1, 'End Time is required'),
+  fromAppliedDay: z
+    .string()
+    .min(
+      1,
+      getTranslationFromI18nKeyAndLabel(
+        'master-data:hr.time_attendance.increment_type_versions.fields.day_from_required',
+        'Day From is required'
+      )
+    ),
+  startTime: z
+    .string()
+    .min(
+      1,
+      getTranslationFromI18nKeyAndLabel(
+        'master-data:hr.time_attendance.increment_type_versions.fields.start_time_required',
+        'Start Time is required'
+      )
+    ),
+  toAppliedDate: z
+    .string()
+    .min(
+      1,
+      getTranslationFromI18nKeyAndLabel(
+        'master-data:hr.time_attendance.increment_type_versions.fields.day_to_required',
+        'Day To is required'
+      )
+    ),
+  endTime: z
+    .string()
+    .min(
+      1,
+      getTranslationFromI18nKeyAndLabel(
+        'master-data:hr.time_attendance.increment_type_versions.fields.end_time_required',
+        'End Time is required'
+      )
+    ),
   sumTime: z.string().optional(),
-  timeTypeId: z.string().min(1, 'Time Type is required'),
-  incrementCalculationType: z.string().min(1, 'Calculation Type is required'),
+  timeTypeId: z
+    .string()
+    .min(
+      1,
+      getTranslationFromI18nKeyAndLabel(
+        'master-data:hr.time_attendance.increment_type_versions.fields.time_type_required',
+        'Time Type is required'
+      )
+    ),
+  incrementCalculationType: z
+    .string()
+    .min(
+      1,
+      getTranslationFromI18nKeyAndLabel(
+        'master-data:hr.time_attendance.increment_type_versions.fields.calculation_type_required',
+        'Calculation Type is required'
+      )
+    ),
   fixedValue: z.number().nullable().optional(),
-  includeExcludeOption: z.string().min(1, 'Include/Exclude Option is required'),
+  includeExcludeOption: z
+    .string()
+    .min(
+      1,
+      getTranslationFromI18nKeyAndLabel(
+        'master-data:hr.time_attendance.increment_type_versions.fields.include_exclude_option_required',
+        'Include/Exclude Option is required'
+      )
+    ),
   alternativeIncrementTypeVersionDetailId: z.string().nullable().optional()
 })
 
@@ -185,8 +258,21 @@ const IncrementTypeDetailsForm: React.FC<IncrementTypeDetailsFormProps> = ({
   return (
     <FormWrapperModal
       childAddButton={childAddButton}
-      title={incrementTypeDetails?.id ? 'Edit Increment Details' : 'Create Increment Details'}
-      description="Configure increment type version details"
+      title={
+        incrementTypeDetails?.id
+          ? getTranslationFromI18nKeyAndLabel(
+              'master-data:hr.time_attendance.increment_type_versions.actions.edit_increment_details',
+              'Edit Increment Details'
+            )
+          : getTranslationFromI18nKeyAndLabel(
+              'master-data:hr.time_attendance.increment_type_versions.actions.create_increment_details',
+              'Create Increment Details'
+            )
+      }
+      description={getTranslationFromI18nKeyAndLabel(
+        'master-data:hr.time_attendance.increment_type_versions.configure_increment_type_details',
+        'Configure increment type version details'
+      )}
       onSubmit={handleSubmit}
       defaultValues={defaultValues}
       isEditing={!!incrementTypeDetails}
@@ -199,11 +285,21 @@ const IncrementTypeDetailsForm: React.FC<IncrementTypeDetailsFormProps> = ({
           name="timeIssueType"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Time Issue</FormLabel>
+              <FormLabel>
+                {getTranslationFromI18nKeyAndLabel(
+                  'master-data:hr.time_attendance.increment_type_versions.fields.time_issue',
+                  'Time Issue'
+                )}
+              </FormLabel>
               <FormControl>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select time issue" />
+                    <SelectValue
+                      placeholder={getTranslationFromI18nKeyAndLabel(
+                        'master-data:hr.time_attendance.increment_type_versions.actions.select_time_issue',
+                        'Select time issue'
+                      )}
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {TIME_ISSUE_TYPE_OPTIONS.map(option => (
@@ -223,7 +319,12 @@ const IncrementTypeDetailsForm: React.FC<IncrementTypeDetailsFormProps> = ({
           name="displayOrder"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Display Order</FormLabel>
+              <FormLabel>
+                {getTranslationFromI18nKeyAndLabel(
+                  'master-data:hr.time_attendance.increment_type_versions.fields.display_order',
+                  'Display Order'
+                )}
+              </FormLabel>
               <FormControl>
                 <Input
                   {...field}
@@ -242,11 +343,21 @@ const IncrementTypeDetailsForm: React.FC<IncrementTypeDetailsFormProps> = ({
           name="fromAppliedDay"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Day From</FormLabel>
+              <FormLabel>
+                {getTranslationFromI18nKeyAndLabel(
+                  'master-data:hr.time_attendance.increment_type_versions.fields.day_from',
+                  'Day From'
+                )}
+              </FormLabel>
               <FormControl>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select day from" />
+                    <SelectValue
+                      placeholder={getTranslationFromI18nKeyAndLabel(
+                        'master-data:hr.time_attendance.increment_type_versions.actions.select_day_from',
+                        'Select day from'
+                      )}
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {APPLIED_DAYS_OPTIONS.map(option => (
@@ -266,7 +377,12 @@ const IncrementTypeDetailsForm: React.FC<IncrementTypeDetailsFormProps> = ({
           name="startTime"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Start Time</FormLabel>
+              <FormLabel>
+                {getTranslationFromI18nKeyAndLabel(
+                  'master-data:hr.time_attendance.increment_type_versions.fields.start_time',
+                  'Start Time'
+                )}
+              </FormLabel>
               <FormControl>
                 <Input {...field} type="time" placeholder="HH:mm" />
               </FormControl>
@@ -279,11 +395,21 @@ const IncrementTypeDetailsForm: React.FC<IncrementTypeDetailsFormProps> = ({
           name="toAppliedDate"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Day To</FormLabel>
+              <FormLabel>
+                {getTranslationFromI18nKeyAndLabel(
+                  'master-data:hr.time_attendance.increment_type_versions.fields.day_to',
+                  'Day To'
+                )}
+              </FormLabel>
               <FormControl>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select day to" />
+                    <SelectValue
+                      placeholder={getTranslationFromI18nKeyAndLabel(
+                        'master-data:hr.time_attendance.increment_type_versions.actions.select_day_to',
+                        'Select day to'
+                      )}
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {APPLIED_DAYS_OPTIONS.map(option => (
@@ -303,7 +429,12 @@ const IncrementTypeDetailsForm: React.FC<IncrementTypeDetailsFormProps> = ({
           name="endTime"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>End Time</FormLabel>
+              <FormLabel>
+                {getTranslationFromI18nKeyAndLabel(
+                  'master-data:hr.time_attendance.increment_type_versions.fields.end_time',
+                  'End Time'
+                )}
+              </FormLabel>
               <FormControl>
                 <Input {...field} type="time" placeholder="HH:mm" />
               </FormControl>
@@ -316,7 +447,12 @@ const IncrementTypeDetailsForm: React.FC<IncrementTypeDetailsFormProps> = ({
           name="sumTime"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Sum Time</FormLabel>
+              <FormLabel>
+                {getTranslationFromI18nKeyAndLabel(
+                  'master-data:hr.time_attendance.increment_type_versions.fields.sum_time',
+                  'Sum Time'
+                )}
+              </FormLabel>
               <FormControl>
                 <Input {...field} type="time" placeholder="HH:mm" />
               </FormControl>
@@ -329,11 +465,21 @@ const IncrementTypeDetailsForm: React.FC<IncrementTypeDetailsFormProps> = ({
           name="timeTypeId"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Time Type</FormLabel>
+              <FormLabel>
+                {getTranslationFromI18nKeyAndLabel(
+                  'master-data:hr.time_attendance.increment_type_versions.fields.time_type',
+                  'Time Type'
+                )}
+              </FormLabel>
               <FormControl>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select time type" />
+                    <SelectValue
+                      placeholder={getTranslationFromI18nKeyAndLabel(
+                        'master-data:hr.time_attendance.increment_type_versions.actions.select_time_type',
+                        'Select time type'
+                      )}
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {timeTypes.map(timeType => (
@@ -353,11 +499,21 @@ const IncrementTypeDetailsForm: React.FC<IncrementTypeDetailsFormProps> = ({
           name="incrementCalculationType"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Calculation Type</FormLabel>
+              <FormLabel>
+                {getTranslationFromI18nKeyAndLabel(
+                  'master-data:hr.time_attendance.increment_type_versions.fields.calculation_type',
+                  'Calculation Type'
+                )}
+              </FormLabel>
               <FormControl>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select calculation type" />
+                    <SelectValue
+                      placeholder={getTranslationFromI18nKeyAndLabel(
+                        'master-data:hr.time_attendance.increment_type_versions.actions.select_calculation_type',
+                        'Select calculation type'
+                      )}
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {INCREMENT_CALCULATION_TYPE_OPTIONS.map(option => (
@@ -377,7 +533,12 @@ const IncrementTypeDetailsForm: React.FC<IncrementTypeDetailsFormProps> = ({
           name="fixedValue"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Fixed Value</FormLabel>
+              <FormLabel>
+                {getTranslationFromI18nKeyAndLabel(
+                  'master-data:hr.time_attendance.increment_type_versions.fields.fixed_value',
+                  'Fixed Value'
+                )}
+              </FormLabel>
               <FormControl>
                 <Input
                   {...field}
@@ -397,11 +558,21 @@ const IncrementTypeDetailsForm: React.FC<IncrementTypeDetailsFormProps> = ({
           name="includeExcludeOption"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Include Exclude Option</FormLabel>
+              <FormLabel>
+                {getTranslationFromI18nKeyAndLabel(
+                  'master-data:hr.time_attendance.increment_type_versions.fields.include_exclude_option',
+                  'Include Exclude Option'
+                )}
+              </FormLabel>
               <FormControl>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select option" />
+                    <SelectValue
+                      placeholder={getTranslationFromI18nKeyAndLabel(
+                        'master-data:hr.time_attendance.increment_type_versions.actions.select_option',
+                        'Select option'
+                      )}
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {INCLUDE_EXCLUDE_OPTIONS.map(option => (
@@ -421,7 +592,12 @@ const IncrementTypeDetailsForm: React.FC<IncrementTypeDetailsFormProps> = ({
           name="includeBreaks"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Include Breaks</FormLabel>
+              <FormLabel>
+                {getTranslationFromI18nKeyAndLabel(
+                  'master-data:hr.time_attendance.increment_type_versions.fields.include_breaks',
+                  'Include Breaks'
+                )}
+              </FormLabel>
               <FormControl>
                 <Checkbox checked={field.value} onCheckedChange={field.onChange} />
               </FormControl>
@@ -434,16 +610,28 @@ const IncrementTypeDetailsForm: React.FC<IncrementTypeDetailsFormProps> = ({
             name="alternativeIncrementTypeVersionDetailId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Alternative Increment Type Version Detail</FormLabel>
+                <FormLabel>
+                  {getTranslationFromI18nKeyAndLabel(
+                    'master-data:hr.time_attendance.increment_type_versions.fields.alternative_increment_type_version_detail',
+                    'Alternative Increment Type Version Detail'
+                  )}
+                </FormLabel>
                 <FormControl>
                   <Select onValueChange={value => field.onChange(value || null)} value={field.value || undefined}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select alternative detail" />
+                      <SelectValue
+                        placeholder={getTranslationFromI18nKeyAndLabel(
+                          'master-data:hr.time_attendance.increment_type_versions.actions.select_alternative_detail',
+                          'Select alternative detail'
+                        )}
+                      />
                     </SelectTrigger>
                     <SelectContent>
                       {alternativeOptions.map(option => (
                         <SelectItem key={option.id} value={option.id}>
-                          {option.fixedValue === null ? 'N/A' : option.fixedValue.toString()}
+                          {option.fixedValue === null
+                            ? getTranslationFromI18nKeyAndLabel('master-data:forms.common.not_available', 'N/A')
+                            : option.fixedValue.toString()}
                         </SelectItem>
                       ))}
                     </SelectContent>

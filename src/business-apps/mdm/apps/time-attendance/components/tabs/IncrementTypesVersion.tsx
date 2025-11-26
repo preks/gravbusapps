@@ -100,7 +100,10 @@ export const IncrementTypesVersion: React.FC<IncrementTypesVersionProps> = ({
   const columns: ColumnDef<TransformedIncrementTypeVersion>[] = [
     {
       accessorKey: 'incrementType',
-      header: 'Increment Type',
+      header: getTranslationFromI18nKeyAndLabel(
+        'master-data:hr.time_attendance.increment_type_versions.single_increment_type',
+        'Increment Type'
+      ),
       cell: ({ getValue }) => {
         const incrementType = getValue() as TransformedIncrementTypeVersion['incrementType']
         return incrementType ? `${incrementType.code} - ${incrementType.name}` : 'N/A'
@@ -108,32 +111,47 @@ export const IncrementTypesVersion: React.FC<IncrementTypesVersionProps> = ({
     },
     {
       accessorKey: 'activeFrom',
-      header: 'Valid From',
+      header: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:expense_calculation_rule.expense_table.valid_from',
+        'Valid From'
+      ),
       cell: ({ getValue }) => formatDate((getValue() as string) || '')
     },
     {
       accessorKey: 'activeTo',
-      header: 'Valid To',
+      header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_table.valid_to', 'Valid To'),
       cell: ({ getValue }) => formatDate((getValue() as string) || '')
     },
     {
       accessorKey: 'activeVersion',
-      header: 'Version',
+      header: getTranslationFromI18nKeyAndLabel(
+        'flow:formio.form_builder.component_settings.data_source.version',
+        'Version'
+      ),
       cell: ({ getValue }) => getValue() as string
     },
     {
       accessorKey: 'status',
-      header: 'Status',
+      header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
       cell: ({ row }) => {
         const activeFrom = row.original.activeFrom
         const activeTo = row.original.activeTo
         const currentDate = new Date()
         if (activeFrom && activeTo) {
           if (currentDate >= new Date(activeFrom) && currentDate <= new Date(activeTo)) {
-            return <Badge variant="default">Active</Badge>
+            return (
+              <Badge variant="default">
+                {getTranslationFromI18nKeyAndLabel(
+                  'master-data:forms.capability.fields.status.options.active',
+                  'Active'
+                )}
+              </Badge>
+            )
           }
         }
-        return <Badge variant="outline">Expired</Badge>
+        return (
+          <Badge variant="outline">{getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.expired', 'Expired')}</Badge>
+        )
       }
     },
     {
@@ -161,7 +179,7 @@ export const IncrementTypesVersion: React.FC<IncrementTypesVersionProps> = ({
     },
     {
       id: 'actions',
-      header: 'Actions',
+      header: getTranslationFromI18nKeyAndLabel('translation:actions.actions', 'Actions'),
       enableSorting: false,
       cell: ({ row }) => {
         const version = row.original
@@ -202,14 +220,20 @@ export const IncrementTypesVersion: React.FC<IncrementTypesVersionProps> = ({
           <DebouncedInput
             value={searchTerm}
             onChange={handleSearch}
-            placeholder="Search increment type versions..."
+            placeholder={getTranslationFromI18nKeyAndLabel(
+              'master-data:hr.time_attendance.increment_type_versions.actions.search_placeholder',
+              'Search increment type versions...'
+            )}
             icon={<MagnifyingGlassIcon size={16} />}
             data-testid={formatDataTestId(dataTestId, 'search-input')}
             className="gba:max-w-md"
           />
         </div>
         <div className="gba:text-sm gba:text-gray-600">
-          {filteredIncrementTypeVersions.length} of {incrementTypeVersions.length} increment type versions
+          {`${filteredIncrementTypeVersions.length} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} ${incrementTypeVersions.length} ${getTranslationFromI18nKeyAndLabel(
+            'master-data:hr.time_attendance.increment_type_versions.title',
+            'increment type versions'
+          ).toLowerCase()}`}
         </div>
       </div>
       <DataTable
@@ -223,21 +247,34 @@ export const IncrementTypesVersion: React.FC<IncrementTypesVersionProps> = ({
           <DialogHeader>
             <DialogTitle className="gba:flex gba:items-center gba:gap-2">
               <WarningIcon className="gba:text-destructive" />
-              Delete Increment Type Version
+              {getTranslationFromI18nKeyAndLabel(
+                'master-data:hr.time_attendance.increment_type_versions.actions.delete_title',
+                'Delete Increment Type Version'
+              )}
             </DialogTitle>
             <DialogDescription>
-              {`Are you sure you want to delete ${selectedIncrementTypeVersion?.incrementType?.name ?? ''} Version?`}
+              {getTranslationFromI18nKeyAndLabel(
+                'master-data:hr.time_attendance.increment_type_versions.actions.delete_message',
+                `Are you sure you want to delete ${selectedIncrementTypeVersion?.incrementType?.name ?? ''} Version?`
+              )}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="outline">Cancel</Button>
+              <Button variant="outline">
+                {getTranslationFromI18nKeyAndLabel('master-data:forms.common.buttons.cancel', 'Cancel')}
+              </Button>
             </DialogClose>
             <Button
               variant="destructive"
               onClick={() => handleDeleteIncrementTypeVersion(selectedIncrementTypeVersion)}
             >
-              {isDeleting ? 'Deleting...' : 'Delete'}
+              {isDeleting
+                ? getTranslationFromI18nKeyAndLabel(
+                    'master-data:hr.time_attendance.increment_type_versions.actions.deleting',
+                    'Deleting...'
+                  )
+                : getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_table.delete', 'Delete')}
             </Button>
           </DialogFooter>
         </DialogContent>

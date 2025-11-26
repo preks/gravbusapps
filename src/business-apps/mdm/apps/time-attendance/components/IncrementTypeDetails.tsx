@@ -104,7 +104,10 @@ export const IncrementTypeDetails: React.FC<IncrementTypeDetailsProps> = ({
     () => [
       {
         accessorKey: 'displayOrder',
-        header: 'Display Order',
+        header: getTranslationFromI18nKeyAndLabel(
+          'master-data:hr.time_attendance.increment_type_versions.fields.display_order',
+          'Display Order'
+        ),
         enableSorting: true,
         cell: ({ row }) => {
           return <span>{row.original.displayOrder}</span>
@@ -112,7 +115,10 @@ export const IncrementTypeDetails: React.FC<IncrementTypeDetailsProps> = ({
       },
       {
         accessorKey: 'timeIssueType',
-        header: 'Time Issue',
+        header: getTranslationFromI18nKeyAndLabel(
+          'master-data:hr.time_attendance.increment_type_versions.fields.time_issue',
+          'Time Issue'
+        ),
         enableSorting: true,
         cell: ({ row }) => {
           const option = findTimeIssueTypeOption(row.original.timeIssueType)
@@ -121,7 +127,10 @@ export const IncrementTypeDetails: React.FC<IncrementTypeDetailsProps> = ({
       },
       {
         accessorKey: 'includeBreaks',
-        header: 'Include Breaks',
+        header: getTranslationFromI18nKeyAndLabel(
+          'master-data:hr.time_attendance.increment_type_versions.fields.include_breaks',
+          'Include Breaks'
+        ),
         enableSorting: true,
         cell: ({ row }) => {
           return row.original.includeBreaks ? <CheckIcon className="gba:h-4 gba:w-4" /> : '-'
@@ -129,7 +138,10 @@ export const IncrementTypeDetails: React.FC<IncrementTypeDetailsProps> = ({
       },
       {
         accessorKey: 'fromAppliedDay',
-        header: 'Day From',
+        header: getTranslationFromI18nKeyAndLabel(
+          'master-data:hr.time_attendance.increment_type_versions.fields.day_from',
+          'Day From'
+        ),
         enableSorting: true,
         cell: ({ row }) => {
           const option = findAppliedDayOption(row.original.fromAppliedDay)
@@ -138,12 +150,18 @@ export const IncrementTypeDetails: React.FC<IncrementTypeDetailsProps> = ({
       },
       {
         accessorKey: 'startTime',
-        header: 'Start',
+        header: getTranslationFromI18nKeyAndLabel(
+          'master-data:hr.time_attendance.increment_type_versions.fields.start',
+          'Start'
+        ),
         enableSorting: true
       },
       {
         accessorKey: 'toAppliedDate',
-        header: 'Day To',
+        header: getTranslationFromI18nKeyAndLabel(
+          'master-data:hr.time_attendance.increment_type_versions.fields.day_to',
+          'Day To'
+        ),
         enableSorting: true,
         cell: ({ row }) => {
           const option = findAppliedDayOption(row.original.toAppliedDate)
@@ -152,17 +170,26 @@ export const IncrementTypeDetails: React.FC<IncrementTypeDetailsProps> = ({
       },
       {
         accessorKey: 'endTime',
-        header: 'To',
+        header: getTranslationFromI18nKeyAndLabel(
+          'master-data:hr.time_attendance.increment_type_versions.fields.to',
+          'To'
+        ),
         enableSorting: true
       },
       {
         accessorKey: 'sumTime',
-        header: 'Sum',
+        header: getTranslationFromI18nKeyAndLabel(
+          'master-data:hr.time_attendance.increment_type_versions.fields.sum',
+          'Sum'
+        ),
         enableSorting: true
       },
       {
         accessorKey: 'timeTypeId',
-        header: 'Time Type',
+        header: getTranslationFromI18nKeyAndLabel(
+          'master-data:hr.time_attendance.increment_type_versions.fields.time_type',
+          'Time Type'
+        ),
         enableSorting: true,
         cell: ({ row }) => {
           const timeType = findTimeType(row.original.timeTypeId)
@@ -171,7 +198,10 @@ export const IncrementTypeDetails: React.FC<IncrementTypeDetailsProps> = ({
       },
       {
         accessorKey: 'incrementCalculationType',
-        header: 'Calculation',
+        header: getTranslationFromI18nKeyAndLabel(
+          'master-data:hr.time_attendance.increment_type_versions.fields.calculation',
+          'Calculation'
+        ),
         enableSorting: true,
         cell: ({ row }) => {
           const option = findCalculationTypeOption(row.original.incrementCalculationType)
@@ -180,7 +210,10 @@ export const IncrementTypeDetails: React.FC<IncrementTypeDetailsProps> = ({
       },
       {
         accessorKey: 'fixedValue',
-        header: 'Value',
+        header: getTranslationFromI18nKeyAndLabel(
+          'master-data:hr.time_attendance.increment_type_versions.fields.value',
+          'Value'
+        ),
         enableSorting: true,
         cell: ({ row }) => {
           return row.original.fixedValue === null ? '-' : row.original.fixedValue.toString()
@@ -188,7 +221,10 @@ export const IncrementTypeDetails: React.FC<IncrementTypeDetailsProps> = ({
       },
       {
         accessorKey: 'includeExcludeOption',
-        header: 'Include Exclude Option',
+        header: getTranslationFromI18nKeyAndLabel(
+          'master-data:hr.time_attendance.increment_type_versions.fields.include_exclude_option',
+          'Include Exclude Option'
+        ),
         enableSorting: true,
         cell: ({ row }) => {
           const option = findIncludeExcludeOption(row.original.includeExcludeOption)
@@ -197,7 +233,10 @@ export const IncrementTypeDetails: React.FC<IncrementTypeDetailsProps> = ({
       },
       {
         accessorKey: 'alternativeIncrementTypeVersionDetailId',
-        header: 'Alternative to',
+        header: getTranslationFromI18nKeyAndLabel(
+          'master-data:hr.time_attendance.increment_type_versions.fields.alternative_to',
+          'Alternative to'
+        ),
         enableSorting: true,
         cell: ({ row }) => {
           return row.original.alternativeIncrementTypeVersionDetailId || 'None'
@@ -205,7 +244,7 @@ export const IncrementTypeDetails: React.FC<IncrementTypeDetailsProps> = ({
       },
       {
         id: 'actions',
-        header: 'Actions',
+        header: getTranslationFromI18nKeyAndLabel('translation:actions.actions', 'Actions'),
         cell: ({ row }) => {
           const targetDetail = incrementTypeVersionDetails.find(detail => detail.id === row.original.id)
 
@@ -253,7 +292,11 @@ export const IncrementTypeDetails: React.FC<IncrementTypeDetailsProps> = ({
       <Card>
         <CardContent className="gba:py-8">
           <div className="gba:text-center gba:text-destructive">
-            Error loading increment type details: {error.message}
+            {getTranslationFromI18nKeyAndLabel(
+              'master-data:hr.time_attendance.increment_type_versions.error_loading_details',
+              'Error loading increment type details:'
+            )}{' '}
+            {error.message}
           </div>
         </CardContent>
       </Card>
@@ -264,7 +307,12 @@ export const IncrementTypeDetails: React.FC<IncrementTypeDetailsProps> = ({
     <Card data-testid={dataTestId}>
       <CardHeader>
         <div className="gba:flex gba:justify-between gba:items-center">
-          <CardTitle>Increment Details</CardTitle>
+          <CardTitle>
+            {getTranslationFromI18nKeyAndLabel(
+              'master-data:hr.time_attendance.increment_type_versions.increment_details',
+              'Increment Details'
+            )}
+          </CardTitle>
           <IncrementTypeDetailsForm
             incrementTypeVersionId={incrementTypeVersionId || ''}
             accessToken={accessToken}
@@ -276,7 +324,10 @@ export const IncrementTypeDetails: React.FC<IncrementTypeDetailsProps> = ({
                 className="gba:flex gba:items-center gba:gap-2"
               >
                 <PlusIcon className="gba:h-4 gba:w-4" />
-                Add Row
+                {getTranslationFromI18nKeyAndLabel(
+                  'master-data:hr.time_attendance.increment_type_versions.actions.add_row',
+                  'Add Row'
+                )}
               </Button>
             }
             refetch={refetch}
@@ -287,7 +338,9 @@ export const IncrementTypeDetails: React.FC<IncrementTypeDetailsProps> = ({
       <CardContent>
         {loading ? (
           <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8">
-            <div className="gba:text-muted-foreground">Loading...</div>
+            <div className="gba:text-muted-foreground">
+              {getTranslationFromI18nKeyAndLabel('translation:common.loading', 'Loading...')}
+            </div>
           </div>
         ) : incrementTypeVersionDetails.length > 0 ? (
           <DataTable
@@ -300,9 +353,17 @@ export const IncrementTypeDetails: React.FC<IncrementTypeDetailsProps> = ({
           />
         ) : (
           <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8 gba:text-center">
-            <div className="gba:text-muted-foreground gba:mb-2">No increment details configured yet</div>
+            <div className="gba:text-muted-foreground gba:mb-2">
+              {getTranslationFromI18nKeyAndLabel(
+                'master-data:hr.time_attendance.increment_type_versions.empty_state',
+                'No increment details configured yet'
+              )}
+            </div>
             <div className="gba:text-sm gba:text-muted-foreground">
-              Click "Add Row" to create your first increment detail
+              {getTranslationFromI18nKeyAndLabel(
+                'master-data:hr.time_attendance.increment_type_versions.empty_state_description',
+                'Click "Add Row" to create your first increment detail'
+              )}
             </div>
           </div>
         )}
@@ -314,11 +375,11 @@ export const IncrementTypeDetails: React.FC<IncrementTypeDetailsProps> = ({
         onConfirm={() => handleDeleteIncrementTypeVersionDetail(selectedIncrementTypeVersionDetail)}
         isDeleting={isDeleting}
         titleKey={getTranslationFromI18nKeyAndLabel(
-          'master-data:hr.time_attendance.increment_type_versions.actions.delete_increment_type_detail',
+          'master-data:hr.time_attendance.increment_type_details.actions.delete_increment_type_detail',
           'Delete Increment Type Detail'
         )}
         description={getTranslationFromI18nKeyAndLabel(
-          'master-data:hr.time_attendance.increment_type_versions.actions.delete_increment_type_detail_message',
+          'master-data:hr.time_attendance.increment_type_details.actions.delete_increment_type_detail_message',
           'Are you sure you want to delete this increment type detail?'
         )}
       />
