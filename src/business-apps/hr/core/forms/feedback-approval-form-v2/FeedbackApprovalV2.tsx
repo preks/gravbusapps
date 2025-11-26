@@ -12,12 +12,12 @@ import { Separator, Alert, Badge, Textarea, Switch, Label } from '@newwork/nw-de
 import { XCircle, CheckCircle, Calendar, Lock, Globe, MessageSquare, AlertCircle } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
-import { TaskDetailHeader } from '@/business-apps/platform/apps/every-box/components/TaskDetailHeader'
-import { TaskDetailFooter } from '@/business-apps/platform/apps/every-box/components/TaskDetailFooter'
-import { TaskFormLayout } from '@/business-apps/platform/apps/every-box/components/TaskFormLayout'
-import { formatDateTime } from '@/business-apps/platform/apps/every-box/utils/taskFormatters'
-import { useEntityDates } from '@/business-apps/common/hooks/useEntityDates'
-import { useApproverData } from '@/business-apps/common/hooks/useApproverData'
+import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/components/TaskDetailHeader'
+import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
+import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
+import { formatDateTime } from '@/business-apps/core/every/apps/every-box/utils/taskFormatters'
+import { useEntityDates } from '@/common/data/common/hooks/useEntityDates'
+import { useApproverData } from '@/common/data/employee/hooks/useApproverData'
 import dayjs from 'dayjs'
 
 type AnyObject = Record<string, any>

@@ -34,7 +34,7 @@ import {
 } from '@newwork/nw-design-system'
 import { cn } from '@newwork/nw-design-system'
 import { useUniversalEntitySearch, UniversalEntityOption, UniversalEntityType } from './hooks/useUniversalEntitySearch'
-import { base64ToObjectURL } from '@/business-apps/platform/apps/every-box/utils/avatarUtils'
+import { base64ToObjectURL } from '@/business-apps/core/every/apps/every-box/utils/avatarUtils'
 
 interface SearchableEntityComboboxProps {
   accessToken: string

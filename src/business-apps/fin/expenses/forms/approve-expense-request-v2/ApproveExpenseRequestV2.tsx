@@ -6,20 +6,20 @@ import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { splitExpenseItems } from './utils/expenseItemUtils'
 import { useExpenseRequestData } from './hooks/useExpenseRequestData'
 import { formatCurrency, getCatalogValue } from './utils/formatters'
-import { TaskDetailHeader } from '@/business-apps/platform/apps/every-box/components/TaskDetailHeader'
-import { TaskDetailFooter } from '@/business-apps/platform/apps/every-box/components/TaskDetailFooter'
-import { TaskFormLayout } from '@/business-apps/platform/apps/every-box/components/TaskFormLayout'
-import { useEntityDates } from '@/business-apps/common/hooks/useEntityDates'
-import { useApproverData } from '@/business-apps/common/hooks/useApproverData'
+import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/components/TaskDetailHeader'
+import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
+import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
+import { useEntityDates } from '@/common/data/common/hooks/useEntityDates'
+import { useApproverData } from '@/common/data/employee/hooks/useApproverData'
 
 // Component imports
 import {
   ExpenseRequestTotalsSection,
   ApprovalDetailsSection,
   ExpenseRequestDetailsSection,
-  EnhancedTripSection
+  EnhancedTripSection,
+  ExpensesSection
 } from './components'
-import ExpensesSection from '../../reusable-components/approval/ExpensesSection'
 import { AllowancesSection } from '../../reusable-components/approval'
 
 interface ApproveExpenseRequestV2Props extends BusinessAppContextProps {

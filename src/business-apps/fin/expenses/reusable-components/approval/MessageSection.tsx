@@ -1,6 +1,5 @@
 import React from 'react'
-import { Card, CardContent, CardHeader, CardTitle, Textarea, Alert, AlertDescription } from '@newwork/nw-design-system'
-import { PiMessageSquare } from 'react-icons/pi'
+import { Textarea } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface MessageSectionProps {
@@ -24,36 +23,32 @@ const MessageSection: React.FC<MessageSectionProps> = ({
   )
 }) => {
   return (
-    <Card data-testid={`${prefixDataTestId}-message`}>
-      <CardHeader>
-        <CardTitle className="gba:flex gba:items-center gba:gap-2">
-          <PiMessageSquare className="gba:h-5 gba:w-5" />
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:employee_list.search_employee_list.recent_employees_table.message',
-            'Message'
-          )}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="gba:space-y-3">
-        <Textarea
-          placeholder={getTranslationFromI18nKeyAndLabel(
-            'lowcoder:approve_expense_plan.comment_area',
-            'Write Message...'
-          )}
-          value={message}
-          onChange={e => onMessageChange(e.target.value)}
-          className="gba:resize-none gba:min-h-[100px]"
-          data-testid={`${prefixDataTestId}-message-textarea`}
-        />
-
-        {/* Warning message */}
-        {showWarning && (
-          <Alert variant="destructive" data-testid={`${prefixDataTestId}-warning`}>
-            <AlertDescription>{getTranslationFromI18nKeyAndLabel(warningKey, warningDefaultText)}</AlertDescription>
-          </Alert>
+    <div className="gba:mb-4 gba:p-2 gba:rounded-sm gba:w-full" data-testid={`${prefixDataTestId}-message`}>
+      <div className="gba:text-md gba:font-semibold gba:mb-1 gba:text-foreground">
+        {getTranslationFromI18nKeyAndLabel(
+          'lowcoder:employee_list.search_employee_list.recent_employees_table.message',
+          'Message'
         )}
-      </CardContent>
-    </Card>
+      </div>
+      <Textarea
+        placeholder={getTranslationFromI18nKeyAndLabel(
+          'lowcoder:approve_expense_plan.comment_area',
+          'Write Message...'
+        )}
+        value={message}
+        onChange={e => onMessageChange(e.target.value)}
+        className="gba:border-none gba:resize-none gba:p-2 gba:text-xs gba:rounded-none"
+        style={{ backgroundColor: 'muted' }}
+        data-testid={`${prefixDataTestId}-message-textarea`}
+      />
+
+      {/* Warning message */}
+      {showWarning && (
+        <div className="gba:text-red-600 gba:text-sm gba:mt-2" data-testid={`${prefixDataTestId}-warning`}>
+          {getTranslationFromI18nKeyAndLabel(warningKey, warningDefaultText)}
+        </div>
+      )}
+    </div>
   )
 }
 

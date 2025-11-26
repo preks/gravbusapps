@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, Badge, Label } from '@newwork
 import { RightOutlined, FileTextOutlined } from '@ant-design/icons'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrency } from '../utils/formatters'
-import { formatDateTime } from '@/business-apps/platform/apps/every-box/utils/taskFormatters'
+import { formatDateTime } from '@/business-apps/core/every/apps/every-box/utils/taskFormatters'
 import { getAdvancePaymentStatusDisplay } from '@/business-apps/fin/expenses/apps/backoffice-expenses/utils/utils'
 
 interface RequestDetailsSectionProps {

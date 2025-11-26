@@ -226,9 +226,7 @@ const ConfirmTransferAdvPaymentContent: React.FC<BusinessAppContextProps> = ({
         accessToken={accessToken}
       />
 
-      {employee.employeePosition?.supervisor && (
-        <SupervisorInfoSection supervisor={employee.employeePosition.supervisor} />
-      )}
+      <SupervisorInfoSection supervisor={employee.employeePosition.supervisor} />
 
       <TransactionSection
         transactionDate={transactionDate}

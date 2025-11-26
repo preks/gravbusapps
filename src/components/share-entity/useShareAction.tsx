@@ -2,6 +2,8 @@ import React, { useState, useMemo, useCallback } from 'react'
 import { ActionOption } from '@newwork/nw-design-system'
 import { Share2 } from 'lucide-react'
 import { ShareEntityDialog, ShareEntityConfig } from './ShareEntityDialog'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 
 export interface UseShareActionProps {
   /** Access token for API calls */
@@ -15,9 +17,9 @@ export interface UseShareActionProps {
 }
 
 export interface UseShareActionReturn {
-  /** Static action to add to AppActionButton's staticFlowData */
-  shareAction: ActionOption
-  /** The ShareEntityDialog component - render this in your component */
+  /** Static action to add to AppActionButton's staticFlowData (null when feature disabled) */
+  shareAction: ActionOption | null
+  /** The ShareEntityDialog component - render this in your component (null when feature disabled) */
   ShareDialog: React.ReactNode
   /** Function to programmatically open the share dialog */
   openShareDialog: () => void
@@ -64,38 +66,48 @@ export const useShareAction = ({
 }: UseShareActionProps): UseShareActionReturn => {
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false)
 
+  // Feature flag check - Share via Blink available when preview.enabled is true or undefined (development)
+  const previewFeature = useFeature(Feature.Preview.Enabled.Key)
+  const previewEnabled = previewFeature !== false // true if undefined (development) or 'true'
+
   const openShareDialog = useCallback(() => {
-    setIsShareDialogOpen(true)
-  }, [])
+    if (previewEnabled) {
+      setIsShareDialogOpen(true)
+    }
+  }, [previewEnabled])
 
   const closeShareDialog = useCallback(() => {
     setIsShareDialogOpen(false)
   }, [])
 
-  // Create the share action for AppActionButton
-  const shareAction: ActionOption = useMemo(
-    () => ({
-      key: `share-${entity.entityType}-${entity.entityId}`,
-      label,
-      icon: <Share2 className="gba:w-4 gba:h-4" />,
-      onClick: openShareDialog,
-      category: 'Sharing'
-    }),
-    [entity.entityType, entity.entityId, label, openShareDialog]
+  // Create the share action for AppActionButton (null when feature disabled)
+  const shareAction: ActionOption | null = useMemo(
+    () =>
+      previewEnabled
+        ? {
+            key: `share-${entity.entityType}-${entity.entityId}`,
+            label,
+            icon: <Share2 className="gba:w-4 gba:h-4" />,
+            onClick: openShareDialog,
+            category: 'Sharing'
+          }
+        : null,
+    [entity.entityType, entity.entityId, label, openShareDialog, previewEnabled]
   )
 
-  // Create the dialog component
+  // Create the dialog component (null when feature disabled)
   const ShareDialog = useMemo(
-    () => (
-      <ShareEntityDialog
-        open={isShareDialogOpen}
-        onOpenChange={setIsShareDialogOpen}
-        accessToken={accessToken}
-        currentUserId={currentUserId}
-        entity={entity}
-      />
-    ),
-    [isShareDialogOpen, accessToken, currentUserId, entity]
+    () =>
+      previewEnabled ? (
+        <ShareEntityDialog
+          open={isShareDialogOpen}
+          onOpenChange={setIsShareDialogOpen}
+          accessToken={accessToken}
+          currentUserId={currentUserId}
+          entity={entity}
+        />
+      ) : null,
+    [isShareDialogOpen, accessToken, currentUserId, entity, previewEnabled]
   )
 
   return {

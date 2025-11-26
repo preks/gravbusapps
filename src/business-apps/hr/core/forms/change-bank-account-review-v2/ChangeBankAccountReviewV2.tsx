@@ -28,9 +28,9 @@ import {
 } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
-import { TaskDetailHeader } from '@/business-apps/platform/apps/every-box/components/TaskDetailHeader'
-import { TaskDetailFooter } from '@/business-apps/platform/apps/every-box/components/TaskDetailFooter'
-import { TaskFormLayout } from '@/business-apps/platform/apps/every-box/components/TaskFormLayout'
+import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/components/TaskDetailHeader'
+import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
+import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
 import { useBankAccountReviewData } from './hooks/useBankAccountReviewData'
 
 interface ChangeBankAccountReviewV2Props extends BusinessAppContextProps {
