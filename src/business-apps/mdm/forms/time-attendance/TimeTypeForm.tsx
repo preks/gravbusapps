@@ -20,13 +20,13 @@ import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+import { env } from '@/common/env/EnvUtils'
 import {
   TimeTypeEnum,
   TransformedSystemTimeType,
   TransformedTimeType
-} from '../../apps/time-attendance/hooks/useTimeTypesData'
-import { useRestClient } from '@/common/network/rest/useRestClient'
-import { env } from '@/common/env/EnvUtils'
+} from '../../apps/time-attendance/types/time-types'
 
 // Validation schema
 const timeTypeSchema = z.object({
