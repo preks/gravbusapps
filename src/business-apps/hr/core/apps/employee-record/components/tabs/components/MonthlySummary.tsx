@@ -6,10 +6,9 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useTimeTrackingData } from '../hooks/useTimeTrackingData'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { UserIcon, ClockIcon, TimerIcon, ListBulletsIcon } from '@phosphor-icons/react'
+import { UserIcon, ClockIcon, TimerIcon, ListBulletsIcon, PencilIcon } from '@phosphor-icons/react'
 import { InterventionsTable } from './InterventionsTable'
 import { LiveClock } from './LiveClock'
-import { PencilIcon } from '@phosphor-icons/react'
 
 interface MonthlySummaryProps {
   employee: any

@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import {
   employeeAttendanceMonthlyQuery,
@@ -193,13 +193,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
 
     setIsClockedIn(isOpenAndToday)
     setClockInSince(
-      isOpenAndToday && mostRecent?.startTime
-        ? new Date(mostRecent.startTime).toLocaleTimeString(locale, {
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: false
-          })
-        : null
+      isOpenAndToday && mostRecent?.startTime ? String(formatDate(mostRecent.startTime, 'time.short')) : null
     )
 
     // compute today's worked minutes
@@ -384,13 +378,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       })
 
       setIsClockedIn(true)
-      setClockInSince(
-        now.toLocaleTimeString(locale, {
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: false
-        })
-      )
+      setClockInSince(String(formatDate(now, 'time.short')))
 
       // Refresh current page
       await loadFromGraphql()

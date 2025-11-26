@@ -1,42 +1,41 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { formatDate } from '@/common/utils/windowUtils'
 
 interface LiveClockProps {
   className?: string
 }
 
 export const LiveClock: React.FC<LiveClockProps> = ({ className }) => {
-  const locale = getCurrentActiveUserLocale()
   const [time, setTime] = useState<string>('')
   const [date, setDate] = useState<string>('')
 
   useEffect(() => {
     const formatter = () => {
       const now = new Date()
-      setTime(
-        now.toLocaleTimeString(locale || undefined, {
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-          hour12: false
-        })
-      )
-      setDate(
-        now.toLocaleDateString(locale || undefined, {
-          weekday: 'long',
-          year: 'numeric',
-          month: 'long',
-          day: '2-digit'
-        })
-      )
+      const formattedTime = String(formatDate(now, 'time.long') || '')
+      const formattedDate = String(formatDate(now, 'date.long') || '')
+
+      // If the formatter returns an ISO-like string (fallback), compose a human-friendly text locally
+      const isIsoLike = (v: string) => v.includes('T') || /^\d{4}-\d{2}-\d{2}/.test(v)
+
+      const humanTime = isIsoLike(formattedTime)
+        ? now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
+        : formattedTime
+
+      const humanDate = isIsoLike(formattedDate)
+        ? now.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: '2-digit' })
+        : formattedDate
+
+      setTime(humanTime)
+      setDate(humanDate)
     }
 
     formatter()
     const id = setInterval(formatter, 1000)
     return () => clearInterval(id)
-  }, [locale])
+  }, [])
 
   return (
     <div className={className}>

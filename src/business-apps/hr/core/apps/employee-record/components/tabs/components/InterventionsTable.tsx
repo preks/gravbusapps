@@ -2,9 +2,9 @@
 
 import React, { useState, useRef } from 'react'
 import { Card, Alert, Badge, Icon, Button } from '@newwork/nw-design-system'
-import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { useTimeInterventions } from '../hooks/useTimeInterventions'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { CalendarXIcon, WarningCircleIcon, ArrowsClockwiseIcon, LightningIcon } from '@phosphor-icons/react'
 
@@ -29,7 +29,6 @@ const formatHm = (minutes: number) => {
 }
 
 export const InterventionsTable: React.FC<InterventionsTableProps> = ({ employeeId, accessToken, workingHours }) => {
-  const locale = getCurrentActiveUserLocale()
   const { items, isLoading, error } = useTimeInterventions({
     employeeId,
     accessToken,
@@ -177,11 +176,7 @@ export const InterventionsTable: React.FC<InterventionsTableProps> = ({ employee
               <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:lg:grid-cols-3 gba:gap-3">
                 {items.map(item => {
                   const IconCmp = getReasonIcon(item.reason)
-                  const dateText = new Date(item.date).toLocaleDateString(locale, {
-                    weekday: 'short',
-                    month: 'numeric',
-                    day: 'numeric'
-                  })
+                  const dateText = String(formatDate(item.date, 'date.short'))
                   const deficit = Math.max(0, item.plannedMinutes - item.workedMinutes)
                   return (
                     <Card key={item.date} className="gba:p-3" data-testid={`time-interventions-item-${item.date}`}>
@@ -216,19 +211,21 @@ export const InterventionsTable: React.FC<InterventionsTableProps> = ({ employee
                           </div>
                         </div>
                         <div className="gba:flex gba:justify-start">
-                          <AppActionButton
+                          <AppAction
+                            variant="update-secondary"
                             data-testid={`time-interventions-update-button-${item.date}`}
-                            size="icon"
-                            contextsArray={[FlowContextName.employeeAttendanceCorrectionRequest]}
-                            externalContextData={{
-                              employeeId,
-                              attendanceDateISO: new Date(item.date).toISOString().slice(0, 10),
-                              reason: item.reason
-                            }}
+                            contexts={[
+                              {
+                                context: FlowContextName.employeeAttendanceCorrectionRequest,
+                                contextData: {
+                                  employeeId,
+                                  attendanceDateISO: new Date(item.date).toISOString().slice(0, 10),
+                                  reason: item.reason
+                                }
+                              }
+                            ]}
                             prefixDataTestId="time-interventions-update"
                             accessToken={accessToken}
-                            emptyStateBehavior="enable"
-                            deferMainContextRequestsUntilClick
                             onClick={e => e.stopPropagation()}
                           />
                         </div>
