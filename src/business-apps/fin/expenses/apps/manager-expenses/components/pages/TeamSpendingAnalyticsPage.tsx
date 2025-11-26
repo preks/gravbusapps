@@ -669,7 +669,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               <Separator />
               <div className="gba:text-center">
                 <div
-                  className="gba:text-2xl gba:font-bold gba:text-accent"
+                  className="gba:text-2xl gba:font-bold gba:text-warning"
                   data-testid="team-analytics-expense-plans-total-amount"
                 >
                   {formatKpiAmount(Number((data?.totalPlanAmount ?? 0).toFixed?.(2) ?? data?.totalPlanAmount ?? 0))}

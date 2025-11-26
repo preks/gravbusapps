@@ -3,9 +3,9 @@ import useInformationExtraction, { UseInformationExtractionReturn } from '@/comm
 import {
   useGetInvestmentActivitiesByContactId,
   useGetInvestmentNotesByContactId,
-  useGetInvestmentTasksByContactId,
-  useGetInvestmentContactById
+  useGetInvestmentTasksByContactId
 } from '@/common/data/investment/hooks/useInvestmentContacts'
+import { useInvestmentContact } from '@/common/data/investment/hooks/useInvestmentContact'
 
 const taskDescription = `You are an assistant that summarises IRM contact details.
 Provide a concise executive summary in plain language, the total number of activities mentioned,
@@ -21,7 +21,7 @@ type SummarySchema = z.infer<typeof summarySchema>
 type UseContactAiSummaryReturn = UseInformationExtractionReturn<SummarySchema>
 
 export function useContactAiSummary(contactId: string, accessToken: string): UseContactAiSummaryReturn {
-  const { fetchInvestmentContactById } = useGetInvestmentContactById({ accessToken })
+  const { contact } = useInvestmentContact(accessToken, contactId)
   const { fetchInvestmentActivitiesByContactId } = useGetInvestmentActivitiesByContactId({ accessToken })
   const { fetchInvestmentTasksByContactId } = useGetInvestmentTasksByContactId({ accessToken })
   const { fetchInvestmentNotesByContactId } = useGetInvestmentNotesByContactId({ accessToken })
@@ -36,9 +36,8 @@ export function useContactAiSummary(contactId: string, accessToken: string): Use
     }
 
     try {
-      // Get contact data
-      const contactResponse = await fetchInvestmentContactById(contactId)
-      const contact = contactResponse?.contact
+      // Get contact data using new declarative hook
+      // contact is already available from the hook
 
       if (!contact) {
         throw new Error(`Investment contact with ID ${contactId} not found`)

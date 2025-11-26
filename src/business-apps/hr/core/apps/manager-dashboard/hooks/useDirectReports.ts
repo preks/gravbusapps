@@ -3,6 +3,7 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { Employee, EmployeeAbsence } from '../types/employee.types'
 
 export interface DirectReport {
+  displayName: string
   id: string
   firstName: string
   lastName: string
@@ -25,13 +26,14 @@ export interface DirectReport {
     endDate: string
     status: string // APPROVED, PENDING, etc.
   }
+  userId: string
 }
 
 export interface UseDirectReportsResult {
   directReports: DirectReport[]
   loading: boolean
   error: Error | null
-  refetch: () => void
+  refetch: () => Promise<void>
 }
 
 interface UseDirectReportsProps {
@@ -85,6 +87,8 @@ export const useDirectReports = ({ accessToken, managerId }: UseDirectReportsPro
                 name
               }
             }
+            userId
+            displayName
           }
         }
       `
@@ -164,7 +168,7 @@ export const useDirectReports = ({ accessToken, managerId }: UseDirectReportsPro
         )
 
         const formattedReports: DirectReport[] = employees.map((employee: Employee) => {
-          const absences = absencesByEmployee[employee.id || ''] || []
+          const absences = absencesByEmployee[employee.id] || []
           const now = new Date()
 
           // Find current absence (currently active)
@@ -186,7 +190,7 @@ export const useDirectReports = ({ accessToken, managerId }: UseDirectReportsPro
           const nextAbsence = futureAbsences.length > 0 ? futureAbsences[0] : null
 
           // Determine status based on absence approval status
-          let status: 'Available' | 'On Leave' | 'Away' = 'Available'
+          let status: 'Available' | 'On Leave' = 'Available'
 
           if (currentAbsence) {
             if (currentAbsence.status === 'APPROVED') {
@@ -199,13 +203,15 @@ export const useDirectReports = ({ accessToken, managerId }: UseDirectReportsPro
           }
 
           return {
+            displayName: employee.displayName || `${employee.firstName} ${employee.lastName}`,
+            userId: employee.userId,
             id: employee.id,
             firstName: employee.firstName,
             lastName: employee.lastName,
             fullName: `${employee.firstName} ${employee.lastName}`,
             pictureThumbnail: employee.pictureThumbnail || employee.picture,
-            jobPositionName: employee.employeePosition?.[0]?.jobPosition?.name,
-            organizationalUnitName: employee.employeePosition?.[0]?.organizationalUnit?.name,
+            jobPositionName: employee.employeePosition?.jobPosition?.name,
+            organizationalUnitName: employee.employeePosition?.organizationalUnit?.name,
             status,
             currentAbsence: currentAbsence
               ? {

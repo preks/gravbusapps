@@ -39,7 +39,8 @@ export const useGetExpensePlanStatistics = (
     currentMonthClosedPlans: 0,
     previousMonthClosedPlans: 0
   })
-  const [isLoading, setIsLoading] = useState<boolean>(true)
+  // Start as not loading; only show skeletons while an actual request is in flight.
+  const [isLoading, setIsLoading] = useState<boolean>(false)
   const [error, setError] = useState<Error | null>(null)
 
   const fetchStatistics = useCallback(async () => {

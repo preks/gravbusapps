@@ -2,22 +2,19 @@
 import { useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import type { Investment, InvestmentDocument } from '../types'
+import type { Investment, InvestmentDocument } from '../types/investmentTypes'
 // Interface for investment by ID data
 export interface InvestmentByIdData {
   investment?: Investment
 }
 
 // Use the new query imports
-import {
-  GET_INVESTMENTS,
-  GET_INVESTMENT_BY_ID,
-  GET_INVESTMENT_DOCUMENTS_BY_INVESTMENT_ID,
-  type InvestmentQueryVariables
-} from '../queries'
+import { GET_INVESTMENTS, GET_INVESTMENT_BY_ID, type InvestmentQueryVariables } from '../queries/investmentQueries'
+import { GET_INVESTMENT_DOCUMENTS_BY_INVESTMENT_ID } from '../queries/investmentDocumentQueries'
 
 // Use the mapper functions
-import { toInvestment, toInvestmentDocument } from '../mappers'
+import { toInvestment } from '../mappers/investmentMappers'
+import { toInvestmentDocument } from '../mappers/investmentRelatedEntityMappers'
 
 // Note: InvestmentQueryVariables is imported from queries
 
@@ -154,4 +151,76 @@ export const useGetInvestmentDocumentsByInvestmentId = (context: BusinessAppCont
   )
 
   return { fetchInvestmentDocumentsByInvestmentId }
+}
+
+// =====================================================
+// INVESTMENT RELATED ENTITIES HOOKS
+// =====================================================
+
+// Hook for getting investments by account ID
+export const useGetInvestmentsByAccountId = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken)
+
+  const fetchInvestmentsByAccountId = useCallback(
+    async (accountId: string) => {
+      const variables: InvestmentQueryVariables = {
+        accountIds: [accountId],
+        limit: 100
+      }
+
+      const query = GET_INVESTMENTS(variables)
+
+      try {
+        const result = await graphqlClient.request<InvestmentQueryResponse>(query)
+        const enhancedInvestments = result.Investment.map(toInvestment)
+
+        return {
+          ...result,
+          Investment: enhancedInvestments
+        }
+      } catch (error) {
+        console.error('Error fetching investments by account ID:', error)
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
+
+  return { fetchInvestmentsByAccountId }
+}
+
+// Hook for getting investments by contact ID (via account relationship)
+export const useGetInvestmentsByContactId = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken)
+
+  const fetchInvestmentsByContactId = useCallback(
+    async (contactId: string, accountIds: string[]) => {
+      if (!accountIds || accountIds.length === 0) {
+        return { Investment: [], InvestmentAggregate: { aggregate: { count: 0 } } }
+      }
+
+      const variables: InvestmentQueryVariables = {
+        accountIds: accountIds,
+        limit: 100
+      }
+
+      const query = GET_INVESTMENTS(variables)
+
+      try {
+        const result = await graphqlClient.request<InvestmentQueryResponse>(query)
+        const enhancedInvestments = result.Investment.map(toInvestment)
+
+        return {
+          ...result,
+          Investment: enhancedInvestments
+        }
+      } catch (error) {
+        console.error('Error fetching investments by contact ID:', error)
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
+
+  return { fetchInvestmentsByContactId }
 }

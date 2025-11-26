@@ -1,5 +1,4 @@
 import { useCallback } from 'react'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_CATALOG_ENTRIES } from '../queries/catalogQueries'
 import {
@@ -11,12 +10,12 @@ import {
 } from '../types/catalogTypes'
 import { toCatalogEntry } from '../mappers/catalogMappers'
 
-export const useCatalogEntry = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken)
+export const useCatalogEntry = (accessToken: string) => {
+  const graphqlClient = useGraphQLClient(accessToken)
 
   const fetchCatalogEntry = useCallback(
     async (variables: CatalogEntryQueryVariables & CatalogIncludeOptions = {}): Promise<CatalogEntry | null> => {
-      if (!context.accessToken) {
+      if (!accessToken) {
         throw new Error('Missing access token')
       }
 
@@ -31,7 +30,7 @@ export const useCatalogEntry = (context: BusinessAppContextProps) => {
       if (!base) return null
       return toCatalogEntry(base, result.CatalogEntry as BaseCatalogEntry[])
     },
-    [context.accessToken, graphqlClient]
+    [accessToken, graphqlClient]
   )
 
   const fetchCatalogEntryById = useCallback(

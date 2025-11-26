@@ -187,3 +187,73 @@ export function getOpportunityStatusBadgeVariant(
   if (statusLower.includes('qualified')) return 'default'
   return 'default'
 }
+
+/**
+ * Utility function for account priority badges
+ * Determines badge variant based on priority type value
+ * @param priority - The account priority catalog entry containing type/value
+ * @returns Badge variant based on type: HIGH -> success, MEDIUM -> info, LOW -> warning, NONE -> offline
+ */
+export function getAccountPriorityBadgeVariant(
+  priority?: {
+    type?: string
+    value?: string
+    objectValue?: any
+  } | null
+): BadgeProps['variant'] {
+  // First check if catalog has objectValue with badgeVariant
+  const catalogVariant = getBadgeVariantFromCatalog(priority)
+  if (catalogVariant !== 'default') {
+    return catalogVariant
+  }
+
+  // Fallback to type-based mapping
+  const typeValue = priority?.type?.toUpperCase()
+  switch (typeValue) {
+    case 'HIGH':
+      return 'success'
+    case 'MEDIUM':
+      return 'info'
+    case 'LOW':
+      return 'warning'
+    case 'NONE':
+      return 'offline'
+    default:
+      return 'default'
+  }
+}
+
+/**
+ * Utility function for opportunity forecast badges
+ * Determines badge variant based on forecast type value
+ * @param forecast - The opportunity forecast catalog entry containing type/value
+ * @returns Badge variant based on type: HIGH -> success, MEDIUM -> info, LOW -> warning, NONE -> offline
+ */
+export function getOpportunityForecastBadgeVariant(
+  forecast?: {
+    type?: string
+    value?: string
+    objectValue?: any
+  } | null
+): BadgeProps['variant'] {
+  // First check if catalog has objectValue with badgeVariant
+  const catalogVariant = getBadgeVariantFromCatalog(forecast)
+  if (catalogVariant !== 'default') {
+    return catalogVariant
+  }
+
+  // Fallback to type-based mapping
+  const typeValue = forecast?.type?.toUpperCase()
+  switch (typeValue) {
+    case 'HIGH':
+      return 'success'
+    case 'MEDIUM':
+      return 'info'
+    case 'LOW':
+      return 'warning'
+    case 'NONE':
+      return 'offline'
+    default:
+      return 'default'
+  }
+}

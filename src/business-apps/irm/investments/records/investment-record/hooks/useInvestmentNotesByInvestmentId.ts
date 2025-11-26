@@ -6,8 +6,8 @@ import {
   buildInvestmentNoteWhereCondition,
   buildInvestmentNoteOrderBy
 } from '@/common/data/investment/queries/investmentNoteQueries'
-import type { InvestmentNote } from '@/common/data/investment/types'
-import { toInvestmentNote } from '@/common/data/investment/mappers'
+import type { InvestmentNote } from '@/common/data/investment/types/investmentNoteTypes'
+import { toInvestmentNote } from '@/common/data/investment/mappers/investmentRelatedEntityMappers'
 
 interface InvestmentNotesByInvestmentIdResponse {
   InvestmentNote: InvestmentNote[]

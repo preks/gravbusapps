@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { Alert, Empty } from 'antd'
+import { Alert } from 'antd'
 import {
   Table,
   TableHeader,
@@ -117,8 +117,18 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
 
   // Track if any filters are active to show conditional messages
   const hasActiveFilters = useMemo(() => {
-    return search || selectedFilters.length > 0
+    const trimmedSearch = (search || '').trim()
+    return trimmedSearch !== '' || selectedFilters.length > 0
   }, [search, selectedFilters])
+
+  useEffect(() => {
+    if (!isLoading && totalCount > 0 && currentPage > 1 && onTableChange) {
+      const lastPage = Math.max(1, Math.ceil(totalCount / pageSize))
+      if (currentPage > lastPage) {
+        onTableChange({ current: lastPage, pageSize }, {}, { field: sortField, order: sortOrder })
+      }
+    }
+  }, [isLoading, totalCount, currentPage, pageSize, onTableChange, sortField, sortOrder])
 
   // Sync local search input with prop changes
   useEffect(() => {
@@ -133,7 +143,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
     // Manage pagination transitions for search
     if (prev === '' && next !== '') {
       // Starting a new search → save current page and jump to page 1
-      if (onTableChange) {
+      if (onTableChange && currentPage !== 1) {
         onTableChange({ current: 1, pageSize }, {}, { field: sortField, order: sortOrder })
       }
       savedPageBeforeSearchRef.current = currentPage
@@ -147,9 +157,9 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
         )
       }
       savedPageBeforeSearchRef.current = null
-    } else if (next !== '' && currentPage !== 1) {
-      // While typing within search mode, keep on page 1
-      if (onTableChange) {
+    } else if (prev !== next && next !== '') {
+      // Search term changed while already in search mode → reset to first page
+      if (onTableChange && currentPage !== 1) {
         onTableChange({ current: 1, pageSize }, {}, { field: sortField, order: sortOrder })
       }
     }
@@ -322,24 +332,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
       return <Alert message="Error" description={errorMessage} type="error" showIcon />
     }
 
-    // Show empty state only when not loading and there are no items
-    if (!isLoading && (!items || items.length === 0)) {
-      return <Empty description="No expense requests found matching your criteria." style={{ margin: '40px 0' }} />
-    }
-
-    // Always render the table, but use the loading prop to show loading state
-    // This keeps the table visible during loading for better UX
-
     return (
       <div className="expense-requests-table">
         <Card data-testid="expense-requests-table-container">
           <CardContent className="gba:p-0">
-            {isLoading && (
-              <div className="gba:flex gba:justify-center gba:p-4">
-                <Spinner />
-              </div>
-            )}
-
             <div className="gba:overflow-x-auto">
               <Table data-testid="expense-requests-data-table">
                 <TableHeader>
@@ -447,7 +443,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {!isLoading && (!items || items.length === 0) ? (
+                  {!isLoading && totalCount === 0 && (!items || items.length === 0) ? (
                     <TableRow>
                       <TableCell colSpan={9} className="gba:py-8 gba:text-center">
                         <div className="gba:text-gray-500">
@@ -457,7 +453,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
                                 'No data available'
                               )
                             : getTranslationFromI18nKeyAndLabel(
-                                'lowcoder:personal_expenses.no_expense_requests_found',
+                                'lowcoder:personal_expenses.no_expense_request_data',
                                 'No expense requests found. Create your first expense request to get started.'
                               )}
                         </div>

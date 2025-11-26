@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetInvestmentReports } from '@/common/data/investment-report/hooks/useInvestmentReports'
 import type { InvestmentReportQueryVariables } from '@/common/data/investment-report/queries/investmentReportQueries'
-import type { InvestmentReport } from '@/common/data/investment/types'
+import type { InvestmentReport } from '@/common/data/investment/types/investmentTypes'
 import { AnalyticsRowData } from '../types/AnalyticsTypes'
 
 export interface LiquidFundReportFilters {

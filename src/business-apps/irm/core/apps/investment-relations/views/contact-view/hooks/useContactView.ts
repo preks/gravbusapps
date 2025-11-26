@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import type { InvestmentContact } from '@/common/data/investment/types'
+import type { InvestmentContact } from '@/common/data/investment/types/investmentContactTypes'
 
 export interface UseContactViewReturn {
   selectedContacts: Set<string>

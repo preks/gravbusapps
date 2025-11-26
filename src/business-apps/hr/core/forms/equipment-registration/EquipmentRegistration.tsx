@@ -12,7 +12,8 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
-  Textarea
+  Textarea,
+  DateInput
 } from '@newwork/nw-design-system'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
@@ -85,7 +86,9 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
   const { options: assetOptions, isLoading: assetsLoading } = useAssetsCatalog(context)
   const { options: brandOptions, isLoading: brandsLoading } = useBrandsCatalog(context)
   const { options: locationOptions, isLoading: locationsLoading } = useSiteLocations(context)
-  const { getAssetById } = useAssetService(context)
+  const { getAssetById, getAssets, getCurrentAllocation } = useAssetService(context)
+
+  const [currentAllocation, setCurrentAllocation] = React.useState<any>(null)
 
   const assetProcessClient = useMemo(() => {
     const client = new AssetProcessClient()
@@ -96,7 +99,6 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [currentLocale, setCurrentLocale] = useState(getCurrentActiveUserLocale())
 
-  // Track locale changes to ensure translations update
   useEffect(() => {
     const checkLocale = () => {
       const newLocale = getCurrentActiveUserLocale()
@@ -110,7 +112,6 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
     return () => clearInterval(interval)
   }, [currentLocale])
 
-  // Create form schema dynamically based on current locale
   const formSchema = useMemo(
     () =>
       z.object({
@@ -222,6 +223,15 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
               status: asset.assetStatus || AssetStatus.AVAILABLE,
               notes: asset.notes || ''
             })
+
+            // Load current allocation to determine valid status transitions
+            try {
+              const allocation = await getCurrentAllocation(assetId)
+              setCurrentAllocation(allocation)
+            } catch (err) {
+              console.error('Error loading allocation:', err)
+              setCurrentAllocation(null)
+            }
           }
         } catch (error) {
           console.error('Error loading asset:', error)
@@ -240,11 +250,22 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
           status: existingAsset.assetStatus || AssetStatus.AVAILABLE,
           notes: existingAsset.notes || ''
         })
+
+        // Load current allocation to determine valid status transitions
+        if (assetId) {
+          try {
+            const allocation = await getCurrentAllocation(assetId)
+            setCurrentAllocation(allocation)
+          } catch (err) {
+            console.error('Error loading allocation:', err)
+            setCurrentAllocation(null)
+          }
+        }
       }
     }
 
     loadAsset()
-  }, [isEditMode, assetId, existingAsset, getAssetById, form])
+  }, [isEditMode, assetId, existingAsset, getAssetById, getCurrentAllocation, form])
 
   const defaultValues: FormValues = useMemo(
     () => ({
@@ -266,7 +287,7 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
   const title = useMemo(
     () =>
       isEditMode
-        ? getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.edit_equipment_form', 'Edit Equipment')
+        ? getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.update_equipment', 'Update Equipment')
         : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.register_equipment_form', 'Register Equipment'),
     [isEditMode, currentLocale]
   )
@@ -494,26 +515,95 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
       <FormField
         control={form.control}
         name="serialNumber"
-        render={({ field }) => (
-          <FormItem>
-            <Label htmlFor="serialNumber" data-testid="serial-number-label">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.serial_number', 'Serial Number')} *
-            </Label>
-            <Input
-              id="serialNumber"
-              placeholder={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:hr_assets.serial_number_placeholder',
-                'Unique serial number'
+        render={({ field, fieldState }) => {
+          const [isCheckingDuplicate, setIsCheckingDuplicate] = React.useState(false)
+          const [duplicateError, setDuplicateError] = React.useState<string | null>(null)
+
+          const checkDuplicate = async (value: string) => {
+            if (!value || value.length < 3 || isEditMode) {
+              setDuplicateError(null)
+              return
+            }
+
+            const category = form.getValues('category')
+            const brand = form.getValues('brand')
+
+            if (!category || !brand) {
+              setDuplicateError(null)
+              return
+            }
+
+            setIsCheckingDuplicate(true)
+            try {
+              const result = await getAssets({
+                where: {
+                  _and: [
+                    { serialNumber: { _eq: value } },
+                    { assetCategoryRef: { _eq: category } },
+                    { assetBrandRef: { _eq: brand } }
+                  ]
+                },
+                limit: 1
+              })
+
+              if (result.assets.length > 0) {
+                const errorMsg = getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:hr_assets.serial_number_duplicate',
+                  'A serial number with this combination of category and producer already exists'
+                )
+                setDuplicateError(errorMsg)
+                form.setError('serialNumber', { type: 'manual', message: errorMsg })
+              } else {
+                setDuplicateError(null)
+                form.clearErrors('serialNumber')
+              }
+            } catch (error) {
+              console.error('Error checking duplicate serial number:', error)
+              setDuplicateError(null)
+            } finally {
+              setIsCheckingDuplicate(false)
+            }
+          }
+
+          const handleBlur = async () => {
+            field.onBlur()
+            await checkDuplicate(field.value)
+          }
+
+          const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+            field.onChange(e)
+            // Clear error on change
+            if (duplicateError) {
+              setDuplicateError(null)
+              form.clearErrors('serialNumber')
+            }
+          }
+
+          return (
+            <FormItem>
+              <Label htmlFor="serialNumber" data-testid="serial-number-label">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.serial_number', 'Serial Number')} *
+              </Label>
+              <Input
+                id="serialNumber"
+                placeholder={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:hr_assets.serial_number_placeholder',
+                  'Unique serial number'
+                )}
+                value={field.value || ''}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                data-testid="serial-number-input"
+                disabled={isEditMode || isCheckingDuplicate}
+              />
+              {(fieldState.error || duplicateError) && (
+                <p className="gba:text-sm gba:font-medium gba:text-destructive" data-testid="serial-number-error">
+                  {fieldState.error?.message || duplicateError}
+                </p>
               )}
-              value={field.value || ''}
-              onChange={field.onChange}
-              onBlur={field.onBlur}
-              data-testid="serial-number-input"
-              className="gba:font-mono"
-              disabled={isEditMode}
-            />
-          </FormItem>
-        )}
+            </FormItem>
+          )
+        }}
       />
 
       <FormField
@@ -558,14 +648,23 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
               <Label htmlFor="acquisitionDate" data-testid="acquisition-date-label">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.acquisition_date', 'Acquisition Date')} *
               </Label>
-              <Input
-                id="acquisitionDate"
+              <DateInput
                 type="date"
-                value={field.value || ''}
-                onChange={field.onChange}
-                onBlur={field.onBlur}
-                data-testid="acquisition-date-input"
+                value={(field.value as string) || ''}
+                onChange={(value: string | [string | null, string | null] | null) => {
+                  if (typeof value === 'string') {
+                    field.onChange(value)
+                  } else {
+                    field.onChange('')
+                  }
+                }}
+                placeholder={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:employee_profile.details_layout.personal_information_container.select_placeholder',
+                  'Please Select'
+                )}
+                className="gba:w-full"
                 disabled={isEditMode}
+                data-testid="acquisition-date-input"
               />
             </FormItem>
           )}
@@ -632,7 +731,7 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
               <Label htmlFor="currency" data-testid="currency-label">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.currency', 'Currency')} *
               </Label>
-              <Select onValueChange={field.onChange} value={field.value} disabled={currenciesLoading || isEditMode}>
+              <Select onValueChange={field.onChange} value={field.value} disabled={currenciesLoading}>
                 <SelectTrigger id="currency" data-testid="currency-select">
                   <SelectValue
                     placeholder={
@@ -659,32 +758,77 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
         />
       </div>
 
-      <FormField
-        control={form.control}
-        name="status"
-        render={({ field }) => (
-          <FormItem>
-            <Label htmlFor="status" data-testid="status-label">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status', 'Status')} *
-            </Label>
-            <Select onValueChange={field.onChange} value={field.value} disabled={!isEditMode}>
-              <SelectTrigger id="status" data-testid="status-select">
-                <SelectValue
-                  placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.select_status', 'Select status')}
-                />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={AssetStatus.AVAILABLE} data-testid="status-available">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_available', 'Available')}
-                </SelectItem>
-                <SelectItem value={AssetStatus.UNDER_REPAIR} data-testid="status-under-repair">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_in_repair', 'In Repair')}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </FormItem>
-        )}
-      />
+      {isEditMode &&
+        (() => {
+          const currentStatus = form.watch('status') || existingAsset?.assetStatus
+          const isAllocated = !!currentAllocation
+          const isInRepair = currentStatus === AssetStatus.UNDER_REPAIR
+
+          // Determine available status options based on current state
+          const availableStatuses: AssetStatus[] = []
+
+          // Can always set to "In Repair" if status is "Available" or "Allocated"
+          if (currentStatus === AssetStatus.AVAILABLE || currentStatus === AssetStatus.ALLOCATED) {
+            availableStatuses.push(AssetStatus.UNDER_REPAIR)
+          }
+
+          // If currently "In Repair":
+          if (isInRepair) {
+            if (isAllocated) {
+              // If allocated and in repair, can change to "Allocated"
+              availableStatuses.push(AssetStatus.ALLOCATED)
+            } else {
+              // If not allocated and in repair, can change to "Available"
+              availableStatuses.push(AssetStatus.AVAILABLE)
+            }
+          }
+
+          // Always include current status
+          if (currentStatus && !availableStatuses.includes(currentStatus)) {
+            availableStatuses.push(currentStatus)
+          }
+
+          return (
+            <FormField
+              control={form.control}
+              name="status"
+              render={({ field }) => (
+                <FormItem>
+                  <Label htmlFor="status" data-testid="status-label">
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status', 'Status')} *
+                  </Label>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <SelectTrigger id="status" data-testid="status-select">
+                      <SelectValue
+                        placeholder={getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:hr_assets.select_status',
+                          'Select status'
+                        )}
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableStatuses.includes(AssetStatus.AVAILABLE) && (
+                        <SelectItem value={AssetStatus.AVAILABLE} data-testid="status-available">
+                          {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_available', 'Available')}
+                        </SelectItem>
+                      )}
+                      {availableStatuses.includes(AssetStatus.ALLOCATED) && (
+                        <SelectItem value={AssetStatus.ALLOCATED} data-testid="status-allocated">
+                          {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_allocated', 'Allocated')}
+                        </SelectItem>
+                      )}
+                      {availableStatuses.includes(AssetStatus.UNDER_REPAIR) && (
+                        <SelectItem value={AssetStatus.UNDER_REPAIR} data-testid="status-under-repair">
+                          {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_in_repair', 'In Repair')}
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              )}
+            />
+          )
+        })()}
 
       <FormField
         control={form.control}

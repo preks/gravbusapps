@@ -3,7 +3,12 @@
  * Common interfaces used across all analytics components
  */
 
-import type { Investment, EquityInvestment, LiquidFundInvestment, RealEstateInvestment } from '@/common/data/investment'
+import type {
+  Investment,
+  EquityInvestment,
+  LiquidFundInvestment,
+  RealEstateInvestment
+} from '@/common/data/investment/types/investmentTypes'
 
 /**
  * Base interface for all investment summaries
