@@ -30,6 +30,23 @@ adjust-salary-frequency-hourly = Stündlich
 adjust-salary-current-salary = Aktuelles Gehalt
 adjust-salary-calculation-breakdown = Gehaltsanpassung Zusammenfassung
 
+# Adjust Employee Salary Review Form
+adjust-salary-review-title = Gehaltsanpassungsprüfung für { $employeeName }
+adjust-salary-review-initiated-by = Initiiert von { $initiatorName }
+adjust-salary-review-salary-comparison = Gehaltsvergleich
+adjust-salary-review-current-salary = Aktuelles Gehalt
+adjust-salary-review-new-salary = Neues Gehalt
+adjust-salary-review-adjustment-details = Anpassungsdetails
+adjust-salary-review-total-increase = Gesamterhöhung
+adjust-salary-review-effective-date = Gültigkeitsdatum
+adjust-salary-review-reason = Grund
+adjust-salary-review-notes = Notizen
+adjust-salary-review-acknowledge = Bestätigen
+adjust-salary-review-reject = Ablehnen
+adjust-salary-review-annual-gross-salary = Jahresbruttogehalt
+adjust-salary-review-monthly-gross-salary = Monatliches Bruttogehalt
+adjust-salary-review-hourly-gross-salary = Stündliches Bruttogehalt
+
 # Common Actions
 action-select-placeholder = Bitte auswählen
 action-enter-placeholder = Bitte eingeben

@@ -30,6 +30,23 @@ adjust-salary-frequency-hourly = Hourly
 adjust-salary-current-salary = Current Salary
 adjust-salary-calculation-breakdown = Salary Adjustment Summary
 
+# Adjust Employee Salary Review Form
+adjust-salary-review-title = Employee Salary Adjustment Review for { $employeeName }
+adjust-salary-review-initiated-by = Initiated by { $initiatorName }
+adjust-salary-review-salary-comparison = Salary Comparison
+adjust-salary-review-current-salary = Current Salary
+adjust-salary-review-new-salary = New Salary
+adjust-salary-review-adjustment-details = Adjustment Details
+adjust-salary-review-total-increase = Total Increase
+adjust-salary-review-effective-date = Effective Date
+adjust-salary-review-reason = Reason
+adjust-salary-review-notes = Notes
+adjust-salary-review-acknowledge = Acknowledge
+adjust-salary-review-reject = Reject
+adjust-salary-review-annual-gross-salary = Annual Gross Salary
+adjust-salary-review-monthly-gross-salary = Monthly Gross Salary
+adjust-salary-review-hourly-gross-salary = Hourly Gross Salary
+
 # Common Actions
 action-select-placeholder = Please Select
 action-enter-placeholder = Please Enter

@@ -30,6 +30,23 @@ adjust-salary-frequency-hourly = Pe oră
 adjust-salary-current-salary = Salariu curent
 adjust-salary-calculation-breakdown = Rezumat ajustare salariu
 
+# Adjust Employee Salary Review Form
+adjust-salary-review-title = Revizuire ajustare salariu pentru { $employeeName }
+adjust-salary-review-initiated-by = Inițiat de { $initiatorName }
+adjust-salary-review-salary-comparison = Comparație salariu
+adjust-salary-review-current-salary = Salariu curent
+adjust-salary-review-new-salary = Salariu nou
+adjust-salary-review-adjustment-details = Detalii ajustare
+adjust-salary-review-total-increase = Creștere totală
+adjust-salary-review-effective-date = Dată efectivă
+adjust-salary-review-reason = Motiv
+adjust-salary-review-notes = Note
+adjust-salary-review-acknowledge = Confirmă
+adjust-salary-review-reject = Respinge
+adjust-salary-review-annual-gross-salary = Salariu brut anual
+adjust-salary-review-monthly-gross-salary = Salariu brut lunar
+adjust-salary-review-hourly-gross-salary = Salariu brut pe oră
+
 # Common Actions
 action-select-placeholder = Vă rugăm să selectați
 action-enter-placeholder = Vă rugăm să introduceți
