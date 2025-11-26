@@ -31,7 +31,6 @@ export interface UseTimeInterventionsParams {
 }
 
 export const useTimeInterventions = ({ employeeId, accessToken, workingHours }: UseTimeInterventionsParams) => {
-  console.log('workingHours', workingHours)
   const [items, setItems] = useState<TimeInterventionItem[]>([])
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(true)
