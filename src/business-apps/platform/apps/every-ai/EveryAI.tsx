@@ -1,33 +1,133 @@
-import React, { useEffect, useRef, useMemo, useState } from 'react'
+import React, { useEffect, useRef, useMemo, useState, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useFlowBot } from './hooks/useFlowBot'
+import { useVoiceInput } from './hooks/useVoiceInput'
+import { useVoiceSynthesis } from './hooks/useVoiceSynthesis'
 import { ChatInput } from './components/ChatInput'
 import { FormSubmissionProvider } from './components/FormSubmissionContext'
 import { ConversationRenderer } from './components/ConversationRenderer'
 import { useCurrentUserPicture } from './hooks/useCurrentUserPicture'
 import { RemindersPanel } from './components/RemindersPanel'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { VoiceOverlay } from './components/voice/VoiceOverlay'
 import { Button } from '@newwork/nw-design-system'
 import { Bell, Sparkle } from '@phosphor-icons/react'
+import type { OutputItem, AnswerOutput } from './types/models'
 
 export interface EveryAIProps extends BusinessAppContextProps {
   className?: string
 }
 
 /**
- * EveryAI - Premium AI Assistant
+ * EveryAI - Premium AI Assistant with Voice Mode
  * The most advanced AI-powered assistant for NEWWORK ERP
+ * Now with full voice conversation support!
  */
 export const EveryAI: React.FC<EveryAIProps> = props => {
   const { accessToken, className, userInfo } = props
   const scrollRef = useRef<HTMLDivElement>(null)
   const [showRemindersPanel, setShowRemindersPanel] = useState(false)
+  const [isSpeechMode, setIsSpeechMode] = useState(false)
+  const lastSpokenTurnIndexRef = useRef<number>(-1)
 
   const { conversation, isLoading, sendMessage, clearConversation, nextStepProposals, isPrechatLoading } =
     useFlowBot(accessToken)
 
   // Fetch current user's picture
   const { pictureThumbnail } = useCurrentUserPicture(userInfo?.employeeDetails?.employeeId, accessToken)
+
+  // Voice input hook
+  const voiceInput = useVoiceInput({
+    language: 'en-US',
+    continuous: false,
+    interimResults: true
+  })
+
+  // Voice synthesis hook
+  const voiceSynthesis = useVoiceSynthesis({
+    voice: 'nova',
+    speed: 1.0,
+    accessToken
+  })
+
+  // Toggle speech mode
+  const toggleSpeechMode = useCallback(() => {
+    if (isSpeechMode) {
+      // Exiting speech mode
+      setIsSpeechMode(false)
+      voiceInput.cancelListening()
+      voiceSynthesis.stop()
+    } else {
+      // Entering speech mode
+      setIsSpeechMode(true)
+      lastSpokenTurnIndexRef.current = conversation.length - 1
+    }
+  }, [isSpeechMode, voiceInput, voiceSynthesis, conversation.length])
+
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isSpeechMode) {
+        toggleSpeechMode()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isSpeechMode, toggleSpeechMode])
+
+  // Auto-speak new AI responses in speech mode
+  useEffect(() => {
+    if (!isSpeechMode || isLoading) return
+
+    // Find the latest agent turn with an answer
+    for (let i = conversation.length - 1; i > lastSpokenTurnIndexRef.current; i--) {
+      const turn = conversation[i]
+      if (turn.side === 'agent') {
+        // Find the answer output
+        const answerOutput = turn.outputs?.find((o: OutputItem): o is AnswerOutput => o.type === 'answer')
+
+        if (answerOutput?.displayData) {
+          // Extract text from display data
+          const textParts: string[] = []
+          for (const data of answerOutput.displayData) {
+            if (data.type === 'textBlock' && data.text) {
+              // Clean markdown for speech
+              const cleanText = data.text
+                .replace(/\*\*/g, '')
+                .replace(/\*/g, '')
+                .replace(/#{1,6}\s/g, '')
+                .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+                .replace(/`[^`]+`/g, '')
+                .trim()
+              if (cleanText) {
+                textParts.push(cleanText)
+              }
+            }
+          }
+
+          if (textParts.length > 0) {
+            const textToSpeak = textParts.join('. ')
+            // Limit to first ~500 characters to avoid very long speeches
+            const truncatedText = textToSpeak.length > 500 ? textToSpeak.substring(0, 500) + '...' : textToSpeak
+            voiceSynthesis.speak(truncatedText)
+            lastSpokenTurnIndexRef.current = i
+          }
+        }
+      }
+    }
+  }, [conversation, isSpeechMode, isLoading, voiceSynthesis])
+
+  // Handle sending voice transcript
+  const handleVoiceSend = useCallback(
+    (text: string) => {
+      if (text.trim()) {
+        sendMessage(text, [], false, false, undefined)
+        voiceInput.resetTranscript()
+      }
+    },
+    [sendMessage, voiceInput]
+  )
 
   const extendedConversation = useMemo(() => {
     // Don't add loading if conversation already has it
@@ -61,6 +161,23 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
       className={`gba:h-full gba:flex gba:flex-col gba:bg-background gba:relative gba:overflow-hidden ${className || ''}`}
       data-testid="every-ai-app"
     >
+      {/* Voice Mode Overlay */}
+      <VoiceOverlay
+        isVisible={isSpeechMode}
+        isListening={voiceInput.isListening}
+        isSpeaking={voiceSynthesis.isSpeaking}
+        isLoading={voiceSynthesis.isLoading || isLoading}
+        volume={voiceInput.volume}
+        transcript={voiceInput.transcript}
+        interimTranscript={voiceInput.interimTranscript}
+        currentSpeechText={voiceSynthesis.currentText}
+        onClose={toggleSpeechMode}
+        onStartListening={voiceInput.startListening}
+        onStopListening={voiceInput.stopListening}
+        onStopSpeaking={voiceSynthesis.stop}
+        onSendTranscript={handleVoiceSend}
+      />
+
       {/* Reminders Bell / AI Icon - Top Right */}
       <div className="gba:absolute gba:top-4 gba:right-4 gba:z-50">
         <Button
@@ -146,8 +263,8 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
                 entire platform.
               </p>
 
-              {/* Feature highlights with icons */}
-              <div className="gba:grid gba:grid-cols-3 gba:gap-4 gba:max-w-2xl gba:mb-8">
+              {/* Feature highlights with icons - now including Voice */}
+              <div className="gba:grid gba:grid-cols-4 gba:gap-4 gba:max-w-3xl gba:mb-8">
                 {[
                   {
                     icon: (
@@ -182,6 +299,19 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           strokeWidth={2}
+                          d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+                        />
+                      </svg>
+                    ),
+                    label: 'Voice Mode'
+                  },
+                  {
+                    icon: (
+                      <svg className="gba:h-6 gba:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
                           d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
                         />
                         <path
@@ -208,7 +338,8 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
               </div>
 
               <p className="gba:text-xs gba:text-muted-foreground gba:opacity-75">
-                Type a message below or click a suggestion to get started
+                Type a message, click a suggestion, or use{' '}
+                <span className="gba:font-semibold gba:text-primary">Voice Mode</span> to speak
               </p>
             </div>
           ) : (
@@ -231,6 +362,14 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
             suggestions={nextStepProposals}
             isPrechatLoading={isPrechatLoading}
             placeholder="Ask EveryAI anything..."
+            // Voice mode props
+            isSpeechMode={isSpeechMode}
+            isListening={voiceInput.isListening}
+            isSpeaking={voiceSynthesis.isSpeaking}
+            isVoiceLoading={voiceSynthesis.isLoading}
+            voiceVolume={voiceInput.volume}
+            onToggleVoiceMode={toggleSpeechMode}
+            onStopSpeaking={voiceSynthesis.stop}
           />
         </div>
       </FormSubmissionProvider>

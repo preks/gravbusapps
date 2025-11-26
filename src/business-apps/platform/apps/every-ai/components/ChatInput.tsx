@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useId } from 'react'
 import { Button, Textarea } from '@newwork/nw-design-system'
 import { useFileUploadManager, MaxNumberOfFilesError, MaxTotalSizeError } from '../hooks/useFileUploadManager'
+import { VoiceModeButton } from './voice/VoiceModeButton'
 
 type Suggestion = string | { heading?: string; message?: string }
 
@@ -18,6 +19,14 @@ interface ChatInputProps {
   suggestions?: Suggestion[]
   isPrechatLoading?: boolean
   placeholder?: string
+  // Voice mode props
+  isSpeechMode?: boolean
+  isListening?: boolean
+  isSpeaking?: boolean
+  isVoiceLoading?: boolean
+  voiceVolume?: number
+  onToggleVoiceMode?: () => void
+  onStopSpeaking?: () => void
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({
@@ -27,7 +36,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   className,
   suggestions,
   isPrechatLoading = false,
-  placeholder = 'Ask EveryAI anything...'
+  placeholder = 'Ask EveryAI anything...',
+  // Voice mode props with defaults
+  isSpeechMode = false,
+  isListening = false,
+  isSpeaking = false,
+  isVoiceLoading = false,
+  voiceVolume = 0,
+  onToggleVoiceMode,
+  onStopSpeaking
 }) => {
   const [value, setValue] = useState('')
   const [isSearching, setIsSearching] = useState(false)
@@ -77,6 +94,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       textareaRef.current?.focus()
     }, 0)
   }, [])
+
+  // Check if voice mode is supported (has the callback)
+  const voiceModeSupported = !!onToggleVoiceMode
 
   return (
     <>
@@ -257,6 +277,21 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                   <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
                 </svg>
               </Button>
+
+              {/* Voice Mode Button - Premium Feature */}
+              {voiceModeSupported && (
+                <VoiceModeButton
+                  isActive={isSpeechMode}
+                  isListening={isListening}
+                  isSpeaking={isSpeaking}
+                  isLoading={isVoiceLoading}
+                  volume={voiceVolume}
+                  onToggle={onToggleVoiceMode}
+                  onStopSpeaking={onStopSpeaking}
+                  disabled={disabled}
+                  size="md"
+                />
+              )}
 
               {/* Clear Button */}
               <Button
