@@ -4,9 +4,8 @@ import { UsersIcon, TrendUpIcon, FileTextIcon, BankIcon } from '@phosphor-icons/
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { useShareAction } from '@/components/share-entity'
 import { useCustomerAccount } from '@/common/data/customer/hooks/useCustomerAccount'
 import { OpportunityView } from './views/opportunity-view/OpportunityView'
 import { DocumentView } from './views/document-view/DocumentView'
@@ -51,20 +50,6 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
   }, [])
 
   const { account: accountData, loading, error, refetch } = useCustomerAccount(props.accessToken, accountId)
-
-  // Share action hook
-  const accountName =
-    accountData?.name || getTranslationFromI18nKeyAndLabel('crm.account.unnamed', 'Unnamed Account')
-  const { shareAction, ShareDialog } = useShareAction({
-    accessToken: props.accessToken,
-    currentUserId: props.userInfo?.id || '',
-    entity: {
-      entityType: 'account',
-      entityId: accountId,
-      entityName: accountName,
-      entityUrl: `/platform/crm/account-record?accountId=${accountId}`
-    }
-  })
 
   const handleTabChange = useCallback((value: string) => {
     if ((ALLOWED_TABS as readonly string[]).includes(value)) {
@@ -179,26 +164,26 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
 
   const headerActionButton = useMemo(
     () => (
-      <>
-        <AppActionButton
-          data-testid="customer-account-record-action-button"
-          size="lg"
-          contextsArray={[FlowContextName.customerAccountEntity]}
-          externalContextData={{
-            accountId: accountId
-          }}
-          prefixDataTestId="customer-account-record-action"
-          accessToken={props.accessToken}
-          emptyStateBehavior="enable"
-          deferMainContextRequestsUntilClick={false}
-          staticFlowData={[shareAction]}
-        >
-          {getTranslationFromI18nKeyAndLabel('crm.common.actions', 'Actions')}
-        </AppActionButton>
-        {ShareDialog}
-      </>
+      <AppAction
+        data-testid="customer-account-record-action-button"
+        variant="header"
+        contexts={[
+          {
+            context: FlowContextName.customerAccountEntity,
+            contextData: { accountId }
+          }
+        ]}
+        shareContext={{
+          entityType: 'account',
+          entityId: accountId,
+          entityName: accountData?.name || 'Account',
+          entityUrl: `/platform/crm/account-record?accountId=${accountId}`
+        }}
+        prefixDataTestId="customer-account-record-action"
+        accessToken={props.accessToken}
+      />
     ),
-    [accountId, props.accessToken, shareAction, ShareDialog]
+    [accountId, accountData?.name, props.accessToken]
   )
 
   const subViewsConfig = useMemo(

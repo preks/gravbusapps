@@ -4,9 +4,8 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetInvestmentById } from '@/common/data/investment/hooks/useInvestments'
 import { useGetInvestmentCatalogData } from '@/business-apps/irm/investments/forms/investment-form/queries/InvestmentCatalogQueries'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { useShareAction } from '@/components/share-entity'
 import { Bot } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -208,18 +207,6 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
   const { processedTiles } = useInvestmentTileFields(props, investmentData)
   const aiSummaryHook = useInvestmentAiSummary(investmentId || '', props.accessToken)
 
-  // Share action hook (must be called unconditionally before any returns)
-  const { shareAction, ShareDialog } = useShareAction({
-    accessToken: props.accessToken,
-    currentUserId: props.userInfo?.id || '',
-    entity: {
-      entityType: investmentType || 'investment',
-      entityId: investmentId || '',
-      entityName: investmentData?.name || 'Investment',
-      entityUrl: `/platform/irm/investment-record?investmentId=${investmentId}`
-    }
-  })
-
   // Navigation
   const handleBack = useCallback(() => {
     // Get the fromView and fromSubView parameters from URL
@@ -283,6 +270,30 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
     }
   }, [])
 
+  // Header action button - MUST be before conditional returns (Rules of Hooks)
+  const headerActionButton = useMemo(
+    () => (
+      <AppAction
+        variant="header"
+        contexts={[
+          {
+            context: getInvestmentFlowContext(investmentType),
+            contextData: { investmentId }
+          }
+        ]}
+        shareContext={{
+          entityType: 'investment',
+          entityId: investmentId || '',
+          entityName: investmentData?.name || 'Investment',
+          entityUrl: `/platform/irm/investment-record?investmentId=${investmentId}`
+        }}
+        prefixDataTestId={`${investmentType}-record-action`}
+        accessToken={props.accessToken}
+      />
+    ),
+    [investmentId, investmentType, investmentData?.name, props.accessToken]
+  )
+
   // Loading state
   if (isLoading) {
     return (
@@ -344,19 +355,6 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
     />
   )
 
-  const headerActionButton = (
-    <AppActionButton
-      size="icon"
-      contextsArray={[getInvestmentFlowContext(investmentType)]}
-      externalContextData={{ investmentId }}
-      prefixDataTestId={`${investmentType}-record-action`}
-      emptyStateBehavior="enable"
-      deferMainContextRequestsUntilClick={false}
-      accessToken={props.accessToken}
-      staticFlowData={[shareAction]}
-    />
-  )
-
   // Detail groups for header using centralized utilities with dynamic catalog data
   const headerDetailGroups = getTypeSpecificDetailGroups(investmentType, typeSpecificData, investment, catalogData)
 
@@ -398,16 +396,10 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
             investmentId={investmentId}
             investmentName={investmentData.name}
             accessToken={props.accessToken}
-            currency={extractCurrencyCode(
-              typeof investmentData.currency === 'string'
-                ? investmentData.currency
-                : investmentData.currency?.code || null
-            )}
+            currency={extractCurrencyCode(investmentData.currency)}
           />
         </div>
       )}
-      {/* Share Dialog */}
-      {ShareDialog}
     </div>
   )
 }

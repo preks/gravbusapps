@@ -17,9 +17,8 @@ import { useCustomerContact } from '@/common/data/customer/hooks/useCustomerCont
 import { useCustomerActivities } from '@/common/data/customer/hooks/useCustomerActivities'
 import { useCustomerTasks } from '@/common/data/customer/hooks/useCustomerTasks'
 import { useCustomerNotes } from '@/common/data/customer/hooks/useCustomerNotes'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { useShareAction } from '@/components/share-entity'
 import { HomeView } from './views/home-view/HomeView'
 import { OpportunityView } from './views/opportunity-view/OpportunityView'
 import { DocumentView } from './views/document-view/DocumentView'
@@ -45,21 +44,6 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
     error,
     refetch: refetchContactData
   } = useCustomerContact(props.accessToken, contactId)
-
-  // Share action hook
-  const contactDisplayName =
-    `${contactData?.firstName || contactData?.firstName || ''} ${contactData?.lastName || contactData?.lastName || ''}`.trim() ||
-    getTranslationFromI18nKeyAndLabel('crm.common.unnamedContact', 'Unnamed Contact')
-  const { shareAction, ShareDialog } = useShareAction({
-    accessToken: props.accessToken,
-    currentUserId: props.userInfo?.id || '',
-    entity: {
-      entityType: 'contact',
-      entityId: contactId,
-      entityName: contactDisplayName,
-      entityUrl: `/platform/crm/contact-record?contactId=${contactId}`
-    }
-  })
 
   // Data fetching hooks for sections - using central hooks
   const { fetchCustomerActivitiesByContactId } = useCustomerActivities(props)
@@ -275,28 +259,33 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
     return null
   }, [contactId])
 
+  // Calculate fullName early for use in headerActionButton
+  const fullName =
+    `${contactData?.firstName || ''} ${contactData?.lastName || ''}`.trim() ||
+    getTranslationFromI18nKeyAndLabel('crm.common.unnamedContact', 'Unnamed Contact')
+
   const headerActionButton = useMemo(
     () => (
-      <>
-        <AppActionButton
-          data-testid="customer-contact-record-action-button"
-          size="lg"
-          contextsArray={[FlowContextName.customerContactEntity]}
-          externalContextData={{
-            contactId: contactId
-          }}
-          prefixDataTestId="customer-contact-record-action"
-          accessToken={props.accessToken}
-          emptyStateBehavior="enable"
-          deferMainContextRequestsUntilClick={false}
-          staticFlowData={[shareAction]}
-        >
-          {getTranslationFromI18nKeyAndLabel('crm.common.actions', 'Actions')}
-        </AppActionButton>
-        {ShareDialog}
-      </>
+      <AppAction
+        data-testid="customer-contact-record-action-button"
+        variant="header"
+        contexts={[
+          {
+            context: FlowContextName.customerContactEntity,
+            contextData: { contactId }
+          }
+        ]}
+        shareContext={{
+          entityType: 'contact',
+          entityId: contactId,
+          entityName: fullName,
+          entityUrl: `/platform/crm/contact-record?contactId=${contactId}`
+        }}
+        prefixDataTestId="customer-contact-record-action"
+        accessToken={props.accessToken}
+      />
     ),
-    [contactId, props.accessToken, shareAction, ShareDialog]
+    [contactId, fullName, props.accessToken]
   )
 
   // Action props for sections - must be defined before subViews
@@ -455,11 +444,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
       .join(' ')
   }
 
-  const fullName =
-    `${contactData?.firstName || ''} ${contactData?.lastName || ''}`.trim() ||
-    getTranslationFromI18nKeyAndLabel('crm.common.unnamedContact', 'Unnamed Contact')
-
-  const contactType = contactData?.type
+  const contactType = contactData?.contactType || contactData?.type
   const contactTypeDisplay = getContactTypeDisplayValue(contactType)
 
   const headerTitle = (

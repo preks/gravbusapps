@@ -185,14 +185,17 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
               contextData: { campaignId }
             }
           ]}
+          shareContext={{
+            entityType: 'campaign',
+            entityId: campaignId,
+            entityName: campaign?.name || 'Campaign',
+            entityUrl: `/platform/crm/campaign-record?campaignId=${campaignId}`
+          }}
           prefixDataTestId="campaign-record-action"
           accessToken={props.accessToken}
-          emptyState="enable"
-          lazyLoad
-          onClick={e => e.stopPropagation()}
         />
       ) : null,
-    [props.accessToken, campaignId]
+    [props.accessToken, campaignId, campaign?.name]
   )
 
   const subViewsConfig = useMemo(

@@ -26,8 +26,7 @@ import { formatCurrency, extractCurrencyCode } from '@/common/utils/numberFormat
 import { getOpportunityStatusBadgeVariant, getOpportunityForecastBadgeVariant } from '@/common/utils/badgeUtils'
 import { useAiSummary } from './hooks/useAiSummary'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
-import { AppAction } from '@/components/app-action/AppAction'
+import { AppAction } from '@/components/app-action'
 import { Bot } from 'lucide-react'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
 import { useProspectRejectionReasons } from '@/common/data/investment/hooks/useProspectRejectionReasons'
@@ -62,7 +61,6 @@ import {
   transformInvestmentDocuments
 } from '@/business-apps/irm/common/utils/documentUtils'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { useShareAction } from '@/components/share-entity'
 
 interface OpportunityRecordContentProps extends BusinessAppContextProps {
   opportunityId: string
@@ -428,33 +426,28 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     []
   )
 
-  // Use the reusable share action hook
-  const { shareAction, ShareDialog } = useShareAction({
-    accessToken: props.accessToken,
-    currentUserId: props.userInfo?.id || '',
-    entity: {
-      entityType: 'investment-opportunity',
-      entityId: opportunityId,
-      entityName: opportunity?.name || 'Investment Opportunity',
-      entityUrl: `/platform/irm/opportunity-record?opportunityId=${opportunityId}`
-    }
-  })
-
   // Memoize header action button to prevent recreation
   const headerActionButton = useMemo(
     () => (
-      <AppActionButton
-        size="icon"
-        contextsArray={[FlowContextName.investmentOpportunityEntity]}
-        externalContextData={{ opportunityId }}
+      <AppAction
+        variant="header"
+        contexts={[
+          {
+            context: FlowContextName.investmentOpportunityEntity,
+            contextData: { opportunityId }
+          }
+        ]}
+        shareContext={{
+          entityType: 'investment-opportunity',
+          entityId: opportunityId,
+          entityName: opportunityData?.name || 'Opportunity',
+          entityUrl: `/platform/irm/opportunity-record?opportunityId=${opportunityId}`
+        }}
         prefixDataTestId="opportunity-record-action"
-        emptyStateBehavior="enable"
-        deferMainContextRequestsUntilClick={false}
         accessToken={props.accessToken}
-        staticFlowData={[shareAction]}
       />
     ),
-    [opportunityId, props.accessToken, shareAction]
+    [opportunityId, opportunityData?.name, props.accessToken]
   )
 
   // Memoize action props to prevent recreation and unnecessary re-renders
@@ -1177,8 +1170,6 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
           data-testid="opportunity-status-update-popup"
         />
       )}
-      {/* Share Dialog */}
-      {ShareDialog}
     </div>
   )
 }

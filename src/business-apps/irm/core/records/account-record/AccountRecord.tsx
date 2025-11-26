@@ -5,9 +5,8 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useInvestmentAccount } from '@/common/data/investment/hooks/useInvestmentAccount'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { useShareAction } from '@/components/share-entity'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { useAccountAiSummary } from './hooks/useAccountAiSummary'
 import { useGenerateAIBooklet } from './hooks/useGenerateAIBooklet'
@@ -230,35 +229,28 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
     )
   }, [props.accessToken, aiSummaryHook, aiBookletHook, accountId])
 
-  // Use the reusable share action hook
-  const { shareAction, ShareDialog } = useShareAction({
-    accessToken: props.accessToken,
-    currentUserId: props.userInfo?.id || '',
-    entity: {
-      entityType: 'investment-account',
-      entityId: accountId,
-      entityName: accountData?.name || 'Investment Account',
-      entityUrl: `/platform/irm/account-record?accountId=${accountId}`
-    }
-  })
-
   const headerActionButton = useMemo(
     () => (
-      <AppActionButton
+      <AppAction
         data-testid="investment-account-record-action-button"
-        size="icon"
-        contextsArray={[FlowContextName.investmentAccountEntity]}
-        externalContextData={{
-          accountId: accountId
+        variant="header"
+        contexts={[
+          {
+            context: FlowContextName.investmentAccountEntity,
+            contextData: { accountId }
+          }
+        ]}
+        shareContext={{
+          entityType: 'investment-account',
+          entityId: accountId,
+          entityName: accountData?.name || 'Account',
+          entityUrl: `/platform/irm/account-record?accountId=${accountId}`
         }}
         prefixDataTestId="investment-account-record-action"
         accessToken={props.accessToken}
-        emptyStateBehavior="enable"
-        deferMainContextRequestsUntilClick={false}
-        staticFlowData={[shareAction]}
       />
     ),
-    [accountId, props.accessToken, shareAction]
+    [accountId, accountData?.name, props.accessToken]
   )
 
   const subViewsConfig = useMemo(
@@ -340,8 +332,6 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
         headerActionButton={headerActionButton}
         subViews={subViewsConfig}
       />
-      {/* Share Dialog */}
-      {ShareDialog}
     </div>
   )
 }
