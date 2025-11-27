@@ -12,7 +12,7 @@ import { useAbsenceTypeDetails } from './useAbsenceTypeDetails'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   calculateWorkingDays,
-  buildHalfDayDates,
+  extractHalfDayDates,
   calculateDateRangeBreakdown,
   type HolidayEntry,
   type DateRangeBreakdown
@@ -401,7 +401,7 @@ export const useAbsenceValidation = ({
       let requestedDays: number
 
       if (measurement === 'WorkingDays') {
-        const halfDayDates = buildHalfDayDates(newStartDate, newEndDate)
+        const halfDayDates = extractHalfDayDates(holidays, newStartDate, newEndDate)
 
         requestedDays = calculateWorkingDays(newStartDate, newEndDate, {
           holidays,

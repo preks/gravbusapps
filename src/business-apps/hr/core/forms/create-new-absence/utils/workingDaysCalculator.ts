@@ -67,6 +67,10 @@ const isHoliday = (date: Date, holidays: HolidayEntry[]): boolean => {
   const dateStr = dayjs(date).format('YYYY-MM-DD')
 
   return holidays.some(holiday => {
+    if (holiday.additionalValue1 === '05H') {
+      return false
+    }
+
     const code = holiday.alternativeCode || holiday.code || ''
     if (!code) {
       return false
@@ -133,25 +137,27 @@ export const calculateWorkingDays = (startDate: Date, endDate: Date, options: Wo
   return workingDays
 }
 
-export const buildHalfDayDates = (startDate: Date, endDate: Date): Set<string> => {
+export const extractHalfDayDates = (holidays: HolidayEntry[], startDate: Date, endDate: Date): Set<string> => {
   const halfDays = new Set<string>()
-  const start = dayjs(startDate)
-  const end = dayjs(endDate)
+  const start = dayjs(startDate).startOf('day')
+  const end = dayjs(endDate).startOf('day')
 
-  const startYear = start.year()
-  const endYear = end.year()
+  holidays.forEach(holiday => {
+    if (holiday.additionalValue1 === '05H') {
+      const code = holiday.alternativeCode || holiday.code || ''
+      if (!code) return
 
-  for (let year = startYear; year <= endYear; year++) {
-    const dec24 = dayjs(`${year}-12-24`)
-    if (dec24.isSameOrAfter(start) && dec24.isSameOrBefore(end)) {
-      halfDays.add(dec24.format('YYYY-MM-DD'))
+      const holidayDate = parseHolidayDate(code)
+      if (!holidayDate) return
+
+      const holidayDateStr = dayjs(holidayDate).format('YYYY-MM-DD')
+      const holidayDayjs = dayjs(holidayDate).startOf('day')
+
+      if (holidayDayjs.isSameOrAfter(start) && holidayDayjs.isSameOrBefore(end)) {
+        halfDays.add(holidayDateStr)
+      }
     }
-
-    const dec31 = dayjs(`${year}-12-31`)
-    if (dec31.isSameOrAfter(start) && dec31.isSameOrBefore(end)) {
-      halfDays.add(dec31.format('YYYY-MM-DD'))
-    }
-  }
+  })
 
   return halfDays
 }
@@ -175,7 +181,7 @@ export const calculateDateRangeBreakdown = (
   const effectiveDays = end.diff(start, 'day') + 1
   const weekends: string[] = []
   const holidayDates: Array<{ date: string; name: string }> = []
-  const halfDayDates = buildHalfDayDates(startDate, endDate)
+  const halfDaysList: string[] = []
 
   let workingDays = 0
   let current = start
@@ -202,18 +208,18 @@ export const calculateDateRangeBreakdown = (
     })
 
     if (holiday) {
-      const holidayName = holiday.value || 'Public Holiday'
-      holidayDates.push({ date: dateStr, name: holidayName })
+      if (holiday.additionalValue1 === '05H') {
+        workingDays += 0.5
+        halfDaysList.push(dateStr)
+      } else {
+        const holidayName = holiday.value || 'Public Holiday'
+        holidayDates.push({ date: dateStr, name: holidayName })
+      }
       current = current.add(1, 'day')
       continue
     }
 
-    if (halfDayDates.has(dateStr)) {
-      workingDays += 0.5
-    } else {
-      workingDays += 1
-    }
-
+    workingDays += 1
     current = current.add(1, 'day')
   }
 
@@ -222,9 +228,6 @@ export const calculateDateRangeBreakdown = (
     workingDays: Math.round(workingDays * 100) / 100,
     weekends,
     holidays: holidayDates,
-    halfDays: Array.from(halfDayDates).filter(date => {
-      const dateObj = dayjs(date)
-      return dateObj.isSameOrAfter(start) && dateObj.isSameOrBefore(end)
-    })
+    halfDays: halfDaysList
   }
 }
