@@ -561,8 +561,19 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
           })()
         : undefined
 
+      // Debug logs
+      console.log('[CRM Lead Convert] Raw data before payload builder:', {
+        account,
+        contact,
+        opportunity
+      })
+
       // Build payload using simple builder
-      return buildCustomerLeadConvertPayload(actualLeadId, account, contact, opportunity)
+      const finalPayload = buildCustomerLeadConvertPayload(actualLeadId, account, contact, opportunity)
+
+      console.log('[CRM Lead Convert] Final payload after builder:', finalPayload)
+
+      return finalPayload
     },
     [actualLeadId, isFormReadyForConversion, form, accountForm, contactForm, opportunityForm]
   )

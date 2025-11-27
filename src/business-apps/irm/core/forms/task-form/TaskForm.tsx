@@ -55,6 +55,12 @@ export const TaskForm: React.FC<TaskFormProps> = ({ accessToken, userInfo, addit
   const leadId = additionalData?.leadId || initialParameters?.leadId || null
   const investmentId = additionalData?.investmentId || initialParameters?.investmentId || null
 
+  // Extract typeRef from additionalData or initialParameters
+  const typeRef = additionalData?.typeRef || initialParameters?.typeRef || null
+
+  // Determine if this is an Approval task (type selection should be hidden)
+  const isApprovalTask = typeRef?.toUpperCase().includes('APPROVAL')
+
   const form = useForm<z.infer<typeof investmentTaskSchema>>({
     resolver: zodResolver(investmentTaskSchema) as any,
     defaultValues: mapToFormValues(task || {}, investmentTaskSchema) as Partial<InvestmentTask>,
@@ -170,6 +176,14 @@ export const TaskForm: React.FC<TaskFormProps> = ({ accessToken, userInfo, addit
     }
   }, [accessToken, taskId, searchEntities])
 
+  // Pre-set the type from context when provided
+  useEffect(() => {
+    if (typeRef && !task) {
+      // Only set for new tasks, not when editing existing ones
+      form.setValue('taskTypeRef', typeRef)
+    }
+  }, [typeRef, task, form])
+
   const handleAdditionalEntityChange = useCallback(
     (type: string, entityId: string | null) => {
       if (type === 'investment') {
@@ -235,6 +249,9 @@ export const TaskForm: React.FC<TaskFormProps> = ({ accessToken, userInfo, addit
           typeCatalog={'InvestmentTaskType:v1'}
           priorityCatalog={'InvestmentTaskPriority:v1'}
           statusCatalog={'InvestmentTaskStatus:v1'}
+          // Type selection control
+          initialTypeRef={typeRef}
+          hideTypeSelection={isApprovalTask}
           // Entity search - hide if any entity is set
           showEntitySelection={
             !(

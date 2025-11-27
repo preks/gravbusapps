@@ -688,8 +688,15 @@ export const ConvertInvestmentLeadForm = ({
           })()
         : undefined
 
+      // Debug logs
+      console.log('[IRM Lead Convert] Raw data before payload builder:', { account, contact, opportunity })
+
       // Build payload using simple builder
-      return buildInvestmentLeadConvertPayload(actualLeadId, account, contact, opportunity)
+      const finalPayload = buildInvestmentLeadConvertPayload(actualLeadId, account, contact, opportunity)
+
+      console.log('[IRM Lead Convert] Final payload after builder:', finalPayload)
+
+      return finalPayload
     },
     [
       actualLeadId,
