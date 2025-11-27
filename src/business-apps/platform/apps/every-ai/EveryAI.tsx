@@ -237,27 +237,29 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
         onSendTranscript={handleVoiceSend}
       />
 
-      {/* Top Right Actions - Fullscreen & Reminders (hidden in speech mode) */}
+      {/* Top Left - Fullscreen button (only in sidepanel mode, hidden in speech mode) */}
+      {!isSpeechMode && isInSidepanel && (
+        <div className="gba:absolute gba:top-4 gba:left-4 gba:z-50">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={openFullscreen}
+            className="gba:relative gba:p-2 gba:rounded-full gba:bg-card/80 gba:backdrop-blur-sm gba:border gba:border-border hover:gba:bg-accent gba:transition-all hover:gba:shadow-lg gba:group"
+            data-testid="every-ai-fullscreen-button"
+            title="Open in Fullscreen"
+          >
+            <ArrowsOut
+              className="gba:h-5 gba:w-5 gba:text-muted-foreground group-hover:gba:text-primary gba:transition-colors"
+              weight="regular"
+              aria-hidden="true"
+            />
+          </Button>
+        </div>
+      )}
+
+      {/* Top Right - Reminders button (hidden in speech mode) */}
       {!isSpeechMode && (
-        <div className="gba:absolute gba:top-4 gba:right-4 gba:z-50 gba:flex gba:gap-2">
-          {/* Fullscreen button - only visible in sidepanel mode */}
-          {isInSidepanel && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={openFullscreen}
-              className="gba:relative gba:p-2 gba:rounded-full gba:bg-card/80 gba:backdrop-blur-sm gba:border gba:border-border hover:gba:bg-accent gba:transition-all hover:gba:shadow-lg gba:group"
-              data-testid="every-ai-fullscreen-button"
-              title="Open in Fullscreen"
-            >
-              <ArrowsOut
-                className="gba:h-5 gba:w-5 gba:text-muted-foreground group-hover:gba:text-primary gba:transition-colors"
-                weight="regular"
-                aria-hidden="true"
-              />
-            </Button>
-          )}
-          {/* Reminders button */}
+        <div className="gba:absolute gba:top-4 gba:right-4 gba:z-50">
           <Button
             variant="ghost"
             size="sm"

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useId } from 'react'
-import { Button, Textarea } from '@newwork/nw-design-system'
+import { Button, Textarea, Popover, PopoverContent, PopoverTrigger } from '@newwork/nw-design-system'
+import { Plus, Paperclip, Globe, Trash, PaperPlaneTilt } from '@phosphor-icons/react'
 import { useFileUploadManager, MaxNumberOfFilesError, MaxTotalSizeError } from '../hooks/useFileUploadManager'
 import { VoiceModeButton } from './voice/VoiceModeButton'
 
@@ -207,39 +208,86 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           </div>
         )}
 
-        {/* Input Container - Responsive for sidepanel */}
+        {/* Input Container - Modern compact design */}
         <div className="gba:relative gba:group">
           <div className="gba:rounded-2xl gba:border-2 gba:border-border hover:gba:border-primary/50 gba:bg-card gba:shadow-lg gba:p-2 gba:transition-all gba:relative">
-            <div className="gba:flex gba:items-end gba:gap-1.5">
-              {/* File Upload Button */}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gba:h-10 gba:w-10 gba:rounded-xl gba:bg-muted hover:gba:bg-primary hover:gba:text-primary-foreground gba:transition-all gba:shadow-sm gba:flex-shrink-0"
-                onClick={() => fileInputRef.current?.click()}
-                aria-label="Attach file"
-                title="Attach file"
-                disabled={disabled}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  className="gba:h-5 gba:w-5"
-                >
-                  <path d="M21.44 11.05 12 20.5a6 6 0 0 1-8.49-8.49l9.19-9.19a4.5 4.5 0 0 1 6.36 6.36L9.88 18.36a3 3 0 1 1-4.24-4.24l8.49-8.49" />
-                </svg>
-              </Button>
+            <div className="gba:flex gba:items-end gba:gap-2">
+              {/* Left side: More actions menu */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={`gba:h-9 gba:w-9 gba:rounded-xl gba:transition-all gba:flex-shrink-0 ${
+                      isSearching || files.length > 0
+                        ? 'gba:bg-primary gba:text-primary-foreground'
+                        : 'gba:bg-muted hover:gba:bg-accent'
+                    }`}
+                    aria-label="More options"
+                    title="More options"
+                    disabled={disabled}
+                  >
+                    <Plus className="gba:h-5 gba:w-5" weight="bold" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="gba:w-48 gba:p-2" side="top" align="start" sideOffset={8}>
+                  <div className="gba:flex gba:flex-col gba:gap-1">
+                    {/* Attach File */}
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:text-foreground hover:gba:bg-accent gba:transition-colors gba:w-full gba:text-left"
+                      disabled={disabled}
+                    >
+                      <Paperclip className="gba:h-4 gba:w-4 gba:text-muted-foreground" weight="bold" />
+                      <span>Attach file</span>
+                      {files.length > 0 && (
+                        <span className="gba:ml-auto gba:text-xs gba:bg-primary gba:text-primary-foreground gba:px-1.5 gba:py-0.5 gba:rounded-full">
+                          {files.length}
+                        </span>
+                      )}
+                    </button>
 
-              {/* Textarea - Flexible width */}
+                    {/* Web Search Toggle */}
+                    <button
+                      onClick={() => setIsSearching(!isSearching)}
+                      className={`gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors gba:w-full gba:text-left ${
+                        isSearching ? 'gba:bg-success/10 gba:text-success' : 'gba:text-foreground hover:gba:bg-accent'
+                      }`}
+                      disabled={disabled}
+                    >
+                      <Globe className="gba:h-4 gba:w-4" weight={isSearching ? 'fill' : 'bold'} />
+                      <span>Web search</span>
+                      {isSearching && <span className="gba:ml-auto gba:text-xs gba:text-success">ON</span>}
+                    </button>
+
+                    {/* Divider */}
+                    <div className="gba:h-px gba:bg-border gba:my-1" />
+
+                    {/* Clear Conversation */}
+                    <button
+                      onClick={() => {
+                        setValue('')
+                        clearFiles()
+                        onClear()
+                        focusTextarea()
+                      }}
+                      className="gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:text-destructive hover:gba:bg-destructive/10 gba:transition-colors gba:w-full gba:text-left"
+                      disabled={disabled}
+                    >
+                      <Trash className="gba:h-4 gba:w-4" weight="bold" />
+                      <span>Clear chat</span>
+                    </button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              {/* Textarea - Takes all available space */}
               <Textarea
                 ref={textareaRef}
                 value={value}
                 onChange={e => setValue(e.target.value)}
                 placeholder={placeholder}
-                className="gba:flex-1 gba:min-w-0 gba:min-h-[40px] gba:max-h-48 gba:resize-none gba:bg-transparent gba:border-none focus-visible:gba:ring-0 gba:text-base placeholder:gba:text-muted-foreground/70"
+                className="gba:flex-1 gba:min-w-0 gba:min-h-[36px] gba:max-h-32 gba:resize-none gba:bg-transparent gba:border-none focus-visible:gba:ring-0 gba:text-base placeholder:gba:text-muted-foreground/70 gba:py-1.5"
                 onKeyDown={e => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault()
@@ -249,36 +297,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 disabled={disabled}
               />
 
-              {/* Action Buttons Container - Compact for sidepanel */}
+              {/* Right side: Voice + Send only */}
               <div className="gba:flex gba:items-center gba:gap-1.5 gba:flex-shrink-0">
-                {/* Web Search Toggle */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={`gba:h-10 gba:w-10 gba:rounded-xl gba:transition-all gba:shadow-sm ${
-                    isSearching
-                      ? 'gba:bg-success gba:text-success-foreground'
-                      : 'gba:bg-muted hover:gba:bg-success hover:gba:text-success-foreground'
-                  }`}
-                  onClick={() => setIsSearching(!isSearching)}
-                  aria-label="Toggle web search"
-                  disabled={disabled}
-                  title={isSearching ? 'Web search enabled' : 'Enable web search'}
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    className="gba:h-5 gba:w-5"
-                  >
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="2" y1="12" x2="22" y2="12" />
-                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                  </svg>
-                </Button>
-
                 {/* Voice Mode Button */}
                 {voiceModeSupported && (
                   <VoiceModeButton
@@ -293,53 +313,17 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                   />
                 )}
 
-                {/* Clear Button */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="gba:h-10 gba:w-10 gba:rounded-xl gba:bg-muted hover:gba:bg-destructive hover:gba:text-destructive-foreground gba:transition-all gba:shadow-sm"
-                  onClick={() => {
-                    setValue('')
-                    clearFiles()
-                    onClear()
-                    focusTextarea()
-                  }}
-                  aria-label="Clear session"
-                  disabled={disabled}
-                  title="Clear conversation"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    className="gba:h-5 gba:w-5"
-                  >
-                    <path d="M18 6 6 18M6 6l12 12" />
-                  </svg>
-                </Button>
-
                 {/* Send Button */}
                 <Button
                   variant="default"
                   size="sm"
-                  className="gba:h-10 gba:w-10 gba:rounded-xl gba:bg-gradient-to-br gba:from-primary gba:to-info hover:gba:shadow-lg gba:transition-all"
+                  className="gba:h-9 gba:w-9 gba:rounded-xl gba:bg-gradient-to-br gba:from-primary gba:to-info hover:gba:shadow-lg gba:transition-all"
                   onClick={handleSend}
                   aria-label="Send"
                   title="Send message"
                   disabled={disabled || (!value.trim() && files.length === 0)}
                 >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    className="gba:h-5 gba:w-5"
-                  >
-                    <path d="m5 12 14-7-7 14-1-6-6-1Z" />
-                  </svg>
+                  <PaperPlaneTilt className="gba:h-5 gba:w-5" weight="fill" />
                 </Button>
               </div>
             </div>
