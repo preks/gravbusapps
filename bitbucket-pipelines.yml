@@ -194,8 +194,9 @@ definitions:
         script:
           - pipe: sonarsource/sonarcloud-scan:4.1.0
             variables:
-              SONAR_SCANNER_OPTS: -Xmx6144m
-              EXTRA_ARGS: ['-Dsonar.javascript.node.maxspace=4096']
+              SONAR_SCANNER_OPTS: -Xmx4096m
+              EXTRA_ARGS: 
+                - '-Dsonar.javascript.node.maxspace=3072'
 
 pipelines:
   pull-requests:
@@ -209,12 +210,11 @@ pipelines:
     develop:
       - step: *install_dependencies
       - step: *publish-changed-screens
-    # Deactivated due to current SonarCloud sizing limits
-    #      - step: *sonar_scan
+      - step: *sonar_scan
+
     hotfix/*:
       - step: *install_dependencies
       - step: *publish-changed-prod-screens
-      - step: *sonar_scan
 
     main:
       - step: *install_dependencies
