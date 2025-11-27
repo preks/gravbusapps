@@ -498,7 +498,9 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     setIsSubmitting(true)
     try {
       const now = new Date()
-      const isoNow = now.toISOString()
+      // Simulate clock-out 5 hours later than current time
+      const simulatedEndTime = new Date(now.getTime() + 5 * 60 * 60 * 1000)
+      const isoNow = simulatedEndTime.toISOString()
 
       // Most recent record is first; must be open (no endTime)
       const mostRecent = allEntries[0]
@@ -511,7 +513,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       if (accessToken) client.setAccessToken(accessToken)
 
       const start = new Date(mostRecent.startTimeISO as string)
-      const recordedMs = Math.max(0, now.getTime() - start.getTime())
+      const recordedMs = Math.max(0, simulatedEndTime.getTime() - start.getTime())
       const recordedMinutes = Math.max(0, Math.round(recordedMs / 60000))
       const plannedMinutes = getPlannedMinutesForDate(mostRecent.attendanceDateISO)
       // Use existing break time if present; otherwise 0
