@@ -117,11 +117,20 @@ export function OpportunityBoardLayout<T extends GenericOpportunityForBoard>(
 
       return (
         <div
+          role="button"
+          tabIndex={0}
           className="gba:bg-white gba:dark:bg-gray-800 gba:rounded-md gba:shadow-sm gba:border gba:border-gray-200 gba:dark:border-gray-700 gba:p-3 gba:cursor-pointer gba:hover:shadow-md gba:transition-shadow"
           data-testid={`opportunity-card-${opp.id}`}
           onClick={e => {
             e.stopPropagation()
             handleCardClick(opp)
+          }}
+          onKeyDown={e => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              e.stopPropagation()
+              handleCardClick(opp)
+            }
           }}
         >
           <h4 className="gba:font-medium gba:text-sm gba:line-clamp-2 gba:mb-2">{opp.name || 'Unnamed Opportunity'}</h4>
@@ -146,6 +155,8 @@ export function OpportunityBoardLayout<T extends GenericOpportunityForBoard>(
       if (renderCard) {
         return (
           <div
+            role="button"
+            tabIndex={0}
             className="gba:cursor-pointer gba:hover:opacity-90 gba:transition-opacity"
             onMouseDown={e => {
               mouseDownTime.current = Date.now()
@@ -158,6 +169,13 @@ export function OpportunityBoardLayout<T extends GenericOpportunityForBoard>(
 
               // If quick click and minimal movement, treat as click (not drag)
               if (timeDiff < CLICK_TIMEOUT_MS && dx < DRAG_THRESHOLD_PX && dy < DRAG_THRESHOLD_PX) {
+                e.stopPropagation()
+                handleCardClick(opp)
+              }
+            }}
+            onKeyDown={e => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
                 e.stopPropagation()
                 handleCardClick(opp)
               }
