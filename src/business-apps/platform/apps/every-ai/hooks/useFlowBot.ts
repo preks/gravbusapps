@@ -554,7 +554,23 @@ export function useFlowBot(accessToken: string) {
       const baseUrl = resolveFlowbotBaseUrl()
 
       const form = new FormData()
-      const prechatContext = await buildCurrentPageContextPayload()
+      // For prechat suggestions we only need lightweight page context without analytics
+      const url = typeof window !== 'undefined' ? window.location.href : ''
+      const route = typeof window !== 'undefined' ? window.location.pathname : ''
+      const baseCurrentPage = {
+        url,
+        route,
+        view: undefined as string | undefined,
+        type: currentPageContext.type,
+        entity_name:
+          currentPageContext.type === 'entity' || currentPageContext.type === 'overview'
+            ? currentPageContext.entity_name
+            : undefined,
+        id: currentPageContext.type === 'entity' ? currentPageContext.id : undefined
+      }
+      const prechatContext = prepareCurrentPageContext({
+        currentPage: baseCurrentPage
+      })
       form.append('current_page_context', JSON.stringify(prechatContext))
 
       // Add timeout to prevent long waits
@@ -588,7 +604,7 @@ export function useFlowBot(accessToken: string) {
       setIsPrechatLoading(false)
       isPrechatLoadingRef.current = false
     }
-  }, [accessToken, buildCurrentPageContextPayload, state.conversation.length])
+  }, [accessToken, currentPageContext, state.conversation.length])
 
   const clearConversation = useCallback(() => {
     setState({ conversation: [], sessionId: null })

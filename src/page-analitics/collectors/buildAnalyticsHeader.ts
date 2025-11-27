@@ -12,7 +12,8 @@ import {
   AnalyticsSummary,
   AnalyticsContact,
   AnalyticsLink,
-  AnalyticsRawSnapshot
+  AnalyticsRawSnapshot,
+  AnalyticsPrimitiveValue
 } from '../types/analytics-context'
 import type { GraphQLClient } from '@/common/network/graphql/GraphQLClient'
 import { GET_INVESTMENT_BY_ID } from '@/common/data/investment/queries/investmentQueries'
@@ -25,6 +26,239 @@ import {
   normalizeEmail,
   normalizePhone
 } from './collectorUtils'
+
+type UnitType = 'currency' | 'percent' | 'sharePrice'
+
+interface LiquidMetricDefinition {
+  idSuffix: string
+  label?: string
+  keys: string[]
+  unitType?: UnitType
+}
+
+const LIQUID_METRIC_DEFINITIONS: LiquidMetricDefinition[] = [
+  { idSuffix: 'name', label: 'Investment Name', keys: ['name'] },
+  { idSuffix: 'proprietor', label: 'Proprietor', keys: ['proprietorName'] },
+  { idSuffix: 'bank', label: 'Bank', keys: ['bankName'] },
+  { idSuffix: 'bankAccountNumber', label: 'Bank Account Number', keys: ['bankAccountNumber'] },
+  {
+    idSuffix: 'openingBalance',
+    label: 'Opening Balance',
+    keys: ['openingBalanceAmount', 'openingBalance'],
+    unitType: 'currency'
+  },
+  { idSuffix: 'incoming', label: 'Incoming', keys: ['incomingAmount', 'incoming'], unitType: 'currency' },
+  { idSuffix: 'outgoing', label: 'Outgoing', keys: ['outgoingAmount', 'outgoing'], unitType: 'currency' },
+  {
+    idSuffix: 'incomeInterest',
+    label: 'Income (Interest)',
+    keys: ['incomeInterest', 'incomeInterestAmount', 'income'],
+    unitType: 'currency'
+  },
+  { idSuffix: 'netIncome', label: 'Net Income', keys: ['netIncome', 'netIncomeAmount'], unitType: 'currency' },
+  {
+    idSuffix: 'realizedGainsCurrency',
+    label: 'Realized Gains/Losses',
+    keys: ['realizedGainsLossesCurrency', 'realizedGainsLossesAmount', 'realizedGainsLosses'],
+    unitType: 'currency'
+  },
+  {
+    idSuffix: 'unrealizedGainsCurrency',
+    label: 'Unrealized Gains/Losses',
+    keys: ['unrealizedGainsLossesCurrency', 'unrealizedGainsLossesAmount', 'unrealizedGainsLosses'],
+    unitType: 'currency'
+  },
+  {
+    idSuffix: 'realizedGainsSharePrice',
+    label: 'Realized Gains/Losses Share Price',
+    keys: ['realizedGainsLossesSharePrice'],
+    unitType: 'currency'
+  },
+  {
+    idSuffix: 'unrealizedGainsSharePrice',
+    label: 'Unrealized Gains/Losses Share Price',
+    keys: ['unrealizedGainsLossesSharePrice'],
+    unitType: 'currency'
+  },
+  {
+    idSuffix: 'closingBalance',
+    label: 'Closing Balance',
+    keys: ['closingBalance', 'closingBalanceAmount'],
+    unitType: 'currency'
+  },
+  {
+    idSuffix: 'timeWeightedPerformance',
+    label: 'Time-Weighted Performance',
+    keys: ['timeWeightedPerformancePercent', 'timeWeightedPerformance'],
+    unitType: 'percent'
+  },
+  { idSuffix: 'quantity', label: 'Quantity', keys: ['quantity'] },
+  { idSuffix: 'maturityDate', label: 'Maturity Date', keys: ['maturityDate'] },
+  { idSuffix: 'interestRate', label: 'Interest Rate', keys: ['interestRate'], unitType: 'percent' }
+]
+
+function parseAdditionalProperties(value: unknown): Record<string, any> {
+  if (!value) return {}
+  if (typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, any>
+  }
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value)
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as Record<string, any>
+      }
+    } catch {
+      // ignore malformed JSON
+    }
+  }
+  return {}
+}
+
+function mergeWithAdditionalProperties<T extends Record<string, any>>(base: T): T & Record<string, any> {
+  const additional = parseAdditionalProperties(base.additionalProperties)
+  return { ...additional, ...base }
+}
+
+function findValueInSource(source: Record<string, any>, keys: string[]): { key: string; value: any } | null {
+  for (const key of keys) {
+    if (source[key] !== undefined && source[key] !== null && source[key] !== '') {
+      return { key, value: source[key] }
+    }
+    const camelVariant = key.replace(/_([a-z])/g, (_, g1) => g1.toUpperCase())
+    if (source[camelVariant] !== undefined && source[camelVariant] !== null && source[camelVariant] !== '') {
+      return { key: camelVariant, value: source[camelVariant] }
+    }
+    const snakeVariant = key.replace(/([A-Z])/g, '_$1').toLowerCase()
+    if (source[snakeVariant] !== undefined && source[snakeVariant] !== null && source[snakeVariant] !== '') {
+      return { key: snakeVariant, value: source[snakeVariant] }
+    }
+  }
+  return null
+}
+
+function parseNumberFromString(raw: string): number | undefined {
+  const trimmed = raw.trim()
+  if (!trimmed) return undefined
+  const cleaned = trimmed.replace(/\s+/g, '').replace(/[^0-9,.\-]/g, '')
+  if (!cleaned) return undefined
+  const hasDot = cleaned.includes('.')
+  let normalized = cleaned
+  if (!hasDot && (cleaned.match(/,/g)?.length || 0) === 1) {
+    normalized = cleaned.replace(',', '.')
+  }
+  normalized = normalized.replace(/,/g, '')
+  const parsed = Number(normalized)
+  return Number.isFinite(parsed) ? parsed : undefined
+}
+
+function buildMetricValue(value: unknown): {
+  metricValue: AnalyticsPrimitiveValue
+  extraMeta?: Record<string, unknown>
+} | null {
+  if (value === null || value === undefined) {
+    return null
+  }
+
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return { metricValue: value }
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (!trimmed) return null
+    const numeric = parseNumberFromString(trimmed)
+    if (numeric !== undefined) {
+      return {
+        metricValue: numeric,
+        extraMeta: { originalValue: trimmed }
+      }
+    }
+    return { metricValue: trimmed }
+  }
+
+  if (Array.isArray(value)) {
+    if (value.length === 0) return null
+    return {
+      metricValue: JSON.stringify(value),
+      extraMeta: { originalValue: value }
+    }
+  }
+
+  try {
+    return {
+      metricValue: JSON.stringify(value),
+      extraMeta: { originalValue: value }
+    }
+  } catch {
+    return null
+  }
+}
+
+function toDisplayValue(value: unknown): AnalyticsPrimitiveValue | undefined {
+  if (value === null || value === undefined) return undefined
+  if (typeof value === 'number' || typeof value === 'boolean') return value
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    return trimmed.length > 0 ? trimmed : undefined
+  }
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return undefined
+  }
+}
+
+function formatLabelFromKey(key: string): string {
+  return key
+    .replace(/[_\-]+/g, ' ')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^./, char => char.toUpperCase())
+}
+
+function resolveUnit(unitType: UnitType | undefined, currencyCode: string): string | undefined {
+  if (!unitType) return undefined
+  if (unitType === 'percent') return '%'
+  return currencyCode
+}
+
+function buildMetric(
+  id: string,
+  label: string,
+  rawValue: unknown,
+  unit: string | undefined,
+  metaSource: { source: string; key: string }
+): AnalyticsMetric | null {
+  const valueWithMeta = buildMetricValue(rawValue)
+  if (!valueWithMeta) return null
+
+  const metric: AnalyticsMetric = {
+    id,
+    label,
+    value: valueWithMeta.metricValue
+  }
+
+  if (unit) {
+    metric.unit = unit
+  }
+
+  const meta: Record<string, unknown> = {
+    source: metaSource.source,
+    key: metaSource.key
+  }
+
+  if (valueWithMeta.extraMeta) {
+    Object.assign(meta, valueWithMeta.extraMeta)
+  }
+
+  if (Object.keys(meta).length > 0) {
+    metric.meta = meta
+  }
+
+  return metric
+}
 
 function buildContactsFromAccount(account: any): AnalyticsContact[] {
   if (!account) return []
@@ -234,6 +468,54 @@ function buildRawSnapshot(investment: any, currency: string): AnalyticsRawSnapsh
     )
   }
 
+  if (Array.isArray(investment.liquidFundInvestment) && investment.liquidFundInvestment.length > 0) {
+    const limitedLiquid = limitArray(investment.liquidFundInvestment, 3)
+    raw.liquidFundInvestments = limitedLiquid.map((item: any) => {
+      const merged = mergeWithAdditionalProperties(item)
+      return compactRecord({
+        id: item.id,
+        proprietorName: item.proprietorName,
+        bankName: item.bankName,
+        bankAccountNumber: item.bankAccountNumber,
+        interestRate: item.interestRate,
+        maturityDate: item.maturityDate,
+        earlyTerminationAllowed: item.earlyTerminationAllowed,
+        snapshot: compactRecord({
+          openingBalance: toDisplayValue(findValueInSource(merged, ['openingBalanceAmount', 'openingBalance'])?.value),
+          incoming: toDisplayValue(findValueInSource(merged, ['incomingAmount', 'incoming'])?.value),
+          outgoing: toDisplayValue(findValueInSource(merged, ['outgoingAmount', 'outgoing'])?.value),
+          incomeInterest: toDisplayValue(
+            findValueInSource(merged, ['incomeInterest', 'incomeInterestAmount', 'income'])?.value
+          ),
+          netIncome: toDisplayValue(findValueInSource(merged, ['netIncome', 'netIncomeAmount'])?.value),
+          realizedGains: toDisplayValue(
+            findValueInSource(merged, [
+              'realizedGainsLossesCurrency',
+              'realizedGainsLossesAmount',
+              'realizedGainsLosses'
+            ])?.value
+          ),
+          unrealizedGains: toDisplayValue(
+            findValueInSource(merged, [
+              'unrealizedGainsLossesCurrency',
+              'unrealizedGainsLossesAmount',
+              'unrealizedGainsLosses'
+            ])?.value
+          ),
+          realizedGainsSharePrice: toDisplayValue(findValueInSource(merged, ['realizedGainsLossesSharePrice'])?.value),
+          unrealizedGainsSharePrice: toDisplayValue(
+            findValueInSource(merged, ['unrealizedGainsLossesSharePrice'])?.value
+          ),
+          closingBalance: toDisplayValue(findValueInSource(merged, ['closingBalance', 'closingBalanceAmount'])?.value),
+          timeWeightedPerformance: toDisplayValue(
+            findValueInSource(merged, ['timeWeightedPerformancePercent', 'timeWeightedPerformance'])?.value
+          ),
+          quantity: toDisplayValue(findValueInSource(merged, ['quantity'])?.value)
+        })
+      })
+    })
+  }
+
   if (isEmptyObject(raw.investment)) {
     delete raw.investment
   }
@@ -385,6 +667,83 @@ async function buildInvestmentAnalytics(params: {
       })),
       meta: { count: investment.equityInvestment.length }
     })
+  }
+
+  const liquidFundInvestments = Array.isArray(investment.liquidFundInvestment)
+    ? investment.liquidFundInvestment
+    : investment.liquidFundInvestment
+      ? [investment.liquidFundInvestment]
+      : []
+
+  const liquidSummaries: Record<string, unknown>[] = []
+
+  liquidFundInvestments.forEach((liquid: any, index: number) => {
+    if (!liquid) return
+
+    const merged = mergeWithAdditionalProperties(liquid)
+
+    const summaryItem = compactRecord({
+      id: liquid.id,
+      name: toDisplayValue(findValueInSource(merged, ['name'])?.value) ?? toDisplayValue(liquid.name),
+      proprietor: toDisplayValue(merged.proprietorName),
+      bank: toDisplayValue(merged.bankName),
+      bankAccountNumber: toDisplayValue(merged.bankAccountNumber),
+      openingBalance: toDisplayValue(findValueInSource(merged, ['openingBalanceAmount', 'openingBalance'])?.value),
+      incoming: toDisplayValue(findValueInSource(merged, ['incomingAmount', 'incoming'])?.value),
+      outgoing: toDisplayValue(findValueInSource(merged, ['outgoingAmount', 'outgoing'])?.value),
+      incomeInterest: toDisplayValue(
+        findValueInSource(merged, ['incomeInterest', 'incomeInterestAmount', 'income'])?.value
+      ),
+      netIncome: toDisplayValue(findValueInSource(merged, ['netIncome', 'netIncomeAmount'])?.value),
+      realizedGains: toDisplayValue(
+        findValueInSource(merged, ['realizedGainsLossesCurrency', 'realizedGainsLossesAmount', 'realizedGainsLosses'])
+          ?.value
+      ),
+      unrealizedGains: toDisplayValue(
+        findValueInSource(merged, [
+          'unrealizedGainsLossesCurrency',
+          'unrealizedGainsLossesAmount',
+          'unrealizedGainsLosses'
+        ])?.value
+      ),
+      realizedGainsSharePrice: toDisplayValue(findValueInSource(merged, ['realizedGainsLossesSharePrice'])?.value),
+      unrealizedGainsSharePrice: toDisplayValue(findValueInSource(merged, ['unrealizedGainsLossesSharePrice'])?.value),
+      closingBalance: toDisplayValue(findValueInSource(merged, ['closingBalance', 'closingBalanceAmount'])?.value),
+      timeWeightedPerformance: toDisplayValue(
+        findValueInSource(merged, ['timeWeightedPerformancePercent', 'timeWeightedPerformance'])?.value
+      ),
+      quantity: toDisplayValue(findValueInSource(merged, ['quantity'])?.value),
+      maturityDate: toDisplayValue(merged.maturityDate),
+      interestRate: toDisplayValue(merged.interestRate)
+    })
+
+    if (Object.keys(summaryItem).length > 1) {
+      liquidSummaries.push(summaryItem)
+    }
+
+    const baseMetricId = `investment.liquid.${index}`
+    const sourceKey = `liquidFundInvestment[${index}]`
+
+    LIQUID_METRIC_DEFINITIONS.forEach(def => {
+      const found = findValueInSource(merged, def.keys)
+      if (!found) return
+
+      const label = def.label ?? formatLabelFromKey(found.key)
+      const unit = resolveUnit(def.unitType, currencyCode)
+
+      const metric = buildMetric(`${baseMetricId}.${def.idSuffix}`, label, found.value, unit, {
+        source: sourceKey,
+        key: found.key
+      })
+
+      if (metric) {
+        metrics.push(metric)
+      }
+    })
+  })
+
+  if (liquidSummaries.length > 0) {
+    ;(summary as Record<string, unknown>).liquidFundInvestments = liquidSummaries
   }
 
   const meta: Record<string, unknown> = {
