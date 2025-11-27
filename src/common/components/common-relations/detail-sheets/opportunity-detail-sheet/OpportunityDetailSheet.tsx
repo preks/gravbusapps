@@ -258,17 +258,10 @@ const OpportunityDetailContent: React.FC<OpportunityDetailContentProps> = ({
               {opportunity.ownerEmployee ? (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:hover:bg-accent gba:px-2 gba:py-1 gba:rounded gba:transition-colors gba:w-fit gba:min-h-[24px]"
+                    <button
+                      type="button"
+                      className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:hover:bg-accent gba:px-2 gba:py-1 gba:rounded gba:transition-colors gba:w-fit gba:min-h-[24px] gba:bg-transparent gba:border-none gba:font-inherit gba:text-inherit"
                       onClick={() => handleEmployeeClick(opportunity.ownerEmployee!.id)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault()
-                          handleEmployeeClick(opportunity.ownerEmployee!.id)
-                        }
-                      }}
                       data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-owner-link`}
                     >
                       <Avatar size="sm" className="gba:size-6">
@@ -288,7 +281,7 @@ const OpportunityDetailContent: React.FC<OpportunityDetailContentProps> = ({
                           t('unknown')}
                       </span>
                       <ArrowSquareOutIcon size={12} className="gba:text-muted-foreground" />
-                    </div>
+                    </button>
                   </TooltipTrigger>
                   <TooltipContent>{t('view-employee-profile')}</TooltipContent>
                 </Tooltip>
@@ -306,22 +299,15 @@ const OpportunityDetailContent: React.FC<OpportunityDetailContentProps> = ({
               {opportunity.account ? (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:hover:bg-accent gba:px-2 gba:py-1 gba:rounded gba:transition-colors gba:w-fit gba:min-h-[24px]"
+                    <button
+                      type="button"
+                      className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:hover:bg-accent gba:px-2 gba:py-1 gba:rounded gba:transition-colors gba:w-fit gba:min-h-[24px] gba:bg-transparent gba:border-none gba:font-inherit gba:text-inherit"
                       onClick={handleAccountClick}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault()
-                          handleAccountClick()
-                        }
-                      }}
                       data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-account-link`}
                     >
                       <span className="gba:text-sm gba:font-medium">{opportunity.account.name}</span>
                       <ArrowSquareOutIcon size={12} className="gba:text-muted-foreground" />
-                    </div>
+                    </button>
                   </TooltipTrigger>
                   <TooltipContent>{t('view-account-record')}</TooltipContent>
                 </Tooltip>
@@ -339,22 +325,15 @@ const OpportunityDetailContent: React.FC<OpportunityDetailContentProps> = ({
               >
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:hover:bg-accent gba:px-2 gba:py-1 gba:rounded gba:transition-colors gba:w-fit gba:min-h-[24px]"
+                    <button
+                      type="button"
+                      className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:hover:bg-accent gba:px-2 gba:py-1 gba:rounded gba:transition-colors gba:w-fit gba:min-h-[24px] gba:bg-transparent gba:border-none gba:font-inherit gba:text-inherit"
                       onClick={handleLeadClick}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault()
-                          handleLeadClick()
-                        }
-                      }}
                       data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-lead-link`}
                     >
                       <span className="gba:text-sm gba:font-medium">{opportunity.lead.companyName}</span>
                       <ArrowSquareOutIcon size={12} className="gba:text-muted-foreground" />
-                    </div>
+                    </button>
                   </TooltipTrigger>
                   <TooltipContent>{t('view-lead-record')}</TooltipContent>
                 </Tooltip>

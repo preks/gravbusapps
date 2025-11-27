@@ -116,21 +116,13 @@ export function OpportunityBoardLayout<T extends GenericOpportunityForBoard>(
           }).format(amount)
 
       return (
-        <div
-          role="button"
-          tabIndex={0}
-          className="gba:bg-white gba:dark:bg-gray-800 gba:rounded-md gba:shadow-sm gba:border gba:border-gray-200 gba:dark:border-gray-700 gba:p-3 gba:cursor-pointer gba:hover:shadow-md gba:transition-shadow"
+        <button
+          type="button"
+          className="gba:bg-white gba:dark:bg-gray-800 gba:rounded-md gba:shadow-sm gba:border gba:border-gray-200 gba:dark:border-gray-700 gba:p-3 gba:cursor-pointer gba:hover:shadow-md gba:transition-shadow gba:w-full gba:text-left"
           data-testid={`opportunity-card-${opp.id}`}
           onClick={e => {
             e.stopPropagation()
             handleCardClick(opp)
-          }}
-          onKeyDown={e => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault()
-              e.stopPropagation()
-              handleCardClick(opp)
-            }
           }}
         >
           <h4 className="gba:font-medium gba:text-sm gba:line-clamp-2 gba:mb-2">{opp.name || 'Unnamed Opportunity'}</h4>
@@ -138,7 +130,7 @@ export function OpportunityBoardLayout<T extends GenericOpportunityForBoard>(
             {opp.account?.name || '-'}
           </p>
           <div className="gba:mt-2 gba:font-bold gba:text-sm">{formattedAmount}</div>
-        </div>
+        </button>
       )
     },
     [config.formatCurrency, handleCardClick]
@@ -154,10 +146,9 @@ export function OpportunityBoardLayout<T extends GenericOpportunityForBoard>(
       // We use onMouseDown + onMouseUp with timing to distinguish clicks from drags
       if (renderCard) {
         return (
-          <div
-            role="button"
-            tabIndex={0}
-            className="gba:cursor-pointer gba:hover:opacity-90 gba:transition-opacity"
+          <button
+            type="button"
+            className="gba:cursor-pointer gba:hover:opacity-90 gba:transition-opacity gba:w-full gba:bg-transparent gba:border-none gba:p-0 gba:font-inherit gba:text-inherit gba:text-left"
             onMouseDown={e => {
               mouseDownTime.current = Date.now()
               mouseDownPos.current = { x: e.clientX, y: e.clientY }
@@ -173,16 +164,9 @@ export function OpportunityBoardLayout<T extends GenericOpportunityForBoard>(
                 handleCardClick(opp)
               }
             }}
-            onKeyDown={e => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault()
-                e.stopPropagation()
-                handleCardClick(opp)
-              }
-            }}
           >
             {cardContent}
-          </div>
+          </button>
         )
       }
 
