@@ -4,7 +4,7 @@ import React, { useCallback } from 'react'
 import dayjs from 'dayjs'
 import { Button, Avatar, Alert } from '@newwork/gravity-ui-catalog'
 import { useOpenChat } from '@/modules/chat-sidebar/utils/hooks/useOpenChat'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
@@ -262,7 +262,8 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
         {/* Action button in top right corner with absolute positioning */}
         {accessToken && (
           <div className="gba:absolute gba:top-4 gba:right-2" onClick={e => e.stopPropagation()}>
-            <AppActionButton
+            <AppAction
+              variant="header"
               data-testid="employee-details-action-button"
               contextsArray={[FlowContextName.employeeEntity]}
               externalContextData={{
@@ -273,9 +274,7 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
               }}
               prefixDataTestId="employee-details-action"
               accessToken={accessToken}
-            >
-              {t('employee-details-actions')}
-            </AppActionButton>
+            />
           </div>
         )}
 
