@@ -11,7 +11,8 @@ import { RemindersPanel } from './components/RemindersPanel'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { VoiceOverlay } from './components/voice/VoiceOverlay'
 import { Button } from '@newwork/nw-design-system'
-import { Bell, Sparkle } from '@phosphor-icons/react'
+import { Bell, Sparkle, ArrowsOut } from '@phosphor-icons/react'
+import { navigateTo } from '@/common/utils/navigationUtils'
 import type { OutputItem, AnswerOutput } from './types/models'
 
 export interface EveryAIProps extends BusinessAppContextProps {
@@ -30,6 +31,24 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
   const [isSpeechMode, setIsSpeechMode] = useState(false)
   const isSpeechModeRef = useRef(false) // Ref for use in callbacks
   const lastSpokenTurnIndexRef = useRef<number>(-1)
+
+  // Detect if we're in sidepanel mode (not the fullscreen every-ai view)
+  const isInSidepanel = useMemo(() => {
+    if (typeof window === 'undefined') return false
+    // In dev mode, check if app param is exactly every-ai
+    const urlParams = new URLSearchParams(window.location.search)
+    const appParam = urlParams.get('app')
+    if (appParam === 'platform/apps/every-ai') return false
+    // In prod mode, check if we're on /platform/every-ai
+    if (window.location.pathname === '/platform/every-ai') return false
+    // Otherwise we're likely in a sidepanel or embedded
+    return true
+  }, [])
+
+  // Navigate to fullscreen mode
+  const openFullscreen = useCallback(() => {
+    navigateTo('/platform/every-ai')
+  }, [])
 
   const { conversation, isLoading, sendMessage, clearConversation, nextStepProposals, isPrechatLoading } =
     useFlowBot(accessToken)
@@ -218,9 +237,27 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
         onSendTranscript={handleVoiceSend}
       />
 
-      {/* Reminders Bell / AI Icon - Top Right (hidden in speech mode) */}
+      {/* Top Right Actions - Fullscreen & Reminders (hidden in speech mode) */}
       {!isSpeechMode && (
-        <div className="gba:absolute gba:top-4 gba:right-4 gba:z-50">
+        <div className="gba:absolute gba:top-4 gba:right-4 gba:z-50 gba:flex gba:gap-2">
+          {/* Fullscreen button - only visible in sidepanel mode */}
+          {isInSidepanel && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={openFullscreen}
+              className="gba:relative gba:p-2 gba:rounded-full gba:bg-card/80 gba:backdrop-blur-sm gba:border gba:border-border hover:gba:bg-accent gba:transition-all hover:gba:shadow-lg gba:group"
+              data-testid="every-ai-fullscreen-button"
+              title="Open in Fullscreen"
+            >
+              <ArrowsOut
+                className="gba:h-5 gba:w-5 gba:text-muted-foreground group-hover:gba:text-primary gba:transition-colors"
+                weight="regular"
+                aria-hidden="true"
+              />
+            </Button>
+          )}
+          {/* Reminders button */}
           <Button
             variant="ghost"
             size="sm"
