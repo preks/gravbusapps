@@ -53,7 +53,8 @@ definitions:
         files:
           - package-lock.json
       path: ./node_modules
-    sonar: ~/.sonar/cache
+    sonar:
+      path: /opt/sonar-scanner/.sonar/cache
 
   steps:
     - step: &install_dependencies
