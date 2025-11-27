@@ -27,6 +27,7 @@ export interface TransformedIncrementTypeVersion {
   activeFrom: string | null
   activeTo: string | null
   version: number
+  status: 'active' | 'expired' | 'inactive' | 'planned'
   incrementType: {
     id: string
     name: string

@@ -25,6 +25,8 @@ const GET_INCREMENT_TYPE_VERSION_DETAILS_QUERY = `
       fixedValue
       includeExcludeOption
       alternativeIncrementTypeVersionDetailId
+      checkStartBefore
+      startBeforeTime
     }
   }
 `
@@ -57,23 +59,27 @@ export const useIncrementTypeVersionDetailsData = (
     (
       rawData: IncrementTypeVersionDetailResponse['IncrementTypeVersionDetail']
     ): TransformedIncrementTypeVersionDetail[] => {
-      return rawData.map(item => ({
-        id: item.id,
-        version: item.version,
-        timeIssueType: item.timeIssueType,
-        displayOrder: item.displayOrder,
-        includeBreaks: item.includeBreaks,
-        fromAppliedDay: item.fromAppliedDay,
-        startTime: item.startTime,
-        toAppliedDate: item.toAppliedDate,
-        endTime: item.endTime,
-        sumTime: item.sumTime,
-        timeTypeId: item.timeTypeId,
-        incrementCalculationType: item.incrementCalculationType,
-        fixedValue: item.fixedValue,
-        includeExcludeOption: item.includeExcludeOption,
-        alternativeIncrementTypeVersionDetailId: item.alternativeIncrementTypeVersionDetailId
-      }))
+      return rawData
+        .map(item => ({
+          id: item.id,
+          version: item.version,
+          timeIssueType: item.timeIssueType,
+          displayOrder: item.displayOrder,
+          includeBreaks: item.includeBreaks,
+          fromAppliedDay: item.fromAppliedDay,
+          startTime: item.startTime,
+          toAppliedDate: item.toAppliedDate,
+          endTime: item.endTime,
+          sumTime: item.sumTime,
+          timeTypeId: item.timeTypeId,
+          incrementCalculationType: item.incrementCalculationType,
+          fixedValue: item.fixedValue,
+          includeExcludeOption: item.includeExcludeOption,
+          alternativeIncrementTypeVersionDetailId: item.alternativeIncrementTypeVersionDetailId,
+          checkStartBefore: item.checkStartBefore ?? false,
+          startBeforeTime: item.startBeforeTime ?? null
+        }))
+        .sort((a, b) => a.displayOrder - b.displayOrder)
     },
     []
   )

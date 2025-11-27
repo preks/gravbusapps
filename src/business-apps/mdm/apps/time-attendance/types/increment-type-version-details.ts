@@ -14,9 +14,11 @@ export interface IncrementTypeVersionDetailResponse {
     sumTime: string
     timeTypeId: string
     incrementCalculationType: string
-    fixedValue: number | null
+    fixedValue: string | null
     includeExcludeOption: string
     alternativeIncrementTypeVersionDetailId: string | null
+    checkStartBefore: boolean
+    startBeforeTime: string | null
   }>
 }
 
@@ -33,7 +35,9 @@ export interface TransformedIncrementTypeVersionDetail {
   sumTime: string
   timeTypeId: string
   incrementCalculationType: string
-  fixedValue: number | null
+  fixedValue: string | null
   includeExcludeOption: string
   alternativeIncrementTypeVersionDetailId: string | null
+  checkStartBefore: boolean
+  startBeforeTime: string | null
 }

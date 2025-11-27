@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react'
 import { DataTable, Badge, Button } from '@newwork/nw-design-system'
-import { ColumnDef } from '@tanstack/react-table'
+import { ColumnDef, SortingState } from '@tanstack/react-table'
 import { MagnifyingGlassIcon, PencilSimpleLineIcon, TrashIcon } from '@phosphor-icons/react'
 import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
@@ -21,6 +21,31 @@ interface IncrementTypesVersionProps {
 
 const DATA_TEST_ID_PREFIX = 'IncrementTypesVersion'
 
+const StatusCell: React.FC<{ status: 'active' | 'expired' | 'inactive' | 'planned' }> = ({ status }) => {
+  let translationKey: string
+  let defaultLabel: string
+  if (status === 'active') {
+    translationKey = 'master-data:forms.capability.fields.status.options.active'
+    defaultLabel = 'Active'
+  } else if (status === 'expired') {
+    translationKey = 'lowcoder:hr_assets.expired'
+    defaultLabel = 'Expired'
+  } else if (status === 'planned') {
+    translationKey = 'lowcoder:absence_management_hub_backoffice.planned'
+    defaultLabel = 'Planned'
+  } else {
+    translationKey = 'flow.flow_start_page.inactive'
+    defaultLabel = 'Inactive'
+  }
+  return <Badge variant="outline">{getTranslationFromI18nKeyAndLabel(translationKey, defaultLabel)}</Badge>
+}
+
+const createStatusCellRenderer = () => {
+  return ({ getValue }: { getValue: () => unknown }) => (
+    <StatusCell status={getValue() as 'active' | 'expired' | 'inactive' | 'planned'} />
+  )
+}
+
 export const IncrementTypesVersion: React.FC<IncrementTypesVersionProps> = ({
   incrementTypeVersions,
   refetch,
@@ -35,6 +60,7 @@ export const IncrementTypesVersion: React.FC<IncrementTypesVersionProps> = ({
     useState<TransformedIncrementTypeVersion | null>(null)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [sorting, setSorting] = useState<SortingState>([])
 
   const handleSearch = useCallback((value: string) => {
     setSearchTerm(value)
@@ -123,26 +149,7 @@ export const IncrementTypesVersion: React.FC<IncrementTypesVersionProps> = ({
     {
       accessorKey: 'status',
       header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
-      cell: ({ row }) => {
-        const activeFrom = row.original.activeFrom
-        const activeTo = row.original.activeTo
-        const currentDate = new Date()
-        if (activeFrom && activeTo) {
-          if (currentDate >= new Date(activeFrom) && currentDate <= new Date(activeTo)) {
-            return (
-              <Badge variant="default">
-                {getTranslationFromI18nKeyAndLabel(
-                  'master-data:forms.capability.fields.status.options.active',
-                  'Active'
-                )}
-              </Badge>
-            )
-          }
-        }
-        return (
-          <Badge variant="outline">{getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.expired', 'Expired')}</Badge>
-        )
-      }
+      cell: createStatusCellRenderer()
     },
     {
       accessorKey: 'increments',
@@ -230,6 +237,9 @@ export const IncrementTypesVersion: React.FC<IncrementTypesVersionProps> = ({
         columns={columns}
         data={filteredIncrementTypeVersions}
         data-testid={formatDataTestId(dataTestId, 'increment-types-version-table')}
+        sorting={sorting}
+        onSortingChange={setSorting}
+        enableSorting
       />
 
       <DeleteDialog

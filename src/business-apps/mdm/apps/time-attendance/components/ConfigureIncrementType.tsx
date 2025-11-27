@@ -35,6 +35,7 @@ import { TransformedIncrementTypeVersion } from '../types/increment-type-version
 import IncrementTypeDetails from './IncrementTypeDetails'
 import { useVersionOverlapCheck } from '../hooks/useVersionOverlapCheck'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useTimeTypesData } from '../hooks/useTimeTypesData'
 
 export interface ConfigureIncrementTypeProps {
   incrementTypeVersion: TransformedIncrementTypeVersion | null
@@ -115,6 +116,9 @@ const ConfigureIncrementType: React.FC<ConfigureIncrementTypeProps> = ({
   const [loading, setLoading] = useState(false)
   const [currentIncrementTypeVersion, setCurrentIncrementTypeVersion] =
     useState<TransformedIncrementTypeVersion | null>(incrementTypeVersion)
+
+  // Fetch time types once at the top level to avoid duplicate queries
+  const { timeTypes } = useTimeTypesData({ accessToken })
 
   // Update currentIncrementTypeVersion when incrementTypeVersion prop changes
   useEffect(() => {
@@ -274,7 +278,7 @@ const ConfigureIncrementType: React.FC<ConfigureIncrementTypeProps> = ({
                 ? `${getTranslationFromI18nKeyAndLabel(
                     'master-data:hr.time_attendance.increment_type_versions.configure_increment_type_version',
                     'Configure Increment Type Version'
-                  )}: ${currentIncrementTypeVersion.incrementType?.code || currentIncrementTypeVersion.id}`
+                  )}: ${currentIncrementTypeVersion.activeVersion || currentIncrementTypeVersion.id}`
                 : getTranslationFromI18nKeyAndLabel(
                     'master-data:hr.time_attendance.increment_type_versions.create_increment_type_version',
                     'Create Increment Type Version Configuration'
@@ -477,6 +481,7 @@ const ConfigureIncrementType: React.FC<ConfigureIncrementTypeProps> = ({
                 ? currentIncrementTypeVersion.id
                 : null
             }
+            timeTypes={timeTypes}
             accessToken={accessToken}
             prefixDataTestId={prefixDataTestId}
           />

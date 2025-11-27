@@ -11,7 +11,7 @@ import IncrementTypeDetailsForm, {
   INCLUDE_EXCLUDE_OPTIONS
 } from '@/business-apps/mdm/forms/time-attendance/IncrementTypeDetailsForm'
 import { TransformedIncrementTypeVersionDetail } from '../types/increment-type-version-details'
-import { useTimeTypesData } from '../hooks/useTimeTypesData'
+import { TransformedTimeType } from '../types/time-types'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
 import { DeleteDialog } from './DeleteDialog'
@@ -21,6 +21,7 @@ export interface IncrementTypeDetailsProps {
   incrementTypeVersionId: string | null
   accessToken: string
   prefixDataTestId?: string
+  timeTypes: TransformedTimeType[]
 }
 
 const DATA_TEST_ID_PREFIX = 'IncrementTypeDetails'
@@ -28,7 +29,8 @@ const DATA_TEST_ID_PREFIX = 'IncrementTypeDetails'
 export const IncrementTypeDetails: React.FC<IncrementTypeDetailsProps> = ({
   incrementTypeVersionId,
   accessToken,
-  prefixDataTestId = ''
+  prefixDataTestId = '',
+  timeTypes
 }) => {
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
   const [sorting, setSorting] = useState<SortingState>([])
@@ -43,9 +45,6 @@ export const IncrementTypeDetails: React.FC<IncrementTypeDetailsProps> = ({
     accessToken,
     incrementTypeVersionId: incrementTypeVersionId || null
   })
-
-  // Fetch time types for display
-  const { timeTypes } = useTimeTypesData({ accessToken })
 
   const findTimeIssueTypeOption = (code: string) => {
     return TIME_ISSUE_TYPE_OPTIONS.find(option => option.code === code)
@@ -216,7 +215,29 @@ export const IncrementTypeDetails: React.FC<IncrementTypeDetailsProps> = ({
         ),
         enableSorting: true,
         cell: ({ row }) => {
-          return row.original.fixedValue === null ? '-' : row.original.fixedValue.toString()
+          return row.original.fixedValue === null ? '-' : row.original.fixedValue
+        }
+      },
+      {
+        accessorKey: 'checkStartBefore',
+        header: getTranslationFromI18nKeyAndLabel(
+          'master-data:hr.time_attendance.increment_type_versions.fields.check_start_before',
+          'Start Before'
+        ),
+        enableSorting: true,
+        cell: ({ row }) => {
+          return row.original.checkStartBefore ? <CheckIcon className="gba:h-4 gba:w-4" /> : '-'
+        }
+      },
+      {
+        accessorKey: 'startBeforeTime',
+        header: getTranslationFromI18nKeyAndLabel(
+          'master-data:hr.time_attendance.increment_type_versions.fields.start_before_time',
+          'Start Before Time'
+        ),
+        enableSorting: true,
+        cell: ({ row }) => {
+          return row.original.startBeforeTime || '-'
         }
       },
       {
@@ -239,7 +260,14 @@ export const IncrementTypeDetails: React.FC<IncrementTypeDetailsProps> = ({
         ),
         enableSorting: true,
         cell: ({ row }) => {
-          return row.original.alternativeIncrementTypeVersionDetailId || 'None'
+          if (!row.original.alternativeIncrementTypeVersionDetailId) {
+            return 'None'
+          }
+          // Find the alternative detail and show its displayOrder
+          const alternativeDetail = incrementTypeVersionDetails.find(
+            detail => detail.id === row.original.alternativeIncrementTypeVersionDetailId
+          )
+          return alternativeDetail ? alternativeDetail.displayOrder : 'N/A'
         }
       },
       {
@@ -266,6 +294,7 @@ export const IncrementTypeDetails: React.FC<IncrementTypeDetailsProps> = ({
                 refetch={refetch}
                 incrementTypeDetails={targetDetail}
                 availableIncrementTypeDetails={incrementTypeVersionDetails}
+                timeTypes={timeTypes}
               />
               <Button
                 variant="ghost"
@@ -332,6 +361,7 @@ export const IncrementTypeDetails: React.FC<IncrementTypeDetailsProps> = ({
             }
             refetch={refetch}
             availableIncrementTypeDetails={incrementTypeVersionDetails}
+            timeTypes={timeTypes}
           />
         </div>
       </CardHeader>

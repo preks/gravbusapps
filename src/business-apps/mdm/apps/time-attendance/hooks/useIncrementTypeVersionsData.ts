@@ -41,6 +41,33 @@ export const useIncrementTypeVersionsData = (context: BusinessAppContextProps): 
 
   const graphqlClient = useGraphQLClient(context.accessToken)
 
+  // Calculate status based on activeFrom and activeTo dates
+  const calculateStatus = useCallback(
+    (activeFrom: string | null, activeTo: string | null): 'active' | 'expired' | 'inactive' | 'planned' => {
+      // If either date is missing, consider it inactive
+      if (!activeFrom || !activeTo) {
+        return 'inactive'
+      }
+      const currentDate = new Date()
+      const fromDate = new Date(activeFrom)
+      const toDate = new Date(activeTo)
+
+      // If activeFrom is in the future, it's planned
+      if (currentDate < fromDate) {
+        return 'planned'
+      }
+
+      // If current date is within the range, it's active
+      if (currentDate >= fromDate && currentDate <= toDate) {
+        return 'active'
+      }
+
+      // Otherwise, it's expired
+      return 'expired'
+    },
+    []
+  )
+
   // Transform GraphQL data to final format
   const transformIncrementTypeVersions = useCallback(
     (rawData: IncrementTypeVersionResponse['IncrementTypeVersion']): TransformedIncrementTypeVersion[] => {
@@ -50,11 +77,12 @@ export const useIncrementTypeVersionsData = (context: BusinessAppContextProps): 
         activeVersion: item.activeVersion,
         activeFrom: item.activeFrom,
         activeTo: item.activeTo,
+        status: calculateStatus(item.activeFrom, item.activeTo),
         incrementType: item.incrementType,
         version: item.version
       }))
     },
-    []
+    [calculateStatus]
   )
 
   const fetchIncrementTypeVersionsData = useCallback(async () => {
@@ -70,7 +98,21 @@ export const useIncrementTypeVersionsData = (context: BusinessAppContextProps): 
     try {
       const result = await graphqlClient.request<IncrementTypeVersionResponse>(GET_INCREMENT_TYPE_VERSIONS_QUERY, {})
       const transformedData = transformIncrementTypeVersions(result.IncrementTypeVersion || [])
-      setIncrementTypeVersions(transformedData)
+      // Sort by status: active first, then planned, then expired, then inactive
+      const sortedData = [...transformedData].sort((a, b) => {
+        // Active comes first
+        if (a.status === 'active' && b.status !== 'active') return -1
+        if (a.status !== 'active' && b.status === 'active') return 1
+        // Planned comes after active
+        if (a.status === 'planned' && b.status !== 'active' && b.status !== 'planned') return -1
+        if (a.status !== 'active' && a.status !== 'planned' && b.status === 'planned') return 1
+        // Expired comes after planned
+        if (a.status === 'expired' && b.status === 'inactive') return -1
+        if (a.status === 'inactive' && b.status === 'expired') return 1
+        // Same status, maintain original order
+        return 0
+      })
+      setIncrementTypeVersions(sortedData)
     } catch (err) {
       console.error('Error fetching increment type versions data:', err)
       setError(err instanceof Error ? err : new Error('Failed to fetch increment type versions data'))
