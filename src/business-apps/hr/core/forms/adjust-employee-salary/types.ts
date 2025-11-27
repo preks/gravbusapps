@@ -3,6 +3,7 @@ import type { Control } from 'react-hook-form'
 export interface CatalogEntry {
   id: string
   value: string
+  code?: string
   translations?: Array<{
     localeCode: string
     value: string
@@ -40,8 +41,27 @@ export interface EmployeeCompensationResponse {
   }>
 }
 
-// No catalogs needed - pay frequency is determined from employee data
-export type CatalogsDataResponse = Record<string, never>
+export interface SalaryAdjustReasonCatalogResponse {
+  CatalogEntry: Array<{
+    id: string
+    code: string
+    value: string
+    displayOrder: number | null
+    translations: Array<{
+      localeCode: string
+      value: string
+    }>
+    catalog: {
+      identifier: string
+      version: string
+      defaultLocale: string
+    }
+  }>
+}
+
+export interface CatalogsDataResponse {
+  salaryAdjustReason: SalaryAdjustReasonCatalogResponse | null
+}
 
 export type AdjustEmployeeSalaryFormValues = {
   amountIncrease: number | null
