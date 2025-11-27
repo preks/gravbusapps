@@ -62,7 +62,11 @@ const getAccountFromFormData = (
     return { id: data.selectedAccountId }
   }
   if (data.accountOption === 'create') {
-    return accountForm.getValues() as Partial<CustomerAccount>
+    const accountData = accountForm.getValues() as Partial<CustomerAccount>
+    // Remove ownerEmployee object to prevent it from overwriting ownerEmployeeId mapping
+    // buildPayload will correctly transform ownerEmployeeId -> { id: ownerEmployeeId }
+    delete accountData.ownerEmployee
+    return accountData
   }
   return undefined
 }
@@ -75,7 +79,10 @@ const getContactFromFormData = (
     return { id: data.selectedContactId }
   }
   if (data.contactOption === 'create') {
-    return contactForm.getValues() as Partial<CustomerContact>
+    const contactData = contactForm.getValues() as Partial<CustomerContact>
+    // Remove ownerEmployee object to prevent it from overwriting ownerEmployeeId mapping
+    delete contactData.ownerEmployee
+    return contactData
   }
   return undefined
 }
@@ -546,7 +553,12 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
       const account = getAccountFromFormData(data, accountForm)
       const contact = getContactFromFormData(data, contactForm)
       const opportunity = data.createOpportunity
-        ? (opportunityForm.getValues() as Partial<CustomerOpportunity>)
+        ? (() => {
+            const opportunityData = opportunityForm.getValues() as Partial<CustomerOpportunity>
+            // Remove ownerEmployee object to prevent it from overwriting ownerEmployeeId mapping
+            delete opportunityData.ownerEmployee
+            return opportunityData
+          })()
         : undefined
 
       // Build payload using simple builder

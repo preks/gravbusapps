@@ -638,7 +638,10 @@ export const ConvertInvestmentLeadForm = ({
       return { id: data.selectedAccountId }
     }
     if (data.accountOption === 'create') {
-      return accountForm.getValues() as Partial<InvestmentAccount>
+      const accountData = accountForm.getValues() as Partial<InvestmentAccount>
+      // Remove ownerEmployee object to prevent it from overwriting ownerEmployeeId mapping
+      delete accountData.ownerEmployee
+      return accountData
     }
     return undefined
   }
@@ -649,7 +652,10 @@ export const ConvertInvestmentLeadForm = ({
       return { id: data.selectedContactId }
     }
     if (data.contactOption === 'create') {
-      return contactForm.getValues() as Partial<InvestmentContact>
+      const contactData = contactForm.getValues() as Partial<InvestmentContact>
+      // Remove ownerEmployee object to prevent it from overwriting ownerEmployeeId mapping
+      delete contactData.ownerEmployee
+      return contactData
     }
     return undefined
   }
@@ -673,6 +679,8 @@ export const ConvertInvestmentLeadForm = ({
         ? (() => {
             const opportunityValues = opportunityForm.getValues()
             const prospectFields = extractProspectFieldsFromFormValues(opportunityValues)
+            // Remove ownerEmployee object to prevent it from overwriting ownerEmployeeId mapping
+            delete opportunityValues.ownerEmployee
             return {
               ...opportunityValues,
               ...prospectFields
