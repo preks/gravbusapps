@@ -176,7 +176,19 @@ export const InterventionsTable: React.FC<InterventionsTableProps> = ({ employee
               <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:lg:grid-cols-3 gba:gap-3">
                 {items.map(item => {
                   const IconCmp = getReasonIcon(item.reason)
-                  const dateText = String(formatDate(item.date, 'date.short'))
+                  // Prefer platform formatter; if it returns ISO, fall back to local-only date
+                  let dateText = String(formatDate(item.date, 'date.short') || '')
+                  if (dateText.includes('T')) {
+                    try {
+                      dateText = new Date(item.date).toLocaleDateString(undefined, {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit'
+                      })
+                    } catch {
+                      dateText = String(item.date).split('T')[0]
+                    }
+                  }
                   const deficit = Math.max(0, item.plannedMinutes - item.workedMinutes)
                   return (
                     <Card key={item.date} className="gba:p-3" data-testid={`time-interventions-item-${item.date}`}>

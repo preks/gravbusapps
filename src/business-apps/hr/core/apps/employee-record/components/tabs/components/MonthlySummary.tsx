@@ -79,6 +79,21 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, a
           'Let’s set things in motion — your hours start with a single click.'
         )
 
+  // Only show HH:mm for "clocked in since", handle ISO fallback strings
+  const displayClockInSince = React.useMemo(() => {
+    if (!clockInSince) return ''
+    const raw = String(clockInSince)
+    if (raw.includes('T')) {
+      try {
+        return new Date(raw).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false })
+      } catch {
+        return raw
+      }
+    }
+    const m = raw.match(/^(\d{1,2}:\d{2})/)
+    return m ? m[1] : raw
+  }, [clockInSince])
+
   return (
     <div data-testid="monthly-summary-container">
       {/* Top grid: Time card, Actions, Right-side info */}
@@ -197,7 +212,7 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, a
                       'Currently clocked in since'
                     )}
                   </span>
-                  <span className="gba:font-semibold">{clockInSince}</span>
+                  <span className="gba:font-semibold">{displayClockInSince}</span>
                 </div>
               ) : isClockedOutWithWork ? (
                 <span>
