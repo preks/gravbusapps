@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import { useTranslation, Button, Alert, AlertTitle, AlertDescription, Skeleton, Card } from '@newwork/nw-design-system'
 import { Home as HomeIcon } from 'lucide-react'
-import { useContentEntries, toIntranetContent } from '@/common/data/content'
+import { useContentEntries } from '@/common/data/content/hooks/useContentEntries'
 import { ContentRole } from '@/common/data/content/types/contentEnums'
 import ContentCard from '../../components/cards/ContentCard'
 import SearchInput from '../../components/shared/SearchInput'
@@ -74,9 +74,9 @@ const HomeView: React.FC<HomeViewProps> = ({
     }
   })
 
-  // Convert to legacy format
-  const data = useMemo(() => entries.map(toIntranetContent), [entries])
-  const featuredData = useMemo(() => featuredEntries.map(toIntranetContent), [featuredEntries])
+  // Use entries directly (no conversion needed)
+  const data = entries
+  const featuredData = featuredEntries
   const topArticles = useMemo(() => featuredData.slice(0, 5), [featuredData])
   const remainingArticles = useMemo(() => data.slice(5), [data])
 

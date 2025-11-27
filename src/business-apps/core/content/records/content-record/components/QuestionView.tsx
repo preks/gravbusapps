@@ -2,10 +2,11 @@ import React, { useState, useMemo } from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
 import { Badge, Button, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
 import { MessageCircle, CheckCircle, Share2, ChevronDown, ChevronUp } from 'lucide-react'
-import { ContentEntry } from '@/common/data/content/types/contentTypes'
-import { useContentComments, CommentWithReplies } from '@/common/data/content'
-import { useUserContentReactions } from '@/common/data/content'
+import { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
+import { useContentComments, CommentWithReplies } from '@/common/data/content/hooks/useContentComments'
+import { useUserContentReactions } from '@/common/data/content/hooks/useUserContentReactions'
 import { VoteButtons, type VoteState } from '@/common/components/content'
+import { AcceptAnswerButton } from '@/common/components/content/AcceptAnswerButton'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { formatDate } from '@/common/utils/windowUtils'
 import { ShareDialog } from '@/components/share-dialog'
@@ -36,8 +37,8 @@ const QuestionView: React.FC<QuestionViewProps> = ({
   const { t } = useTranslation(translations)
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
 
-  const entityType = getEntityTypeFromContentGroup(item.contentGroupRef)
-  const entityDisplayUrl = buildContentRecordUrl(item.id)
+  const entityType = getEntityTypeFromContentGroup(item.contentGroupRef || '')
+  const entityDisplayUrl = buildContentRecordUrl(item.id || '')
   const [expandedAnswerId, setExpandedAnswerId] = useState<string | null>(null)
   const [showAnswerForm, setShowAnswerForm] = useState(false)
   const [visibleCommentsPerAnswer, setVisibleCommentsPerAnswer] = useState<Record<string, number>>({})
@@ -50,15 +51,15 @@ const QuestionView: React.FC<QuestionViewProps> = ({
   const downvoteCatalogId = reactionCatalogMap['-1'] || ''
 
   // Load answers (comments with COMMENT role)
-  const { comments: answers, isLoading, error, refetch } = useContentComments(item.id, accessToken)
+  const { comments: answers, isLoading, error, refetch } = useContentComments(item.id || '', accessToken)
 
   // Get answer IDs for batch reaction fetching
-  const answerIds = useMemo(() => answers.map(answer => answer.id), [answers])
+  const answerIds = useMemo(() => answers.map(answer => answer.id || '').filter(Boolean), [answers])
 
   // Batch fetch reactions for question and all answers
   const { reactionsByArticle, refetch: refetchReactions } = useUserContentReactions({
-    contentEntryIds: [item.id, ...answerIds],
-    currentUserId: userId,
+    contentEntryIds: [item.id || '', ...answerIds],
+    currentUserId: userId || '',
     accessToken: accessToken || ''
   })
 
@@ -105,14 +106,22 @@ const QuestionView: React.FC<QuestionViewProps> = ({
 
   // Get vote counts for question
   const questionVotes: VoteState = useMemo(() => {
-    return getVoteCounts(item.id)
+    return getVoteCounts(item.id || '')
   }, [item.id, reactionsByArticle])
 
-  // Sort answers by vote score (best answer first)
+  // Sort answers: accepted answer first, then by vote score (best to worst)
   const sortedAnswers = useMemo(() => {
     return [...answers].sort((a, b) => {
-      const scoreA = getVoteCounts(a.id).score
-      const scoreB = getVoteCounts(b.id).score
+      // Accepted answer always comes first
+      const aAccepted = a.accepted || false
+      const bAccepted = b.accepted || false
+
+      if (aAccepted && !bAccepted) return -1
+      if (!aAccepted && bAccepted) return 1
+
+      // If both accepted or both not accepted, sort by score
+      const scoreA = getVoteCounts(a.id || '').score
+      const scoreB = getVoteCounts(b.id || '').score
       return scoreB - scoreA
     })
   }, [answers, reactionsByArticle])
@@ -186,7 +195,7 @@ const QuestionView: React.FC<QuestionViewProps> = ({
           <div className="gba:flex gba:gap-6">
             {/* Vote Section for Question */}
             <VoteButtons
-              contentEntryId={item.id}
+              contentEntryId={item.id || ''}
               initialVoteState={questionVotes}
               upvoteCatalogId={upvoteCatalogId}
               downvoteCatalogId={downvoteCatalogId}
@@ -200,11 +209,11 @@ const QuestionView: React.FC<QuestionViewProps> = ({
             {/* Question Content */}
             <div className="gba:flex-1">
               {/* Tags */}
-              {item.tagNames && item.tagNames.length > 0 && (
+              {item.contentEntryTags && item.contentEntryTags.length > 0 && (
                 <div className="gba:flex gba:flex-row gba:flex-wrap gba:gap-2 gba:mb-4">
-                  {item.tagNames.map((tag, index) => (
+                  {item.contentEntryTags.map((tagEntry, index) => (
                     <Badge key={index} variant="secondary">
-                      #{tag}
+                      #{tagEntry.contentTag?.value || ''}
                     </Badge>
                   ))}
                 </div>
@@ -237,7 +246,7 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                     <>
                       <p
                         className="gba:text-sm gba:font-bold gba:text-foreground gba:cursor-pointer hover:gba:text-primary hover:gba:underline"
-                        onClick={e => handleAuthorClick(e, item.creatorEmployeeId)}
+                        onClick={e => handleAuthorClick(e, item.creatorEmployeeId || undefined)}
                       >
                         {item.creatorEmployee.displayName}
                       </p>
@@ -274,7 +283,7 @@ const QuestionView: React.FC<QuestionViewProps> = ({
           <div className="gba:flex gba:items-center gba:gap-2">
             <MessageCircle className="gba:w-5 gba:h-5 gba:text-foreground" />
             <h2 className="gba:text-xl gba:font-semibold gba:text-foreground">
-              {item.commentCount || 0} {(item.commentCount || 0) === 1 ? t('answer') : t('answers')}
+              {answers.length} {answers.length === 1 ? t('answer') : t('answers')}
             </h2>
           </div>
 
@@ -289,7 +298,7 @@ const QuestionView: React.FC<QuestionViewProps> = ({
         {/* Answer Form */}
         {showAnswerForm && (
           <AnswerForm
-            questionId={item.id}
+            questionId={item.id || ''}
             accessToken={accessToken || ''}
             employeeId={employeeId || ''}
             onSuccess={handleAnswerSuccess}
@@ -322,9 +331,19 @@ const QuestionView: React.FC<QuestionViewProps> = ({
         )}
 
         {!isLoading &&
-          sortedAnswers.map((answer, index) => {
-            const answerVotes = getVoteCounts(answer.id)
-            const isAccepted = index === 0 && answerVotes.score > 0 // First answer with positive score
+          sortedAnswers.map(answer => {
+            const answerVotes = getVoteCounts(answer.id || '')
+            const isAccepted = answer.accepted || false
+            const isQuestionAuthor = !!(item.createdBy && userId && item.createdBy === userId)
+
+            // Debug logging
+            console.log('🔍 Question Author Check:', {
+              'item.createdBy': item.createdBy,
+              userId: userId,
+              isQuestionAuthor: isQuestionAuthor,
+              match: item.createdBy === userId
+            })
+
             const isExpanded = expandedAnswerId === answer.id
             const commentCount = answer.replies?.length || 0
 
@@ -339,7 +358,7 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                 <div className="gba:flex gba:gap-6">
                   {/* Vote Section for Answer */}
                   <VoteButtons
-                    contentEntryId={answer.id}
+                    contentEntryId={answer.id || ''}
                     initialVoteState={answerVotes}
                     upvoteCatalogId={upvoteCatalogId}
                     downvoteCatalogId={downvoteCatalogId}
@@ -355,7 +374,7 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                     {isAccepted && (
                       <div className="gba:flex gba:items-center gba:gap-2 gba:text-success gba:font-semibold gba:mb-2">
                         <CheckCircle className="gba:w-5 gba:h-5" />
-                        <span>{t('best_answer')}</span>
+                        <span>{t('accepted_answer')}</span>
                       </div>
                     )}
                     {/* Answer Text */}
@@ -372,7 +391,7 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                         {t('answered_by')}{' '}
                         <span
                           className="gba:cursor-pointer hover:gba:text-primary hover:gba:underline"
-                          onClick={e => handleAuthorClick(e, answer.creatorEmployeeId)}
+                          onClick={e => handleAuthorClick(e, answer.creatorEmployeeId || undefined)}
                         >
                           {answer.creatorEmployee?.displayName || t('unknown')}
                         </span>
@@ -385,12 +404,26 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                       )}
                     </div>
 
-                    {/* Comments Toggle Button */}
-                    <div className="gba:flex gba:items-center gba:gap-2">
+                    {/* Action Buttons */}
+                    <div className="gba:flex gba:items-center gba:gap-3">
+                      {/* Accept Answer Button - Only visible to question author */}
+                      {isQuestionAuthor && (
+                        <AcceptAnswerButton
+                          answerId={answer.id || ''}
+                          questionId={item.id || ''}
+                          isAccepted={isAccepted}
+                          accessToken={accessToken || ''}
+                          employeeId={employeeId || ''}
+                          onAcceptComplete={handleVoteSuccess}
+                          data-testid={`accept-answer-${answer.id}`}
+                        />
+                      )}
+
+                      {/* Comments Toggle Button */}
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => toggleAnswerComments(answer.id)}
+                        onClick={() => toggleAnswerComments(answer.id || '')}
                         className="gba:text-muted-foreground hover:gba:text-foreground gba:gap-2"
                         data-testid={`toggle-answer-comments-${answer.id}`}
                       >
@@ -412,8 +445,8 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                         {/* Comment Form */}
                         <div className="gba:mb-6">
                           <CommentForm
-                            articleId={answer.id}
-                            parentCommentId={null}
+                            articleId={answer.id || ''}
+                            articleCommentId={null}
                             accessToken={accessToken || ''}
                             employeeId={employeeId || ''}
                             onSuccess={refetch}
@@ -433,7 +466,7 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                         {/* Comments List */}
                         {answer.replies && answer.replies.length > 0 ? (
                           <div className="gba:space-y-4">
-                            {answer.replies.slice(0, getVisibleComments(answer.id)).map(comment => {
+                            {answer.replies.slice(0, getVisibleComments(answer.id || '')).map(comment => {
                               // Flatten replies
                               const flattenReplies = (c: CommentWithReplies): CommentWithReplies[] => {
                                 const allReplies: CommentWithReplies[] = []
@@ -456,8 +489,8 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                               }
 
                               const flatReplies = flattenReplies(comment)
-                              const isExpanded = isCommentExpanded(comment.id)
-                              const visibleRepliesCount = getVisibleReplies(comment.id)
+                              const isExpanded = isCommentExpanded(comment.id || '')
+                              const visibleRepliesCount = getVisibleReplies(comment.id || '')
                               const visibleReplies = flatReplies.slice(0, visibleRepliesCount)
                               const hasMoreReplies = flatReplies.length > visibleRepliesCount
 
@@ -466,10 +499,10 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                                   {/* Top-level comment */}
                                   <CommentItem
                                     comment={{ ...comment, replies: [] }}
-                                    articleId={answer.id}
+                                    articleId={answer.id || ''}
                                     accessToken={accessToken || ''}
                                     employeeId={employeeId || ''}
-                                    currentUserId={userId}
+                                    currentUserId={userId || ''}
                                     onCommentCreated={refetch}
                                     depth={0}
                                     data-testid={`answer-comment-${comment.id}`}
@@ -481,7 +514,7 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                                       <Button
                                         variant="ghost"
                                         size="sm"
-                                        onClick={() => toggleReplies(comment.id)}
+                                        onClick={() => toggleReplies(comment.id || '')}
                                         className="gba:text-primary gba:text-xs gba:gap-1"
                                       >
                                         {isExpanded ? (
@@ -506,10 +539,10 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                                         <CommentItem
                                           key={reply.id}
                                           comment={reply}
-                                          articleId={answer.id}
+                                          articleId={answer.id || ''}
                                           accessToken={accessToken || ''}
                                           employeeId={employeeId || ''}
-                                          currentUserId={userId}
+                                          currentUserId={userId || ''}
                                           onCommentCreated={refetch}
                                           depth={1}
                                           data-testid={`answer-reply-${reply.id}`}
@@ -521,7 +554,7 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                                           <Button
                                             variant="ghost"
                                             size="sm"
-                                            onClick={() => showMoreReplies(comment.id)}
+                                            onClick={() => showMoreReplies(comment.id || '')}
                                             className="gba:text-primary gba:text-xs"
                                           >
                                             <ChevronDown className="gba:w-4 gba:h-4 gba:mr-1" />
@@ -536,17 +569,22 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                               )
                             })}
                             {/* Show More Comments Button */}
-                            {answer.replies.length > getVisibleComments(answer.id) && (
+                            {answer.replies.length > getVisibleComments(answer.id || '') && (
                               <div className="gba:mt-4">
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => showMoreComments(answer.id)}
+                                  onClick={() => showMoreComments(answer.id || '')}
                                   className="gba:text-primary"
                                 >
                                   <ChevronDown className="gba:w-4 gba:h-4 gba:mr-2" />
-                                  Show {Math.min(10, answer.replies.length - getVisibleComments(answer.id))} more{' '}
-                                  {answer.replies.length - getVisibleComments(answer.id) === 1 ? 'comment' : 'comments'}
+                                  Show {Math.min(
+                                    10,
+                                    answer.replies.length - getVisibleComments(answer.id || '')
+                                  )} more{' '}
+                                  {answer.replies.length - getVisibleComments(answer.id || '') === 1
+                                    ? 'comment'
+                                    : 'comments'}
                                 </Button>
                               </div>
                             )}
@@ -568,11 +606,11 @@ const QuestionView: React.FC<QuestionViewProps> = ({
         <ShareDialog
           open={shareDialogOpen}
           onOpenChange={setShareDialogOpen}
-          accessToken={accessToken}
-          currentUserId={userId}
+          accessToken={accessToken || ''}
+          currentUserId={userId || ''}
           entityType={entityType}
-          entityId={item.id}
-          entityName={item.title}
+          entityId={item.id || ''}
+          entityName={item.title || ''}
           entityDisplayUrl={entityDisplayUrl}
         />
       )}

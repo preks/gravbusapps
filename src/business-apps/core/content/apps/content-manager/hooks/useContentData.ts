@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
-import { useContentEntries } from '@/common/data/content'
-import type { ContentEntry, ContentEntryQueryParams } from '@/common/data/content/types/contentTypes'
+import { useContentEntries } from '@/common/data/content/hooks/useContentEntries'
+import type { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
+import type { ContentEntryQueryParams } from '@/common/data/content/queries/contentQueries'
 import { ContentGroup, ContentRole } from '@/common/data/content/types/contentEnums'
 
 // Define types locally since nw-design-system doesn't export them
@@ -93,7 +94,7 @@ export const useContentData = ({ type = 'all', accessToken }: UseContentDataPara
     if (sortColumnId === 'reactions') {
       sortBy = 'contentEntryReactionAggregate.count'
     } else if (sortColumnId === 'comments') {
-      sortBy = 'descendantContentEntryAggregate.count'
+      sortBy = 'descendantContentEntriesAggregate.count'
     } else {
       // Regular field mapping
       const columnToFieldMap: Record<string, string> = {

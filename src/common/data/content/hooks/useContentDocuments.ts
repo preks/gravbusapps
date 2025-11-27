@@ -5,8 +5,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { buildContentDocumentsQuery } from '../queries/contentQueries'
-import { mapBaseToContentDocument } from '../mappers/contentMappers'
-import type { ContentDocument, ContentDocumentQueryParams } from '../types/contentTypes'
+import type { ContentDocument } from '../types/contentDocumentTypes'
+import type { ContentDocumentQueryParams } from '../queries/contentQueries'
 
 interface UseContentDocumentsResult {
   documents: ContentDocument[]
@@ -17,7 +17,7 @@ interface UseContentDocumentsResult {
 }
 
 interface ContentDocumentsResponse {
-  ContentDocument: any[] // GraphQL response - will be transformed to ContentDocument
+  ContentDocument: ContentDocument[]
   ContentDocumentAggregate: {
     aggregate: {
       count: number
@@ -48,9 +48,8 @@ export const useContentDocuments = (
       const response = await graphqlClient.request<ContentDocumentsResponse>(query)
 
       if (response.ContentDocument) {
-        const mappedDocuments = response.ContentDocument.map(mapBaseToContentDocument)
-        setDocuments(mappedDocuments)
-        setTotalCount(response.ContentDocumentAggregate?.aggregate?.count || mappedDocuments.length)
+        setDocuments(response.ContentDocument)
+        setTotalCount(response.ContentDocumentAggregate?.aggregate?.count || response.ContentDocument.length)
       } else {
         setDocuments([])
         setTotalCount(0)

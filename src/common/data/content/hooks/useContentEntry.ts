@@ -4,9 +4,8 @@
  */
 import { useState, useEffect, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { buildContentEntryQuery } from '../queries/contentQueries'
-import { mapBaseToContentEntry, buildCommentHierarchy } from '../mappers/contentMappers'
-import type { ContentEntry } from '../types/contentTypes'
+import type { ContentEntry } from '../types/contentEntryTypes'
+import { buildContentEntryFields, type ContentEntryQueryOptions } from '../queries/contentEntryQueryBuilder'
 
 interface UseContentEntryResult {
   entry: ContentEntry | null
@@ -15,20 +14,18 @@ interface UseContentEntryResult {
   refetch: () => Promise<void>
 }
 
-interface ContentEntryResponse {
-  ContentEntry: any[] // GraphQL response - will be transformed to ContentEntry
+interface ContentEntryByPkResponse {
+  ContentEntryByPk: ContentEntry | null
 }
 
 /**
  * Hook to fetch single content entry with all relations
- * @param useChildCount - If true, counts only direct answers (for Questions). If false, counts all nested comments
  */
 export const useContentEntry = (
   id: string,
   options?: {
-    includeChildren?: boolean
     accessToken?: string
-    useChildCount?: boolean
+    queryOptions?: ContentEntryQueryOptions
   }
 ): UseContentEntryResult => {
   const [entry, setEntry] = useState<ContentEntry | null>(null)
@@ -48,29 +45,22 @@ export const useContentEntry = (
     setError(null)
 
     try {
-      const query = buildContentEntryQuery(id, options?.useChildCount || false)
-      const response = await graphqlClient.request<ContentEntryResponse>(query)
+      // Get fields from builder
+      const fields = buildContentEntryFields(options?.queryOptions || { config: 'detail' })
 
-      if (response.ContentEntry && response.ContentEntry.length > 0) {
-        const baseEntry = response.ContentEntry[0]
-
-        // Build nested comment hierarchy if children are included
-        let childContentEntry = baseEntry.childContentEntry
-        if (options?.includeChildren && baseEntry.childContentEntry) {
-          childContentEntry = buildCommentHierarchy(baseEntry.childContentEntry)
+      // Build query with ContentEntryByPk using variables
+      const query = `
+        query getContentEntry($id: uuid!) {
+          ContentEntryByPk(id: $id) {
+            ${fields}
+          }
         }
+      `
 
-        const mappedEntry = mapBaseToContentEntry(baseEntry, {
-          contentEntryCategory: baseEntry.contentEntryCategory,
-          contentEntryTag: baseEntry.contentEntryTag,
-          contentDocument: baseEntry.contentDocument,
-          contentEntryReaction: baseEntry.contentEntryReaction,
-          childContentEntries: childContentEntry,
-          descendantContentEntryAggregate: (baseEntry as any).descendantContentEntryAggregate,
-          childContentEntryAggregate: (baseEntry as any).childContentEntryAggregate
-        })
+      const response = await graphqlClient.request<ContentEntryByPkResponse>(query, { id })
 
-        setEntry(mappedEntry)
+      if (response.ContentEntryByPk) {
+        setEntry(response.ContentEntryByPk)
       } else {
         setEntry(null)
       }
@@ -81,7 +71,7 @@ export const useContentEntry = (
     } finally {
       setIsLoading(false)
     }
-  }, [id, options?.includeChildren, options?.accessToken, options?.useChildCount])
+  }, [id, options?.accessToken, options?.queryOptions, graphqlClient])
 
   useEffect(() => {
     fetchEntry()

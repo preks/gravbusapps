@@ -6,6 +6,11 @@
 // Import catalog entry fragment from catalog data
 import { CATALOG_ENTRY_REF } from '@/common/data/catalog/queries/catalogFragments'
 import { ContentRole } from '../../types/contentEnums'
+// Import document fragment from document types
+import { CONTENT_DOCUMENT_FRAGMENT } from '../../types/contentDocumentTypes'
+
+// Re-export document fragment for backwards compatibility
+export { CONTENT_DOCUMENT_FRAGMENT }
 
 /**
  * Employee reference fragment
@@ -61,13 +66,16 @@ export const CONTENT_ENTRY_CORE_FRAGMENT = `
   timeToRead
   creatorEmployeeId
   updaterEmployeeId
+  acceptorEmployeeId
   displayCreator
   displayUpdater
   allowComment
   allowReaction
+  accepted
   role
   contentGroupRef
   contentTypeRef
+  languageRef
   entryVersion
   activeFrom
   activeTo
@@ -89,6 +97,9 @@ export const CONTENT_ENTRY_WITH_EMPLOYEES_FRAGMENT = `
   updaterEmployee {
     ${EMPLOYEE_REF_FRAGMENT}
   }
+  acceptorEmployee {
+    ${EMPLOYEE_REF_FRAGMENT}
+  }
 `
 
 /**
@@ -100,6 +111,9 @@ export const CONTENT_ENTRY_WITH_CATALOGS_FRAGMENT = `
     ${CATALOG_ENTRY_FRAGMENT}
   }
   contentType {
+    ${CATALOG_ENTRY_FRAGMENT}
+  }
+  language {
     ${CATALOG_ENTRY_FRAGMENT}
   }
 `
@@ -137,34 +151,11 @@ export const CONTENT_ENTRY_TAG_FRAGMENT = `
 `
 
 /**
- * Content document fragment (without children to avoid recursion)
- */
-export const CONTENT_DOCUMENT_FRAGMENT = `
-  id
-  version
-  parentDocumentId
-  folder
-  name
-  description
-  fileInfo
-  documentGroupRef
-  documentTypeRef
-  contentEntryId
-  recordState
-  createdAt
-  createdBy
-  isDeleted
-  documentType {
-    ${CATALOG_ENTRY_FRAGMENT}
-  }
-`
-
-/**
  * Content document with children (one level)
  */
 export const CONTENT_DOCUMENT_WITH_CHILDREN_FRAGMENT = `
   ${CONTENT_DOCUMENT_FRAGMENT}
-  childDocument {
+  childDocuments {
     id
     version
     parentDocumentId
@@ -209,7 +200,7 @@ export const CONTENT_ENTRY_REACTION_FRAGMENT = `
  * Descendant aggregate for counting ALL nested comments (for News, Knowledge, Documents)
  */
 export const DESCENDANT_COMMENT_COUNT_FRAGMENT = `
-  descendantContentEntryAggregate(
+  descendantContentEntriesAggregate(
     where: {
       role: { _eq: "${ContentRole.COMMENT}" }
       isDeleted: { _eq: false }
@@ -225,7 +216,7 @@ export const DESCENDANT_COMMENT_COUNT_FRAGMENT = `
  * Child aggregate for counting DIRECT answers only (for Questions)
  */
 export const CHILD_ANSWER_COUNT_FRAGMENT = `
-  childContentEntryAggregate(
+  childContentEntriesAggregate(
     where: {
       role: { _eq: "${ContentRole.COMMENT}" }
       isDeleted: { _eq: false }
@@ -242,16 +233,16 @@ export const CHILD_ANSWER_COUNT_FRAGMENT = `
  */
 export const CONTENT_ENTRY_FULL_FRAGMENT = `
   ${CONTENT_ENTRY_WITH_CATALOGS_FRAGMENT}
-  contentEntryCategory {
+  contentEntryCategories {
     ${CONTENT_ENTRY_CATEGORY_FRAGMENT}
   }
-  contentEntryTag {
+  contentEntryTags {
     ${CONTENT_ENTRY_TAG_FRAGMENT}
   }
-  contentDocument {
+  contentDocuments {
     ${CONTENT_DOCUMENT_FRAGMENT}
   }
-  contentEntryReaction {
+  contentEntryReactions {
     ${CONTENT_ENTRY_REACTION_FRAGMENT}
   }
   ${DESCENDANT_COMMENT_COUNT_FRAGMENT}

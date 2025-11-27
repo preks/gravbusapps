@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { useTranslation, Button, Alert, AlertTitle, AlertDescription, Card, Skeleton } from '@newwork/nw-design-system'
-import { useContentEntries, toIntranetContent } from '@/common/data/content'
+import { useContentEntries } from '@/common/data/content/hooks/useContentEntries'
 import { ContentRole, ContentGroup } from '@/common/data/content/types/contentEnums'
 import ContentCard from '../../components/cards/ContentCard'
 import ContentCardSkeleton from '../../components/skeletons/ContentCardSkeleton'
@@ -70,8 +70,8 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
     }
   })
 
-  // Convert to legacy format
-  const data = useMemo(() => entries.map(toIntranetContent), [entries])
+  // Use entries directly (no conversion needed)
+  const data = entries
 
   const hasMore = entries.length > 0 && entries.length < totalCount
 
@@ -336,10 +336,10 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
                 </h2>
                 <div className="gba:grid gba:grid-cols-3 gba:gap-4 gba:mb-8">
                   {regularArticles.map(entry => {
-                    const item = toIntranetContent(entry)
+                    const item = entry
                     return (
                       <ContentCard
-                        key={item.articleId}
+                        key={item.id}
                         item={item}
                         variant="knowledge"
                         currentTab={currentTab}

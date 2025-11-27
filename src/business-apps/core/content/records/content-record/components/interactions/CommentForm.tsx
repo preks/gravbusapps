@@ -5,7 +5,7 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { buildCreateContentEntryPayload } from '@/common/data/content/payloads'
+import { buildCreateContentEntryPayload } from '@/common/data/content/payloads/contentEntryPayloads'
 import { ContentRole } from '@/common/data/content/types/contentEnums'
 
 export interface CommentFormProps {

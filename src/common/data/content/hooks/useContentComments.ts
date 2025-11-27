@@ -5,8 +5,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { ContentRole } from '../types/contentEnums'
-import type { ContentEntry } from '../types/contentTypes'
-import { mapBaseToContentEntry } from '../mappers/contentMappers'
+import type { ContentEntry } from '../types/contentEntryTypes'
 import {
   CONTENT_ENTRY_WITH_CATALOGS_FRAGMENT,
   CONTENT_ENTRY_REACTION_FRAGMENT,
@@ -41,7 +40,7 @@ const buildContentCommentsQuery = (contentEntryId: string): string => {
         orderBy: { createdAt: DESC }
       ) {
         ${CONTENT_ENTRY_WITH_CATALOGS_FRAGMENT}
-        contentEntryReaction {
+        contentEntryReactions {
           ${CONTENT_ENTRY_REACTION_FRAGMENT}
         }
         ${DESCENDANT_COMMENT_COUNT_FRAGMENT}
@@ -62,7 +61,7 @@ const buildContentCommentsQuery = (contentEntryId: string): string => {
 }
 
 interface ContentCommentsResponse {
-  ContentEntry: any[]
+  ContentEntry: ContentEntry[]
   ContentEntryAggregate: {
     aggregate: {
       count: number
@@ -97,19 +96,7 @@ export const useContentComments = (
       const query = buildContentCommentsQuery(contentEntryId)
       const result = await graphqlClient.request<ContentCommentsResponse>(query)
 
-      const mappedComments =
-        result?.ContentEntry?.map((entry: any) =>
-          mapBaseToContentEntry(entry, {
-            contentEntryCategory: entry.contentEntryCategory,
-            contentEntryTag: entry.contentEntryTag,
-            contentDocument: entry.contentDocument,
-            contentEntryReaction: entry.contentEntryReaction,
-            descendantContentEntryAggregate: entry.descendantContentEntryAggregate,
-            childContentEntryAggregate: entry.childContentEntryAggregate
-          })
-        ) || []
-
-      setAllComments(mappedComments)
+      setAllComments(result?.ContentEntry || [])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch comments')
       setAllComments([])

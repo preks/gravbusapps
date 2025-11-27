@@ -1,6 +1,6 @@
 import React from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
-import { ContentEntry } from '@/common/data/content/types/contentTypes'
+import { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
 import { MessageSquare, TrendingUp } from 'lucide-react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useTrendingContent } from '../../hooks/useTrendingContent'

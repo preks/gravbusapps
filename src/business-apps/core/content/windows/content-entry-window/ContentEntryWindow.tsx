@@ -19,7 +19,7 @@ import { CatalogSelect } from '@/components/catalog-select'
 import { CatalogMultiSelect, CatalogMultiSelectOption } from '@/components/catalog-multi-select'
 import { useCreateCatalogEntry } from '@/common/data/catalog/hooks/useCreateCatalogEntry'
 import { ContentRole, ContentGroup } from '@/common/data/content/types/contentEnums'
-import { buildContentEntryPayload } from '@/common/data/content/payloads'
+import { buildContentEntryPayload } from '@/common/data/content/payloads/contentEntryPayloads'
 import { ArticleSegment, QuestionSegment, DocumentSegment } from './segments'
 import translations from './_i18n'
 

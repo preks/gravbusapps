@@ -1,8 +1,8 @@
 import { useMemo, useRef, useEffect } from 'react'
-import { useContentEntries } from '@/common/data/content'
+import { useContentEntries } from '@/common/data/content/hooks/useContentEntries'
 import { useContentDocuments } from '@/common/data/content/hooks/useContentDocuments'
 import { ContentRole } from '@/common/data/content/types/contentEnums'
-import type { ContentEntry } from '@/common/data/content/types/contentTypes'
+import type { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
 
 /**
  * Document Area (Content Entry) - Mapped from central hook
@@ -45,8 +45,29 @@ export const useDocumentAreas = (
     [contentTypeRef, categoryRefsKey, search]
   )
 
+  // Memoize query options to prevent infinite re-renders
+  const queryOptions = useMemo(
+    () => ({
+      fields: [
+        'id',
+        'title',
+        'preview',
+        'contentGroupRef',
+        'contentTypeRef',
+        'contentGroup',
+        'contentType',
+        'contentEntryCategories',
+        'contentDocuments',
+        'createdAt',
+        'updatedAt'
+      ] as const,
+      relationLimit: 100
+    }),
+    []
+  )
+
   // Fetch Content Entries for DOCUMENTS group
-  const { entries, isLoading, error, refetch } = useContentEntries(queryParams, accessToken)
+  const { entries, isLoading, error, refetch } = useContentEntries(queryParams, accessToken, queryOptions)
 
   // Map to DocumentArea format with additional metadata
   const areas: DocumentArea[] = useMemo(
@@ -55,7 +76,7 @@ export const useDocumentAreas = (
         ...entry,
         documentCount: entry.contentDocuments?.length || 0,
         totalSize: entry.contentDocuments?.reduce((sum, doc) => sum + (doc.fileSize || 0), 0) || 0,
-        categoryCount: entry.contentEntryCategory?.length || 0
+        categoryCount: entry.contentEntryCategories?.length || 0
       })),
     [entries]
   )

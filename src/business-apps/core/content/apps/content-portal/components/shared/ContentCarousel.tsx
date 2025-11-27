@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState, useRef, useMemo } from 'react'
-import type { IntranetContent } from '@/common/data/content/mappers/contentMappers'
+import type { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
 import { useTranslation } from 'react-i18next'
 import { ChevronLeft, ChevronRight, MessageCircle, Share2 } from 'lucide-react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -11,7 +11,7 @@ import { getEntityTypeFromTab, buildContentRecordUrl } from '@/business-apps/cor
 import { buildReactionSummaryFromCounts } from '@/common/data/content/utils/reactionUtils'
 
 interface ContentCarouselProps extends Pick<BusinessAppContextProps, 'accessToken' | 'userInfo'> {
-  articles: IntranetContent[]
+  articles: ContentEntry[]
   className?: string
   currentTab?: string
   allowedReactions?: string[]
@@ -33,11 +33,13 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
   const [activeIndex, setActiveIndex] = useState<number>(0)
   const [autoplay, setAutoplay] = useState<boolean>(true)
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
-  const [selectedArticle, setSelectedArticle] = useState<IntranetContent | null>(null)
+  const [selectedArticle, setSelectedArticle] = useState<ContentEntry | null>(null)
   const carouselArticles = [...articles].reverse()
 
   const getInitials = useMemo(
-    () => (name: string | null) => {
+    () => (employee: ContentEntry['creatorEmployee']) => {
+      if (!employee) return 'NA'
+      const name = employee.displayName || employee.fullName
       if (!name) return 'NA'
       return name
         .split(' ')
@@ -101,22 +103,22 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
     return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
   }
 
-  const handleArticleClick = (article: IntranetContent) => {
+  const handleArticleClick = (article: ContentEntry) => {
     const url = buildPlatformUrl('/platform/content/intranet/content-record', {
-      contentId: article.articleId,
+      contentId: article.id,
       ...(currentTab && { tab: currentTab })
     })
     navigateTo(url)
   }
 
-  const handleShare = (e: React.MouseEvent, article: IntranetContent) => {
+  const handleShare = (e: React.MouseEvent, article: ContentEntry) => {
     e.stopPropagation()
     setSelectedArticle(article)
     setShareDialogOpen(true)
   }
 
   const entityType = selectedArticle ? getEntityTypeFromTab(currentTab) : null
-  const entityDisplayUrl = selectedArticle ? buildContentRecordUrl(selectedArticle.articleId, currentTab) : ''
+  const entityDisplayUrl = selectedArticle ? buildContentRecordUrl(selectedArticle.id || '', currentTab) : ''
 
   return (
     <div
@@ -130,93 +132,101 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
             className="gba:flex gba:transition-transform gba:duration-500 gba:ease-in-out"
             style={{ transform: `translateX(-${activeIndex * 100}%)` }}
           >
-            {carouselArticles.map(article => (
-              <div key={article.articleId} className="gba:min-w-full">
-                <div
-                  className="gba:relative gba:flex gba:flex-row gba:py-6 gba:px-14 gba:gap-6 gba:cursor-pointer"
-                  onClick={() => handleArticleClick(article)}
-                >
-                  <div className="gba:w-2/5 gba:h-64 gba:overflow-hidden gba:rounded-lg gba:shrink-0 gba:relative">
-                    {article.contentImage ? (
-                      <img
-                        src={article.contentImage}
-                        alt={article.title}
-                        className="gba:w-full gba:h-full gba:object-cover gba:transition-transform gba:hover:scale-105 gba:duration-300"
-                      />
-                    ) : (
-                      <div className="gba:w-full gba:h-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:bg-gradient-to-r gba:from-[#376399] gba:to-[#648eca]">
-                        <span className="gba:text-4xl gba:font-bold gba:text-white gba:mb-2">
-                          {getInitials(article.authorFullName)}
-                        </span>
+            {carouselArticles.map(article => {
+              const commentCount =
+                article.descendantContentEntriesAggregate?.aggregate?.count ||
+                article.childContentEntriesAggregate?.aggregate?.count ||
+                0
+              const tagNames = article.contentEntryTags?.map(t => t.contentTag?.value).filter(Boolean) || []
+
+              return (
+                <div key={article.id} className="gba:min-w-full">
+                  <div
+                    className="gba:relative gba:flex gba:flex-row gba:py-6 gba:px-14 gba:gap-6 gba:cursor-pointer"
+                    onClick={() => handleArticleClick(article)}
+                  >
+                    <div className="gba:w-2/5 gba:h-64 gba:overflow-hidden gba:rounded-lg gba:shrink-0 gba:relative">
+                      {article.picture ? (
+                        <img
+                          src={article.picture}
+                          alt={article.title || ''}
+                          className="gba:w-full gba:h-full gba:object-cover gba:transition-transform gba:hover:scale-105 gba:duration-300"
+                        />
+                      ) : (
+                        <div className="gba:w-full gba:h-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:bg-gradient-to-r gba:from-[#376399] gba:to-[#648eca]">
+                          <span className="gba:text-4xl gba:font-bold gba:text-white gba:mb-2">
+                            {getInitials(article.creatorEmployee)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="gba:flex gba:flex-col gba:w-3/5 gba:justify-between">
+                      <div>
+                        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2 gba:text-sm gba:text-muted-foreground">
+                          <span>{formatArticleDate(article.createdAt ?? '')}</span>
+                          {tagNames.length > 0 && (
+                            <>
+                              <span>•</span>
+                              <span className="gba:bg-blue-50 gba:text-blue-700 gba:px-2 gba:py-0.5 gba:rounded-full">
+                                {tagNames[0]}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                        <h3 className="gba:text-2xl gba:font-bold gba:text-foreground gba:mb-3 gba:line-clamp-2">
+                          {article.title}
+                        </h3>
+                        <p className="gba:text-muted-foreground gba:line-clamp-3 gba:md:line-clamp-4 gba:mb-4">
+                          {article.preview || article.content?.substring(0, 150)}
+                        </p>
                       </div>
-                    )}
-                  </div>
-                  <div className="gba:flex gba:flex-col gba:w-3/5 gba:justify-between">
-                    <div>
-                      <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2 gba:text-sm gba:text-muted-foreground">
-                        <span>{formatArticleDate(article.createdAt ?? '')}</span>
-                        {article.tagNames && article.tagNames.length > 0 && (
-                          <>
-                            <span>•</span>
-                            <span className="gba:bg-blue-50 gba:text-blue-700 gba:px-2 gba:py-0.5 gba:rounded-full">
-                              {article.tagNames[0]}
-                            </span>
-                          </>
+                      <div className="gba:flex gba:items-center gba:mb-3">
+                        {article.creatorEmployee && (
+                          <span className="gba:text-sm gba:text-muted-foreground">
+                            {t('by')} {article.creatorEmployee.displayName || article.creatorEmployee.fullName}
+                          </span>
                         )}
                       </div>
-                      <h3 className="gba:text-2xl gba:font-bold gba:text-foreground gba:mb-3 gba:line-clamp-2">
-                        {article.title}
-                      </h3>
-                      <p className="gba:text-muted-foreground gba:line-clamp-3 gba:md:line-clamp-4 gba:mb-4">
-                        {article.previewText || article.content?.substring(0, 150)}
-                      </p>
-                    </div>
-                    <div className="gba:flex gba:items-center gba:mb-3">
-                      {article.authorFullName && (
-                        <span className="gba:text-sm gba:text-muted-foreground">
-                          {t('by')} {article.authorFullName}
-                        </span>
-                      )}
-                    </div>
 
-                    {/* Stats - Reactions, Comments, Share */}
-                    <div className="gba:flex gba:items-center gba:gap-4 gba:pt-3 gba:border-t gba:border-border">
-                      {article.allowReaction && accessToken && (
-                        <div onClick={e => e.stopPropagation()}>
-                          <ReactionPicker
-                            contentEntryId={article.articleId}
-                            reactionSummary={buildReactionSummaryFromCounts(article, userInfo?.id)}
-                            allowReaction={article.allowReaction}
-                            accessToken={accessToken}
-                            employeeId={userInfo?.employeeDetails?.employeeId || ''}
-                            onSuccess={onReactionsRefetch}
-                            size="sm"
-                            allowedReactions={allowedReactions}
-                            reactionCatalogMap={reactionCatalogMap}
-                            data-testid={`carousel-reaction-${article.articleId}`}
-                          />
-                        </div>
-                      )}
-                      {article.allowComment && (
-                        <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground">
-                          <MessageCircle className="gba:w-4 gba:h-4" />
-                          <span>{article.commentsCount || 0}</span>
-                        </div>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="gba:ml-auto gba:p-1 gba:h-auto"
-                        onClick={e => handleShare(e, article)}
-                        data-testid={`carousel-share-${article.articleId}`}
-                      >
-                        <Share2 className="gba:w-4 gba:h-4" />
-                      </Button>
+                      {/* Stats - Reactions, Comments, Share */}
+                      <div className="gba:flex gba:items-center gba:gap-4 gba:pt-3 gba:border-t gba:border-border">
+                        {article.allowReaction && accessToken && (
+                          <div onClick={e => e.stopPropagation()}>
+                            <ReactionPicker
+                              contentEntryId={article.id || ''}
+                              reactionSummary={buildReactionSummaryFromCounts(article, userInfo?.id)}
+                              allowReaction={article.allowReaction}
+                              accessToken={accessToken}
+                              employeeId={userInfo?.employeeDetails?.employeeId || ''}
+                              onSuccess={onReactionsRefetch}
+                              size="sm"
+                              allowedReactions={allowedReactions}
+                              reactionCatalogMap={reactionCatalogMap}
+                              data-testid={`carousel-reaction-${article.id}`}
+                            />
+                          </div>
+                        )}
+                        {article.allowComment && (
+                          <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground">
+                            <MessageCircle className="gba:w-4 gba:h-4" />
+                            <span>{commentCount}</span>
+                          </div>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="gba:ml-auto gba:p-1 gba:h-auto"
+                          onClick={e => handleShare(e, article)}
+                          data-testid={`carousel-share-${article.id}`}
+                        >
+                          <Share2 className="gba:w-4 gba:h-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
         <button
@@ -263,8 +273,8 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
           accessToken={accessToken}
           currentUserId={userInfo.id}
           entityType={entityType}
-          entityId={selectedArticle.articleId}
-          entityName={selectedArticle.title}
+          entityId={selectedArticle.id || ''}
+          entityName={selectedArticle.title || ''}
           entityDisplayUrl={entityDisplayUrl}
         />
       )}

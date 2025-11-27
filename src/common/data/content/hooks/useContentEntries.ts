@@ -4,9 +4,9 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { buildContentEntriesQuery, buildContentEntriesVariables } from '../queries/contentQueries'
-import { mapBaseToContentEntry } from '../mappers/contentMappers'
-import type { ContentEntry, ContentEntryQueryParams } from '../types/contentTypes'
+import type { ContentEntry } from '../types/contentEntryTypes'
+import type { ContentEntryQueryParams } from '../queries/contentQueries'
+import { buildContentEntryFields, type ContentEntryQueryOptions } from '../queries/contentEntryQueryBuilder'
 
 interface UseContentEntriesResult {
   entries: ContentEntry[]
@@ -18,7 +18,7 @@ interface UseContentEntriesResult {
 }
 
 interface ContentEntriesResponse {
-  ContentEntry: any[] // GraphQL response - will be transformed to ContentEntry
+  ContentEntry: ContentEntry[]
   ContentEntryAggregate: {
     aggregate: {
       count: number
@@ -27,14 +27,77 @@ interface ContentEntriesResponse {
 }
 
 /**
+ * Build WHERE clause as object for GraphQL
+ */
+const buildContentEntryWhereClause = (params: ContentEntryQueryParams): Record<string, any> => {
+  const conditions: Record<string, any> = {}
+
+  // Basic filters
+  if (params.role) {
+    conditions.role = { _eq: params.role }
+  }
+
+  if (params.contentGroupRef) {
+    conditions.contentGroupRef = { _eq: params.contentGroupRef }
+  }
+
+  if (params.contentTypeRef) {
+    conditions.contentTypeRef = { _eq: params.contentTypeRef }
+  }
+
+  if (params.creatorEmployeeId) {
+    conditions.creatorEmployeeId = { _eq: params.creatorEmployeeId }
+  }
+
+  if (params.parentContentEntryId !== undefined && params.parentContentEntryId !== null) {
+    conditions.parentContentEntryId = { _eq: params.parentContentEntryId }
+  }
+
+  // Search across multiple fields
+  if (params.search) {
+    const searchPattern = `%${params.search}%`
+    conditions._or = [
+      { title: { _ilike: searchPattern } },
+      { preview: { _ilike: searchPattern } },
+      { content: { _ilike: searchPattern } }
+    ]
+  }
+
+  // Category filter (relation)
+  if (params.categoryRefs && params.categoryRefs.length > 0) {
+    conditions.contentEntryCategories = {
+      _or: params.categoryRefs.map(ref => ({ contentCategoryRef: { _eq: ref } }))
+    }
+  }
+
+  // Tag filter (relation)
+  if (params.tagRefs && params.tagRefs.length > 0) {
+    conditions.contentEntryTags = {
+      _or: params.tagRefs.map(ref => ({ contentTagRef: { _eq: ref } }))
+    }
+  }
+
+  // Active period filters
+  if (params.activeFrom) {
+    conditions.activeFrom = { _gte: params.activeFrom }
+  }
+  if (params.activeTo) {
+    conditions.activeTo = { _lte: params.activeTo }
+  }
+
+  // Always exclude deleted
+  conditions.isDeleted = { _eq: false }
+
+  return conditions
+}
+
+/**
  * Hook to fetch content entries with filters
- * FIXED: Use real GraphQL client and singular relation names
- * @param useChildCount - If true, counts only direct answers (for Questions). If false, counts all nested comments (for News/Knowledge/Documents)
  */
 export const useContentEntries = (
   params: ContentEntryQueryParams = {},
   accessToken?: string,
-  useChildCount = false
+  options?: ContentEntryQueryOptions
 ): UseContentEntriesResult => {
   const [entries, setEntries] = useState<ContentEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -56,24 +119,72 @@ export const useContentEntries = (
       setError(null)
 
       try {
-        const query = buildContentEntriesQuery(params, useChildCount)
-        const variables = buildContentEntriesVariables(params)
+        // Build where clause
+        const whereClause = buildContentEntryWhereClause(params)
+
+        // Build order by clause as object
+        const sortBy = params.sortBy || 'createdAt'
+        const sortOrder = params.sortOrder || 'DESC'
+        let orderByClause
+
+        if (sortBy.includes('.')) {
+          // Handle aggregate sorting
+          const [aggregateName, aggregateField] = sortBy.split('.')
+          orderByClause = [
+            {
+              [aggregateName]: {
+                [aggregateField]: sortOrder
+              }
+            }
+          ]
+        } else {
+          // Regular field sorting
+          orderByClause = [
+            {
+              [sortBy]: sortOrder
+            }
+          ]
+        }
+
+        // Get fields from builder
+        const fields = buildContentEntryFields(options || { config: 'list' })
+
+        // Build complete query with variables
+        const query = `
+          query getContentEntries(
+            $where: ContentEntryBoolExp
+            $orderBy: [ContentEntryOrderBy!]
+            $limit: Int
+            $offset: Int
+          ) {
+            ContentEntry(
+              where: $where
+              orderBy: $orderBy
+              limit: $limit
+              offset: $offset
+            ) {
+              ${fields}
+            }
+            ContentEntryAggregate(where: $where) {
+              aggregate {
+                count
+              }
+            }
+          }
+        `
+
+        const variables = {
+          where: whereClause,
+          orderBy: orderByClause,
+          limit: params.limit || 20,
+          offset: params.offset || 0
+        }
+
         const response = await graphqlClient.request<ContentEntriesResponse>(query, variables)
 
         if (response.ContentEntry) {
-          const mappedEntries = response.ContentEntry.map((entry: any) =>
-            mapBaseToContentEntry(entry, {
-              contentEntryCategory: entry.contentEntryCategory,
-              contentEntryTag: entry.contentEntryTag,
-              contentDocument: entry.contentDocument,
-              contentEntryReaction: entry.contentEntryReaction,
-              descendantContentEntryAggregate: entry.descendantContentEntryAggregate,
-              childContentEntryAggregate: entry.childContentEntryAggregate
-            })
-          )
-
-          setEntries(mappedEntries)
-          setTotalCount(response.ContentEntryAggregate?.aggregate?.count || mappedEntries.length)
+          setEntries(response.ContentEntry)
+          setTotalCount(response.ContentEntryAggregate?.aggregate?.count || response.ContentEntry.length)
         } else {
           setEntries([])
           setTotalCount(0)
@@ -89,7 +200,7 @@ export const useContentEntries = (
         setIsRefetching(false)
       }
     },
-    [params, accessToken, graphqlClient, useChildCount]
+    [params, accessToken, graphqlClient, options]
   )
 
   useEffect(() => {

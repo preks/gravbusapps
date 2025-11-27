@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import { useTranslation, Button, Alert, AlertTitle, AlertDescription, Skeleton } from '@newwork/nw-design-system'
 import { Newspaper } from 'lucide-react'
-import { useContentEntries, toIntranetContent } from '@/common/data/content'
+import { useContentEntries } from '@/common/data/content/hooks/useContentEntries'
 import { ContentRole, ContentGroup } from '@/common/data/content/types/contentEnums'
 import ContentCard from '../../components/cards/ContentCard'
 import ContentCardSkeleton from '../../components/skeletons/ContentCardSkeleton'
@@ -121,9 +121,9 @@ const NewsView: React.FC<NewsViewProps> = ({
     }
   })
 
-  // Convert to legacy format
-  const data = useMemo(() => entries.map(toIntranetContent), [entries])
-  const featuredData = useMemo(() => featuredEntries.map(toIntranetContent), [featuredEntries])
+  // Use entries directly (no conversion needed)
+  const data = entries
+  const featuredData = featuredEntries
   const featuredArticles = featuredData.slice(0, 2)
   const otherArticles = data
 

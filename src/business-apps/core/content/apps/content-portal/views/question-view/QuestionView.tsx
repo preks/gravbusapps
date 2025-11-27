@@ -9,8 +9,9 @@ import {
   Skeleton,
   Card
 } from '@newwork/nw-design-system'
-import { MessageCircle, Folder, ChevronRight, HelpCircle } from 'lucide-react'
-import { useContentEntries, toIntranetContent, useUserContentReactions } from '@/common/data/content'
+import { MessageCircle, Folder, ChevronRight, HelpCircle, CheckCircle } from 'lucide-react'
+import { useContentEntries } from '@/common/data/content/hooks/useContentEntries'
+import { useUserContentReactions } from '@/common/data/content/hooks/useUserContentReactions'
 import { ContentRole, ContentGroup } from '@/common/data/content/types/contentEnums'
 import { VoteButtons, type VoteState } from '@/common/components/content'
 import { EmployeeHoverCard } from '@/common/components/employee'
@@ -100,9 +101,32 @@ const QuestionView: React.FC<QuestionViewProps> = ({
     [searchQuery, loadedCount, selectedContentTypeRef]
   )
 
+  // Memoize query options to prevent infinite re-renders
+  const queryOptions = useMemo(
+    () => ({
+      fields: [
+        'id',
+        'title',
+        'preview',
+        'picture',
+        'contentGroupRef',
+        'contentTypeRef',
+        'creatorEmployee',
+        'contentGroup',
+        'contentType',
+        'createdAt',
+        'contentEntryTags',
+        'childContentEntries',
+        'childContentEntriesAggregate',
+        'contentEntryReactionCounts'
+      ] as const
+    }),
+    []
+  )
+
   // Use central content data - FIXED: correct parameter order
-  // Use childCount for Questions (only direct answers, not nested replies)
-  const { entries, totalCount, isLoading, error, refetch } = useContentEntries(queryParams, accessToken, true)
+  // Questions use childContentEntriesAggregate (direct answers only, not nested replies)
+  const { entries, totalCount, isLoading, error, refetch } = useContentEntries(queryParams, accessToken, queryOptions)
 
   // Batch fetch reactions
   const articleIds = useMemo(() => entries.map(entry => entry.id), [entries])
@@ -120,8 +144,8 @@ const QuestionView: React.FC<QuestionViewProps> = ({
     }
   })
 
-  // Convert to legacy format
-  const data = useMemo(() => entries.map(toIntranetContent), [entries])
+  // Use entries directly (no conversion needed)
+  const data = entries
 
   const hasMore = entries.length > 0 && entries.length < totalCount
 
@@ -190,7 +214,7 @@ const QuestionView: React.FC<QuestionViewProps> = ({
 
   const handleQuestionClick = (question: any) => {
     const url = buildPlatformUrl('/platform/content/intranet/content-record', {
-      contentId: question.articleId,
+      contentId: question.id,
       tab: currentTab
     })
     navigateTo(url)
@@ -349,19 +373,23 @@ const QuestionView: React.FC<QuestionViewProps> = ({
               </>
             ) : (
               data.map(question => {
-                const votes: VoteState = getVoteCounts(question.articleId)
+                const votes: VoteState = getVoteCounts(question.id || '')
+                const commentCount = question.childContentEntriesAggregate?.aggregate?.count || 0
+                const hasAcceptedAnswer = question.childContentEntries?.some(answer => answer.accepted) || false
+                const tagNames = question.contentEntryTags?.map(t => t.contentTag?.value).filter(Boolean) || []
+
                 return (
                   <div
-                    key={question.articleId}
+                    key={question.id}
                     className="gba:bg-card gba:rounded-lg gba:shadow-sm hover:gba:shadow-md gba:transition gba:border gba:border-border gba:p-4 gba:cursor-pointer"
                     onClick={() => handleQuestionClick(question)}
-                    data-testid={`question-item-${question.articleId}`}
+                    data-testid={`question-item-${question.id}`}
                   >
                     <div className="gba:flex gba:gap-3">
                       {/* Vote section */}
                       <div onClick={e => e.stopPropagation()}>
                         <VoteButtons
-                          contentEntryId={question.articleId}
+                          contentEntryId={question.id || ''}
                           initialVoteState={votes}
                           upvoteCatalogId={upvoteCatalogId}
                           downvoteCatalogId={downvoteCatalogId}
@@ -369,17 +397,23 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                           employeeId={employeeId}
                           size="sm"
                           onVoteComplete={handleVoteSuccess}
-                          data-testid={`question-vote-${question.articleId}`}
+                          data-testid={`question-vote-${question.id}`}
                         />
                       </div>
 
                       {/* Question content */}
                       <div className="gba:flex-1">
                         <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                          <Badge variant={getStatusVariant(question.status || '')} className="gba:text-xs">
-                            {question.status || 'OPEN'}
+                          {hasAcceptedAnswer && (
+                            <Badge variant="success" className="gba:text-xs gba:flex gba:items-center gba:gap-1">
+                              <CheckCircle className="gba:w-3 gba:h-3" />
+                              Answered
+                            </Badge>
+                          )}
+                          <Badge variant={getStatusVariant(question.contentType?.value || '')} className="gba:text-xs">
+                            {question.contentType?.value || 'OPEN'}
                           </Badge>
-                          {question.tagNames?.slice(0, 3).map((tag: string, idx: number) => (
+                          {tagNames.slice(0, 3).map((tag, idx) => (
                             <Badge key={idx} variant="outline" className="gba:text-xs">
                               {tag}
                             </Badge>
@@ -391,14 +425,14 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                         </h3>
 
                         <p className="gba:text-sm gba:text-muted-foreground gba:mb-3 gba:line-clamp-2">
-                          {question.previewText}
+                          {question.preview}
                         </p>
 
                         <div className="gba:flex gba:items-center gba:gap-4 gba:text-sm gba:text-muted-foreground">
                           <div className="gba:flex gba:items-center gba:gap-1">
                             <MessageCircle className="gba:w-4 gba:h-4" />
                             <span>
-                              {question.commentsCount || 0} {t('answers')}
+                              {commentCount} {t('answers')}
                             </span>
                           </div>
                           <span>•</span>
@@ -407,17 +441,25 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                             {question.creatorEmployee ? (
                               <EmployeeHoverCard employee={question.creatorEmployee}>
                                 <span className="gba:cursor-pointer hover:gba:text-primary hover:gba:underline">
-                                  {question.authorFullName || 'Unknown'}
+                                  {question.creatorEmployee.displayName ||
+                                    question.creatorEmployee.fullName ||
+                                    'Unknown'}
                                 </span>
                               </EmployeeHoverCard>
                             ) : (
-                              <span>{question.authorFullName || 'Unknown'}</span>
+                              <span>Unknown</span>
                             )}
                           </span>
-                          {question.createdAtText && (
+                          {question.createdAt && (
                             <>
                               <span>•</span>
-                              <span>{question.createdAtText}</span>
+                              <span>
+                                {new Date(question.createdAt).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric'
+                                })}
+                              </span>
                             </>
                           )}
                         </div>

@@ -2,11 +2,6 @@
  * Content Query Functions
  * Builds GraphQL queries for content entries and related entities
  */
-import type {
-  ContentEntryQueryParams,
-  ContentDocumentQueryParams,
-  ContentReactionQueryParams
-} from '../types/contentTypes'
 import { ContentRole } from '../types/contentEnums'
 import {
   CONTENT_ENTRY_WITH_CATALOGS_FRAGMENT,
@@ -17,6 +12,43 @@ import {
 } from './fragments/contentFragments'
 import { getCatalogEntryRef } from '@/common/data/catalog/queries/catalogFragments'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+
+// =====================================================
+// QUERY PARAMETER INTERFACES
+// =====================================================
+
+export interface ContentEntryQueryParams {
+  offset?: number
+  limit?: number
+  search?: string
+  role?: string | null
+  contentGroupRef?: string | null
+  contentTypeRef?: string | null
+  categoryRefs?: string[]
+  tagRefs?: string[]
+  creatorEmployeeId?: string | null
+  parentContentEntryId?: string | null
+  activeFrom?: string
+  activeTo?: string
+  includeChildren?: boolean
+  sortBy?: string
+  sortOrder?: 'ASC' | 'DESC'
+}
+
+export interface ContentDocumentQueryParams {
+  contentEntryId?: string
+  parentDocumentId?: string | null
+  folder?: boolean | null
+  search?: string
+  offset?: number
+  limit?: number
+}
+
+export interface ContentReactionQueryParams {
+  contentEntryId: string
+  reaction?: string | null
+  groupBy?: boolean
+}
 
 /**
  * Build WHERE clause as object for GraphQL variables
@@ -59,14 +91,14 @@ const buildContentEntryWhereClause = (params: ContentEntryQueryParams): Record<s
 
   // Category filter (relation)
   if (params.categoryRefs && params.categoryRefs.length > 0) {
-    conditions.contentEntryCategory = {
+    conditions.contentEntryCategories = {
       _or: params.categoryRefs.map(ref => ({ contentCategoryRef: { _eq: ref } }))
     }
   }
 
   // Tag filter (relation)
   if (params.tagRefs && params.tagRefs.length > 0) {
-    conditions.contentEntryTag = {
+    conditions.contentEntryTags = {
       _or: params.tagRefs.map(ref => ({ contentTagRef: { _eq: ref } }))
     }
   }
@@ -116,8 +148,8 @@ const buildOrderByClause = (params: ContentEntryQueryParams): any[] => {
 /**
  * Query content entries with filters (using GraphQL variables)
  * @param _params - Query parameters (not used directly, variables are built separately)
- * @param useChildCount - If true, uses childContentEntryAggregate (direct answers for Questions)
- *                        If false, uses descendantContentEntryAggregate (all nested comments)
+ * @param useChildCount - If true, uses childContentEntriesAggregate (direct answers for Questions)
+ *                        If false, uses descendantContentEntriesAggregate (all nested comments)
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const buildContentEntriesQuery = (_params: ContentEntryQueryParams = {}, useChildCount = false): string => {
@@ -139,14 +171,14 @@ export const buildContentEntriesQuery = (_params: ContentEntryQueryParams = {}, 
         offset: $offset
       ) {
         ${CONTENT_ENTRY_WITH_CATALOGS_FRAGMENT}
-        contentEntryCategory {
+        contentEntryCategories {
           id
           contentCategoryRef
           contentCategory {
             ${catalogFragment}
           }
         }
-        contentEntryTag {
+        contentEntryTags {
           id
           contentTagRef
           contentTag {
@@ -191,8 +223,8 @@ export const buildContentEntriesVariables = (params: ContentEntryQueryParams = {
 /**
  * Query single content entry with full details
  * @param id - Content entry ID
- * @param useChildCount - If true, uses childContentEntryAggregate (direct answers for Questions)
- *                        If false, uses descendantContentEntryAggregate (all nested comments)
+ * @param useChildCount - If true, uses childContentEntriesAggregate (direct answers for Questions)
+ *                        If false, uses descendantContentEntriesAggregate (all nested comments)
  */
 export const buildContentEntryQuery = (id: string, useChildCount = false): string => {
   const commentCountFragment = useChildCount ? CHILD_ANSWER_COUNT_FRAGMENT : DESCENDANT_COMMENT_COUNT_FRAGMENT
@@ -208,24 +240,24 @@ export const buildContentEntryQuery = (id: string, useChildCount = false): strin
         }
       ) {
         ${CONTENT_ENTRY_WITH_CATALOGS_FRAGMENT}
-        contentEntryCategory {
+        contentEntryCategories {
           id
           contentCategoryRef
           contentCategory {
             ${catalogFragment}
           }
         }
-        contentEntryTag {
+        contentEntryTags {
           id
           contentTagRef
           contentTag {
             ${catalogFragment}
           }
         }
-        contentDocument {
+        contentDocuments {
           ${CONTENT_DOCUMENT_FRAGMENT}
         }
-        contentEntryReaction {
+        contentEntryReactions {
           ${CONTENT_ENTRY_REACTION_FRAGMENT}
         }
         ${commentCountFragment}
@@ -250,7 +282,7 @@ export const buildChildContentEntriesQuery = (parentId: string, limit = 50, offs
         offset: ${offset}
       ) {
         ${CONTENT_ENTRY_WITH_CATALOGS_FRAGMENT}
-        contentEntryReaction {
+        contentEntryReactions {
           ${CONTENT_ENTRY_REACTION_FRAGMENT}
         }
       }

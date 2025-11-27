@@ -4,7 +4,7 @@ import EmojiPicker, { EmojiClickData, Theme, EmojiStyle } from 'emoji-picker-rea
 import { AppActionProvider } from '@/components/app-action-provider'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { Smile } from 'lucide-react'
-import { buildReactionPayload } from '@/common/data/content/payloads'
+import { buildReactionPayload } from '@/common/data/content/payloads/reactionPayloads'
 
 export interface Reaction {
   emoji: string

@@ -3,7 +3,7 @@ import type { ReactionSummary } from '@/common/components/content/ReactionPicker
 
 type EntryWithReactions = {
   contentEntryReactionCounts?: ContentEntry['contentEntryReactionCounts']
-  contentEntryReaction?: ContentEntry['contentEntryReaction']
+  contentEntryReactions?: ContentEntry['contentEntryReactions']
 }
 
 /**
@@ -19,8 +19,8 @@ export const buildReactionSummaryFromCounts = (entry: EntryWithReactions, curren
 
   // Find user's reaction if currentUserId is provided
   const userReaction =
-    currentUserId && entry.contentEntryReaction
-      ? entry.contentEntryReaction.find(reaction => reaction.createdBy === currentUserId && !reaction.isDeleted)
+    currentUserId && entry.contentEntryReactions
+      ? entry.contentEntryReactions.find(reaction => reaction.createdBy === currentUserId && !reaction.isDeleted)
       : undefined
 
   entry.contentEntryReactionCounts.forEach(countItem => {

@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Button, Avatar, AvatarFallback, AvatarImage } from '@newwork/nw-design-system'
 import { MessageCircle, ChevronUp, ArrowBigUp } from 'lucide-react'
-import { CommentWithReplies } from '@/common/data/content'
+import { CommentWithReplies } from '@/common/data/content/hooks/useContentComments'
 import CommentForm from './CommentForm'
 import { EmployeeHoverCard } from '@/common/components/employee'
 import dayjs from 'dayjs'

@@ -3,7 +3,7 @@ import { Button } from '@newwork/nw-design-system'
 import { ThumbsUp, ThumbsDown } from 'lucide-react'
 import { AppActionProvider } from '@/components/app-action-provider'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { buildReactionPayload } from '@/common/data/content/payloads'
+import { buildReactionPayload } from '@/common/data/content/payloads/reactionPayloads'
 
 export interface VoteState {
   score: number

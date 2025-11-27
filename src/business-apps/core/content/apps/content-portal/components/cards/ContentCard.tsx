@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useTranslation, Badge, Button } from '@newwork/nw-design-system'
 import { MessageCircle, Share2 } from 'lucide-react'
-import type { IntranetContent } from '@/common/data/content/mappers/contentMappers'
+import type { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
 import { calculateReadingTime } from '../../utils/contentUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { ReactionPicker } from '@/common/components/content'
@@ -16,9 +16,9 @@ import translations from '../../_i18n'
 export type ContentCardVariant = 'news' | 'knowledge' | 'intranet' | 'document'
 
 interface ContentCardProps extends BusinessAppContextProps {
-  item: IntranetContent
+  item: ContentEntry
   variant: ContentCardVariant
-  onClick?: (item: IntranetContent) => void
+  onClick?: (item: ContentEntry) => void
   className?: string
   featured?: boolean
   currentTab?: string
@@ -55,7 +55,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
     } else {
       // Navigate to content record with tab parameter
       const url = buildPlatformUrl('/platform/content/intranet/content-record', {
-        contentId: item.articleId,
+        contentId: item.id,
         ...(currentTab && { tab: currentTab })
       })
       navigateTo(url)
@@ -68,27 +68,25 @@ const ContentCard: React.FC<ContentCardProps> = ({
   }
 
   const entityType = getEntityTypeFromVariant(variant)
-  const entityDisplayUrl = buildContentRecordUrl(item.articleId, currentTab)
+  const entityDisplayUrl = buildContentRecordUrl(item.id || '', currentTab)
 
-  const hasTags = item.tags && item.tags.length > 0
+  const hasTags = item.contentEntryTags && item.contentEntryTags.length > 0
   const readingTime = item.timeToRead ?? calculateReadingTime(item.content)
+  const commentCount =
+    item.descendantContentEntriesAggregate?.aggregate?.count || item.childContentEntriesAggregate?.aggregate?.count || 0
 
   return (
     <div
       className={`gba:w-full gba:flex gba:flex-col gba:h-full gba:bg-card gba:rounded-lg gba:overflow-hidden gba:border gba:border-border gba:shadow-lg gba:hover:shadow-xl gba:hover:translate-y-[-4px] gba:transition-all gba:duration-300 ${
         featured ? 'featured' : ''
       } ${className}`}
-      data-testid={`content-card-${item.articleId}`}
+      data-testid={`content-card-${item.id}`}
     >
       <div className="gba:cursor-pointer gba:flex gba:flex-col gba:h-full" onClick={handleClick}>
         {/* Image */}
         <div className="gba:w-full gba:h-[200px] gba:overflow-hidden gba:relative">
-          {item.contentImage ? (
-            <img
-              src={item.contentImage}
-              alt={t(`${variant}_image`)}
-              className="gba:w-full gba:h-full gba:object-cover"
-            />
+          {item.picture ? (
+            <img src={item.picture} alt={t(`${variant}_image`)} className="gba:w-full gba:h-full gba:object-cover" />
           ) : (
             <div className="gba:w-full gba:h-full gba:flex gba:items-center gba:justify-center gba:bg-muted">
               <span className="gba:text-muted-foreground gba:text-xl gba:font-bold">{t('no_image')}</span>
@@ -102,9 +100,9 @@ const ContentCard: React.FC<ContentCardProps> = ({
           <div className="gba:flex gba:justify-between gba:items-center gba:mb-2 gba:text-xs">
             <div className="gba:flex gba:items-center gba:gap-2">
               <span className="gba:text-muted-foreground">{formattedDate}</span>
-              {variant === 'knowledge' && item.contentType && (
+              {variant === 'knowledge' && item.contentType?.value && (
                 <Badge variant="outline" className="gba:text-xs">
-                  {item.contentType}
+                  {item.contentType.value}
                 </Badge>
               )}
             </div>
@@ -116,44 +114,40 @@ const ContentCard: React.FC<ContentCardProps> = ({
             <div>
               <h3
                 className="gba:text-xl gba:font-bold gba:mb-2 gba:line-clamp-2 gba:min-h-[48px] gba:text-foreground"
-                data-testid={`content-card-title-${item.articleId}`}
+                data-testid={`content-card-title-${item.id}`}
               >
                 {item.title}
               </h3>
               <p className="gba:text-sm gba:text-muted-foreground gba:mb-3 gba:line-clamp-2 gba:min-h-[40px]">
-                {item.previewText}
+                {item.preview}
               </p>
             </div>
 
             {/* Author */}
-            {(item.creatorEmployee || item.authorFullName) && (
+            {item.creatorEmployee && (
               <div className="gba:flex gba:items-center gba:mb-3 gba:text-sm">
                 {authorLabel && <span className="gba:text-muted-foreground gba:mr-1">{authorLabel}:</span>}
-                {item.creatorEmployee ? (
-                  <EmployeeHoverCard employee={item.creatorEmployee}>
-                    <span className="gba:cursor-pointer hover:gba:text-primary hover:gba:underline gba:text-foreground">
-                      {item.creatorEmployee.displayName ||
-                        `${item.creatorEmployee.firstName || ''} ${item.creatorEmployee.lastName || ''}`.trim() ||
-                        item.authorFullName}
-                    </span>
-                  </EmployeeHoverCard>
-                ) : (
-                  <span className="gba:text-foreground">{item.authorFullName}</span>
-                )}
+                <EmployeeHoverCard employee={item.creatorEmployee}>
+                  <span className="gba:cursor-pointer hover:gba:text-primary hover:gba:underline gba:text-foreground">
+                    {item.creatorEmployee.displayName ||
+                      item.creatorEmployee.fullName ||
+                      `${item.creatorEmployee.firstName || ''} ${item.creatorEmployee.lastName || ''}`.trim()}
+                  </span>
+                </EmployeeHoverCard>
               </div>
             )}
 
             {/* Tags */}
             {hasTags && (
               <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mb-3">
-                {item.tags.slice(0, 3).map((tag, index) => (
-                  <Badge key={`${item.articleId}-tag-${index}`} variant="secondary" className="gba:text-xs">
-                    #{tag.tag || tag.name}
+                {item.contentEntryTags!.slice(0, 3).map((tag, index) => (
+                  <Badge key={`${item.id}-tag-${index}`} variant="secondary" className="gba:text-xs">
+                    #{tag.contentTag?.value || ''}
                   </Badge>
                 ))}
-                {item.tags.length > 3 && (
+                {item.contentEntryTags!.length > 3 && (
                   <Badge variant="outline" className="gba:text-xs">
-                    +{item.tags.length - 3}
+                    +{item.contentEntryTags!.length - 3}
                   </Badge>
                 )}
               </div>
@@ -164,7 +158,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
               {item.allowReaction && (
                 <div onClick={e => e.stopPropagation()}>
                   <ReactionPicker
-                    contentEntryId={item.articleId}
+                    contentEntryId={item.id || ''}
                     reactionSummary={reactionSummary}
                     allowReaction={item.allowReaction}
                     accessToken={accessToken}
@@ -173,14 +167,14 @@ const ContentCard: React.FC<ContentCardProps> = ({
                     size="sm"
                     allowedReactions={allowedReactions}
                     reactionCatalogMap={reactionCatalogMap}
-                    data-testid={`content-card-reaction-${item.articleId}`}
+                    data-testid={`content-card-reaction-${item.id}`}
                   />
                 </div>
               )}
               {item.allowComment && (
                 <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground">
                   <MessageCircle className="gba:w-4 gba:h-4" />
-                  <span>{item.commentsCount || 0}</span>
+                  <span>{commentCount}</span>
                 </div>
               )}
               <Button
@@ -188,7 +182,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
                 size="sm"
                 className="gba:ml-auto gba:p-1 gba:h-auto"
                 onClick={handleShare}
-                data-testid={`content-card-share-${item.articleId}`}
+                data-testid={`content-card-share-${item.id}`}
               >
                 <Share2 className="gba:w-4 gba:h-4" />
               </Button>
@@ -203,8 +197,8 @@ const ContentCard: React.FC<ContentCardProps> = ({
           accessToken={accessToken}
           currentUserId={userInfo?.id || ''}
           entityType={entityType}
-          entityId={item.articleId}
-          entityName={item.title}
+          entityId={item.id || ''}
+          entityName={item.title || ''}
           entityDisplayUrl={entityDisplayUrl}
         />
       )}

@@ -61,9 +61,18 @@ const ContentDocumentPopupContent: React.FC<ContentDocumentPopupProps> = context
     []
   )
 
+  const documentAreaQueryOptions = useMemo(
+    () => ({
+      fields: ['id', 'title', 'contentGroupRef', 'contentGroup'] as const,
+      relationLimit: 50
+    }),
+    []
+  )
+
   const { entries: documentAreas, isLoading: isLoadingAreas } = useContentEntries(
     documentAreaQueryParams,
-    context.accessToken
+    context.accessToken,
+    documentAreaQueryOptions
   )
 
   // Fetch available folders (parent documents) for the selected area

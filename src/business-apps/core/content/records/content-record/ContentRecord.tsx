@@ -3,7 +3,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useTranslation } from '@newwork/nw-design-system'
 import { Button, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
 import { ArrowLeft } from 'lucide-react'
-import { useContentEntry } from '@/common/data/content'
+import { useContentEntry } from '@/common/data/content/hooks/useContentEntry'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import ContentPage from './components/ContentPage'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
@@ -110,8 +110,13 @@ const ContentRecord: React.FC<ContentRecordProps> = context => {
     return new URLSearchParams(window.location.search).get('tab') || 'intranet'
   }, [])
 
-  // Questions use child count (direct answers only), everything else uses descendant count (all nested)
-  const useChildCount = fromTab === 'questions'
+  const queryOptions = useMemo(
+    () => ({
+      config: 'detail' as const,
+      relationLimit: 50
+    }),
+    []
+  )
 
   const {
     entry: item,
@@ -119,7 +124,7 @@ const ContentRecord: React.FC<ContentRecordProps> = context => {
     error
   } = useContentEntry(contentId, {
     accessToken: context.accessToken,
-    useChildCount
+    queryOptions
   })
 
   const handleBackClick = () => {
