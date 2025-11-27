@@ -79,38 +79,30 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
   const hasDetailsPermission =
     permissionsLoading || employeeGrowthPermission.loading || employeeRecordAllHrBackoffice.loading
       ? false
-      : isSelfView ||
-        hasManagerEmployeeGrowthPermission ||
-        (employeeRecordAllHrBackoffice?.hasPermission === true && !employeeGrowthPermission.hasPermission)
+      : isSelfView || hasManagerEmployeeGrowthPermission || employeeRecordAllHrBackoffice?.hasPermission === true
 
   const hasEmploymentPermission =
     permissionsLoading || employeeGrowthPermission.loading || employeeRecordAllHrBackoffice.loading
       ? false
-      : isSelfView ||
-        hasManagerEmployeeGrowthPermission ||
-        (employeeRecordAllHrBackoffice?.hasPermission === true && !employeeGrowthPermission.hasPermission)
+      : isSelfView || hasManagerEmployeeGrowthPermission || employeeRecordAllHrBackoffice?.hasPermission === true
 
   const hasDocumentsPermission =
     permissionsLoading || employeeGrowthPermission.loading || employeeRecordAllHrBackoffice.loading
       ? false
-      : isSelfView ||
-        hasManagerEmployeeGrowthPermission ||
-        (employeeRecordAllHrBackoffice?.hasPermission === true && !employeeGrowthPermission.hasPermission)
+      : isSelfView || hasManagerEmployeeGrowthPermission || employeeRecordAllHrBackoffice?.hasPermission === true
 
   const hasChangeLogPermission =
     permissionsLoading || employeeGrowthPermission.loading || employeeRecordAllHrBackoffice.loading
       ? false
       : isSelfView ||
         (changeLogTabFeatureFlag &&
-          (hasManagerEmployeeGrowthPermission ||
-            (employeeRecordAllHrBackoffice?.hasPermission === true && !employeeGrowthPermission.hasPermission)))
+          (hasManagerEmployeeGrowthPermission || employeeRecordAllHrBackoffice?.hasPermission === true))
 
   const shouldShowHrNotes =
     !isSelfView &&
     hasHrNotesAccess &&
     !scopePermissionLoading &&
-    (hasManagerEmployeeGrowthPermission ||
-      (employeeRecordAllHrBackoffice?.hasPermission === true && !employeeGrowthPermission.hasPermission))
+    (hasManagerEmployeeGrowthPermission || employeeRecordAllHrBackoffice?.hasPermission === true)
 
   useEffect(() => {
     if (activeSubView === 'hrNotes' && !shouldShowHrNotes) {
