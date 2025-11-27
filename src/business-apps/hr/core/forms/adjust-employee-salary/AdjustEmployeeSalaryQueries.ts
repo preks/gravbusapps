@@ -37,4 +37,29 @@ export const EMPLOYEE_COMPENSATION_QUERY = `query fetchEmployeeCompensation($idE
 }
 `
 
-// No pay frequency catalog query needed - frequency is determined from employee compensation data
+export const SALARY_ADJUST_REASON_CATALOG_QUERY = `query fetchSalaryAdjustReasonCatalog {
+  CatalogEntry(
+    where: {
+      _and: [
+        { catalog: { identifier: { _eq: "SalaryAdjustReason" }, version: { _eq: "v1" } } },
+        { isDeleted: { _neq: true } }
+      ]
+    }
+    orderBy: [{ displayOrder: ASC }, { value: ASC }]
+  ) {
+    id
+    code
+    value
+    displayOrder
+    translations {
+      localeCode
+      value
+    }
+    catalog {
+      identifier
+      version
+      defaultLocale
+    }
+  }
+}
+`

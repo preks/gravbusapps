@@ -1,8 +1,17 @@
 import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { EMPLOYEE_DATA_QUERY, EMPLOYEE_COMPENSATION_QUERY } from './AdjustEmployeeSalaryQueries'
-import type { AdjustEmployeeSalaryContextData, EmployeeDataResponse, EmployeeCompensationResponse } from './types'
+import {
+  EMPLOYEE_DATA_QUERY,
+  EMPLOYEE_COMPENSATION_QUERY,
+  SALARY_ADJUST_REASON_CATALOG_QUERY
+} from './AdjustEmployeeSalaryQueries'
+import type {
+  AdjustEmployeeSalaryContextData,
+  EmployeeDataResponse,
+  EmployeeCompensationResponse,
+  SalaryAdjustReasonCatalogResponse
+} from './types'
 
 interface AdjustEmployeeSalaryContextValue {
   data: AdjustEmployeeSalaryContextData | null
@@ -51,17 +60,20 @@ export const AdjustEmployeeSalaryProvider: React.FC<ProviderProps> = ({
     try {
       const empVariables = { idEmployee: employeeId }
 
-      // Fetch both queries in parallel to prevent UI twitch
-      const [employeeData, compensationData] = await Promise.all([
+      // Fetch all queries in parallel to prevent UI twitch
+      const [employeeData, compensationData, salaryAdjustReasonCatalog] = await Promise.all([
         graphqlClient.request<EmployeeDataResponse>(EMPLOYEE_DATA_QUERY, empVariables),
-        graphqlClient.request<EmployeeCompensationResponse>(EMPLOYEE_COMPENSATION_QUERY, empVariables)
+        graphqlClient.request<EmployeeCompensationResponse>(EMPLOYEE_COMPENSATION_QUERY, empVariables),
+        graphqlClient.request<SalaryAdjustReasonCatalogResponse>(SALARY_ADJUST_REASON_CATALOG_QUERY)
       ])
 
-      // Set data only once with both results
+      // Set data only once with all results
       setData({
         employee: employeeData,
         compensation: compensationData,
-        catalogs: null
+        catalogs: {
+          salaryAdjustReason: salaryAdjustReasonCatalog
+        }
       })
       setIsLoading(false)
     } catch (e: any) {

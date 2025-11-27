@@ -12,12 +12,16 @@ import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { calculateSalaryAdjustment } from './utils/calculateSalaryAdjustment'
 import translations from '../_i18n'
 
-const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additionalData }) => {
+const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additionalData, userInfo }) => {
   const { t } = useTranslation(translations)
   const { data, isLoading } = useAdjustEmployeeSalary()
 
   const employee = useMemo(() => data?.employee?.EmployeeByPk, [data])
   const currentCompensation = useMemo(() => data?.compensation?.EmployeeWorkingCondition?.[0] || null, [data])
+  const salaryAdjustReasonEntries = useMemo(
+    () => data?.catalogs?.salaryAdjustReason?.CatalogEntry || [],
+    [data?.catalogs?.salaryAdjustReason]
+  )
 
   const currentSalaryAnnual = useMemo(() => currentCompensation?.annualGrossSalary || 0, [currentCompensation])
   const currentSalaryMonthly = useMemo(() => currentCompensation?.monthlyGrossSalary ?? null, [currentCompensation])
@@ -166,32 +170,67 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
             isSubmittingRef.current = true
             try {
               // Calculate adjustment based on frequency
-              const { newAnnualSalary, newMonthlySalary, newHourlySalary, adjustmentValue, adjustmentType } =
-                calculateSalaryAdjustment(values, currentSalaryAnnual, currentSalaryMonthly, currentSalaryHourly)
+              const { newAnnualSalary, newMonthlySalary, newHourlySalary } = calculateSalaryAdjustment(
+                values,
+                currentSalaryAnnual,
+                currentSalaryMonthly,
+                currentSalaryHourly
+              )
+
+              // Ensure annualGrossSalary is always a number (not null)
+              // For hourly adjustments, use current annual salary as fallback
+              const finalAnnualGrossSalary = newAnnualSalary ?? (currentSalaryAnnual || 0)
+              // For monthly, calculate from annual if null
+              const finalMonthlyGrossSalary =
+                newMonthlySalary ?? (finalAnnualGrossSalary > 0 ? finalAnnualGrossSalary / 12 : null)
 
               const payload = {
                 event: 'pse_submit',
+                employeeId: employeeId,
+                initiatorEmployeeId: userInfo?.employeeDetails?.employeeId || '',
+                oldEmployeeSalary: {
+                  employee: employeeId,
+                  annualGrossSalary: currentSalaryAnnual,
+                  monthlyGrossSalary: currentSalaryMonthly,
+                  hourlyGrossSalary: currentSalaryHourly,
+                  currencyRef: currentCompensation?.currencyRef || '',
+                  startDate: null,
+                  endDate: null,
+                  stockOptions: false,
+                  notes: null,
+                  requestStatus: null,
+                  requestDate: null,
+                  decisionDate: null,
+                  requestedPercent: null,
+                  requestedAmount: null,
+                  salaryAdjustReason: null,
+                  decisionEmployee: null
+                },
                 employeeSalary: {
                   employee: employeeId,
-                  adjustmentType: adjustmentType,
-                  adjustmentValue: adjustmentValue,
-                  amountIncrease: values.amountIncrease || null,
-                  percentageIncrease: values.percentageIncrease || null,
-                  adjustmentFrequency: values.adjustmentFrequency,
-                  newAnnualSalary: newAnnualSalary,
-                  newMonthlySalary: newMonthlySalary,
-                  newHourlySalary: newHourlySalary,
-                  effectiveDate: values.effectiveDate
+                  annualGrossSalary: finalAnnualGrossSalary,
+                  monthlyGrossSalary: finalMonthlyGrossSalary,
+                  hourlyGrossSalary: newHourlySalary,
+                  currencyRef: currentCompensation?.currencyRef || '',
+                  salaryAdjustReason: values.reason || '',
+                  startDate: values.effectiveDate
                     ? (() => {
                         const date = new Date(values.effectiveDate)
                         if (Number.isNaN(date.getTime())) {
-                          return ''
+                          return null
                         }
                         return formatDateToISO(date)
                       })()
-                    : '',
-                  reason: values.reason || '',
-                  notes: values.notes || ''
+                    : null,
+                  notes: values.notes || '',
+                  stockOptions: false,
+                  endDate: null,
+                  requestStatus: null,
+                  requestDate: null,
+                  decisionDate: null,
+                  requestedPercent: values.percentageIncrease || null,
+                  requestedAmount: values.amountIncrease || null,
+                  decisionEmployee: null
                 }
               }
 
@@ -212,6 +251,7 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
               currentSalaryHourly={currentSalaryHourly}
               currentCurrency={currentCurrency}
               locale={locale}
+              salaryAdjustReasonEntries={salaryAdjustReasonEntries}
             />
           </div>
         </AppActionForm>
