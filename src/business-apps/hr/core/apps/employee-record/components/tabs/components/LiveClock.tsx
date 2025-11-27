@@ -36,19 +36,6 @@ export const LiveClock: React.FC<LiveClockProps> = ({ className }) => {
         const fallbackLocale = lc.startsWith('de') ? 'de-DE' : locale || 'en-US'
         humanDate = new Intl.DateTimeFormat(fallbackLocale, dateOptions).format(now)
       }
-      /*
-      const humanTime = now.toLocaleTimeString(locale, {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false
-      })
-      const humanDate = now.toLocaleDateString(locale, {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: '2-digit'
-      })*/
 
       setTime(humanTime)
       setDate(humanDate)
