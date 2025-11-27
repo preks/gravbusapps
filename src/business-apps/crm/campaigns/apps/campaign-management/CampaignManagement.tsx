@@ -374,7 +374,9 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = prop
   // Render actions for each campaign row
   const renderCampaignActions = useCallback(
     (row: { original: Campaign }) => (
-      <CampaignRowActions campaignId={row.original.id} accessToken={props.accessToken} />
+      <div role="presentation" onClick={e => e.stopPropagation()}>
+        <CampaignRowActions campaignId={row.original.id} accessToken={props.accessToken} />
+      </div>
     ),
     [props.accessToken]
   )
