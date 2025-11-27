@@ -14,7 +14,7 @@ import {
   PiCurrencyDollar,
   PiGlobeHemisphereWest,
   PiBookmarks,
-  PiCamera
+  PiCameraFill
 } from 'react-icons/pi'
 import { Avatar } from '@newwork/gravity-ui-catalog'
 import { Employee } from '../hooks/useEmployeeData'
@@ -28,6 +28,8 @@ import { notification } from 'antd'
 import { StarIcon } from 'lucide-react'
 import { TeamOutlined } from '@ant-design/icons'
 import AppAction from '@/components/app-action/AppAction'
+import { useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 // Team item type
 interface MatrixUnitEmployee {
@@ -142,6 +144,7 @@ const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({
 const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({ userInfo, employee, accessToken }) => {
   // Translation helper
   const t = (key: string) => getTranslationFromI18nKeyAndLabel(key, key)
+  const { t: tDesign } = useTranslation(hrTranslations)
   const [employeeEmail, setEmployeeEmail] = useState<string | undefined>()
 
   // Use the openChat hook for direct Teams integration
@@ -288,9 +291,9 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                       className="gba:absolute gba:inset-0 gba:rounded-xl gba:flex gba:items-center gba:justify-center gba:opacity-0 gba:bg-black/60 gba:text-white gba:group-hover:opacity-100 gba:transition-opacity gba:transition-duration-200 gba:transition-ease-in-out gba:cursor-pointer"
                     >
                       <div className="gba:p-4 gba:flex gba:flex-col gba:items-center gba:gap-2">
-                        <PiCamera className="gba:h-6 gba:w-6" />
+                        <PiCameraFill className="gba:h-6 gba:w-6" />
                         <span className="gba:text-xs gba:font-semibold gba:uppercase gba:text-center">
-                          Edit Picture
+                          {tDesign('employee-edit-picture')}
                         </span>
                       </div>
                     </AppAction>
