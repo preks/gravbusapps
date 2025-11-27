@@ -38,12 +38,16 @@ export const ReviewRows: React.FC<ReviewRowsProps> = ({
       <div className="gba:flex gba:flex-col gba:gap-4" data-testid={`${dataTestIdPrefix}-rows`}>
         {rows.map(row => {
           const hasDiff = String((row.oldValue || '').trim()) !== String((row.newValue || '').trim())
-          const newClasses =
-            mode === 'delete'
-              ? 'gba:bg-destructive gba:text-destructive-foreground'
-              : hasDiff
-                ? 'gba:bg-success-secondary gba:text-success-secondary-foreground'
-                : 'gba:bg-muted gba:text-muted-foreground'
+
+          let newClasses: string
+          if (mode === 'delete') {
+            newClasses = 'gba:bg-destructive gba:text-destructive-foreground'
+          } else if (hasDiff) {
+            newClasses = 'gba:bg-success-secondary/30 gba:text-success-secondary-foreground'
+          } else {
+            newClasses = 'gba:bg-muted gba:text-muted-foreground'
+          }
+
           return (
             <div
               key={row.key}

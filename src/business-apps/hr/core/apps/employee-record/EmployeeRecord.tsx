@@ -495,7 +495,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
                 <div className="gba:flex gba:items-center gba:gap-2">
                   <PiPackage className="gba:text-xl gba:inline-block gba:align-middle" />
                   <span className="gba:inline-block gba:align-middle">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.assets', 'Assets')}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.assets_tab', 'Assets')}
                   </span>
                 </div>
               ),

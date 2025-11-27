@@ -22,13 +22,30 @@ adjust-salary-adjustment-value-positive = Value must be positive
 adjust-salary-currency-required = Currency is required. Please select a currency.
 adjust-salary-effective-date-required = Effective date is required. Please select an effective date.
 adjust-salary-reason-required = Reason is required. Please select a reason.
-adjust-salary-frequency = Pay Frequency
-adjust-salary-frequency-required = Frequency is required. Please select a frequency.
+adjust-salary-frequency = Salary Adjustment type
+adjust-salary-frequency-required = Salary Adjustment type is required. Please select a salary adjustment type.
 adjust-salary-frequency-annually = Annually
 adjust-salary-frequency-monthly = Monthly
 adjust-salary-frequency-hourly = Hourly
 adjust-salary-current-salary = Current Salary
 adjust-salary-calculation-breakdown = Salary Adjustment Summary
+
+# Adjust Employee Salary Review Form
+adjust-salary-review-title = Employee Salary Adjustment Review for { $employeeName }
+adjust-salary-review-initiated-by = Initiated by { $initiatorName }
+adjust-salary-review-salary-comparison = Salary Comparison
+adjust-salary-review-current-salary = Current Salary
+adjust-salary-review-new-salary = New Salary
+adjust-salary-review-adjustment-details = Adjustment Details
+adjust-salary-review-total-increase = Total Increase
+adjust-salary-review-effective-date = Effective Date
+adjust-salary-review-reason = Reason
+adjust-salary-review-notes = Notes
+adjust-salary-review-acknowledge = Acknowledge
+adjust-salary-review-reject = Reject
+adjust-salary-review-annual-gross-salary = Annual Gross Salary
+adjust-salary-review-monthly-gross-salary = Monthly Gross Salary
+adjust-salary-review-hourly-gross-salary = Hourly Gross Salary
 
 # Common Actions
 action-select-placeholder = Please Select
