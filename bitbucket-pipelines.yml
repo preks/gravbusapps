@@ -44,9 +44,6 @@ definitions:
   services:
     docker:
       memory: 3072
-    docker-large:
-      memory: 7168
-      type: docker
   caches:
     nodecustom:
       key:
@@ -189,14 +186,12 @@ definitions:
           depth: full # SonarCloud scanner needs the full history to assign issues properly
         caches:
           - nodecustom
-        services:
-          - docker-large
         script:
           - pipe: sonarsource/sonarcloud-scan:4.1.0
             variables:
-              SONAR_SCANNER_OPTS: -Xmx4096m
+              SONAR_SCANNER_OPTS: -Xmx3072m
               EXTRA_ARGS: 
-                - '-Dsonar.javascript.node.maxspace=3072'
+                - '-Dsonar.javascript.node.maxspace=4096'
 
 pipelines:
   pull-requests:
