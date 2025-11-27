@@ -13,6 +13,7 @@ import IncrementTypeDetailsForm, {
 import { TransformedIncrementTypeVersionDetail } from '../types/increment-type-version-details'
 import { TransformedTimeType } from '../types/time-types'
 import { useRestClient } from '@/common/network/rest/useRestClient'
+import { convertMinutesToHHMM } from '../utils/convertMinutesToHHMM'
 import { env } from '@/common/env/EnvUtils'
 import { DeleteDialog } from './DeleteDialog'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -215,7 +216,12 @@ export const IncrementTypeDetails: React.FC<IncrementTypeDetailsProps> = ({
         ),
         enableSorting: true,
         cell: ({ row }) => {
-          return row.original.fixedValue === null ? '-' : row.original.fixedValue
+          if (row.original.fixedValue === null) {
+            return '-'
+          }
+          // Convert minutes to HH:MM format for display
+          const formattedValue = convertMinutesToHHMM(row.original.fixedValue)
+          return formattedValue || '-'
         }
       },
       {

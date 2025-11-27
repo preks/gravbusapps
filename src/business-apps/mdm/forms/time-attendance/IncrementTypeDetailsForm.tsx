@@ -159,7 +159,7 @@ const incrementTypeDetailsSchema = z
       (!data.fixedValue || data.fixedValue === '')
     ) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: 'custom',
         path: ['fixedValue'],
         message: getTranslationFromI18nKeyAndLabel(
           'master-data:hr.time_attendance.increment_type_versions.fields.fixed_value_required',
@@ -171,7 +171,7 @@ const incrementTypeDetailsSchema = z
     // Validate startBeforeTime when checkStartBefore is true
     if (data.checkStartBefore && (!data.startBeforeTime || data.startBeforeTime === '')) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: 'custom',
         path: ['startBeforeTime'],
         message: getTranslationFromI18nKeyAndLabel(
           'master-data:hr.time_attendance.increment_type_versions.fields.start_before_time_required',
@@ -194,7 +194,7 @@ const incrementTypeDetailsSchema = z
       // Day To cannot be before Day From in temporal order
       if (fromOrder !== undefined && toOrder !== undefined && toOrder < fromOrder) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: 'custom',
           path: ['toAppliedDate'],
           message: getTranslationFromI18nKeyAndLabel(
             'master-data:hr.time_attendance.increment_type_versions.fields.day_to_before_day_from',
@@ -215,7 +215,7 @@ const incrementTypeDetailsSchema = z
 
         if (startMinutes >= endMinutes) {
           ctx.addIssue({
-            code: z.ZodIssueCode.custom,
+            code: 'custom',
             path: ['endTime'],
             message: getTranslationFromI18nKeyAndLabel(
               'master-data:hr.time_attendance.increment_type_versions.fields.end_time_before_start_time',
@@ -487,7 +487,7 @@ const IncrementTypeDetailsForm: React.FC<IncrementTypeDetailsFormProps> = ({
         if (parts.length === 2) {
           const hours = Number.parseInt(parts[0], 10)
           const minutes = Number.parseInt(parts[1], 10)
-          if (!isNaN(hours) && !isNaN(minutes)) {
+          if (!Number.isNaN(hours) && !Number.isNaN(minutes)) {
             return hours * 60 + minutes
           }
         }
@@ -620,7 +620,7 @@ const IncrementTypeDetailsForm: React.FC<IncrementTypeDetailsFormProps> = ({
                         return
                       }
                       const value = Number.parseInt(inputValue, 10)
-                      if (!isNaN(value)) {
+                      if (!Number.isNaN(value)) {
                         const clampedValue = Math.max(0, Math.min(value, maxDisplayOrder))
                         field.onChange(clampedValue)
                         // Force update to remove leading zeros

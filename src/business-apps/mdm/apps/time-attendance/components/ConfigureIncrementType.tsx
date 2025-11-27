@@ -176,8 +176,7 @@ const ConfigureIncrementType: React.FC<ConfigureIncrementTypeProps> = ({
     const isValid = form.formState.isValid
     const isDirty = form.formState.isDirty
 
-    const isNewVersion =
-      !currentIncrementTypeVersion || !currentIncrementTypeVersion.id || currentIncrementTypeVersion.id === ''
+    const isNewVersion = !currentIncrementTypeVersion?.id || currentIncrementTypeVersion.id === ''
 
     if (isNewVersion) {
       return !isValid

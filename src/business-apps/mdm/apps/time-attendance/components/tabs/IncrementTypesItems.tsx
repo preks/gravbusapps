@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react'
 import { DataTable, Button } from '@newwork/nw-design-system'
 import { ColumnDef } from '@tanstack/react-table'
-import { MagnifyingGlassIcon, PencilSimpleLineIcon, TrashIcon } from '@phosphor-icons/react'
+import { GearIcon, MagnifyingGlassIcon, PencilSimpleLineIcon, TrashIcon } from '@phosphor-icons/react'
 import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -70,7 +70,9 @@ export const IncrementTypesItems: React.FC<IncrementTypesItemsProps> = ({
 
   // Handle row click to configure the latest incrementTypeVersion
   const handleRowClick = useCallback(
-    (incrementType: SimpleIncrementType) => {
+    (incrementType: SimpleIncrementType | undefined, event: React.MouseEvent) => {
+      event.stopPropagation()
+      if (!incrementType) return
       const latestVersion = getLatestIncrementTypeVersion(incrementType)
 
       if (latestVersion) {
@@ -82,6 +84,7 @@ export const IncrementTypesItems: React.FC<IncrementTypesItemsProps> = ({
           activeFrom: null,
           activeTo: null,
           increments: 0,
+          status: 'inactive',
           version: 0,
           incrementType: {
             id: incrementType.id,
@@ -166,6 +169,13 @@ export const IncrementTypesItems: React.FC<IncrementTypesItemsProps> = ({
             />
             <Button
               variant="ghost"
+              onClick={event => handleRowClick(targetIncrementType, event)}
+              data-testid={formatDataTestId(prefixDataTestId, `configure-button-${targetIncrementType?.id}`)}
+            >
+              <GearIcon />
+            </Button>
+            <Button
+              variant="ghost"
               onClick={event => {
                 event.stopPropagation()
                 setSelectedIncrementType(targetIncrementType ?? null)
@@ -208,7 +218,6 @@ export const IncrementTypesItems: React.FC<IncrementTypesItemsProps> = ({
         columns={columns}
         data={filteredIncrementTypes}
         data-testid={formatDataTestId(prefixDataTestId, 'increment-types-items-table')}
-        onRowClick={handleRowClick}
       />
 
       <DeleteDialog
