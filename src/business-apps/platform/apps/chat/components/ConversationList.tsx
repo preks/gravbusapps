@@ -120,7 +120,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
     <div className="gba:flex gba:flex-col gba:h-full" data-testid="conversation-list">
       {/* Header */}
       <div className="gba:flex gba:items-center gba:justify-between gba:p-4 gba:border-b">
-        <h1 className="gba:text-lg gba:font-semibold">{getTranslationFromI18nKeyAndLabel('chat.title', 'Chat')}</h1>
+        <h1 className="gba:text-lg gba:font-semibold">{getTranslationFromI18nKeyAndLabel('chat.appHeader', 'Chat')}</h1>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm" data-testid="new-conversation-button">
@@ -145,12 +145,14 @@ export const ConversationList: React.FC<ConversationListProps> = ({
       {/* Search */}
       <div className="gba:p-4 gba:border-b">
         <div className="gba:relative">
-          <MagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
+          <div className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:pointer-events-none gba:flex gba:items-center gba:z-10">
+            <MagnifyingGlass className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
+          </div>
           <Input
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             placeholder={getTranslationFromI18nKeyAndLabel('chat.searchConversations', 'Search conversations...')}
-            className="gba:pl-9"
+            style={{ paddingLeft: '2.5rem' }}
             data-testid="conversation-search-input"
           />
         </div>
