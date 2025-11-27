@@ -194,9 +194,8 @@ definitions:
         script:
           - pipe: sonarsource/sonarcloud-scan:4.1.0
             variables:
-              SONAR_SCANNER_OPTS: -Xmx4096m
-              EXTRA_ARGS: 
-                - '-Dsonar.javascript.node.maxspace=3072'
+              SONAR_SCANNER_OPTS: -Xmx6144m
+              EXTRA_ARGS: ['-Dsonar.javascript.node.maxspace=5120']
 
 pipelines:
   pull-requests:
