@@ -18,6 +18,7 @@ interface AllowanceRegionDetailsSectionProps {
   onRemoveAmount: (groupKey: string, amountIndex: number) => void;
   onRemoveGroup: (groupKey: string) => void;
   onScroll: (e: React.UIEvent<HTMLDivElement>) => void;
+  isUsedInTransactions?: boolean;
 }
 
 export const AllowanceRegionDetailsSection: React.FC<AllowanceRegionDetailsSectionProps> = ({
@@ -34,6 +35,7 @@ export const AllowanceRegionDetailsSection: React.FC<AllowanceRegionDetailsSecti
   onRemoveAmount,
   onRemoveGroup,
   onScroll,
+  isUsedInTransactions = false,
 }) => {
   return (
     <Card>
@@ -65,11 +67,12 @@ export const AllowanceRegionDetailsSection: React.FC<AllowanceRegionDetailsSecti
                 onRemoveAmount={(amountIndex) => onRemoveAmount(group.key, amountIndex)}
                 onRemoveGroup={() => onRemoveGroup(group.key)}
                 onScroll={onScroll}
+                isUsedInTransactions={isUsedInTransactions}
               />
             ))}
           </div>
         ) : (
-          <div className="gba:text-center gba:py-8 gba:text-gray-500">
+          <div className="gba:text-center gba:py-8 gba:text-muted-foreground">
             No allowance details added yet. Click "Add Group" to start.
           </div>
         )}

@@ -149,9 +149,8 @@ const UnassignedRulesView: React.FC<UnassignedRulesViewProps> = ({ accessToken, 
           detailCount: rule.allowanceRegionRuleDetailAggregate.aggregate.count
         }))
 
-        // Set the total count from aggregate (this includes ALL rules, assigned and unassigned)
-        // Note: This is not the exact count of unassigned rules, but gives us a baseline for pagination
-        setTotalCount(result.AllowanceRegionRuleAggregate.aggregate.count)
+        // Set the total count to the actual number of unassigned rules found
+        setTotalCount(unassignedRulesData.length)
 
         setUnassignedRules(rules)
       } catch (err) {
@@ -370,7 +369,11 @@ const UnassignedRulesView: React.FC<UnassignedRulesViewProps> = ({ accessToken, 
                 <CardTitle className="gba:mb-2">
                   {getTranslationFromI18nKeyAndLabel('expense-settings:unassigned_rules', 'Unassigned Allowance Rules')}
                 </CardTitle>
-                <p className="gba:text-gray-600">{totalCount} rules not assigned to any Travel Region Set</p>
+                <p className="gba:text-gray-600">
+                  {totalCount === 0 
+                    ? 'All rules are assigned to Travel Region Sets' 
+                    : `${totalCount} rules not assigned to any Travel Region Set`}
+                </p>
               </div>
               <Button
                 variant="default"
@@ -385,44 +388,46 @@ const UnassignedRulesView: React.FC<UnassignedRulesViewProps> = ({ accessToken, 
         </Card>
       </div>
 
-      <div className="gba:w-full gba:overflow-x-auto">
-        <Table className="gba:min-w-[800px] gba:table-fixed" data-testid={`${prefixDataTestId}-unassigned-rules-table`}>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="gba:w-[250px]">Rule</TableHead>
-              <TableHead className="gba:w-[200px]">Validity Period</TableHead>
-              <TableHead className="gba:w-[120px]">Details Count</TableHead>
-              <TableHead className="gba:w-[100px]">Order</TableHead>
-              <TableHead className="gba:w-[150px]">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {unassignedRules.map(record => (
-              <TableRow key={record.id}>
-                <TableCell className="gba:w-[250px]">{renderRuleCell(record)}</TableCell>
-                <TableCell className="gba:w-[200px]">{renderValidityCell(record)}</TableCell>
-                <TableCell className="gba:w-[120px] gba:text-center">{renderDetailsCountCell(record)}</TableCell>
-                <TableCell className="gba:w-[100px] gba:text-center">{renderOrderCell(record)}</TableCell>
-                <TableCell className="gba:w-[150px]">{renderActionsCell(record)}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      {unassignedRules.length > 0 ? (
+        <>
+          <div className="gba:w-full gba:overflow-x-auto">
+            <Table className="gba:min-w-[800px] gba:table-fixed" data-testid={`${prefixDataTestId}-unassigned-rules-table`}>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="gba:w-[250px]">Rule</TableHead>
+                  <TableHead className="gba:w-[200px]">Validity Period</TableHead>
+                  <TableHead className="gba:w-[120px]">Details Count</TableHead>
+                  <TableHead className="gba:w-[100px]">Order</TableHead>
+                  <TableHead className="gba:w-[150px]">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {unassignedRules.map(record => (
+                  <TableRow key={record.id}>
+                    <TableCell className="gba:w-[250px]">{renderRuleCell(record)}</TableCell>
+                    <TableCell className="gba:w-[200px]">{renderValidityCell(record)}</TableCell>
+                    <TableCell className="gba:w-[120px] gba:text-center">{renderDetailsCountCell(record)}</TableCell>
+                    <TableCell className="gba:w-[100px] gba:text-center">{renderOrderCell(record)}</TableCell>
+                    <TableCell className="gba:w-[150px]">{renderActionsCell(record)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
 
-      {/* Pagination */}
-      <MileageRulesPagination
-        currentPage={currentPage}
-        pageSize={pageSize}
-        totalItems={totalCount}
-        itemLabel="unassigned rules"
-        onPageChange={pagination => {
-          setCurrentPage(pagination.current)
-          setPageSize(pagination.pageSize)
-        }}
-      />
-
-      {unassignedRules.length === 0 && totalCount === 0 && (
+          {/* Pagination */}
+          <MileageRulesPagination
+            currentPage={currentPage}
+            pageSize={pageSize}
+            totalItems={totalCount}
+            itemLabel="unassigned rules"
+            onPageChange={pagination => {
+              setCurrentPage(pagination.current)
+              setPageSize(pagination.pageSize)
+            }}
+          />
+        </>
+      ) : (
         <div className="gba:text-center gba:py-12">
           <PiWarning className="gba:text-4xl gba:text-green-400 gba:mb-4" />
           <h4 className="gba:text-lg gba:font-medium gba:text-gray-600 gba:mb-2">All Rules Are Assigned</h4>

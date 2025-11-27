@@ -53,6 +53,7 @@ export interface AllowanceRegionRulesResponse {
 
 /**
  * GraphQL query to fetch allowance region rules with their details
+ * Filters by travelRegionSetRef - rules must have this field set to appear in a travel region set
  */
 export const GET_ALLOWANCE_REGION_RULES_WITH_DETAILS = `
   query GetAllowanceRegionRulesWithTravelRegionSet($travelRegionSetId: String!) {
@@ -83,6 +84,7 @@ export const GET_ALLOWANCE_REGION_RULES_WITH_DETAILS = `
           id
           code
           value
+          parentEntryId
           childEntries {
             code
           }

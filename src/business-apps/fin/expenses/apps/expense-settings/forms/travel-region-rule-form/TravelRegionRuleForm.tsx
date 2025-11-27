@@ -27,6 +27,8 @@ interface TravelRegionRuleFormProps extends BusinessAppContextProps {
   onCancel: () => void
   loading?: boolean
   travelRegionSetId?: string
+  isUsedInTransactions?: boolean
+  usageMessage?: string
 }
 
 const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
@@ -36,6 +38,8 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
   onCancel,
   travelRegionSetId,
   accessToken,
+  isUsedInTransactions = false,
+  usageMessage,
   ...context
 }) => {
   // Feature flag check
@@ -416,7 +420,20 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
         </Alert>
       )}
 
-      <BasicInformationSection formData={formData} onUpdate={handleUpdateBasicInfo} />
+      {isUsedInTransactions && (
+        <Alert>
+          <PiWarning className="gba:h-4 gba:w-4" />
+          <AlertDescription>
+            {usageMessage || 'This rule is used in expense transactions. Only the "Valid To" date can be modified. To make other changes, create a new rule.'}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <BasicInformationSection
+        formData={formData}
+        onUpdate={handleUpdateBasicInfo}
+        isUsedInTransactions={isUsedInTransactions}
+      />
 
       <AllowanceRegionDetailsSection
         groups={groups}
@@ -432,6 +449,7 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
         onRemoveAmount={removeAmount}
         onRemoveGroup={removeGroup}
         onScroll={handleTravelRegionScroll}
+        isUsedInTransactions={isUsedInTransactions}
       />
 
       <FormActions isEditing={isEditing} isSubmitting={isSubmitting} onSave={handleSave} onCancel={onCancel} />

@@ -141,20 +141,22 @@ export const useCatalogData = ({ accessToken, travelRegionSetId }: UseCatalogDat
     }
   }, [catalogClient])
 
-  // Load travel regions for selected country (called only when country is selected)
+  // Load travel regions for the travel region set (called when country is selected or on init)
   const loadTravelRegions = useCallback(
-    async (countryCode?: string) => {
+    async (_countryCode?: string) => {
       if (!travelRegionSetId) {
         return
       }
 
-      // Store country code for pagination
-      selectedCountryCodeRef.current = countryCode
+      // Store country code for pagination (not used for filtering anymore)
+      selectedCountryCodeRef.current = _countryCode
 
       setIsLoadingMoreRegions(true)
 
       try {
-        const query = GET_TRAVEL_REGIONS_WITH_COUNT(countryCode)
+        // Load ALL regions for the travel region set without country filter
+        // The country field is separate from travel region and shouldn't filter the region list
+        const query = GET_TRAVEL_REGIONS_WITH_COUNT() // No country filter
         const result = await graphqlClient.request<{
           parent: Array<{ id: string; childEntriesAggregate: { aggregate: { count: number } } }>
           regions: any[]
@@ -199,9 +201,8 @@ export const useCatalogData = ({ accessToken, travelRegionSetId }: UseCatalogDat
     setIsLoadingMoreRegions(true)
 
     try {
-      // Use the stored country code from the ref
-      const countryCode = selectedCountryCodeRef.current
-      const query = GET_TRAVEL_REGIONS_BY_PARENT(countryCode)
+      // Load ALL regions without country filter
+      const query = GET_TRAVEL_REGIONS_BY_PARENT() // No country filter
       const result = await graphqlClient.request<{ CatalogEntry: any[] }>(query, {
         parentEntryId: travelRegionSetId,
         limit: REGION_LIMIT,
@@ -238,8 +239,12 @@ export const useCatalogData = ({ accessToken, travelRegionSetId }: UseCatalogDat
     if (accessToken && !initialLoadDoneRef.current) {
       initialLoadDoneRef.current = true
       loadCatalogData()
+      // Also load travel regions if travelRegionSetId is available
+      if (travelRegionSetId) {
+        loadTravelRegions()
+      }
     }
-  }, [accessToken, loadCatalogData])
+  }, [accessToken, loadCatalogData, travelRegionSetId, loadTravelRegions])
 
   return {
     countries,

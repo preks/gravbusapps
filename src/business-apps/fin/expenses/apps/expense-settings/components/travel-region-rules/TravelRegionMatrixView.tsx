@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import {
   Button,
   Alert,
@@ -19,16 +19,20 @@ import {
   SelectContent,
   SelectItem,
   SelectValue,
-  Toaster
+  Toaster,
+  Checkbox,
+  Label
 } from '@newwork/nw-design-system'
 import { toast } from 'sonner'
 import { PiArrowLeft, PiPlus, PiMapPin, PiFloppyDisk, PiDotsSixVertical } from 'react-icons/pi'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { ExpenseSettingsClient } from '../../utils/ExpenseSettingsClient'
 import TravelRegionRuleForm from '../../forms/travel-region-rule-form/TravelRegionRuleForm'
 import TravelRegionForm from '../../forms/travel-region-form/TravelRegionForm'
 import { useGetAllowanceRegionRules, useGetTravelRegions } from '../../queries'
+import { useAllowanceRuleUsageCheck, UsageInfo } from '../../hooks'
 import MileageRulesPagination from '../mileage-rules/MileageRulesPagination'
 import dayjs from 'dayjs'
 import {
@@ -99,6 +103,8 @@ interface EditableCell {
   allowanceRegionRuleId: string
   amount: number
   currencyCode: string
+  currencyRef?: string // Full currency catalog entry ID
+  countryRef?: string // Full country catalog entry ID (required for API)
   activeFrom: string
   activeTo?: string
   version?: number // Version for optimistic locking
@@ -147,9 +153,9 @@ interface TravelRegionMatrixViewProps extends BusinessAppContextProps {
 // Sortable column header component for drag-and-drop
 const SortableColumnHeader: React.FC<{
   rule: EditableAllowanceRegionRule
-  onAddRule: () => void
+  onAddDetailForRule: (ruleId: string) => void
   children: React.ReactNode
-}> = ({ rule, onAddRule, children }) => {
+}> = ({ rule, onAddDetailForRule, children }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: rule.id })
 
   const style = {
@@ -172,9 +178,9 @@ const SortableColumnHeader: React.FC<{
           <Button
             size="sm"
             variant="ghost"
-            onClick={onAddRule}
+            onClick={() => onAddDetailForRule(rule.id)}
             className="gba:h-6 gba:w-6 gba:p-0"
-            title="Add New Rule"
+            title="Add new detail for this rule"
           >
             <PiPlus className="gba:w-3 gba:h-3" />
           </Button>
@@ -203,6 +209,15 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
   const [isRuleModalLoading, setIsRuleModalLoading] = useState(false)
   const [isRegionModalOpen, setIsRegionModalOpen] = useState(false)
 
+  // Edit rule modal state (for adding detail from rule header +)
+  const [isEditRuleModalOpen, setIsEditRuleModalOpen] = useState(false)
+  const [isEditRuleModalLoading, setIsEditRuleModalLoading] = useState(false)
+  const [selectedRuleForEdit, setSelectedRuleForEdit] = useState<EditableAllowanceRegionRule | null>(null)
+
+  // Usage check state
+  const [ruleUsageInfo, setRuleUsageInfo] = useState<UsageInfo | null>(null)
+  const { checkAllowanceRuleUsage, isChecking: isCheckingUsage } = useAllowanceRuleUsageCheck(accessToken)
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
@@ -214,7 +229,17 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
   const [isSearching, setIsSearching] = useState(false)
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
+  // Filter state - show regions with details first (default: true)
+  const [showRegionsWithDetailsFirst, setShowRegionsWithDetailsFirst] = useState(true)
+
+  // Track which cell is being edited (for existing cells)
+  const [editingCellId, setEditingCellId] = useState<string | null>(null)
+  const [editingCellUsageInfo, setEditingCellUsageInfo] = useState<UsageInfo | null>(null)
+  const [isCheckingCellUsage, setIsCheckingCellUsage] = useState(false)
+  const [isSavingCell, setIsSavingCell] = useState(false)
+
   const catalogClient = useCatalogManagerClient(accessToken)
+  const graphqlClient = useGraphQLClient(accessToken)
 
   // Initialize query hooks
   const { fetchAllowanceRegionRules: fetchRulesQuery } = useGetAllowanceRegionRules({
@@ -404,6 +429,58 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     }
   }, [fetchRulesQuery, travelRegionSetId])
 
+  // Helper to extract country code from travel region code
+  // Handles both formats: "DE" (Romanian) and "DE-DE-000" (German) 
+  const extractCountryCode = (code: string): string => {
+    if (!code) return ''
+    // If code contains hyphens (e.g., "DE-DE-000"), extract the country part (second segment)
+    if (code.includes('-')) {
+      const parts = code.split('-')
+      return parts[1] || parts[0] // Return second part, or first if no second
+    }
+    // Otherwise return the code as-is (e.g., "DE")
+    return code
+  }
+
+  // Helper to check if a region has any details in the current rules
+  const regionHasDetails = useCallback(
+    (region: TravelRegion, rules: EditableAllowanceRegionRule[]): boolean => {
+      const regionCountryCode = extractCountryCode(region.code)
+      return rules.some(rule =>
+        rule.details?.some(detail => {
+          const detailCountryCode = extractCountryCode(detail.travelRegion?.code || '')
+          return (
+            detailCountryCode === regionCountryCode ||
+            detail.travelRegion?.id === region.id ||
+            detail.travelRegion?.value === region.value
+          )
+        })
+      )
+    },
+    []
+  )
+
+  // Get sorted regions - with details first if checkbox is checked
+  const sortedRegions = useMemo(() => {
+    if (!showRegionsWithDetailsFirst) {
+      return editableTravelRegions
+    }
+
+    const regionsWithDetails = editableTravelRegions.filter(region =>
+      regionHasDetails(region, allowanceRegionRules)
+    )
+    const regionsWithoutDetails = editableTravelRegions.filter(
+      region => !regionHasDetails(region, allowanceRegionRules)
+    )
+
+    return [...regionsWithDetails, ...regionsWithoutDetails]
+  }, [editableTravelRegions, allowanceRegionRules, showRegionsWithDetailsFirst, regionHasDetails])
+
+  // Check if any region has details
+  const anyRegionHasDetails = useMemo(() => {
+    return editableTravelRegions.some(region => regionHasDetails(region, allowanceRegionRules))
+  }, [editableTravelRegions, allowanceRegionRules, regionHasDetails])
+
   // Convert rule details to editable cells
   const convertToEditableCells = useCallback(
     (rules: EditableAllowanceRegionRule[], regions: TravelRegion[]): EditableCell[] => {
@@ -411,8 +488,17 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
 
       rules.forEach(rule => {
         regions.forEach(region => {
+          // Extract country codes for matching (handles different travel region formats)
+          const regionCountryCode = extractCountryCode(region.code)
+          
           // Find existing details for this rule-region combination
-          const existingDetails = rule.details?.filter(detail => detail.travelRegion?.id === region.id) || []
+          // Match by country code to handle different travel region set formats
+          const existingDetails = rule.details?.filter(detail => {
+            const detailCountryCode = extractCountryCode(detail.travelRegion?.code || '')
+            return detailCountryCode === regionCountryCode || 
+                   detail.travelRegion?.id === region.id ||
+                   detail.travelRegion?.value === region.value
+          }) || []
 
           if (existingDetails.length > 0) {
             // Create cells for existing details
@@ -427,6 +513,8 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                 allowanceRegionRuleId: rule.id,
                 amount: detail.amount,
                 currencyCode: detail.currency?.code || 'EUR',
+                currencyRef: detail.currency?.id || detail.currencyRef, // Store full currency ID
+                countryRef: detail.country?.id || detail.countryRef, // Store full country ID
                 activeFrom: detail.activeFrom,
                 activeTo: detail.activeTo,
                 version: detail.version, // Version for optimistic locking
@@ -498,9 +586,13 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
       const validatedCells = validateCurrencies(cells)
       setEditableCells(validatedCells)
 
-      // Display only the paginated regions (sorted by GraphQL)
+      // When "show regions with details first" is enabled, include regions with details
+      // that might be on other pages, combined with paginated regions
+      const allRegionsForDisplay = [...paginatedRegions, ...regionsWithDetails]
+      const uniqueRegionsForDisplay = Array.from(new Map(allRegionsForDisplay.map(r => [r.id, r])).values())
+      
       setEditableTravelRegions(
-        paginatedRegions.map(region => ({
+        uniqueRegionsForDisplay.map(region => ({
           ...region,
           isEditing: false,
           editingCode: region.code,
@@ -557,9 +649,12 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
         })
         const regionsWithDetails = Array.from(regionsWithDetailsMap.values())
 
-        // Display only the paginated regions (sorted by GraphQL)
+        // Include regions with details that might be on other pages
+        const allRegionsForDisplay = [...paginatedRegions, ...regionsWithDetails]
+        const uniqueRegionsForDisplay = Array.from(new Map(allRegionsForDisplay.map(r => [r.id, r])).values())
+        
         setEditableTravelRegions(
-          paginatedRegions.map(region => ({
+          uniqueRegionsForDisplay.map(region => ({
             ...region,
             isEditing: false,
             editingCode: region.code,
@@ -571,9 +666,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
 
         // Generate cells for ALL rules and ALL regions (including those with details)
         // This ensures details are available for rendering even if region is on another page
-        const allRegionsForCells = [...paginatedRegions, ...regionsWithDetails]
-        const uniqueRegionsForCells = Array.from(new Map(allRegionsForCells.map(r => [r.id, r])).values())
-        const cells = convertToEditableCells(allowanceRegionRules, uniqueRegionsForCells)
+        const cells = convertToEditableCells(allowanceRegionRules, uniqueRegionsForDisplay)
         const validatedCells = validateCurrencies(cells)
         setEditableCells(validatedCells)
       } catch (err) {
@@ -676,6 +769,106 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     setIsRuleModalOpen(true)
   }
 
+  // Open edit rule modal to add details (from rule header +)
+  const handleAddDetailForRule = async (ruleId: string) => {
+    const rule = allowanceRegionRules.find(r => r.id === ruleId)
+    if (rule) {
+      setSelectedRuleForEdit(rule)
+      setIsEditRuleModalLoading(true)
+      setIsEditRuleModalOpen(true)
+
+      try {
+        // Check if this rule is used in any expense transactions
+        const usageInfo = await checkAllowanceRuleUsage(ruleId)
+        setRuleUsageInfo(usageInfo)
+      } catch (error) {
+        console.error('Error checking rule usage:', error)
+        // On error, show the form but with a warning
+        setRuleUsageInfo({
+          isUsed: true,
+          usedIn: {
+            expenseRuleAllowanceCodes: [],
+            expensePlans: 0,
+            expenseRequests: 0,
+            expensePlanItems: 0,
+            expenseItems: 0,
+            expensePositions: 0
+          },
+          message: 'Unable to verify usage. Editing is restricted for safety.'
+        })
+      } finally {
+        setIsEditRuleModalLoading(false)
+      }
+    }
+  }
+
+  // Handle saving the edited rule (with new details)
+  const handleEditRuleModalSave = async (formData: any) => {
+    setIsEditRuleModalLoading(true)
+    try {
+      const client = getExpenseSettingsClient()
+
+      // Save the rule with updated details
+      const ruleData = {
+        id: selectedRuleForEdit?.id,
+        version: selectedRuleForEdit?.version,
+        code: formData.code.trim(),
+        name: formData.name.trim(),
+        activeFrom: formData.activeFrom ? `${formData.activeFrom}T00:00:00+00:00` : null,
+        activeTo: formData.activeTo ? `${formData.activeTo}T00:00:00+00:00` : null,
+        travelRegionSetRef: travelRegionSetId,
+        ruleOrder: selectedRuleForEdit?.ruleOrder || 1,
+        additionalProperties: selectedRuleForEdit?.additionalProperties || {},
+        businessKey: formData.code.trim()
+      }
+
+      // Save the rule first
+      await client.saveAllowanceRegionRule(ruleData)
+
+      // Save each detail
+      if (formData.details && formData.details.length > 0) {
+        for (const detail of formData.details) {
+          const detailPayload = {
+            allowanceRegionRuleDetail: {
+              ...(detail.id && { id: detail.id }),
+              amount: detail.amounts?.[0] || 0,
+              currencyRef: detail.currencyRef,
+              activeFrom: detail.activeFrom ? `${detail.activeFrom}T00:00:00+00:00` : null,
+              activeTo: detail.activeTo ? `${detail.activeTo}T00:00:00+00:00` : null,
+              travelRegionRef: detail.travelRegionRef || detail.travelRegion,
+              countryRef: detail.countryRef,
+              home: detail.home || false,
+              allowanceRegionRule: selectedRuleForEdit?.id
+            },
+            changeMode: detail.id ? 'UPDATE' : 'INSERT'
+          }
+
+          await client.post('/employee-expense/saveAllowanceRegionRuleDetail', detailPayload)
+        }
+      }
+
+      toast.success('Rule and details saved successfully')
+
+      // Close modal and reload data
+      setIsEditRuleModalOpen(false)
+      setSelectedRuleForEdit(null)
+      setRuleUsageInfo(null)
+      await loadData()
+    } catch (err) {
+      console.error('Error saving rule:', err)
+      toast.error('Failed to save rule and details')
+    } finally {
+      setIsEditRuleModalLoading(false)
+    }
+  }
+
+  // Handle cancel edit rule modal
+  const handleEditRuleModalCancel = () => {
+    setIsEditRuleModalOpen(false)
+    setSelectedRuleForEdit(null)
+    setRuleUsageInfo(null)
+  }
+
   // Handle rule modal save
   const handleRuleModalSave = async (formData: any) => {
     setIsRuleModalLoading(true)
@@ -729,12 +922,23 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
       const period = rule?.validityPeriods.find((p: ValidityPeriod) => p.id === periodId)
 
       if (rule && period) {
+        // Derive countryRef from regionId (e.g., "TravelRegion:v1:DE" -> "Country:v1:DE")
+        const regionParts = regionId.split(':')
+        const regionCode = regionParts.length >= 3 ? regionParts[regionParts.length - 1] : ''
+        const countryCode = regionCode.substring(0, 2)
+        const countryRef = countryCode ? `Country:v1:${countryCode}` : undefined
+        
+        // Find currencyRef from code
+        const currency = currencies.find(c => c.code === period.currencyCode)
+        
         const newCell: EditableCell = {
           id: undefined,
           allowanceRegionRuleId: ruleId,
           travelRegionId: regionId,
           amount: 0,
           currencyCode: period.currencyCode,
+          currencyRef: currency?.id,
+          countryRef: countryRef,
           activeFrom: period.activeFrom,
           activeTo: period.activeTo,
           isNew: true,
@@ -745,6 +949,225 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
 
         setEditableCells(prev => [...prev, newCell])
       }
+    }
+  }
+
+  // Check if a specific AllowanceRegionRuleDetail is used in transactions
+  const checkDetailUsage = useCallback(async (detailId: string): Promise<UsageInfo> => {
+    const query = `
+      query CheckDetailUsage($detailId: uuid!) {
+        expenseAllowanceCount: ExpenseAllowanceAggregate(
+          where: { 
+            allowanceRegionRuleDetailId: { _eq: $detailId }
+            isDeleted: { _eq: false }
+          }
+        ) {
+          aggregate { count }
+        }
+        expenseRequestTripCount: ExpenseRequestTripAggregate(
+          where: { 
+            allowanceRegionRuleDetailId: { _eq: $detailId }
+            isDeleted: { _eq: false }
+          }
+        ) {
+          aggregate { count }
+        }
+        expenseRequestTripTimeCount: ExpenseRequestTripTimeAggregate(
+          where: { 
+            allowanceRegionRuleDetailId: { _eq: $detailId }
+            isDeleted: { _eq: false }
+          }
+        ) {
+          aggregate { count }
+        }
+      }
+    `
+    
+    const result = await graphqlClient.request<{
+      expenseAllowanceCount: { aggregate: { count: number } }
+      expenseRequestTripCount: { aggregate: { count: number } }
+      expenseRequestTripTimeCount: { aggregate: { count: number } }
+    }>(query, { detailId })
+    
+    const allowanceCount = result.expenseAllowanceCount?.aggregate?.count || 0
+    const tripCount = result.expenseRequestTripCount?.aggregate?.count || 0
+    const tripTimeCount = result.expenseRequestTripTimeCount?.aggregate?.count || 0
+    const totalUsage = allowanceCount + tripCount + tripTimeCount
+    
+    if (totalUsage === 0) {
+      return { isUsed: false, usedIn: {}, message: '' }
+    }
+    
+    const usageDetails: string[] = []
+    if (allowanceCount > 0) usageDetails.push(`${allowanceCount} expense allowance(s)`)
+    if (tripCount > 0) usageDetails.push(`${tripCount} trip(s)`)
+    if (tripTimeCount > 0) usageDetails.push(`${tripTimeCount} trip time(s)`)
+    
+    return {
+      isUsed: true,
+      usedIn: { allowanceCount, tripCount, tripTimeCount },
+      message: `This detail is used in ${usageDetails.join(', ')}. Only "Valid To" can be edited.`
+    }
+  }, [graphqlClient])
+
+  // Enter edit mode for a cell - checks if THIS SPECIFIC DETAIL is used in transactions
+  const handleEnterCellEdit = useCallback(async (cellId: string, ruleId: string) => {
+    setEditingCellId(cellId)
+    
+    // Find the cell to check if it's new or existing
+    const cell = editableCells.find(c => c.id === cellId)
+    
+    // If the cell is new (no ID in database), it's never been used - skip validation
+    if (!cell || cell.isNew || !cell.id) {
+      setEditingCellUsageInfo({ isUsed: false, usedIn: {}, message: '' })
+      return
+    }
+    
+    setIsCheckingCellUsage(true)
+    setEditingCellUsageInfo(null)
+    
+    try {
+      // Check if THIS SPECIFIC DETAIL (not the rule) is used in transactions
+      const detailUsage = await checkDetailUsage(cell.id)
+      setEditingCellUsageInfo(detailUsage)
+      if (detailUsage.isUsed) {
+        toast.info(`This detail is used in transactions. Only "Valid To" can be edited.`)
+      }
+    } catch (error) {
+      console.error('Error checking detail usage:', error)
+      // Default to restricted mode for safety
+      setEditingCellUsageInfo({
+        isUsed: true,
+        usedIn: {},
+        message: 'Unable to verify usage. Editing restricted for safety.'
+      })
+    } finally {
+      setIsCheckingCellUsage(false)
+    }
+  }, [editableCells, checkDetailUsage])
+  
+  // Save a single cell immediately
+  const handleSaveSingleCell = async (cell: EditableCell) => {
+    if (!accessToken) {
+      toast.error('Access token is missing')
+      return
+    }
+    
+    // Validation: amount must be > 0
+    if (cell.amount <= 0) {
+      toast.error('Amount must be greater than 0')
+      return
+    }
+    
+    // Validation: activeFrom is required
+    if (!cell.activeFrom) {
+      toast.error('Valid From date is required')
+      return
+    }
+    
+    setIsSavingCell(true)
+    try {
+      const client = getExpenseSettingsClient()
+      const rule = allowanceRegionRules.find(r => r.id === cell.allowanceRegionRuleId)
+      
+      if (!rule) {
+        throw new Error('Rule not found')
+      }
+      
+      // Validation: Detail validity must be within Rule validity
+      const detailFrom = dayjs(cell.activeFrom)
+      const detailTo = cell.activeTo ? dayjs(cell.activeTo) : null
+      const ruleFrom = rule.activeFrom ? dayjs(rule.activeFrom) : null
+      const ruleTo = rule.activeTo ? dayjs(rule.activeTo) : null
+      
+      // Check: Detail's activeFrom must be >= Rule's activeFrom
+      if (ruleFrom && detailFrom.isBefore(ruleFrom)) {
+        toast.error(`Detail's "Valid From" (${detailFrom.format('DD/MM/YYYY')}) cannot be before the rule's "Valid From" (${ruleFrom.format('DD/MM/YYYY')})`)
+        setIsSavingCell(false)
+        return
+      }
+      
+      // Check: Detail's activeTo must be <= Rule's activeTo (if rule has an end date)
+      if (ruleTo && detailTo && detailTo.isAfter(ruleTo)) {
+        toast.error(`Detail's "Valid To" (${detailTo.format('DD/MM/YYYY')}) cannot be after the rule's "Valid To" (${ruleTo.format('DD/MM/YYYY')})`)
+        setIsSavingCell(false)
+        return
+      }
+      
+      // Check: Detail's activeFrom must be <= Rule's activeTo (if rule has an end date)
+      if (ruleTo && detailFrom.isAfter(ruleTo)) {
+        toast.error(`Detail's "Valid From" (${detailFrom.format('DD/MM/YYYY')}) cannot be after the rule's "Valid To" (${ruleTo.format('DD/MM/YYYY')})`)
+        setIsSavingCell(false)
+        return
+      }
+      
+      // Use stored refs or find them from catalogs
+      const currency = currencies.find(c => c.code === cell.currencyCode)
+      const currencyRef = cell.currencyRef || currency?.id
+      
+      // For countryRef: use stored value, or derive from travel region code
+      let countryRef = cell.countryRef
+      if (!countryRef && cell.travelRegionId) {
+        const regionParts = cell.travelRegionId.split(':')
+        if (regionParts.length >= 3) {
+          const regionCode = regionParts[regionParts.length - 1]
+          const countryCode = regionCode.substring(0, 2)
+          countryRef = `Country:v1:${countryCode}`
+        }
+      }
+      
+      const detailPayload = {
+        allowanceRegionRuleDetail: {
+          ...(cell.id && { id: cell.id }),
+          amount: cell.amount,
+          currencyRef: currencyRef,
+          activeFrom: cell.activeFrom,
+          activeTo: cell.activeTo || null,
+          travelRegionRef: cell.travelRegionId,
+          countryRef: countryRef,
+          allowanceRegionRule: rule.id,
+          // Version is required for UPDATE - if missing, API will reject
+          ...(cell.id && cell.version !== undefined && { version: cell.version })
+        },
+        changeMode: cell.id ? 'UPDATE' : 'INSERT'
+      }
+      
+      console.log('📦 Saving detail payload:', JSON.stringify(detailPayload, null, 2))
+      console.log('📦 Cell data:', { 
+        id: cell.id, 
+        version: cell.version, // Check if version exists
+        travelRegionId: cell.travelRegionId, 
+        countryRef: cell.countryRef,
+        currencyRef: cell.currencyRef,
+        currencyCode: cell.currencyCode,
+        activeFrom: cell.activeFrom,
+        isNew: cell.isNew
+      })
+      
+      await client.post('/employee-expense/saveAllowanceRegionRuleDetail', detailPayload)
+      
+      // Mark cell as saved (not modified anymore)
+      setEditableCells(prev =>
+        prev.map(c =>
+          c.id === cell.id || c.validityPeriodId === cell.validityPeriodId
+            ? { ...c, isModified: false, isNew: false }
+            : c
+        )
+      )
+      
+      toast.success('Changes saved successfully')
+      
+      // Close edit mode
+      setEditingCellId(null)
+      setEditingCellUsageInfo(null)
+      
+      // Reload data to get updated versions
+      await loadData(travelRegionSetId)
+    } catch (error) {
+      console.error('Error saving cell:', error)
+      toast.error(`Failed to save: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setIsSavingCell(false)
     }
   }
 
@@ -798,13 +1221,21 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
           // Save each detail individually
           const results = await Promise.all(
             cells.map(async cell => {
+              // Use stored refs or find them from catalogs
               const currency = currencies.find(c => c.code === cell.currencyCode)
-              let countryRef = cell.travelRegionId
-
-              // Extract country code from travelRegionRef
-              if (countryRef && countryRef.includes(':')) {
-                const countryCode = countryRef.split(':').pop()
-                countryRef = `Country:v1:${countryCode}`
+              const currencyRef = cell.currencyRef || currency?.id
+              
+              // For countryRef: use stored value, or derive from travel region code
+              let countryRef = cell.countryRef
+              if (!countryRef && cell.travelRegionId) {
+                // Try to extract country code from travel region ID (e.g., "TravelRegion:v1:DE" -> "DE")
+                const regionParts = cell.travelRegionId.split(':')
+                if (regionParts.length >= 3) {
+                  const regionCode = regionParts[regionParts.length - 1]
+                  // Extract first 2 chars as country code (e.g., "DE-DE-000" -> "DE", "DE" -> "DE")
+                  const countryCode = regionCode.substring(0, 2)
+                  countryRef = `Country:v1:${countryCode}`
+                }
               }
 
               // Build the detail payload
@@ -812,16 +1243,18 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                 allowanceRegionRuleDetail: {
                   ...(cell.id && { id: cell.id }),
                   amount: cell.amount,
-                  currencyRef: currency?.id,
+                  currencyRef: currencyRef,
                   activeFrom: cell.activeFrom,
                   activeTo: cell.activeTo || null, // Explicitly set to null if undefined
                   travelRegionRef: cell.travelRegionId,
                   countryRef: countryRef,
-                  allowanceRegionRule: rule.id, // ✅ KEY FIX: Use "allowanceRegionRule" not "allowanceRegionRuleId"
+                  allowanceRegionRule: rule.id,
                   ...(cell.id && { version: cell.version || undefined })
                 },
                 changeMode: cell.id ? 'UPDATE' : 'INSERT'
               }
+
+              console.log('📦 Saving detail:', detailPayload) // Debug log
 
               const result = await client.post('/employee-expense/saveAllowanceRegionRuleDetail', detailPayload)
 
@@ -920,7 +1353,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
             </p>
 
             {/* Search Input */}
-            <div className="gba:mt-3 gba:flex gba:items-center gba:gap-2">
+            <div className="gba:mt-3 gba:flex gba:items-center gba:gap-4">
               <Input
                 type="text"
                 placeholder="Search regions..."
@@ -954,6 +1387,22 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                 </Button>
               )}
               {isSearching && <div className="gba:text-sm gba:text-muted-foreground">Searching...</div>}
+
+              {/* Show regions with details first checkbox */}
+              <div className="gba:flex gba:items-center gba:gap-2 gba:ml-4">
+                <Checkbox
+                  id="show-details-first"
+                  checked={showRegionsWithDetailsFirst}
+                  onCheckedChange={(checked: boolean) => setShowRegionsWithDetailsFirst(checked)}
+                  data-testid="show-details-first-checkbox"
+                />
+                <Label
+                  htmlFor="show-details-first"
+                  className="gba:text-sm gba:text-muted-foreground gba:cursor-pointer"
+                >
+                  Show regions with details first
+                </Label>
+              </div>
             </div>
           </div>
           <div className="gba:flex gba:gap-3">
@@ -977,7 +1426,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
             <span className="gba:text-muted-foreground">Loading regions...</span>
           </div>
         </div>
-      ) : editableTravelRegions.length > 0 && allowanceRegionRules.length > 0 ? (
+      ) : editableTravelRegions.length > 0 ? (
         <div className="gba:border gba:rounded-lg gba:overflow-hidden">
           <div className="gba:overflow-x-auto">
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -993,7 +1442,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                       strategy={horizontalListSortingStrategy}
                     >
                       {allowanceRegionRules.map(rule => (
-                        <SortableColumnHeader key={rule.id} rule={rule} onAddRule={handleAddRule}>
+                        <SortableColumnHeader key={rule.id} rule={rule} onAddDetailForRule={handleAddDetailForRule}>
                           <div className="gba:text-center">
                             <div className="gba:font-medium gba:text-sm">{rule.name}</div>
                             <div className="gba:text-xs gba:text-muted-foreground gba:mb-1">{rule.code}</div>
@@ -1046,8 +1495,36 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                     <TableCell className="gba:bg-muted"></TableCell>
                   </TableRow>
 
+                  {/* No rules message */}
+                  {allowanceRegionRules.length === 0 && sortedRegions.length > 0 && (
+                    <TableRow>
+                      <TableCell
+                        colSpan={2}
+                        className="gba:bg-info-secondary gba:text-info-secondary-foreground gba:text-center gba:py-4"
+                      >
+                        <span className="gba:text-sm">
+                          No allowance rules have been created for this travel region set. Click the + button above to add a rule.
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  )}
+
+                  {/* No details message */}
+                  {showRegionsWithDetailsFirst && !anyRegionHasDetails && sortedRegions.length > 0 && allowanceRegionRules.length > 0 && (
+                    <TableRow>
+                      <TableCell
+                        colSpan={allowanceRegionRules.length + 2}
+                        className="gba:bg-warning-secondary gba:text-warning-secondary-foreground gba:text-center gba:py-4"
+                      >
+                        <span className="gba:text-sm">
+                          No details have been created for any region. Regions are displayed alphabetically.
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  )}
+
                   {/* Data Rows - One row per region, columns show values based on rule periods */}
-                  {editableTravelRegions.map(region => (
+                  {sortedRegions.map(region => (
                     <TableRow key={region.id}>
                       <TableCell className="gba:sticky gba:left-0 gba:bg-white gba:z-10 gba:border-r gba:w-48">
                         <div className="gba:p-3">
@@ -1083,223 +1560,341 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                             key={`${rule.id}-${region.id}`}
                             className="gba:text-center gba:relative gba:p-2 gba:align-top"
                           >
-                            {ruleCells.length > 0 ? (
-                              <div className="gba:space-y-2">
-                                {periods.map(period => {
-                                  // Find cell for this specific period
-                                  const cell = ruleCells.find(c => c.validityPeriodId === period.id)
+                            <div className="gba:space-y-2">
+                              {/* Existing details */}
+                              {ruleCells.map(cell => {
+                                const isEditing = cell.isNew || editingCellId === cell.id
+                                const isUsedInTransactions = editingCellUsageInfo?.isUsed && editingCellId === cell.id
 
-                                  // Only render card if there's a cell with data
-                                  if (!cell) return null
+                                return (
+                                  <div
+                                    key={cell.id || cell.validityPeriodId}
+                                    className={`gba:border gba:rounded gba:p-2 gba:relative ${
+                                      cell.isModified
+                                        ? 'gba:bg-info-secondary gba:border-info'
+                                        : isEditing
+                                          ? 'gba:bg-accent gba:border-primary'
+                                          : 'gba:bg-white gba:border-border gba:cursor-pointer hover:gba:bg-accent'
+                                    }`}
+                                    onClick={() => {
+                                      if (!isEditing && cell.id) {
+                                        handleEnterCellEdit(cell.id, cell.allowanceRegionRuleId)
+                                      }
+                                    }}
+                                  >
+                                    {/* Modification Indicator */}
+                                    {cell.isModified && (
+                                      <div className="gba:absolute gba:top-1 gba:right-1">
+                                        <div className="gba:w-2 gba:h-2 gba:bg-info gba:rounded-full"></div>
+                                      </div>
+                                    )}
 
-                                  return (
-                                    <div
-                                      key={period.id}
-                                      className={`gba:border gba:rounded gba:p-2 gba:cursor-pointer hover:gba:bg-accent gba:relative ${
-                                        cell?.isModified
-                                          ? 'gba:bg-info-secondary gba:border-info'
-                                          : 'gba:bg-white gba:border-border'
-                                      }`}
-                                      onClick={() => handleCellClick(rule.id, region.id, period.id)}
-                                    >
-                                      {/* Modification Indicator */}
-                                      {cell?.isModified && (
-                                        <div className="gba:absolute gba:top-1 gba:right-1">
-                                          <div className="gba:w-2 gba:h-2 gba:bg-info gba:rounded-full"></div>
+                                    {/* Editable fields when editing or new */}
+                                    {isEditing ? (
+                                      <div className="gba:space-y-2">
+                                        {/* Usage Warning */}
+                                        {isUsedInTransactions && !cell.isNew && (
+                                          <div className="gba:text-xs gba:text-warning gba:bg-warning-secondary gba:p-1 gba:rounded gba:mb-2">
+                                            ⚠️ Used in transactions - only "To" date can be edited
+                                          </div>
+                                        )}
+                                        
+                                        {/* Loading indicator for usage check */}
+                                        {isCheckingCellUsage && editingCellId === cell.id && (
+                                          <div className="gba:text-xs gba:text-muted-foreground gba:text-center">
+                                            Checking usage...
+                                          </div>
+                                        )}
+                                        
+                                        {/* Active From - disabled if used in transactions */}
+                                        <div>
+                                          <label className="gba:text-xs gba:text-muted-foreground gba:block gba:mb-1">
+                                            From:
+                                          </label>
+                                          <Input
+                                            type="date"
+                                            value={cell.activeFrom ? dayjs(cell.activeFrom).format('YYYY-MM-DD') : ''}
+                                            onChange={e => {
+                                              const dateValue = e.target.value
+                                                ? `${e.target.value}T00:00:00+00:00`
+                                                : ''
+                                              setEditableCells(prev =>
+                                                prev.map(c =>
+                                                  (c.id === cell.id || c.validityPeriodId === cell.validityPeriodId)
+                                                    ? { ...c, activeFrom: dateValue, isModified: true }
+                                                    : c
+                                                )
+                                              )
+                                            }}
+                                            onClick={e => e.stopPropagation()}
+                                            className="gba:w-full gba:h-7 gba:text-xs"
+                                            disabled={isUsedInTransactions && !cell.isNew}
+                                            data-testid={`${prefixDataTestId}-cell-active-from-${rule.id}-${region.id}`}
+                                          />
                                         </div>
-                                      )}
 
-                                      {/* Editable fields for new cells */}
-                                      {cell.isNew ? (
-                                        <div className="gba:space-y-2">
-                                          {/* Active From */}
-                                          <div>
-                                            <label className="gba:text-xs gba:text-muted-foreground gba:block gba:mb-1">
-                                              From:
-                                            </label>
-                                            <Input
-                                              type="date"
-                                              value={cell.activeFrom ? dayjs(cell.activeFrom).format('YYYY-MM-DD') : ''}
-                                              onChange={e => {
-                                                const dateValue = e.target.value
-                                                  ? `${e.target.value}T00:00:00+00:00`
-                                                  : ''
-                                                setEditableCells(prev =>
-                                                  prev.map(c =>
-                                                    c.validityPeriodId === cell.validityPeriodId
-                                                      ? { ...c, activeFrom: dateValue, isModified: true }
-                                                      : c
-                                                  )
+                                        {/* Active To - always editable */}
+                                        <div>
+                                          <label className="gba:text-xs gba:text-muted-foreground gba:block gba:mb-1">
+                                            To:
+                                          </label>
+                                          <Input
+                                            type="date"
+                                            value={cell.activeTo ? dayjs(cell.activeTo).format('YYYY-MM-DD') : ''}
+                                            onChange={e => {
+                                              const dateValue = e.target.value
+                                                ? `${e.target.value}T00:00:00+00:00`
+                                                : undefined
+                                              setEditableCells(prev =>
+                                                prev.map(c =>
+                                                  (c.id === cell.id || c.validityPeriodId === cell.validityPeriodId)
+                                                    ? { ...c, activeTo: dateValue, isModified: true }
+                                                    : c
                                                 )
-                                              }}
+                                              )
+                                            }}
+                                            onClick={e => e.stopPropagation()}
+                                            className="gba:w-full gba:h-7 gba:text-xs"
+                                            data-testid={`${prefixDataTestId}-cell-active-to-${rule.id}-${region.id}`}
+                                          />
+                                        </div>
+
+                                        {/* Amount - disabled if used in transactions */}
+                                        <div>
+                                          <label className="gba:text-xs gba:text-muted-foreground gba:block gba:mb-1">
+                                            Amount:
+                                          </label>
+                                          <Input
+                                            type="number"
+                                            step="0.01"
+                                            value={cell.amount || ''}
+                                            onChange={e => {
+                                              const value = parseFloat(e.target.value) || 0
+                                              setEditableCells(prev =>
+                                                prev.map(c =>
+                                                  (c.id === cell.id || c.validityPeriodId === cell.validityPeriodId)
+                                                    ? { ...c, amount: value, isModified: true }
+                                                    : c
+                                                )
+                                              )
+                                            }}
+                                            onClick={e => e.stopPropagation()}
+                                            className="gba:w-full gba:h-7 gba:text-center gba:text-sm gba:font-semibold"
+                                            placeholder="0.00"
+                                            disabled={isUsedInTransactions && !cell.isNew}
+                                            data-testid={`${prefixDataTestId}-cell-amount-${rule.id}-${region.id}`}
+                                          />
+                                        </div>
+
+                                        {/* Currency - disabled if used in transactions */}
+                                        <div>
+                                          <label className="gba:text-xs gba:text-muted-foreground gba:block gba:mb-1">
+                                            Currency:
+                                          </label>
+                                          <Select
+                                            value={cell.currencyCode}
+                                            onValueChange={value => {
+                                              const selectedCurrency = currencies.find(c => c.code === value)
+                                              setEditableCells(prev =>
+                                                prev.map(c =>
+                                                  (c.id === cell.id || c.validityPeriodId === cell.validityPeriodId)
+                                                    ? { ...c, currencyCode: value, currencyRef: selectedCurrency?.id, isModified: true }
+                                                    : c
+                                                )
+                                              )
+                                            }}
+                                            disabled={isUsedInTransactions && !cell.isNew}
+                                          >
+                                            <SelectTrigger
                                               className="gba:w-full gba:h-7 gba:text-xs"
-                                              data-testid={`${prefixDataTestId}-cell-active-from-${rule.id}-${region.id}-${cell.validityPeriodId}`}
-                                            />
-                                          </div>
-
-                                          {/* Active To */}
-                                          <div>
-                                            <label className="gba:text-xs gba:text-muted-foreground gba:block gba:mb-1">
-                                              To:
-                                            </label>
-                                            <Input
-                                              type="date"
-                                              value={cell.activeTo ? dayjs(cell.activeTo).format('YYYY-MM-DD') : ''}
-                                              onChange={e => {
-                                                const dateValue = e.target.value
-                                                  ? `${e.target.value}T00:00:00+00:00`
-                                                  : undefined
-                                                setEditableCells(prev =>
-                                                  prev.map(c =>
-                                                    c.validityPeriodId === cell.validityPeriodId
-                                                      ? { ...c, activeTo: dateValue, isModified: true }
-                                                      : c
-                                                  )
-                                                )
-                                              }}
-                                              className="gba:w-full gba:h-7 gba:text-xs"
-                                              data-testid={`${prefixDataTestId}-cell-active-to-${rule.id}-${region.id}-${cell.validityPeriodId}`}
-                                            />
-                                          </div>
-
-                                          {/* Amount */}
-                                          <div>
-                                            <label className="gba:text-xs gba:text-muted-foreground gba:block gba:mb-1">
-                                              Amount:
-                                            </label>
-                                            <Input
-                                              type="number"
-                                              step="0.01"
-                                              value={cell.amount || ''}
-                                              onChange={e => {
-                                                const value = parseFloat(e.target.value) || 0
-                                                setEditableCells(prev =>
-                                                  prev.map(c =>
-                                                    c.validityPeriodId === cell.validityPeriodId
-                                                      ? { ...c, amount: value, isModified: true }
-                                                      : c
-                                                  )
-                                                )
-                                              }}
-                                              className="gba:w-full gba:h-7 gba:text-center gba:text-sm gba:font-semibold"
-                                              placeholder="0.00"
-                                              data-testid={`${prefixDataTestId}-cell-amount-${rule.id}-${region.id}-${cell.validityPeriodId}`}
-                                            />
-                                          </div>
-
-                                          {/* Currency */}
-                                          <div>
-                                            <label className="gba:text-xs gba:text-muted-foreground gba:block gba:mb-1">
-                                              Currency:
-                                            </label>
-                                            <Select
-                                              value={cell.currencyCode}
-                                              onValueChange={value => {
-                                                setEditableCells(prev =>
-                                                  prev.map(c =>
-                                                    c.validityPeriodId === cell.validityPeriodId
-                                                      ? { ...c, currencyCode: value, isModified: true }
-                                                      : c
-                                                  )
-                                                )
-                                              }}
+                                              onClick={e => e.stopPropagation()}
+                                              data-testid={`${prefixDataTestId}-cell-currency-${rule.id}-${region.id}`}
                                             >
-                                              <SelectTrigger
-                                                className="gba:w-full gba:h-7 gba:text-xs"
-                                                data-testid={`${prefixDataTestId}-cell-currency-${rule.id}-${region.id}-${cell.validityPeriodId}`}
+                                              <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              {currencies.map(currency => (
+                                                <SelectItem key={currency.id} value={currency.code}>
+                                                  {currency.code} - {currency.value}
+                                                </SelectItem>
+                                              ))}
+                                            </SelectContent>
+                                          </Select>
+                                        </div>
+
+                                        {/* Action buttons */}
+                                        <div className="gba:flex gba:gap-2 gba:mt-2">
+                                          {cell.isNew ? (
+                                            /* Cancel and Save buttons for new cells */
+                                            <div className="gba:flex gba:gap-1 gba:w-full">
+                                              <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={e => {
+                                                  e.stopPropagation()
+                                                  // Remove the new cell from editableCells
+                                                  setEditableCells(prev =>
+                                                    prev.filter(c => c.validityPeriodId !== cell.validityPeriodId)
+                                                  )
+                                                  // Also remove the validity period from the rule
+                                                  setAllowanceRegionRules(prev =>
+                                                    prev.map(r =>
+                                                      r.id === rule.id
+                                                        ? {
+                                                            ...r,
+                                                            validityPeriods: r.validityPeriods.filter(
+                                                              p => p.id !== cell.validityPeriodId
+                                                            )
+                                                          }
+                                                        : r
+                                                    )
+                                                  )
+                                                }}
+                                                className="gba:flex-1 gba:h-7 gba:text-xs"
+                                                disabled={isSavingCell}
                                               >
-                                                <SelectValue />
-                                              </SelectTrigger>
-                                              <SelectContent>
-                                                {currencies.map(currency => (
-                                                  <SelectItem key={currency.id} value={currency.code}>
-                                                    {currency.code} - {currency.value}
-                                                  </SelectItem>
-                                                ))}
-                                              </SelectContent>
-                                            </Select>
+                                                Cancel
+                                              </Button>
+                                              <Button
+                                                variant="default"
+                                                size="sm"
+                                                onClick={e => {
+                                                  e.stopPropagation()
+                                                  handleSaveSingleCell(cell)
+                                                }}
+                                                className="gba:flex-1 gba:h-7 gba:text-xs"
+                                                disabled={isSavingCell || cell.amount <= 0}
+                                              >
+                                                {isSavingCell ? 'Saving...' : 'Save'}
+                                              </Button>
+                                            </div>
+                                          ) : (
+                                            /* Done button for editing existing cells - saves immediately */
+                                            <div className="gba:flex gba:gap-1">
+                                              <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={e => {
+                                                  e.stopPropagation()
+                                                  // Cancel - just close without saving
+                                                  setEditingCellId(null)
+                                                  setEditingCellUsageInfo(null)
+                                                }}
+                                                className="gba:flex-1 gba:h-7 gba:text-xs"
+                                                disabled={isSavingCell}
+                                              >
+                                                Cancel
+                                              </Button>
+                                              <Button
+                                                variant="default"
+                                                size="sm"
+                                                onClick={e => {
+                                                  e.stopPropagation()
+                                                  handleSaveSingleCell(cell)
+                                                }}
+                                                className="gba:flex-1 gba:h-7 gba:text-xs"
+                                                disabled={isSavingCell || isCheckingCellUsage}
+                                              >
+                                                {isSavingCell ? 'Saving...' : 'Save'}
+                                              </Button>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <>
+                                        {/* Period Dates */}
+                                        <div className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:text-center">
+                                          {cell.activeFrom ? dayjs(cell.activeFrom).format('DD/MM/YY') : 'New'} -{' '}
+                                          {cell.activeTo ? dayjs(cell.activeTo).format('DD/MM/YY') : '∞'}
+                                        </div>
+
+                                        {/* Amount Display */}
+                                        <div className="gba:text-center gba:mb-2">
+                                          <div className="gba:text-lg gba:font-semibold gba:text-foreground">
+                                            {cell.amount.toFixed(2)}
                                           </div>
                                         </div>
-                                      ) : (
-                                        <>
-                                          {/* Period Dates */}
-                                          <div className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:text-center">
-                                            {cell.activeFrom ? dayjs(cell.activeFrom).format('DD/MM/YY') : 'New'} -{' '}
-                                            {cell.activeTo ? dayjs(cell.activeTo).format('DD/MM/YY') : '∞'}
-                                          </div>
 
-                                          {/* Amount Display */}
-                                          <div className="gba:text-center gba:mb-2">
-                                            <div className="gba:text-lg gba:font-semibold gba:text-foreground">
-                                              {cell.amount.toFixed(2)}
-                                            </div>
-                                          </div>
+                                        {/* Currency */}
+                                        <div className="gba:text-xs gba:text-muted-foreground gba:text-center gba:font-medium">
+                                          {cell.currencyCode}
+                                        </div>
 
-                                          {/* Currency */}
-                                          <div className="gba:text-xs gba:text-muted-foreground gba:text-center gba:font-medium">
-                                            {cell.currencyCode}
-                                          </div>
-                                        </>
-                                      )}
-                                    </div>
-                                  )
-                                })}
-                              </div>
-                            ) : (
-                              /* No cells - Show "+" button to add new detail */
-                              <div className="gba:text-center gba:py-4">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    // Create a new cell for this rule-region combination
-                                    const newPeriodId = `new-${rule.id}-${region.id}-${Date.now()}`
-                                    const todayDate = `${dayjs().format('YYYY-MM-DD')}T00:00:00+00:00`
+                                        {/* Click to edit hint */}
+                                        <div className="gba:text-xs gba:text-muted-foreground gba:text-center gba:mt-1 gba:opacity-0 hover:gba:opacity-100">
+                                          Click to edit
+                                        </div>
+                                      </>
+                                    )}
+                                  </div>
+                                )
+                              })}
 
-                                    // Create new period for this rule
-                                    const newPeriod: ValidityPeriod = {
-                                      id: newPeriodId,
-                                      activeFrom: todayDate,
-                                      activeTo: undefined,
-                                      currencyCode: 'EUR',
-                                      hasConflict: false,
-                                      ruleId: rule.id
-                                    }
+                              {/* Add new detail button - always visible */}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  // Create a new cell for this rule-region combination
+                                  const newPeriodId = `new-${rule.id}-${region.id}-${Date.now()}`
+                                  const todayDate = `${dayjs().format('YYYY-MM-DD')}T00:00:00+00:00`
 
-                                    // Add period to the rule's validityPeriods
-                                    setAllowanceRegionRules(prev =>
-                                      prev.map(r =>
-                                        r.id === rule.id
-                                          ? { ...r, validityPeriods: [...r.validityPeriods, newPeriod] }
-                                          : r
-                                      )
+                                  // Create new period for this rule
+                                  const newPeriod: ValidityPeriod = {
+                                    id: newPeriodId,
+                                    activeFrom: todayDate,
+                                    activeTo: undefined,
+                                    currencyCode: 'EUR',
+                                    hasConflict: false,
+                                    ruleId: rule.id
+                                  }
+
+                                  // Add period to the rule's validityPeriods
+                                  setAllowanceRegionRules(prev =>
+                                    prev.map(r =>
+                                      r.id === rule.id
+                                        ? { ...r, validityPeriods: [...r.validityPeriods, newPeriod] }
+                                        : r
                                     )
+                                  )
 
-                                    // Create new cell
-                                    const newCell: EditableCell = {
-                                      id: undefined,
-                                      travelRegionId: region.id,
-                                      allowanceRegionRuleId: rule.id,
-                                      amount: 0,
-                                      currencyCode: 'EUR',
-                                      activeFrom: todayDate,
-                                      activeTo: undefined,
-                                      isNew: true,
-                                      isModified: false,
-                                      hasError: false,
-                                      validityPeriodId: newPeriodId
-                                    }
+                                  // Derive countryRef from region.id
+                                  const regionParts = region.id.split(':')
+                                  const regionCode = regionParts.length >= 3 ? regionParts[regionParts.length - 1] : ''
+                                  const countryCode = regionCode.substring(0, 2)
+                                  const countryRef = countryCode ? `Country:v1:${countryCode}` : undefined
+                                  
+                                  // Find EUR currency ref
+                                  const eurCurrency = currencies.find(c => c.code === 'EUR')
 
-                                    setEditableCells(prev => [...prev, newCell])
-                                  }}
-                                  className="gba:w-10 gba:h-10 gba:text-muted-foreground hover:gba:text-foreground hover:gba:bg-accent"
-                                  title="Add new allowance detail"
-                                  data-testid={`${prefixDataTestId}-add-cell-${rule.id}-${region.id}`}
-                                >
-                                  <PiPlus className="gba:w-5 gba:h-5" />
-                                </Button>
-                              </div>
-                            )}
+                                  // Create new cell
+                                  const newCell: EditableCell = {
+                                    id: undefined,
+                                    travelRegionId: region.id,
+                                    allowanceRegionRuleId: rule.id,
+                                    amount: 0,
+                                    currencyCode: 'EUR',
+                                    currencyRef: eurCurrency?.id,
+                                    countryRef: countryRef,
+                                    activeFrom: todayDate,
+                                    activeTo: undefined,
+                                    isNew: true,
+                                    isModified: false,
+                                    hasError: false,
+                                    validityPeriodId: newPeriodId
+                                  }
+
+                                  setEditableCells(prev => [...prev, newCell])
+                                }}
+                                className="gba:w-full gba:h-8 gba:text-muted-foreground hover:gba:text-foreground hover:gba:bg-accent gba:border gba:border-dashed"
+                                title="Add new allowance detail"
+                                data-testid={`${prefixDataTestId}-add-cell-${rule.id}-${region.id}`}
+                              >
+                                <PiPlus className="gba:w-4 gba:h-4 gba:mr-1" />
+                                <span className="gba:text-xs">Add Detail</span>
+                              </Button>
+                            </div>
                           </TableCell>
                         )
                       })}
@@ -1344,7 +1939,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
       )}
 
       {/* Pagination Controls */}
-      {!searchTerm && totalRegions > 0 && allowanceRegionRules.length > 0 && (
+      {!searchTerm && totalRegions > 0 && editableTravelRegions.length > 0 && (
         <MileageRulesPagination
           currentPage={currentPage}
           pageSize={pageSize}
@@ -1377,9 +1972,13 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                 })
                 const regionsWithDetails = Array.from(regionsWithDetailsMap.values())
 
+                // Include regions with details that might be on other pages
+                const allRegionsForDisplay = [...paginatedRegions, ...regionsWithDetails]
+                const uniqueRegionsForDisplay = Array.from(new Map(allRegionsForDisplay.map(r => [r.id, r])).values())
+
                 // Map regions to EditableTravelRegion format
                 setEditableTravelRegions(
-                  paginatedRegions.map(region => ({
+                  uniqueRegionsForDisplay.map(region => ({
                     ...region,
                     isEditing: false,
                     editingCode: region.code,
@@ -1390,9 +1989,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                 )
 
                 // Generate cells for all rules and regions
-                const allRegionsForCells = [...paginatedRegions, ...regionsWithDetails]
-                const uniqueRegionsForCells = Array.from(new Map(allRegionsForCells.map(r => [r.id, r])).values())
-                const cells = convertToEditableCells(allowanceRegionRules, uniqueRegionsForCells)
+                const cells = convertToEditableCells(allowanceRegionRules, uniqueRegionsForDisplay)
                 const validatedCells = validateCurrencies(cells)
                 setEditableCells(validatedCells)
               } catch (err) {
@@ -1451,6 +2048,50 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
         travelRegionSetName={travelRegionSetName}
         prefixDataTestId={prefixDataTestId}
       />
+
+      {/* Edit Rule Modal (for adding details to existing rule) */}
+      <Dialog open={isEditRuleModalOpen} onOpenChange={setIsEditRuleModalOpen}>
+        <DialogContent
+          className="gba:max-w-4xl gba:max-h-[90vh] gba:overflow-hidden gba:p-0"
+          data-testid={`${prefixDataTestId}-edit-rule-modal`}
+        >
+          <DialogHeader className="gba:px-6 gba:pt-6 gba:pb-4">
+            <DialogTitle>
+              Add Details to: {selectedRuleForEdit?.name || 'Rule'}
+            </DialogTitle>
+            <p className="gba:text-sm gba:text-muted-foreground">
+              Add new allowance region details to this rule
+            </p>
+          </DialogHeader>
+          <div className="gba:px-6 gba:pb-6 gba:overflow-y-auto gba:max-h-[calc(90vh-80px)]">
+            {selectedRuleForEdit && (
+              <TravelRegionRuleForm
+                accessToken={accessToken}
+                travelRegionSetId={travelRegionSetId}
+                isEditing={false}
+                initialData={{
+                  // Don't pass ID - prevents fetching existing details from server
+                  code: selectedRuleForEdit.code,
+                  name: selectedRuleForEdit.name,
+                  activeFrom: selectedRuleForEdit.activeFrom
+                    ? dayjs(selectedRuleForEdit.activeFrom).format('YYYY-MM-DD')
+                    : dayjs().format('YYYY-MM-DD'),
+                  activeTo: selectedRuleForEdit.activeTo
+                    ? dayjs(selectedRuleForEdit.activeTo).format('YYYY-MM-DD')
+                    : '',
+                  details: [] // Empty - only adding new details
+                }}
+                onSave={handleEditRuleModalSave}
+                onCancel={handleEditRuleModalCancel}
+                loading={isEditRuleModalLoading || isCheckingUsage}
+                isUsedInTransactions={ruleUsageInfo?.isUsed || false}
+                usageMessage={ruleUsageInfo?.message}
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Toaster />
     </div>
   )

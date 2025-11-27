@@ -28,6 +28,7 @@ interface RegionGroupCardProps {
   onRemoveAmount: (amountIndex: number) => void
   onRemoveGroup: () => void
   onScroll: (e: React.UIEvent<HTMLDivElement>) => void
+  isUsedInTransactions?: boolean
 }
 
 export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
@@ -43,18 +44,24 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
   onAddAmount,
   onRemoveAmount,
   onRemoveGroup,
-  onScroll
+  onScroll,
+  isUsedInTransactions = false
 }) => {
+  // Check if this is an existing detail (has real ID) or a new one (temp ID)
+  const isExistingDetail = group.detailIds.length > 0 && group.detailIds.some(id => id && !id.startsWith('temp-'))
+  // Only restrict editing for EXISTING details when the rule is used in transactions
+  const isEditRestricted = isUsedInTransactions && isExistingDetail
   return (
-    <div className="gba:border gba:border-gray-200 gba:rounded-lg gba:p-3 gba:space-y-3 gba:bg-white">
+    <div className="gba:border gba:rounded-lg gba:p-3 gba:space-y-3 gba:bg-card">
       {/* Group Header */}
-      <div className="gba:flex gba:items-center gba:justify-end gba:pb-2 gba:border-b gba:border-gray-300">
+      <div className="gba:flex gba:items-center gba:justify-end gba:pb-2 gba:border-b">
         <Button
           variant="ghost"
           size="sm"
           onClick={onRemoveGroup}
-          className="gba:text-red-600 hover:gba:text-red-700 gba:h-7 gba:text-xs"
+          className="gba:text-destructive hover:gba:text-destructive gba:h-7 gba:text-xs"
           title="Remove Group"
+          disabled={isEditRestricted}
         >
           <PiTrash className="gba:h-3.5 gba:w-3.5 gba:mr-1" />
           Remove
@@ -66,9 +73,13 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
         {/* Country */}
         <div className="gba:space-y-1">
           <Label className="gba:text-xs gba:font-medium">
-            Country <span className="gba:text-red-500 gba:ml-1">*</span>
+            Country <span className="gba:text-destructive gba:ml-1">*</span>
           </Label>
-          <Select value={group.countryRef} onValueChange={value => onUpdateField('countryRef', value)}>
+          <Select
+            value={group.countryRef}
+            onValueChange={value => onUpdateField('countryRef', value)}
+            disabled={isEditRestricted}
+          >
             <SelectTrigger className="gba:w-full gba:h-8 gba:text-sm">
               <SelectValue placeholder="Select country" />
             </SelectTrigger>
@@ -85,9 +96,13 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
         {/* Travel Region */}
         <div className="gba:space-y-1">
           <Label className="gba:text-xs gba:font-medium">
-            Travel Region <span className="gba:text-red-500 gba:ml-1">*</span>
+            Travel Region <span className="gba:text-destructive gba:ml-1">*</span>
           </Label>
-          <Select value={group.travelRegion} onValueChange={value => onUpdateField('travelRegion', value)}>
+          <Select
+            value={group.travelRegion}
+            onValueChange={value => onUpdateField('travelRegion', value)}
+            disabled={isEditRestricted}
+          >
             <SelectTrigger className="gba:w-full gba:h-8 gba:text-sm">
               <SelectValue placeholder="Select region" />
             </SelectTrigger>
@@ -100,15 +115,15 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
 
               {/* Loading indicator */}
               {isLoadingMoreRegions && (
-                <div className="gba:p-2 gba:text-center gba:border-t gba:border-gray-100">
+                <div className="gba:p-2 gba:text-center gba:border-t">
                   <Spinner size="sm" className="gba:mr-2" />
-                  <span className="gba:text-gray-500 gba:text-xs">Loading...</span>
+                  <span className="gba:text-muted-foreground gba:text-xs">Loading...</span>
                 </div>
               )}
 
               {/* Has more indicator */}
               {hasMore && !isLoadingMoreRegions && (
-                <div className="gba:p-2 gba:text-center gba:text-gray-500 gba:text-xs gba:border-t gba:border-gray-100">
+                <div className="gba:p-2 gba:text-center gba:text-muted-foreground gba:text-xs gba:border-t">
                   Scroll down to load more...
                 </div>
               )}
@@ -119,9 +134,13 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
         {/* Currency */}
         <div className="gba:space-y-1">
           <Label className="gba:text-xs gba:font-medium">
-            Currency <span className="gba:text-red-500 gba:ml-1">*</span>
+            Currency <span className="gba:text-destructive gba:ml-1">*</span>
           </Label>
-          <Select value={group.currencyRef} onValueChange={value => onUpdateField('currencyRef', value)}>
+          <Select
+            value={group.currencyRef}
+            onValueChange={value => onUpdateField('currencyRef', value)}
+            disabled={isEditRestricted}
+          >
             <SelectTrigger className="gba:w-full gba:h-8 gba:text-sm">
               <SelectValue placeholder="Select currency" />
             </SelectTrigger>
@@ -142,6 +161,7 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
             checked={group.homeFlag}
             onCheckedChange={checked => onUpdateField('home', checked)}
             className="gba:h-4 gba:w-4"
+            disabled={isEditRestricted}
           />
           <Label htmlFor={`home-${group.key}`} className="gba:text-xs gba:font-medium gba:cursor-pointer">
             Home Region
@@ -152,7 +172,7 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
         <div className="gba:grid gba:grid-cols-2 gba:gap-2">
           <div className="gba:space-y-1">
             <Label className="gba:text-xs gba:font-medium">
-              Valid From <span className="gba:text-red-500 gba:ml-1">*</span>
+              Valid From <span className="gba:text-destructive gba:ml-1">*</span>
             </Label>
             <Input
               type="date"
@@ -162,6 +182,7 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
               className="gba:h-8 gba:text-sm"
               min="1900-01-01"
               max="2099-12-31"
+              disabled={isEditRestricted}
             />
           </div>
           <div className="gba:space-y-1">
@@ -176,6 +197,11 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
               min="1900-01-01"
               max="2099-12-31"
             />
+            {isEditRestricted && (
+              <p className="gba:text-xs gba:text-muted-foreground">
+                Only "Valid To" can be modified.
+              </p>
+            )}
           </div>
         </div>
 
@@ -183,13 +209,14 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
         <div className="gba:space-y-1.5">
           <div className="gba:flex gba:items-center gba:justify-between">
             <Label className="gba:text-xs gba:font-medium">
-              Allowance Amounts <span className="gba:text-red-500 gba:ml-1">*</span>
+              Allowance Amounts <span className="gba:text-destructive gba:ml-1">*</span>
             </Label>
             <Button
               variant="outline"
               size="sm"
               onClick={onAddAmount}
               className="gba:flex gba:items-center gba:gap-1 gba:h-7 gba:text-xs"
+              disabled={isEditRestricted}
             >
               <PiPlus className="gba:h-3 gba:w-3" />
               Add Amount
@@ -200,7 +227,7 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
             <div className="gba:space-y-1.5">
               {group.amounts.map((amount, amountIndex) => (
                 <div key={`${group.key}-amount-${amountIndex}`} className="gba:flex gba:items-center gba:gap-2">
-                  <Label className="gba:text-xs gba:text-gray-600 gba:w-16">Amount {amountIndex + 1}</Label>
+                  <Label className="gba:text-xs gba:text-muted-foreground gba:w-16">Amount {amountIndex + 1}</Label>
                   <Input
                     type="number"
                     step="0.01"
@@ -209,13 +236,14 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
                     placeholder="0.00"
                     className="gba:w-48 gba:h-8 gba:text-sm"
                     data-testid={`travel-region-rule-amount-${group.key}-${amountIndex}`}
+                    disabled={isEditRestricted}
                   />
-                  {group.amounts.length > 1 && (
+                  {group.amounts.length > 1 && !isEditRestricted && (
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => onRemoveAmount(amountIndex)}
-                      className="gba:text-red-600 hover:gba:text-red-700 gba:h-7 gba:w-7 gba:p-0"
+                      className="gba:text-destructive hover:gba:text-destructive gba:h-7 gba:w-7 gba:p-0"
                       title="Remove this amount"
                     >
                       <PiTrash className="gba:h-3.5 gba:w-3.5" />
@@ -225,7 +253,7 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
               ))}
             </div>
           ) : (
-            <div className="gba:text-center gba:py-3 gba:text-gray-500 gba:text-xs gba:italic">
+            <div className="gba:text-center gba:py-3 gba:text-muted-foreground gba:text-xs gba:italic">
               No amounts added yet. Click "Add Amount" above.
             </div>
           )}

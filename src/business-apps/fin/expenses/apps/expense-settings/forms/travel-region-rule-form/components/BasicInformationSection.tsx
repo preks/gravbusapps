@@ -5,11 +5,13 @@ import { TravelRegionRuleFormData } from '../types';
 interface BasicInformationSectionProps {
   formData: TravelRegionRuleFormData;
   onUpdate: (updates: Partial<TravelRegionRuleFormData>) => void;
+  isUsedInTransactions?: boolean;
 }
 
 export const BasicInformationSection: React.FC<BasicInformationSectionProps> = ({
   formData,
   onUpdate,
+  isUsedInTransactions = false,
 }) => {
   return (
     <Card>
@@ -20,24 +22,26 @@ export const BasicInformationSection: React.FC<BasicInformationSectionProps> = (
         <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
           <div className="gba:space-y-2">
             <Label htmlFor="rule-code">
-              Rule Code <span className="gba:text-red-500 gba:ml-1">*</span>
+              Rule Code <span className="gba:text-destructive gba:ml-1">*</span>
             </Label>
             <Input
               id="rule-code"
               value={formData.code}
               onChange={(e) => onUpdate({ code: e.target.value })}
               placeholder="Enter rule code"
+              disabled={isUsedInTransactions}
             />
           </div>
           <div className="gba:space-y-2">
             <Label htmlFor="rule-name">
-              Rule Name <span className="gba:text-red-500 gba:ml-1">*</span>
+              Rule Name <span className="gba:text-destructive gba:ml-1">*</span>
             </Label>
             <Input
               id="rule-name"
               value={formData.name}
               onChange={(e) => onUpdate({ name: e.target.value })}
               placeholder="Enter rule name"
+              disabled={isUsedInTransactions}
             />
           </div>
           <div className="gba:space-y-2">
@@ -50,6 +54,7 @@ export const BasicInformationSection: React.FC<BasicInformationSectionProps> = (
               data-testid="travel-region-rule-form-active-from"
               min="1900-01-01"
               max="2099-12-31"
+              disabled={isUsedInTransactions}
             />
           </div>
           <div className="gba:space-y-2">
@@ -63,6 +68,11 @@ export const BasicInformationSection: React.FC<BasicInformationSectionProps> = (
               min="1900-01-01"
               max="2099-12-31"
             />
+            {isUsedInTransactions && (
+              <p className="gba:text-xs gba:text-muted-foreground">
+                Only the "Active To" date can be modified for rules in use.
+              </p>
+            )}
           </div>
         </div>
       </CardContent>
