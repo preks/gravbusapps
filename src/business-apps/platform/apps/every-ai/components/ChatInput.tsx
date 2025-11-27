@@ -102,68 +102,68 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   return (
     <>
       <style>{`
-        #${suggestionsScrollId}::-webkit-scrollbar {
-          display: none;
-        }
         #${suggestionsScrollId} {
           -ms-overflow-style: none;
           scrollbar-width: none;
+          overflow-x: auto;
+          overflow-y: hidden;
+        }
+        #${suggestionsScrollId}::-webkit-scrollbar {
+          display: none;
+          width: 0;
+          height: 0;
         }
       `}</style>
       <div
-        className={`gba:flex gba:flex-col gba:gap-3 ${disabled ? 'gba:opacity-50 gba:pointer-events-none' : ''} ${className || ''}`}
+        className={`gba:flex gba:flex-col gba:gap-2 ${disabled ? 'gba:opacity-50 gba:pointer-events-none' : ''} ${className || ''}`}
         data-testid="chat-input"
       >
-        {/* Compact AI Suggestions */}
+        {/* Sleek AI Suggestions - horizontal scroll with hidden scrollbar */}
         {suggestions && suggestions.length > 0 && (
-          <div id={suggestionsScrollId} className="gba:flex gba:flex-nowrap gba:gap-2 gba:overflow-x-auto gba:pb-1">
-            {isPrechatLoading ? (
-              <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
-                <div className="gba:animate-spin gba:rounded-full gba:h-4 gba:w-4 gba:border-2 gba:border-primary gba:border-t-transparent" />
-                <span>Loading suggestions...</span>
-              </div>
-            ) : (
-              suggestions.map((s, idx) => {
-                const label = typeof s === 'string' ? s : s.heading || s.message || ''
-                const text = typeof s === 'string' ? s : s.message || s.heading || ''
-                return (
-                  <button
-                    key={idx}
-                    onClick={e => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      // Send directly - one click!
-                      onSend(
-                        text,
-                        files.map(f => f.file),
-                        false,
-                        isSearching,
-                        undefined
-                      )
-                      clearFiles()
-                      setIsSearching(false)
-                    }}
-                    className="gba:group gba:inline-flex gba:items-center gba:gap-1.5 gba:text-xs gba:leading-tight gba:rounded-lg gba:border gba:border-border gba:bg-card hover:gba:bg-accent gba:px-2.5 gba:py-1.5 gba:transition-all hover:gba:shadow-sm hover:gba:border-primary/50"
-                    data-testid={`suggestion-${idx}`}
-                  >
-                    <svg
-                      className="gba:h-3 gba:w-3 gba:text-muted-foreground group-hover:gba:text-primary gba:transition-colors gba:flex-shrink-0"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
+          <div className="gba:relative gba:overflow-hidden">
+            {/* Fade overlay on right edge */}
+            <div className="gba:absolute gba:right-0 gba:top-0 gba:bottom-0 gba:w-8 gba:bg-gradient-to-l gba:from-background gba:to-transparent gba:z-10 gba:pointer-events-none" />
+            <div
+              id={suggestionsScrollId}
+              className="gba:flex gba:flex-nowrap gba:gap-2 gba:pr-8 gba:overflow-x-auto gba:overflow-y-hidden"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {isPrechatLoading ? (
+                <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground gba:px-1">
+                  <div className="gba:animate-spin gba:rounded-full gba:h-3 gba:w-3 gba:border-2 gba:border-primary gba:border-t-transparent" />
+                  <span>Loading suggestions...</span>
+                </div>
+              ) : (
+                suggestions.map((s, idx) => {
+                  const label = typeof s === 'string' ? s : s.heading || s.message || ''
+                  const text = typeof s === 'string' ? s : s.message || s.heading || ''
+                  return (
+                    <button
+                      key={idx}
+                      onClick={e => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        onSend(
+                          text,
+                          files.map(f => f.file),
+                          false,
+                          isSearching,
+                          undefined
+                        )
+                        clearFiles()
+                        setIsSearching(false)
+                      }}
+                      className="gba:group gba:flex-shrink-0 gba:inline-flex gba:items-center gba:gap-1.5 gba:whitespace-nowrap gba:text-xs gba:rounded-full gba:bg-muted/50 hover:gba:bg-accent gba:px-3 gba:py-1.5 gba:transition-all hover:gba:shadow-sm gba:border gba:border-transparent hover:gba:border-primary/30"
+                      data-testid={`suggestion-${idx}`}
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M13 10V3L4 14h7v7l9-11h-7z"
-                      />
-                    </svg>
-                    <span className="gba:text-foreground gba:truncate">{label}</span>
-                  </button>
-                )
-              })
-            )}
+                      <span className="gba:text-muted-foreground group-hover:gba:text-foreground gba:transition-colors">
+                        {label}
+                      </span>
+                    </button>
+                  )
+                })
+              )}
+            </div>
           </div>
         )}
 
@@ -297,8 +297,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 disabled={disabled}
               />
 
-              {/* Right side: Voice + Send only */}
-              <div className="gba:flex gba:items-center gba:gap-1.5 gba:flex-shrink-0">
+              {/* Right side: Voice above Send (vertical stack) */}
+              <div className="gba:flex gba:flex-col gba:items-center gba:gap-1 gba:flex-shrink-0">
                 {/* Voice Mode Button */}
                 {voiceModeSupported && (
                   <VoiceModeButton
@@ -310,6 +310,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                     onToggle={onToggleVoiceMode}
                     onStopSpeaking={onStopSpeaking}
                     disabled={disabled}
+                    size="sm"
                   />
                 )}
 
@@ -317,13 +318,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 <Button
                   variant="default"
                   size="sm"
-                  className="gba:h-9 gba:w-9 gba:rounded-xl gba:bg-gradient-to-br gba:from-primary gba:to-info hover:gba:shadow-lg gba:transition-all"
+                  className="gba:h-8 gba:w-8 gba:rounded-lg gba:bg-gradient-to-br gba:from-primary gba:to-info hover:gba:shadow-lg gba:transition-all"
                   onClick={handleSend}
                   aria-label="Send"
                   title="Send message"
                   disabled={disabled || (!value.trim() && files.length === 0)}
                 >
-                  <PaperPlaneTilt className="gba:h-5 gba:w-5" weight="fill" />
+                  <PaperPlaneTilt className="gba:h-4 gba:w-4" weight="fill" />
                 </Button>
               </div>
             </div>

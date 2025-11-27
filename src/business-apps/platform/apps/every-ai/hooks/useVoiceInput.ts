@@ -20,6 +20,7 @@ interface UseVoiceInputOptions {
   language?: string
   continuous?: boolean
   interimResults?: boolean
+  silenceDelay?: number // ms to wait after speech ends before triggering onEnd
   onTranscript?: (transcript: string) => void
   onEnd?: (finalTranscript: string) => void
 }
@@ -58,7 +59,14 @@ declare global {
 }
 
 export function useVoiceInput(options: UseVoiceInputOptions = {}) {
-  const { language = 'en-US', continuous = true, interimResults = true, onTranscript, onEnd } = options
+  const {
+    language = 'en-US',
+    continuous = true,
+    interimResults = true,
+    silenceDelay = 1500, // Default 1.5 seconds to wait before sending
+    onTranscript,
+    onEnd
+  } = options
 
   const [state, setState] = useState<VoiceInputState>({
     isListening: false,
@@ -75,6 +83,8 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
   const mediaStreamRef = useRef<MediaStream | null>(null)
   const animationFrameRef = useRef<number | null>(null)
   const finalTranscriptRef = useRef<string>('')
+  const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const lastSpeechTimeRef = useRef<number>(Date.now())
 
   // Check for browser support
   useEffect(() => {
@@ -142,6 +152,12 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
       return
     }
 
+    // Clear any pending send timeout (user started speaking again)
+    if (silenceTimeoutRef.current) {
+      clearTimeout(silenceTimeoutRef.current)
+      silenceTimeoutRef.current = null
+    }
+
     // Reset state
     finalTranscriptRef.current = ''
     setState(prev => ({
@@ -179,6 +195,28 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
         }
       }
 
+      // Track when we last received speech
+      lastSpeechTimeRef.current = Date.now()
+
+      // Clear any existing silence timeout
+      if (silenceTimeoutRef.current) {
+        clearTimeout(silenceTimeoutRef.current)
+        silenceTimeoutRef.current = null
+      }
+
+      // Set up new silence timeout - if no new speech for silenceDelay, trigger send
+      if (final.trim() && onEnd) {
+        silenceTimeoutRef.current = setTimeout(() => {
+          const textToSend = finalTranscriptRef.current.trim()
+          if (textToSend) {
+            // Stop recognition and send
+            if (recognitionRef.current) {
+              recognitionRef.current.stop()
+            }
+          }
+        }, silenceDelay)
+      }
+
       setState(prev => ({
         ...prev,
         transcript: final.trim(),
@@ -210,6 +248,12 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
       setState(prev => ({ ...prev, isListening: false }))
       stopVolumeAnalysis()
 
+      // Clear any pending silence timeout
+      if (silenceTimeoutRef.current) {
+        clearTimeout(silenceTimeoutRef.current)
+        silenceTimeoutRef.current = null
+      }
+
       const finalText = finalTranscriptRef.current.trim()
       if (finalText && onEnd) {
         onEnd(finalText)
@@ -218,7 +262,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
 
     recognitionRef.current = recognition
     recognition.start()
-  }, [language, continuous, interimResults, onTranscript, onEnd, startVolumeAnalysis, stopVolumeAnalysis])
+  }, [language, continuous, interimResults, silenceDelay, onTranscript, onEnd, startVolumeAnalysis, stopVolumeAnalysis])
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {
@@ -230,6 +274,11 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
   }, [stopVolumeAnalysis])
 
   const cancelListening = useCallback(() => {
+    // Clear any pending send timeout
+    if (silenceTimeoutRef.current) {
+      clearTimeout(silenceTimeoutRef.current)
+      silenceTimeoutRef.current = null
+    }
     if (recognitionRef.current) {
       recognitionRef.current.abort()
       recognitionRef.current = null
@@ -256,6 +305,9 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      if (silenceTimeoutRef.current) {
+        clearTimeout(silenceTimeoutRef.current)
+      }
       if (recognitionRef.current) {
         recognitionRef.current.abort()
       }

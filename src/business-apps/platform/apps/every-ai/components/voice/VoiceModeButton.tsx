@@ -32,6 +32,7 @@ export const VoiceModeButton: React.FC<VoiceModeButtonProps> = ({
   onToggle,
   onStopSpeaking,
   disabled = false,
+  size = 'md',
   className = ''
 }) => {
   // Handle click based on state
@@ -43,9 +44,22 @@ export const VoiceModeButton: React.FC<VoiceModeButtonProps> = ({
     }
   }
 
+  // Size classes
+  const sizeClasses = {
+    sm: 'gba:h-8 gba:w-8 gba:rounded-lg',
+    md: 'gba:h-10 gba:w-10 gba:rounded-xl',
+    lg: 'gba:h-12 gba:w-12 gba:rounded-xl'
+  }
+
+  const iconSizeClasses = {
+    sm: 'gba:h-4 gba:w-4',
+    md: 'gba:h-5 gba:w-5',
+    lg: 'gba:h-6 gba:w-6'
+  }
+
   // Determine button styling based on state
   const getButtonClasses = () => {
-    const base = 'gba:h-10 gba:w-10 gba:rounded-xl gba:transition-all gba:shadow-sm'
+    const base = `${sizeClasses[size]} gba:transition-all gba:shadow-sm`
 
     if (isLoading) {
       return `${base} gba:bg-muted gba:animate-pulse`
@@ -62,6 +76,8 @@ export const VoiceModeButton: React.FC<VoiceModeButtonProps> = ({
     // Idle state - matches other buttons
     return `${base} gba:bg-muted hover:gba:bg-primary hover:gba:text-primary-foreground`
   }
+
+  const iconSize = iconSizeClasses[size]
 
   return (
     <Button
@@ -93,7 +109,7 @@ export const VoiceModeButton: React.FC<VoiceModeButtonProps> = ({
       {/* Icon states */}
       {isLoading ? (
         // Loading spinner
-        <svg className="gba:h-5 gba:w-5 gba:animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className={`${iconSize} gba:animate-spin`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <circle className="gba:opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
           <path
             className="gba:opacity-75"
@@ -109,7 +125,7 @@ export const VoiceModeButton: React.FC<VoiceModeButtonProps> = ({
               key={i}
               className="gba:w-0.5 gba:bg-current gba:rounded-full gba:animate-pulse"
               style={{
-                height: `${8 + i * 4}px`,
+                height: `${size === 'sm' ? 6 + i * 3 : 8 + i * 4}px`,
                 animationDelay: `${i * 0.1}s`
               }}
             />
@@ -123,7 +139,7 @@ export const VoiceModeButton: React.FC<VoiceModeButtonProps> = ({
               key={i}
               className="gba:w-0.5 gba:bg-current gba:rounded-full gba:animate-pulse"
               style={{
-                height: `${6 + i * 3}px`,
+                height: `${size === 'sm' ? 5 + i * 2 : 6 + i * 3}px`,
                 animationDelay: `${i * 0.15}s`
               }}
             />
@@ -131,7 +147,7 @@ export const VoiceModeButton: React.FC<VoiceModeButtonProps> = ({
         </div>
       ) : (
         // Microphone icon
-        <svg className="gba:h-5 gba:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className={iconSize} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"

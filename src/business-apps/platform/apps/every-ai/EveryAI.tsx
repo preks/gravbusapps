@@ -13,7 +13,7 @@ import { VoiceOverlay } from './components/voice/VoiceOverlay'
 import { Button } from '@newwork/nw-design-system'
 import { Bell, Sparkle, ArrowsOut } from '@phosphor-icons/react'
 import { navigateTo } from '@/common/utils/navigationUtils'
-import type { OutputItem, AnswerOutput } from './types/models'
+import type { OutputItem, AnswerOutput, NavigationData } from './types/models'
 
 export interface EveryAIProps extends BusinessAppContextProps {
   className?: string
@@ -31,6 +31,7 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
   const [isSpeechMode, setIsSpeechMode] = useState(false)
   const isSpeechModeRef = useRef(false) // Ref for use in callbacks
   const lastSpokenTurnIndexRef = useRef<number>(-1)
+  const lastNavigatedTurnIndexRef = useRef<number>(-1)
 
   // Detect if we're in sidepanel mode (not the fullscreen every-ai view)
   const isInSidepanel = useMemo(() => {
@@ -60,10 +61,12 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
   const handleVoiceSendRef = useRef<(text: string) => void>(() => {})
 
   // Voice input hook with onEnd callback to auto-send
+  // Using continuous: true with silenceDelay for natural conversation pauses
   const voiceInput = useVoiceInput({
     language: 'en-US',
-    continuous: false,
+    continuous: true,
     interimResults: true,
+    silenceDelay: 1000, // Wait 1 second of silence before sending
     onEnd: (finalTranscript: string) => {
       if (finalTranscript.trim() && isSpeechModeRef.current) {
         handleVoiceSendRef.current(finalTranscript)
@@ -168,6 +171,39 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
     }
   }, [conversation, isSpeechMode, voiceSynthesis])
 
+  // Auto-navigate in speech mode when AI returns a navigation action
+  useEffect(() => {
+    if (!isSpeechMode) return
+
+    // Find the latest agent turn with a navigation (don't wait for isLoading to finish)
+    for (let i = conversation.length - 1; i > lastNavigatedTurnIndexRef.current; i--) {
+      const turn = conversation[i]
+
+      if (turn.side === 'agent') {
+        // Find the answer output with navigation data
+        const answerOutput = turn.outputs?.find((o: OutputItem): o is AnswerOutput => o.type === 'answer')
+
+        if (answerOutput?.displayData) {
+          // Look for navigation data
+          const navigationData = answerOutput.displayData.find(
+            (data): data is NavigationData => data.type === 'navigation'
+          )
+
+          if (navigationData?.url) {
+            console.log('🧭 [Voice] Auto-navigating to:', navigationData.url)
+            lastNavigatedTurnIndexRef.current = i
+
+            // Small delay to let the user hear the AI's response first
+            setTimeout(() => {
+              navigateTo(navigationData.url)
+            }, 1500) // Wait 1.5 seconds so they can hear the explanation
+            break
+          }
+        }
+      }
+    }
+  }, [conversation, isSpeechMode])
+
   // Handle sending voice transcript
   const handleVoiceSend = useCallback(
     (text: string) => {
@@ -237,8 +273,8 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
         onSendTranscript={handleVoiceSend}
       />
 
-      {/* Top Left - Fullscreen button (only in sidepanel mode, hidden in speech mode) */}
-      {!isSpeechMode && isInSidepanel && (
+      {/* Top Left - Fullscreen button (only in sidepanel mode, hidden in speech mode and reminders) */}
+      {!isSpeechMode && isInSidepanel && !showRemindersPanel && (
         <div className="gba:absolute gba:top-4 gba:left-4 gba:z-50">
           <Button
             variant="ghost"
