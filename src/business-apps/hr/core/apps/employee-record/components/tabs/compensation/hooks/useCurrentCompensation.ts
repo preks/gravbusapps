@@ -92,7 +92,8 @@ export const useCurrentCompensation = (employeeId: string, accessToken: string) 
       })
 
       // Sort by activeFrom descending (most recent first), handling null dates
-      const sortedSalaries = nonDeletedSalaries.sort((a, b) => {
+      // Creating a copy with spread operator before sorting to avoid mutating nonDeletedSalaries
+      const sortedSalaries = [...nonDeletedSalaries].sort((a, b) => {
         const dateA = a.activeFrom ? new Date(a.activeFrom).getTime() : 0
         const dateB = b.activeFrom ? new Date(b.activeFrom).getTime() : 0
         return dateB - dateA
