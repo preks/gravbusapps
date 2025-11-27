@@ -208,8 +208,9 @@ pipelines:
   branches:
     develop:
       - step: *install_dependencies
-      - step: *publish-changed-screens
-      - step: *sonar_scan
+      - parallel:
+        - step: *publish-changed-screens
+        - step: *sonar_scan
 
     hotfix/*:
       - step: *install_dependencies
