@@ -50,7 +50,7 @@ const TimeTrackingTab: React.FC<TimeTrackingTabProps> = ({ employee, accessToken
               <span>
                 {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.summary.title', 'Monthly summary')}
               </span>
-            </div>{' '}
+            </div>
           </TabsTrigger>
           <TabsTrigger value="history" data-testid="history-subtab" className="gba:flex-1">
             <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
