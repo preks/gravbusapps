@@ -5,6 +5,7 @@ import {
   AvatarImage,
   AvatarFallback,
   IconAvatar,
+  Badge,
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -16,6 +17,7 @@ import { BankIcon, ChartLineUpIcon } from '@phosphor-icons/react'
 import { formatAddress } from '@/common/utils/addressFormatter'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { getEmailChannel, getPhoneChannel } from '@/common/data/common/utils/communicationChannelHelpers'
+import { getContactTypeLabel } from '@/common/data/relations/constants/contactConstants'
 import { createGetPages } from '../utils'
 
 interface AddressObject {
@@ -107,7 +109,7 @@ const AccountSection: React.FC<AccountSectionProps> = ({
 
 // Static properties for SectionWrapper
 ;(AccountSection as any).sectionTitle = 'Account Information'
-;(AccountSection as any).getPages = createGetPages<any>(
+;(AccountSection as any).getPages = createGetPages<any, AccountSectionProps>(
   (props: AccountSectionProps) => props.accounts,
   (props: AccountSectionProps) => props.account
 )
@@ -188,6 +190,10 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
     ? `data:image/gif;base64,${account.pictureThumbnail}`
     : account?.picture || account?.pictureUrl || account?.pictureThumbnailUrl
 
+  // Get contact type from extended account object (passed from parent via accountContacts)
+  const contactType = account?.contactType
+  const contactTypeLabel = contactType ? getContactTypeLabel(contactType) : null
+
   return (
     <div className={`${cardClassName} gba:relative gba:flex gba:flex-col gba:h-full`}>
       <div className="gba:space-y-2 gba:flex-1">
@@ -204,7 +210,7 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
             <IconAvatar icon={BankIcon} variant="default" size="lg" title="Company" />
           )}
           <div className="gba:flex gba:flex-col gba:gap-1 gba:min-w-0 gba:flex-1">
-            <div className="gba:h-5 gba:flex gba:items-center gba:min-w-0">
+            <div className="gba:h-5 gba:flex gba:items-center gba:gap-2 gba:min-w-0">
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -231,6 +237,11 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
+              {contactTypeLabel && (
+                <Badge variant="outline" className="gba:shrink-0" data-testid="contact-type-badge">
+                  {contactTypeLabel}
+                </Badge>
+              )}
             </div>
             {/* Company Type and Industry - directly under name */}
             <div className="gba:h-5 gba:flex gba:items-center gba:min-w-0">

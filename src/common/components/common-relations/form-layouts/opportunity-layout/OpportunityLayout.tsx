@@ -1,13 +1,6 @@
 import React from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import {
-  useTranslation,
-  Skeleton,
-  FormAccordion,
-  FormAccordionItem,
-  FormAccordionTrigger,
-  FormAccordionContent
-} from '@newwork/nw-design-system'
+import { useTranslation, Skeleton, FormSection } from '@newwork/nw-design-system'
 import { OpportunityInformationSegment } from '../../form-segments/opportunity-information-segment'
 import { OpportunityPipelineSegment } from '../../form-segments/opportunity-pipeline-segment'
 import { CURRENCY } from '@/common/constants/commonCatalogs'
@@ -86,7 +79,7 @@ const OpportunityLayout: React.FC<OpportunityLayoutProps> = ({
           <Skeleton className="gba:h-10 gba:w-full" />
           <Skeleton className="gba:h-32 gba:w-full" />
         </div>
-        {/* FormAccordion Skeleton */}
+        {/* FormSection Skeleton */}
         <div className="gba:space-y-2">
           <Skeleton className="gba:h-12 gba:w-full" />
           <Skeleton className="gba:h-12 gba:w-full" />
@@ -111,25 +104,19 @@ const OpportunityLayout: React.FC<OpportunityLayoutProps> = ({
         opportunityForecastCatalogIdentifier={opportunityForecastCatalogIdentifier}
         currencyCatalogIdentifier={currencyCatalogIdentifier}
       />
-      <FormAccordion type="multiple" className="gba:w-full" data-testid="opportunity-layout-FormAccordion">
-        <FormAccordionItem value="pipeline-stage">
-          <FormAccordionTrigger>{t('pipeline-title')}</FormAccordionTrigger>
-          <FormAccordionContent>
-            <OpportunityPipelineSegment
-              pipelineCatalogIdentifier={pipelineCatalogIdentifier}
-              stageCatalogIdentifier={stageCatalogIdentifier}
-              opportunityStatusCatalogIdentifier={opportunityStatusCatalogIdentifier}
-              customFields={opportunityPipelineCustomFields}
-            />
-          </FormAccordionContent>
-        </FormAccordionItem>
-        {customSegments.map(segment => (
-          <FormAccordionItem key={segment.id} value={segment.id}>
-            <FormAccordionTrigger>{segment.title}</FormAccordionTrigger>
-            <FormAccordionContent>{segment.content}</FormAccordionContent>
-          </FormAccordionItem>
-        ))}
-      </FormAccordion>
+      <FormSection title={t('pipeline-title')} value="pipeline-stage">
+        <OpportunityPipelineSegment
+          pipelineCatalogIdentifier={pipelineCatalogIdentifier}
+          stageCatalogIdentifier={stageCatalogIdentifier}
+          opportunityStatusCatalogIdentifier={opportunityStatusCatalogIdentifier}
+          customFields={opportunityPipelineCustomFields}
+        />
+      </FormSection>
+      {customSegments.map(segment => (
+        <FormSection key={segment.id} title={segment.title} value={segment.id}>
+          {segment.content}
+        </FormSection>
+      ))}
     </div>
   )
 }
