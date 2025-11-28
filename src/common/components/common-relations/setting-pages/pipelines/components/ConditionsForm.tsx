@@ -221,7 +221,8 @@ const ConditionsForm: React.FC<ConditionsFormProps> = ({
 
       // Filter conditions for this stage
       const stageConditions = response.data.filter(entry => entry.parentEntryId === stageId)
-      setConditions(stageConditions.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)))
+      const sortedConditions = stageConditions.toSorted((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
+      setConditions(sortedConditions)
     } catch (err) {
       console.error('Error fetching conditions:', err)
       setConditions([])
@@ -329,6 +330,76 @@ const ConditionsForm: React.FC<ConditionsFormProps> = ({
     }
   }
 
+  const renderConditionsContent = () => {
+    if (isLoading) {
+      return (
+        <div className="gba:flex gba:justify-center gba:py-8">
+          <Spinner size="lg" />
+        </div>
+      )
+    }
+
+    if (conditions.length === 0) {
+      return (
+        <div className="gba:min-h-32 gba:flex gba:items-center gba:justify-center gba:bg-gray-50 gba:rounded-lg gba:p-8">
+          <p className="gba:text-gray-500 gba:text-center">
+            No conditions defined for this stage yet.
+            <br />
+            Click "Add Condition" to create the first one.
+          </p>
+        </div>
+      )
+    }
+
+    const activeConditionData = conditions.find(c => c.id === activeCondition)
+    const activeConditionIndex = activeConditionData ? conditions.findIndex(c => c.id === activeCondition) + 1 : 0
+
+    return (
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={handleConditionDragStart}
+        onDragEnd={handleConditionDragEnd}
+      >
+        <div className="gba:space-y-2">
+          <SortableContext items={conditions.map(c => c.id)} strategy={verticalListSortingStrategy}>
+            {conditions.map((condition, index) => (
+              <DraggableConditionItem
+                key={condition.id}
+                condition={condition}
+                index={index + 1}
+                prefixDataTestId={prefixDataTestId}
+                onEdit={openEditModal}
+                onDelete={handleDeleteCondition}
+              />
+            ))}
+          </SortableContext>
+
+          <DragOverlay dropAnimation={null}>
+            {activeConditionData ? (
+              <div
+                style={{
+                  opacity: 0.8,
+                  transform: 'rotate(1deg)',
+                  cursor: 'grabbing',
+                  pointerEvents: 'none'
+                }}
+              >
+                <DraggableConditionItem
+                  condition={activeConditionData}
+                  index={activeConditionIndex}
+                  prefixDataTestId={prefixDataTestId}
+                  onEdit={() => {}}
+                  onDelete={() => {}}
+                />
+              </div>
+            ) : null}
+          </DragOverlay>
+        </div>
+      </DndContext>
+    )
+  }
+
   const openCreateModal = () => {
     setIsCreateModalOpen(true)
   }
@@ -371,62 +442,7 @@ const ConditionsForm: React.FC<ConditionsFormProps> = ({
               </Button>
             </div>
 
-            {isLoading ? (
-              <div className="gba:flex gba:justify-center gba:py-8">
-                <Spinner size="lg" />
-              </div>
-            ) : conditions.length === 0 ? (
-              <div className="gba:min-h-32 gba:flex gba:items-center gba:justify-center gba:bg-gray-50 gba:rounded-lg gba:p-8">
-                <p className="gba:text-gray-500 gba:text-center">
-                  No conditions defined for this stage yet.
-                  <br />
-                  Click "Add Condition" to create the first one.
-                </p>
-              </div>
-            ) : (
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCorners}
-                onDragStart={handleConditionDragStart}
-                onDragEnd={handleConditionDragEnd}
-              >
-                <div className="gba:space-y-2">
-                  <SortableContext items={conditions.map(c => c.id)} strategy={verticalListSortingStrategy}>
-                    {conditions.map((condition, index) => (
-                      <DraggableConditionItem
-                        key={condition.id}
-                        condition={condition}
-                        index={index + 1}
-                        prefixDataTestId={prefixDataTestId}
-                        onEdit={openEditModal}
-                        onDelete={handleDeleteCondition}
-                      />
-                    ))}
-                  </SortableContext>
-
-                  <DragOverlay dropAnimation={null}>
-                    {activeCondition ? (
-                      <div
-                        style={{
-                          opacity: 0.8,
-                          transform: 'rotate(1deg)',
-                          cursor: 'grabbing',
-                          pointerEvents: 'none'
-                        }}
-                      >
-                        <DraggableConditionItem
-                          condition={conditions.find(c => c.id === activeCondition)!}
-                          index={conditions.findIndex(c => c.id === activeCondition) + 1}
-                          prefixDataTestId={prefixDataTestId}
-                          onEdit={() => {}}
-                          onDelete={() => {}}
-                        />
-                      </div>
-                    ) : null}
-                  </DragOverlay>
-                </div>
-              </DndContext>
-            )}
+            {renderConditionsContent()}
           </div>
 
           <DialogFooter>

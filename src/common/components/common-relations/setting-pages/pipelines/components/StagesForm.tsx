@@ -216,7 +216,7 @@ const StagesForm: React.FC<StagesFormProps> = ({
           parentEntryId: entry.parentEntryId || '',
           code: entry.code || '',
           value: entry.value,
-          displayOrder: entry.displayOrder || parseInt(entry.additionalValue1 || '0') || 0,
+          displayOrder: entry.displayOrder || Number.parseInt(entry.additionalValue1 || '0') || 0,
           alternativeCode: entry.alternativeCode || 'DISCOVERY',
           type: entry.type || entry.alternativeCode || 'DISCOVERY',
           additionalValue1: entry.additionalValue1 || '0',

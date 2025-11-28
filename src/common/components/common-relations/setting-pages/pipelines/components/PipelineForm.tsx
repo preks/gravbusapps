@@ -60,7 +60,7 @@ const PipelineForm: React.FC<PipelineFormProps> = ({
       setOperationLoading(true)
 
       const payload = {
-        code: data.value.toUpperCase().replace(/[^A-Z0-9]/g, '_'),
+        code: data.value.toUpperCase().replaceAll(/[^A-Z0-9]/g, '_'),
         value: data.value,
         alternativeCode: null,
         displayOrder: null,
@@ -141,6 +141,8 @@ const PipelineForm: React.FC<PipelineFormProps> = ({
     }
   }, [isOpen, editingPipeline, form])
 
+  const submitButtonText = operationLoading ? 'Saving...' : editingPipeline ? 'Update Pipeline' : 'Create Pipeline'
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
@@ -205,7 +207,7 @@ const PipelineForm: React.FC<PipelineFormProps> = ({
                 Cancel
               </Button>
               <Button type="submit" disabled={operationLoading} data-testid={`${prefixDataTestId}-submit-button`}>
-                {operationLoading ? 'Saving...' : editingPipeline ? 'Update Pipeline' : 'Create Pipeline'}
+                {submitButtonText}
               </Button>
             </DialogFooter>
           </form>

@@ -160,8 +160,8 @@ const PipelineSettings: React.FC<PipelineSettingsProps & BusinessAppContextProps
         )
 
         // Filter conditions that belong to any of these stages
-        const stageIds = pipelineStages.map(stage => stage.id)
-        const pipelineConditions = conditionsResponse.data.filter(entry => stageIds.includes(entry.parentEntryId || ''))
+        const stageIds = new Set(pipelineStages.map(stage => stage.id))
+        const pipelineConditions = conditionsResponse.data.filter(entry => stageIds.has(entry.parentEntryId || ''))
 
         // Delete all conditions in parallel
         if (pipelineConditions.length > 0) {

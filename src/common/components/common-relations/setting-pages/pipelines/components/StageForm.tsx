@@ -76,7 +76,7 @@ const StageForm: React.FC<StageFormProps> = ({
       setOperationLoading(true)
 
       // Auto-generate code from stage name
-      const code = data.value.toUpperCase().replace(/[^A-Z0-9]/g, '_')
+      const code = data.value.toUpperCase().replaceAll(/[^A-Z0-9]/g, '_')
       const displayOrder = 1 // Will be calculated based on existing stages
 
       const newStageEntry = {
@@ -165,6 +165,8 @@ const StageForm: React.FC<StageFormProps> = ({
     }
   }, [isOpen, editingStage, form])
 
+  const submitButtonText = operationLoading ? 'Saving...' : editingStage ? 'Update Stage' : 'Create Stage'
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
@@ -223,7 +225,7 @@ const StageForm: React.FC<StageFormProps> = ({
                 Cancel
               </Button>
               <Button type="submit" disabled={operationLoading}>
-                {operationLoading ? 'Saving...' : editingStage ? 'Update Stage' : 'Create Stage'}
+                {submitButtonText}
               </Button>
             </DialogFooter>
           </form>

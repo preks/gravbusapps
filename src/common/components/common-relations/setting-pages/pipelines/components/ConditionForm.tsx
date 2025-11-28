@@ -201,6 +201,8 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
     }
   }, [isOpen, editingCondition, form])
 
+  const submitButtonText = operationLoading ? 'Saving...' : editingCondition ? 'Update Condition' : 'Create Condition'
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
@@ -329,7 +331,7 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
                           {...field}
                           type="number"
                           min="1"
-                          onChange={e => field.onChange(parseInt(e.target.value) || 1)}
+                          onChange={e => field.onChange(Number.parseInt(e.target.value) || 1)}
                         />
                       </FormControl>
                       <FormMessage />
@@ -344,7 +346,7 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
                 Cancel
               </Button>
               <Button type="submit" disabled={operationLoading}>
-                {operationLoading ? 'Saving...' : editingCondition ? 'Update Condition' : 'Create Condition'}
+                {submitButtonText}
               </Button>
             </DialogFooter>
           </form>
