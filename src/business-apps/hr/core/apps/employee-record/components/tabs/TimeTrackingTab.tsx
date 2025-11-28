@@ -32,7 +32,7 @@ const TimeTrackingTab: React.FC<TimeTrackingTabProps> = ({ employee, accessToken
       <div className="gba:flex gba:items-start gba:justify-between" data-testid="time-tracking-header">
         <div>
           <div className="gba:font-bold gba:text-2xl" data-testid="time-tracking-title">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.title', 'Time Tracking')}
+            <span>{getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.summary.title', 'Monthly summary')}</span>
           </div>
           <div className="gba:text-muted-foreground gba:text-lg">
             {getTranslationFromI18nKeyAndLabel(
