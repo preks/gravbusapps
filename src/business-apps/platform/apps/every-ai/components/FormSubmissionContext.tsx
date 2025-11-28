@@ -9,6 +9,8 @@ interface FormState {
   isSubmitted: boolean
   isCancelled: boolean
   isLoading: boolean
+  isFlowCompleted: boolean
+  hasError: boolean
 }
 
 interface FormSubmissionContextType {
@@ -24,7 +26,15 @@ export const FormSubmissionProvider: React.FC<{ children: ReactNode }> = ({ chil
 
   const getFormState = useCallback(
     (formKey: string): FormState => {
-      return formStates[formKey] || { isSubmitted: false, isCancelled: false, isLoading: false }
+      return (
+        formStates[formKey] || {
+          isSubmitted: false,
+          isCancelled: false,
+          isLoading: false,
+          isFlowCompleted: false,
+          hasError: false
+        }
+      )
     },
     [formStates]
   )
