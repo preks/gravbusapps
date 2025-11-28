@@ -203,6 +203,10 @@ export const SalesTeamPerformanceOverview: React.FC<SalesTeamPerformanceOverview
         selectedCurrency: currency || 'EUR' // Default to EUR if not provided
       })
       updateUrlWithParams({ teamId, employeeId: null })
+      // Set the view to 'overview' when first selecting a team
+      const url = new URL(window.location.href)
+      url.searchParams.set('view', 'overview')
+      window.history.pushState({}, '', url.toString())
     }
   }
 
@@ -226,6 +230,10 @@ export const SalesTeamPerformanceOverview: React.FC<SalesTeamPerformanceOverview
   const handleBackToCompany = () => {
     setNavigationState({ view: 'company' })
     updateUrlWithParams({ teamId: null, employeeId: null })
+    // Clear the view parameter when going back to company view
+    const url = new URL(window.location.href)
+    url.searchParams.delete('view')
+    window.history.pushState({}, '', url.toString())
   }
 
   const handleBackToTeam = () => {
@@ -238,6 +246,10 @@ export const SalesTeamPerformanceOverview: React.FC<SalesTeamPerformanceOverview
       teamId: navigationState.selectedTeamId,
       employeeId: null
     })
+    // Reset the view parameter to 'overview' when going back to team view
+    const url = new URL(window.location.href)
+    url.searchParams.set('view', 'overview')
+    window.history.pushState({}, '', url.toString())
   }
 
   // Enhanced URL management

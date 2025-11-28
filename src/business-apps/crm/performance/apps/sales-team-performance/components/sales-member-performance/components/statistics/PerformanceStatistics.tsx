@@ -9,6 +9,7 @@ const DATA_TEST_ID_PREFIX = 'PerformanceStatistics'
 
 interface PerformanceStatisticsProps extends BusinessAppContextProps {
   employeeId: string
+  currencyCode?: string
   onRetry?: () => void
   // Enhanced context for comparisons
   teamContext?: {
@@ -27,6 +28,7 @@ interface PerformanceStatisticsProps extends BusinessAppContextProps {
 
 export const PerformanceStatistics: React.FC<PerformanceStatisticsProps> = ({
   employeeId,
+  currencyCode,
   accessToken,
   onRetry,
   trends,
@@ -35,7 +37,8 @@ export const PerformanceStatistics: React.FC<PerformanceStatisticsProps> = ({
   // Fetch real performance statistics data
   const { statistics, isLoading, error, refetch } = usePerformanceStatisticsData(
     { accessToken, ...context },
-    employeeId
+    employeeId,
+    currencyCode
   )
 
   // Handle retry - use both internal refetch and optional external onRetry

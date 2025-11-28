@@ -48,6 +48,7 @@ export interface CommonOpportunityQueryVariables extends BaseQueryVariables {
   accountIds?: string[]
   contactIds?: string[]
   currencyIds?: string[]
+  currencyCode?: string // Simple currency code like 'EUR', 'USD' - convenience parameter
   opportunityPipelineIds?: string[]
   opportunityPipelineStageIds?: string[]
   opportunityStatusIds?: string[]
@@ -364,11 +365,21 @@ export const buildOpportunityWhereCondition = (
   if (descriptors.length === 0) {
     throw new Error('Query Descriptor is missing')
   }
+
+  // Handle currencyCode convenience parameter
+  // If currencyCode is provided, add it as a custom condition instead of using currencyIds
+  const enhancedCustomConditions = [...customConditions]
+  if (variables.currencyCode?.trim()) {
+    enhancedCustomConditions.push({
+      currency: { code: { _eq: variables.currencyCode.trim() } }
+    })
+  }
+
   return buildWhere({
     variables,
     descriptors,
     ids: variables.ids,
-    customConditions,
+    customConditions: enhancedCustomConditions,
     isDeleted: true
   })
 }

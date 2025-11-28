@@ -2,6 +2,7 @@ import React, { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCustomerOpportunities } from '@/common/data/customer/hooks/useCustomerOpportunities'
 import { OpportunityLayout } from '@/common/components/common-relations/view-layouts/opportunity-layout'
+import { OpportunityStatisticsLayout } from '@/common/components/common-relations/view-layouts/opportunity-layout/components/OpportunityStatisticsLayout'
 import { createOpportunityConfig } from '@/common/components/common-relations/view-layouts/opportunity-layout/utils/opportunityConfigBuilder'
 import type { CustomerOpportunity } from '@/common/data/customer/types/customerOpportunityTypes'
 import type { CustomerOpportunityQueryVariables } from '@/common/data/customer/queries/customerOpportunityQueries'
@@ -10,11 +11,35 @@ import { useCustomerOpportunityFilters } from './hooks/useCustomerOpportunityFil
 import { useCustomerOpportunityStatistics } from '@/common/data/customer/hooks/useCustomerOpportunityStatistics'
 import { CUSTOMER_OPPORTUNITY_DESCRIPTORS } from '@/common/data/customer/types/customerOpportunityTypes'
 
+// Separate component to properly use hooks with currency filtering
+const CustomerOpportunityStatistics: React.FC<{
+  context: BusinessAppContextProps
+  selectedCurrency?: string
+}> = ({ context, selectedCurrency }) => {
+  const opportunityStatistics = useCustomerOpportunityStatistics(context, selectedCurrency)
+
+  if (!opportunityStatistics.trendData) return null
+
+  return (
+    <OpportunityStatisticsLayout
+      statistics={{
+        recentOpportunities: opportunityStatistics.trendData.recentOpportunities,
+        opportunityValue: opportunityStatistics.trendData.opportunityValue,
+        winRate: opportunityStatistics.trendData.winRate,
+        opportunitiesThisYear: opportunityStatistics.trendData.opportunitiesThisYear,
+        isLoading: opportunityStatistics.isLoading,
+        error: opportunityStatistics.error,
+        refetch: () => void opportunityStatistics.refetch()
+      }}
+      selectedCurrency={selectedCurrency}
+    />
+  )
+}
+
 export type OpportunityViewProps = BusinessAppContextProps
 
 export const OpportunityView: React.FC<OpportunityViewProps> = context => {
   const { fetchCustomerOpportunities } = useCustomerOpportunities(context)
-  const opportunityStatistics = useCustomerOpportunityStatistics(context)
 
   const config = useMemo(
     () =>
@@ -63,24 +88,17 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
         extractBoardOpportunities: result => result.opportunities || [],
         extractBoardTotalCount: result => result.total || 0,
 
-        opportunityStatistics: opportunityStatistics.trendData
-          ? {
-              recentOpportunities: opportunityStatistics.trendData.recentOpportunities,
-              opportunityValue: opportunityStatistics.trendData.opportunityValue,
-              winRate: opportunityStatistics.trendData.winRate,
-              opportunitiesThisYear: opportunityStatistics.trendData.opportunitiesThisYear,
-              isLoading: opportunityStatistics.isLoading,
-              error: opportunityStatistics.error,
-              refetch: () => void opportunityStatistics.refetch()
-            }
-          : undefined,
+        // Use renderStatistics to support currency filtering
+        renderStatistics: (selectedCurrency?: string) => (
+          <CustomerOpportunityStatistics context={context} selectedCurrency={selectedCurrency} />
+        ),
 
         rowActionsContextArray: [FlowContextName.customerOpportunityEntity],
         buildRowActionsExternalContextData: (row: { original: CustomerOpportunity }) => ({
           opportunityId: row.original.id
         })
       }),
-    [context, fetchCustomerOpportunities, opportunityStatistics]
+    [context, fetchCustomerOpportunities]
   )
 
   return <OpportunityLayout context={context} config={config} dataTestId="customer-opportunities-view" />
