@@ -82,9 +82,6 @@ const BenefitRequestScreen: React.FC<BenefitRequestScreenProps> = ({
   const selectedBenefit =
     benefit || additionalData?.benefit || additionalData?.psi_taskPayload?.psi_initialParameters?.benefit
 
-  console.log('benefit', benefit)
-  console.log('additionalData', additionalData)
-  console.log('selectedBenefit', selectedBenefit)
   // TEMP: Fetch BenefitProvider catalog and log it
   React.useEffect(() => {
     ;(async () => {
@@ -172,8 +169,6 @@ const BenefitRequestScreen: React.FC<BenefitRequestScreenProps> = ({
         ov = null
       }
     }
-
-    console.log('ov', ov)
 
     let displayFromOV = undefined as string | undefined
     let periodFromOV = undefined as string | undefined

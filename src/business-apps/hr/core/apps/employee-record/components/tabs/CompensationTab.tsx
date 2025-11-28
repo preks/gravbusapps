@@ -71,7 +71,6 @@ const CompensationTab: React.FC<CompensationTabProps> = ({
   )
 
   const employeeGrowthPermission = useScopePermissionCheck('/platform/employee-record', 'employee-growth', accessToken)
-  console.log('employeeRecordAllHrBackoffice', employeeRecordAllHrBackoffice)
 
   const currentUserEmployeeId = userInfo?.employeeDetails?.employeeId || ''
   const supervisorEmployeeId = employee?.employeePosition?.supervisorEmployeeId

@@ -78,8 +78,6 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
     excludeHrBackoffice: hrBackofficeHasPermission === false
   })
 
-  console.log('catalogData', catalogData)
-
   // Use external loading or internal loading
   const loading = externalLoading || catalogLoading
 
@@ -105,8 +103,6 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
 
     // Eligibility filter based on catalogEntry.objectValue.groups
     const hasHrBackoffice = hrBackofficeHasPermission === true
-    console.log('hasHrBackoffice', hasHrBackoffice)
-    console.log('hrBackofficeHasPermission', hrBackofficeHasPermission)
     const isEligibleByGroups = (b: BenefitCatalogItem): boolean => {
       const raw = b.catalogEntry?.objectValue as any
       let obj: any = raw
