@@ -20,6 +20,7 @@ current-bonuses = Boni
 current-annually = Jährlich
 current-monthly = Monatlich
 current-hourly = Stündlich
+no-salary-record = Keine Gehaltsaufzeichnung
 
 # Compensation Band
 band-title = Vergütungsstufe

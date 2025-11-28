@@ -425,7 +425,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
                   <PiCurrencyEur className="gba:text-xl gba:inline-block gba:align-middle" />
                   <span className="gba:inline-block gba:align-middle">
                     {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:employee_profile.employee_tabs.compensation',
+                      'lowcoder:human_resources_page.analytics_section.compensation_tab_label',
                       'Compensation'
                     )}
                   </span>

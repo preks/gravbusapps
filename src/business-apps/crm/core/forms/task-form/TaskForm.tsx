@@ -70,6 +70,12 @@ export const TaskForm: React.FC<TaskFormProps> = ({
   const opportunityId = additionalData?.opportunityId || initialParameters?.opportunityId || null
   const leadId = additionalData?.leadId || initialParameters?.leadId || null
 
+  // Extract typeRef from additionalData or initialParameters
+  const typeRef = additionalData?.typeRef || initialParameters?.typeRef || null
+
+  // Determine if this is an Approval task (type selection should be hidden)
+  const isApprovalTask = typeRef?.toUpperCase().includes('APPROVAL')
+
   // Determine if entity selection should be shown
   const hasEntityFromContext = accountId || contactId || opportunityId || leadId
   const shouldShowEntitySelection = !hasEntityFromContext
@@ -200,6 +206,14 @@ export const TaskForm: React.FC<TaskFormProps> = ({
     }
   }, [accessToken, taskId, searchEntities])
 
+  // Pre-set the type from context when provided
+  useEffect(() => {
+    if (typeRef && !task) {
+      // Only set for new tasks, not when editing existing ones
+      form.setValue('taskTypeRef', typeRef)
+    }
+  }, [typeRef, task, form])
+
   useEffect(() => {
     if (!accountId && !contactId && !opportunityId && !leadId) return
     const hasEntity = Boolean(
@@ -270,6 +284,9 @@ export const TaskForm: React.FC<TaskFormProps> = ({
           typeCatalog={TASK_TYPE_CATALOG}
           priorityCatalog={TASK_PRIORITY_CATALOG}
           statusCatalog={TASK_STATUS_CATALOG}
+          // Type selection control
+          initialTypeRef={typeRef}
+          hideTypeSelection={isApprovalTask}
           // Entity search - hide if entity provided from context OR updating existing task
           showEntitySelection={shouldShowEntitySelection && !taskId}
           entities={entities}
