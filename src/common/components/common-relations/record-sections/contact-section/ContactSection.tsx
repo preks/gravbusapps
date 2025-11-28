@@ -18,6 +18,7 @@ import { UserIcon } from '@phosphor-icons/react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { getLinkedInChannel, getXingChannel } from '@/common/data/common/utils/communicationChannelHelpers'
 import { getContactTypeLabel } from '@/common/data/relations/constants/contactConstants'
+import { getContactTypeIcon, getContactTypeColor, getContactTypeIconColor } from '@/common/utils/contactTypeUtils'
 import { createGetPages } from '../utils'
 
 interface ContactSectionProps extends Partial<BusinessAppContextProps> {
@@ -172,16 +173,45 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({ contact, onTi
       <div className="gba:space-y-2 gba:flex-1">
         {/* Contact Name and Avatar with Action Button */}
         <div className="gba:flex gba:items-center gba:gap-3">
-          {contactImageUrl ? (
-            <Avatar className="gba:h-12 gba:w-12">
-              <AvatarImage src={contactImageUrl} alt={fullName} />
-              <AvatarFallback>
-                <UserIcon />
-              </AvatarFallback>
-            </Avatar>
-          ) : (
-            <IconAvatar icon={UserIcon} variant="default" size="lg" title="Contact" />
-          )}
+          <div className="gba:relative gba:shrink-0 gba:p-1">
+            {contactImageUrl ? (
+              <Avatar className="gba:h-12 gba:w-12">
+                <AvatarImage src={contactImageUrl} alt={fullName} />
+                <AvatarFallback>
+                  <UserIcon />
+                </AvatarFallback>
+              </Avatar>
+            ) : (
+              <IconAvatar icon={UserIcon} variant="default" size="lg" title="Contact" />
+            )}
+
+            {contactTypeLabel && (
+              <div className="gba:absolute gba:top-0 gba:left-0 gba:z-10">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge
+                        variant="outline"
+                        className={`gba:px-1 gba:py-0.5 gba:h-5 gba:w-5 gba:flex gba:items-center gba:justify-center gba:rounded-full gba:shadow-md gba:cursor-help gba:border-0 ${getContactTypeColor(contactType)}`}
+                        data-testid="contact-type-badge"
+                      >
+                        {(() => {
+                          const IconComponent = getContactTypeIcon(contactType)
+                          const iconColorClass = getContactTypeIconColor(contactType)
+                          return IconComponent ? (
+                            <IconComponent className={`gba:w-3 gba:h-3 ${iconColorClass}`} weight="fill" />
+                          ) : null
+                        })()}
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" align="center">
+                      <p>{contactTypeLabel}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+            )}
+          </div>
           <div className="gba:flex gba:flex-col gba:gap-1 gba:min-w-0 gba:flex-1">
             <div className="gba:h-5 gba:flex gba:items-center gba:gap-2 gba:min-w-0">
               <TooltipProvider>
@@ -210,11 +240,6 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({ contact, onTi
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-              {contactTypeLabel && (
-                <Badge variant="outline" className="gba:shrink-0" data-testid="contact-type-badge">
-                  {contactTypeLabel}
-                </Badge>
-              )}
             </div>
             {/* Job Title and Department - directly under name */}
             <div className="gba:h-5 gba:flex gba:items-center gba:min-w-0">
