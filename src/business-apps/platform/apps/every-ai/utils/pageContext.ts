@@ -86,7 +86,17 @@ const APP_ENTITY_PATTERNS = [
     idParams: ['opportunityId']
   },
   {
+    pattern: /crm\/core\/records\/opportunity-record$/,
+    entity_name: 'opportunity',
+    idParams: ['opportunityId', 'id']
+  },
+  {
     pattern: /crm\/lead-record$/,
+    entity_name: 'lead',
+    idParams: ['leadId']
+  },
+  {
+    pattern: /crm\/core\/records\/lead-record$/,
     entity_name: 'lead',
     idParams: ['leadId']
   },
@@ -96,7 +106,17 @@ const APP_ENTITY_PATTERNS = [
     idParams: ['contactId']
   },
   {
+    pattern: /crm\/core\/records\/contact-record$/,
+    entity_name: 'contact',
+    idParams: ['contactId']
+  },
+  {
     pattern: /crm\/account-record$/,
+    entity_name: 'account',
+    idParams: ['accountId']
+  },
+  {
+    pattern: /crm\/core\/records\/account-record$/,
     entity_name: 'account',
     idParams: ['accountId']
   }

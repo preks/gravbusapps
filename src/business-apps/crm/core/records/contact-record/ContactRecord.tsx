@@ -23,6 +23,7 @@ import { ContactData } from './queries/ContactQueries'
 import { HomeView } from './views/home-view/HomeView'
 import { OpportunityView } from './views/opportunity-view/OpportunityView'
 import { DocumentView } from './views/document-view/DocumentView'
+import { EveryAI } from '@/business-apps/platform/apps/every-ai/EveryAI'
 
 interface ContactRecordContentProps extends BusinessAppContextProps {
   contactId: string
@@ -464,6 +465,11 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
         headerActionButton={headerActionButton}
         subViews={subViewsConfig}
       />
+      {props.accessToken ? (
+        <div className="gba:mt-6" data-testid="crm-contact-everyai-container">
+          <EveryAI {...props} />
+        </div>
+      ) : null}
     </div>
   )
 }

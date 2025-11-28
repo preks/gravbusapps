@@ -17,6 +17,10 @@ import {
 } from '../types/analytics-context'
 import type { GraphQLClient } from '@/common/network/graphql/GraphQLClient'
 import { GET_INVESTMENT_BY_ID } from '@/common/data/investment/queries/investmentQueries'
+import { buildAccountAnalytics } from './accountAnalyticsCollector'
+import { buildContactAnalytics } from './contactAnalyticsCollector'
+import { buildLeadAnalytics } from './leadAnalyticsCollector'
+import { buildOpportunityAnalytics } from './opportunityAnalyticsCollector'
 import {
   buildContactFromAccountOwner,
   buildContactFromOwner,
@@ -772,27 +776,36 @@ export async function buildAnalyticsHeader(params: {
   graphqlClient: GraphQLClient
   currency?: string
 }): Promise<AnalyticsContext> {
-  const { entity } = params
+  const { entity, graphqlClient, currency } = params
 
   try {
-    if (entity.type === 'investment') {
-      return await buildInvestmentAnalytics(params)
-    }
-
-    console.warn(
-      `buildAnalyticsHeader: entity type "${entity.type}" not fully supported; returning empty metrics structure`
-    )
-    return {
-      mode: 'header',
-      entity: {
-        type: entity.type,
-        id: entity.id,
-        name: entity.name
-      },
-      metrics: [],
-      meta: {
-        as_of: new Date().toISOString().split('T')[0]
-      }
+    switch (entity.type) {
+      case 'account':
+        return await buildAccountAnalytics({ entity, graphqlClient })
+      case 'contact':
+        return await buildContactAnalytics({ entity, graphqlClient })
+      case 'lead':
+        return await buildLeadAnalytics({ entity, graphqlClient })
+      case 'opportunity':
+        return await buildOpportunityAnalytics({ entity, graphqlClient })
+      case 'investment':
+        return await buildInvestmentAnalytics({ entity, graphqlClient, currency })
+      default:
+        console.warn(
+          `buildAnalyticsHeader: entity type "${entity.type}" not fully supported; returning empty metrics structure`
+        )
+        return {
+          mode: 'header',
+          entity: {
+            type: entity.type,
+            id: entity.id,
+            name: entity.name
+          },
+          metrics: [],
+          meta: {
+            as_of: new Date().toISOString().split('T')[0]
+          }
+        }
     }
   } catch (error) {
     console.error(`Error building analytics header for ${entity.type}:`, error)
