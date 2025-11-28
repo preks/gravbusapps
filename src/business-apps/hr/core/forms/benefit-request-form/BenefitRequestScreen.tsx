@@ -335,7 +335,6 @@ const BenefitRequestScreen: React.FC<BenefitRequestScreenProps> = ({
     setPeriod('')
   }, [onSuccess, onClose])
 
-  console.log('includedValueDisplay', includedValueDisplay)
 
   return (
     <div
