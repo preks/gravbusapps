@@ -1,12 +1,15 @@
-import React, { useMemo, useEffect, useState, useCallback } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label } from '@newwork/nw-design-system'
-import type { FlowProposalOutput } from '../types/models'
+import React, { useMemo, useEffect, useState, useCallback, useRef } from 'react'
+import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label, Combobox } from '@newwork/nw-design-system'
+import type { FlowProposalOutput, ConversationTurn } from '../types/models'
 import { useFormSubmission } from './FormSubmissionContext'
+import { useEmployeeSearchLight } from '../queries/employeeQueries'
 
 interface DynamicFormDisplayProps {
   data: FlowProposalOutput
   onCancel?: () => void
   sendMessage?: (message: string, files: File[]) => void
+  conversation?: ConversationTurn[]
+  accessToken: string
 }
 
 interface SchemaFieldProps {
@@ -47,7 +50,16 @@ const toOptionId = (value: unknown): string => {
   return toDisplayString(value)
 }
 
-const SchemaField: React.FC<SchemaFieldProps> = ({ name, path, schema, required, disabled, value, onChange }) => {
+const SchemaField: React.FC<SchemaFieldProps & { accessToken: string }> = ({
+  name,
+  path,
+  schema,
+  required,
+  disabled,
+  value,
+  onChange,
+  accessToken
+}) => {
   const fieldPath = path ? `${path}.${name}` : name
   const controlId = sanitizeControlId(fieldPath)
 
@@ -66,6 +78,24 @@ const SchemaField: React.FC<SchemaFieldProps> = ({ name, path, schema, required,
   }
 
   const label = formatFieldName(name)
+
+  // Determine if field should be searchable UUID for people/entities
+  const employeeTimeFields = ['substituteEmployee', 'approverId']
+  const crmFields = ['ownerEmployee', 'account', 'contact', 'assignedEmployee']
+  const irmFields = ['ownerEmployee', 'investmentAccount', 'contact']
+  const searchableUuidFields = [...employeeTimeFields, ...crmFields, ...irmFields]
+  const isSearchableUuidField =
+    searchableUuidFields.includes(name) ||
+    (schema?.format === 'uuid' &&
+      ((name.toLowerCase().includes('employee') &&
+        (name.toLowerCase().includes('substitute') ||
+          name.toLowerCase().includes('owner') ||
+          name.toLowerCase().includes('assigned'))) ||
+        name.toLowerCase().includes('approver') ||
+        name.toLowerCase().includes('account') ||
+        name.toLowerCase().includes('contact'))) ||
+    name.toLowerCase() === 'substituteemployee' ||
+    (name.toLowerCase().includes('substitute') && name.toLowerCase().includes('employee'))
 
   // Skip technical fields
   if (
@@ -87,9 +117,9 @@ const SchemaField: React.FC<SchemaFieldProps> = ({ name, path, schema, required,
       'effectiveDays',
       'balance'
     ].includes(name) ||
-    schema.format === 'uuid' ||
+    (schema.format === 'uuid' && !isSearchableUuidField) ||
     schema.type === 'array' ||
-    name.toLowerCase().includes('id') ||
+    (name.toLowerCase().includes('id') && !isSearchableUuidField) ||
     name.toLowerCase().includes('absencetype')
   ) {
     return null
@@ -186,6 +216,20 @@ const SchemaField: React.FC<SchemaFieldProps> = ({ name, path, schema, required,
           )
         }
 
+        // Searchable UUID for employees (and future entities)
+        if (isSearchableUuidField || schema.format === 'uuid') {
+          return (
+            <SearchableUuidField
+              controlId={controlId}
+              label={label}
+              accessToken={accessToken}
+              disabled={disabled}
+              value={typeof value === 'string' ? value : (value ?? '')}
+              onChange={val => onChange(val)}
+            />
+          )
+        }
+
         return (
           <Input
             id={controlId}
@@ -244,6 +288,7 @@ const SchemaField: React.FC<SchemaFieldProps> = ({ name, path, schema, required,
                 disabled={disabled}
                 value={value?.[propName]}
                 onChange={newValue => onChange({ ...value, [propName]: newValue })}
+                accessToken={accessToken}
               />
             ))}
           </div>
@@ -272,7 +317,61 @@ const SchemaField: React.FC<SchemaFieldProps> = ({ name, path, schema, required,
   )
 }
 
-export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({ data, onCancel, sendMessage }) => {
+const SearchableUuidField: React.FC<{
+  controlId: string
+  label: string
+  accessToken: string
+  disabled?: boolean
+  value: string
+  onChange: (val: string) => void
+}> = ({ controlId, label, accessToken, disabled, value, onChange }) => {
+  const [search, setSearch] = useState<string>('')
+  const [debouncedSearch, setDebouncedSearch] = useState<string>('')
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 250)
+    return () => clearTimeout(t)
+  }, [search])
+
+  const { employees, isLoading } = useEmployeeSearchLight(accessToken, { search: debouncedSearch, limit: 200 })
+
+  const options = useMemo(
+    () =>
+      employees.map(e => ({
+        value: e.id,
+        label: `${e.firstName ?? ''} ${e.lastName ?? ''}`.trim() || e.id
+      })),
+    [employees]
+  )
+
+  return (
+    <div>
+      <Combobox
+        id={controlId}
+        className="gba:w-full"
+        options={options}
+        value={value || ''}
+        onValueChange={v => onChange(v || '')}
+        placeholder={`Select ${label}`}
+        searchPlaceholder="Type to search..."
+        emptyText={isLoading ? 'Loading...' : 'No results'}
+        onSearch={setSearch}
+        searchDebounce={300}
+        loading={Boolean(isLoading)}
+        disabled={disabled}
+        data-testid={`${controlId}-searchable-uuid`}
+      />
+    </div>
+  )
+}
+
+export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
+  data,
+  onCancel,
+  sendMessage,
+  conversation = [],
+  accessToken
+}) => {
   const { getFormState, setFormState, clearFormState } = useFormSubmission()
 
   const formKey = useMemo(() => `form-${data.uuid || data.flow_name || 'default'}`, [data.uuid, data.flow_name])
@@ -280,6 +379,7 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({ data, on
   const currentFormState = getFormState(formKey)
   const [uiState, setUiState] = useState(currentFormState)
   const [formData, setFormData] = useState<Record<string, any>>({})
+  const formSubmissionTurnIndexRef = useRef<number>(-1)
 
   useEffect(() => {
     setUiState(currentFormState)
@@ -374,8 +474,20 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({ data, on
         return
       }
 
-      setFormState(formKey, { isSubmitted: false, isCancelled: false, isLoading: true })
-      setUiState({ isSubmitted: false, isCancelled: false, isLoading: true })
+      setFormState(formKey, {
+        isSubmitted: false,
+        isCancelled: false,
+        isLoading: true,
+        isFlowCompleted: false,
+        hasError: false
+      })
+      setUiState({
+        isSubmitted: false,
+        isCancelled: false,
+        isLoading: true,
+        isFlowCompleted: false,
+        hasError: false
+      })
 
       try {
         const updatedArguments = { ...data.arguments }
@@ -414,12 +526,36 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({ data, on
 
           sendMessage(formDataMessage, [])
 
-          setFormState(formKey, { isSubmitted: true, isCancelled: false, isLoading: false })
-          setUiState({ isSubmitted: true, isCancelled: false, isLoading: false })
+          setFormState(formKey, {
+            isSubmitted: true,
+            isCancelled: false,
+            isLoading: false,
+            isFlowCompleted: false,
+            hasError: false
+          })
+          setUiState({
+            isSubmitted: true,
+            isCancelled: false,
+            isLoading: false,
+            isFlowCompleted: false,
+            hasError: false
+          })
         }
       } catch {
-        setFormState(formKey, { isSubmitted: false, isCancelled: false, isLoading: false })
-        setUiState({ isSubmitted: false, isCancelled: false, isLoading: false })
+        setFormState(formKey, {
+          isSubmitted: false,
+          isCancelled: false,
+          isLoading: false,
+          isFlowCompleted: false,
+          hasError: true
+        })
+        setUiState({
+          isSubmitted: false,
+          isCancelled: false,
+          isLoading: false,
+          isFlowCompleted: false,
+          hasError: true
+        })
       }
     },
     [formData, data, formKey, currentFormState, setFormState, sendMessage, objectKey, sourceType]
@@ -430,8 +566,20 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({ data, on
       return
     }
 
-    setFormState(formKey, { isSubmitted: false, isCancelled: true, isLoading: false })
-    setUiState({ isSubmitted: false, isCancelled: true, isLoading: false })
+    setFormState(formKey, {
+      isSubmitted: false,
+      isCancelled: true,
+      isLoading: false,
+      isFlowCompleted: false,
+      hasError: false
+    })
+    setUiState({
+      isSubmitted: false,
+      isCancelled: true,
+      isLoading: false,
+      isFlowCompleted: false,
+      hasError: false
+    })
 
     if (sendMessage) {
       sendMessage('Cancel', [])
@@ -450,6 +598,60 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({ data, on
     }
   }, [formKey, currentFormState.isSubmitted, currentFormState.isCancelled, clearFormState])
 
+  // Monitor conversation to detect flow completion or error after submission
+  useEffect(() => {
+    if (
+      !currentFormState.isSubmitted ||
+      currentFormState.isCancelled ||
+      currentFormState.isFlowCompleted ||
+      currentFormState.hasError
+    ) {
+      return
+    }
+
+    // Find the user turn where this form was submitted
+    if (formSubmissionTurnIndexRef.current === -1) {
+      const submissionTurnIndex = conversation.findIndex(turn => {
+        if (turn.side === 'user') {
+          try {
+            const parsed = JSON.parse(turn.text || '')
+            if (parsed?.action === 'form_submission' && parsed?.uuid === data.uuid) {
+              return true
+            }
+          } catch {
+            // Not a JSON submission
+          }
+        }
+        return false
+      })
+      if (submissionTurnIndex !== -1) {
+        formSubmissionTurnIndexRef.current = submissionTurnIndex
+      }
+    }
+
+    if (formSubmissionTurnIndexRef.current >= 0) {
+      const turnsAfter = conversation.slice(formSubmissionTurnIndexRef.current + 1)
+      for (const turn of turnsAfter) {
+        if (turn.side === 'agent' && 'outputs' in turn) {
+          const hasError = turn.outputs.some(o => o.type === 'error')
+          if (hasError) {
+            const latest = getFormState(formKey)
+            setFormState(formKey, { ...latest, hasError: true, isFlowCompleted: false })
+            setUiState(prev => ({ ...prev, hasError: true, isFlowCompleted: false }))
+            return
+          }
+          const hasAnswer = turn.outputs.some(o => o.type === 'answer')
+          if (hasAnswer) {
+            const latest = getFormState(formKey)
+            setFormState(formKey, { ...latest, isFlowCompleted: true, hasError: false })
+            setUiState(prev => ({ ...prev, isFlowCompleted: true, hasError: false }))
+            return
+          }
+        }
+      }
+    }
+  }, [conversation, currentFormState, formKey, data.uuid, getFormState, setFormState])
+
   const formatFlowName = (name: string): string => {
     if (!name) return ''
     return name
@@ -464,6 +666,95 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({ data, on
     return Object.entries(schema.properties)
   }, [schema])
 
+  // Read extracted fields from multiple hints
+  const extractedFields = useMemo(() => {
+    const fromSchema =
+      (data?.flow_schema as any)?.['x-extractedFields'] || (data?.flow_schema as any)?.['x-extracted-fields']
+    if (Array.isArray(fromSchema)) return fromSchema
+    const fromArgs = (data?.arguments as any)?.meta?.extractedFields
+    if (Array.isArray(fromArgs)) return fromArgs
+    const fromUi = (data as any)?.ui?.extractedFields
+    if (Array.isArray(fromUi)) return fromUi
+    return [] as string[]
+  }, [data])
+
+  const decidePriority = useCallback(
+    (fieldKey: string, fieldSchema: any): 'primary' | 'secondary' => {
+      const uiP = fieldSchema?.['ui:priority']
+      if (uiP === 'primary' || uiP === 'secondary') return uiP
+      const xP = fieldSchema?.['x-priority']
+      if (xP === 'primary' || xP === 'secondary') return xP
+      if (extractedFields.includes(fieldKey)) return 'primary'
+      return 'primary'
+    },
+    [extractedFields]
+  )
+
+  const [primaryFields, secondaryFields] = useMemo(() => {
+    const primary: [string, any][] = []
+    const secondary: [string, any][] = []
+    for (const [k, s] of fields as [string, any][]) {
+      ;(decidePriority(k, s) === 'primary' ? primary : secondary).push([k, s])
+    }
+    return [primary, secondary] as [Array<[string, any]>, Array<[string, any]>]
+  }, [fields, decidePriority])
+
+  const requiredFields = useMemo(() => schema?.required ?? [], [schema])
+
+  const SecondaryCollapsible: React.FC<{
+    fields: [string, any][]
+    requiredFields: string[]
+    isCompleted: boolean
+  }> = ({ fields, requiredFields, isCompleted }) => {
+    const [open, setOpen] = useState(false)
+    const hiddenMissingCount = useMemo(() => {
+      return fields.reduce((acc, [fname]) => {
+        if (requiredFields?.includes(fname)) {
+          const v = (formData as any)[fname]
+          if (v === '' || v === null || v === undefined) return acc + 1
+        }
+        return acc
+      }, 0)
+    }, [fields, requiredFields, formData])
+
+    useEffect(() => {
+      if (hiddenMissingCount > 0) setOpen(true)
+    }, [hiddenMissingCount])
+
+    if (fields.length === 0) return null
+    return (
+      <details
+        open={open}
+        onToggle={e => setOpen((e.target as HTMLDetailsElement).open)}
+        className={isCompleted ? 'gba:opacity-60 gba:pointer-events-none' : ''}
+      >
+        <summary className="gba:cursor-pointer gba:text-sm gba:font-medium gba:select-none gba:list-none gba:mb-2">
+          Other fields
+          {hiddenMissingCount > 0 && (
+            <span className="gba:ml-2 gba:inline-flex gba:items-center gba:rounded-full gba:border gba:px-2 gba:py-0.5 gba:text-xs">
+              Missing: {hiddenMissingCount}
+            </span>
+          )}
+        </summary>
+        <div className="gba:mt-3 gba:space-y-4">
+          {fields.map(([fieldName, fieldSchema]) => (
+            <SchemaField
+              key={`s-${fieldName}`}
+              name={fieldName}
+              path=""
+              schema={fieldSchema}
+              required={requiredFields.includes(fieldName)}
+              disabled={isCompleted}
+              value={formData[fieldName]}
+              onChange={value => setFormData(prev => ({ ...prev, [fieldName]: value }))}
+              accessToken={accessToken}
+            />
+          ))}
+        </div>
+      </details>
+    )
+  }
+
   useEffect(() => {
     console.debug('[EveryAI][DynamicFormDisplay] schema', schema)
 
@@ -475,6 +766,8 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({ data, on
   const isSubmitted = currentFormState.isSubmitted || uiState.isSubmitted
   const isCancelled = currentFormState.isCancelled || uiState.isCancelled
   const isLoading = currentFormState.isLoading || uiState.isLoading
+  const isFlowCompleted = currentFormState.isFlowCompleted || uiState.isFlowCompleted
+  const hasError = currentFormState.hasError || uiState.hasError
   const isCompleted = isSubmitted || isCancelled
 
   return (
@@ -501,7 +794,8 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({ data, on
       <CardContent className="gba:p-6">
         <form onSubmit={handleSubmit} className={isCompleted ? 'gba:opacity-60 gba:pointer-events-none' : ''}>
           <div className="gba:space-y-4">
-            {fields.map(([fieldName, fieldSchema]) => {
+            {/* PRIMARY fields first */}
+            {primaryFields.map(([fieldName, fieldSchema]) => {
               if (fieldSchema == null || typeof fieldSchema !== 'object') {
                 console.warn('[EveryAI][DynamicFormDisplay] skipping non-object schema field', fieldName, fieldSchema)
                 return null
@@ -518,6 +812,7 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({ data, on
                     disabled={isCompleted}
                     value={formData[fieldName]}
                     onChange={value => setFormData(prev => ({ ...prev, [fieldName]: value }))}
+                    accessToken={accessToken}
                   />
                 )
               } catch (error) {
@@ -529,9 +824,17 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({ data, on
                 )
               }
             })}
+            {/* SECONDARY fields in collapsible */}
+            {secondaryFields.length > 0 && (
+              <SecondaryCollapsible
+                fields={secondaryFields}
+                requiredFields={requiredFields}
+                isCompleted={isCompleted}
+              />
+            )}
           </div>
 
-          {isSubmitted && (
+          {isFlowCompleted && (
             <div className="gba:mt-4 gba:p-4 gba:bg-gradient-to-r gba:from-success-secondary gba:to-success-secondary/50 gba:border-2 gba:border-success/30 gba:rounded-xl gba:shadow-lg">
               <div className="gba:flex gba:items-center gba:gap-3">
                 <div className="gba:h-10 gba:w-10 gba:rounded-full gba:bg-success/20 gba:flex gba:items-center gba:justify-center">
@@ -545,6 +848,27 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({ data, on
                   </svg>
                 </div>
                 <p className="gba:text-success gba:font-semibold">Form submitted successfully!</p>
+              </div>
+            </div>
+          )}
+
+          {hasError && (
+            <div
+              className="gba:mt-4 gba:p-4 gba:bg-gradient-to-r gba:from-destructive-secondary gba:to-destructive-secondary/50 gba:border-2 gba:border-destructive/30 gba:rounded-xl gba:shadow-lg"
+              data-testid="dynamic-form-error"
+            >
+              <div className="gba:flex gba:items-center gba:gap-3">
+                <div className="gba:h-10 gba:w-10 gba:rounded-full gba:bg-destructive/20 gba:flex gba:items-center gba:justify-center">
+                  <svg
+                    className="gba:h-5 gba:w-5 gba:text-destructive"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </div>
+                <p className="gba:text-destructive gba:font-semibold">Form submission failed</p>
               </div>
             </div>
           )}
@@ -602,4 +926,4 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({ data, on
   )
 }
 
-export default DynamicFormDisplay
+export default React.memo<DynamicFormDisplayProps>(DynamicFormDisplay)

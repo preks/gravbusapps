@@ -20,6 +20,7 @@ current-bonuses = bonusuri
 current-annually = Anual
 current-monthly = Lunar
 current-hourly = Pe oră
+no-salary-record = Nu există înregistrare salarială
 
 # Compensation Band
 band-title = Bandă de compensare
