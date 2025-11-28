@@ -83,40 +83,31 @@ export function buildBonusDisplayItems(params: {
   t: TranslationFunction
 }): BonusDisplayItem[] {
   const { bonusData, locale, bonusTypeEntries = [], t } = params
-  const items: BonusDisplayItem[] = []
-
   const currencyCode = extractCurrencyCode(bonusData.currencyRef)
-
-  // Bonus Type
   const bonusTypeDisplay = extractBonusTypeDisplay(bonusData.employeeBonusTypeRef, bonusTypeEntries)
-  items.push({
-    key: 'bonusType',
-    label: t('grant-bonus-review-bonus-type', { defaultValue: 'Bonus Type' }),
-    value: bonusTypeDisplay
-  })
 
-  // Amount
-  items.push({
-    key: 'amount',
-    label: t('grant-bonus-review-amount', { defaultValue: 'Amount' }),
-    value: formatCurrencyString(bonusData.amount || 0, { currency: currencyCode, locale })
-  })
-
-  // Payment Month
-  items.push({
-    key: 'paymentMonth',
-    label: t('grant-bonus-review-payment-month', { defaultValue: 'Payment Month' }),
-    value: formatPaymentDate(bonusData.paymentDate)
-  })
-
-  // Fiscal Year
-  items.push({
-    key: 'fiscalYear',
-    label: t('grant-bonus-review-fiscal-year', { defaultValue: 'Fiscal Year' }),
-    value: bonusData.fiscalYear ? String(bonusData.fiscalYear) : '-'
-  })
-
-  return items
+  return [
+    {
+      key: 'bonusType',
+      label: t('grant-bonus-review-bonus-type', { defaultValue: 'Bonus Type' }),
+      value: bonusTypeDisplay
+    },
+    {
+      key: 'amount',
+      label: t('grant-bonus-review-amount', { defaultValue: 'Amount' }),
+      value: formatCurrencyString(bonusData.amount || 0, { currency: currencyCode, locale })
+    },
+    {
+      key: 'paymentMonth',
+      label: t('grant-bonus-review-payment-month', { defaultValue: 'Payment Month' }),
+      value: formatPaymentDate(bonusData.paymentDate)
+    },
+    {
+      key: 'fiscalYear',
+      label: t('grant-bonus-review-fiscal-year', { defaultValue: 'Fiscal Year' }),
+      value: bonusData.fiscalYear ? String(bonusData.fiscalYear) : '-'
+    }
+  ]
 }
 
 /**
