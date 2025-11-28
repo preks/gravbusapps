@@ -384,7 +384,7 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
             investmentId={investmentId}
             investmentName={investmentData.name}
             accessToken={props.accessToken}
-            currency={extractCurrencyCode(investmentData.currency)}
+            currency={extractCurrencyCode(investmentData.currency?.id || investmentData.currency?.code)}
           />
         </div>
       )}

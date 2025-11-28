@@ -28,6 +28,26 @@ query employeeById($id: uuid) {
 }
 `
 
+const EMPLOYEE_SEARCH_QUERY = `
+query employeeSearch($pattern: String, $limit: Int = 200) {
+  Employee(
+    where: {
+      _or: [
+        { firstName: { _ilike: $pattern } }
+        { lastName: { _ilike: $pattern } }
+      ]
+    }
+    limit: $limit
+    order_by: [{ firstName: asc }, { lastName: asc }]
+  ) {
+    id
+    firstName
+    lastName
+    pictureThumbnail
+  }
+}
+`
+
 type EmployeeWithSupervisorInfo = {
   id: string
   firstName: string
@@ -62,6 +82,17 @@ type Employee = {
   pictureThumbnail: string | null
   jobPositionName: string | null
   profileUrl: string
+}
+
+type EmployeeLight = {
+  id: string
+  firstName: string
+  lastName: string
+  pictureThumbnail: string | null
+}
+
+type EmployeeSearchResponse = {
+  Employee: EmployeeLight[]
 }
 
 const loadingState = {
@@ -134,4 +165,39 @@ export function useEmployeeDetails(employeeId: string, accessToken: string) {
   }, [employeeId, accessToken, graphqlClient])
 
   return { state }
+}
+
+export function useEmployeeSearchLight(accessToken: string, params: { search?: string; limit?: number }) {
+  const [isLoading, setIsLoading] = useState(false)
+  const [employees, setEmployees] = useState<EmployeeLight[]>([])
+  const graphqlClient = useGraphQLClient(accessToken)
+
+  useEffect(() => {
+    let cancelled = false
+    async function run() {
+      try {
+        setIsLoading(true)
+        const pattern = params.search && params.search.trim().length > 0 ? `%${params.search.trim()}%` : undefined
+        const res = (await graphqlClient.request(EMPLOYEE_SEARCH_QUERY, {
+          pattern,
+          limit: params.limit ?? 200
+        })) as EmployeeSearchResponse
+        if (!cancelled) {
+          setEmployees(Array.isArray(res?.Employee) ? res.Employee : [])
+        }
+      } catch {
+        if (!cancelled) setEmployees([])
+      } finally {
+        if (!cancelled) setIsLoading(false)
+      }
+    }
+    if (accessToken) {
+      run()
+    }
+    return () => {
+      cancelled = true
+    }
+  }, [accessToken, graphqlClient, params.search, params.limit])
+
+  return { employees, isLoading }
 }

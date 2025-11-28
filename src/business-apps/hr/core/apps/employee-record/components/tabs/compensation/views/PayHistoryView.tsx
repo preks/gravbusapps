@@ -154,7 +154,7 @@ const PayHistoryView: React.FC<PayHistoryViewProps> = ({
                   )}
                 </TableCell>
                 <TableCell>
-                  {record.currency ? (
+                  {record.currency && record.baseSalary != null ? (
                     <>
                       <div className="gba:font-semibold gba:text-foreground">
                         {formatCurrencyString(record.baseSalary, {
@@ -167,7 +167,7 @@ const PayHistoryView: React.FC<PayHistoryViewProps> = ({
                       <div className="gba:text-xs gba:text-muted-foreground">{t('current-annually')}</div>
                     </>
                   ) : (
-                    <div className="gba:text-muted-foreground">-</div>
+                    <div className="gba:text-muted-foreground gba:italic">{t('no-salary-record', 'No salary record')}</div>
                   )}
                 </TableCell>
                 <TableCell>

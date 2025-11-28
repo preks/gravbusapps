@@ -74,6 +74,7 @@ export type EntityData = {
     | 'absence'
     | 'employee_absence'
     | 'expense_request'
+    | 'expense_plan'
     | 'expense_item'
     | 'service_ticket'
     | 'investment_opportunity'
@@ -84,6 +85,7 @@ export type EntityData = {
     | 'employee'
     | 'reminder'
     | 'blink'
+    | 'quick_task'
   id: string
   operation?: 'create' | 'update' | 'delete' | 'read'
   flow_proposal?: string

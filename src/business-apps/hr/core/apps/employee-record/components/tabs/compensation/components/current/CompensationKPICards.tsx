@@ -130,7 +130,9 @@ const CompensationKPICards: React.FC<CompensationKPICardsProps> = ({
                 )}
               </>
             ) : (
-              <div className="gba:text-3xl gba:font-bold gba:text-foreground">-</div>
+              <div className="gba:text-3xl gba:font-bold gba:text-foreground">
+                {t('no-salary-record', 'No salary record')}
+              </div>
             )}
           </div>
         </div>
