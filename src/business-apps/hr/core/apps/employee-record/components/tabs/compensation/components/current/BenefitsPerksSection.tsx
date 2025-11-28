@@ -78,6 +78,8 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
     excludeHrBackoffice: hrBackofficeHasPermission === false
   })
 
+  console.log('catalogData', catalogData)
+
   // Use external loading or internal loading
   const loading = externalLoading || catalogLoading
 
