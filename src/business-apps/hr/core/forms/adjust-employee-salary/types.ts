@@ -29,16 +29,40 @@ export interface EmployeeDataResponse {
   } | null
 }
 
+/**
+ * Employee salary record from EmployeeSalary GraphQL entity.
+ *
+ * Currency fields: `currencyRef` is the authoritative ID for API payloads,
+ * `currency` is the expanded CatalogEntry for display. Invariant: currency.id === currencyRef
+ */
+export interface EmployeeSalaryRecord {
+  id: string
+  employeeId: string
+  annualGrossSalary: number | null
+  monthlyGrossSalary: number | null
+  hourlyGrossSalary: number | null
+  /** Authoritative currency ID - use for API payloads */
+  currencyRef: string
+  activeFrom: string | null
+  activeTo: string | null
+  startDate: string | null
+  endDate: string | null
+  createdAt: string
+  isDeleted: boolean
+  /** Expanded CatalogEntry - use for display (code, value, translations) */
+  currency: CatalogEntry
+}
+
+/** Validates currency.id === currencyRef when both are present */
+export function validateEmployeeSalaryCurrencyConsistency(record: EmployeeSalaryRecord): boolean {
+  if (!record.currencyRef || !record.currency?.id) {
+    return true
+  }
+  return record.currency.id === record.currencyRef
+}
+
 export interface EmployeeCompensationResponse {
-  EmployeeWorkingCondition: Array<{
-    id: string
-    employeeId: string
-    annualGrossSalary: number
-    monthlyGrossSalary: number | null
-    hourlyGrossSalary: number | null
-    currencyRef: string
-    currency: CatalogEntry
-  }>
+  AllEmployeeSalaries: EmployeeSalaryRecord[]
 }
 
 export interface SalaryAdjustReasonCatalogResponse {
