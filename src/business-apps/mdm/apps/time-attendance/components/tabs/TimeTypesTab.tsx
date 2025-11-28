@@ -61,6 +61,8 @@ export const TimeTypesTab: React.FC<TimeTypesProps> = ({ accessToken, prefixData
   const [isDeleting, setIsDeleting] = useState(false)
   const [isCreateSystemTypesDialogOpen, setIsCreateSystemTypesDialogOpen] = useState(false)
   const [isCreatingSystemTypes, setIsCreatingSystemTypes] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
 
   // Filter time types based on search term
   const filteredTimeTypes = useMemo(() => {
@@ -84,7 +86,18 @@ export const TimeTypesTab: React.FC<TimeTypesProps> = ({ accessToken, prefixData
     return systemTimeTypes.length > 0
   }, [systemTimeTypes])
 
-  const dataTable = useMemo(() => filteredTimeTypes.map(project => project), [filteredTimeTypes])
+  // Paginated data
+  const paginatedData = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize
+    const endIndex = startIndex + pageSize
+    return filteredTimeTypes.slice(startIndex, endIndex)
+  }, [filteredTimeTypes, currentPage, pageSize])
+
+  const totalPages = useMemo(() => {
+    return Math.ceil(filteredTimeTypes.length / pageSize)
+  }, [filteredTimeTypes.length, pageSize])
+
+  const dataTable = useMemo(() => paginatedData.map(project => project), [paginatedData])
 
   // Helper function to create sortable header
   const createSortableHeader = useCallback((label: string) => {
@@ -195,20 +208,137 @@ export const TimeTypesTab: React.FC<TimeTypesProps> = ({ accessToken, prefixData
     ]
 
     return (
-      <DataTable
-        data={dataTable}
-        columns={columns as ColumnDef<(typeof dataTable)[number]>[]}
-        enableSorting
-        enablePagination
-        sorting={sorting}
-        onSortingChange={setSorting}
-      />
+      <>
+        <DataTable
+          data={dataTable}
+          columns={columns as ColumnDef<(typeof dataTable)[number]>[]}
+          enableSorting
+          enablePagination={false}
+          sorting={sorting}
+          onSortingChange={setSorting}
+        />
+        {/* Custom pagination with translations */}
+        {filteredTimeTypes.length > 0 && (
+          <div
+            className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4 gba:border-t"
+            data-testid={formatDataTestId(dataTestId, 'pagination')}
+          >
+            <div className="gba:text-sm gba:text-muted-foreground">
+              {totalPages > 1
+                ? `${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, filteredTimeTypes.length)} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} ${filteredTimeTypes.length} ${getTranslationFromI18nKeyAndLabel(
+                    'master-data:hr.time_attendance.time_types.title',
+                    'time types'
+                  ).toLowerCase()}`
+                : `${filteredTimeTypes.length} ${getTranslationFromI18nKeyAndLabel(
+                    'master-data:hr.time_attendance.time_types.title',
+                    'time types'
+                  ).toLowerCase()}`}
+            </div>
+            <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
+              <div className="gba:flex gba:items-center gba:space-x-2">
+                <p className="gba:text-sm gba:font-medium">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.rows_per_page', 'Rows per page')}
+                </p>
+                <select
+                  value={pageSize}
+                  onChange={e => {
+                    const newPageSize = Number(e.target.value)
+                    setPageSize(newPageSize)
+                    setCurrentPage(1)
+                  }}
+                  className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+                  data-testid={formatDataTestId(dataTestId, 'page-size-select')}
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
+              {totalPages > 1 && (
+                <>
+                  <div
+                    className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium"
+                    data-testid={formatDataTestId(dataTestId, 'page-info')}
+                  >
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.page', 'Page')} {currentPage}{' '}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} {totalPages}
+                  </div>
+                  <div className="gba:flex gba:items-center gba:space-x-2">
+                    <Button
+                      variant="outline"
+                      className="gba:h-8 gba:w-8 gba:p-0"
+                      onClick={() => setCurrentPage(1)}
+                      disabled={currentPage === 1}
+                      data-testid={formatDataTestId(dataTestId, 'first-page-button')}
+                    >
+                      <span className="gba:sr-only">
+                        {getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:human_resources_page.pagination.first_page_sr',
+                          'Go to first page'
+                        )}
+                      </span>
+                      ⟨⟨
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="gba:h-8 gba:w-8 gba:p-0"
+                      onClick={() => setCurrentPage(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      data-testid={formatDataTestId(dataTestId, 'previous-page-button')}
+                    >
+                      <span className="gba:sr-only">
+                        {getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:human_resources_page.pagination.prev_page_sr',
+                          'Go to previous page'
+                        )}
+                      </span>
+                      ⟨
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="gba:h-8 gba:w-8 gba:p-0"
+                      onClick={() => setCurrentPage(currentPage + 1)}
+                      disabled={currentPage >= totalPages}
+                      data-testid={formatDataTestId(dataTestId, 'next-page-button')}
+                    >
+                      <span className="gba:sr-only">
+                        {getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:human_resources_page.pagination.next_page_sr',
+                          'Go to next page'
+                        )}
+                      </span>
+                      ⟩
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="gba:h-8 gba:w-8 gba:p-0"
+                      onClick={() => setCurrentPage(totalPages)}
+                      disabled={currentPage >= totalPages}
+                      data-testid={formatDataTestId(dataTestId, 'last-page-button')}
+                    >
+                      <span className="gba:sr-only">
+                        {getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:human_resources_page.pagination.last_page_sr',
+                          'Go to last page'
+                        )}
+                      </span>
+                      ⟩⟩
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </>
     )
   }
 
   // Handle search
   const handleSearch = useCallback((value: string) => {
     setSearchTerm(value)
+    setCurrentPage(1) // Reset to first page when searching
   }, [])
 
   // Handle delete time type
@@ -416,11 +546,16 @@ export const TimeTypesTab: React.FC<TimeTypesProps> = ({ accessToken, prefixData
                 )}
               </DialogTitle>
               <DialogDescription>
-                {getTranslationFromI18nKeyAndLabel(
-                  'master-data:hr.time_attendance.time_types.actions.create_system_types_message',
-                  `Are you sure you want to create all ${systemTimeTypes.length} missing system time types?`,
-                  { systemTimeTypesCount: systemTimeTypes.length }
-                )}
+                {systemTimeTypes.length > 1
+                  ? getTranslationFromI18nKeyAndLabel(
+                      'master-data:hr.time_attendance.time_types.actions.create_system_time_types_confirmation_one',
+                      `Are you sure you want to create the missing system time type?`
+                    )
+                  : getTranslationFromI18nKeyAndLabel(
+                      'master-data:hr.time_attendance.time_types.actions.create_system_types_message',
+                      `Are you sure you want to create all ${systemTimeTypes.length} missing system time types?`,
+                      { systemTimeTypesCount: systemTimeTypes.length }
+                    )}
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
