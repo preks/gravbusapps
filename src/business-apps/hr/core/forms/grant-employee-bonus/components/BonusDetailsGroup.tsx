@@ -99,8 +99,7 @@ const BonusDetailsGroup: React.FC<BonusDetailsGroupProps> = ({ control, catalogs
             <FormControl>
               <Input
                 className="gba:w-full gba:text-center"
-                value={currencyDisplay}
-                readOnly
+                value={currencyDisplay || '-'}
                 disabled
                 data-testid="grant-employee-bonus-currency-input"
               />

@@ -9,7 +9,6 @@ import { useForm } from 'react-hook-form'
 import type { GrantEmployeeBonusFormValues, CatalogEntry } from './types'
 import BonusDetailsGroup from './components/BonusDetailsGroup'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
-import { CompensationStatus } from '../../apps/employee-record/components/tabs/compensation/types/compensationEnums'
 import { extractEmployeeId } from './utils/employeeIdUtils'
 import translations from '../_i18n'
 
@@ -146,10 +145,9 @@ const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ addition
                 employeeBonusTypeRef:
                   values.employeeBonusTypeRef && values.employeeBonusTypeRef !== '' ? values.employeeBonusTypeRef : '',
                 amount: values.amount || 0,
-                currencyRef: currencyRef || '',
-                paymentMonth: values.paymentMonth || 0,
+                currencyRef: currencyRef || null,
+                paymentDate: `${values.fiscalYear || new Date().getFullYear()}-${String(values.paymentMonth || 1).padStart(2, '0')}-01`,
                 fiscalYear: values.fiscalYear || new Date().getFullYear(),
-                status: CompensationStatus.APPROVED, // Set to APPROVED_COMPENSATION until approval process is implemented
                 notes: values.notes || ''
               }
             }
