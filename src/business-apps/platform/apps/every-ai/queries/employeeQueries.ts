@@ -229,7 +229,6 @@ query accountSearch($pattern: String, $limit: Int = 50) {
       ]
     }
     limit: $limit
-    order_by: { name: asc }
   ) {
     id
     name
@@ -309,7 +308,6 @@ query contactSearch($pattern: String, $limit: Int = 50) {
       ]
     }
     limit: $limit
-    order_by: { lastName: asc }
   ) {
     id
     firstName
@@ -392,7 +390,6 @@ query leadSearch($pattern: String, $limit: Int = 50) {
       ]
     }
     limit: $limit
-    order_by: { lastName: asc }
   ) {
     id
     firstName
@@ -473,7 +470,6 @@ query opportunitySearch($pattern: String, $limit: Int = 50) {
       ]
     }
     limit: $limit
-    order_by: { name: asc }
   ) {
     id
     name
