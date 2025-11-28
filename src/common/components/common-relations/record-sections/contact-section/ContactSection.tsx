@@ -5,6 +5,7 @@ import {
   AvatarImage,
   AvatarFallback,
   IconAvatar,
+  Badge,
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -16,6 +17,7 @@ import { PiLinkedinLogo, PiShareNetwork, PiEnvelope, PiPhone } from 'react-icons
 import { UserIcon } from '@phosphor-icons/react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { getLinkedInChannel, getXingChannel } from '@/common/data/common/utils/communicationChannelHelpers'
+import { getContactTypeLabel } from '@/common/data/relations/constants/contactConstants'
 import { createGetPages } from '../utils'
 
 interface ContactSectionProps extends Partial<BusinessAppContextProps> {
@@ -54,7 +56,7 @@ const ContactSection: React.FC<ContactSectionProps> = ({ contact, contacts, clas
 
 // Static properties for SectionWrapper
 ;(ContactSection as any).sectionTitle = 'Contact Information'
-;(ContactSection as any).getPages = createGetPages<any>(
+;(ContactSection as any).getPages = createGetPages<any, ContactSectionProps>(
   (props: ContactSectionProps) => props.contacts,
   (props: ContactSectionProps) => props.contact
 )
@@ -133,6 +135,10 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({ contact, onTi
     return parts.length > 0 ? parts.join(' • ') : '-'
   }
 
+  // Get contact type from extended contact object (passed from parent via accountContacts/opportunityContacts)
+  const contactType = (contact as any)?.contactType
+  const contactTypeLabel = contactType ? getContactTypeLabel(contactType) : null
+
   // Helper function to extract LinkedIn URL from communication channels
   const getLinkedInUrl = () => {
     const communicationChannels = (contact as any)?.communicationChannels
@@ -182,7 +188,7 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({ contact, onTi
             <IconAvatar icon={UserIcon} variant="default" size="lg" title="Contact" />
           )}
           <div className="gba:flex gba:flex-col gba:gap-1 gba:min-w-0 gba:flex-1">
-            <div className="gba:h-5 gba:flex gba:items-center gba:min-w-0">
+            <div className="gba:h-5 gba:flex gba:items-center gba:gap-2 gba:min-w-0">
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -209,6 +215,11 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({ contact, onTi
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
+              {contactTypeLabel && (
+                <Badge variant="outline" className="gba:shrink-0" data-testid="contact-type-badge">
+                  {contactTypeLabel}
+                </Badge>
+              )}
             </div>
             {/* Job Title and Department - directly under name */}
             <div className="gba:h-5 gba:flex gba:items-center gba:min-w-0">
