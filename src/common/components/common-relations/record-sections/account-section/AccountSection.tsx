@@ -12,13 +12,13 @@ import {
   TooltipTrigger
 } from '@newwork/nw-design-system'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { PiGlobe, PiPhone, PiUsers, PiMapPin, PiEnvelope } from 'react-icons/pi'
+import { PiGlobe, PiUsers, PiMapPin } from 'react-icons/pi'
 import { BankIcon, ChartLineUpIcon } from '@phosphor-icons/react'
 import { formatAddress } from '@/common/utils/addressFormatter'
 import { navigateTo } from '@/common/utils/navigationUtils'
-import { getEmailChannel, getPhoneChannel } from '@/common/data/common/utils/communicationChannelHelpers'
 import { getContactTypeLabel } from '@/common/data/relations/constants/contactConstants'
 import { getContactTypeIcon, getContactTypeColor, getContactTypeIconColor } from '@/common/utils/contactTypeUtils'
+import { renderCommunicationChannels } from '@/common/utils/communicationChannelRenderer'
 import { createGetPages } from '../utils'
 
 interface AddressObject {
@@ -330,12 +330,8 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
         {/* Contact Information */}
         <div>
           {(() => {
-            // Extract email, phone direkt aus communicationChannels (KEINE Fallbacks auf deprecated email/phone)
-            const emailChannel = getEmailChannel(account?.communicationChannels)
-            const emailValue = emailChannel?.value
-
-            const phoneChannel = getPhoneChannel(account?.communicationChannels)
-            const phoneValue = phoneChannel?.value
+            // Get ALL communication channels dynamically
+            const communicationChannelItems = renderCommunicationChannels(account?.communicationChannels, 'account')
 
             // Website ist ein normales Feld, NICHT aus communicationChannels
             const websiteValue = account?.website
@@ -364,37 +360,8 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
                 }
               })()
 
-            const infoItems = [
-              {
-                icon: PiEnvelope,
-                title: 'Email',
-                value: emailValue,
-                render: (value: string) =>
-                  value ? (
-                    <a
-                      href={`mailto:${value}`}
-                      className="gba:text-sm gba:text-muted-foreground gba:no-underline gba:hover:underline"
-                      data-testid="account-email-link"
-                    >
-                      {value}
-                    </a>
-                  ) : null
-              },
-              {
-                icon: PiPhone,
-                title: 'Phone',
-                value: phoneValue,
-                render: (value: string) =>
-                  value ? (
-                    <a
-                      href={`tel:${value}`}
-                      className="gba:text-sm gba:text-muted-foreground gba:no-underline gba:hover:underline"
-                      data-testid="account-phone-link"
-                    >
-                      {value}
-                    </a>
-                  ) : null
-              },
+            // Static fields (not from communication channels)
+            const staticInfoItems = [
               {
                 icon: PiUsers,
                 title: 'Employees',
@@ -464,7 +431,10 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
               }
             ]
 
-            return infoItems.map((item, index) => {
+            // Combine dynamic communication channels with static fields
+            const allItems = [...communicationChannelItems, ...staticInfoItems]
+
+            return allItems.map((item, index) => {
               const IconComponent = item.icon
               const content = item.render(item.value || '')
 

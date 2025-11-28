@@ -13,12 +13,11 @@ import {
 } from '@newwork/nw-design-system'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import type { Contact } from '@/common/data/relations/types/contactTypes'
-import { PiLinkedinLogo, PiShareNetwork, PiEnvelope, PiPhone } from 'react-icons/pi'
 import { UserIcon } from '@phosphor-icons/react'
 import { navigateTo } from '@/common/utils/navigationUtils'
-import { getLinkedInChannel, getXingChannel } from '@/common/data/common/utils/communicationChannelHelpers'
 import { getContactTypeLabel } from '@/common/data/relations/constants/contactConstants'
 import { getContactTypeIcon, getContactTypeColor, getContactTypeIconColor } from '@/common/utils/contactTypeUtils'
+import { renderCommunicationChannels } from '@/common/utils/communicationChannelRenderer'
 import { createGetPages } from '../utils'
 
 interface ContactSectionProps extends Partial<BusinessAppContextProps> {
@@ -140,24 +139,6 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({ contact, onTi
   const contactType = (contact as any)?.contactType
   const contactTypeLabel = contactType ? getContactTypeLabel(contactType) : null
 
-  // Helper function to extract LinkedIn URL from communication channels
-  const getLinkedInUrl = () => {
-    const communicationChannels = (contact as any)?.communicationChannels
-    if (!communicationChannels || !Array.isArray(communicationChannels)) {
-      return (contact as any)?.linkedinUrl || null
-    }
-    return getLinkedInChannel(communicationChannels)?.value || null
-  }
-
-  // Helper function to extract XING URL from communication channels
-  const getXingUrl = () => {
-    const communicationChannels = (contact as any)?.communicationChannels
-    if (!communicationChannels || !Array.isArray(communicationChannels)) {
-      return (contact as any)?.xingUrl || null
-    }
-    return getXingChannel(communicationChannels)?.value || null
-  }
-
   // Extract contact image URL - support both pictureThumbnail and URLs
   // Only use uploaded images or fallback to icon - no random/hardcoded images
   const contactImageUrl = contact?.pictureThumbnail
@@ -269,100 +250,26 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({ contact, onTi
         {/* Contact Information */}
         <div>
           {(() => {
-            // Helper to get communication channel by type (lowercase: email, url, tel, text)
-            const getChannel = (type: string) => {
-              const channels = (contact as any)?.communicationChannels || []
-              return channels.find((ch: any) => ch.communicationChannel?.type?.toLowerCase() === type.toLowerCase())
+            // Dynamically render ALL communication channels that have values
+            const communicationChannelItems = renderCommunicationChannels(contact?.communicationChannels, 'contact')
+
+            // If no channels, show a placeholder
+            if (communicationChannelItems.length === 0) {
+              return (
+                <div className="gba:flex gba:items-center gba:gap-2 gba:px-2 gba:py-1 gba:rounded">
+                  <span className="gba:text-sm gba:text-muted-foreground">No communication channels available</span>
+                </div>
+              )
             }
 
-            // Extract email, phone direkt aus communicationChannels (KEINE Fallbacks auf deprecated email/phone)
-            const emailChannel = getChannel('email')
-            const emailValue = emailChannel?.value
-
-            const phoneChannel = getChannel('tel')
-            const phoneValue = phoneChannel?.value
-
-            const infoItems = [
-              {
-                icon: PiEnvelope,
-                title: 'Email',
-                value: emailValue,
-                render: (value: string) =>
-                  value ? (
-                    <a
-                      href={`mailto:${value}`}
-                      className="gba:text-sm gba:text-muted-foreground gba:no-underline gba:hover:underline"
-                      data-testid="contact-personal-info-email-link"
-                    >
-                      {value}
-                    </a>
-                  ) : null
-              },
-              {
-                icon: PiPhone,
-                title: 'Phone',
-                value: phoneValue,
-                render: (value: string) =>
-                  value ? (
-                    <a
-                      href={`tel:${value}`}
-                      className="gba:text-sm gba:text-muted-foreground gba:no-underline gba:hover:underline"
-                      data-testid="contact-phone-link"
-                    >
-                      {value}
-                    </a>
-                  ) : null
-              },
-              {
-                icon: PiLinkedinLogo,
-                title: 'LinkedIn',
-                value: getLinkedInUrl(),
-                render: (value: string) =>
-                  value ? (
-                    <a
-                      href={value}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="gba:text-sm gba:text-muted-foreground hover:gba:underline"
-                      data-testid="contact-linkedin-link"
-                      title="LinkedIn Profile"
-                    >
-                      {value}
-                    </a>
-                  ) : null
-              },
-              {
-                icon: PiShareNetwork,
-                title: 'XING',
-                value: getXingUrl(),
-                render: (value: string) =>
-                  value ? (
-                    <a
-                      href={value}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="gba:text-sm gba:text-muted-foreground hover:gba:underline"
-                      data-testid="contact-xing-link"
-                      title="XING Profile"
-                    >
-                      {value}
-                    </a>
-                  ) : null
-              }
-            ]
-
-            return infoItems.map((item, index) => {
+            return communicationChannelItems.map((item, index) => {
               const IconComponent = item.icon
-              const content = item.render(item.value || '')
+              const content = item.render(item.value)
 
               return (
                 <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:px-2 gba:py-1 gba:rounded">
                   <IconComponent className="gba:text-sm gba:text-muted-foreground" title={item.title} />
-                  {content ? (
-                    <span className="gba:text-sm gba:text-muted-foreground">{content}</span>
-                  ) : (
-                    <span className="gba:text-sm gba:text-muted-foreground">-</span>
-                  )}
+                  {content}
                 </div>
               )
             })
