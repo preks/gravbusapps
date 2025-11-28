@@ -115,16 +115,13 @@ const StageForm: React.FC<StageFormProps> = ({
       const currentStage = await catalogClient.getCatalogEntryById(editingStage.id)
 
       const updateData = {
-        // Required fields that must be preserved
         id: editingStage.id,
-        code: editingStage.code, // Keep original code - cannot be updated
+        code: editingStage.code,
         value: data.value,
         type: data.type,
-        alternativeCode: data.type, // Set alternativeCode as fallback for type
+        alternativeCode: data.type,
         parentEntryId: editingStage.parentEntryId || currentStage.parentEntryId,
         displayOrder: editingStage.displayOrder || currentStage.displayOrder,
-
-        // Additional fields - preserve existing values
         additionalValue1:
           editingStage.displayOrder?.toString().padStart(2, '0') || currentStage.additionalValue1 || '01',
         additionalValue2: currentStage.additionalValue2 || undefined,
@@ -132,7 +129,12 @@ const StageForm: React.FC<StageFormProps> = ({
         objectValue: editingStage.objectValue || currentStage.objectValue || {}
       }
 
-      await catalogClient.updateCatalogEntry(editingStage.id, updateData)
+      await catalogClient.updateCatalogEntry(
+        catalogConfig.stageCatalog,
+        catalogConfig.version || 'v1',
+        editingStage.id,
+        updateData
+      )
 
       onClose()
       form.reset()

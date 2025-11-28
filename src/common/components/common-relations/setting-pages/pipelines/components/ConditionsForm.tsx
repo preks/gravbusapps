@@ -36,6 +36,7 @@ interface ConditionsFormProps extends BusinessAppContextProps {
     conditionCatalog: string
     version?: string
   }
+  onConditionsUpdated?: () => void
   prefixDataTestId?: string
 }
 
@@ -177,6 +178,7 @@ const ConditionsForm: React.FC<ConditionsFormProps> = ({
   onClose,
   selectedStage,
   catalogConfig,
+  onConditionsUpdated,
   prefixDataTestId = 'conditions-form',
   accessToken
 }) => {
@@ -293,7 +295,12 @@ const ConditionsForm: React.FC<ConditionsFormProps> = ({
             objectValue: condition.objectValue || currentCondition.objectValue || {}
           }
 
-          return catalogClient.updateCatalogEntry(condition.id, updateData)
+          return catalogClient.updateCatalogEntry(
+            catalogConfig.conditionCatalog,
+            catalogConfig.version || 'v1',
+            condition.id,
+            updateData
+          )
         })
       )
     } catch (err) {
@@ -302,6 +309,7 @@ const ConditionsForm: React.FC<ConditionsFormProps> = ({
       await fetchConditions(selectedStage.id)
     } finally {
       setOperationLoading(false)
+      onConditionsUpdated?.()
     }
   }
 
@@ -311,8 +319,9 @@ const ConditionsForm: React.FC<ConditionsFormProps> = ({
 
     try {
       setOperationLoading(true)
-      await catalogClient.deleteCatalogEntry(conditionId)
+      await catalogClient.deleteCatalogEntry(catalogConfig.conditionCatalog, catalogConfig.version || 'v1', conditionId)
       await fetchConditions(selectedStage.id)
+      onConditionsUpdated?.()
     } catch (err) {
       console.error('Error deleting condition:', err)
     } finally {
@@ -332,6 +341,7 @@ const ConditionsForm: React.FC<ConditionsFormProps> = ({
   const handleConditionSuccess = () => {
     if (selectedStage) {
       fetchConditions(selectedStage.id)
+      onConditionsUpdated?.()
     }
   }
 

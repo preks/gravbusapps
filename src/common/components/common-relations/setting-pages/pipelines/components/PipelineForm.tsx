@@ -94,17 +94,23 @@ const PipelineForm: React.FC<PipelineFormProps> = ({
     try {
       setOperationLoading(true)
 
-      await catalogClient.updateCatalogEntry(editingPipeline.id, {
-        code: editingPipeline.code, // Keep original code
-        value: data.value,
-        alternativeCode: editingPipeline.alternativeCode,
-        displayOrder: editingPipeline.displayOrder,
-        additionalValue1: data.description || null,
-        additionalValue2: editingPipeline.additionalValue2,
-        additionalValue3: editingPipeline.additionalValue3,
-        objectValue: editingPipeline.objectValue,
-        parentEntryId: editingPipeline.parentEntryId
-      })
+      await catalogClient.updateCatalogEntry(
+        catalogConfig.pipelineCatalog,
+        catalogConfig.version || 'v1',
+        editingPipeline.id,
+        {
+          id: editingPipeline.id,
+          code: editingPipeline.code,
+          value: data.value,
+          alternativeCode: editingPipeline.alternativeCode,
+          displayOrder: editingPipeline.displayOrder,
+          additionalValue1: data.description || null,
+          additionalValue2: editingPipeline.additionalValue2,
+          additionalValue3: editingPipeline.additionalValue3,
+          objectValue: editingPipeline.objectValue,
+          parentEntryId: editingPipeline.parentEntryId
+        }
+      )
 
       onClose()
       form.reset()
@@ -146,7 +152,11 @@ const PipelineForm: React.FC<PipelineFormProps> = ({
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="gba:space-y-4">
+          <form
+            onSubmit={form.handleSubmit(handleSubmit)}
+            className="gba:space-y-4"
+            data-testid={`${prefixDataTestId}-form`}
+          >
             <FormField
               control={form.control}
               name="value"
@@ -155,7 +165,11 @@ const PipelineForm: React.FC<PipelineFormProps> = ({
                 <FormItem>
                   <FormLabel>Pipeline Name</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="Enter pipeline name..." />
+                    <Input
+                      {...field}
+                      placeholder="Enter pipeline name..."
+                      data-testid={`${prefixDataTestId}-name-input`}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -169,7 +183,11 @@ const PipelineForm: React.FC<PipelineFormProps> = ({
                 <FormItem>
                   <FormLabel>Description</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="Enter description..." />
+                    <Input
+                      {...field}
+                      placeholder="Enter description..."
+                      data-testid={`${prefixDataTestId}-description-input`}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -177,10 +195,16 @@ const PipelineForm: React.FC<PipelineFormProps> = ({
             />
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={onClose} disabled={operationLoading}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+                disabled={operationLoading}
+                data-testid={`${prefixDataTestId}-cancel-button`}
+              >
                 Cancel
               </Button>
-              <Button type="submit" disabled={operationLoading}>
+              <Button type="submit" disabled={operationLoading} data-testid={`${prefixDataTestId}-submit-button`}>
                 {operationLoading ? 'Saving...' : editingPipeline ? 'Update Pipeline' : 'Create Pipeline'}
               </Button>
             </DialogFooter>

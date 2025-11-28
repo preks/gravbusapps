@@ -135,16 +135,13 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
       const currentCondition = await catalogClient.getCatalogEntryById(editingCondition.id)
 
       const updateData = {
-        // Required fields that must be preserved
         id: editingCondition.id,
-        code: editingCondition.code, // Keep original code - cannot be updated
+        code: editingCondition.code,
         value: data.name,
         alternativeCode: 'CONDITION',
         parentEntryId: selectedStage.id,
-        displayOrder: editingCondition.displayOrder, // Keep original rank
-        additionalValue1: editingCondition.additionalValue1, // Keep original rank
-
-        // Additional fields - preserve existing values
+        displayOrder: editingCondition.displayOrder,
+        additionalValue1: editingCondition.additionalValue1,
         additionalValue2: currentCondition.additionalValue2 || undefined,
         additionalValue3: currentCondition.additionalValue3 || undefined,
         objectValue: {
@@ -157,7 +154,12 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
         }
       }
 
-      await catalogClient.updateCatalogEntry(editingCondition.id, updateData)
+      await catalogClient.updateCatalogEntry(
+        catalogConfig.conditionCatalog,
+        catalogConfig.version || 'v1',
+        editingCondition.id,
+        updateData
+      )
 
       onClose()
       form.reset()

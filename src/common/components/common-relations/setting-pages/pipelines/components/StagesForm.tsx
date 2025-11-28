@@ -1,5 +1,18 @@
 import React, { useState, useEffect } from 'react'
-import { Card, Button, Spinner, Alert, AlertDescription, Badge } from '@newwork/nw-design-system'
+import {
+  Card,
+  Button,
+  Spinner,
+  Alert,
+  AlertDescription,
+  Badge,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from '@newwork/nw-design-system'
 import { Plus, Edit, Trash2, Eye, GripVertical, ArrowRight } from 'lucide-react'
 import {
   DndContext,
@@ -16,6 +29,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { PipelineStageEntry } from '../hooks/usePipelineSettings'
+import { usePipelineUsageCheck } from '../hooks/usePipelineUsageCheck'
 import StageForm from './StageForm'
 
 interface StagesFormProps extends BusinessAppContextProps {
@@ -27,6 +41,7 @@ interface StagesFormProps extends BusinessAppContextProps {
   }
   onStagesChange: (stages: PipelineStageEntry[]) => void
   onViewConditions: (stage: PipelineStageEntry) => void
+  onStagesUpdated?: () => void
   prefixDataTestId?: string
 }
 
@@ -64,11 +79,11 @@ const DraggableStageCard: React.FC<{
     <Card
       ref={setNodeRef}
       style={style}
-      className={`gba:relative gba:group gba:border-2 gba:border-gray-200 hover:gba:border-blue-400 gba:transition-all gba:duration-200 gba:w-64 ${isDragging ? 'gba:opacity-50' : ''}`}
+      className={`gba:relative gba:group gba:border-2 gba:border-gray-200 gba:hover:border-blue-400 gba:transition-all gba:duration-200 gba:w-64 ${isDragging ? 'gba:opacity-50' : ''}`}
       data-testid={`${prefixDataTestId}-stage-card-${stage.id}`}
     >
       {/* Action buttons in top right */}
-      <div className="gba:absolute gba:top-2 gba:right-2 gba:flex gba:gap-1 gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity gba:z-10">
+      <div className="gba:absolute gba:top-2 gba:right-2 gba:flex gba:gap-1 gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity gba:z-10">
         <Button
           variant="ghost"
           size="icon"
@@ -81,7 +96,7 @@ const DraggableStageCard: React.FC<{
           variant="ghost"
           size="icon"
           onClick={() => onDelete(stage)}
-          className="gba:text-red-600 hover:gba:text-red-700"
+          className="gba:text-destructive gba:hover:text-destructive"
           data-testid={`${prefixDataTestId}-delete-stage-${stage.id}`}
         >
           <Trash2 />
@@ -93,7 +108,7 @@ const DraggableStageCard: React.FC<{
           <div
             {...attributes}
             {...listeners}
-            className="gba:cursor-grab gba:text-gray-400 hover:gba:text-gray-600 gba:p-1 gba:flex-shrink-0 gba:select-none"
+            className="gba:cursor-grab gba:text-gray-400 gba:hover:text-gray-600 gba:p-1 gba:flex-shrink-0 gba:select-none"
             style={{ touchAction: 'none' }}
           >
             <GripVertical className="gba:w-4 gba:h-4" />
@@ -141,6 +156,7 @@ const StagesForm: React.FC<StagesFormProps> = ({
   catalogConfig,
   onStagesChange,
   onViewConditions,
+  onStagesUpdated,
   prefixDataTestId = 'stages-form',
   accessToken
 }) => {
@@ -153,8 +169,15 @@ const StagesForm: React.FC<StagesFormProps> = ({
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [editingStage, setEditingStage] = useState<PipelineStageEntry | null>(null)
   const [conditionCounts, setConditionCounts] = useState<Record<string, number>>({})
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
+  const [stageToDelete, setStageToDelete] = useState<PipelineStageEntry | null>(null)
+  const [isCannotDeleteDialogOpen, setIsCannotDeleteDialogOpen] = useState(false)
+  const [stageCannotDelete, setStageCannotDelete] = useState<
+    (PipelineStageEntry & { totalOpportunityCount?: number }) | null
+  >(null)
 
   const catalogClient = useCatalogManagerClient(accessToken)
+  const { checkStageUsage } = usePipelineUsageCheck(accessToken, 'CRM')
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -320,7 +343,12 @@ const StagesForm: React.FC<StagesFormProps> = ({
             objectValue: stage.objectValue || currentStage.objectValue || {}
           }
 
-          return catalogClient.updateCatalogEntry(stage.id, updateData)
+          return catalogClient.updateCatalogEntry(
+            catalogConfig.stageCatalog,
+            catalogConfig.version || 'v1',
+            stage.id,
+            updateData
+          )
         })
       )
     } catch (err) {
@@ -329,15 +357,83 @@ const StagesForm: React.FC<StagesFormProps> = ({
       fetchStages()
     } finally {
       setOperationLoading(false)
+      onStagesUpdated?.()
     }
   }
 
   // Stage management handlers
   const handleDeleteStage = async (stage: PipelineStageEntry) => {
+    // Check usage before proceeding
+    const usage = await checkStageUsage(stage.id)
+
+    if (usage.isInUse) {
+      // Stage is in use - show "cannot delete" dialog
+      setStageCannotDelete({
+        ...stage,
+        totalOpportunityCount: usage.totalCount
+      })
+      setIsCannotDeleteDialogOpen(true)
+    } else {
+      // Stage is NOT in use - show delete confirmation
+      setStageToDelete(stage)
+      setIsDeleteConfirmOpen(true)
+    }
+  }
+
+  const confirmDeleteStage = async () => {
+    if (!stageToDelete) return
+
     try {
       setOperationLoading(true)
-      await catalogClient.deleteCatalogEntry(stage.id)
+
+      // First, delete all conditions for this stage
+      if (catalogConfig.conditionCatalog) {
+        try {
+          const response = await catalogClient.getCatalogEntriesList(
+            {
+              catalogIdentifier: catalogConfig.conditionCatalog,
+              version: catalogConfig.version || 'v1'
+            },
+            {
+              limit: 1000,
+              offset: 0,
+              returnTotalRecords: true,
+              includeChildCatalogEntries: true
+            }
+          )
+
+          // Filter conditions for this stage
+          const stageConditions = response.data.filter(entry => entry.parentEntryId === stageToDelete.id)
+
+          // Delete all conditions in parallel
+          if (stageConditions.length > 0) {
+            await Promise.all(
+              stageConditions.map(condition =>
+                catalogClient.deleteCatalogEntry(
+                  catalogConfig.conditionCatalog!,
+                  catalogConfig.version || 'v1',
+                  condition.id
+                )
+              )
+            )
+          }
+        } catch (err) {
+          console.error('Error deleting stage conditions:', err)
+          // Continue with stage deletion even if conditions fail
+        }
+      }
+
+      // Then delete the stage
+      await catalogClient.deleteCatalogEntry(
+        catalogConfig.stageCatalog,
+        catalogConfig.version || 'v1',
+        stageToDelete.id
+      )
+
+      setIsDeleteConfirmOpen(false)
+      setStageToDelete(null)
       await fetchStages()
+      onStagesUpdated?.()
     } catch (err) {
       console.error('Error deleting stage:', err)
       setError(err instanceof Error ? err.message : 'Failed to delete stage')
@@ -357,6 +453,7 @@ const StagesForm: React.FC<StagesFormProps> = ({
 
   const handleStageSuccess = () => {
     fetchStages()
+    onStagesUpdated?.()
   }
 
   const activeStage = stages.find(stage => stage.id === activeId)
@@ -475,6 +572,96 @@ const StagesForm: React.FC<StagesFormProps> = ({
         prefixDataTestId={prefixDataTestId}
         accessToken={accessToken}
       />
+
+      {/* Delete Confirmation Dialog - Only shown when NOT in use */}
+      <Dialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Stage</DialogTitle>
+            <DialogDescription>Are you sure you want to delete "{stageToDelete?.value}"?</DialogDescription>
+          </DialogHeader>
+          <div className="gba:space-y-4">
+            <div className="gba:p-3 gba:bg-success-secondary gba:rounded-lg gba:border gba:border-success">
+              <span className="gba:block gba:text-success-secondary-foreground gba:font-semibold">
+                ✓ Stage is not currently in use
+              </span>
+              <span className="gba:block gba:mt-1 gba:text-success-secondary-foreground gba:text-sm">
+                This stage can be safely deleted.
+              </span>
+            </div>
+            <div>
+              <span className="gba:block gba:text-warning gba:font-semibold gba:mb-2">
+                This will permanently delete:
+              </span>
+              <ul className="gba:list-disc gba:list-inside gba:space-y-1 gba:text-sm">
+                <li>The stage itself</li>
+                <li>All {conditionCounts[stageToDelete?.id || ''] || 0} conditions</li>
+              </ul>
+              <span className="gba:block gba:mt-2 gba:text-destructive gba:font-semibold">
+                This action cannot be undone.
+              </span>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsDeleteConfirmOpen(false)
+                setStageToDelete(null)
+              }}
+              disabled={operationLoading}
+              data-testid={`${prefixDataTestId}-delete-cancel-button`}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDeleteStage}
+              disabled={operationLoading}
+              data-testid={`${prefixDataTestId}-delete-confirm-button`}
+            >
+              {operationLoading ? 'Deleting...' : 'Delete Stage'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cannot Delete Dialog - Shown when stage is in use */}
+      <Dialog open={isCannotDeleteDialogOpen} onOpenChange={setIsCannotDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cannot Delete Stage</DialogTitle>
+            <DialogDescription>
+              The stage "{stageCannotDelete?.value}" cannot be deleted because it is currently in use.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="gba:space-y-4">
+            <div className="gba:p-3 gba:bg-destructive-secondary gba:rounded-lg gba:border gba:border-destructive">
+              <span className="gba:block gba:text-destructive-secondary-foreground gba:font-semibold gba:mb-2">
+                ⚠️ Stage is Currently in Use
+              </span>
+              <ul className="gba:list-disc gba:list-inside gba:space-y-1 gba:text-sm gba:text-destructive-secondary-foreground">
+                <li>{stageCannotDelete?.totalOpportunityCount || 0} opportunities are using this stage</li>
+              </ul>
+              <span className="gba:block gba:mt-2 gba:text-destructive-secondary-foreground gba:text-sm">
+                To delete this stage, you must first move or delete all opportunities that reference it.
+              </span>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="default"
+              onClick={() => {
+                setIsCannotDeleteDialogOpen(false)
+                setStageCannotDelete(null)
+              }}
+              data-testid={`${prefixDataTestId}-cannot-delete-confirm-button`}
+            >
+              Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }
