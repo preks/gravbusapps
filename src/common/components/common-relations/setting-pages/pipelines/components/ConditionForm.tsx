@@ -201,7 +201,11 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
     }
   }, [isOpen, editingCondition, form])
 
-  const submitButtonText = operationLoading ? 'Saving...' : editingCondition ? 'Update Condition' : 'Create Condition'
+  const getSubmitButtonText = () => {
+    if (operationLoading) return 'Saving...'
+    if (editingCondition) return 'Update Condition'
+    return 'Create Condition'
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -346,7 +350,7 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
                 Cancel
               </Button>
               <Button type="submit" disabled={operationLoading}>
-                {submitButtonText}
+                {getSubmitButtonText()}
               </Button>
             </DialogFooter>
           </form>

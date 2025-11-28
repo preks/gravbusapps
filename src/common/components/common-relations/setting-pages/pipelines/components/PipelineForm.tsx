@@ -141,7 +141,11 @@ const PipelineForm: React.FC<PipelineFormProps> = ({
     }
   }, [isOpen, editingPipeline, form])
 
-  const submitButtonText = operationLoading ? 'Saving...' : editingPipeline ? 'Update Pipeline' : 'Create Pipeline'
+  const getSubmitButtonText = () => {
+    if (operationLoading) return 'Saving...'
+    if (editingPipeline) return 'Update Pipeline'
+    return 'Create Pipeline'
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -207,7 +211,7 @@ const PipelineForm: React.FC<PipelineFormProps> = ({
                 Cancel
               </Button>
               <Button type="submit" disabled={operationLoading} data-testid={`${prefixDataTestId}-submit-button`}>
-                {submitButtonText}
+                {getSubmitButtonText()}
               </Button>
             </DialogFooter>
           </form>

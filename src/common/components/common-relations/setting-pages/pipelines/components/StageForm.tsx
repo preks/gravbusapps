@@ -165,7 +165,11 @@ const StageForm: React.FC<StageFormProps> = ({
     }
   }, [isOpen, editingStage, form])
 
-  const submitButtonText = operationLoading ? 'Saving...' : editingStage ? 'Update Stage' : 'Create Stage'
+  const getSubmitButtonText = () => {
+    if (operationLoading) return 'Saving...'
+    if (editingStage) return 'Update Stage'
+    return 'Create Stage'
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -225,7 +229,7 @@ const StageForm: React.FC<StageFormProps> = ({
                 Cancel
               </Button>
               <Button type="submit" disabled={operationLoading}>
-                {submitButtonText}
+                {getSubmitButtonText()}
               </Button>
             </DialogFooter>
           </form>
