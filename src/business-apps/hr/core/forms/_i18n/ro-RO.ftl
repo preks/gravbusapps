@@ -68,18 +68,30 @@ placeholder-enter = Vă rugăm să introduceți
 field-bonus-type = Tipul bonusului
 field-amount = Sumă
 field-currency = Monedă
-field-payment-date = Data plății
+field-payment-month = Luna plății
 field-fiscal-year = Anul fiscal
-field-description = Descriere
 field-notes = Note
 
 # Validation Messages
 validation-bonus-type-required = Tipul bonusului este obligatoriu. Vă rugăm să selectați un tip de bonus.
 validation-amount-required = Suma este obligatorie. Vă rugăm să introduceți suma bonusului.
 validation-amount-positive = Suma trebuie să fie mai mare decât zero.
-validation-currency-required = Moneda este obligatorie. Vă rugăm să selectați o monedă.
-validation-payment-date-required = Data plății este obligatorie. Vă rugăm să selectați o dată de plată.
-validation-payment-date-invalid = Vă rugăm să introduceți o dată de plată validă.
+validation-payment-month-required = Luna plății este obligatorie. Vă rugăm să selectați o lună de plată.
+validation-payment-month-invalid = Vă rugăm să selectați o lună de plată validă.
 validation-fiscal-year-required = Anul fiscal este obligatoriu. Vă rugăm să introduceți anul fiscal.
 validation-fiscal-year-range = Anul fiscal trebuie să fie între {$minYear} și {$maxYear}.
+
+# Month Names
+month-january = Ianuarie
+month-february = Februarie
+month-march = Martie
+month-april = Aprilie
+month-may = Mai
+month-june = Iunie
+month-july = Iulie
+month-august = August
+month-september = Septembrie
+month-october = Octombrie
+month-november = Noiembrie
+month-december = Decembrie
 
