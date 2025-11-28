@@ -63,7 +63,6 @@ const CompensationTab: React.FC<CompensationTabProps> = ({
   const { locale: currentLocale } = useLocale()
 
   const { loading: permissionsLoading } = useEmployeePermissions(employeeId, accessToken)
-  console.log('employee', employee)
 
   const employeeRecordAllHrBackoffice = useScopePermissionCheck(
     '/platform/employee-record',
@@ -72,6 +71,7 @@ const CompensationTab: React.FC<CompensationTabProps> = ({
   )
 
   const employeeGrowthPermission = useScopePermissionCheck('/platform/employee-record', 'employee-growth', accessToken)
+  console.log('employeeRecordAllHrBackoffice', employeeRecordAllHrBackoffice)
 
   const currentUserEmployeeId = userInfo?.employeeDetails?.employeeId || ''
   const supervisorEmployeeId = employee?.employeePosition?.supervisorEmployeeId
