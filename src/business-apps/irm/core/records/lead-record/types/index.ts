@@ -62,6 +62,6 @@ export interface SalesTaskData {
   creatorEmployee?: any
   createdAt: string
   createdBy: string
-  timingType?: string
+  taskTiming?: string
   typeRef?: string
 }
