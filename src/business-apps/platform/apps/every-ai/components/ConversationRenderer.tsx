@@ -164,6 +164,7 @@ export const ConversationRenderer: React.FC<ConversationRendererProps> = ({
                     item={output}
                     accessToken={accessToken}
                     sendMessage={sendMessage}
+                    conversation={turns}
                   />
                 )
               })}
