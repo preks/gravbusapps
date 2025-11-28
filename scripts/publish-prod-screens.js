@@ -1444,6 +1444,8 @@ async function main() {
       normalized = normalized.replace(/^\/+/, '')
       // Remove src/business-apps/ prefix if present (handles both original and converted paths)
       normalized = normalized.replace(/^src\/business-apps\//, '')
+      // Remove .ts or .tsx extension if present
+      normalized = normalized.replace(/\.tsx?$/, '')
       return normalized
     })
 
