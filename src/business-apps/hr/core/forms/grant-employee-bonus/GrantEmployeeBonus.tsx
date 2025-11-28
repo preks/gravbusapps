@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { formatDateToISO, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import FormHeader from '../components/FormHeader'
 import { LocalizationProvider, useTranslation, type SupportedLocale } from '@newwork/nw-design-system'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
@@ -20,23 +20,31 @@ const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ addition
   const employee = useMemo(() => data?.employee?.EmployeeByPk, [data])
   const catalogs = useMemo(
     () => ({
-      bonusType: data?.catalogs?.bonusType || [],
-      currency: data?.catalogs?.currency || []
+      bonusType: data?.catalogs?.bonusType || []
     }),
     [data]
   )
+
+  // Get currency from employee bank account - memoize to prevent form resets
+  const employeeCurrency = useMemo(() => data?.employeeCurrency, [data])
+  const currencyRef = useMemo(() => employeeCurrency?.currencyRef || '', [employeeCurrency?.currencyRef])
+  const currencyDisplay = useMemo(() => {
+    if (!currencyRef) return ''
+    // Extract currency code from ref (e.g., "Currency:v1:USD" -> "USD")
+    const parts = currencyRef.split(':')
+    return parts[parts.length - 1] || ''
+  }, [currencyRef])
 
   const defaultValues: GrantEmployeeBonusFormValues = useMemo(
     () => ({
       employeeBonusTypeRef: '',
       amount: null,
-      currencyRef: '',
-      paymentDate: '',
+      currencyRef: currencyRef,
+      paymentMonth: new Date().getMonth() + 1, // 1-12 for Jan-Dec
       fiscalYear: new Date().getFullYear(),
-      description: '',
       notes: ''
     }),
-    []
+    [currencyRef]
   )
 
   const form = useForm<GrantEmployeeBonusFormValues>({
@@ -61,8 +69,7 @@ const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ addition
 
     return {
       ...defaultValues,
-      employeeBonusTypeRef: findId(catalogs.bonusType, defaultValues.employeeBonusTypeRef),
-      currencyRef: findId(catalogs.currency, defaultValues.currencyRef)
+      employeeBonusTypeRef: findId(catalogs.bonusType, defaultValues.employeeBonusTypeRef)
     } as GrantEmployeeBonusFormValues
   }, [defaultValues, catalogs])
 
@@ -84,9 +91,8 @@ const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ addition
     employeeBonusTypeRef: v.employeeBonusTypeRef || '',
     amount: v.amount || null,
     currencyRef: v.currencyRef || '',
-    paymentDate: v.paymentDate || '',
+    paymentMonth: v.paymentMonth || new Date().getMonth() + 1,
     fiscalYear: v.fiscalYear || new Date().getFullYear(),
-    description: v.description || '',
     notes: v.notes || ''
   })
 
@@ -140,11 +146,10 @@ const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ addition
                 employeeBonusTypeRef:
                   values.employeeBonusTypeRef && values.employeeBonusTypeRef !== '' ? values.employeeBonusTypeRef : '',
                 amount: values.amount || 0,
-                currencyRef: values.currencyRef && values.currencyRef !== '' ? values.currencyRef : '',
-                paymentDate: values.paymentDate ? formatDateToISO(new Date(values.paymentDate)) : '',
+                currencyRef: currencyRef || '',
+                paymentMonth: values.paymentMonth || 0,
                 fiscalYear: values.fiscalYear || new Date().getFullYear(),
                 status: CompensationStatus.APPROVED, // Set to APPROVED_COMPENSATION until approval process is implemented
-                description: values.description || '',
                 notes: values.notes || ''
               }
             }
@@ -155,7 +160,7 @@ const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ addition
         >
           <div className="gba:flex-1 gba:space-y-4" data-testid="grant-employee-bonus-groups">
             {/* Bonus Details Group */}
-            <BonusDetailsGroup control={form.control} catalogs={catalogs} t={t} />
+            <BonusDetailsGroup control={form.control} catalogs={catalogs} currencyDisplay={currencyDisplay} t={t} />
           </div>
         </AppActionForm>
       </div>
