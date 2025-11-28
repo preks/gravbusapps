@@ -2,7 +2,7 @@
  * GraphQL queries for employee compensation data
  *
  * Database tables:
- * - EmployeeWorkingCondition - Contains salary data (monthlyGrossSalary, annualGrossSalary, stockOptions)
+ * - EmployeeSalary - Contains salary data (monthlyGrossSalary, annualGrossSalary, hourlyGrossSalary)
  * - CompensationBand - Salary bands and pay grades
  * - EmployeeBonus - Bonus payments tracking
  * - EmployeeBenefit - Employee benefits and perks
@@ -18,31 +18,44 @@ import { CATALOG_ENTRY_REF } from '@/common/data/catalog/queries/catalogFragment
 
 /**
  * Query for current employee compensation
- * Fetches from EmployeeWorkingCondition and CompensationBand
+ * Fetches from EmployeeSalary (latest active salary) and CompensationBand
+ *
+ * Logic:
+ * 1. Fetches all non-deleted salaries for the employee, ordered by activeFrom DESC, then createdAt DESC
+ * 2. Client-side filtering selects active salary (activeFrom <= now AND activeTo >= now OR activeTo IS NULL)
+ * 3. Falls back to most recent salary if no active salary found
+ * 4. Shows "No active salary configured" message if no salaries exist
  */
 export const GET_EMPLOYEE_COMPENSATION_DATA = /*sql*/ `
   query GetEmployeeCompensationData($employeeId: uuid!) {
-    # Current working condition with salary information
-    EmployeeWorkingCondition(
+    # EmployeeSalary - Contains salary data
+    # Note: isDeleted filtering is done client-side to handle all edge cases
+    # Ordering ensures most recent/active salaries are first
+    AllEmployeeSalaries: EmployeeSalary(
       where: {
         employeeId: {_eq: $employeeId}
+        isDeleted: {_eq: false}
       }
-      orderBy: {createdAt: DESC}
-      limit: 1
+      orderBy: [{activeFrom: DESC}, {createdAt: DESC}]
     ) {
       id
       employeeId
-      monthlyGrossSalary
       annualGrossSalary
+      monthlyGrossSalary
       hourlyGrossSalary
+      stockOptions
       currency {
         id
         code
         value
       }
       currencyRef
-      hireDate
-      exitDate
+      activeFrom
+      activeTo
+      startDate
+      endDate
+      createdAt
+      isDeleted
     }
     
     # Compensation band via employee position and job level
@@ -147,31 +160,36 @@ export const GET_EMPLOYEE_COMPENSATION_DATA = /*sql*/ `
 
 /**
  * Query for employee compensation history
- * Fetches all historical working conditions and bonus records
+ * Fetches all historical salary records and bonus records
  */
 export const GET_EMPLOYEE_COMPENSATION_HISTORY = /*sql*/ `
   query GetEmployeeCompensationHistory($employeeId: uuid!) {
-    # Historical working conditions with salary changes
-    EmployeeWorkingCondition(
+    # Historical salary records with salary changes
+    # Ordering: NULLS_LAST ensures null activeFrom goes to end for consistent fallback behavior
+    AllEmployeeSalaries: EmployeeSalary(
       where: {
         employeeId: {_eq: $employeeId}
+        isDeleted: {_eq: false}
       }
-      orderBy: {createdAt: DESC}
+      orderBy: [{activeFrom: DESC_NULLS_LAST}, {createdAt: DESC}]
     ) {
       id
       employeeId
-      monthlyGrossSalary
       annualGrossSalary
+      monthlyGrossSalary
+      hourlyGrossSalary
+      stockOptions
       currency {
         id
         code
         value
       }
       currencyRef
-      hireDate
-      exitDate
+      activeFrom
+      activeTo
+      startDate
+      endDate
       createdAt
-      updatedAt
     }
     
     # Historical bonus records
