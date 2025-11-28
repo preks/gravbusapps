@@ -131,7 +131,7 @@ export const usePipelineSettings = (
           if (stageId) {
             // Find which pipeline this stage belongs to
             const stage = stagesResult.data.find(s => s.id === stageId)
-            if (stage && stage.parentEntryId) {
+            if (stage?.parentEntryId) {
               conditionCountMap.set(stage.parentEntryId, (conditionCountMap.get(stage.parentEntryId) || 0) + 1)
             }
           }

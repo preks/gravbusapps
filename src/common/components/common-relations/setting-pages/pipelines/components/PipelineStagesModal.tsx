@@ -14,6 +14,7 @@ interface PipelineStagesModalProps extends BusinessAppContextProps {
     version?: string
   }
   prefixDataTestId?: string
+  onStagesUpdated?: () => void
 }
 
 const PipelineStagesModal: React.FC<PipelineStagesModalProps> = ({
@@ -22,11 +23,13 @@ const PipelineStagesModal: React.FC<PipelineStagesModalProps> = ({
   pipeline,
   catalogConfig,
   prefixDataTestId = 'pipeline-stages-modal',
-  accessToken
+  accessToken,
+  onStagesUpdated
 }) => {
   const [, setStages] = useState<any[]>([])
   const [isConditionsModalOpen, setIsConditionsModalOpen] = useState(false)
   const [selectedStageForConditions, setSelectedStageForConditions] = useState<any>(null)
+  const [stagesFormKey, setStagesFormKey] = useState(0)
 
   const handleStagesChange = (newStages: any[]) => {
     setStages(newStages)
@@ -40,6 +43,12 @@ const PipelineStagesModal: React.FC<PipelineStagesModalProps> = ({
   const handleCloseConditionsModal = () => {
     setIsConditionsModalOpen(false)
     setSelectedStageForConditions(null)
+  }
+
+  const handleConditionsUpdated = () => {
+    // Force StagesForm to re-fetch and update condition counts
+    setStagesFormKey(prev => prev + 1)
+    onStagesUpdated?.()
   }
 
   if (!pipeline) {
@@ -56,10 +65,12 @@ const PipelineStagesModal: React.FC<PipelineStagesModalProps> = ({
           </DialogHeader>
 
           <StagesForm
+            key={stagesFormKey}
             pipeline={pipeline}
             catalogConfig={catalogConfig}
             onStagesChange={handleStagesChange}
             onViewConditions={handleViewConditions}
+            onStagesUpdated={onStagesUpdated}
             prefixDataTestId={prefixDataTestId}
             accessToken={accessToken}
           />
@@ -75,6 +86,7 @@ const PipelineStagesModal: React.FC<PipelineStagesModalProps> = ({
           conditionCatalog: catalogConfig.conditionCatalog || '',
           version: catalogConfig.version
         }}
+        onConditionsUpdated={handleConditionsUpdated}
         prefixDataTestId={prefixDataTestId}
         accessToken={accessToken}
       />

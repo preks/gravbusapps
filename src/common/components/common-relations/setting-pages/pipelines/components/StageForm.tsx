@@ -76,7 +76,7 @@ const StageForm: React.FC<StageFormProps> = ({
       setOperationLoading(true)
 
       // Auto-generate code from stage name
-      const code = data.value.toUpperCase().replace(/[^A-Z0-9]/g, '_')
+      const code = data.value.toUpperCase().replaceAll(/[^A-Z0-9]/g, '_')
       const displayOrder = 1 // Will be calculated based on existing stages
 
       const newStageEntry = {
@@ -115,16 +115,13 @@ const StageForm: React.FC<StageFormProps> = ({
       const currentStage = await catalogClient.getCatalogEntryById(editingStage.id)
 
       const updateData = {
-        // Required fields that must be preserved
         id: editingStage.id,
-        code: editingStage.code, // Keep original code - cannot be updated
+        code: editingStage.code,
         value: data.value,
         type: data.type,
-        alternativeCode: data.type, // Set alternativeCode as fallback for type
+        alternativeCode: data.type,
         parentEntryId: editingStage.parentEntryId || currentStage.parentEntryId,
         displayOrder: editingStage.displayOrder || currentStage.displayOrder,
-
-        // Additional fields - preserve existing values
         additionalValue1:
           editingStage.displayOrder?.toString().padStart(2, '0') || currentStage.additionalValue1 || '01',
         additionalValue2: currentStage.additionalValue2 || undefined,
@@ -132,7 +129,12 @@ const StageForm: React.FC<StageFormProps> = ({
         objectValue: editingStage.objectValue || currentStage.objectValue || {}
       }
 
-      await catalogClient.updateCatalogEntry(editingStage.id, updateData)
+      await catalogClient.updateCatalogEntry(
+        catalogConfig.stageCatalog,
+        catalogConfig.version || 'v1',
+        editingStage.id,
+        updateData
+      )
 
       onClose()
       form.reset()
@@ -162,6 +164,12 @@ const StageForm: React.FC<StageFormProps> = ({
       }
     }
   }, [isOpen, editingStage, form])
+
+  const getSubmitButtonText = () => {
+    if (operationLoading) return 'Saving...'
+    if (editingStage) return 'Update Stage'
+    return 'Create Stage'
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -221,7 +229,7 @@ const StageForm: React.FC<StageFormProps> = ({
                 Cancel
               </Button>
               <Button type="submit" disabled={operationLoading}>
-                {operationLoading ? 'Saving...' : editingStage ? 'Update Stage' : 'Create Stage'}
+                {getSubmitButtonText()}
               </Button>
             </DialogFooter>
           </form>
