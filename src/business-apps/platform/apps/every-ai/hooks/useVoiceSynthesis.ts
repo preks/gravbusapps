@@ -322,8 +322,14 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
     [speakTextInternal]
   )
 
-  // Stop current speech
+  // Stop current speech and clear queue
   const stop = useCallback(() => {
+    console.log('[TTS] Stopping all speech')
+    
+    // Clear the queue FIRST to prevent any new speech
+    audioQueueRef.current = []
+    isProcessingQueueRef.current = false
+
     // Abort pending request
     if (abortControllerRef.current) {
       abortControllerRef.current.abort()

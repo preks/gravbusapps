@@ -89,33 +89,59 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     }
   })
 
+  // Track when AI stopped speaking to ignore echo
+  const aiStoppedSpeakingAtRef = useRef<number>(0)
+  // Track which form summary we've already spoken (prevent loops)
+  const spokenFormSummaryRef = useRef<string | null>(null)
+
   // Voice synthesis hook with auto-restart listening on end
   const voiceSynthesis = useVoiceSynthesis({
     voice: 'nova',
     speed: 1.0,
     accessToken,
+    onStart: () => {
+      // STOP listening when AI starts speaking to prevent feedback loop
+      console.log('🔇 [Voice] AI speaking started - stopping mic')
+      voiceInput.cancelListening()
+    },
     onEnd: () => {
-      // Auto-restart listening after AI finishes speaking
-      if (isSpeechModeRef.current && !voiceInput.isListening) {
-        console.log('🎤 [Voice] Auto-restarting listening after AI speech')
-        setTimeout(() => {
-          if (isSpeechModeRef.current) {
-            voiceInput.startListening()
-          }
-        }, 300) // Small delay for natural conversation flow
+      // Record when AI stopped speaking (for echo filtering)
+      aiStoppedSpeakingAtRef.current = Date.now()
+      // Auto-restart listening IMMEDIATELY
+      if (isSpeechModeRef.current) {
+        console.log('🎤 [Voice] AI finished speaking - restarting listening immediately')
+        voiceInput.startListening()
       }
     }
   })
 
+  // Stop AI speech when user starts talking (detected by interim transcript or volume)
+  useEffect(() => {
+    if (isSpeechMode && voiceSynthesis.isSpeaking) {
+      // User is speaking - stop the AI
+      if (voiceInput.interimTranscript || voiceInput.volume > 0.15) {
+        console.log('🔇 [Voice] User speaking - stopping AI speech')
+        voiceSynthesis.stop()
+      }
+    }
+  }, [isSpeechMode, voiceSynthesis, voiceInput.interimTranscript, voiceInput.volume])
+
   // Toggle speech mode
   const toggleSpeechMode = useCallback(() => {
     if (isSpeechMode) {
-      // Exiting speech mode
+      // Exiting speech mode - IMMEDIATELY stop everything
+      console.log('🎤 [Voice] Exiting speech mode - stopping all audio')
+      isSpeechModeRef.current = false // Set ref FIRST to prevent any queued operations
       setIsSpeechMode(false)
-      isSpeechModeRef.current = false
       voiceInput.cancelListening()
       voiceSynthesis.stop()
+      // Force stop again after a small delay in case streaming is in progress
+      setTimeout(() => {
+        voiceSynthesis.stop()
+      }, 100)
       voiceForm.setIsVoiceMode(false)
+      voiceForm.clearPendingFormSummary()
+      voiceForm.setActiveForm(null) // Clear any active form registration
     } else {
       // Entering speech mode - auto-start listening
       setIsSpeechMode(true)
@@ -134,11 +160,28 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
 
   // Speak pending form summaries when a form appears in voice mode
   useEffect(() => {
-    if (voiceForm.pendingFormSummary && isSpeechMode) {
-      console.log('🔊 [Voice Form] Speaking form summary:', voiceForm.pendingFormSummary.substring(0, 60) + '...')
-      voiceSynthesis.speak(voiceForm.pendingFormSummary)
-      voiceForm.clearPendingFormSummary()
+    // Skip if no pending summary or not in speech mode
+    if (!voiceForm.pendingFormSummary || !isSpeechModeRef.current || !isSpeechMode) {
+      return
     }
+
+    // DON'T speak if already speaking (prevents queue buildup and loops)
+    if (voiceSynthesis.isSpeaking || voiceSynthesis.isLoading) {
+      console.log('🔊 [Voice Form] Skipping - already speaking')
+      return
+    }
+
+    // CRITICAL: Check if we already spoke this exact summary (prevent loops)
+    if (spokenFormSummaryRef.current === voiceForm.pendingFormSummary) {
+      console.log('🔊 [Voice Form] Already spoke this summary, skipping')
+      voiceForm.clearPendingFormSummary()
+      return
+    }
+
+    console.log('🔊 [Voice Form] Speaking form summary:', voiceForm.pendingFormSummary.substring(0, 60) + '...')
+    spokenFormSummaryRef.current = voiceForm.pendingFormSummary
+    voiceSynthesis.speak(voiceForm.pendingFormSummary)
+    voiceForm.clearPendingFormSummary()
   }, [voiceForm.pendingFormSummary, isSpeechMode, voiceSynthesis, voiceForm])
 
   // Handle keyboard shortcuts
@@ -155,20 +198,50 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
 
   // Auto-speak new AI responses in speech mode - trigger as soon as answer appears
   useEffect(() => {
-    if (!isSpeechMode) return
+    // Double-check both state and ref to prevent speaking after mode exit
+    if (!isSpeechMode || !isSpeechModeRef.current) {
+      console.log('🔊 [TTS] Not in speech mode, skipping')
+      return
+    }
+
+    // DON'T speak if AI is already speaking (prevents overlap/loops)
+    if (voiceSynthesis.isSpeaking || voiceSynthesis.isLoading) {
+      console.log('🔊 [TTS] Already speaking/loading, skipping')
+      return
+    }
+
+    // DON'T speak if there's an active form (the form summary effect handles that)
+    if (voiceForm.activeForm) {
+      console.log('🔊 [TTS] Active form present, skipping')
+      lastSpokenTurnIndexRef.current = conversation.length - 1
+      return
+    }
+
+    console.log('🔊 [TTS] Checking conversation for new responses. Length:', conversation.length, 'lastSpoken:', lastSpokenTurnIndexRef.current)
 
     // Find the latest agent turn with an answer (don't wait for isLoading to finish)
     for (let i = conversation.length - 1; i > lastSpokenTurnIndexRef.current; i--) {
       const turn = conversation[i]
+      console.log('🔊 [TTS] Checking turn', i, 'side:', turn.side)
 
       if (turn.side === 'agent') {
+        // Skip if this turn has a flow_proposal (form) - let form summary handle it
+        const hasFlowProposal = turn.outputs?.some((o: OutputItem) => o.type === 'flow_proposal')
+        if (hasFlowProposal) {
+          console.log('🔊 [TTS] Turn has flow_proposal, skipping')
+          lastSpokenTurnIndexRef.current = i
+          continue
+        }
+
         // Find the answer output
         const answerOutput = turn.outputs?.find((o: OutputItem): o is AnswerOutput => o.type === 'answer')
+        console.log('🔊 [TTS] Answer output:', answerOutput ? 'FOUND' : 'NOT FOUND', 'outputs:', turn.outputs?.map(o => o.type))
 
         if (answerOutput?.displayData) {
           // Extract text from display data
           const textParts: string[] = []
           for (const data of answerOutput.displayData) {
+            console.log('🔊 [TTS] Display data type:', data.type)
             if (data.type === 'textBlock' && data.text) {
               // Clean markdown for speech
               const cleanText = data.text
@@ -184,22 +257,26 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
             }
           }
 
-          if (textParts.length > 0) {
+          console.log('🔊 [TTS] Text parts:', textParts.length, textParts)
+
+          if (textParts.length > 0 && isSpeechModeRef.current) {
             const textToSpeak = textParts.join('. ')
             // Limit to first ~500 characters to avoid very long speeches
             const truncatedText = textToSpeak.length > 500 ? textToSpeak.substring(0, 500) + '...' : textToSpeak
             console.log('🔊 [TTS] Speaking:', truncatedText.substring(0, 80) + '...')
             voiceSynthesis.speak(truncatedText)
             lastSpokenTurnIndexRef.current = i
+            break // Only speak one response at a time
           }
         }
       }
     }
-  }, [conversation, isSpeechMode, voiceSynthesis])
+  }, [conversation, isSpeechMode, voiceSynthesis.isSpeaking, voiceSynthesis.isLoading, voiceForm.activeForm])
 
   // Auto-navigate in speech mode when AI returns a navigation action
   useEffect(() => {
-    if (!isSpeechMode) return
+    // Double-check both state and ref to prevent navigation after mode exit
+    if (!isSpeechMode || !isSpeechModeRef.current) return
 
     // Find the latest agent turn with a navigation (don't wait for isLoading to finish)
     for (let i = conversation.length - 1; i > lastNavigatedTurnIndexRef.current; i--) {
@@ -237,43 +314,68 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
         const cleanText = text.trim()
         console.log('🎤 [Voice] Received:', cleanText)
 
+        // IMPORTANT: Ignore very short inputs (likely noise/echo)
+        if (cleanText.length < 2) {
+          console.log('🎤 [Voice] Ignoring too short input:', cleanText)
+          voiceInput.resetTranscript()
+          return
+        }
+
+        // ECHO FILTER: Ignore transcripts that arrive within 800ms of AI stopping
+        // This prevents the microphone from picking up the AI's voice
+        const timeSinceAIStopped = Date.now() - aiStoppedSpeakingAtRef.current
+        if (timeSinceAIStopped < 800) {
+          console.log('🎤 [Voice] Ignoring echo (too soon after AI stopped):', cleanText, `(${timeSinceAIStopped}ms)`)
+          voiceInput.resetTranscript()
+          return
+        }
+
+        // Stop AI speech immediately when user speaks
+        voiceSynthesis.stop()
+
         // Check if there's an active form and if this is a form command
+        console.log('🎤 [Voice] activeForm check:', voiceForm.activeForm ? 'HAS ACTIVE FORM' : 'NO ACTIVE FORM')
         if (voiceForm.activeForm) {
           const command = voiceForm.parseVoiceCommand(cleanText)
-          console.log('🎤 [Voice Form] Parsed command:', command)
+          console.log('🎤 [Voice Form] Parsed command:', command, 'from text:', cleanText)
 
           if (command.type === 'confirm') {
             console.log('🎤 [Voice Form] Confirming and submitting form')
-            voiceSynthesis.stop()
+            // Clear active form IMMEDIATELY to prevent re-announcing
+            const submitHandler = voiceForm.activeForm.submitHandler
+            voiceForm.setActiveForm(null)
+            voiceForm.clearPendingFormSummary()
             voiceSynthesis.speak('Submitting the form now.')
-            voiceForm.activeForm.submitHandler()
+            submitHandler()
             voiceInput.resetTranscript()
             return
           }
 
           if (command.type === 'cancel') {
             console.log('🎤 [Voice Form] Cancelling form')
-            voiceSynthesis.stop()
+            // Clear active form IMMEDIATELY to prevent re-announcing
+            const cancelHandler = voiceForm.activeForm.cancelHandler
+            voiceForm.setActiveForm(null)
+            voiceForm.clearPendingFormSummary()
             voiceSynthesis.speak('Cancelling the form.')
-            voiceForm.activeForm.cancelHandler()
+            cancelHandler()
             voiceInput.resetTranscript()
             return
           }
 
           if (command.type === 'modify') {
             console.log('🎤 [Voice Form] Modifying field:', command.field, 'to:', command.value)
-            voiceSynthesis.stop()
             voiceForm.activeForm.updateField(command.field, command.value)
             voiceSynthesis.speak(`Updated ${command.field} to ${command.value}. Say "submit" when ready.`)
             voiceInput.resetTranscript()
             return
           }
 
-          // Unknown command with active form - ask for clarification
+          // Unknown command with active form
           if (command.type === 'unknown') {
-            // Check if it might be a question or new request (not form-related)
             const lowerText = cleanText.toLowerCase()
-            const isLikelyNewRequest =
+            // Check if it's clearly a new request
+            const isNewRequest =
               lowerText.includes('?') ||
               lowerText.startsWith('what') ||
               lowerText.startsWith('how') ||
@@ -285,23 +387,29 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
               lowerText.startsWith('i want') ||
               lowerText.startsWith('i need') ||
               lowerText.startsWith('show me') ||
-              lowerText.startsWith('find')
+              lowerText.startsWith('find') ||
+              lowerText.startsWith('create') ||
+              lowerText.startsWith('make')
 
-            if (!isLikelyNewRequest) {
-              // Probably trying to interact with the form but unclear
-              voiceSynthesis.stop()
-              voiceSynthesis.speak(
-                `I have a form ready. Say "submit" to confirm, "cancel" to discard, or "change" followed by the field name and new value.`
-              )
+            if (isNewRequest) {
+              // Treat as a new request - send to chat
+              // Exit form mode so TTS is allowed to speak the response
+              voiceForm.setActiveForm(null)
+              voiceForm.clearPendingFormSummary()
+              sendMessage(cleanText, [], false, false, undefined)
               voiceInput.resetTranscript()
               return
             }
-            // Otherwise treat as a new request (fall through)
+
+            // NOT a new request and NOT a valid form command
+            // SILENTLY ignore to prevent feedback loop - just keep listening
+            console.log('🎤 [Voice Form] Unknown input, ignoring silently:', cleanText)
+            voiceInput.resetTranscript()
+            return
           }
         }
 
-        // No active form or new request - send as regular chat message
-        voiceSynthesis.stop()
+        // No active form - send as regular chat message
         sendMessage(cleanText, [], false, false, undefined)
         voiceInput.resetTranscript()
       }
@@ -356,6 +464,32 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
         transcript={voiceInput.transcript}
         interimTranscript={voiceInput.interimTranscript}
         currentSpeechText={voiceSynthesis.currentText}
+        activeForm={
+          voiceForm.activeForm
+            ? {
+                flowName: voiceForm.activeForm.flowName,
+                fields: Object.entries(voiceForm.activeForm.formData || {})
+                  .filter(([key, value]) => {
+                    if (value === undefined || value === null || value === '') return false
+                    if (key.toLowerCase().includes('version')) return false
+                    if (key === 'changeMode') return false
+                    // Skip UUID values (e.g., owner employee IDs)
+                    if (typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) return false
+                    // Skip fields that end with Id or Ref (like ownerEmployeeId)
+                    if (key.toLowerCase().endsWith('id') || key.toLowerCase().endsWith('ref')) return false
+                    return true
+                  })
+                  .map(([key, value]) => ({
+                    name: key
+                      .replace(/([A-Z])/g, ' $1')
+                      .replace(/_/g, ' ')
+                      .trim()
+                      .replace(/\b\w/g, c => c.toUpperCase()),
+                    value: typeof value === 'object' ? JSON.stringify(value) : String(value)
+                  }))
+              }
+            : null
+        }
         onClose={toggleSpeechMode}
         onStartListening={voiceInput.startListening}
         onStopListening={voiceInput.stopListening}

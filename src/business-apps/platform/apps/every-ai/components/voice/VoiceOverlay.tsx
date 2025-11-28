@@ -11,6 +11,16 @@
 import React, { useEffect, useRef } from 'react'
 import { Button } from '@newwork/nw-design-system'
 
+interface FormFieldSummary {
+  name: string
+  value: string
+}
+
+interface ActiveFormSummary {
+  flowName: string
+  fields: FormFieldSummary[]
+}
+
 interface VoiceOverlayProps {
   isVisible: boolean
   isListening: boolean
@@ -20,6 +30,7 @@ interface VoiceOverlayProps {
   transcript: string
   interimTranscript: string
   currentSpeechText: string | null
+  activeForm?: ActiveFormSummary | null
   onClose: () => void
   onStartListening: () => void
   onStopListening: () => void
@@ -36,6 +47,7 @@ export const VoiceOverlay: React.FC<VoiceOverlayProps> = ({
   transcript,
   interimTranscript,
   currentSpeechText,
+  activeForm,
   onClose,
   onStartListening,
   onStopListening,
@@ -240,6 +252,58 @@ export const VoiceOverlay: React.FC<VoiceOverlayProps> = ({
           </p>
         </div>
       </div>
+
+      {/* Active Form Summary Card */}
+      {activeForm && (
+        <div
+          className="gba:absolute gba:top-20 gba:left-4 gba:right-4 gba:max-w-md gba:mx-auto gba:z-20"
+          data-testid="voice-form-summary"
+        >
+          <div className="gba:p-4 gba:rounded-2xl gba:bg-gradient-to-br gba:from-card gba:to-card/80 gba:backdrop-blur-lg gba:border-2 gba:border-primary/30 gba:shadow-2xl">
+            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
+              <div className="gba:h-8 gba:w-8 gba:rounded-lg gba:bg-gradient-to-br gba:from-primary gba:to-info gba:flex gba:items-center gba:justify-center">
+                <svg className="gba:h-4 gba:w-4 gba:text-primary-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="gba:text-sm gba:font-bold gba:text-foreground">{activeForm.flowName}</h3>
+                <p className="gba:text-xs gba:text-muted-foreground">Ready to submit</p>
+              </div>
+            </div>
+            
+            {/* Form Fields */}
+            <div className="gba:space-y-2 gba:mb-3">
+              {activeForm.fields.slice(0, 5).map((field, idx) => (
+                <div key={idx} className="gba:flex gba:justify-between gba:items-center gba:text-sm gba:py-1 gba:px-2 gba:rounded gba:bg-muted/50">
+                  <span className="gba:text-muted-foreground gba:font-medium">{field.name}</span>
+                  <span className="gba:text-foreground gba:truncate gba:max-w-[150px]" title={field.value}>
+                    {field.value || <span className="gba:text-muted-foreground/50 gba:italic">empty</span>}
+                  </span>
+                </div>
+              ))}
+              {activeForm.fields.length > 5 && (
+                <p className="gba:text-xs gba:text-muted-foreground gba:text-center">
+                  +{activeForm.fields.length - 5} more fields
+                </p>
+              )}
+            </div>
+            
+            {/* Voice Commands Hint */}
+            <div className="gba:flex gba:flex-wrap gba:gap-2 gba:justify-center">
+              <span className="gba:px-2 gba:py-1 gba:rounded-full gba:bg-success/20 gba:text-success gba:text-xs gba:font-semibold">
+                "Submit"
+              </span>
+              <span className="gba:px-2 gba:py-1 gba:rounded-full gba:bg-destructive/20 gba:text-destructive gba:text-xs gba:font-semibold">
+                "Cancel"
+              </span>
+              <span className="gba:px-2 gba:py-1 gba:rounded-full gba:bg-info/20 gba:text-info gba:text-xs gba:font-semibold">
+                "Change X to Y"
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Animated Orb Canvas */}
       <canvas

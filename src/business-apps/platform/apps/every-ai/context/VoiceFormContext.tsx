@@ -8,7 +8,7 @@
  * 4. Auto-submits or cancels based on voice commands
  */
 
-import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react'
+import React, { createContext, useContext, useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import type { FlowProposalOutput } from '../types/models'
 
 // Voice command patterns for form interactions
@@ -107,6 +107,39 @@ export function VoiceFormProvider({ children }: { children: React.ReactNode }) {
   const [pendingFormSummary, setPendingFormSummary] = useState<string | null>(null)
   const lastFormUuidRef = useRef<string | null>(null)
 
+  // Heuristic: infer the most likely "name-like" field to update when user omits field name
+  function inferDefaultFieldName(form: ActiveForm | null): string | null {
+    if (!form) return null
+    const preferredOrder = ['name', 'displayName', 'title', 'subject']
+    const candidatesSet = new Set<string>()
+    try {
+      // From current form data keys
+      Object.keys(form.formData || {}).forEach(k => candidatesSet.add(k))
+      // From top-level schema properties (best-effort)
+      const props = (form.data as any)?.flow_schema?.properties
+      if (props && typeof props === 'object') {
+        Object.keys(props).forEach(k => candidatesSet.add(k))
+      }
+    } catch {
+      // ignore schema parsing errors
+    }
+    const candidates = Array.from(candidatesSet).map(k => k.toString())
+    // Exact preferred matches
+    for (const p of preferredOrder) {
+      if (candidates.includes(p)) return p
+    }
+    // Contains "name" anywhere
+    const containsName = candidates.find(k => k.toLowerCase().includes('name'))
+    if (containsName) return containsName
+    // Contains "title"
+    const containsTitle = candidates.find(k => k.toLowerCase().includes('title'))
+    if (containsTitle) return containsTitle
+    // As a last resort, try a common CRM alias
+    const containsSubject = candidates.find(k => k.toLowerCase().includes('subject'))
+    if (containsSubject) return containsSubject
+    return null
+  }
+
   // Set active form and generate summary if in voice mode
   const setActiveForm = useCallback(
     (form: ActiveForm | null) => {
@@ -143,7 +176,7 @@ export function VoiceFormProvider({ children }: { children: React.ReactNode }) {
       return { type: 'cancel' }
     }
 
-    // Check for modification patterns
+    // Check for explicit modification patterns ("change name to ...")
     for (const pattern of MODIFICATION_PATTERNS) {
       const match = lowerTranscript.match(pattern)
       if (match) {
@@ -151,8 +184,24 @@ export function VoiceFormProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
+    // Fallback patterns that omit the field ("change to ...", "rename to ...")
+    const renameMatch = lowerTranscript.match(/^rename\s+(?:to\s+)?(.+)/i)
+    if (renameMatch) {
+      const inferred = inferDefaultFieldName(activeForm)
+      if (inferred) {
+        return { type: 'modify', field: inferred, value: renameMatch[1].trim() }
+      }
+    }
+    const defaultChangeMatch = lowerTranscript.match(/^(?:change|update|set|make)\s+(?:to\s+)?(.+)/i)
+    if (defaultChangeMatch) {
+      const inferred = inferDefaultFieldName(activeForm)
+      if (inferred) {
+        return { type: 'modify', field: inferred, value: defaultChangeMatch[1].trim() }
+      }
+    }
+
     return { type: 'unknown', text: transcript }
-  }, [])
+  }, [activeForm])
 
   // Check if a transcript looks like a form command
   const isFormCommand = useCallback(
@@ -169,7 +218,13 @@ export function VoiceFormProvider({ children }: { children: React.ReactNode }) {
   const generateFormSummary = useCallback((form: FlowProposalOutput, formData: Record<string, any>): string => {
     const flowName = formatFlowName(form.flow_name || 'form')
 
-    // Extract key fields to mention
+    // Helper to check if a value looks like a UUID
+    const isUUID = (val: unknown): boolean => {
+      if (typeof val !== 'string') return false
+      return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)
+    }
+
+    // Extract key fields to mention (skip UUIDs and technical fields)
     const keyFields: string[] = []
     const importantFields = [
       'name',
@@ -189,6 +244,8 @@ export function VoiceFormProvider({ children }: { children: React.ReactNode }) {
     for (const field of importantFields) {
       if (formData[field] !== undefined && formData[field] !== null && formData[field] !== '') {
         const value = formData[field]
+        // Skip UUID values
+        if (isUUID(value)) continue
         const displayValue = typeof value === 'object' ? JSON.stringify(value) : String(value)
         keyFields.push(`${formatFieldName(field)}: ${displayValue}`)
       }
@@ -204,7 +261,10 @@ export function VoiceFormProvider({ children }: { children: React.ReactNode }) {
         !key.toLowerCase().includes('id') &&
         !key.toLowerCase().includes('version') &&
         !key.toLowerCase().includes('ref') &&
-        typeof value !== 'object'
+        !key.toLowerCase().includes('employee') &&
+        !key.toLowerCase().includes('owner') &&
+        typeof value !== 'object' &&
+        !isUUID(value)
       ) {
         if (keyFields.length < 5) {
           // Limit to 5 fields for brevity
@@ -231,17 +291,30 @@ export function VoiceFormProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isVoiceMode])
 
-  const value: VoiceFormContextValue = {
-    activeForm,
-    setActiveForm,
-    isVoiceMode,
-    setIsVoiceMode,
-    pendingFormSummary,
-    clearPendingFormSummary,
-    parseVoiceCommand,
-    isFormCommand,
-    generateFormSummary
-  }
+  // Memoize the context value to prevent infinite loops in consumers
+  const value: VoiceFormContextValue = useMemo(
+    () => ({
+      activeForm,
+      setActiveForm,
+      isVoiceMode,
+      setIsVoiceMode,
+      pendingFormSummary,
+      clearPendingFormSummary,
+      parseVoiceCommand,
+      isFormCommand,
+      generateFormSummary
+    }),
+    [
+      activeForm,
+      setActiveForm,
+      isVoiceMode,
+      pendingFormSummary,
+      clearPendingFormSummary,
+      parseVoiceCommand,
+      isFormCommand,
+      generateFormSummary
+    ]
+  )
 
   return <VoiceFormContext.Provider value={value}>{children}</VoiceFormContext.Provider>
 }
