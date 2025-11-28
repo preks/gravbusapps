@@ -12,7 +12,6 @@ import { ActivityTimeline } from './components/ActivityTimeline'
 import { TasksSection } from './components/TasksSection'
 import { OpportunityStageProgression } from './components/OpportunityStageProgression'
 import { OpportunityDocuments } from './components/OpportunityDocuments'
-import { EveryAI } from '@/business-apps/platform/apps/every-ai/EveryAI'
 
 interface OpportunityRecordContentProps extends BusinessAppContextProps {
   opportunityId: string
@@ -218,11 +217,6 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
           </TabsContent>
         </Tabs>
       </div>
-      {props.accessToken ? (
-        <div className="gba:mt-6" data-testid="crm-opportunity-everyai-container">
-          <EveryAI {...props} />
-        </div>
-      ) : null}
     </div>
   )
 }

@@ -10,7 +10,6 @@ import { useAccountData } from './hooks/useAccountData'
 import { OpportunityView } from './views/opportunity-view/OpportunityView'
 import { FileManager } from '@/components/file-manager'
 import { HomeView } from './views/home-view/HomeView'
-import { EveryAI } from '@/business-apps/platform/apps/every-ai/EveryAI'
 
 interface AccountRecordContentProps extends BusinessAppContextProps {
   accountId: string
@@ -274,11 +273,6 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
         headerActionButton={headerActionButton}
         subViews={subViewsConfig}
       />
-      {props.accessToken ? (
-        <div className="gba:mt-6" data-testid="crm-account-everyai-container">
-          <EveryAI {...props} />
-        </div>
-      ) : null}
     </div>
   )
 }

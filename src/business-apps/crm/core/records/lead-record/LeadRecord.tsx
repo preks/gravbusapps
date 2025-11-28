@@ -14,7 +14,6 @@ import { Flag, Bot } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { EveryAI } from '@/business-apps/platform/apps/every-ai/EveryAI'
 import { useLeadData } from './hooks/useLeadData'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -521,11 +520,6 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
         headerContent={headerContent}
         subViews={subViewsConfig}
       />
-      {props.accessToken ? (
-        <div className="gba:mt-6" data-testid="crm-lead-everyai-container">
-          <EveryAI {...props} />
-        </div>
-      ) : null}
     </div>
   )
 }

@@ -15,7 +15,6 @@ import { useInvestmentAiSummary } from './hooks/useInvestmentAiSummary'
 import { TrendingUp, Home, BarChart3 } from 'lucide-react'
 import { createHeaderMeta, getTypeSpecificDetailGroups } from './utils/investmentHeaderConfig'
 import { createInvestmentTabsConfig } from './utils/investmentTabConfig'
-import { EveryAI } from '@/business-apps/platform/apps/every-ai/EveryAI'
 
 type InvestmentRecordProps = BusinessAppContextProps
 
@@ -375,12 +374,6 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
         headerDetailGroups={headerDetailGroups}
         subViews={subViewsConfig}
       />
-
-      {props.accessToken ? (
-        <div className="gba:mt-6">
-          <EveryAI {...props} />
-        </div>
-      ) : null}
     </div>
   )
 }
