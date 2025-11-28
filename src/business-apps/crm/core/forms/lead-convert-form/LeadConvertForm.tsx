@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useEffect, useRef } from 'react'
-import { useForm, FormProvider } from 'react-hook-form'
+import { useMemo, useEffect, useRef, useCallback } from 'react'
+import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { type WizardStep, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@newwork/nw-design-system'
@@ -409,27 +409,26 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
         id: 'create-account',
         title: 'Create Account',
         description: 'Enter new account details',
-        fields: [],
+        form: accountForm,
+        formSchema: accountSchema,
         content: (
           <CatalogSelect.Provider {...businessAppContext} form={accountForm}>
-            <FormProvider {...accountForm}>
-              <LeadConvertAccountStep
-                businessAppContext={businessAppContext}
-                ownerEmployee={leadData?.ownerEmployee}
-                annualRevenueCatalogIdentifier={ANNUAL_REVENUE}
-                companySizeCatalogIdentifier={COMPANY_SIZE}
-                accountPriorityCatalogIdentifier={ACCOUNT_PRIORITY}
-                useContacts={{
-                  contacts: contactsList,
-                  loading: contactsLoading,
-                  error: contactsError,
-                  refetch: refetchContacts
-                }}
-                loading={loading}
-                accountInformationCustomFields={createCampaignSelectField(accountForm.control, 'salesCampaignId')}
-                avatarFileRef={accountAvatarFileRef}
-              />
-            </FormProvider>
+            <LeadConvertAccountStep
+              businessAppContext={businessAppContext}
+              ownerEmployee={leadData?.ownerEmployee}
+              annualRevenueCatalogIdentifier={ANNUAL_REVENUE}
+              companySizeCatalogIdentifier={COMPANY_SIZE}
+              accountPriorityCatalogIdentifier={ACCOUNT_PRIORITY}
+              useContacts={{
+                contacts: contactsList,
+                loading: contactsLoading,
+                error: contactsError,
+                refetch: refetchContacts
+              }}
+              loading={loading}
+              accountInformationCustomFields={createCampaignSelectField(accountForm.control, 'salesCampaignId')}
+              avatarFileRef={accountAvatarFileRef}
+            />
           </CatalogSelect.Provider>
         )
       })
@@ -441,24 +440,23 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
         id: 'create-contact',
         title: 'Create Contact',
         description: 'Enter new contact details',
-        fields: [],
+        form: contactForm,
+        formSchema: contactSchema,
         content: (
           <CatalogSelect.Provider {...businessAppContext} form={contactForm}>
-            <FormProvider {...contactForm}>
-              <LeadConvertContactStep
-                businessAppContext={businessAppContext}
-                ownerEmployee={leadData?.ownerEmployee}
-                useAccounts={{
-                  accounts: accountsList,
-                  loading: accountsLoading,
-                  error: accountsError,
-                  refetch: refetchAccounts
-                }}
-                loading={loading}
-                contactInformationCustomFields={createCampaignSelectField(contactForm.control, 'salesCampaignId')}
-                avatarFileRef={contactAvatarFileRef}
-              />
-            </FormProvider>
+            <LeadConvertContactStep
+              businessAppContext={businessAppContext}
+              ownerEmployee={leadData?.ownerEmployee}
+              useAccounts={{
+                accounts: accountsList,
+                loading: accountsLoading,
+                error: accountsError,
+                refetch: refetchAccounts
+              }}
+              loading={loading}
+              contactInformationCustomFields={createCampaignSelectField(contactForm.control, 'salesCampaignId')}
+              avatarFileRef={contactAvatarFileRef}
+            />
           </CatalogSelect.Provider>
         )
       })
@@ -470,38 +468,34 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
         id: 'create-opportunity',
         title: 'Create Opportunity',
         description: 'Enter new opportunity details',
-        fields: [],
+        form: opportunityForm,
+        formSchema: opportunitySchema,
         content: (
           <CatalogSelect.Provider {...businessAppContext} form={opportunityForm}>
-            <FormProvider {...opportunityForm}>
-              <LeadConvertOpportunityStep
-                businessAppContext={businessAppContext}
-                ownerEmployee={leadData?.ownerEmployee}
-                useAccounts={{
-                  accounts: accountsList,
-                  total: accountsTotal,
-                  loading: accountsLoading,
-                  error: accountsError,
-                  refetch: refetchAccounts
-                }}
-                useContacts={{
-                  contacts: contactsList,
-                  total: contactsTotal,
-                  loading: contactsLoading,
-                  error: contactsError,
-                  refetch: refetchContacts
-                }}
-                loading={loading}
-                pipelineCatalogIdentifier={OPPORTUNITY_PIPELINE}
-                stageCatalogIdentifier={OPPORTUNITY_PIPELINE_STAGE}
-                opportunityStatusCatalogIdentifier={OPPORTUNITY_STATUS}
-                opportunityForecastCatalogIdentifier={OPPORTUNITY_FORECAST}
-                opportunityInformationCustomFields={createCampaignSelectField(
-                  opportunityForm.control,
-                  'salesCampaignId'
-                )}
-              />
-            </FormProvider>
+            <LeadConvertOpportunityStep
+              businessAppContext={businessAppContext}
+              ownerEmployee={leadData?.ownerEmployee}
+              useAccounts={{
+                accounts: accountsList,
+                total: accountsTotal,
+                loading: accountsLoading,
+                error: accountsError,
+                refetch: refetchAccounts
+              }}
+              useContacts={{
+                contacts: contactsList,
+                total: contactsTotal,
+                loading: contactsLoading,
+                error: contactsError,
+                refetch: refetchContacts
+              }}
+              loading={loading}
+              pipelineCatalogIdentifier={OPPORTUNITY_PIPELINE}
+              stageCatalogIdentifier={OPPORTUNITY_PIPELINE_STAGE}
+              opportunityStatusCatalogIdentifier={OPPORTUNITY_STATUS}
+              opportunityForecastCatalogIdentifier={OPPORTUNITY_FORECAST}
+              opportunityInformationCustomFields={createCampaignSelectField(opportunityForm.control, 'salesCampaignId')}
+            />
           </CatalogSelect.Provider>
         )
       })
@@ -602,6 +596,7 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
     <AppActionForm
       processType="create"
       formType="wizard"
+      allowStepJumping={false}
       onSubmit={data => {
         // Double-check validation before allowing submission
         if (!isFormReadyForConversion()) {

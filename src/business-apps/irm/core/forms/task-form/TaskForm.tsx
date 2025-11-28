@@ -59,8 +59,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ accessToken, userInfo, addit
   const typeRef = additionalData?.typeRef || initialParameters?.typeRef || null
 
   // Determine if this is an Approval task (type selection should be hidden)
-  const isApprovalTask = typeRef?.toUpperCase().includes('APPROVAL')
-
+  const isApprovalTask = typeRef?.toUpperCase()?.includes('APPROVAL') ?? false
   const form = useForm<z.infer<typeof investmentTaskSchema>>({
     resolver: zodResolver(investmentTaskSchema) as any,
     defaultValues: mapToFormValues(task || {}, investmentTaskSchema) as Partial<InvestmentTask>,

@@ -1,13 +1,6 @@
 import React from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import {
-  useTranslation,
-  Skeleton,
-  FormAccordion,
-  FormAccordionItem,
-  FormAccordionTrigger,
-  FormAccordionContent
-} from '@newwork/nw-design-system'
+import { useTranslation, Skeleton, FormSection } from '@newwork/nw-design-system'
 import { LeadInformationSegment } from '../../form-segments/lead-information-segment'
 import { LeadPersonSegment } from '../../form-segments/lead-person-segment'
 import { LeadCompanySegment } from '../../form-segments/lead-company-segment'
@@ -60,7 +53,7 @@ const LeadLayout: React.FC<LeadLayoutProps> = ({
           <Skeleton className="gba:h-10 gba:w-full" />
           <Skeleton className="gba:h-32 gba:w-full" />
         </div>
-        {/* FormAccordion Skeleton */}
+        {/* FormSection Skeleton */}
         <div className="gba:space-y-2">
           <Skeleton className="gba:h-12 gba:w-full" />
           <Skeleton className="gba:h-12 gba:w-full" />
@@ -80,30 +73,21 @@ const LeadLayout: React.FC<LeadLayoutProps> = ({
         leadRatingCatalogIdentifier={leadRatingCatalogIdentifier}
         customFields={leadInformationCustomFields}
       />
-      <FormAccordion type="multiple" className="gba:w-full" data-testid="lead-layout-FormAccordion">
-        <FormAccordionItem value="personal-information">
-          <FormAccordionTrigger>{t('personal-title')}</FormAccordionTrigger>
-          <FormAccordionContent>
-            <LeadPersonSegment customFields={leadPersonCustomFields} />
-          </FormAccordionContent>
-        </FormAccordionItem>
-        <FormAccordionItem value="company-information">
-          <FormAccordionTrigger>{t('company-title')}</FormAccordionTrigger>
-          <FormAccordionContent>
-            <LeadCompanySegment
-              companySizeCatalogIdentifier={companySizeCatalogIdentifier}
-              annualRevenueCatalogIdentifier={annualRevenueCatalogIdentifier}
-              customFields={leadCompanyCustomFields}
-            />
-          </FormAccordionContent>
-        </FormAccordionItem>
-        {customSegments.map(segment => (
-          <FormAccordionItem key={segment.id} value={segment.id}>
-            <FormAccordionTrigger>{segment.title}</FormAccordionTrigger>
-            <FormAccordionContent>{segment.content}</FormAccordionContent>
-          </FormAccordionItem>
-        ))}
-      </FormAccordion>
+      <FormSection title={t('personal-title')} value="personal-information">
+        <LeadPersonSegment customFields={leadPersonCustomFields} />
+      </FormSection>
+      <FormSection title={t('company-title')} value="company-information">
+        <LeadCompanySegment
+          companySizeCatalogIdentifier={companySizeCatalogIdentifier}
+          annualRevenueCatalogIdentifier={annualRevenueCatalogIdentifier}
+          customFields={leadCompanyCustomFields}
+        />
+      </FormSection>
+      {customSegments.map(segment => (
+        <FormSection key={segment.id} title={segment.title} value={segment.id}>
+          {segment.content}
+        </FormSection>
+      ))}
     </div>
   )
 }

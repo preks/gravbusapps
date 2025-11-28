@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useEffect, useRef } from 'react'
-import { useForm, FormProvider } from 'react-hook-form'
+import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { type WizardStep } from '@newwork/nw-design-system'
@@ -480,26 +480,25 @@ export const ConvertInvestmentLeadForm = ({
         id: 'create-account',
         title: 'Create Account',
         description: 'Enter new account details',
-        fields: [],
+        form: accountForm,
+        formSchema: accountSchema,
         content: (
           <CatalogSelect.Provider {...businessAppContext} form={accountForm}>
-            <FormProvider {...accountForm}>
-              <LeadConvertAccountStep
-                businessAppContext={businessAppContext}
-                ownerEmployee={leadData?.ownerEmployee}
-                annualRevenueCatalogIdentifier={ANNUAL_REVENUE}
-                companySizeCatalogIdentifier={COMPANY_SIZE}
-                accountPriorityCatalogIdentifier={ACCOUNT_PRIORITY}
-                useContacts={{
-                  contacts: contactsList,
-                  loading: contactsLoading,
-                  error: contactsError,
-                  refetch: refetchContacts
-                }}
-                loading={loading}
-                avatarFileRef={accountAvatarFileRef}
-              />
-            </FormProvider>
+            <LeadConvertAccountStep
+              businessAppContext={businessAppContext}
+              ownerEmployee={leadData?.ownerEmployee}
+              annualRevenueCatalogIdentifier={ANNUAL_REVENUE}
+              companySizeCatalogIdentifier={COMPANY_SIZE}
+              accountPriorityCatalogIdentifier={ACCOUNT_PRIORITY}
+              useContacts={{
+                contacts: contactsList,
+                loading: contactsLoading,
+                error: contactsError,
+                refetch: refetchContacts
+              }}
+              loading={loading}
+              avatarFileRef={accountAvatarFileRef}
+            />
           </CatalogSelect.Provider>
         )
       })
@@ -511,23 +510,22 @@ export const ConvertInvestmentLeadForm = ({
         id: 'create-contact',
         title: 'Create Contact',
         description: 'Enter new contact details',
-        fields: [],
+        form: contactForm,
+        formSchema: contactSchema,
         content: (
           <CatalogSelect.Provider {...businessAppContext} form={contactForm}>
-            <FormProvider {...contactForm}>
-              <LeadConvertContactStep
-                businessAppContext={businessAppContext}
-                ownerEmployee={leadData?.ownerEmployee}
-                useAccounts={{
-                  accounts: accountsList,
-                  loading: accountsLoading,
-                  error: accountsError,
-                  refetch: refetchAccounts
-                }}
-                loading={loading}
-                avatarFileRef={contactAvatarFileRef}
-              />
-            </FormProvider>
+            <LeadConvertContactStep
+              businessAppContext={businessAppContext}
+              ownerEmployee={leadData?.ownerEmployee}
+              useAccounts={{
+                accounts: accountsList,
+                loading: accountsLoading,
+                error: accountsError,
+                refetch: refetchAccounts
+              }}
+              loading={loading}
+              avatarFileRef={contactAvatarFileRef}
+            />
           </CatalogSelect.Provider>
         )
       })
@@ -539,56 +537,53 @@ export const ConvertInvestmentLeadForm = ({
         id: 'create-opportunity',
         title: 'Create Opportunity',
         description: 'Enter new opportunity details',
-        fields: [],
+        form: opportunityForm,
+        formSchema: opportunitySchema,
         content: (
           <CatalogSelect.Provider {...businessAppContext} form={opportunityForm}>
-            <FormProvider {...opportunityForm}>
-              <LeadConvertOpportunityStep
-                businessAppContext={businessAppContext}
-                ownerEmployee={leadData?.ownerEmployee}
-                useAccounts={{
-                  accounts: accountsList,
-                  total: accountsTotal,
-                  loading: accountsLoading,
-                  error: accountsError,
-                  refetch: refetchAccounts
-                }}
-                useContacts={{
-                  contacts: contactsList,
-                  total: contactsTotal,
-                  loading: contactsLoading,
-                  error: contactsError,
-                  refetch: refetchContacts
-                }}
-                loading={loading}
-                pipelineCatalogIdentifier={OPPORTUNITY_PIPELINE}
-                stageCatalogIdentifier={OPPORTUNITY_PIPELINE_STAGE}
-                opportunityStatusCatalogIdentifier={OPPORTUNITY_STATUS}
-                opportunityForecastCatalogIdentifier={OPPORTUNITY_FORECAST}
-                customSegments={[
-                  {
-                    id: 'investment-prospect',
-                    title: 'Investment Information',
-                    content: (
-                      <InvestmentProspectSegment
-                        investmentGroupRef={
-                          (watchedGroupRef as string) || baseOpportunityValues.investmentGroupRef || null
-                        }
-                        investmentTypeRef={
-                          (watchedTypeRef as string) || baseOpportunityValues.investmentTypeRef || null
-                        }
-                        businessAppContext={businessAppContext}
-                        testIdPrefix={formatDataTestId('convert-investment-lead-form', 'investment-prospect')}
-                        configuration={configuration || null}
-                        groups={groups}
-                        types={types}
-                        isLoading={catalogLoading}
-                      />
-                    )
-                  }
-                ]}
-              />
-            </FormProvider>
+            <LeadConvertOpportunityStep
+              businessAppContext={businessAppContext}
+              ownerEmployee={leadData?.ownerEmployee}
+              useAccounts={{
+                accounts: accountsList,
+                total: accountsTotal,
+                loading: accountsLoading,
+                error: accountsError,
+                refetch: refetchAccounts
+              }}
+              useContacts={{
+                contacts: contactsList,
+                total: contactsTotal,
+                loading: contactsLoading,
+                error: contactsError,
+                refetch: refetchContacts
+              }}
+              loading={loading}
+              pipelineCatalogIdentifier={OPPORTUNITY_PIPELINE}
+              stageCatalogIdentifier={OPPORTUNITY_PIPELINE_STAGE}
+              opportunityStatusCatalogIdentifier={OPPORTUNITY_STATUS}
+              opportunityForecastCatalogIdentifier={OPPORTUNITY_FORECAST}
+              customSegments={[
+                {
+                  id: 'investment-prospect',
+                  title: 'Investment Information',
+                  content: (
+                    <InvestmentProspectSegment
+                      investmentGroupRef={
+                        (watchedGroupRef as string) || baseOpportunityValues.investmentGroupRef || null
+                      }
+                      investmentTypeRef={(watchedTypeRef as string) || baseOpportunityValues.investmentTypeRef || null}
+                      businessAppContext={businessAppContext}
+                      testIdPrefix={formatDataTestId('convert-investment-lead-form', 'investment-prospect')}
+                      configuration={configuration || null}
+                      groups={groups}
+                      types={types}
+                      isLoading={catalogLoading}
+                    />
+                  )
+                }
+              ]}
+            />
           </CatalogSelect.Provider>
         )
       })
@@ -679,8 +674,6 @@ export const ConvertInvestmentLeadForm = ({
         ? (() => {
             const opportunityValues = opportunityForm.getValues()
             const prospectFields = extractProspectFieldsFromFormValues(opportunityValues)
-            // Remove ownerEmployee object to prevent it from overwriting ownerEmployeeId mapping
-            delete opportunityValues.ownerEmployee
             return {
               ...opportunityValues,
               ...prospectFields
@@ -688,13 +681,8 @@ export const ConvertInvestmentLeadForm = ({
           })()
         : undefined
 
-      // Debug logs
-      console.log('[IRM Lead Convert] Raw data before payload builder:', { account, contact, opportunity })
-
       // Build payload using simple builder
       const finalPayload = buildInvestmentLeadConvertPayload(actualLeadId, account, contact, opportunity)
-
-      console.log('[IRM Lead Convert] Final payload after builder:', finalPayload)
 
       return finalPayload
     },
@@ -733,6 +721,7 @@ export const ConvertInvestmentLeadForm = ({
     <AppActionForm
       processType="create"
       formType="wizard"
+      allowStepJumping={false}
       onSubmit={data => {
         // Double-check validation before allowing submission
         if (!isFormReadyForConversion()) {

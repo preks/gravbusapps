@@ -1,13 +1,6 @@
 import React from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import {
-  useTranslation,
-  Skeleton,
-  FormAccordion,
-  FormAccordionItem,
-  FormAccordionTrigger,
-  FormAccordionContent
-} from '@newwork/nw-design-system'
+import { useTranslation, Skeleton, FormSection } from '@newwork/nw-design-system'
 import { AccountInformationSegment } from '../../form-segments/account-information-segment'
 import { AccountDetailsSegment } from '../../form-segments/account-details-segment'
 import { AddressSegment } from '../../form-segments/address-segment'
@@ -47,7 +40,7 @@ interface AccountLayoutProps {
   // Custom fields injection for CommunicationSegment
   communicationCustomFields?: React.ReactNode
 
-  // Custom segments to add to the FormAccordion (after standard segments)
+  // Custom segments to add after standard segments
   customSegments?: Array<{
     id: string
     title: string
@@ -98,7 +91,7 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
           <Skeleton className="gba:h-10 gba:w-full" />
           <Skeleton className="gba:h-32 gba:w-full" />
         </div>
-        {/* FormAccordion Skeleton */}
+        {/* FormSection Skeleton */}
         <div className="gba:space-y-2">
           <Skeleton className="gba:h-12 gba:w-full" />
           <Skeleton className="gba:h-12 gba:w-full" />
@@ -121,37 +114,25 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
         accountPriorityCatalogIdentifier={accountPriorityCatalogIdentifier}
       />
 
-      {/* Other Segments in FormAccordion */}
-      <FormAccordion type="multiple" className="gba:w-full" data-testid="account-layout-FormAccordion">
-        <FormAccordionItem value="communication-channels">
-          <FormAccordionTrigger>{t('communication-title')}</FormAccordionTrigger>
-          <FormAccordionContent>
-            <CommunicationSegment customFields={communicationCustomFields} />
-          </FormAccordionContent>
-        </FormAccordionItem>
-        <FormAccordionItem value="address-information">
-          <FormAccordionTrigger>{t('address-title')}</FormAccordionTrigger>
-          <FormAccordionContent>
-            <AddressSegment customFields={addressCustomFields} />
-          </FormAccordionContent>
-        </FormAccordionItem>
-        <FormAccordionItem value="financial-information">
-          <FormAccordionTrigger>{t('financial-title')}</FormAccordionTrigger>
-          <FormAccordionContent>
-            <AccountDetailsSegment
-              annualRevenueCatalogIdentifier={annualRevenueCatalogIdentifier}
-              companySizeCatalogIdentifier={companySizeCatalogIdentifier}
-              customFields={accountDetailsCustomFields}
-            />
-          </FormAccordionContent>
-        </FormAccordionItem>
-        {customSegments.map(segment => (
-          <FormAccordionItem key={segment.id} value={segment.id}>
-            <FormAccordionTrigger>{segment.title}</FormAccordionTrigger>
-            <FormAccordionContent>{segment.content}</FormAccordionContent>
-          </FormAccordionItem>
-        ))}
-      </FormAccordion>
+      {/* Other Segments */}
+      <FormSection title={t('communication-title')} value="communication-channels">
+        <CommunicationSegment customFields={communicationCustomFields} />
+      </FormSection>
+      <FormSection title={t('address-title')} value="address-information">
+        <AddressSegment customFields={addressCustomFields} />
+      </FormSection>
+      <FormSection title={t('financial-title')} value="financial-information">
+        <AccountDetailsSegment
+          annualRevenueCatalogIdentifier={annualRevenueCatalogIdentifier}
+          companySizeCatalogIdentifier={companySizeCatalogIdentifier}
+          customFields={accountDetailsCustomFields}
+        />
+      </FormSection>
+      {customSegments.map(segment => (
+        <FormSection key={segment.id} title={segment.title} value={segment.id}>
+          {segment.content}
+        </FormSection>
+      ))}
     </div>
   )
 }
