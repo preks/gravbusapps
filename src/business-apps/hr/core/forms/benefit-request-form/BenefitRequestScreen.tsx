@@ -71,6 +71,7 @@ const BenefitRequestScreen: React.FC<BenefitRequestScreenProps> = ({
   const [provider, setProvider] = useState<string>('')
   const [startDate, setStartDate] = useState<string>('')
   const [justification, setJustification] = useState('')
+  const [period, setPeriod] = useState<string>('')
   const [providersFromCatalog, setProvidersFromCatalog] = useState<ProviderEntry[]>([])
   const { t } = useTranslation(translations)
   const selectedBenefit =
@@ -189,6 +190,7 @@ const BenefitRequestScreen: React.FC<BenefitRequestScreenProps> = ({
       benefitTypeRef: selectedBenefit?.catalogId,
       benefitProviderRef: provider || null,
       yearlyAmount: yearlyAmountValue,
+      period: period || null,
       currencyRef: BENEFIT_FORM_VALIDATION.DEFAULT_CURRENCY_REF,
       startDate: new Date(startDate).toISOString(),
       justification: justification.trim(),
@@ -196,7 +198,7 @@ const BenefitRequestScreen: React.FC<BenefitRequestScreenProps> = ({
       requestDate: new Date().toISOString(),
       status: 'PENDING'
     }
-  }, [employeeId, selectedBenefit?.catalogId, provider, additionalValue1Number, startDate, justification])
+  }, [employeeId, selectedBenefit?.catalogId, provider, additionalValue1Number, startDate, justification, period])
 
   /**
    * Success handler - called after process starts
@@ -209,6 +211,7 @@ const BenefitRequestScreen: React.FC<BenefitRequestScreenProps> = ({
     setProvider('')
     setStartDate(getDefaultStartDate())
     setJustification('')
+    setPeriod('')
   }, [onSuccess, onClose])
 
   return (
@@ -279,6 +282,20 @@ const BenefitRequestScreen: React.FC<BenefitRequestScreenProps> = ({
                   ? `${additionalValue1Display}${additionalValue2Display ? ` ${additionalValue2Display}` : ''}`
                   : '-'}
               </div>
+            </div>
+
+            {/* Period */}
+            <div className="gba:space-y-2">
+              <Label className="gba:text-sm gba:font-medium gba:text-foreground">
+                {t('modal-request-period-label')}
+              </Label>
+              <Input
+                type="text"
+                value={period}
+                onChange={e => setPeriod(e.target.value)}
+                placeholder={t('modal-request-period-placeholder')}
+                data-testid="request-benefit-period-input"
+              />
             </div>
 
             {/* Preferred Start Date (Required) */}
