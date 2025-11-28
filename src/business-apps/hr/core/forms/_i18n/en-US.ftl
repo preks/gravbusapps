@@ -83,3 +83,16 @@ validation-payment-date-invalid = Please enter a valid payment date.
 validation-fiscal-year-required = Fiscal year is required. Please enter the fiscal year.
 validation-fiscal-year-range = Fiscal year must be between {$minYear} and {$maxYear}.
 
+# Grant Employee Bonus Review Form
+grant-bonus-review-title = Employee Bonus Review for { $employeeName }
+grant-bonus-review-initiated-by = Initiated by { $initiatorName }
+grant-bonus-review-bonus-details = Bonus Details
+grant-bonus-review-bonus-type = Bonus Type
+grant-bonus-review-amount = Amount
+grant-bonus-review-payment-month = Payment Month
+grant-bonus-review-fiscal-year = Fiscal Year
+grant-bonus-review-additional-info = Additional Information
+grant-bonus-review-description = Description
+grant-bonus-review-notes = Notes
+grant-bonus-review-acknowledge = Acknowledge
+grant-bonus-review-reject = Reject
