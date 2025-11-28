@@ -1,6 +1,5 @@
 import React, { useState } from 'react'
 import {
-  Button,
   Combobox,
   Alert,
   AlertDescription,
@@ -11,9 +10,10 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
+  Button
 } from '@newwork/nw-design-system'
-import { PiPlus, PiX } from 'react-icons/pi'
+import { PiX } from 'react-icons/pi'
 import { Building2 } from 'lucide-react'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { ContactType, getContactTypeLabel } from '@/common/data/relations/constants/contactConstants'
@@ -108,7 +108,6 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
   // Internal state to preserve account names when adding new accounts
   const [internalValue, setInternalValue] = useState<Array<string | AccountValue>>(normalizedValue)
   const [mergedAccounts, setMergedAccounts] = useState<SelectOption[]>([])
-  const [showAddExisting, setShowAddExisting] = useState(false)
 
   // Sync internal value with prop value
   React.useEffect(() => {
@@ -353,7 +352,6 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
         } else {
           onChange(newAccount)
         }
-        setShowAddExisting(false)
       }
       return
     }
@@ -374,7 +372,6 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
     } else {
       onChange(newAccount)
     }
-    setShowAddExisting(false)
   }
 
   // Handle contact type change
@@ -420,65 +417,9 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
       })
   }, [mergedAccounts, selectedAccountIds])
 
-  // Empty state (only for multiple mode)
-  if (multiple && internalValue.length === 0 && !showAddExisting) {
-    return (
-      <div className="gba:space-y-2">
-        <button
-          type="button"
-          className="gba:border-2 gba:border-dashed gba:border-muted-foreground/25 gba:rounded-lg gba:p-6 gba:text-center gba:cursor-pointer hover:gba:border-muted-foreground/50 gba:transition-colors gba:w-full gba:bg-transparent"
-          onClick={() => setShowAddExisting(true)}
-          data-testid={formatDataTestId(dataTestId || 'account-list', 'empty-state')}
-        >
-          <PiPlus className="gba:mx-auto gba:h-8 gba:w-8 gba:text-muted-foreground gba:mb-2" />
-          <p className="gba:text-sm gba:text-muted-foreground">No accounts selected. Click to add an account.</p>
-        </button>
-
-        {error && (
-          <Alert variant="destructive">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
-        {accountsError && (
-          <Alert variant="destructive">
-            <AlertDescription>{accountsError}</AlertDescription>
-          </Alert>
-        )}
-      </div>
-    )
-  }
-
   return (
     <div className="gba:space-y-2" data-testid={dataTestId || 'account-list'}>
-      {/* Combobox for adding accounts (shown when empty state clicked) */}
-      {multiple && internalValue.length === 0 && showAddExisting && (
-        <div className="gba:space-y-2">
-          <Combobox
-            value=""
-            onValueChange={handleAddAccount}
-            options={availableAccountOptions}
-            placeholder="Search and select account..."
-            searchPlaceholder="Search accounts..."
-            emptyText={accountsLoading ? 'Loading...' : 'No accounts found'}
-            disabled={accountsLoading}
-            loading={accountsLoading}
-            onSearch={searchAccounts}
-            data-testid={formatDataTestId(dataTestId || 'account-list', 'combobox')}
-          />
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowAddExisting(false)}
-            data-testid={formatDataTestId(dataTestId || 'account-list', 'cancel-add')}
-          >
-            Cancel
-          </Button>
-        </div>
-      )}
-
-      {/* For single-select mode: show combobox if no value or always show for editing */}
+      {/* For single-select mode: show combobox with selected value */}
       {!multiple && (
         <Combobox
           value={internalValue.length > 0 ? getAccountId(internalValue[0]) : ''}
@@ -538,24 +479,22 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
                 </div>
 
                 {/* Contact Type Select (only for multiple mode) */}
-                {multiple && (
-                  <Select
-                    value={accountValue.contactType || ''}
-                    onValueChange={contactType => handleContactTypeChange(accountId, contactType)}
-                    data-testid={formatDataTestId(dataTestId || 'account-list', `contact-type-${index}`)}
-                  >
-                    <SelectTrigger className="gba:w-[180px]">
-                      <SelectValue placeholder="Contact Type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.values(ContactType).map(type => (
-                        <SelectItem key={type} value={type}>
-                          {getContactTypeLabel(type)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
+                <Select
+                  value={accountValue.contactType || ''}
+                  onValueChange={contactType => handleContactTypeChange(accountId, contactType)}
+                  data-testid={formatDataTestId(dataTestId || 'account-list', `contact-type-${index}`)}
+                >
+                  <SelectTrigger className="gba:w-[180px]">
+                    <SelectValue placeholder="Contact Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.values(ContactType).map(type => (
+                      <SelectItem key={type} value={type}>
+                        {getContactTypeLabel(type)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
 
                 {/* Remove Button */}
                 <Button
@@ -574,46 +513,20 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
         </div>
       )}
 
-      {/* Combobox or Add Account Button - shown when at least one account exists (multiple mode only) */}
-      {multiple && internalValue.length > 0 && (
-        <>
-          {showAddExisting ? (
-            <div className="gba:space-y-2">
-              <Combobox
-                value=""
-                onValueChange={handleAddAccount}
-                options={availableAccountOptions}
-                placeholder="Search and select account..."
-                searchPlaceholder="Search accounts..."
-                emptyText={accountsLoading ? 'Loading...' : 'No accounts found'}
-                disabled={accountsLoading}
-                loading={accountsLoading}
-                onSearch={searchAccounts}
-                data-testid={formatDataTestId(dataTestId || 'account-list', 'combobox')}
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowAddExisting(false)}
-                data-testid={formatDataTestId(dataTestId || 'account-list', 'cancel-add')}
-              >
-                Cancel
-              </Button>
-            </div>
-          ) : (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setShowAddExisting(true)}
-              className="gba:w-full"
-              data-testid={formatDataTestId(dataTestId || 'account-list', 'add-button')}
-            >
-              <PiPlus className="gba:w-4 gba:h-4 gba:mr-2" />
-              Add Account
-            </Button>
-          )}
-        </>
+      {/* Combobox for adding accounts - always visible in multiple mode */}
+      {multiple && (
+        <Combobox
+          value=""
+          onValueChange={handleAddAccount}
+          options={availableAccountOptions}
+          placeholder="Search and select account..."
+          searchPlaceholder="Search accounts..."
+          emptyText={accountsLoading ? 'Loading...' : 'No accounts found'}
+          disabled={accountsLoading}
+          loading={accountsLoading}
+          onSearch={searchAccounts}
+          data-testid={formatDataTestId(dataTestId || 'account-list', 'combobox')}
+        />
       )}
 
       {/* Error Display */}

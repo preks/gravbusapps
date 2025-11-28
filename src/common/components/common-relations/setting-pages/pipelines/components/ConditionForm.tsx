@@ -135,16 +135,13 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
       const currentCondition = await catalogClient.getCatalogEntryById(editingCondition.id)
 
       const updateData = {
-        // Required fields that must be preserved
         id: editingCondition.id,
-        code: editingCondition.code, // Keep original code - cannot be updated
+        code: editingCondition.code,
         value: data.name,
         alternativeCode: 'CONDITION',
         parentEntryId: selectedStage.id,
-        displayOrder: editingCondition.displayOrder, // Keep original rank
-        additionalValue1: editingCondition.additionalValue1, // Keep original rank
-
-        // Additional fields - preserve existing values
+        displayOrder: editingCondition.displayOrder,
+        additionalValue1: editingCondition.additionalValue1,
         additionalValue2: currentCondition.additionalValue2 || undefined,
         additionalValue3: currentCondition.additionalValue3 || undefined,
         objectValue: {
@@ -157,7 +154,12 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
         }
       }
 
-      await catalogClient.updateCatalogEntry(editingCondition.id, updateData)
+      await catalogClient.updateCatalogEntry(
+        catalogConfig.conditionCatalog,
+        catalogConfig.version || 'v1',
+        editingCondition.id,
+        updateData
+      )
 
       onClose()
       form.reset()
@@ -198,6 +200,12 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
       }
     }
   }, [isOpen, editingCondition, form])
+
+  const getSubmitButtonText = () => {
+    if (operationLoading) return 'Saving...'
+    if (editingCondition) return 'Update Condition'
+    return 'Create Condition'
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -327,7 +335,7 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
                           {...field}
                           type="number"
                           min="1"
-                          onChange={e => field.onChange(parseInt(e.target.value) || 1)}
+                          onChange={e => field.onChange(Number.parseInt(e.target.value) || 1)}
                         />
                       </FormControl>
                       <FormMessage />
@@ -342,7 +350,7 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
                 Cancel
               </Button>
               <Button type="submit" disabled={operationLoading}>
-                {operationLoading ? 'Saving...' : editingCondition ? 'Update Condition' : 'Create Condition'}
+                {getSubmitButtonText()}
               </Button>
             </DialogFooter>
           </form>

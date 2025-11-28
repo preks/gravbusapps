@@ -344,9 +344,9 @@ export const useAbsenceValidation = ({
           if (newPriority >= existingPriority) {
             errors.push({
               type: 'overlap',
-              message: `There is already a ${absenceTypeName} absence scheduled from ${existingStart.format(
+              message: `${getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.absence_exists', 'There is already a')} ${absenceTypeName} ${getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.absence_scheduled', 'absence scheduled')} ${getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.from', 'from')} ${existingStart.format(
                 getDateFormat('date-long')
-              )} to ${existingEnd.format(getDateFormat('date-long'))}.`,
+              )} ${getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.to', 'to')} ${existingEnd.format(getDateFormat('date-long'))}.`,
               details: {
                 conflictingAbsence: absence,
                 conflictingDates: {
@@ -391,7 +391,10 @@ export const useAbsenceValidation = ({
       if (!absenceBalance) {
         warnings.push({
           type: 'balance',
-          message: 'Unable to verify absence balance. Please check manually.',
+          message: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:hr_absences.unable_to_verify_absence_balance',
+            'Unable to verify absence balance. Please check manually.'
+          ),
           details: { reason: 'no_balance_info' }
         })
         return { errors, warnings }
@@ -462,7 +465,10 @@ export const useAbsenceValidation = ({
       if (dayjs(validationEndDate).isBefore(dayjs(validationStartDate).subtract(1, 'day'))) {
         const dateOrderError: AbsenceValidationError = {
           type: 'general',
-          message: 'End date must be after start date'
+          message: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:hr_absences.end_date_must_be_after_start_date',
+            'End date must be after start date'
+          )
         }
         setValidationErrors([dateOrderError])
         return [dateOrderError]

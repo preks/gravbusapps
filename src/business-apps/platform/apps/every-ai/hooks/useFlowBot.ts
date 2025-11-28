@@ -75,7 +75,7 @@ function loadState(): ConversationState {
 async function loadHistory(accessToken: string, sessionId: string | null): Promise<ConversationState> {
   if (!sessionId) return { conversation: [], sessionId: null }
 
-  const baseUrl = env('NEXT_PUBLIC_BASE_URL') || 'https://newwork-dev.newwork.com'
+  const baseUrl = env('NEXT_PUBLIC_FLOWBOT') || env('NEXT_PUBLIC_BASE_URL') || 'https://newwork-dev.newwork.com'
 
   try {
     const res = await fetch(`${baseUrl}/flowbot/api/agent/session/${sessionId}/history`, {
@@ -169,6 +169,20 @@ async function loadHistory(accessToken: string, sessionId: string | null): Promi
         )
       }
     })
+
+    // Cleanup: prune ephemeral tool outputs from history so reasoning steps are hidden
+    try {
+      historyState.conversation = historyState.conversation.map(turn => {
+        if (turn.side !== 'agent') return turn
+        const outputs = Array.isArray((turn as any).outputs) ? (turn as any).outputs : []
+        const hasNonTool = outputs.some((o: any) => o && o.type && o.type !== 'tool')
+        if (!hasNonTool) return turn
+        return {
+          ...turn,
+          outputs: outputs.filter((o: any) => o?.type !== 'tool')
+        }
+      })
+    } catch {}
 
     return historyState
   } catch (error) {
@@ -364,7 +378,7 @@ export function useFlowBot(accessToken: string) {
 
         files.forEach(file => form.append('files', file))
 
-        const baseUrl = env('NEXT_PUBLIC_BASE_URL') || 'https://newwork-dev.newwork.com'
+        const baseUrl = env('NEXT_PUBLIC_FLOWBOT') || env('NEXT_PUBLIC_BASE_URL') || 'https://newwork-dev.newwork.com'
         const url = `${baseUrl}/flowbot/api/agent/v2/chat`
         const res = await fetch(url, {
           method: 'POST',
@@ -453,7 +467,7 @@ export function useFlowBot(accessToken: string) {
       isPrechatLoadingRef.current = true
       setPrechatSuggestions([])
       setIsPrechatLoading(true)
-      const baseUrl = env('NEXT_PUBLIC_BASE_URL') || 'https://newwork-dev.newwork.com'
+      const baseUrl = env('NEXT_PUBLIC_FLOWBOT') || env('NEXT_PUBLIC_BASE_URL') || 'https://newwork-dev.newwork.com'
 
       const form = new FormData()
       form.append('current_page_context', JSON.stringify(currentPageContext))

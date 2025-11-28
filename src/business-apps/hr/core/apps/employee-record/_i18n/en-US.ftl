@@ -20,6 +20,7 @@ current-bonuses = bonuses
 current-annually = Annually
 current-monthly = Monthly
 current-hourly = Hourly
+no-salary-record = No salary record
 
 # Compensation Band
 band-title = Compensation Band
