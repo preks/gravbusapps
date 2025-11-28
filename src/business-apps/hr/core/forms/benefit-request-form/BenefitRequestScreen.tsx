@@ -291,7 +291,7 @@ const BenefitRequestScreen: React.FC<BenefitRequestScreenProps> = ({
    */
   const handleSubmit = useCallback(async () => {
     // Derive yearly amount from catalog Additional Value 1 (if numeric)
-    const yearlyAmountValue = (derivedAmountNumber ?? additionalValue1Number) || 0
+    const yearlyAmountValue = derivedAmountNumber || 0
 
     // Build and return payload for Kogito process
     const periodValue = period || resolvedPeriodDisplay || null
