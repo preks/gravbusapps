@@ -1446,6 +1446,12 @@ async function main() {
       normalized = normalized.replace(/^src\/business-apps\//, '')
       // Remove .ts or .tsx extension if present
       normalized = normalized.replace(/\.tsx?$/, '')
+      // Extract screen directory (module/sub-module/.../app-name) - remove subfolders
+      // e.g., hr/core/apps/employee-record/components/Foo -> hr/core/apps/employee-record
+      const screenMatch = normalized.match(/^(.*?\/(?:apps|forms|popups|records)\/[^/]+)/)
+      if (screenMatch) {
+        normalized = screenMatch[1]
+      }
       return normalized
     })
 
