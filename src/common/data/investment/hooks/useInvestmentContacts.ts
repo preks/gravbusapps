@@ -1,41 +1,297 @@
 // Investment Contact hooks - CRM contact entity operations
-import { useCallback, useState, useEffect } from 'react'
+import { useCallback, useState, useEffect, useMemo } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import type {
-  BaseInvestmentContact,
-  InvestmentContact,
-  BaseInvestmentTask,
-  BaseInvestmentActivity,
-  BaseInvestmentNote,
-  BaseInvestmentDocument
-} from '../types'
+import type { InvestmentContact } from '../types/investmentContactTypes'
+import type { InvestmentTask } from '../types/investmentTaskTypes'
+import type { InvestmentActivity } from '../types/investmentActivityTypes'
+import type { InvestmentNote } from '../types/investmentNoteTypes'
+import type { InvestmentDocument } from '../types/investmentDocumentTypes'
 
-// Use the new query imports
-import { GET_INVESTMENT_CONTACTS, GET_INVESTMENT_CONTACT_BY_ID, type InvestmentContactQueryVariables } from '../queries'
-
-// Import related-entity queries statically to avoid dynamic chunking
+// Use the new query builders
 import {
-  GET_INVESTMENT_TASKS_BY_CONTACT_ID,
-  GET_INVESTMENT_ACTIVITIES_BY_CONTACT_ID,
-  GET_INVESTMENT_NOTES_BY_CONTACT_ID,
-  GET_INVESTMENT_DOCUMENTS_BY_CONTACT_ID
+  buildInvestmentContactQuery,
+  buildInvestmentContactByIdQuery,
+  buildInvestmentContactWhereCondition,
+  buildInvestmentContactOrderBy,
+  type InvestmentContactQueryVariables
 } from '../queries/investmentContactQueries'
 
-// Use the mapper function
+// Import related-entity queries from new file
 import {
-  toInvestmentContact,
-  toInvestmentTask,
-  toInvestmentActivity,
-  toInvestmentNote,
-  toInvestmentDocument
-} from '../mappers'
+  buildInvestmentTaskByContactIdQuery,
+  type InvestmentTaskQueryVariables,
+  buildInvestmentTaskWhereCondition,
+  buildInvestmentTaskOrderBy
+} from '../queries/investmentTaskQueries'
+import {
+  buildInvestmentActivityByContactIdQuery,
+  type InvestmentActivityQueryVariables,
+  buildInvestmentActivityWhereCondition,
+  buildInvestmentActivityOrderBy
+} from '../queries/investmentActivityQueries'
+import {
+  buildInvestmentNoteByContactIdQuery,
+  type InvestmentNoteQueryVariables,
+  buildInvestmentNoteWhereCondition,
+  buildInvestmentNoteOrderBy
+} from '../queries/investmentNoteQueries'
+import {
+  buildInvestmentDocumentByContactIdQuery,
+  type InvestmentDocumentQueryVariables,
+  buildInvestmentDocumentWhereCondition,
+  buildInvestmentDocumentOrderBy
+} from '../queries/investmentDocumentQueries'
 
+// Use the mapper function
+import { toInvestmentContact } from '../types/investmentContactTypes'
+import { toInvestmentTask } from '../mappers/investmentTaskMappers'
+import { toInvestmentActivity, toInvestmentNote, toInvestmentDocument } from '../mappers/investmentRelatedEntityMappers'
+
+// Simplified hook alias for ContactView compatibility
+export const useInvestmentContacts = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken)
+
+  const fetchInvestmentContacts = useCallback(
+    async (
+      variables: InvestmentContactQueryVariables = {}
+    ): Promise<{ contacts: InvestmentContact[]; total: number }> => {
+      const query = buildInvestmentContactQuery()
+
+      const customConditions: Record<string, any>[] = []
+      if (variables.hasEmail) customConditions.push({ email: { _isNull: false, _neq: '' } })
+      if (variables.missingEmail) customConditions.push({ _or: [{ email: { _isNull: true } }, { email: { _eq: '' } }] })
+      if (variables.hasPhone) customConditions.push({ phone: { _isNull: false, _neq: '' } })
+      if (variables.missingPhone) customConditions.push({ _or: [{ phone: { _isNull: true } }, { phone: { _eq: '' } }] })
+
+      const whereCondition = buildInvestmentContactWhereCondition(variables, [], customConditions)
+
+      const orderBy = buildInvestmentContactOrderBy(variables.orderBy || [])
+
+      const graphQLVariables: Record<string, any> = {
+        limit: Math.min(variables.limit || 50, 100),
+        offset: variables.offset || 0,
+        where: whereCondition,
+        orderBy: orderBy
+      }
+
+      try {
+        const result = await graphqlClient.request<InvestmentContactQueryResponse>(query, graphQLVariables)
+        const contacts = result.InvestmentContact.map(toInvestmentContact)
+        const total = result.InvestmentContactAggregate?.aggregate?.count || 0
+        return { contacts, total }
+      } catch (error) {
+        console.error('Error fetching investment contacts:', error)
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
+
+  return { fetchInvestmentContacts }
+}
+
+// Hook for getting investment contact by ID
+export const useGetInvestmentContactById = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken)
+
+  const fetchInvestmentContactById = useCallback(
+    async (id: string) => {
+      const query = buildInvestmentContactByIdQuery()
+
+      try {
+        const result = await graphqlClient.request<{ InvestmentContactByPk: InvestmentContact | null }>(query, {
+          id
+        })
+
+        return {
+          contact: result.InvestmentContactByPk ? toInvestmentContact(result.InvestmentContactByPk) : undefined
+        } as InvestmentContactByIdData
+      } catch (error) {
+        console.error('Error fetching investment contact by ID:', error)
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
+
+  return { fetchInvestmentContactById }
+}
+
+// =====================================================
+// INVESTMENT CONTACT RELATED ENTITIES HOOKS
+// =====================================================
+
+// Hook for getting investment tasks by contact ID
+export const useGetInvestmentTasksByContactId = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken)
+
+  const fetchInvestmentTasksByContactId = useCallback(
+    async (contactId: string) => {
+      const query = buildInvestmentTaskByContactIdQuery()
+
+      // Use variables instead of customConditions
+      const variables: InvestmentTaskQueryVariables = {
+        contactIds: [contactId]
+      }
+
+      const whereCondition = buildInvestmentTaskWhereCondition(variables)
+      const orderBy = buildInvestmentTaskOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
+
+      const graphQLVariables: Record<string, any> = {
+        limit: 1000,
+        offset: 0,
+        where: whereCondition,
+        orderBy: orderBy
+      }
+
+      try {
+        const result = await graphqlClient.request<{ InvestmentTask: InvestmentTask[] }>(query, graphQLVariables)
+        return result.InvestmentTask.map(toInvestmentTask)
+      } catch (error) {
+        console.error('Error fetching investment tasks by contact ID:', error)
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
+
+  return { fetchInvestmentTasksByContactId }
+}
+
+// Hook for getting investment activities by contact ID
+export const useGetInvestmentActivitiesByContactId = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken)
+
+  const fetchInvestmentActivitiesByContactId = useCallback(
+    async (contactId: string) => {
+      const query = buildInvestmentActivityByContactIdQuery()
+
+      // Use variables instead of customConditions
+      const variables: InvestmentActivityQueryVariables = {
+        contactIds: [contactId]
+      }
+
+      const whereCondition = buildInvestmentActivityWhereCondition(variables)
+      const orderBy = buildInvestmentActivityOrderBy([{ field: 'occurredAt', direction: 'DESC_NULLS_LAST' }])
+
+      const graphQLVariables: Record<string, any> = {
+        limit: 1000,
+        offset: 0,
+        where: whereCondition,
+        orderBy: orderBy
+      }
+
+      try {
+        const result = await graphqlClient.request<{ InvestmentActivity: InvestmentActivity[] }>(
+          query,
+          graphQLVariables
+        )
+        return result.InvestmentActivity.map(toInvestmentActivity)
+      } catch (error) {
+        console.error('Error fetching investment activities by contact ID:', error)
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
+
+  return { fetchInvestmentActivitiesByContactId }
+}
+
+// Hook for getting investment notes by contact ID
+export const useGetInvestmentNotesByContactId = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken)
+
+  const fetchInvestmentNotesByContactId = useCallback(
+    async (contactId: string) => {
+      const query = buildInvestmentNoteByContactIdQuery()
+
+      // Use variables instead of customConditions
+      const variables: InvestmentNoteQueryVariables = {
+        contactIds: [contactId]
+      }
+
+      const whereCondition = buildInvestmentNoteWhereCondition(variables)
+      const orderBy = buildInvestmentNoteOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
+
+      const graphQLVariables: Record<string, any> = {
+        limit: 1000,
+        offset: 0,
+        where: whereCondition,
+        orderBy: orderBy
+      }
+
+      try {
+        const result = await graphqlClient.request<{ InvestmentNote: InvestmentNote[] }>(query, graphQLVariables)
+        return result.InvestmentNote.map(toInvestmentNote)
+      } catch (error) {
+        console.error('Error fetching investment notes by contact ID:', error)
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
+
+  return { fetchInvestmentNotesByContactId }
+}
+
+// Hook for getting investment documents by contact ID
+export const useGetInvestmentDocumentsByContactId = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken)
+
+  const fetchInvestmentDocumentsByContactId = useCallback(
+    async (contactId: string) => {
+      const query = buildInvestmentDocumentByContactIdQuery()
+
+      // Use variables instead of customConditions
+      const variables: InvestmentDocumentQueryVariables = {
+        contactIds: [contactId]
+      }
+
+      const whereCondition = buildInvestmentDocumentWhereCondition(variables)
+      const orderBy = buildInvestmentDocumentOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
+
+      const graphQLVariables: Record<string, any> = {
+        limit: 1000,
+        offset: 0,
+        where: whereCondition,
+        orderBy: orderBy
+      }
+
+      try {
+        const result = await graphqlClient.request<{ InvestmentDocument: InvestmentDocument[] }>(
+          query,
+          graphQLVariables
+        )
+        return result.InvestmentDocument.map(toInvestmentDocument)
+      } catch (error) {
+        console.error('Error fetching investment documents by contact ID:', error)
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
+
+  return { fetchInvestmentDocumentsByContactId }
+}
+
+/// LEGACY
 // Note: InvestmentContactQueryVariables is imported from queries
 
 // Response interfaces
 export interface InvestmentContactQueryResponse {
-  InvestmentContact: BaseInvestmentContact[]
+  InvestmentContact: InvestmentContact[]
+  InvestmentContactAggregate: {
+    aggregate: {
+      count: number
+    }
+  }
+}
+
+// Enhanced response with mapped contacts
+export interface EnhancedInvestmentContactQueryResponse {
+  InvestmentContact: InvestmentContact[]
   InvestmentContactAggregate: {
     aggregate: {
       count: number
@@ -70,12 +326,16 @@ export interface UseGetInvestmentContactsOptions {
 
 // Return type for function-only mode (backward compatible)
 interface FunctionOnlyReturn {
-  fetchInvestmentContacts: (variables?: InvestmentContactQueryVariables) => Promise<InvestmentContactQueryResponse>
+  fetchInvestmentContacts: (
+    variables?: InvestmentContactQueryVariables
+  ) => Promise<EnhancedInvestmentContactQueryResponse>
 }
 
 // Return type for stateful mode
 interface StatefulReturn {
-  fetchInvestmentContacts: (variables?: InvestmentContactQueryVariables) => Promise<InvestmentContactQueryResponse>
+  fetchInvestmentContacts: (
+    variables?: InvestmentContactQueryVariables
+  ) => Promise<EnhancedInvestmentContactQueryResponse>
   options: SelectOption[] | InvestmentContact[]
   loading: boolean
   error: string | null
@@ -86,6 +346,13 @@ interface StatefulReturn {
   initialize: () => void
 }
 
+/**
+ * @deprecated This hook is in transition. Use `useInvestmentContactsList` instead.
+ * The name `useInvestmentContacts` will be restored to the new declarative hook after migration.
+ *
+ * Legacy dual-mode hook for investment contacts (function-only or stateful).
+ * Prefer the new declarative `useInvestmentContactsList` hook.
+ */
 // Function overloads for type safety
 export function useGetInvestmentContacts(
   context: BusinessAppContextProps,
@@ -119,10 +386,27 @@ export function useGetInvestmentContacts(
   // Core fetch function (always available)
   const fetchInvestmentContacts = useCallback(
     async (variables: InvestmentContactQueryVariables = {}) => {
-      const query = GET_INVESTMENT_CONTACTS(variables)
+      const query = buildInvestmentContactQuery()
+
+      const customConditions: Record<string, any>[] = []
+      if (variables.hasEmail) customConditions.push({ email: { _isNull: false, _neq: '' } })
+      if (variables.missingEmail) customConditions.push({ _or: [{ email: { _isNull: true } }, { email: { _eq: '' } }] })
+      if (variables.hasPhone) customConditions.push({ phone: { _isNull: false, _neq: '' } })
+      if (variables.missingPhone) customConditions.push({ _or: [{ phone: { _isNull: true } }, { phone: { _eq: '' } }] })
+
+      const whereCondition = buildInvestmentContactWhereCondition(variables, [], customConditions)
+
+      const orderBy = buildInvestmentContactOrderBy(variables.orderBy || [])
+
+      const graphQLVariables: Record<string, any> = {
+        limit: Math.min(variables.limit || 50, 100),
+        offset: variables.offset || 0,
+        where: whereCondition,
+        orderBy: orderBy
+      }
 
       try {
-        const result = await graphqlClient.request<InvestmentContactQueryResponse>(query)
+        const result = await graphqlClient.request<InvestmentContactQueryResponse>(query, graphQLVariables)
 
         // Transform base types to enhanced types using mapper
         const enhancedContacts = result.InvestmentContact.map(toInvestmentContact)
@@ -170,9 +454,10 @@ export function useGetInvestmentContacts(
               value: contact.id,
               label: contact.fullName || `${contact.firstName} ${contact.lastName}`,
               name: contact.fullName || `${contact.firstName} ${contact.lastName}`,
+              pictureThumbnail: contact.pictureThumbnail || undefined,
               extraInfo: {
-                email: contact.email,
                 jobPosition: contact.jobPosition,
+                department: contact.department,
                 organizationalUnit: contact.ownerEmployee?.displayName || 'Unknown'
               }
             }))
@@ -258,150 +543,97 @@ export function useGetInvestmentContacts(
   return { fetchInvestmentContacts }
 }
 
-// Hook for getting investment contact by ID
-export const useGetInvestmentContactById = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken)
-
-  const fetchInvestmentContactById = useCallback(
-    async (id: string) => {
-      const query = GET_INVESTMENT_CONTACT_BY_ID(id)
-
-      try {
-        const result = await graphqlClient.request<{ InvestmentContact: BaseInvestmentContact[] }>(query)
-        const baseContact = result.InvestmentContact[0]
-
-        return {
-          contact: baseContact ? toInvestmentContact(baseContact) : undefined
-        } as InvestmentContactByIdData
-      } catch (error) {
-        console.error('Error fetching investment contact by ID:', error)
-        throw error
-      }
-    },
-    [graphqlClient]
-  )
-
-  return { fetchInvestmentContactById }
+/**
+ * Declarative List Hook for Investment Contacts
+ *
+ * Automatically fetches and manages state for a list of investment contacts.
+ * Follows the Hook Refactoring Guide Pattern 2.
+ *
+ * @example
+ * const { contacts, loading, error, refetch } = useInvestmentContactsList(context, { limit: 20 })
+ *
+ * @todo MIGRATION: Replace all usages of deprecated `useGetInvestmentContacts` with this hook
+ * @todo RENAME: After migration is complete, rename this hook to `useInvestmentContacts` and remove the deprecated hook
+ */
+export interface UseInvestmentContactsListResult {
+  contacts: InvestmentContact[]
+  total: number
+  loading: boolean
+  error: string | null
+  refetch: (variables?: InvestmentContactQueryVariables) => Promise<void>
 }
 
-// Hook for searching investment contacts
-export const useSearchInvestmentContacts = (context: BusinessAppContextProps) => {
+export function useInvestmentContactsList(
+  context: BusinessAppContextProps,
+  variables?: InvestmentContactQueryVariables
+): UseInvestmentContactsListResult {
   const graphqlClient = useGraphQLClient(context.accessToken)
 
-  const searchInvestmentContacts = useCallback(
-    async (searchTerm: string, variables: InvestmentContactQueryVariables = {}) => {
-      const searchVariables = { ...variables, search: searchTerm }
-      const query = GET_INVESTMENT_CONTACTS(searchVariables)
+  // Memoize variables to prevent infinite loops when object is recreated on each render
+  const stableVariables = useMemo(() => variables, [JSON.stringify(variables)])
+
+  const [state, setState] = useState({
+    contacts: [] as InvestmentContact[],
+    total: 0,
+    loading: true,
+    error: null as string | null
+  })
+
+  const fetchContacts = useCallback(
+    async (queryVariables?: InvestmentContactQueryVariables) => {
+      if (!context.accessToken) {
+        setState(prev => ({ ...prev, loading: false }))
+        return
+      }
+
+      setState(prev => ({ ...prev, loading: true, error: null }))
 
       try {
-        const result = await graphqlClient.request<InvestmentContactQueryResponse>(query)
+        const vars = { ...stableVariables, ...queryVariables }
+        const query = buildInvestmentContactQuery()
 
-        // Transform base types to enhanced types using mapper
-        const enhancedContacts = result.InvestmentContact.map(toInvestmentContact)
+        const customConditions: Record<string, any>[] = []
+        if (vars.hasEmail) customConditions.push({ email: { _isNull: false, _neq: '' } })
+        if (vars.missingEmail) customConditions.push({ _or: [{ email: { _isNull: true } }, { email: { _eq: '' } }] })
+        if (vars.hasPhone) customConditions.push({ phone: { _isNull: false, _neq: '' } })
+        if (vars.missingPhone) customConditions.push({ _or: [{ phone: { _isNull: true } }, { phone: { _eq: '' } }] })
 
-        return {
-          ...result,
-          InvestmentContact: enhancedContacts
+        const whereCondition = buildInvestmentContactWhereCondition(vars, [], customConditions)
+        const orderBy = buildInvestmentContactOrderBy(vars.orderBy || [])
+
+        const graphQLVariables: Record<string, any> = {
+          limit: Math.min(vars.limit || 50, 100),
+          offset: vars.offset || 0,
+          where: whereCondition,
+          orderBy: orderBy
         }
+
+        const result = await graphqlClient.request<InvestmentContactQueryResponse>(query, graphQLVariables)
+        const contacts = result.InvestmentContact.map(toInvestmentContact)
+        const total = result.InvestmentContactAggregate?.aggregate?.count || 0
+
+        setState({ contacts, total, loading: false, error: null })
       } catch (error) {
-        console.error('Error searching investment contacts:', error)
-        throw error
+        const errorMessage = error instanceof Error ? error.message : 'Failed to fetch investment contacts'
+
+        setState(prev => ({
+          ...prev,
+          contacts: [],
+          total: 0,
+          loading: false,
+          error: errorMessage
+        }))
       }
     },
-    [graphqlClient]
+    [context.accessToken, graphqlClient, stableVariables]
   )
 
-  return { searchInvestmentContacts }
-}
+  useEffect(() => {
+    fetchContacts()
+  }, [fetchContacts])
 
-// =====================================================
-// INVESTMENT CONTACT RELATED ENTITIES HOOKS
-// =====================================================
-
-// Hook for getting investment tasks by contact ID
-export const useGetInvestmentTasksByContactId = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken)
-
-  const fetchInvestmentTasksByContactId = useCallback(
-    async (contactId: string) => {
-      const query = GET_INVESTMENT_TASKS_BY_CONTACT_ID(contactId)
-
-      try {
-        const result = await graphqlClient.request<{ InvestmentTask: BaseInvestmentTask[] }>(query)
-        return result.InvestmentTask.map(toInvestmentTask)
-      } catch (error) {
-        console.error('Error fetching investment tasks by contact ID:', error)
-        throw error
-      }
-    },
-    [graphqlClient]
-  )
-
-  return { fetchInvestmentTasksByContactId }
-}
-
-// Hook for getting investment activities by contact ID
-export const useGetInvestmentActivitiesByContactId = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken)
-
-  const fetchInvestmentActivitiesByContactId = useCallback(
-    async (contactId: string) => {
-      const query = GET_INVESTMENT_ACTIVITIES_BY_CONTACT_ID(contactId)
-
-      try {
-        const result = await graphqlClient.request<{ InvestmentActivity: BaseInvestmentActivity[] }>(query)
-        return result.InvestmentActivity.map(toInvestmentActivity)
-      } catch (error) {
-        console.error('Error fetching investment activities by contact ID:', error)
-        throw error
-      }
-    },
-    [graphqlClient]
-  )
-
-  return { fetchInvestmentActivitiesByContactId }
-}
-
-// Hook for getting investment notes by contact ID
-export const useGetInvestmentNotesByContactId = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken)
-
-  const fetchInvestmentNotesByContactId = useCallback(
-    async (contactId: string) => {
-      const query = GET_INVESTMENT_NOTES_BY_CONTACT_ID(contactId)
-
-      try {
-        const result = await graphqlClient.request<{ InvestmentNote: BaseInvestmentNote[] }>(query)
-        return result.InvestmentNote.map(toInvestmentNote)
-      } catch (error) {
-        console.error('Error fetching investment notes by contact ID:', error)
-        throw error
-      }
-    },
-    [graphqlClient]
-  )
-
-  return { fetchInvestmentNotesByContactId }
-}
-
-// Hook for getting investment documents by contact ID
-export const useGetInvestmentDocumentsByContactId = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken)
-
-  const fetchInvestmentDocumentsByContactId = useCallback(
-    async (contactId: string) => {
-      const query = GET_INVESTMENT_DOCUMENTS_BY_CONTACT_ID(contactId)
-
-      try {
-        const result = await graphqlClient.request<{ InvestmentDocument: BaseInvestmentDocument[] }>(query)
-        return result.InvestmentDocument.map(toInvestmentDocument)
-      } catch (error) {
-        console.error('Error fetching investment documents by contact ID:', error)
-        throw error
-      }
-    },
-    [graphqlClient]
-  )
-
-  return { fetchInvestmentDocumentsByContactId }
+  return {
+    ...state,
+    refetch: fetchContacts
+  }
 }

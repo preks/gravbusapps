@@ -856,7 +856,7 @@ function getContentType(fileName) {
   }
 }
 
-async function uploadDirectory(buildOutputDir, azureDestinationPath, azureTarget) {
+async function uploadDirectory(buildOutputDir, azureDestinationPath, azureTarget, version) {
   const { accountName, sasToken, containerName } = azureTarget
   if (!accountName || !sasToken) {
     console.error('Error: Missing Azure Storage account or SAS token for the target upload.')
@@ -886,11 +886,20 @@ async function uploadDirectory(buildOutputDir, azureDestinationPath, azureTarget
     const blobName = path.join(azureDestinationPath, file).replace(/\\/g, '/')
     const blockBlobClient = containerClient.getBlockBlobClient(blobName)
     const contentType = getContentType(file)
+    const isVersioned =
+      !!version &&
+      (file.endsWith(`index-${version}.js`) ||
+        (path.extname(file).toLowerCase() === '.css' && path.basename(file).includes(`-${version}`)))
+
+    const cacheControl = isVersioned ? 'public, max-age=31536000, immutable' : undefined
 
     try {
       console.log(`   Uploading: ${file} as ${blobName} (Content-Type: ${contentType})`)
       await blockBlobClient.uploadFile(localFilePath, {
-        blobHTTPHeaders: { blobContentType: contentType }
+        blobHTTPHeaders: {
+          blobContentType: contentType,
+          ...(cacheControl ? { blobCacheControl: cacheControl } : {})
+        }
       })
     } catch (error) {
       console.error(`❌ Error uploading ${file}:`, error.message)
@@ -1022,7 +1031,7 @@ async function publishScreen(screenPath, options = {}) {
     options.azureTargets && options.azureTargets.length > 0 ? options.azureTargets : [PRIMARY_TARGET.azure]
   for (const target of azureTargets) {
     try {
-      await uploadDirectory(buildOutputDir, azureDestinationPath, target)
+      await uploadDirectory(buildOutputDir, azureDestinationPath, target, PUBLISH_VERSION)
     } catch (err) {
       err.targetLabel = target.label || 'unknown'
       throw err
@@ -1083,7 +1092,7 @@ async function publishScreen(screenPath, options = {}) {
     // Upload the CSS files to all targets
     for (const target of azureTargets) {
       try {
-        await uploadDirectory(buildOutputDir, azureDestinationPath, target)
+        await uploadDirectory(buildOutputDir, azureDestinationPath, target, PUBLISH_VERSION)
       } catch (err) {
         err.targetLabel = target.label || 'unknown'
         throw err
@@ -1428,7 +1437,23 @@ async function main() {
     .split('\n')
     .map(line => line.trim())
     .filter(line => line.length > 0)
-    .map(line => line.replace(/^src\/business-apps\//, ''))
+    .map(line => {
+      // Convert all backslashes to forward slashes (Windows paths)
+      let normalized = line.replace(/\\/g, '/')
+      // Remove any leading slashes that might remain
+      normalized = normalized.replace(/^\/+/, '')
+      // Remove src/business-apps/ prefix if present (handles both original and converted paths)
+      normalized = normalized.replace(/^src\/business-apps\//, '')
+      // Remove .ts or .tsx extension if present
+      normalized = normalized.replace(/\.tsx?$/, '')
+      // Extract screen directory (module/sub-module/.../app-name) - remove subfolders
+      // e.g., hr/core/apps/employee-record/components/Foo -> hr/core/apps/employee-record
+      const screenMatch = normalized.match(/^(.*?\/(?:apps|forms|popups|records)\/[^/]+)/)
+      if (screenMatch) {
+        normalized = screenMatch[1]
+      }
+      return normalized
+    })
 
   console.log(`📋 Detected ${detectedScreens.length} screen(s) from change detection:`)
   detectedScreens.forEach(screen => console.log(`   - ${screen}`))

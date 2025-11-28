@@ -3,7 +3,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetInvestmentOpportunities } from '@/common/data/investment/hooks/useInvestmentOpportunities'
 import { OpportunityLayout } from '@/common/components/common-relations/view-layouts/opportunity-layout'
 import { createOpportunityConfig } from '@/common/components/common-relations/view-layouts/opportunity-layout/utils/opportunityConfigBuilder'
-import type { InvestmentOpportunity } from '@/common/data/investment/types'
+import type { InvestmentOpportunity } from '@/common/data/investment/types/investmentOpportunityTypes'
 import type { InvestmentOpportunityQueryVariables } from '@/common/data/investment/queries/investmentOpportunityQueries'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useInvestmentOpportunityFilters } from '@/business-apps/irm/core/apps/investment-relations/views/opportunity-view/hooks/useInvestmentOpportunityFilters'
@@ -16,15 +16,20 @@ export const ExitOpportunitiesTab: React.FC<ExitOpportunitiesTabProps> = context
 
   const config = useMemo(
     () =>
-      createOpportunityConfig<InvestmentOpportunity, InvestmentOpportunityQueryVariables>({
+      createOpportunityConfig<InvestmentOpportunity & { id: string }, InvestmentOpportunityQueryVariables>({
         contextType: 'investment',
 
-        extendQueryVariables: vars => ({ ...vars, dealType: 'DIVESTMENT_DEAL' }),
+        extendQueryVariables: vars => ({
+          ...vars,
+          dealType: 'DIVESTMENT_DEAL'
+        }),
 
         fetchOpportunities: async variables => {
           const result = await fetchInvestmentOpportunities(variables)
           return {
-            opportunities: result.InvestmentOpportunity,
+            opportunities: result.InvestmentOpportunity.filter(
+              (opp): opp is InvestmentOpportunity & { id: string } => !!opp.id
+            ),
             total: result.InvestmentOpportunityAggregate.aggregate.count
           }
         },
@@ -59,7 +64,14 @@ export const ExitOpportunitiesTab: React.FC<ExitOpportunitiesTabProps> = context
 
         fetchBoardOpportunities: fetchInvestmentOpportunities,
         extractBoardOpportunities: result => result.InvestmentOpportunity || [],
-        renderStatistics: () => <ExitOpportunityStatistics {...context} />
+        extractBoardTotalCount: result => result.InvestmentOpportunityAggregate?.aggregate?.count || 0,
+        renderStatistics: (selectedCurrency?: string) => (
+          <ExitOpportunityStatistics {...context} currencyCode={selectedCurrency} />
+        ),
+        rowActionsContextArray: [FlowContextName.investmentOpportunityEntity],
+        buildRowActionsExternalContextData: (row: { original: InvestmentOpportunity & { id: string } }) => ({
+          opportunityId: row.original.id
+        })
       }),
     [context, fetchInvestmentOpportunities]
   )

@@ -2,8 +2,8 @@ import { useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { GET_INVESTMENT_ACTIVITIES_BY_INVESTMENT_ID } from '@/common/data/investment/queries/investmentQueries'
-import type { BaseInvestmentActivity, InvestmentActivity } from '@/common/data/investment/types'
-import { toInvestmentActivity } from '@/common/data/investment/mappers'
+import type { BaseInvestmentActivity, InvestmentActivity } from '@/common/data/investment/types/investmentActivityTypes'
+import { toInvestmentActivity } from '@/common/data/investment/mappers/investmentRelatedEntityMappers'
 
 interface InvestmentActivitiesByInvestmentIdResponse {
   InvestmentActivity: BaseInvestmentActivity[]

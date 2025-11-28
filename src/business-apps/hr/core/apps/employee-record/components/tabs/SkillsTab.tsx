@@ -2,11 +2,11 @@ import React, { useMemo } from 'react'
 import { Card } from '@newwork/gravity-ui-catalog'
 import { Empty, Progress } from 'antd'
 import { Employee } from '../../hooks/useEmployeeData'
-import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
+import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
-import { PiPencilSimple, PiStar, PiCheckCircle } from 'react-icons/pi'
+import { PiStar, PiCheckCircle } from 'react-icons/pi'
 import { calculateSkillStats, getLevelInfo, getSkillCategory, getTimeSince } from '../../utils/utils'
 
 interface SkillsTabProps {
@@ -14,14 +14,13 @@ interface SkillsTabProps {
   accessToken: string
   employeeId?: string // Optional employeeId override for permissions check
   userInfo?: UserInfoProps // Current user info for self-view check
-  isSelfView: boolean // Whether user is viewing their own profile
 }
 
 /**
  * Skills Tab Component
  * Displays skills for the employee with enhanced visual design
  */
-const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken, isSelfView }) => {
+const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken }) => {
   // Use employee skills data directly
   const employeeSkills = useMemo(() => {
     return employee.skills || []
@@ -51,23 +50,19 @@ const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken, isSelfView
             )}
           </div>
         </div>
-        {isSelfView && (
-          <AppActionMenu
-            data-testid="employee-skills-edit-button"
-            contextsArray={[FlowContextName.updateEmployeeSkill]}
-            externalContextData={{
-              employeeId: employee?.id
-            }}
-            prefixDataTestId="employee-skills-edit"
-            accessToken={accessToken}
-            autoExecuteSingleAction={true}
-          >
-            <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
-              <PiPencilSimple className="gba:cursor-pointer" />
-              Edit Skills
-            </div>
-          </AppActionMenu>
-        )}
+        <AppAction
+          variant="update-primary"
+          data-testid="employee-skills-edit-button"
+          contexts={[{ context: FlowContextName.updateEmployeeSkill, contextData: { employeeId: employee?.id } }]}
+          prefixDataTestId="employee-skills-edit"
+          accessToken={accessToken}
+          autoExecute={true}
+        >
+          {getTranslationFromI18nKeyAndLabel(
+            'lowcoder:employee_profile.employee_tabs.flow_button.edit_skills',
+            'Edit Skills'
+          )}
+        </AppAction>
       </div>
 
       {validSkills.length === 0 ? (

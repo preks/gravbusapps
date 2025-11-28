@@ -10,6 +10,10 @@ import {
 } from '@/common/hooks/useAppActionData'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 
+/**
+ * @deprecated Use AppAction component instead with variant or mode="button" and custom children
+ * @see AppAction
+ */
 export type AppActionMenuProps = Omit<ActionMenuProps, 'actions'> &
   AppActionCommonProps & {
     /**
@@ -34,6 +38,27 @@ const DATA_TEST_ID_PREFIX = 'AppActionMenu'
  * AppActionMenu Component
  * Displays an action menu with flow items from the flow registry
  * Based on the ActionMenu from nw-design-system
+ *
+ * @deprecated Use AppAction component instead with variant or mode="button"
+ * @example
+ * // Instead of:
+ * <AppActionMenu
+ *   contextsArray={[FlowContextName.leadEntity]}
+ *   externalContextData={{ leadId }}
+ *   accessToken={accessToken}
+ * >
+ *   <Button>Actions</Button>
+ * </AppActionMenu>
+ *
+ * // Use:
+ * <AppAction
+ *   mode="button"
+ *   contextsArray={[FlowContextName.leadEntity]}
+ *   externalContextData={{ leadId }}
+ *   accessToken={accessToken}
+ * >
+ *   <Button>Actions</Button>
+ * </AppAction>
  */
 export const AppActionMenu: React.FC<AppActionMenuProps> = React.memo(props => {
   // Extract App Action specific props and get clean props for ActionMenu

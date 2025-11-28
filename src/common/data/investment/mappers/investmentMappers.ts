@@ -9,12 +9,8 @@ import {
   RealEstateInvestment,
   BaseLiquidFundInvestment,
   LiquidFundInvestment
-} from '../types'
-
-// Extract currency code from currency reference
-const extractCurrencyCode = (currencyId: string): string => {
-  return currencyId?.split(':').pop() || 'EUR'
-}
+} from '../types/investmentTypes'
+import { toInvestmentAccount } from '../types/investmentAccountTypes'
 
 /**
  * Transform BaseInvestment (GraphQL response) to Investment (enhanced with computed fields)
@@ -25,6 +21,7 @@ export function toInvestment(base: BaseInvestment): Investment {
   const investmentTypeLabel = base.investmentType?.value || base.investmentType?.code
   const investmentStatusLabel = base.investmentStatus?.value || base.investmentStatus?.code
   const currencyLabel = base.currency?.value || base.currency?.code
+  const investmentAccount = base.investmentAccount ? toInvestmentAccount(base.investmentAccount) : undefined
 
   // Employee label
   const ownerDisplayName =
@@ -43,7 +40,8 @@ export function toInvestment(base: BaseInvestment): Investment {
     investmentTypeLabel,
     investmentStatusLabel,
     currencyLabel,
-    ownerDisplayName
+    ownerDisplayName,
+    investmentAccount
   }
 }
 

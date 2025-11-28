@@ -15,11 +15,11 @@ import {
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import { useDocumentCatalogs } from '@/business-apps/crm/core/forms/document-upload-form/hooks/useDocumentCatalogs'
+import { useDocumentCatalogs } from '@/common/hooks/useDocumentCatalogs'
 import { fileClient } from '@/common/network/files/FileClient'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
-export type DocumentCreationEntityType = 'account' | 'contact' | 'lead'
+export type DocumentCreationEntityType = 'account' | 'contact' | 'lead' | 'opportunity'
 
 export interface DocumentCreationPopupValues {
   entityType: DocumentCreationEntityType
@@ -51,33 +51,70 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
       payload?.crmDocument
     const crm = src?.crmDocument || crmFromAd || {}
 
-    // Extract entity IDs from all possible locations
+    // Extract entity IDs from all possible locations (following IRM pattern)
+    const externalContext = ad?.externalContextData || {}
+    const nested =
+      ad?.psi_taskPayload?.psi_initialParameters ||
+      ad?.psi_taskPayload?.initialParameters ||
+      ad?.psi_initialParameters ||
+      {}
+
     const accountId =
+      externalContext?.accountId ||
       src?.accountId ||
       src?.account ||
       ad?.accountId ||
       ad?.account ||
+      nested?.accountId ||
+      nested?.account ||
       payload?.accountId ||
       payload?.account ||
       crm?.account ||
       ''
     const contactId =
+      externalContext?.contactId ||
       src?.contactId ||
       src?.contact ||
       ad?.contactId ||
       ad?.contact ||
+      nested?.contactId ||
+      nested?.contact ||
       payload?.contactId ||
       payload?.contact ||
       crm?.contact ||
       ''
     const leadId =
-      src?.leadId || src?.lead || ad?.leadId || ad?.lead || payload?.leadId || payload?.lead || crm?.lead || ''
+      externalContext?.leadId ||
+      src?.leadId ||
+      src?.lead ||
+      ad?.leadId ||
+      ad?.lead ||
+      nested?.leadId ||
+      nested?.lead ||
+      payload?.leadId ||
+      payload?.lead ||
+      crm?.lead ||
+      ''
+    const opportunityId =
+      externalContext?.opportunityId ||
+      src?.opportunityId ||
+      src?.opportunity ||
+      ad?.opportunityId ||
+      ad?.opportunity ||
+      nested?.opportunityId ||
+      nested?.opportunity ||
+      payload?.opportunityId ||
+      payload?.opportunity ||
+      crm?.opportunity ||
+      ''
 
     // Debugging - log what we found
     console.log('DocumentCreationPopup - Entity Detection:', {
       accountId,
       contactId,
       leadId,
+      opportunityId,
+      externalContext,
       src_keys: Object.keys(src),
       ad_keys: Object.keys(ad),
       payload_keys: Object.keys(payload)
@@ -94,6 +131,9 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
     } else if (leadId) {
       entityType = 'lead'
       entityId = String(leadId)
+    } else if (opportunityId) {
+      entityType = 'opportunity'
+      entityId = String(opportunityId)
     }
 
     // Folder mode only when explicitly requested or format pre-set as FOLDER
@@ -143,8 +183,11 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
   const [documentGroupRef, setDocumentGroupRef] = useState<string>('')
   const [documentTypeRef, setDocumentTypeRef] = useState<string>('')
   const [parentFolderId, setParentFolderId] = useState<string>(values.parentDocument || '')
-  // Catalog dropdowns for file creation
-  const { documentGroups, filteredDocumentTypes } = useDocumentCatalogs(props.accessToken || '', documentGroupRef)
+  // Catalog dropdowns for file creation - using CRM-specific catalogs
+  const { documentGroups, filteredDocumentTypes } = useDocumentCatalogs(props.accessToken || '', documentGroupRef, {
+    groupCatalogIdentifier: 'SalesDocumentGroup',
+    typeCatalogIdentifier: 'SalesDocumentType'
+  })
   const [description, setDescription] = useState<string>('')
   const [error, setError] = useState<string | null>(null)
   const [groupOpen, setGroupOpen] = useState<boolean>(false)
@@ -260,6 +303,8 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
         return 'contactId'
       case 'lead':
         return 'leadId'
+      case 'opportunity':
+        return 'opportunityId'
       default:
         return 'accountId'
     }
@@ -325,6 +370,8 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
             return 'contact'
           case 'lead':
             return 'lead'
+          case 'opportunity':
+            return 'opportunity'
           default:
             return 'account'
         }
@@ -341,6 +388,8 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
             return urlParams.get('contactId')
           case 'lead':
             return urlParams.get('leadId')
+          case 'opportunity':
+            return urlParams.get('opportunityId')
           default:
             return null
         }
@@ -352,9 +401,11 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
         source?.accountId ||
         source?.contactId ||
         source?.leadId ||
+        source?.opportunityId ||
         source?.account ||
         source?.contact ||
         source?.lead ||
+        source?.opportunity ||
         idFromUrl ||
         ''
 
@@ -426,6 +477,8 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
               return 'contacts'
             case 'lead':
               return 'leads'
+            case 'opportunity':
+              return 'opportunities'
             default:
               return 'accounts'
           }
@@ -473,6 +526,133 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
     dispatchProcessContinueEvent('pse_pause', {})
   }
 
+  const renderFormContent = () => {
+    if (renameMode) {
+      return (
+        <div className="gba:mb-4">
+          <Input
+            placeholder="Document name"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            data-testid={formatDataTestId(prefixDataTestId, 'RenameNameInput')}
+          />
+        </div>
+      )
+    }
+
+    if (values.folder) {
+      return (
+        <div className="gba:mb-4">
+          <Input
+            placeholder="Folder name"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            data-testid={formatDataTestId(prefixDataTestId, 'NameInput')}
+          />
+        </div>
+      )
+    }
+
+    return (
+      <div className="gba:flex gba:flex-col gba:gap-3 gba:mb-4">
+        <Input
+          type="file"
+          onChange={e => {
+            const f = e.target.files?.[0] || null
+            setFile(f)
+            if (f && !name) {
+              setName(f.name)
+            }
+          }}
+          data-testid={formatDataTestId(prefixDataTestId, 'FileInput')}
+        />
+        <div className="gba:flex gba:flex-col gba:gap-2">
+          <label className="gba:text-sm">Document Group</label>
+          <Select
+            value={documentGroupRef || undefined}
+            onValueChange={v => {
+              setDocumentGroupRef(v as string)
+              setDocumentTypeRef('')
+            }}
+            data-testid={formatDataTestId(prefixDataTestId, 'DocumentGroupSelect')}
+            open={groupOpen}
+            onOpenChange={setGroupOpen}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select group..." />
+            </SelectTrigger>
+            <SelectContent className="gba:z-10000" style={{ zIndex: 100000 }}>
+              {documentGroups.map(g => (
+                <SelectItem key={g.id} value={g.id}>
+                  {g.value}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="gba:flex gba:flex-col gba:gap-2">
+          <label className="gba:text-sm">Document Type</label>
+          <Select
+            value={documentTypeRef || undefined}
+            onValueChange={v => setDocumentTypeRef(v as string)}
+            data-testid={formatDataTestId(prefixDataTestId, 'DocumentTypeSelect')}
+            open={typeOpen}
+            onOpenChange={setTypeOpen}
+          >
+            <SelectTrigger
+              disabled={!documentGroupRef}
+              onClick={() => {
+                if (!documentGroupRef) return
+              }}
+            >
+              <SelectValue placeholder="Select type..." />
+            </SelectTrigger>
+            <SelectContent className="gba:z-10000" style={{ zIndex: 100000 }}>
+              {filteredDocumentTypes.map(t => (
+                <SelectItem key={t.id} value={t.id}>
+                  {t.value}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="gba:flex gba:flex-col gba:gap-2">
+          <label className="gba:text-sm">Parent Folder (optional)</label>
+          <Select
+            value={parentFolderId || undefined}
+            onValueChange={v => setParentFolderId(v as string)}
+            data-testid={formatDataTestId(prefixDataTestId, 'ParentFolderSelect')}
+            open={parentOpen}
+            onOpenChange={setParentOpen}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={parentLoading ? 'Loading...' : 'Select parent...'} />
+            </SelectTrigger>
+            <SelectContent className="gba:z-10000" style={{ zIndex: 100000 }}>
+              {parentFolders.map(p => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <Input
+          placeholder="Document name"
+          value={name}
+          onChange={e => setName(e.target.value)}
+          data-testid={formatDataTestId(prefixDataTestId, 'NameInput')}
+        />
+        <Textarea
+          placeholder="Description (optional)"
+          value={description}
+          onChange={e => setDescription(e.target.value)}
+          data-testid={formatDataTestId(prefixDataTestId, 'DescriptionInput')}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="gba:max-w-md gba:mx-auto gba:p-6" data-testid={formatDataTestId(prefixDataTestId, 'container')}>
       {error && (
@@ -488,122 +668,7 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
       </div>
 
       {/* Conditional form */}
-      {renameMode ? (
-        <div className="gba:mb-4">
-          <Input
-            placeholder="Document name"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            data-testid={formatDataTestId(prefixDataTestId, 'RenameNameInput')}
-          />
-        </div>
-      ) : values.folder ? (
-        <div className="gba:mb-4">
-          <Input
-            placeholder="Folder name"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            data-testid={formatDataTestId(prefixDataTestId, 'NameInput')}
-          />
-        </div>
-      ) : (
-        <div className="gba:flex gba:flex-col gba:gap-3 gba:mb-4">
-          <Input
-            type="file"
-            onChange={e => {
-              const f = e.target.files?.[0] || null
-              setFile(f)
-              if (f && !name) {
-                setName(f.name)
-              }
-            }}
-            data-testid={formatDataTestId(prefixDataTestId, 'FileInput')}
-          />
-          <div className="gba:flex gba:flex-col gba:gap-2">
-            <label className="gba:text-sm">Document Group</label>
-            <Select
-              value={documentGroupRef || undefined}
-              onValueChange={v => {
-                setDocumentGroupRef(v as string)
-                setDocumentTypeRef('')
-              }}
-              data-testid={formatDataTestId(prefixDataTestId, 'DocumentGroupSelect')}
-              open={groupOpen}
-              onOpenChange={setGroupOpen}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select group..." />
-              </SelectTrigger>
-              <SelectContent className="gba:z-[10000]" style={{ zIndex: 100000 }}>
-                {documentGroups.map(g => (
-                  <SelectItem key={g.id} value={g.id}>
-                    {g.value}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="gba:flex gba:flex-col gba:gap-2">
-            <label className="gba:text-sm">Document Type</label>
-            <Select
-              value={documentTypeRef || undefined}
-              onValueChange={v => setDocumentTypeRef(v as string)}
-              data-testid={formatDataTestId(prefixDataTestId, 'DocumentTypeSelect')}
-              open={typeOpen}
-              onOpenChange={setTypeOpen}
-            >
-              <SelectTrigger
-                disabled={!documentGroupRef}
-                onClick={() => {
-                  if (!documentGroupRef) return
-                }}
-              >
-                <SelectValue placeholder="Select type..." />
-              </SelectTrigger>
-              <SelectContent className="gba:z-[10000]" style={{ zIndex: 100000 }}>
-                {filteredDocumentTypes.map(t => (
-                  <SelectItem key={t.id} value={t.id}>
-                    {t.value}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="gba:flex gba:flex-col gba:gap-2">
-            <label className="gba:text-sm">Parent Folder (optional)</label>
-            <Select
-              value={parentFolderId || undefined}
-              onValueChange={v => setParentFolderId(v as string)}
-              data-testid={formatDataTestId(prefixDataTestId, 'ParentFolderSelect')}
-              open={parentOpen}
-              onOpenChange={setParentOpen}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={parentLoading ? 'Loading...' : 'Select parent...'} />
-              </SelectTrigger>
-              <SelectContent className="gba:z-[10000]" style={{ zIndex: 100000 }}>
-                {parentFolders.map(p => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <Input
-            placeholder="Document name"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            data-testid={formatDataTestId(prefixDataTestId, 'NameInput')}
-          />
-          <Textarea
-            placeholder="Description (optional)"
-            value={description}
-            onChange={e => setDescription(e.target.value)}
-            data-testid={formatDataTestId(prefixDataTestId, 'DescriptionInput')}
-          />
-        </div>
-      )}
+      {renderFormContent()}
 
       <div className="gba:flex gba:gap-3">
         <Button

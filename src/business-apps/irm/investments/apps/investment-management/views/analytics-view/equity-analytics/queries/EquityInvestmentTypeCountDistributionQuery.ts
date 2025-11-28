@@ -11,7 +11,7 @@ export interface InvestmentTypeCountDistributionData {
 }
 
 /**
- * Query for Investment Type Count Distribution (supports "All Currencies")
+ * Query for Investment Type Count Distribution (supports "All")
  * Uses shared distinct investment types query to avoid duplication
  */
 
@@ -20,10 +20,7 @@ export interface InvestmentTypeCountDistributionData {
  */
 const BUILD_ALL_INVESTMENT_TYPES_COUNT_QUERY = (investmentTypes: InvestmentTypeInfo[], currency?: string): string => {
   const countConditions = (investmentTypeRef: string) => {
-    const currencyCondition =
-      currency && currency !== 'All' && currency !== 'All Currencies'
-        ? `currency: { code: { _eq: "${currency}" } }`
-        : ''
+    const currencyCondition = currency && currency !== 'All' ? `currency: { code: { _eq: "${currency}" } }` : ''
 
     const conditions = [
       'isDeleted: { _eq: false }',

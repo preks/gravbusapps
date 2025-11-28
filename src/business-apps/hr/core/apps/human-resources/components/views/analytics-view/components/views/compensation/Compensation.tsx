@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react'
 import { Typography, Row, Col } from 'antd'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { SectionKpiCards, KpiCardData } from '@newwork/nw-design-system'
+import { SectionKpiCards, KpiCardData, Icon } from '@newwork/nw-design-system'
+import { CalendarIcon, CurrencyDollarIcon } from '@phosphor-icons/react'
 import { useMedianSalary } from '../../../hooks/useMedianSalary'
 import { useTotalPayroll } from '../../../hooks/useTotalPayroll'
 import { useAverageSalary } from '../../../hooks/useAverageSalary'
@@ -11,6 +12,7 @@ import YearlyPayrollChart from './components/charts/YearlyPayrollChart'
 import SalaryByOrgUnitChart from './components/charts/SalaryByOrgUnitChart'
 import HealthInsurerDistributionChart from './components/charts/HealthInsurerDistributionChart'
 import HealthInsuranceTypeDistributionChart from './components/charts/HealthInsuranceTypeDistributionChart'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 const { Title, Text } = Typography
 
@@ -19,6 +21,7 @@ interface CompensationProps extends BusinessAppContextProps {
 }
 
 export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixDataTestId = 'Compensation' }) => {
+  const { t } = useTranslation(hrTranslations)
   // Use separate hooks for each metric
   const { totalPayroll, loading: payrollLoading, error: payrollError } = useTotalPayroll(accessToken)
   const { medianSalary, loading: medianLoading, error: medianError } = useMedianSalary(accessToken)
@@ -67,41 +70,38 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
     () => [
       {
         id: 'total-payroll',
-        title: getTranslationFromI18nKeyAndLabel('hr_analytics_total_payroll', 'Total Payroll'),
-        value: loading ? 'Loading...' : `${formattedTotalPayroll.value.toFixed(1)}M`,
-        prefix: '$',
-        icon: 'users',
+        title: t('hr-analytics-total-payroll'),
+        value: loading ? t('hr-data-filter-loading') : `${formattedTotalPayroll.value.toFixed(1)}M`,
+        icon: <Icon icon={CurrencyDollarIcon} size="sm" decorative />,
         iconColor: 'var(--nw-chart-1)',
-        footer: getTranslationFromI18nKeyAndLabel('hr_analytics_annual_payroll', formattedTotalPayroll.label)
+        footer: t('hr-analytics-annual-payroll')
       },
       {
         id: 'median-salary',
-        title: getTranslationFromI18nKeyAndLabel('hr_analytics_median_salary', 'Median Salary'),
-        value: loading ? 'Loading...' : `${formattedMedianSalary.value}K`,
-        prefix: '$',
-        icon: 'users',
+        title: t('hr-analytics-median-salary'),
+        value: loading ? t('hr-data-filter-loading') : `${formattedMedianSalary.value}K`,
+        icon: <Icon icon={CurrencyDollarIcon} size="sm" decorative />,
         iconColor: 'var(--nw-chart-2)',
-        footer: getTranslationFromI18nKeyAndLabel('hr_analytics_company_median', formattedMedianSalary.label)
+        footer: t('hr-analytics-company-median')
       },
       {
         id: 'avg-salary',
-        title: getTranslationFromI18nKeyAndLabel('hr_analytics_avg_salary', 'Avg Salary'),
-        value: loading ? 'Loading...' : `${formattedAverageSalary.value}K`,
-        prefix: '$',
-        icon: 'users',
+        title: t('hr-analytics-avg-salary'),
+        value: loading ? t('hr-data-filter-loading') : `${formattedAverageSalary.value}K`,
+        icon: <Icon icon={CurrencyDollarIcon} size="sm" decorative />,
         iconColor: 'var(--nw-chart-3)',
-        footer: getTranslationFromI18nKeyAndLabel('hr_analytics_annual_average', formattedAverageSalary.label)
+        footer: t('hr-analytics-annual-average')
       },
       {
         id: 'merit-increases',
-        title: getTranslationFromI18nKeyAndLabel('hr_analytics_merit_increases', 'Merit Increases'),
-        value: loading ? 'Loading...' : `${meritIncreases.value}%`,
-        icon: 'calendar',
+        title: t('hr-analytics-merit-increases'),
+        value: loading ? t('hr-data-filter-loading') : `${meritIncreases.value}%`,
+        icon: <Icon icon={CalendarIcon} size="sm" decorative />,
         iconColor: 'var(--nw-chart-4)',
-        footer: getTranslationFromI18nKeyAndLabel('hr_analytics_average_increase', meritIncreases.label)
+        footer: t('hr-analytics-average-increase')
       }
     ],
-    [loading, formattedTotalPayroll, formattedMedianSalary, formattedAverageSalary, meritIncreases]
+    [loading, formattedTotalPayroll, formattedMedianSalary, formattedAverageSalary, meritIncreases, t]
   )
 
   if (error) {
@@ -126,14 +126,9 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
       <div className="gba:flex gba:justify-between gba:items-center">
         <div>
           <Title level={3} className="gba:m-0 gba:text-foreground">
-            {getTranslationFromI18nKeyAndLabel('hr_analytics_compensation_analysis', 'Compensation Analysis')}
+            {t('hr-analytics-compensation-analysis')}
           </Title>
-          <Text className="gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel(
-              'hr_analytics_compensation_description',
-              'Comprehensive compensation metrics, salary analysis, and payroll insights'
-            )}
-          </Text>
+          <Text className="gba:text-muted-foreground">{t('hr-analytics-compensation-description')}</Text>
         </div>
       </div>
 

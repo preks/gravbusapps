@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useCallback, useEffect, useRef } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import dayjs from 'dayjs'
 import {
   PiEnvelopeSimple,
@@ -9,12 +9,12 @@ import {
   PiUser,
   PiMapPin,
   PiCalendar,
-  PiPencilSimple,
   PiVideoCamera,
   PiChat,
   PiCurrencyDollar,
   PiGlobeHemisphereWest,
-  PiBookmarks
+  PiBookmarks,
+  PiCameraFill
 } from 'react-icons/pi'
 import { Avatar } from '@newwork/gravity-ui-catalog'
 import { Employee } from '../hooks/useEmployeeData'
@@ -27,7 +27,9 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { notification } from 'antd'
 import { StarIcon } from 'lucide-react'
 import { TeamOutlined } from '@ant-design/icons'
-import AppActionMenu from '@/components/app-action-menu/AppActionMenu'
+import AppAction from '@/components/app-action/AppAction'
+import { useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 // Team item type
 interface MatrixUnitEmployee {
@@ -140,14 +142,9 @@ const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({
 }
 
 const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({ userInfo, employee, accessToken }) => {
-  // Reference for container and observer
-  const skillsContainerRef = useRef<HTMLDivElement>(null)
-  const resizeObserverRef = useRef<ResizeObserver | null>(null)
-  const [containerHeight, setContainerHeight] = useState<number | null>(null)
-
   // Translation helper
   const t = (key: string) => getTranslationFromI18nKeyAndLabel(key, key)
-  const [isHovering, setIsHovering] = useState(false)
+  const { t: tDesign } = useTranslation(hrTranslations)
   const [employeeEmail, setEmployeeEmail] = useState<string | undefined>()
 
   // Use the openChat hook for direct Teams integration
@@ -251,55 +248,8 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
     }
   }, [employeeWithComms])
 
-  // Effect to calculate and adjust height dynamically
-  useEffect(() => {
-    // Function to calculate available height
-    const calculateHeight = () => {
-      if (!skillsContainerRef.current) return
-
-      const rect = skillsContainerRef.current.getBoundingClientRect()
-      const viewportHeight = window.innerHeight
-      const distanceFromTop = rect.top
-      const paddingBottom = 20 // Buffer space at the bottom
-
-      // Calculate available height (viewport height minus distance from top minus padding)
-      const availableHeight = viewportHeight - distanceFromTop - paddingBottom
-
-      // Set minimum height to avoid too small containers
-      const minHeight = 100
-      const finalHeight = Math.max(availableHeight, minHeight)
-
-      setContainerHeight(finalHeight)
-    }
-
-    // Calculate initial height
-    calculateHeight()
-
-    // Set up resize observer for parent elements that might affect positioning
-    if (!resizeObserverRef.current) {
-      resizeObserverRef.current = new ResizeObserver(() => {
-        calculateHeight()
-      })
-
-      if (skillsContainerRef.current?.parentElement) {
-        resizeObserverRef.current.observe(skillsContainerRef.current.parentElement)
-      }
-    }
-
-    // Add window resize listener
-    window.addEventListener('resize', calculateHeight)
-
-    // Clean up
-    return () => {
-      window.removeEventListener('resize', calculateHeight)
-      if (resizeObserverRef.current) {
-        resizeObserverRef.current.disconnect()
-      }
-    }
-  }, [])
-
   return (
-    <div className="gba:w-full gba:relative gba:overflow-hidden">
+    <div className="gba:w-full gba:relative">
       <div className="gba:relative gba:pb-4 gba:mt-4 gba:flex gba:flex-col gba:md:flex-row gba:md:items-end">
         <div className="gba:flex gba:flex-col gba:items-center">
           <div className="gba:flex gba:flex-col gba:items-center">
@@ -307,7 +257,7 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
               <div className="gba:relative">
                 <div className="gba:relative">
                   {/* Use the Avatar component */}
-                  <div className="gba:relative">
+                  <div className="gba:relative gba:group" style={{ width: '144px', height: '144px' }}>
                     <Avatar
                       src={employee.pictureThumbnail ? `data:image/gif;base64,${employee.pictureThumbnail}` : undefined}
                       initials={`${employee.firstName?.[0] || ''}${employee.lastName?.[0] || ''}`}
@@ -328,28 +278,25 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                     />
 
                     {/* Edit button overlay */}
-                    <div
-                      className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center"
-                      onMouseEnter={() => setIsHovering(true)}
-                      onMouseLeave={() => setIsHovering(false)}
-                      aria-label={'Edit profile picture'}
+                    <AppAction
+                      mode="trigger"
+                      data-testid="employee-profile-picture-edit-button"
+                      contexts={[
+                        { context: FlowContextName.employeeProfilePicture, contextData: { employeeId: employee?.id } }
+                      ]}
+                      prefixDataTestId="employee-profile-picture-edit"
+                      autoExecute={true}
+                      accessToken={accessToken}
+                      emptyState="hide"
+                      className="gba:absolute gba:inset-0 gba:rounded-xl gba:flex gba:items-center gba:justify-center gba:opacity-0 gba:bg-black/60 gba:text-white gba:group-hover:opacity-100 gba:transition-opacity gba:transition-duration-200 gba:transition-ease-in-out gba:cursor-pointer"
                     >
-                      {isHovering && (
-                        <AppActionMenu
-                          data-testid="employee-profile-picture-edit-button"
-                          contextsArray={[FlowContextName.employeeProfilePicture]}
-                          externalContextData={{
-                            employeeId: employee?.id
-                          }}
-                          prefixDataTestId="employee-profile-picture-edit"
-                          accessToken={accessToken}
-                          autoExecuteSingleAction={true}
-                          emptyStateBehavior="hide"
-                        >
-                          <PiPencilSimple className="gba:h-5 gba:w-5" />
-                        </AppActionMenu>
-                      )}
-                    </div>
+                      <div className="gba:p-4 gba:flex gba:flex-col gba:items-center gba:gap-2">
+                        <PiCameraFill className="gba:h-6 gba:w-6" />
+                        <span className="gba:text-xs gba:font-semibold gba:uppercase gba:text-center">
+                          {tDesign('employee-edit-picture')}
+                        </span>
+                      </div>
+                    </AppAction>
                   </div>
                 </div>
 
@@ -400,7 +347,11 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                 {getEmployeeFullName(employee)}
               </div>
               <p className="gba:text-muted-foreground gba:mb-4 gba:text-sm">
-                {employee.employeePosition?.jobPosition?.name ?? 'Not assigned'}
+                {employee.employeePosition?.jobPosition?.name ??
+                  getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:employee_profile.left_side_bar.not_assigned',
+                    'Not assigned'
+                  )}
               </p>
 
               {/* Profile Info Grid */}
@@ -410,7 +361,13 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                   icon={<PiBuildings className="gba:h-4 gba:w-4" />}
                   className="gba:text-info"
                   label={'Organization'}
-                  value={employee.employeePosition?.organizationalUnit?.name ?? 'Not assigned'}
+                  value={
+                    employee.employeePosition?.organizationalUnit?.name ??
+                    getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:employee_profile.left_side_bar.not_assigned',
+                      'Not assigned'
+                    )
+                  }
                   linkTo={
                     employee.employeePosition?.organizationalUnitId
                       ? `/platform/orgchart/active/organization?organizationUnitId=${employee.employeePosition.organizationalUnitId}`
@@ -424,7 +381,13 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                   icon={<PiGlobeHemisphereWest className="gba:h-4 gba:w-4" />}
                   className="gba:text-info"
                   label={'Location'}
-                  value={employee.employeePosition?.siteLocation?.name || 'Not assigned'}
+                  value={
+                    employee.employeePosition?.siteLocation?.name ||
+                    getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:employee_profile.left_side_bar.not_assigned',
+                      'Not assigned'
+                    )
+                  }
                   linkTo={
                     employee.employeePosition?.siteLocation?.id
                       ? `/platform/orgchart/active/location?siteLocationId=${employee.employeePosition.siteLocation.id}`
@@ -461,7 +424,10 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                         `${employee.employeePosition.supervisor.firstName ?? ''} ${
                           employee.employeePosition.supervisor.lastName ?? ''
                         }`.trim() ||
-                        'Not assigned'
+                        getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:employee_profile.left_side_bar.not_assigned',
+                          'Not assigned'
+                        )
                       : 'No manager'
                   }
                   linkTo={
@@ -474,7 +440,13 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                 <ProfileInfoItem
                   icon={<PiMapPin className="gba:h-4 gba:w-4" />}
                   label={'Job Position'}
-                  value={employee.employeePosition?.jobPosition?.name ?? 'Not assigned'}
+                  value={
+                    employee.employeePosition?.jobPosition?.name ??
+                    getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:employee_profile.left_side_bar.not_assigned',
+                      'Not assigned'
+                    )
+                  }
                   //linkTo={employee.employeePosition?.siteLocation?.id ? `/orgchart/active/location?siteLocationId=${employee.employeePosition.siteLocation.id}` : undefined}
                 />
                 {/* Cost Center */}
@@ -482,7 +454,13 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                   icon={<PiCurrencyDollar className="gba:h-4 gba:w-4" />}
                   className="gba:text-info"
                   label={'Cost Center'}
-                  value={employee.employeePosition?.costCenter?.name ?? 'Not assigned'}
+                  value={
+                    employee.employeePosition?.costCenter?.name ??
+                    getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:employee_profile.left_side_bar.not_assigned',
+                      'Not assigned'
+                    )
+                  }
                   linkTo={
                     employee.employeePosition?.costCenter?.id
                       ? `/platform/orgchart/active/finance?costCenterDataId=${employee.employeePosition.costCenter.id}`
@@ -503,110 +481,101 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                 />
               </div>
 
-              {/* Dynamic scrollable container for Teams, Capabilities and Skills */}
-              <div ref={skillsContainerRef} className="gba:w-full" data-testid="skills-capabilities-container">
-                <div
-                  className="gba:overflow-y-auto gba:scrollbar-hide"
-                  style={{
-                    height: containerHeight ? `${containerHeight}px` : 'auto',
-                    scrollbarWidth: 'none',
-                    msOverflowStyle: 'none'
-                  }}
-                >
-                  {/* Teams Section - if available */}
-                  {employee.employeePosition?.matrixUnitEmployees &&
-                    employee.employeePosition.matrixUnitEmployees.length > 0 && (
-                      <div className="gba:mt-4">
-                        <div className="gba:flex gba:items-start gba:p-1">
-                          <div className="gba:flex-1">
-                            <div className="gba:text-sm gba:font-semibold gba:text-foreground gba:text-left">Teams</div>
-                            <div className="gba:text-sm gba:text-foreground">
-                              <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mt-1">
-                                {employee.employeePosition.matrixUnitEmployees.map(
-                                  (teamItem: MatrixUnitEmployee, index: number) => (
-                                    <TagItem
-                                      key={teamItem.matrixUnit?.id || `team-${index}`}
-                                      icon={<TeamOutlined className="gba:h-4 gba:w-4 gba:text-muted-foreground" />}
-                                      label={teamItem.matrixUnit.name}
-                                      bgColorClass="gba:bg-info-secondary"
-                                      textColorClass="gba:text-info"
-                                      testId={`team-${teamItem.matrixUnit.id}`}
-                                    />
-                                  )
-                                )}
-                              </div>
+              {/* Teams, Capabilities and Skills (scroll with the left column) */}
+              <div className="gba:w-full" data-testid="skills-capabilities-container">
+                {/* Teams Section - if available */}
+                {employee.employeePosition?.matrixUnitEmployees &&
+                  employee.employeePosition.matrixUnitEmployees.length > 0 && (
+                    <div className="gba:mt-4">
+                      <div className="gba:flex gba:items-start gba:p-1">
+                        <div className="gba:flex-1">
+                          <div className="gba:text-sm gba:font-semibold gba:text-foreground gba:text-left">Teams</div>
+                          <div className="gba:text-sm gba:text-foreground">
+                            <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mt-1">
+                              {employee.employeePosition.matrixUnitEmployees.map(
+                                (teamItem: MatrixUnitEmployee, index: number) => (
+                                  <TagItem
+                                    key={teamItem.matrixUnit?.id || `team-${index}`}
+                                    icon={<TeamOutlined className="gba:h-4 gba:w-4 gba:text-muted-foreground" />}
+                                    label={teamItem.matrixUnit.name}
+                                    bgColorClass="gba:bg-info-secondary"
+                                    textColorClass="gba:text-info"
+                                    testId={`team-${teamItem.matrixUnit.id}`}
+                                  />
+                                )
+                              )}
                             </div>
                           </div>
                         </div>
                       </div>
-                    )}
+                    </div>
+                  )}
 
-                  {/* Capabilities Section - always displayed */}
-                  <div className="gba:mt-4" data-testid="capabilities-section">
-                    <div className="gba:flex gba:items-start">
-                      <div className="gba:flex-1">
-                        <div className="gba:text-sm gba:font-semibold gba:text-foreground gba:text-left">
-                          Capabilities
-                        </div>
-                        <div className="gba:text-sm gba:text-foreground">
-                          <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mt-1">
-                            {employee.employeePosition?.employeeCapabilities &&
-                            employee.employeePosition.employeeCapabilities.filter(cap => cap.capability).length > 0 ? (
-                              employee.employeePosition.employeeCapabilities
-                                .filter(capItem => capItem.capability)
-                                .map((capItem: EmployeeCapability, index: number) => (
-                                  <TagItem
-                                    key={capItem.capability?.id || `capability-${index}`}
-                                    icon={<PiBookmarks className="gba:h-4 gba:w-4 gba:text-muted-foreground" />}
-                                    label={capItem.capability!.name}
-                                    bgColorClass="gba:bg-success-secondary"
-                                    textColorClass="gba:text-success"
-                                    testId={`capability-${capItem.capability!.id}`}
-                                  />
-                                ))
-                            ) : (
-                              <span
-                                className="gba:text-muted-foreground gba:text-sm gba:text-left gba:block"
-                                data-testid="no-capabilities-message"
-                              >
-                                No capabilities assigned
-                              </span>
-                            )}
-                          </div>
+                {/* Capabilities Section - always displayed */}
+                <div className="gba:mt-4" data-testid="capabilities-section">
+                  <div className="gba:flex gba:items-start">
+                    <div className="gba:flex-1">
+                      <div className="gba:text-sm gba:font-semibold gba:text-foreground gba:text-left">
+                        Capabilities
+                      </div>
+                      <div className="gba:text-sm gba:text-foreground">
+                        <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mt-1">
+                          {employee.employeePosition?.employeeCapabilities &&
+                          employee.employeePosition.employeeCapabilities.filter(cap => cap.capability).length > 0 ? (
+                            employee.employeePosition.employeeCapabilities
+                              .filter(capItem => capItem.capability)
+                              .map((capItem: EmployeeCapability, index: number) => (
+                                <TagItem
+                                  key={capItem.capability?.id || `capability-${index}`}
+                                  icon={<PiBookmarks className="gba:h-4 gba:w-4 gba:text-muted-foreground" />}
+                                  label={capItem.capability!.name}
+                                  bgColorClass="gba:bg-success-secondary"
+                                  textColorClass="gba:text-success"
+                                  testId={`capability-${capItem.capability!.id}`}
+                                />
+                              ))
+                          ) : (
+                            <span
+                              className="gba:text-muted-foreground gba:text-sm gba:text-left gba:block"
+                              data-testid="no-capabilities-message"
+                            >
+                              No capabilities assigned
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
                   </div>
+                </div>
 
-                  {/* Skills Section - always displayed */}
-                  <div className="gba:mt-4" data-testid="skills-section">
-                    <div className="gba:flex gba:items-start">
-                      <div className="gba:flex-1">
-                        <div className="gba:text-sm gba:font-semibold gba:text-foreground gba:text-left">Skills</div>
-                        <div className="gba:text-sm gba:text-foreground">
-                          <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mt-1">
-                            {employee.skills?.filter(skill => skill.skill).length > 0 ? (
-                              employee.skills
-                                .filter(skillItem => skillItem.skill)
-                                .map((skillItem: EmployeeSkill, index: number) => (
-                                  <TagItem
-                                    key={skillItem.skill?.id || `skill-${index}`}
-                                    icon={<StarIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground" />}
-                                    label={skillItem.skill.name}
-                                    bgColorClass="gba:bg-info-secondary"
-                                    textColorClass="gba:text-info"
-                                    testId={`skill-${skillItem.skill.id}`}
-                                  />
-                                ))
-                            ) : (
-                              <span
-                                className="gba:text-muted-foreground gba:text-sm gba:text-left gba:block"
-                                data-testid="no-skills-message"
-                              >
-                                No skills assigned
-                              </span>
-                            )}
-                          </div>
+                {/* Skills Section - always displayed */}
+                <div className="gba:mt-4" data-testid="skills-section">
+                  <div className="gba:flex gba:items-start">
+                    <div className="gba:flex-1">
+                      <div className="gba:text-sm gba:font-semibold gba:text-foreground gba:text-left">Skills</div>
+                      <div className="gba:text-sm gba:text-foreground">
+                        <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mt-1">
+                          {employee.skills?.filter(skill => skill.skill).length > 0 ? (
+                            employee.skills
+                              .filter(skillItem => skillItem.skill)
+                              .map((skillItem: EmployeeSkill, index: number) => (
+                                <TagItem
+                                  key={skillItem.skill?.id || `skill-${index}`}
+                                  icon={<StarIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground" />}
+                                  label={skillItem.skill.name}
+                                  bgColorClass="gba:bg-info-secondary"
+                                  textColorClass="gba:text-info"
+                                  testId={`skill-${skillItem.skill.id}`}
+                                />
+                              ))
+                          ) : (
+                            <span
+                              className="gba:text-muted-foreground gba:text-sm gba:text-left gba:block"
+                              data-testid="no-skills-message"
+                            >
+                              No skills assigned
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>

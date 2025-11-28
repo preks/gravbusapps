@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import '@newwork/nw-design-system/style'
 import { Button, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
 import { getCatalogValue, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
@@ -165,7 +166,10 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
   const isSubmitDisabled = !absenceTypeRef || hasAvailableError || !hasChangesComparedToInitial
 
   return (
-    <div data-testid="hcm_createHrAbsence_mainContainer" className="gba:flex gba:flex-col gba:gap-4">
+    <div
+      data-testid="hcm_createHrAbsence_mainContainer"
+      className="gba:!bg-card gba:!border-0 gba:!shadow-none gba:flex gba:flex-col gba:gap-4  gba:px-6"
+    >
       <FormHeader title={headerTitle} flowIconUrl={flowIconUrl} className="gba:px-0" />
 
       {!isFromTable && (
@@ -176,7 +180,7 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
 
       {/* Absence Type Select */}
       <div className="gba:flex gba:flex-col gba:gap-2">
-        <div className="gba:font-semibold">
+        <div className="gba:font-semibold gba:text-sm">
           {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.absence_type', 'Absence Type')}
           <span className="gba:text-destructive"> *</span>
         </div>
@@ -185,7 +189,7 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
             <SelectTrigger
               ref={selectTriggerRef}
               data-testid="hcm_createHrAbsence_absenceTypeSelect"
-              className="gba:w-full"
+              className="gba:w-full gba:text-sm"
             >
               <SelectValue
                 placeholder={getTranslationFromI18nKeyAndLabel(
@@ -224,10 +228,13 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
 
       {/* Year of Entitlement Display */}
       <div className="gba:flex gba:flex-col gba:gap-2">
-        <div className="gba:font-semibold">
+        <div className="gba:font-semibold gba:text-sm">
           {getTranslationFromI18nKeyAndLabel('lowcoder:entitlements.year_of_entitlement', 'Year of Entitlement')}
         </div>
-        <div className="gba:bg-muted gba:rounded-md gba:p-3" data-testid="flw_updateEmployeeEntitlements_year_in_modal">
+        <div
+          className="gba:bg-muted gba:rounded-md gba:px-3 gba:py-2 gba:text-sm"
+          data-testid="flw_updateEmployeeEntitlements_year_in_modal"
+        >
           {year}
         </div>
       </div>
@@ -235,7 +242,7 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
       {/* Numeric Inputs */}
       <div className="gba:flex gba:flex-col gba:gap-4">
         <div className="gba:flex gba:flex-col gba:gap-2">
-          <div className="gba:font-semibold">
+          <div className="gba:font-semibold gba:text-sm">
             {getTranslationFromI18nKeyAndLabel('lowcoder:entitlements.total_annual', 'Total (Annual)')}
           </div>
           <Input
@@ -247,54 +254,47 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
               'lowcoder:working_hours_form.enter_dots_placeholder',
               'Enter...'
             )}
-            className="gba:appearance-none"
+            className="gba:appearance-none gba:text-sm"
           />
         </div>
 
         <div className="gba:flex gba:flex-col gba:gap-2">
-          <div className="gba:font-semibold">
+          <div className="gba:font-semibold gba:text-sm">
             {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.side_bar.payment_status', 'Pending')}
           </div>
-          <Input
+          <div
+            className="gba:bg-muted gba:rounded-md gba:px-3 gba:py-2 gba:text-sm"
             data-testid="flw_updateEntitlementModal_pendingInput"
-            inputMode="numeric"
-            value={String(pending)}
-            onChange={e => setPending(Number(normalizeInteger(e.target.value)))}
-            placeholder={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:working_hours_form.enter_dots_placeholder',
-              'Enter...'
-            )}
-            className="gba:appearance-none"
-          />
+          >
+            {pending}
+          </div>
         </div>
 
         <div className="gba:flex gba:flex-col gba:gap-2">
-          <div className="gba:font-semibold">
+          <div className="gba:font-semibold gba:text-sm">
             {getTranslationFromI18nKeyAndLabel(
               'lowcoder:manager_expense_landing_page.upcoming_approved_badge',
               'Approved'
             )}
           </div>
-          <Input
+          <div
+            className="gba:bg-muted gba:rounded-md gba:px-3 gba:py-2 gba:text-sm"
             data-testid="flw_updateEntitlementModal_approved"
-            inputMode="numeric"
-            value={String(approved)}
-            onChange={e => setApproved(Number(normalizeInteger(e.target.value)))}
-            placeholder={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:working_hours_form.enter_dots_placeholder',
-              'Enter...'
-            )}
-            className="gba:appearance-none"
-          />
+          >
+            {approved}
+          </div>
         </div>
       </div>
 
       {/* Available Display */}
       <div className="gba:flex gba:flex-col gba:gap-2">
-        <div className="gba:font-semibold">
+        <div className="gba:font-semibold gba:text-sm">
           {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.available', 'Available')}
         </div>
-        <div className="gba:bg-muted gba:rounded-md gba:p-3" data-testid="flw_updateEntitlementModal_available">
+        <div
+          className="gba:bg-muted gba:rounded-md gba:px-3 gba:py-2 gba:text-sm"
+          data-testid="flw_updateEntitlementModal_available"
+        >
           {available}
         </div>
         {hasAvailableError && (
@@ -308,9 +308,9 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
       </div>
 
       {/* Actions */}
-      <div className="gba:flex gba:justify-end gba:gap-2 gba:pt-6">
+      <div className="gba:flex gba:justify-end gba:gap-2 gba:pt-4">
         <Button
-          variant="secondary"
+          variant="outline"
           data-testid="hcm_createHrAbsence_cancelButton"
           onClick={onClose}
           ref={cancelButtonRef}

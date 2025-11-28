@@ -672,7 +672,10 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
             className="gba:m-0 gba:text-[16px] gba:font-bold"
             data-testid="expense-request-wizard-items-screen-title"
           >
-            {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.items_subtitle', 'Expense Items')}
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expense_request_overview.expense_items.expense_items_title',
+              'Expense Items'
+            )}
             {expenseItems.length > 0 && ` (${expenseItems.length})`}
           </div>
           <div className="gba:flex gba:gap-2">

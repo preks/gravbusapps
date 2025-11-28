@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_HEALTH_INSURANCE_DISTRIBUTION } from '../queries/getHealthInsuranceDistribution'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 interface HealthInsuranceItem {
   name: string
@@ -25,6 +27,7 @@ export const useHealthInsuranceDistribution = (accessToken: string): HealthInsur
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<Error | null>(null)
   const [totalEmployees, setTotalEmployees] = useState<number>(0)
+  const { t } = useTranslation(hrTranslations)
 
   const graphQLClient = useGraphqlClient(accessToken)
 
@@ -94,8 +97,8 @@ export const useHealthInsuranceDistribution = (accessToken: string): HealthInsur
             healthInsuranceRef = employee.taxDetails[0].healthInsuranceName
           }
 
-          // Get human-readable value from catalog or use raw reference or 'Not Specified'
-          let displayValue = 'Not Specified'
+          // Get human-readable value from catalog or use raw reference or translated 'Not Specified'
+          let displayValue = t('hr-analytics-not-specified')
           if (healthInsuranceRef) {
             // If it's a catalog reference, extract the code and look up in our map
             if (healthInsuranceRef.startsWith('HealthInsurer:v1:')) {

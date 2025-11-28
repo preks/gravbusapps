@@ -18,7 +18,7 @@
  * initial components are mounted, or it will auto-finalize after layout for
  * backwards compatibility.
  */
-import React, { createContext, useContext, useEffect, useMemo, useState, useCallback, useLayoutEffect } from 'react'
+import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react'
 import { UseFormReturn, FieldValues } from 'react-hook-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { CatalogSelectConfig, CatalogSelectController } from './internal/useCatalogSelect'
@@ -80,6 +80,10 @@ export const CatalogSelectProvider = <TFormValues extends FieldValues = FieldVal
           keys.add(filter.from)
         }
       }
+      // Also watch parent fields to read parent values from form when CatalogSelect is unmounted (e.g., in accordions)
+      if (cfg.parentField) {
+        keys.add(cfg.parentField)
+      }
     }
     return Array.from(keys)
   }, [allConfigs])
@@ -94,16 +98,34 @@ export const CatalogSelectProvider = <TFormValues extends FieldValues = FieldVal
       return
     }
 
+    // Performance: Track subscription creation
+    const subscriptionStartTime = performance.now()
+
     // Subscribe to form changes for external keys
     const subscription = activeForm.watch(values => {
+      const callbackStartTime = performance.now()
+
       const newValues: Record<string, string | null> = {}
       for (const key of externalKeys) {
         newValues[key] = ((values as any)[key] as string) || null
       }
+
+      const callbackDuration = performance.now() - callbackStartTime
+      if (callbackDuration > 5) {
+        // Only log if > 5ms
+        console.warn(`[PERF] CatalogSelectProvider: form.watch() callback took ${callbackDuration.toFixed(2)}ms`, {
+          externalKeys,
+          externalKeysLength: externalKeys.length,
+          valuesSize: JSON.stringify(values).length,
+          timestamp: new Date().toISOString()
+        })
+      }
+
       setExternalValues(newValues)
     })
 
     // Initialize with current values
+    const initStartTime = performance.now()
     const currentValues = activeForm.getValues()
     const initialValues: Record<string, string | null> = {}
     for (const key of externalKeys) {
@@ -111,58 +133,80 @@ export const CatalogSelectProvider = <TFormValues extends FieldValues = FieldVal
     }
     setExternalValues(initialValues)
 
-    return () => subscription.unsubscribe()
+    const initDuration = performance.now() - initStartTime
+    const subscriptionDuration = performance.now() - subscriptionStartTime
+    if (subscriptionDuration > 10) {
+      console.warn(`[PERF] CatalogSelectProvider: Subscription setup took ${subscriptionDuration.toFixed(2)}ms`, {
+        initDuration: initDuration.toFixed(2),
+        externalKeysLength: externalKeys.length,
+        timestamp: new Date().toISOString()
+      })
+    }
+
+    return () => {
+      subscription.unsubscribe()
+    }
   }, [activeForm, externalKeys])
 
   // Registration API - handles both initial and late registrations
-  const registerCatalog = useCallback(
-    (config: CatalogSelectConfig) => {
-      // Track in registry
-      if (!registrationMapRef.current.has(config.id)) {
-        registrationMapRef.current.set(config.id, config)
+  const registerCatalog = useCallback((config: CatalogSelectConfig) => {
+    // Track in registry
+    if (!registrationMapRef.current.has(config.id)) {
+      registrationMapRef.current.set(config.id, config)
 
-        setRegisteredConfigs(prev => {
-          const exists = prev.some(c => c.id === config.id)
-          if (exists) return prev
-          return [...prev, config]
-        })
-
-        // If registration happens after initial preload, trigger individual preload
-        if (isRegistrationComplete && config.prefetch !== false) {
-          // Late registration - will be handled by preload effect
-        }
-      }
-    },
-    [isRegistrationComplete]
-  )
+      setRegisteredConfigs(prev => {
+        const exists = prev.some(c => c.id === config.id)
+        if (exists) return prev
+        return [...prev, config]
+      })
+    }
+  }, [])
 
   // Explicit finalization - called by parent when initial registration is done
   const finalizeRegistration = useCallback(() => {
     setIsRegistrationComplete(true)
   }, [])
 
-  // Auto-finalize after layout if no explicit call (backwards compatibility)
-  useLayoutEffect(() => {
-    const timer = setTimeout(() => {
-      if (!isRegistrationComplete) {
+  // Auto-finalize after all components have had a chance to register
+  // Wait until registration count stabilizes (no new registrations for 50ms)
+  useEffect(() => {
+    if (!isRegistrationComplete && registeredConfigs.length > 0) {
+      const timer = setTimeout(() => {
         finalizeRegistration()
-      }
-    }, 0)
-    return () => clearTimeout(timer)
-  }, [isRegistrationComplete, finalizeRegistration])
+      }, 50) // Wait 50ms after last registration
+      return () => clearTimeout(timer)
+    }
+  }, [isRegistrationComplete, finalizeRegistration, registeredConfigs.length])
 
   const { controllers, preload } = useCatalogSelect(context, allConfigs, externalValues)
 
-  // Track if preload was already called to prevent loops
-  const preloadedRef = React.useRef(false)
+  // Track which configs have been preloaded
+  const preloadedConfigIdsRef = React.useRef<Set<string>>(new Set())
 
-  // Preload once registration is complete
+  // Preload when registration is complete - only once for all configs
   useEffect(() => {
-    if (isRegistrationComplete && allConfigs.length > 0 && !preloadedRef.current) {
-      preloadedRef.current = true
+    if (isRegistrationComplete && allConfigs.length > 0 && preloadedConfigIdsRef.current.size === 0) {
+      // Mark all configs as preloaded
+      allConfigs.forEach(cfg => preloadedConfigIdsRef.current.add(cfg.id))
+      // Trigger preload once for all configs
       preload()
     }
-  }, [isRegistrationComplete, allConfigs.length, preload])
+  }, [isRegistrationComplete, allConfigs, preload])
+
+  // Handle late registrations (dynamically added items)
+  useEffect(() => {
+    if (!isRegistrationComplete) return
+
+    // Find configs that haven't been preloaded yet
+    const newConfigs = allConfigs.filter(cfg => !preloadedConfigIdsRef.current.has(cfg.id))
+    if (newConfigs.length === 0) return
+
+    // Mark new configs as preloaded
+    newConfigs.forEach(cfg => preloadedConfigIdsRef.current.add(cfg.id))
+
+    // Trigger preload - it will reuse existing data where possible
+    preload()
+  }, [isRegistrationComplete, allConfigs, preload])
 
   const value = useMemo(
     () => ({ controllers, registerCatalog, finalizeRegistration, registerForm }),

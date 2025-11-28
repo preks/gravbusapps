@@ -208,7 +208,7 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
               </div>
 
               <p className="gba:text-xs gba:text-muted-foreground gba:opacity-75">
-                Type a question below or click a suggestion to get started
+                Type a message below or click a suggestion to get started
               </p>
             </div>
           ) : (

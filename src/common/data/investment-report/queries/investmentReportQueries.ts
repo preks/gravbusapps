@@ -255,13 +255,14 @@ export const buildInvestmentReportWhereCondition = (variables: InvestmentReportQ
 
     // Investment-level filters (through relationship)
     // Consolidate ALL investment-related filters into single investment clause to avoid duplicate keys
-    const investmentFilters: string[] = []
-
-    // Add investment ID filter if provided
+    // Add investment ID filter if provided (direct field, not nested)
     if (variables.investmentIds?.length) {
       const safeInvestmentIds = variables.investmentIds.map(id => `"${escapeGraphQLString(id)}"`).join(', ')
-      investmentFilters.push(`id: { _in: [${safeInvestmentIds}] }`)
+      conditions.push(`investmentId: { _in: [${safeInvestmentIds}] }`)
     }
+
+    // Investment relationship filters (nested)
+    const investmentFilters: string[] = []
 
     // Add investment type filter if provided
     if (variables.investmentTypeIds?.length) {

@@ -3,11 +3,11 @@ import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { DollarOutlined, RiseOutlined, PercentageOutlined, PieChartOutlined } from '@ant-design/icons'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useInvestmentKPIIntegration } from '../hooks/useInvestmentKPIIntegration'
-import { formatCurrencyCompact } from '../../../utils/currencyUtils'
+import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
 
-type InvestmentStatisticsProps = BusinessAppContextProps
-
-// Removed formatCurrencyCompact - now using formatCurrencyCompact utility
+export interface InvestmentStatisticsProps extends BusinessAppContextProps {
+  currencyCode?: string
+}
 
 const formatPercentage = (value: number): string => {
   return `${value.toFixed(1)}%`
@@ -22,8 +22,8 @@ const calculateChange = (current: number, previous: number): { value: string; po
   }
 }
 
-export const InvestmentStatistics: React.FC<InvestmentStatisticsProps> = ({ ...context }) => {
-  const { current, previous, isLoading, error, refetch } = useInvestmentKPIIntegration(context)
+export const InvestmentStatistics: React.FC<InvestmentStatisticsProps> = ({ currencyCode, ...context }) => {
+  const { current, previous, isLoading, error, refetch } = useInvestmentKPIIntegration(context, currencyCode)
 
   // Listen for process completion events to refresh statistics
   useEffect(() => {
@@ -108,13 +108,13 @@ export const InvestmentStatistics: React.FC<InvestmentStatisticsProps> = ({ ...c
       trend: {
         value: investmentsChange.value,
         positive: investmentsChange.positive,
-        description: 'vs 7 days ago'
+        description: 'vs 30 days ago'
       }
     },
     {
       key: 'total-invested',
       title: 'Total Invested',
-      value: formatCurrencyCompact(totalInvested),
+      value: formatCurrencyCompact(totalInvested, currencyCode || 'EUR', undefined, 1, true),
       prefix: <DollarOutlined />,
       color: '#52c41a',
       valueIsString: true,
@@ -123,7 +123,7 @@ export const InvestmentStatistics: React.FC<InvestmentStatisticsProps> = ({ ...c
       trend: {
         value: investedChange.value,
         positive: investedChange.positive,
-        description: 'vs 7 days ago'
+        description: 'vs 30 days ago'
       }
     },
     {
@@ -138,13 +138,13 @@ export const InvestmentStatistics: React.FC<InvestmentStatisticsProps> = ({ ...c
       trend: {
         value: stakeChange.value,
         positive: stakeChange.positive,
-        description: 'vs 7 days ago'
+        description: 'vs 30 days ago'
       }
     },
     {
       key: 'total-market-value',
       title: 'Total Market Value',
-      value: formatCurrencyCompact(totalMarketValue),
+      value: formatCurrencyCompact(totalMarketValue, currencyCode || 'EUR', undefined, 1, true),
       prefix: <RiseOutlined />,
       color: '#722ed1',
       valueIsString: true,
@@ -153,7 +153,7 @@ export const InvestmentStatistics: React.FC<InvestmentStatisticsProps> = ({ ...c
       trend: {
         value: marketValueChange.value,
         positive: marketValueChange.positive,
-        description: 'vs 7 days ago'
+        description: 'vs 30 days ago'
       }
     }
   ]

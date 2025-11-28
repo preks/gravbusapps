@@ -5,28 +5,27 @@ import dayjs from 'dayjs'
 import { Card } from '@newwork/gravity-ui-catalog'
 import { Employee } from '../../hooks/useEmployeeData'
 import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../common/utils/windowUtils'
-import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
+import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { PiPencilSimple } from 'react-icons/pi'
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
 import { formatNumberFunction } from '../../../../../../../common/utils/windowUtils'
 import { useHealthInsuranceTypeCatalog } from '../../hooks/useHealthInsuranceTypeCatalog'
 import { useReligionCatalog } from '../../hooks/useReligionCatalog'
 import { useTaxBracketCatalog } from '../../hooks/useTaxBracketCatalog'
+import { getCatalogValue } from '../../../../../../../common/utils/windowUtils'
 
 interface EmploymentTabProps {
   employee: Employee
   accessToken: string
   employeeId?: string // Optional employeeId override for permissions check
   userInfo?: UserInfoProps // Current user info
-  isSelfView: boolean // Whether user is viewing their own profile
 }
 
 /**
  * Employment Tab Component
  * Displays employment-related information about the employee
  */
-const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, isSelfView }) => {
+const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) => {
   // Using isSelfView from props instead of calculating it locally
   // Fetch health insurance type catalog for health insurance type mapping
   const { getHealthInsuranceTypeValueById, loading: loadingHealthInsuranceTypes } =
@@ -78,7 +77,7 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, is
     return [
       {
         label: 'Employment Type',
-        value: workingCondition?.employmentType?.value || ''
+        value: getCatalogValue(workingCondition?.employmentType) || ''
       },
       {
         label: 'Hire Date',
@@ -86,7 +85,7 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, is
       },
       {
         label: 'Contract Type',
-        value: workingCondition?.contractType?.value || ''
+        value: getCatalogValue(workingCondition?.contractType) || ''
       },
       {
         label: 'Probation End Date',
@@ -301,20 +300,15 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, is
         >
           <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
             <h3 className="gba:text-xl gba:font-semibold gba:text-info">Working Conditions</h3>
-            {isSelfView && (
-              <AppActionMenu
-                data-testid="employee-working-conditions-edit-button"
-                contextsArray={[FlowContextName.updateEmployeeWorkingCondition]}
-                externalContextData={{
-                  employeeId: employee.id
-                }}
-                prefixDataTestId="employee-working-conditions-edit"
-                accessToken={accessToken}
-                autoExecuteSingleAction={true}
-              >
-                <PiPencilSimple className="gba:cursor-pointer" />
-              </AppActionMenu>
-            )}
+            <AppAction
+              variant="update-secondary"
+              data-testid="employee-working-conditions-edit-button"
+              contexts={[
+                { context: FlowContextName.updateEmployeeWorkingCondition, contextData: { employeeId: employee?.id } }
+              ]}
+              prefixDataTestId="employee-working-conditions-edit"
+              accessToken={accessToken}
+            />
           </div>
           {renderDataItems(workingConditionsData)}
         </Card>
@@ -327,20 +321,15 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, is
         >
           <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
             <h3 className="gba:text-xl gba:font-semibold gba:text-info">Working Hours</h3>
-            {isSelfView && (
-              <AppActionMenu
-                data-testid="employee-working-hours-edit-button"
-                contextsArray={[FlowContextName.updateEmployeeWorkingHours]}
-                externalContextData={{
-                  employeeId: employee.id
-                }}
-                prefixDataTestId="employee-working-hours-edit"
-                accessToken={accessToken}
-                autoExecuteSingleAction={true}
-              >
-                <PiPencilSimple className="gba:cursor-pointer" />
-              </AppActionMenu>
-            )}
+            <AppAction
+              variant="update-secondary"
+              data-testid="employee-working-hours-edit-button"
+              contexts={[
+                { context: FlowContextName.updateEmployeeWorkingHours, contextData: { employeeId: employee?.id } }
+              ]}
+              prefixDataTestId="employee-working-hours-edit"
+              accessToken={accessToken}
+            />
           </div>
           {renderDataItems(workingHoursData)}
         </Card>
@@ -351,8 +340,17 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, is
           className="gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="employment-section-payroll"
         >
-          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
+          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
             <h3 className="gba:text-xl gba:font-semibold gba:text-info">Payroll</h3>
+            <AppAction
+              variant="update-secondary"
+              data-testid="employment-bank-account-action-button"
+              contexts={[
+                { context: FlowContextName.updateEmployeeBankAccount, contextData: { employeeId: employee?.id } }
+              ]}
+              prefixDataTestId="employment-bank-account-action"
+              accessToken={accessToken}
+            />
           </div>
           {renderDataItems(payrollData)}
         </Card>

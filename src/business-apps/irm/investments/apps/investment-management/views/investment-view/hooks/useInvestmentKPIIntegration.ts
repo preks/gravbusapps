@@ -10,7 +10,10 @@ export interface InvestmentKPIIntegration {
   refetch: () => Promise<void>
 }
 
-export const useInvestmentKPIIntegration = (context: BusinessAppContextProps): InvestmentKPIIntegration => {
+export const useInvestmentKPIIntegration = (
+  context: BusinessAppContextProps,
+  currencyCode?: string
+): InvestmentKPIIntegration => {
   const [current, setCurrent] = useState<InvestmentKPIData>({
     totalInvestments: 0,
     totalInvested: 0,
@@ -41,7 +44,7 @@ export const useInvestmentKPIIntegration = (context: BusinessAppContextProps): I
     setError(null)
 
     try {
-      const data: InvestmentKPIComparison = await fetchInvestmentKPIs()
+      const data: InvestmentKPIComparison = await fetchInvestmentKPIs(currencyCode)
       setCurrent(data.current)
       setPrevious(data.previous)
     } catch (err) {
@@ -51,11 +54,11 @@ export const useInvestmentKPIIntegration = (context: BusinessAppContextProps): I
     } finally {
       setIsLoading(false)
     }
-  }, [context.accessToken, fetchInvestmentKPIs])
+  }, [context.accessToken, currencyCode, fetchInvestmentKPIs])
 
   useEffect(() => {
     loadData()
-  }, [context.accessToken]) // Only depend on accessToken, not loadData
+  }, [context.accessToken, currencyCode]) // React to currency changes
 
   return {
     current,

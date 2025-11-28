@@ -1,272 +1,181 @@
-// Customer Contact Queries - using shared fragments
+/**
+ * Customer Contact Queries (New)
+ * GraphQL queries for Customer Contact entities using fields mapping
+ * Extends Common Contact Queries with CRM-specific fields
+ */
+
 import {
-  CUSTOMER_CONTACT,
-  CUSTOMER_ACCOUNT_REF,
-  CUSTOMER_TASK,
-  CUSTOMER_SALES_ACTIVITY,
-  CUSTOMER_CRM_NOTE,
-  CUSTOMER_CRM_DOCUMENT
-} from './fragments/customerRelationFragments'
+  buildContactQuery,
+  buildContactByIdQuery,
+  buildContactSearchQuery,
+  buildContactWhereCondition,
+  buildContactOrderBy,
+  type CommonContactQueryVariables,
+  type ContactRelationBuilders,
+  type ContactRelationFields
+} from '@/common/data/relations/queries/contactQueries'
+import { CustomerContactFields, CUSTOMER_CONTACT_DESCRIPTORS } from '../types/customerContactTypes'
+import { CUSTOMER_ADDRESS_FRAGMENT } from '../types/customerAddressTypes'
+import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 
-import { AUDIT_FIELDS } from '@/common/network/graphql/commonFragments'
+// Import Common REF Fragment Builders (no relations - to avoid circular dependencies)
+import {
+  buildActivityFragment,
+  buildAccountFragment,
+  buildDocumentFragment,
+  buildLeadFragment,
+  buildNoteFragment,
+  buildOpportunityFragment,
+  buildTaskFragment
+} from '@/common/data/relations/queries/relationFragments'
+import { CUSTOMER_CAMPAIGN_REF } from './fragments/customerReferenceFragments'
 
-export interface CustomerContactQueryVariables {
-  ids?: string[]
-  search?: string
-  academicTitleIds?: string[]
-  salutationIds?: string[]
-  languageIds?: string[]
-  ownerEmployeeIds?: string[]
+// Import Customer Fields
+import { CustomerActivityFields } from '../types/customerActivityTypes'
+import { CustomerAccountFields } from '../types/customerAccountTypes'
+import { CustomerDocumentFields } from '../types/customerDocumentTypes'
+import { CustomerLeadFields } from '../types/customerLeadTypes'
+import { CustomerNoteFields } from '../types/customerNoteTypes'
+import { CustomerOpportunityFields } from '../types/customerOpportunityTypes'
+import { CustomerTaskFields } from '../types/customerTaskTypes'
+
+/**
+ * Customer Contact Query Variables Interface
+ * Extends CommonContactQueryVariables with CRM-specific filters
+ */
+export interface CustomerContactQueryVariables extends CommonContactQueryVariables {
+  // CRM-specific filters
   accountIds?: string[]
   contactTypes?: string[]
   departments?: string[]
   fullNames?: string[]
-  createdAtFrom?: string
-  createdAtTo?: string
-  birthDateFrom?: string
-  birthDateTo?: string
   hasEmail?: boolean
   missingEmail?: boolean
   hasPhone?: boolean
   missingPhone?: boolean
-  limit?: number
-  offset?: number
-  orderBy?: Array<{
-    field: string
-    direction: 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST'
-  }>
+  birthDateFrom?: string
+  birthDateTo?: string
 }
 
-export const buildCustomerContactWhereCondition = (variables: CustomerContactQueryVariables = {}) => {
-  let whereClause = 'where: { isDeleted: { _eq: false }'
-
-  if (variables.search?.trim()) {
-    const q = variables.search.trim()
-    whereClause += `, _or: [
-      { firstName: { _ilike: "%${q}%" } },
-      { lastName: { _ilike: "%${q}%" } },
-      { fullName: { _ilike: "%${q}%" } },
-      { email: { _ilike: "%${q}%" } },
-      { phone: { _ilike: "%${q}%" } },
-      { code: { _ilike: "%${q}%" } },
-      { department: { _ilike: "%${q}%" } },
-      { description: { _ilike: "%${q}%" } },
-      { jobPosition: { _ilike: "%${q}%" } }
-    ]`
+/**
+ * Build Customer Contact query with fields mapping
+ * CRM uses "Contact" as entity name (not "CustomerContact")
+ */
+export const buildCustomerContactQuery = (fields: typeof CustomerContactFields = CustomerContactFields): string => {
+  // Build relation builders and fields for accountContacts
+  // Use wrapper function to include relations (website, addresses, communicationChannels) in account fragment
+  const buildAccountFragmentWithRelations = (accountFields: any) => {
+    return buildAccountFragment(accountFields)
   }
 
-  if (variables.academicTitleIds?.length) {
-    whereClause += `, academicTitle: { id: { _in: [${variables.academicTitleIds.map(id => `"${id}"`).join(', ')}] } }`
-  }
-  if (variables.salutationIds?.length) {
-    whereClause += `, salutation: { id: { _in: [${variables.salutationIds.map(id => `"${id}"`).join(', ')}] } }`
-  }
-  if (variables.languageIds?.length) {
-    whereClause += `, language: { id: { _in: [${variables.languageIds.map(id => `"${id}"`).join(', ')}] } }`
-  }
-  if (variables.ownerEmployeeIds?.length) {
-    whereClause += `, ownerEmployee: { id: { _in: [${variables.ownerEmployeeIds.map(id => `"${id}"`).join(', ')}] } }`
-  }
-  if (variables.accountIds?.length) {
-    whereClause += `, account: { id: { _in: [${variables.accountIds.map(id => `"${id}"`).join(', ')}] } }`
-  }
-  if (variables.contactTypes?.length) {
-    whereClause += `, contactType: { _in: [${variables.contactTypes.map(v => `"${v}"`).join(', ')}] }`
-  }
-  if (variables.departments?.length) {
-    whereClause += `, department: { _in: [${variables.departments.map(v => `"${v}"`).join(', ')}] }`
-  }
-  if (variables.fullNames?.length) {
-    whereClause += `, fullName: { _in: [${variables.fullNames.map(v => `"${v}"`).join(', ')}] }`
+  const relationBuilders: Partial<ContactRelationBuilders> = {
+    buildAccountFragment: buildAccountFragmentWithRelations
   }
 
-  if (variables.createdAtFrom) whereClause += `, createdAt: { _gte: "${variables.createdAtFrom}" }`
-  if (variables.createdAtTo) whereClause += `, createdAt: { _lte: "${variables.createdAtTo}" }`
-  if (variables.birthDateFrom) whereClause += `, birthDate: { _gte: "${variables.birthDateFrom}" }`
-  if (variables.birthDateTo) whereClause += `, birthDate: { _lte: "${variables.birthDateTo}" }`
+  const relationFields: Partial<ContactRelationFields> = {
+    accountFields: CustomerAccountFields
+  }
 
-  if (variables.hasEmail) whereClause += `, email: { _isNull: false, _neq: "" }`
-  if (variables.missingEmail) whereClause += `, _or: [ { email: { _isNull: true } }, { email: { _eq: "" } } ]`
-  if (variables.hasPhone) whereClause += `, phone: { _isNull: false, _neq: "" }`
-  if (variables.missingPhone) whereClause += `, _or: [ { phone: { _isNull: true } }, { phone: { _eq: "" } } ]`
-
-  whereClause += ' }'
-  return whereClause
-}
-
-export const GET_CUSTOMER_CONTACTS = (variables: CustomerContactQueryVariables = {}): string => {
-  const limit = Math.min(variables.limit || 50, 100)
-  const offset = variables.offset || 0
-  const where = buildCustomerContactWhereCondition(variables)
-  const orderByClause = variables.orderBy?.length
-    ? `orderBy: [${variables.orderBy
-        .map(o => {
-          if (o.field === 'ownerEmployee') return `{ ownerEmployee: { displayName: ${o.direction} } }`
-          if (o.field === 'account') return `{ account: { name: ${o.direction} } }`
-          return `{ ${o.field}: ${o.direction} }`
-        })
-        .join(', ')}]`
-    : 'orderBy: [{ createdAt: DESC }]'
-
-  return `
-    query GetCustomerContacts {
-      CustomerContact: Contact(
-        limit: ${limit}
-        offset: ${offset}
-        ${orderByClause}
-        ${where}
-      ) {
-        id
-        code
-        firstName
-        lastName
-        email
-        birthDate
-        ${AUDIT_FIELDS}
-        academicTitle { id code value }
-        language { id code value }
-        ownerEmployee { id firstName lastName displayName pictureThumbnail picture }
-      }
-      CustomerContactAggregate: ContactAggregate(${where}) { aggregate { count } }
+  const entityFields = `
+    # Addresses relation (CRM uses "city" not "locality")
+    ${fields.addresses}(where: { isDeleted: { _eq: false } }) {
+      ${CUSTOMER_ADDRESS_FRAGMENT}
     }
+    
+    # Lead relation (CRM uses singular "lead" as object, not array - no where clause)
+    ${fields.leads} {
+      ${buildLeadFragment(CustomerLeadFields)}
+    }
+    # CRM-specific fields
+    salesCampaign {
+      ${CUSTOMER_CAMPAIGN_REF}
+    }
+    salesCampaignId
   `
+  return buildContactQuery('Contact', fields, relationBuilders, relationFields, entityFields)
 }
 
-export const GET_CUSTOMER_CONTACT_BY_ID = (id: string): string => {
-  return `
-    query GetCustomerContactById {
-      CustomerContact: Contact(where: { id: { _eq: "${id}" }, isDeleted: { _eq: false } }) {
-        ${CUSTOMER_CONTACT}
-        account { ${CUSTOMER_ACCOUNT_REF} }
-      }
+/**
+ * Build Customer Contact by ID query
+ */
+export const buildCustomerContactByIdQuery = (fields: typeof CustomerContactFields = CustomerContactFields): string => {
+  // Build relation builders and fields for common relations
+  // Use wrapper function to include relations (website, addresses, communicationChannels) in account fragment
+  const buildAccountFragmentWithRelations = (accountFields: any) => {
+    return buildAccountFragment(accountFields)
+  }
+
+  const relationBuilders: ContactRelationBuilders = {
+    buildActivityFragment,
+    buildAccountFragment: buildAccountFragmentWithRelations,
+    buildDocumentFragment,
+    buildLeadFragment,
+    buildNoteFragment,
+    buildOpportunityFragment,
+    buildTaskFragment
+  }
+
+  const relationFields: ContactRelationFields = {
+    activityFields: CustomerActivityFields,
+    accountFields: CustomerAccountFields,
+    documentFields: CustomerDocumentFields,
+    leadFields: CustomerLeadFields,
+    noteFields: CustomerNoteFields,
+    opportunityFields: CustomerOpportunityFields,
+    taskFields: CustomerTaskFields
+  }
+
+  // Domain-specific entity fields (addresses, leads)
+  const entityFields = `
+    # Addresses relation (CRM uses "city" not "locality")
+    ${fields.addresses}(where: { isDeleted: { _eq: false } }) {
+      ${CUSTOMER_ADDRESS_FRAGMENT}
     }
+    
+    # Lead relation (CRM uses singular "lead" as object, not array - no where clause)
+    ${fields.leads} {
+      ${buildLeadFragment(CustomerLeadFields)}
+    }
+    # CRM-specific fields
+    salesCampaign {
+      ${CUSTOMER_CAMPAIGN_REF}
+    }
+    salesCampaignId
   `
+
+  return buildContactByIdQuery('Contact', fields, relationBuilders, relationFields, entityFields)
 }
 
-export const SEARCH_CUSTOMER_CONTACTS = (variables: CustomerContactQueryVariables): string => {
-  const { search = '', limit = 10 } = variables
-  return `
-    query SearchCustomerContacts {
-      CustomerContact: Contact(
-        where: {
-          isDeleted: { _eq: false }
-          _and: [ { _or: [
-            { firstName: { _ilike: "%${search}%" } },
-            { lastName: { _ilike: "%${search}%" } },
-            { email: { _ilike: "%${search}%" } },
-            { code: { _ilike: "%${search}%" } }
-          ] } ]
-        }
-        limit: ${limit}
-        orderBy: [{ createdAt: DESC }]
-      ) {
-        id
-        code
-        firstName
-        lastName
-        email
-      }
-    }
-  `
+/**
+ * Build Customer Contact search query
+ */
+export const buildCustomerContactSearchQuery = (
+  fields: typeof CustomerContactFields = CustomerContactFields
+): string => {
+  return buildContactSearchQuery('Contact', fields)
 }
 
-// Get Customer Tasks by Contact ID
-export const GET_CUSTOMER_TASKS_BY_CONTACT_ID = (contactId: string): string => {
-  return `
-    query GetCustomerTasksByContactId {
-      SalesTask(
-        where: { 
-          contact: { id: { _eq: "${contactId}" } }, 
-          isDeleted: { _eq: false } 
-        }
-        orderBy: [{ createdAt: DESC }]
-      ) {
-        ${CUSTOMER_TASK}
-
-        # Entity references
-        contact {
-          id
-          code
-          firstName
-          lastName
-        }
-      }
-    }
-  `
+/**
+ * Build WHERE condition for Customer Contact queries
+ * Uses CUSTOMER_CONTACT_DESCRIPTORS which includes common descriptors
+ */
+export const buildCustomerContactWhereCondition = (
+  variables: CustomerContactQueryVariables = {},
+  additionalDescriptors: Descriptor[] = [],
+  customConditions: Record<string, any>[] = []
+): Record<string, any> => {
+  // CUSTOMER_CONTACT_DESCRIPTORS already includes common descriptors
+  const descriptors = [...CUSTOMER_CONTACT_DESCRIPTORS, ...additionalDescriptors]
+  return buildContactWhereCondition(variables, descriptors, customConditions)
 }
 
-// Get Customer Activities by Contact ID
-export const GET_CUSTOMER_ACTIVITIES_BY_CONTACT_ID = (contactId: string): string => {
-  return `
-    query GetCustomerActivitiesByContactId {
-      SalesActivity(
-        where: { 
-          contact: { id: { _eq: "${contactId}" } }, 
-          isDeleted: { _eq: false } 
-        }
-        orderBy: [{ createdAt: DESC }]
-      ) {
-        ${CUSTOMER_SALES_ACTIVITY}
-
-        # Entity references
-        contact {
-          id
-          code
-          firstName
-          lastName
-        }
-      }
-    }
-  `
-}
-
-// Get Customer Notes by Contact ID
-export const GET_CUSTOMER_NOTES_BY_CONTACT_ID = (contactId: string): string => {
-  return `
-    query GetCustomerNotesByContactId {
-      CrmNote(
-        where: { 
-          contact: { id: { _eq: "${contactId}" } }, 
-          isDeleted: { _eq: false } 
-        }
-        orderBy: [{ createdAt: DESC }]
-      ) {
-        ${CUSTOMER_CRM_NOTE}
-        
-        # Entity references
-        contact {
-          id
-          code
-          firstName
-          lastName
-        }
-      }
-    }
-  `
-}
-
-// Get Customer Documents by Contact ID
-export const GET_CUSTOMER_DOCUMENTS_BY_CONTACT_ID = (contactId: string): string => {
-  return `
-    query GetCustomerDocumentsByContactId {
-      CrmDocument(
-        where: { 
-          contact: { id: { _eq: "${contactId}" } }, 
-          isDeleted: { _eq: false } 
-        }
-        orderBy: [{ createdAt: DESC }]
-      ) {
-        ${CUSTOMER_CRM_DOCUMENT}
-        
-        # Entity references
-        contact {
-          id
-          code
-          firstName
-          lastName
-          fullName
-        }
-      }
-    }
-  `
+/**
+ * Build ORDER BY for Customer Contact queries
+ */
+export const buildCustomerContactOrderBy = (
+  orderBy: CustomerContactQueryVariables['orderBy'] = [],
+  additionalDescriptors: Descriptor[] = []
+): any[] => {
+  const descriptors = [...CUSTOMER_CONTACT_DESCRIPTORS, ...additionalDescriptors]
+  return buildContactOrderBy(orderBy, descriptors)
 }

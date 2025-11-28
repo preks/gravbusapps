@@ -113,7 +113,25 @@ export const AbsenceListPage: React.FC<AbsenceListPageProps> = props => {
         }
 
         if (preFilter.dateRange) {
-          handleDateRangeChange(preFilter.dateRange.startDate, preFilter.dateRange.endDate)
+          // Validate dates before setting them
+          const startDate = preFilter.dateRange.startDate
+          const endDate = preFilter.dateRange.endDate
+
+          // Check if dates are valid (not "Invalid Date" strings)
+          const isValidDate = (dateStr?: string) => {
+            if (!dateStr) return true // undefined/null is valid (means no filter)
+            if (dateStr.includes('Invalid')) return false
+            // Try to parse as date to ensure it's valid
+            const date = new Date(dateStr)
+            return !isNaN(date.getTime())
+          }
+
+          if (isValidDate(startDate) && isValidDate(endDate)) {
+            handleDateRangeChange(startDate, endDate)
+          } else {
+            console.warn('Invalid dates in preFilter.dateRange, skipping date filter')
+            handleDateRangeChange(undefined, undefined)
+          }
         } else {
           handleDateRangeChange(undefined, undefined)
         }

@@ -1,10 +1,10 @@
 import React, { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useGetInvestmentDocumentsByLeadId } from '@/common/data/investment/hooks/useInvestmentLeads'
-import DocumentSection from '@/common/components/common-relations/record-sections/document-section/DocumentSection'
+import { DocumentSection } from '@/components/document-section'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { useInvestmentDocuments } from '@/business-apps/irm/common/hooks/useInvestmentDocuments'
-import { createDocumentActions } from '@/business-apps/irm/common/utils/createDocumentActions'
+import { useInvestmentDocuments } from '@/common/data/investment/hooks/useInvestmentDocuments'
+import { createDocumentSectionActions } from '@/common/utils/documentSectionActions'
+import { getIrmDocumentApiConfig, useGetIrmDocuments } from '@/business-apps/irm/common/utils/documentUtils'
 
 interface LeadDocumentsProps {
   leadId: string
@@ -12,14 +12,14 @@ interface LeadDocumentsProps {
 }
 
 const LeadDocuments: React.FC<LeadDocumentsProps> = ({ leadId, context }) => {
-  // Fetch documents using the existing hook
-  const { fetchInvestmentDocumentsByLeadId } = useGetInvestmentDocumentsByLeadId(context)
+  // Fetch documents using the generic IRM hook
+  const { fetchDocuments } = useGetIrmDocuments('lead', context)
 
   // Use shared hook for document management
   const { documents, isLoading, error, refetch } = useInvestmentDocuments({
     entityId: leadId,
     context,
-    fetchDocuments: fetchInvestmentDocumentsByLeadId
+    fetchDocuments
   })
 
   // Memoized action props for document operations
@@ -46,20 +46,18 @@ const LeadDocuments: React.FC<LeadDocumentsProps> = ({ leadId, context }) => {
     [leadId]
   )
 
-  const documentDeleteActionProps = useMemo(
-    () => ({
-      contextsArray: [FlowContextName.investmentDocumentDelete],
-      externalContextData: {
-        leadId,
-        entityType: 'lead'
-      },
-      prefixDataTestId: 'lead-document-delete'
-    }),
-    [leadId]
-  )
-
   // Use shared document actions
-  const customActions = useMemo(() => createDocumentActions({ entityType: 'lead' }), [])
+  const customActions = useMemo(
+    () =>
+      createDocumentSectionActions({
+        domain: 'investment-relations',
+        documentFieldName: 'investmentDocument',
+        entityType: 'lead',
+        updateProcessName: 'updateInvestmentDocument',
+        deleteEndpoint: '/investment-relations/deleteInvestmentDocument'
+      }),
+    []
+  )
 
   return (
     <DocumentSection
@@ -68,19 +66,10 @@ const LeadDocuments: React.FC<LeadDocumentsProps> = ({ leadId, context }) => {
       isLoading={isLoading}
       error={error}
       onRefresh={refetch}
-      apiConfig={{
-        baseEndpoint: '/investment-relations',
-        entityFieldName: 'lead',
-        documentFieldName: 'investmentDocument'
-      }}
-      enableGraphQLSearch={true}
-      graphQLSearchConfig={{
-        entityType: 'lead'
-      }}
+      apiConfig={getIrmDocumentApiConfig('lead')}
       customActions={customActions}
       createFolderActionProps={documentCreateFolderActionProps}
       uploadActionProps={documentUploadActionProps}
-      deleteActionProps={documentDeleteActionProps}
       data-testid="lead-document-section"
       {...context}
     />

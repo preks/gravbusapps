@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react'
 import dayjs from 'dayjs'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { getCatalogValue } from '@/common/utils/windowUtils'
 import { GET_EXPENSE_PLAN_STATISTICS, GET_CLOSED_PLANS_STATISTICS } from '../queries/expensePlans'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
@@ -10,7 +10,7 @@ export interface ExpensePlanStatisticsData {
   previousMonthTotal: number
   totalEstimated: number
   pendingApproval: number
-  topDestination: string
+  topDestination: string | any // Can be string or catalog entry object
   // Add closed plans data
   currentMonthClosedPlans: number
   previousMonthClosedPlans: number
@@ -39,7 +39,8 @@ export const useGetExpensePlanStatistics = (
     currentMonthClosedPlans: 0,
     previousMonthClosedPlans: 0
   })
-  const [isLoading, setIsLoading] = useState<boolean>(true)
+  // Start as not loading; only show skeletons while an actual request is in flight.
+  const [isLoading, setIsLoading] = useState<boolean>(false)
   const [error, setError] = useState<Error | null>(null)
 
   const fetchStatistics = useCallback(async () => {
@@ -61,34 +62,41 @@ export const useGetExpensePlanStatistics = (
       const previousMonthEnd = now.subtract(1, 'month').endOf('month').format('YYYY-MM-DD HH:mm:ss')
 
       const fetchCount = async (startDate: string, endDate: string) => {
-        const activeUserLocale = getCurrentActiveUserLocale()
         const result = await graphqlClient.request<any>(GET_EXPENSE_PLAN_STATISTICS, {
           employeeId,
           startDate,
           endDate,
-          activeUserLocale,
           currencyRef
         })
         const count = result?.ExpensePlanAggregate?.aggregate?.count ?? 0
         const totalEstimated = result?.TotalEstimated?.aggregate?.sum?.totalAmount ?? 0
         const pendingApproval = result?.PendingApproval?.aggregate?.count ?? 0
         const destinationPlans = result?.Destinations ?? []
-        const allRegions = destinationPlans
-          .flatMap((plan: any) =>
-            plan.expenseRequestTrip.map((trip: any) => {
-              const translation = trip.travelRegion?.translations[0]?.value
-              return translation || trip.travelRegion?.value
-            })
-          )
-          .filter(Boolean)
+        const allRegionObjects = destinationPlans.flatMap((plan: any) =>
+          plan.expenseRequestTrip.map((trip: any) => trip.travelRegion).filter(Boolean)
+        )
 
-        let topDestination = 'N/A'
-        if (allRegions.length > 0) {
-          const frequencyMap = allRegions.reduce((acc: Record<string, number>, region: string) => {
-            acc[region] = (acc[region] || 0) + 1
-            return acc
-          }, {})
-          topDestination = Object.keys(frequencyMap).reduce((a, b) => (frequencyMap[a] > frequencyMap[b] ? a : b))
+        let topDestination: string | any = 'N/A'
+        if (allRegionObjects.length > 0) {
+          // Count frequency using getCatalogValue for consistent translation handling
+          const frequencyMap = allRegionObjects.reduce(
+            (acc: Record<string, { count: number; catalog: any }>, catalog: any) => {
+              const translatedValue = getCatalogValue(catalog)
+              if (!acc[translatedValue]) {
+                acc[translatedValue] = { count: 0, catalog }
+              }
+              acc[translatedValue].count += 1
+              return acc
+            },
+            {}
+          )
+
+          // Find the most frequent value
+          const frequencyEntries = Object.values(frequencyMap) as Array<{ count: number; catalog: any }>
+          const mostFrequent = frequencyEntries.reduce((a, b) => (a.count > b.count ? a : b))
+
+          // Return the catalog object for proper translation display
+          topDestination = mostFrequent?.catalog || 'N/A'
         }
 
         return { count, totalEstimated, pendingApproval, topDestination }

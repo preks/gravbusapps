@@ -2,7 +2,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { toISOFormat } from '@/common/utils/dateFormatter'
 import { CatalogEntry } from '@/common/network/graphql/commonTypes'
 import { EmployeeRef } from '@/common/data/employee/types/employeeBaseTypes'
-import { InvestmentAccountRef } from '@/common/data/investment/types/investmentRelationBaseTypes'
+import { InvestmentAccount } from '@/common/data/investment/types/investmentAccountTypes'
 
 // ==============================
 // Investment Payload Types
@@ -61,9 +61,9 @@ export interface InvestmentData {
   currency?: CatalogEntry // Full catalog object
   fundManagerName?: string
   identification?: any // JSON object
-  investmentAccount?: InvestmentAccountRef // Full account object
+  investmentAccount?: InvestmentAccount // Full account object
   investmentOpportunity?: string // uuid
-  loanRecipientInvestmentAccount?: InvestmentAccountRef // uuid
+  loanRecipientInvestmentAccount?: InvestmentAccount // uuid
   additionalProperties?: any // JSON object
 
   // Investment Roles (array) - GraphQL schema name is singular
@@ -163,8 +163,8 @@ export const buildInvestmentPayload = (
   // Helper to convert string/number to number
   const toNumber = (value: number | string | undefined): number | undefined => {
     if (value === undefined || value === null || value === '') return undefined
-    const num = typeof value === 'string' ? parseFloat(value) : value
-    return isNaN(num) ? undefined : num
+    const num = typeof value === 'string' ? Number.parseFloat(value) : value
+    return Number.isNaN(num) ? undefined : num
   }
 
   // Helper to extract and build additionalProperties object from form data

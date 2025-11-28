@@ -8,7 +8,6 @@ import {
   TableCell,
   Card,
   CardContent,
-  Spinner,
   Button,
   Sheet,
   SheetContent,
@@ -27,11 +26,12 @@ import { getAdvancePaymentStatusDisplay, formatCurrencyDisplay } from '../../../
 import AdvancePaymentDetails from './AdvancePaymentDetails'
 import ExpensePlanDetails from '../expense-plans-tab/ExpensePlanDetails'
 import ExpenseRequestDetails from '../expense-requests-tab/ExpenseRequestDetails'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '@/common/utils/windowUtils'
 import { PiArrowUp, PiArrowDown } from 'react-icons/pi'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 const DATA_TEST_ID_PREFIX = 'AdvancePaymentsTable'
+const DEFAULT_STATUS_FILTER = ['PREPARED', 'PENDING']
 
 export interface AdvancePaymentsTableProps extends BusinessAppContextProps {
   search?: string
@@ -94,15 +94,44 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     return map
   }, [currencyStats])
 
+  // Track previous filter signature so we can reset pagination when filters change.
+  const prevFilterSignatureRef = useRef<string | null>(null)
+
   // Track if any filters are active to show conditional messages
   const hasActiveFilters = useMemo(() => {
-    return (
-      searchText ||
-      currentStatusFilter.length > 0 ||
-      (currentAmountRange && (currentAmountRange.min !== undefined || currentAmountRange.max !== undefined)) ||
-      (currentAdvanceRange && (currentAdvanceRange.min !== undefined || currentAdvanceRange.max !== undefined))
-    )
+    const hasSearch = (searchText || '').trim() !== ''
+    const hasAmountRange =
+      currentAmountRange && (currentAmountRange.min !== undefined || currentAmountRange.max !== undefined)
+    const hasAdvanceRange =
+      currentAdvanceRange && (currentAdvanceRange.min !== undefined || currentAdvanceRange.max !== undefined)
+
+    // Treat the initial default status filter (PREPARED + PENDING) as "no active filters"
+    const hasNonDefaultStatusFilter = (() => {
+      const statuses = currentStatusFilter || []
+      if (statuses.length === 0) return false
+      if (statuses.length !== DEFAULT_STATUS_FILTER.length) return true
+      return !DEFAULT_STATUS_FILTER.every(status => statuses.includes(status))
+    })()
+
+    return hasSearch || hasNonDefaultStatusFilter || !!hasAmountRange || !!hasAdvanceRange
   }, [searchText, currentStatusFilter, currentAmountRange, currentAdvanceRange])
+
+  // Reset to first page when filters change (status, amount, advance, or DataContainer filter chips).
+  useEffect(() => {
+    const signature = JSON.stringify({
+      status: currentStatusFilter,
+      amountRange: currentAmountRange,
+      advanceRange: currentAdvanceRange,
+      selectedFilters: props.selectedFilters || []
+    })
+
+    const previous = prevFilterSignatureRef.current
+    if (previous !== null && previous !== signature) {
+      setCurrentPage(1)
+    }
+
+    prevFilterSignatureRef.current = signature
+  }, [currentStatusFilter, currentAmountRange, currentAdvanceRange, props.selectedFilters])
 
   // Build fetch parameters
   const fetchParams = useMemo(
@@ -322,12 +351,6 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
       <div>
         <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
           <CardContent className="gba:p-0">
-            {isLoading && (
-              <div className="gba:flex gba:justify-center gba:p-4">
-                <Spinner />
-              </div>
-            )}
-
             <div className="gba:overflow-x-auto">
               <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
                 <TableHeader>
@@ -408,7 +431,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {!isLoading && (!items || items.length === 0) ? (
+                  {!isLoading && totalCount === 0 && (!items || items.length === 0) ? (
                     <TableRow>
                       <TableCell colSpan={7} className="gba:py-8 gba:text-center">
                         <div className="gba:text-gray-500">
@@ -566,10 +589,21 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                         >
                           <div className="gba:text-sm" data-testid="advance-payment-method-cell">
                             {record.paymentMethod
-                              ? record.paymentMethod
-                                  .toLowerCase()
-                                  .replace(/_/g, ' ')
-                                  .replace(/\b\w/g, (c: string) => c.toUpperCase())
+                              ? typeof record.paymentMethod === 'object' &&
+                                record.paymentMethod !== null &&
+                                'value' in record.paymentMethod
+                                ? getCatalogValue(record.paymentMethod)
+                                : String(record.paymentMethod) === 'DIRECT_DEPOSIT'
+                                  ? getTranslationFromI18nKeyAndLabel(
+                                      'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_direct_deposit',
+                                      'Direct Deposit'
+                                    )
+                                  : String(record.paymentMethod) === 'CASH_PAYMENT'
+                                    ? getTranslationFromI18nKeyAndLabel(
+                                        'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_cash_payment',
+                                        'Cash Payment'
+                                      )
+                                    : 'N/A'
                               : 'N/A'}
                           </div>
                         </TableCell>
@@ -619,7 +653,9 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                     </select>
                   </div>
                   <div className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium">
-                    Page {currentPage} of {Math.ceil(totalCount / pageSize)}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.page', 'Page')} {currentPage}{' '}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')}{' '}
+                    {Math.ceil(totalCount / pageSize)}
                   </div>
                   <div className="gba:flex gba:items-center gba:space-x-2">
                     <Button
@@ -662,7 +698,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                   </div>
                 </div>
               </div>
-            ) : (
+            ) : totalCount > 0 ? (
               <div
                 className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4"
                 data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info-single-page`}
@@ -690,7 +726,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                   </select>
                 </div>
               </div>
-            )}
+            ) : null}
           </CardContent>
         </Card>
       </div>
@@ -747,6 +783,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
       props.onFilterChange,
       handleAddAdvancePayment,
       totalCount,
+      isLoading,
       filterLabelMap,
       currencyLabelMap
     ]
@@ -758,7 +795,10 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
         ? [
             {
               id: 'currency',
-              title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.currency', 'Currency'),
+              title: getTranslationFromI18nKeyAndLabel(
+                'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
+                'Currency'
+              ),
               filters: currencyStats.map(cs => ({
                 id: `currency:${cs.ref}`,
                 label: cs.code,
@@ -790,7 +830,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
         dataFilterProps={dataFilterProps}
         hideFilter={false}
         dataBody={renderDataBody()}
-        contentBackground="background"
+        contentBackground="white"
         addLeftPaddingWhenNoFilter={true}
       />
 

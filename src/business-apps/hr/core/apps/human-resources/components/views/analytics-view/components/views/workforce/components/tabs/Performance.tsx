@@ -15,6 +15,8 @@ import PerformanceStatistics from '../components/PerformanceStatistics'
 import MonthlyWorkdaysTable from '../components/MonthlyWorkdaysTable'
 import WorkdaysTrendChart from '../components/WorkdaysTrendChart'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import { useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '../../_i18n'
 
 export type OrgEntityType = 'location' | 'company' | 'costCenter' | 'organizationalUnit'
 
@@ -37,6 +39,7 @@ interface EntityOption {
 }
 
 const Performance: React.FC<BusinessAppContextProps> = context => {
+  const { t } = useTranslation(hrTranslations)
   const [selectedEntityType, setSelectedEntityType] = useState<OrgEntityType>('location')
   const [selectedEntityId, setSelectedEntityId] = useState<string>('all')
   const [workdaysData, setWorkdaysData] = useState<WorkdaysData[]>([])
@@ -195,7 +198,7 @@ const Performance: React.FC<BusinessAppContextProps> = context => {
       <div data-testid={`${dataTestId}-loading`} className="gba:flex gba:items-center gba:justify-center gba:p-12">
         <div className="gba:text-center">
           <Spinner className="gba:w-8 gba:h-8 gba:mx-auto gba:mb-4" />
-          <p className="gba:text-muted-foreground">Loading performance data...</p>
+          <p className="gba:text-muted-foreground">{t('hr-analytics-loading-performance')}</p>
         </div>
       </div>
     )
@@ -207,30 +210,34 @@ const Performance: React.FC<BusinessAppContextProps> = context => {
       <Card className="gba:p-4">
         <div className="gba:flex gba:gap-4 gba:items-center">
           <div className="gba:flex-1">
-            <label className="gba:block gba:text-sm gba:font-medium gba:text-foreground gba:mb-2">Entity Type</label>
+            <label className="gba:block gba:text-sm gba:font-medium gba:text-foreground gba:mb-2">
+              {t('hr-analytics-entity-type')}
+            </label>
             <Select value={selectedEntityType} onValueChange={handleEntityTypeChange}>
               <SelectTrigger>
-                <SelectValue placeholder="Select entity type" />
+                <SelectValue placeholder={t('hr-analytics-select-entity-type')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="location">Location</SelectItem>
-                <SelectItem value="company">Company</SelectItem>
-                <SelectItem value="costCenter">Cost Center</SelectItem>
-                <SelectItem value="organizationalUnit">Organizational Unit</SelectItem>
+                <SelectItem value="location">{t('hr-analytics-entity-location')}</SelectItem>
+                <SelectItem value="company">{t('hr-analytics-entity-company')}</SelectItem>
+                <SelectItem value="costCenter">{t('hr-analytics-entity-cost-center')}</SelectItem>
+                <SelectItem value="organizationalUnit">{t('hr-analytics-entity-organizational-unit')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div className="gba:flex-1">
             <label className="gba:block gba:text-sm gba:font-medium gba:text-foreground gba:mb-2">
-              Specific Entity
+              {t('hr-analytics-specific-entity')}
             </label>
             <Select value={selectedEntityId} onValueChange={handleEntityIdChange}>
               <SelectTrigger>
-                <SelectValue placeholder="Select specific entity" />
+                <SelectValue placeholder={t('hr-analytics-select-specific-entity')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All {selectedEntityType}s</SelectItem>
+                <SelectItem value="all">
+                  {t('hr-analytics-all-entities')} {selectedEntityType}
+                </SelectItem>
                 {availableEntities.map(entity => (
                   <SelectItem key={entity.id} value={entity.id}>
                     {entity.name}

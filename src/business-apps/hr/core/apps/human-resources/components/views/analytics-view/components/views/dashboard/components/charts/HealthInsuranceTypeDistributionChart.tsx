@@ -3,8 +3,9 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from 'recharts'
 import { Card, Typography, Spin, Empty } from 'antd'
 import { InfoCircleOutlined } from '@ant-design/icons'
 import { BusinessAppContextProps } from '@/business-apps/types'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useTranslation } from '@newwork/nw-design-system'
 import { useHealthInsuranceTypeDistribution } from '../../../../../hooks/useHealthInsuranceTypeDistribution'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 const { Title } = Typography
 
@@ -14,6 +15,7 @@ const { Title } = Typography
  */
 export const HealthInsuranceTypeDistributionChart: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
   const [activeIndex, setActiveIndex] = React.useState<number>(-1)
+  const { t } = useTranslation(hrTranslations)
 
   // Fetch health insurance type distribution data
   const { distribution: data, loading, error, totalEmployees } = useHealthInsuranceTypeDistribution(accessToken)
@@ -91,12 +93,7 @@ export const HealthInsuranceTypeDistributionChart: React.FC<BusinessAppContextPr
     <Card
       title={
         <div className="gba:flex gba:justify-between gba:items-center">
-          <Title level={4} style={{ margin: 0 }}>
-            {getTranslationFromI18nKeyAndLabel(
-              'hr_analytics_health_insurance_type_distribution',
-              'Health Insurance Type Distribution'
-            )}
-          </Title>
+          <Title level={4} style={{ margin: 0 }}>{t('hr-analytics-health-insurance-type-distribution')}</Title>
           <div className="gba:flex gba:items-center">
             <InfoCircleOutlined
               className="gba:text-muted-foreground"
@@ -117,17 +114,11 @@ export const HealthInsuranceTypeDistributionChart: React.FC<BusinessAppContextPr
           </div>
         ) : error ? (
           <div className="gba:flex gba:justify-center gba:items-center gba:h-full">
-            <Empty
-              description={getTranslationFromI18nKeyAndLabel('hr_analytics_error_loading', 'Error loading data')}
-              data-testid="health-insurance-type-distribution-error"
-            />
+            <Empty description={t('hr-analytics-error-loading')} data-testid="health-insurance-type-distribution-error" />
           </div>
         ) : data.length === 0 ? (
           <div className="gba:flex gba:justify-center gba:items-center gba:h-full">
-            <Empty
-              description={getTranslationFromI18nKeyAndLabel('hr_analytics_no_data', 'No data available')}
-              data-testid="health-insurance-type-distribution-empty"
-            />
+            <Empty description={t('hr-analytics-no-data')} data-testid="health-insurance-type-distribution-empty" />
           </div>
         ) : (
           <ResponsiveContainer
@@ -169,7 +160,7 @@ export const HealthInsuranceTypeDistributionChart: React.FC<BusinessAppContextPr
                   dominantBaseline="middle"
                   style={{ fontSize: '18px', fill: 'var(--nw-foreground)', fontWeight: 600 }}
                 >
-                  {getTranslationFromI18nKeyAndLabel('hr_analytics_insurance_types', 'Insurance Types')}
+                  {t('hr-analytics-insurance-types')}
                 </text>
                 <text
                   x="50%"

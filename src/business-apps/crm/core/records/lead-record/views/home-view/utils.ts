@@ -56,11 +56,13 @@ export const transformTaskOrApproval = (item: any, untitledFallback: string) => 
     assignee: item.assignedEmployee?.displayName || item.assignedEmployee?.fullName,
     statusCode: item.status?.value?.toUpperCase() as 'PENDING' | 'IN_PROGRESS' | 'OVERDUE' | 'COMPLETED' | undefined,
     taskStatus: item.status,
+    taskType: item.taskType,
     taskPriority: item.priority,
     assigneeEmployee: item.assignedEmployee,
-    taskTiming: item.timingType,
+    taskTiming: item.taskTiming,
     startDate: item.startDate,
     creatorEmployee: item.creatorEmployee,
-    reference: buildTaskReference(item)
+    reference: buildTaskReference(item),
+    documents: item.documents || []
   }
 }

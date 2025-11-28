@@ -3,11 +3,38 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetInvestmentOpportunities } from '@/common/data/investment/hooks/useInvestmentOpportunities'
 import { OpportunityLayout } from '@/common/components/common-relations/view-layouts/opportunity-layout'
 import { createOpportunityConfig } from '@/common/components/common-relations/view-layouts/opportunity-layout/utils/opportunityConfigBuilder'
-import type { InvestmentOpportunity } from '@/common/data/investment/types'
+import type { InvestmentOpportunity } from '@/common/data/investment/types/investmentOpportunityTypes'
 import type { InvestmentOpportunityQueryVariables } from '@/common/data/investment/queries/investmentOpportunityQueries'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useInvestmentOpportunityFilters } from './hooks/useInvestmentOpportunityFilters'
-import { OpportunityStatistics } from './components/OpportunityStatistics'
+import { useInvestmentOpportunityStatistics } from '@/common/data/investment/hooks/useInvestmentOpportunityStatistics'
+import { INVESTMENT_OPPORTUNITY_DESCRIPTORS } from '@/common/data/investment/types/investmentOpportunityTypes'
+import { OpportunityStatisticsLayout } from '@/common/components/common-relations/view-layouts/opportunity-layout/components/OpportunityStatisticsLayout'
+
+// Separate component to properly use hooks
+const InvestmentOpportunityStatistics: React.FC<{
+  context: BusinessAppContextProps
+  selectedCurrency?: string
+}> = ({ context, selectedCurrency }) => {
+  const opportunityStatistics = useInvestmentOpportunityStatistics(context, selectedCurrency)
+
+  if (!opportunityStatistics.trendData) return null
+
+  return (
+    <OpportunityStatisticsLayout
+      statistics={{
+        recentOpportunities: opportunityStatistics.trendData.recentOpportunities,
+        opportunityValue: opportunityStatistics.trendData.opportunityValue,
+        winRate: opportunityStatistics.trendData.winRate,
+        opportunitiesThisYear: opportunityStatistics.trendData.opportunitiesThisYear,
+        isLoading: opportunityStatistics.isLoading,
+        error: opportunityStatistics.error,
+        refetch: () => void opportunityStatistics.refetch()
+      }}
+      selectedCurrency={selectedCurrency}
+    />
+  )
+}
 
 export type OpportunityViewProps = BusinessAppContextProps
 
@@ -19,7 +46,12 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
       createOpportunityConfig<InvestmentOpportunity, InvestmentOpportunityQueryVariables>({
         contextType: 'investment',
 
-        extendQueryVariables: vars => ({ ...vars, dealType: 'INVESTMENT_DEAL' }),
+        extendQueryVariables: vars => ({
+          ...vars,
+          dealType: 'INVESTMENT_DEAL',
+          // Filter for OPEN status only on kanban board
+          opportunityStatusIds: ['InvestmentOpportunityStatus:v1:OPEN']
+        }),
 
         fetchOpportunities: async variables => {
           const result = await fetchInvestmentOpportunities(variables)
@@ -30,6 +62,8 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
         },
 
         filterDataHook: useInvestmentOpportunityFilters,
+
+        viewDescriptors: INVESTMENT_OPPORTUNITY_DESCRIPTORS,
 
         columnMappings: {
           pipeline: 'opportunityPipeline',
@@ -59,7 +93,14 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
 
         fetchBoardOpportunities: fetchInvestmentOpportunities,
         extractBoardOpportunities: result => result.InvestmentOpportunity || [],
-        renderStatistics: () => <OpportunityStatistics {...context} />
+        extractBoardTotalCount: result => result.InvestmentOpportunityAggregate?.aggregate?.count || 0,
+        renderStatistics: (selectedCurrency?: string) => (
+          <InvestmentOpportunityStatistics context={context} selectedCurrency={selectedCurrency} />
+        ),
+        rowActionsContextArray: [FlowContextName.investmentOpportunityEntity],
+        buildRowActionsExternalContextData: (row: { original: InvestmentOpportunity }) => ({
+          opportunityId: row.original.id
+        })
       }),
     [context, fetchInvestmentOpportunities]
   )

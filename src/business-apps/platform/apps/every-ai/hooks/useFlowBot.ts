@@ -82,7 +82,11 @@ function loadState(): ConversationState {
 async function loadHistory(accessToken: string, sessionId: string | null): Promise<ConversationState> {
   if (!sessionId) return { conversation: [], sessionId: null }
 
+<<<<<<< HEAD
   const baseUrl = resolveFlowbotBaseUrl()
+=======
+  const baseUrl = env('NEXT_PUBLIC_FLOWBOT') || env('NEXT_PUBLIC_BASE_URL') || 'https://newwork-dev.newwork.com'
+>>>>>>> develop
 
   try {
     const res = await fetch(`${baseUrl}/flowbot/api/agent/session/${sessionId}/history`, {
@@ -176,6 +180,20 @@ async function loadHistory(accessToken: string, sessionId: string | null): Promi
         )
       }
     })
+
+    // Cleanup: prune ephemeral tool outputs from history so reasoning steps are hidden
+    try {
+      historyState.conversation = historyState.conversation.map(turn => {
+        if (turn.side !== 'agent') return turn
+        const outputs = Array.isArray((turn as any).outputs) ? (turn as any).outputs : []
+        const hasNonTool = outputs.some((o: any) => o && o.type && o.type !== 'tool')
+        if (!hasNonTool) return turn
+        return {
+          ...turn,
+          outputs: outputs.filter((o: any) => o?.type !== 'tool')
+        }
+      })
+    } catch {}
 
     return historyState
   } catch (error) {
@@ -462,7 +480,11 @@ export function useFlowBot(accessToken: string) {
 
         files.forEach(file => form.append('files', file))
 
+<<<<<<< HEAD
         const baseUrl = resolveFlowbotBaseUrl()
+=======
+        const baseUrl = env('NEXT_PUBLIC_FLOWBOT') || env('NEXT_PUBLIC_BASE_URL') || 'https://newwork-dev.newwork.com'
+>>>>>>> develop
         const url = `${baseUrl}/flowbot/api/agent/v2/chat`
         const res = await fetch(url, {
           method: 'POST',
@@ -551,7 +573,11 @@ export function useFlowBot(accessToken: string) {
       isPrechatLoadingRef.current = true
       setPrechatSuggestions([])
       setIsPrechatLoading(true)
+<<<<<<< HEAD
       const baseUrl = resolveFlowbotBaseUrl()
+=======
+      const baseUrl = env('NEXT_PUBLIC_FLOWBOT') || env('NEXT_PUBLIC_BASE_URL') || 'https://newwork-dev.newwork.com'
+>>>>>>> develop
 
       const form = new FormData()
       // For prechat suggestions we only need lightweight page context without analytics

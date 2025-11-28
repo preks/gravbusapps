@@ -1,13 +1,16 @@
 import React from 'react'
 import { Card, Typography } from 'antd'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useDepartmentMonthlySalaryStack } from '../../../../hooks/useDepartmentMonthlySalaryStack'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
 const { Title, Text } = Typography
 
 const SalaryChangesChart: React.FC<BusinessAppContextProps> = props => {
+  const { t } = useTranslation(hrTranslations)
   const year = new Date().getFullYear()
   const { data } = useDepartmentMonthlySalaryStack(props, year)
 
@@ -26,13 +29,14 @@ const SalaryChangesChart: React.FC<BusinessAppContextProps> = props => {
       return (
         <div className="gba:bg-primary-foreground gba:shadow-lg gba:rounded gba:p-4" data-testid="salary-tooltip">
           <div className="gba:font-semibold gba:text-base gba:mb-1">
-            {d.month && new Date(d.month + '-01').toLocaleString(undefined, { month: 'short', year: 'numeric' })}
+            {d.month &&
+              new Date(d.month + '-01').toLocaleString(getCurrentActiveUserLocale() ?? 'en-US', {
+                month: 'short',
+                year: 'numeric'
+              })}
           </div>
           <div className={value > 0 ? 'gba:text-success gba:text-sm' : 'gba:text-destructive gba:text-sm'}>
-            <span className="gba:font-medium">
-              {getTranslationFromI18nKeyAndLabel('salary_change', 'Salary Change')}:
-            </span>{' '}
-            {value > 0 ? '+' : ''}
+            <span className="gba:font-medium">{t('hr-analytics-salary-change')}:</span> {value > 0 ? '+' : ''}
             {value.toLocaleString()}
           </div>
         </div>
@@ -46,13 +50,10 @@ const SalaryChangesChart: React.FC<BusinessAppContextProps> = props => {
       {/* Header */}
       <div className="gba:mb-4">
         <Title level={4} className="gba:m-0 gba:text-foreground">
-          {getTranslationFromI18nKeyAndLabel('salary_changes_chart', 'Monthly Salary Changes')}
+          {t('hr-analytics-monthly-salary-changes')}
         </Title>
         <Text className="gba:text-muted-foreground gba:text-sm gba:mt-1">
-          {getTranslationFromI18nKeyAndLabel(
-            'salary_changes_description',
-            'Month-over-month salary budget changes showing increases and decreases in total compensation costs'
-          )}
+          {t('hr-analytics-salary-changes-description')}
         </Text>
       </div>
 
@@ -67,13 +68,13 @@ const SalaryChangesChart: React.FC<BusinessAppContextProps> = props => {
             <Bar
               dataKey="positive"
               fill="var(--nw-color-success)"
-              name={getTranslationFromI18nKeyAndLabel('salary_increase', 'Salary Increase')}
+              name={t('hr-analytics-salary-increase')}
               data-testid="bar-salary-increase"
             />
             <Bar
               dataKey="negative"
               fill="var(--nw-color-destructive)"
-              name={getTranslationFromI18nKeyAndLabel('salary_decrease', 'Salary Decrease')}
+              name={t('hr-analytics-salary-decrease')}
               data-testid="bar-salary-decrease"
             />
           </BarChart>

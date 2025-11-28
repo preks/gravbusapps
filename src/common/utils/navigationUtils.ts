@@ -13,10 +13,15 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
 
   ///  Core: Records
   '/platform/crm/account-record': 'crm/core/records/account-record',
-  '/platform/crm/campaign-record': 'crm/core/records/campaign-record', // Future: Marketing Module
   '/platform/crm/contact-record': 'crm/core/records/contact-record',
   '/platform/crm/lead-record': 'crm/core/records/lead-record',
   '/platform/crm/opportunity-record': 'crm/core/records/opportunity-record',
+
+  /// Campaigns: Apps
+  '/platform/crm/campaign-management': 'crm/campaigns/apps/campaign-management', // Standalone Campaigns Module
+
+  /// Campaigns: Records
+  '/platform/crm/campaign-record': 'crm/campaigns/records/campaign-record', // Standalone Campaigns Module
 
   /// Performance: Apps
   '/platform/crm/team-performance': 'crm/performance/apps/sales-team-performance', // TODO: Naming
@@ -38,7 +43,7 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
 
   /// Investments: Apps
   '/platform/irm/investment-management': 'irm/investments/apps/investment-management',
-  '/platform/irm/investment-report-portal': 'irm/investments/apps/investment-report-portal',
+  '/platform/irm/investment-portal': 'irm/investments/apps/investment-portal',
 
   /// Investments: Records
   '/platform/irm/investment-record': 'irm/investments/records/investment-record',
@@ -53,10 +58,8 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
 
   // HR
   '/platform/employee-record': 'hr/core/apps/employee-record',
-
-  // SALES-DEMO (Service Requests)
-  '/platform/sales-demo/service-launcher': 'sales-demo/core/apps/service-launcher',
-
+  '/platform/sales-demo/service-desk': 'ser/apps/service-desk',
+  '/platform/sales-demo/service-launcher': 'ser/apps/service-portal',
   '/platform/mdm/pipeline-data': 'mdm/apps/pipeline-data',
   '/platform/mdm/lead-data': 'mdm/apps/lead-data',
   '/platform/mdm/operation-data': 'mdm/apps/operation-data',
@@ -111,8 +114,15 @@ export const navigateTo = (url: string): void => {
   const isProduction = process.env.NODE_ENV === 'production'
 
   if (isProduction) {
-    // Production: use original URL behavior
-    window.location.href = url
+    // Production: use host-provided SPA navigation if available, otherwise fallback
+    const nwNavigate = (window as any).nwNavigate as
+      | undefined
+      | ((path: string, options?: { replace?: boolean; scroll?: boolean }) => void)
+    if (typeof nwNavigate === 'function') {
+      nwNavigate(url)
+    } else {
+      window.location.href = url
+    }
   } else {
     // Development: check if it's a platform URL
     if (isPlatformUrl(url)) {

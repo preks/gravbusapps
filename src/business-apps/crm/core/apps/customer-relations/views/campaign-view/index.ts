@@ -1,3 +1,2 @@
-import CampaignManagement from './CampaignManagement'
-export { CampaignManagement }
-export default CampaignManagement
+// New CampaignView with DataDisplay/DataTable using existing hooks
+export { default } from './CampaignView'

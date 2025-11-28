@@ -93,6 +93,14 @@ export const DivestmentView: React.FC<DivestmentViewProps> = context => {
 
   return (
     <div data-testid="divestment-relations-tabs" className="gba:h-full gba:flex gba:flex-col">
+      {/* Header */}
+      <div className="gba:mb-6">
+        <div className="gba:mb-4">
+          <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900">Divestment Management</h1>
+          <p className="gba:text-gray-600">Track and manage planned exits, opportunities, and completed sales</p>
+        </div>
+      </div>
+
       <Tabs value={activeTab} onValueChange={handleTabChange} className="gba:h-full gba:flex gba:flex-col">
         <TabsList className="gba:grid gba:w-full gba:grid-cols-3 gba:mb-4">
           {tabOptions.map(option => (

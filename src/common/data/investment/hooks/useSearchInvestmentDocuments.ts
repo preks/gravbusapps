@@ -3,9 +3,9 @@ import { useState, useCallback, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useDebounce } from '@/common/hooks/useDebounce'
-import { INVESTMENT_DOCUMENT } from '../queries/fragments/investmentRelationFragments'
-import { toInvestmentDocument } from '../mappers'
-import type { BaseInvestmentDocument } from '../types'
+import { INVESTMENT_DOCUMENT } from '../queries/fragments/investmentFragments'
+import { toInvestmentDocument } from '../mappers/investmentRelatedEntityMappers'
+import type { InvestmentDocument } from '../types/investmentDocumentTypes'
 
 export interface InvestmentDocumentSearchVariables {
   opportunityId?: string
@@ -19,7 +19,7 @@ export interface InvestmentDocumentSearchVariables {
 }
 
 export interface InvestmentDocumentSearchResponse {
-  InvestmentDocument: BaseInvestmentDocument[]
+  InvestmentDocument: InvestmentDocument[]
   InvestmentDocumentAggregate: {
     aggregate: {
       count: number
