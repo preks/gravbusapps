@@ -656,7 +656,8 @@ export const OutputItemRenderer: React.FC<{
   accessToken: string
   sendMessage?: (message: string, files: File[]) => void
   conversation?: ConversationTurn[]
-}> = ({ item, accessToken, sendMessage, conversation }) => {
+  isVoiceMode?: boolean
+}> = ({ item, accessToken, sendMessage, conversation, isVoiceMode = false }) => {
   switch (item.type) {
     case 'answer':
       return <AnswerOutputRenderer data={item} accessToken={accessToken} />
@@ -682,6 +683,7 @@ export const OutputItemRenderer: React.FC<{
             sendMessage={sendMessage}
             accessToken={accessToken}
             conversation={conversation}
+            isVoiceMode={isVoiceMode}
           />
         </FlowProposalBoundary>
       )

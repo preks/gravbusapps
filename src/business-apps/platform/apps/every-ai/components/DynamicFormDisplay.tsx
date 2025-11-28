@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label, Combobo
 import type { FlowProposalOutput, ConversationTurn } from '../types/models'
 import { useFormSubmission } from './FormSubmissionContext'
 import { useEmployeeSearchLight } from '../queries/employeeQueries'
+import { useVoiceFormContext } from '../context/VoiceFormContext'
 
 interface DynamicFormDisplayProps {
   data: FlowProposalOutput
@@ -10,6 +11,7 @@ interface DynamicFormDisplayProps {
   sendMessage?: (message: string, files: File[]) => void
   conversation?: ConversationTurn[]
   accessToken: string
+  isVoiceMode?: boolean
 }
 
 interface SchemaFieldProps {
@@ -370,9 +372,11 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
   onCancel,
   sendMessage,
   conversation = [],
-  accessToken
+  accessToken,
+  isVoiceMode = false
 }) => {
   const { getFormState, setFormState, clearFormState } = useFormSubmission()
+  const voiceFormContext = useVoiceFormContext()
 
   const formKey = useMemo(() => `form-${data.uuid || data.flow_name || 'default'}`, [data.uuid, data.flow_name])
 
@@ -757,9 +761,7 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
 
   useEffect(() => {
     console.debug('[EveryAI][DynamicFormDisplay] schema', schema)
-
     console.debug('[EveryAI][DynamicFormDisplay] fields', fields)
-
     console.debug('[EveryAI][DynamicFormDisplay] formData', formData)
   }, [schema, fields, formData])
 
@@ -769,6 +771,68 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
   const isFlowCompleted = currentFormState.isFlowCompleted || uiState.isFlowCompleted
   const hasError = currentFormState.hasError || uiState.hasError
   const isCompleted = isSubmitted || isCancelled
+
+  // Register form with voice context when in voice mode
+  useEffect(() => {
+    if (!isVoiceMode || !voiceFormContext || isCompleted) {
+      return
+    }
+
+    // Create handlers for voice commands
+    const submitHandler = () => {
+      if (!currentFormState.isSubmitted && !currentFormState.isLoading) {
+        const fakeEvent = { preventDefault: () => {} } as React.FormEvent
+        handleSubmit(fakeEvent)
+      }
+    }
+
+    const cancelHandler = () => {
+      if (!currentFormState.isCancelled && !currentFormState.isLoading) {
+        handleCancel()
+      }
+    }
+
+    const updateField = (fieldName: string, value: any) => {
+      const normalizedSearch = fieldName.toLowerCase().replace(/\s+/g, '')
+      const matchingField = fields.find(([key]) => {
+        const normalizedKey = key.toLowerCase().replace(/\s+/g, '')
+        return normalizedKey === normalizedSearch || normalizedKey.includes(normalizedSearch)
+      })
+
+      if (matchingField) {
+        setFormData(prev => ({ ...prev, [matchingField[0]]: value }))
+        console.log(`[Voice] Updated field "${matchingField[0]}" to "${value}"`)
+      } else {
+        console.warn(`[Voice] Could not find field matching "${fieldName}"`)
+      }
+    }
+
+    voiceFormContext.setActiveForm({
+      uuid: data.uuid || formKey,
+      flowName: data.flow_name || 'Form',
+      moduleName: data.module_name || '',
+      data,
+      formData,
+      submitHandler,
+      cancelHandler,
+      updateField
+    })
+
+    return () => {
+      voiceFormContext.setActiveForm(null)
+    }
+  }, [
+    isVoiceMode,
+    voiceFormContext,
+    isCompleted,
+    currentFormState,
+    data,
+    formKey,
+    formData,
+    fields,
+    handleSubmit,
+    handleCancel
+  ])
 
   return (
     <Card

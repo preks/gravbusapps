@@ -14,6 +14,7 @@ import { Button } from '@newwork/nw-design-system'
 import { Bell, Sparkle, ArrowsOut } from '@phosphor-icons/react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import type { OutputItem, AnswerOutput, NavigationData } from './types/models'
+import { VoiceFormProvider, useVoiceForm } from './context/VoiceFormContext'
 
 export interface EveryAIProps extends BusinessAppContextProps {
   className?: string
@@ -22,9 +23,20 @@ export interface EveryAIProps extends BusinessAppContextProps {
 /**
  * EveryAI - Premium AI Assistant with Voice Mode
  * The most advanced AI-powered assistant for NEWWORK ERP
- * Now with full voice conversation support!
+ * Now with full voice conversation support including voice-driven form interactions!
  */
 export const EveryAI: React.FC<EveryAIProps> = props => {
+  return (
+    <VoiceFormProvider>
+      <EveryAIInner {...props} />
+    </VoiceFormProvider>
+  )
+}
+
+/**
+ * Inner component that uses the VoiceFormContext
+ */
+const EveryAIInner: React.FC<EveryAIProps> = props => {
   const { accessToken, className, userInfo } = props
   const scrollRef = useRef<HTMLDivElement>(null)
   const [showRemindersPanel, setShowRemindersPanel] = useState(false)
@@ -32,6 +44,9 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
   const isSpeechModeRef = useRef(false) // Ref for use in callbacks
   const lastSpokenTurnIndexRef = useRef<number>(-1)
   const lastNavigatedTurnIndexRef = useRef<number>(-1)
+
+  // Voice form context for form interactions in voice mode
+  const voiceForm = useVoiceForm()
 
   // Detect if we're in sidepanel mode (not the fullscreen every-ai view)
   const isInSidepanel = useMemo(() => {
@@ -100,11 +115,13 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
       isSpeechModeRef.current = false
       voiceInput.cancelListening()
       voiceSynthesis.stop()
+      voiceForm.setIsVoiceMode(false)
     } else {
       // Entering speech mode - auto-start listening
       setIsSpeechMode(true)
       isSpeechModeRef.current = true
       lastSpokenTurnIndexRef.current = conversation.length - 1
+      voiceForm.setIsVoiceMode(true)
       // Auto-start listening after a brief delay for UI to render
       setTimeout(() => {
         if (isSpeechModeRef.current) {
@@ -113,7 +130,16 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
         }
       }, 200)
     }
-  }, [isSpeechMode, voiceInput, voiceSynthesis, conversation.length])
+  }, [isSpeechMode, voiceInput, voiceSynthesis, conversation.length, voiceForm])
+
+  // Speak pending form summaries when a form appears in voice mode
+  useEffect(() => {
+    if (voiceForm.pendingFormSummary && isSpeechMode) {
+      console.log('🔊 [Voice Form] Speaking form summary:', voiceForm.pendingFormSummary.substring(0, 60) + '...')
+      voiceSynthesis.speak(voiceForm.pendingFormSummary)
+      voiceForm.clearPendingFormSummary()
+    }
+  }, [voiceForm.pendingFormSummary, isSpeechMode, voiceSynthesis, voiceForm])
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -204,19 +230,83 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
     }
   }, [conversation, isSpeechMode])
 
-  // Handle sending voice transcript
+  // Handle sending voice transcript with form command detection
   const handleVoiceSend = useCallback(
     (text: string) => {
       if (text && typeof text === 'string' && text.trim()) {
         const cleanText = text.trim()
-        console.log('🎤 [Voice] Sending:', cleanText)
-        // Clear old AI response text before sending new message
+        console.log('🎤 [Voice] Received:', cleanText)
+
+        // Check if there's an active form and if this is a form command
+        if (voiceForm.activeForm) {
+          const command = voiceForm.parseVoiceCommand(cleanText)
+          console.log('🎤 [Voice Form] Parsed command:', command)
+
+          if (command.type === 'confirm') {
+            console.log('🎤 [Voice Form] Confirming and submitting form')
+            voiceSynthesis.stop()
+            voiceSynthesis.speak('Submitting the form now.')
+            voiceForm.activeForm.submitHandler()
+            voiceInput.resetTranscript()
+            return
+          }
+
+          if (command.type === 'cancel') {
+            console.log('🎤 [Voice Form] Cancelling form')
+            voiceSynthesis.stop()
+            voiceSynthesis.speak('Cancelling the form.')
+            voiceForm.activeForm.cancelHandler()
+            voiceInput.resetTranscript()
+            return
+          }
+
+          if (command.type === 'modify') {
+            console.log('🎤 [Voice Form] Modifying field:', command.field, 'to:', command.value)
+            voiceSynthesis.stop()
+            voiceForm.activeForm.updateField(command.field, command.value)
+            voiceSynthesis.speak(`Updated ${command.field} to ${command.value}. Say "submit" when ready.`)
+            voiceInput.resetTranscript()
+            return
+          }
+
+          // Unknown command with active form - ask for clarification
+          if (command.type === 'unknown') {
+            // Check if it might be a question or new request (not form-related)
+            const lowerText = cleanText.toLowerCase()
+            const isLikelyNewRequest =
+              lowerText.includes('?') ||
+              lowerText.startsWith('what') ||
+              lowerText.startsWith('how') ||
+              lowerText.startsWith('who') ||
+              lowerText.startsWith('when') ||
+              lowerText.startsWith('where') ||
+              lowerText.startsWith('can you') ||
+              lowerText.startsWith('please') ||
+              lowerText.startsWith('i want') ||
+              lowerText.startsWith('i need') ||
+              lowerText.startsWith('show me') ||
+              lowerText.startsWith('find')
+
+            if (!isLikelyNewRequest) {
+              // Probably trying to interact with the form but unclear
+              voiceSynthesis.stop()
+              voiceSynthesis.speak(
+                `I have a form ready. Say "submit" to confirm, "cancel" to discard, or "change" followed by the field name and new value.`
+              )
+              voiceInput.resetTranscript()
+              return
+            }
+            // Otherwise treat as a new request (fall through)
+          }
+        }
+
+        // No active form or new request - send as regular chat message
         voiceSynthesis.stop()
         sendMessage(cleanText, [], false, false, undefined)
         voiceInput.resetTranscript()
       }
     },
-    [sendMessage, voiceInput, voiceSynthesis]
+    [sendMessage, voiceInput, voiceSynthesis, voiceForm]
   )
 
   // Update ref for use in useVoiceInput callback
@@ -466,6 +556,7 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
               sendMessage={sendMessage}
               userInfo={userInfo}
               pictureThumbnail={pictureThumbnail}
+              isVoiceMode={isSpeechMode}
             />
           )}
         </div>
