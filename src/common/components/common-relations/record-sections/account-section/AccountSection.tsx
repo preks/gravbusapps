@@ -185,10 +185,11 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
 }) => {
   const cardClassName = `gba:w-full ${className}`.trim()
 
-  // Extract logo URL - support both picture and pictureThumbnail
+  // Extract logo URL - support both pictureThumbnail and URLs
+  // Only use uploaded images or fallback to icon - no random/hardcoded images
   const logoUrl = account?.pictureThumbnail
     ? `data:image/gif;base64,${account.pictureThumbnail}`
-    : account?.picture || account?.pictureUrl || account?.pictureThumbnailUrl
+    : account?.pictureUrl || account?.pictureThumbnailUrl
 
   // Get contact type from extended account object (passed from parent via accountContacts)
   const contactType = account?.contactType

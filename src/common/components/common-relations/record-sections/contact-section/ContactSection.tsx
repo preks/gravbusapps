@@ -157,9 +157,11 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({ contact, onTi
     return getXingChannel(communicationChannels)?.value || null
   }
 
-  // Check if contact has image/avatar
-  const hasContactImage =
-    (contact as any)?.pictureThumbnailUrl || (contact as any)?.pictureThumbnail || (contact as any)?.avatar
+  // Extract contact image URL - support both pictureThumbnail and URLs
+  // Only use uploaded images or fallback to icon - no random/hardcoded images
+  const contactImageUrl = contact?.pictureThumbnail
+    ? `data:image/gif;base64,${contact.pictureThumbnail}`
+    : contact?.pictureThumbnailUrl || contact?.pictureUrl
 
   // Get dynamic field values
   const fullName = buildFullName()
@@ -170,16 +172,9 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({ contact, onTi
       <div className="gba:space-y-2 gba:flex-1">
         {/* Contact Name and Avatar with Action Button */}
         <div className="gba:flex gba:items-center gba:gap-3">
-          {hasContactImage ? (
+          {contactImageUrl ? (
             <Avatar className="gba:h-12 gba:w-12">
-              <AvatarImage
-                src={
-                  (contact as any)?.pictureThumbnailUrl ||
-                  (contact as any)?.pictureThumbnail ||
-                  (contact as any)?.avatar
-                }
-                alt={fullName}
-              />
+              <AvatarImage src={contactImageUrl} alt={fullName} />
               <AvatarFallback>
                 <UserIcon />
               </AvatarFallback>
