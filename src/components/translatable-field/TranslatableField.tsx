@@ -2,6 +2,7 @@
 
 import {
   Input,
+  Textarea,
   Label,
   Button,
   Badge,
@@ -29,6 +30,7 @@ export interface TranslatableFieldProps {
   onDefaultLanguageChange?: (language: string) => void
   className?: string
   inputClassName?: string
+  variant?: 'input' | 'textarea'
   'data-testid'?: string
 }
 
@@ -53,6 +55,7 @@ export function TranslatableField({
   onDefaultLanguageChange,
   className = '',
   inputClassName = '',
+  variant = 'input',
   'data-testid': dataTestId
 }: TranslatableFieldProps) {
   // Remove the unused state since we're using uncontrolled Popover
@@ -132,18 +135,31 @@ export function TranslatableField({
         </Label>
       )}
 
-      {/* Main Input Field with Translation Icon */}
+      {/* Main Input/Textarea Field with Translation Icon */}
       <div className="gba:relative gba:inline-block gba:w-full">
-        <Input
-          value={currentValue}
-          onChange={e => handleMainFieldChange(e.target.value)}
-          placeholder={placeholder}
-          className={`${error ? 'gba:border-red-500 gba:pr-10' : 'gba:pr-10'} ${inputClassName}`}
-          data-testid={`${dataTestId}-MainInput`}
-        />
+        {variant === 'textarea' ? (
+          <Textarea
+            value={currentValue}
+            onChange={e => handleMainFieldChange(e.target.value)}
+            placeholder={placeholder}
+            className={`${error ? 'gba:border-red-500 gba:pr-10' : 'gba:pr-10'} ${inputClassName}`}
+            data-testid={`${dataTestId}-MainTextarea`}
+            rows={4}
+          />
+        ) : (
+          <Input
+            value={currentValue}
+            onChange={e => handleMainFieldChange(e.target.value)}
+            placeholder={placeholder}
+            className={`${error ? 'gba:border-red-500 gba:pr-10' : 'gba:pr-10'} ${inputClassName}`}
+            data-testid={`${dataTestId}-MainInput`}
+          />
+        )}
 
         {/* Translation Icon inside field */}
-        <div className="gba:absolute gba:right-2 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:z-10">
+        <div
+          className={`gba:absolute gba:right-2 gba:z-10 ${variant === 'textarea' ? 'gba:top-2' : 'gba:top-1/2 gba:transform gba:-translate-y-1/2'}`}
+        >
           <Popover>
             <PopoverTrigger asChild>
               <Button
@@ -224,12 +240,21 @@ export function TranslatableField({
                             </div>
                           </div>
                           <div className="gba:flex-1">
-                            <Input
-                              value={translations[langCode] || ''}
-                              onChange={e => handleTranslationChange(langCode, e.target.value)}
-                              placeholder="Please enter..."
-                              className="gba:h-9"
-                            />
+                            {variant === 'textarea' ? (
+                              <Textarea
+                                value={translations[langCode] || ''}
+                                onChange={e => handleTranslationChange(langCode, e.target.value)}
+                                placeholder="Please enter..."
+                                rows={3}
+                              />
+                            ) : (
+                              <Input
+                                value={translations[langCode] || ''}
+                                onChange={e => handleTranslationChange(langCode, e.target.value)}
+                                placeholder="Please enter..."
+                                className="gba:h-9"
+                              />
+                            )}
                           </div>
                           {canRemove && (
                             <Button

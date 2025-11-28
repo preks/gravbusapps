@@ -1,0 +1,445 @@
+import React, { useCallback, useMemo, useState, useEffect, useLayoutEffect, useRef } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useNavigations } from '@/common/data/resources/hooks/useNavigations'
+import { useMenuItems } from '@/common/data/resources/hooks/useMenuItems'
+import { useUpdateNavigation } from '@/common/data/resources/hooks/useUpdateNavigation'
+import { useRolesCatalog } from '@/common/data/resources/hooks/useRolesCatalog'
+import { useFeaturesCatalog } from '@/common/data/resources/hooks/useFeaturesCatalog'
+import { DescriptionDialog } from '../../../../components/DescriptionDialog'
+import type { GetNavigationsParams } from '@/common/data/resources/types/navigation.types'
+import type { MenuItemDTO } from '@/common/data/resources/types/menuItem.types'
+import { NavigationTable } from './NavigationTable'
+import { MenuTable } from './MenuTable'
+import type { NavigationWithMenuItems } from './NavigationTableColumns'
+
+interface NavigationTabProps extends BusinessAppContextProps {
+  'data-testid'?: string
+  onCountChange?: (count: number) => void
+  onLoadingChange?: (isLoading: boolean) => void
+  currentView?: string
+  onViewChange?: (view: string) => void
+  onViewCountChange?: (counts: { urls: number; menu: number }) => void
+  onViewLoadingChange?: (loading: { urls: boolean; menu: boolean }) => void
+  onRefetchChange?: (refetch: () => void) => void
+  isActive?: boolean
+  shouldInitialLoad?: boolean
+}
+
+const NavigationTabComponent: React.FC<NavigationTabProps> = ({
+  'data-testid': dataTestId = 'navigation-tab',
+  onCountChange,
+  onLoadingChange,
+  currentView: externalCurrentView,
+  onViewChange: externalOnViewChange,
+  onViewCountChange,
+  onViewLoadingChange,
+  onRefetchChange,
+  isActive = true,
+  shouldInitialLoad = false,
+  ...context
+}) => {
+  // Performance logging (only in dev, limited)
+  const renderCountRef = useRef(0)
+  const prevPropsRef = useRef<{ isActive: boolean; currentView: string }>({ isActive: false, currentView: '' })
+
+  if (process.env.NODE_ENV === 'development') {
+    renderCountRef.current++
+    const currentProps = { isActive, currentView: externalCurrentView ?? '' }
+    const propsChanged =
+      currentProps.isActive !== prevPropsRef.current.isActive ||
+      currentProps.currentView !== prevPropsRef.current.currentView
+
+    if (propsChanged || renderCountRef.current <= 3) {
+      console.log(`[NavigationTab] Render #${renderCountRef.current}`, {
+        propsChanged,
+        currentProps,
+        timestamp: new Date().toISOString()
+      })
+      prevPropsRef.current = currentProps
+    }
+  }
+  // Get initial view from URL or default to 'urls'
+  const getInitialView = useCallback(() => {
+    if (typeof window === 'undefined') return 'urls'
+    const urlParams = new URLSearchParams(window.location.search)
+    const viewFromUrl = urlParams.get('urlView')
+
+    if (viewFromUrl === 'menu' || viewFromUrl === 'urls') {
+      return viewFromUrl
+    }
+
+    return 'urls'
+  }, [])
+
+  const [internalCurrentView, setInternalCurrentView] = useState<string>(getInitialView())
+  const currentView = externalCurrentView ?? internalCurrentView
+  const setCurrentView = externalOnViewChange ?? setInternalCurrentView
+  const [searchValue, setSearchValue] = useState<string>('')
+  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([])
+
+  // Track what has been loaded to prevent duplicate requests
+  const loadedRef = useRef({
+    navigations: false,
+    menuItems: false,
+    initialLoadDone: false
+  })
+
+  // Build API params for search and sort
+  const navigationParams = useMemo<GetNavigationsParams | undefined>(() => {
+    if (currentView !== 'urls' || !isActive) return undefined
+
+    const params: GetNavigationsParams = {}
+    if (searchValue.trim()) {
+      params.search = searchValue.trim()
+    }
+    if (sorting.length > 0) {
+      const sort = sorting[0]
+      params.sort = `${sort.id},${sort.desc ? 'DESC' : 'ASC'}`
+    }
+    return Object.keys(params).length > 0 ? params : undefined
+  }, [currentView, isActive, searchValue, sorting])
+
+  // Always create hooks (data persists when section is hidden)
+  const {
+    navigations,
+    isLoading: navigationsLoading,
+    error: navigationsError,
+    refetch: refetchNavigations
+  } = useNavigations(context, navigationParams)
+
+  const {
+    menuItems,
+    isLoading: menuItemsLoading,
+    error: menuItemsError,
+    refetch: refetchMenuItems
+  } = useMenuItems(context)
+
+  const { updateNavigation, error: updateError } = useUpdateNavigation(context)
+
+  // Roles and Features catalogs - lazy loaded
+  const {
+    roles: roleOptions,
+    isLoading: rolesLoading,
+    error: rolesError,
+    refetch: refetchRoles
+  } = useRolesCatalog(context)
+  const {
+    features: featureOptions,
+    isLoading: featuresLoading,
+    error: featuresError,
+    refetch: refetchFeatures
+  } = useFeaturesCatalog(context)
+
+  // Track when data has been successfully loaded (not just requested)
+  useEffect(() => {
+    if (!navigationsLoading && navigations.length > 0) {
+      loadedRef.current.navigations = true
+    }
+  }, [navigationsLoading, navigations.length])
+
+  useEffect(() => {
+    if (!menuItemsLoading && menuItems.length > 0) {
+      loadedRef.current.menuItems = true
+    }
+  }, [menuItemsLoading, menuItems.length])
+
+  // Initial load: Load ALL data when view opens (both urls and menu) - not waiting for section to be active
+  useEffect(() => {
+    if (shouldInitialLoad && !loadedRef.current.initialLoadDone) {
+      // Load both views for initial counts - load immediately when view opens
+      if (!loadedRef.current.navigations && !navigationsLoading) {
+        refetchNavigations().catch(() => {})
+      }
+      if (!loadedRef.current.menuItems && !menuItemsLoading) {
+        refetchMenuItems().catch(() => {})
+      }
+      loadedRef.current.initialLoadDone = true
+    }
+  }, [shouldInitialLoad, navigationsLoading, menuItemsLoading, refetchNavigations, refetchMenuItems])
+
+  // DO NOT reload when sub-view changes - data is already loaded initially
+
+  // Track what has been preloaded to prevent duplicate requests
+  const preloadedRef = useRef({
+    roles: false,
+    features: false
+  })
+
+  // Preload roles/features ONCE if any navigation has them
+  useEffect(() => {
+    if (!isActive || currentView !== 'urls' || navigations.length === 0) return
+
+    const hasRoles = navigations.some(nav => nav.roles && nav.roles.length > 0)
+    const hasFeatures = navigations.some(nav => nav.features && nav.features.length > 0)
+
+    // Only preload once if no error and data not already loaded
+    if (hasRoles && !preloadedRef.current.roles && roleOptions.length === 0 && !rolesLoading && !rolesError) {
+      preloadedRef.current.roles = true
+      refetchRoles().catch(() => {
+        // Silently handle errors - hasError flag will prevent retries
+      })
+    }
+    if (
+      hasFeatures &&
+      !preloadedRef.current.features &&
+      featureOptions.length === 0 &&
+      !featuresLoading &&
+      !featuresError
+    ) {
+      preloadedRef.current.features = true
+      refetchFeatures().catch(() => {
+        // Silently handle errors - hasError flag will prevent retries
+      })
+    }
+  }, [
+    isActive,
+    currentView,
+    navigations.length,
+    roleOptions.length,
+    rolesLoading,
+    rolesError,
+    featuresLoading,
+    featuresError,
+    featureOptions.length,
+    refetchRoles,
+    refetchFeatures
+  ])
+
+  const error = navigationsError || menuItemsError || updateError
+
+  // Determine initial loading state (only when data hasn't been loaded yet)
+  const isNavigationsInitialLoading = navigationsLoading && !loadedRef.current.navigations
+  const isMenuItemsInitialLoading = menuItemsLoading && !loadedRef.current.menuItems
+
+  // Update count and loading state based on current view
+  useEffect(() => {
+    if (currentView === 'urls') {
+      onCountChange?.(navigations.length)
+      onLoadingChange?.(isNavigationsInitialLoading)
+    } else if (currentView === 'menu') {
+      onCountChange?.(menuItems.length)
+      onLoadingChange?.(isMenuItemsInitialLoading)
+    }
+  }, [
+    currentView,
+    navigations.length,
+    menuItems.length,
+    isNavigationsInitialLoading,
+    isMenuItemsInitialLoading,
+    onCountChange,
+    onLoadingChange
+  ])
+
+  // Description dialog state
+  const [descriptionDialogOpen, setDescriptionDialogOpen] = useState(false)
+  const [descriptionNavigationId, setDescriptionNavigationId] = useState<string | null>(null)
+
+  // Update URL when view changes
+  const updateUrl = useCallback((view: string) => {
+    if (typeof window === 'undefined') return
+    const urlParams = new URLSearchParams(window.location.search)
+    urlParams.set('urlView', view)
+    const newUrl = `${window.location.pathname}?${urlParams.toString()}`
+    window.history.replaceState({}, '', newUrl)
+  }, [])
+
+  // Ensure URL always has urlView parameter on initial load
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const urlParams = new URLSearchParams(window.location.search)
+    if (!urlParams.has('urlView')) {
+      updateUrl(currentView)
+    }
+  }, [currentView, updateUrl])
+
+  // Listen for browser back/forward navigation
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const handlePopState = () => {
+      const newView = getInitialView()
+      setCurrentView(newView)
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [getInitialView])
+
+  // Store previous values to avoid unnecessary updates
+  const prevCountsRef = useRef<{ urls: number; menu: number }>({ urls: 0, menu: 0 })
+  const prevLoadingRef = useRef<{ urls: boolean; menu: boolean }>({ urls: false, menu: false })
+  const refetchFnRef = useRef<(() => void) | null>(null)
+
+  // Create stable refetch function
+  const refetchFn = useCallback(() => {
+    refetchNavigations()
+    refetchMenuItems()
+  }, [refetchNavigations, refetchMenuItems])
+
+  // Update refetch function ref when it changes
+  useEffect(() => {
+    refetchFnRef.current = refetchFn
+  }, [refetchFn])
+
+  // Batch all parent updates in a single useLayoutEffect to minimize re-renders
+  useLayoutEffect(() => {
+    // Use totalCount from hooks if available, otherwise use length (for menu items which don't have totalCount)
+    const newCounts = {
+      urls: navigations.length, // Navigations don't have totalCount from API, use length
+      menu: menuItems.length // Menu items don't have totalCount from API, use length
+    }
+    const newLoading = { urls: isNavigationsInitialLoading, menu: isMenuItemsInitialLoading }
+
+    // Only update if values actually changed
+    const countsChanged = newCounts.urls !== prevCountsRef.current.urls || newCounts.menu !== prevCountsRef.current.menu
+    const loadingChanged =
+      newLoading.urls !== prevLoadingRef.current.urls || newLoading.menu !== prevLoadingRef.current.menu
+
+    if (countsChanged || loadingChanged) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[NavigationTab] Batch updating parent', { countsChanged, loadingChanged, newCounts, newLoading })
+      }
+
+      if (countsChanged && onViewCountChange) {
+        prevCountsRef.current = newCounts
+        onViewCountChange(newCounts)
+      }
+
+      if (loadingChanged && onViewLoadingChange) {
+        prevLoadingRef.current = newLoading
+        onViewLoadingChange(newLoading)
+      }
+    }
+
+    // Set refetch function once (stable reference)
+    if (onRefetchChange && refetchFnRef.current !== refetchFn) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[NavigationTab] Setting refetch function')
+      }
+      onRefetchChange(() => {
+        refetchFnRef.current?.()
+      })
+      refetchFnRef.current = refetchFn
+    }
+  }, [
+    navigations.length,
+    menuItems.length,
+    isNavigationsInitialLoading,
+    isMenuItemsInitialLoading,
+    onViewCountChange,
+    onViewLoadingChange,
+    onRefetchChange,
+    refetchFn
+  ])
+
+  // Use navigations directly - menuItems and hubs come from the API response
+  const enrichedNavigations = useMemo(() => {
+    return navigations.map(nav => {
+      // Combine hubs and menuItems from the navigation response
+      // The API returns hubs and menuItems as separate arrays within each navigation
+      const hubs: MenuItemDTO[] = (nav.hubs || []).map(
+        hub =>
+          ({
+            id: hub.id,
+            name: hub.name,
+            code: hub.code,
+            type: hub.type,
+            resourceUrlId: nav.id,
+            level: 0, // Hubs are level 0
+            ...hub
+          }) as MenuItemDTO
+      )
+
+      const menuItems: MenuItemDTO[] = (nav.menuItems || []).map(
+        item =>
+          ({
+            ...item,
+            resourceUrlId: nav.id,
+            level: item.level ?? 1 // Menu items are level 1+
+          }) as MenuItemDTO
+      )
+
+      // Combined list for easier access (no visual distinction between hubs and menu items)
+      const allMenuItems: MenuItemDTO[] = [...hubs, ...menuItems]
+
+      return {
+        ...nav,
+        hubs,
+        menuItems,
+        allMenuItems
+      } as NavigationWithMenuItems
+    })
+  }, [navigations])
+
+  return (
+    <>
+      {currentView === 'urls' && (
+        <NavigationTable
+          enrichedNavigations={enrichedNavigations}
+          navigations={navigations}
+          isLoading={isNavigationsInitialLoading}
+          error={error}
+          refetchNavigations={refetchNavigations}
+          searchValue={searchValue}
+          sorting={sorting}
+          onSearchChange={setSearchValue}
+          onSortingChange={setSorting}
+          roleOptions={roleOptions}
+          featureOptions={featureOptions}
+          rolesLoading={rolesLoading}
+          featuresLoading={featuresLoading}
+          rolesError={rolesError}
+          featuresError={featuresError}
+          refetchRoles={refetchRoles}
+          refetchFeatures={refetchFeatures}
+          setDescriptionNavigationId={setDescriptionNavigationId}
+          setDescriptionDialogOpen={setDescriptionDialogOpen}
+          updateNavigation={updateNavigation}
+          dataTestId={dataTestId}
+          onCountChange={onCountChange}
+          currentView={currentView}
+        />
+      )}
+      {currentView === 'menu' && (
+        <MenuTable
+          menuItems={menuItems}
+          isLoading={isMenuItemsInitialLoading}
+          error={error}
+          dataTestId={dataTestId}
+          onCountChange={onCountChange}
+          currentView={currentView}
+        />
+      )}
+
+      {descriptionNavigationId && (
+        <DescriptionDialog
+          open={descriptionDialogOpen}
+          onOpenChange={setDescriptionDialogOpen}
+          description={enrichedNavigations.find(n => n.id === descriptionNavigationId)?.description_i18n?.['en'] || ''}
+          descriptionTranslation={
+            enrichedNavigations.find(n => n.id === descriptionNavigationId)?.description_i18n || {}
+          }
+          onSave={async (description, translations) => {
+            const navigationId = descriptionNavigationId
+            if (navigationId) {
+              await updateNavigation(navigationId, { description_i18n: translations })
+              await refetchNavigations()
+            }
+          }}
+          data-testid={`${dataTestId}-description-dialog`}
+          {...context}
+        />
+      )}
+    </>
+  )
+}
+
+// Memoize to prevent unnecessary re-renders when props haven't changed
+export const NavigationTab = React.memo(NavigationTabComponent, (prevProps, nextProps) => {
+  // Only re-render if critical props change
+  return (
+    prevProps.isActive === nextProps.isActive &&
+    prevProps.currentView === nextProps.currentView &&
+    prevProps.shouldInitialLoad === nextProps.shouldInitialLoad &&
+    prevProps['data-testid'] === nextProps['data-testid'] &&
+    prevProps.accessToken === nextProps.accessToken
+  )
+})
