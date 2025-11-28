@@ -149,6 +149,7 @@ export interface EmployeePayslip {
 export interface CompensationData {
   currentCompensation: EmployeeCompensation | null
   totalBonusesYTD: number
+  activeBonusesCount: number
   activeBenefitsCount: number
   bonuses: EmployeeBonus[]
   benefits: EmployeeBenefit[]
