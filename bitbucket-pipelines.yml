@@ -39,7 +39,7 @@
 #   OAUTH_URL_PROD_SECONDARY
 #   OAUTH_REALM_PROD_SECONDARY
 
-image: node:20.18.0
+image: node:20.19.6
 definitions:
   services:
     docker:
