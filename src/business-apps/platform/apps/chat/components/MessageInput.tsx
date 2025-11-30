@@ -9,6 +9,7 @@ interface MessageInputProps {
   onTypingStop: () => void
   disabled?: boolean
   placeholder?: string
+  compact?: boolean
 }
 
 export const MessageInput: React.FC<MessageInputProps> = ({
@@ -16,7 +17,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   onTypingStart,
   onTypingStop,
   disabled = false,
-  placeholder = getTranslationFromI18nKeyAndLabel('chat.input.placeholder', 'Type a message...')
+  placeholder = getTranslationFromI18nKeyAndLabel('chat.input.placeholder', 'Type a message...'),
+  compact = false
 }) => {
   const [value, setValue] = useState('')
   const [isTyping, setIsTyping] = useState(false)
@@ -89,7 +91,9 @@ export const MessageInput: React.FC<MessageInputProps> = ({
 
   return (
     <div
-      className="gba:flex gba:gap-2 gba:items-center gba:p-2 gba:border-t gba:bg-background"
+      className={`gba:flex gba:items-center gba:border-t gba:border-border/50 gba:bg-background/80 gba:backdrop-blur-sm gba:flex-shrink-0 ${
+        compact ? 'gba:gap-1.5 gba:p-2' : 'gba:gap-2 gba:p-3'
+      }`}
       data-testid="message-input"
     >
       <div className="gba:flex-1 gba:min-w-0">
@@ -99,7 +103,9 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           disabled={disabled}
-          className="gba:w-full"
+          className={`gba:w-full gba:bg-muted/50 gba:border-0 focus-visible:gba:ring-1 focus-visible:gba:ring-primary/50 ${
+            compact ? 'gba:h-9 gba:text-sm' : 'gba:h-10'
+          }`}
           data-testid="message-input-field"
         />
       </div>
@@ -107,10 +113,16 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         onClick={handleSend}
         disabled={!value.trim() || disabled}
         size="icon"
-        className="gba:flex-shrink-0"
+        className={`gba:flex-shrink-0 gba:rounded-full gba:transition-all ${
+          compact ? 'gba:h-8 gba:w-8' : 'gba:h-9 gba:w-9'
+        } ${
+          value.trim() && !disabled
+            ? 'gba:bg-primary gba:text-primary-foreground gba:hover:bg-primary/90'
+            : 'gba:bg-muted gba:text-muted-foreground'
+        }`}
         data-testid="message-send-button"
       >
-        <PaperPlaneTilt className="gba:w-4 gba:h-4" />
+        <PaperPlaneTilt className={compact ? 'gba:w-3.5 gba:h-3.5' : 'gba:w-4 gba:h-4'} />
       </Button>
     </div>
   )
