@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import {
   Button,
   IconAvatar,
+  Avatar,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -13,7 +14,8 @@ import {
   DialogHeader,
   DialogTitle
 } from '@newwork/nw-design-system'
-import { ArrowLeft, UserIcon, DotsThreeVertical, SignOut, X, Info } from '@phosphor-icons/react'
+import { ArrowLeft, DotsThreeVertical, SignOut, X, Info, Users } from '@phosphor-icons/react'
+import { UserIcon } from 'lucide-react'
 import type { Conversation } from '../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
@@ -28,80 +30,42 @@ interface ConversationHeaderProps {
   compact?: boolean
 }
 
+const getOtherParticipant = (conversation: Conversation, currentUserId?: string | null) => {
+  if (conversation.type !== 'direct' || !conversation.participants || conversation.participants.length === 0) {
+    return null
+  }
+
+  // Filter out current user to get the other participant
+  const otherParticipants = conversation.participants.filter(p => {
+    return p.userId !== currentUserId && p.user?.id !== currentUserId
+  })
+
+  return otherParticipants[0] || null
+}
+
 const getConversationName = (conversation: Conversation, currentUserId?: string | null): string => {
   if (conversation.name) {
     return conversation.name
   }
 
-  if (conversation.type === 'direct' && conversation.participants && conversation.participants.length > 0) {
-    // If we have currentUserId, filter it out to get the other participant
-    if (currentUserId) {
-      const otherParticipants = conversation.participants.filter(p => {
-        // Exclude current user - check both userId and user.id
-        return p.userId !== currentUserId && p.user?.id !== currentUserId
-      })
-
-      const otherParticipant = otherParticipants[0]
-      if (otherParticipant?.user) {
-        const name = `${otherParticipant.user.firstName || ''} ${otherParticipant.user.lastName || ''}`.trim()
-        return (
-          name ||
-          otherParticipant.user.username ||
-          getTranslationFromI18nKeyAndLabel('chat.unknownUser', 'Unknown User')
-        )
-      }
-    }
-
-    // If no currentUserId or filtering didn't work, try to find a participant with user data
-    // In a direct message, there should be exactly 2 participants
-    // We'll show the first one that has user data and isn't the current user (if currentUserId is known)
-    for (const participant of conversation.participants) {
-      if (participant.user) {
-        // Skip if this is the current user
-        if (currentUserId && (participant.userId === currentUserId || participant.user.id === currentUserId)) {
-          continue
-        }
-        const name = `${participant.user.firstName || ''} ${participant.user.lastName || ''}`.trim()
-        if (name) {
-          return name
-        }
-        if (participant.user.username) {
-          return participant.user.username
-        }
-      }
-    }
-
-    // Fallback: if we have exactly 2 participants, show the first one with user data
-    // (This handles the case where currentUserId is null but we still want to show a name)
-    if (conversation.participants.length === 2) {
-      // Try to find a participant that's not the current user (if currentUserId is known)
-      let participantToShow = conversation.participants.find(p => {
-        if (!p.user) return false
-        if (currentUserId && (p.userId === currentUserId || p.user.id === currentUserId)) {
-          return false // Skip current user
-        }
-        return true
-      })
-
-      // If we didn't find one (or currentUserId is null), just get the first one with user data
-      if (!participantToShow) {
-        participantToShow = conversation.participants.find(p => p.user)
-      }
-
-      if (participantToShow?.user) {
-        const name = `${participantToShow.user.firstName || ''} ${participantToShow.user.lastName || ''}`.trim()
-        return (
-          name ||
-          participantToShow.user.username ||
-          getTranslationFromI18nKeyAndLabel('chat.directMessage', 'Direct Message')
-        )
-      }
-    }
-
-    return getTranslationFromI18nKeyAndLabel('chat.directMessage', 'Direct Message')
+  const otherParticipant = getOtherParticipant(conversation, currentUserId)
+  if (otherParticipant?.user) {
+    const name = `${otherParticipant.user.firstName || ''} ${otherParticipant.user.lastName || ''}`.trim()
+    return (
+      name || otherParticipant.user.username || getTranslationFromI18nKeyAndLabel('chat.unknownUser', 'Unknown User')
+    )
   }
 
   return getTranslationFromI18nKeyAndLabel('chat.directMessage', 'Direct Message')
+}
+
+const getConversationAvatarUrl = (conversation: Conversation, currentUserId?: string | null): string | undefined => {
+  if (conversation.type === 'group') {
+    return undefined // Groups use icon
+  }
+
+  const otherParticipant = getOtherParticipant(conversation, currentUserId)
+  return otherParticipant?.user?.avatarUrl
 }
 
 export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
@@ -115,6 +79,7 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
   compact = false
 }) => {
   const name = getConversationName(conversation, currentUserId)
+  const avatarUrl = getConversationAvatarUrl(conversation, currentUserId)
   const [showRemoveDialog, setShowRemoveDialog] = useState(false)
   const isGroupChat = conversation.type === 'group'
 
@@ -126,6 +91,8 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
     setShowRemoveDialog(false)
     onRemove?.()
   }
+
+  const avatarSize = compact ? 'gba:w-8 gba:h-8' : 'gba:w-9 gba:h-9'
 
   return (
     <>
@@ -147,11 +114,17 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
           </Button>
         )}
 
-        <IconAvatar
-          className={`gba:flex-shrink-0 ${compact ? 'gba:w-8 gba:h-8' : 'gba:w-9 gba:h-9'}`}
-          label={name}
-          icon={UserIcon}
-        />
+        {avatarUrl ? (
+          <Avatar className={`${avatarSize} gba:flex-shrink-0`}>
+            <img src={avatarUrl} alt={name} className="gba:w-full gba:h-full gba:object-cover gba:rounded-full" />
+          </Avatar>
+        ) : (
+          <IconAvatar
+            className={`${avatarSize} gba:flex-shrink-0`}
+            label={name}
+            icon={isGroupChat ? Users : UserIcon}
+          />
+        )}
 
         <div className="gba:flex-1 gba:min-w-0">
           <h2

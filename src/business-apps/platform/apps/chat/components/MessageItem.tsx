@@ -1,8 +1,10 @@
 import React from 'react'
 import { IconAvatar, Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@newwork/nw-design-system'
-import type { Message } from '../types'
-import { UserIcon } from 'lucide-react'
+import type { Message, MessageEntityReference, EntityType } from '../types'
+import { ENTITY_NAVIGATION_PATHS, ENTITY_QUERY_PARAMS } from '../types'
+import { UserIcon, Building2, User, Users, Rocket, TrendingUp, UserCircle, Megaphone, Receipt } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 interface MessageItemProps {
   message: Message
@@ -83,6 +85,119 @@ const getStatusIcon = (status?: string, isOwnMessage?: boolean) => {
   }
 }
 
+const ENTITY_ICONS: Record<EntityType, React.ElementType> = {
+  // CRM
+  account: Building2,
+  contact: User,
+  lead: Users,
+  opportunity: Rocket,
+  // IRM
+  investment_account: Building2,
+  investment_contact: User,
+  investment_lead: Users,
+  investment_opportunity: Rocket,
+  investment: TrendingUp,
+  // Other
+  employee: UserCircle,
+  campaign: Megaphone,
+  expense_request: Receipt
+}
+
+// Navigate to entity record page using platform navigation
+const navigateToEntity = (entity: MessageEntityReference) => {
+  const basePath = ENTITY_NAVIGATION_PATHS[entity.type]
+  const queryParam = ENTITY_QUERY_PARAMS[entity.type]
+
+  const url = buildPlatformUrl(basePath, {
+    [queryParam]: entity.id,
+    source: 'chat'
+  })
+
+  navigateTo(url)
+}
+
+// Render message content with clickable entity references
+const renderContentWithReferences = (content: string, metadata?: Record<string, any>, isOwnMessage?: boolean) => {
+  const entityReferences: MessageEntityReference[] = metadata?.entityReferences || []
+
+  if (entityReferences.length === 0) {
+    return <span>{content}</span>
+  }
+
+  // Sort references by start index (descending to avoid index shifts)
+  const sortedRefs = [...entityReferences].sort((a, b) => a.startIndex - b.startIndex)
+
+  const parts: React.ReactNode[] = []
+  let lastIndex = 0
+
+  sortedRefs.forEach((ref, idx) => {
+    // Add text before this reference
+    if (ref.startIndex > lastIndex) {
+      parts.push(<span key={`text-${idx}`}>{content.slice(lastIndex, ref.startIndex)}</span>)
+    }
+
+    const Icon = ENTITY_ICONS[ref.type]
+    const showAvatar = ref.type === 'employee' && ref.pictureThumbnail
+
+    // Add the entity reference as a clickable badge
+    parts.push(
+      <TooltipProvider key={`ref-${idx}`}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={e => {
+                e.stopPropagation()
+                navigateToEntity(ref)
+              }}
+              className={`gba:inline-flex gba:items-center gba:gap-1 gba:px-1.5 gba:py-0.5 gba:rounded gba:text-xs gba:font-medium gba:transition-colors gba:mx-0.5 ${
+                isOwnMessage
+                  ? 'gba:bg-primary-foreground/20 gba:text-primary-foreground gba:hover:bg-primary-foreground/30'
+                  : 'gba:bg-primary/10 gba:text-primary gba:hover:bg-primary/20'
+              }`}
+              data-testid={`entity-ref-${ref.type}-${ref.id}`}
+            >
+              {showAvatar ? (
+                <img
+                  src={`data:image/jpeg;base64,${ref.pictureThumbnail}`}
+                  alt={ref.name}
+                  className="gba:w-4 gba:h-4 gba:rounded-full gba:object-cover"
+                />
+              ) : (
+                <Icon className="gba:w-3 gba:h-3" />
+              )}
+              <span>{ref.name}</span>
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <div className="gba:text-xs">
+              {showAvatar && (
+                <img
+                  src={`data:image/jpeg;base64,${ref.pictureThumbnail}`}
+                  alt={ref.name}
+                  className="gba:w-10 gba:h-10 gba:rounded-full gba:object-cover gba:mb-2 gba:mx-auto"
+                />
+              )}
+              <div className="gba:font-medium">{ref.name}</div>
+              <div className="gba:text-muted-foreground gba:capitalize">{ref.type.replace('_', ' ')}</div>
+              {ref.subtitle && <div className="gba:text-muted-foreground">{ref.subtitle}</div>}
+              <div className="gba:text-[10px] gba:mt-1 gba:text-muted-foreground">Click to open</div>
+            </div>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    )
+
+    lastIndex = ref.endIndex
+  })
+
+  // Add remaining text after last reference
+  if (lastIndex < content.length) {
+    parts.push(<span key="text-end">{content.slice(lastIndex)}</span>)
+  }
+
+  return <>{parts}</>
+}
+
 export const MessageItem: React.FC<MessageItemProps> = ({ message, currentUserId, isGroupChat }) => {
   const isOwnMessage = message.senderId === currentUserId
   const sender = message.sender
@@ -123,7 +238,9 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, currentUserId
           </div>
         )}
 
-        <div className="gba:break-words gba:text-sm gba:leading-relaxed">{message.content}</div>
+        <div className="gba:break-words gba:text-sm gba:leading-relaxed">
+          {renderContentWithReferences(message.content, message.metadata, isOwnMessage)}
+        </div>
 
         <div
           className={`gba:flex gba:items-center gba:justify-end gba:gap-1 gba:mt-1 ${
