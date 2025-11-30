@@ -1,6 +1,5 @@
 import React, { useState } from 'react'
 import {
-  Button,
   Combobox,
   Alert,
   AlertDescription,
@@ -12,9 +11,9 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Skeleton
+  Button
 } from '@newwork/nw-design-system'
-import { PiPlus, PiX } from 'react-icons/pi'
+import { PiX } from 'react-icons/pi'
 import { Building2, Briefcase } from 'lucide-react'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { ContactType, getContactTypeLabel } from '@/common/data/relations/constants/contactConstants'
@@ -91,15 +90,11 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
   // This ensures that newly added contacts keep their names even if accountContacts doesn't have full data yet
   const [internalValue, setInternalValue] = useState<Array<string | ContactValue>>(normalizedValue)
   const [mergedContacts, setMergedContacts] = useState<SelectOption[]>([])
-  const [showAddExisting, setShowAddExisting] = useState(false)
-  // Track if initial load has completed (only show loading on first open when no data exists)
-  const [hasInitialData, setHasInitialData] = useState(false)
-  const [isInitialLoad, setIsInitialLoad] = useState(false)
 
   // Sync internal value with prop value
   // Strategy:
-  // 1. If internalValue has complete data for a contact (jobPosition/department/pictureThumbnail) → keep it (newly added)
-  // 2. Otherwise → use data from value (from accountContacts with full data from backend)
+  // 1. If internalValue has complete data for a contact (jobPosition/department/pictureThumbnail) -> keep it (newly added)
+  // 2. Otherwise -> use data from value (from accountContacts with full data from backend)
   React.useEffect(() => {
     const currentIds = new Set(internalValue.map(v => getContactId(v)))
     const newIds = new Set(normalizedValue.map(v => getContactId(v)))
@@ -197,20 +192,7 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
       // Not loading or no existing contacts: use new contacts
       setMergedContacts([...preSelectedContacts, ...contacts])
     }
-
-    // Mark as having initial data once contacts are loaded (even if empty)
-    if (!contactsLoading && !hasInitialData) {
-      setHasInitialData(true)
-      setIsInitialLoad(false)
-    }
-  }, [internalValue, contacts, contactsLoading, hasInitialData])
-
-  // Track when combobox is opened for the first time (initial load)
-  React.useEffect(() => {
-    if (showAddExisting && !hasInitialData && contactsLoading) {
-      setIsInitialLoad(true)
-    }
-  }, [showAddExisting, hasInitialData, contactsLoading])
+  }, [internalValue, contacts, contactsLoading])
 
   // Helper to get contact data for display
   // Priority: 1. contactValue (if has complete data), 2. accountContacts, 3. mergedContacts, 4. fallback
@@ -340,7 +322,6 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
     const newValue = [...internalValue, newContact]
     setInternalValue(newValue)
     onChange(newValue)
-    setShowAddExisting(false)
   }
 
   /**
@@ -350,7 +331,6 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
     const newValue = [newContact]
     setInternalValue(newValue)
     onChange(newContact)
-    setShowAddExisting(false)
   }
 
   // Handle add contact (appends to array or replaces in single mode)
@@ -438,68 +418,16 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
       })
   }, [mergedContacts, selectedContactIds])
 
-  // Determine empty text: only show "No contacts found" when not loading and no options
+  // Determine empty text
   const getEmptyText = () => {
     if (contactsLoading) {
-      return '' // Don't show text while loading
+      return 'Loading...'
     }
-    if (availableContactOptions.length === 0) {
-      return 'No contacts found'
-    }
-    return 'No contacts found' // Fallback
+    return 'No contacts found'
   }
 
   return (
     <div className="gba:space-y-4" data-testid={dataTestId || 'contact-list'}>
-      {/* Empty State with Clickable Dashed Outline */}
-      {internalValue.length === 0 && !showAddExisting && (
-        <button
-          type="button"
-          className="gba:border-2 gba:border-dashed gba:border-muted-foreground/25 gba:rounded-lg gba:p-6 gba:text-center gba:cursor-pointer hover:gba:border-muted-foreground/50 gba:transition-colors gba:w-full gba:bg-transparent"
-          onClick={() => setShowAddExisting(true)}
-          data-testid={formatDataTestId(dataTestId || 'contact-list', 'empty-state')}
-        >
-          <PiPlus className="gba:mx-auto gba:h-8 gba:w-8 gba:text-muted-foreground gba:mb-2" />
-          <p className="gba:text-sm gba:text-muted-foreground">No contacts added yet. Click to add a contact.</p>
-        </button>
-      )}
-
-      {/* Combobox for adding contacts (shown when empty state clicked) */}
-      {internalValue.length === 0 && showAddExisting && (
-        <div className="gba:space-y-2">
-          {/* Show skeleton during initial load */}
-          {isInitialLoad && contactsLoading && contacts.length === 0 ? (
-            <div className="gba:space-y-2">
-              <Skeleton className="gba:h-10 gba:w-full" />
-              <Skeleton className="gba:h-10 gba:w-full" />
-              <Skeleton className="gba:h-10 gba:w-full" />
-            </div>
-          ) : (
-            <Combobox
-              value=""
-              onValueChange={handleAddContact}
-              options={availableContactOptions}
-              placeholder="Search and select contact..."
-              searchPlaceholder="Type to search..."
-              emptyText={getEmptyText()}
-              disabled={false}
-              loading={false}
-              onSearch={searchContacts}
-              data-testid={formatDataTestId(dataTestId || 'contact-list', 'add-contact-combobox')}
-            />
-          )}
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowAddExisting(false)}
-            data-testid={formatDataTestId(dataTestId || 'contact-list', 'cancel-add')}
-          >
-            Cancel
-          </Button>
-        </div>
-      )}
-
       {/* Contact Cards List */}
       {internalValue.length > 0 && (
         <div className="gba:space-y-2" data-testid={formatDataTestId(dataTestId || 'contact-list', 'cards-list')}>
@@ -606,47 +534,19 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
         </div>
       )}
 
-      {/* Combobox or Add Contact Button - shown when at least one contact exists */}
-      {internalValue.length > 0 && multiple && (
-        <>
-          {showAddExisting ? (
-            <div className="gba:space-y-2">
-              <Combobox
-                value=""
-                onValueChange={handleAddContact}
-                options={availableContactOptions}
-                placeholder="Search and select contact..."
-                searchPlaceholder="Type to search..."
-                emptyText={getEmptyText()}
-                disabled={false}
-                loading={false}
-                onSearch={searchContacts}
-                data-testid={formatDataTestId(dataTestId || 'contact-list', 'add-contact-combobox')}
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowAddExisting(false)}
-                data-testid={formatDataTestId(dataTestId || 'contact-list', 'cancel-add')}
-              >
-                Cancel
-              </Button>
-            </div>
-          ) : (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setShowAddExisting(true)}
-              className="gba:w-full"
-              data-testid={formatDataTestId(dataTestId || 'contact-list', 'add-contact-button')}
-            >
-              <PiPlus className="gba:w-4 gba:h-4 gba:mr-2" />
-              Add Contact
-            </Button>
-          )}
-        </>
-      )}
+      {/* Combobox for adding contacts - always visible */}
+      <Combobox
+        value=""
+        onValueChange={handleAddContact}
+        options={availableContactOptions}
+        placeholder="Search and select contact..."
+        searchPlaceholder="Type to search..."
+        emptyText={getEmptyText()}
+        disabled={contactsLoading}
+        loading={contactsLoading}
+        onSearch={searchContacts}
+        data-testid={formatDataTestId(dataTestId || 'contact-list', 'add-contact-combobox')}
+      />
 
       {/* Error Display */}
       {(error || contactsError) && (
