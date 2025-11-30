@@ -69,14 +69,15 @@ const formatFullTimestamp = (date: Date | string): string => {
   })
 }
 
-const getStatusIcon = (status?: string) => {
+const getStatusIcon = (status?: string, isOwnMessage?: boolean) => {
+  const baseClass = isOwnMessage ? 'gba:opacity-70' : 'gba:text-muted-foreground'
   switch (status) {
     case 'read':
-      return <span className="gba:text-blue-500">✓✓</span>
+      return <span className={`${baseClass} gba:text-[10px]`}>✓✓</span>
     case 'delivered':
-      return <span className="gba:text-gray-500">✓✓</span>
+      return <span className={`${baseClass} gba:text-[10px]`}>✓✓</span>
     case 'sent':
-      return <span className="gba:text-gray-500">✓</span>
+      return <span className={`${baseClass} gba:text-[10px]`}>✓</span>
     default:
       return null
   }
@@ -88,8 +89,8 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, currentUserId
 
   if (message.isDeleted) {
     return (
-      <div className="gba:flex gba:justify-center gba:py-2" data-testid={`message-${message.id}`}>
-        <span className="gba:text-sm gba:text-muted-foreground gba:italic">
+      <div className="gba:flex gba:justify-center gba:py-1.5" data-testid={`message-${message.id}`}>
+        <span className="gba:text-xs gba:text-muted-foreground gba:italic gba:bg-muted/50 gba:px-3 gba:py-1 gba:rounded-full">
           {getTranslationFromI18nKeyAndLabel('chat.message.deleted', 'Message deleted')}
         </span>
       </div>
@@ -98,46 +99,48 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, currentUserId
 
   return (
     <div
-      className={`gba:flex gba:gap-2 gba:mb-4 ${isOwnMessage ? 'gba:flex-row-reverse' : 'gba:flex-row'}`}
+      className={`gba:flex gba:gap-2 gba:mb-1 ${isOwnMessage ? 'gba:flex-row-reverse' : 'gba:flex-row'}`}
       data-testid={`message-${message.id}`}
     >
       {!isOwnMessage && isGroupChat && (
         <IconAvatar
-          className="gba:w-8 gba:h-8 gba:flex-shrink-0"
+          className="gba:w-7 gba:h-7 gba:flex-shrink-0 gba:mt-0.5"
           label={sender?.firstName || sender?.username || getTranslationFromI18nKeyAndLabel('chat.user', 'User')}
           icon={UserIcon}
         />
       )}
 
       <div
-        className={`gba:max-w-[75%] gba:rounded-lg gba:px-4 gba:py-2 ${
-          isOwnMessage ? 'gba:bg-primary gba:text-primary-foreground' : 'gba:bg-muted gba:text-foreground'
+        className={`gba:max-w-[80%] gba:px-3 gba:py-2 gba:shadow-sm ${
+          isOwnMessage
+            ? 'gba:bg-primary gba:text-primary-foreground gba:rounded-2xl gba:rounded-br-md'
+            : 'gba:bg-card gba:text-card-foreground gba:rounded-2xl gba:rounded-bl-md gba:border gba:border-border/50'
         }`}
       >
         {!isOwnMessage && isGroupChat && sender && (
-          <div className="gba:text-xs gba:font-semibold gba:mb-1 gba:opacity-80">
+          <div className="gba:text-[11px] gba:font-medium gba:mb-0.5 gba:text-primary">
             {sender.firstName} {sender.lastName}
           </div>
         )}
 
-        <div className="gba:break-words">{message.content}</div>
+        <div className="gba:break-words gba:text-sm gba:leading-relaxed">{message.content}</div>
 
         <div
-          className={`gba:flex gba:items-center gba:gap-1 gba:mt-1 gba:text-xs ${
-            isOwnMessage ? 'gba:opacity-80' : 'gba:text-muted-foreground'
+          className={`gba:flex gba:items-center gba:justify-end gba:gap-1 gba:mt-1 ${
+            isOwnMessage ? 'gba:opacity-70' : 'gba:text-muted-foreground'
           }`}
         >
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <span>{formatTime(message.createdAt)}</span>
+                <span className="gba:text-[10px]">{formatTime(message.createdAt)}</span>
               </TooltipTrigger>
               <TooltipContent>
-                <p>{formatFullTimestamp(message.createdAt)}</p>
+                <p className="gba:text-xs">{formatFullTimestamp(message.createdAt)}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-          {isOwnMessage && <span className="gba:ml-1">{getStatusIcon(message.status)}</span>}
+          {isOwnMessage && getStatusIcon(message.status, isOwnMessage)}
         </div>
       </div>
     </div>

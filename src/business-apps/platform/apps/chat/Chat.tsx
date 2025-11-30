@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react'
-import { Alert, AlertDescription } from '@newwork/nw-design-system'
+import { Alert, AlertDescription, Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useChatClient } from './hooks/useChatClient'
 import { ConversationList } from './components/ConversationList'
@@ -12,13 +12,16 @@ import type { Conversation, User } from './types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { env } from '@/common/env/EnvUtils'
 
+type ViewMode = 'full' | 'compact' | 'mobile'
+
 interface ChatProps extends BusinessAppContextProps {
   prefixDataTestId?: string
 }
 
 export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'chat' }) => {
+  const containerRef = useRef<HTMLDivElement>(null)
   const [showConversationList, setShowConversationList] = useState(true)
-  const [isMobile, setIsMobile] = useState(false)
+  const [viewMode, setViewMode] = useState<ViewMode>('full')
   const [showCreateGroupModal, setShowCreateGroupModal] = useState(false)
   const [showGroupSettingsModal, setShowGroupSettingsModal] = useState(false)
   const urlContextProcessed = useRef(false)
@@ -109,25 +112,25 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
     // Close the active conversation view without removing it
     // The useEffect in useChatClient will handle leaving the WebSocket room
     setActiveConversation(null)
-    // Navigate back to conversation list if on mobile
-    if (isMobile) {
+    // Navigate back to conversation list if in compact/mobile mode
+    if (viewMode !== 'full') {
       setShowConversationList(true)
     }
-  }, [setActiveConversation, isMobile])
+  }, [setActiveConversation, viewMode])
 
   const handleRemoveConversation = useCallback(async () => {
     if (!activeConversation) return
 
     try {
       await closeConversation(activeConversation.id)
-      // Navigate back to conversation list if on mobile
-      if (isMobile) {
+      // Navigate back to conversation list if in compact/mobile mode
+      if (viewMode !== 'full') {
         setShowConversationList(true)
       }
     } catch (error) {
       console.error('Failed to remove conversation:', error)
     }
-  }, [activeConversation, closeConversation, isMobile])
+  }, [activeConversation, closeConversation, viewMode])
 
   const handleCreateGroup = useCallback(() => {
     setShowCreateGroupModal(true)
@@ -158,14 +161,33 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
     }
   }, [refreshConversations])
 
-  // Mobile view detection
+  // Container-aware responsive view detection
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768)
+    const container = containerRef.current
+    if (!container) return
+
+    const checkViewMode = () => {
+      const containerWidth = container.offsetWidth
+      // Mobile: very narrow (< 480px) - single view only
+      // Compact: sidepanel mode (480-700px) - collapsible list, single view when chatting
+      // Full: wide enough for side-by-side (> 700px)
+      if (containerWidth < 480) {
+        setViewMode('mobile')
+      } else if (containerWidth < 700) {
+        setViewMode('compact')
+      } else {
+        setViewMode('full')
+      }
     }
-    checkMobile()
-    window.addEventListener('resize', checkMobile)
-    return () => window.removeEventListener('resize', checkMobile)
+
+    // Initial check
+    checkViewMode()
+
+    // Use ResizeObserver for container-aware responsiveness
+    const resizeObserver = new ResizeObserver(checkViewMode)
+    resizeObserver.observe(container)
+
+    return () => resizeObserver.disconnect()
   }, [])
 
   // Handle URL parameters for context and AI agent conversations (only once)
@@ -199,8 +221,8 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
 
       createAiAgentConversation(contextEntity, contextEntityId)
         .then(() => {
-          // Hide conversation list on mobile after opening AI chat
-          if (isMobile) {
+          // Hide conversation list in compact/mobile modes after opening AI chat
+          if (viewMode !== 'full') {
             setShowConversationList(false)
           }
         })
@@ -227,8 +249,8 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
           users
         )
           .then(() => {
-            // Hide conversation list on mobile after opening context chat
-            if (isMobile) {
+            // Hide conversation list in compact/mobile modes after opening context chat
+            if (viewMode !== 'full') {
               setShowConversationList(false)
             }
           })
@@ -237,13 +259,17 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
           })
       }
     }
-  }, [currentUser, isConnected, createContextConversation, createAiAgentConversation, isMobile])
+  }, [currentUser, isConnected, createContextConversation, createAiAgentConversation, viewMode])
 
+  // Determine if we should show single-view mode (list OR chat, not both)
+  const isSingleViewMode = viewMode === 'mobile' || viewMode === 'compact'
+  const showListView = isSingleViewMode ? showConversationList || !activeConversation : true
+  const showChatView = isSingleViewMode ? !showConversationList && !!activeConversation : true
+
+  // Error state
   if (error) {
     const getErrorMessage = () => {
-      // Use the error name as the i18n key
       const errorKey = error.name || 'chat.connectionError'
-
       const errorMessages: Record<string, string> = {
         'chat.serviceUnavailable': getTranslationFromI18nKeyAndLabel(
           'chat.serviceUnavailable',
@@ -262,189 +288,146 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
           'Failed to connect to the chat service. Please check your internet connection.'
         )
       }
-
       return errorMessages[errorKey] || errorMessages['chat.connectionError']
     }
 
     return (
       <div
-        className="gba:h-full gba:flex gba:items-center gba:justify-center gba:p-4"
+        ref={containerRef}
+        className="gba:h-full gba:flex gba:items-center gba:justify-center gba:p-4 gba:bg-background"
         data-testid={`${prefixDataTestId}-error`}
       >
-        <Alert variant="destructive">
+        <Alert variant="destructive" className="gba:max-w-sm">
           <AlertDescription>{getErrorMessage()}</AlertDescription>
         </Alert>
       </div>
     )
   }
 
-  // Show loading state initially
+  // Loading state
   if (!isConnected && conversationsLoading) {
     return (
       <div
-        className="gba:h-full gba:flex gba:items-center gba:justify-center"
+        ref={containerRef}
+        className="gba:h-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-3 gba:bg-background"
         data-testid={`${prefixDataTestId}-loading`}
       >
-        <div className="gba:text-muted-foreground">
+        <Spinner size="lg" />
+        <span className="gba:text-sm gba:text-muted-foreground">
           {getTranslationFromI18nKeyAndLabel('chat.connecting', 'Connecting to chat...')}
-        </div>
+        </span>
       </div>
     )
   }
 
-  if (isMobile) {
-    // Mobile: single view
-    if (showConversationList || !activeConversation) {
-      return (
-        <div className="gba:h-full gba:flex gba:flex-col" data-testid={prefixDataTestId}>
-          {isOffline && (
-            <Alert className="gba:m-4 gba:mb-0 gba:bg-warning gba:text-warning-foreground gba:border-warning">
-              <AlertDescription>
-                {getTranslationFromI18nKeyAndLabel('chat.offline', 'Chat service is offline. Reconnecting...')}
-              </AlertDescription>
-            </Alert>
-          )}
-          <ConversationList
-            conversations={conversations}
-            activeConversationId={activeConversationId}
-            onConversationSelect={handleConversationSelect}
-            onRemoveConversation={conversationId => closeConversation(conversationId)}
-            onCreateConversation={handleCreateConversation}
-            onCreateGroup={handleCreateGroup}
-            isLoading={conversationsLoading}
-            isLoadingMore={conversationsLoadingMore}
-            hasMore={conversationsHasMore}
-            onLoadMore={loadMoreConversations}
+  // Offline banner component
+  const OfflineBanner = () =>
+    isOffline ? (
+      <div className="gba:px-3 gba:py-2 gba:bg-warning/10 gba:border-b gba:border-warning/20">
+        <p className="gba:text-xs gba:text-warning-foreground gba:text-center">
+          {getTranslationFromI18nKeyAndLabel('chat.offline', 'Reconnecting...')}
+        </p>
+      </div>
+    ) : null
+
+  // Chat view component (header + messages + input)
+  const ChatView = () => (
+    <div className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:min-h-0">
+      {activeConversation ? (
+        <>
+          <ConversationHeader
+            conversation={activeConversation}
+            onBack={isSingleViewMode ? handleBack : undefined}
+            onClose={handleCloseConversation}
+            onRemove={handleRemoveConversation}
+            onGroupSettings={handleShowGroupSettings}
+            showBackButton={isSingleViewMode}
             currentUserId={currentUser?.id || null}
-            accessToken={accessToken}
+            compact={viewMode === 'compact'}
           />
+          <MessageList
+            messages={messages}
+            currentUserId={currentUser?.id || null}
+            isGroupChat={activeConversation.type === 'group'}
+            typingUsers={Object.values(typingUsers).flat()}
+            isLoading={messagesLoading}
+            hasMore={hasMoreMessages}
+            onLoadMore={loadMoreMessages}
+            conversationId={activeConversation.id}
+          />
+          <MessageInput
+            onSend={handleSendMessage}
+            onTypingStart={() => {
+              if (activeConversationId) startTyping(activeConversationId)
+            }}
+            onTypingStop={() => {
+              if (activeConversationId) stopTyping(activeConversationId)
+            }}
+            disabled={!isConnected}
+            compact={viewMode !== 'full'}
+          />
+        </>
+      ) : (
+        <div className="gba:flex-1 gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-6 gba:text-center">
+          <div className="gba:w-16 gba:h-16 gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:mb-4">
+            <svg
+              className="gba:w-8 gba:h-8 gba:text-muted-foreground"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+              />
+            </svg>
+          </div>
+          <p className="gba:text-sm gba:text-muted-foreground gba:max-w-[200px]">
+            {getTranslationFromI18nKeyAndLabel('chat.selectConversation', 'Select a conversation to start chatting')}
+          </p>
         </div>
-      )
-    }
-
-    // Mobile: show active conversation
-    return (
-      <div className="gba:h-full gba:flex gba:flex-col" data-testid={prefixDataTestId}>
-        {activeConversation && (
-          <>
-            {isOffline && (
-              <Alert className="gba:m-4 gba:mb-0 gba:bg-warning gba:text-warning-foreground gba:border-warning">
-                <AlertDescription>
-                  {getTranslationFromI18nKeyAndLabel('chat.offline', 'Chat service is offline. Reconnecting...')}
-                </AlertDescription>
-              </Alert>
-            )}
-            <ConversationHeader
-              conversation={activeConversation}
-              onBack={handleBack}
-              onClose={handleCloseConversation}
-              onRemove={handleRemoveConversation}
-              onGroupSettings={handleShowGroupSettings}
-              showBackButton={true}
-              currentUserId={currentUser?.id || null}
-            />
-            <MessageList
-              messages={messages}
-              currentUserId={currentUser?.id || null}
-              isGroupChat={activeConversation.type === 'group'}
-              typingUsers={Object.values(typingUsers).flat()}
-              isLoading={messagesLoading}
-              hasMore={hasMoreMessages}
-              onLoadMore={loadMoreMessages}
-              conversationId={activeConversation.id}
-            />
-            <MessageInput
-              onSend={handleSendMessage}
-              onTypingStart={() => {
-                if (activeConversationId) {
-                  startTyping(activeConversationId)
-                }
-              }}
-              onTypingStop={() => {
-                if (activeConversationId) {
-                  stopTyping(activeConversationId)
-                }
-              }}
-              disabled={!isConnected}
-            />
-          </>
-        )}
-      </div>
-    )
-  }
-
-  // Desktop/sidebar: show both views side by side
-  return (
-    <div className="gba:h-full gba:flex gba:flex-col" data-testid={prefixDataTestId}>
-      {isOffline && (
-        <Alert className="gba:m-4 gba:mb-0 gba:bg-warning gba:text-warning-foreground gba:border-warning">
-          <AlertDescription>
-            {getTranslationFromI18nKeyAndLabel('chat.offline', 'Chat service is offline. Reconnecting...')}
-          </AlertDescription>
-        </Alert>
       )}
-      <div className="gba:flex-1 gba:flex gba:flex-row gba:overflow-hidden">
-        {/* Conversation List - Fixed width for sidebar */}
-        <div className="gba:w-80 gba:flex-shrink-0 gba:border-r gba:flex gba:flex-col">
-          <ConversationList
-            conversations={conversations}
-            activeConversationId={activeConversationId}
-            onConversationSelect={handleConversationSelect}
-            onRemoveConversation={conversationId => closeConversation(conversationId)}
-            onCreateConversation={handleCreateConversation}
-            onCreateGroup={handleCreateGroup}
-            isLoading={conversationsLoading}
-            isLoadingMore={conversationsLoadingMore}
-            hasMore={conversationsHasMore}
-            onLoadMore={loadMoreConversations}
-            currentUserId={currentUser?.id || null}
-            accessToken={accessToken}
-          />
-        </div>
+    </div>
+  )
+
+  return (
+    <div
+      ref={containerRef}
+      className="gba:h-full gba:flex gba:flex-col gba:bg-background gba:overflow-hidden"
+      data-testid={prefixDataTestId}
+    >
+      <OfflineBanner />
+
+      <div className="gba:flex-1 gba:flex gba:flex-row gba:min-h-0 gba:overflow-hidden">
+        {/* Conversation List */}
+        {showListView && (
+          <div
+            className={`gba:flex gba:flex-col gba:border-r gba:border-border/50 gba:bg-muted/30 ${
+              isSingleViewMode ? 'gba:w-full' : 'gba:w-72 gba:flex-shrink-0'
+            }`}
+          >
+            <ConversationList
+              conversations={conversations}
+              activeConversationId={activeConversationId}
+              onConversationSelect={handleConversationSelect}
+              onRemoveConversation={conversationId => closeConversation(conversationId)}
+              onCreateConversation={handleCreateConversation}
+              onCreateGroup={handleCreateGroup}
+              isLoading={conversationsLoading}
+              isLoadingMore={conversationsLoadingMore}
+              hasMore={conversationsHasMore}
+              onLoadMore={loadMoreConversations}
+              currentUserId={currentUser?.id || null}
+              accessToken={accessToken}
+              compact={viewMode === 'compact'}
+            />
+          </div>
+        )}
 
         {/* Active Conversation */}
-        <div className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0">
-          {activeConversation ? (
-            <>
-              <ConversationHeader
-                conversation={activeConversation}
-                onClose={handleCloseConversation}
-                onRemove={handleRemoveConversation}
-                onGroupSettings={handleShowGroupSettings}
-                showBackButton={false}
-                currentUserId={currentUser?.id || null}
-              />
-              <MessageList
-                messages={messages}
-                currentUserId={currentUser?.id || null}
-                isGroupChat={activeConversation.type === 'group'}
-                typingUsers={Object.values(typingUsers).flat()}
-                isLoading={messagesLoading}
-                hasMore={hasMoreMessages}
-                onLoadMore={loadMoreMessages}
-                conversationId={activeConversation.id}
-              />
-              <MessageInput
-                onSend={handleSendMessage}
-                onTypingStart={() => {
-                  if (activeConversationId) {
-                    startTyping(activeConversationId)
-                  }
-                }}
-                onTypingStop={() => {
-                  if (activeConversationId) {
-                    stopTyping(activeConversationId)
-                  }
-                }}
-                disabled={!isConnected}
-              />
-            </>
-          ) : (
-            <div className="gba:flex-1 gba:flex gba:items-center gba:justify-center gba:text-muted-foreground">
-              {getTranslationFromI18nKeyAndLabel('chat.selectConversation', 'Select a conversation to start chatting')}
-            </div>
-          )}
-        </div>
+        {showChatView && <ChatView />}
       </div>
 
       {/* Group Chat Modals */}

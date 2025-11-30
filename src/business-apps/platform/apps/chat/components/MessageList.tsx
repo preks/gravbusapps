@@ -184,28 +184,45 @@ export const MessageList: React.FC<MessageListProps> = ({
     <div
       ref={messagesContainerRef}
       onScroll={handleScroll}
-      className="gba:flex-1 gba:overflow-y-auto gba:p-4"
+      className="gba:flex-1 gba:overflow-y-auto gba:min-h-0"
       data-testid="message-list"
     >
       <div
-        className={`gba:min-h-full gba:flex gba:flex-col gba:transition-opacity gba:duration-200 ${isTransitioning ? 'gba:opacity-60' : 'gba:opacity-100'}`}
+        className={`gba:min-h-full gba:flex gba:flex-col gba:px-3 gba:py-2 gba:transition-opacity gba:duration-150 ${isTransitioning ? 'gba:opacity-50' : 'gba:opacity-100'}`}
       >
         {isLoading && displayMessages.length === 0 ? (
-          <div className="gba:flex gba:items-center gba:justify-center gba:p-8">
-            <Spinner />
+          <div className="gba:flex-1 gba:flex gba:items-center gba:justify-center">
+            <Spinner size="sm" />
           </div>
         ) : displayMessages.length === 0 ? (
-          <div className="gba:flex gba:items-center gba:justify-center gba:p-8 gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel('chat.noMessages', 'No messages yet. Start the conversation!')}
+          <div className="gba:flex-1 gba:flex gba:flex-col gba:items-center gba:justify-center gba:text-center gba:p-4">
+            <div className="gba:w-12 gba:h-12 gba:rounded-full gba:bg-muted/50 gba:flex gba:items-center gba:justify-center gba:mb-3">
+              <svg
+                className="gba:w-6 gba:h-6 gba:text-muted-foreground"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                />
+              </svg>
+            </div>
+            <p className="gba:text-sm gba:text-muted-foreground">
+              {getTranslationFromI18nKeyAndLabel('chat.noMessages', 'No messages yet. Start the conversation!')}
+            </p>
           </div>
         ) : (
-          <div className="gba:mt-auto gba:space-y-1">
+          <div className="gba:mt-auto gba:space-y-0.5">
             {hasMore && (
-              <div className="gba:flex gba:items-center gba:justify-center gba:py-2">
+              <div className="gba:flex gba:items-center gba:justify-center gba:py-2 gba:mb-2">
                 <button
                   onClick={onLoadMore}
                   disabled={isLoading}
-                  className="gba:text-sm gba:text-muted-foreground gba:hover:text-foreground"
+                  className="gba:text-xs gba:text-primary gba:hover:text-primary/80 gba:font-medium gba:transition-colors"
                   data-testid="load-more-messages"
                 >
                   {isLoading

@@ -25,6 +25,7 @@ interface ConversationHeaderProps {
   onGroupSettings?: () => void
   showBackButton?: boolean
   currentUserId?: string | null
+  compact?: boolean
 }
 
 const getConversationName = (conversation: Conversation, currentUserId?: string | null): string => {
@@ -110,7 +111,8 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
   onRemove,
   onGroupSettings,
   showBackButton = false,
-  currentUserId = null
+  currentUserId = null,
+  compact = false
 }) => {
   const name = getConversationName(conversation, currentUserId)
   const [showRemoveDialog, setShowRemoveDialog] = useState(false)
@@ -128,27 +130,37 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
   return (
     <>
       <div
-        className="gba:flex gba:items-center gba:gap-3 gba:p-4 gba:border-b gba:bg-background"
+        className={`gba:flex gba:items-center gba:border-b gba:border-border/50 gba:bg-background/80 gba:backdrop-blur-sm gba:flex-shrink-0 ${
+          compact ? 'gba:gap-2 gba:px-3 gba:py-2' : 'gba:gap-3 gba:px-4 gba:py-3'
+        }`}
         data-testid="conversation-header"
       >
         {showBackButton && onBack && (
           <Button
             variant="ghost"
-            size="sm"
+            size="icon"
             onClick={onBack}
-            className="gba:flex-shrink-0"
+            className="gba:h-8 gba:w-8 gba:flex-shrink-0"
             data-testid="conversation-back-button"
           >
-            <ArrowLeft className="gba:w-5 gba:h-5" />
+            <ArrowLeft className="gba:w-4 gba:h-4" />
           </Button>
         )}
 
-        <IconAvatar className="gba:w-10 gba:h-10 gba:flex-shrink-0" label={name} icon={UserIcon} />
+        <IconAvatar
+          className={`gba:flex-shrink-0 ${compact ? 'gba:w-8 gba:h-8' : 'gba:w-9 gba:h-9'}`}
+          label={name}
+          icon={UserIcon}
+        />
 
         <div className="gba:flex-1 gba:min-w-0">
-          <h2 className="gba:font-semibold gba:truncate">{name}</h2>
-          {conversation.type === 'group' && conversation.participants && (
-            <p className="gba:text-sm gba:text-muted-foreground">
+          <h2
+            className={`gba:font-semibold gba:truncate gba:text-foreground ${compact ? 'gba:text-sm' : 'gba:text-base'}`}
+          >
+            {name}
+          </h2>
+          {conversation.type === 'group' && conversation.participants && !compact && (
+            <p className="gba:text-xs gba:text-muted-foreground">
               {getTranslationFromI18nKeyAndLabel('chat.participantsCount', '{count} participants').replace(
                 '{count}',
                 conversation.participants.length.toString()
@@ -157,44 +169,51 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
           )}
         </div>
 
-        {!showBackButton && onClose && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onClose}
-            className="gba:flex-shrink-0"
-            data-testid="conversation-close-button"
-            title={getTranslationFromI18nKeyAndLabel('chat.closeConversation', 'Close conversation')}
-          >
-            <X className="gba:w-5 gba:h-5" />
-          </Button>
-        )}
+        <div className="gba:flex gba:items-center gba:gap-1">
+          {!showBackButton && onClose && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              className="gba:h-8 gba:w-8 gba:flex-shrink-0"
+              data-testid="conversation-close-button"
+              title={getTranslationFromI18nKeyAndLabel('chat.closeConversation', 'Close conversation')}
+            >
+              <X className="gba:w-4 gba:h-4" />
+            </Button>
+          )}
 
-        {(onRemove || (isGroupChat && onGroupSettings)) && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="gba:flex-shrink-0" data-testid="conversation-menu-button">
-                <DotsThreeVertical className="gba:w-5 gba:h-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {isGroupChat && onGroupSettings && (
-                <DropdownMenuItem onClick={onGroupSettings} data-testid="conversation-group-settings-button">
-                  <Info className="gba:w-4 gba:h-4 gba:mr-2" />
-                  {getTranslationFromI18nKeyAndLabel('chat.groupSettings', 'Group Settings')}
-                </DropdownMenuItem>
-              )}
-              {onRemove && (
-                <DropdownMenuItem onClick={handleRemoveClick} data-testid="conversation-remove-button">
-                  <SignOut className="gba:w-4 gba:h-4 gba:mr-2" />
-                  {isGroupChat
-                    ? getTranslationFromI18nKeyAndLabel('chat.leaveConversation', 'Leave conversation')
-                    : getTranslationFromI18nKeyAndLabel('chat.removeConversation', 'Remove conversation')}
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+          {(onRemove || (isGroupChat && onGroupSettings)) && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="gba:h-8 gba:w-8 gba:flex-shrink-0"
+                  data-testid="conversation-menu-button"
+                >
+                  <DotsThreeVertical className="gba:w-4 gba:h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {isGroupChat && onGroupSettings && (
+                  <DropdownMenuItem onClick={onGroupSettings} data-testid="conversation-group-settings-button">
+                    <Info className="gba:w-4 gba:h-4 gba:mr-2" />
+                    {getTranslationFromI18nKeyAndLabel('chat.groupSettings', 'Group Settings')}
+                  </DropdownMenuItem>
+                )}
+                {onRemove && (
+                  <DropdownMenuItem onClick={handleRemoveClick} data-testid="conversation-remove-button">
+                    <SignOut className="gba:w-4 gba:h-4 gba:mr-2" />
+                    {isGroupChat
+                      ? getTranslationFromI18nKeyAndLabel('chat.leaveConversation', 'Leave conversation')
+                      : getTranslationFromI18nKeyAndLabel('chat.removeConversation', 'Remove conversation')}
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
       </div>
 
       <Dialog open={showRemoveDialog} onOpenChange={setShowRemoveDialog}>
