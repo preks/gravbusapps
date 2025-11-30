@@ -8,7 +8,7 @@ import { MessageList } from './components/MessageList'
 import { MessageInput } from './components/MessageInput'
 import { CreateGroupModal } from './components/CreateGroupModal'
 import { GroupSettingsModal } from './components/GroupSettingsModal'
-import type { Conversation, User } from './types'
+import type { Conversation, User, MessageEntityReference } from './types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { env } from '@/common/env/EnvUtils'
 
@@ -71,11 +71,14 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
   } = chatClient
 
   const handleSendMessage = useCallback(
-    async (content: string) => {
+    async (content: string, entityReferences?: MessageEntityReference[]) => {
       if (!activeConversationId) return
 
       try {
-        await sendMessage(activeConversationId, content)
+        // Build metadata with entity references if present
+        const metadata = entityReferences?.length ? { entityReferences } : undefined
+
+        await sendMessage(activeConversationId, content, metadata)
       } catch (err) {
         console.error('Error sending message:', err)
       }
@@ -365,6 +368,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
             }}
             disabled={!isConnected}
             compact={viewMode !== 'full'}
+            accessToken={accessToken}
           />
         </>
       ) : (
@@ -438,12 +442,14 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
         apiClient={apiClient}
         currentUserId={currentUser?.id || null}
         prefixDataTestId={`${prefixDataTestId}-create-group-modal`}
+        accessToken={accessToken}
       />
       <GroupSettingsModal
         isOpen={showGroupSettingsModal}
         onClose={handleCloseGroupSettings}
         conversation={activeConversation}
         currentUserId={currentUser?.id || null}
+        accessToken={accessToken}
         apiClient={apiClient}
         onRefresh={refreshConversations}
         prefixDataTestId={`${prefixDataTestId}-group-settings-modal`}

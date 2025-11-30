@@ -20,15 +20,16 @@ interface CreateGroupModalProps {
   apiClient: ChatApiClient | null
   currentUserId: string | null
   prefixDataTestId?: string
+  accessToken?: string
 }
 
 export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
   isOpen,
   onClose,
   onCreateGroup,
-  apiClient,
   currentUserId,
-  prefixDataTestId = 'create-group-modal'
+  prefixDataTestId = 'create-group-modal',
+  accessToken
 }) => {
   const [groupName, setGroupName] = useState('')
   const [description, setDescription] = useState('')
@@ -123,13 +124,13 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
               {getTranslationFromI18nKeyAndLabel('chat.selectParticipants', 'Select Participants')}
               <span className="gba:text-destructive">*</span>
             </Label>
-            <div className="gba:h-64">
+            <div className="gba:h-72">
               <UserSelector
-                apiClient={apiClient}
                 selectedUserIds={selectedUserIds}
                 onSelectionChange={setSelectedUserIds}
                 currentUserId={currentUserId}
                 prefixDataTestId={`${prefixDataTestId}-user-selector`}
+                accessToken={accessToken}
               />
             </div>
           </div>
