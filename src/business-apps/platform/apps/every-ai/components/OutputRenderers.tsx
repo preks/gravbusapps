@@ -29,6 +29,7 @@ import CrmNoteDisplay from './entities/CrmNoteDisplay'
 import CrmDocumentDisplay from './entities/CrmDocumentDisplay'
 import IrmNoteDisplay from './entities/IrmNoteDisplay'
 import IrmDocumentDisplay from './entities/IrmDocumentDisplay'
+import SalesActivityDisplay from './entities/SalesActivityDisplay'
 import EntityLink, { markdownUrlTransform } from './links/EntityLink'
 import NavigationDisplay from './displays/NavigationDisplay'
 import { ReminderDisplay } from './displays/ReminderDisplay'
@@ -401,6 +402,16 @@ function renderEntity(item: EntityData, accessToken: string) {
     case 'absence':
     case 'employee_absence':
       return <AbsenceDisplay key={item.id} absenceId={item.id} accessToken={accessToken} operation={item.operation} />
+    case 'sales_activity':
+    case 'salesActivity':
+      return (
+        <SalesActivityDisplay
+          key={item.id}
+          activityId={item.id}
+          accessToken={accessToken}
+          operation={item.operation}
+        />
+      )
     case 'blink':
     case 'quick_task':
       return <BlinkDisplay key={item.id} blinkId={item.id} accessToken={accessToken} operation={item.operation} />
