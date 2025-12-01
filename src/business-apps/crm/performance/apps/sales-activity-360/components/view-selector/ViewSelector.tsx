@@ -1,5 +1,5 @@
 import React, { useMemo, useCallback, useState } from 'react'
-import { PiListBullets, PiUser, PiBuilding, PiUserCircle, PiTarget, PiHandshake, PiChartLineUp } from 'react-icons/pi'
+import { PiListBullets, PiUser, PiBuilding, PiUserCircle, PiTarget, PiHandshake } from 'react-icons/pi'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { ViewSelectorProps, ActivityViewFilter } from '../../types'
 import { ViewOption, EmployeePerformance } from './types/ViewSelectorTypes'
@@ -184,28 +184,18 @@ export const ViewSelector: React.FC<ExtendedViewSelectorProps> = ({
 
   return (
     <div className="gba:space-y-6" data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
-      {/* Compact Header with Quick Access */}
-      <div className="gba:space-y-4">
-        <div className="gba:flex gba:items-center gba:justify-between gba:flex-wrap gba:gap-4">
-          <div className="gba:flex gba:items-center gba:gap-3">
-            <div className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-1.5 gba:rounded-full gba:bg-primary/10 gba:text-primary">
-              <PiChartLineUp className="gba:w-4 gba:h-4" />
-              <span className="gba:text-sm gba:font-semibold">Sales Activity 360°</span>
-            </div>
-
-            {/* Live indicator */}
-            <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:text-muted-foreground">
-              <span className="gba:relative gba:flex gba:h-2 gba:w-2">
-                <span className="gba:animate-ping gba:absolute gba:inline-flex gba:h-full gba:w-full gba:rounded-full gba:bg-success gba:opacity-75"></span>
-                <span className="gba:relative gba:inline-flex gba:rounded-full gba:h-2 gba:w-2 gba:bg-success"></span>
-              </span>
-              <span>Live • {formatLastUpdated()}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* View Options - Quick Access Bar */}
+      {/* Live indicator + Quick Access Bar */}
+      <div className="gba:flex gba:items-center gba:justify-between gba:flex-wrap gba:gap-4">
         <ViewOptionsGrid options={viewOptions} loading={loading} onSelect={handleViewOptionSelect} />
+
+        {/* Live indicator */}
+        <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:text-muted-foreground">
+          <span className="gba:relative gba:flex gba:h-2 gba:w-2">
+            <span className="gba:animate-ping gba:absolute gba:inline-flex gba:h-full gba:w-full gba:rounded-full gba:bg-success gba:opacity-75"></span>
+            <span className="gba:relative gba:inline-flex gba:rounded-full gba:h-2 gba:w-2 gba:bg-success"></span>
+          </span>
+          <span>Live • {formatLastUpdated()}</span>
+        </div>
       </div>
 
       {/* Global KPI Cards */}

@@ -1,10 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { PageLayout } from '@newwork/nw-design-system'
+import { ChartLineUp } from '@phosphor-icons/react'
 import { SalesActivity360Props, ActivityViewFilter } from './types'
 import { ViewSelector } from './components/view-selector/ViewSelector'
 import { EntitySelector } from './components/view-selector/EntitySelector'
 import { ActivityView } from './components/activity-view/ActivityView'
+import { MODULE_COLORS } from '@/common/constants/ui'
 
 const DATA_TEST_ID_PREFIX = 'SalesActivity360'
+const moduleColor = MODULE_COLORS.CRM
 
 // Valid filters for URL parsing
 const VALID_FILTERS: ActivityViewFilter[] = [
@@ -205,13 +209,21 @@ export const SalesActivity360: React.FC<SalesActivity360Props> = ({ accessToken,
     case 'view-selector':
     default:
       return (
-        <div className="gba:min-h-screen gba:bg-background gba:p-6" data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
-          <ViewSelector
-            onSelect={handleViewSelect}
-            onEmployeeSelect={handleEmployeeSelect}
-            onEntitySelect={handleEntitySelectFromOverlay}
-            accessToken={accessToken}
-          />
+        <div data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
+          <PageLayout
+            headerIcon={ChartLineUp}
+            headerTitle="Sales Activity 360°"
+            headerDescription="Real-time visibility into your entire sales operation"
+            variant={moduleColor}
+            className="gba:min-h-screen"
+          >
+            <ViewSelector
+              onSelect={handleViewSelect}
+              onEmployeeSelect={handleEmployeeSelect}
+              onEntitySelect={handleEntitySelectFromOverlay}
+              accessToken={accessToken}
+            />
+          </PageLayout>
         </div>
       )
   }
