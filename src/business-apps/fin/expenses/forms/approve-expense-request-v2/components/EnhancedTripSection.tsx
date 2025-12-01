@@ -1,19 +1,6 @@
 import React, { useState } from 'react'
-import {
-  Badge,
-  Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle
-} from '@newwork/nw-design-system'
-import { PiMapPin, PiMapTrifold, PiFlag, PiTable, PiChartLine } from 'react-icons/pi'
+import { Badge, Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@newwork/nw-design-system'
+import { PiMapPin, PiArrowRight, PiArrowLeft, PiMapTrifold, PiFlag, PiTable, PiChartLine } from 'react-icons/pi'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDateTime } from '@/business-apps/core/every/apps/every-box/utils/taskFormatters'
 import { getCatalogValue } from '../utils/formatters'
@@ -22,6 +9,8 @@ import Pill from '@/components/pill'
 
 interface EnhancedTripSectionProps {
   expenseRequestTrip: ExpenseRequestTrip[]
+  startDate?: string
+  endDate?: string
   prefixDataTestId?: string
 }
 
@@ -38,6 +27,19 @@ const getPointTypeIcon = (pointType: string) => {
       return <PiMapTrifold className="gba:h-5 gba:w-5 gba:text-purple-600" />
     default:
       return <PiMapPin className="gba:h-5 gba:w-5" />
+  }
+}
+
+// Get direction icon
+const getDirectionIcon = (direction?: string) => {
+  if (!direction) return null
+  switch (direction) {
+    case 'GO':
+      return <PiArrowRight className="gba:h-4 gba:w-4 gba:text-blue-600" />
+    case 'BACK':
+      return <PiArrowLeft className="gba:h-4 gba:w-4 gba:text-orange-600" />
+    default:
+      return null
   }
 }
 
@@ -69,6 +71,22 @@ const getPointTypeLabel = (pointType: string) => {
   }
 }
 
+// Get direction label
+const getDirectionLabel = (direction?: string) => {
+  if (!direction) return ''
+  switch (direction) {
+    case 'GO':
+      return getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.request.outbound', 'Outbound')
+    case 'BACK':
+      return getTranslationFromI18nKeyAndLabel(
+        'lowcoder:expense_request_overview.trip_list.location_title.start_location',
+        'Return'
+      )
+    default:
+      return direction
+  }
+}
+
 const EnhancedTripSection: React.FC<EnhancedTripSectionProps> = ({
   expenseRequestTrip,
   prefixDataTestId = 'approve-expense-request-v2'
@@ -80,8 +98,11 @@ const EnhancedTripSection: React.FC<EnhancedTripSectionProps> = ({
     return null
   }
 
-  // Sort trips by date
+  // Sort trips by order or date
   const sortedTrips = [...expenseRequestTrip].sort((a, b) => {
+    if (a.tripOrder && b.tripOrder) {
+      return a.tripOrder - b.tripOrder
+    }
     return new Date(a.tripDateTime).getTime() - new Date(b.tripDateTime).getTime()
   })
 
@@ -106,6 +127,12 @@ const EnhancedTripSection: React.FC<EnhancedTripSectionProps> = ({
               <TableHead>{getTranslationFromI18nKeyAndLabel('expense.trip.dateTime', 'Date & Time')}</TableHead>
               <TableHead>
                 {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:expense_request_overview.trip_list.trip_list_title',
+                  'Trip Details'
+                )}
+              </TableHead>
+              <TableHead>
+                {getTranslationFromI18nKeyAndLabel(
                   'lowcoder:expense_request_overview.trip_list.location_title.destination',
                   'Destination'
                 )}
@@ -113,7 +140,13 @@ const EnhancedTripSection: React.FC<EnhancedTripSectionProps> = ({
               <TableHead>
                 {getTranslationFromI18nKeyAndLabel(
                   'lowcoder:create_expense_request.add_request_trip_details.start_location',
-                  'Start Location'
+                  'Address'
+                )}
+              </TableHead>
+              <TableHead>
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:create_expense_request.add_request_trip_details.start_location',
+                  'Country'
                 )}
               </TableHead>
               <TableHead>
@@ -126,9 +159,18 @@ const EnhancedTripSection: React.FC<EnhancedTripSectionProps> = ({
           </TableHeader>
           <TableBody>
             {sortedTrips.map((trip, index) => (
-              <TableRow key={trip.id || `trip-${index}`} data-testid={`${prefixDataTestId}-trip-table-row-${index}`}>
-                <TableCell className="gba:text-center">{index + 1}</TableCell>
+              <TableRow
+                key={trip.id || `trip-${trip.tripOrder ?? index}`}
+                data-testid={`${prefixDataTestId}-trip-table-row-${index}`}
+              >
+                <TableCell className="gba:text-center">{trip.tripOrder ?? index + 1}</TableCell>
                 <TableCell>{formatDateTime(trip.tripDateTime)}</TableCell>
+                <TableCell>
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    {getDirectionIcon(trip.tripDirection)}
+                    <span>{getDirectionLabel(trip.tripDirection)}</span>
+                  </div>
+                </TableCell>
                 <TableCell>
                   <div className="gba:flex gba:items-center gba:gap-2">
                     {getPointTypeIcon(trip.pointType)}
@@ -136,6 +178,17 @@ const EnhancedTripSection: React.FC<EnhancedTripSectionProps> = ({
                   </div>
                 </TableCell>
                 <TableCell>{trip.address}</TableCell>
+                <TableCell>
+                  {trip.country ? (
+                    <Pill
+                      type="waiting"
+                      label={getCatalogValue(trip.country) || trip.country.value}
+                      data-testid={`${prefixDataTestId}-country-pill-${index}`}
+                    />
+                  ) : (
+                    '-'
+                  )}
+                </TableCell>
                 <TableCell>
                   {trip.travelRegion ? (
                     <Pill
@@ -160,16 +213,23 @@ const EnhancedTripSection: React.FC<EnhancedTripSectionProps> = ({
     return (
       <div className="gba:space-y-4">
         {sortedTrips.map((trip, index) => {
+          const isGo = trip.tripDirection === 'GO'
+          const isBack = trip.tripDirection === 'BACK'
+
           return (
             <div
-              key={trip.id || `trip-${index}`}
+              key={trip.id || `trip-${trip.tripOrder ?? index}`}
               className={`gba:relative gba:pl-8 gba:pb-4 ${
                 index < sortedTrips.length - 1 ? 'gba:border-l-2 gba:border-border' : ''
               }`}
               data-testid={`${prefixDataTestId}-trip-timeline-item-${index}`}
             >
               {/* Timeline dot */}
-              <div className="gba:absolute gba:left-0 gba:top-1 gba:w-3 gba:h-3 gba:rounded-full gba:-translate-x-[7px] gba:bg-blue-600" />
+              <div
+                className={`gba:absolute gba:left-0 gba:top-1 gba:w-3 gba:h-3 gba:rounded-full gba:-translate-x-[7px] ${
+                  isGo ? 'gba:bg-blue-600' : ''
+                }${isBack ? 'gba:bg-orange-600' : ''}${!isGo && !isBack ? 'gba:bg-gray-400' : ''}`}
+              />
 
               {/* Content */}
               <div className="gba:space-y-2">
@@ -178,17 +238,30 @@ const EnhancedTripSection: React.FC<EnhancedTripSectionProps> = ({
                   {formatDateTime(trip.tripDateTime)}
                 </div>
 
-                {/* Point type */}
+                {/* Point type and direction */}
                 <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
                   {getPointTypeIcon(trip.pointType)}
                   <span className="gba:font-semibold gba:text-sm">{getPointTypeLabel(trip.pointType)}</span>
+                  {trip.tripDirection && (
+                    <>
+                      {getDirectionIcon(trip.tripDirection)}
+                      <span className="gba:text-sm gba:text-muted-foreground">
+                        {getDirectionLabel(trip.tripDirection)}
+                      </span>
+                    </>
+                  )}
                 </div>
 
                 {/* Address */}
                 <div className="gba:text-sm">{trip.address}</div>
 
-                {/* Travel Region badge */}
+                {/* Country and Travel Region badges */}
                 <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
+                  {trip.country && (
+                    <Badge variant="outline" className="gba:text-xs">
+                      {getCatalogValue(trip.country) || trip.country.value}
+                    </Badge>
+                  )}
                   {trip.travelRegion && (
                     <Badge variant="secondary" className="gba:text-xs">
                       {getCatalogValue(trip.travelRegion) || trip.travelRegion.value}
@@ -204,43 +277,35 @@ const EnhancedTripSection: React.FC<EnhancedTripSectionProps> = ({
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="gba:flex gba:items-center gba:gap-2">
-          <PiMapPin className="gba:h-5 gba:w-5" />
-          Trip Details
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="gba:space-y-4">
-        {/* View Mode Toggle */}
-        <div
-          className="gba:flex gba:items-center gba:justify-end gba:gap-2"
-          data-testid={`${prefixDataTestId}-trip-view-toggle-buttons`}
+    <div className="gba:space-y-4">
+      {/* View Mode Toggle */}
+      <div
+        className="gba:flex gba:items-center gba:justify-end gba:gap-2"
+        data-testid={`${prefixDataTestId}-trip-view-toggle-buttons`}
+      >
+        <Button
+          variant={viewMode === 'table' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setViewMode('table')}
+          data-testid={`${prefixDataTestId}-trip-table-view-button`}
         >
-          <Button
-            variant={viewMode === 'table' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setViewMode('table')}
-            data-testid={`${prefixDataTestId}-trip-table-view-button`}
-          >
-            <PiTable className="gba:h-4 gba:w-4 gba:mr-2" />
-            {getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.table', 'Table')}
-          </Button>
-          <Button
-            variant={viewMode === 'timeline' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setViewMode('timeline')}
-            data-testid={`${prefixDataTestId}-trip-timeline-view-button`}
-          >
-            <PiChartLine className="gba:h-4 gba:w-4 gba:mr-2" />
-            {getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.timeline', 'Timeline')}
-          </Button>
-        </div>
+          <PiTable className="gba:h-4 gba:w-4 gba:mr-2" />
+          {getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.table', 'Table')}
+        </Button>
+        <Button
+          variant={viewMode === 'timeline' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setViewMode('timeline')}
+          data-testid={`${prefixDataTestId}-trip-timeline-view-button`}
+        >
+          <PiChartLine className="gba:h-4 gba:w-4 gba:mr-2" />
+          {getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.timeline', 'Timeline')}
+        </Button>
+      </div>
 
-        {/* Content */}
-        {viewMode === 'table' ? renderTableView() : renderTimelineView()}
-      </CardContent>
-    </Card>
+      {/* Content */}
+      {viewMode === 'table' ? renderTableView() : renderTimelineView()}
+    </div>
   )
 }
 

@@ -100,29 +100,6 @@ const PayTransferAdvPaymentV2Content: React.FC<PayTransferAdvPaymentV2Props> = (
     }
   }
 
-  // Handle modal close events to prevent task removal
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      try {
-        dispatchProcessContinueEvent('pse_cancel', {
-          event: 'pse_cancel',
-          pso_exitStrategy: 'cancel',
-          pso_completeNotification: {
-            type: 'info',
-            messageKey: 'The transfer process has been canceled.'
-          }
-        })
-      } catch (err) {
-        console.error('Error canceling process:', err)
-      }
-    }
-
-    globalThis.addEventListener('beforeunload', handleBeforeUnload)
-    return () => {
-      globalThis.removeEventListener('beforeunload', handleBeforeUnload)
-    }
-  }, [])
-
   const handleConfirm = async () => {
     if (!paymentId || !userInfo?.employeeDetails?.employeeId || !transactionDate || !confirmationChecked) {
       return

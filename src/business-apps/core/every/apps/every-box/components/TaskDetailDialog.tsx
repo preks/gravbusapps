@@ -17,11 +17,6 @@ import { env } from '@/common/env/EnvUtils'
 import { findDevScreenOverride } from '../config/dev-screen-overrides'
 import { UniversalCflowTaskDetails } from './UniversalCflowTaskDetails'
 import { useFlowStepData } from '../hooks/useFlowStepData'
-// NOTE: Header-related imports commented out - header is now handled by forms using TaskDetailHeader component
-// import { CardHeader, Badge, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
-// import { Zap, X } from 'lucide-react'
-// import { getPriorityBadgeVariant, getTaskStatusBadgeVariant, formatTaskStatus, formatPriority } from '../utils/taskFormatters'
-// import { getInitials } from '../utils/avatarUtils'
 
 interface TaskDetailDialogProps {
   task: UnifiedTask | null
@@ -30,7 +25,7 @@ interface TaskDetailDialogProps {
   onTaskCompleted?: (taskId: string) => void
   accessToken: string
   userId?: string
-  userInfo?: any // User info for team absence calendar
+  userInfo?: any
 }
 
 export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
@@ -261,7 +256,7 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
     try {
       // Complete the CFlow task with userId
       const flowEngineApi =
-        env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine'
+        env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
       const response = await fetch(`${flowEngineApi}/api/tasks/${task.id}/complete`, {
         method: 'POST',
         headers: {

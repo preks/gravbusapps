@@ -12,7 +12,7 @@ export interface EveryApiConfig {
 }
 
 export function getCflowEndpoint(): string {
-  const endpoint = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine'
+  const endpoint = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
   return endpoint
 }
 

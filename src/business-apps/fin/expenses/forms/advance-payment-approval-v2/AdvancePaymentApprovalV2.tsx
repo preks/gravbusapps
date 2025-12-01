@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useMemo } from 'react'
 import { Spinner, Alert, AlertTitle, AlertDescription, Badge, Switch, Textarea, Label } from '@newwork/nw-design-system'
 import { ThumbsUp, XCircle, MessageSquare } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -229,29 +229,6 @@ const AdvancePaymentApprovalV2Content: React.FC<AdvancePaymentApprovalV2Props> =
       })
     }
   }
-
-  // Handle modal close events to prevent task removal
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      try {
-        dispatchProcessContinueEvent('pse_cancel', {
-          event: 'pse_cancel',
-          pso_exitStrategy: 'cancel',
-          pso_completeNotification: {
-            type: 'info',
-            messageKey: 'The approval process has been canceled.'
-          }
-        })
-      } catch (err) {
-        console.error('Error canceling process:', err)
-      }
-    }
-
-    globalThis.addEventListener('beforeunload', handleBeforeUnload)
-    return () => {
-      globalThis.removeEventListener('beforeunload', handleBeforeUnload)
-    }
-  }, [])
 
   const handleApprove = async () => {
     if (!paymentId) {

@@ -74,7 +74,7 @@ export const useKogitoProcess = ({ task, accessToken, onSuccess, onError }: UseK
 
       // Build the completion endpoint
       let completionEndpoint = ''
-      const kogitoBaseUrl = env('NEXT_PUBLIC_NEWWORK_PLATFORM_API_URL') || 'https://newwork-dev.newwork.com'
+      const kogitoBaseUrl = env('NEXT_PUBLIC_BASE_URL')
 
       // CRITICAL: Use the original endpoint from task.sourceMetadata if available
       // This ensures we use the exact endpoint that the backend expects

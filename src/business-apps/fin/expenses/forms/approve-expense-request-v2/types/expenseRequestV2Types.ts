@@ -49,6 +49,8 @@ export interface ExpenseRequestApprovalData {
   expensePlan?: {
     totalAmount: number
     advancePaymentTotalAmount: number
+    startDate?: string
+    endDate?: string
     advancePayment: Array<{
       status: string
       amount: number
@@ -134,9 +136,27 @@ export interface ExpenseRequestItem {
 }
 
 export interface ExpenseRequestAllowance {
-  dayRate: number
+  id?: string
+  allowanceOrder?: number
   allowanceDate: string
-  currency: {
+  dayRate: number
+  breakfast?: boolean
+  lunch?: boolean
+  dinner?: boolean
+  overnight?: boolean
+  overnightAccommodation?: boolean
+  deductionLimit?: number
+  travelRegion?: {
+    translations?: Array<{
+      localeCode: string
+      value: string
+    }>
+    catalog?: {
+      defaultLocale: string
+    }
+    value: string
+  }
+  currency?: {
     code: string
   }
 }
@@ -171,11 +191,24 @@ export interface TravelRegion {
 }
 
 export interface ExpenseRequestTrip {
+  id?: string
   address: string
   expenseRequestId: string
   pointType: string
   tripDateTime: string
+  tripOrder?: number
+  tripDirection?: string
   travelRegion: TravelRegion
+  country?: {
+    translations?: Array<{
+      localeCode: string
+      value: string
+    }>
+    catalog?: {
+      defaultLocale: string
+    }
+    value: string
+  }
 }
 
 export interface ExpenseGroup {

@@ -12,7 +12,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { env } from '@/common/env/EnvUtils'
 
-const FLOW_ENGINE_API = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine'
+const FLOW_ENGINE_API = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
 
 interface FlowStep {
   stepIndex: number

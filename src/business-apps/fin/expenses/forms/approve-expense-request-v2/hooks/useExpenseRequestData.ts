@@ -7,7 +7,7 @@ import { ExpenseRequestApprovalData } from '../types/expenseRequestV2Types'
 interface UseExpenseRequestDataProps {
   expenseId: string | null
   accessToken: string
-  payloadData?: any // Expense request data from task payload
+  payloadData?: any // Expense request data from task payload (used for ID extraction only)
 }
 
 export const useExpenseRequestData = ({ expenseId, accessToken, payloadData }: UseExpenseRequestDataProps) => {
@@ -18,18 +18,11 @@ export const useExpenseRequestData = ({ expenseId, accessToken, payloadData }: U
   const graphqlClient = useGraphQLClient(accessToken)
   const activeUserLocale = getCurrentActiveUserLocale()
 
-  const fetchExpenseRequest = async () => {
-    // If we have payload data, use it directly (like vacation component does)
-    if (payloadData) {
-      console.log('✅ Using expense request data from task payload')
-      setExpenseRequest(payloadData)
-      setLoading(false)
-      setError(null)
-      return
-    }
+  // Get the expense ID from either the prop or payload data
+  const effectiveExpenseId = expenseId || payloadData?.id
 
-    // Otherwise, fetch from GraphQL (for standalone usage)
-    if (!expenseId) {
+  const fetchExpenseRequest = async () => {
+    if (!effectiveExpenseId) {
       setError('No expense request ID provided. Please provide a valid request ID.')
       setLoading(false)
       return
@@ -47,12 +40,12 @@ export const useExpenseRequestData = ({ expenseId, accessToken, payloadData }: U
 
       console.log('🔍 Fetching expense request from GraphQL API...')
       const result = await graphqlClient.request(GET_EXPENSE_REQUEST_FOR_APPROVAL, {
-        expenseId,
+        expenseId: effectiveExpenseId,
         activeUserLocale
       })
 
       if (!result?.ExpenseRequestByPk) {
-        setError(`No expense request found with ID: ${expenseId}`)
+        setError(`No expense request found with ID: ${effectiveExpenseId}`)
         setLoading(false)
         return
       }
@@ -68,7 +61,7 @@ export const useExpenseRequestData = ({ expenseId, accessToken, payloadData }: U
 
   useEffect(() => {
     fetchExpenseRequest()
-  }, [expenseId, accessToken, payloadData])
+  }, [effectiveExpenseId, accessToken])
 
   return {
     expenseRequest,

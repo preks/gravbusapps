@@ -209,7 +209,7 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
   // Handle Quick Task (Blink) submission
   const handleQuickTaskSubmit = async (data: QuickTaskFormData) => {
     try {
-      const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine'
+      const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
 
       // Execute the quick task using the service method
       await QuickTaskFlowService.executeQuickTask({

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -243,29 +243,6 @@ const ApproveExpensePlanV2Content: React.FC<ApproveExpensePlanV2Props> = ({
       })
     }
   }
-
-  // Handle modal close events to prevent task removal
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      try {
-        dispatchProcessContinueEvent('pse_cancel', {
-          event: 'pse_cancel',
-          pso_exitStrategy: 'cancel',
-          pso_completeNotification: {
-            type: 'info',
-            messageKey: 'The approval process has been canceled.'
-          }
-        })
-      } catch (err) {
-        console.error('Error canceling process:', err)
-      }
-    }
-
-    globalThis.addEventListener('beforeunload', handleBeforeUnload)
-    return () => {
-      globalThis.removeEventListener('beforeunload', handleBeforeUnload)
-    }
-  }, [])
 
   const handleApprove = async () => {
     setIsApproving(true)

@@ -1,4 +1,5 @@
 import { useCallback } from 'react'
+import { env } from '@/common/env/EnvUtils'
 
 interface ScreenMetadata {
   screenKey: string
@@ -15,7 +16,7 @@ export const useScreenManagementApi = (accessToken: string) => {
     async (screenKey: string): Promise<ScreenMetadata | null> => {
       try {
         const response = await fetch(
-          `https://newwork-dev.newwork.com/screen-management/api/v1/screen?screenKey=${screenKey}`,
+          env('NEXT_PUBLIC_SCREEN_MANAGEMENT_SERVICE_API') + '/screen?screenKey=' + screenKey,
           {
             headers: { Authorization: `Bearer ${accessToken}` }
           }

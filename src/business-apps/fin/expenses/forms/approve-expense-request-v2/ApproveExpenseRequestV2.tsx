@@ -1,16 +1,29 @@
-import React, { useState, useEffect, useMemo } from 'react'
-import { Spinner, Alert, AlertTitle, AlertDescription, Badge } from '@newwork/nw-design-system'
+import React, { useState, useMemo } from 'react'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Label,
+  Spinner,
+  Alert,
+  AlertTitle,
+  AlertDescription
+} from '@newwork/nw-design-system'
 import { ThumbsUp, XCircle } from 'lucide-react'
+import { PiCalendarDuotone, PiClock, PiMapPin } from 'react-icons/pi'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { splitExpenseItems } from './utils/expenseItemUtils'
 import { useExpenseRequestData } from './hooks/useExpenseRequestData'
 import { formatCurrency, getCatalogValue } from './utils/formatters'
+import { REQUEST_TYPES } from '../expense-request/constants/constants'
 import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/components/TaskDetailHeader'
 import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
 import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
 import { useEntityDates } from '@/common/data/common/hooks/useEntityDates'
 import { useApproverData } from '@/common/data/employee/hooks/useApproverData'
+import { formatDateTime } from '@/business-apps/core/every/apps/every-box/utils/taskFormatters'
 
 // Component imports
 import {
@@ -18,9 +31,9 @@ import {
   ApprovalDetailsSection,
   ExpenseRequestDetailsSection,
   EnhancedTripSection,
-  ExpensesSection
+  ExpensesSection,
+  DetailedAllowancesSection
 } from './components'
-import { AllowancesSection } from '../../reusable-components/approval'
 
 /**
  * Extended interface for additionalData with form-specific properties
@@ -39,16 +52,6 @@ interface ExtendedAdditionalData {
     [k: string]: unknown
   }
   psi_taskStatus?: string
-}
-
-/**
- * Extended interface for expense request with optional employeeId
- */
-interface ExtendedExpenseRequest {
-  id?: string
-  employee?: { id?: string }
-  employeeId?: string
-  [k: string]: unknown
 }
 
 interface ApproveExpenseRequestV2Props extends BusinessAppContextProps {
@@ -95,7 +98,6 @@ const ApproveExpenseRequestV2Content: React.FC<ApproveExpenseRequestV2Props> = (
     processMetadata?.nodeName ||
     expenseRequest?.title ||
     'Approve Expense Request'
-  const taskSource: 'kogito' | 'cflow' = processMetadata?.source || 'kogito'
   const creatorName = taskPayload?.creatorName as string | undefined
 
   // Use generic hooks for entity dates (request created)
@@ -106,9 +108,13 @@ const ApproveExpenseRequestV2Content: React.FC<ApproveExpenseRequestV2Props> = (
   })
 
   // For completed tasks, fetch approver name
+  const approverId = isTaskCompleted
+    ? processMetadata?.outputs?.approverId || processMetadata?.inputs?.approverId || null
+    : null
+
   const { approverName, isLoading: isLoadingApproverName } = useApproverData({
     accessToken,
-    approverId: isTaskCompleted ? expenseRequest?.approverId : null
+    approverId
   })
 
   // Extract approval data from task outputs/inputs (for completed tasks)
@@ -248,35 +254,12 @@ const ApproveExpenseRequestV2Content: React.FC<ApproveExpenseRequestV2Props> = (
     }
   }
 
-  // Handle modal close events to prevent task removal
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      // Dispatch cancel event when user closes/refreshes the page
-      try {
-        dispatchProcessContinueEvent('pse_cancel', {
-          event: 'pse_cancel',
-          pso_exitStrategy: 'cancel',
-          pso_completeNotification: {
-            type: 'info',
-            messageKey: 'The approval process has been canceled.'
-          }
-        })
-      } catch (err) {
-        console.error('Error canceling process:', err)
-      }
-    }
-
-    // Listen for beforeunload event (browser close, refresh, navigation)
-    globalThis.addEventListener('beforeunload', handleBeforeUnload)
-
-    return () => {
-      globalThis.removeEventListener('beforeunload', handleBeforeUnload)
-    }
-  }, [])
-
   const handleApprove = async () => {
     setIsApproving(true)
     try {
+      // Check if this is a trip-type expense request
+      const isTrip = expenseRequest?.requestType?.code?.toLowerCase() === REQUEST_TYPES.TRIP
+
       // Create approval payload
       const approvalPayload = {
         event: 'pse_approve',
@@ -286,7 +269,21 @@ const ApproveExpenseRequestV2Content: React.FC<ApproveExpenseRequestV2Props> = (
           commentType: 'APPROVE_COMMENT',
           authorEmployee: userInfo?.employeeDetails?.employeeId,
           expenseRequest: expenseRequest?.id
-        }
+        },
+        // Add employee absence for trip-type expense requests
+        ...(isTrip
+          ? {
+              employeeAbsence: {
+                typeRef: 'AbsenceType:v1:A101',
+                employeeId: expenseRequest?.employee?.id,
+                startDate: expenseRequest?.expensePlan?.startDate,
+                endDate: expenseRequest?.expensePlan?.endDate,
+                description: expenseRequest?.description,
+                substituteEmployee: '',
+                status: 'APPROVED'
+              }
+            }
+          : {})
       }
 
       dispatchProcessContinueEvent('pse_approve', approvalPayload)
@@ -373,9 +370,9 @@ const ApproveExpenseRequestV2Content: React.FC<ApproveExpenseRequestV2Props> = (
 
   const currencyCode = expenseRequest.currency?.code || 'EUR'
   const totalAmount = Number(expenseRequest.totalAmount ?? 0)
-  const reimbursableAmount = Number(expenseRequest.reimbursableAmount ?? 0)
   const remainingAmount = Number(expenseRequest.totalRemainingAmount ?? 0)
   const nonReimbursableAmount = Number(expenseRequest.nonReimbursableAmount ?? 0)
+  const reimbursableAmount = Number(expenseRequest.reimbursableAmount ?? totalAmount - nonReimbursableAmount)
   const advancePaymentAmount = Number(expenseRequest.expensePlan?.advancePaymentTotalAmount ?? 0)
 
   // Transform expense request items to match expense plan format for component compatibility
@@ -391,39 +388,20 @@ const ApproveExpenseRequestV2Content: React.FC<ApproveExpenseRequestV2Props> = (
 
   const { expenseAllowances: itemAllowances, expenseItems } = splitExpenseItems(transformedExpenseItems)
 
-  // Transform expense allowances to match component expectations
-  const allowanceItems =
-    expenseRequest.expenseAllowance?.map((allowance, index) => ({
-      id: `allowance-${index}`,
-      expenseDate: allowance.allowanceDate,
-      totalAmount: allowance.dayRate
-    })) || []
+  // Transform expense item allowances to match ExpenseRequestAllowance format
+  const transformedItemAllowances = itemAllowances.map((item, index) => ({
+    id: `item-allowance-${index}`,
+    allowanceDate: item.expenseDate,
+    dayRate: item.totalAmount,
+    allowanceOrder: index + 1
+  }))
 
-  // Combine allowances from both sources
-  const allAllowances = [...allowanceItems, ...itemAllowances]
+  // Combine allowances from both sources (API data + expense items)
+  // API data has full details (breakfast, lunch, etc.), item-based allowances are simpler
+  const allAllowances = [...(expenseRequest.expenseAllowance || []), ...transformedItemAllowances]
 
-  // Get status display
-  const getStatusDisplay = (status?: string) => {
-    if (!status) return { label: 'Pending', variant: 'default' as const }
-    const statusLower = status.toLowerCase()
-    if (statusLower.includes('approved')) return { label: 'Approved', variant: 'success' as const }
-    if (statusLower.includes('rejected')) return { label: 'Rejected', variant: 'destructive' as const }
-    return { label: status, variant: 'default' as const }
-  }
-
-  const statusDisplay = getStatusDisplay(approvalStatus || undefined)
-
-  // Get employee ID - check multiple possible locations
-  const extendedExpenseRequest = expenseRequest as ExtendedExpenseRequest
-  const employeeId = expenseRequest?.employee?.id || extendedExpenseRequest?.employeeId
-
-  // Debug: Log employee data structure
-  console.log('🔍 [ApproveExpenseRequestV2] Employee data:', {
-    employeeId,
-    employeeObject: expenseRequest?.employee,
-    hasId: !!expenseRequest?.employee?.id,
-    directEmployeeId: extendedExpenseRequest?.employeeId
-  })
+  const displayName =
+    `${expenseRequest.employee?.firstName || ''} ${expenseRequest.employee?.lastName || ''}`.trim() || 'Employee'
 
   return (
     <TaskFormLayout
@@ -431,20 +409,23 @@ const ApproveExpenseRequestV2Content: React.FC<ApproveExpenseRequestV2Props> = (
       header={
         <TaskDetailHeader
           title={taskTitle}
-          status={taskStatus}
-          source={taskSource}
           showEmployeeInfo={true}
-          employeeId={employeeId}
-          accessToken={accessToken}
+          employeeData={
+            expenseRequest?.employee
+              ? {
+                  displayName,
+                  firstName: expenseRequest.employee.firstName,
+                  lastName: expenseRequest.employee.lastName,
+                  avatarUrl: expenseRequest.employee.pictureThumbnail
+                    ? `data:image/jpeg;base64,${expenseRequest.employee.pictureThumbnail}`
+                    : undefined,
+                  position: expenseRequest.employee.employeePosition?.jobPosition?.name
+                }
+              : undefined
+          }
+          isLoadingEmployee={loading}
           creatorName={creatorName}
           onClose={isEveryBoxContext ? handleClose : undefined}
-          customBadges={
-            approvalStatus && (
-              <Badge variant={statusDisplay.variant} data-testid="expense-request-status-badge">
-                {statusDisplay.label}
-              </Badge>
-            )
-          }
         />
       }
       footer={
@@ -523,16 +504,53 @@ const ApproveExpenseRequestV2Content: React.FC<ApproveExpenseRequestV2Props> = (
 
       {/* 5. Trip Details (only if has trips) */}
       {expenseRequest.expenseRequestTrip && expenseRequest.expenseRequestTrip.length > 0 && (
-        <EnhancedTripSection
-          expenseRequestTrip={expenseRequest.expenseRequestTrip}
-          prefixDataTestId="approve-expense-request-v2"
-        />
+        <Card>
+          <CardHeader>
+            <CardTitle className="gba:flex gba:items-center gba:gap-2">
+              <PiMapPin className="gba:h-5 gba:w-5" />
+              Trip Details
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="gba:space-y-4">
+            {/* Dates - show if expense plan dates are available */}
+            {(expenseRequest.expensePlan?.startDate || expenseRequest.expensePlan?.endDate) && (
+              <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+                {expenseRequest.expensePlan?.startDate && (
+                  <div className="gba:flex gba:items-start gba:gap-2">
+                    <PiCalendarDuotone className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mt-0.5" />
+                    <div>
+                      <Label className="gba:text-sm gba:font-medium gba:text-muted-foreground">Start Date</Label>
+                      <p className="gba:text-sm">{formatDateTime(expenseRequest.expensePlan.startDate)}</p>
+                    </div>
+                  </div>
+                )}
+                {expenseRequest.expensePlan?.endDate && (
+                  <div className="gba:flex gba:items-start gba:gap-2">
+                    <PiClock className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mt-0.5" />
+                    <div>
+                      <Label className="gba:text-sm gba:font-medium gba:text-muted-foreground">End Date</Label>
+                      <p className="gba:text-sm">{formatDateTime(expenseRequest.expensePlan.endDate)}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Trip Table/Timeline */}
+            <EnhancedTripSection
+              expenseRequestTrip={expenseRequest.expenseRequestTrip}
+              startDate={expenseRequest.expensePlan?.startDate}
+              endDate={expenseRequest.expensePlan?.endDate}
+              prefixDataTestId="approve-expense-request-v2"
+            />
+          </CardContent>
+        </Card>
       )}
 
       {/* 6. Allowances (only if has allowances) */}
       {allAllowances && allAllowances.length > 0 && (
-        <AllowancesSection
-          allowanceItems={allAllowances}
+        <DetailedAllowancesSection
+          allowances={allAllowances}
           currencyCode={currencyCode}
           formatCurrency={formatCurrency}
           prefixDataTestId="approve-expense-request-v2"
