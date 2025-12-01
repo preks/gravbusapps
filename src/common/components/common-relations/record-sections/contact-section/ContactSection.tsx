@@ -5,7 +5,6 @@ import {
   AvatarImage,
   AvatarFallback,
   IconAvatar,
-  Badge,
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -15,10 +14,9 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import type { Contact } from '@/common/data/relations/types/contactTypes'
 import { UserIcon } from '@phosphor-icons/react'
 import { navigateTo } from '@/common/utils/navigationUtils'
-import { getContactTypeLabel } from '@/common/data/relations/constants/contactConstants'
-import { getContactTypeIcon, getContactTypeColor, getContactTypeIconColor } from '@/common/utils/contactTypeUtils'
 import { renderCommunicationChannels } from '@/common/utils/communicationChannelRenderer'
 import { createGetPages } from '../utils'
+import { ContactTypeBadge } from '../shared/ContactTypeBadge'
 
 interface ContactSectionProps extends Partial<BusinessAppContextProps> {
   contactId?: string
@@ -137,7 +135,6 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({ contact, onTi
 
   // Get contact type from extended contact object (passed from parent via accountContacts/opportunityContacts)
   const contactType = (contact as any)?.contactType
-  const contactTypeLabel = contactType ? getContactTypeLabel(contactType) : null
 
   // Extract contact image URL - support both pictureThumbnail and URLs
   // Only use uploaded images or fallback to icon - no random/hardcoded images
@@ -166,32 +163,7 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({ contact, onTi
               <IconAvatar icon={UserIcon} variant="default" size="lg" title="Contact" />
             )}
 
-            {contactTypeLabel && (
-              <div className="gba:absolute gba:top-0 gba:left-0 gba:z-10">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Badge
-                        variant="outline"
-                        className={`gba:px-1 gba:py-0.5 gba:h-5 gba:w-5 gba:flex gba:items-center gba:justify-center gba:rounded-full gba:shadow-md gba:cursor-help gba:border-0 ${getContactTypeColor(contactType)}`}
-                        data-testid="contact-type-badge"
-                      >
-                        {(() => {
-                          const IconComponent = getContactTypeIcon(contactType)
-                          const iconColorClass = getContactTypeIconColor(contactType)
-                          return IconComponent ? (
-                            <IconComponent className={`gba:w-3 gba:h-3 ${iconColorClass}`} weight="fill" />
-                          ) : null
-                        })()}
-                      </Badge>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" align="center">
-                      <p>{contactTypeLabel}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-            )}
+            <ContactTypeBadge contactType={contactType} />
           </div>
           <div className="gba:flex gba:flex-col gba:gap-1 gba:min-w-0 gba:flex-1">
             <div className="gba:h-5 gba:flex gba:items-center gba:gap-2 gba:min-w-0">

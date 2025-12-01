@@ -5,7 +5,6 @@ import {
   AvatarImage,
   AvatarFallback,
   IconAvatar,
-  Badge,
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -16,10 +15,9 @@ import { PiGlobe, PiUsers, PiMapPin } from 'react-icons/pi'
 import { BankIcon, ChartLineUpIcon } from '@phosphor-icons/react'
 import { formatAddress } from '@/common/utils/addressFormatter'
 import { navigateTo } from '@/common/utils/navigationUtils'
-import { getContactTypeLabel } from '@/common/data/relations/constants/contactConstants'
-import { getContactTypeIcon, getContactTypeColor, getContactTypeIconColor } from '@/common/utils/contactTypeUtils'
 import { renderCommunicationChannels } from '@/common/utils/communicationChannelRenderer'
 import { createGetPages } from '../utils'
+import { ContactTypeBadge } from '../shared/ContactTypeBadge'
 
 interface AddressObject {
   addressLine?: {
@@ -194,7 +192,6 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
 
   // Get contact type from extended account object (passed from parent via accountContacts)
   const contactType = account?.contactType
-  const contactTypeLabel = contactType ? getContactTypeLabel(contactType) : null
 
   return (
     <div className={`${cardClassName} gba:relative gba:flex gba:flex-col gba:h-full`}>
@@ -213,32 +210,7 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
               <IconAvatar icon={BankIcon} variant="default" size="lg" title="Company" />
             )}
 
-            {contactTypeLabel && (
-              <div className="gba:absolute gba:top-0 gba:left-0 gba:z-10">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Badge
-                        variant="outline"
-                        className={`gba:px-1 gba:py-0.5 gba:h-5 gba:w-5 gba:flex gba:items-center gba:justify-center gba:rounded-full gba:shadow-md gba:cursor-help gba:border-0 ${getContactTypeColor(contactType)}`}
-                        data-testid="contact-type-badge"
-                      >
-                        {(() => {
-                          const IconComponent = getContactTypeIcon(contactType)
-                          const iconColorClass = getContactTypeIconColor(contactType)
-                          return IconComponent ? (
-                            <IconComponent className={`gba:w-3 gba:h-3 ${iconColorClass}`} weight="fill" />
-                          ) : null
-                        })()}
-                      </Badge>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" align="center">
-                      <p>{contactTypeLabel}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-            )}
+            <ContactTypeBadge contactType={contactType} />
           </div>
           <div className="gba:flex gba:flex-col gba:gap-1 gba:min-w-0 gba:flex-1">
             <div className="gba:h-5 gba:flex gba:items-center gba:gap-2 gba:min-w-0">
