@@ -17,6 +17,7 @@ import {
 import { ArrowLeft, DotsThreeVertical, SignOut, X, Info, Users } from '@phosphor-icons/react'
 import { UserIcon } from 'lucide-react'
 import type { Conversation } from '../types'
+import type { UserPresence } from '../hooks/usePresence'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface ConversationHeaderProps {
@@ -28,6 +29,7 @@ interface ConversationHeaderProps {
   showBackButton?: boolean
   currentUserId?: string | null
   compact?: boolean
+  otherUserPresence?: UserPresence
 }
 
 const getOtherParticipant = (conversation: Conversation, currentUserId?: string | null) => {
@@ -68,6 +70,44 @@ const getConversationAvatarUrl = (conversation: Conversation, currentUserId?: st
   return otherParticipant?.user?.avatarUrl
 }
 
+// Presence status indicator component - only shows for online/away, not offline
+const PresenceIndicator: React.FC<{ status: 'online' | 'away' | 'offline'; size?: 'sm' | 'md' }> = ({
+  status,
+  size = 'md'
+}) => {
+  // Don't show indicator for offline status
+  if (status === 'offline') return null
+
+  const statusColors = {
+    online: 'gba:bg-success',
+    away: 'gba:bg-warning',
+    offline: 'gba:bg-muted-foreground'
+  }
+
+  const statusTitles = {
+    online: 'Online',
+    away: 'Away',
+    offline: 'Offline'
+  }
+
+  const sizeClasses = size === 'sm' ? 'gba:w-2.5 gba:h-2.5' : 'gba:w-3 gba:h-3'
+
+  return (
+    <span
+      className={`gba:absolute gba:bottom-0 gba:right-0 gba:rounded-full gba:border-2 gba:border-background ${statusColors[status]} ${sizeClasses}`}
+      title={statusTitles[status]}
+    />
+  )
+}
+
+// Get presence status text for display - returns null for offline
+const getPresenceStatusText = (presence?: UserPresence): string | null => {
+  if (!presence || presence.status === 'offline') return null
+  if (presence.status === 'online') return getTranslationFromI18nKeyAndLabel('chat.statusOnline', 'Online')
+  if (presence.status === 'away') return getTranslationFromI18nKeyAndLabel('chat.statusAway', 'Away')
+  return null
+}
+
 export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
   conversation,
   onBack,
@@ -76,12 +116,16 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
   onGroupSettings,
   showBackButton = false,
   currentUserId = null,
-  compact = false
+  compact = false,
+  otherUserPresence
 }) => {
   const name = getConversationName(conversation, currentUserId)
   const avatarUrl = getConversationAvatarUrl(conversation, currentUserId)
   const [showRemoveDialog, setShowRemoveDialog] = useState(false)
   const isGroupChat = conversation.type === 'group'
+  const isDirectChat = conversation.type === 'direct'
+  const presenceStatus = otherUserPresence?.status || 'offline'
+  const presenceStatusText = isDirectChat ? getPresenceStatusText(otherUserPresence) : null
 
   const handleRemoveClick = () => {
     setShowRemoveDialog(true)
@@ -114,17 +158,16 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
           </Button>
         )}
 
-        {avatarUrl ? (
-          <Avatar className={`${avatarSize} gba:flex-shrink-0`}>
-            <img src={avatarUrl} alt={name} className="gba:w-full gba:h-full gba:object-cover gba:rounded-full" />
-          </Avatar>
-        ) : (
-          <IconAvatar
-            className={`${avatarSize} gba:flex-shrink-0`}
-            label={name}
-            icon={isGroupChat ? Users : UserIcon}
-          />
-        )}
+        <div className="gba:relative gba:flex-shrink-0">
+          {avatarUrl ? (
+            <Avatar className={avatarSize}>
+              <img src={avatarUrl} alt={name} className="gba:w-full gba:h-full gba:object-cover gba:rounded-full" />
+            </Avatar>
+          ) : (
+            <IconAvatar className={avatarSize} label={name} icon={isGroupChat ? Users : UserIcon} />
+          )}
+          {isDirectChat && <PresenceIndicator status={presenceStatus} size={compact ? 'sm' : 'md'} />}
+        </div>
 
         <div className="gba:flex-1 gba:min-w-0">
           <h2
@@ -132,7 +175,14 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
           >
             {name}
           </h2>
-          {conversation.type === 'group' && conversation.participants && !compact && (
+          {/* Show presence status for direct chats - only if online/away */}
+          {isDirectChat && !compact && presenceStatusText && (
+            <p className={`gba:text-xs ${presenceStatus === 'online' ? 'gba:text-success' : 'gba:text-warning'}`}>
+              {presenceStatusText}
+            </p>
+          )}
+          {/* Show participant count for group chats */}
+          {isGroupChat && conversation.participants && !compact && (
             <p className="gba:text-xs gba:text-muted-foreground">
               {getTranslationFromI18nKeyAndLabel('chat.participantsCount', '{count} participants').replace(
                 '{count}',

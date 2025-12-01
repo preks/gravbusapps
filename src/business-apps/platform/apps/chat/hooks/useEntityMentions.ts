@@ -265,6 +265,36 @@ const SEARCH_ENTITIES_QUERY = `
       status
       description
     }
+    
+    # Intranet Content (ContentEntry - new intranet system)
+    ContentEntry(
+      limit: $limit
+      where: {
+        _and: [
+          { isDeleted: { _eq: false } }
+          { recordState: { _eq: "active" } }
+          { title: { _neq: "" } }
+          { _or: [
+            { title: { _ilike: $searchPattern } }
+            { preview: { _ilike: $searchPattern } }
+          ]}
+        ]
+      }
+      orderBy: { createdAt: DESC }
+    ) {
+      id
+      title
+      preview
+      pictureThumbnail
+      contentGroupRef
+      contentGroup {
+        value
+      }
+      contentType {
+        value
+      }
+      createdAt
+    }
   }
 `
 
@@ -314,6 +344,17 @@ interface SearchResponse {
   }>
   SalesCampaign: Array<{ id: string; name: string; description?: string }>
   ExpenseRequest: Array<{ id: string; title?: string; code?: string; status?: string; description?: string }>
+  // Intranet Content (new system)
+  ContentEntry: Array<{
+    id: string
+    title?: string
+    preview?: string
+    pictureThumbnail?: string
+    contentGroupRef?: string
+    contentGroup?: { value?: string }
+    contentType?: { value?: string }
+    createdAt?: string
+  }>
 }
 
 interface MentionState {
@@ -348,12 +389,18 @@ export function useEntityMentions(accessToken: string) {
     // Get the query after @
     const query = textBeforeCaret.slice(atIndex + 1)
 
-    // Stop if query contains space or another @
-    if (/[@\s\n]/.test(query)) return null
+    // Stop if query contains another @ or newline (but allow spaces for multi-word searches)
+    if (/[@\n]/.test(query)) return null
+
+    // Stop if query ends with double space (user finished typing the mention)
+    if (query.endsWith('  ')) return null
+
+    // Limit query length to prevent very long searches
+    if (query.length > 50) return null
 
     return {
       isActive: true,
-      query,
+      query: query.trim(), // Trim for cleaner search
       startIndex: atIndex,
       caretPosition
     }
@@ -489,6 +536,43 @@ export function useEntityMentions(accessToken: string) {
         type: 'expense_request',
         name: expense.title || expense.code || 'Expense Request',
         subtitle: expense.status ? `${expense.code || ''} • ${expense.status}`.trim() : expense.code
+      })
+    })
+
+    // Intranet Content (ContentEntry - new system)
+    result.ContentEntry?.forEach(entry => {
+      // Determine the entity type based on contentGroupRef
+      const groupRef = entry.contentGroupRef || ''
+      let entityType: 'news_article' | 'knowledge_article' | 'intranet_article' | 'document_article' =
+        'intranet_article'
+      let categoryLabel = 'Content'
+
+      if (groupRef.includes('NEWS')) {
+        entityType = 'news_article'
+        categoryLabel = 'News'
+      } else if (groupRef.includes('KNOWLEDGE')) {
+        entityType = 'knowledge_article'
+        categoryLabel = 'Knowledge'
+      } else if (groupRef.includes('DOCUMENT')) {
+        entityType = 'document_article'
+        categoryLabel = 'Document'
+      } else if (groupRef.includes('QUESTION')) {
+        entityType = 'knowledge_article'
+        categoryLabel = 'Q&A'
+      } else {
+        entityType = 'intranet_article'
+        categoryLabel = entry.contentGroup?.value || 'Content'
+      }
+
+      const contentCategory = entry.contentType?.value || entry.contentGroup?.value
+      const subtitle = contentCategory ? `${categoryLabel} • ${contentCategory}` : categoryLabel
+
+      allEntities.push({
+        id: entry.id,
+        type: entityType,
+        name: entry.title || 'Untitled Content',
+        subtitle,
+        pictureThumbnail: entry.pictureThumbnail || undefined
       })
     })
 

@@ -15,14 +15,20 @@ export enum MessageType {
 
 export interface User {
   id: string
-  keycloakId: string
-  username: string
+  keycloakId?: string
+  username?: string
   email: string
   firstName?: string
   lastName?: string
+  displayName?: string
   avatarUrl?: string
-  isActive: boolean
-  lastSeenAt?: Date | string
+  isActive?: boolean
+  isOnline?: boolean
+  lastSeen?: Date | string
+  lastSeenAt?: Date | string // Legacy field name
+  statusMessage?: string
+  timezone?: string
+  language?: string
   createdAt: Date | string
   updatedAt: Date | string
 }
@@ -96,10 +102,11 @@ export interface TypingIndicator {
   isTyping: boolean
 }
 
+// Backend sends this format for user_status_change event
 export interface PresenceStatus {
   userId: string
-  status: 'online' | 'away' | 'offline'
-  lastSeen?: Date | string
+  isOnline: boolean
+  timestamp?: Date | string
 }
 
 // Entity Reference Types for @ mentions
@@ -115,6 +122,11 @@ export type EntityType =
   | 'investment_account'
   | 'investment_opportunity'
   | 'investment'
+  // Intranet content
+  | 'news_article'
+  | 'knowledge_article'
+  | 'intranet_article'
+  | 'document_article'
   // Other entities
   | 'employee'
   | 'campaign'
@@ -146,6 +158,11 @@ export const ENTITY_NAVIGATION_PATHS: Record<EntityType, string> = {
   investment_account: '/platform/irm/account-record',
   investment_opportunity: '/platform/irm/opportunity-record',
   investment: '/platform/irm/investment-record',
+  // Intranet content
+  news_article: '/platform/content/intranet/content-record',
+  knowledge_article: '/platform/content/intranet/content-record',
+  intranet_article: '/platform/content/intranet/content-record',
+  document_article: '/platform/content/intranet/content-record',
   // Other
   employee: '/platform/employee-record',
   campaign: '/platform/crm/campaign-record',
@@ -164,6 +181,11 @@ export const ENTITY_QUERY_PARAMS: Record<EntityType, string> = {
   investment_account: 'accountId',
   investment_opportunity: 'opportunityId',
   investment: 'investmentId',
+  // Intranet content
+  news_article: 'contentId',
+  knowledge_article: 'contentId',
+  intranet_article: 'contentId',
+  document_article: 'contentId',
   // Other
   employee: 'employeeId',
   campaign: 'campaignId',
