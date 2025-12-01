@@ -12,7 +12,7 @@ interface TrendData {
 
 interface OpportunityStatisticsTrendData {
   recentOpportunities: TrendData
-  opportunityValue: TrendData
+  totalOpportunities: TrendData
   winRate: TrendData
   opportunitiesThisYear: TrendData
 }
@@ -53,25 +53,19 @@ const GET_ALL_CUSTOMER_OPPORTUNITY_STATISTICS_WITH_TREND = (currencyCode?: strin
         count
       }
     }
-    opportunityValueCurrent: OpportunityAggregate(where: {
-      isDeleted: {_eq: false},
-      estimatedAmount: {_isNull: false}${currencyFilter}
+    totalOpportunitiesCurrent: OpportunityAggregate(where: {
+      isDeleted: {_eq: false}${currencyFilter}
     }) {
       aggregate {
-        sum {
-          estimatedAmount
-        }
+        count
       }
     }
-    opportunityValuePrevious: OpportunityAggregate(where: {
+    totalOpportunitiesPrevious: OpportunityAggregate(where: {
       isDeleted: {_eq: false},
-      estimatedAmount: {_isNull: false},
       createdAt: {_lt: $lastQuarter}${currencyFilter}
     }) {
       aggregate {
-        sum {
-          estimatedAmount
-        }
+        count
       }
     }
     winRateCurrentWon: OpportunityAggregate(where: {
@@ -180,8 +174,8 @@ export const useCustomerOpportunityStatistics = (
       const result = await graphqlClient.request<{
         recentOpportunitiesCurrent: { aggregate: { count: number } }
         recentOpportunitiesPrevious: { aggregate: { count: number } }
-        opportunityValueCurrent: { aggregate: { sum: { estimatedAmount: number } } }
-        opportunityValuePrevious: { aggregate: { sum: { estimatedAmount: number } } }
+        totalOpportunitiesCurrent: { aggregate: { count: number } }
+        totalOpportunitiesPrevious: { aggregate: { count: number } }
         winRateCurrentWon: { aggregate: { count: number } }
         winRateCurrentClosed: { aggregate: { count: number } }
         winRatePreviousWon: { aggregate: { count: number } }
@@ -211,9 +205,9 @@ export const useCustomerOpportunityStatistics = (
           result.recentOpportunitiesCurrent.aggregate.count,
           result.recentOpportunitiesPrevious.aggregate.count
         ),
-        opportunityValue: calculateTrend(
-          result.opportunityValueCurrent.aggregate.sum?.estimatedAmount || 0,
-          result.opportunityValuePrevious.aggregate.sum?.estimatedAmount || 0
+        totalOpportunities: calculateTrend(
+          result.totalOpportunitiesCurrent.aggregate.count,
+          result.totalOpportunitiesPrevious.aggregate.count
         ),
         winRate: calculateTrend(currentRate, previousRate),
         opportunitiesThisYear: calculateTrend(

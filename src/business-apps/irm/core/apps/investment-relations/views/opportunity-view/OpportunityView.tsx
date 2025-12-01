@@ -24,14 +24,13 @@ const InvestmentOpportunityStatistics: React.FC<{
     <OpportunityStatisticsLayout
       statistics={{
         recentOpportunities: opportunityStatistics.trendData.recentOpportunities,
-        opportunityValue: opportunityStatistics.trendData.opportunityValue,
+        totalOpportunities: opportunityStatistics.trendData.totalOpportunities,
         winRate: opportunityStatistics.trendData.winRate,
         opportunitiesThisYear: opportunityStatistics.trendData.opportunitiesThisYear,
         isLoading: opportunityStatistics.isLoading,
         error: opportunityStatistics.error,
         refetch: () => void opportunityStatistics.refetch()
       }}
-      selectedCurrency={selectedCurrency}
     />
   )
 }
@@ -48,9 +47,7 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
 
         extendQueryVariables: vars => ({
           ...vars,
-          dealType: 'INVESTMENT_DEAL',
-          // Filter for OPEN status only on kanban board
-          opportunityStatusIds: ['InvestmentOpportunityStatus:v1:OPEN']
+          dealType: 'INVESTMENT_DEAL'
         }),
 
         fetchOpportunities: async variables => {

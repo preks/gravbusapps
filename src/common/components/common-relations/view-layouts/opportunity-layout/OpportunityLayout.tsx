@@ -195,14 +195,22 @@ interface CurrencyFilterProps {
 const CurrencyFilter: React.FC<CurrencyFilterProps> = ({ selectedCurrency, currencies, onCurrencyChange }) => {
   if (currencies.length === 0) return null
 
+  // Get display label for selected currency
+  const getDisplayLabel = (value: string) => {
+    if (value === 'ALL') return 'All'
+    const currency = currencies.find(c => c.code === value)
+    return currency?.label || value
+  }
+
   return (
     <div className="gba:flex gba:items-center gba:gap-2">
       <Label className="gba:text-sm gba:font-medium gba:whitespace-nowrap">Currency:</Label>
       <Select value={selectedCurrency} onValueChange={onCurrencyChange}>
         <SelectTrigger className="gba:w-32">
-          <SelectValue />
+          <SelectValue placeholder="Select currency">{getDisplayLabel(selectedCurrency)}</SelectValue>
         </SelectTrigger>
         <SelectContent>
+          <SelectItem value="ALL">All</SelectItem>
           {currencies.map(currency => (
             <SelectItem key={currency.code} value={currency.code}>
               {currency.label}
@@ -313,7 +321,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
 
   // Board View State
   const [boardPipelineId, setBoardPipelineId] = useState('')
-  const [selectedCurrency, setSelectedCurrency] = useState('EUR')
+  const [selectedCurrency, setSelectedCurrency] = useState('ALL')
   const [boardFilters, setBoardFilters] = useState<Record<string, any>>({})
   const [boardSearch, setBoardSearch] = useState('')
   const [boardOpportunities, setBoardOpportunities] = useState<TOpportunity[]>([])
@@ -351,9 +359,13 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
 
   const availableCurrencies = useMemo(
     () =>
-      (Array.isArray(currencyOptions) ? currencyOptions : []).map((code: any) =>
-        typeof code === 'string' ? { code, label: code } : code
-      ),
+      (Array.isArray(currencyOptions) ? currencyOptions : [])
+        .filter((code: any) => {
+          // Filter out "ALL" as we add it manually in the filter dropdown
+          const currencyCode = typeof code === 'string' ? code : code?.code
+          return currencyCode !== 'ALL'
+        })
+        .map((code: any) => (typeof code === 'string' ? { code, label: code } : code)),
     [currencyOptions]
   )
 
@@ -427,7 +439,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
         selectedFilters,
         sorting
       }),
-      currencyCode: selectedCurrency || undefined
+      currencyCode: selectedCurrency === 'ALL' ? undefined : selectedCurrency
     }),
     [pagination, searchTerm, selectedFilters, sorting, selectedCurrency, config]
   )
@@ -471,7 +483,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
         opportunityFilter,
         selectedEmployeeIds: ownerEmployeeIds || [],
         search: boardSearch.trim() || undefined,
-        currencyCode: selectedCurrency || undefined
+        currencyCode: selectedCurrency === 'ALL' ? undefined : selectedCurrency
       }
 
       const result = await config.fetchOpportunitiesForBoard(boardFiltersObj)
@@ -673,11 +685,12 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     <div data-testid={dataTestId}>
       {/* Statistics */}
       {config.renderStatistics ? (
-        <div data-testid={`${dataTestId}-statistics`}>{config.renderStatistics(selectedCurrency)}</div>
+        <div data-testid={`${dataTestId}-statistics`}>
+          {config.renderStatistics(selectedCurrency === 'ALL' ? undefined : selectedCurrency)}
+        </div>
       ) : config.opportunityStatistics ? (
         <OpportunityStatisticsLayout
           statistics={config.opportunityStatistics}
-          selectedCurrency={selectedCurrency}
           data-testid={`${dataTestId}-statistics`}
         />
       ) : null}

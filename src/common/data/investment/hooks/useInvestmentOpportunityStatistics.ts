@@ -12,7 +12,7 @@ interface TrendData {
 
 interface OpportunityStatisticsTrendData {
   recentOpportunities: TrendData
-  opportunityValue: TrendData
+  totalOpportunities: TrendData
   winRate: TrendData
   opportunitiesThisYear: TrendData
 }
@@ -49,20 +49,18 @@ const GET_ALL_INVESTMENT_OPPORTUNITY_STATISTICS_WITH_TREND = `
     }) {
       aggregate { count }
     }
-    opportunityValueCurrent: InvestmentOpportunityAggregate(where: {
+    totalOpportunitiesCurrent: InvestmentOpportunityAggregate(where: {
       isDeleted: {_eq: false},
-      estimatedAmount: {_isNull: false},
       _and: [{ currency: { code: { _eq: $currencyCode } } }]
     }) {
-      aggregate { sum { estimatedAmount } }
+      aggregate { count }
     }
-    opportunityValuePrevious: InvestmentOpportunityAggregate(where: {
+    totalOpportunitiesPrevious: InvestmentOpportunityAggregate(where: {
       isDeleted: {_eq: false},
-      estimatedAmount: {_isNull: false},
       createdAt: {_lt: $lastQuarter},
       _and: [{ currency: { code: { _eq: $currencyCode } } }]
     }) {
-      aggregate { sum { estimatedAmount } }
+      aggregate { count }
     }
     winRateCurrentTotal: InvestmentOpportunityAggregate(where: {
       isDeleted: {_eq: false},
@@ -160,8 +158,8 @@ export const useInvestmentOpportunityStatistics = (
       const result = await graphqlClient.request<{
         recentOpportunitiesCurrent: { aggregate: { count: number } }
         recentOpportunitiesPrevious: { aggregate: { count: number } }
-        opportunityValueCurrent: { aggregate: { sum: { estimatedAmount: number | null } } }
-        opportunityValuePrevious: { aggregate: { sum: { estimatedAmount: number | null } } }
+        totalOpportunitiesCurrent: { aggregate: { count: number } }
+        totalOpportunitiesPrevious: { aggregate: { count: number } }
         winRateCurrentTotal: { aggregate: { count: number } }
         winRateCurrentWins: { aggregate: { count: number } }
         winRatePreviousTotal: { aggregate: { count: number } }
@@ -193,9 +191,9 @@ export const useInvestmentOpportunityStatistics = (
           result.recentOpportunitiesCurrent.aggregate.count,
           result.recentOpportunitiesPrevious.aggregate.count
         ),
-        opportunityValue: calculateTrend(
-          result.opportunityValueCurrent.aggregate.sum?.estimatedAmount || 0,
-          result.opportunityValuePrevious.aggregate.sum?.estimatedAmount || 0
+        totalOpportunities: calculateTrend(
+          result.totalOpportunitiesCurrent.aggregate.count,
+          result.totalOpportunitiesPrevious.aggregate.count
         ),
         winRate: calculateTrend(currentRate, previousRate),
         opportunitiesThisYear: calculateTrend(
@@ -215,7 +213,7 @@ export const useInvestmentOpportunityStatistics = (
     if (context.accessToken) {
       refetch()
     }
-  }, [context.accessToken, refetch])
+  }, [context.accessToken, selectedCurrency, refetch])
 
   return {
     trendData,
