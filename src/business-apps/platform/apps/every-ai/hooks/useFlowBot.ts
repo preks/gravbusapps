@@ -205,11 +205,13 @@ type AnalyticsEntityInput = {
 }
 
 const ANALYTICS_ENTITY_MAP: Record<string, string> = {
+  // IRM entities
   investment: 'investment',
-  investment_account: 'account',
-  investment_contact: 'contact',
-  investment_lead: 'lead',
-  investment_opportunity: 'opportunity',
+  investment_account: 'investment_account',
+  investment_contact: 'investment_contact',
+  investment_lead: 'investment_lead',
+  investment_opportunity: 'investment_opportunity',
+  // CRM entities
   account: 'account',
   contact: 'contact',
   lead: 'lead',
