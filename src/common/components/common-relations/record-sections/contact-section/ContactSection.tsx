@@ -17,6 +17,7 @@ import { navigateTo } from '@/common/utils/navigationUtils'
 import { renderCommunicationChannels } from '@/common/utils/communicationChannelRenderer'
 import { createGetPages } from '../utils'
 import { ContactTypeBadge } from '../shared/ContactTypeBadge'
+import EmptyState from '@/components/empty-state/EmptyState'
 
 interface ContactSectionProps extends Partial<BusinessAppContextProps> {
   contactId?: string
@@ -113,6 +114,18 @@ interface ContactPersonalInfoProps {
 }
 
 const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({ contact, onTitleClick }) => {
+  // Empty state - when no contact data is available
+  if (!contact) {
+    return (
+      <div className="gba:w-full gba:relative gba:flex gba:flex-col gba:h-full">
+        <EmptyState
+          title="No Contact Data"
+          description="No contact data is available for this object. Update its details to see the information here."
+        />
+      </div>
+    )
+  }
+
   // Helper function to build full name
   const buildFullName = () => {
     const parts = []
