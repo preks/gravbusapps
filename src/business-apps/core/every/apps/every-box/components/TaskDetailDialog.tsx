@@ -78,9 +78,9 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
       id: '',
       name: '',
       title: '',
-      status: 'PENDING' as const,
+      status: 'SCHEDULED' as const,
       source: 'kogito' as const,
-      priority: 'MEDIUM' as const,
+      priority: 0,
       createdAt: new Date().toISOString()
     }),
     []
@@ -244,76 +244,16 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
     fetchEmployeeData()
   }, [isApproveVacationTask, employeeIdForEffect, accessToken, graphqlClient, creatorNameForEffect])
 
-  if (!task) return null
+  // Check if this is a blink (quick-task) - MUST be before early return
+  const isBlinkTask = task?.source === 'cflow' && task?.tags?.app === 'quick-task'
 
-  const handleCompleteBlinkTask = async () => {
-    if (!task.id || !task.flowId || !userId) {
-      alert('Unable to complete task: missing user information.')
-      return
-    }
-
-    setIsCompleting(true)
-    try {
-      // Complete the CFlow task with userId
-      const flowEngineApi =
-        env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
-      const response = await fetch(`${flowEngineApi}/api/tasks/${task.id}/complete`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`
-        },
-        body: JSON.stringify({
-          outcome: 'COMPLETED',
-          userId: userId, // Required by the API
-          variables: {}
-        })
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-        throw new Error(errorData.error || 'Failed to complete task')
-      }
-
-      // Show success message
-      message.success({
-        content: '✓ Blink completed successfully!',
-        duration: 3
-      })
-
-      // Remove task from list immediately (if callback provided)
-      if (onTaskCompleted && task.id) {
-        onTaskCompleted(task.id)
-      }
-
-      // Refresh the task list in background
-      onTaskUpdated()
-
-      // Close the dialog
-      onClose()
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to complete task'
-      message.error({
-        content: `Failed to complete task: ${errorMessage}`,
-        duration: 5
-      })
-    } finally {
-      setIsCompleting(false)
-    }
-  }
-
-  // Note: handleOpenTask removed - Screen Management API handles all task navigation
-
-  // Check if this is a blink (quick-task)
-  const isBlinkTask = task.source === 'cflow' && task.tags?.app === 'quick-task'
-
-  // Generate screen key identical to Cockpit inbox approach
-  const generateScreenKey = React.useCallback((task: UnifiedTask): string | null => {
-    if (task.source !== 'kogito' || !task.sourceMetadata?.endpoint) {
+  // Generate screen key identical to Cockpit inbox approach - MUST be before early return
+  const generateScreenKey = React.useCallback((taskParam: UnifiedTask): string | null => {
+    if (taskParam.source !== 'kogito' || !taskParam.sourceMetadata?.endpoint) {
       return null
     }
 
-    const endpoint = task.sourceMetadata.endpoint as string
+    const endpoint = taskParam.sourceMetadata.endpoint as string
 
     // Extract pathname from URL (handle both full URLs and paths)
     let pathname: string
@@ -346,14 +286,14 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
     return screenKey
   }, [])
 
-  // Extract process name and task name from task (for dev overrides)
+  // Extract process name and task name from task (for dev overrides) - MUST be before early return
   const extractProcessAndTaskNames = React.useCallback(
-    (task: UnifiedTask): { processName?: string; taskName?: string } => {
-      if (task.source !== 'kogito' || !task.sourceMetadata?.endpoint) {
+    (taskParam: UnifiedTask): { processName?: string; taskName?: string } => {
+      if (taskParam.source !== 'kogito' || !taskParam.sourceMetadata?.endpoint) {
         return {}
       }
 
-      const endpoint = task.sourceMetadata.endpoint as string
+      const endpoint = taskParam.sourceMetadata.endpoint as string
 
       try {
         let pathname: string
@@ -380,7 +320,7 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
     []
   )
 
-  // Fetch screen metadata from Screen Management API (or use dev override)
+  // Fetch screen metadata from Screen Management API (or use dev override) - MUST be before early return
   React.useEffect(() => {
     const loadScreenMetadata = async () => {
       if (!task) {
@@ -527,7 +467,67 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
     }
 
     loadScreenMetadata()
-  }, [task?.id, task?.source, generateScreenKey, fetchScreenByKey, extractProcessAndTaskNames])
+  }, [task?.id, task?.source, generateScreenKey, fetchScreenByKey, extractProcessAndTaskNames, task])
+
+  if (!task) return null
+
+  const handleCompleteBlinkTask = async () => {
+    if (!task.id || !task.flowId || !userId) {
+      alert('Unable to complete task: missing user information.')
+      return
+    }
+
+    setIsCompleting(true)
+    try {
+      // Complete the CFlow task with userId
+      const flowEngineApi =
+        env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
+      const response = await fetch(`${flowEngineApi}/api/tasks/${task.id}/complete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({
+          outcome: 'COMPLETED',
+          userId: userId, // Required by the API
+          variables: {}
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        throw new Error(errorData.error || 'Failed to complete task')
+      }
+
+      // Show success message
+      message.success({
+        content: '✓ Blink completed successfully!',
+        duration: 3
+      })
+
+      // Remove task from list immediately (if callback provided)
+      if (onTaskCompleted && task.id) {
+        onTaskCompleted(task.id)
+      }
+
+      // Refresh the task list in background
+      onTaskUpdated()
+
+      // Close the dialog
+      onClose()
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to complete task'
+      message.error({
+        content: `Failed to complete task: ${errorMessage}`,
+        duration: 5
+      })
+    } finally {
+      setIsCompleting(false)
+    }
+  }
+
+  // Note: handleOpenTask removed - Screen Management API handles all task navigation
 
   // Helper function to render the appropriate task content based on metadata
   const renderTaskContent = () => {

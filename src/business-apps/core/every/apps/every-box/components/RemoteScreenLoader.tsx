@@ -4,10 +4,8 @@ import {
   loadRemoteComponent,
   exposeRequiredDependencies
 } from '@/common/loaders/remote-component-loader/remoteComponentLoader'
-import { Spinner } from '@newwork/nw-design-system'
-import { Alert, AlertDescription, AlertTitle } from '@newwork/nw-design-system'
+import { Spinner, Alert, AlertDescription, AlertTitle, Button } from '@newwork/nw-design-system'
 import { AlertCircle, RefreshCw } from 'lucide-react'
-import { Button } from '@newwork/nw-design-system'
 
 // CDN base URLs matching gravity-platform
 const REMOTE_COMPONENT_CDN_BASE_DEV = 'https://nwcdndevfiles.blob.core.windows.net/screens'
@@ -153,13 +151,13 @@ export const RemoteScreenLoader: React.FC<RemoteScreenLoaderProps> = ({
 
   // Token refresh handler - hot-swaps accessToken when Keycloak refreshes
   const handleTokenRefresh = useCallback(() => {
-    // Try to get the latest token from window (Keycloak stores it there)
-    const windowAny = window as any
+    // Try to get the latest token from globalThis (Keycloak stores it there)
+    const globalAny = globalThis as any
     let latestToken: string | undefined
 
     // Priority 1: Keycloak instance token
-    if (windowAny.keycloak?.token) {
-      latestToken = windowAny.keycloak.token
+    if (globalAny.keycloak?.token) {
+      latestToken = globalAny.keycloak.token
     }
     // Priority 2: Session storage (mobile apps)
     else {
@@ -175,7 +173,7 @@ export const RemoteScreenLoader: React.FC<RemoteScreenLoaderProps> = ({
       console.log('[RemoteScreenLoader] Token refreshed, updating component props')
       setComponentProps(prev => ({
         ...prev,
-        accessToken: latestToken!
+        accessToken: latestToken
       }))
     }
   }, [componentProps.accessToken])
@@ -195,13 +193,13 @@ export const RemoteScreenLoader: React.FC<RemoteScreenLoaderProps> = ({
     }
 
     // Add event listeners
-    window.addEventListener(TOKEN_REFRESH_EVENT, onKeycloakRefresh)
-    window.addEventListener(MOBILE_TOKEN_UPDATED_EVENT, onMobileTokenUpdate)
+    globalThis.addEventListener(TOKEN_REFRESH_EVENT, onKeycloakRefresh)
+    globalThis.addEventListener(MOBILE_TOKEN_UPDATED_EVENT, onMobileTokenUpdate)
 
     // Cleanup on unmount
     return () => {
-      window.removeEventListener(TOKEN_REFRESH_EVENT, onKeycloakRefresh)
-      window.removeEventListener(MOBILE_TOKEN_UPDATED_EVENT, onMobileTokenUpdate)
+      globalThis.removeEventListener(TOKEN_REFRESH_EVENT, onKeycloakRefresh)
+      globalThis.removeEventListener(MOBILE_TOKEN_UPDATED_EVENT, onMobileTokenUpdate)
     }
   }, [handleTokenRefresh])
 
@@ -223,9 +221,9 @@ export const RemoteScreenLoader: React.FC<RemoteScreenLoaderProps> = ({
     // Clean up any existing CSS for this component (different versions only)
     const existingLinks = document.querySelectorAll(`link[id^="remote-component-css-${componentName}"]`)
     existingLinks.forEach(link => {
-      if (link.parentNode && link.id !== linkId) {
+      if (link.id !== linkId) {
         console.log(`[RemoteScreenLoader] Removing old CSS for component: ${componentName}`)
-        link.parentNode.removeChild(link)
+        link.remove()
       }
     })
 

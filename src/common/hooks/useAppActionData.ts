@@ -181,7 +181,11 @@ export const useAppActionData = (config: UseAppActionDataConfig, dataTestIdPrefi
       key: `share-${config.shareContext.entityType}-${config.shareContext.entityId}`,
       label: 'Share via Blink',
       icon: createElement(Share2, { className: 'gba:w-4 gba:h-4' }),
-      onClick: () => openShareDialog!(config.shareContext!),
+      onClick: () => {
+        if (openShareDialog && config.shareContext) {
+          openShareDialog(config.shareContext)
+        }
+      },
       category: 'Sharing'
     }
   }, [config.shareContext, openShareDialog])

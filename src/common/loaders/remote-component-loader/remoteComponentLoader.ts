@@ -48,7 +48,7 @@ const DEFAULT_EXPOSED_LIBRARIES: ExposedLibrary[] = [
           // Convert kebab-case to PascalCase for component names
           const pascalCaseName =
             componentName.charAt(0).toUpperCase() +
-            componentName.slice(1).replace(/-([a-z])/g, (match, g) => g.toUpperCase())
+            componentName.slice(1).replaceAll(/-([a-z])/g, (_match, g) => g.toUpperCase())
 
           // Use type assertion to avoid TypeScript indexing error
           return (antd as Record<string, any>)[pascalCaseName] ?? antd
@@ -210,12 +210,13 @@ interface ComponentRegistry {
 
 // Create global component registry if it doesn't exist
 const initRegistry = (): ComponentRegistry => {
-  if (typeof globalThis === 'undefined')
+  if (typeof globalThis === 'undefined') {
     return {
       loadingComponents: {},
       registeredComponents: {},
       componentErrors: {}
     }
+  }
   ;(globalThis as any).__componentRegistry = (globalThis as any).__componentRegistry ?? {
     loadingComponents: {},
     registeredComponents: {},
@@ -223,6 +224,37 @@ const initRegistry = (): ComponentRegistry => {
   }
 
   return (globalThis as any).__componentRegistry
+}
+
+/**
+ * Helper function to wait for component registration with polling
+ * @param windowExtended The extended window object
+ * @param componentKey The key to check for component registration
+ * @param timeout Maximum time to wait in milliseconds
+ * @param startTime The timestamp when waiting started
+ * @returns Promise that resolves when component is registered or rejects on timeout
+ */
+function waitForComponentRegistration(
+  windowExtended: RemoteWindowExtensions,
+  componentKey: string,
+  timeout: number,
+  startTime: number
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const check = () => {
+      if (windowExtended[componentKey]) {
+        console.log(`Component '${componentKey}' already registered`)
+        resolve()
+        return
+      }
+      if (Date.now() - startTime > timeout) {
+        reject(new Error(`Timeout waiting for existing component '${componentKey}'`))
+        return
+      }
+      setTimeout(check, 50)
+    }
+    check()
+  })
 }
 
 /**
@@ -502,24 +534,8 @@ export function loadRemoteComponent(options: RemoteComponentLoaderOptions): Prom
         console.log(`Script for component key '${componentKey}' already exists, waiting for registration...`)
         // Wait for component to be ready
         const startTime = Date.now()
-        const waitForExisting = (): Promise<void> => {
-          return new Promise((resolve, reject) => {
-            const check = () => {
-              if (windowExtended[componentKey]) {
-                console.log(`Component '${componentKey}' already registered`)
-                resolve()
-                return
-              }
-              if (Date.now() - startTime > timeout) {
-                reject(new Error(`Timeout waiting for existing component '${componentKey}'`))
-                return
-              }
-              setTimeout(check, 50)
-            }
-            check()
-          })
-        }
-        return waitForExisting()
+        const waitForExisting = waitForComponentRegistration(windowExtended, componentKey, timeout, startTime)
+        return waitForExisting
       }
 
       // Load the component script

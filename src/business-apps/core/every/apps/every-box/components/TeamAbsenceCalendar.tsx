@@ -66,7 +66,7 @@ const useIsMobile = (breakpoint: number = 768) => {
 
   useEffect(() => {
     // Check if globalThis/window is available (SSR safety)
-    if (globalThis === undefined || globalThis.window === undefined) return
+    if (typeof globalThis === 'undefined' || typeof globalThis.window === 'undefined') return
 
     const checkIsMobile = () => {
       setIsMobile(globalThis.innerWidth < breakpoint)

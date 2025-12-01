@@ -9,8 +9,6 @@ import Pill from '@/components/pill'
 
 interface EnhancedTripSectionProps {
   expenseRequestTrip: ExpenseRequestTrip[]
-  startDate?: string
-  endDate?: string
   prefixDataTestId?: string
 }
 

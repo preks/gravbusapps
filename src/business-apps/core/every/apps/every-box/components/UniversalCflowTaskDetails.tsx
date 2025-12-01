@@ -230,7 +230,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
           const completeRequestBody = {
             userId: userId,
             formData: processedFormData,
-            ...(showComment && comment && comment.trim() ? { comment: comment.trim() } : {})
+            ...(showComment && comment?.trim() ? { comment: comment.trim() } : {})
           }
 
           const completeResponse = await fetch(`${flowEngineApi}/api/tasks/${task.id}/complete`, {
@@ -341,10 +341,6 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
         {/* Task Header */}
         <TaskDetailHeader
           title={taskTitle}
-          status={task.status}
-          priority={task.priority}
-          source="cflow"
-          isBlinkTask={isBlinkTask}
           creatorName={creatorName}
           showEmployeeInfo={!!creatorUserId}
           employeeData={
@@ -446,10 +442,6 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
       {/* Task Header - Using shared TaskDetailHeader component */}
       <TaskDetailHeader
         title={taskTitle}
-        status={task.status}
-        priority={task.priority}
-        source="cflow"
-        isBlinkTask={isBlinkTask}
         creatorName={creatorName}
         showEmployeeInfo={!!creatorUserId}
         employeeData={
