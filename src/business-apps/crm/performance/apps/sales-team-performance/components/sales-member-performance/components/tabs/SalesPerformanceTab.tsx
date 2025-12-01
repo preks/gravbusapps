@@ -1,9 +1,10 @@
 import React from 'react'
-import { PerformanceStatistics } from '../statistics'
-import { PerformanceTrendsChart } from '../performance-trends'
-import { EntitiesOwnedSection } from '../entities'
+import { PerformanceStatistics } from '../statistics/PerformanceStatistics'
+import { PerformanceTrendsChart } from '../performance-trends/PerformanceTrendsChart'
+import { EntitiesOwnedSection } from '../entities/EntitiesOwnedSection'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { EntitiesOwned } from '../../types'
+import { EmployeeTrendData } from '../../hooks/useEmployeePerformanceData'
 
 const DATA_TEST_ID_PREFIX = 'SalesPerformanceTab'
 
@@ -19,6 +20,13 @@ interface SalesPerformanceTabProps extends BusinessAppContextProps {
     teamName: string
   }
   showComparisons?: boolean
+  // Trends data passed from parent
+  trends?: {
+    leadsWorked: EmployeeTrendData
+    contactsWorked: EmployeeTrendData
+    opportunitiesManaged: EmployeeTrendData
+    activitiesCompleted: EmployeeTrendData
+  }
 }
 
 export const SalesPerformanceTab: React.FC<SalesPerformanceTabProps> = ({
@@ -29,6 +37,7 @@ export const SalesPerformanceTab: React.FC<SalesPerformanceTabProps> = ({
   onRetry,
   teamContext,
   showComparisons = true,
+  trends,
   ...context
 }) => {
   return (
@@ -40,6 +49,7 @@ export const SalesPerformanceTab: React.FC<SalesPerformanceTabProps> = ({
         onRetry={onRetry}
         teamContext={teamContext}
         showComparisons={showComparisons}
+        trends={trends}
         {...context}
       />
 

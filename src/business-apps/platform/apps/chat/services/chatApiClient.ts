@@ -193,12 +193,19 @@ export class ChatApiClient {
     return response.data
   }
 
-  async sendMessage(conversationId: string, content: string, senderId: string, parentId?: string) {
+  async sendMessage(
+    conversationId: string,
+    content: string,
+    senderId: string,
+    parentId?: string,
+    metadata?: Record<string, any>
+  ) {
     const payload = {
       conversationId,
       content,
       senderId,
-      ...(parentId && { parentId })
+      ...(parentId && { parentId }),
+      ...(metadata && { metadata })
     }
 
     const response = await this.client.post<Message>('/messages', payload)

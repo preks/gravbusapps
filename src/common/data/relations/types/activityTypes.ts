@@ -129,11 +129,31 @@ export const createActivityDescriptors = (
 
   // Filter IDs
   { key: 'accountIds', path: fields.accountId, kind: 'inIds' },
-  { key: 'activityTypeIds', path: fields.activityTypeRef, kind: 'inIds' },
+  {
+    key: 'activityTypeIds',
+    path: fields.activityTypeRef,
+    filterLabel: 'Activity Type',
+    optionSelectPaths: [`${fields.activityType}.id`, `${fields.activityType}.value`],
+    optionSearchPaths: [`${fields.activityType}.value`, `${fields.activityType}.code`],
+    optionDistinctOn: [fields.activityTypeRef],
+    kind: 'inIds'
+  },
   { key: 'contactIds', path: fields.contactId, kind: 'inIds' },
   { key: 'leadIds', path: fields.leadId, kind: 'inIds' },
   { key: 'opportunityIds', path: fields.opportunityId, kind: 'inIds' },
-  { key: 'ownerEmployeeIds', path: fields.ownerEmployeeId, kind: 'inIds' },
+  {
+    key: 'ownerEmployeeIds',
+    path: fields.ownerEmployeeId,
+    filterLabel: 'Owner',
+    optionSelectPaths: [`${fields.ownerEmployee}.id`, `${fields.ownerEmployee}.displayName`],
+    optionSearchPaths: [
+      `${fields.ownerEmployee}.displayName`,
+      `${fields.ownerEmployee}.firstName`,
+      `${fields.ownerEmployee}.lastName`
+    ],
+    optionDistinctOn: [fields.ownerEmployeeId],
+    kind: 'inIds'
+  },
 
   // Date range filters
   { key: 'completedAtFrom', path: fields.completedAt, kind: 'dateFrom' },

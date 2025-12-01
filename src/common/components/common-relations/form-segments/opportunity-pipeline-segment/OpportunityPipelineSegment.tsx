@@ -104,6 +104,8 @@ const OpportunityPipelineSegment: React.FC<OpportunityPipelineSegmentProps> = ({
                   value={field.value || ''}
                   onValueChange={field.onChange}
                   data-testid="opportunity-segment-status-select"
+                  allowClear={false}
+                  autoSelectFirst
                 />
               </FormControl>
               <FormMessage />

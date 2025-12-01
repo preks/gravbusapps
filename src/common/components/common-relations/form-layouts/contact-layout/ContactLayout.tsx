@@ -3,8 +3,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useTranslation, Skeleton, FormSection } from '@newwork/nw-design-system'
 import { ContactInformationSegment } from '../../form-segments/contact-information-segment'
 import { ContactDetailsSegment } from '../../form-segments/contact-details-segment'
-import { AddressSegment } from '../../form-segments/address-segment'
-import { CommunicationSegment } from '../../form-segments/communication-segment'
+import { CommunicationSegment, DEFAULT_CONTACT_CHANNELS } from '../../form-segments/communication-segment'
 import translations from './_i18n'
 
 interface ContactLayoutProps {
@@ -29,8 +28,6 @@ interface ContactLayoutProps {
   contactInformationCustomFields?: React.ReactNode
   // Custom fields injection for ContactDetailsSegment
   contactDetailsCustomFields?: React.ReactNode
-  // Custom fields injection for AddressSegment
-  addressCustomFields?: React.ReactNode
   // Custom fields injection for CommunicationSegment
   communicationCustomFields?: React.ReactNode
 
@@ -55,7 +52,6 @@ const ContactLayout: React.FC<ContactLayoutProps> = ({
   useAccounts,
   contactInformationCustomFields,
   contactDetailsCustomFields,
-  addressCustomFields,
   communicationCustomFields,
   customSegments = [],
   avatarFileRef,
@@ -109,10 +105,7 @@ const ContactLayout: React.FC<ContactLayoutProps> = ({
         <ContactDetailsSegment customFields={contactDetailsCustomFields} />
       </FormSection>
       <FormSection title={t('communication-title')} value="communication-channels">
-        <CommunicationSegment customFields={communicationCustomFields} />
-      </FormSection>
-      <FormSection title={t('address-title')} value="address-information">
-        <AddressSegment customFields={addressCustomFields} />
+        <CommunicationSegment customFields={communicationCustomFields} defaultChannelCodes={DEFAULT_CONTACT_CHANNELS} />
       </FormSection>
       {customSegments.map(segment => (
         <FormSection key={segment.id} title={segment.title} value={segment.id}>

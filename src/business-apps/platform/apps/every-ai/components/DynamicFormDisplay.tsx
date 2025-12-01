@@ -2,7 +2,16 @@ import React, { useMemo, useEffect, useState, useCallback, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label, Combobox } from '@newwork/nw-design-system'
 import type { FlowProposalOutput, ConversationTurn } from '../types/models'
 import { useFormSubmission } from './FormSubmissionContext'
-import { useEmployeeSearchLight } from '../queries/employeeQueries'
+import {
+  useEmployeeSearchLight,
+  useAccountSearch,
+  useContactSearch,
+  useLeadSearch,
+  useOpportunitySearch,
+  getEntityTypeFromFieldName,
+  type EntityType
+} from '../queries/employeeQueries'
+import { useVoiceFormContext } from '../context/VoiceFormContext'
 
 interface DynamicFormDisplayProps {
   data: FlowProposalOutput
@@ -10,6 +19,7 @@ interface DynamicFormDisplayProps {
   sendMessage?: (message: string, files: File[]) => void
   conversation?: ConversationTurn[]
   accessToken: string
+  isVoiceMode?: boolean
 }
 
 interface SchemaFieldProps {
@@ -20,6 +30,8 @@ interface SchemaFieldProps {
   disabled?: boolean
   value: any
   onChange: (value: any) => void
+  formData: Record<string, any>
+  onFieldValueChange?: (path: string, value: any) => void
 }
 
 const sanitizeControlId = (value: string): string => value.replace(/[^a-zA-Z0-9-_:.]/g, '-').toLowerCase()
@@ -58,6 +70,8 @@ const SchemaField: React.FC<SchemaFieldProps & { accessToken: string }> = ({
   disabled,
   value,
   onChange,
+  formData,
+  onFieldValueChange,
   accessToken
 }) => {
   const fieldPath = path ? `${path}.${name}` : name
@@ -79,9 +93,97 @@ const SchemaField: React.FC<SchemaFieldProps & { accessToken: string }> = ({
 
   const label = formatFieldName(name)
 
+  // ============================================================================
+  // CONDITIONAL DISPLAY LOGIC
+  // ============================================================================
+
+  const displayCondition = schema?.['x-display']
+
+  // Check if field should be displayed based on condition
+  const shouldShowField = useMemo(() => {
+    if (!displayCondition?.condition) {
+      return true
+    }
+
+    const { field, operator, value: conditionValue } = displayCondition.condition
+
+    // Build the actual field path for the dependent field
+    const dependentFieldPath = path ? `${path}.${field}` : field
+
+    // Get the dependent field value from formData
+    const getNestedValue = (obj: any, path: string): any => {
+      return path.split('.').reduce((current, key) => current?.[key], obj)
+    }
+
+    const fieldValue = getNestedValue(formData, dependentFieldPath)
+
+    // Handle array values (checkboxes, multi-select)
+    if (Array.isArray(fieldValue)) {
+      switch (operator) {
+        case 'equals':
+          // Check if array contains the condition value
+          return fieldValue.includes(conditionValue)
+        case 'notEquals':
+          // Check if array does not contain the condition value
+          return !fieldValue.includes(conditionValue)
+        case 'contains':
+          // Check if any array item contains the condition value
+          return fieldValue.some(v => String(v || '').includes(String(conditionValue || '')))
+        case 'notContains':
+          // Check if no array item contains the condition value
+          return !fieldValue.some(v => String(v || '').includes(String(conditionValue || '')))
+        default:
+          return fieldValue.includes(conditionValue)
+      }
+    }
+
+    // Evaluate condition based on operator for non-array values
+    switch (operator) {
+      case 'equals':
+        // Handle boolean vs string comparison
+        if (typeof fieldValue === 'boolean' && typeof conditionValue === 'string') {
+          return fieldValue === (conditionValue.toLowerCase() === 'yes' || conditionValue.toLowerCase() === 'true')
+        }
+        if (typeof conditionValue === 'boolean' && typeof fieldValue === 'string') {
+          return (fieldValue.toLowerCase() === 'yes' || fieldValue.toLowerCase() === 'true') === conditionValue
+        }
+        return fieldValue === conditionValue
+      case 'notEquals':
+        // Handle boolean vs string comparison
+        if (typeof fieldValue === 'boolean' && typeof conditionValue === 'string') {
+          return fieldValue !== (conditionValue.toLowerCase() === 'yes' || conditionValue.toLowerCase() === 'true')
+        }
+        if (typeof conditionValue === 'boolean' && typeof fieldValue === 'string') {
+          return (fieldValue.toLowerCase() === 'yes' || fieldValue.toLowerCase() === 'true') !== conditionValue
+        }
+        return fieldValue !== conditionValue
+      case 'contains':
+        return String(fieldValue || '').includes(String(conditionValue || ''))
+      case 'notContains':
+        return !String(fieldValue || '').includes(String(conditionValue || ''))
+      default:
+        return fieldValue === conditionValue
+    }
+  }, [displayCondition, formData, path, name])
+
+  // Clear field value when it becomes hidden
+  useEffect(() => {
+    if (!shouldShowField && fieldPath && onFieldValueChange) {
+      const currentValue = value
+      if (currentValue !== undefined && currentValue !== null && currentValue !== '') {
+        onFieldValueChange(fieldPath, '')
+      }
+    }
+  }, [shouldShowField, fieldPath, value, onFieldValueChange])
+
+  // Don't render if condition is not met
+  if (!shouldShowField) {
+    return null
+  }
+
   // Determine if field should be searchable UUID for people/entities
   const employeeTimeFields = ['substituteEmployee', 'approverId']
-  const crmFields = ['ownerEmployee', 'account', 'contact', 'assignedEmployee']
+  const crmFields = ['ownerEmployee', 'account', 'contact', 'lead', 'opportunity', 'assignedEmployee']
   const irmFields = ['ownerEmployee', 'investmentAccount', 'contact']
   const searchableUuidFields = [...employeeTimeFields, ...crmFields, ...irmFields]
   const isSearchableUuidField =
@@ -93,7 +195,9 @@ const SchemaField: React.FC<SchemaFieldProps & { accessToken: string }> = ({
           name.toLowerCase().includes('assigned'))) ||
         name.toLowerCase().includes('approver') ||
         name.toLowerCase().includes('account') ||
-        name.toLowerCase().includes('contact'))) ||
+        name.toLowerCase().includes('contact') ||
+        name.toLowerCase().includes('lead') ||
+        name.toLowerCase().includes('opportunity'))) ||
     name.toLowerCase() === 'substituteemployee' ||
     (name.toLowerCase().includes('substitute') && name.toLowerCase().includes('employee'))
 
@@ -137,11 +241,12 @@ const SchemaField: React.FC<SchemaFieldProps & { accessToken: string }> = ({
         const rawOneOfOptions = schema.oneOf ?? null
 
         if (rawEnumOptions || rawOneOfOptions) {
-          const options = (rawEnumOptions || rawOneOfOptions || []).map((option: any, index: number) => {
-            const rawValue = rawEnumOptions ? option : (option?.const ?? option?.value ?? option)
+          type SelectOption = { id: string; label: string; rawValue: unknown }
+          const options: SelectOption[] = (rawEnumOptions || rawOneOfOptions || []).map((option: unknown, index: number) => {
+            const rawValue = rawEnumOptions ? option : ((option as any)?.const ?? (option as any)?.value ?? option)
             const id = String(toOptionId(rawValue ?? index))
             const labelText = String(
-              rawEnumOptions ? toDisplayString(option) : (option?.title ?? toDisplayString(rawValue))
+              rawEnumOptions ? toDisplayString(option) : ((option as any)?.title ?? toDisplayString(rawValue))
             )
             return {
               id,
@@ -151,7 +256,7 @@ const SchemaField: React.FC<SchemaFieldProps & { accessToken: string }> = ({
           })
 
           const selectedOptionId = String(
-            options.find(opt => deepEquals(opt.rawValue, value))?.id ??
+            options.find((opt: SelectOption) => deepEquals(opt.rawValue, value))?.id ??
               (value === undefined || value === null ? '' : toOptionId(value))
           )
 
@@ -161,7 +266,7 @@ const SchemaField: React.FC<SchemaFieldProps & { accessToken: string }> = ({
               className="gba:w-full gba:rounded-md gba:border gba:border-border gba:bg-card gba:px-3 gba:py-2 gba:text-sm gba:text-foreground focus:gba:outline-none focus:gba:ring-2 focus:gba:ring-primary disabled:gba:cursor-not-allowed disabled:gba:opacity-50"
               value={selectedOptionId}
               onChange={e => {
-                const selected = options.find(opt => opt.id === e.target.value)
+                const selected = options.find((opt: SelectOption) => opt.id === e.target.value)
                 onChange(selected ? selected.rawValue : e.target.value)
               }}
               disabled={disabled}
@@ -169,7 +274,7 @@ const SchemaField: React.FC<SchemaFieldProps & { accessToken: string }> = ({
               <option value="" disabled>
                 Select {String(label)}
               </option>
-              {options.map((option, idx) => (
+              {options.map((option: SelectOption, idx: number) => (
                 <option key={`${controlId}-opt-${idx}`} value={String(option.id)}>
                   {String(option.label)}
                 </option>
@@ -216,12 +321,13 @@ const SchemaField: React.FC<SchemaFieldProps & { accessToken: string }> = ({
           )
         }
 
-        // Searchable UUID for employees (and future entities)
+        // Searchable UUID for employees, accounts, contacts, leads, opportunities
         if (isSearchableUuidField || schema.format === 'uuid') {
           return (
             <SearchableUuidField
               controlId={controlId}
               label={label}
+              fieldName={name}
               accessToken={accessToken}
               disabled={disabled}
               value={typeof value === 'string' ? value : (value ?? '')}
@@ -288,6 +394,8 @@ const SchemaField: React.FC<SchemaFieldProps & { accessToken: string }> = ({
                 disabled={disabled}
                 value={value?.[propName]}
                 onChange={newValue => onChange({ ...value, [propName]: newValue })}
+                formData={formData}
+                onFieldValueChange={onFieldValueChange}
                 accessToken={accessToken}
               />
             ))}
@@ -320,11 +428,12 @@ const SchemaField: React.FC<SchemaFieldProps & { accessToken: string }> = ({
 const SearchableUuidField: React.FC<{
   controlId: string
   label: string
+  fieldName: string
   accessToken: string
   disabled?: boolean
   value: string
   onChange: (val: string) => void
-}> = ({ controlId, label, accessToken, disabled, value, onChange }) => {
+}> = ({ controlId, label, fieldName, accessToken, disabled, value, onChange }) => {
   const [search, setSearch] = useState<string>('')
   const [debouncedSearch, setDebouncedSearch] = useState<string>('')
 
@@ -333,16 +442,88 @@ const SearchableUuidField: React.FC<{
     return () => clearTimeout(t)
   }, [search])
 
-  const { employees, isLoading } = useEmployeeSearchLight(accessToken, { search: debouncedSearch, limit: 200 })
+  // Determine entity type from field name
+  const entityType: EntityType = getEntityTypeFromFieldName(fieldName)
 
-  const options = useMemo(
-    () =>
-      employees.map(e => ({
-        value: e.id,
-        label: `${e.firstName ?? ''} ${e.lastName ?? ''}`.trim() || e.id
-      })),
-    [employees]
+  // Use appropriate search hook based on entity type
+  const { employees, isLoading: employeeLoading } = useEmployeeSearchLight(
+    entityType === 'employee' ? accessToken : '',
+    { search: entityType === 'employee' ? debouncedSearch : '', limit: 50 }
   )
+  const { accounts, isLoading: accountLoading } = useAccountSearch(
+    entityType === 'account' ? accessToken : '',
+    { search: entityType === 'account' ? debouncedSearch : '', limit: 50 }
+  )
+  const { contacts, isLoading: contactLoading } = useContactSearch(
+    entityType === 'contact' ? accessToken : '',
+    { search: entityType === 'contact' ? debouncedSearch : '', limit: 50 }
+  )
+  const { leads, isLoading: leadLoading } = useLeadSearch(
+    entityType === 'lead' ? accessToken : '',
+    { search: entityType === 'lead' ? debouncedSearch : '', limit: 50 }
+  )
+  const { opportunities, isLoading: opportunityLoading } = useOpportunitySearch(
+    entityType === 'opportunity' ? accessToken : '',
+    { search: entityType === 'opportunity' ? debouncedSearch : '', limit: 50 }
+  )
+
+  // Get options and loading state based on entity type
+  const { options, isLoading } = useMemo(() => {
+    switch (entityType) {
+      case 'account':
+        return {
+          options: accounts.map(a => ({
+            value: a.id,
+            label: a.name || a.email || a.id
+          })),
+          isLoading: accountLoading
+        }
+      case 'contact':
+        return {
+          options: contacts.map(c => ({
+            value: c.id,
+            label: `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim() || c.email || c.id
+          })),
+          isLoading: contactLoading
+        }
+      case 'lead':
+        return {
+          options: leads.map(l => ({
+            value: l.id,
+            label: `${l.firstName ?? ''} ${l.lastName ?? ''}`.trim() + (l.companyName ? ` (${l.companyName})` : '') || l.email || l.id
+          })),
+          isLoading: leadLoading
+        }
+      case 'opportunity':
+        return {
+          options: opportunities.map(o => ({
+            value: o.id,
+            label: o.name || o.code || o.id
+          })),
+          isLoading: opportunityLoading
+        }
+      case 'employee':
+      default:
+        return {
+          options: employees.map(e => ({
+            value: e.id,
+            label: `${e.firstName ?? ''} ${e.lastName ?? ''}`.trim() || e.id
+          })),
+          isLoading: employeeLoading
+        }
+    }
+  }, [entityType, employees, accounts, contacts, leads, opportunities, employeeLoading, accountLoading, contactLoading, leadLoading, opportunityLoading])
+
+  // Get placeholder text based on entity type
+  const placeholderText = useMemo(() => {
+    switch (entityType) {
+      case 'account': return 'Search accounts...'
+      case 'contact': return 'Search contacts...'
+      case 'lead': return 'Search leads...'
+      case 'opportunity': return 'Search opportunities...'
+      default: return 'Search employees...'
+    }
+  }, [entityType])
 
   return (
     <div>
@@ -353,7 +534,7 @@ const SearchableUuidField: React.FC<{
         value={value || ''}
         onValueChange={v => onChange(v || '')}
         placeholder={`Select ${label}`}
-        searchPlaceholder="Type to search..."
+        searchPlaceholder={placeholderText}
         emptyText={isLoading ? 'Loading...' : 'No results'}
         onSearch={setSearch}
         searchDebounce={300}
@@ -370,20 +551,224 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
   onCancel,
   sendMessage,
   conversation = [],
-  accessToken
+  accessToken,
+  isVoiceMode = false
 }) => {
   const { getFormState, setFormState, clearFormState } = useFormSubmission()
+  const voiceFormContext = useVoiceFormContext()
 
   const formKey = useMemo(() => `form-${data.uuid || data.flow_name || 'default'}`, [data.uuid, data.flow_name])
+
+  // Helper functions for localStorage persistence of submitted forms
+  const SUBMITTED_FORMS_KEY = 'everyai-submitted-forms'
+
+  const markFormAsSubmitted = useCallback((formId: string) => {
+    try {
+      const stored = localStorage.getItem(SUBMITTED_FORMS_KEY)
+      const forms: string[] = stored ? JSON.parse(stored) : []
+      if (!forms.includes(formId)) {
+        forms.push(formId)
+      }
+      // Keep only the last 100 forms to prevent localStorage bloat
+      const trimmedForms = forms.slice(-100)
+      localStorage.setItem(SUBMITTED_FORMS_KEY, JSON.stringify(trimmedForms))
+      console.log('[DynamicFormDisplay] Marked form as submitted in localStorage:', formId)
+    } catch (e) {
+      console.warn('[DynamicFormDisplay] Failed to save to localStorage:', e)
+    }
+  }, [])
 
   const currentFormState = getFormState(formKey)
   const [uiState, setUiState] = useState(currentFormState)
   const [formData, setFormData] = useState<Record<string, any>>({})
+  const formDataRef = useRef<Record<string, any>>({})
   const formSubmissionTurnIndexRef = useRef<number>(-1)
+  const initialCheckDoneRef = useRef(false)
+  const [initialCheckComplete, setInitialCheckComplete] = useState(false)
+  const submissionTriggeredRef = useRef(false)
+
+  // Keep formDataRef in sync with formData state
+  useEffect(() => {
+    formDataRef.current = formData
+  }, [formData])
+
+  // Handler for clearing hidden field values
+  const handleFieldValueChange = useCallback((path: string, value: any) => {
+    setFormData(prev => {
+      const newData = { ...prev }
+      const pathParts = path.split('.')
+
+      // Navigate to the parent object
+      let current: any = newData
+      for (let i = 0; i < pathParts.length - 1; i++) {
+        if (!current[pathParts[i]]) {
+          current[pathParts[i]] = {}
+        }
+        current = current[pathParts[i]]
+      }
+
+      // Set the value
+      current[pathParts[pathParts.length - 1]] = value
+
+      return newData
+    })
+  }, [])
 
   useEffect(() => {
     setUiState(currentFormState)
   }, [JSON.stringify(currentFormState)])
+
+  // Check if form was already submitted - runs once on mount
+  const initialSubmitCheckRef = useRef(false)
+  useEffect(() => {
+    if (initialSubmitCheckRef.current) return
+    initialSubmitCheckRef.current = true
+
+    // Check localStorage first
+    const formId = data.uuid || formKey
+    try {
+      const stored = localStorage.getItem(SUBMITTED_FORMS_KEY)
+      const submittedForms: string[] = stored ? JSON.parse(stored) : []
+      if (submittedForms.includes(formId)) {
+        console.log('[DynamicFormDisplay] Form found in localStorage as submitted:', formId)
+        submissionTriggeredRef.current = true
+        setInitialCheckComplete(true)
+        return
+      }
+    } catch {
+      // localStorage not available
+    }
+
+    // Mark initial check complete
+    setInitialCheckComplete(true)
+  }, []) // Empty dependency array - only run once on mount
+
+  // Check conversation history for submission (fallback)
+  useEffect(() => {
+    // If we already found a submission/cancellation, don't re-check
+    if (submissionTriggeredRef.current) {
+      if (!initialCheckComplete) setInitialCheckComplete(true)
+      return
+    }
+
+    // If conversation is empty, we can still proceed with voice registration
+    // (new forms won't be in conversation history anyway)
+    if (conversation.length === 0) {
+      console.log('[DynamicFormDisplay] Conversation empty - marking check complete for new form')
+      setInitialCheckComplete(true)
+      return
+    }
+
+    // Mark that we've done the check (but allow re-check if conversation changes)
+    if (initialCheckDoneRef.current && initialCheckComplete) return
+    initialCheckDoneRef.current = true
+
+    console.log('[DynamicFormDisplay] === INITIAL CHECK ===')
+    console.log('[DynamicFormDisplay] This form uuid:', data.uuid)
+    console.log('[DynamicFormDisplay] This form flow_name:', data.flow_name)
+    console.log('[DynamicFormDisplay] Conversation length:', conversation.length)
+
+    // Look for ANY form_submission in the conversation that matches this form
+    // We check ALL user turns for a submission matching this form's flow_name
+    let foundSubmission = false
+    let foundCancellation = false
+
+    for (let i = 0; i < conversation.length; i++) {
+      const turn = conversation[i]
+      if (turn.side === 'user' && turn.text) {
+        // Debug: log user turn text (first 150 chars)
+        console.log('[DynamicFormDisplay] User turn', i, ':', turn.text.substring(0, 150))
+
+        // Check for Cancel
+        if (turn.text === 'Cancel') {
+          console.log('[DynamicFormDisplay] Found Cancel at turn:', i)
+          foundCancellation = true
+          continue
+        }
+
+        // Check for form submission JSON
+        try {
+          const parsed = JSON.parse(turn.text)
+          if (parsed?.action === 'form_submission') {
+            console.log('[DynamicFormDisplay] Found form_submission at turn:', i, 'uuid:', parsed?.uuid, 'flow_name:', parsed?.flow_name)
+            // Match by UUID, flow_name, or if this form has no UUID yet, match by flow_name
+            const uuidMatch = parsed?.uuid && data.uuid && parsed.uuid === data.uuid
+            const flowNameMatch = parsed?.flow_name && data.flow_name && parsed.flow_name === data.flow_name
+            if (uuidMatch || flowNameMatch) {
+              console.log('[DynamicFormDisplay] MATCH! Form was submitted.')
+              foundSubmission = true
+              formSubmissionTurnIndexRef.current = i
+              submissionTriggeredRef.current = true
+
+              // Check for completion or error in subsequent turns
+              const turnsAfter = conversation.slice(i + 1)
+              let hasError = false
+              let hasAnswer = false
+
+              for (const laterTurn of turnsAfter) {
+                if (laterTurn.side === 'agent' && 'outputs' in laterTurn) {
+                  if (laterTurn.outputs.some(o => o.type === 'error')) {
+                    hasError = true
+                    break
+                  }
+                  if (laterTurn.outputs.some(o => o.type === 'answer')) {
+                    hasAnswer = true
+                    break
+                  }
+                }
+              }
+
+              // Mark as already submitted
+              setFormState(formKey, {
+                isSubmitted: true,
+                isCancelled: false,
+                isLoading: false,
+                isFlowCompleted: hasAnswer,
+                hasError: hasError
+              })
+              setUiState({
+                isSubmitted: true,
+                isCancelled: false,
+                isLoading: false,
+                isFlowCompleted: hasAnswer,
+                hasError: hasError
+              })
+              break
+            }
+          }
+        } catch {
+          // Not JSON, ignore
+        }
+      }
+    }
+
+    // If we found cancellation but no submission, mark as cancelled
+    if (!foundSubmission && foundCancellation) {
+      console.log('[DynamicFormDisplay] Form was cancelled (no submission found)')
+      submissionTriggeredRef.current = true
+      setFormState(formKey, {
+        isSubmitted: false,
+        isCancelled: true,
+        isLoading: false,
+        isFlowCompleted: false,
+        hasError: false
+      })
+      setUiState({
+        isSubmitted: false,
+        isCancelled: true,
+        isLoading: false,
+        isFlowCompleted: false,
+        hasError: false
+      })
+    }
+
+    if (!foundSubmission && !foundCancellation) {
+      console.log('[DynamicFormDisplay] No submission or cancellation found - form is active')
+    }
+
+    // Mark initial check as complete to allow voice registration
+    setInitialCheckComplete(true)
+  }, [conversation, data.uuid, data.flow_name, formKey, setFormState])
 
   // Extract initial form values
   const { initialValues, objectKey, sourceType } = useMemo(() => {
@@ -490,20 +875,26 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
       })
 
       try {
+        // Use formDataRef.current to get the latest form data
+        // This is important because voice commands might update formData
+        // and submit before React has a chance to re-render
+        const currentFormData = formDataRef.current
+        console.log('[DynamicFormDisplay] Submitting with formData:', currentFormData)
+
         const updatedArguments = { ...data.arguments }
         if (objectKey && sourceType === 'task' && updatedArguments.task?.[objectKey]) {
           updatedArguments.task = {
             ...updatedArguments.task,
-            [objectKey]: formData
+            [objectKey]: currentFormData
           }
         } else if (objectKey && sourceType === 'flow' && updatedArguments.flow?.[objectKey]) {
           updatedArguments.flow = {
             ...updatedArguments.flow,
-            [objectKey]: formData
+            [objectKey]: currentFormData
           }
         } else {
           updatedArguments.flow = {
-            ...formData,
+            ...currentFormData,
             ...(updatedArguments.flow?.changeMode ? { changeMode: updatedArguments.flow.changeMode } : {})
           }
         }
@@ -525,6 +916,10 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
           )
 
           sendMessage(formDataMessage, [])
+
+          // Mark form as submitted in localStorage for persistence across refreshes
+          const formId = data.uuid || formKey
+          markFormAsSubmitted(formId)
 
           setFormState(formKey, {
             isSubmitted: true,
@@ -558,7 +953,7 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
         })
       }
     },
-    [formData, data, formKey, currentFormState, setFormState, sendMessage, objectKey, sourceType]
+    [formData, data, formKey, currentFormState, setFormState, sendMessage, objectKey, sourceType, markFormAsSubmitted]
   )
 
   const handleCancel = useCallback(() => {
@@ -705,7 +1100,11 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
     fields: [string, any][]
     requiredFields: string[]
     isCompleted: boolean
-  }> = ({ fields, requiredFields, isCompleted }) => {
+    formData: Record<string, any>
+    onFieldValueChange: (path: string, value: any) => void
+    onFieldChange: (fieldName: string, value: any) => void
+    accessToken: string
+  }> = ({ fields, requiredFields, isCompleted, formData, onFieldValueChange, onFieldChange, accessToken }) => {
     const [open, setOpen] = useState(false)
     const hiddenMissingCount = useMemo(() => {
       return fields.reduce((acc, [fname]) => {
@@ -746,7 +1145,9 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
               required={requiredFields.includes(fieldName)}
               disabled={isCompleted}
               value={formData[fieldName]}
-              onChange={value => setFormData(prev => ({ ...prev, [fieldName]: value }))}
+              onChange={value => onFieldChange(fieldName, value)}
+              formData={formData}
+              onFieldValueChange={onFieldValueChange}
               accessToken={accessToken}
             />
           ))}
@@ -757,9 +1158,7 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
 
   useEffect(() => {
     console.debug('[EveryAI][DynamicFormDisplay] schema', schema)
-
     console.debug('[EveryAI][DynamicFormDisplay] fields', fields)
-
     console.debug('[EveryAI][DynamicFormDisplay] formData', formData)
   }, [schema, fields, formData])
 
@@ -769,6 +1168,127 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
   const isFlowCompleted = currentFormState.isFlowCompleted || uiState.isFlowCompleted
   const hasError = currentFormState.hasError || uiState.hasError
   const isCompleted = isSubmitted || isCancelled
+
+  // Track if we've registered this form for voice mode (prevents duplicate summaries)
+  const voiceFormRegisteredRef = useRef<string | null>(null)
+
+  // Store latest handlers in refs so they're always up-to-date without triggering re-registration
+  const submitHandlerRef = useRef(() => {})
+  const cancelHandlerRef = useRef(() => {})
+  const updateFieldRef = useRef((_field: string, _value: any) => {})
+
+  useEffect(() => {
+    submitHandlerRef.current = () => {
+      if (!currentFormState.isSubmitted && !currentFormState.isLoading && !submissionTriggeredRef.current) {
+        console.log('[Voice] Submit handler triggered')
+        submissionTriggeredRef.current = true // Prevent re-registration
+        const fakeEvent = { preventDefault: () => {} } as React.FormEvent
+        handleSubmit(fakeEvent)
+      }
+    }
+  }, [currentFormState.isSubmitted, currentFormState.isLoading, handleSubmit])
+
+  useEffect(() => {
+    cancelHandlerRef.current = () => {
+      if (!currentFormState.isCancelled && !currentFormState.isLoading && !submissionTriggeredRef.current) {
+        console.log('[Voice] Cancel handler triggered')
+        submissionTriggeredRef.current = true // Prevent re-registration
+        handleCancel()
+      }
+    }
+  }, [currentFormState.isCancelled, currentFormState.isLoading, handleCancel])
+
+  useEffect(() => {
+    updateFieldRef.current = (fieldName: string, value: any) => {
+      const normalizedSearch = fieldName.toLowerCase().replace(/\s+/g, '')
+      const matchingField = fields.find(([key]) => {
+        const normalizedKey = key.toLowerCase().replace(/\s+/g, '')
+        return normalizedKey === normalizedSearch || normalizedKey.includes(normalizedSearch)
+      })
+      if (matchingField) {
+        // Update both state AND ref immediately
+        // The ref update is critical because user might submit before React re-renders
+        const newFormData = { ...formDataRef.current, [matchingField[0]]: value }
+        formDataRef.current = newFormData
+        setFormData(newFormData)
+        console.log(`[Voice] Updated field "${matchingField[0]}" to "${value}"`)
+        console.log('[Voice] formDataRef.current is now:', formDataRef.current)
+        // Also keep the VoiceFormContext's active form snapshot in sync so the overlay reflects changes
+        const ctx = voiceFormContextRef.current
+        const currentUuid = data.uuid || formKey
+        if (ctx?.activeForm?.uuid === currentUuid) {
+          ctx.setActiveForm({
+            ...ctx.activeForm,
+            formData: newFormData
+          })
+        }
+      } else {
+        console.log(`[Voice] Could not find field matching "${fieldName}". Available fields:`, fields.map(f => f[0]))
+      }
+    }
+  }, [fields])
+
+  // Register form with voice context ONCE when entering voice mode
+  // Store stable references to avoid effect re-runs
+  const dataRef = useRef(data)
+  useEffect(() => {
+    dataRef.current = data
+  }, [data])
+
+  // Store voiceFormContext in a ref to avoid triggering effect re-runs
+  const voiceFormContextRef = useRef(voiceFormContext)
+  useEffect(() => {
+    voiceFormContextRef.current = voiceFormContext
+  }, [voiceFormContext])
+
+  // Track if we've registered THIS form to prevent double registration
+  const hasRegisteredThisFormRef = useRef(false)
+
+  useEffect(() => {
+    const formUuid = data.uuid || formKey
+    const ctx = voiceFormContextRef.current
+
+    // Wait for initial check to complete before registering
+    if (!initialCheckComplete) {
+      return
+    }
+
+    // Determine if we should be registered
+    const shouldBeRegistered = isVoiceMode && ctx && !isCompleted && !submissionTriggeredRef.current
+
+    if (shouldBeRegistered && !hasRegisteredThisFormRef.current) {
+      // Register
+      console.log('[Voice] ✅ Registering form:', formUuid)
+      hasRegisteredThisFormRef.current = true
+      voiceFormRegisteredRef.current = formUuid
+
+      // Only set if different to avoid unnecessary provider updates
+      if (ctx.activeForm?.uuid !== formUuid) {
+        ctx.setActiveForm({
+          uuid: formUuid,
+          flowName: data.flow_name || 'Form',
+          moduleName: data.module_name || '',
+          data: dataRef.current,
+          formData: formDataRef.current,
+          submitHandler: () => submitHandlerRef.current(),
+          cancelHandler: () => cancelHandlerRef.current(),
+          updateField: (field, value) => updateFieldRef.current(field, value)
+        })
+      }
+    } else if (!shouldBeRegistered && hasRegisteredThisFormRef.current) {
+      // Unregister
+      console.log('[Voice] Unregistering form:', formUuid)
+      hasRegisteredThisFormRef.current = false
+      voiceFormRegisteredRef.current = null
+      // Only clear if we're the active one
+      if (ctx?.activeForm?.uuid === formUuid) {
+        ctx.setActiveForm(null)
+      }
+    }
+
+    // Intentionally no cleanup here to avoid thrashing on re-renders.
+    // We explicitly unregister above when conditions change, and on voice mode exit.
+  }, [isVoiceMode, isCompleted, initialCheckComplete, data.uuid, formKey, data.flow_name, data.module_name])
 
   return (
     <Card
@@ -812,6 +1332,8 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
                     disabled={isCompleted}
                     value={formData[fieldName]}
                     onChange={value => setFormData(prev => ({ ...prev, [fieldName]: value }))}
+                    formData={formData}
+                    onFieldValueChange={handleFieldValueChange}
                     accessToken={accessToken}
                   />
                 )
@@ -830,6 +1352,10 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
                 fields={secondaryFields}
                 requiredFields={requiredFields}
                 isCompleted={isCompleted}
+                formData={formData}
+                onFieldValueChange={handleFieldValueChange}
+                onFieldChange={(fieldName, value) => setFormData(prev => ({ ...prev, [fieldName]: value }))}
+                accessToken={accessToken}
               />
             )}
           </div>

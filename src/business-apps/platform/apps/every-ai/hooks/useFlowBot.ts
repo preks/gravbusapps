@@ -15,6 +15,8 @@ function resolveFlowbotBaseUrl(): string {
   return env('NEXT_PUBLIC_FLOWBOT_ENDPOINT') || env('NEXT_PUBLIC_BASE_URL') || DEFAULT_FLOWBOT_BASE_URL
 }
 
+const FLOWBOT_BASE_URL = resolveFlowbotBaseUrl()
+
 type ConversationState = {
   conversation: ConversationTurn[]
   sessionId: string | null
@@ -82,10 +84,8 @@ function loadState(): ConversationState {
 async function loadHistory(accessToken: string, sessionId: string | null): Promise<ConversationState> {
   if (!sessionId) return { conversation: [], sessionId: null }
 
-  const baseUrl = env('NEXT_PUBLIC_FLOWBOT') || resolveFlowbotBaseUrl()
-
   try {
-    const res = await fetch(`${baseUrl}/flowbot/api/agent/session/${sessionId}/history`, {
+    const res = await fetch(`${FLOWBOT_BASE_URL}/flowbot/api/agent/session/${sessionId}/history`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -478,8 +478,18 @@ export function useFlowBot(accessToken: string) {
 
         files.forEach(file => form.append('files', file))
 
-        const baseUrl = env('NEXT_PUBLIC_BASE_URL') || 'https://newwork-dev.newwork.com'
+        // Use local FlowBot in development
+        const isLocalDev = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+        const baseUrl = isLocalDev
+          ? 'http://localhost:8000'
+          : FLOWBOT_BASE_URL
         const url = `${baseUrl}/flowbot/api/agent/v2/chat`
+
+        // Debug log only in development
+        if (isLocalDev) {
+          console.log('📤 [FlowBot] Sending to local:', userInputText.substring(0, 50))
+        }
+
         const res = await fetch(url, {
           method: 'POST',
           headers: {
@@ -567,7 +577,6 @@ export function useFlowBot(accessToken: string) {
       isPrechatLoadingRef.current = true
       setPrechatSuggestions([])
       setIsPrechatLoading(true)
-      const baseUrl = env('NEXT_PUBLIC_BASE_URL') || 'https://newwork-dev.newwork.com'
 
       const form = new FormData()
       // For prechat suggestions we only need lightweight page context without analytics
@@ -593,7 +602,7 @@ export function useFlowBot(accessToken: string) {
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 3000) // 3 second timeout
 
-      const res = await fetch(`${baseUrl}/flowbot/api/agent/prechat-suggestions`, {
+      const res = await fetch(`${FLOWBOT_BASE_URL}/flowbot/api/agent/prechat-suggestions`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${accessToken}`

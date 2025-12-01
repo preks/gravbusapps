@@ -19,6 +19,7 @@ interface ConversationRendererProps {
   ) => Promise<void>
   userInfo?: UserInfoProps
   pictureThumbnail: string | null
+  isVoiceMode?: boolean
 }
 
 // Build text with mentions
@@ -48,7 +49,8 @@ export const ConversationRenderer: React.FC<ConversationRendererProps> = ({
   accessToken,
   sendMessage,
   userInfo,
-  pictureThumbnail
+  pictureThumbnail,
+  isVoiceMode = false
 }) => {
   return (
     <div className="gba:flex gba:flex-col gba:gap-6">
@@ -165,6 +167,7 @@ export const ConversationRenderer: React.FC<ConversationRendererProps> = ({
                     accessToken={accessToken}
                     sendMessage={sendMessage}
                     conversation={turns}
+                    isVoiceMode={isVoiceMode}
                   />
                 )
               })}
