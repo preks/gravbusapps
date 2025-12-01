@@ -259,55 +259,6 @@ const HomeView: React.FC<HomeViewProps> = ({ contactId, contactData, ...props })
         data-testid="contact-investment-section-wrapper"
       />
 
-      {/* Activities & Notes - 1/2 width, spans 2 rows - EXACT MATCH TO LEAD */}
-      <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2"
-        sections={[
-          {
-            id: 'activities-section',
-            component: ActivitySection,
-            props: {
-              ...props,
-              activities: activities,
-              activitiesLoading: sectionsLoading,
-              activitiesError: sectionsError,
-              onReloadActivities: loadSectionData,
-              activitySectionActionProps: {
-                contextsArray: [FlowContextName.investmentActivityCreate],
-                externalContextData: { contactId },
-                prefixDataTestId: 'contact-activities'
-              },
-              activityEntityActionProps: {
-                contextsArray: [FlowContextName.investmentActivityEntity],
-                externalContextData: { contactId },
-                prefixDataTestId: 'contact-activity-entity'
-              }
-            }
-          },
-          {
-            id: 'notes-section',
-            component: NoteSection as React.ComponentType<any>,
-            props: {
-              ...props,
-              notes: notes,
-              noteActionProps: {
-                contextsArray: [FlowContextName.investmentNoteCreate],
-                externalContextData: { contactId },
-                prefixDataTestId: 'contact-notes',
-                emptyStateBehavior: 'enable'
-              },
-              noteEntityActionProps: {
-                contextsArray: [FlowContextName.investmentNoteEntity],
-                externalContextData: { contactId },
-                prefixDataTestId: 'contact-note-entity',
-                emptyStateBehavior: 'enable'
-              }
-            }
-          }
-        ]}
-        data-testid="contact-activities-notes-section-wrapper"
-      />
-
       {/* Tasks & Approvals - 1/2 width, spans 2 rows - EXACT MATCH TO LEAD */}
       <SectionWrapper
         className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2"
@@ -362,6 +313,55 @@ const HomeView: React.FC<HomeViewProps> = ({ contactId, contactData, ...props })
           }
         ]}
         data-testid="contact-tasks-approvals-section-wrapper"
+      />
+
+      {/* Activities & Notes - 1/2 width, spans 2 rows - EXACT MATCH TO LEAD */}
+      <SectionWrapper
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2"
+        sections={[
+          {
+            id: 'activities-section',
+            component: ActivitySection,
+            props: {
+              ...props,
+              activities: activities,
+              activitiesLoading: sectionsLoading,
+              activitiesError: sectionsError,
+              onReloadActivities: loadSectionData,
+              activitySectionActionProps: {
+                contextsArray: [FlowContextName.investmentActivityCreate],
+                externalContextData: { contactId },
+                prefixDataTestId: 'contact-activities'
+              },
+              activityEntityActionProps: {
+                contextsArray: [FlowContextName.investmentActivityEntity],
+                externalContextData: { contactId },
+                prefixDataTestId: 'contact-activity-entity'
+              }
+            }
+          },
+          {
+            id: 'notes-section',
+            component: NoteSection as React.ComponentType<any>,
+            props: {
+              ...props,
+              notes: notes,
+              noteActionProps: {
+                contextsArray: [FlowContextName.investmentNoteCreate],
+                externalContextData: { contactId },
+                prefixDataTestId: 'contact-notes',
+                emptyStateBehavior: 'enable'
+              },
+              noteEntityActionProps: {
+                contextsArray: [FlowContextName.investmentNoteEntity],
+                externalContextData: { contactId },
+                prefixDataTestId: 'contact-note-entity',
+                emptyStateBehavior: 'enable'
+              }
+            }
+          }
+        ]}
+        data-testid="contact-activities-notes-section-wrapper"
       />
     </>
   )
