@@ -40,8 +40,31 @@ await loadRemoteComponent({
 | `version` | string | No | Version for versioned URLs |
 | `exposedLibraries` | ExposedLibrary[] | No | Additional libraries to expose |
 | `timeout` | number | No | Loading timeout in ms (default: 5000) |
+| `cacheKey` | string | No | Custom cache key for component isolation (defaults to componentName) |
 
 \*Either `componentPath` or `componentUrl` must be provided.
+
+### Component Isolation with cacheKey
+
+Use `cacheKey` when you need to load the same component multiple times with different data:
+
+```typescript
+// Without cacheKey - all instances share same window[componentName]
+await loadRemoteComponent({
+  componentPath: '/fin/expenses/forms/approve-expense-plan',
+  componentName: 'ApproveExpensePlan'
+})
+
+// With cacheKey - each instance gets isolated registration
+await loadRemoteComponent({
+  componentPath: '/fin/expenses/forms/approve-expense-plan',
+  componentName: 'ApproveExpensePlan',
+  cacheKey: `ApproveExpensePlan-task-${taskId}` // Unique per task
+})
+
+// Access with cacheKey
+const Component = (window as any)['ApproveExpensePlan-task-123']
+```
 
 ### `exposeRequiredDependencies()`
 

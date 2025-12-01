@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react'
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   loadRemoteComponent,
@@ -13,6 +13,20 @@ import { Button } from '@newwork/nw-design-system'
 const REMOTE_COMPONENT_CDN_BASE_DEV = 'https://nwcdndevfiles.blob.core.windows.net/screens'
 const REMOTE_COMPONENT_CDN_BASE_PROD = 'https://nwcdnprodfiles.blob.core.windows.net/screens'
 
+// Token refresh event names (matching gravity-platform)
+const TOKEN_REFRESH_EVENT = 'com.newwork.token.shouldRefreshAuthorizationHeader'
+const MOBILE_TOKEN_UPDATED_EVENT = 'com.newwork.mobile.token.updated'
+
+// Interface for component props passed to loaded remote component
+interface RemoteComponentPassedProps {
+  accessToken: string
+  userInfo: BusinessAppContextProps['userInfo']
+  additionalData: BusinessAppContextProps['additionalData']
+  onClose: () => void
+  onTaskCompleted?: (taskId: string) => void
+  onTaskUpdated: () => void
+}
+
 interface RemoteScreenLoaderProps extends BusinessAppContextProps {
   componentPath: string
   version?: string
@@ -20,6 +34,8 @@ interface RemoteScreenLoaderProps extends BusinessAppContextProps {
   onTaskCompleted?: (taskId: string) => void
   onTaskUpdated: () => void
   isLoadingMetadata?: boolean // Flag to show spinner while parent is loading metadata
+  /** Custom cache key for component isolation (useful for loading same component multiple times) */
+  cacheKey?: string
 }
 
 /**
@@ -48,12 +64,24 @@ export const RemoteScreenLoader: React.FC<RemoteScreenLoaderProps> = ({
   onClose,
   onTaskCompleted,
   onTaskUpdated,
-  isLoadingMetadata = false
+  isLoadingMetadata = false,
+  cacheKey: propCacheKey
 }) => {
   const [loading, setLoading] = useState(false)
   const [component, setComponent] = useState<React.ComponentType<any> | null>(null)
   const [error, setError] = useState<string | null>(null)
   const prevVersionRef = useRef<string | undefined>(undefined)
+  const prevCacheKeyRef = useRef<string | undefined>(undefined)
+
+  // State for component props - allows hot-swapping token on refresh
+  const [componentProps, setComponentProps] = useState<RemoteComponentPassedProps>({
+    accessToken,
+    userInfo,
+    additionalData,
+    onClose,
+    onTaskCompleted,
+    onTaskUpdated
+  })
 
   // Extract component name from path (last segment in PascalCase)
   const componentName = useMemo(() => {
@@ -74,6 +102,11 @@ export const RemoteScreenLoader: React.FC<RemoteScreenLoaderProps> = ({
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join('')
   }, [componentPath])
+
+  // Compute effective cache key (use prop if provided, else componentName)
+  const cacheKey = useMemo(() => {
+    return propCacheKey || componentName
+  }, [propCacheKey, componentName])
 
   // CDN base URL - use PROD when version is provided (published screen), DEV otherwise
   // This matches the gravity-platform logic in RenderRemoteComponent.tsx
@@ -104,6 +137,73 @@ export const RemoteScreenLoader: React.FC<RemoteScreenLoaderProps> = ({
   useEffect(() => {
     exposeRequiredDependencies()
   }, [])
+
+  // Update component props when parent props change
+  useEffect(() => {
+    setComponentProps(prev => ({
+      ...prev,
+      accessToken,
+      userInfo,
+      additionalData,
+      onClose,
+      onTaskCompleted,
+      onTaskUpdated
+    }))
+  }, [accessToken, userInfo, additionalData, onClose, onTaskCompleted, onTaskUpdated])
+
+  // Token refresh handler - hot-swaps accessToken when Keycloak refreshes
+  const handleTokenRefresh = useCallback(() => {
+    // Try to get the latest token from window (Keycloak stores it there)
+    const windowAny = window as any
+    let latestToken: string | undefined
+
+    // Priority 1: Keycloak instance token
+    if (windowAny.keycloak?.token) {
+      latestToken = windowAny.keycloak.token
+    }
+    // Priority 2: Session storage (mobile apps)
+    else {
+      try {
+        latestToken = sessionStorage.getItem('com.newwork.mobile.accessToken') || undefined
+      } catch {
+        // Ignore sessionStorage errors
+      }
+    }
+
+    // If we got a new token, hot-swap it
+    if (latestToken && latestToken !== componentProps.accessToken) {
+      console.log('[RemoteScreenLoader] Token refreshed, updating component props')
+      setComponentProps(prev => ({
+        ...prev,
+        accessToken: latestToken!
+      }))
+    }
+  }, [componentProps.accessToken])
+
+  // Listen for token refresh events
+  useEffect(() => {
+    // Handle Keycloak token refresh
+    const onKeycloakRefresh = () => {
+      console.log('[RemoteScreenLoader] Keycloak token refresh event received')
+      handleTokenRefresh()
+    }
+
+    // Handle mobile token update
+    const onMobileTokenUpdate = () => {
+      console.log('[RemoteScreenLoader] Mobile token update event received')
+      handleTokenRefresh()
+    }
+
+    // Add event listeners
+    window.addEventListener(TOKEN_REFRESH_EVENT, onKeycloakRefresh)
+    window.addEventListener(MOBILE_TOKEN_UPDATED_EVENT, onMobileTokenUpdate)
+
+    // Cleanup on unmount
+    return () => {
+      window.removeEventListener(TOKEN_REFRESH_EVENT, onKeycloakRefresh)
+      window.removeEventListener(MOBILE_TOKEN_UPDATED_EVENT, onMobileTokenUpdate)
+    }
+  }, [handleTokenRefresh])
 
   // Load CSS when cssUrl changes (matching gravity-platform pattern)
   useEffect(() => {
@@ -151,25 +251,43 @@ export const RemoteScreenLoader: React.FC<RemoteScreenLoaderProps> = ({
     // Only gets removed when a different version is loaded
   }, [cssUrl, componentPath, componentName, version])
 
-  // Clean up stale cache when switching between different versions
+  // Clean up stale cache when switching between different versions or cache keys
   useEffect(() => {
-    const prev = prevVersionRef.current
-    const curr = version
+    const prevVersion = prevVersionRef.current
+    const currVersion = version
+    const prevKey = prevCacheKeyRef.current
+    const currKey = cacheKey
 
-    if (prev !== undefined && curr !== undefined && prev !== curr) {
-      // Version changed - clean up old component from globalThis
+    // Clean up if version changed
+    if (prevVersion !== undefined && currVersion !== undefined && prevVersion !== currVersion) {
       try {
-        console.log(`[RemoteScreenLoader] Version changed from ${prev} to ${curr}, cleaning up cache`)
-        delete (globalThis as any)[componentName]
+        console.log(`[RemoteScreenLoader] Version changed from ${prevVersion} to ${currVersion}, cleaning up cache`)
+        delete (globalThis as any)[cacheKey]
       } catch {
         // Ignore cleanup errors
       }
     }
 
-    prevVersionRef.current = curr
-  }, [version, componentName])
+    // Clean up old cache key if it changed
+    if (prevKey !== undefined && currKey !== undefined && prevKey !== currKey) {
+      try {
+        console.log(`[RemoteScreenLoader] Cache key changed from ${prevKey} to ${currKey}, cleaning up old cache`)
+        delete (globalThis as any)[prevKey]
+        // Also remove the old script
+        const oldScript = document.querySelector(`script[data-component-key="${prevKey}"]`)
+        if (oldScript) {
+          oldScript.remove()
+        }
+      } catch {
+        // Ignore cleanup errors
+      }
+    }
 
-  // Load the component when path or version changes
+    prevVersionRef.current = currVersion
+    prevCacheKeyRef.current = currKey
+  }, [version, cacheKey])
+
+  // Load the component when path, version, or cacheKey changes
   useEffect(() => {
     // Don't load if still waiting for metadata or no componentPath
     if (isLoadingMetadata || !componentPath) {
@@ -178,12 +296,23 @@ export const RemoteScreenLoader: React.FC<RemoteScreenLoaderProps> = ({
 
     const loadComponent = async () => {
       try {
+        // FIRST: Check if component is already available in globalThis
+        // This handles the case when reopening the same screen
+        const existingComponent = (globalThis as any)[cacheKey]
+        if (existingComponent && typeof existingComponent === 'function') {
+          console.log(`[RemoteScreenLoader] Component ${cacheKey} already available, using cached version`)
+          setComponent(() => existingComponent)
+          setError(null)
+          setLoading(false)
+          return
+        }
+
         setLoading(true)
         setError(null)
         setComponent(null) // Reset component to show spinner
 
         console.log(
-          `[RemoteScreenLoader] Loading component: ${componentName} from ${componentCdnBase}`,
+          `[RemoteScreenLoader] Loading component: ${componentName} (key: ${cacheKey}) from ${componentCdnBase}`,
           version ? `(version: ${version})` : '(no version - dev mode)'
         )
 
@@ -193,21 +322,22 @@ export const RemoteScreenLoader: React.FC<RemoteScreenLoaderProps> = ({
           componentName,
           version,
           componentCdnBase,
+          cacheKey, // Pass cacheKey for isolation
           timeout: 15000 // 15 second timeout (matching platform)
         })
 
-        // Get the loaded component from globalThis
-        const loadedComponent = (globalThis as any)[componentName]
+        // Get the loaded component from globalThis (use cacheKey)
+        const loadedComponent = (globalThis as any)[cacheKey]
 
         if (!loadedComponent) {
           throw new Error(
-            `Component "${componentName}" not found on window after loading. Screen may not be published correctly.`
+            `Component "${cacheKey}" not found on window after loading. Screen may not be published correctly.`
           )
         }
 
         setComponent(() => loadedComponent)
         setError(null) // Clear any previous errors
-        console.log(`[RemoteScreenLoader] Component ${componentName} loaded successfully`)
+        console.log(`[RemoteScreenLoader] Component ${cacheKey} loaded successfully`)
       } catch (err) {
         console.error('❌ [RemoteScreenLoader]', err)
         const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
@@ -219,13 +349,18 @@ export const RemoteScreenLoader: React.FC<RemoteScreenLoaderProps> = ({
     }
 
     loadComponent()
-  }, [componentPath, componentName, version, componentCdnBase, isLoadingMetadata])
+  }, [componentPath, componentName, version, componentCdnBase, cacheKey, isLoadingMetadata])
 
   // Retry handler for error state
   const handleRetry = () => {
     // Clean up component from cache to force fresh load
     try {
-      delete (globalThis as any)[componentName]
+      delete (globalThis as any)[cacheKey]
+      // Also remove the script to force reload
+      const oldScript = document.querySelector(`script[data-component-key="${cacheKey}"]`)
+      if (oldScript) {
+        oldScript.remove()
+      }
     } catch {
       // Ignore
     }
@@ -272,18 +407,18 @@ export const RemoteScreenLoader: React.FC<RemoteScreenLoaderProps> = ({
     )
   }
 
-  // Render the loaded component with all required props
+  // Render the loaded component with all required props (using state for hot-swap support)
   const LoadedComponent = component
 
   return (
     <div className="gba:animate-in gba:fade-in gba:duration-300 gba:pt-0 gba:px-0 gba:pb-0 gba:relative gba:h-full gba:flex gba:flex-col">
       <LoadedComponent
-        accessToken={accessToken}
-        userInfo={userInfo}
-        additionalData={additionalData}
-        onClose={onClose}
-        onTaskCompleted={onTaskCompleted}
-        onTaskUpdated={onTaskUpdated}
+        accessToken={componentProps.accessToken}
+        userInfo={componentProps.userInfo}
+        additionalData={componentProps.additionalData}
+        onClose={componentProps.onClose}
+        onTaskCompleted={componentProps.onTaskCompleted}
+        onTaskUpdated={componentProps.onTaskUpdated}
       />
     </div>
   )

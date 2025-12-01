@@ -241,8 +241,12 @@ export function loadRemoteComponent(options: RemoteComponentLoaderOptions): Prom
     componentName,
     version,
     exposedLibraries = [],
-    timeout = 5000
+    timeout = 5000,
+    cacheKey
   } = options
+
+  // Use cacheKey if provided, otherwise fall back to componentName
+  const componentKey = cacheKey || componentName
 
   // Determine the component URL from either direct URL or path
   const componentUrl =
@@ -267,10 +271,10 @@ export function loadRemoteComponent(options: RemoteComponentLoaderOptions): Prom
       // Cast to unknown first to avoid TypeScript error
       const windowExtended = globalThis as unknown as RemoteWindowExtensions
 
-      // Reset component loading state in the registry
-      registry.loadingComponents[componentName] = true
-      registry.registeredComponents[componentName] = false
-      registry.componentErrors[componentName] = null
+      // Reset component loading state in the registry (use componentKey for isolation)
+      registry.loadingComponents[componentKey] = true
+      registry.registeredComponents[componentKey] = false
+      registry.componentErrors[componentKey] = null
 
       // First, ensure React and antd are available globally
       if (!windowExtended.React || !windowExtended.antd) {
@@ -284,6 +288,7 @@ export function loadRemoteComponent(options: RemoteComponentLoaderOptions): Prom
         window.__componentLoaded = false;
         window.__componentError = null;
         window.__currentComponentName = "${componentName}";
+        window.__currentComponentKey = "${componentKey}";
         window.__EXPOSED_LIBRARIES = [];
         
         // Setup module.exports to catch ES module exports
@@ -323,9 +328,9 @@ export function loadRemoteComponent(options: RemoteComponentLoaderOptions): Prom
               console.log('Component found: default export');
             }
             
-            // Register the component if found
+            // Register the component if found (use componentKey for isolation)
             if (component) {
-              window["${componentName}"] = component;
+              window["${componentKey}"] = component;
               window.__componentLoaded = true;
             }
           }
@@ -489,22 +494,32 @@ export function loadRemoteComponent(options: RemoteComponentLoaderOptions): Prom
       `
       document.head.appendChild(initScript)
 
-      console.log(`Loading remote component '${componentName}' from: ${componentUrl}`)
+      console.log(`Loading remote component '${componentName}' (key: ${componentKey}) from: ${componentUrl}`)
 
-      // Clean up any existing script tags for this component (all versions)
-      if (componentPath) {
-        const existingScripts = document.querySelectorAll(`script[data-component-path="${componentPath}"]`)
-        existingScripts.forEach(script => {
-          console.log(`Removing old script for component '${componentName}' (by path)`)
-          script.remove()
-        })
-      } else {
-        // Fallback: clean up by component name when path is not available
-        const existingScripts = document.querySelectorAll(`script[data-component-name="${componentName}"]`)
-        existingScripts.forEach(script => {
-          console.log(`Removing old script for component '${componentName}' (by name)`)
-          script.remove()
-        })
+      // Check if script for this component key already exists - wait for it instead of reloading
+      const existingScript = document.querySelector(`script[data-component-key="${componentKey}"]`)
+      if (existingScript) {
+        console.log(`Script for component key '${componentKey}' already exists, waiting for registration...`)
+        // Wait for component to be ready
+        const startTime = Date.now()
+        const waitForExisting = (): Promise<void> => {
+          return new Promise((resolve, reject) => {
+            const check = () => {
+              if (windowExtended[componentKey]) {
+                console.log(`Component '${componentKey}' already registered`)
+                resolve()
+                return
+              }
+              if (Date.now() - startTime > timeout) {
+                reject(new Error(`Timeout waiting for existing component '${componentKey}'`))
+                return
+              }
+              setTimeout(check, 50)
+            }
+            check()
+          })
+        }
+        return waitForExisting()
       }
 
       // Load the component script
@@ -512,34 +527,33 @@ export function loadRemoteComponent(options: RemoteComponentLoaderOptions): Prom
       scriptTag.src = componentUrl
       scriptTag.async = false // Use synchronous loading to ensure order
 
-      // Add identifying attributes for cleanup
-      if (componentPath) {
-        scriptTag.dataset.componentPath = componentPath
-        scriptTag.id = `remote-component-js-${componentPath.replaceAll('/', '-')}-${version || 'latest'}`
-      } else {
-        // Fallback ID based on component name when path is not available
-        scriptTag.id = `remote-component-js-${componentName}-${version || 'latest'}`
-      }
+      // Add identifying attributes for cleanup (use componentKey for isolation)
+      scriptTag.dataset.componentKey = componentKey
       scriptTag.dataset.componentName = componentName
       scriptTag.dataset.componentVersion = version || 'latest'
+      if (componentPath) {
+        scriptTag.dataset.componentPath = componentPath
+      }
+      scriptTag.id = `remote-component-js-${componentKey.replaceAll('/', '-')}-${version || 'latest'}`
 
       // Handle script loading errors
       scriptTag.onerror = event => {
-        console.error(`Error loading component '${componentName}'`, event)
-        registry.componentErrors[componentName] = 'Failed to load script'
-        registry.loadingComponents[componentName] = false
-        reject(new Error(`Failed to load component '${componentName}' script`))
+        console.error(`Error loading component '${componentKey}'`, event)
+        registry.componentErrors[componentKey] = 'Failed to load script'
+        registry.loadingComponents[componentKey] = false
+        reject(new Error(`Failed to load component '${componentKey}' script`))
       }
 
       // After script loads, add a post-processor to check registration
       scriptTag.onload = () => {
-        console.log(`Component '${componentName}' script loaded, checking registration...`)
+        console.log(`Component '${componentKey}' script loaded, checking registration...`)
 
         // Create a simple post-processor script to handle fallback registration
         const postProcessor = document.createElement('script')
         postProcessor.textContent = `
-          // Get the component name from global variable
+          // Get the component name and key from global variables
           var componentName = window.__currentComponentName;
+          var componentKey = window.__currentComponentKey;
           
           // Skip if already registered
           if (!window.__componentLoaded) {
@@ -564,17 +578,17 @@ export function loadRemoteComponent(options: RemoteComponentLoaderOptions): Prom
               }
             }
             
-            // 2. Look for an exact match in window object
+            // 2. Look for an exact match in window object (by componentName - how exports work)
             if (!component && window[componentName] && typeof window[componentName] === 'function') {
               component = window[componentName];
               console.log('Component found as global variable');
             }
             
-            // Register the component if found through fallbacks
+            // Register the component if found through fallbacks (use componentKey for isolation)
             if (component) {
-              window[componentName] = component;
+              window[componentKey] = component;
               window.__componentLoaded = true;
-              console.log('Component registered via fallback process');
+              console.log('Component registered via fallback process under key: ' + componentKey);
             } else {
               console.error('Failed to find a suitable component to register');
               window.__componentError = 'Component not found';
@@ -591,20 +605,20 @@ export function loadRemoteComponent(options: RemoteComponentLoaderOptions): Prom
           // Clear any existing timeout to prevent leaks
           if (checkTimeoutId) clearTimeout(checkTimeoutId)
 
-          // Check component registration status
-          if (windowExtended.__componentLoaded && windowExtended[componentName]) {
-            console.log(`Component '${componentName}' successfully registered`)
-            registry.registeredComponents[componentName] = true
-            registry.loadingComponents[componentName] = false
+          // Check component registration status (use componentKey for isolation)
+          if (windowExtended.__componentLoaded && windowExtended[componentKey]) {
+            console.log(`Component '${componentKey}' successfully registered`)
+            registry.registeredComponents[componentKey] = true
+            registry.loadingComponents[componentKey] = false
             resolve()
             return
           }
 
           if (windowExtended.__componentError) {
             const errorMsg = windowExtended.__componentError ?? 'Unknown registration error'
-            console.error(`Component '${componentName}' registration failed:`, errorMsg)
-            registry.componentErrors[componentName] = errorMsg
-            registry.loadingComponents[componentName] = false
+            console.error(`Component '${componentKey}' registration failed:`, errorMsg)
+            registry.componentErrors[componentKey] = errorMsg
+            registry.loadingComponents[componentKey] = false
             reject(new Error(errorMsg))
             return
           }
@@ -615,10 +629,10 @@ export function loadRemoteComponent(options: RemoteComponentLoaderOptions): Prom
             checkTimeoutId = setTimeout(checkRegistration, checkInterval)
           } else {
             // Timeout reached
-            const timeoutMsg = `Timeout (${timeout}ms) waiting for component '${componentName}' registration`
+            const timeoutMsg = `Timeout (${timeout}ms) waiting for component '${componentKey}' registration`
             console.error(timeoutMsg)
-            registry.componentErrors[componentName] = 'Registration timeout'
-            registry.loadingComponents[componentName] = false
+            registry.componentErrors[componentKey] = 'Registration timeout'
+            registry.loadingComponents[componentKey] = false
             reject(new Error(timeoutMsg))
           }
         }
@@ -632,10 +646,10 @@ export function loadRemoteComponent(options: RemoteComponentLoaderOptions): Prom
       document.head.appendChild(scriptTag)
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error)
-      // Use the initialized registry
-      registry.componentErrors[componentName] = errorMsg
-      registry.loadingComponents[componentName] = false
-      reject(new Error(`Error loading component '${componentName}': ${errorMsg}`))
+      // Use the initialized registry (use componentKey for isolation)
+      registry.componentErrors[componentKey] = errorMsg
+      registry.loadingComponents[componentKey] = false
+      reject(new Error(`Error loading component '${componentKey}': ${errorMsg}`))
     }
   })
 }

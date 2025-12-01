@@ -122,4 +122,6 @@ export interface RemoteComponentLoaderOptions {
   exposedLibraries?: ExposedLibrary[]
   /** Timeout for component loading in milliseconds (optional, default: 5000ms) */
   timeout?: number
+  /** Custom cache key for component isolation (optional, defaults to componentName) */
+  cacheKey?: string
 }
