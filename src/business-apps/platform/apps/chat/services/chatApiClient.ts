@@ -224,4 +224,27 @@ export class ChatApiClient {
   async markAsRead(conversationId: string) {
     await this.client.post(`/messages/conversation/${conversationId}/mark-read`)
   }
+
+  // File upload endpoints
+  async uploadFiles(conversationId: string, files: File[]): Promise<UploadedAttachment[]> {
+    const formData = new FormData()
+    files.forEach(file => {
+      formData.append('files', file)
+    })
+
+    const response = await this.client.post<UploadedAttachment[]>(`/files/upload/${conversationId}`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+    return response.data
+  }
+}
+
+export interface UploadedAttachment {
+  id: string
+  name: string
+  size: number
+  mimeType: string
+  url: string
 }

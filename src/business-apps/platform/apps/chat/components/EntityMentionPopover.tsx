@@ -1,13 +1,26 @@
 import React, { useEffect, useRef } from 'react'
 import { Badge, Spinner } from '@newwork/nw-design-system'
-import { Building2, User, Users, Rocket, TrendingUp, UserCircle, Megaphone, Receipt } from 'lucide-react'
+import {
+  Building2,
+  User,
+  Users,
+  Rocket,
+  TrendingUp,
+  UserCircle,
+  Megaphone,
+  Receipt,
+  Newspaper,
+  BookOpen,
+  Globe,
+  FileText
+} from 'lucide-react'
 import type { EntityReference, EntityType } from '../types'
 
 interface EntityMentionPopoverProps {
   entities: EntityReference[]
   isLoading: boolean
   onSelect: (entity: EntityReference) => void
-  onClose: () => void
+  onClose: () => void // Used by parent for Escape key handling
   selectedIndex: number
   onSelectedIndexChange: (index: number) => void
 }
@@ -24,6 +37,11 @@ const ENTITY_ICONS: Record<EntityType, React.ElementType> = {
   investment_lead: Users,
   investment_opportunity: Rocket,
   investment: TrendingUp,
+  // Intranet content
+  news_article: Newspaper,
+  knowledge_article: BookOpen,
+  intranet_article: Globe,
+  document_article: FileText,
   // Other
   employee: UserCircle,
   campaign: Megaphone,
@@ -42,6 +60,11 @@ const ENTITY_COLORS: Record<EntityType, string> = {
   investment_lead: 'gba:bg-accent gba:text-accent-foreground',
   investment_opportunity: 'gba:bg-accent gba:text-accent-foreground',
   investment: 'gba:bg-accent gba:text-accent-foreground',
+  // Intranet content (info/knowledge tones)
+  news_article: 'gba:bg-destructive-secondary gba:text-destructive-secondary-foreground',
+  knowledge_article: 'gba:bg-info-secondary gba:text-info-secondary-foreground',
+  intranet_article: 'gba:bg-success-secondary gba:text-success-secondary-foreground',
+  document_article: 'gba:bg-offline-secondary gba:text-offline-secondary-foreground',
   // Other
   employee: 'gba:bg-muted gba:text-muted-foreground',
   campaign: 'gba:bg-secondary gba:text-secondary-foreground',
@@ -60,6 +83,11 @@ const ENTITY_LABELS: Record<EntityType, string> = {
   investment_lead: 'IRM Lead',
   investment_opportunity: 'IRM Opportunity',
   investment: 'Investment',
+  // Intranet content
+  news_article: 'News',
+  knowledge_article: 'Knowledge',
+  intranet_article: 'Intranet',
+  document_article: 'Document',
   // Other
   employee: 'Employee',
   campaign: 'Campaign',
@@ -70,7 +98,6 @@ export const EntityMentionPopover: React.FC<EntityMentionPopoverProps> = ({
   entities,
   isLoading,
   onSelect,
-  onClose,
   selectedIndex,
   onSelectedIndexChange
 }) => {
@@ -87,27 +114,8 @@ export const EntityMentionPopover: React.FC<EntityMentionPopoverProps> = ({
     }
   }, [selectedIndex])
 
-  // Handle keyboard navigation
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowDown') {
-        e.preventDefault()
-        onSelectedIndexChange(Math.min(selectedIndex + 1, entities.length - 1))
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault()
-        onSelectedIndexChange(Math.max(selectedIndex - 1, 0))
-      } else if (e.key === 'Enter' && entities.length > 0) {
-        e.preventDefault()
-        onSelect(entities[selectedIndex])
-      } else if (e.key === 'Escape') {
-        e.preventDefault()
-        onClose()
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [entities, selectedIndex, onSelect, onClose, onSelectedIndexChange])
+  // Note: Keyboard navigation is handled by MessageInput component
+  // to prevent double-handling of events
 
   if (isLoading && entities.length === 0) {
     return (

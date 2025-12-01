@@ -12,6 +12,7 @@ import {
   DialogTitle
 } from '@newwork/nw-design-system'
 import type { Conversation } from '../types'
+import type { UserPresence } from '../hooks/usePresence'
 import { UserIcon } from 'lucide-react'
 import { SignOut } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -23,6 +24,7 @@ interface ConversationItemProps {
   isActive?: boolean
   currentUserId?: string | null
   compact?: boolean
+  otherUserPresence?: UserPresence
 }
 
 const getOtherParticipant = (conversation: Conversation, currentUserId?: string | null) => {
@@ -54,20 +56,63 @@ const getConversationName = (conversation: Conversation, currentUserId?: string 
   return getTranslationFromI18nKeyAndLabel('chat.directMessage', 'Direct Message')
 }
 
+// Presence status indicator component - only shows for online/away, not offline
+const PresenceIndicator: React.FC<{ status: 'online' | 'away' | 'offline'; className?: string }> = ({
+  status,
+  className = ''
+}) => {
+  // Don't show indicator for offline status
+  if (status === 'offline') return null
+
+  const statusColors = {
+    online: 'gba:bg-success',
+    away: 'gba:bg-warning',
+    offline: 'gba:bg-muted-foreground'
+  }
+
+  const statusTitles = {
+    online: 'Online',
+    away: 'Away',
+    offline: 'Offline'
+  }
+
+  return (
+    <span
+      className={`gba:absolute gba:bottom-0 gba:right-0 gba:w-3 gba:h-3 gba:rounded-full gba:border-2 gba:border-background ${statusColors[status]} ${className}`}
+      title={statusTitles[status]}
+    />
+  )
+}
+
 export const ConversationItem: React.FC<ConversationItemProps> = ({
   conversation,
   onClick,
   onRemove,
   isActive = false,
   currentUserId = null,
-  compact = false
+  compact = false,
+  otherUserPresence
 }) => {
   const name = getConversationName(conversation, currentUserId)
   const otherParticipant = getOtherParticipant(conversation, currentUserId)
   const avatarUrl = otherParticipant?.user?.avatarUrl
-  const unreadCount = conversation.unreadCount || 0
+
+  // Don't show unread count if:
+  // 1. There's no unread count from API
+  // 2. The last message was sent by the current user (they already know about it)
+  // 3. The conversation is currently active (user is viewing it)
+  // 4. The conversation was created by the current user and has no lastMessage (no responses yet)
+  const lastMessageIsFromCurrentUser = conversation.lastMessage?.senderId === currentUserId
+  const createdByCurrentUser = conversation.createdBy === currentUserId
+  const noMessagesFromOthers = !conversation.lastMessage && createdByCurrentUser
+  const unreadCount =
+    lastMessageIsFromCurrentUser || isActive || noMessagesFromOthers ? 0 : conversation.unreadCount || 0
   const [showRemoveDialog, setShowRemoveDialog] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
+
+  // Only show presence for direct messages (default to offline if no presence data)
+  const showPresence = conversation.type === 'direct'
+  const presenceStatus = otherUserPresence?.status || 'offline'
 
   const handleRemoveClick = (e: React.MouseEvent) => {
     e.stopPropagation() // Prevent conversation selection
@@ -101,13 +146,16 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
           }
         }}
       >
-        {avatarUrl ? (
-          <Avatar className={`${avatarSize} gba:flex-shrink-0 gba:ring-2 gba:ring-background`}>
-            <img src={avatarUrl} alt={name} className="gba:w-full gba:h-full gba:object-cover gba:rounded-full" />
-          </Avatar>
-        ) : (
-          <IconAvatar className={`${avatarSize} gba:flex-shrink-0`} label={name} icon={UserIcon} />
-        )}
+        <div className="gba:relative gba:flex-shrink-0">
+          {avatarUrl ? (
+            <Avatar className={`${avatarSize} gba:ring-2 gba:ring-background`}>
+              <img src={avatarUrl} alt={name} className="gba:w-full gba:h-full gba:object-cover gba:rounded-full" />
+            </Avatar>
+          ) : (
+            <IconAvatar className={avatarSize} label={name} icon={UserIcon} />
+          )}
+          {showPresence && <PresenceIndicator status={presenceStatus} />}
+        </div>
 
         <div className="gba:flex-1 gba:min-w-0 gba:flex gba:flex-col gba:gap-0.5">
           <div className="gba:flex gba:items-center gba:gap-2">
