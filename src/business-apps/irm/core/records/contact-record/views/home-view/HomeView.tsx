@@ -186,7 +186,13 @@ const HomeView: React.FC<HomeViewProps> = ({ contactId, contactData, ...props })
             component: AccountSection,
             props: {
               ...props,
-              accounts: contactData?.accountContacts?.map((ac: any) => ac.account).filter(Boolean) || [],
+              accounts:
+                contactData?.accountContacts
+                  ?.map((ac: any) => ({
+                    ...ac.account,
+                    contactType: ac.contactType
+                  }))
+                  .filter(Boolean) || [],
               accountId: contactData?.accountContacts?.[0]?.account?.id,
               recordUrl: contactData?.accountContacts?.[0]?.account?.id
                 ? buildPlatformUrl('/platform/irm/account-record', {

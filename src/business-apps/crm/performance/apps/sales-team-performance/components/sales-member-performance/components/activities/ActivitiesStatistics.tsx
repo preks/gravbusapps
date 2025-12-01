@@ -4,7 +4,6 @@ import { PiUsers, PiTarget, PiTrendUp, PiTrendDown, PiChartLine } from 'react-ic
 import { ActivitiesStatisticsProps } from '../../types/activitiesTypes'
 import { useEmployeeActivitiesStatistics } from '../../hooks/useEmployeeActivitiesStatistics'
 import { useEmployeeActivitiesTrendData } from '../../hooks/useEmployeeActivitiesTrendData'
-import { useEmployeeActivitiesData } from '../../hooks/useEmployeeActivitiesData'
 
 const DATA_TEST_ID_PREFIX = 'ActivitiesStatistics'
 
@@ -14,8 +13,8 @@ export const ActivitiesStatistics: React.FC<ActivitiesStatisticsProps> = ({
   accessToken,
   userInfo
 }) => {
-  // Fetch real activities statistics
-  const { statistics, loading, error, refetch } = useEmployeeActivitiesStatistics({
+  // Fetch real activities statistics (includes totalCount)
+  const { statistics, loading, error, totalCount, refetch } = useEmployeeActivitiesStatistics({
     employeeId,
     accessToken,
     userInfo, // Now passing real userInfo for proper createdBy filtering
@@ -25,21 +24,10 @@ export const ActivitiesStatistics: React.FC<ActivitiesStatisticsProps> = ({
   // Fetch trend data for real comparisons
   const { trends, refetch: refetchTrends } = useEmployeeActivitiesTrendData(accessToken, employeeId)
 
-  // Get aggregate total from the activities query
-  const { total: aggregateTotal, retry: retryActivitiesData } = useEmployeeActivitiesData({
-    employeeId,
-    accessToken,
-    search: '',
-    sortField: 'createdAt',
-    sortOrder: 'DESC',
-    userInfo // Now passing real userInfo for proper createdBy filtering
-  })
-
   // Handle retry
   const handleRetry = () => {
     refetch()
     refetchTrends()
-    retryActivitiesData()
     if (onRetry) {
       onRetry()
     }
@@ -89,8 +77,8 @@ export const ActivitiesStatistics: React.FC<ActivitiesStatisticsProps> = ({
             statistics.totalActivities.period
           ),
           trend: {
-            value: `${Math.round((trends.completedActivities.currentValue / aggregateTotal) * 100)}%`,
-            positive: trends.completedActivities.currentValue / aggregateTotal >= 0.8,
+            value: `${Math.round((trends.completedActivities.currentValue / totalCount) * 100)}%`,
+            positive: trends.completedActivities.currentValue / totalCount >= 0.8,
             description: 'completion rate'
           }
         },
@@ -107,8 +95,8 @@ export const ActivitiesStatistics: React.FC<ActivitiesStatisticsProps> = ({
           ),
           precision: 0,
           trend: {
-            value: `${Math.round((trends.completedActivities.currentValue / aggregateTotal) * 100)}%`,
-            positive: trends.completedActivities.currentValue / aggregateTotal >= 0.8,
+            value: `${Math.round((trends.completedActivities.currentValue / totalCount) * 100)}%`,
+            positive: trends.completedActivities.currentValue / totalCount >= 0.8,
             description: 'completion rate'
           }
         },

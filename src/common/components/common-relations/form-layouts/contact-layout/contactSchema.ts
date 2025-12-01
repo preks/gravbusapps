@@ -21,24 +21,8 @@ export const contactSchema = z.object({
         id: z.string().optional(),
         version: z.number().optional(),
         communicationChannelRef: z.string(),
-        value: z.string().min(1, 'Value is required'),
+        value: z.string().optional(),
         valueExtension: z.string().nullable().optional()
-      })
-    )
-    .optional(),
-  addresses: z
-    .array(
-      z.object({
-        id: z.string().optional(),
-        version: z.number().optional(),
-        addressType: z.string().nullable().optional(),
-        addressLine: z
-          .union([z.string().nullable(), z.object({ lines: z.array(z.string().nullable()) }).nullable()])
-          .optional(),
-        postalCode: z.string().nullable().optional(),
-        locality: z.string().nullable().optional(),
-        regionRef: z.string().nullable().optional(),
-        countryRef: z.string().nullable().optional()
       })
     )
     .optional(),
