@@ -82,11 +82,7 @@ function loadState(): ConversationState {
 async function loadHistory(accessToken: string, sessionId: string | null): Promise<ConversationState> {
   if (!sessionId) return { conversation: [], sessionId: null }
 
-<<<<<<< HEAD
-  const baseUrl = resolveFlowbotBaseUrl()
-=======
-  const baseUrl = env('NEXT_PUBLIC_FLOWBOT') || env('NEXT_PUBLIC_BASE_URL') || 'https://newwork-dev.newwork.com'
->>>>>>> develop
+  const baseUrl = env('NEXT_PUBLIC_FLOWBOT') || resolveFlowbotBaseUrl()
 
   try {
     const res = await fetch(`${baseUrl}/flowbot/api/agent/session/${sessionId}/history`, {
@@ -480,11 +476,7 @@ export function useFlowBot(accessToken: string) {
 
         files.forEach(file => form.append('files', file))
 
-<<<<<<< HEAD
-        const baseUrl = resolveFlowbotBaseUrl()
-=======
-        const baseUrl = env('NEXT_PUBLIC_FLOWBOT') || env('NEXT_PUBLIC_BASE_URL') || 'https://newwork-dev.newwork.com'
->>>>>>> develop
+        const baseUrl = env('NEXT_PUBLIC_BASE_URL') || 'https://newwork-dev.newwork.com'
         const url = `${baseUrl}/flowbot/api/agent/v2/chat`
         const res = await fetch(url, {
           method: 'POST',
@@ -573,11 +565,7 @@ export function useFlowBot(accessToken: string) {
       isPrechatLoadingRef.current = true
       setPrechatSuggestions([])
       setIsPrechatLoading(true)
-<<<<<<< HEAD
-      const baseUrl = resolveFlowbotBaseUrl()
-=======
-      const baseUrl = env('NEXT_PUBLIC_FLOWBOT') || env('NEXT_PUBLIC_BASE_URL') || 'https://newwork-dev.newwork.com'
->>>>>>> develop
+      const baseUrl = env('NEXT_PUBLIC_BASE_URL') || 'https://newwork-dev.newwork.com'
 
       const form = new FormData()
       // For prechat suggestions we only need lightweight page context without analytics
