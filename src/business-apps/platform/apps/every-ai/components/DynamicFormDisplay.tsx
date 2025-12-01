@@ -30,6 +30,8 @@ interface SchemaFieldProps {
   disabled?: boolean
   value: any
   onChange: (value: any) => void
+  formData: Record<string, any>
+  onFieldValueChange?: (path: string, value: any) => void
 }
 
 const sanitizeControlId = (value: string): string => value.replace(/[^a-zA-Z0-9-_:.]/g, '-').toLowerCase()
@@ -68,6 +70,8 @@ const SchemaField: React.FC<SchemaFieldProps & { accessToken: string }> = ({
   disabled,
   value,
   onChange,
+  formData,
+  onFieldValueChange,
   accessToken
 }) => {
   const fieldPath = path ? `${path}.${name}` : name
@@ -88,6 +92,94 @@ const SchemaField: React.FC<SchemaFieldProps & { accessToken: string }> = ({
   }
 
   const label = formatFieldName(name)
+
+  // ============================================================================
+  // CONDITIONAL DISPLAY LOGIC
+  // ============================================================================
+
+  const displayCondition = schema?.['x-display']
+
+  // Check if field should be displayed based on condition
+  const shouldShowField = useMemo(() => {
+    if (!displayCondition?.condition) {
+      return true
+    }
+
+    const { field, operator, value: conditionValue } = displayCondition.condition
+
+    // Build the actual field path for the dependent field
+    const dependentFieldPath = path ? `${path}.${field}` : field
+
+    // Get the dependent field value from formData
+    const getNestedValue = (obj: any, path: string): any => {
+      return path.split('.').reduce((current, key) => current?.[key], obj)
+    }
+
+    const fieldValue = getNestedValue(formData, dependentFieldPath)
+
+    // Handle array values (checkboxes, multi-select)
+    if (Array.isArray(fieldValue)) {
+      switch (operator) {
+        case 'equals':
+          // Check if array contains the condition value
+          return fieldValue.includes(conditionValue)
+        case 'notEquals':
+          // Check if array does not contain the condition value
+          return !fieldValue.includes(conditionValue)
+        case 'contains':
+          // Check if any array item contains the condition value
+          return fieldValue.some(v => String(v || '').includes(String(conditionValue || '')))
+        case 'notContains':
+          // Check if no array item contains the condition value
+          return !fieldValue.some(v => String(v || '').includes(String(conditionValue || '')))
+        default:
+          return fieldValue.includes(conditionValue)
+      }
+    }
+
+    // Evaluate condition based on operator for non-array values
+    switch (operator) {
+      case 'equals':
+        // Handle boolean vs string comparison
+        if (typeof fieldValue === 'boolean' && typeof conditionValue === 'string') {
+          return fieldValue === (conditionValue.toLowerCase() === 'yes' || conditionValue.toLowerCase() === 'true')
+        }
+        if (typeof conditionValue === 'boolean' && typeof fieldValue === 'string') {
+          return (fieldValue.toLowerCase() === 'yes' || fieldValue.toLowerCase() === 'true') === conditionValue
+        }
+        return fieldValue === conditionValue
+      case 'notEquals':
+        // Handle boolean vs string comparison
+        if (typeof fieldValue === 'boolean' && typeof conditionValue === 'string') {
+          return fieldValue !== (conditionValue.toLowerCase() === 'yes' || conditionValue.toLowerCase() === 'true')
+        }
+        if (typeof conditionValue === 'boolean' && typeof fieldValue === 'string') {
+          return (fieldValue.toLowerCase() === 'yes' || fieldValue.toLowerCase() === 'true') !== conditionValue
+        }
+        return fieldValue !== conditionValue
+      case 'contains':
+        return String(fieldValue || '').includes(String(conditionValue || ''))
+      case 'notContains':
+        return !String(fieldValue || '').includes(String(conditionValue || ''))
+      default:
+        return fieldValue === conditionValue
+    }
+  }, [displayCondition, formData, path, name])
+
+  // Clear field value when it becomes hidden
+  useEffect(() => {
+    if (!shouldShowField && fieldPath && onFieldValueChange) {
+      const currentValue = value
+      if (currentValue !== undefined && currentValue !== null && currentValue !== '') {
+        onFieldValueChange(fieldPath, '')
+      }
+    }
+  }, [shouldShowField, fieldPath, value, onFieldValueChange])
+
+  // Don't render if condition is not met
+  if (!shouldShowField) {
+    return null
+  }
 
   // Determine if field should be searchable UUID for people/entities
   const employeeTimeFields = ['substituteEmployee', 'approverId']
@@ -302,6 +394,8 @@ const SchemaField: React.FC<SchemaFieldProps & { accessToken: string }> = ({
                 disabled={disabled}
                 value={value?.[propName]}
                 onChange={newValue => onChange({ ...value, [propName]: newValue })}
+                formData={formData}
+                onFieldValueChange={onFieldValueChange}
                 accessToken={accessToken}
               />
             ))}
@@ -497,6 +591,28 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
   useEffect(() => {
     formDataRef.current = formData
   }, [formData])
+
+  // Handler for clearing hidden field values
+  const handleFieldValueChange = useCallback((path: string, value: any) => {
+    setFormData(prev => {
+      const newData = { ...prev }
+      const pathParts = path.split('.')
+
+      // Navigate to the parent object
+      let current: any = newData
+      for (let i = 0; i < pathParts.length - 1; i++) {
+        if (!current[pathParts[i]]) {
+          current[pathParts[i]] = {}
+        }
+        current = current[pathParts[i]]
+      }
+
+      // Set the value
+      current[pathParts[pathParts.length - 1]] = value
+
+      return newData
+    })
+  }, [])
 
   useEffect(() => {
     setUiState(currentFormState)
@@ -984,7 +1100,11 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
     fields: [string, any][]
     requiredFields: string[]
     isCompleted: boolean
-  }> = ({ fields, requiredFields, isCompleted }) => {
+    formData: Record<string, any>
+    onFieldValueChange: (path: string, value: any) => void
+    onFieldChange: (fieldName: string, value: any) => void
+    accessToken: string
+  }> = ({ fields, requiredFields, isCompleted, formData, onFieldValueChange, onFieldChange, accessToken }) => {
     const [open, setOpen] = useState(false)
     const hiddenMissingCount = useMemo(() => {
       return fields.reduce((acc, [fname]) => {
@@ -1025,7 +1145,9 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
               required={requiredFields.includes(fieldName)}
               disabled={isCompleted}
               value={formData[fieldName]}
-              onChange={value => setFormData(prev => ({ ...prev, [fieldName]: value }))}
+              onChange={value => onFieldChange(fieldName, value)}
+              formData={formData}
+              onFieldValueChange={onFieldValueChange}
               accessToken={accessToken}
             />
           ))}
@@ -1210,6 +1332,8 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
                     disabled={isCompleted}
                     value={formData[fieldName]}
                     onChange={value => setFormData(prev => ({ ...prev, [fieldName]: value }))}
+                    formData={formData}
+                    onFieldValueChange={handleFieldValueChange}
                     accessToken={accessToken}
                   />
                 )
@@ -1228,6 +1352,10 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
                 fields={secondaryFields}
                 requiredFields={requiredFields}
                 isCompleted={isCompleted}
+                formData={formData}
+                onFieldValueChange={handleFieldValueChange}
+                onFieldChange={(fieldName, value) => setFormData(prev => ({ ...prev, [fieldName]: value }))}
+                accessToken={accessToken}
               />
             )}
           </div>
