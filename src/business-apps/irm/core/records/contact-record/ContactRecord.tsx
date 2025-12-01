@@ -13,13 +13,13 @@ import { Users, FileText, User, CurrencyDollar } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { useContactData } from './hooks/useContactData'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { getContactTypeDisplayValue, getContactFullName } from './utils'
 import { useContactAiSummary } from './hooks/useContactAiSummary'
 import { Bot } from 'lucide-react'
+import { useInvestmentContact } from '@/common/data/investment/hooks/useInvestmentContact'
 import {
   useGetInvestmentActivitiesByContactId,
   useGetInvestmentNotesByContactId,
@@ -28,6 +28,7 @@ import {
 import { HomeView } from './views/home-view/HomeView'
 import { OpportunityView } from './views/opportunity-view/OpportunityView'
 import { DocumentView } from './views/document-view/DocumentView'
+import { getEmailChannel, getPhoneChannel } from '@/common/data/common/utils/communicationChannelHelpers'
 
 interface ContactRecordContentProps extends BusinessAppContextProps {
   contactId: string
@@ -41,22 +42,19 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
   fromEntity,
   ...props
 }) => {
-  const [contact, setContact] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<string>(() => {
     if (typeof window === 'undefined') return 'overview'
     const params = new URLSearchParams(window.location.search)
     return params.get('tab') || 'overview'
   })
 
+  // Use new declarative hook for contact data
   const {
     contact: contactData,
-    rawContactData,
-    loading: dataLoading,
-    error: dataError,
+    loading,
+    error,
     refetch: refetchContactData
-  } = useContactData(contactId, props.accessToken)
+  } = useInvestmentContact(props.accessToken, contactId)
 
   // AI Summary hook - must be called before any conditional returns
   const aiSummaryHook = useContactAiSummary(contactId, props.accessToken)
@@ -237,21 +235,22 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.email', 'Email'),
             value:
-              contactData?.email || contact?.email || getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
+              getEmailChannel(contactData?.communicationChannels)?.value ||
+              getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
             icon: Users
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.phone', 'Phone'),
             value:
-              contactData?.phone || contact?.phone || getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
+              getPhoneChannel(contactData?.communicationChannels)?.value ||
+              getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
             icon: Users
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.birthday', 'Birthday'),
-            value:
-              contactData?.birthDate || contact?.birthDate
-                ? new Date(contactData?.birthDate || contact?.birthDate || '').toLocaleDateString('en-GB')
-                : getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
+            value: contactData?.birthDate
+              ? new Date(contactData.birthDate).toLocaleDateString('en-GB')
+              : getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
             icon: Users
           },
           {
@@ -269,7 +268,7 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
         ]
       }
     ],
-    [contactData, contact]
+    [contactData]
   )
 
   const headerActions = useMemo(() => {
@@ -370,8 +369,7 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
           content: (
             <HomeView
               contactId={contactId}
-              contact={contact}
-              rawContactData={rawContactData}
+              contactData={contactData!}
               activities={activities}
               notes={notes}
               tasks={tasks}
@@ -412,7 +410,7 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
     [
       activeTab,
       handleTabChange,
-      contact,
+      contactData,
       contactId,
       props,
       tasks,
@@ -429,40 +427,6 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
     ]
   )
 
-  useEffect(() => {
-    const fetchContactData = async () => {
-      if (!contactId) {
-        setLoading(false)
-        return
-      }
-
-      try {
-        setLoading(true)
-        setError(null)
-
-        if (contactData) {
-          setContact(contactData)
-        } else if (dataError) {
-          setError(dataError)
-        }
-      } catch (err) {
-        console.error('Error fetching investment contact:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load investment contact')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    if (!dataLoading) {
-      fetchContactData()
-    }
-  }, [contactId, contactData, dataLoading, dataError])
-
-  // Update loading state based on data loading
-  useEffect(() => {
-    setLoading(dataLoading)
-  }, [dataLoading])
-
   if (loading) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
@@ -471,7 +435,7 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
     )
   }
 
-  if (error || !contact) {
+  if (error || !contactData) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
         <div className="gba:text-center">
@@ -492,11 +456,11 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
     )
   }
 
-  const fullName = getContactFullName(contactData, contact)
+  const fullName = getContactFullName(contactData, null)
 
   // Create header title with contact type badge
-  const contactType = contactData?.contactType || contact?.contactType
-  const contactTypeLabel = getContactTypeDisplayValue(contactData, contact)
+  const contactType = contactData?.type
+  const contactTypeLabel = getContactTypeDisplayValue(contactData, null)
 
   const headerTitle = (
     <div className="gba:flex gba:items-center gba:gap-2">

@@ -3,9 +3,9 @@ import useInformationExtraction, { UseInformationExtractionReturn } from '@/comm
 import {
   useGetInvestmentActivitiesByAccountId,
   useGetInvestmentNotesByAccountId,
-  useGetInvestmentTasksByAccountId
+  useGetInvestmentTasksByAccountId,
+  useGetInvestmentAccountById
 } from '@/common/data/investment/hooks/useInvestmentAccounts'
-import { useGetInvestmentAccountById } from '@/common/data/investment/hooks/useInvestmentAccounts'
 
 const taskDescription = `You are an assistant that summarises IRM account details.
 Provide a concise executive summary in plain language, the total number of activities mentioned,

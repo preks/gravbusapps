@@ -1,173 +1,85 @@
-import { useMemo } from 'react'
+import React, { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCustomerOpportunities } from '@/common/data/customer/hooks/useCustomerOpportunities'
-import {
-  OpportunityLayout,
-  type OpportunityViewConfig,
-  type OpportunityBoardFilters
-} from '@/common/components/common-relations/view-layouts/opportunity-layout'
-import type { CustomerOpportunity } from '@/common/data/customer/types'
+import { OpportunityLayout } from '@/common/components/common-relations/view-layouts/opportunity-layout'
+import { createOpportunityConfig } from '@/common/components/common-relations/view-layouts/opportunity-layout/utils/opportunityConfigBuilder'
+import type { CustomerOpportunity } from '@/common/data/customer/types/customerOpportunityTypes'
 import type { CustomerOpportunityQueryVariables } from '@/common/data/customer/queries/customerOpportunityQueries'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { buildPlatformUrl } from '@/common/utils/navigationUtils'
-import {
-  createOpportunityColumns,
-  createOpportunitySortableColumns
-} from '@/common/components/common-relations/view-layouts/opportunity-layout/config/opportunityColumns'
-import { opportunityFilterConfig } from '@/common/components/common-relations/view-layouts/opportunity-layout/config/opportunityFilters'
 import { useCustomerOpportunityFilters } from './hooks/useCustomerOpportunityFilters'
-import { OpportunityStatisticsWithTrend } from './components/OpportunityStatistics'
-import { useOpportunityStatisticsWithTrend } from './hooks/useOpportunityStatisticsWithTrend'
-import { formatNumberFunction } from '@/common/utils/windowUtils'
-import {
-  applyBasicFilters,
-  applyAmountFilter,
-  applyDateFilter
-} from '@/common/components/common-relations/view-layouts/opportunity-layout/utils/queryHelpers'
-import { createBoardCardRenderer } from '@/common/components/common-relations/view-layouts/opportunity-layout/utils/boardCardRenderer'
+import { useCustomerOpportunityStatistics } from '@/common/data/customer/hooks/useCustomerOpportunityStatistics'
+import { CUSTOMER_OPPORTUNITY_DESCRIPTORS } from '@/common/data/customer/types/customerOpportunityTypes'
 
 export type OpportunityViewProps = BusinessAppContextProps
 
 export const OpportunityView: React.FC<OpportunityViewProps> = context => {
   const { fetchCustomerOpportunities } = useCustomerOpportunities(context)
-  const opportunityStatistics = useOpportunityStatisticsWithTrend({ ...context, sourceApp: 'CRM' })
+  const opportunityStatistics = useCustomerOpportunityStatistics(context)
 
-  const config: OpportunityViewConfig<CustomerOpportunity, CustomerOpportunityQueryVariables> = useMemo(
-    () => ({
-      contextType: 'customer',
+  const config = useMemo(
+    () =>
+      createOpportunityConfig<CustomerOpportunity, CustomerOpportunityQueryVariables>({
+        contextType: 'customer',
 
-      fetchOpportunities: async (variables: CustomerOpportunityQueryVariables) => {
-        return await fetchCustomerOpportunities(variables)
-      },
+        extendQueryVariables: vars => ({
+          ...vars,
+          // Filter for OPEN status only on kanban board
+          opportunityStatusIds: ['SalesOpportunityStatus:v1:OPEN']
+        }),
 
-      filterDataHook: useCustomerOpportunityFilters,
+        fetchOpportunities: async variables => {
+          return await fetchCustomerOpportunities(variables)
+        },
 
-      createColumns: createOpportunityColumns as any,
-      createSortableColumns: createOpportunitySortableColumns,
+        filterDataHook: useCustomerOpportunityFilters,
 
-      mapColumnToGraphQLField: (columnId: string): string => {
-        const mapping: Record<string, string> = {
-          opportunity: 'name',
-          amount: 'estimatedAmount',
+        viewDescriptors: CUSTOMER_OPPORTUNITY_DESCRIPTORS,
+
+        columnMappings: {
           pipeline: 'salesPipeline',
-          stage: 'salesPipelineStage',
-          status: 'opportunityStatus',
-          closeDate: 'closeDate',
-          account: 'accountId',
-          owner: 'ownerEmployeeId',
-          created: 'createdAt'
-        }
-        return mapping[columnId] || columnId
-      },
+          stage: 'salesPipelineStage'
+        },
 
-      baseFilterConfig: opportunityFilterConfig,
+        flowContexts: {
+          entity: FlowContextName.customerOpportunityEntity,
+          create: FlowContextName.customerOpportunityCreate
+        },
 
-      buildQueryVariables: (params: {
-        pagination: { pageIndex: number; pageSize: number }
-        searchTerm: string
-        selectedFilters: Record<string, any>
-        sorting: Array<{ id: string; desc: boolean }>
-        mapColumnToGraphQLField: (columnId: string) => string
-      }) => {
-        const vars: CustomerOpportunityQueryVariables = {
-          limit: params.pagination.pageSize,
-          offset: params.pagination.pageIndex * params.pagination.pageSize,
-          search: params.searchTerm.trim() || undefined
-        }
-
-        applyBasicFilters(vars, params.selectedFilters)
-        applyAmountFilter(vars, params.selectedFilters.amount)
-        applyDateFilter(vars, params.selectedFilters.closeDate)
-
-        if (params.sorting.length > 0) {
-          vars.orderBy = [
-            {
-              field: params.mapColumnToGraphQLField(params.sorting[0].id) as any,
-              direction: params.sorting[0].desc ? 'DESC_NULLS_LAST' : 'ASC_NULLS_LAST'
-            }
-          ]
-        } else {
-          vars.orderBy = [{ field: 'createdAt' as any, direction: 'DESC_NULLS_LAST' }]
-        }
-
-        return vars
-      },
-
-      flowContexts: {
-        entityContext: FlowContextName.customerOpportunityEntity,
-        createContext: FlowContextName.customerOpportunityCreate
-      },
-
-      buildRecordUrl: (id: string) =>
-        buildPlatformUrl('/platform/crm/opportunity-record', {
-          opportunityId: id,
+        urlPaths: {
+          opportunityRecord: '/platform/crm/opportunity-record',
+          accountRecord: '/platform/crm/account-record',
           source: 'customer-relations'
-        }),
+        },
 
-      buildAccountUrl: (id: string) =>
-        buildPlatformUrl('/platform/crm/account-record', {
-          accountId: id
-        }),
+        boardConfig: {
+          pipelineCatalog: 'SalesPipeline',
+          pipelineStageCatalog: 'SalesPipelineStage',
+          opportunityType: 'CustomerOpportunity',
+          processName: 'transitionOpportunity',
+          processDomain: 'customer-relations'
+        },
 
-      renderStatistics: ({ onRefresh }) =>
-        opportunityStatistics.trendData ? (
-          <OpportunityStatisticsWithTrend
-            trendData={opportunityStatistics.trendData}
-            isLoading={opportunityStatistics.isLoading}
-            error={opportunityStatistics.error}
-            onRefresh={onRefresh}
-          />
-        ) : null,
+        fetchBoardOpportunities: fetchCustomerOpportunities,
+        extractBoardOpportunities: result => result.opportunities || [],
+        extractBoardTotalCount: result => result.total || 0,
 
-      // Board configuration
-      boardConfig: {
-        pipelineCatalog: 'SalesPipeline',
-        pipelineStageCatalog: 'SalesPipelineStage',
-        opportunityType: 'CustomerOpportunity',
-        defaultFilter: 'all',
-        formatCurrency: (amount: number) => formatNumberFunction(amount, '0.0a').toUpperCase(),
-        buildQueryVariables: () => ({}),
-        processConfig: {
-          domain: 'customer-relations',
-          processName: 'transitionCustomerOpportunity',
-          buildPayload: (opportunityId: string, targetStageRef: string) => ({
-            opportunityId,
-            targetStageRef
-          })
-        }
-      },
+        opportunityStatistics: opportunityStatistics.trendData
+          ? {
+              recentOpportunities: opportunityStatistics.trendData.recentOpportunities,
+              opportunityValue: opportunityStatistics.trendData.opportunityValue,
+              winRate: opportunityStatistics.trendData.winRate,
+              opportunitiesThisYear: opportunityStatistics.trendData.opportunitiesThisYear,
+              isLoading: opportunityStatistics.isLoading,
+              error: opportunityStatistics.error,
+              refetch: () => void opportunityStatistics.refetch()
+            }
+          : undefined,
 
-      fetchOpportunitiesForBoard: async (
-        filters: OpportunityBoardFilters & { additionalFilters?: Record<string, any> }
-      ) => {
-        const variables: CustomerOpportunityQueryVariables = {
-          limit: 200,
-          orderBy: [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }],
-          search: filters.search?.trim() || undefined
-        }
-
-        if (filters.selectedPipelineId) {
-          variables.pipelineIds = [filters.selectedPipelineId]
-        }
-
-        if (filters.opportunityFilter === 'my' && context.userInfo?.employeeDetails?.employeeId) {
-          variables.ownerEmployeeIds = [context.userInfo.employeeDetails.employeeId]
-        } else if (filters.opportunityFilter === 'selected') {
-          if (filters.selectedEmployeeIds.length > 0) {
-            variables.ownerEmployeeIds = filters.selectedEmployeeIds
-          } else {
-            variables.ownerEmployeeIds = ['00000000-0000-0000-0000-000000000000']
-          }
-        }
-
-        const result = await fetchCustomerOpportunities(variables)
-        return result.opportunities || []
-      },
-
-      renderBoardCard: createBoardCardRenderer(),
-
-      processCompletionEvents: ['taskCompletion']
-    }),
+        rowActionsContextArray: [FlowContextName.customerOpportunityEntity],
+        buildRowActionsExternalContextData: (row: { original: CustomerOpportunity }) => ({
+          opportunityId: row.original.id
+        })
+      }),
     [context, fetchCustomerOpportunities, opportunityStatistics]
   )
 

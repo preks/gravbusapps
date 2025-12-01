@@ -1,13 +1,16 @@
 import React from 'react'
 import { Card } from 'antd'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useMonthlyHeadcountChanges } from '../../../../../hooks/useMonthlyHeadcountChanges'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
 const HeadcountChangesChart: React.FC<BusinessAppContextProps> = props => {
   const year = new Date().getFullYear()
   const { data, loading } = useMonthlyHeadcountChanges(props, year)
+  const { t } = useTranslation(hrTranslations)
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
@@ -15,25 +18,21 @@ const HeadcountChangesChart: React.FC<BusinessAppContextProps> = props => {
       return (
         <div className="gba:bg-primary-foreground gba:shadow-lg gba:rounded gba:p-4" data-testid="headcount-tooltip">
           <div className="gba:font-semibold gba:text-base gba:mb-1">
-            {d.month && new Date(d.month + '-01').toLocaleString(undefined, { month: 'short', year: 'numeric' })}
+            {d.month &&
+              new Date(d.month + '-01').toLocaleString(getCurrentActiveUserLocale() ?? 'en-US', {
+                month: 'short',
+                year: 'numeric'
+              })}
           </div>
           <div className="gba:text-success gba:text-sm">
-            <span className="gba:font-medium">
-              {getTranslationFromI18nKeyAndLabel('headcount_new_hires', 'New Hires')}:
-            </span>{' '}
-            +{d.newHires}
+            <span className="gba:font-medium">{t('hr-analytics-new-hires')}:</span> +{d.newHires}
           </div>
           <div className="gba:text-destructive gba:text-sm">
-            <span className="gba:font-medium">
-              {getTranslationFromI18nKeyAndLabel('headcount_departures', 'Departures')}:
-            </span>{' '}
+            <span className="gba:font-medium">{t('hr-analytics-departures')}:</span>{' '}
             {d.departures === 0 ? '0' : '-' + d.departures}
           </div>
           <div className="gba:text-foreground gba:text-sm">
-            <span className="gba:font-medium">
-              {getTranslationFromI18nKeyAndLabel('headcount_net_change', 'Net Change')}:
-            </span>{' '}
-            {d.netChange > 0 ? '+' : ''}
+            <span className="gba:font-medium">{t('hr-analytics-net-change')}:</span> {d.netChange > 0 ? '+' : ''}
             {d.netChange}
           </div>
         </div>
@@ -46,7 +45,7 @@ const HeadcountChangesChart: React.FC<BusinessAppContextProps> = props => {
     <Card
       className="gba:shadow gba:rounded gba:p-4 gba:mb-6"
       data-testid="headcount-changes-chart"
-      title={getTranslationFromI18nKeyAndLabel('headcount_changes_chart', 'Headcount Changes')}
+      title={t('hr-analytics-headcount-changes-chart')}
       loading={loading}
     >
       <div className="gba:w-full gba:h-72">
@@ -59,13 +58,13 @@ const HeadcountChangesChart: React.FC<BusinessAppContextProps> = props => {
             <Bar
               dataKey="newHires"
               fill="var(--nw-chart-1)"
-              name={getTranslationFromI18nKeyAndLabel('headcount_new_hires', 'New Hires')}
+              name={t('hr-analytics-new-hires')}
               data-testid="bar-new-hires"
             />
             <Bar
               dataKey="departures"
               fill="var(--nw-chart-2)"
-              name={getTranslationFromI18nKeyAndLabel('headcount_departures', 'Departures')}
+              name={t('hr-analytics-departures')}
               data-testid="bar-departures"
             />
           </BarChart>

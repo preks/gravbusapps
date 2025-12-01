@@ -1,0 +1,274 @@
+'use client'
+
+import React from 'react'
+import { Button, Card, Alert, Icon } from '@newwork/nw-design-system'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useTimeTrackingData } from '../hooks/useTimeTrackingData'
+import { AppAction } from '@/components/app-action/AppAction'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { UserIcon, ClockIcon, TimerIcon, ListBulletsIcon, PencilIcon } from '@phosphor-icons/react'
+import { InterventionsTable } from './InterventionsTable'
+import { LiveClock } from './LiveClock'
+
+interface MonthlySummaryProps {
+  employee: any
+  employeeId: string
+  accessToken: string
+  isSelfView: boolean
+}
+
+const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, accessToken, isSelfView }) => {
+  const {
+    isClockedIn,
+    clockInSince,
+    isSubmitting,
+    error,
+    clockIn,
+    clockOut,
+    todaysWorkedMinutes,
+    todaysPlannedMinutes
+  } = useTimeTrackingData({ employeeId, accessToken, workingHours: employee?.workingHours?.[0] })
+
+  const formatHm = (minutes: number) => {
+    const abs = Math.max(0, Math.floor(minutes))
+    const h = Math.floor(abs / 60)
+    const m = abs % 60
+    return `${h}:${String(m).padStart(2, '0')}`
+  }
+
+  const employeeName =
+    employee?.displayName || getTranslationFromI18nKeyAndLabel('lowcoder:common.employee', 'Employee')
+
+  // Build header text with optional secondary line for clocked-in state
+  const isClockedOutWithWork = !isClockedIn && todaysWorkedMinutes > 0
+  const headerPrimary = isClockedIn
+    ? getTranslationFromI18nKeyAndLabel(
+        'lowcoder:time_tracking.summary.header.clock_in',
+        `You're on the clock, ${employeeName} — keep up the great work!`,
+        {
+          employeeName
+        }
+      )
+    : isClockedOutWithWork
+      ? getTranslationFromI18nKeyAndLabel(
+          'lowcoder:time_tracking.summary.header.clock_out',
+          `Clocked out! Time to recharge, ${employeeName}`,
+          {
+            employeeName
+          }
+        )
+      : getTranslationFromI18nKeyAndLabel(
+          'lowcoder:time_tracking.summary.header.welcome',
+          `Welcome ${employeeName} to the new way of working!`,
+          {
+            employeeName
+          }
+        )
+  const headerSecondary = isClockedIn
+    ? getTranslationFromI18nKeyAndLabel(
+        'lowcoder:time_tracking.summary.header.clock_IN_secondary',
+        "Let's make this day count."
+      )
+    : isClockedOutWithWork
+      ? getTranslationFromI18nKeyAndLabel(
+          'lowcoder:time_tracking.summary.header.clock_OUT_secondary',
+          'Great work today — see you tomorrow, fresh and focused.'
+        )
+      : getTranslationFromI18nKeyAndLabel(
+          'lowcoder:time_tracking.summary.header.welcome_secondary',
+          'Let’s set things in motion — your hours start with a single click.'
+        )
+
+  // Only show HH:mm for "clocked in since", handle ISO fallback strings
+  const displayClockInSince = React.useMemo(() => {
+    if (!clockInSince) return ''
+    const raw = String(clockInSince)
+    if (raw.includes('T')) {
+      try {
+        return new Date(raw).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false })
+      } catch {
+        return raw
+      }
+    }
+    const m = raw.match(/^(\d{1,2}:\d{2})/)
+    return m ? m[1] : raw
+  }, [clockInSince])
+
+  return (
+    <div data-testid="monthly-summary-container">
+      {/* Top grid: Time card, Actions, Right-side info */}
+      <div
+        className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4 gba:items-stretch"
+        data-testid="timeclock-top-grid"
+      >
+        {/* Left column: separate time/date and employee status panels */}
+        <div className="gba:flex gba:flex-col gba:gap-4 gba:h-full">
+          {/* Current time/date */}
+          <Card
+            className="gba:p-4 gba:h-full gba:flex gba:items-center gba:justify-center"
+            data-testid="timeclock-now-card"
+          >
+            <LiveClock className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:text-center" />
+          </Card>
+        </div>
+
+        {/* Actions */}
+        <Card className="gba:p-4" data-testid="timeclock-actions-card">
+          <div className="gba:text-center gba:mb-3" data-testid="timeclock-header-text">
+            <div className="gba:text-xl gba:font-semibold">{headerPrimary}</div>
+            {headerSecondary && <div className="gba:mt-1 gba:text-base gba:font-normal">{headerSecondary}</div>}
+          </div>
+          <div className="gba:space-y-2">
+            <Button
+              className="gba:w-full"
+              variant="default"
+              disabled={!isSelfView || isClockedIn || isSubmitting}
+              onClick={clockIn}
+              data-testid="timeclock-clock-in-button"
+            >
+              {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.actions.clock_in', 'Clock In')}
+            </Button>
+
+            <Button className="gba:w-full" variant="outline" disabled data-testid="timeclock-start-break-button">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.actions.start_break', 'Start Break')}
+            </Button>
+
+            <Button className="gba:w-full" variant="outline" disabled data-testid="timeclock-end-break-button">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.actions.end_break', 'End Break')}
+            </Button>
+
+            <Button
+              className="gba:w-full"
+              variant="default"
+              disabled={!isSelfView || !isClockedIn || isSubmitting}
+              onClick={clockOut}
+              data-testid="timeclock-clock-out-button"
+            >
+              {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.actions.clock_out', 'Clock Out')}
+            </Button>
+
+            <AppAction
+              variant="update-secondary"
+              data-testid="timeclock-request-correction-button"
+              className="gba:!w-full"
+              contexts={[
+                {
+                  context: FlowContextName.employeeAttendanceCorrectionRequest,
+                  contextData: { employeeId: employee?.id }
+                }
+              ]}
+              prefixDataTestId="timeclock-request-correction"
+              accessToken={accessToken}
+            >
+              <>
+                <Icon icon={PencilIcon} />
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:time_tracking.actions.request_correction',
+                  'Request Correction'
+                )}
+              </>
+            </AppAction>
+
+            <AppAction
+              variant="update-secondary"
+              data-testid="timeclock-request-absence-button"
+              className="gba:!w-full"
+              contexts={[
+                {
+                  context: FlowContextName.employeeAbsenceRecord,
+                  contextData: {
+                    employeeId: employee?.id
+                  }
+                }
+              ]}
+              prefixDataTestId="timeclock-request-absence"
+              accessToken={accessToken}
+            >
+              <>
+                <Icon icon={PencilIcon} />
+                {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.request_absence', 'Request Absence')}
+              </>
+            </AppAction>
+          </div>
+        </Card>
+
+        {/* Right column: Employee status */}
+        <div className="gba:flex gba:flex-col gba:gap-4 gba:h-full" data-testid="timeclock-right-column">
+          <Card className="gba:p-4 gba:h-full" data-testid="timeclock-employee-card">
+            <div className="gba:flex gba:items-center gba:gap-2 gba:text-base gba:font-semibold">
+              <Icon icon={UserIcon} />
+              {employee?.displayName || getTranslationFromI18nKeyAndLabel('lowcoder:common.employee', 'Employee')}
+            </div>
+            <div
+              className="gba:mt-2 gba:flex gba:items-center gba:gap-2 gba:text-base"
+              data-testid="timeclock-status-text"
+            >
+              <Icon icon={ClockIcon} />
+              {isClockedIn ? (
+                <div className="gba:flex gba:justify-between gba:w-full">
+                  <span>
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:time_tracking.status.clocked_in_since_label',
+                      'Currently clocked in since'
+                    )}
+                  </span>
+                  <span className="gba:font-semibold">{displayClockInSince}</span>
+                </div>
+              ) : isClockedOutWithWork ? (
+                <span>
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.status.clocked_out', 'Clocked out')}
+                </span>
+              ) : (
+                <span>
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.status.not_clocked_in', 'Not clocked in')}
+                </span>
+              )}
+            </div>
+            <div
+              className="gba:text-base gba:mt-2 gba:flex gba:items-center gba:gap-2"
+              data-testid="timeclock-work-hours-today"
+            >
+              <Icon icon={TimerIcon} />
+              <div className="gba:flex gba:justify-between gba:w-full">
+                <span>
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.work_hours_today', 'Work Hours Today')}
+                </span>
+                <span className="gba:font-semibold">{formatHm(todaysWorkedMinutes)}</span>
+              </div>
+            </div>
+            <div
+              className="gba:text-base gba:mt-2 gba:flex gba:items-center gba:gap-2"
+              data-testid="timeclock-work-hours-assigned"
+            >
+              <Icon icon={ListBulletsIcon} />
+              <div className="gba:flex gba:justify-between gba:w-full">
+                <span>
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:time_tracking.work_hours_assigned',
+                    'Work Hours Assigned'
+                  )}
+                </span>
+                <span className="gba:font-semibold">{formatHm(todaysPlannedMinutes)}</span>
+              </div>
+            </div>
+          </Card>
+        </div>
+      </div>
+
+      {error && (
+        <Alert variant="destructive" className="gba:w-full gba:whitespace-normal gba:!inline-block gba:mt-4">
+          {error}
+        </Alert>
+      )}
+
+      {/* Interventions table */}
+      <InterventionsTable
+        employeeId={employeeId}
+        accessToken={accessToken}
+        workingHours={employee?.workingHours?.[0]}
+      />
+    </div>
+  )
+}
+
+export default MonthlySummary

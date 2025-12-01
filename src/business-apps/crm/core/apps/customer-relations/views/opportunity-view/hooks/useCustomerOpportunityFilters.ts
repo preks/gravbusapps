@@ -15,6 +15,7 @@ export const useCustomerOpportunityFilters = (context: BusinessAppContextProps) 
   const [pipelines, setPipelines] = useState<SimpleItem[]>([])
   const [accounts, setAccounts] = useState<SimpleItem[]>([])
   const [statuses, setStatuses] = useState<SimpleItem[]>([])
+  const [forecasts, setForecasts] = useState<SimpleItem[]>([])
   const [amountRange, setAmountRange] = useState<{ min: number; max: number }>({ min: 0, max: 1000000 })
 
   const loadOwners = useCallback(async () => {
@@ -53,7 +54,7 @@ export const useCustomerOpportunityFilters = (context: BusinessAppContextProps) 
         }>
       }>(`
         query GetOppStages {
-          Opportunity(where: { isDeleted: { _eq: false } }, limit: 50) {
+          Opportunity(where: { isDeleted: { _eq: false } }, distinctOn: [salesPipelineStageRef], limit: 50) {
             salesPipelineStage { id code value }
           }
         }
@@ -76,7 +77,7 @@ export const useCustomerOpportunityFilters = (context: BusinessAppContextProps) 
         Opportunity: Array<{ salesPipeline?: { id: string; code?: string; value?: string } | null }>
       }>(`
         query GetOppPipelines {
-          Opportunity(where: { isDeleted: { _eq: false } }, limit: 50) {
+          Opportunity(where: { isDeleted: { _eq: false } }, distinctOn: [salesPipelineRef], limit: 50) {
             salesPipeline { id code value }
           }
         }
@@ -122,7 +123,7 @@ export const useCustomerOpportunityFilters = (context: BusinessAppContextProps) 
         Opportunity: Array<{ opportunityStatus?: { id: string; code?: string; value?: string } | null }>
       }>(`
         query GetOppStatuses {
-          Opportunity(where: { isDeleted: { _eq: false } }, limit: 50) {
+          Opportunity(where: { isDeleted: { _eq: false } }, distinctOn: [opportunityStatusRef], limit: 50) {
             opportunityStatus { id code value }
           }
         }
@@ -135,6 +136,36 @@ export const useCustomerOpportunityFilters = (context: BusinessAppContextProps) 
       setStatuses(Array.from(map.entries()).map(([id, label]) => ({ id, label })))
     } catch {
       setStatuses([])
+    }
+  }, [context.accessToken, graphqlClient])
+
+  const loadForecasts = useCallback(async () => {
+    if (!context.accessToken) return
+    try {
+      const res = await graphqlClient.request<{
+        Opportunity: Array<{
+          opportunityForecast?: { id: string; code?: string; value?: string; additionalValue1?: string } | null
+        }>
+      }>(`
+        query GetOppForecasts {
+          Opportunity(where: { isDeleted: { _eq: false } }, distinctOn: [opportunityForecastRef], limit: 50) {
+            opportunityForecast { id code value additionalValue1 }
+          }
+        }
+      `)
+      const map = new Map<string, string>()
+      for (const r of res?.Opportunity || []) {
+        const f = r.opportunityForecast
+        if (f?.id) {
+          const value = f.value || f.code || f.id
+          const additionalValue1 = f.additionalValue1 || ''
+          const label = additionalValue1 ? `${value}: ${additionalValue1}` : value
+          map.set(f.id, label)
+        }
+      }
+      setForecasts(Array.from(map.entries()).map(([id, label]) => ({ id, label })))
+    } catch {
+      setForecasts([])
     }
   }, [context.accessToken, graphqlClient])
 
@@ -172,8 +203,9 @@ export const useCustomerOpportunityFilters = (context: BusinessAppContextProps) 
     loadPipelines()
     loadAccounts()
     loadStatuses()
+    loadForecasts()
     loadAmountRange()
-  }, [loadOwners, loadStages, loadPipelines, loadAccounts, loadStatuses, loadAmountRange])
+  }, [loadOwners, loadStages, loadPipelines, loadAccounts, loadStatuses, loadForecasts, loadAmountRange])
 
-  return { owners, stages, pipelines, accounts, statuses, amountRange }
+  return { owners, stages, pipelines, accounts, statuses, forecasts, amountRange }
 }

@@ -1,15 +1,19 @@
 import { useState, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { GET_INVESTMENT_DOCUMENTS_BY_INVESTMENT_ID } from '@/common/data/investment/queries/investmentQueries'
-import type { InvestmentDocument } from '@/common/data/investment/types'
+import {
+  buildInvestmentDocumentQuery,
+  buildInvestmentDocumentWhereCondition,
+  type InvestmentDocumentQueryVariables
+} from '@/common/data/investment/queries/investmentDocumentQueries'
+import type { InvestmentDocument } from '@/common/data/investment/types/investmentDocumentTypes'
 
 interface UseGetInvestmentDocumentsByInvestmentIdResult {
   documents: InvestmentDocument[]
   isLoading: boolean
   error: string | null
   refetch: () => Promise<void>
-  fetchInvestmentDocumentsByInvestmentId: (investmentId: string) => Promise<InvestmentDocument[]>
+  fetchInvestmentDocumentsByInvestmentId: (investmentId: string, createdBy?: string) => Promise<InvestmentDocument[]>
 }
 
 export const useGetInvestmentDocumentsByInvestmentId = (
@@ -23,7 +27,7 @@ export const useGetInvestmentDocumentsByInvestmentId = (
   const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchInvestmentDocumentsByInvestmentId = useCallback(
-    async (investmentId: string): Promise<InvestmentDocument[]> => {
+    async (investmentId: string, createdBy?: string): Promise<InvestmentDocument[]> => {
       if (!investmentId || !context.accessToken) {
         throw new Error('Investment ID and access token are required')
       }
@@ -32,8 +36,44 @@ export const useGetInvestmentDocumentsByInvestmentId = (
       setError(null)
 
       try {
-        const query = GET_INVESTMENT_DOCUMENTS_BY_INVESTMENT_ID(investmentId)
-        const result = await graphqlClient.request<{ InvestmentDocument: InvestmentDocument[] }>(query)
+        // Use new query builder with fields mapping
+        const query = buildInvestmentDocumentQuery()
+
+        // Build query variables (no investmentIds - it's not in descriptors)
+        const queryVariables: InvestmentDocumentQueryVariables = {
+          limit: 100,
+          offset: 0
+        }
+
+        // Build custom conditions for BOTH investmentId AND createdBy filters
+        const customConditions: Record<string, any>[] = []
+
+        // CRITICAL: Filter by investmentId (not in descriptors, must use customConditions)
+        customConditions.push({ investmentId: { _eq: investmentId } })
+
+        // Filter by createdBy if provided
+        if (createdBy) {
+          customConditions.push({ createdBy: { _eq: createdBy } })
+        }
+
+        // Build WHERE condition
+        const whereCondition = buildInvestmentDocumentWhereCondition(queryVariables, [], customConditions)
+
+        // Build ORDER BY
+        const orderBy = [{ createdAt: 'DESC' }]
+
+        // Prepare GraphQL variables
+        const graphQLVariables = {
+          limit: 100,
+          offset: 0,
+          where: whereCondition,
+          orderBy
+        }
+
+        const result = await graphqlClient.request<{ InvestmentDocument: InvestmentDocument[] }>(
+          query,
+          graphQLVariables
+        )
 
         const documentData = result.InvestmentDocument || []
         setDocuments(documentData)

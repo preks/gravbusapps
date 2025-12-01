@@ -10,6 +10,7 @@ import {
   DEFAULT_EXPENSE_CLASS_ID,
   EXPENSE_SEARCH_TERM
 } from '../../expense-item/constants/constants'
+import { parseNumericValue } from '@/business-apps/fin/expenses/utils/amountFormatting'
 
 /**
  * Formats custom fields from form values
@@ -103,14 +104,18 @@ const createSubmitData = (
   expensePlanId: string,
   additionalData?: any
 ): any => {
+  // Normalize amount coming from the form (could be locale-formatted like "12,00")
+  const normalizedAmount = parseNumericValue(values.amount) ?? 0
+  const isReimbursable = values.reimbursable === true
+
   return {
     expensePlanItem: {
       ...(itemValues?.id && { id: itemValues.id }),
       ...(itemValues?.id && { version: itemValues.version }),
       title: values.title,
-      totalAmount: values.amount || 0,
+      totalAmount: normalizedAmount,
       currencyRef: values.currency || DEFAULT_CURRENCY_ID,
-      reimbursable: values.reimbursable || false,
+      reimbursable: isReimbursable,
       expenseClassRef:
         catalogueDataResponse?.data?.expenceClass?.find((element: any) =>
           element.code.toLowerCase().includes(EXPENSE_SEARCH_TERM)
@@ -120,8 +125,7 @@ const createSubmitData = (
       expenseGroupRef: values.expenseGroup,
       source: values.expenseType ? DEFAULT_EXPENSE_SOURCE : '',
       expenseDate: values.date ? dayjs(values.date).format() : dayjs().format(),
-      reimbursableAmount: values.reimbursable === true ? values.amount : '',
-      nonReimbursableAmount: values.reimbursable !== true ? values.amount : '',
+      ...(isReimbursable ? { reimbursableAmount: normalizedAmount } : { nonReimbursableAmount: normalizedAmount }),
       expenseRuleGeneralExpense: values.expenseType || '',
       costCenter: values.costCenter,
       expensePlan: values.expensePlan || expensePlanId || additionalData?.expensePlanId || '',
@@ -299,7 +303,6 @@ export const handleSubmit = async (
       getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_type_item.error_flows', 'Error in flow process'),
       'error'
     )
-    throw error
   } finally {
     setLoading(false)
   }

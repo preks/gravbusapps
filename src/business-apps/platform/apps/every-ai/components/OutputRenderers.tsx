@@ -12,6 +12,7 @@ import type {
   EntityData,
   FlowProposalOutput
 } from '../types/models'
+import type { ConversationTurn } from '../types/models'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import DynamicFormDisplay from './DynamicFormDisplay'
@@ -28,6 +29,7 @@ import CrmNoteDisplay from './entities/CrmNoteDisplay'
 import CrmDocumentDisplay from './entities/CrmDocumentDisplay'
 import IrmNoteDisplay from './entities/IrmNoteDisplay'
 import IrmDocumentDisplay from './entities/IrmDocumentDisplay'
+import SalesActivityDisplay from './entities/SalesActivityDisplay'
 import EntityLink, { markdownUrlTransform } from './links/EntityLink'
 import NavigationDisplay from './displays/NavigationDisplay'
 import { ReminderDisplay } from './displays/ReminderDisplay'
@@ -236,7 +238,16 @@ export const ToolOutput: React.FC<{ name: string; reason?: string }> = ({ name, 
 }
 
 // Text Block Display with Markdown support
+// Normalize minor authoring glitches in markdown (e.g. "[text] (url)" → "[text](url)")
+const normalizeLinkSpacing = (input: string): string => {
+  if (!input) return input
+  return input.replace(/\[([^\]]+)\]\s+\(\s*([a-zA-Z0-9_]+:\/\/[^)\s]+?)\s*\)/g, (_m, text, url) => {
+    return `[${text}](${url})`
+  })
+}
+
 export const TextBlockDisplay: React.FC<{ data: TextBlockData; accessToken: string }> = ({ data, accessToken }) => {
+  const content = normalizeLinkSpacing(data.text)
   return (
     <div className="gba:prose gba:prose-sm gba:max-w-none gba:text-foreground" data-testid="text-block-display">
       <ReactMarkdown
@@ -252,7 +263,7 @@ export const TextBlockDisplay: React.FC<{ data: TextBlockData; accessToken: stri
         }}
         urlTransform={markdownUrlTransform}
       >
-        {data.text}
+        {content}
       </ReactMarkdown>
     </div>
   )
@@ -349,7 +360,8 @@ export const BarGraphDisplay: React.FC<{ data: BarGraphData }> = ({ data }) => {
 
 // Entity Display Router
 function renderEntity(item: EntityData, accessToken: string) {
-  switch (item.entity) {
+  const entity = item.entity as string
+  switch (entity) {
     case 'employee':
       return <EmployeeDisplay key={item.id} employeeId={item.id} accessToken={accessToken} operation={item.operation} />
     case 'lead':
@@ -380,7 +392,7 @@ function renderEntity(item: EntityData, accessToken: string) {
           expenseId={item.id}
           accessToken={accessToken}
           operation={item.operation}
-          entityType={item.entity as 'expense_request' | 'expense_plan' | 'expense_item'}
+          entityType={entity as 'expense_request' | 'expense_plan' | 'expense_item'}
         />
       )
     case 'investment_lead':
@@ -390,6 +402,16 @@ function renderEntity(item: EntityData, accessToken: string) {
     case 'absence':
     case 'employee_absence':
       return <AbsenceDisplay key={item.id} absenceId={item.id} accessToken={accessToken} operation={item.operation} />
+    case 'sales_activity':
+    case 'salesActivity':
+      return (
+        <SalesActivityDisplay
+          key={item.id}
+          activityId={item.id}
+          accessToken={accessToken}
+          operation={item.operation}
+        />
+      )
     case 'blink':
     case 'quick_task':
       return <BlinkDisplay key={item.id} blinkId={item.id} accessToken={accessToken} operation={item.operation} />
@@ -420,7 +442,7 @@ function renderEntity(item: EntityData, accessToken: string) {
       )
     default: {
       // Fallback for any unhandled entity types (should never happen with current types)
-      const entityType = item.entity as string
+      const entityType = entity
       return (
         <Card key={item.id} data-testid="entity-display-fallback">
           <CardContent className="gba:p-4">
@@ -644,7 +666,9 @@ export const OutputItemRenderer: React.FC<{
   item: OutputItem
   accessToken: string
   sendMessage?: (message: string, files: File[]) => void
-}> = ({ item, accessToken, sendMessage }) => {
+  conversation?: ConversationTurn[]
+  isVoiceMode?: boolean
+}> = ({ item, accessToken, sendMessage, conversation, isVoiceMode = false }) => {
   switch (item.type) {
     case 'answer':
       return <AnswerOutputRenderer data={item} accessToken={accessToken} />
@@ -664,7 +688,14 @@ export const OutputItemRenderer: React.FC<{
       }
       return (
         <FlowProposalBoundary data={item} sendMessage={sendMessage}>
-          <DynamicFormDisplay data={item} onCancel={() => sendMessage?.('Cancel', [])} sendMessage={sendMessage} />
+          <DynamicFormDisplay
+            data={item}
+            onCancel={() => sendMessage?.('Cancel', [])}
+            sendMessage={sendMessage}
+            accessToken={accessToken}
+            conversation={conversation}
+            isVoiceMode={isVoiceMode}
+          />
         </FlowProposalBoundary>
       )
     default:

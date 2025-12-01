@@ -2,6 +2,10 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { Badge, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
 import { Building2, Calendar } from 'lucide-react'
 import { navigateTo } from '@/common/utils/navigationUtils'
+import { deriveSortableColumns } from '@/common/network/graphql/descriptorUtils'
+import { createOpportunityDescriptors, OpportunityFields } from '@/common/data/relations/types/opportunityTypes'
+import type { Descriptor } from '@/common/network/graphql/queryHelpers'
+import { getOpportunityForecastBadgeVariant } from '@/common/utils/badgeUtils'
 
 // Generic opportunity interface that both Investment and Customer opportunities implement
 export interface GenericOpportunityForColumns {
@@ -19,6 +23,7 @@ export interface GenericOpportunityForColumns {
   salesPipelineStageLabel?: string
   opportunityStatus?: { id: string; code?: string; value?: string; alternativeCode?: string } | null
   opportunityStatusLabel?: string
+  opportunityForecast?: { id: string; code?: string; value?: string; additionalValue1?: string } | null
   closeDate?: string | null
   account?: { id: string; name: string; pictureThumbnail?: string | null; pictureThumbnailUrl?: string | null } | null
   ownerEmployee?: {
@@ -91,6 +96,23 @@ export const getStatusColor = (
     default:
       return 'outline'
   }
+}
+
+// Helper function to format status labels (remove prefixes and convert to Title Case)
+export const formatStatusLabel = (status?: string): string => {
+  if (!status) return '-'
+
+  // Remove common prefixes like OPPORTUNITY_, INVESTMENT_, STATUS_
+  const withoutPrefix = status
+    .replace(/^OPPORTUNITY_/, '')
+    .replace(/^INVESTMENT_/, '')
+    .replace(/^STATUS_/, '')
+
+  // Convert SCREAMING_SNAKE_CASE to Title Case
+  return withoutPrefix
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ')
 }
 
 // Extract currency symbol
@@ -172,7 +194,7 @@ export function createOpportunityColumns<T extends GenericOpportunityForColumns>
       },
       cell: ({ row }) => {
         if (!row.original.estimatedAmount) {
-          return <div className="gba:text-right gba:text-gray-400">-</div>
+          return <div className="gba:text-right gba:text-sm gba:text-muted-foreground">No amount</div>
         }
 
         const formattedValue = new Intl.NumberFormat(undefined, {
@@ -193,7 +215,7 @@ export function createOpportunityColumns<T extends GenericOpportunityForColumns>
       }
     },
     {
-      id: 'pipeline',
+      id: 'opportunityPipeline',
       accessorKey: 'opportunityPipeline',
       header: 'Pipeline',
       size: 150,
@@ -207,12 +229,12 @@ export function createOpportunityColumns<T extends GenericOpportunityForColumns>
             row.original.salesPipelineLabel ||
             row.original.salesPipeline?.value ||
             row.original.salesPipeline?.code ||
-            '-'}
+            'No pipeline'}
         </span>
       )
     },
     {
-      id: 'stage',
+      id: 'opportunityPipelineStage',
       accessorKey: 'opportunityPipelineStage',
       header: 'Stage',
       size: 150,
@@ -237,36 +259,79 @@ export function createOpportunityColumns<T extends GenericOpportunityForColumns>
                 {stageLabel}
               </Badge>
             ) : (
-              <span className="gba:text-gray-400">-</span>
+              <span className="gba:text-sm gba:text-muted-foreground">No stage</span>
             )}
           </>
         )
       }
     },
     {
-      id: 'status',
+      id: 'opportunityStatus',
       accessorKey: 'opportunityStatus',
       header: 'Status',
       size: 120,
       minSize: 100,
       maxSize: 150,
-      cell: ({ row }) => (
-        <>
-          {row.original.opportunityStatus ? (
-            <Badge
-              variant={getStatusColor(row.original.opportunityStatus?.alternativeCode)}
-              data-testid={`opportunity-status-${row.original.id}`}
-            >
-              {row.original.opportunityStatusLabel ||
-                row.original.opportunityStatus?.value ||
-                row.original.opportunityStatus?.code ||
-                '-'}
-            </Badge>
-          ) : (
-            <span className="gba:text-gray-400">-</span>
-          )}
-        </>
-      )
+      cell: ({ row }) => {
+        // Only display if opportunityStatus catalog entry exists
+        if (!row.original.opportunityStatus) {
+          return <span className="gba:text-sm gba:text-muted-foreground">No status</span>
+        }
+
+        // Priority: opportunityStatusLabel > catalog value > catalog code
+        const rawStatus =
+          row.original.opportunityStatusLabel ||
+          row.original.opportunityStatus?.value ||
+          row.original.opportunityStatus?.code
+
+        if (!rawStatus) {
+          return <span className="gba:text-sm gba:text-muted-foreground">No status</span>
+        }
+
+        // Format the status (handles cases like "OPPORTUNITY_OPEN" -> "Open")
+        const statusLabel = formatStatusLabel(rawStatus)
+
+        return (
+          <Badge
+            variant={getStatusColor(row.original.opportunityStatus?.alternativeCode || rawStatus)}
+            data-testid={`opportunity-status-${row.original.id}`}
+          >
+            {statusLabel}
+          </Badge>
+        )
+      }
+    },
+    {
+      id: 'opportunityForecast',
+      accessorFn: row => {
+        const forecast = row.opportunityForecast
+        if (!forecast) return ''
+        const value = forecast.value || forecast.code || ''
+        const additionalValue1 = forecast.additionalValue1 || ''
+        return additionalValue1 ? `${value}: ${additionalValue1}` : value
+      },
+      header: 'Forecast',
+      size: 140,
+      minSize: 120,
+      maxSize: 180,
+      cell: ({ row }) => {
+        if (!row.original.opportunityForecast) {
+          return <span className="gba:text-sm gba:text-muted-foreground">No forecast</span>
+        }
+        const forecast = row.original.opportunityForecast
+        const value = forecast.value || forecast.code || ''
+        const additionalValue1 = forecast.additionalValue1 || ''
+        const displayValue = additionalValue1 ? `${value}: ${additionalValue1}` : value
+        return (
+          <Badge
+            variant={getOpportunityForecastBadgeVariant(forecast)}
+            className="gba:text-sm"
+            data-testid={`opportunity-forecast-cell-${row.original.id}`}
+          >
+            {displayValue}
+          </Badge>
+        )
+      }
     },
     {
       id: 'closeDate',
@@ -285,19 +350,19 @@ export function createOpportunityColumns<T extends GenericOpportunityForColumns>
             <span className="gba:text-sm gba:truncate">{formatDate(row.original.closeDate)}</span>
           </div>
         ) : (
-          <span className="gba:text-gray-400">-</span>
+          <span className="gba:text-sm gba:text-muted-foreground">No close date</span>
         )
     },
     {
       id: 'account',
-      accessorKey: 'account',
+      accessorFn: row => row.account?.name || '',
       header: 'Account',
       size: 200,
       minSize: 180,
       maxSize: 280,
       cell: ({ row }) => {
         if (!row.original.account) {
-          return <span className="gba:text-gray-400">-</span>
+          return <span className="gba:text-sm gba:text-muted-foreground">No account</span>
         }
 
         const account = row.original.account
@@ -332,14 +397,14 @@ export function createOpportunityColumns<T extends GenericOpportunityForColumns>
     },
     {
       id: 'owner',
-      accessorKey: 'ownerEmployee',
+      accessorFn: row => getOwnerName(row),
       header: 'Owner',
       size: 180,
       minSize: 160,
       maxSize: 240,
       cell: ({ row }) => {
         if (!row.original.ownerEmployee) {
-          return <span className="gba:text-gray-400">-</span>
+          return <span className="gba:text-sm gba:text-muted-foreground">No owner</span>
         }
 
         const owner = row.original.ownerEmployee
@@ -394,23 +459,43 @@ export function createOpportunityColumns<T extends GenericOpportunityForColumns>
             <span className="gba:text-sm gba:truncate">{formatDate(row.original.createdAt)}</span>
           </div>
         ) : (
-          <span className="gba:text-gray-400">-</span>
+          <span className="gba:text-sm gba:text-muted-foreground">No date</span>
         )
     }
   ]
 }
 
-export const createOpportunitySortableColumns = () => {
-  // Use column IDs (not GraphQL field names) - mapping happens in OpportunityView
-  return [
-    { id: 'opportunity', label: 'Opportunity' },
-    { id: 'amount', label: 'Amount' },
-    { id: 'pipeline', label: 'Pipeline' },
-    { id: 'stage', label: 'Stage' },
-    { id: 'status', label: 'Status' },
-    { id: 'closeDate', label: 'Close Date' },
-    { id: 'account', label: 'Account' },
-    { id: 'owner', label: 'Owner' },
-    { id: 'created', label: 'Created' }
-  ]
+/**
+ * Create sortable columns derived from descriptors
+ * Views should pass their specific descriptors (e.g., CUSTOMER_OPPORTUNITY_DESCRIPTORS or INVESTMENT_OPPORTUNITY_DESCRIPTORS)
+ * which extend createOpportunityDescriptors(OpportunityFields) with domain-specific overrides
+ */
+const OPPORTUNITY_COLUMN_LABELS: Record<string, string> = {
+  opportunity: 'Opportunity',
+  amount: 'Amount',
+  opportunityPipeline: 'Pipeline',
+  opportunityPipelineStage: 'Stage',
+  opportunityStatus: 'Status',
+  opportunityForecast: 'Forecast',
+  closeDate: 'Close Date',
+  account: 'Account',
+  owner: 'Owner',
+  createdAt: 'Created',
+  created: 'Created' // Alias for createdAt
+}
+
+/**
+ * Create sortable columns from descriptors
+ * @param viewDescriptors - Optional view-specific descriptors (e.g., CUSTOMER_OPPORTUNITY_DESCRIPTORS) that override common descriptors
+ * @param availableColumnIds - Optional array of column IDs that are actually in the table. If provided, only descriptors with keys matching these IDs will be included.
+ * @returns Array of sortable column definitions
+ */
+export const createOpportunitySortableColumns = (viewDescriptors?: Descriptor[], availableColumnIds?: string[]) => {
+  return deriveSortableColumns(
+    viewDescriptors
+      ? [createOpportunityDescriptors(OpportunityFields), viewDescriptors]
+      : createOpportunityDescriptors(OpportunityFields),
+    OPPORTUNITY_COLUMN_LABELS,
+    availableColumnIds
+  )
 }

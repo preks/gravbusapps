@@ -1,11 +1,11 @@
 import React from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from 'recharts'
-import { Card } from '@newwork/nw-design-system'
+import { Card, useTranslation } from '@newwork/nw-design-system'
 import { Typography, Spin, Empty } from 'antd'
 import { InfoCircleOutlined } from '@ant-design/icons'
 import { BusinessAppContextProps } from '@/business-apps/types'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useHealthInsuranceDistribution } from '../../../../../hooks/useHealthInsuranceDistribution'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 const { Title } = Typography
 
@@ -15,6 +15,7 @@ const { Title } = Typography
  */
 export const HealthInsurerDistributionChart: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
   const [activeIndex, setActiveIndex] = React.useState<number>(-1)
+  const { t } = useTranslation(hrTranslations)
 
   // Fetch health insurance distribution data
   const { distribution: data, loading, error, totalEmployees } = useHealthInsuranceDistribution(accessToken)
@@ -93,7 +94,7 @@ export const HealthInsurerDistributionChart: React.FC<BusinessAppContextProps> =
       {/* Header */}
       <div className="gba:flex gba:justify-between gba:items-center gba:mb-4">
         <Title level={4} className="gba:m-0 gba:text-foreground">
-          {getTranslationFromI18nKeyAndLabel('hr_analytics_health_insurer_distribution', 'Health Insurer Distribution')}
+          {t('hr-analytics-health-insurer-distribution')}
         </Title>
         <div className="gba:flex gba:items-center">
           <InfoCircleOutlined
@@ -111,14 +112,14 @@ export const HealthInsurerDistributionChart: React.FC<BusinessAppContextProps> =
         ) : error ? (
           <div className="gba:flex gba:justify-center gba:items-center gba:h-full">
             <Empty
-              description={getTranslationFromI18nKeyAndLabel('hr_analytics_error_loading', 'Error loading data')}
+              description={t('hr-analytics-error-loading')}
               data-testid="health-insurer-distribution-error"
             />
           </div>
         ) : data.length === 0 ? (
           <div className="gba:flex gba:justify-center gba:items-center gba:h-full">
             <Empty
-              description={getTranslationFromI18nKeyAndLabel('hr_analytics_no_data', 'No data available')}
+              description={t('hr-analytics-no-data')}
               data-testid="health-insurer-distribution-empty"
             />
           </div>
@@ -162,7 +163,7 @@ export const HealthInsurerDistributionChart: React.FC<BusinessAppContextProps> =
                   dominantBaseline="middle"
                   style={{ fontSize: '20px', fill: 'var(--nw-foreground)', fontWeight: 600 }}
                 >
-                  {getTranslationFromI18nKeyAndLabel('hr_analytics_health_insurers', 'Health Insurers')}
+                  {t('hr-analytics-health-insurers')}
                 </text>
                 <text
                   x="50%"

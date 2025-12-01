@@ -68,6 +68,7 @@ export interface ExpenseDashboardDataView {
   stats: ExpenseDashboard | null
   isLoading: boolean
   error: string | null
+  refetch: () => void
 }
 
 export const useGetExpenseDashboard = (
@@ -79,63 +80,63 @@ export const useGetExpenseDashboard = (
   const [error, setError] = useState<Error | null>(null)
   const graphqlClient = useGraphQLClient(context?.accessToken || '')
   const inflightRef = useRef<Map<string, Promise<any>>>(new Map())
+  const depsRef = useRef({ context, filters })
 
-  useEffect(() => {
-    const employeeId = context?.userInfo?.employeeDetails?.employeeId
+  const fetchStats = async () => {
+    const employeeId = depsRef.current.context?.userInfo?.employeeDetails?.employeeId
 
     // Validate auth; missing currency is not an error (wait for preselect)
-    if (!employeeId || !context?.accessToken) {
+    if (!employeeId || !depsRef.current.context?.accessToken) {
       setError(new Error('Employee ID or Access Token not found.'))
+      setStats(null)
       setIsLoading(false)
       return
     }
-    if (!filters?.currency) {
-      // Keep loading state until currency is available
-      setIsLoading(true)
+    if (!depsRef.current.filters?.currency) {
+      setStats(null)
       setError(null)
+      setIsLoading(false)
       return
     }
 
-    const fetchStats = async () => {
-      setIsLoading(true)
-      setError(null)
-      try {
-        const now = dayjs()
-        const selectedCurrency = filters?.currency
-        if (!selectedCurrency) {
-          throw new Error('Currency is required')
-        }
-        const selectedPeriod: 'monthly' | 'quarterly' | 'yearly' = filters?.period || 'monthly'
-
-        const variables = buildDashboardVariables(employeeId, selectedCurrency, now, selectedPeriod)
-        const key = JSON.stringify({ employeeId, selectedCurrency, selectedPeriod, date: now.format('YYYY-MM') })
-
-        // De-duplicate identical in-flight requests (dev StrictMode double run, rapid toggles)
-        if (inflightRef.current.has(key)) {
-          await inflightRef.current.get(key)
-          return
-        }
-
-        const p = graphqlClient
-          .request(GET_EXPENSE_DASHBOARD_BY_EMPLOYEE, variables)
-          .then(res => {
-            return res
-          })
-          .finally(() => {
-            inflightRef.current.delete(key)
-          })
-        inflightRef.current.set(key, p)
-        const data = await p
-        const expenseDashboard = transformDashboardResponse(data, selectedPeriod)
-        setStats(expenseDashboard as ExpenseDashboard)
-      } catch (err) {
-        setError(err instanceof Error ? err : new Error(String(err)))
-        setStats(null)
-      } finally {
-        setIsLoading(false)
+    setIsLoading(true)
+    setError(null)
+    try {
+      const now = dayjs()
+      const selectedCurrency = depsRef.current.filters?.currency
+      if (!selectedCurrency) {
+        throw new Error('Currency is required')
       }
-    }
+      const selectedPeriod: 'monthly' | 'quarterly' | 'yearly' = depsRef.current.filters?.period || 'monthly'
 
+      const variables = buildDashboardVariables(employeeId, selectedCurrency, now, selectedPeriod)
+      const key = JSON.stringify({ employeeId, selectedCurrency, selectedPeriod, date: now.format('YYYY-MM') })
+
+      if (inflightRef.current.has(key)) {
+        await inflightRef.current.get(key)
+        return
+      }
+
+      const p = graphqlClient
+        .request(GET_EXPENSE_DASHBOARD_BY_EMPLOYEE, variables)
+        .then(res => res)
+        .finally(() => {
+          inflightRef.current.delete(key)
+        })
+      inflightRef.current.set(key, p)
+      const data = await p
+      const expenseDashboard = transformDashboardResponse(data, selectedPeriod)
+      setStats(expenseDashboard as ExpenseDashboard)
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error(String(err)))
+      setStats(null)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    depsRef.current = { context, filters }
     fetchStats()
   }, [
     graphqlClient,
@@ -145,5 +146,5 @@ export const useGetExpenseDashboard = (
     filters?.period
   ])
 
-  return { stats, isLoading, error: error?.message ?? null }
+  return { stats, isLoading, error: error?.message ?? null, refetch: fetchStats }
 }

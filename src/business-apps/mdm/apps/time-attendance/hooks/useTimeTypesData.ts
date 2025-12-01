@@ -1,6 +1,13 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import {
+  TimeTypeEnum,
+  TimeTypeResponse,
+  SystemTimeTypeResponse,
+  TransformedTimeType,
+  TransformedSystemTimeType
+} from '../types/time-types'
 
 // GraphQL Query
 const GET_TIME_TYPES_QUERY = `
@@ -26,51 +33,6 @@ const GET_SYSTEM_TIME_TYPES = `query GetSystemTimeTypes {
   }
 }`
 
-export enum TimeTypeEnum {
-  // This is intentionally written as TIME_TYPE_SYSETM to match the GraphQL query
-  TIME_TYPE_SYSTEM = 'TIME_TYPE_SYSETM',
-  TIME_TYPE_CUSTOM = 'TIME_TYPE_CUSTOM',
-  TIME_TYPE_UNKNOWN = 'UNKNOWN_TIME_TYPE'
-}
-
-// Response interface
-export interface TimeTypeResponse {
-  TimeType: Array<{
-    id: string
-    name: string
-    visible: boolean
-    type: string
-    code: string
-    version: number
-  }>
-}
-
-interface SystemTimeTypeResponse {
-  Catalog: Array<{
-    id: string
-    catalogEntries: Array<{
-      code: string
-      value: string
-      visible?: boolean
-    }>
-  }>
-}
-// Final transformed interface
-export interface TransformedTimeType {
-  id: string
-  name: string
-  visible: boolean
-  type: 'System' | 'Custom' | 'Unknown'
-  code: string
-  version: number
-}
-
-export interface TransformedSystemTimeType {
-  label: string
-  value: string
-  code: string
-  visible: boolean
-}
 // Hook interface
 export interface UseTimeTypesDataReturn {
   timeTypes: TransformedTimeType[]

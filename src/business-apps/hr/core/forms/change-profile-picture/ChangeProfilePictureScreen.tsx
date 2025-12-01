@@ -11,11 +11,22 @@ import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 
 const prefixDataTestId = 'ChangeProfilePictureScreen'
 
+const extractBase64Data = (dataUrl: string | null): string | null => {
+  if (!dataUrl) return null
+  const commaIndex = dataUrl.indexOf(',')
+  return commaIndex >= 0 ? dataUrl.slice(commaIndex + 1) : dataUrl
+}
+
+type AvatarUploadValue = {
+  file: File | null
+  thumbnail: string | null
+}
+
 const ChangeProfilePictureScreen: React.FC<BusinessAppContextProps> = ({ additionalData, userInfo, accessToken }) => {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [isImageLoading, setIsImageLoading] = useState<boolean>(true)
   const [currentVersion, setCurrentVersion] = useState<number | null>(null)
-  const [changedFile, setChangedFile] = useState<File | null>(null)
+  const [changedFile, setChangedFile] = useState<AvatarUploadValue | null>(null)
   const onChangeExecutionsRef = useRef<number>(0)
 
   const currentImageUrl = useMemo(() => {
@@ -71,25 +82,18 @@ const ChangeProfilePictureScreen: React.FC<BusinessAppContextProps> = ({ additio
     const employeeId = userInfo?.employeeDetails?.employeeId
     if (!employeeId || !changedFile) return {}
 
+    const file = changedFile?.file
+    const thumbnail = changedFile?.thumbnail
+    if (!file || !thumbnail) return {}
+
     try {
       const pathParams = { accessScope: 'public' } as const
       const appName = 'userProfile'
       const folderPath = `/pics/${employeeId}`
 
-      const uploadResponse = await fileClient.uploadFile(changedFile, pathParams, { appName, folderPath })
+      const uploadResponse = await fileClient.uploadFile(file!, pathParams, { appName, folderPath })
 
-      // FileReader result is set asynchronously, so previewPicture will always be null here.
-      // Fix: Return a Promise from handlePreSubmit and resolve after FileReader loads.
-      const thumbnailBase64 = await new Promise<string>(resolve => {
-        const reader = new FileReader()
-        reader.onload = () => {
-          const result = typeof reader.result === 'string' ? reader.result : ''
-          // Extract base64 portion if present (after the comma)
-          const base64 = result.includes(',') ? result.split(',').pop() || '' : result
-          resolve(base64)
-        }
-        reader.readAsDataURL(changedFile)
-      })
+      if (!uploadResponse.fileInfo) return {}
 
       const employeePictureChange = {
         id: employeeId,
@@ -97,7 +101,7 @@ const ChangeProfilePictureScreen: React.FC<BusinessAppContextProps> = ({ additio
         firstName: userInfo?.employeeDetails?.firstName,
         lastName: userInfo?.employeeDetails?.lastName,
         picture: JSON.stringify(uploadResponse.fileInfo),
-        pictureThumbnail: thumbnailBase64
+        pictureThumbnail: thumbnail
       }
 
       // window.dispatchEvent(new Event('com.newwork.user.profilePicture.updated'));
@@ -181,9 +185,9 @@ const ChangeProfilePictureScreen: React.FC<BusinessAppContextProps> = ({ additio
                   'lowcoder:profile_picture_form.upload',
                   'Upload Picture'
                 )}
-                onChange={file => {
+                onChange={value => {
                   onChangeExecutionsRef.current += 1
-                  setChangedFile(file)
+                  setChangedFile(value ? { file: value.file, thumbnail: extractBase64Data(value.thumbnail) } : null)
                 }}
                 data-testid="flw_changePicture_avatarUpload"
                 className="gba:w-full"

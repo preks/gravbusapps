@@ -31,8 +31,10 @@ export function PercentageField<TFieldValues extends FieldValues = FieldValues>(
               {...formField}
               value={formField.value ?? ''}
               onChange={e => {
-                const value = e.target.value === '' ? '' : e.target.value
-                formField.onChange(value)
+                const value = e.target.value
+                // Preserve 0 as valid value, but allow empty string for clearing
+                // The preprocessNumber in schema will handle empty string → undefined
+                formField.onChange(value === '' ? '' : value)
               }}
               type="number"
               step="0.01"

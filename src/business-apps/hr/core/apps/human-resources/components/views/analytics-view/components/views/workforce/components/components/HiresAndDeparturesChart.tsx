@@ -1,6 +1,7 @@
 import React from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
-import { Spinner } from '@newwork/nw-design-system'
+import { Spinner, useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 interface HiresAndDeparturesChartProps {
   hiresData: Array<{
@@ -29,6 +30,7 @@ const HiresAndDeparturesChart: React.FC<HiresAndDeparturesChartProps> = ({
   isLoading,
   dataTestId
 }) => {
+  const { t } = useTranslation(hrTranslations)
   // Combine all data by date
   const combinedData = React.useMemo(() => {
     const dataMap = new Map()
@@ -94,7 +96,7 @@ const HiresAndDeparturesChart: React.FC<HiresAndDeparturesChartProps> = ({
   if (combinedData.length === 0) {
     return (
       <div data-testid={`${dataTestId}-empty`} className="gba:flex gba:justify-center gba:items-center gba:h-full">
-        <p className="gba:text-muted-foreground">No hires and departures data available</p>
+        <p className="gba:text-muted-foreground">{t('hr-analytics-no-hires-departures-data')}</p>
       </div>
     )
   }
@@ -108,10 +110,10 @@ const HiresAndDeparturesChart: React.FC<HiresAndDeparturesChartProps> = ({
           <YAxis
             tick={{ fontSize: 12 }}
             stroke="var(--nw-muted-foreground)"
-            label={{ value: 'Count', angle: -90, position: 'insideLeft' }}
+            label={{ value: t('hr-analytics-count'), angle: -90, position: 'insideLeft' }}
           />
           <Tooltip
-            labelFormatter={value => `Month: ${value}`}
+            labelFormatter={value => `${t('hr-analytics-month')}: ${value}`}
             contentStyle={{
               backgroundColor: 'var(--nw-card)',
               border: '1px solid var(--nw-border)',
@@ -125,7 +127,7 @@ const HiresAndDeparturesChart: React.FC<HiresAndDeparturesChartProps> = ({
             dataKey="hires"
             stroke="var(--nw-success)"
             strokeWidth={2}
-            name="New Hires"
+            name={t('hr-analytics-new-hires')}
             dot={{ fill: 'var(--nw-success)', strokeWidth: 2, r: 3 }}
             activeDot={{ r: 5, fill: 'var(--nw-success)' }}
           />
@@ -134,7 +136,7 @@ const HiresAndDeparturesChart: React.FC<HiresAndDeparturesChartProps> = ({
             dataKey="departures"
             stroke="var(--nw-destructive)"
             strokeWidth={2}
-            name="Departures"
+            name={t('hr-analytics-departures')}
             dot={{ fill: 'var(--nw-destructive)', strokeWidth: 2, r: 3 }}
             activeDot={{ r: 5, fill: 'var(--nw-destructive)' }}
           />
@@ -143,7 +145,7 @@ const HiresAndDeparturesChart: React.FC<HiresAndDeparturesChartProps> = ({
             dataKey="netChange"
             stroke="var(--nw-chart-4)"
             strokeWidth={3}
-            name="Net Change"
+            name={t('hr-analytics-net-change')}
             dot={{ fill: 'var(--nw-chart-4)', strokeWidth: 2, r: 4 }}
             activeDot={{ r: 6, fill: 'var(--nw-chart-4)' }}
             strokeDasharray="5 5"

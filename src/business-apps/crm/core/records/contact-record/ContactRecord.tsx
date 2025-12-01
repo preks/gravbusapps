@@ -9,20 +9,20 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from '@newwork/nw-design-system'
-import { Users, FileText, User, CurrencyDollar } from '@phosphor-icons/react'
+import { Users, FileText, User, DollarSign } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { useContactData } from './hooks/useContactData'
+import { useCustomerContact } from '@/common/data/customer/hooks/useCustomerContact'
+import { useCustomerActivities } from '@/common/data/customer/hooks/useCustomerActivities'
+import { useCustomerTasks } from '@/common/data/customer/hooks/useCustomerTasks'
+import { useCustomerNotes } from '@/common/data/customer/hooks/useCustomerNotes'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { useGetContactActivities, ContactActivityData } from './queries/ContactActivityQueries'
-import { useGetContactTasks, ContactTaskData } from './queries/ContactTaskQueries'
-import { useGetContactNotes, ContactNoteData } from './queries/ContactNoteQueries'
-import { ContactData } from './queries/ContactQueries'
 import { HomeView } from './views/home-view/HomeView'
 import { OpportunityView } from './views/opportunity-view/OpportunityView'
 import { DocumentView } from './views/document-view/DocumentView'
+import { getEmailChannel, getPhoneChannel } from '@/common/data/common/utils/communicationChannelHelpers'
 
 interface ContactRecordContentProps extends BusinessAppContextProps {
   contactId: string
@@ -31,32 +31,30 @@ interface ContactRecordContentProps extends BusinessAppContextProps {
 }
 
 const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, onBack, fromEntity, ...props }) => {
-  const [contact, setContact] = useState<ContactData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<string>(() => {
     if (typeof window === 'undefined') return 'overview'
     const params = new URLSearchParams(window.location.search)
     return params.get('tab') || 'overview'
   })
 
+  // Use new declarative hook for contact data
   const {
     contact: contactData,
-    loading: dataLoading,
-    error: dataError,
-    refetchContactData
-  } = useContactData(contactId, props.accessToken)
+    loading,
+    error,
+    refetch: refetchContactData
+  } = useCustomerContact(props.accessToken, contactId)
 
-  // Data fetching hooks for sections
-  const { fetchContactActivities } = useGetContactActivities(props)
-  const { fetchContactTasks } = useGetContactTasks(props)
-  const { fetchContactNotes } = useGetContactNotes(props)
+  // Data fetching hooks for sections - using central hooks
+  const { fetchCustomerActivitiesByContactId } = useCustomerActivities(props)
+  const { fetchCustomerTasksByContactId } = useCustomerTasks(props)
+  const { fetchCustomerNotesByContactId } = useCustomerNotes(props)
 
   // State for section data
-  const [activities, setActivities] = useState<ContactActivityData[]>([])
-  const [notes, setNotes] = useState<ContactNoteData[]>([])
-  const [tasks, setTasks] = useState<ContactTaskData[]>([])
-  const [approvals, setApprovals] = useState<ContactTaskData[]>([])
+  const [activities, setActivities] = useState<any[]>([])
+  const [notes, setNotes] = useState<any[]>([])
+  const [tasks, setTasks] = useState<any[]>([])
+  const [approvals, setApprovals] = useState<any[]>([])
   const [sectionsLoading, setSectionsLoading] = useState(true)
   const [sectionsError, setSectionsError] = useState<string | null>(null)
 
@@ -93,31 +91,31 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
 
     try {
       const [activitiesData, notesData, tasksData] = await Promise.all([
-        fetchContactActivities({ contactId }),
-        fetchContactNotes({ contactId }),
-        fetchContactTasks({ contactId })
+        fetchCustomerActivitiesByContactId(contactId),
+        fetchCustomerNotesByContactId(contactId),
+        fetchCustomerTasksByContactId(contactId)
       ])
 
-      const sortedActivities = (activitiesData.SalesActivity || []).sort(
-        (a: ContactActivityData, b: ContactActivityData) =>
+      const sortedActivities = (activitiesData || []).sort(
+        (a: any, b: any) =>
           new Date(b.occurredAt || b.createdAt).getTime() - new Date(a.occurredAt || a.createdAt).getTime()
       )
-      const sortedNotes = (notesData.CrmNote || []).sort(
-        (a: ContactNoteData, b: ContactNoteData) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      const sortedNotes = (notesData || []).sort(
+        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       )
-      const sortedTasks = (tasksData.SalesTask || []).sort(
-        (a: ContactTaskData, b: ContactTaskData) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      const sortedTasks = (tasksData || []).sort(
+        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       )
 
       // Separate regular tasks from approvals based on taskType
-      const regularTasks = sortedTasks.filter((task: ContactTaskData) => {
-        const taskTypeCode = task?.type?.code || ''
-        const taskTypeValue = task?.type?.value || ''
+      const regularTasks = sortedTasks.filter((task: any) => {
+        const taskTypeCode = task?.type?.code || task?.taskType?.code || ''
+        const taskTypeValue = task?.type?.value || task?.taskType?.value || ''
         return taskTypeCode?.toUpperCase() !== 'APPROVAL' && taskTypeValue?.toUpperCase() !== 'APPROVAL'
       })
-      const approvalTasks = sortedTasks.filter((task: ContactTaskData) => {
-        const taskTypeCode = task?.type?.code || ''
-        const taskTypeValue = task?.type?.value || ''
+      const approvalTasks = sortedTasks.filter((task: any) => {
+        const taskTypeCode = task?.type?.code || task?.taskType?.code || ''
+        const taskTypeValue = task?.type?.value || task?.taskType?.value || ''
         return taskTypeCode?.toUpperCase() === 'APPROVAL' || taskTypeValue?.toUpperCase() === 'APPROVAL'
       })
 
@@ -131,29 +129,40 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
     } finally {
       setSectionsLoading(false)
     }
-  }, [contactId, props.accessToken, fetchContactActivities, fetchContactNotes, fetchContactTasks])
+  }, [
+    contactId,
+    props.accessToken,
+    fetchCustomerActivitiesByContactId,
+    fetchCustomerNotesByContactId,
+    fetchCustomerTasksByContactId
+  ])
 
   // Load section data on mount
   useEffect(() => {
     loadSectionData()
   }, [loadSectionData])
 
+  // Fetch contact data
+  const fetchContactData = useCallback(async () => {
+    await refetchContactData()
+  }, [refetchContactData])
+
   // Listen for process completion events to refresh contact data
   useEffect(() => {
-    const handleProcessCompletion = (event: any) => {
+    const handleProcessCompletion = async (event: any) => {
       try {
         // Check for successful completion
         if (event.detail?.resolution === 'success') {
-          refetchContactData()
-          loadSectionData() // Also refresh section data
+          await fetchContactData()
+          await loadSectionData() // Also refresh section data
           return
         }
 
         // Also check for different event structure
         const response = event.detail?.response
         if (response?.detail?.resolution === 'success' || response?.contact) {
-          refetchContactData()
-          loadSectionData() // Also refresh section data
+          await fetchContactData()
+          await loadSectionData() // Also refresh section data
         }
       } catch (err) {
         console.error('Error handling process completion in ContactRecord:', err)
@@ -183,7 +192,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
         window.removeEventListener(eventName, handleProcessCompletion as EventListener)
       })
     }
-  }, [contactId, refetchContactData, loadSectionData])
+  }, [contactId, fetchContactData, loadSectionData])
 
   const getBackButtonText = () => {
     if (fromEntity === 'leads') {
@@ -207,27 +216,42 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.email', 'Email'),
             value:
-              contactData?.email || contact?.email || getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
+              getEmailChannel(contactData?.communicationChannels)?.value ||
+              getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
             icon: Users
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.phone', 'Phone'),
             value:
-              contactData?.phone || contact?.phone || getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
+              getPhoneChannel(contactData?.communicationChannels)?.value ||
+              getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
+            icon: Users
+          },
+          {
+            label: getTranslationFromI18nKeyAndLabel('crm.common.birthday', 'Birthday'),
+            value: contactData?.birthDate
+              ? new Date(contactData.birthDate).toLocaleDateString('en-GB')
+              : getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
+            icon: Users
+          },
+          {
+            label: getTranslationFromI18nKeyAndLabel('crm.common.language', 'Language'),
+            value: contactData?.language?.value || getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
             icon: Users
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.owner', 'Owner'),
             value:
               contactData?.ownerEmployee?.displayName ||
-              contact?.ownerEmployee?.displayName ||
-              getTranslationFromI18nKeyAndLabel('crm.common.notAssigned', 'Not assigned'),
+              (contactData?.ownerEmployee?.firstName && contactData?.ownerEmployee?.lastName
+                ? `${contactData.ownerEmployee.firstName} ${contactData.ownerEmployee.lastName}`.trim()
+                : getTranslationFromI18nKeyAndLabel('crm.common.notAssigned', 'Not assigned')),
             icon: User
           }
         ]
       }
     ],
-    [contactData, contact]
+    [contactData]
   )
 
   const headerActions = useMemo(() => {
@@ -257,10 +281,16 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
   const activityActionProps = useMemo(
     () => ({
       contextsArray: [FlowContextName.customerActivityCreate],
-      externalContextData: { contactId },
+      externalContextData: {
+        contactId,
+        // Set current user as default owner
+        ...(props.userInfo?.employeeDetails?.employeeId && {
+          ownerEmployeeId: props.userInfo.employeeDetails.employeeId
+        })
+      },
       prefixDataTestId: 'contact-activity'
     }),
-    [contactId]
+    [contactId, props.userInfo?.employeeDetails?.employeeId]
   )
 
   const noteActionProps = useMemo(
@@ -306,7 +336,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
           content: (
             <HomeView
               contactId={contactId}
-              contact={contact!}
+              contact={contactData!}
               activities={activities}
               notes={notes}
               tasks={tasks}
@@ -325,7 +355,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
         {
           value: 'opportunities',
           label: getTranslationFromI18nKeyAndLabel('crm.common.opportunities', 'Opportunities'),
-          icon: <CurrencyDollar className="gba:mr-2" />,
+          icon: <DollarSign className="gba:mr-2" />,
           content: (
             <div className="gba:col-span-12">
               <OpportunityView contactId={contactId} {...props} />
@@ -347,7 +377,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
     [
       activeTab,
       handleTabChange,
-      contact,
+      contactData,
       contactId,
       props,
       tasks,
@@ -364,39 +394,6 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
     ]
   )
 
-  useEffect(() => {
-    const fetchContactData = async () => {
-      if (!contactId) {
-        setLoading(false)
-        return
-      }
-
-      try {
-        setLoading(true)
-        setError(null)
-
-        if (contactData) {
-          setContact(contactData)
-        } else if (dataError) {
-          setError(dataError)
-        }
-      } catch (err) {
-        console.error('Error fetching customer contact:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load customer contact')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    if (!dataLoading) {
-      fetchContactData()
-    }
-  }, [contactId, contactData, dataLoading, dataError])
-
-  useEffect(() => {
-    setLoading(dataLoading)
-  }, [dataLoading])
-
   if (loading) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
@@ -405,7 +402,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
     )
   }
 
-  if (error || !contact) {
+  if (error || !contactData) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
         <div className="gba:text-center">
@@ -425,21 +422,33 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
     )
   }
 
+  // Helper function to convert contact type codes to human-readable values
+  const getContactTypeDisplayValue = (typeCode?: string): string => {
+    if (!typeCode) return ''
+
+    // Convert snake_case to Title Case with spaces
+    return typeCode
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ')
+  }
+
   const fullName =
-    `${contactData?.firstName || contact?.firstName || ''} ${contactData?.lastName || contact?.lastName || ''}`.trim() ||
+    `${contactData?.firstName || ''} ${contactData?.lastName || ''}`.trim() ||
     getTranslationFromI18nKeyAndLabel('crm.common.unnamedContact', 'Unnamed Contact')
 
-  const contactType = contactData?.contactType || contact?.contactType
+  const contactType = contactData?.contactType || contactData?.type
+  const contactTypeDisplay = getContactTypeDisplayValue(contactType)
 
   const headerTitle = (
     <div className="gba:flex gba:items-center gba:gap-2">
       <span>{fullName}</span>
-      {contactType && (
+      {contactTypeDisplay && (
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
               <Badge data-testid="contact-type-badge" variant="outline" className="gba:text-sm">
-                {contactType}
+                {contactTypeDisplay}
               </Badge>
             </TooltipTrigger>
             <TooltipContent data-testid="contact-type-tooltip">

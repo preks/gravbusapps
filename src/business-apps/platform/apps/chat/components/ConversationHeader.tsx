@@ -1,0 +1,226 @@
+import React, { useState } from 'react'
+import {
+  Button,
+  IconAvatar,
+  Avatar,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@newwork/nw-design-system'
+import { ArrowLeft, DotsThreeVertical, SignOut, X, Info, Users } from '@phosphor-icons/react'
+import { UserIcon } from 'lucide-react'
+import type { Conversation } from '../types'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+
+interface ConversationHeaderProps {
+  conversation: Conversation
+  onBack?: () => void
+  onClose?: () => void
+  onRemove?: () => void
+  onGroupSettings?: () => void
+  showBackButton?: boolean
+  currentUserId?: string | null
+  compact?: boolean
+}
+
+const getOtherParticipant = (conversation: Conversation, currentUserId?: string | null) => {
+  if (conversation.type !== 'direct' || !conversation.participants || conversation.participants.length === 0) {
+    return null
+  }
+
+  // Filter out current user to get the other participant
+  const otherParticipants = conversation.participants.filter(p => {
+    return p.userId !== currentUserId && p.user?.id !== currentUserId
+  })
+
+  return otherParticipants[0] || null
+}
+
+const getConversationName = (conversation: Conversation, currentUserId?: string | null): string => {
+  if (conversation.name) {
+    return conversation.name
+  }
+
+  const otherParticipant = getOtherParticipant(conversation, currentUserId)
+  if (otherParticipant?.user) {
+    const name = `${otherParticipant.user.firstName || ''} ${otherParticipant.user.lastName || ''}`.trim()
+    return (
+      name || otherParticipant.user.username || getTranslationFromI18nKeyAndLabel('chat.unknownUser', 'Unknown User')
+    )
+  }
+
+  return getTranslationFromI18nKeyAndLabel('chat.directMessage', 'Direct Message')
+}
+
+const getConversationAvatarUrl = (conversation: Conversation, currentUserId?: string | null): string | undefined => {
+  if (conversation.type === 'group') {
+    return undefined // Groups use icon
+  }
+
+  const otherParticipant = getOtherParticipant(conversation, currentUserId)
+  return otherParticipant?.user?.avatarUrl
+}
+
+export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
+  conversation,
+  onBack,
+  onClose,
+  onRemove,
+  onGroupSettings,
+  showBackButton = false,
+  currentUserId = null,
+  compact = false
+}) => {
+  const name = getConversationName(conversation, currentUserId)
+  const avatarUrl = getConversationAvatarUrl(conversation, currentUserId)
+  const [showRemoveDialog, setShowRemoveDialog] = useState(false)
+  const isGroupChat = conversation.type === 'group'
+
+  const handleRemoveClick = () => {
+    setShowRemoveDialog(true)
+  }
+
+  const handleConfirmRemove = () => {
+    setShowRemoveDialog(false)
+    onRemove?.()
+  }
+
+  const avatarSize = compact ? 'gba:w-8 gba:h-8' : 'gba:w-9 gba:h-9'
+
+  return (
+    <>
+      <div
+        className={`gba:flex gba:items-center gba:border-b gba:border-border/50 gba:bg-background/80 gba:backdrop-blur-sm gba:flex-shrink-0 ${
+          compact ? 'gba:gap-2 gba:px-3 gba:py-2' : 'gba:gap-3 gba:px-4 gba:py-3'
+        }`}
+        data-testid="conversation-header"
+      >
+        {showBackButton && onBack && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onBack}
+            className="gba:h-8 gba:w-8 gba:flex-shrink-0"
+            data-testid="conversation-back-button"
+          >
+            <ArrowLeft className="gba:w-4 gba:h-4" />
+          </Button>
+        )}
+
+        {avatarUrl ? (
+          <Avatar className={`${avatarSize} gba:flex-shrink-0`}>
+            <img src={avatarUrl} alt={name} className="gba:w-full gba:h-full gba:object-cover gba:rounded-full" />
+          </Avatar>
+        ) : (
+          <IconAvatar
+            className={`${avatarSize} gba:flex-shrink-0`}
+            label={name}
+            icon={isGroupChat ? Users : UserIcon}
+          />
+        )}
+
+        <div className="gba:flex-1 gba:min-w-0">
+          <h2
+            className={`gba:font-semibold gba:truncate gba:text-foreground ${compact ? 'gba:text-sm' : 'gba:text-base'}`}
+          >
+            {name}
+          </h2>
+          {conversation.type === 'group' && conversation.participants && !compact && (
+            <p className="gba:text-xs gba:text-muted-foreground">
+              {getTranslationFromI18nKeyAndLabel('chat.participantsCount', '{count} participants').replace(
+                '{count}',
+                conversation.participants.length.toString()
+              )}
+            </p>
+          )}
+        </div>
+
+        <div className="gba:flex gba:items-center gba:gap-1">
+          {!showBackButton && onClose && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              className="gba:h-8 gba:w-8 gba:flex-shrink-0"
+              data-testid="conversation-close-button"
+              title={getTranslationFromI18nKeyAndLabel('chat.closeConversation', 'Close conversation')}
+            >
+              <X className="gba:w-4 gba:h-4" />
+            </Button>
+          )}
+
+          {(onRemove || (isGroupChat && onGroupSettings)) && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="gba:h-8 gba:w-8 gba:flex-shrink-0"
+                  data-testid="conversation-menu-button"
+                >
+                  <DotsThreeVertical className="gba:w-4 gba:h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {isGroupChat && onGroupSettings && (
+                  <DropdownMenuItem onClick={onGroupSettings} data-testid="conversation-group-settings-button">
+                    <Info className="gba:w-4 gba:h-4 gba:mr-2" />
+                    {getTranslationFromI18nKeyAndLabel('chat.groupSettings', 'Group Settings')}
+                  </DropdownMenuItem>
+                )}
+                {onRemove && (
+                  <DropdownMenuItem onClick={handleRemoveClick} data-testid="conversation-remove-button">
+                    <SignOut className="gba:w-4 gba:h-4 gba:mr-2" />
+                    {isGroupChat
+                      ? getTranslationFromI18nKeyAndLabel('chat.leaveConversation', 'Leave conversation')
+                      : getTranslationFromI18nKeyAndLabel('chat.removeConversation', 'Remove conversation')}
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
+      </div>
+
+      <Dialog open={showRemoveDialog} onOpenChange={setShowRemoveDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {conversation.type === 'group'
+                ? getTranslationFromI18nKeyAndLabel('chat.leaveConversationTitle', 'Leave conversation?')
+                : getTranslationFromI18nKeyAndLabel('chat.removeConversationTitle', 'Remove conversation?')}
+            </DialogTitle>
+            <DialogDescription>
+              {conversation.type === 'group'
+                ? getTranslationFromI18nKeyAndLabel(
+                    'chat.leaveConversationDescription',
+                    'You will no longer receive messages from this conversation. You can be added back by other participants.'
+                  )
+                : getTranslationFromI18nKeyAndLabel(
+                    'chat.removeConversationDescription',
+                    'This will remove the conversation from your list. You can always start a new conversation.'
+                  )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setShowRemoveDialog(false)} data-testid="conversation-remove-cancel">
+              {getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
+            </Button>
+            <Button variant="destructive" onClick={handleConfirmRemove} data-testid="conversation-remove-confirm">
+              {conversation.type === 'group'
+                ? getTranslationFromI18nKeyAndLabel('chat.leave', 'Leave')
+                : getTranslationFromI18nKeyAndLabel('chat.remove', 'Remove')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}

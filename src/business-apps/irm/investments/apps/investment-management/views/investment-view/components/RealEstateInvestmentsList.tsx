@@ -13,7 +13,7 @@ import {
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetInvestments } from '@/common/data/investment/hooks/useInvestments'
-import type { Investment } from '@/common/data/investment/types'
+import type { Investment } from '@/common/data/investment/types/investmentTypes'
 import type { InvestmentQueryVariables } from '@/common/data/investment/queries/investmentQueries'
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
 import { AppAction } from '@/components/app-action/AppAction'
@@ -21,7 +21,7 @@ import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { Building2, Calendar, ChevronUp, ChevronDown, Plus } from 'lucide-react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { formatDate } from '@/common/data/investment'
+import { formatDate } from '@/common/data/investment/utils/formatters'
 import { formatCurrencyParts } from '@/common/utils/numberFormatter'
 import { ColumnConfig } from '@/components/dataController'
 import { useInvestmentListController } from '../hooks/useInvestmentListController'
@@ -29,7 +29,36 @@ import { useRealEstateInvestmentsFilters } from '../hooks/useRealEstateInvestmen
 import { OwnerDisplay } from '@/business-apps/irm/core/apps/investment-relations/views/task-view/components/OwnerDisplay' // TODO: Extract to common
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
-export type RealEstateInvestmentsListProps = BusinessAppContextProps
+// Currency Display Component
+interface CurrencyDisplayProps {
+  amount: number | undefined
+  currencyCode?: string
+}
+
+const CurrencyDisplay: React.FC<CurrencyDisplayProps> = ({ amount, currencyCode }) => {
+  if (typeof amount !== 'number') {
+    return <span className="gba:text-gray-400">-</span>
+  }
+
+  const { number, symbol } = formatCurrencyParts(amount, {
+    currency: currencyCode,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2
+  })
+
+  return (
+    <div className="gba:w-full gba:flex gba:justify-end gba:items-baseline">
+      <span className="gba:text-sm gba:[font-variant-numeric:tabular-nums]">{number}</span>
+      <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">
+        {symbol}
+      </span>
+    </div>
+  )
+}
+
+export interface RealEstateInvestmentsListProps extends BusinessAppContextProps {
+  currencyCode?: string
+}
 
 // Sortable table header component
 const SortableTableHead: React.FC<{
@@ -61,7 +90,7 @@ const SortableTableHead: React.FC<{
   )
 }
 
-const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = context => {
+const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = ({ currencyCode, ...context }) => {
   const { accessToken } = context
 
   // Use the shared controller for URL sync and state management
@@ -168,12 +197,13 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = cont
       offset: (currentPage - 1) * pageSize,
       search: search.trim() || undefined,
       orderBy: [{ field: sortField, direction: sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST' }],
+      currencyCode: currencyCode || undefined,
       ...filters
     }
     // Always filter by real estate investment types
     v.investmentGroupIds = ['InvestmentGroup:v1:REAL_ESTATE']
     return v
-  }, [currentPage, pageSize, search, sortField, sortOrder, getFilters])
+  }, [currentPage, pageSize, search, sortField, sortOrder, currencyCode, getFilters])
 
   const loadData = useCallback(async () => {
     if (!accessToken) return
@@ -260,23 +290,6 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = cont
       })
     }
   }, [loadData])
-
-  const renderAmount = (amount: number | undefined, currency?: string) => {
-    if (typeof amount !== 'number') return <span className="gba:text-gray-400">-</span>
-    const { number, symbol } = formatCurrencyParts(amount, {
-      currency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2
-    })
-    return (
-      <div className="gba:w-full gba:flex gba:justify-end gba:items-baseline">
-        <span className="gba:text-sm gba:[font-variant-numeric:tabular-nums]">{number}</span>
-        <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">
-          {symbol}
-        </span>
-      </div>
-    )
-  }
 
   const handleSetFilter = useCallback(
     (filters: string[]) => {
@@ -468,7 +481,10 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = cont
                   )}
                   {visibleColumns.includes('totalInvestment') && (
                     <TableCell className="gba:text-right">
-                      {renderAmount(investment.totalInvestmentAmount, investment.currency?.code)}
+                      <CurrencyDisplay
+                        amount={investment.totalInvestmentAmount}
+                        currencyCode={investment.currency?.code}
+                      />
                     </TableCell>
                   )}
                   {visibleColumns.includes('acquisitionDate') && (

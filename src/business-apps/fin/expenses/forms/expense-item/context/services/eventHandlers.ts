@@ -359,7 +359,10 @@ export const handleSubmit = async (
       }
     })
     const computedExpenseRequestId =
-      normalizedExpenseRequestId ?? coerceRequestId(values?.expenseRequestId) ?? additionalData?.expenseRequestId ?? ''
+      normalizedExpenseRequestId ??
+      coerceRequestId(values?.expenseRequestId) ??
+      additionalData?.expenseRequestId ??
+      null
 
     const submitData = {
       expenseItem: {
@@ -370,7 +373,7 @@ export const handleSubmit = async (
         totalAmount: calculateTotalAmount(positions),
         source: DEFAULT_EXPENSE_SOURCE,
         currencyRef: values.currency || DEFAULT_CURRENCY_ID,
-        costCenter: positions[0]?.costCenter || '',
+        ...(positions[0]?.costCenter ? { costCenter: positions[0].costCenter } : {}),
         reimbursable: positions[0]?.isReimbursable || false,
         expenseClassRef: DEFAULT_EXPENSE_CLASS_ID,
         status: computedExpenseRequestId ? REQUEST_STATUS.ASSIGNED : DEFAULT_EXPENSE_STATUS,

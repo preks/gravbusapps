@@ -10,6 +10,7 @@ export enum FlowContextName {
   // Human Resources
   employeeEntity = 'employeeEntity',
   jobPositionEntity = 'jobPositionEntity',
+  assetEntity = 'assetEntity',
 
   // HR Notes
   createEmployeeNote = 'createEmployeeNote',
@@ -21,6 +22,7 @@ export enum FlowContextName {
   /// Customer Leads
   customerLeadEntity = 'customerLeadEntity',
   customerLeadCreate = 'customerLeadCreate',
+  customerLeadStatusUpdate = 'customerLeadStatusUpdate', // Status change context
 
   /// Customer Accounts
   customerAccountEntity = 'customerAccountEntity',
@@ -36,9 +38,8 @@ export enum FlowContextName {
   customerOpportunityEntity = 'customerOpportunityEntity',
   customerOpportunityCreate = 'customerOpportunityCreate', // TODO: Replace startProcess
   customerOpportunityUpdate = 'customerOpportunityUpdate', // TODO: Replace startProcess
-
-  transitionOpportunityStage = 'transitionOpportunityStage',
-  saveOpportunityStageConditionStatus = 'saveOpportunityStageConditionStatus',
+  customerOpportunityStageTransition = 'customerOpportunityStageTransition',
+  customerOpportunityConditionUpdate = 'customerOpportunityConditionUpdate',
 
   /// Customer Campaigns
   customerCampaignEntity = 'customerCampaignEntity',
@@ -52,6 +53,7 @@ export enum FlowContextName {
   customerActivityDelete = 'customerActivityDelete',
 
   /// Customer Notes
+  customerNoteEntity = 'customerNoteEntity',
   customerNoteCreate = 'customerNoteCreate',
   customerNoteDelete = 'customerNoteDelete',
 
@@ -69,6 +71,7 @@ export enum FlowContextName {
   investmentLeadCreate = 'investmentLeadCreate',
   investmentLeadUpdate = 'investmentLeadUpdate',
   investmentLeadReject = 'investmentLeadReject',
+  investmentLeadStatusUpdate = 'investmentLeadStatusUpdate', // Status change context
 
   /// Investment Accounts
   investmentAccountEntity = 'investmentAccountEntity',
@@ -117,6 +120,7 @@ export enum FlowContextName {
   investmentCreate = 'investmentCreate', // TODO: Replace startProcess
   investmentEntity = 'investmentEntity',
   investmentTileUpdate = 'investmentTileUpdate',
+  investmentKpiTilesUpdate = 'investmentKpiTilesUpdate',
   investmentStatusUpdate = 'investmentStatusUpdate',
   investmentPlanExit = 'investmentPlanExit',
 
@@ -129,6 +133,21 @@ export enum FlowContextName {
   investmentEquityInvestmentRoundCreate = 'investmentEquityInvestmentRoundCreate',
   investmentEquityInvestmentRoundUpdate = 'investmentEquityInvestmentRoundUpdate',
   investmentEquityInvestmentRoundDelete = 'investmentEquityInvestmentRoundDelete',
+
+  /// Investment Shareholders
+  investmentShareholderUpdate = 'investmentShareholderUpdate',
+
+  /// Investment Liquidity Preferences
+  investmentLiquidityPreferenceUpdate = 'investmentLiquidityPreferenceUpdate',
+
+  /// Investment PPM Forecasts
+  investmentPpmForecastUpdate = 'investmentPpmForecastUpdate',
+
+  /// Investment KPI Forecasts
+  investmentKpiForecastUpdate = 'investmentKpiForecastUpdate',
+
+  /// Investment Liquidity Forecasts (Real Estate)
+  investmentLiquidityForecastUpdate = 'investmentLiquidityForecastUpdate',
 
   /// Investment Reports
   investmentReportUpload = 'investmentReportUpload',
@@ -151,7 +170,10 @@ export enum FlowContextName {
   employeeGiveFeedback = 'employeeGiveFeedback',
   employeeRequestFeedback = 'employeeRequestFeedback',
   employeeSkills = 'employeeSkills',
+  employeeAdditionalProperties = 'updateEmployeeAdditionalAttributes',
   employeeProfilePicture = 'employeeProfilePicture',
+  employeeAttendanceCorrectionRequest = 'employeeAttendanceCorrectionRequest',
+  employeeBenefitRequest = 'employeeBenefitRequest',
 
   updateEmployeePersonalData = 'updateEmployeePersonalData',
   updateEmployeeAddress = 'updateEmployeeAddress',
@@ -162,6 +184,8 @@ export enum FlowContextName {
   updateEmployeeSkill = 'updateEmployeeSkill',
   updateEmployeeWorkingCondition = 'updateEmployeeWorkingCondition',
   updateEmployeeWorkingHours = 'updateEmployeeWorkingHours',
+  adjustEmployeeSalary = 'adjustEmployeeSalary',
+  grantEmployeeBonus = 'grantEmployeeBonus',
 
   createEmployee = 'createEmployee',
   createJobPosition = 'createJobPosition'

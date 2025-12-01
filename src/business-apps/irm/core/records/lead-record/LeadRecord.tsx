@@ -14,8 +14,9 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { useLeadData } from './hooks/useLeadData'
 import { StatusProgression } from './components/StatusProgression'
+import { useInvestmentLead } from '@/common/data/investment/hooks/useInvestmentLead'
+import { buildLeadStatusesQuery } from '@/common/data/relations/queries/leadQueries'
 import {
   useGetInvestmentActivitiesByLeadId,
   useGetInvestmentNotesByLeadId,
@@ -25,10 +26,16 @@ import { LeadDocuments } from './components/LeadDocuments'
 import AccountSection from '@/common/components/common-relations/record-sections/account-section/AccountSection'
 import ContactSection from '@/common/components/common-relations/record-sections/contact-section/ContactSection'
 import InvestmentSection from '@/common/components/common-relations/record-sections/investment-section/InvestmentSection'
+import type { Investment } from '@/common/data/investment/types'
+import {
+  buildInvestmentAccountFromLead,
+  buildInvestmentContactFromLead,
+  buildInvestmentFromLead
+} from './utils/leadDataTransformers'
+import { buildFormFieldsFromCatalogData } from '../utils/investmentFieldsBuilder'
 import ActivitySection from '@/common/components/common-relations/record-sections/activity-section/ActivitySection'
 import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
-import { transformTaskOrApproval } from '@/common/components/common-relations/record-sections/task-section/utils/taskMappers'
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { useAiSummary } from './hooks/useAiSummary'
@@ -57,20 +64,38 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
     return getValidTab(new URLSearchParams(window.location.search).get('tab'))
   })
 
-  // Construct businessAppContext from props for sections
-  const businessAppContext: BusinessAppContextProps = {
-    accessToken: props.accessToken,
-    userInfo: props.userInfo,
-    additionalData: props.additionalData
-  }
-
-  const { lead, leadData, loading, error, leadStatuses, loadingStatuses, refetch } = useLeadData(
-    leadId,
-    props.accessToken
+  // Use new declarative hook for lead data with additional leadStatuses query
+  const additionalQueries = useMemo(
+    () => [
+      {
+        query: buildLeadStatusesQuery('InvestmentLeadStatus'),
+        data: (result: any) => result.leadStatuses || [],
+        key: 'leadStatuses' as const
+      }
+    ],
+    []
   )
+
+  const {
+    lead: leadData,
+    leadStatuses,
+    loading,
+    error,
+    refetch
+  } = useInvestmentLead(props.accessToken, leadId, {
+    additionalQueries
+  })
+
+  // Fetch lead data function for refetch
+  const fetchLeadData = useCallback(async () => {
+    await refetch()
+  }, [refetch])
 
   // Always call useAiSummary hook, but conditionally use its result
   const aiSummary = useAiSummary(leadId, props.accessToken)
+
+  // Use leadData for lead reference (for compatibility)
+  const lead = leadData
 
   // Data fetching hooks for sections
   const { fetchInvestmentActivitiesByLeadId } = useGetInvestmentActivitiesByLeadId(props)
@@ -207,14 +232,14 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
       try {
         // Check for successful completion
         if (event.detail?.resolution === 'success') {
-          await Promise.all([refetch(), loadSectionData(), loadRejectionReasons()])
+          await Promise.all([fetchLeadData(), loadSectionData(), loadRejectionReasons()])
           return
         }
 
         // Also check for different event structure
         const response = event.detail?.response
         if (response?.detail?.resolution === 'success' || response?.lead) {
-          await Promise.all([refetch(), loadSectionData(), loadRejectionReasons()])
+          await Promise.all([fetchLeadData(), loadSectionData(), loadRejectionReasons()])
         }
       } catch (err) {
         console.error('Error handling process completion in LeadRecord:', err)
@@ -244,7 +269,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
         window.removeEventListener(eventName, handleProcessCompletion as EventListener)
       })
     }
-  }, [leadId, refetch, loadSectionData, loadRejectionReasons])
+  }, [leadId, fetchLeadData, loadSectionData, loadRejectionReasons])
 
   // Rejection reasons badge - MUST be defined before headerTitle
   const rejectionReasonsBadge = useMemo(() => {
@@ -302,6 +327,12 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
       </AppAction>
     )
   }, [props.accessToken, leadId, rejectionReasons, rejectionReasonsError, loadRejectionReasons])
+
+  // Transform catalog referenceFields to formFields format for InvestmentSection
+  const investmentFields = useMemo(
+    () => buildFormFieldsFromCatalogData(leadData?.investmentType, leadData?.investmentGroup),
+    [leadData?.investmentType, leadData?.investmentGroup]
+  )
 
   // Prepare header content for RecordLayout - MUST be before conditional returns
   const headerTitle = (
@@ -460,14 +491,15 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
   // Status progression content
   const headerContent = (
     <>
-      {!loadingStatuses && leadStatuses.length > 0 && lead && (
+      {leadStatuses && Array.isArray(leadStatuses) && leadStatuses.length > 0 && lead && (
         <StatusProgression
           currentStatus={lead?.leadStatus?.value || getTranslationFromI18nKeyAndLabel('crm.common.status.new', 'New')}
           statuses={leadStatuses}
           leadId={leadId}
-          leadVersion={typeof lead.version === 'string' ? parseInt(lead.version) : lead.version || 0}
+          leadVersion={
+            typeof leadData?.version === 'string' ? Number.parseInt(leadData.version, 10) : leadData?.version || 0
+          }
           accessToken={props.accessToken}
-          onStatusUpdate={refetch}
         />
       )}
     </>
@@ -493,41 +525,8 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
                   component: AccountSection,
                   props: {
                     ...props,
-                    account: leadData
-                      ? {
-                          name: leadData.companyName,
-                          email: leadData.companyEmail,
-                          phone: leadData.companyPhone,
-                          website: leadData.companyWebsite,
-                          legalForm: leadData.legalForm?.value || leadData.legalForm?.code || leadData.legalForm,
-                          industry:
-                            leadData.industryClass?.value || leadData.industryClass?.code || leadData.industryClass,
-                          size: leadData.companySize?.value || leadData.companySize?.code || leadData.companySize,
-                          revenue: leadData.accountAnnualRevenueBand?.value || leadData.accountAnnualRevenueBand?.code,
-                          // Add numberOfEmployees for AccountSection compatibility
-                          numberOfEmployees: leadData.companySize,
-                          annualRevenue: leadData.accountAnnualRevenueBand
-                        }
-                      : {
-                          name: getTranslationFromI18nKeyAndLabel('crm.account.companyName', 'Company Name'),
-                          email: null,
-                          phone: null,
-                          website: null,
-                          legalForm: null,
-                          industry: null,
-                          size: null,
-                          revenue: null,
-                          numberOfEmployees: null
-                        },
-                    address: leadData
-                      ? {
-                          addressLine: leadData.addressLine,
-                          postalCode: leadData.postalCode,
-                          locality: leadData.locality,
-                          country: typeof leadData.country === 'string' ? leadData.country : leadData.country?.value,
-                          region: typeof leadData.region === 'string' ? leadData.region : leadData.region?.value
-                        }
-                      : undefined
+                    account: buildInvestmentAccountFromLead(leadData),
+                    accounts: leadData ? [buildInvestmentAccountFromLead(leadData)].filter(Boolean) : undefined
                   }
                 }
               ]}
@@ -543,18 +542,8 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
                   component: ContactSection,
                   props: {
                     ...props,
-                    contact: leadData
-                      ? {
-                          firstName: leadData.firstName,
-                          lastName: leadData.lastName,
-                          email: leadData.email,
-                          phone: leadData.phoneNumber,
-                          jobTitle: leadData.position,
-                          academicTitle: leadData.academicTitle?.value || leadData.academicTitle?.code,
-                          salutation: leadData.salutation?.value || leadData.salutation?.code,
-                          communicationChannels: leadData.communicationChannels
-                        }
-                      : undefined
+                    contact: buildInvestmentContactFromLead(leadData),
+                    contacts: leadData ? [buildInvestmentContactFromLead(leadData)].filter(Boolean) : undefined
                   }
                 }
               ]}
@@ -569,8 +558,13 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
                   id: 'investment-section',
                   component: InvestmentSection,
                   props: {
-                    investmentData: leadData,
-                    businessAppContext: businessAppContext,
+                    ...props,
+                    investment: buildInvestmentFromLead(leadData) || undefined,
+                    investments: leadData
+                      ? [buildInvestmentFromLead(leadData)].filter((inv): inv is Investment => inv !== null)
+                      : undefined,
+                    fields: investmentFields,
+                    recordUrl: undefined, // No navigation - investment data is part of lead, not a separate entity
                     isLoading: loading,
                     error: error
                   }
@@ -609,22 +603,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
                   component: NoteSection as React.ComponentType<any>,
                   props: {
                     ...props,
-                    notes: notes.map(note => ({
-                      id: note.id,
-                      noteTitle:
-                        note.title ||
-                        note.displayName ||
-                        getTranslationFromI18nKeyAndLabel('crm.notes.untitled', 'Untitled Note'),
-                      noteText: note.text || '',
-                      createdAt: note.createdAt,
-                      createdBy:
-                        note.authorDisplayName ||
-                        note.authorEmployee?.displayName ||
-                        getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
-                      authorEmployee: note.authorEmployee,
-                      reminderAt: note.reminderDate,
-                      documents: note.documents
-                    })),
+                    notes: notes,
                     noteActionProps: {
                       contextsArray: [FlowContextName.investmentNoteCreate],
                       externalContextData: { leadId },
@@ -654,12 +633,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
                     ...props,
                     leadId: leadId,
                     buildReferenceUrl,
-                    tasks: tasks.map(task =>
-                      transformTaskOrApproval(
-                        task,
-                        getTranslationFromI18nKeyAndLabel('crm.tasks.untitled', 'Untitled Task')
-                      )
-                    ),
+                    tasks: tasks,
                     taskActionProps: {
                       contextsArray: [FlowContextName.investmentTaskCreate],
                       externalContextData: { leadId },
@@ -682,12 +656,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
                     sectionTitle: 'Approval Tasks',
                     leadId: leadId,
                     buildReferenceUrl,
-                    tasks: approvals.map(approval =>
-                      transformTaskOrApproval(
-                        approval,
-                        getTranslationFromI18nKeyAndLabel('crm.approvals.request', 'Approval Request')
-                      )
-                    ),
+                    tasks: approvals,
                     taskEntityActionProps: {
                       contextsArray: [FlowContextName.investmentTaskEntity],
                       externalContextData: { leadId },

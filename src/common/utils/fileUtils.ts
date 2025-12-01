@@ -37,6 +37,35 @@ export const buildFileUrl = (fileInfo: FileInfo): string => {
 }
 
 /**
+ * Format file size in bytes to human-readable format
+ * @param bytes - File size in bytes
+ * @returns Formatted file size string (e.g., "1.5 MB")
+ */
+export const formatFileSize = (bytes: number | undefined): string => {
+  if (!bytes || bytes === 0) return '0 Bytes'
+
+  // Validate input is a valid number
+  if (typeof bytes !== 'number' || Number.isNaN(bytes) || bytes < 0) {
+    return '0 Bytes'
+  }
+
+  const k = 1024
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+
+  // Ensure index is within bounds
+  const sizeIndex = Math.min(i, sizes.length - 1)
+  const formattedSize = Number.parseFloat((bytes / Math.pow(k, sizeIndex)).toFixed(2))
+
+  // Handle potential NaN from parseFloat
+  if (Number.isNaN(formattedSize)) {
+    return '0 Bytes'
+  }
+
+  return `${formattedSize} ${sizes[sizeIndex]}`
+}
+
+/**
  * Get appropriate file icon component based on MIME type
  * Returns the component itself (not instantiated), caller must render it
  * @param mimeType - MIME type of the file
@@ -52,4 +81,64 @@ export const getFileIcon = (mimeType?: string): Icon => {
   if (mimeType.includes('code') || mimeType.includes('text')) return FileCodeIcon
 
   return FileIcon
+}
+
+export type FileEntity = string & { readonly __brand: 'FileEntity' }
+export type FileContext = string & { readonly __brand: 'FileContext' }
+
+export const buildFilePath = (entity: FileEntity, entityId: string | null, context: FileContext): string => {
+  if (!entityId) {
+    entityId = 'temp-' + crypto.randomUUID()
+  }
+  return `/${entity}/${entityId}/${context}`
+}
+
+/**
+ * Generic interface for file upload results
+ */
+export interface UploadFileResult {
+  name: string
+  fileInfo: any
+}
+
+/**
+ * Generic function to upload files to storage
+ * @param files - Array of files to upload
+ * @param referenceEntityId - ID of the reference entity
+ * @param fileEntity - File entity constant (e.g., FILE_ENTITY.ACCOUNT)
+ * @param fileContext - Context for file storage (e.g., FILE_CONTEXT.ACTIVITY)
+ * @param appName - Application name for file storage
+ * @param fileClient - File client instance for uploading
+ * @returns Array of uploaded file metadata
+ */
+export const uploadFiles = async (
+  files: File[],
+  referenceEntityId: string,
+  fileEntity: FileEntity,
+  fileContext: FileContext,
+  appName: string,
+  fileClient: { uploadFile: (file: File, pathParams: any, queryParams: any) => Promise<{ fileInfo: any }> }
+): Promise<UploadFileResult[]> => {
+  if (!files || files.length === 0) return []
+
+  const folderPath = buildFilePath(fileEntity, referenceEntityId, fileContext)
+
+  const uploadPromises = files.map(async file => {
+    const result = await fileClient.uploadFile(
+      file,
+      { accessScope: 'tenant' },
+      {
+        appName: appName,
+        folderPath: folderPath,
+        mimeType: file.type
+      }
+    )
+
+    return {
+      name: file.name,
+      fileInfo: result.fileInfo
+    }
+  })
+
+  return await Promise.all(uploadPromises)
 }

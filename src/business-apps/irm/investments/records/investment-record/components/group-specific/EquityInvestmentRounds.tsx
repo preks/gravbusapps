@@ -21,7 +21,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrencyString, extractCurrencyCode, formatPercentage } from '@/common/utils/numberFormatter'
-import type { BaseEquityInvestmentRound } from '@/common/data/investment'
+import type { BaseEquityInvestmentRound } from '@/common/data/investment/types/investmentBaseTypes'
 
 interface EquityInvestmentRoundsProps extends BusinessAppContextProps {
   equityData?: {

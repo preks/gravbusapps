@@ -22,7 +22,7 @@ import {
   SheetHeader,
   SheetTitle
 } from '@newwork/nw-design-system'
-import { Modal } from 'antd'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@newwork/nw-design-system'
 import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { PiArrowUp, PiArrowDown } from 'react-icons/pi'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
@@ -79,9 +79,10 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
   const savedPageBeforeSearchRef = useRef<number | null>(null)
   const prevSearchRef = useRef<string>('')
 
-  // Track if any filters are active to show conditional messages
   const hasActiveFilters = useMemo(() => {
-    return search || selectedFilters.length > 0
+    const trimmedSearch = (search || '').trim()
+    const nonCurrencyFilters = (selectedFilters || []).filter(f => !f.startsWith('currency:'))
+    return trimmedSearch !== '' || nonCurrencyFilters.length > 0
   }, [search, selectedFilters])
 
   // Server-side sorting state - managed by parent component
@@ -262,12 +263,6 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
       <div className="">
         <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
           <CardContent className="gba:p-0">
-            {isLoading && (
-              <div className="gba:flex gba:justify-center gba:p-4">
-                <Spinner />
-              </div>
-            )}
-
             <div className="gba:overflow-x-auto">
               <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
                 <TableHeader>
@@ -380,7 +375,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {!isLoading && (!plans || plans.length === 0) ? (
+                  {!isLoading && totalCount === 0 && (!plans || plans.length === 0) ? (
                     <TableRow>
                       <TableCell colSpan={9} className="gba:py-8 gba:text-center">
                         <div className="gba:text-gray-500">
@@ -658,7 +653,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
                           >
                             {record.reimbursableAmount
                               ? formatCurrencyDisplay(record.reimbursableAmount, record.currency?.code)
-                              : formatCurrencyDisplay(0, 'EUR')}
+                              : formatCurrencyDisplay(0, record.currency?.code)}
                           </div>
                         </TableCell>
                         <TableCell
@@ -711,7 +706,9 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
                     </select>
                   </div>
                   <div className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium">
-                    Page {currentPage} of {Math.ceil(totalCount / pageSize)}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.page', 'Page')} {currentPage}{' '}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')}{' '}
+                    {Math.ceil(totalCount / pageSize)}
                   </div>
                   <div className="gba:flex gba:items-center gba:space-x-2">
                     <Button
@@ -754,7 +751,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
                   </div>
                 </div>
               </div>
-            ) : (
+            ) : totalCount > 0 ? (
               <div
                 className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4"
                 data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info-single-page`}
@@ -763,7 +760,9 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
                   {`${totalCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_plans', 'Expense Plans')}`}
                 </div>
                 <div className="gba:flex gba:items-center gba:space-x-2">
-                  <p className="gba:text-sm gba:font-medium">Rows per page</p>
+                  <p className="gba:text-sm gba:font-medium">
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}
+                  </p>
                   <select
                     value={pageSize}
                     onChange={e => handlePagination(1, Number(e.target.value))}
@@ -777,7 +776,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
                   </select>
                 </div>
               </div>
-            )}
+            ) : null}
           </CardContent>
         </Card>
       </div>
@@ -811,8 +810,21 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
             ;(props.currencyStats || []).forEach(cs => {
               currencyLabelMap[`currency:${cs.ref}`] = cs.code
             })
+
+            // Ensure selected currency filters always have a readable label (e.g. "EUR"),
+            // even when currencyStats is empty or does not include the selected ref.
+            ;(props.selectedFilters || [])
+              .filter(token => token.startsWith('currency:'))
+              .forEach(token => {
+                if (!currencyLabelMap[token]) {
+                  const ref = token.substring('currency:'.length)
+                  const codeFromRef = (ref.split(':').pop() || '').toUpperCase()
+                  currencyLabelMap[token] = codeFromRef || ref
+                }
+              })
+
             return { ...props.filterLabelMap, ...currencyLabelMap }
-          }, [props.filterLabelMap, props.currencyStats]),
+          }, [props.filterLabelMap, props.currencyStats, props.selectedFilters]),
           placeholder:
             getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.job_search', 'Search') +
             '...',
@@ -840,7 +852,10 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
                 ? [
                     {
                       id: 'currency',
-                      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.currency', 'Currency'),
+                      title: getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
+                        'Currency'
+                      ),
                       filters: currencyFilters
                     }
                   ]
@@ -926,33 +941,41 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
         </SheetContent>
       </Sheet>
 
-      {/* Print Modal */}
-      <Modal
+      {/* Print Dialog using design system */}
+      <Dialog
         open={printModalOpen}
-        title="Print Expense Plan"
-        footer={null}
-        onCancel={() => {
-          setPrintModalOpen(false)
-          setPrintPdfUrl('')
+        onOpenChange={open => {
+          if (!open) {
+            setPrintModalOpen(false)
+            setPrintPdfUrl('')
+          }
         }}
-        width="90vw"
-        style={{ top: 20 }}
-        destroyOnHidden={true}
-        data-testid="print-plan-modal"
       >
-        {printLoading ? (
-          <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
-            <Spinner />
-          </div>
-        ) : (
-          <iframe
-            src={printPdfUrl}
-            style={{ width: '100%', height: 'calc(90vh - 55px)', border: 'none' }}
-            title="Print Preview"
-            data-testid="print-plan-iframe"
-          />
-        )}
-      </Modal>
+        <DialogContent
+          className="gba:!w-[90vw] gba:!max-w-[90vw] gba:!p-0 gba:!rounded-md"
+          style={{ height: '90vh' }}
+          data-testid="print-plan-modal"
+        >
+          <DialogHeader className="gba:p-4">
+            <DialogTitle>
+              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.print_expense_plan', 'Print Expense Plan')}
+            </DialogTitle>
+          </DialogHeader>
+          {printLoading ? (
+            <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
+              <Spinner />
+            </div>
+          ) : (
+            <iframe
+              src={printPdfUrl}
+              className="gba:w-full gba:border-0"
+              style={{ height: 'calc(90vh - 55px)' }}
+              title="Print Preview"
+              data-testid="print-plan-iframe"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 })

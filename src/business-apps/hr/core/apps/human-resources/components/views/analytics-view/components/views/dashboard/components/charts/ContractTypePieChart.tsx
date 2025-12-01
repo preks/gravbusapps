@@ -3,7 +3,8 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from 'recharts'
 import { Card, Typography, Spin, Empty, Tooltip, theme } from 'antd'
 import { InfoCircleOutlined } from '@ant-design/icons'
 import { BusinessAppContextProps } from '@/business-apps/types'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 import { useContractTypeDistribution } from '../../../../../hooks/useContractTypeDistribution'
 
 const { Title } = Typography
@@ -14,6 +15,7 @@ const { Title } = Typography
  */
 export const ContractTypePieChart: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
   const { token } = theme.useToken()
+  const { t } = useTranslation(hrTranslations)
 
   // Fetch contract type distribution data
   const { distribution: data, loading, error } = useContractTypeDistribution(accessToken)
@@ -75,7 +77,7 @@ export const ContractTypePieChart: React.FC<BusinessAppContextProps> = ({ access
           {payload.name}
         </text>
         <text x={cx} y={cy + 10} textAnchor="middle" fill={token.colorTextSecondary} fontSize={16}>
-          {value.toLocaleString()} employees
+          {value.toLocaleString()} {t('hr-analytics-employees')}
         </text>
         <text x={cx} y={cy + 35} textAnchor="middle" fill={token.colorPrimary} fontSize={16} fontWeight="600">
           {payload.percentage}%
@@ -90,14 +92,9 @@ export const ContractTypePieChart: React.FC<BusinessAppContextProps> = ({ access
     <Card
       title={
         <div>
-          <Title level={4} className="gba:m-0">
-            {getTranslationFromI18nKeyAndLabel('hr_analytics_contract_types', 'Contract Types')}
-          </Title>
+          <Title level={4} className="gba:m-0">{t('hr-analytics-contract-types')}</Title>
           <Tooltip
-            title={getTranslationFromI18nKeyAndLabel(
-              'hr_analytics_contract_types_tooltip',
-              'Distribution of employees by contract types such as permanent, fixed-term, etc.'
-            )}
+            title={t('hr-analytics-contract-types-tooltip')}
           >
             <InfoCircleOutlined className="gba:ml-2" />
           </Tooltip>
@@ -119,16 +116,11 @@ export const ContractTypePieChart: React.FC<BusinessAppContextProps> = ({ access
             </div>
           ) : error ? (
             <div className="gba:h-full gba:flex gba:items-center gba:justify-center gba:text-destructive">
-              <div data-testid="contract-type-pie-chart-error">
-                {getTranslationFromI18nKeyAndLabel('hr_analytics_error_message', 'Error loading data')}
-              </div>
+              <div data-testid="contract-type-pie-chart-error">{t('hr-analytics-error-message')}</div>
             </div>
           ) : data.length === 0 ? (
             <div className="gba:h-full gba:flex gba:items-center gba:justify-center">
-              <Empty
-                description={getTranslationFromI18nKeyAndLabel('hr_analytics_no_data', 'No data available')}
-                data-testid="contract-type-pie-chart-empty"
-              />
+              <Empty description={t('hr-analytics-no-data')} data-testid="contract-type-pie-chart-empty" />
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%" data-testid="contract-type-pie-chart-rendered">
@@ -163,7 +155,7 @@ export const ContractTypePieChart: React.FC<BusinessAppContextProps> = ({ access
                     dominantBaseline="middle"
                     style={{ fontSize: '20px', fill: token.colorText, fontWeight: 600 }}
                   >
-                    {getTranslationFromI18nKeyAndLabel('hr_analytics_contract_types', 'Contract Types')}
+                    {t('hr-analytics-contract-types')}
                   </text>
                   <text
                     x="50%"

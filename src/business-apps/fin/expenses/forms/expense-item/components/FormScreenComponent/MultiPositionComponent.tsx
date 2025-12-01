@@ -1,11 +1,11 @@
 import React from 'react'
-import { useTranslation } from 'react-i18next'
 import { Button } from '@newwork/gravity-ui-catalog'
 import { Card } from 'antd'
 import { ExpensePosition, ExpenseGroup, ExpenseType, CostCenter, CustomField } from '../../types'
 import { useExpenseItem } from '../../context/ExpenseItemContext'
 import { ICONS } from '@/business-apps/fin/expenses/utils/icons'
 import { PositionFormFields } from './shared/PositionFormFields'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface MultiPositionComponentProps {
   positions: ExpensePosition[]
@@ -30,7 +30,6 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
   handleExpenseTypeChange,
   handleRemovePosition
 }) => {
-  const { t } = useTranslation()
   const { isProcessingFiles, form } = useExpenseItem()
 
   return (
@@ -52,7 +51,10 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
               >
                 <img
                   src={ICONS.DELETE}
-                  alt={t('lowcoder:create_expense_type_item.delete_position', 'Delete Position')}
+                  alt={getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:create_expense_type_item.delete_position',
+                    'Delete Position'
+                  )}
                   width="16"
                   height="16"
                   data-testid="delete-position-icon"

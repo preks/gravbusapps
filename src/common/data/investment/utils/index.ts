@@ -15,3 +15,6 @@ export {
   formatLargeNumber,
   formatNumber
 } from './formatters'
+
+// Export reference entity utilities
+export * from './referenceEntityUtils'

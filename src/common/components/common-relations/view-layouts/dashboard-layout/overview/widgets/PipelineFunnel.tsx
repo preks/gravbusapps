@@ -6,11 +6,6 @@ import {
   CardTitle,
   CardDescription,
   IconAvatar,
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
   ChartConfig,
   ChartContainer,
   ChartTooltip,
@@ -18,6 +13,7 @@ import {
 } from '@newwork/nw-design-system'
 import { FunnelChart, Funnel, LabelList } from 'recharts'
 import { FunnelSimpleIcon } from '@phosphor-icons/react'
+import { CurrencyFilter } from '@/business-apps/irm/investments/apps/investment-management/views/analytics-view/shared/components/CurrencyFilter'
 
 export interface AggregatedFunnelStage {
   stage: string
@@ -213,25 +209,20 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
           <CardTitle>{title}</CardTitle>
           <CardDescription>{description}</CardDescription>
         </div>
-        {availableCurrencies && availableCurrencies.length > 1 && onCurrencyChange && (
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <span className="gba:text-sm gba:text-muted-foreground">Currency:</span>
-            <Select value={selectedCurrency} onValueChange={onCurrencyChange}>
-              <SelectTrigger className="gba:w-[100px]">
-                <SelectValue placeholder="Select currency" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableCurrencies.map(currency => (
-                  <SelectItem key={currency} value={currency}>
-                    {currency}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
       </CardHeader>
       <CardContent>
+        {availableCurrencies && availableCurrencies.length > 1 && onCurrencyChange && (
+          <div className="gba:mb-4">
+            <CurrencyFilter
+              value={selectedCurrency || 'EUR'}
+              onChange={onCurrencyChange}
+              currencies={availableCurrencies}
+              showLabel={true}
+              label="Currency:"
+              dataTestId="pipeline-funnel-currency-filter"
+            />
+          </div>
+        )}
         {aggregatedFunnel && aggregatedFunnel.length > 0 ? (
           <div className="gba:space-y-4">
             {/* Funnel Chart */}

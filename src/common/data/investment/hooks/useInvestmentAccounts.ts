@@ -1,41 +1,64 @@
 // Investment Account hooks - CRM account entity operations
-import { useCallback, useState, useEffect } from 'react'
+import { useCallback, useState, useEffect, useMemo } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import type {
-  BaseInvestmentAccount,
-  InvestmentAccount,
-  BaseInvestmentTask,
-  BaseInvestmentActivity,
-  BaseInvestmentNote,
-  BaseInvestmentDocument
-} from '../types'
+// buildWhere and buildOrderBy are now used internally by the new query builders
+// Descriptors are now used internally by the new query builders
+import type { InvestmentAccount } from '../types/investmentAccountTypes'
+import type { InvestmentTask } from '../types/investmentTaskTypes'
+import type { InvestmentActivity } from '../types/investmentActivityTypes'
+import type { InvestmentNote } from '../types/investmentNoteTypes'
+import type { InvestmentDocument } from '../types/investmentDocumentTypes'
 
-// Use the new query imports
+// Use the new query builder functions
 import {
-  GET_INVESTMENT_ACCOUNTS,
-  GET_INVESTMENT_ACCOUNT_BY_ID,
-  GET_INVESTMENT_TASKS_BY_ACCOUNT_ID,
-  GET_INVESTMENT_ACTIVITIES_BY_ACCOUNT_ID,
-  GET_INVESTMENT_NOTES_BY_ACCOUNT_ID,
-  GET_INVESTMENT_DOCUMENTS_BY_ACCOUNT_ID,
+  buildInvestmentAccountQuery,
+  buildInvestmentAccountByIdQuery,
+  buildInvestmentAccountWhereCondition,
+  buildInvestmentAccountOrderBy,
   type InvestmentAccountQueryVariables
-} from '../queries'
+} from '../queries/investmentAccountQueries'
+
+// Use new query builder functions for related entities
+import {
+  buildInvestmentTaskQuery,
+  buildInvestmentTaskWhereCondition,
+  buildInvestmentTaskOrderBy,
+  type InvestmentTaskQueryVariables
+} from '../queries/investmentTaskQueries'
+
+import {
+  buildInvestmentActivityByAccountIdQuery,
+  buildInvestmentActivityWhereCondition,
+  buildInvestmentActivityOrderBy,
+  type InvestmentActivityQueryVariables
+} from '../queries/investmentActivityQueries'
+
+import {
+  buildInvestmentNoteByAccountIdQuery,
+  buildInvestmentNoteWhereCondition,
+  buildInvestmentNoteOrderBy,
+  type InvestmentNoteQueryVariables
+} from '../queries/investmentNoteQueries'
+
+import {
+  buildInvestmentDocumentQuery,
+  buildInvestmentDocumentWhereCondition,
+  buildInvestmentDocumentOrderBy,
+  type InvestmentDocumentQueryVariables
+} from '../queries/investmentDocumentQueries'
 
 // Use the mapper functions
-import {
-  toInvestmentAccount,
-  toInvestmentTask,
-  toInvestmentActivity,
-  toInvestmentNote,
-  toInvestmentDocument
-} from '../mappers'
+import { toInvestmentAccount } from '../types/investmentAccountTypes'
+import { toInvestmentTask } from '../mappers/investmentTaskMappers'
+import { toInvestmentActivity, toInvestmentNote, toInvestmentDocument } from '../mappers/investmentRelatedEntityMappers'
+// INVESTMENT_ACCOUNT_DESCRIPTORS is now used internally by buildInvestmentAccountWhereCondition/buildInvestmentAccountOrderBy
 
 // Note: InvestmentAccountQueryVariables is imported from queries
 
 // Response interfaces
 export interface InvestmentAccountQueryResponse {
-  InvestmentAccount: BaseInvestmentAccount[]
+  InvestmentAccount: any[]
   InvestmentAccountAggregate: {
     aggregate: {
       count: number
@@ -92,6 +115,13 @@ interface StatefulReturn {
   initialize: () => void
 }
 
+/**
+ * @deprecated This hook is in transition. Use `useInvestmentAccountsList` instead.
+ * The name `useInvestmentAccounts` will be restored to the new declarative hook after migration.
+ *
+ * Legacy dual-mode hook for investment accounts (function-only or stateful).
+ * Prefer the new declarative `useInvestmentAccountsList` hook.
+ */
 // Function overloads for type safety
 export function useGetInvestmentAccounts(
   context: BusinessAppContextProps,
@@ -125,10 +155,23 @@ export function useGetInvestmentAccounts(
   // Core fetch function (always available)
   const fetchInvestmentAccounts = useCallback(
     async (variables: InvestmentAccountQueryVariables = {}) => {
-      const query = GET_INVESTMENT_ACCOUNTS(variables)
+      // Use new query builder with fields mapping
+      const query = buildInvestmentAccountQuery()
+
+      // Use new WHERE/ORDER BY builders with fields mapping
+      const whereCondition = buildInvestmentAccountWhereCondition(variables)
+
+      const orderBy = buildInvestmentAccountOrderBy(variables.orderBy || [])
+
+      const graphQLVariables: Record<string, any> = {
+        limit: Math.min(variables.limit || 50, 100),
+        offset: variables.offset || 0,
+        where: whereCondition,
+        orderBy: orderBy
+      }
 
       try {
-        const result = await graphqlClient.request<InvestmentAccountQueryResponse>(query)
+        const result = await graphqlClient.request<InvestmentAccountQueryResponse>(query, graphQLVariables)
 
         // Transform base types to enhanced types using mapper
         const enhancedAccounts = result.InvestmentAccount.map(toInvestmentAccount)
@@ -177,11 +220,7 @@ export function useGetInvestmentAccounts(
               label: account.name || 'Unknown',
               name: account.name || 'Unknown',
               extraInfo: {
-                businessKey: account.businessKey,
                 code: account.code,
-                website: account.website,
-                email: account.email,
-                phone: account.phone,
                 ownerEmployee: account.ownerEmployee
                   ? {
                       firstName: account.ownerEmployee.firstName,
@@ -272,29 +311,120 @@ export function useGetInvestmentAccounts(
   return { fetchInvestmentAccounts }
 }
 
+/**
+ * Declarative List Hook for Investment Accounts
+ *
+ * Automatically fetches and manages state for a list of investment accounts.
+ * Follows the Hook Refactoring Guide Pattern 2.
+ *
+ * @example
+ * const { accounts, loading, error, refetch } = useInvestmentAccountsList(context, { limit: 20 })
+ *
+ * @todo MIGRATION: Replace all usages of deprecated `useGetInvestmentAccounts` with this hook
+ * @todo RENAME: After migration is complete, rename this hook to `useInvestmentAccounts` and remove the deprecated hook
+ */
+export interface UseInvestmentAccountsListResult {
+  accounts: InvestmentAccount[]
+  total: number
+  loading: boolean
+  error: string | null
+  refetch: (variables?: InvestmentAccountQueryVariables) => Promise<void>
+}
+
+export function useInvestmentAccountsList(
+  context: BusinessAppContextProps,
+  variables?: InvestmentAccountQueryVariables
+): UseInvestmentAccountsListResult {
+  const graphqlClient = useGraphQLClient(context.accessToken)
+
+  // Memoize variables to prevent infinite loops when object is recreated on each render
+  const stableVariables = useMemo(() => variables, [JSON.stringify(variables)])
+
+  const [state, setState] = useState({
+    accounts: [] as InvestmentAccount[],
+    total: 0,
+    loading: true,
+    error: null as string | null
+  })
+
+  const fetchAccounts = useCallback(
+    async (queryVariables?: InvestmentAccountQueryVariables) => {
+      if (!context.accessToken) {
+        setState(prev => ({ ...prev, loading: false }))
+        return
+      }
+
+      setState(prev => ({ ...prev, loading: true, error: null }))
+
+      try {
+        const vars = { ...stableVariables, ...queryVariables }
+        const query = buildInvestmentAccountQuery()
+        const whereCondition = buildInvestmentAccountWhereCondition(vars)
+        const orderBy = buildInvestmentAccountOrderBy(vars.orderBy || [])
+
+        const graphQLVariables: Record<string, any> = {
+          limit: Math.min(vars.limit || 50, 100),
+          offset: vars.offset || 0,
+          where: whereCondition,
+          orderBy: orderBy
+        }
+
+        const result = await graphqlClient.request<InvestmentAccountQueryResponse>(query, graphQLVariables)
+        const accounts = result.InvestmentAccount.map(toInvestmentAccount)
+        const total = result.InvestmentAccountAggregate?.aggregate?.count || 0
+
+        setState({ accounts, total, loading: false, error: null })
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to fetch investment accounts'
+
+        setState(prev => ({
+          ...prev,
+          accounts: [],
+          total: 0,
+          loading: false,
+          error: errorMessage
+        }))
+      }
+    },
+    [context.accessToken, graphqlClient, stableVariables]
+  )
+
+  useEffect(() => {
+    fetchAccounts()
+  }, [fetchAccounts])
+
+  return {
+    ...state,
+    refetch: fetchAccounts
+  }
+}
+
 // Hook for getting investment account by ID
 export const useGetInvestmentAccountById = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchInvestmentAccountById = useCallback(
     async (id: string) => {
-      const query = GET_INVESTMENT_ACCOUNT_BY_ID(id)
+      // Use new query builder with fields mapping
+      const query = buildInvestmentAccountByIdQuery()
 
       try {
         // Use a more specific type that includes the contact relationship
         const result = await graphqlClient.request<{
-          InvestmentAccount: (BaseInvestmentAccount & {
-            investmentAccountContact?: Array<{
-              id: string
-              contactType?: string
-              contact?: any
-            }>
-          })[]
-        }>(query)
-        const baseAccount = result.InvestmentAccount[0]
+          InvestmentAccountByPk:
+            | (InvestmentAccount & {
+                investmentAccountContact?: Array<{
+                  id: string
+                  contactType?: string
+                  contact?: any
+                }>
+              })
+            | null
+        }>(query, { id })
+        const raw = result.InvestmentAccountByPk
 
         return {
-          account: baseAccount ? toInvestmentAccount(baseAccount) : undefined
+          account: raw ? toInvestmentAccount(raw) : undefined
         } as InvestmentAccountByIdData
       } catch (error) {
         console.error('Error fetching investment account by ID:', error)
@@ -307,36 +437,6 @@ export const useGetInvestmentAccountById = (context: BusinessAppContextProps) =>
   return { fetchInvestmentAccountById }
 }
 
-// Hook for searching investment accounts
-export const useSearchInvestmentAccounts = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken)
-
-  const searchInvestmentAccounts = useCallback(
-    async (searchTerm: string, variables: InvestmentAccountQueryVariables = {}) => {
-      const searchVariables = { ...variables, search: searchTerm }
-      const query = GET_INVESTMENT_ACCOUNTS(searchVariables)
-
-      try {
-        const result = await graphqlClient.request<InvestmentAccountQueryResponse>(query)
-
-        // Transform base types to enhanced types using mapper
-        const enhancedAccounts = result.InvestmentAccount.map(toInvestmentAccount)
-
-        return {
-          ...result,
-          InvestmentAccount: enhancedAccounts
-        }
-      } catch (error) {
-        console.error('Error searching investment accounts:', error)
-        throw error
-      }
-    },
-    [graphqlClient]
-  )
-
-  return { searchInvestmentAccounts }
-}
-
 // =====================================================
 // INVESTMENT ACCOUNT RELATED ENTITIES HOOKS
 // =====================================================
@@ -347,10 +447,26 @@ export const useGetInvestmentTasksByAccountId = (context: BusinessAppContextProp
 
   const fetchInvestmentTasksByAccountId = useCallback(
     async (accountId: string) => {
-      const query = GET_INVESTMENT_TASKS_BY_ACCOUNT_ID(accountId)
+      // Use new query builder with fields mapping
+      const query = buildInvestmentTaskQuery()
+
+      const variables: InvestmentTaskQueryVariables = {
+        accountIds: [accountId]
+      }
+
+      // Use new WHERE/ORDER BY builders with fields mapping
+      const whereCondition = buildInvestmentTaskWhereCondition(variables)
+      const orderBy = buildInvestmentTaskOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
+
+      const graphQLVariables: Record<string, any> = {
+        limit: 1000,
+        offset: 0,
+        where: whereCondition,
+        orderBy: orderBy
+      }
 
       try {
-        const result = await graphqlClient.request<{ InvestmentTask: BaseInvestmentTask[] }>(query)
+        const result = await graphqlClient.request<{ InvestmentTask: InvestmentTask[] }>(query, graphQLVariables)
         // Transform base types to enhanced types using mapper
         return result.InvestmentTask.map(toInvestmentTask)
       } catch (error) {
@@ -370,10 +486,29 @@ export const useGetInvestmentActivitiesByAccountId = (context: BusinessAppContex
 
   const fetchInvestmentActivitiesByAccountId = useCallback(
     async (accountId: string) => {
-      const query = GET_INVESTMENT_ACTIVITIES_BY_ACCOUNT_ID(accountId)
+      // Use account-specific query builder that includes documents
+      const query = buildInvestmentActivityByAccountIdQuery()
+
+      const variables: InvestmentActivityQueryVariables = {
+        accountIds: [accountId]
+      }
+
+      // Use new WHERE/ORDER BY builders with fields mapping
+      const whereCondition = buildInvestmentActivityWhereCondition(variables)
+      const orderBy = buildInvestmentActivityOrderBy([{ field: 'occurredAt', direction: 'DESC_NULLS_LAST' }])
+
+      const graphQLVariables: Record<string, any> = {
+        limit: 1000,
+        offset: 0,
+        where: whereCondition,
+        orderBy: orderBy
+      }
 
       try {
-        const result = await graphqlClient.request<{ InvestmentActivity: BaseInvestmentActivity[] }>(query)
+        const result = await graphqlClient.request<{ InvestmentActivity: InvestmentActivity[] }>(
+          query,
+          graphQLVariables
+        )
         // Transform base types to enhanced types using mapper
         return result.InvestmentActivity.map(toInvestmentActivity)
       } catch (error) {
@@ -393,10 +528,26 @@ export const useGetInvestmentNotesByAccountId = (context: BusinessAppContextProp
 
   const fetchInvestmentNotesByAccountId = useCallback(
     async (accountId: string) => {
-      const query = GET_INVESTMENT_NOTES_BY_ACCOUNT_ID(accountId)
+      // Use account-specific query builder that includes documents
+      const query = buildInvestmentNoteByAccountIdQuery()
+
+      const variables: InvestmentNoteQueryVariables = {
+        accountIds: [accountId]
+      }
+
+      // Use new WHERE/ORDER BY builders with fields mapping
+      const whereCondition = buildInvestmentNoteWhereCondition(variables)
+      const orderBy = buildInvestmentNoteOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
+
+      const graphQLVariables: Record<string, any> = {
+        limit: 1000,
+        offset: 0,
+        where: whereCondition,
+        orderBy: orderBy
+      }
 
       try {
-        const result = await graphqlClient.request<{ InvestmentNote: BaseInvestmentNote[] }>(query)
+        const result = await graphqlClient.request<{ InvestmentNote: InvestmentNote[] }>(query, graphQLVariables)
         // Transform base types to enhanced types using mapper
         return result.InvestmentNote.map(toInvestmentNote)
       } catch (error) {
@@ -416,10 +567,29 @@ export const useGetInvestmentDocumentsByAccountId = (context: BusinessAppContext
 
   const fetchInvestmentDocumentsByAccountId = useCallback(
     async (accountId: string) => {
-      const query = GET_INVESTMENT_DOCUMENTS_BY_ACCOUNT_ID(accountId)
+      // Use new query builder with fields mapping
+      const query = buildInvestmentDocumentQuery()
+
+      const variables: InvestmentDocumentQueryVariables = {
+        accountIds: [accountId]
+      }
+
+      // Use new WHERE/ORDER BY builders with fields mapping
+      const whereCondition = buildInvestmentDocumentWhereCondition(variables)
+      const orderBy = buildInvestmentDocumentOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
+
+      const graphQLVariables: Record<string, any> = {
+        limit: 1000,
+        offset: 0,
+        where: whereCondition,
+        orderBy: orderBy
+      }
 
       try {
-        const result = await graphqlClient.request<{ InvestmentDocument: BaseInvestmentDocument[] }>(query)
+        const result = await graphqlClient.request<{ InvestmentDocument: InvestmentDocument[] }>(
+          query,
+          graphQLVariables
+        )
         // Transform base types to enhanced types using mapper
         return result.InvestmentDocument.map(toInvestmentDocument)
       } catch (error) {

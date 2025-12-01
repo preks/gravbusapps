@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { RecordLayout, Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useGetInvestmentById } from '@/common/data/investment'
+import { useGetInvestmentById } from '@/common/data/investment/hooks/useInvestments'
 import { useGetInvestmentCatalogData } from '@/business-apps/irm/investments/forms/investment-form/queries/InvestmentCatalogQueries'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
@@ -15,12 +15,14 @@ import { useInvestmentAiSummary } from './hooks/useInvestmentAiSummary'
 import { TrendingUp, Home, BarChart3 } from 'lucide-react'
 import { createHeaderMeta, getTypeSpecificDetailGroups } from './utils/investmentHeaderConfig'
 import { createInvestmentTabsConfig } from './utils/investmentTabConfig'
+import { InvestmentRecordAnalyticsChat } from '@/ai-insights/components/InvestmentRecordAnalyticsChat'
+import { extractCurrencyCode } from '@/common/utils/numberFormatter'
 
 type InvestmentRecordProps = BusinessAppContextProps
 
 const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
   const [investmentId, setInvestmentId] = useState<string | null>(null)
-  const ALLOWED_TABS = ['home', 'overview', 'documents', 'reports'] as const
+  const ALLOWED_TABS = ['home', 'analytics', 'tiles', 'overview', 'documents', 'reports'] as const
   type TabKey = (typeof ALLOWED_TABS)[number]
 
   const getInitialTab = (): TabKey => {
@@ -374,6 +376,18 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
         headerDetailGroups={headerDetailGroups}
         subViews={subViewsConfig}
       />
+
+      {/* Analytics assistant for the page */}
+      {investmentId && investmentData && props.accessToken && (
+        <div className="gba:px-4 gba:py-2">
+          <InvestmentRecordAnalyticsChat
+            investmentId={investmentId}
+            investmentName={investmentData.name}
+            accessToken={props.accessToken}
+            currency={extractCurrencyCode(investmentData.currency?.id || investmentData.currency?.code)}
+          />
+        </div>
+      )}
     </div>
   )
 }

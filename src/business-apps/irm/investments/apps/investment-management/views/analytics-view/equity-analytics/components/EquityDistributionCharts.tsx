@@ -25,11 +25,11 @@ interface EquityDistributionChartsProps extends BusinessAppContextProps {
 export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> = props => {
   const { masterCurrency, availableCurrencies, ...context } = props
 
-  // Currency state for count-based charts - start with "All Currencies", then sync with master
-  const [roleCountCurrency, setRoleCountCurrency] = useState<string>('All Currencies')
-  const [statusCountCurrency, setStatusCountCurrency] = useState<string>('All Currencies')
-  const [stakeTypeCountCurrency, setStakeTypeCountCurrency] = useState<string>('All Currencies')
-  const [investmentTypeCountCurrency, setInvestmentTypeCountCurrency] = useState<string>('All Currencies')
+  // Currency state for count-based charts - start with "All", then sync with master
+  const [roleCountCurrency, setRoleCountCurrency] = useState<string>('All')
+  const [statusCountCurrency, setStatusCountCurrency] = useState<string>('All')
+  const [stakeTypeCountCurrency, setStakeTypeCountCurrency] = useState<string>('All')
+  const [investmentTypeCountCurrency, setInvestmentTypeCountCurrency] = useState<string>('All')
 
   const prevMasterCurrencyForCount = useRef<string>(masterCurrency)
 
@@ -123,8 +123,8 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
     prevMasterCurrencyForCount.current = masterCurrency
   }, [masterCurrency])
 
-  // Enhanced currency options with "All Currencies" option for count charts
-  const currencyOptionsWithAll = ['All Currencies', ...availableCurrencies]
+  // Enhanced currency options with "All" option for count charts
+  const currencyOptionsWithAll = ['All', ...availableCurrencies]
 
   // Helper function for consistent currency formatting
   const formatCurrency = (amount: number, currency: string = 'EUR'): string => {
@@ -143,11 +143,13 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
       return []
     }
 
-    // Transform role distribution data to chart format
-    return roleDistributionData.map(role => ({
-      type: role.roleValue || 'Unknown',
-      count: role.count
-    }))
+    // Transform role distribution data to chart format and filter out zero values
+    return roleDistributionData
+      .filter(role => role.count && role.count > 0)
+      .map(role => ({
+        type: role.roleValue || 'Unknown',
+        count: role.count
+      }))
   }, [roleDistributionData, roleCountLoading, roleCountError])
 
   // Transform role amount data from independent query with shared cached roles
@@ -156,12 +158,14 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
       return []
     }
 
-    // Transform role amount distribution data to chart format
-    return roleAmountDistributionData.map(role => ({
-      type: role.roleValue || 'Unknown',
-      count: 0, // Not used for amount charts
-      totalAmount: role.totalAmount
-    }))
+    // Transform role amount distribution data to chart format and filter out zero values
+    return roleAmountDistributionData
+      .filter(role => role.totalAmount && role.totalAmount > 0)
+      .map(role => ({
+        type: role.roleValue || 'Unknown',
+        count: 0, // Not used for amount charts
+        totalAmount: role.totalAmount
+      }))
   }, [roleAmountDistributionData, roleAmountLoading, roleAmountError])
 
   // Transform status count data from independent query with shared cached statuses
@@ -170,10 +174,12 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
       return []
     }
 
-    return statusDistributionData.map(status => ({
-      type: status.statusValue || 'Unknown',
-      count: status.count
-    }))
+    return statusDistributionData
+      .filter(status => status.count && status.count > 0)
+      .map(status => ({
+        type: status.statusValue || 'Unknown',
+        count: status.count
+      }))
   }, [statusDistributionData, statusCountLoading, statusCountError])
 
   // Transform status amount data from independent query with shared cached statuses
@@ -182,11 +188,13 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
       return []
     }
 
-    return statusAmountDistributionData.map(status => ({
-      type: status.statusValue || 'Unknown',
-      count: 0, // Not used for amount charts
-      totalAmount: status.totalAmount
-    }))
+    return statusAmountDistributionData
+      .filter(status => status.totalAmount && status.totalAmount > 0)
+      .map(status => ({
+        type: status.statusValue || 'Unknown',
+        count: 0, // Not used for amount charts
+        totalAmount: status.totalAmount
+      }))
   }, [statusAmountDistributionData, statusAmountLoading, statusAmountError])
 
   // Transform stake type count data from independent query with shared cached stake types
@@ -195,10 +203,12 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
       return []
     }
 
-    return stakeTypeDistributionData.map(stakeType => ({
-      type: stakeType.stakeTypeValue || 'Unknown',
-      count: stakeType.count
-    }))
+    return stakeTypeDistributionData
+      .filter(stakeType => stakeType.count && stakeType.count > 0)
+      .map(stakeType => ({
+        type: stakeType.stakeTypeValue || 'Unknown',
+        count: stakeType.count
+      }))
   }, [stakeTypeDistributionData, stakeTypeCountLoading, stakeTypeCountError])
 
   // Transform stake type amount data from independent query with shared cached stake types
@@ -207,11 +217,13 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
       return []
     }
 
-    return stakeTypeAmountDistributionData.map(stakeType => ({
-      type: stakeType.stakeTypeValue || 'Unknown',
-      count: 0, // Not used for amount charts
-      totalAmount: stakeType.totalAmount
-    }))
+    return stakeTypeAmountDistributionData
+      .filter(stakeType => stakeType.totalAmount && stakeType.totalAmount > 0)
+      .map(stakeType => ({
+        type: stakeType.stakeTypeValue || 'Unknown',
+        count: 0, // Not used for amount charts
+        totalAmount: stakeType.totalAmount
+      }))
   }, [stakeTypeAmountDistributionData, stakeTypeAmountLoading, stakeTypeAmountError])
 
   // Transform investment type count data from independent query with shared cached investment types
@@ -220,10 +232,12 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
       return []
     }
 
-    return investmentTypeDistributionData.map(investmentType => ({
-      type: investmentType.investmentTypeValue || 'Unknown',
-      count: investmentType.count
-    }))
+    return investmentTypeDistributionData
+      .filter(investmentType => investmentType.count && investmentType.count > 0)
+      .map(investmentType => ({
+        type: investmentType.investmentTypeValue || 'Unknown',
+        count: investmentType.count
+      }))
   }, [investmentTypeDistributionData, investmentTypeCountLoading, investmentTypeCountError])
 
   // Transform investment type amount data from independent query with shared cached investment types
@@ -232,11 +246,13 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
       return []
     }
 
-    return investmentTypeAmountDistributionData.map(investmentType => ({
-      type: investmentType.investmentTypeValue || 'Unknown',
-      count: 0, // Not used for amount charts
-      totalAmount: investmentType.totalAmount
-    }))
+    return investmentTypeAmountDistributionData
+      .filter(investmentType => investmentType.totalAmount && investmentType.totalAmount > 0)
+      .map(investmentType => ({
+        type: investmentType.investmentTypeValue || 'Unknown',
+        count: 0, // Not used for amount charts
+        totalAmount: investmentType.totalAmount
+      }))
   }, [investmentTypeAmountDistributionData, investmentTypeAmountLoading, investmentTypeAmountError])
 
   // Transform investment size data from server-side aggregates to chart format
@@ -245,14 +261,16 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
       return []
     }
 
-    return investmentSizeData.map(range => ({
-      type: range.range,
-      count: range.count,
-      percentage: range.percentage || 0,
-      minValue: range.minValue,
-      maxValue: range.maxValue || Infinity,
-      sortOrder: investmentSizeData.indexOf(range)
-    }))
+    return investmentSizeData
+      .filter(range => range.count && range.count > 0)
+      .map(range => ({
+        type: range.range,
+        count: range.count,
+        percentage: range.percentage || 0,
+        minValue: range.minValue,
+        maxValue: range.maxValue || Infinity,
+        sortOrder: investmentSizeData.indexOf(range)
+      }))
   }, [investmentSizeData, investmentSizeLoading, investmentSizeError])
 
   // Transform investment duration data from server-side aggregates to chart format
@@ -261,14 +279,16 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
       return []
     }
 
-    return investmentDurationRawData.map(range => ({
-      type: range.range,
-      count: range.count,
-      percentage: range.percentage || 0,
-      minValue: range.minYears,
-      maxValue: range.maxYears || Infinity,
-      sortOrder: investmentDurationRawData.indexOf(range)
-    }))
+    return investmentDurationRawData
+      .filter(range => range.count && range.count > 0)
+      .map(range => ({
+        type: range.range,
+        count: range.count,
+        percentage: range.percentage || 0,
+        minValue: range.minYears,
+        maxValue: range.maxYears || Infinity,
+        sortOrder: investmentDurationRawData.indexOf(range)
+      }))
   }, [investmentDurationRawData, investmentDurationLoading, investmentDurationError])
 
   return (
@@ -276,7 +296,7 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
       {/* Role Distribution - Side by Side */}
       <div className="gba:grid gba:grid-cols-2 gba:gap-4">
         <DistributionPieChart
-          title={`Role Distribution by Count (${roleCountCurrency === 'All' ? 'All Currencies' : roleCountCurrency})`}
+          title={`Role Distribution by Count (${roleCountCurrency})`}
           description="Distribution of equity positions by role"
           icon={ChartPieSliceIcon}
           iconVariant="default"
@@ -285,6 +305,8 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
           currency={roleCountCurrency}
           onCurrencyChange={setRoleCountCurrency}
           availableCurrencies={currencyOptionsWithAll}
+          isLoading={roleCountLoading}
+          error={roleCountError}
         />
         <DistributionPieChart
           title={`Role Distribution by Total Amount (${roleAmountCurrency})`}
@@ -297,13 +319,15 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
           onCurrencyChange={setRoleAmountCurrency}
           availableCurrencies={availableCurrencies}
           formatCurrency={formatCurrency}
+          isLoading={roleAmountLoading}
+          error={roleAmountError}
         />
       </div>
 
       {/* Status Distribution - Side by Side */}
       <div className="gba:grid gba:grid-cols-2 gba:gap-4">
         <DistributionPieChart
-          title={`Status Distribution by Count (${statusCountCurrency === 'All' ? 'All Currencies' : statusCountCurrency})`}
+          title={`Status Distribution by Count (${statusCountCurrency})`}
           description="Distribution by investment status"
           icon={ChartDonutIcon}
           iconVariant="default"
@@ -312,6 +336,8 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
           currency={statusCountCurrency}
           onCurrencyChange={setStatusCountCurrency}
           availableCurrencies={currencyOptionsWithAll}
+          isLoading={statusCountLoading}
+          error={statusCountError}
         />
         <DistributionPieChart
           title={`Status Distribution by Total Amount (${statusAmountCurrency})`}
@@ -324,13 +350,15 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
           onCurrencyChange={setStatusAmountCurrency}
           availableCurrencies={availableCurrencies}
           formatCurrency={formatCurrency}
+          isLoading={statusAmountLoading}
+          error={statusAmountError}
         />
       </div>
 
       {/* Stake Type Distribution - Side by Side */}
       <div className="gba:grid gba:grid-cols-2 gba:gap-4">
         <DistributionPieChart
-          title={`Stake Type Distribution by Count (${stakeTypeCountCurrency === 'All' ? 'All Currencies' : stakeTypeCountCurrency})`}
+          title={`Stake Type Distribution by Count (${stakeTypeCountCurrency})`}
           description="Distribution by stake type"
           icon={PercentIcon}
           iconVariant="success"
@@ -339,6 +367,8 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
           currency={stakeTypeCountCurrency}
           onCurrencyChange={setStakeTypeCountCurrency}
           availableCurrencies={currencyOptionsWithAll}
+          isLoading={stakeTypeCountLoading}
+          error={stakeTypeCountError}
         />
         <DistributionPieChart
           title={`Stake Type Distribution by Total Amount (${stakeTypeAmountCurrency})`}
@@ -351,13 +381,15 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
           onCurrencyChange={setStakeTypeAmountCurrency}
           availableCurrencies={availableCurrencies}
           formatCurrency={formatCurrency}
+          isLoading={stakeTypeAmountLoading}
+          error={stakeTypeAmountError}
         />
       </div>
 
       {/* Investment Type Distribution - Side by Side */}
       <div className="gba:grid gba:grid-cols-2 gba:gap-4">
         <DistributionPieChart
-          title={`Investment Type Distribution by Count (${investmentTypeCountCurrency === 'All' ? 'All Currencies' : investmentTypeCountCurrency})`}
+          title={`Investment Type Distribution by Count (${investmentTypeCountCurrency})`}
           description="Distribution by investment type classification"
           icon={ChartPieSliceIcon}
           iconVariant="secondary"
@@ -366,6 +398,8 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
           currency={investmentTypeCountCurrency}
           onCurrencyChange={setInvestmentTypeCountCurrency}
           availableCurrencies={currencyOptionsWithAll}
+          isLoading={investmentTypeCountLoading}
+          error={investmentTypeCountError}
         />
         <DistributionPieChart
           title={`Investment Type Distribution by Total Amount (${investmentTypeAmountCurrency})`}
@@ -378,6 +412,8 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
           onCurrencyChange={setInvestmentTypeAmountCurrency}
           availableCurrencies={availableCurrencies}
           formatCurrency={formatCurrency}
+          isLoading={investmentTypeAmountLoading}
+          error={investmentTypeAmountError}
         />
       </div>
 
