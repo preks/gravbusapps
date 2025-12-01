@@ -453,20 +453,18 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
                 data-testid={formatDataTestId(dataTestId || 'account-list', `account-${index}`)}
               >
                 {/* Avatar */}
-                {accountData.pictureThumbnail ? (
-                  <Avatar size="sm" className="gba:flex-shrink-0">
-                    <AvatarImage src={accountData.pictureThumbnail} alt={accountData.label} />
+                <Avatar size="sm" className="gba:flex-shrink-0">
+                  {accountData.pictureThumbnail ? (
+                    <AvatarImage
+                      src={`data:image/gif;base64,${accountData.pictureThumbnail}`}
+                      alt={accountData.label}
+                    />
+                  ) : (
                     <AvatarFallback>
                       <Building2 className="gba:h-4 gba:w-4" />
                     </AvatarFallback>
-                  </Avatar>
-                ) : (
-                  <Avatar size="sm" className="gba:flex-shrink-0">
-                    <AvatarFallback>
-                      <Building2 className="gba:h-4 gba:w-4" />
-                    </AvatarFallback>
-                  </Avatar>
-                )}
+                  )}
+                </Avatar>
 
                 {/* Account Info */}
                 <div className="gba:flex-1 gba:min-w-0">
