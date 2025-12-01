@@ -180,10 +180,177 @@ cat "$temp_tsx_file" || echo "No files in temp file"
 
 extract_app_paths "$temp_tsx_file" "changed-tsx.txt"
 
-# Handle the results
-if [[ ! -s changed-tsx.txt ]]; then
-  echo "No changed .tsx files found."
-else
-  echo "Changed directories detected:"
+# Report direct screen changes
+if [[ -s changed-tsx.txt ]]; then
+  echo ""
+  echo "📋 Direct screen changes detected:"
   cat changed-tsx.txt
+  direct_count=$(wc -l < changed-tsx.txt)
+  echo "   Total: $direct_count screen(s)"
+else
+  echo ""
+  echo "ℹ️  No direct screen changes detected"
+  touch changed-tsx.txt
+fi
+
+# ============================================================================
+# SMART DEPENDENCY ANALYSIS - Always run to catch indirect changes
+# ============================================================================
+echo ""
+echo "🔬 Running smart dependency analysis..."
+
+# Get ALL changed files for dependency analysis
+temp_all_changes=$(mktemp)
+
+if [[ "$CURRENT_BRANCH" == "$TARGET_BRANCH" && -z "${BITBUCKET_PR_DESTINATION_BRANCH:-}" ]]; then
+  git show --pretty="format:" --name-only HEAD > "$temp_all_changes" || true
+else
+  git diff --name-only "${TARGET_BRANCH}...HEAD" > "$temp_all_changes" || true
+fi
+
+# Build cache of screen directories (folders with index.ts)
+build_screen_dirs_cache() {
+  # Find all index.ts files in apps/forms/popups/records and get their directories
+  find src/business-apps -type f -name 'index.ts' 2>/dev/null | while read -r index_file; do
+    dir=$(dirname "$index_file")
+    # Check if it's in apps/forms/popups/records
+    if echo "$dir" | grep -qE '/(apps|forms|popups|records)/[^/]+$'; then
+      echo "$dir"
+    fi
+  done | sort -u
+}
+
+# Cache screen directories
+SCREEN_DIRS_CACHE=$(build_screen_dirs_cache)
+
+# Function to check if a file is screen-specific
+# A screen is a folder in apps/forms/popups/records that has an index.ts file
+is_screen_specific() {
+  local file="$1"
+  
+  # Must be in apps/forms/popups/records to even be considered
+  if ! echo "$file" | grep -qE '/(apps|forms|popups|records)/'; then
+    return 1  # false - not in screen folder type
+  fi
+  
+  # Check if this file is inside any known screen directory
+  while IFS= read -r screen_dir; do
+    if [[ "$file" == "$screen_dir"/* || "$file" == "$screen_dir" ]]; then
+      return 0  # true - is screen specific
+    fi
+  done <<< "$SCREEN_DIRS_CACHE"
+  
+  # File is in apps/forms/popups/records but NOT in a folder with index.ts
+  # This means it's shared code (e.g., forms/components/)
+  return 1  # false - is shared
+}
+
+# Check if there are dependency-related changes:
+# - Package files (package.json, etc.)
+# - Global shared code (src/* except business-apps)
+# - Module-level shared code (business-apps/**/hooks/, components/, etc. - NOT in apps/forms/popups/records)
+has_package_changes=$(grep -qE '^(package\.json|package-lock\.json|yarn\.lock)' "$temp_all_changes" 2>/dev/null && echo "yes" || echo "no")
+has_global_shared=$(grep -E '^src/' "$temp_all_changes" 2>/dev/null | grep -vE '^src/business-apps/' | grep -q . && echo "yes" || echo "no")
+
+# Check for module-level shared code (in business-apps but NOT in apps/forms/popups/records)
+module_shared_changes=""
+while IFS= read -r line; do
+  if [[ "$line" == src/business-apps/* ]] && ! is_screen_specific "$line"; then
+    module_shared_changes="${module_shared_changes}${line}"$'\n'
+  fi
+done < "$temp_all_changes"
+has_module_shared=$([[ -n "$module_shared_changes" ]] && echo "yes" || echo "no")
+
+if [[ "$has_package_changes" == "yes" || "$has_global_shared" == "yes" || "$has_module_shared" == "yes" ]]; then
+  echo ""
+  echo "🔗 Shared code / dependency changes found:"
+  
+  # Show package changes
+  if [[ "$has_package_changes" == "yes" ]]; then
+    echo "   📦 Package files:"
+    grep -E '^(package\.json|package-lock\.json|yarn\.lock)' "$temp_all_changes" | while read -r line; do
+      echo "      - $line"
+    done
+  fi
+  
+  # Show global shared src/ changes (anything NOT in business-apps)
+  if [[ "$has_global_shared" == "yes" ]]; then
+    global_shared=$(grep -E '^src/' "$temp_all_changes" | grep -vE '^src/business-apps/' || true)
+    global_count=$(echo "$global_shared" | wc -l)
+    echo "   📁 Global shared code:"
+    echo "$global_shared" | head -10 | while read -r line; do
+      echo "      - $line"
+    done
+    if [[ "$global_count" -gt 10 ]]; then
+      echo "      ... and $((global_count - 10)) more"
+    fi
+  fi
+  
+  # Show module-level shared changes
+  if [[ "$has_module_shared" == "yes" ]]; then
+    module_count=$(echo "$module_shared_changes" | grep -c . || echo "0")
+    echo "   📂 Module-level shared code:"
+    echo "$module_shared_changes" | head -10 | while read -r line; do
+      [[ -n "$line" ]] && echo "      - $line"
+    done
+    if [[ "$module_count" -gt 10 ]]; then
+      echo "      ... and $((module_count - 10)) more"
+    fi
+  fi
+  
+  # Run the smart dependency analyzer
+  echo ""
+  echo "🔍 Analyzing which screens are affected by these changes..."
+  
+  if node scripts/analyze-dependencies.js "$temp_all_changes"; then
+    # Check if dependency analyzer found affected screens
+    if [[ -f dependency-affected-screens.txt && -s dependency-affected-screens.txt ]]; then
+      dep_affected_count=$(wc -l < dependency-affected-screens.txt)
+      echo ""
+      echo "✅ Dependency analysis found $dep_affected_count affected screen(s)"
+      
+      # Merge with direct changes (deduplicate)
+      echo ""
+      echo "🔀 Merging direct and dependency-affected screens..."
+      
+      # Convert dependency-affected-screens.txt format to match changed-tsx.txt
+      # dependency-affected-screens.txt has: src/business-apps/hr/core/apps/employee-directory
+      # We need to merge and deduplicate
+      cat dependency-affected-screens.txt >> changed-tsx.txt
+      
+      # Sort and deduplicate
+      sort -u changed-tsx.txt -o changed-tsx.txt
+      
+      final_count=$(wc -l < changed-tsx.txt)
+      echo "📋 Final screen list: $final_count unique screen(s)"
+      
+      # Clean up
+      rm -f dependency-affected-screens.txt
+    else
+      echo ""
+      echo "ℹ️  No additional screens affected by dependency changes"
+    fi
+  else
+    echo ""
+    echo "⚠️  Dependency analysis failed - continuing with direct changes only"
+  fi
+else
+  echo "ℹ️  No dependency-related changes (src/common/, src/components/, package.json)"
+fi
+
+rm -f "$temp_all_changes"
+
+# Final report
+echo ""
+echo "=" 
+echo "📊 FINAL CHANGE DETECTION RESULTS"
+echo "="
+if [[ -s changed-tsx.txt ]]; then
+  total=$(wc -l < changed-tsx.txt)
+  echo "✅ Total screens to publish: $total"
+  echo ""
+  echo "Screens:"
+  cat changed-tsx.txt
+else
+  echo "ℹ️  No screens to publish"
 fi

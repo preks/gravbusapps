@@ -14,7 +14,6 @@ import dotenv from '@dotenvx/dotenvx'
 import { BlobServiceClient } from '@azure/storage-blob'
 import { glob } from 'glob'
 import axios from 'axios'
-import crypto from 'node:crypto'
 import {
   OAuthClient,
   getResourceUrls,
@@ -32,6 +31,7 @@ import {
   deleteScreenInScreenManagement,
   updateScreenConfigInScreenManagementDetailed
 } from './api-client.js'
+import { compareScreenHashes, loadHashFile, saveHashFile, configureGit } from './utils/componentHashUtils.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -169,221 +169,6 @@ const SECONDARY_TARGET =
 
 // ============================================================================
 // Hash-based Publishing Utility Functions
-// ============================================================================
-
-/**
- * Calculate a hash of a single file
- * @param {string} filePath - Absolute path to file
- * @param {string} algorithm - Hash algorithm (e.g. 'md5', 'sha1', 'sha256', 'sha512')
- * @returns {string} hash in hex format
- */
-function calculateFileHash(filePath, algorithm) {
-  const content = fs.readFileSync(filePath)
-  const hash = crypto.createHash(algorithm)
-  hash.update(content)
-  return hash.digest('hex')
-}
-
-/**
- * Get hashes for all source artifacts (per-file)
- * @param {string} directory - Build output directory
- * @param {string} algorithm - Hash algorithm (e.g. 'md5', 'sha1', 'sha256', 'sha512')
- * @returns {Promise<Object>} Object with filename -> hash mapping
- */
-async function getSourceArtifactsHashes(directory, algorithm) {
-  const files = await glob('**/*', { cwd: directory, nodir: true })
-  const hashes = {}
-
-  for (const file of files) {
-    const filePath = path.join(directory, file)
-    const hash = calculateFileHash(filePath, algorithm)
-
-    // Store with relative filename as key
-    hashes[file] = hash
-  }
-
-  return hashes
-}
-
-/**
- * Convert content to hex string
- * @param {Uint8Array} content - Content
- * @returns {string|null} content in hex or null
- */
-function convertContentToHex(content) {
-  if (!content) {
-    return null
-  }
-
-  try {
-    return Buffer.from(content).toString('hex')
-  } catch (error) {
-    console.log(`   ⚠️  Error converting content: ${error.message}`)
-    return null
-  }
-}
-
-/**
- * Dynamically discover and get per-file hashes from Azure
- * @param {string} azureDestinationPath - Azure blob path
- * @param {Object} azureTarget - Azure configuration object
- * @param {string} deployedVersion - Currently deployed version
- * @returns {Promise<Object|null>} Object with filename -> hash mapping or null
- */
-async function getTargetArtifactsHashes(azureDestinationPath, azureTarget, deployedVersion) {
-  try {
-    const { accountName, sasToken, containerName } = azureTarget
-    const blobServiceUrl = `https://${accountName}.blob.core.windows.net/?${sasToken}`
-    const blobServiceClient = new BlobServiceClient(blobServiceUrl)
-    const containerClient = blobServiceClient.getContainerClient(containerName)
-
-    const hashes = {}
-
-    // List all blobs with the screen path prefix
-    const prefix = `${azureDestinationPath}/`
-    const versionSuffix = `-${deployedVersion}.`
-
-    // Iterate through blobs matching the prefix
-    // Note: contentMD5 is already included in the list response, no separate API calls needed!
-    for await (const blob of containerClient.listBlobsFlat({ prefix })) {
-      // Check if blob name contains the version suffix (e.g., "-1233.js" or "-1233.css")
-      if (blob.name.includes(versionSuffix)) {
-        // Extract just the filename (not the full path)
-        const filename = blob.name.substring(prefix.length)
-
-        // Get the Content-MD5 directly from blob properties (already in list response!)
-        const hex = convertContentToHex(blob.properties?.contentMD5)
-
-        if (hex) {
-          hashes[filename] = hex
-        }
-      }
-    }
-
-    return Object.keys(hashes).length > 0 ? hashes : null
-  } catch (error) {
-    console.log(`   ⚠️  Error listing target artifacts: ${error.message}`)
-    return null
-  }
-}
-
-/**
- * Compare source and target hashes file-by-file
- * @param {Object} sourceHashes - Source file hashes
- * @param {Object} targetHashes - Target file hashes
- * @param {string} sourceVersion - Source version for filename mapping
- * @param {string} targetVersion - Target version for filename mapping
- * @returns {Object} Comparison result with allMatch boolean and differences array
- */
-function compareArtifactHashes(sourceHashes, targetHashes, sourceVersion, targetVersion) {
-  const differences = []
-
-  // Map source filenames to target filenames (version numbers differ)
-  const sourceToTargetMap = {}
-  for (const sourceFile of Object.keys(sourceHashes)) {
-    const targetFile = sourceFile.replace(`-${sourceVersion}.`, `-${targetVersion}.`)
-    sourceToTargetMap[sourceFile] = targetFile
-  }
-
-  // Check each source file
-  for (const sourceFile of Object.keys(sourceHashes)) {
-    const targetFile = sourceToTargetMap[sourceFile]
-    const sourceHash = sourceHashes[sourceFile]
-    const targetHash = targetHashes[targetFile]
-
-    if (!targetHash) {
-      differences.push({
-        file: sourceFile,
-        reason: 'new_file',
-        sourceHash,
-        targetHash: null
-      })
-    } else if (sourceHash !== targetHash) {
-      differences.push({
-        file: sourceFile,
-        reason: 'content_changed',
-        sourceHash,
-        targetHash
-      })
-    }
-  }
-
-  // Check for removed files (in target but not in source)
-  for (const targetFile of Object.keys(targetHashes)) {
-    const sourceFile = targetFile.replace(`-${targetVersion}.`, `-${sourceVersion}.`)
-    if (!sourceHashes[sourceFile]) {
-      differences.push({
-        file: sourceFile,
-        reason: 'file_removed',
-        sourceHash: null,
-        targetHash: targetHashes[targetFile]
-      })
-    }
-  }
-
-  return {
-    allMatch: differences.length === 0,
-    differences
-  }
-}
-
-/**
- * Query Screen Management API for deployed version (FIRST STEP)
- * Uses the same pattern as comprehensive sync: get screen from dev first to get correct key
- * @param {string} screenPath - Screen path
- * @param {Object} target - Target configuration
- * @returns {Promise<string|null>} Version string or null
- */
-async function getCurrentDeployedVersion(screenPath, target) {
-  try {
-    // Step 1: Get all NATIVE_SCREEN screens from dev environment
-    const devOauthConfig = {} // Use dev environment variables (default)
-    const devScreens = await getAllNativeScreens(process.env.NEXT_PUBLIC_SCREEN_MANAGEMENT_SERVICE_API, devOauthConfig)
-
-    // Step 2: Find the screen that matches our component path
-    const componentPath = screenPath // e.g., "hr/core/apps/employee-directory"
-    const matchingScreen = devScreens.find(screen => {
-      if (!screen.screenComponents?.formDefinition?.componentPath) {
-        return false
-      }
-      const screenComponentPath = screen.screenComponents.formDefinition.componentPath.replace(/^\//, '')
-      return screenComponentPath === componentPath || screenComponentPath.endsWith(`/${componentPath}`)
-    })
-
-    if (!matchingScreen) {
-      console.log(`   No screen found in dev for path: ${componentPath}`)
-      return null
-    }
-
-    const screenKey = matchingScreen.screenKey
-    console.log(`   Found screen key from dev: ${screenKey}`)
-
-    // Step 3: Query prod using the correct screen key from dev
-    const prodOauthConfig = {
-      clientId: target.oauth.clientId,
-      clientSecret: target.oauth.clientSecret,
-      oauthUrl: target.oauth.oauthUrl,
-      realm: target.oauth.realm
-    }
-
-    const prodScreen = await getScreenByKey(screenKey, target.services.screenManagementApi, prodOauthConfig)
-
-    if (prodScreen?.screenComponents?.formDefinition?.version) {
-      const version = prodScreen.screenComponents.formDefinition.version
-      console.log(`   Found deployed version in prod: ${version}`)
-      return version
-    }
-
-    console.log(`   Screen exists in dev but not in prod (new screen)`)
-    return null
-  } catch (error) {
-    console.log(`   ⚠️  Unable to get deployed version: ${error.message}`)
-    return null
-  }
-}
-
-// ============================================================================
-// End of Hash-based Publishing Utility Functions
 // ============================================================================
 
 // Helper function to detect if the screen is a form
@@ -1268,75 +1053,7 @@ async function publishScreen(
 
   await renameFilesWithBuildNumber(buildOutputDir, PUBLISH_VERSION)
 
-  // ============================================================================
-  // HASH COMPARISON STEP - Optimized order: target first, then source
-  // ============================================================================
-  console.log('🔍 Checking if content changed...')
-
-  // STEP 1: Get deployed version from Screen Management API
-  let deployedVersion = null
-  let targetHashes = null
-
-  for (const target of targets) {
-    deployedVersion = await getCurrentDeployedVersion(screenPath, target)
-
-    if (deployedVersion) {
-      console.log(`   Current deployed version: ${deployedVersion}`)
-      console.log(`   New build version: ${PUBLISH_VERSION}`)
-
-      // STEP 2: Dynamically discover and get target hashes from Azure
-      const azureTarget = target.azure || PRIMARY_TARGET.azure
-      targetHashes = await getTargetArtifactsHashes(azureDestinationPath, azureTarget, deployedVersion)
-
-      if (targetHashes) {
-        console.log(`   Found ${Object.keys(targetHashes).length} deployed artifact(s):`)
-        break // Use first successful result
-      }
-    }
-  }
-
-  // STEP 3: If no target version exists, this is a new screen - skip hash calculation
-  if (!deployedVersion || !targetHashes) {
-    console.log('   ✅ New screen or unable to retrieve target - proceeding with publish')
-  } else {
-    // STEP 4: Calculate source hashes (per-file, matching Azure format)
-    const sourceHashes = await getSourceArtifactsHashes(buildOutputDir, 'md5')
-    console.log(`   Found ${Object.keys(sourceHashes).length} source artifact(s):`)
-
-    // STEP 5: Compare file-by-file
-    const comparison = compareArtifactHashes(sourceHashes, targetHashes, PUBLISH_VERSION, deployedVersion)
-
-    if (comparison.allMatch) {
-      console.log('✅ All artifact hashes match - content unchanged, skipping publish')
-
-      return {
-        success: true,
-        skipped: true,
-        reason: 'content_unchanged',
-        outputPath: buildOutputDir,
-        sourceHashes,
-        targetHashes,
-        sourceVersion: PUBLISH_VERSION,
-        targetVersion: deployedVersion
-      }
-    } else {
-      console.log(`   ⚠️  Content changed - found ${comparison.differences.length} difference(s):`)
-      for (const diff of comparison.differences) {
-        if (diff.reason === 'new_file') {
-          console.log(`     - ${diff.file}: NEW FILE`)
-        } else if (diff.reason === 'file_removed') {
-          console.log(`     - ${diff.file}: REMOVED FILE`)
-        } else {
-          console.log(`     - ${diff.file}: CHANGED`)
-          console.log(`       Source: ${diff.sourceHash.substring(0, 16)}...`)
-          console.log(`       Target: ${diff.targetHash.substring(0, 16)}...`)
-        }
-      }
-      console.log('   Proceeding with publish...')
-    }
-  }
-
-  // Continue with existing upload logic
+  // Upload to Azure
   for (const target of azureTargets) {
     try {
       await uploadDirectory(buildOutputDir, azureDestinationPath, target, PUBLISH_VERSION)
@@ -1699,6 +1416,30 @@ async function handleComprehensiveScreenSyncForTarget(changedScreens, target) {
   }
 }
 
+// Detect manual publish mode from pipeline
+
+/**
+ * Find all screen directories in the project
+ */
+async function findAllScreenDirectories() {
+  const appIndexFiles = await glob('src/business-apps/**/apps/*/index.ts', { nodir: true })
+  const formIndexFiles = await glob('src/business-apps/**/forms/*/index.ts', { nodir: true })
+  const popupIndexFiles = await glob('src/business-apps/**/popups/*/index.ts', { nodir: true })
+  const recordIndexFiles = await glob('src/business-apps/**/records/*/index.ts', { nodir: true })
+
+  const allIndexFiles = [...appIndexFiles, ...formIndexFiles, ...popupIndexFiles, ...recordIndexFiles]
+  const uniqueDirs = new Set()
+
+  for (const filePath of allIndexFiles) {
+    const dir = path.dirname(filePath)
+    // strip prefix 'src/business-apps/' to get publish path
+    const publishPath = dir.replace(/^src[\\/]+business-apps[\\/]+/, '').replace(/\\/g, '/')
+    if (publishPath) uniqueDirs.add(publishPath)
+  }
+
+  return Array.from(uniqueDirs).sort()
+}
+
 async function main() {
   console.log('🚀 Starting production screen publishing...')
   console.log(`🔢 Build number: ${BITBUCKET_BUILD_NUMBER}`)
@@ -1706,133 +1447,139 @@ async function main() {
   console.log(`🔗 Resource URL sync: ${process.env.SKIP_RESOURCE_URL_SYNC === 'true' ? 'DISABLED' : 'ENABLED'}`)
   console.log(`🌐 Secondary target ${SECONDARY_TARGET ? 'DETECTED' : 'NOT configured'}`)
 
-  // Check if manual screen list file is provided as command line argument
+  // Determine which screens to publish
+  let candidateScreens = []
+  let isManualScreenList = false
   const manualScreensFile = process.argv[2]
-  let screensFile
 
   if (manualScreensFile && fs.existsSync(manualScreensFile)) {
-    console.log(`📋 Using manually specified screens from: ${manualScreensFile}`)
-    screensFile = manualScreensFile
+    // Manual screen list provided - use these screens directly (force deploy)
+    console.log(`📋 MANUAL MODE: Using specified screens from: ${manualScreensFile}`)
+    isManualScreenList = true
+
+    const specifiedScreens = fs
+      .readFileSync(manualScreensFile, 'utf8')
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0)
+      .map(line => line.replace(/^src\/business-apps\//, ''))
+      .map(line => line.replace(/^\/+/, ''))
+
+    console.log(`📋 Found ${specifiedScreens.length} manually specified screen(s):`)
+    specifiedScreens.forEach(screen => console.log(`   - ${screen}`))
+
+    // Filter out screens that don't exist
+    const projectRootDir = path.resolve(__dirname, '..')
+    candidateScreens = specifiedScreens.filter(screen => {
+      const sourceEntryFile = path.join(projectRootDir, 'src', 'business-apps', screen, 'index.ts')
+      const exists = fs.existsSync(sourceEntryFile)
+      if (!exists) {
+        console.log(`   ⚠️  Skipping non-existent screen: ${screen}`)
+      }
+      return exists
+    })
+
+    console.log(`✅ Will force-deploy ${candidateScreens.length} screen(s) (no hash comparison)`)
   } else {
-    console.log('🔍 Using change detection to find screens to publish...')
-
-    try {
-      execSync('bash scripts/detect-changed-screens.sh', { stdio: 'inherit' })
-    } catch (error) {
-      console.error('❌ Failed to detect changed screens:', error.message)
-      process.exit(1)
-    }
-
-    screensFile = 'changed-tsx.txt'
+    // No manual list - compare ALL screens' dev hashes vs prod hashes
+    console.log('🔍 AUTO MODE: Comparing dev vs prod hashes for ALL screens...')
+    candidateScreens = await findAllScreenDirectories()
+    console.log(`📋 Found ${candidateScreens.length} total screen(s) in project`)
   }
 
-  // Check if any screens were found
-  if (!fs.existsSync(screensFile) || !fs.statSync(screensFile).size) {
-    console.log('✅ No screens found to publish. Nothing to publish.')
-    return
-  }
-
-  // Read the screens to publish
-  const detectedScreens = fs
-    .readFileSync(screensFile, 'utf8')
-    .split('\n')
-    .map(line => line.trim())
-    .filter(line => line.length > 0)
-    .map(line => line.replace(/^src\/business-apps\//, ''))
-    .map(line => line.replace(/^\/+/, ''))
-
-  console.log(`📋 Detected ${detectedScreens.length} screen(s) from change detection:`)
-  detectedScreens.forEach(screen => console.log(`   - ${screen}`))
-
-  // Filter out screens that don't exist (were removed)
-  const projectRootDir = path.resolve(__dirname, '..')
-  const existingScreens = detectedScreens.filter(screen => {
-    const sourceEntryFile = path.join(projectRootDir, 'src', 'business-apps', screen, 'index.ts')
-    const exists = fs.existsSync(sourceEntryFile)
-    if (!exists) {
-      console.log(`   ⚠️  Skipping removed screen: ${screen} (${sourceEntryFile} not found)`)
-    }
-    return exists
-  })
-
-  const removedCount = detectedScreens.length - existingScreens.length
-  if (removedCount > 0) {
-    console.log(`📋 Filtered out ${removedCount} removed screen(s).`)
-  }
-
-  console.log(`📋 Found ${existingScreens.length} existing screen(s) to publish:`)
-  existingScreens.forEach(screen => console.log(`   - ${screen}`))
-
-  const changedScreens = existingScreens
+  const changedScreens = candidateScreens
+  const useHashComparison = !isManualScreenList // Skip hash comparison for manual deploys
   const targets = [PRIMARY_TARGET]
   if (SECONDARY_TARGET) targets.push(SECONDARY_TARGET)
 
+  const projectRootDirForHashes = path.resolve(__dirname, '..')
+  const devHashFile = path.join(projectRootDirForHashes, 'component-hashes.json')
+  const prodHashFile = path.join(projectRootDirForHashes, 'component-hashes-prod.json')
+
+  // Load hash files ONCE at the beginning (keep in memory throughout)
+  const devHashes = loadHashFile(devHashFile)
+  const prodHashes = loadHashFile(prodHashFile)
+
   // ============================================================================
-  // STEP 1: Build all screens and check hashes (before comprehensive sync)
+  // STEP 1: PRE-BUILD HASH COMPARISON (skip if manual screen list provided)
   // ============================================================================
+  let screensToPublish = []
+  const skippedScreens = []
+  const failedScreens = []
+
+  if (useHashComparison) {
+    console.log(`\n${'='.repeat(80)}`)
+    console.log(`🔍 STEP 1: PRE-BUILD HASH COMPARISON`)
+    console.log(`${'='.repeat(80)}`)
+
+    console.log(`   Dev hashes loaded: ${Object.keys(devHashes).length} screens`)
+    console.log(`   Prod hashes loaded: ${Object.keys(prodHashes).length} screens`)
+
+    for (const screen of changedScreens) {
+      const comparison = compareScreenHashes(screen, devHashes, prodHashes)
+
+      if (comparison.changed) {
+        console.log(`   🔨 ${screen}: ${comparison.reason}`)
+        screensToPublish.push(screen)
+      } else {
+        skippedScreens.push({
+          screen,
+          hash: comparison.devHash,
+          reason: 'hash_match'
+        })
+      }
+    }
+
+    console.log(`\n   📊 Pre-build comparison results:`)
+    console.log(`      Changed screens (will build): ${screensToPublish.length}`)
+    console.log(`      Unchanged screens (skip build): ${skippedScreens.length}`)
+    console.log(`      Time saved: ~${skippedScreens.length * 10} minutes ⚡`)
+  } else {
+    console.log(`\n${'='.repeat(80)}`)
+    console.log(`🎯 MANUAL SCREEN LIST - SKIPPING HASH COMPARISON`)
+    console.log(`${'='.repeat(80)}`)
+    console.log(`   All ${changedScreens.length} specified screen(s) will be force-deployed`)
+    screensToPublish = changedScreens
+  }
+
+  // ============================================================================
+  // STEP 2: BUILD AND PUBLISH (only changed screens or all if manual)
+  // ============================================================================
+  if (screensToPublish.length === 0) {
+    console.log(`\n✅ No screens need publishing - all unchanged!`)
+    return
+  }
+
   console.log(`\n${'='.repeat(80)}`)
-  console.log(`🔨 STEP 1: BUILD AND HASH CHECK (${changedScreens.length} screens)`)
+  console.log(`🔨 STEP 2: BUILD AND PUBLISH (${screensToPublish.length} screens)`)
   console.log(`${'='.repeat(80)}`)
 
-  const failedScreens = []
-  const skippedScreens = []
-  const screensToPublish = [] // Only screens with actual content changes
+  const successfulScreens = []
 
-  for (const screen of changedScreens) {
-    console.log(`\n📦 Building and checking: ${screen}`)
+  for (const screen of screensToPublish) {
+    console.log(`\n📦 Publishing: ${screen}`)
 
     try {
       const azureTargets = targets.map(t => t.azure).filter(t => t !== null)
-      console.log(`   Building screen...`)
+      await publishScreen(screen, {
+        skipResourceUrlSync: true,
+        skipScreenRegistration: true,
+        azureTargets,
+        targets
+      })
 
-      // Run simplified build (without hash check and upload)
-      try {
-        const result = await publishScreen(screen, {
-          skipResourceUrlSync: true,
-          skipScreenRegistration: true,
-          azureTargets,
-          targets
-        })
-
-        if (result.skipped) {
-          console.log(`   ⏩ Content unchanged - skipping publish`)
-          console.log(`   Build ${result.sourceVersion} matches deployed ${result.targetVersion}`)
-          skippedScreens.push({
-            screen,
-            reason: result.reason,
-            fileCount: Object.keys(result.sourceHashes || {}).length,
-            sourceVersion: result.sourceVersion,
-            targetVersion: result.targetVersion
-          })
-        } else {
-          console.log(`   ✅ Content changed or new screen - will publish`)
-          screensToPublish.push(screen)
-        }
-      } catch (buildError) {
-        console.error(`   ❌ Build/check failed: ${buildError.message}`)
-        failedScreens.push({
-          screen,
-          error: buildError.message,
-          stage: 'build_check',
-          target: buildError.targetLabel || 'unknown'
-        })
-      }
+      successfulScreens.push(screen)
+      console.log(`   ✅ Published successfully`)
     } catch (error) {
-      console.error(`   ❌ Error processing ${screen}: ${error.message}`)
+      console.error(`   ❌ Failed: ${error.message}`)
       failedScreens.push({
         screen,
         error: error.message,
-        stage: 'build_check',
+        stage: 'build_upload',
         target: error.targetLabel || 'unknown'
       })
     }
   }
-
-  console.log(`\n📊 Hash Check Summary:`)
-  console.log(`   📝 Total screens: ${changedScreens.length}`)
-  console.log(`   ✅ Changed screens: ${screensToPublish.length}`)
-  console.log(`   ⏩ Unchanged screens: ${skippedScreens.length}`)
-  console.log(`   ❌ Failed: ${failedScreens.length}`)
 
   // ============================================================================
   // STEP 2: Comprehensive Sync - ONLY for screens that actually changed
@@ -1872,6 +1619,70 @@ async function main() {
     console.log(`\n⏩ No screens need comprehensive sync - all ${skippedScreens.length} screen(s) unchanged!`)
   }
 
+  // ============================================================================
+  // STEP 3: UPDATE PROD HASH FILE
+  // ============================================================================
+  if (successfulScreens.length > 0) {
+    console.log(`\n${'='.repeat(80)}`)
+    console.log(`📝 STEP 3: UPDATE PROD HASH FILE`)
+    console.log(`${'='.repeat(80)}`)
+
+    // Update in-memory prod hashes with dev hashes for successfully published screens
+    let updatedCount = 0
+    for (const screen of successfulScreens) {
+      if (devHashes[screen]) {
+        prodHashes[screen] = devHashes[screen]
+        updatedCount++
+        console.log(`   ✅ ${screen}: ${devHashes[screen].substring(0, 16)}...`)
+      } else {
+        console.log(`   ⚠️  ${screen}: No dev hash found (screen not in component-hashes.json)`)
+      }
+    }
+
+    if (updatedCount > 0) {
+      // Save updated prod hashes
+      saveHashFile(prodHashFile, prodHashes)
+      console.log(`\n   📝 Updated ${updatedCount} prod hash(es)`)
+
+      // Commit and push to main
+      try {
+        configureGit(projectRootDirForHashes, execSync)
+        execSync('git add component-hashes-prod.json', { cwd: projectRootDirForHashes })
+        execSync(`git commit -m "chore(ci): update component hashes to ${PUBLISH_VERSION} [skip ci]"`, {
+          cwd: projectRootDirForHashes
+        })
+
+        // Pull with rebase for concurrent pipeline safety
+        let pushSuccess = false
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          try {
+            execSync('git pull --rebase origin main', { cwd: projectRootDirForHashes, stdio: 'inherit' })
+            execSync('git push origin main', { cwd: projectRootDirForHashes, stdio: 'inherit' })
+            pushSuccess = true
+            console.log('   ✅ Prod hashes committed and pushed to main')
+            break
+          } catch (error) {
+            if (attempt < 3) {
+              console.log(`   🔄 Push failed (attempt ${attempt}/3), retrying with rebase...`)
+              await new Promise(resolve => setTimeout(resolve, 2000 * attempt))
+            } else {
+              throw error
+            }
+          }
+        }
+
+        if (!pushSuccess) {
+          throw new Error('Failed to push after 3 retries')
+        }
+      } catch (error) {
+        console.log(`   ⚠️  Failed to commit/push prod hashes: ${error.message}`)
+        console.log('   ℹ️  Screens were published successfully, hash update is non-critical')
+      }
+    } else {
+      console.log('   ℹ️  No hashes to update')
+    }
+  }
+
   // Print final summary
   console.log(`\n${'='.repeat(80)}`)
   console.log(`📊 PRODUCTION PUBLISHING SUMMARY`)
@@ -1908,13 +1719,12 @@ async function main() {
 
   // Display skipped screens details
   if (skippedScreens.length > 0) {
-    console.log(`\n⏩ SKIPPED SCREENS (all artifact hashes matched):`)
+    console.log(`\n⏩ SKIPPED SCREENS (hashes matched):`)
     console.log(`${'='.repeat(50)}`)
     skippedScreens.forEach((skip, index) => {
       console.log(`\n${index + 1}. Screen: ${skip.screen}`)
-      console.log(`   Files checked: ${skip.fileCount}`)
-      console.log(`   New build: ${skip.sourceVersion}`)
-      console.log(`   Deployed: ${skip.targetVersion}`)
+      console.log(`   Hash: ${skip.hash ? skip.hash.substring(0, 16) + '...' : 'N/A'}`)
+      console.log(`   Reason: ${skip.reason}`)
       console.log(`   ${'─'.repeat(40)}`)
     })
   }

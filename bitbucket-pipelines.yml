@@ -45,7 +45,7 @@ definitions:
     docker:
       memory: 3072
     docker-large:
-      memory: 7168
+      memory: 8192
       type: docker
   caches:
     nodecustom:
@@ -53,6 +53,7 @@ definitions:
         files:
           - package-lock.json
       path: ./node_modules
+    sonar: ~/.sonar/cache
 
   steps:
     - step: &install_dependencies
@@ -189,13 +190,15 @@ definitions:
           depth: full # SonarCloud scanner needs the full history to assign issues properly
         caches:
           - nodecustom
+          - sonar
         services:
           - docker-large
         script:
           - pipe: sonarsource/sonarcloud-scan:4.1.0
             variables:
-              SONAR_SCANNER_OPTS: -Xmx6144m
-              EXTRA_ARGS: ['-Dsonar.javascript.node.maxspace=5120']
+              SONAR_SCANNER_OPTS: -Xmx4096m
+              EXTRA_ARGS: 
+                - '-Dsonar.javascript.node.maxspace=3072'
 
 pipelines:
   pull-requests:
@@ -208,8 +211,9 @@ pipelines:
   branches:
     develop:
       - step: *install_dependencies
-      - step: *publish-changed-screens
-      - step: *sonar_scan
+      - parallel:
+        - step: *publish-changed-screens
+        - step: *sonar_scan
 
     hotfix/*:
       - step: *install_dependencies
@@ -236,6 +240,9 @@ pipelines:
             default: ''
           - name: PUBLISH_ALL_SCREENS
             default: 'false'
+            allowed-values:
+              - 'true'
+              - 'false'
       - step: *install_dependencies
       - step: *publish-manual-screens
 
@@ -245,7 +252,51 @@ pipelines:
             default: ''
           - name: PUBLISH_ALL_SCREENS
             default: 'false'
+            allowed-values:
+              - 'true'
+              - 'false'
           - name: SKIP_RESOURCE_URL_SYNC
             default: 'true'
+            allowed-values:
+              - 'true'
+              - 'false'
       - step: *install_dependencies
       - step: *publish-manual-prod-screens
+
+    calculate-hashes:
+      - variables:
+          - name: HASH_ENV
+            default: 'dev'
+            allowed-values:
+              - 'dev'
+              - 'prod'
+          - name: SCREENS
+            default: ''
+          - name: COMMIT_CHANGES
+            default: 'false'
+            allowed-values:
+              - 'true'
+              - 'false'
+          - name: DRY_RUN
+            default: 'true'
+            allowed-values:
+              - 'true'
+              - 'false'
+      - step: *install_dependencies
+      - step:
+          name: Calculate screen hashes
+          script:
+            - echo "🔧 Calculating hashes for $HASH_ENV environment"
+            - |
+              ARGS="--env=$HASH_ENV"
+              if [ -n "$SCREENS" ]; then
+                ARGS="$ARGS --screens=$SCREENS"
+              fi
+              if [ "$COMMIT_CHANGES" = "true" ]; then
+                ARGS="$ARGS --commit"
+              fi
+              if [ "$DRY_RUN" = "true" ]; then
+                ARGS="$ARGS --dry-run"
+              fi
+              echo "Running: node scripts/calculate-hashes.js $ARGS"
+              node scripts/calculate-hashes.js $ARGS
