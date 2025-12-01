@@ -3,10 +3,15 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 export interface PerformanceStatisticsQueryVariables {
   employeeId: string
+  currencyCode?: string
 }
 
 // Combined query for all employee performance statistics in one request
-export const GET_ALL_PERFORMANCE_STATISTICS = `
+// Optional currency filtering: only opportunity-related stats are filtered
+export const GET_ALL_PERFORMANCE_STATISTICS = (currencyCode?: string) => {
+  const currencyFilter = currencyCode ? `, currency: { code: { _eq: "${currencyCode}" } }` : ''
+
+  return `
   query GetAllPerformanceStatistics($employeeId: uuid!) {
     # Leads Statistics
     totalLeads: LeadAggregate(where: { 
@@ -46,10 +51,10 @@ export const GET_ALL_PERFORMANCE_STATISTICS = `
       }
     }
     
-    # Opportunities Statistics
+    # Opportunities Statistics (filtered by currency if provided)
     totalOpportunities: OpportunityAggregate(where: { 
       isDeleted: { _eq: false }, 
-      ownerEmployeeId: { _eq: $employeeId } 
+      ownerEmployeeId: { _eq: $employeeId }${currencyFilter}
     }) {
       aggregate {
         count
@@ -58,7 +63,7 @@ export const GET_ALL_PERFORMANCE_STATISTICS = `
     wonOpportunities: OpportunityAggregate(where: { 
       isDeleted: { _eq: false }, 
       ownerEmployeeId: { _eq: $employeeId },
-      opportunityStatus: { code: { _eq: "WON" } }
+      opportunityStatus: { code: { _eq: "WON" } }${currencyFilter}
     }) {
       aggregate {
         count
@@ -77,7 +82,7 @@ export const GET_ALL_PERFORMANCE_STATISTICS = `
     accountsRevenue: OpportunityAggregate(where: {
       isDeleted: { _eq: false },
       opportunityStatus: { code: { _eq: "WON" } },
-      ownerEmployeeId: { _eq: $employeeId }
+      ownerEmployeeId: { _eq: $employeeId }${currencyFilter}
     }) {
       aggregate {
         sum {
@@ -92,7 +97,7 @@ export const GET_ALL_PERFORMANCE_STATISTICS = `
       where: {
         isDeleted: { _eq: false },
         account: { ownerEmployeeId: { _eq: $employeeId } },
-        currencyRef: { _isNull: false }
+        currencyRef: { _isNull: false }${currencyFilter}
       }
     ) {
       currencyRef
@@ -103,6 +108,7 @@ export const GET_ALL_PERFORMANCE_STATISTICS = `
     }
   }
 `
+}
 
 export const usePerformanceStatisticsQueries = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken)

@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react'
-import { Alert, Button } from '@newwork/nw-design-system'
-import { PiHouse, PiUsersThree, PiUser, PiSpinner } from 'react-icons/pi'
+import React, { useState, useEffect, useMemo } from 'react'
+import { Alert, Button, PageLayout, Spinner } from '@newwork/nw-design-system'
+import { PiChartLine } from 'react-icons/pi'
 import { SalesMemberPerformance } from './components/sales-member-performance'
 import { TeamPerformanceView } from './components/team-performance-view/TeamPerformanceView'
 import { CEOTeamComparisonDashboard } from './components/ceo-team-comparison/CEOTeamComparisonDashboard'
@@ -9,6 +9,7 @@ import { useUserRole } from './hooks/useUserRole'
 import { useTeamsData } from './hooks/useTeamsData'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { SalesTeamMember } from './components/sales-members-list/types'
+import { MODULE_COLORS } from '@/common/constants/ui'
 
 interface SalesTeamPerformanceOverviewProps extends BusinessAppContextProps {
   loading?: boolean
@@ -203,6 +204,10 @@ export const SalesTeamPerformanceOverview: React.FC<SalesTeamPerformanceOverview
         selectedCurrency: currency || 'EUR' // Default to EUR if not provided
       })
       updateUrlWithParams({ teamId, employeeId: null })
+      // Set the view to 'overview' when first selecting a team
+      const url = new URL(globalThis.location.href)
+      url.searchParams.set('view', 'overview')
+      globalThis.history.pushState({}, '', url.toString())
     }
   }
 
@@ -226,6 +231,10 @@ export const SalesTeamPerformanceOverview: React.FC<SalesTeamPerformanceOverview
   const handleBackToCompany = () => {
     setNavigationState({ view: 'company' })
     updateUrlWithParams({ teamId: null, employeeId: null })
+    // Clear the view parameter when going back to company view
+    const url = new URL(globalThis.location.href)
+    url.searchParams.delete('view')
+    globalThis.history.pushState({}, '', url.toString())
   }
 
   const handleBackToTeam = () => {
@@ -238,6 +247,10 @@ export const SalesTeamPerformanceOverview: React.FC<SalesTeamPerformanceOverview
       teamId: navigationState.selectedTeamId,
       employeeId: null
     })
+    // Reset the view parameter to 'overview' when going back to team view
+    const url = new URL(globalThis.location.href)
+    url.searchParams.set('view', 'overview')
+    globalThis.history.pushState({}, '', url.toString())
   }
 
   // Enhanced URL management
@@ -268,46 +281,31 @@ export const SalesTeamPerformanceOverview: React.FC<SalesTeamPerformanceOverview
     }
   }
 
-  // Simple Breadcrumb Navigation
-  const renderBreadcrumbs = () => (
-    <div
-      className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-gray-600 gba:mb-4"
-      data-testid={`${DATA_TEST_ID_PREFIX}-breadcrumbs`}
-    >
-      <button
-        onClick={() => canViewAllTeams && handleBackToCompany()}
-        className={`gba:flex gba:items-center gba:gap-1 gba:hover:text-blue-600 ${canViewAllTeams ? 'gba:cursor-pointer' : 'gba:cursor-default'}`}
-        disabled={!canViewAllTeams}
-      >
-        <PiHouse className="gba:w-4 gba:h-4" />
-        Sales Performance
-      </button>
-
-      {navigationState.view !== 'company' && navigationState.selectedTeamName && (
-        <>
-          <span className="gba:text-gray-400">/</span>
-          <button
-            onClick={() => navigationState.view === 'individual' && handleBackToTeam()}
-            className={`gba:flex gba:items-center gba:gap-1 gba:hover:text-blue-600 ${navigationState.view === 'individual' ? 'gba:cursor-pointer' : 'gba:cursor-default'}`}
-            disabled={navigationState.view !== 'individual'}
-          >
-            <PiUsersThree className="gba:w-4 gba:h-4" />
-            {navigationState.selectedTeamName}
-          </button>
-        </>
-      )}
-
-      {navigationState.view === 'individual' && navigationState.selectedMemberName && (
-        <>
-          <span className="gba:text-gray-400">/</span>
-          <span className="gba:flex gba:items-center gba:gap-1 gba:text-gray-900">
-            <PiUser className="gba:w-4 gba:h-4" />
-            {navigationState.selectedMemberName}
-          </span>
-        </>
-      )}
-    </div>
-  )
+  // Generate static header info based on navigation state
+  const getHeaderInfo = useMemo(() => {
+    switch (navigationState.view) {
+      case 'company':
+        return {
+          title: 'Sales Performance',
+          description: 'Company-wide sales performance and team comparison'
+        }
+      case 'team':
+        return {
+          title: 'Team Overview',
+          description: 'Track team performance, revenue, and individual member contributions'
+        }
+      case 'individual':
+        return {
+          title: 'Employee View',
+          description: 'Personal sales performance, activities, and achievements'
+        }
+      default:
+        return {
+          title: 'Sales Performance',
+          description: 'Track team and individual sales performance'
+        }
+    }
+  }, [navigationState.view])
 
   // Show debug bypass if enabled
   if (useDebugBypass) {
@@ -317,76 +315,96 @@ export const SalesTeamPerformanceOverview: React.FC<SalesTeamPerformanceOverview
   // Show loading state for role detection
   if (roleLoading) {
     return (
-      <div
-        className="gba:bg-hsl(var(--background)) gba:min-h-screen gba:p-6 gba:flex gba:items-center gba:justify-center"
-        data-testid={`${DATA_TEST_ID_PREFIX}-role-loading`}
+      <PageLayout
+        headerIcon={PiChartLine}
+        headerTitle="Sales Performance"
+        headerDescription="Loading user permissions..."
+        variant={MODULE_COLORS.CRM}
+        className="gba:min-h-screen"
       >
-        <div className="gba:text-center">
-          <PiSpinner className="gba:w-8 gba:h-8 gba:animate-spin gba:mx-auto gba:mb-2" />
-          <p className="gba:text-gray-600">Loading user permissions...</p>
-          <p className="gba:text-xs gba:text-gray-400 gba:mt-2">This should only take a moment...</p>
-          <Button onClick={() => setUseDebugBypass(true)} variant="outline" size="sm" className="gba:mt-4">
-            Use Debug Mode
-          </Button>
+        <div
+          className="gba:flex gba:items-center gba:justify-center gba:py-16"
+          data-testid={`${DATA_TEST_ID_PREFIX}-role-loading`}
+        >
+          <div className="gba:text-center">
+            <Spinner size="lg" />
+            <p className="gba:mt-4 gba:text-gray-600">Loading user permissions...</p>
+            <p className="gba:text-xs gba:text-gray-400 gba:mt-2">This should only take a moment...</p>
+            <Button onClick={() => setUseDebugBypass(true)} variant="outline" size="sm" className="gba:mt-4">
+              Use Debug Mode
+            </Button>
+          </div>
         </div>
-      </div>
+      </PageLayout>
     )
   }
 
   // Show role error
   if (roleError) {
     return (
-      <div
-        className="gba:bg-hsl(var(--background)) gba:min-h-screen gba:p-6"
-        data-testid={`${DATA_TEST_ID_PREFIX}-role-error`}
+      <PageLayout
+        headerIcon={PiChartLine}
+        headerTitle="Sales Performance"
+        headerDescription="Error loading permissions"
+        variant={MODULE_COLORS.CRM}
+        className="gba:min-h-screen"
       >
-        <Alert variant="destructive">
-          <span>Error loading user permissions: {roleError ?? 'Unknown error'}</span>
-          <Button variant="outline" size="sm" onClick={() => window.location.reload()} className="gba:ml-2">
-            Refresh
-          </Button>
-        </Alert>
-      </div>
+        <div className="gba:p-6" data-testid={`${DATA_TEST_ID_PREFIX}-role-error`}>
+          <Alert variant="destructive">
+            <span>Error loading user permissions: {roleError ?? 'Unknown error'}</span>
+            <Button variant="outline" size="sm" onClick={() => window.location.reload()} className="gba:ml-2">
+              Refresh
+            </Button>
+          </Alert>
+        </div>
+      </PageLayout>
     )
   }
 
   // Show teams loading
   if (teamsLoading) {
     return (
-      <div
-        className="gba:bg-hsl(var(--background)) gba:min-h-screen gba:p-6"
-        data-testid={`${DATA_TEST_ID_PREFIX}-loading`}
+      <PageLayout
+        headerIcon={PiChartLine}
+        headerTitle="Sales Performance"
+        headerDescription="Loading teams data..."
+        variant={MODULE_COLORS.CRM}
+        className="gba:min-h-screen"
       >
-        {renderBreadcrumbs()}
-        <div className="gba:mt-6">
+        <div className="gba:p-6" data-testid={`${DATA_TEST_ID_PREFIX}-loading`}>
           <div className="gba:text-center gba:py-8">
-            <PiSpinner className="gba:w-8 gba:h-8 gba:animate-spin gba:mx-auto gba:mb-4" />
-            <p className="gba:text-gray-600">Loading teams data...</p>
+            <Spinner size="lg" />
+            <p className="gba:mt-4 gba:text-gray-600">Loading teams data...</p>
           </div>
         </div>
-      </div>
+      </PageLayout>
     )
   }
 
   // Show teams error
   if (teamsError) {
     return (
-      <div
-        className="gba:bg-hsl(var(--background)) gba:min-h-screen gba:p-6"
-        data-testid={`${DATA_TEST_ID_PREFIX}-error`}
+      <PageLayout
+        headerIcon={PiChartLine}
+        headerTitle="Sales Performance"
+        headerDescription="Error loading data"
+        variant={MODULE_COLORS.CRM}
+        className="gba:min-h-screen"
       >
-        <Alert variant="destructive">
-          <div className="gba:space-y-2">
-            <div>Error loading teams data:</div>
-            <div className="gba:text-sm">{teamsError ?? 'Unknown error'}</div>
-          </div>
-          <div className="gba:flex gba:gap-2 gba:mt-4">
-            <Button variant="outline" size="sm" onClick={refetchTeams}>
-              Retry
-            </Button>
-          </div>
-        </Alert>
-      </div>
+        <div className="gba:p-6" data-testid={`${DATA_TEST_ID_PREFIX}-error`}>
+          <Alert variant="destructive">
+            <div className="gba:space-y-2">
+              <div>Error loading teams data:</div>
+              <div className="gba:text-sm">{teamsError ?? 'Unknown error'}</div>
+            </div>
+            <div className="gba:flex gba:gap-2 gba:mt-4">
+              <Button variant="outline" size="sm" onClick={refetchTeams}>
+                Retry
+              </Button>
+            </div>
+          </Alert>
+        </div>
+      </PageLayout>
     )
   }
 
@@ -472,17 +490,19 @@ export const SalesTeamPerformanceOverview: React.FC<SalesTeamPerformanceOverview
     }
   }
 
-  return (
-    <div
-      className="gba:bg-hsl(var(--background)) gba:min-h-screen gba:p-6 gba:space-y-6"
-      style={{ backgroundColor: 'hsl(var(--background))' }}
-      data-testid={DATA_TEST_ID_PREFIX}
-    >
-      {/* Breadcrumb Navigation */}
-      {renderBreadcrumbs()}
+  const headerInfo = getHeaderInfo
 
-      {/* Main Content */}
-      {renderContent()}
+  return (
+    <div data-testid={DATA_TEST_ID_PREFIX}>
+      <PageLayout
+        headerIcon={PiChartLine}
+        headerTitle={headerInfo.title}
+        headerDescription={headerInfo.description}
+        variant={MODULE_COLORS.CRM}
+        className="gba:min-h-screen"
+      >
+        <div className="gba:h-full gba:overflow-auto">{renderContent()}</div>
+      </PageLayout>
     </div>
   )
 }
