@@ -68,20 +68,32 @@ placeholder-enter = Please Enter
 field-bonus-type = Bonus Type
 field-amount = Amount
 field-currency = Currency
-field-payment-date = Payment Date
+field-payment-month = Payment Month
 field-fiscal-year = Fiscal Year
-field-description = Description
 field-notes = Notes
 
 # Validation Messages
 validation-bonus-type-required = Bonus type is required. Please select a bonus type.
 validation-amount-required = Amount is required. Please enter the bonus amount.
 validation-amount-positive = Amount must be greater than zero.
-validation-currency-required = Currency is required. Please select a currency.
-validation-payment-date-required = Payment date is required. Please select a payment date.
-validation-payment-date-invalid = Please enter a valid payment date.
+validation-payment-month-required = Payment month is required. Please select a payment month.
+validation-payment-month-invalid = Please select a valid payment month.
 validation-fiscal-year-required = Fiscal year is required. Please enter the fiscal year.
 validation-fiscal-year-range = Fiscal year must be between {$minYear} and {$maxYear}.
+
+# Month Names
+month-january = January
+month-february = February
+month-march = March
+month-april = April
+month-may = May
+month-june = June
+month-july = July
+month-august = August
+month-september = September
+month-october = October
+month-november = November
+month-december = December
 
 # Grant Employee Bonus Review Form
 grant-bonus-review-title = Employee Bonus Review for { $employeeName }
