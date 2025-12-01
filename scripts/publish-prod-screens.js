@@ -1462,8 +1462,23 @@ async function main() {
       .split('\n')
       .map(line => line.trim())
       .filter(line => line.length > 0)
-      .map(line => line.replace(/^src\/business-apps\//, ''))
-      .map(line => line.replace(/^\/+/, ''))
+      .map(line => {
+        // Convert all backslashes to forward slashes (Windows paths)
+        let normalized = line.replace(/\\/g, '/')
+        // Remove any leading slashes that might remain
+        normalized = normalized.replace(/^\/+/, '')
+        // Remove src/business-apps/ prefix if present (handles both original and converted paths)
+        normalized = normalized.replace(/^src\/business-apps\//, '')
+        // Remove .ts or .tsx extension if present
+        normalized = normalized.replace(/\.tsx?$/, '')
+        // Extract screen directory (module/sub-module/.../app-name) - remove subfolders
+        // e.g., hr/core/apps/employee-record/components/Foo -> hr/core/apps/employee-record
+        const screenMatch = normalized.match(/^(.*?\/(?:apps|forms|popups|records)\/[^/]+)/)
+        if (screenMatch) {
+          normalized = screenMatch[1]
+        }
+        return normalized
+      })
 
     console.log(`📋 Found ${specifiedScreens.length} manually specified screen(s):`)
     specifiedScreens.forEach(screen => console.log(`   - ${screen}`))
