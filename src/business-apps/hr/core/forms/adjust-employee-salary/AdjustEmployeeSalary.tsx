@@ -6,43 +6,12 @@ import { LocalizationProvider, useTranslation, Spinner } from '@newwork/nw-desig
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { AdjustEmployeeSalaryProvider, useAdjustEmployeeSalary } from './AdjustEmployeeSalaryContext'
 import { useForm } from 'react-hook-form'
-import type { AdjustEmployeeSalaryFormValues, EmployeeSalaryRecord } from './types'
+import type { AdjustEmployeeSalaryFormValues } from './types'
 import SalaryAdjustmentGroup from './components/SalaryAdjustmentGroup'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { calculateSalaryAdjustment } from './utils/calculateSalaryAdjustment'
+import { findActiveSalary } from './utils/findActiveSalary'
 import translations from '../_i18n'
-
-/**
- * Find active salary from a list of employee salaries
- * Logic: activeFrom <= now AND (activeTo >= now OR activeTo IS NULL)
- * Falls back to most recent salary if no active salary found
- *
- * Note: Date comparisons use timestamp comparison which is timezone-agnostic.
- * This matches the implementation in useCurrentCompensation.ts for consistency.
- */
-const findActiveSalary = (salaries: EmployeeSalaryRecord[]): EmployeeSalaryRecord | null => {
-  if (!salaries || salaries.length === 0) {
-    return null
-  }
-
-  const nowTimestamp = Date.now()
-
-  // Find active salary based on date range
-  const activeSalary = salaries.find(salary => {
-    const activeFromTime = salary.activeFrom ? new Date(salary.activeFrom).getTime() : null
-    const activeToTime = salary.activeTo ? new Date(salary.activeTo).getTime() : null
-
-    // Null activeFrom means always valid from beginning
-    // Null activeTo means never expires
-    const isActiveFrom = activeFromTime === null || activeFromTime <= nowTimestamp
-    const isActiveTo = activeToTime === null || activeToTime >= nowTimestamp
-
-    return isActiveFrom && isActiveTo
-  })
-
-  // Fallback to most recent salary (first in array since ordered by activeFrom DESC, createdAt DESC)
-  return activeSalary || salaries[0] || null
-}
 
 const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additionalData, userInfo }) => {
   const { t } = useTranslation(translations)
