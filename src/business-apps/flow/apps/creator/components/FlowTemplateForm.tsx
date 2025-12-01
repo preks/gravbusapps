@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback } from 'react'
+import React, { useCallback } from 'react'
 import { Button, message } from 'antd'
 import { SaveOutlined, SendOutlined } from '@ant-design/icons'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -24,7 +24,7 @@ export const FlowTemplateForm: React.FC<FlowTemplateFormProps> = ({
   'data-testid': testId = 'flow-template-form',
   onSaved
 }) => {
-  const { flowTemplate, isSaving, isValid, saveTemplate, validateTemplate } = useFlowTemplateStore()
+  const { flowTemplate, isSaving, isValid } = useFlowTemplateStore()
 
   // Get the client for API calls
   const flowTemplateClient = useFlowTemplateClient(accessToken)
@@ -41,7 +41,8 @@ export const FlowTemplateForm: React.FC<FlowTemplateFormProps> = ({
       if (flowTemplate.id) {
         savedTemplate = await flowTemplateClient.updateTemplate(flowTemplate.id, templateData)
       } else {
-        const { id: _omit, ...createPayload } = templateData as any
+        const createPayload: any = { ...templateData }
+        delete createPayload.id
         savedTemplate = await flowTemplateClient.createTemplate(createPayload)
       }
       message.success('Definition saved as draft successfully!')
@@ -67,7 +68,8 @@ export const FlowTemplateForm: React.FC<FlowTemplateFormProps> = ({
       if (flowTemplate.id) {
         publishedTemplate = await flowTemplateClient.updateTemplate(flowTemplate.id, templateData)
       } else {
-        const { id: _omit, ...createPayload } = templateData as any
+        const createPayload: any = { ...templateData }
+        delete createPayload.id
         publishedTemplate = await flowTemplateClient.createTemplate(createPayload)
       }
       message.success('Definition published successfully!')
@@ -107,7 +109,7 @@ export const FlowTemplateForm: React.FC<FlowTemplateFormProps> = ({
 
         <TabsContent value="steps" className="gba:space-y-6" data-testid="steps-content">
           <Card className="gba:p-6">
-            <StepsSection />
+            <StepsSection accessToken={accessToken} />
           </Card>
         </TabsContent>
 

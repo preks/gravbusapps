@@ -4,10 +4,14 @@ import { useFlowTemplateStore } from '../../hooks/useFlowTemplateStore'
 import { StepItem } from './StepItem'
 import { FlowPreview } from '../preview/FlowPreview'
 
+interface StepsSectionProps {
+  accessToken?: string
+}
+
 /**
  * Steps section component for managing workflow steps
  */
-export const StepsSection: React.FC = () => {
+export const StepsSection: React.FC<StepsSectionProps> = ({ accessToken }) => {
   const { flowTemplate, addStep } = useFlowTemplateStore()
   const { steps } = flowTemplate
 
@@ -56,7 +60,12 @@ export const StepsSection: React.FC = () => {
                   className="gba:border gba:border-gray-200 gba:rounded gba:overflow-hidden"
                   data-testid={`step-container-${index}`}
                 >
-                  <StepItem step={step} stepIndex={index} data-testid={`step-item-${index}`} />
+                  <StepItem
+                    step={step}
+                    stepIndex={index}
+                    accessToken={accessToken}
+                    data-testid={`step-item-${index}`}
+                  />
                 </div>
               ))}
             </div>
