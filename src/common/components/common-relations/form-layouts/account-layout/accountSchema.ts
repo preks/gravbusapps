@@ -24,7 +24,7 @@ export const accountSchema = z.object({
         id: z.string().optional(),
         version: z.number().optional(),
         communicationChannelRef: z.string(),
-        value: z.string().min(1, 'Value is required'),
+        value: z.string().optional(),
         valueExtension: z.string().nullable().optional()
       })
     )

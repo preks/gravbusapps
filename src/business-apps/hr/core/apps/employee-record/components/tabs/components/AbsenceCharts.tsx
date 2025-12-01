@@ -41,24 +41,15 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
             )}
           </div>
           {(() => {
-            // Find annual leave entitlement by catalog ID or fallback to type name
             const annualLeaveEntitlement = Array.isArray(entitlements)
               ? entitlements.find(e => {
-                  // Try to find by common annual leave catalog IDs first
-                  if (e?.typeId?.includes('A001') || e?.typeId?.includes('Annual') || e?.typeId?.includes('Vacation')) {
-                    return true
-                  }
-
-                  // Fallback to type name matching (for different languages)
-                  const typeLower = e?.type?.toLowerCase() || ''
+                  const typeId = e?.typeId || ''
                   return (
-                    typeLower.includes('annual') ||
-                    typeLower.includes('vacation') ||
-                    typeLower.includes('leave') ||
-                    typeLower.includes('concediu') || // Romanian
-                    typeLower.includes('urlaub') || // German
-                    typeLower.includes('ferie')
-                  ) // Another Romanian term
+                    typeId.includes('A001') ||
+                    typeId.includes('AbsenceType:v1:A001') ||
+                    typeId.toLowerCase().includes('annual') ||
+                    typeId.toLowerCase().includes('vacation')
+                  )
                 })
               : undefined
 

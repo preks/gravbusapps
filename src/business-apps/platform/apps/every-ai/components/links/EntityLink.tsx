@@ -39,12 +39,13 @@ export function markdownUrlTransform(url: string): string {
   return url
 }
 
-function splitLink(url: string): [string, string] | null {
-  const match = url.match(/^([a-zA-Z0-9]+):\/\/(.*)/)
-  if (!match) {
-    return null
-  }
-  return [match[1], match[2]]
+function splitLink(rawUrl: string): [string, string] | null {
+  if (!rawUrl) return null
+  const match = rawUrl.match(/^([a-zA-Z0-9_]+):\/\/(.*)$/i)
+  if (!match) return null
+  const protocol = match[1].toLowerCase()
+  const rest = (match[2] || '').trim()
+  return [protocol, rest]
 }
 
 interface EntityLinkProps {

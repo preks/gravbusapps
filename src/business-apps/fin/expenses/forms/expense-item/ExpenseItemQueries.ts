@@ -298,8 +298,18 @@ export const getCustomFields = `query MyQuery($expenseRuleGeneralId: [uuid!]) {
   }
 }
 `
-export const expenseRequestByCurrencyQuery = `query fetchCurrency ($employeeId: uuid,$givenCurrency: String) {
-  ExpenseRequest(where: { currencyRef:{_eq:$givenCurrency},isDeleted: {_eq: false}, employeeId: {_eq: $employeeId}, status: {_in: ["CREATED"]}}) {
+export const expenseRequestByCurrencyQuery = `query fetchCurrency ($employeeId: uuid, $givenCurrency: String) {
+  ExpenseRequest(
+    where: {
+      isDeleted: { _eq: false }
+      employeeId: { _eq: $employeeId }
+      status: { _in: ["CREATED"] }
+      _or: [
+        { currencyRef: { _isNull: true } }
+        { currencyRef: { _eq: $givenCurrency } }
+      ]
+    }
+  ) {
     id
     status
     title

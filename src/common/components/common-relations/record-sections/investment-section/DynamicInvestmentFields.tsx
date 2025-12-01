@@ -74,8 +74,8 @@ const resolveDynamicPrefixSuffix = (prefixSuffix: any, investmentData: any): str
   return handleDynamicPrefixSuffixByType(prefixSuffix.type, fieldValue)
 }
 
-// Helper function to resolve prefix/suffix values
-const resolvePrefixSuffix = (prefixSuffix: any, investmentData: any): string => {
+// Helper function to resolve prefix/suffix values with optional field context
+const resolvePrefixSuffix = (prefixSuffix: any, investmentData: any, fieldProperty?: string): string => {
   if (!prefixSuffix) {
     return ''
   }
@@ -87,7 +87,20 @@ const resolvePrefixSuffix = (prefixSuffix: any, investmentData: any): string => 
 
   // If it's a dynamic value with type and property
   if (prefixSuffix.type && prefixSuffix.property) {
-    return resolveDynamicPrefixSuffix(prefixSuffix, investmentData)
+    // Make suffix property relative to field's parent path
+    let suffixProperty = prefixSuffix.property
+
+    if (fieldProperty?.includes('.')) {
+      // Extract parent path from field (e.g., "realEstateInvestment.size" -> "realEstateInvestment")
+      const fieldParts = fieldProperty.split('.')
+      fieldParts.pop() // Remove the field name, keep the parent path
+      const parentPath = fieldParts.join('.')
+
+      // Prepend parent path to suffix property
+      suffixProperty = `${parentPath}.${prefixSuffix.property}`
+    }
+
+    return resolveDynamicPrefixSuffix({ ...prefixSuffix, property: suffixProperty }, investmentData)
   }
 
   return ''
@@ -148,6 +161,51 @@ const extractRecordFields = (objectValue: any): any[] => {
   return flattenedFields.filter((field: any) => field.record === true)
 }
 
+// Helper function to get base property name (last part after final dot)
+const getBasePropertyName = (property: string): string => {
+  if (!property) return ''
+  const parts = property.split('.')
+  return parts[parts.length - 1]
+}
+
+// Helper function to get all properties used as dynamic prefix/suffix
+const getPropertiesUsedAsPrefixSuffix = (fields: any[]): Set<string> => {
+  const usedProperties = new Set<string>()
+
+  fields.forEach(field => {
+    // Check if field has a prefix with a property
+    if (field.prefix?.property) {
+      // Extract base property name from the prefix property path
+      // e.g., "sizeMeasurementUnit.additionalValue1" -> "sizeMeasurementUnit"
+      const baseProperty = field.prefix.property.split('.')[0]
+      usedProperties.add(baseProperty)
+    }
+    // Check if field has a suffix with a property
+    if (field.suffix?.property) {
+      // Extract base property name from the suffix property path
+      // e.g., "sizeMeasurementUnit.additionalValue1" -> "sizeMeasurementUnit"
+      const baseProperty = field.suffix.property.split('.')[0]
+      usedProperties.add(baseProperty)
+    }
+  })
+
+  return usedProperties
+}
+
+// Helper function to filter out fields used as prefix/suffix
+const filterFieldsUsedAsPrefixSuffix = (fields: any[]): any[] => {
+  const propertiesUsedAsPrefixSuffix = getPropertiesUsedAsPrefixSuffix(fields)
+
+  // Filter out fields whose BASE property name is used as prefix/suffix in another field
+  return fields.filter(field => {
+    const fieldProperty = field.property || field.name
+    // Get base property name (last part after final dot)
+    // e.g., "realEstateInvestment.sizeMeasurementUnit" -> "sizeMeasurementUnit"
+    const basePropertyName = getBasePropertyName(fieldProperty)
+    return !propertiesUsedAsPrefixSuffix.has(basePropertyName)
+  })
+}
+
 const DynamicInvestmentFields: React.FC<DynamicInvestmentFieldsProps> = ({ investmentData, fields, accessToken }) => {
   const [fetchedFields, setFetchedFields] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -167,7 +225,7 @@ const DynamicInvestmentFields: React.FC<DynamicInvestmentFieldsProps> = ({ inves
 
     // Otherwise, fetch from catalog (for Account/Contact/Investment records)
     const fetchCatalogData = async () => {
-      if (accessToken) {
+      if (!accessToken) {
         setFetchedFields([])
         setIsLoading(false)
         return
@@ -374,9 +432,12 @@ const DynamicInvestmentFields: React.FC<DynamicInvestmentFieldsProps> = ({ inves
   const fieldsToRender = useMemo(() => {
     if (fields && fields.length > 0) {
       // Flatten formFields structure if provided by parent (Lead/Opportunity)
-      return fields.flatMap(group => group.fields || [])
+      const flattened = fields.flatMap(group => group.fields || [])
+      // Filter out fields that are used as prefix/suffix
+      return filterFieldsUsedAsPrefixSuffix(flattened)
     }
-    return fetchedFields
+    // Filter out fields that are used as prefix/suffix
+    return filterFieldsUsedAsPrefixSuffix(fetchedFields)
   }, [fields, fetchedFields])
 
   // Memoized value formatting to prevent unnecessary re-renders
@@ -387,8 +448,8 @@ const DynamicInvestmentFields: React.FC<DynamicInvestmentFieldsProps> = ({ inves
       const cleanedName = cleanFieldName(fieldName)
       const fieldValue = getFieldValue(cleanedName, fieldType, investmentData)
       const formattedValue = formatValueByType(fieldType, fieldValue, investmentData)
-      const prefix = resolvePrefixSuffix(field.prefix, investmentData)
-      const suffix = resolvePrefixSuffix(field.suffix, investmentData)
+      const prefix = resolvePrefixSuffix(field.prefix, investmentData, fieldName)
+      const suffix = resolvePrefixSuffix(field.suffix, investmentData, fieldName)
       const finalFormattedValue = combinePrefixSuffix(formattedValue, prefix, suffix)
 
       return {

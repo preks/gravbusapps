@@ -49,10 +49,13 @@ export const useUploadDocumentLookups = (context: BusinessAppContextProps) => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const employeeId = useMemo(
-    () => context.userInfo?.employeeDetails?.employeeId || (context.additionalData as any)?.employeeId || '',
-    [context.userInfo?.employeeDetails?.employeeId, context.additionalData]
-  )
+  const employeeId = useMemo(() => {
+    const fromFlow =
+      (context as any)?.additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId ||
+      (context as any)?.additionalData?.employeeId ||
+      ''
+    return fromFlow || context.userInfo?.employeeDetails?.employeeId || ''
+  }, [context.userInfo?.employeeDetails?.employeeId, context.additionalData])
 
   const load = useCallback(async () => {
     if (!employeeId) return

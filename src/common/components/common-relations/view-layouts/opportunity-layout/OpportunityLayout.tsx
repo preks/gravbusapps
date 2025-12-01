@@ -195,14 +195,22 @@ interface CurrencyFilterProps {
 const CurrencyFilter: React.FC<CurrencyFilterProps> = ({ selectedCurrency, currencies, onCurrencyChange }) => {
   if (currencies.length === 0) return null
 
+  // Get display label for selected currency
+  const getDisplayLabel = (value: string) => {
+    if (value === 'ALL') return 'All'
+    const currency = currencies.find(c => c.code === value)
+    return currency?.label || value
+  }
+
   return (
     <div className="gba:flex gba:items-center gba:gap-2">
       <Label className="gba:text-sm gba:font-medium gba:whitespace-nowrap">Currency:</Label>
       <Select value={selectedCurrency} onValueChange={onCurrencyChange}>
         <SelectTrigger className="gba:w-32">
-          <SelectValue />
+          <SelectValue placeholder="Select currency">{getDisplayLabel(selectedCurrency)}</SelectValue>
         </SelectTrigger>
         <SelectContent>
+          <SelectItem value="ALL">All</SelectItem>
           {currencies.map(currency => (
             <SelectItem key={currency.code} value={currency.code}>
               {currency.label}
@@ -313,7 +321,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
 
   // Board View State
   const [boardPipelineId, setBoardPipelineId] = useState('')
-  const [selectedCurrency, setSelectedCurrency] = useState('EUR')
+  const [selectedCurrency, setSelectedCurrency] = useState('ALL')
   const [boardFilters, setBoardFilters] = useState<Record<string, any>>({})
   const [boardSearch, setBoardSearch] = useState('')
   const [boardOpportunities, setBoardOpportunities] = useState<TOpportunity[]>([])
@@ -331,7 +339,8 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
 
   // Dynamic Filter Data
   const filterData = config.filterDataHook(context)
-  const { owners, stages, pipelines, accounts, statuses, forecasts } = filterData
+  const { owners, stages, pipelines, accounts, statuses } = filterData
+  const forecasts = ('forecasts' in filterData ? filterData.forecasts : []) as Array<{ id: string; label: string }>
   const amountRange =
     'amountRange' in filterData && typeof filterData.amountRange === 'object'
       ? (filterData.amountRange as { min: number; max: number })
@@ -341,13 +350,26 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
   const { currencies: currencyOptions } = useAvailableCurrencies(context, {
     filters: {
       entity: 'InvestmentOpportunity',
-      dealType: config.boardConfig.dealType
+      ...(config.boardConfig && 'dealType' in config.boardConfig
+        ? { dealType: (config.boardConfig as any).dealType }
+        : {})
     },
-    returnFormat: 'codes'
+    returnFormat: 'full'
   })
 
   const availableCurrencies = useMemo(
-    () => currencyOptions.map((code: string) => ({ code, label: code })),
+    () =>
+      (Array.isArray(currencyOptions) ? currencyOptions : [])
+        .filter((currency: any) => {
+          // Filter out "ALL" as we add it manually in the filter dropdown
+          const currencyCode = currency?.code
+          return currencyCode !== 'ALL'
+        })
+        .map((currency: any) => ({
+          code: currency.code,
+          label: currency.code,
+          id: currency.id // Full catalog ID like "Currency:v1:EUR"
+        })),
     [currencyOptions]
   )
 
@@ -386,7 +408,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
       filterConfig,
       'forecast-group',
       'opportunityForecastIds',
-      (forecasts || []).map(f => ({ id: f.id, label: f.label }))
+      (forecasts || []).map((f: any) => ({ id: f.id, label: f.label }))
     )
     updateFilterOptions(
       filterConfig,
@@ -413,18 +435,24 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
   }, [owners, stages, pipelines, accounts, statuses, forecasts, amountRange, config.baseFilterConfig])
 
   // List Query Variables
-  const queryVariables = useMemo(
-    () => ({
-      ...config.buildQueryVariables({
-        pagination,
-        searchTerm,
-        selectedFilters,
-        sorting
-      }),
-      currencyCode: selectedCurrency || undefined
-    }),
-    [pagination, searchTerm, selectedFilters, sorting, selectedCurrency, config]
-  )
+  const listQueryVariables = useMemo(() => {
+    const baseVars = config.buildQueryVariables({
+      pagination,
+      searchTerm,
+      selectedFilters,
+      sorting
+    })
+
+    // Convert selected currency code to full catalog ID if not "ALL"
+    if (selectedCurrency !== 'ALL') {
+      const selectedCurrencyObj = availableCurrencies.find(c => c.code === selectedCurrency)
+      if (selectedCurrencyObj?.id) {
+        ;(baseVars as any).currencyIds = [selectedCurrencyObj.id]
+      }
+    }
+
+    return baseVars
+  }, [pagination, searchTerm, selectedFilters, sorting, selectedCurrency, availableCurrencies, config])
 
   // Load List Data
   const loadListData = useCallback(
@@ -435,7 +463,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
       setError(null)
 
       try {
-        const result = await config.fetchOpportunities(queryVariables)
+        const result = await config.fetchOpportunities(listQueryVariables)
         setOpportunities(result.opportunities || [])
         setTotalCount(result.total || 0)
       } catch (err) {
@@ -445,7 +473,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
         setIsInitialLoad(false)
       }
     },
-    [accessToken, config, queryVariables]
+    [accessToken, config, listQueryVariables]
   )
 
   // Load Board Data
@@ -460,12 +488,19 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
       const currentEmployeeId = context.userInfo?.employeeDetails?.employeeId
       const { opportunityFilter, ownerEmployeeIds } = determineOpportunityFilter(boardFilters, currentEmployeeId)
 
-      const boardFiltersObj: OpportunityBoardFilters & { currencyCode?: string } = {
+      const boardFiltersObj: OpportunityBoardFilters = {
         selectedPipelineId: boardPipelineId,
         opportunityFilter,
         selectedEmployeeIds: ownerEmployeeIds || [],
-        search: boardSearch.trim() || undefined,
-        currencyCode: selectedCurrency || undefined
+        search: boardSearch.trim() || undefined
+      }
+
+      // Convert selected currency code to full catalog ID if not "ALL"
+      if (selectedCurrency !== 'ALL') {
+        const selectedCurrencyObj = availableCurrencies.find(c => c.code === selectedCurrency)
+        if (selectedCurrencyObj?.id) {
+          ;(boardFiltersObj as any).currencyIds = [selectedCurrencyObj.id]
+        }
       }
 
       const result = await config.fetchOpportunitiesForBoard(boardFiltersObj)
@@ -484,6 +519,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     boardFilters,
     boardSearch,
     selectedCurrency,
+    availableCurrencies,
     context.userInfo?.employeeDetails?.employeeId
   ])
 
@@ -514,7 +550,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
   useEffect(() => {
     if (isInitialLoad || !accessToken || currentSection !== 'list') return
     loadListData(false)
-  }, [queryVariables, isInitialLoad, accessToken, loadListData])
+  }, [listQueryVariables, isInitialLoad, accessToken, loadListData, currentSection])
 
   // Reload board data when filters/search/currency change (only when board is active, skip initial load)
   useEffect(() => {
@@ -595,12 +631,16 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
   )
 
   // Row actions - rendered internally
-  const rowActions = useMemo(
-    () => (row: { original: TOpportunity }) => (
+  // Row actions - rendered internally (only if actions are configured)
+  const rowActions = useMemo(() => {
+    // Hide actions column if no actions are configured
+    if (!config.rowActionsContextArray || config.rowActionsContextArray.length === 0) {
+      return undefined
+    }
+    return (row: { original: TOpportunity }) => (
       <OpportunityRowActions row={row} config={config} accessToken={accessToken} />
-    ),
-    [config, accessToken]
-  )
+    )
+  }, [config, accessToken])
 
   // Board secondary actions: Pipeline selector + Currency filter
   const boardSecondaryActions = useMemo(
@@ -631,15 +671,49 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     [currentSection, selectedCurrency, availableCurrencies]
   )
 
+  // Extract sortableColumns for list view
+  const listSortableColumns = useMemo(() => {
+    if (currentSection !== 'list') return undefined
+    const availableColumnIds = availableColumns.map(col => col.id)
+    return config.createSortableColumns(availableColumnIds)
+  }, [currentSection, availableColumns, config])
+
+  // Extract primary action
+  const primaryActionElement = useMemo(() => {
+    if (customPrimaryAction) return customPrimaryAction
+    if (!config.flowContexts.createContext) return undefined
+
+    return (
+      <AppAction
+        contextsArray={[config.flowContexts.createContext]}
+        externalContextData={config.flowContexts.createContextData}
+        accessToken={accessToken}
+        data-testid="add-opportunity-action"
+        emptyStateBehavior="hide"
+      >
+        <Button size="sm" variant="default" data-testid="add-opportunity-button" type="button">
+          <Plus size={16} />
+          {getTranslationFromI18nKeyAndLabel('crm:opportunity.addOpportunity', 'Add Opportunity')}
+        </Button>
+      </AppAction>
+    )
+  }, [customPrimaryAction, config.flowContexts.createContext, config.flowContexts.createContextData, accessToken])
+
+  // Convert selected currency code to full ID for statistics
+  const selectedCurrencyId = useMemo(() => {
+    if (selectedCurrency === 'ALL') return undefined
+    const currencyObj = availableCurrencies.find(c => c.code === selectedCurrency)
+    return currencyObj?.id
+  }, [selectedCurrency, availableCurrencies])
+
   return (
     <div data-testid={dataTestId}>
       {/* Statistics */}
       {config.renderStatistics ? (
-        <div data-testid={`${dataTestId}-statistics`}>{config.renderStatistics(selectedCurrency)}</div>
+        <div data-testid={`${dataTestId}-statistics`}>{config.renderStatistics(selectedCurrencyId)}</div>
       ) : config.opportunityStatistics ? (
         <OpportunityStatisticsLayout
           statistics={config.opportunityStatistics}
-          selectedCurrency={selectedCurrency}
           data-testid={`${dataTestId}-statistics`}
         />
       ) : null}
@@ -684,35 +758,12 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
           setBoardFilters
         )}
         sorting={currentSection === 'list' ? sorting : undefined}
-        sortableColumns={
-          currentSection === 'list'
-            ? (() => {
-                const availableColumnIds = availableColumns.map(col => col.id)
-                return config.createSortableColumns(availableColumnIds)
-              })()
-            : undefined
-        }
+        sortableColumns={listSortableColumns}
         onSortingChange={currentSection === 'list' ? setSorting : undefined}
         availableColumns={currentSection === 'list' ? availableColumns : undefined}
         visibleColumns={currentSection === 'list' ? visibleColumns : undefined}
         onVisibleColumnsChange={currentSection === 'list' ? setVisibleColumns : undefined}
-        primaryAction={
-          customPrimaryAction ||
-          (config.flowContexts.createContext ? (
-            <AppAction
-              contextsArray={[config.flowContexts.createContext]}
-              externalContextData={config.flowContexts.createContextData}
-              accessToken={accessToken}
-              data-testid="add-opportunity-action"
-              emptyStateBehavior="hide"
-            >
-              <Button size="sm" variant="default" data-testid="add-opportunity-button" type="button">
-                <Plus size={16} />
-                {getTranslationFromI18nKeyAndLabel('crm:opportunity.addOpportunity', 'Add Opportunity')}
-              </Button>
-            </AppAction>
-          ) : undefined)
-        }
+        primaryAction={primaryActionElement}
         secondaryActions={currentSection === 'board' ? boardSecondaryActions : listSecondaryActions}
         toolbarDensity="default"
         enableLiveFiltering={currentSection === 'board'}

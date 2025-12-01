@@ -41,6 +41,7 @@ export interface CatalogSelectProps {
   className?: string
   ['data-testid']?: string
   allowClear?: boolean // default: true
+  autoSelectFirst?: boolean // auto-select first entry when value is empty and options are available
 
   // Pre-selected option data (from account query) - ensures immediate display without loading
   selectedOption?: CatalogSelectOption
@@ -110,6 +111,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
   'data-testid': dataTestId,
   selectedOption: propSelectedOption,
   allowClear = true,
+  autoSelectFirst = false,
   ...props
 }) => {
   // Get registration API from context
@@ -212,6 +214,28 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
     }
   }, [controller, effectiveValue, fieldName])
 
+  // Auto-select first entry when value is empty and options are available
+  const hasAutoSelectedRef = React.useRef(false)
+  React.useEffect(() => {
+    if (
+      autoSelectFirst &&
+      !hasAutoSelectedRef.current &&
+      !effectiveValue &&
+      mergedOptions.length > 0 &&
+      !wiredLoading
+    ) {
+      hasAutoSelectedRef.current = true
+      const firstOption = mergedOptions[0]
+      if (firstOption?.value) {
+        const firstValue = String(firstOption.value)
+        if (controller?.setValue) {
+          controller.setValue(firstValue)
+        }
+        onValueChange?.(firstValue)
+      }
+    }
+  }, [autoSelectFirst, effectiveValue, mergedOptions, wiredLoading, controller, onValueChange])
+
   // If parent passes a controlled value but provider updates internally (e.g., bi-directional auto-select),
   // sync the controlled prop back by invoking onValueChange to keep external state in sync.
   // BUT: Only sync Controller → Form, not Form → Controller (to avoid overwriting initial form values)
@@ -240,7 +264,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
     if (normalizedCtrl !== normalizedControlled) {
       onValueChange(normalizedCtrl)
     }
-  }, [isControlled, onValueChange, wiredControllerValue, value, fieldName])
+  }, [isControlled, onValueChange, wiredControllerValue, value])
   const testId = dataTestId || `catalog-select-${fieldName}-${wiredVariant}`
 
   // Helper: Find nearest scrollable parent element
@@ -377,6 +401,13 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
     (v: string | null | undefined) => {
       // ✅ For React Hook Form, use empty string instead of null for string fields
       const normalized = v && v.length > 0 ? v : ''
+
+      // Skip empty value changes if we just auto-selected
+      // This prevents the Combobox/Select from resetting auto-selected values
+      if (hasAutoSelectedRef.current && !normalized) {
+        return
+      }
+
       if (controller?.setValue) {
         controller.setValue(normalized)
       }

@@ -2,6 +2,7 @@ import { extractCurrencyCode } from '@/common/utils/numberFormatter'
 import {
   CompensationBand,
   EmployeeCompensation,
+  EmployeeSalary,
   EmployeeBonus,
   EmployeeBenefit,
   EmployeePayslip,
@@ -55,44 +56,52 @@ export const transformCompensationBand = (compensationBandData: any): Compensati
 }
 
 /**
- * Transform working condition to employee compensation
+ * Transform EmployeeSalary to EmployeeCompensation
+ * Handles both active and recent (expired) salary records
  */
-export const transformWorkingConditionToCompensation = (
-  workingCondition: any,
+export const transformEmployeeSalaryToCompensation = (
+  employeeSalary: EmployeeSalary | null | undefined,
   compensationBand: CompensationBand | null
 ): EmployeeCompensation | null => {
-  if (!workingCondition) {
+  if (!employeeSalary) {
     return null
   }
 
-  // Extract currency code - no fallback to avoid incorrect display
-  const currencyCode = compensationBand?.currency?.code || extractCurrencyCode(workingCondition.currencyRef)
+  // Extract currency code - prefer currency object, fallback to currencyRef
+  const currencyCode = employeeSalary.currency?.code || extractCurrencyCode(employeeSalary.currencyRef)
 
   // Validate currency exists
   if (!currencyCode) {
-    console.warn('No valid currency found for working condition', workingCondition.id)
+    console.warn('No valid currency found for employee salary', employeeSalary.id)
     return null
   }
 
+  // Determine effective date: prefer activeFrom, fallback to startDate, then createdAt
+  const effectiveDate = employeeSalary.activeFrom || employeeSalary.startDate || employeeSalary.createdAt || null
+
+  // Determine end date: prefer activeTo, fallback to endDate
+  const endDate = employeeSalary.activeTo || employeeSalary.endDate || null
+
   return {
-    id: workingCondition.id,
-    employeeId: workingCondition.employeeId,
+    id: employeeSalary.id,
+    employeeId: employeeSalary.employeeId,
     // Preserve null values - don't convert null to 0
-    baseSalary: workingCondition.annualGrossSalary ?? null,
-    currency: {
+    baseSalary: employeeSalary.annualGrossSalary ?? null,
+    currency: employeeSalary.currency || {
       id: currencyCode,
       code: currencyCode,
-      value: compensationBand?.currency?.value || currencyCode
+      value: currencyCode
     },
     payFrequency: {
       id: 'annual',
       value: 'Annually'
     },
     compensationBand,
-    effectiveDate: workingCondition.hireDate,
-    endDate: workingCondition.exitDate,
-    monthlyGrossSalary: workingCondition.monthlyGrossSalary ?? null,
-    hourlyGrossSalary: workingCondition.hourlyGrossSalary ?? null
+    effectiveDate,
+    endDate,
+    monthlyGrossSalary: employeeSalary.monthlyGrossSalary ?? null,
+    hourlyGrossSalary: employeeSalary.hourlyGrossSalary ?? null,
+    stockOptions: employeeSalary.stockOptions ?? null
   }
 }
 
@@ -206,38 +215,41 @@ export const transformPayslip = (payslip: any, locale: string): EmployeePayslip 
 }
 
 /**
- * Transform working condition to compensation history record
+ * Transform EmployeeSalary to compensation history record
  * Note: Formatting (currency, dates) is handled in the view component
  */
-export const transformWorkingConditionToHistory = (wc: any) => {
+export const transformEmployeeSalaryToHistory = (salary: EmployeeSalary) => {
   // Extract currency code from catalog reference format
-  const currencyCode = wc.currency?.code || extractCurrencyCode(wc.currencyRef)
+  const currencyCode = salary.currency?.code || extractCurrencyCode(salary.currencyRef)
 
-  // Determine effective date: prefer createdAt (when salary change took effect), fallback to hireDate
-  // createdAt is more accurate for compensation history as it represents when the record was created
-  let effectiveDate = wc.createdAt || wc.hireDate || wc.updatedAt || null
+  // Determine effective date: prefer activeFrom, fallback to startDate, then createdAt
+  let effectiveDate = salary.activeFrom || salary.startDate || salary.createdAt || null
 
   // Validate and normalize effectiveDate
   if (effectiveDate && Number.isNaN(new Date(effectiveDate).getTime())) {
     effectiveDate = null
   }
 
+  // Determine end date: prefer activeTo, fallback to endDate
+  let endDate = salary.activeTo || salary.endDate || null
+
   // Validate and normalize endDate
-  let endDate = wc.exitDate || null
   if (endDate && Number.isNaN(new Date(endDate).getTime())) {
     endDate = null
   }
 
   return {
-    id: wc.id,
-    employeeId: wc.employeeId,
-    baseSalary: wc.annualGrossSalary || 0,
-    currency: wc.currency || { id: currencyCode, code: currencyCode, value: currencyCode },
+    id: salary.id,
+    employeeId: salary.employeeId,
+    // Preserve null values - don't convert null to 0 (consistent with transformEmployeeSalaryToCompensation)
+    baseSalary: salary.annualGrossSalary ?? null,
+    currency: salary.currency || { id: currencyCode, code: currencyCode, value: currencyCode },
     compensationBand: null,
     effectiveDate: effectiveDate,
     endDate: endDate,
     changeReason: 'Salary Record',
     notes: null,
-    monthlyGrossSalary: wc.monthlyGrossSalary
+    monthlyGrossSalary: salary.monthlyGrossSalary ?? null,
+    stockOptions: salary.stockOptions ?? null
   }
 }

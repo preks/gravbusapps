@@ -901,7 +901,12 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                   component: ContactSection,
                   props: {
                     ...props,
-                    contacts: opportunityData?.opportunityContacts?.map((ioc: any) => ioc.contact).filter(Boolean),
+                    contacts: opportunityData?.opportunityContacts
+                      ?.map((ioc: any) => ({
+                        ...ioc.contact,
+                        contactType: ioc.contactType
+                      }))
+                      .filter(Boolean),
                     contactId: opportunityData?.opportunityContacts?.[0]?.contact?.id,
                     recordUrl: opportunityData?.opportunityContacts?.[0]?.contact?.id
                       ? buildPlatformUrl('/platform/irm/contact-record', {

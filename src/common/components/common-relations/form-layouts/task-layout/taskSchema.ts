@@ -12,7 +12,7 @@ export const taskSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   code: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
-  timingType: z.enum(['DEADLINE', 'SCHEDULED']).refine(v => !!v, {
+  taskTiming: z.enum(['DEADLINE', 'SCHEDULED']).refine(v => !!v, {
     message: 'Timing is required'
   }),
   dueDate: z.string().min(1, 'Deadline is required'),
