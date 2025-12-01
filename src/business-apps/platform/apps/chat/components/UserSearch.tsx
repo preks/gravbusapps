@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Input, IconAvatar, Spinner, Button, Avatar } from '@newwork/nw-design-system'
-import { ArrowLeft } from '@phosphor-icons/react'
+import { ArrowLeft, MagnifyingGlass } from '@phosphor-icons/react'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import type { User } from '../types'
 import { UserIcon } from 'lucide-react'
@@ -155,70 +155,77 @@ export const UserSearch: React.FC<UserSearchProps> = ({ accessToken, currentUser
   }
 
   return (
-    <div className="gba:flex gba:flex-col gba:h-full" data-testid="user-search">
-      {/* Header with back button */}
-      <div className="gba:flex gba:items-center gba:gap-2 gba:p-4 gba:border-b">
+    <div className="gba:flex gba:flex-col gba:h-full gba:min-h-0" data-testid="user-search">
+      {/* Header with back button and search */}
+      <div className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:border-b gba:border-border/50 gba:bg-background/50 gba:backdrop-blur-sm">
         {onClose && (
           <Button
             variant="ghost"
-            size="sm"
+            size="icon"
             onClick={onClose}
-            className="gba:flex-shrink-0"
+            className="gba:h-8 gba:w-8 gba:flex-shrink-0"
             data-testid="user-search-back-button"
           >
-            <ArrowLeft className="gba:w-5 gba:h-5" />
+            <ArrowLeft className="gba:w-4 gba:h-4" />
           </Button>
         )}
-        <Input
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-          placeholder={getTranslationFromI18nKeyAndLabel('chat.searchForUsers', 'Search for users...')}
-          className="gba:flex-1"
-          data-testid="user-search-input"
-        />
+        <div className="gba:relative gba:flex-1">
+          <MagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground gba:pointer-events-none gba:z-10" />
+          <Input
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder={getTranslationFromI18nKeyAndLabel('chat.searchForUsers', 'Search for users...')}
+            className="gba:h-8 gba:text-sm gba:!pl-10 gba:bg-background/50"
+            data-testid="user-search-input"
+            autoFocus
+          />
+        </div>
       </div>
 
-      <div ref={scrollContainerRef} className="gba:flex-1 gba:overflow-y-auto">
+      <div ref={scrollContainerRef} className="gba:flex-1 gba:overflow-y-auto gba:min-h-0">
         {isLoading && users.length === 0 ? (
-          <div className="gba:flex gba:items-center gba:justify-center gba:p-8">
-            <Spinner />
+          <div className="gba:flex gba:items-center gba:justify-center gba:p-6">
+            <Spinner size="sm" />
           </div>
         ) : users.length === 0 ? (
-          <div className="gba:p-8 gba:text-center gba:text-muted-foreground">
-            {debouncedQuery.trim()
-              ? getTranslationFromI18nKeyAndLabel('chat.noUsersFound', 'No users found')
-              : getTranslationFromI18nKeyAndLabel('chat.noUsersAvailable', 'No users available')}
+          <div className="gba:p-6 gba:text-center">
+            <p className="gba:text-sm gba:text-muted-foreground">
+              {debouncedQuery.trim()
+                ? getTranslationFromI18nKeyAndLabel('chat.noUsersFound', 'No users found')
+                : getTranslationFromI18nKeyAndLabel('chat.noUsersAvailable', 'No users available')}
+            </p>
           </div>
         ) : (
           <>
-            <div className="gba:divide-y">
+            <div className="gba:py-1">
               {users.map(user => (
                 <button
                   key={user.id}
                   onClick={() => handleUserClick(user)}
-                  className="gba:w-full gba:flex gba:items-center gba:gap-3 gba:p-4 gba:min-h-[48px] gba:text-left gba:hover:bg-muted gba:transition-colors"
+                  className="gba:w-full gba:flex gba:items-center gba:gap-2.5 gba:px-3 gba:py-2 gba:mx-1 gba:text-left gba:hover:bg-muted/80 gba:transition-colors gba:rounded-lg"
+                  style={{ width: 'calc(100% - 8px)' }}
                   data-testid={`user-search-item-${user.id}`}
                 >
                   {user.avatarUrl ? (
-                    <Avatar className="gba:w-10 gba:h-10 gba:flex-shrink-0">
+                    <Avatar className="gba:w-9 gba:h-9 gba:flex-shrink-0 gba:ring-2 gba:ring-background">
                       <img
                         src={user.avatarUrl}
                         alt={`${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username}
-                        className="gba:w-full gba:h-full gba:object-cover"
+                        className="gba:w-full gba:h-full gba:object-cover gba:rounded-full"
                       />
                     </Avatar>
                   ) : (
                     <IconAvatar
-                      className="gba:w-10 gba:h-10 gba:flex-shrink-0"
+                      className="gba:w-9 gba:h-9 gba:flex-shrink-0"
                       label={`${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username}
                       icon={UserIcon}
                     />
                   )}
                   <div className="gba:flex-1 gba:min-w-0">
-                    <div className="gba:font-medium gba:truncate">
+                    <div className="gba:text-sm gba:font-medium gba:truncate gba:text-foreground">
                       {user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.username}
                     </div>
-                    <div className="gba:text-sm gba:text-muted-foreground gba:truncate">{user.email}</div>
+                    <div className="gba:text-xs gba:text-muted-foreground gba:truncate">{user.email}</div>
                   </div>
                 </button>
               ))}
@@ -226,7 +233,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({ accessToken, currentUser
 
             {/* Loading more indicator */}
             {isLoadingMore && (
-              <div className="gba:flex gba:items-center gba:justify-center gba:p-4">
+              <div className="gba:flex gba:items-center gba:justify-center gba:py-3">
                 <Spinner size="sm" />
               </div>
             )}
