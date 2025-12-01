@@ -293,9 +293,9 @@ export const commonAccountColumns: ColumnDef<Account>[] = [
       return additionalValue1 ? `${value}: ${additionalValue1}` : value
     },
     header: 'Priority',
-    size: 140,
+    size: 250,
     minSize: 120,
-    maxSize: 180,
+    maxSize: 250,
     enableResizing: false,
     cell: ({ row }) => {
       if (!row.original.accountPriority) {

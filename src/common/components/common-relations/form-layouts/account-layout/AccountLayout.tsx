@@ -4,7 +4,7 @@ import { useTranslation, Skeleton, FormSection } from '@newwork/nw-design-system
 import { AccountInformationSegment } from '../../form-segments/account-information-segment'
 import { AccountDetailsSegment } from '../../form-segments/account-details-segment'
 import { AddressSegment } from '../../form-segments/address-segment'
-import { CommunicationSegment } from '../../form-segments/communication-segment'
+import { CommunicationSegment, DEFAULT_ACCOUNT_CHANNELS } from '../../form-segments/communication-segment'
 import translations from './_i18n'
 
 interface AccountLayoutProps {
@@ -116,7 +116,7 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
 
       {/* Other Segments */}
       <FormSection title={t('communication-title')} value="communication-channels">
-        <CommunicationSegment customFields={communicationCustomFields} />
+        <CommunicationSegment customFields={communicationCustomFields} defaultChannelCodes={DEFAULT_ACCOUNT_CHANNELS} />
       </FormSection>
       <FormSection title={t('address-title')} value="address-information">
         <AddressSegment customFields={addressCustomFields} />
