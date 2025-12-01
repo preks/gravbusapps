@@ -1,4 +1,4 @@
-import { Handshake, Briefcase, Users, UserCircle } from '@phosphor-icons/react'
+import { HandshakeIcon, BriefcaseIcon, UsersIcon, UserCircleIcon } from '@phosphor-icons/react'
 
 /**
  * Get appropriate icon for contact type
@@ -8,10 +8,10 @@ export const getContactTypeIcon = (contactType: string | undefined) => {
 
   const typeUpper = contactType.toUpperCase()
 
-  if (typeUpper.includes('FOUNDER')) return Handshake
-  if (typeUpper.includes('PRIMARY')) return Briefcase
-  if (typeUpper.includes('SECONDARY')) return Users
-  return UserCircle
+  if (typeUpper.includes('FOUNDER')) return HandshakeIcon
+  if (typeUpper.includes('PRIMARY')) return BriefcaseIcon
+  if (typeUpper.includes('SECONDARY')) return UsersIcon
+  return UserCircleIcon
 }
 
 /**
