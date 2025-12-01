@@ -476,7 +476,18 @@ export function useFlowBot(accessToken: string) {
 
         files.forEach(file => form.append('files', file))
 
-        const url = `${FLOWBOT_BASE_URL}/flowbot/api/agent/v2/chat`
+        // Use local FlowBot in development
+        const isLocalDev = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+        const baseUrl = isLocalDev
+          ? 'http://localhost:8000'
+          : FLOWBOT_BASE_URL
+        const url = `${baseUrl}/flowbot/api/agent/v2/chat`
+
+        // Debug log only in development
+        if (isLocalDev) {
+          console.log('📤 [FlowBot] Sending to local:', userInputText.substring(0, 50))
+        }
+
         const res = await fetch(url, {
           method: 'POST',
           headers: {
