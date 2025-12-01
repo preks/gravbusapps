@@ -9,7 +9,7 @@
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import { Input, Button, Badge, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
-import { Search, RefreshCw, Zap, FileText } from 'lucide-react'
+import { Search, RefreshCw, Zap, FileText, X } from 'lucide-react'
 import { Flow } from '../types'
 import { FlowCard } from './FlowCard'
 import { FlowDetailDialog } from './FlowDetailDialog'
@@ -221,10 +221,21 @@ export const OutboxView: React.FC<OutboxViewProps> = ({ flows, isLoading, error,
               placeholder="Search workflows..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="gba:pl-11"
+              className="gba:pl-11 gba:pr-9"
               style={{ paddingLeft: '2.75rem' }}
               data-testid="outbox-search-input"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="gba:absolute gba:right-3 gba:top-1/2 gba:-translate-y-1/2 gba:h-4 gba:w-4 gba:text-muted-foreground hover:gba:text-foreground gba:cursor-pointer gba:z-10"
+                data-testid="outbox-search-clear-button"
+                aria-label="Clear search"
+              >
+                <X className="gba:h-4 gba:w-4" />
+              </button>
+            )}
           </div>
           <Button
             variant="outline"

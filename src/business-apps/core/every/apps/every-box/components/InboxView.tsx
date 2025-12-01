@@ -9,7 +9,7 @@
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import { Input, Button, Alert, AlertTitle, AlertDescription, Badge } from '@newwork/nw-design-system'
-import { Search, RefreshCw, Zap, CheckCircle, Inbox, CheckCheck } from 'lucide-react'
+import { Search, RefreshCw, Zap, CheckCircle, Inbox, CheckCheck, X } from 'lucide-react'
 import { UnifiedTask } from '../types'
 import { TaskCard } from './TaskCard'
 import { TaskDetailDialog } from './TaskDetailDialog'
@@ -553,10 +553,21 @@ export const InboxView: React.FC<InboxViewProps> = ({
               placeholder="Search tasks..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="gba:pl-11"
+              className="gba:pl-11 gba:pr-9"
               style={{ paddingLeft: '2.75rem' }}
               data-testid="inbox-search-input"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="gba:absolute gba:right-3 gba:top-1/2 gba:-translate-y-1/2 gba:h-4 gba:w-4 gba:text-muted-foreground hover:gba:text-foreground gba:cursor-pointer gba:z-10"
+                data-testid="inbox-search-clear-button"
+                aria-label="Clear search"
+              >
+                <X className="gba:h-4 gba:w-4" />
+              </button>
+            )}
           </div>
           <Button
             variant="outline"
