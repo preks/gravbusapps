@@ -56,12 +56,24 @@ const getPrimaryAccount = (contact: Contact) => {
   return contact.accountContacts?.[0]?.account
 }
 
+// Helper to get contact type from primary accountContact relation
+const getPrimaryContactType = (contact: Contact) => {
+  return contact.accountContacts?.[0]?.contactType
+}
+
+/**
+ * Options for commonContactColumns
+ */
+export interface CommonContactColumnsOptions {
+  buildAccountRecordUrl?: (accountId: string) => string
+}
+
 /**
  * Default Contact Columns
  * Uses Contact (the CORRECT structure)
  * Contacts must be mapped via contactMapper before passing to these columns
  */
-export const commonContactColumns = (): ColumnDef<Contact>[] => [
+export const commonContactColumns = (options?: CommonContactColumnsOptions): ColumnDef<Contact>[] => [
   {
     id: 'contact',
     accessorFn: row => getContactName(row),
@@ -179,6 +191,8 @@ export const commonContactColumns = (): ColumnDef<Contact>[] => [
     enableSorting: false,
     cell: ({ row }) => {
       const account = getPrimaryAccount(row.original)
+      const contactType = getPrimaryContactType(row.original)
+      const contactTypeLabel = contactType ? getContactTypeLabel(contactType) : null
 
       if (!account) {
         return <span className="gba:text-sm gba:text-muted-foreground">No account</span>
@@ -191,8 +205,9 @@ export const commonContactColumns = (): ColumnDef<Contact>[] => [
           type="button"
           onClick={e => {
             e.stopPropagation()
-            // TODO: Navigate to account - need to determine if CRM or IRM based on context
-            console.log('Navigate to account:', account.id)
+            if (options?.buildAccountRecordUrl && account.id) {
+              navigateTo(options.buildAccountRecordUrl(account.id))
+            }
           }}
           className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:group gba:bg-transparent gba:border-0 gba:p-0 gba:w-full gba:text-left"
           data-testid={`contact-account-link-${row.original.id}`}
@@ -207,6 +222,11 @@ export const commonContactColumns = (): ColumnDef<Contact>[] => [
             <div className="gba:font-medium gba:truncate gba:text-sm gba:group-hover:gba:text-primary gba:transition-colors">
               {account.name}
             </div>
+            {contactTypeLabel && (
+              <div className="gba:text-xs gba:text-muted-foreground gba:truncate" title={contactTypeLabel}>
+                {contactTypeLabel}
+              </div>
+            )}
           </div>
         </button>
       )
@@ -227,35 +247,6 @@ export const commonContactColumns = (): ColumnDef<Contact>[] => [
       return (
         <span className="gba:text-sm gba:truncate gba:block" title={safeString(row.original.department)}>
           {safeString(row.original.department)}
-        </span>
-      )
-    }
-  },
-  {
-    id: 'type',
-    accessorFn: row => (row as any).type || (row as any).contactType || '',
-    header: 'Type',
-    size: 120,
-    minSize: 100,
-    maxSize: 150,
-    enableResizing: false,
-    cell: ({ row }) => {
-      // Get contact type directly from contact (mapped from contactType in CRM)
-      const contactType = (row.original as any).type || (row.original as any).contactType
-
-      if (!contactType) {
-        return <span className="gba:text-sm gba:text-muted-foreground">No type</span>
-      }
-
-      const label = getContactTypeLabel(contactType)
-
-      return (
-        <span
-          className="gba:text-sm gba:truncate gba:block"
-          title={label || contactType}
-          data-testid={`contact-type-${row.original.id}`}
-        >
-          {label || contactType}
         </span>
       )
     }
@@ -369,7 +360,6 @@ export const defaultVisibleContactColumns = [
   'communicationChannels',
   'account',
   'department',
-  'type',
   'createdAt',
   'ownerEmployee'
 ]
@@ -380,5 +370,5 @@ export const defaultVisibleContactColumns = [
  */
 export const defaultAvailableContactColumns = deriveAvailableColumns(commonContactColumns())
 
-// Note: communicationChannels, account, and type are computed/related fields and cannot be sorted in GraphQL
+// Note: communicationChannels and account are computed/related fields and cannot be sorted in GraphQL
 // Only include database fields in sortableColumns above

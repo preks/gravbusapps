@@ -6,7 +6,7 @@ import { UserRole, UserRoleContext, UserPermissions } from '../types/userRoles'
  * Hook to detect user role and permissions based on organizational context
  */
 export const useUserRole = (
-  context: BusinessAppContextProps
+  _context: BusinessAppContextProps // eslint-disable-line @typescript-eslint/no-unused-vars
 ): UserRoleContext & {
   isLoading: boolean
   error: string | null
@@ -24,8 +24,6 @@ export const useUserRole = (
   useEffect(() => {
     const detectUserRole = () => {
       try {
-        console.log('Starting role detection...', { userInfo: !!context.userInfo, accessToken: !!context.accessToken })
-
         setError(null)
 
         // Default to individual role - most permissive for testing
@@ -43,13 +41,6 @@ export const useUserRole = (
         canViewTeam = true
         canViewIndividuals = true
 
-        console.log('Role Detection Complete:', {
-          detectedRole,
-          canViewAllTeams,
-          canViewTeam,
-          canViewIndividuals
-        })
-
         setRoleContext({
           role: detectedRole,
           canViewAllTeams,
@@ -59,7 +50,6 @@ export const useUserRole = (
           managedTeamName
         })
       } catch (err) {
-        console.error('Role detection error:', err)
         setError(err instanceof Error ? err.message : 'Failed to detect user role')
 
         // Safe default to individual role on any error
@@ -70,7 +60,6 @@ export const useUserRole = (
           canViewIndividuals: true
         })
       } finally {
-        console.log('Setting isLoading to false')
         setIsLoading(false)
       }
     }

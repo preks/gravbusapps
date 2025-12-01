@@ -10,10 +10,12 @@ export const EMPLOYEE_DATA_QUERY = `query fetchEmployee($idEmployee: uuid!) {
 `
 
 export const EMPLOYEE_COMPENSATION_QUERY = `query fetchEmployeeCompensation($idEmployee: uuid!) {
-  EmployeeWorkingCondition(
-    where: { employeeId: { _eq: $idEmployee } }
-    orderBy: { createdAt: DESC }
-    limit: 1
+  AllEmployeeSalaries: EmployeeSalary(
+    where: { 
+      employeeId: { _eq: $idEmployee }
+      isDeleted: { _eq: false }
+    }
+    orderBy: [{ activeFrom: DESC }, { createdAt: DESC }]
   ) {
     id
     employeeId
@@ -21,6 +23,12 @@ export const EMPLOYEE_COMPENSATION_QUERY = `query fetchEmployeeCompensation($idE
     monthlyGrossSalary
     hourlyGrossSalary
     currencyRef
+    activeFrom
+    activeTo
+    startDate
+    endDate
+    createdAt
+    isDeleted
     currency {
       id
       code

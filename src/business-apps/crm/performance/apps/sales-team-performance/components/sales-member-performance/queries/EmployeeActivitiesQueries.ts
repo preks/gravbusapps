@@ -46,10 +46,10 @@ export interface ActivityReference {
 }
 
 export interface EmployeeActivity {
-  id?: string
+  id: string
   source?: string
   description?: string
-  title?: string
+  title: string
   createdAt: string
   occurredAt?: string
   ownerEmployeeId: string
@@ -60,6 +60,7 @@ export interface EmployeeActivity {
   activityType: {
     value: string
   }
+  type?: string // Fallback activity type
   contactId?: string
   leadId?: string
   accountId?: string
@@ -91,6 +92,7 @@ export interface EmployeeActivity {
       fullName?: string
     }
   }
+  activityScore?: number // Computed field (0-100)
 }
 
 export interface EmployeeActivitiesResponse {
@@ -102,13 +104,77 @@ export interface EmployeeActivitiesResponse {
   }
 }
 
-// Query to get sales activities for a specific employee
-export const GET_EMPLOYEE_ACTIVITIES_QUERY = `
+// Legacy query with orderBy as variable (for backward compatibility)
+const GET_EMPLOYEE_ACTIVITIES_QUERY = `
   query GetEmployeeActivities($offset: Int, $limit: Int, $orderBy: [SalesActivityOrderBy!], $where: SalesActivityBoolExp) {
     SalesActivity(
       offset: $offset, 
       limit: $limit, 
       orderBy: $orderBy, 
+      where: $where
+    ) {
+      id
+      contactId
+      leadId
+      accountId
+      opportunityId
+      source
+      description
+      createdAt
+      occurredAt
+      createdBy
+      ownerEmployeeId
+      ownerEmployee {
+        fullName
+        pictureThumbnail
+      }
+      title
+      activityType {
+        value
+      }
+      account {
+        email
+        name
+        pictureUrl
+      }
+      contact {
+        firstName
+        lastName
+        phone
+        pictureUrl
+        email
+      }
+      lead {
+        name
+        companyEmail
+        companyPhone
+        contact {
+          firstName
+          lastName
+        }
+      }
+      opportunity {
+        name
+        ownerEmployee {
+          fullName
+        }
+      }
+    }
+    SalesActivityAggregate(where: $where) {
+      aggregate {
+        count
+      }
+    }
+  }
+`
+
+// Function to build query with orderBy as string (to avoid enum serialization issues)
+export const buildEmployeeActivitiesQuery = (orderByClause: string) => `
+  query GetEmployeeActivities($offset: Int, $limit: Int, $where: SalesActivityBoolExp) {
+    SalesActivity(
+      offset: $offset, 
+      limit: $limit, 
+      ${orderByClause}
       where: $where
     ) {
       id
@@ -217,7 +283,6 @@ export const useEmployeeActivitiesQueries = (context: BusinessAppContextProps) =
 
         return result
       } catch (error) {
-        console.error('Error fetching employee activities data:', error)
         throw error
       }
     },

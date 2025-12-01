@@ -95,3 +95,16 @@ month-october = Octombrie
 month-november = Noiembrie
 month-december = Decembrie
 
+# Grant Employee Bonus Review Form
+grant-bonus-review-title = Revizuire bonus pentru { $employeeName }
+grant-bonus-review-initiated-by = Inițiat de { $initiatorName }
+grant-bonus-review-bonus-details = Detalii bonus
+grant-bonus-review-bonus-type = Tipul bonusului
+grant-bonus-review-amount = Sumă
+grant-bonus-review-payment-month = Luna plății
+grant-bonus-review-fiscal-year = Anul fiscal
+grant-bonus-review-additional-info = Informații suplimentare
+grant-bonus-review-description = Descriere
+grant-bonus-review-notes = Note
+grant-bonus-review-acknowledge = Confirmă
+grant-bonus-review-reject = Respinge

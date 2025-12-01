@@ -90,6 +90,7 @@ export const buildContactFragment = (fields: Record<keyof typeof ContactFields, 
     ${EMPLOYEE_REF}
   }
   ${fields.ownerEmployeeId}
+  ${fields.pictureThumbnail}
   ${fields.salutation} {
     ${CATALOG_ENTRY}
   }

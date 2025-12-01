@@ -10,6 +10,7 @@ import type { AdjustEmployeeSalaryFormValues } from './types'
 import SalaryAdjustmentGroup from './components/SalaryAdjustmentGroup'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { calculateSalaryAdjustment } from './utils/calculateSalaryAdjustment'
+import { findActiveSalary } from './utils/findActiveSalary'
 import translations from '../_i18n'
 
 const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additionalData, userInfo }) => {
@@ -17,7 +18,7 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
   const { data, isLoading } = useAdjustEmployeeSalary()
 
   const employee = useMemo(() => data?.employee?.EmployeeByPk, [data])
-  const currentCompensation = useMemo(() => data?.compensation?.EmployeeWorkingCondition?.[0] || null, [data])
+  const currentCompensation = useMemo(() => findActiveSalary(data?.compensation?.AllEmployeeSalaries || []), [data])
   const salaryAdjustReasonEntries = useMemo(
     () => data?.catalogs?.salaryAdjustReason?.CatalogEntry || [],
     [data?.catalogs?.salaryAdjustReason]
@@ -39,7 +40,7 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
     } else {
       return 'annually'
     }
-  }, [currentSalaryAnnual, currentSalaryMonthly, currentSalaryHourly])
+  }, [currentSalaryMonthly, currentSalaryHourly])
 
   const defaultValues: AdjustEmployeeSalaryFormValues = useMemo(
     () => ({
