@@ -333,12 +333,8 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
       className="gba:bg-linear-to-b gba:from-gray-50 gba:to-gray-100 gba:min-h-full gba:p-6 gba:rounded-lg"
       data-testid={DATA_TEST_ID_PREFIX}
     >
-      {/* Header */}
-      <div
-        className="gba:flex gba:justify-between gba:items-center gba:mb-6"
-        data-testid={`${DATA_TEST_ID_PREFIX}-header`}
-      >
-        <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900 gba:m-0">Cross-Team Performance Analysis</h1>
+      {/* Currency Filter */}
+      <div className="gba:flex gba:justify-end gba:items-center gba:mb-6" data-testid={`${DATA_TEST_ID_PREFIX}-header`}>
         <div className="gba:flex gba:items-center gba:gap-2">
           <span className="gba:text-sm gba:font-medium gba:text-gray-700">Currency:</span>
           <Popover>
