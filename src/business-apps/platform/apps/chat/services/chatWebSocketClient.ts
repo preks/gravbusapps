@@ -213,12 +213,19 @@ export class ChatWebSocketClient {
     this.socket?.emit('leave_conversation', { conversationId })
   }
 
-  sendMessage(conversationId: string, content: string, senderId: string, parentId?: string) {
+  sendMessage(
+    conversationId: string,
+    content: string,
+    senderId: string,
+    parentId?: string,
+    metadata?: Record<string, any>
+  ) {
     const payload = {
       conversationId,
       content,
       senderId,
-      ...(parentId && { parentId })
+      ...(parentId && { parentId }),
+      ...(metadata && { metadata })
     }
 
     this.socket?.emit('send_message', payload)
