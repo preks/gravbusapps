@@ -14,6 +14,11 @@ const ENTITY_URL_PATTERNS = [
   },
 
   // IRM entities (investment-specific)
+  {
+    // IRM investment record – capture investmentId from any position in the query string
+    pattern: /\/platform\/irm\/investment-record\?[^#]*investmentId=([^&]+)/,
+    entity_name: 'investment'
+  },
   { pattern: /\/platform\/irm\/lead-record\?leadId=([^&]+)/, entity_name: 'investment_lead' },
   { pattern: /\/platform\/irm\/contact-record\?contactId=([^&]+)/, entity_name: 'investment_contact' },
   { pattern: /\/platform\/irm\/company-record\?companyId=([^&]+)/, entity_name: 'investment_company' },
