@@ -53,14 +53,6 @@ export interface EmployeeSalaryRecord {
   currency: CatalogEntry
 }
 
-/** Validates currency.id === currencyRef when both are present */
-export function validateEmployeeSalaryCurrencyConsistency(record: EmployeeSalaryRecord): boolean {
-  if (!record.currencyRef || !record.currency?.id) {
-    return true
-  }
-  return record.currency.id === record.currencyRef
-}
-
 export interface EmployeeCompensationResponse {
   AllEmployeeSalaries: EmployeeSalaryRecord[]
 }
