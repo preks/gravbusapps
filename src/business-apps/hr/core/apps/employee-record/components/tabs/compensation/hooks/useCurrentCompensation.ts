@@ -122,12 +122,12 @@ export const useCurrentCompensation = (employeeId: string, accessToken: string) 
 
       // Calculate total bonuses for current year (YTD)
       const currentYear = new Date().getFullYear()
-      const totalBonusesYTD = bonuses
-        .filter((bonus: EmployeeBonus) => {
-          const bonusYear = new Date(bonus.paymentDate).getFullYear()
-          return bonusYear === currentYear && isCompensationStatusActive(bonus.status)
-        })
-        .reduce((sum: number, bonus: EmployeeBonus) => sum + bonus.amount, 0)
+      const activeBonuses = bonuses.filter((bonus: EmployeeBonus) => {
+        const bonusYear = new Date(bonus.paymentDate).getFullYear()
+        return bonusYear === currentYear && isCompensationStatusActive(bonus.status)
+      })
+      const totalBonusesYTD = activeBonuses.reduce((sum: number, bonus: EmployeeBonus) => sum + bonus.amount, 0)
+      const activeBonusesCount = activeBonuses.length
 
       // Count active benefits
       const activeBenefitsCount = benefits.filter((benefit: EmployeeBenefit) =>
@@ -138,6 +138,7 @@ export const useCurrentCompensation = (employeeId: string, accessToken: string) 
       setData({
         currentCompensation,
         totalBonusesYTD,
+        activeBonusesCount,
         activeBenefitsCount,
         bonuses,
         benefits
