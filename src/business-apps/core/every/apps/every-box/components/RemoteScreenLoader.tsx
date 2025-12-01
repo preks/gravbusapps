@@ -106,19 +106,9 @@ export const RemoteScreenLoader: React.FC<RemoteScreenLoaderProps> = ({
         setComponent(() => loadedComponent)
         setError(null) // Clear any previous errors
       } catch (err) {
-        // Enhanced error message for dev overrides
-        const cdnUrl = `${CDN_BASE}/${componentPath}/index.js`
-        const enhancedErrorMessage =
-          `Failed to load component "${componentName}" from CDN.\n\n` +
-          `CDN URL: ${cdnUrl}\n\n` +
-          `This component may not be published to the dev CDN yet.\n` +
-          `To fix this, publish the form using:\n` +
-          `npm run publish:screen hr/absences/forms/${componentPath.split('/').pop()}\n\n` +
-          `Original error: ${err instanceof Error ? err.message : 'Unknown error'}`
-
-        console.error('❌ [RemoteScreenLoader]', enhancedErrorMessage)
-        setError(enhancedErrorMessage)
-        setComponent(null) // Clear component on error
+        console.error('❌ [RemoteScreenLoader]', err)
+        setError('Unable to load screen. Please try again later.')
+        setComponent(null)
       } finally {
         setLoading(false)
       }
