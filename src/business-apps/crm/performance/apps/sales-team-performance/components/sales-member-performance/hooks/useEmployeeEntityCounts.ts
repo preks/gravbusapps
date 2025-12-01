@@ -78,6 +78,10 @@ export const useEmployeeEntityCounts = (employeeId: string, accessToken: string)
 
   const fetchEntityCounts = useCallback(async () => {
     if (!employeeId || !accessToken) {
+      console.warn('[useEmployeeEntityCounts] Missing employeeId or accessToken', {
+        employeeId,
+        accessToken: !!accessToken
+      })
       return
     }
 
