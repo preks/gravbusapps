@@ -14,7 +14,7 @@ import { OpportunityStatisticsLayout } from '@/common/components/common-relation
 // Separate component to properly use hooks
 const InvestmentOpportunityStatistics: React.FC<{
   context: BusinessAppContextProps
-  selectedCurrency?: string
+  selectedCurrency?: string // Full currency ID like "Currency:v1:EUR" or undefined
 }> = ({ context, selectedCurrency }) => {
   const opportunityStatistics = useInvestmentOpportunityStatistics(context, selectedCurrency)
 

@@ -14,7 +14,7 @@ import { CUSTOMER_OPPORTUNITY_DESCRIPTORS } from '@/common/data/customer/types/c
 // Separate component to properly use hooks with currency filtering
 const CustomerOpportunityStatistics: React.FC<{
   context: BusinessAppContextProps
-  selectedCurrency?: string
+  selectedCurrency?: string // Full currency ID like "Currency:v1:EUR" or undefined
 }> = ({ context, selectedCurrency }) => {
   const opportunityStatistics = useCustomerOpportunityStatistics(context, selectedCurrency)
 

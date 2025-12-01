@@ -24,8 +24,8 @@ export interface UseCustomerOpportunityStatisticsReturn {
   refetch: () => Promise<void>
 }
 
-const GET_ALL_CUSTOMER_OPPORTUNITY_STATISTICS_WITH_TREND = (currencyCode?: string) => {
-  const currencyFilter = currencyCode ? `, currency: { code: { _eq: "${currencyCode}" } }` : ''
+const GET_ALL_CUSTOMER_OPPORTUNITY_STATISTICS_WITH_TREND = (currencyId?: string) => {
+  const currencyFilter = currencyId ? `, currencyRef: { _eq: "${currencyId}" }` : ''
 
   return `
   query GetAllCustomerOpportunityStatisticsWithTrend(
@@ -144,7 +144,7 @@ const calculateTrend = (current: number, previous: number): TrendData => {
 
 export const useCustomerOpportunityStatistics = (
   props: BusinessAppContextProps,
-  currencyCode?: string
+  currencyId?: string
 ): UseCustomerOpportunityStatisticsReturn => {
   const [trendData, setTrendData] = useState<OpportunityStatisticsTrendData | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -170,7 +170,7 @@ export const useCustomerOpportunityStatistics = (
       const lastYearStart = new Date(now.getFullYear() - 1, 0, 1)
       const lastYearEnd = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999)
 
-      const query = GET_ALL_CUSTOMER_OPPORTUNITY_STATISTICS_WITH_TREND(currencyCode)
+      const query = GET_ALL_CUSTOMER_OPPORTUNITY_STATISTICS_WITH_TREND(currencyId)
       const result = await graphqlClient.request<{
         recentOpportunitiesCurrent: { aggregate: { count: number } }
         recentOpportunitiesPrevious: { aggregate: { count: number } }
@@ -221,14 +221,14 @@ export const useCustomerOpportunityStatistics = (
     } finally {
       setIsLoading(false)
     }
-  }, [props.accessToken, currencyCode, graphqlClient])
+  }, [props.accessToken, currencyId, graphqlClient])
 
   // Fetch statistics on mount and when access token or currency changes
   useEffect(() => {
     if (props.accessToken) {
       refetch()
     }
-  }, [props.accessToken, currencyCode, refetch])
+  }, [props.accessToken, currencyId, refetch])
 
   return {
     trendData,

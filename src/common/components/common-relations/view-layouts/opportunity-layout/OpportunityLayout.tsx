@@ -354,18 +354,22 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
         ? { dealType: (config.boardConfig as any).dealType }
         : {})
     },
-    returnFormat: 'codes'
+    returnFormat: 'full'
   })
 
   const availableCurrencies = useMemo(
     () =>
       (Array.isArray(currencyOptions) ? currencyOptions : [])
-        .filter((code: any) => {
+        .filter((currency: any) => {
           // Filter out "ALL" as we add it manually in the filter dropdown
-          const currencyCode = typeof code === 'string' ? code : code?.code
+          const currencyCode = currency?.code
           return currencyCode !== 'ALL'
         })
-        .map((code: any) => (typeof code === 'string' ? { code, label: code } : code)),
+        .map((currency: any) => ({
+          code: currency.code,
+          label: currency.code,
+          id: currency.id // Full catalog ID like "Currency:v1:EUR"
+        })),
     [currencyOptions]
   )
 
@@ -431,18 +435,24 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
   }, [owners, stages, pipelines, accounts, statuses, forecasts, amountRange, config.baseFilterConfig])
 
   // List Query Variables
-  const queryVariables = useMemo(
-    () => ({
-      ...config.buildQueryVariables({
-        pagination,
-        searchTerm,
-        selectedFilters,
-        sorting
-      }),
-      currencyCode: selectedCurrency === 'ALL' ? undefined : selectedCurrency
-    }),
-    [pagination, searchTerm, selectedFilters, sorting, selectedCurrency, config]
-  )
+  const listQueryVariables = useMemo(() => {
+    const baseVars = config.buildQueryVariables({
+      pagination,
+      searchTerm,
+      selectedFilters,
+      sorting
+    })
+
+    // Convert selected currency code to full catalog ID if not "ALL"
+    if (selectedCurrency !== 'ALL') {
+      const selectedCurrencyObj = availableCurrencies.find(c => c.code === selectedCurrency)
+      if (selectedCurrencyObj?.id) {
+        ;(baseVars as any).currencyIds = [selectedCurrencyObj.id]
+      }
+    }
+
+    return baseVars
+  }, [pagination, searchTerm, selectedFilters, sorting, selectedCurrency, availableCurrencies, config])
 
   // Load List Data
   const loadListData = useCallback(
@@ -453,7 +463,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
       setError(null)
 
       try {
-        const result = await config.fetchOpportunities(queryVariables)
+        const result = await config.fetchOpportunities(listQueryVariables)
         setOpportunities(result.opportunities || [])
         setTotalCount(result.total || 0)
       } catch (err) {
@@ -463,7 +473,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
         setIsInitialLoad(false)
       }
     },
-    [accessToken, config, queryVariables]
+    [accessToken, config, listQueryVariables]
   )
 
   // Load Board Data
@@ -478,12 +488,19 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
       const currentEmployeeId = context.userInfo?.employeeDetails?.employeeId
       const { opportunityFilter, ownerEmployeeIds } = determineOpportunityFilter(boardFilters, currentEmployeeId)
 
-      const boardFiltersObj: OpportunityBoardFilters & { currencyCode?: string } = {
+      const boardFiltersObj: OpportunityBoardFilters = {
         selectedPipelineId: boardPipelineId,
         opportunityFilter,
         selectedEmployeeIds: ownerEmployeeIds || [],
-        search: boardSearch.trim() || undefined,
-        currencyCode: selectedCurrency === 'ALL' ? undefined : selectedCurrency
+        search: boardSearch.trim() || undefined
+      }
+
+      // Convert selected currency code to full catalog ID if not "ALL"
+      if (selectedCurrency !== 'ALL') {
+        const selectedCurrencyObj = availableCurrencies.find(c => c.code === selectedCurrency)
+        if (selectedCurrencyObj?.id) {
+          ;(boardFiltersObj as any).currencyIds = [selectedCurrencyObj.id]
+        }
       }
 
       const result = await config.fetchOpportunitiesForBoard(boardFiltersObj)
@@ -502,6 +519,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     boardFilters,
     boardSearch,
     selectedCurrency,
+    availableCurrencies,
     context.userInfo?.employeeDetails?.employeeId
   ])
 
@@ -532,7 +550,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
   useEffect(() => {
     if (isInitialLoad || !accessToken || currentSection !== 'list') return
     loadListData(false)
-  }, [queryVariables, isInitialLoad, accessToken, loadListData])
+  }, [listQueryVariables, isInitialLoad, accessToken, loadListData, currentSection])
 
   // Reload board data when filters/search/currency change (only when board is active, skip initial load)
   useEffect(() => {
@@ -681,13 +699,18 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     )
   }, [customPrimaryAction, config.flowContexts.createContext, config.flowContexts.createContextData, accessToken])
 
+  // Convert selected currency code to full ID for statistics
+  const selectedCurrencyId = useMemo(() => {
+    if (selectedCurrency === 'ALL') return undefined
+    const currencyObj = availableCurrencies.find(c => c.code === selectedCurrency)
+    return currencyObj?.id
+  }, [selectedCurrency, availableCurrencies])
+
   return (
     <div data-testid={dataTestId}>
       {/* Statistics */}
       {config.renderStatistics ? (
-        <div data-testid={`${dataTestId}-statistics`}>
-          {config.renderStatistics(selectedCurrency === 'ALL' ? undefined : selectedCurrency)}
-        </div>
+        <div data-testid={`${dataTestId}-statistics`}>{config.renderStatistics(selectedCurrencyId)}</div>
       ) : config.opportunityStatistics ? (
         <OpportunityStatisticsLayout
           statistics={config.opportunityStatistics}
