@@ -14,7 +14,7 @@ import { OpportunityStatisticsLayout } from '@/common/components/common-relation
 // Separate component to properly use hooks
 const InvestmentOpportunityStatistics: React.FC<{
   context: BusinessAppContextProps
-  selectedCurrency?: string
+  selectedCurrency?: string // Full currency ID like "Currency:v1:EUR" or undefined
 }> = ({ context, selectedCurrency }) => {
   const opportunityStatistics = useInvestmentOpportunityStatistics(context, selectedCurrency)
 
@@ -24,14 +24,13 @@ const InvestmentOpportunityStatistics: React.FC<{
     <OpportunityStatisticsLayout
       statistics={{
         recentOpportunities: opportunityStatistics.trendData.recentOpportunities,
-        opportunityValue: opportunityStatistics.trendData.opportunityValue,
+        totalOpportunities: opportunityStatistics.trendData.totalOpportunities,
         winRate: opportunityStatistics.trendData.winRate,
         opportunitiesThisYear: opportunityStatistics.trendData.opportunitiesThisYear,
         isLoading: opportunityStatistics.isLoading,
         error: opportunityStatistics.error,
         refetch: () => void opportunityStatistics.refetch()
       }}
-      selectedCurrency={selectedCurrency}
     />
   )
 }
@@ -48,9 +47,7 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
 
         extendQueryVariables: vars => ({
           ...vars,
-          dealType: 'INVESTMENT_DEAL',
-          // Filter for OPEN status only on kanban board
-          opportunityStatusIds: ['InvestmentOpportunityStatus:v1:OPEN']
+          dealType: 'INVESTMENT_DEAL'
         }),
 
         fetchOpportunities: async variables => {

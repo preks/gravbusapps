@@ -6,6 +6,7 @@ import {
 } from '@/common/data/relations/types/contactTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
+import { filterCommunicationChannels } from '@/common/data/common/utils/entityPayloadHelpers'
 import type { InvestmentActivity } from './investmentActivityTypes'
 import type { InvestmentAddress } from './investmentAddressTypes'
 import type { InvestmentCommunicationChannel } from './investmentCommunicationChannelTypes'
@@ -84,6 +85,14 @@ export const investmentContactFormFields = {
 export const buildInvestmentContactPayload = (contact: Partial<InvestmentContact>) => {
   // Build base payload using investmentContactFormFields for field mapping
   const basePayload = buildPayload(contact, investmentContactFormFields)
+
+  // Filter communication channels
+  const filteredChannels = filterCommunicationChannels(basePayload.communicationChannels)
+  if (filteredChannels) {
+    basePayload.communicationChannels = filteredChannels
+  } else {
+    delete basePayload.communicationChannels
+  }
 
   return {
     investmentContact: basePayload

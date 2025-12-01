@@ -22,6 +22,7 @@ interface ConversationItemProps {
   onRemove?: (conversationId: string) => void
   isActive?: boolean
   currentUserId?: string | null
+  compact?: boolean
 }
 
 const getOtherParticipant = (conversation: Conversation, currentUserId?: string | null) => {
@@ -58,7 +59,8 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
   onClick,
   onRemove,
   isActive = false,
-  currentUserId = null
+  currentUserId = null,
+  compact = false
 }) => {
   const name = getConversationName(conversation, currentUserId)
   const otherParticipant = getOtherParticipant(conversation, currentUserId)
@@ -77,15 +79,18 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
     onRemove?.(conversation.id)
   }
 
+  const avatarSize = compact ? 'gba:w-9 gba:h-9' : 'gba:w-10 gba:h-10'
+
   return (
     <>
       <div
         onClick={onClick}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:p-3 gba:min-h-[48px] gba:text-left gba:transition-colors gba:hover:bg-muted gba:relative gba:group gba:cursor-pointer ${
-          isActive ? 'gba:bg-muted' : ''
-        }`}
+        className={`gba:w-full gba:flex gba:items-center gba:text-left gba:transition-all gba:duration-150 gba:relative gba:group gba:cursor-pointer gba:mx-1 gba:rounded-lg ${
+          compact ? 'gba:gap-2.5 gba:px-2.5 gba:py-2' : 'gba:gap-3 gba:px-3 gba:py-2.5'
+        } ${isActive ? 'gba:bg-primary/10 gba:text-primary' : 'gba:hover:bg-muted/80'}`}
+        style={{ width: 'calc(100% - 8px)' }}
         data-testid={`conversation-item-${conversation.id}`}
         role="button"
         tabIndex={0}
@@ -97,33 +102,44 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
         }}
       >
         {avatarUrl ? (
-          <Avatar className="gba:w-12 gba:h-12 gba:flex-shrink-0">
-            <img src={avatarUrl} alt={name} className="gba:w-full gba:h-full gba:object-cover" />
+          <Avatar className={`${avatarSize} gba:flex-shrink-0 gba:ring-2 gba:ring-background`}>
+            <img src={avatarUrl} alt={name} className="gba:w-full gba:h-full gba:object-cover gba:rounded-full" />
           </Avatar>
         ) : (
-          <IconAvatar className="gba:w-12 gba:h-12 gba:flex-shrink-0" label={name} icon={UserIcon} />
+          <IconAvatar className={`${avatarSize} gba:flex-shrink-0`} label={name} icon={UserIcon} />
         )}
 
-        <div className="gba:flex-1 gba:min-w-0 gba:flex gba:items-center gba:gap-2">
-          <span className="gba:font-medium gba:truncate">{name}</span>
-          {unreadCount > 0 && (
-            <Badge
-              variant="default"
-              className="gba:flex-shrink-0 gba:min-w-[20px] gba:h-5 gba:px-1.5 gba:text-xs"
-              data-testid={`conversation-unread-${conversation.id}`}
+        <div className="gba:flex-1 gba:min-w-0 gba:flex gba:flex-col gba:gap-0.5">
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <span
+              className={`gba:font-medium gba:truncate ${compact ? 'gba:text-sm' : 'gba:text-sm'} ${isActive ? 'gba:text-primary' : 'gba:text-foreground'}`}
             >
-              {unreadCount > 99 ? '99+' : unreadCount}
-            </Badge>
+              {name}
+            </span>
+            {unreadCount > 0 && (
+              <Badge
+                variant="default"
+                className="gba:flex-shrink-0 gba:min-w-[18px] gba:h-[18px] gba:px-1 gba:text-[10px] gba:font-semibold"
+                data-testid={`conversation-unread-${conversation.id}`}
+              >
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </Badge>
+            )}
+          </div>
+          {conversation.lastMessage && !compact && (
+            <p className="gba:text-xs gba:text-muted-foreground gba:truncate gba:max-w-[180px]">
+              {conversation.lastMessage.content}
+            </p>
           )}
         </div>
 
-        <div className="gba:flex gba:items-center gba:gap-1">
+        <div className="gba:flex gba:items-center">
           {onRemove && isHovered && (
             <Button
               variant="ghost"
-              size="sm"
+              size="icon"
               onClick={handleRemoveClick}
-              className="gba:flex-shrink-0 gba:opacity-100"
+              className="gba:h-7 gba:w-7 gba:opacity-70 gba:hover:opacity-100"
               data-testid={`conversation-item-remove-${conversation.id}`}
               title={
                 conversation.type === 'group'
@@ -131,7 +147,7 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
                   : getTranslationFromI18nKeyAndLabel('chat.removeConversation', 'Remove conversation')
               }
             >
-              <SignOut className="gba:w-4 gba:h-4" />
+              <SignOut className="gba:w-3.5 gba:h-3.5" />
             </Button>
           )}
         </div>
