@@ -3,6 +3,7 @@ import { Badge } from '@newwork/nw-design-system'
 import { ContentEntry } from '@/common/data/content/types/contentTypes'
 import { CommentSection } from '@/business-apps/core/content/records/content-record/components/interactions'
 import ContentInfoSection from './ContentInfoSection'
+import type { TranslatedTexts } from '@/common/components/content'
 
 interface KnowledgeArticleViewProps {
   item: ContentEntry
@@ -11,6 +12,9 @@ interface KnowledgeArticleViewProps {
   employeeId: string | undefined
   allowedReactions?: string[]
   reactionCatalogMap?: Record<string, string>
+  targetLanguage?: string | null
+  translatedTexts?: TranslatedTexts | null
+  onTranslateComments?: (commentTexts: string[], targetLanguage: string) => Promise<string[]>
 }
 
 /**
@@ -23,8 +27,16 @@ const KnowledgeArticleView: React.FC<KnowledgeArticleViewProps> = ({
   userId,
   employeeId,
   allowedReactions,
-  reactionCatalogMap
+  reactionCatalogMap,
+  targetLanguage,
+  translatedTexts,
+  onTranslateComments
 }) => {
+  // Use translated texts if available, otherwise use original
+  const displayTitle = translatedTexts?.title || item.title
+  const displayPreview = translatedTexts?.preview || item.preview
+  const displayContent = translatedTexts?.content || item.content
+
   return (
     <div className="gba:overflow-y-auto gba:mb-6" data-testid="knowledge-article-view">
       <div className="gba:flex gba:flex-col gba:mt-6 gba:max-w-[800px] gba:mx-auto gba:px-4">
@@ -50,13 +62,13 @@ const KnowledgeArticleView: React.FC<KnowledgeArticleViewProps> = ({
 
         {/* Title */}
         <h1 className="gba:text-5xl gba:mt-4 gba:leading-tight gba:font-bold gba:mb-6 gba:text-foreground">
-          {item.title}
+          {displayTitle}
         </h1>
 
         {/* Preview/Summary */}
-        {item.preview && (
+        {displayPreview && (
           <p className="gba:text-xl gba:text-muted-foreground gba:mb-8 gba:leading-relaxed gba:italic">
-            {item.preview}
+            {displayPreview}
           </p>
         )}
 
@@ -81,7 +93,7 @@ const KnowledgeArticleView: React.FC<KnowledgeArticleViewProps> = ({
         />
 
         {/* Content */}
-        {item.content && (
+        {displayContent && (
           <div
             className="gba:prose gba:prose-lg gba:max-w-none gba:mb-10
                        [&>h1]:gba:text-3xl [&>h1]:gba:font-bold [&>h1]:gba:mt-8 [&>h1]:gba:mb-4 [&>h1]:gba:text-foreground
@@ -95,7 +107,7 @@ const KnowledgeArticleView: React.FC<KnowledgeArticleViewProps> = ({
                        [&>pre]:gba:bg-muted [&>pre]:gba:p-4 [&>pre]:gba:rounded-lg [&>pre]:gba:mb-4 [&>pre]:gba:overflow-x-auto
                        [&>blockquote]:gba:border-l-4 [&>blockquote]:gba:border-primary [&>blockquote]:gba:pl-4 [&>blockquote]:gba:italic [&>blockquote]:gba:my-4 [&>blockquote]:gba:text-muted-foreground
                        [&>a]:gba:text-primary [&>a]:gba:underline [&>a]:hover:gba:text-primary/80"
-            dangerouslySetInnerHTML={{ __html: item.content }}
+            dangerouslySetInnerHTML={{ __html: displayContent }}
             data-testid="knowledge-article-content"
           />
         )}
@@ -109,6 +121,8 @@ const KnowledgeArticleView: React.FC<KnowledgeArticleViewProps> = ({
             accessToken={accessToken}
             employeeId={employeeId}
             currentUserId={userId}
+            targetLanguage={targetLanguage || undefined}
+            onTranslateComments={onTranslateComments}
             data-testid="knowledge-article-view-comments"
           />
         )}

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { useTranslation, Button, Alert, AlertTitle, AlertDescription, Card, Skeleton } from '@newwork/nw-design-system'
 import { useContentEntries } from '@/common/data/content/hooks/useContentEntries'
 import { ContentRole, ContentGroup } from '@/common/data/content/types/contentEnums'
@@ -24,6 +24,9 @@ interface KnowledgeViewProps extends BusinessAppContextProps {
   currentTab?: string
   allowedReactions?: string[]
   reactionCatalogMap?: Record<string, string>
+  targetLanguage?: string | null
+  translatedItems?: Record<string, { id: string; title?: string; preview?: string }>
+  onTranslate?: (items: any[], targetLanguage: string) => Promise<void>
 }
 
 const KnowledgeView: React.FC<KnowledgeViewProps> = ({
@@ -32,7 +35,10 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
   hideBanner = false,
   currentTab = 'knowledge',
   allowedReactions,
-  reactionCatalogMap
+  reactionCatalogMap,
+  targetLanguage,
+  translatedItems,
+  onTranslate
 }) => {
   const { t } = useTranslation(translations)
   const [loadedCount, setLoadedCount] = useState(PAGE_SIZE)
@@ -74,6 +80,18 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
   const data = entries
 
   const hasMore = entries.length > 0 && entries.length < totalCount
+
+  // Collect all items for translation
+  const allItems = useMemo(() => {
+    return entries
+  }, [entries])
+
+  // Trigger translation when targetLanguage is set
+  useEffect(() => {
+    if (targetLanguage && onTranslate && allItems.length > 0) {
+      onTranslate(allItems, targetLanguage)
+    }
+  }, [targetLanguage, allItems, onTranslate])
 
   // Infinite scroll
   const sentinelRef = useInfiniteScroll({
@@ -337,6 +355,7 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
                 <div className="gba:grid gba:grid-cols-3 gba:gap-4 gba:mb-8">
                   {regularArticles.map(entry => {
                     const item = entry
+                    const translated = translatedItems?.[item.id || '']
                     return (
                       <ContentCard
                         key={item.id}
@@ -349,6 +368,8 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
                         reactionCatalogMap={reactionCatalogMap}
                         onReactionsRefetch={refetch}
                         authorLabel="Creator"
+                        translatedTitle={translated?.title}
+                        translatedPreview={translated?.preview}
                       />
                     )
                   })}
@@ -359,20 +380,25 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
             {/* Show all articles in grid if searching or not on first page */}
             {(searchQuery || !isInitialLoad) && data.length > 0 && (
               <div className="gba:grid gba:grid-cols-3 gba:gap-4 gba:mb-8">
-                {data.map(item => (
-                  <ContentCard
-                    key={item.articleId}
-                    item={item}
-                    variant="knowledge"
-                    currentTab={currentTab}
-                    accessToken={accessToken}
-                    userInfo={userInfo}
-                    allowedReactions={allowedReactions}
-                    reactionCatalogMap={reactionCatalogMap}
-                    onReactionsRefetch={refetch}
-                    authorLabel="Creator"
-                  />
-                ))}
+                {data.map(item => {
+                  const translated = translatedItems?.[item.id || '']
+                  return (
+                    <ContentCard
+                      key={item.articleId}
+                      item={item}
+                      variant="knowledge"
+                      currentTab={currentTab}
+                      accessToken={accessToken}
+                      userInfo={userInfo}
+                      allowedReactions={allowedReactions}
+                      reactionCatalogMap={reactionCatalogMap}
+                      onReactionsRefetch={refetch}
+                      authorLabel="Creator"
+                      translatedTitle={translated?.title}
+                      translatedPreview={translated?.preview}
+                    />
+                  )
+                })}
               </div>
             )}
 

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
 import { Badge, Button, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
 import { MessageCircle, CheckCircle, Share2, ChevronDown, ChevronUp } from 'lucide-react'
@@ -8,13 +8,17 @@ import { useUserContentReactions } from '@/common/data/content/hooks/useUserCont
 import { VoteButtons, type VoteState } from '@/common/components/content'
 import { AcceptAnswerButton } from '@/common/components/content/AcceptAnswerButton'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
-import { formatDate } from '@/common/utils/windowUtils'
 import { ShareDialog } from '@/components/share-dialog'
 import { getEntityTypeFromContentGroup, buildContentRecordUrl } from '@/business-apps/core/content/utils/shareUtils'
+import dayjs from 'dayjs'
+import relativeTime from 'dayjs/plugin/relativeTime'
 import CommentForm from './interactions/CommentForm'
 import CommentItem from './interactions/CommentItem'
 import AnswerForm from './AnswerForm'
+import type { TranslatedTexts } from '@/common/components/content'
 import translations from '../_i18n'
+
+dayjs.extend(relativeTime)
 
 interface QuestionViewProps {
   item: ContentEntry
@@ -22,6 +26,9 @@ interface QuestionViewProps {
   userId: string | undefined
   employeeId: string | undefined
   reactionCatalogMap?: Record<string, string>
+  targetLanguage?: string | null
+  translatedTexts?: TranslatedTexts | null
+  onTranslateComments?: (commentTexts: string[], targetLanguage: string) => Promise<string[]>
 }
 
 /**
@@ -32,10 +39,18 @@ const QuestionView: React.FC<QuestionViewProps> = ({
   accessToken,
   userId,
   employeeId,
-  reactionCatalogMap = {}
+  reactionCatalogMap = {},
+  targetLanguage,
+  translatedTexts,
+  onTranslateComments
 }) => {
   const { t } = useTranslation(translations)
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
+
+  // Use translated texts if available, otherwise use original
+  const displayTitle = translatedTexts?.title || item.title
+  const displayPreview = translatedTexts?.preview || item.preview
+  const displayContent = translatedTexts?.content || item.content
 
   const entityType = getEntityTypeFromContentGroup(item.contentGroupRef || '')
   const entityDisplayUrl = buildContentRecordUrl(item.id || '')
@@ -44,6 +59,8 @@ const QuestionView: React.FC<QuestionViewProps> = ({
   const [visibleCommentsPerAnswer, setVisibleCommentsPerAnswer] = useState<Record<string, number>>({})
   const [visibleRepliesPerComment, setVisibleRepliesPerComment] = useState<Record<string, number>>({})
   const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set())
+  const [translatedAnswers, setTranslatedAnswers] = useState<Record<string, string>>({})
+  const [translatedAnswerComments, setTranslatedAnswerComments] = useState<Record<string, Record<string, string>>>({})
 
   // Find catalog IDs for +1 and -1 reactions from the map
   // The map has entries like: '+1' -> 'ContentReaction:v1:+1'
@@ -52,6 +69,107 @@ const QuestionView: React.FC<QuestionViewProps> = ({
 
   // Load answers (comments with COMMENT role)
   const { comments: answers, isLoading, error, refetch } = useContentComments(item.id || '', accessToken)
+
+  // Translate answers when targetLanguage is set and answers are loaded
+  useEffect(() => {
+    const translateAllAnswers = async () => {
+      if (!targetLanguage || !onTranslateComments || answers.length === 0) {
+        setTranslatedAnswers({})
+        return
+      }
+
+      // Collect all answer texts
+      const answerTexts: string[] = []
+      const answerIdMap: string[] = []
+
+      answers.forEach(answer => {
+        if (answer.content) {
+          answerTexts.push(answer.content)
+          answerIdMap.push(answer.id || '')
+        }
+      })
+
+      if (answerTexts.length === 0) {
+        return
+      }
+
+      try {
+        const translations = await onTranslateComments(answerTexts, targetLanguage)
+        const translatedMap: Record<string, string> = {}
+        translations.forEach((translation, index) => {
+          if (answerIdMap[index]) {
+            translatedMap[answerIdMap[index]] = translation
+          }
+        })
+        setTranslatedAnswers(translatedMap)
+      } catch (err) {
+        console.error('Error translating answers:', err)
+        setTranslatedAnswers({})
+      }
+    }
+
+    translateAllAnswers()
+  }, [answers, targetLanguage, onTranslateComments])
+
+  // Translate comments for expanded answers when they are opened
+  useEffect(() => {
+    const translateAnswerComments = async () => {
+      if (!targetLanguage || !onTranslateComments || !expandedAnswerId) {
+        return
+      }
+
+      // Find the expanded answer
+      const expandedAnswer = answers.find(a => a.id === expandedAnswerId)
+      if (!expandedAnswer || !expandedAnswer.replies || expandedAnswer.replies.length === 0) {
+        return
+      }
+
+      // Check if already translated
+      if (translatedAnswerComments[expandedAnswerId]) {
+        return
+      }
+
+      // Collect all comment texts (including nested replies)
+      const allCommentTexts: string[] = []
+      const commentIdMap: string[] = []
+
+      const collectTexts = (commentList: CommentWithReplies[]) => {
+        commentList.forEach(comment => {
+          if (comment.content) {
+            allCommentTexts.push(comment.content)
+            commentIdMap.push(comment.id || '')
+          }
+          if (comment.replies && comment.replies.length > 0) {
+            collectTexts(comment.replies)
+          }
+        })
+      }
+
+      collectTexts(expandedAnswer.replies)
+
+      if (allCommentTexts.length === 0) {
+        return
+      }
+
+      try {
+        const translations = await onTranslateComments(allCommentTexts, targetLanguage)
+        const translatedMap: Record<string, string> = {}
+        translations.forEach((translation, index) => {
+          if (commentIdMap[index]) {
+            translatedMap[commentIdMap[index]] = translation
+          }
+        })
+        setTranslatedAnswerComments(prev => ({
+          ...prev,
+          [expandedAnswerId]: translatedMap
+        }))
+      } catch (err) {
+        console.error('Error translating answer comments:', err)
+      }
+    }
+
+    translateAnswerComments()
+  }, [expandedAnswerId, targetLanguage, onTranslateComments, answers])
 
   // Get answer IDs for batch reaction fetching
   const answerIds = useMemo(() => answers.map(answer => answer.id || '').filter(Boolean), [answers])
@@ -220,21 +338,21 @@ const QuestionView: React.FC<QuestionViewProps> = ({
               )}
 
               {/* Title */}
-              <h1 className="gba:text-3xl gba:font-bold gba:mb-4 gba:text-foreground">{item.title}</h1>
+              <h1 className="gba:text-3xl gba:font-bold gba:mb-4 gba:text-foreground">{displayTitle}</h1>
 
               {/* Preview Text */}
-              {item.preview && (
-                <p className="gba:text-base gba:leading-7 gba:mb-4 gba:text-foreground">{item.preview}</p>
+              {displayPreview && (
+                <p className="gba:text-base gba:leading-7 gba:mb-4 gba:text-foreground">{displayPreview}</p>
               )}
 
               {/* Content */}
-              {item.content && (
+              {displayContent && (
                 <div
                   className="gba:text-base gba:leading-7 gba:mb-4 gba:text-foreground 
                              [&>h1]:gba:text-2xl [&>h1]:gba:font-bold 
                              [&>h2]:gba:text-xl [&>h2]:gba:font-bold 
                              [&>h3]:gba:text-lg [&>h3]:gba:font-bold"
-                  dangerouslySetInnerHTML={{ __html: item.content }}
+                  dangerouslySetInnerHTML={{ __html: displayContent }}
                 />
               )}
 
@@ -256,7 +374,7 @@ const QuestionView: React.FC<QuestionViewProps> = ({
 
                   {item.createdAt && (
                     <p className="gba:text-sm gba:font-regular gba:text-foreground">
-                      {formatDate(item.createdAt) || new Date(item.createdAt).toLocaleDateString()}
+                      {dayjs(item.createdAt).format('MMM DD, YYYY')}
                     </p>
                   )}
                 </div>
@@ -381,7 +499,12 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                     {answer.content && (
                       <div
                         className="gba:text-base gba:leading-7 gba:mb-4 gba:text-foreground"
-                        dangerouslySetInnerHTML={{ __html: answer.content }}
+                        dangerouslySetInnerHTML={{
+                          __html:
+                            targetLanguage && translatedAnswers[answer.id || '']
+                              ? translatedAnswers[answer.id || '']
+                              : answer.content
+                        }}
                       />
                     )}
 
@@ -396,10 +519,10 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                           {answer.creatorEmployee?.displayName || t('unknown')}
                         </span>
                       </span>
-                      {answer.createdAt && formatDate(answer.createdAt) && (
+                      {answer.createdAt && (
                         <>
                           <span>•</span>
-                          <span>{formatDate(answer.createdAt)}</span>
+                          <span>{dayjs(answer.createdAt).format('MMM DD, YYYY')}</span>
                         </>
                       )}
                     </div>
@@ -505,6 +628,11 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                                     currentUserId={userId || ''}
                                     onCommentCreated={refetch}
                                     depth={0}
+                                    translatedContent={
+                                      targetLanguage && translatedAnswerComments[answer.id || '']?.[comment.id || '']
+                                        ? translatedAnswerComments[answer.id || ''][comment.id || '']
+                                        : undefined
+                                    }
                                     data-testid={`answer-comment-${comment.id}`}
                                   />
 
@@ -545,6 +673,12 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                                           currentUserId={userId || ''}
                                           onCommentCreated={refetch}
                                           depth={1}
+                                          translatedContent={
+                                            targetLanguage &&
+                                            translatedAnswerComments[answer.id || '']?.[reply.id || '']
+                                              ? translatedAnswerComments[answer.id || ''][reply.id || '']
+                                              : undefined
+                                          }
                                           data-testid={`answer-reply-${reply.id}`}
                                         />
                                       ))}

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { useTranslation, Button, Alert, AlertTitle, AlertDescription, Skeleton } from '@newwork/nw-design-system'
 import { Newspaper } from 'lucide-react'
 import { useContentEntries } from '@/common/data/content/hooks/useContentEntries'
@@ -26,6 +26,9 @@ interface NewsViewProps extends BusinessAppContextProps {
   currentTab?: string
   allowedReactions?: string[]
   reactionCatalogMap?: Record<string, string>
+  targetLanguage?: string | null
+  translatedItems?: Record<string, { id: string; title?: string; preview?: string }>
+  onTranslate?: (items: any[], targetLanguage: string) => Promise<void>
 }
 
 const NewsView: React.FC<NewsViewProps> = ({
@@ -34,7 +37,10 @@ const NewsView: React.FC<NewsViewProps> = ({
   hideBanner = false,
   currentTab = 'news',
   allowedReactions,
-  reactionCatalogMap
+  reactionCatalogMap,
+  targetLanguage,
+  translatedItems,
+  onTranslate
 }) => {
   const { t } = useTranslation(translations)
   const [loadedCount, setLoadedCount] = useState(PAGE_SIZE)
@@ -129,6 +135,18 @@ const NewsView: React.FC<NewsViewProps> = ({
 
   const hasMore = entries.length > 0 && entries.length < totalCount
 
+  // Collect all items for translation
+  const allItems = useMemo(() => {
+    return [...featuredArticles, ...otherArticles]
+  }, [featuredArticles, otherArticles])
+
+  // Trigger translation when targetLanguage is set
+  useEffect(() => {
+    if (targetLanguage && onTranslate && allItems.length > 0) {
+      onTranslate(allItems, targetLanguage)
+    }
+  }, [targetLanguage, allItems, onTranslate])
+
   // Infinite scroll
   const sentinelRef = useInfiniteScroll({
     onLoadMore: () => setLoadedCount(prev => prev + PAGE_SIZE),
@@ -220,21 +238,26 @@ const NewsView: React.FC<NewsViewProps> = ({
         ) : featuredArticles.length > 0 ? (
           <>
             <div className="gba:grid gba:grid-cols-2 gba:gap-6 gba:mb-10">
-              {featuredArticles.map(item => (
-                <ContentCard
-                  key={item.articleId}
-                  item={item}
-                  variant="news"
-                  featured={true}
-                  currentTab={currentTab}
-                  accessToken={accessToken}
-                  userInfo={userInfo}
-                  allowedReactions={allowedReactions}
-                  reactionCatalogMap={reactionCatalogMap}
-                  onReactionsRefetch={refetch}
-                  authorLabel="Author"
-                />
-              ))}
+              {featuredArticles.map(item => {
+                const translated = translatedItems?.[item.id || '']
+                return (
+                  <ContentCard
+                    key={item.articleId}
+                    item={item}
+                    variant="news"
+                    featured={true}
+                    currentTab={currentTab}
+                    accessToken={accessToken}
+                    userInfo={userInfo}
+                    allowedReactions={allowedReactions}
+                    reactionCatalogMap={reactionCatalogMap}
+                    onReactionsRefetch={refetch}
+                    authorLabel="Author"
+                    translatedTitle={translated?.title}
+                    translatedPreview={translated?.preview}
+                  />
+                )
+              })}
             </div>
           </>
         ) : null}
@@ -253,20 +276,25 @@ const NewsView: React.FC<NewsViewProps> = ({
           {isLoading ? (
             <ContentCardSkeleton variant="horizontal" count={5} />
           ) : (
-            otherArticles.map(item => (
-              <ContentCard
-                key={item.articleId}
-                item={item}
-                variant="news"
-                currentTab={currentTab}
-                accessToken={accessToken}
-                userInfo={userInfo}
-                allowedReactions={allowedReactions}
-                reactionCatalogMap={reactionCatalogMap}
-                onReactionsRefetch={refetch}
-                authorLabel="Author"
-              />
-            ))
+            otherArticles.map(item => {
+              const translated = translatedItems?.[item.id || '']
+              return (
+                <ContentCard
+                  key={item.articleId}
+                  item={item}
+                  variant="news"
+                  currentTab={currentTab}
+                  accessToken={accessToken}
+                  userInfo={userInfo}
+                  allowedReactions={allowedReactions}
+                  reactionCatalogMap={reactionCatalogMap}
+                  onReactionsRefetch={refetch}
+                  authorLabel="Author"
+                  translatedTitle={translated?.title}
+                  translatedPreview={translated?.preview}
+                />
+              )
+            })
           )}
         </div>
 

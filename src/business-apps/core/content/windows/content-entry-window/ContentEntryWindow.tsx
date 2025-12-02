@@ -3,22 +3,13 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
-import {
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-  Card,
-  CardContent,
-  Badge,
-  useTranslation
-} from '@newwork/nw-design-system'
+import { useTranslation } from '@newwork/nw-design-system'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { CatalogSelect } from '@/components/catalog-select'
-import { CatalogMultiSelect, CatalogMultiSelectOption } from '@/components/catalog-multi-select'
+import { CatalogMultiSelectOption } from '@/components/catalog-multi-select'
 import { useCreateCatalogEntry } from '@/common/data/catalog/hooks/useCreateCatalogEntry'
-import { ContentRole, ContentGroup } from '@/common/data/content/types/contentEnums'
+import { useFileClient } from '@/common/network/files/useFileClient'
+import { ContentRole } from '@/common/data/content/types/contentEnums'
 import { buildContentEntryPayload } from '@/common/data/content/payloads/contentEntryPayloads'
 import { ArticleSegment, QuestionSegment, DocumentSegment } from './segments'
 import translations from './_i18n'
@@ -35,6 +26,7 @@ export interface ContentEntryFormValues {
   previewText: string
   content: string
   contentImage: string | null
+  pictureThumbnail: string | null
   contentGroupRef: string
   contentTypeRef?: string
   role?: string
@@ -45,8 +37,8 @@ export interface ContentEntryFormValues {
   startDate: Date | null | string
   endDate: Date | null | string
   schedulePublication: boolean
-  categories: string[]
-  tags: string[]
+  categories: string[] | undefined
+  tags: string[] | undefined
 }
 
 const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => {
@@ -54,9 +46,76 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
   const catalogContext = CatalogSelect.useContext()
   const { validateField } = CatalogSelect.useValidation()
   const { createCatalogEntry } = useCreateCatalogEntry(context)
+  const fileClient = useFileClient(context)
 
   const [image, setImage] = useState<string | null>(null)
   const [imageInfo, setImageInfo] = useState<{ name: string; size: string } | null>(null)
+  const [imageFile, setImageFile] = useState<File | null>(null)
+
+  // Helper function to generate thumbnail from image file or base64
+  const generateThumbnail = useCallback(
+    async (
+      source: File | string,
+      maxWidth: number = 300,
+      maxHeight: number = 300,
+      quality: number = 0.8
+    ): Promise<string> => {
+      return new Promise((resolve, reject) => {
+        const img = new Image()
+        img.onload = () => {
+          // Calculate new dimensions maintaining aspect ratio
+          let width = img.width
+          let height = img.height
+
+          if (width > height) {
+            if (width > maxWidth) {
+              height = (height * maxWidth) / width
+              width = maxWidth
+            }
+          } else {
+            if (height > maxHeight) {
+              width = (width * maxHeight) / height
+              height = maxHeight
+            }
+          }
+
+          // Create canvas and draw resized image
+          const canvas = document.createElement('canvas')
+          canvas.width = width
+          canvas.height = height
+          const ctx = canvas.getContext('2d')
+          if (!ctx) {
+            reject(new Error('Failed to get canvas context'))
+            return
+          }
+
+          ctx.drawImage(img, 0, 0, width, height)
+
+          // Convert to base64
+          const base64String = canvas.toDataURL('image/jpeg', quality)
+          resolve(base64String)
+        }
+        img.onerror = () => {
+          reject(new Error('Failed to load image'))
+        }
+
+        // Set image source
+        if (source instanceof File) {
+          const reader = new FileReader()
+          reader.onload = e => {
+            if (e.target?.result) {
+              img.src = e.target.result as string
+            }
+          }
+          reader.onerror = () => reject(new Error('Failed to read file'))
+          reader.readAsDataURL(source)
+        } else {
+          img.src = source
+        }
+      })
+    },
+    []
+  )
 
   // Store new items that need to be created in PreSubmit
   const [newCategories, setNewCategories] = useState<CatalogMultiSelectOption[]>([])
@@ -151,6 +210,7 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
       tags: [],
       categories: [],
       contentImage: null,
+      pictureThumbnail: null,
       displayAuthor: true,
       allowComment: true,
       allowReaction: true,
@@ -164,27 +224,27 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
     [context.contentId, extractedContentGroupRef, context.userInfo, authorName]
   )
 
-  const form = useForm<ContentEntryFormValues>({
-    resolver: zodResolver(schema),
+  const form = useForm<ContentEntryFormValues, any, ContentEntryFormValues>({
+    resolver: zodResolver(schema) as any,
     defaultValues,
-    mode: 'onTouched'
+    mode: 'onSubmit',
+    reValidateMode: 'onSubmit'
   })
 
-  const { control, watch } = form
+  const { control, watch, setValue } = form
   const watchContentGroupRef = watch('contentGroupRef')
   const watchTitle = watch('title')
   const watchPreviewText = watch('previewText')
   const watchContent = watch('content')
-  const watchDisplayAuthor = watch('displayAuthor')
   const watchSchedulePublication = watch('schedulePublication')
 
   // Determine which segment to render based on ContentGroup
   const currentSegment = useMemo(() => {
     if (!watchContentGroupRef) return 'article'
 
-    if (watchContentGroupRef === ContentGroup.QUESTION) {
+    if (watchContentGroupRef === 'ContentGroup:v1:QUESTION') {
       return 'question'
-    } else if (watchContentGroupRef === ContentGroup.DOCUMENT) {
+    } else if (watchContentGroupRef === 'ContentGroup:v1:DOCUMENT') {
       return 'document'
     } else {
       // NEWS, KNOWLEDGE, INTRANET use article segment
@@ -206,18 +266,18 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
     }
   }, [authorName, form])
 
-  // PreSubmit Handler: Create new categories and tags
+  // PreSubmit Handler: Create new categories, tags, and upload image
   const handlePreSubmit = useCallback(
     async (data: ContentEntryFormValues): Promise<ContentEntryFormValues> => {
       const updatedData = { ...data }
 
       // Identify new categories (those with 'new-' prefix)
-      const categoriesToCreate = data.categories.filter(id => id.startsWith('new-'))
-      const existingCategories = data.categories.filter(id => !id.startsWith('new-'))
+      const categoriesToCreate = (data.categories || []).filter(id => id.startsWith('new-'))
+      const existingCategories = (data.categories || []).filter(id => !id.startsWith('new-'))
 
       // Identify new tags (those with 'new-' prefix)
-      const tagsToCreate = data.tags.filter(id => id.startsWith('new-'))
-      const existingTags = data.tags.filter(id => !id.startsWith('new-'))
+      const tagsToCreate = (data.tags || []).filter(id => id.startsWith('new-'))
+      const existingTags = (data.tags || []).filter(id => !id.startsWith('new-'))
 
       // Create new categories
       const createdCategoryIds: string[] = []
@@ -227,7 +287,8 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
           try {
             const response = await createCatalogEntry('ContentCategory', 'v1', {
               code: item.label.toUpperCase().replace(/\s+/g, '_'),
-              value: item.label
+              value: item.label,
+              translations: []
             })
             createdCategoryIds.push(response.id)
           } catch (error) {
@@ -245,7 +306,8 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
           try {
             const response = await createCatalogEntry('ContentTag', 'v1', {
               code: item.label.toUpperCase().replace(/\s+/g, '_'),
-              value: item.label
+              value: item.label,
+              translations: []
             })
             createdTagIds.push(response.id)
           } catch (error) {
@@ -255,13 +317,92 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
         }
       }
 
+      // Upload image if it's a base64 string (new upload) or if we have a file
+      if (imageFile && data.contentImage) {
+        try {
+          const contentEntryId = context.contentId || 'temp'
+          const folderPath = `/content/${contentEntryId}/images`
+
+          // Generate thumbnail before uploading
+          const thumbnail = await generateThumbnail(imageFile)
+          updatedData.pictureThumbnail = thumbnail
+
+          const uploadResponse = await fileClient.uploadFile(
+            imageFile,
+            { accessScope: 'tenant' },
+            {
+              appName: 'content',
+              folderPath: folderPath,
+              mimeType: imageFile.type
+            }
+          )
+
+          if (uploadResponse?.fileInfo) {
+            // Store fileInfo as JSON string in picture field
+            updatedData.contentImage = JSON.stringify(uploadResponse.fileInfo)
+          }
+        } catch (error) {
+          console.error('Error uploading image:', error)
+          throw new Error('Failed to upload image')
+        }
+      } else if (
+        data.contentImage &&
+        typeof data.contentImage === 'string' &&
+        data.contentImage.startsWith('data:image/')
+      ) {
+        // Convert base64 to File and upload
+        try {
+          const base64Data = data.contentImage
+          const matches = base64Data.match(/^data:image\/(\w+);base64,(.+)$/)
+          if (!matches) {
+            throw new Error('Invalid base64 image format')
+          }
+
+          const mimeType = matches[1]
+          const base64String = matches[2]
+          const byteCharacters = atob(base64String)
+          const byteNumbers = new Array(byteCharacters.length)
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i)
+          }
+          const byteArray = new Uint8Array(byteNumbers)
+          const blob = new Blob([byteArray], { type: `image/${mimeType}` })
+          const file = new File([blob], `image.${mimeType}`, { type: `image/${mimeType}` })
+
+          // Generate thumbnail from base64
+          const thumbnail = await generateThumbnail(base64Data)
+          updatedData.pictureThumbnail = thumbnail
+
+          const contentEntryId = context.contentId || 'temp'
+          const folderPath = `/content/${contentEntryId}/images`
+
+          const uploadResponse = await fileClient.uploadFile(
+            file,
+            { accessScope: 'tenant' },
+            {
+              appName: 'content',
+              folderPath: folderPath,
+              mimeType: file.type
+            }
+          )
+
+          if (uploadResponse?.fileInfo) {
+            // Store fileInfo as JSON string in picture field
+            updatedData.contentImage = JSON.stringify(uploadResponse.fileInfo)
+          }
+        } catch (error) {
+          console.error('Error uploading base64 image:', error)
+          throw new Error('Failed to upload image')
+        }
+      }
+
       // Update categories and tags with created IDs
       updatedData.categories = [...existingCategories, ...createdCategoryIds]
       updatedData.tags = [...existingTags, ...createdTagIds]
 
       return updatedData
     },
-    [createCatalogEntry, newCategories, newTags]
+    [createCatalogEntry, newCategories, newTags, fileClient, imageFile, context.contentId]
   )
 
   const handleSubmit = async (data: ContentEntryFormValues) => {
@@ -285,7 +426,9 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
       title: data.title,
       preview: data.previewText,
       content: data.content,
-      picture: image || data.contentImage,
+      // picture should contain fileInfo (JSON string) from pre-submit, not base64 thumbnail
+      picture: data.contentImage,
+      pictureThumbnail: data.pictureThumbnail,
 
       // Metadata
       role: ContentRole.ROOT, // Always ROOT for top-level content entries
@@ -349,251 +492,59 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
       handlePreSubmit={handlePreSubmit}
       formData={defaultValues}
       form={form}
+      schema={schema}
       submitButtonText={context.contentId ? t('update-content') : t('create-content')}
       cancelButtonText={t('cancel') || 'Cancel'}
       showCancelButton={true}
       businessAppContext={context}
       data-testid="content-entry-window"
-      customFormLayout={true}
     >
       <div className="gba:flex gba:flex-col gba:h-full gba:gap-4">
-        <div
-          className={
-            currentSegment === 'article'
-              ? 'gba:grid gba:grid-cols-2 gba:gap-6 gba:flex-1 gba:overflow-hidden'
-              : 'gba:flex gba:flex-col gba:flex-1 gba:overflow-hidden'
-          }
-        >
-          {/* LEFT SIDE: Form Fields */}
-          <div
-            className={
-              currentSegment === 'article'
-                ? 'gba:space-y-6 gba:overflow-y-auto gba:pr-4'
-                : 'gba:space-y-6 gba:overflow-y-auto gba:max-w-4xl gba:mx-auto gba:w-full gba:px-4'
-            }
-            style={{ maxHeight: 'calc(100vh - 200px)' }}
-          >
-            {/* Content Group Selection - Hidden if provided via props or additionalData */}
-            {!extractedContentGroupRef && (
-              <FormField
-                control={control as any}
-                name="contentGroupRef"
-                rules={{ required: t('group-required') }}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('content-group')}</FormLabel>
-                    <FormControl>
-                      <CatalogSelect
-                        catalogIdentifier="ContentGroup:v1"
-                        value={field.value || null}
-                        onValueChange={field.onChange}
-                        data-testid="content-entry-window-group-select"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
+        {currentSegment === 'article' && (
+          <ArticleSegment
+            control={control}
+            image={image}
+            setImage={setImage}
+            imageInfo={imageInfo}
+            setImageInfo={setImageInfo}
+            setImageFile={setImageFile}
+            watchTitle={watchTitle}
+            watchPreviewText={watchPreviewText}
+            watchContent={watchContent}
+            watchSchedulePublication={watchSchedulePublication}
+            setValue={setValue}
+            context={context}
+            extractedContentGroupRef={extractedContentGroupRef}
+            setNewCategories={setNewCategories}
+            setNewTags={setNewTags}
+            categoriesRef={categoriesRef}
+            tagsRef={tagsRef}
+          />
+        )}
 
-            {/* Content Type Selection - unidirectional dependency on ContentGroup */}
-            <FormField
-              control={control as any}
-              name="contentTypeRef"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t('content-type')}</FormLabel>
-                  <FormControl>
-                    <CatalogSelect
-                      catalogIdentifier="ContentType:v1"
-                      parentField="contentGroupRef"
-                      requireSourceForEnable={true}
-                      value={field.value || null}
-                      onValueChange={field.onChange}
-                      data-testid="content-entry-window-type-select"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+        {currentSegment === 'question' && (
+          <QuestionSegment
+            control={control}
+            setNewCategories={setNewCategories}
+            setNewTags={setNewTags}
+            categoriesRef={categoriesRef}
+            tagsRef={tagsRef}
+            accessToken={context.accessToken || ''}
+          />
+        )}
 
-            {/* Categories Multi-Select */}
-            <FormField
-              control={control as any}
-              name="categories"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Categories (Optional)</FormLabel>
-                  <FormControl>
-                    <CatalogMultiSelect
-                      ref={categoriesRef}
-                      catalogIdentifier="ContentCategory"
-                      catalogVersion="v1"
-                      value={field.value || []}
-                      onValueChange={value => {
-                        field.onChange(value)
-                      }}
-                      onNewItemsChange={items => setNewCategories(items)}
-                      placeholder="Select or create categories..."
-                      allowCreate={true}
-                      accessToken={context.accessToken}
-                      data-testid="content-entry-window-categories-select"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Tags Multi-Select */}
-            <FormField
-              control={control as any}
-              name="tags"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tags (Optional)</FormLabel>
-                  <FormControl>
-                    <CatalogMultiSelect
-                      ref={tagsRef}
-                      catalogIdentifier="ContentTag"
-                      catalogVersion="v1"
-                      value={field.value || []}
-                      onValueChange={value => {
-                        field.onChange(value)
-                      }}
-                      onNewItemsChange={items => setNewTags(items)}
-                      placeholder="Select or create tags..."
-                      allowCreate={true}
-                      accessToken={context.accessToken}
-                      data-testid="content-entry-window-tags-select"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Dynamic Segment Based on Content Group */}
-            {currentSegment === 'article' && (
-              <ArticleSegment
-                control={control}
-                image={image}
-                setImage={setImage}
-                imageInfo={imageInfo}
-                setImageInfo={setImageInfo}
-                authorName={authorName}
-                watchDisplayAuthor={watchDisplayAuthor}
-                watchSchedulePublication={watchSchedulePublication}
-              />
-            )}
-
-            {currentSegment === 'question' && (
-              <QuestionSegment control={control} watchDisplayAuthor={watchDisplayAuthor} authorName={authorName} />
-            )}
-
-            {currentSegment === 'document' && (
-              <DocumentSegment
-                control={control}
-                watchDisplayAuthor={watchDisplayAuthor}
-                authorName={authorName}
-                image={image}
-                setImage={setImage}
-                imageInfo={imageInfo}
-                setImageInfo={setImageInfo}
-              />
-            )}
-          </div>
-
-          {/* RIGHT SIDE: Live Preview - Only for Article Segment */}
-          {currentSegment === 'article' && (
-            <div
-              className="gba:border-l gba:border-border gba:pl-6 gba:overflow-y-auto"
-              style={{ maxHeight: 'calc(100vh - 200px)' }}
-            >
-              <div className="gba:sticky gba:top-0 gba:bg-background gba:pb-4 gba:mb-4 gba:border-b gba:border-border">
-                <h3 className="gba:text-lg gba:font-semibold gba:flex gba:items-center gba:gap-2">
-                  Live Preview
-                  <Badge variant="secondary" className="gba:text-xs">
-                    Real-time
-                  </Badge>
-                </h3>
-              </div>
-
-              <Card>
-                <CardContent className="gba:p-6 gba:space-y-4">
-                  {/* Content Group Badge */}
-                  {watchContentGroupRef && (
-                    <div className="gba:flex gba:gap-2">
-                      <Badge variant="outline">{watchContentGroupRef}</Badge>
-                    </div>
-                  )}
-
-                  {/* Image Preview */}
-                  {image && (
-                    <div className="gba:rounded-lg gba:overflow-hidden">
-                      <img
-                        src={image}
-                        alt="Content preview"
-                        className="gba:w-full gba:h-auto gba:max-h-[300px] gba:object-cover"
-                      />
-                    </div>
-                  )}
-
-                  {/* Title Preview */}
-                  {watchTitle ? (
-                    <h1 className="gba:text-2xl gba:font-bold gba:text-foreground">{watchTitle}</h1>
-                  ) : (
-                    <div className="gba:text-muted-foreground gba:italic">Enter a title...</div>
-                  )}
-
-                  {/* Preview Text */}
-                  {watchPreviewText ? (
-                    <p className="gba:text-muted-foreground">{watchPreviewText}</p>
-                  ) : (
-                    <div className="gba:text-muted-foreground gba:italic gba:text-sm">Enter preview text...</div>
-                  )}
-
-                  {/* Author */}
-                  {watchDisplayAuthor && authorName && (
-                    <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
-                      <span>By</span>
-                      <span className="gba:font-medium">{authorName}</span>
-                    </div>
-                  )}
-
-                  {/* Content Preview */}
-                  {watchContent ? (
-                    <div
-                      className="gba:prose gba:prose-sm gba:max-w-none gba:text-foreground"
-                      dangerouslySetInnerHTML={{ __html: watchContent }}
-                    />
-                  ) : (
-                    <div className="gba:text-muted-foreground gba:italic gba:text-sm">
-                      Start typing to see content preview...
-                    </div>
-                  )}
-
-                  {/* Interaction Buttons Preview */}
-                  <div className="gba:flex gba:gap-4 gba:pt-4 gba:border-t gba:border-border">
-                    {form.watch('allowReaction') && (
-                      <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
-                        <span>👍</span>
-                        <span>Reactions</span>
-                      </div>
-                    )}
-                    {form.watch('allowComment') && (
-                      <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
-                        <span>💬</span>
-                        <span>Comments</span>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-        </div>
+        {currentSegment === 'document' && (
+          <DocumentSegment
+            control={control}
+            watchDisplayAuthor={watch('displayAuthor')}
+            authorName={authorName}
+            image={image}
+            setImage={setImage}
+            imageInfo={imageInfo}
+            setImageInfo={setImageInfo}
+            setImageFile={setImageFile}
+          />
+        )}
       </div>
     </AppActionForm>
   )

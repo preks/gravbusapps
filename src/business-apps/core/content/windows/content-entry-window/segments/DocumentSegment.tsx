@@ -23,6 +23,7 @@ interface DocumentSegmentProps {
   setImage: (image: string | null) => void
   imageInfo: { name: string; size: string } | null
   setImageInfo: (info: { name: string; size: string } | null) => void
+  setImageFile: (file: File | null) => void
 }
 
 const MAX_IMAGE_SIZE_MB = 5
@@ -36,7 +37,8 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
   image,
   setImage,
   imageInfo,
-  setImageInfo
+  setImageInfo,
+  setImageFile
 }) => {
   const { t } = useTranslation(translations)
 
@@ -56,6 +58,9 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
         return
       }
 
+      // Store the file for upload in pre-submit
+      setImageFile(file)
+
       const reader = new FileReader()
       reader.onloadend = () => {
         setImage(reader.result as string)
@@ -63,6 +68,7 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
           name: file.name,
           size: `${fileSizeMB.toFixed(2)}MB`
         })
+        // Store base64 for preview, will be replaced with fileInfo in pre-submit
         setValue('contentImage', reader.result as any)
       }
       reader.readAsDataURL(file)
@@ -74,9 +80,10 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
     (setValue: any) => {
       setImage(null)
       setImageInfo(null)
+      setImageFile(null)
       setValue('contentImage', null)
     },
-    [setImage, setImageInfo]
+    [setImage, setImageInfo, setImageFile]
   )
 
   return (

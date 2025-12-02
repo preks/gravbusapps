@@ -10,6 +10,8 @@ import DocumentView from './views/document-view'
 import QuestionView from './views/question-view'
 import { BannerCarousel, BannerVariant, BannerConfig } from './components/shared/Banner'
 import { useCatalogEntries } from '@/common/data/catalog/hooks/useCatalogEntries'
+import { usePortalTranslation } from './hooks/usePortalTranslation'
+import { AiTranslationButton } from '@/common/components/content'
 
 export interface ContentPortalProps extends BusinessAppContextProps {
   tab?: string
@@ -23,6 +25,10 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
   const { fetchCatalogEntriesByIdentifier } = useCatalogEntries({ accessToken })
   const [allowedReactions, setAllowedReactions] = useState<string[]>([])
   const [reactionCatalogMap, setReactionCatalogMap] = useState<Record<string, string>>({}) // unified code -> catalog ID
+
+  // Portal translation hook
+  const { targetLanguage, translatedItems, isTranslating, translateAllContent, setTargetLanguage, resetTranslation } =
+    usePortalTranslation(accessToken)
 
   // Load allowed reactions from catalog (once for entire app)
   useEffect(() => {
@@ -117,6 +123,15 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
   // Handle tab change
   const handleTabChange = (newTab: string) => {
     setActiveTab(newTab)
+    // Reset translation when switching tabs
+    resetTranslation()
+  }
+
+  // Handle language selection for translation
+  // Views will automatically trigger translation when targetLanguage is set
+  const handleLanguageSelect = (languageId: string) => {
+    // Set targetLanguage - views will detect this and call onTranslate with their items
+    setTargetLanguage(languageId)
   }
 
   // Format current date for Intranet
@@ -204,43 +219,56 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
       <TabSwitch value={activeTab} onValueChange={handleTabChange} className="gba:w-full">
         <div className="gba:bg-card gba:border-b gba:border-border gba:sticky gba:top-0 gba:z-10">
           <div className="gba:max-w-[1300px] gba:mx-auto gba:px-4">
-            <TabSwitchList>
-              <TabSwitchTrigger
-                value="home"
-                startIcon={<Home className="gba:w-4 gba:h-4" />}
-                data-testid="intranet-tab-home"
-              >
-                {t('home')}
-              </TabSwitchTrigger>
-              <TabSwitchTrigger
-                value="news"
-                startIcon={<Newspaper className="gba:w-4 gba:h-4" />}
-                data-testid="intranet-tab-news"
-              >
-                {t('news')}
-              </TabSwitchTrigger>
-              <TabSwitchTrigger
-                value="knowledge"
-                startIcon={<BookOpen className="gba:w-4 gba:h-4" />}
-                data-testid="intranet-tab-knowledge"
-              >
-                {t('knowledge')}
-              </TabSwitchTrigger>
-              <TabSwitchTrigger
-                value="documents"
-                startIcon={<FileText className="gba:w-4 gba:h-4" />}
-                data-testid="intranet-tab-documents"
-              >
-                {t('documents')}
-              </TabSwitchTrigger>
-              <TabSwitchTrigger
-                value="questions"
-                startIcon={<MessageCircleQuestion className="gba:w-4 gba:h-4" />}
-                data-testid="intranet-tab-questions"
-              >
-                {t('questions')}
-              </TabSwitchTrigger>
-            </TabSwitchList>
+            <div className="gba:flex gba:items-center gba:justify-between">
+              <TabSwitchList>
+                <TabSwitchTrigger
+                  value="home"
+                  startIcon={<Home className="gba:w-4 gba:h-4" />}
+                  data-testid="intranet-tab-home"
+                >
+                  {t('home')}
+                </TabSwitchTrigger>
+                <TabSwitchTrigger
+                  value="news"
+                  startIcon={<Newspaper className="gba:w-4 gba:h-4" />}
+                  data-testid="intranet-tab-news"
+                >
+                  {t('news')}
+                </TabSwitchTrigger>
+                <TabSwitchTrigger
+                  value="knowledge"
+                  startIcon={<BookOpen className="gba:w-4 gba:h-4" />}
+                  data-testid="intranet-tab-knowledge"
+                >
+                  {t('knowledge')}
+                </TabSwitchTrigger>
+                <TabSwitchTrigger
+                  value="documents"
+                  startIcon={<FileText className="gba:w-4 gba:h-4" />}
+                  data-testid="intranet-tab-documents"
+                >
+                  {t('documents')}
+                </TabSwitchTrigger>
+                <TabSwitchTrigger
+                  value="questions"
+                  startIcon={<MessageCircleQuestion className="gba:w-4 gba:h-4" />}
+                  data-testid="intranet-tab-questions"
+                >
+                  {t('questions')}
+                </TabSwitchTrigger>
+              </TabSwitchList>
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <AiTranslationButton
+                  detectedLanguage={null}
+                  targetLanguage={targetLanguage}
+                  isDetecting={false}
+                  isTranslating={isTranslating}
+                  accessToken={accessToken}
+                  onLanguageSelect={handleLanguageSelect}
+                  data-testid="portal-translation-button"
+                />
+              </div>
+            </div>
           </div>
         </div>
 
@@ -253,6 +281,9 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
             currentTab="home"
             allowedReactions={allowedReactions}
             reactionCatalogMap={reactionCatalogMap}
+            targetLanguage={targetLanguage}
+            translatedItems={translatedItems}
+            onTranslate={translateAllContent}
           />
         </TabSwitchContent>
 
@@ -264,6 +295,9 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
             currentTab="news"
             allowedReactions={allowedReactions}
             reactionCatalogMap={reactionCatalogMap}
+            targetLanguage={targetLanguage}
+            translatedItems={translatedItems}
+            onTranslate={translateAllContent}
           />
         </TabSwitchContent>
 
@@ -276,6 +310,9 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
             currentTab="knowledge"
             allowedReactions={allowedReactions}
             reactionCatalogMap={reactionCatalogMap}
+            targetLanguage={targetLanguage}
+            translatedItems={translatedItems}
+            onTranslate={translateAllContent}
           />
         </TabSwitchContent>
 
@@ -287,6 +324,9 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
             currentTab="documents"
             allowedReactions={allowedReactions}
             reactionCatalogMap={reactionCatalogMap}
+            targetLanguage={targetLanguage}
+            translatedItems={translatedItems}
+            onTranslate={translateAllContent}
           />
         </TabSwitchContent>
 
@@ -298,6 +338,9 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
             currentTab="questions"
             allowedReactions={allowedReactions}
             reactionCatalogMap={reactionCatalogMap}
+            targetLanguage={targetLanguage}
+            translatedItems={translatedItems}
+            onTranslate={translateAllContent}
           />
         </TabSwitchContent>
       </TabSwitch>

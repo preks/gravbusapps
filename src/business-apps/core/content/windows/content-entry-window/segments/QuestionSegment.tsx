@@ -8,24 +8,34 @@ import {
   FormMessage,
   Input,
   Textarea,
-  Switch,
   useTranslation
 } from '@newwork/nw-design-system'
+import { CatalogMultiSelect, CatalogMultiSelectOption } from '@/components/catalog-multi-select'
 import { ContentEntryFormValues } from '../ContentEntryWindow'
 import translations from '../_i18n'
 
 interface QuestionSegmentProps {
   control: Control<ContentEntryFormValues>
-  watchDisplayAuthor: boolean
-  authorName: string | null
+  setNewCategories: (items: CatalogMultiSelectOption[]) => void
+  setNewTags: (items: CatalogMultiSelectOption[]) => void
+  categoriesRef: React.RefObject<any>
+  tagsRef: React.RefObject<any>
+  accessToken: string
 }
 
 /**
  * QuestionSegment - Form segment for Q&A content
- * Features: Simple title, detailed description, tags, no rich formatting
+ * Features: Simple title, summary, detailed description, tags, categories
  * Similar to Stack Overflow, Quora question forms
  */
-export const QuestionSegment: React.FC<QuestionSegmentProps> = ({ control, watchDisplayAuthor, authorName }) => {
+export const QuestionSegment: React.FC<QuestionSegmentProps> = ({
+  control,
+  setNewCategories,
+  setNewTags,
+  categoriesRef,
+  tagsRef,
+  accessToken
+}) => {
   const { t } = useTranslation(translations)
 
   return (
@@ -49,6 +59,26 @@ export const QuestionSegment: React.FC<QuestionSegmentProps> = ({ control, watch
             <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
               {t('question-title-hint') || 'Be specific and clear. Ask as if you are asking a person.'}
             </div>
+          </FormItem>
+        )}
+      />
+
+      {/* Preview Text / Summary - Between Title and Question Details */}
+      <FormField
+        control={control as any}
+        name="previewText"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>{t('summary') || 'Summary'}</FormLabel>
+            <FormControl>
+              <Textarea
+                {...field}
+                placeholder={t('summary-placeholder') || 'Brief summary of your question...'}
+                rows={2}
+                data-testid="question-segment-preview-textarea"
+              />
+            </FormControl>
+            <FormMessage />
           </FormItem>
         )}
       />
@@ -81,55 +111,63 @@ export const QuestionSegment: React.FC<QuestionSegmentProps> = ({ control, watch
         )}
       />
 
-      {/* Preview Text */}
-      <FormField
-        control={control as any}
-        name="previewText"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>{t('summary') || 'Summary'}</FormLabel>
-            <FormControl>
-              <Textarea
-                {...field}
-                placeholder={t('summary-placeholder') || 'Brief summary of your question...'}
-                rows={2}
-                data-testid="question-segment-preview-textarea"
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      {/* Settings */}
-      <div className="gba:space-y-4">
+      {/* Categories and Tags - Below Question Details */}
+      <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+        {/* Categories - Tags Mode */}
         <FormField
           control={control as any}
-          name="displayAuthor"
+          name="categories"
           render={({ field }) => (
-            <FormItem className="gba:flex gba:items-center gba:justify-between gba:space-y-0 gba:p-4 gba:border gba:border-border gba:rounded-lg">
-              <FormLabel>{t('display-author') || 'Display Author'}</FormLabel>
+            <FormItem>
+              <FormLabel>Categories (Optional)</FormLabel>
               <FormControl>
-                <Switch checked={field.value} onCheckedChange={field.onChange} />
+                <CatalogMultiSelect
+                  ref={categoriesRef}
+                  catalogIdentifier="ContentCategory"
+                  catalogVersion="v1"
+                  value={field.value || []}
+                  onValueChange={value => {
+                    field.onChange(value)
+                  }}
+                  onNewItemsChange={items => setNewCategories(items)}
+                  placeholder="Select or create categories..."
+                  allowCreate={true}
+                  accessToken={accessToken}
+                  data-testid="question-segment-categories-select"
+                />
               </FormControl>
+              <FormMessage />
             </FormItem>
           )}
         />
 
-        {watchDisplayAuthor && authorName && (
-          <FormField
-            control={control as any}
-            name="author"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('author') || 'Author'}</FormLabel>
-                <FormControl>
-                  <Input {...field} value={field.value || ''} disabled />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-        )}
+        {/* Tags - Tags Mode */}
+        <FormField
+          control={control as any}
+          name="tags"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Tags (Optional)</FormLabel>
+              <FormControl>
+                <CatalogMultiSelect
+                  ref={tagsRef}
+                  catalogIdentifier="ContentTag"
+                  catalogVersion="v1"
+                  value={field.value || []}
+                  onValueChange={value => {
+                    field.onChange(value)
+                  }}
+                  onNewItemsChange={items => setNewTags(items)}
+                  placeholder="Select or create tags..."
+                  allowCreate={true}
+                  accessToken={accessToken}
+                  data-testid="question-segment-tags-select"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
       </div>
 
       {/* Hidden fields - Answers and Voting always enabled for questions */}

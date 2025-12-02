@@ -19,6 +19,7 @@ export interface CommentItemProps {
   depth?: number
   showAllReplies?: boolean
   onViewThread?: (comment: CommentWithReplies) => void
+  translatedContent?: string
   'data-testid'?: string
 }
 
@@ -32,10 +33,14 @@ export const CommentItem: React.FC<CommentItemProps> = ({
   depth = 0,
   showAllReplies = false,
   onViewThread,
+  translatedContent,
   'data-testid': dataTestId = 'comment-item'
 }) => {
   const [showReplyForm, setShowReplyForm] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
+
+  // Use translated content if available, otherwise use original
+  const displayContent = translatedContent || comment.content || ''
 
   const isOwnComment = currentUserId === comment.createdBy
   const displayName = comment.creatorEmployee?.displayName || 'Unknown User'
@@ -147,7 +152,7 @@ export const CommentItem: React.FC<CommentItemProps> = ({
           {/* Content - hidden when collapsed */}
           {!isCollapsed && (
             <>
-              <p className="gba:text-sm gba:text-foreground gba:whitespace-pre-wrap">{comment.content}</p>
+              <p className="gba:text-sm gba:text-foreground gba:whitespace-pre-wrap">{displayContent}</p>
 
               {/* Actions */}
               {depth < maxDepth && (

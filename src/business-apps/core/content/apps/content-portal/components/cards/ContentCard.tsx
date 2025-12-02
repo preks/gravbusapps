@@ -26,6 +26,8 @@ interface ContentCardProps extends BusinessAppContextProps {
   reactionCatalogMap?: Record<string, string>
   onReactionsRefetch?: () => void
   authorLabel?: string // Label for author field (e.g., "Author", "Creator", "Responsible")
+  translatedTitle?: string
+  translatedPreview?: string
 }
 
 const ContentCard: React.FC<ContentCardProps> = ({
@@ -40,11 +42,17 @@ const ContentCard: React.FC<ContentCardProps> = ({
   allowedReactions,
   reactionCatalogMap,
   onReactionsRefetch,
-  authorLabel
+  authorLabel,
+  translatedTitle,
+  translatedPreview
 }) => {
   const { t } = useTranslation(translations)
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
   const formattedDate = item?.createdAt ? dayjs(item.createdAt).format('MMM DD, YYYY') : ''
+
+  // Use translated texts if available, otherwise use original
+  const displayTitle = translatedTitle || item.title
+  const displayPreview = translatedPreview || item.preview
 
   // Build reaction summary from contentEntryReactionCounts
   const reactionSummary = buildReactionSummaryFromCounts(item, userInfo?.id)
@@ -116,11 +124,13 @@ const ContentCard: React.FC<ContentCardProps> = ({
                 className="gba:text-xl gba:font-bold gba:mb-2 gba:line-clamp-2 gba:min-h-[48px] gba:text-foreground"
                 data-testid={`content-card-title-${item.id}`}
               >
-                {item.title}
+                {displayTitle}
               </h3>
-              <p className="gba:text-sm gba:text-muted-foreground gba:mb-3 gba:line-clamp-2 gba:min-h-[40px]">
-                {item.preview}
-              </p>
+              {displayPreview && (
+                <p className="gba:text-sm gba:text-muted-foreground gba:mb-3 gba:line-clamp-2 gba:min-h-[40px]">
+                  {displayPreview}
+                </p>
+              )}
             </div>
 
             {/* Author */}

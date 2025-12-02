@@ -7,6 +7,7 @@ import { type ContentEntry } from '../types/contentEntryTypes'
 import { CATALOG_ENTRY_REF } from '@/common/data/catalog/queries/catalogFragments'
 import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments'
 import { CONTENT_DOCUMENT_FRAGMENT } from '../types/contentDocumentTypes'
+import { ContentRole } from '../types/contentEnums'
 
 export interface ContentEntryQueryOptions {
   config?: 'minimal' | 'list' | 'full' | 'detail'
@@ -29,8 +30,11 @@ const CONFIGS: Record<string, Array<keyof ContentEntry>> = {
     'contentGroup',
     'contentType',
     'createdAt',
+    'allowComment',
+    'allowReaction',
     'descendantContentEntriesAggregate',
-    'contentEntryReactionCounts'
+    'contentEntryReactionCounts',
+    'childContentEntriesAggregate'
   ],
   full: [
     'id',
@@ -256,7 +260,7 @@ export function buildContentEntryFields(options: ContentEntryQueryOptions): stri
   if (fields.includes('descendantContentEntriesAggregate')) {
     parts.push(`
       descendantContentEntriesAggregate(
-        where: { role: { _eq: "COMMENT" }, isDeleted: { _eq: false } }
+        where: { role: { _eq: "${ContentRole.COMMENT}" }, isDeleted: { _eq: false } }
       ) {
         aggregate { count }
       }
@@ -266,17 +270,7 @@ export function buildContentEntryFields(options: ContentEntryQueryOptions): stri
   if (fields.includes('childContentEntriesAggregate')) {
     parts.push(`
       childContentEntriesAggregate(
-        where: { role: { _eq: "COMMENT" }, isDeleted: { _eq: false } }
-      ) {
-        aggregate { count }
-      }
-    `)
-  }
-
-  if (fields.includes('contentEntryReactionAggregate')) {
-    parts.push(`
-      contentEntryReactionAggregate(
-        where: { isDeleted: { _eq: false } }
+        where: { role: { _eq: "${ContentRole.COMMENT}" }, isDeleted: { _eq: false } }
       ) {
         aggregate { count }
       }

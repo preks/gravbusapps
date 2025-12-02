@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import {
   useTranslation,
   Button,
@@ -37,6 +37,9 @@ interface QuestionViewProps {
   currentTab?: string
   allowedReactions?: string[]
   reactionCatalogMap?: Record<string, string>
+  targetLanguage?: string | null
+  translatedItems?: Record<string, { id: string; title?: string; preview?: string }>
+  onTranslate?: (items: any[], targetLanguage: string) => Promise<void>
 }
 
 const QuestionView: React.FC<QuestionViewProps> = ({
@@ -44,7 +47,10 @@ const QuestionView: React.FC<QuestionViewProps> = ({
   userInfo,
   hideBanner = false,
   currentTab = 'questions',
-  reactionCatalogMap = {}
+  reactionCatalogMap = {},
+  targetLanguage,
+  translatedItems,
+  onTranslate
 }) => {
   const { t } = useTranslation(translations)
   const [loadedCount, setLoadedCount] = useState(PAGE_SIZE)
@@ -148,6 +154,18 @@ const QuestionView: React.FC<QuestionViewProps> = ({
   const data = entries
 
   const hasMore = entries.length > 0 && entries.length < totalCount
+
+  // Collect all items for translation
+  const allItems = useMemo(() => {
+    return entries
+  }, [entries])
+
+  // Trigger translation when targetLanguage is set
+  useEffect(() => {
+    if (targetLanguage && onTranslate && allItems.length > 0) {
+      onTranslate(allItems, targetLanguage)
+    }
+  }, [targetLanguage, allItems, onTranslate])
 
   // Infinite scroll
   const sentinelRef = useInfiniteScroll({
@@ -421,11 +439,11 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                         </div>
 
                         <h3 className="gba:text-lg gba:font-bold gba:text-foreground gba:mb-2 hover:gba:text-primary gba:transition">
-                          {question.title}
+                          {translatedItems?.[question.id || '']?.title || question.title}
                         </h3>
 
                         <p className="gba:text-sm gba:text-muted-foreground gba:mb-3 gba:line-clamp-2">
-                          {question.preview}
+                          {translatedItems?.[question.id || '']?.preview || question.preview}
                         </p>
 
                         <div className="gba:flex gba:items-center gba:gap-4 gba:text-sm gba:text-muted-foreground">

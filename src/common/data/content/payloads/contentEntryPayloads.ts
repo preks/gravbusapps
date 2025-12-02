@@ -30,6 +30,7 @@ export interface BuildContentEntryPayloadParams {
   preview?: string
   content?: string
   picture?: string | null
+  pictureThumbnail?: string | null
 
   // Metadata
   role: ContentRole
@@ -90,6 +91,7 @@ export const buildCreateContentEntryPayload = (params: BuildContentEntryPayloadP
       preview: params.preview || null,
       content: params.content || null,
       picture: params.picture || null,
+      pictureThumbnail: params.pictureThumbnail || null,
 
       // Metadata
       role: params.role,
@@ -173,6 +175,7 @@ export const buildUpdateContentEntryPayload = (params: BuildContentEntryPayloadP
       preview: params.preview || null,
       content: params.content || null,
       picture: params.picture || null,
+      pictureThumbnail: params.pictureThumbnail || null,
 
       // Metadata
       role: params.role,

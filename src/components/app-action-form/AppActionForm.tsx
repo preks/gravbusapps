@@ -35,8 +35,13 @@ export interface AppActionFormProps {
   // Optional overrides for test ids on action buttons
   submitButtonTestId?: string
   cancelButtonTestId?: string
-  // Support for custom form layouts (like wizards)
+  /**
+   * @deprecated This prop is deprecated and should not be used.
+   */
   customFormLayout?: boolean
+  /**
+   * @deprecated This prop is deprecated and should not be used.
+   */
   customActions?: React.ReactNode
   // Support for disabling form submission when using WizardForm or other custom handlers
   disableFormSubmission?: boolean
@@ -447,7 +452,7 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
         <Form {...(form as any)} schema={schema}>
           <form
             onSubmit={form.handleSubmit(vals => handleSubmit(vals), handleValidationErrors)}
-            className="gba:flex gba:flex-col gba:w-full gba:max-w-md gba:h-full"
+            className="gba:flex gba:flex-col gba:w-full gba:max-w-full gba:h-full"
             data-testid={`${dataTestId}-form`}
           >
             <div className="gba:flex-1 gba:space-y-4" data-testid={`${dataTestId}-form-content`}>

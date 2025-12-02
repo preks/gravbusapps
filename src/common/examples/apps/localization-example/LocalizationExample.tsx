@@ -18,7 +18,7 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import translations from './i18n'
+import translations from './_i18n'
 
 export const LocalizationExample: React.FC<BusinessAppContextProps> = () => {
   return <LocalizationExampleContent />

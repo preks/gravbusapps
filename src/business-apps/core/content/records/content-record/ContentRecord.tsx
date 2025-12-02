@@ -3,10 +3,12 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useTranslation } from '@newwork/nw-design-system'
 import { Button, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
 import { ArrowLeft } from 'lucide-react'
+import { AiTranslationButton } from '@/common/components/content'
 import { useContentEntry } from '@/common/data/content/hooks/useContentEntry'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import ContentPage from './components/ContentPage'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { useContentTranslation } from '@/common/components/content'
 import translations from './_i18n'
 
 export interface ContentRecordProps extends BusinessAppContextProps {
@@ -127,6 +129,43 @@ const ContentRecord: React.FC<ContentRecordProps> = context => {
     queryOptions
   })
 
+  // Translation hook
+  const {
+    detectedLanguage,
+    targetLanguage,
+    translatedTexts,
+    isTranslating,
+    isDetecting,
+    detectLanguage,
+    setLanguageFromRef,
+    translateContent,
+    translateComments
+  } = useContentTranslation(context.accessToken)
+
+  // Initial language detection when content is loaded
+  // Use existing languageRef if available, otherwise detect from content
+  useEffect(() => {
+    if (!item || detectedLanguage || isDetecting) return
+
+    // Check if content entry already has a language stored
+    if (item.languageRef) {
+      // Use existing language reference - no API detection needed
+      setLanguageFromRef(item.languageRef, item.language?.value)
+    } else if (item.language?.id) {
+      // Use language catalog entry if available - no API call needed
+      setLanguageFromRef(item.language.id, item.language.value)
+    } else if (item.content) {
+      // No language stored, detect from content via API
+      detectLanguage(item.content)
+    }
+  }, [item, detectedLanguage, isDetecting, detectLanguage, setLanguageFromRef])
+
+  const handleLanguageSelect = async (languageId: string) => {
+    if (item) {
+      await translateContent(item, languageId)
+    }
+  }
+
   const handleBackClick = () => {
     const url = buildPlatformUrl('/platform/content/intranet', { tab: fromTab })
     navigateTo(url)
@@ -175,12 +214,21 @@ const ContentRecord: React.FC<ContentRecordProps> = context => {
 
   return (
     <div className="gba:min-h-screen gba:bg-background gba:pb-10" data-testid="content-record">
-      {/* Back Button */}
-      <div className="gba:max-w-[1000px] gba:mx-auto gba:pt-6 gba:px-4">
+      {/* Back Button and Translation Button */}
+      <div className="gba:max-w-[1000px] gba:mx-auto gba:pt-6 gba:px-4 gba:flex gba:justify-between gba:items-center">
         <Button variant="ghost" onClick={handleBackClick} className="gba:mb-4" data-testid="content-record-back-button">
           <ArrowLeft className="gba:w-4 gba:h-4 gba:mr-2" />
           {t('back_to_overview')}
         </Button>
+        <AiTranslationButton
+          detectedLanguage={detectedLanguage}
+          targetLanguage={targetLanguage}
+          isDetecting={isDetecting}
+          isTranslating={isTranslating}
+          accessToken={context.accessToken}
+          onLanguageSelect={handleLanguageSelect}
+          data-testid="content-record-translation-button"
+        />
       </div>
 
       {/* Content Page */}
@@ -191,6 +239,12 @@ const ContentRecord: React.FC<ContentRecordProps> = context => {
         employeeId={context.userInfo?.employeeDetails?.employeeId}
         allowedReactions={allowedReactions}
         reactionCatalogMap={reactionCatalogMap}
+        detectedLanguage={detectedLanguage}
+        targetLanguage={targetLanguage}
+        translatedTexts={translatedTexts}
+        isTranslating={isTranslating}
+        isDetecting={isDetecting}
+        onTranslateComments={translateComments}
       />
     </div>
   )

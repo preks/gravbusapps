@@ -17,6 +17,7 @@ interface ContentCarouselProps extends Pick<BusinessAppContextProps, 'accessToke
   allowedReactions?: string[]
   reactionCatalogMap?: Record<string, string>
   onReactionsRefetch?: () => void
+  translatedItems?: Record<string, { id: string; title?: string; preview?: string }>
 }
 
 const ContentCarousel: React.FC<ContentCarouselProps> = ({
@@ -27,7 +28,8 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
   userInfo,
   allowedReactions,
   reactionCatalogMap,
-  onReactionsRefetch
+  onReactionsRefetch,
+  translatedItems
 }) => {
   const { t } = useTranslation('content')
   const [activeIndex, setActiveIndex] = useState<number>(0)
@@ -174,10 +176,12 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
                           )}
                         </div>
                         <h3 className="gba:text-2xl gba:font-bold gba:text-foreground gba:mb-3 gba:line-clamp-2">
-                          {article.title}
+                          {translatedItems?.[article.id || '']?.title || article.title}
                         </h3>
                         <p className="gba:text-muted-foreground gba:line-clamp-3 gba:md:line-clamp-4 gba:mb-4">
-                          {article.preview || article.content?.substring(0, 150)}
+                          {translatedItems?.[article.id || '']?.preview ||
+                            article.preview ||
+                            article.content?.substring(0, 150)}
                         </p>
                       </div>
                       <div className="gba:flex gba:items-center gba:mb-3">

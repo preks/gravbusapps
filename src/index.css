@@ -25,14 +25,16 @@
 
 @import 'react-quill/dist/quill.snow.css';
 
-@import 'tailwindcss' prefix(gba);
-@import 'tw-animate-css';
-
 @import '@newwork/nw-design-system/core';
 @import '@newwork/nw-design-system/layout';
 @import '@newwork/nw-design-system/colors';
 @import '@newwork/nw-design-system/effects';
 @import '@newwork/nw-design-system/spacing';
+
+@import 'tailwindcss/theme' layer(gravity-business-apps-theme) prefix(gba);
+@import 'tailwindcss/preflight' layer(gravity-business-apps-base) prefix(gba);
+@import 'tailwindcss/utilities' layer(all-newwork-tw-utilities) prefix(gba);
+@import 'tw-animate-css';
 
 @import './business-apps/hr/absences/apps/personal-absences/components/absence-calendar/styles/AbsenceCalendar.css';
 

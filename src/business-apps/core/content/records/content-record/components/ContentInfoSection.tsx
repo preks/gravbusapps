@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react'
 import { Button } from '@newwork/nw-design-system'
 import { Share2 } from 'lucide-react'
-import { ContentEntry } from '@/common/data/content/types/contentTypes'
+import { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
 import { ReactionPicker } from '@/common/components/content'
 import { ShareDialog } from '@/components/share-dialog'
 import { getEntityTypeFromContentGroup, buildContentRecordUrl } from '@/business-apps/core/content/utils/shareUtils'

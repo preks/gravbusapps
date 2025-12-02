@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import { useTranslation, Button, Card, Skeleton } from '@newwork/nw-design-system'
 import { Folder, Home, FileText } from 'lucide-react'
 import Banner, { BannerVariant } from '../../components/shared/Banner'
@@ -19,6 +19,9 @@ interface DocumentViewProps extends BusinessAppContextProps {
   currentTab?: string
   allowedReactions?: string[]
   reactionCatalogMap?: Record<string, string>
+  targetLanguage?: string | null
+  translatedItems?: Record<string, { id: string; title?: string; preview?: string }>
+  onTranslate?: (items: any[], targetLanguage: string) => Promise<void>
 }
 
 /**
@@ -28,7 +31,14 @@ interface DocumentViewProps extends BusinessAppContextProps {
  * 1. ContentEntries (Document Areas) - shown as cards
  * 2. DocumentSection component handles folders and documents with full features
  */
-const DocumentView: React.FC<DocumentViewProps> = ({ accessToken, userInfo, hideBanner = false }) => {
+const DocumentView: React.FC<DocumentViewProps> = ({
+  accessToken,
+  userInfo,
+  hideBanner = false,
+  targetLanguage,
+  translatedItems,
+  onTranslate
+}) => {
   const { t } = useTranslation(translations)
   const navigation = useDocumentNavigation()
   const [searchQuery, setSearchQuery] = useState('')
@@ -61,6 +71,18 @@ const DocumentView: React.FC<DocumentViewProps> = ({ accessToken, userInfo, hide
   const handleSearch = (query: string) => {
     setSearchQuery(query)
   }
+
+  // Collect all areas for translation
+  const allAreas = useMemo(() => {
+    return areas || []
+  }, [areas])
+
+  // Trigger translation when targetLanguage is set
+  useEffect(() => {
+    if (targetLanguage && onTranslate && allAreas.length > 0) {
+      onTranslate(allAreas, targetLanguage)
+    }
+  }, [targetLanguage, allAreas, onTranslate])
 
   // Transform ALL documents to DocumentItem format for DocumentSection
   // This includes all folders and files, not just the current level
@@ -137,11 +159,11 @@ const DocumentView: React.FC<DocumentViewProps> = ({ accessToken, userInfo, hide
               {t('back_to_areas')}
             </Button>
             <h1 className="gba:text-4xl gba:font-bold gba:mb-2 gba:text-white [text-shadow:_-1px_-1px_0_#000,_1px_-1px_0_#000,_-1px_1px_0_#000,_1px_1px_0_#000,_0_3px_6px_rgba(0,0,0,0.9)]">
-              {navigation.currentArea.title}
+              {translatedItems?.[navigation.currentArea.id || '']?.title || navigation.currentArea.title}
             </h1>
-            {navigation.currentArea.preview && (
+            {(translatedItems?.[navigation.currentArea.id || '']?.preview || navigation.currentArea.preview) && (
               <p className="gba:text-lg gba:text-white [text-shadow:_-1px_-1px_0_#000,_1px_-1px_0_#000,_-1px_1px_0_#000,_1px_1px_0_#000,_0_2px_4px_rgba(0,0,0,0.9)]">
-                {navigation.currentArea.preview}
+                {translatedItems?.[navigation.currentArea.id || '']?.preview || navigation.currentArea.preview}
               </p>
             )}
           </div>
@@ -233,11 +255,11 @@ const DocumentView: React.FC<DocumentViewProps> = ({ accessToken, userInfo, hide
                     <div className="gba:p-6">
                       <h3 className="gba:text-xl gba:font-semibold gba:mb-2 gba:flex gba:items-center gba:gap-2">
                         <Folder className="gba:w-5 gba:h-5 gba:text-primary" />
-                        {area.title}
+                        {translatedItems?.[area.id || '']?.title || area.title}
                       </h3>
-                      {area.preview && (
+                      {(translatedItems?.[area.id || '']?.preview || area.preview) && (
                         <p className="gba:text-sm gba:text-muted-foreground gba:line-clamp-3 gba:mb-3">
-                          {area.preview}
+                          {translatedItems?.[area.id || '']?.preview || area.preview}
                         </p>
                       )}
                       {/* Responsible */}

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { useTranslation, Button, Alert, AlertTitle, AlertDescription, Skeleton, Card } from '@newwork/nw-design-system'
 import { Home as HomeIcon } from 'lucide-react'
 import { useContentEntries } from '@/common/data/content/hooks/useContentEntries'
@@ -21,6 +21,9 @@ interface HomeViewProps extends BusinessAppContextProps {
   currentTab?: string
   allowedReactions?: string[]
   reactionCatalogMap?: Record<string, string>
+  targetLanguage?: string | null
+  translatedItems?: Record<string, { id: string; title?: string; preview?: string }>
+  onTranslate?: (items: any[], targetLanguage: string) => Promise<void>
 }
 
 const HomeView: React.FC<HomeViewProps> = ({
@@ -29,7 +32,10 @@ const HomeView: React.FC<HomeViewProps> = ({
   hideBanner = false,
   currentTab = 'intranet',
   allowedReactions,
-  reactionCatalogMap
+  reactionCatalogMap,
+  targetLanguage,
+  translatedItems,
+  onTranslate
 }) => {
   const { t } = useTranslation(translations)
   const [loadedCount, setLoadedCount] = useState(PAGE_SIZE)
@@ -81,6 +87,18 @@ const HomeView: React.FC<HomeViewProps> = ({
   const remainingArticles = useMemo(() => data.slice(5), [data])
 
   const hasMore = entries.length > 0 && entries.length < totalCount
+
+  // Collect all items for translation
+  const allItems = useMemo(() => {
+    return [...featuredData, ...data]
+  }, [featuredData, data])
+
+  // Trigger translation when targetLanguage is set
+  useEffect(() => {
+    if (targetLanguage && onTranslate && allItems.length > 0) {
+      onTranslate(allItems, targetLanguage)
+    }
+  }, [targetLanguage, allItems, onTranslate])
 
   // Infinite scroll
   const sentinelRef = useInfiniteScroll({
@@ -194,6 +212,7 @@ const HomeView: React.FC<HomeViewProps> = ({
                 allowedReactions={allowedReactions}
                 reactionCatalogMap={reactionCatalogMap}
                 onReactionsRefetch={refetchFeatured}
+                translatedItems={translatedItems}
               />
             </div>
           </>
@@ -210,20 +229,25 @@ const HomeView: React.FC<HomeViewProps> = ({
         ) : (
           <div className="gba:grid gba:grid-cols-2 gba:gap-6 gba:mb-8">
             {remainingArticles.length > 0 ? (
-              remainingArticles.map(item => (
-                <ContentCard
-                  key={item.articleId}
-                  item={item}
-                  variant="intranet"
-                  currentTab={currentTab}
-                  accessToken={accessToken}
-                  userInfo={userInfo}
-                  allowedReactions={allowedReactions}
-                  reactionCatalogMap={reactionCatalogMap}
-                  onReactionsRefetch={refetch}
-                  authorLabel="Author"
-                />
-              ))
+              remainingArticles.map(item => {
+                const translated = translatedItems?.[item.id || '']
+                return (
+                  <ContentCard
+                    key={item.articleId}
+                    item={item}
+                    variant="intranet"
+                    currentTab={currentTab}
+                    accessToken={accessToken}
+                    userInfo={userInfo}
+                    allowedReactions={allowedReactions}
+                    reactionCatalogMap={reactionCatalogMap}
+                    onReactionsRefetch={refetch}
+                    authorLabel="Author"
+                    translatedTitle={translated?.title}
+                    translatedPreview={translated?.preview}
+                  />
+                )
+              })
             ) : (
               <div className="gba:col-span-2 gba:text-center gba:text-muted-foreground gba:py-8">
                 {t('no_more_articles')}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
 import { MessageCircle, ChevronDown, ChevronUp } from 'lucide-react'
@@ -14,6 +14,8 @@ export interface CommentSectionProps {
   accessToken: string
   currentUserId: string | undefined
   employeeId: string
+  targetLanguage?: string
+  onTranslateComments?: (commentTexts: string[], targetLanguage: string) => Promise<string[]>
   'data-testid'?: string
 }
 
@@ -24,6 +26,8 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
   accessToken,
   currentUserId,
   employeeId,
+  targetLanguage,
+  onTranslateComments,
   'data-testid': dataTestId = 'comment-section'
 }) => {
   const { t } = useTranslation('content')
@@ -31,6 +35,60 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
   const [visibleCommentsCount, setVisibleCommentsCount] = useState(10)
   const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set())
   const [visibleRepliesPerComment, setVisibleRepliesPerComment] = useState<Record<string, number>>({})
+  const [translatedComments, setTranslatedComments] = useState<Record<string, string>>({})
+
+  // Translate comments when targetLanguage is set and comments are loaded
+  useEffect(() => {
+    const translateAllComments = async () => {
+      if (!targetLanguage || !onTranslateComments || comments.length === 0) {
+        setTranslatedComments({})
+        return
+      }
+
+      // Collect all comment texts (including replies)
+      const allCommentTexts: string[] = []
+      const commentIdMap: string[] = []
+
+      const collectTexts = (commentList: CommentWithReplies[]) => {
+        commentList.forEach(comment => {
+          if (comment.content) {
+            allCommentTexts.push(comment.content)
+            commentIdMap.push(comment.id || '')
+          }
+          if (comment.replies && comment.replies.length > 0) {
+            collectTexts(comment.replies)
+          }
+        })
+      }
+
+      collectTexts(comments)
+
+      if (allCommentTexts.length === 0) {
+        return
+      }
+
+      try {
+        const translations = await onTranslateComments(allCommentTexts, targetLanguage)
+        const translatedMap: Record<string, string> = {}
+        translations.forEach((translation, index) => {
+          if (commentIdMap[index]) {
+            translatedMap[commentIdMap[index]] = translation
+          }
+        })
+        setTranslatedComments(translatedMap)
+      } catch (err) {
+        console.error('Error translating comments:', err)
+        setTranslatedComments({})
+      }
+    }
+
+    translateAllComments()
+  }, [comments, targetLanguage, onTranslateComments])
+
+  // Helper to get translated content for a comment
+  const getTranslatedContent = (commentId: string, originalContent: string): string => {
+    return translatedComments[commentId] || originalContent
+  }
 
   if (!allowComment) {
     return null
@@ -167,6 +225,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                     employeeId={employeeId}
                     currentUserId={currentUserId}
                     onCommentCreated={refetch}
+                    translatedContent={getTranslatedContent(comment.id || '', comment.content || '')}
                     data-testid={`${dataTestId}-item`}
                   />
 
@@ -205,6 +264,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                           currentUserId={currentUserId}
                           onCommentCreated={refetch}
                           depth={1}
+                          translatedContent={getTranslatedContent(reply.id || '', reply.content || '')}
                           data-testid={`${dataTestId}-reply`}
                         />
                       ))}
