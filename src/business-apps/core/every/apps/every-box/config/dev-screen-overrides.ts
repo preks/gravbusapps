@@ -92,11 +92,11 @@ export const DEV_SCREEN_OVERRIDES: DevScreenOverride[] = [
   //},
 
   // Approve Feedback - NATIVE_SCREEN override
-  {
-    screenKey: 'frm_giveFeedbackApproveFeedback',
-    componentPath: 'hr/core/forms/feedback-approval-form-v2',
-    builderType: 'NATIVE_SCREEN'
-  },
+  //{
+  //screenKey: 'frm_giveFeedbackApproveFeedback',
+  // componentPath: 'hr/core/forms/feedback-approval-form',
+  // builderType: 'NATIVE_SCREEN'
+  // },
 
   // Approve Employee Special Leave - NATIVE_SCREEN override
   //{
@@ -168,35 +168,35 @@ export const DEV_SCREEN_OVERRIDES: DevScreenOverride[] = [
     builderType: 'NATIVE_SCREEN'
   },
 
-  // Change Bank Account Review V2 - NATIVE_SCREEN override
+  // Change Bank Account Review - NATIVE_SCREEN override
   // Screen key from API response
-  {
-    screenKey: 'frm_changeBankAccountAcknowledgeBankAccount',
-    componentPath: 'hr/core/forms/change-bank-account-review-v2',
-    builderType: 'NATIVE_SCREEN'
-  },
+  //{
+  //screenKey: 'frm_changeBankAccountAcknowledgeBankAccount',
+  //componentPath: 'hr/core/forms/change-bank-account-review',
+  //builderType: 'NATIVE_SCREEN'
+  //},
 
-  // Change Employee Address Review V2 - NATIVE_SCREEN override
-  {
-    screenKey: 'frm_changeAddressAcknowledgeChangeAddress',
-    componentPath: 'hr/core/forms/change-employee-address-review-v2',
-    builderType: 'NATIVE_SCREEN'
-  },
+  // Change Employee Address Review - NATIVE_SCREEN override
+  //{
+  //screenKey: 'frm_changeAddressAcknowledgeChangeAddress',
+  //componentPath: 'hr/core/forms/change-employee-address-review',
+  //builderType: 'NATIVE_SCREEN'
+  //},
 
-  // Change Relationship Review V2 - NATIVE_SCREEN override
+  // Change Relationship Review - NATIVE_SCREEN override
   {
     screenKey: 'frm_changeRelationshipAcknowledgeChangeRelationship',
-    componentPath: 'hr/core/forms/change-relationship-review-v2',
-    builderType: 'NATIVE_SCREEN'
-  },
-
-  // Change Personal Data Review V2 - NATIVE_SCREEN override
-  // Screen key from API response (REAL DATA)
-  {
-    screenKey: 'frm_changePersonalInformationApprovePersonalInformationChange',
-    componentPath: 'hr/core/forms/change-personal-data-review-v2',
+    componentPath: 'hr/core/forms/change-relationship-review',
     builderType: 'NATIVE_SCREEN'
   }
+
+  // Change Personal Data Review - NATIVE_SCREEN override
+  // Screen key from API response (REAL DATA)
+  //{
+  //screenKey: 'frm_changePersonalInformationApprovePersonalInformationChange',
+  //componentPath: 'hr/core/forms/change-personal-data-review',
+  //builderType: 'NATIVE_SCREEN'
+  //},
 ]
 
 /**

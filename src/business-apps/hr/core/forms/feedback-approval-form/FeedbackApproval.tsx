@@ -1,5 +1,5 @@
 /**
- * FeedbackApprovalV2 Component
+ * FeedbackApproval Component
  * Standalone form for approving feedback requests from Kogito processes
  *
  * Refactored to use:
@@ -22,12 +22,12 @@ import dayjs from 'dayjs'
 
 type AnyObject = Record<string, any>
 
-interface FeedbackApprovalV2Props extends BusinessAppContextProps {
+interface FeedbackApprovalProps extends BusinessAppContextProps {
   // Additional props from task payload
   onClose?: () => void // Optional callback to close the modal
 }
 
-const FeedbackApprovalV2: React.FC<FeedbackApprovalV2Props> = ({ accessToken, additionalData, onClose }) => {
+const FeedbackApproval: React.FC<FeedbackApprovalProps> = ({ accessToken, additionalData, onClose }) => {
   const [showComment, setShowComment] = useState(false)
   const [comment, setComment] = useState('')
   const [isAccepting, setIsAccepting] = useState(false)
@@ -243,7 +243,7 @@ const FeedbackApprovalV2: React.FC<FeedbackApprovalV2Props> = ({ accessToken, ad
   if (!feedbackData) {
     return (
       <TaskFormLayout
-        data-testid="feedback-approval-v2"
+        data-testid="feedback-approval"
         header={
           <TaskDetailHeader
             title={taskTitle}
@@ -264,7 +264,7 @@ const FeedbackApprovalV2: React.FC<FeedbackApprovalV2Props> = ({ accessToken, ad
 
   return (
     <TaskFormLayout
-      data-testid="feedback-approval-v2"
+      data-testid="feedback-approval"
       header={
         <TaskDetailHeader
           title={taskTitle}
@@ -511,4 +511,4 @@ const FeedbackApprovalV2: React.FC<FeedbackApprovalV2Props> = ({ accessToken, ad
   )
 }
 
-export default FeedbackApprovalV2
+export default FeedbackApproval
