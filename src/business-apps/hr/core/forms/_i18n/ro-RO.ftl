@@ -30,6 +30,23 @@ adjust-salary-frequency-hourly = Pe oră
 adjust-salary-current-salary = Salariu curent
 adjust-salary-calculation-breakdown = Rezumat ajustare salariu
 
+# Assign Salary Mode (new employee without existing salary)
+assign-salary-title = Atribuire salariu angajat
+assign-salary-type = Tip salariu
+assign-salary-type-required = Tipul salariului este obligatoriu. Vă rugăm să selectați un tip de salariu.
+assign-salary-type-yearly-monthly = Anual / Lunar
+assign-salary-type-hourly = Pe oră
+assign-salary-annual-salary = Salariu brut anual
+assign-salary-annual-salary-required = Salariul anual este obligatoriu. Vă rugăm să introduceți salariul anual.
+assign-salary-annual-salary-positive = Salariul anual trebuie să fie mai mare decât zero.
+assign-salary-hourly-salary = Salariu brut pe oră
+assign-salary-hourly-salary-required = Salariul pe oră este obligatoriu. Vă rugăm să introduceți salariul pe oră.
+assign-salary-hourly-salary-positive = Salariul pe oră trebuie să fie mai mare decât zero.
+assign-salary-currency-required = Moneda este obligatorie. Vă rugăm să selectați o monedă.
+assign-salary-monthly-equivalent = Echivalent lunar
+assign-salary-start-date = Dată de început
+assign-salary-start-date-required = Data de început este obligatorie. Vă rugăm să selectați o dată de început.
+
 # Adjust Employee Salary Review Form
 adjust-salary-review-title = Revizuire ajustare salariu pentru { $employeeName }
 adjust-salary-review-initiated-by = Inițiat de { $initiatorName }
