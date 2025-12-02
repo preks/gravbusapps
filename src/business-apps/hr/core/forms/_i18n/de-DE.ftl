@@ -63,6 +63,18 @@ adjust-salary-review-reject = Ablehnen
 adjust-salary-review-annual-gross-salary = Jahresbruttogehalt
 adjust-salary-review-monthly-gross-salary = Monatliches Bruttogehalt
 adjust-salary-review-hourly-gross-salary = Stündliches Bruttogehalt
+adjust-salary-review-increase-text = { $percentage }% Erhöhung
+
+# Assign Employee Salary Review Form (new employee without existing salary)
+assign-salary-review-title = Neue Mitarbeiter-Gehaltszuweisung prüfen für { $employeeName }
+assign-salary-review-salary-details = Gehaltsdetails
+assign-salary-review-assignment-details = Zuweisungsdetails
+assign-salary-review-annual-salary = Jahresbruttogehalt
+assign-salary-review-monthly-salary = Monatliches Bruttogehalt
+assign-salary-review-hourly-salary = Stündliches Bruttogehalt
+assign-salary-review-currency = Währung
+assign-salary-review-start-date = Startdatum
+assign-salary-review-notes = Notizen
 
 # Common Actions
 action-select-placeholder = Bitte auswählen
