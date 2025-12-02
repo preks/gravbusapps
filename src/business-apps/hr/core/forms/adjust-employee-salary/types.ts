@@ -1,5 +1,17 @@
 import type { Control } from 'react-hook-form'
 
+/**
+ * Form mode determines the UI and behavior of the salary form
+ * - 'adjust': Employee has existing salary records - show adjustment UI
+ * - 'assign': Employee has no salary records - show direct assignment UI
+ */
+export type FormMode = 'adjust' | 'assign'
+
+/**
+ * Salary type for assign mode - either yearly/monthly fixed OR hourly
+ */
+export type SalaryType = 'yearlyMonthly' | 'hourly'
+
 export interface CatalogEntry {
   id: string
   value: string
@@ -13,10 +25,29 @@ export interface CatalogEntry {
   }
 }
 
+export interface CurrencyOption {
+  id: string
+  code: string
+  value: string
+}
+
+export interface EmployeeWorkingConditionResponse {
+  EmployeeWorkingCondition: Array<{
+    id: string
+    hireDate: string | null
+    activeFrom: string | null
+    activeTo: string | null
+  }>
+}
+
 export interface AdjustEmployeeSalaryContextData {
   employee: EmployeeDataResponse | null
   compensation: EmployeeCompensationResponse | null
   catalogs: CatalogsDataResponse | null
+  currencies: CurrencyOption[]
+  formMode: FormMode
+  /** Employee's hire date from working condition - used as default start date in assign mode */
+  hireDate: string | null
 }
 
 export interface EmployeeDataResponse {
@@ -80,11 +111,30 @@ export interface CatalogsDataResponse {
 }
 
 export type AdjustEmployeeSalaryFormValues = {
+  // ===== Adjust Mode Fields =====
+  /** Amount increase for salary adjustment */
   amountIncrease: number | null
+  /** Percentage increase for salary adjustment */
   percentageIncrease: number | null
+  /** Frequency for adjustment calculations */
   adjustmentFrequency: 'annually' | 'monthly' | 'hourly'
-  effectiveDate: string
+  /** Reason for adjustment (catalog ref) */
   reason: string
+
+  // ===== Assign Mode Fields =====
+  /** Salary type for new assignment: yearlyMonthly or hourly */
+  salaryType: SalaryType
+  /** Annual salary for yearly/monthly assignments */
+  annualSalary: number | null
+  /** Hourly salary for hourly assignments */
+  hourlySalary: number | null
+  /** Currency reference (e.g., "Currency:v1:EUR") */
+  currency: string
+
+  // ===== Shared Fields =====
+  /** Effective/start date for the salary */
+  effectiveDate: string
+  /** Additional notes */
   notes: string
 }
 
