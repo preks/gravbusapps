@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
 import {
   FormField,
   FormItem,
@@ -253,6 +253,24 @@ const AddressSegment: React.FC<AddressSegmentProps> = ({ customFields }) => {
     control: form.control,
     name: 'addresses'
   })
+
+  // Track if we've already initialized defaults to prevent infinite loops
+  const hasInitializedDefaults = useRef(false)
+
+  // Auto-populate 1 default address with PRIMARY type when no data exists
+  useEffect(() => {
+    if (fields.length === 0 && !hasInitializedDefaults.current) {
+      hasInitializedDefaults.current = true
+      append({
+        addressType: AddressType.PRIMARY_ADDRESS,
+        addressLine: { lines: [''] },
+        postalCode: '',
+        locality: '',
+        regionRef: '',
+        countryRef: ''
+      })
+    }
+  }, [fields.length, append])
 
   const handleAddAddress = () => {
     append({

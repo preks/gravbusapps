@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react'
+import React, { useCallback, useEffect, useRef } from 'react'
 import { Button, DateInputField, Divider, InputField, SelectField, Switch } from '@newwork/gravity-ui-catalog'
 import { Form, Row, Col, Alert } from 'antd'
 import { ExpensePosition, ExpenseGroup, ExpenseType, CostCenter, Currency, CustomField } from '../../types'
@@ -72,8 +72,36 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
     expenseRuleError,
     receiptCurrencyError,
     handleCurrencyChange,
-    isEditMode
-  } = useExpenseItem()
+    isEditMode, additionalData
+  } =
+    useExpenseItem()
+
+  const selectedExpenseRequestId = Form.useWatch('expenseRequestId', form)
+  const hadBackendRequestRef = useRef(false)
+
+  useEffect(() => {
+    if (hadBackendRequestRef.current || !isEditMode) {
+      return
+    }
+
+    const initialRequestId = selectedExpenseRequestId || form.getFieldValue('expenseRequestId')
+    if (initialRequestId && initialRequestId !== '0') {
+      hadBackendRequestRef.current = true
+    }
+  }, [form, isEditMode, selectedExpenseRequestId])
+
+  const expenseRequestOptions = expenseRequests.map(request => ({
+    id: request.id,
+    name: request.title || request.code
+  }))
+
+  const hasBackendPreselectedRequest =
+    hadBackendRequestRef.current ||
+    !!(additionalData?.expenseRequestId || additionalData?.psi_taskPayload?.psi_initialParameters?.expenseRequest)
+
+  const filteredExpenseRequestOptions = hasBackendPreselectedRequest
+    ? expenseRequestOptions.filter(option => option.id !== '0')
+    : expenseRequestOptions
 
   const hasReceiptCurrencyError = Boolean(receiptCurrencyError && fileList && fileList.length > 0)
 
@@ -87,20 +115,17 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         return
       }
 
-      // Defer validation to next tick to prevent visual jumps
+
       setTimeout(async () => {
         try {
-          // Validate without scroll to prevent DOM jumping
           await form.validateFields()
 
-          // Check for expense rule errors
           if (expenseRuleError) {
             return
           }
 
           handleSubmit()
         } catch (errorInfo) {
-          // Form validation failed - scroll to first error smoothly
           const firstErrorField = (errorInfo as any)?.errorFields?.[0]?.name?.[0]
           if (firstErrorField) {
             const element = document.querySelector(`[name="${firstErrorField}"]`)
@@ -386,12 +411,18 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
             allowClear
             name="expenseRequestId"
             data-testid="expense-request-select"
-            data={[
-              ...expenseRequests.map(request => ({
-                id: request.id,
-                name: request.title || request.code
-              }))
-            ]}
+            data={filteredExpenseRequestOptions}
+            value={
+              selectedExpenseRequestId
+                ? {
+                    id: selectedExpenseRequestId,
+                    name:
+                      filteredExpenseRequestOptions.find(option => option.id === selectedExpenseRequestId)?.name ||
+                      expenseRequestOptions.find(option => option.id === selectedExpenseRequestId)?.name ||
+                      selectedExpenseRequestId
+                  }
+                : undefined
+            }
             onChange={(value: any) => {
               form.setFieldsValue({ expenseRequestId: value.value })
             }}
@@ -426,7 +457,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         <Button
           variant="primary"
           onClick={handleCreateClick}
-          disabled={isProcessingFiles || hasReceiptCurrencyError}
+          disabled={isProcessingFiles || (isEditMode && hadBackendRequestRef.current && !selectedExpenseRequestId) || hasReceiptCurrencyError}
           className="gba:min-w-[100px] gba:border-2 gba:text-base gba:font-semibold gba:px-4"
           style={{ borderRadius: '22px', width: 'auto', height: '40px' }}
           data-testid="submit-button"

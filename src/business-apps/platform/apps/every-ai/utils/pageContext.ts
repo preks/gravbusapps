@@ -14,6 +14,11 @@ const ENTITY_URL_PATTERNS = [
   },
 
   // IRM entities (investment-specific)
+  {
+    // IRM investment record – capture investmentId from any position in the query string
+    pattern: /\/platform\/irm\/investment-record\?[^#]*investmentId=([^&]+)/,
+    entity_name: 'investment'
+  },
   { pattern: /\/platform\/irm\/lead-record\?leadId=([^&]+)/, entity_name: 'investment_lead' },
   { pattern: /\/platform\/irm\/contact-record\?contactId=([^&]+)/, entity_name: 'investment_contact' },
   { pattern: /\/platform\/irm\/company-record\?companyId=([^&]+)/, entity_name: 'investment_company' },
@@ -52,6 +57,77 @@ const OVERVIEW_URL_PATTERNS = [
 ] as const
 
 /**
+ * Local dev (dynamic screen loader) app routes and matching entity configuration
+ */
+const APP_ENTITY_PATTERNS = [
+  {
+    pattern: /investments\/records\/investment-record$/,
+    entity_name: 'investment',
+    idParams: ['investmentId']
+  },
+  {
+    pattern: /investments\/records\/lead-record$/,
+    entity_name: 'investment_lead',
+    idParams: ['leadId']
+  },
+  {
+    pattern: /investments\/records\/contact-record$/,
+    entity_name: 'investment_contact',
+    idParams: ['contactId']
+  },
+  {
+    pattern: /investments\/records\/company-record$/,
+    entity_name: 'investment_company',
+    idParams: ['companyId']
+  },
+  {
+    pattern: /investments\/records\/account-record$/,
+    entity_name: 'investment_account',
+    idParams: ['accountId']
+  },
+  {
+    pattern: /crm\/opportunity-record$/,
+    entity_name: 'opportunity',
+    idParams: ['opportunityId']
+  },
+  {
+    pattern: /crm\/core\/records\/opportunity-record$/,
+    entity_name: 'opportunity',
+    idParams: ['opportunityId', 'id']
+  },
+  {
+    pattern: /crm\/lead-record$/,
+    entity_name: 'lead',
+    idParams: ['leadId']
+  },
+  {
+    pattern: /crm\/core\/records\/lead-record$/,
+    entity_name: 'lead',
+    idParams: ['leadId']
+  },
+  {
+    pattern: /crm\/contact-record$/,
+    entity_name: 'contact',
+    idParams: ['contactId']
+  },
+  {
+    pattern: /crm\/core\/records\/contact-record$/,
+    entity_name: 'contact',
+    idParams: ['contactId']
+  },
+  {
+    pattern: /crm\/account-record$/,
+    entity_name: 'account',
+    idParams: ['accountId']
+  },
+  {
+    pattern: /crm\/core\/records\/account-record$/,
+    entity_name: 'account',
+    idParams: ['accountId']
+  }
+] as const
+
+/**
  * Parses the current page URL and returns appropriate context for the AI agent
  */
 export function parsePageContext(url: string): CurrentPageContext {
@@ -79,6 +155,27 @@ export function parsePageContext(url: string): CurrentPageContext {
         return {
           type: 'overview',
           entity_name
+        }
+      }
+    }
+
+    // Support local dev URLs loaded via dynamic screen loader (?app=...)
+    const appParam = urlObj.searchParams.get('app')
+    if (appParam) {
+      const normalizedApp = decodeURIComponent(appParam).replace(/^\//, '').split('?')[0]
+
+      for (const { pattern, entity_name, idParams } of APP_ENTITY_PATTERNS) {
+        if (pattern.test(normalizedApp)) {
+          for (const idParam of idParams) {
+            const entityId = urlObj.searchParams.get(idParam)
+            if (entityId) {
+              return {
+                type: 'entity',
+                entity_name,
+                id: entityId
+              }
+            }
+          }
         }
       }
     }

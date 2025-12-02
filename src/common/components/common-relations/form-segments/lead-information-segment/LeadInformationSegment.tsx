@@ -150,6 +150,8 @@ const LeadInformationSegment: React.FC<LeadInformationSegmentProps> = ({
                   value={field.value || ''}
                   onValueChange={v => field.onChange(v)}
                   data-testid="lead-segment-status"
+                  allowClear={false}
+                  autoSelectFirst
                 />
               </FormControl>
               <FormMessage />

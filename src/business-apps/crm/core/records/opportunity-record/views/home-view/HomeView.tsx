@@ -104,7 +104,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 opportunityData?.opportunityContacts
                   ?.map((oc: any) => ({
                     ...oc.contact,
-                    jobPosition: oc.contact?.jobTitle // Map CRM jobTitle to jobPosition for ContactSection
+                    jobPosition: oc.contact?.jobTitle, // Map CRM jobTitle to jobPosition for ContactSection
+                    contactType: oc.contactType
                   }))
                   .filter(Boolean) || [],
               contactId: opportunityData?.opportunityContacts?.[0]?.contact?.id,

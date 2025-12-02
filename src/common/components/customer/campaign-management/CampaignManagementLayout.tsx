@@ -185,11 +185,13 @@ export const CampaignManagementLayout: React.FC<CampaignManagementLayoutProps> =
   // Default actions renderer if not provided
   const defaultRenderActions = useCallback(
     (row: { original: Campaign }) => (
-      <CampaignRowActions
-        campaignId={row.original.id}
-        accessToken={accessToken}
-        campaignEntityContext={campaignEntityContext}
-      />
+      <div role="presentation" onClick={e => e.stopPropagation()}>
+        <CampaignRowActions
+          campaignId={row.original.id}
+          accessToken={accessToken}
+          campaignEntityContext={campaignEntityContext}
+        />
+      </div>
     ),
     [accessToken, campaignEntityContext]
   )
