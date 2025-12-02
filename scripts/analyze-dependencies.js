@@ -274,8 +274,8 @@ function getChangedPackages(gitDiffOutput) {
   try {
     const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
 
-    // Collect all package names from dependency sections
-    const dependencySections = ['dependencies', 'devDependencies', 'peerDependencies']
+    // Collect all package names from dependency and resolutions sections
+    const dependencySections = ['dependencies', 'devDependencies', 'peerDependencies', 'resolutions']
     for (const section of dependencySections) {
       if (packageJson[section]) {
         Object.keys(packageJson[section]).forEach(pkg => dependencyPackages.add(pkg))
