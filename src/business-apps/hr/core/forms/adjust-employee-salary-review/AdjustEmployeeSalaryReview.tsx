@@ -13,8 +13,13 @@ import {
   SALARY_ADJUST_REASON_CATALOG_QUERY
 } from './AdjustEmployeeSalaryReviewQueries'
 import ReviewRows from '../components/ReviewRows'
-import { buildSalaryComparisonRows, buildAdjustmentDetails } from './buildRows'
-import type { SalaryChangePayload } from './types'
+import {
+  buildSalaryComparisonRows,
+  buildAdjustmentDetails,
+  buildNewSalaryDetailRows,
+  buildAssignmentDetails
+} from './buildRows'
+import type { SalaryChangePayload, ReviewMode } from './types'
 import translations from '../_i18n'
 
 export const AdjustEmployeeSalaryReview: React.FC<BusinessAppContextProps> = ({
@@ -53,7 +58,18 @@ export const AdjustEmployeeSalaryReview: React.FC<BusinessAppContextProps> = ({
   // Extract payload data
   const payload: SalaryChangePayload = (additionalData as any)?.psi_taskPayload || {}
   const newSalaryData = payload?.employeeSalary || {}
-  const oldCompensation = payload?.oldEmployeeSalary || {}
+  const oldCompensation = payload?.oldEmployeeSalary
+
+  // Determine review mode based on whether old salary exists
+  const reviewMode: ReviewMode = useMemo(() => {
+    // If oldEmployeeSalary is null, undefined, or has no meaningful salary data, it's "assign" mode
+    if (!oldCompensation) return 'assign'
+    const hasOldSalary =
+      (oldCompensation.annualGrossSalary && oldCompensation.annualGrossSalary > 0) ||
+      (oldCompensation.monthlyGrossSalary && oldCompensation.monthlyGrossSalary > 0) ||
+      (oldCompensation.hourlyGrossSalary && oldCompensation.hourlyGrossSalary > 0)
+    return hasOldSalary ? 'adjust' : 'assign'
+  }, [oldCompensation])
 
   // Determine employee ID with fallback priority
   const employeeIdFromPayload: string | undefined =
@@ -132,20 +148,20 @@ export const AdjustEmployeeSalaryReview: React.FC<BusinessAppContextProps> = ({
     fetchCatalog()
   }, [accessToken, graphqlClient])
 
-  // Build salary comparison rows (only actual salary changes)
+  // ===== ADJUST MODE: Build salary comparison rows (old vs new) =====
   const comparisonRows = useMemo(() => {
-    if (!oldCompensation || !newSalaryData) return []
+    if (reviewMode !== 'adjust' || !oldCompensation || !newSalaryData) return []
     return buildSalaryComparisonRows({
       oldCompensation: oldCompensation as any,
       newSalaryData: newSalaryData as any,
       locale,
       t
     })
-  }, [oldCompensation, newSalaryData, locale, t])
+  }, [reviewMode, oldCompensation, newSalaryData, locale, t])
 
-  // Build adjustment details (informational data)
+  // ===== ADJUST MODE: Build adjustment details (with increase summary) =====
   const adjustmentDetails = useMemo(() => {
-    if (!oldCompensation || !newSalaryData) return null
+    if (reviewMode !== 'adjust' || !oldCompensation || !newSalaryData) return null
     return buildAdjustmentDetails({
       oldCompensation: oldCompensation as any,
       newSalaryData: newSalaryData as any,
@@ -153,13 +169,39 @@ export const AdjustEmployeeSalaryReview: React.FC<BusinessAppContextProps> = ({
       salaryAdjustReasonEntries,
       t
     })
-  }, [oldCompensation, newSalaryData, locale, salaryAdjustReasonEntries, t])
+  }, [reviewMode, oldCompensation, newSalaryData, locale, salaryAdjustReasonEntries, t])
 
-  // Build title with employee name
-  const titleText = t('adjust-salary-review-title', {
-    employeeName: employeeName || '',
-    defaultValue: `Employee Salary Adjustment Review for ${employeeName || ''}`
-  })
+  // ===== ASSIGN MODE: Build new salary detail rows (single-column) =====
+  const newSalaryDetailRows = useMemo(() => {
+    if (reviewMode !== 'assign' || !newSalaryData) return []
+    return buildNewSalaryDetailRows({
+      newSalaryData: newSalaryData as any,
+      locale,
+      t
+    })
+  }, [reviewMode, newSalaryData, locale, t])
+
+  // ===== ASSIGN MODE: Build assignment details (start date, notes) =====
+  const assignmentDetails = useMemo(() => {
+    if (reviewMode !== 'assign' || !newSalaryData) return null
+    return buildAssignmentDetails({
+      newSalaryData: newSalaryData as any
+    })
+  }, [reviewMode, newSalaryData])
+
+  // Build title with employee name - different for assign vs adjust mode
+  const titleText = useMemo(() => {
+    if (reviewMode === 'assign') {
+      return t('assign-salary-review-title', {
+        employeeName: employeeName || '',
+        defaultValue: `New Employee Salary Assignment Review for ${employeeName || ''}`
+      })
+    }
+    return t('adjust-salary-review-title', {
+      employeeName: employeeName || '',
+      defaultValue: `Employee Salary Adjustment Review for ${employeeName || ''}`
+    })
+  }, [reviewMode, employeeName, t])
 
   // Build initiator subtitle
   const initiatorText = initiatorName
@@ -212,61 +254,120 @@ export const AdjustEmployeeSalaryReview: React.FC<BusinessAppContextProps> = ({
           }}
           data-testid="review-employee-salary-change"
         >
-          {/* Salary Comparison Section */}
-          <div className="gba:mb-6" data-testid="review-employee-salary-change-comparison-section">
-            <h3 className="gba:text-lg gba:font-semibold gba:mb-4">
-              {t('adjust-salary-review-salary-comparison', { defaultValue: 'Salary Comparison' })}
-            </h3>
-            <ReviewRows
-              rows={comparisonRows}
-              dataTestIdPrefix="review-employee-salary-change-row"
-              oldDataText={t('adjust-salary-review-current-salary', { defaultValue: 'Current Salary' })}
-              currentDataText={t('adjust-salary-review-new-salary', { defaultValue: 'New Salary' })}
-              mode="diff"
-            />
-          </div>
-
-          {/* Adjustment Details Section */}
-          {adjustmentDetails && (
-            <div className="gba:mb-4 gba:space-y-3" data-testid="adjust-employee-salary-review-details-section">
-              <h3 className="gba:text-lg gba:font-semibold gba:mb-4">
-                {t('adjust-salary-review-adjustment-details', { defaultValue: 'Adjustment Details' })}
-              </h3>
-
-              {/* Increase Summary - Highlighted */}
-              <div
-                className="gba:bg-card gba:text-card-foreground gba:border gba:border-foreground gba:p-3 gba:rounded-md"
-                data-testid="adjust-employee-salary-review-increase-summary"
-              >
-                <div className="gba:text-sm gba:font-medium gba:mb-1">
-                  {t('adjust-salary-review-total-increase', { defaultValue: 'Total Increase' })}
-                </div>
-                <div className="gba:text-lg gba:font-semibold">{adjustmentDetails.increaseSummary}</div>
+          {/* ===== ADJUST MODE: Salary Comparison (Side-by-Side) ===== */}
+          {reviewMode === 'adjust' && (
+            <>
+              <div className="gba:mb-6" data-testid="review-employee-salary-change-comparison-section">
+                <h3 className="gba:text-lg gba:font-semibold gba:mb-4">
+                  {t('adjust-salary-review-salary-comparison', { defaultValue: 'Salary Comparison' })}
+                </h3>
+                <ReviewRows
+                  rows={comparisonRows}
+                  dataTestIdPrefix="review-employee-salary-change-row"
+                  oldDataText={t('adjust-salary-review-current-salary', { defaultValue: 'Current Salary' })}
+                  currentDataText={t('adjust-salary-review-new-salary', { defaultValue: 'New Salary' })}
+                  mode="diff"
+                />
               </div>
 
-              {/* Effective Date */}
-              <div data-testid="adjust-employee-salary-review-effective-date">
-                <div className="gba:text-sm gba:text-muted-foreground gba:mb-1">
-                  {t('adjust-salary-review-effective-date', { defaultValue: 'Effective Date' })}
-                </div>
-                <div className="gba:font-medium">{adjustmentDetails.effectiveDate}</div>
-              </div>
+              {/* Adjustment Details Section */}
+              {adjustmentDetails && (
+                <div className="gba:mb-4 gba:space-y-3" data-testid="adjust-employee-salary-review-details-section">
+                  <h3 className="gba:text-lg gba:font-semibold gba:mb-4">
+                    {t('adjust-salary-review-adjustment-details', { defaultValue: 'Adjustment Details' })}
+                  </h3>
 
-              {/* Reason */}
-              <div data-testid="adjust-employee-salary-review-reason">
-                <div className="gba:text-sm gba:text-muted-foreground gba:mb-1">
-                  {t('adjust-salary-review-reason', { defaultValue: 'Reason' })}
-                </div>
-                <div className="gba:font-medium">{adjustmentDetails.reason}</div>
-              </div>
-
-              {/* Notes - Only if present */}
-              {adjustmentDetails.notes && (
-                <div data-testid="adjust-employee-salary-review-notes">
-                  <div className="gba:text-sm gba:text-muted-foreground gba:mb-1">
-                    {t('adjust-salary-review-notes', { defaultValue: 'Notes' })}
+                  {/* Increase Summary - Highlighted */}
+                  <div
+                    className="gba:bg-card gba:text-card-foreground gba:border gba:border-foreground gba:p-3 gba:rounded-md"
+                    data-testid="adjust-employee-salary-review-increase-summary"
+                  >
+                    <div className="gba:text-sm gba:font-medium gba:mb-1">
+                      {t('adjust-salary-review-total-increase', { defaultValue: 'Total Increase' })}
+                    </div>
+                    <div className="gba:text-lg gba:font-semibold">{adjustmentDetails.increaseSummary}</div>
                   </div>
-                  <div className="gba:font-medium gba:whitespace-pre-wrap">{adjustmentDetails.notes}</div>
+
+                  {/* Effective Date */}
+                  <div data-testid="adjust-employee-salary-review-effective-date">
+                    <div className="gba:text-sm gba:text-muted-foreground gba:mb-1">
+                      {t('adjust-salary-review-effective-date', { defaultValue: 'Effective Date' })}
+                    </div>
+                    <div className="gba:font-medium">{adjustmentDetails.effectiveDate}</div>
+                  </div>
+
+                  {/* Reason */}
+                  <div data-testid="adjust-employee-salary-review-reason">
+                    <div className="gba:text-sm gba:text-muted-foreground gba:mb-1">
+                      {t('adjust-salary-review-reason', { defaultValue: 'Reason' })}
+                    </div>
+                    <div className="gba:font-medium">{adjustmentDetails.reason}</div>
+                  </div>
+
+                  {/* Notes - Only if present */}
+                  {adjustmentDetails.notes && (
+                    <div data-testid="adjust-employee-salary-review-notes">
+                      <div className="gba:text-sm gba:text-muted-foreground gba:mb-1">
+                        {t('adjust-salary-review-notes', { defaultValue: 'Notes' })}
+                      </div>
+                      <div className="gba:font-medium gba:whitespace-pre-wrap">{adjustmentDetails.notes}</div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ===== ASSIGN MODE: New Salary Details (Single-Column) ===== */}
+          {reviewMode === 'assign' && (
+            <div className="gba:space-y-6" data-testid="assign-employee-salary-review-content">
+              {/* New Salary Section */}
+              <div data-testid="assign-employee-salary-review-salary-section">
+                <h3 className="gba:text-lg gba:font-semibold gba:mb-4">
+                  {t('assign-salary-review-salary-details', { defaultValue: 'Salary Details' })}
+                </h3>
+                <div className="gba:space-y-3">
+                  {newSalaryDetailRows.map(row => {
+                    // Only the primary salary row (annual or hourly) gets a border
+                    const isPrimarySalary = row.key === 'annualSalary' || row.key === 'hourlySalary'
+                    return (
+                      <div
+                        key={row.key}
+                        className={`gba:p-3 gba:rounded-md ${isPrimarySalary ? 'gba:border gba:border-foreground' : ''}`}
+                        data-testid={`assign-employee-salary-review-${row.key}`}
+                      >
+                        <div className="gba:text-sm gba:text-muted-foreground gba:mb-1">{row.label}</div>
+                        <div className="gba:font-medium gba:text-foreground">{row.value}</div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Assignment Details Section */}
+              {assignmentDetails && (
+                <div className="gba:space-y-3" data-testid="assign-employee-salary-review-details-section">
+                  <h3 className="gba:text-lg gba:font-semibold gba:mb-4">
+                    {t('assign-salary-review-assignment-details', { defaultValue: 'Assignment Details' })}
+                  </h3>
+
+                  {/* Start Date */}
+                  <div data-testid="assign-employee-salary-review-start-date">
+                    <div className="gba:text-sm gba:text-muted-foreground gba:mb-1">
+                      {t('assign-salary-review-start-date', { defaultValue: 'Start Date' })}
+                    </div>
+                    <div className="gba:font-medium">{assignmentDetails.startDate}</div>
+                  </div>
+
+                  {/* Notes - Only if present */}
+                  {assignmentDetails.notes && (
+                    <div data-testid="assign-employee-salary-review-notes">
+                      <div className="gba:text-sm gba:text-muted-foreground gba:mb-1">
+                        {t('assign-salary-review-notes', { defaultValue: 'Notes' })}
+                      </div>
+                      <div className="gba:font-medium gba:whitespace-pre-wrap">{assignmentDetails.notes}</div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

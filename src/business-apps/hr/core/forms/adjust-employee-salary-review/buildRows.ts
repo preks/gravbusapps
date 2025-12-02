@@ -5,6 +5,15 @@ import type { OldEmployeeCompensation, EmployeeSalaryData } from './types'
 
 type TranslationFunction = (key: string, options?: { defaultValue?: string; [key: string]: any }) => string
 
+/**
+ * Simple detail row for single-column display (used in assign mode)
+ */
+export interface DetailRow {
+  key: string
+  label: string
+  value: string
+}
+
 interface SalaryAdjustReasonEntry {
   id: string
   code: string
@@ -46,7 +55,8 @@ function formatCurrencyOrDash(value: number | null | undefined, currencyCode: st
 }
 
 /**
- * Build salary comparison rows (old vs new) - only actual salary changes
+ * Build salary comparison rows (old vs new) - only rows with actual data
+ * Hides rows that have no meaningful salary data (both old and new are 0 or null)
  */
 export function buildSalaryComparisonRows(params: {
   oldCompensation: OldEmployeeCompensation
@@ -59,50 +69,148 @@ export function buildSalaryComparisonRows(params: {
 
   const currencyCode = extractCurrencyCode(oldCompensation.currencyRef)
 
-  // Calculate missing monthly/annual salaries
-  // Old compensation - Calculate monthly from annual if monthly is null
-  const oldAnnual = oldCompensation.annualGrossSalary || 0
-  const oldMonthly = oldCompensation.monthlyGrossSalary ?? (oldAnnual > 0 ? oldAnnual / 12 : null)
-
-  // New salary data - Calculate monthly from annual if monthly is null
-  const newAnnual = newSalaryData.annualGrossSalary || 0
-  const newMonthly = newSalaryData.monthlyGrossSalary ?? (newAnnual > 0 ? newAnnual / 12 : null)
-
-  // Annual Salary - Always show
-  const annualRow: ReviewRow = {
-    key: 'annualSalary',
-    label: t('adjust-salary-review-annual-gross-salary', { defaultValue: 'Annual Gross Salary' }),
-    oldValue: formatCurrencyString(oldAnnual, { currency: currencyCode, locale }),
-    newValue: formatCurrencyString(newAnnual, { currency: currencyCode, locale })
-  }
-
-  // Monthly Salary - Always show (calculated if needed)
-  const monthlyRow: ReviewRow = {
-    key: 'monthlySalary',
-    label: t('adjust-salary-review-monthly-gross-salary', { defaultValue: 'Monthly Gross Salary' }),
-    oldValue: formatCurrencyOrDash(oldMonthly, currencyCode, locale),
-    newValue: formatCurrencyOrDash(newMonthly, currencyCode, locale)
-  }
-
-  rows.push(annualRow, monthlyRow)
-
-  // Hourly Salary - Show if either old or new has hourly data
+  // Get raw values from salary data
+  const rawOldAnnual = oldCompensation.annualGrossSalary
+  const rawOldMonthly = oldCompensation.monthlyGrossSalary
+  const rawNewAnnual = newSalaryData.annualGrossSalary
+  const rawNewMonthly = newSalaryData.monthlyGrossSalary
   const oldHourly = oldCompensation.hourlyGrossSalary
   const newHourly = newSalaryData.hourlyGrossSalary
 
-  const hasOldHourly = oldHourly !== null && oldHourly !== undefined
-  const hasNewHourly = newHourly !== null && newHourly !== undefined
-  if (hasOldHourly || hasNewHourly) {
-    const hourlyRow: ReviewRow = {
+  // Calculate annual - use provided value, or calculate from monthly if available
+  const oldAnnual =
+    rawOldAnnual && rawOldAnnual > 0 ? rawOldAnnual : rawOldMonthly && rawOldMonthly > 0 ? rawOldMonthly * 12 : 0
+  const newAnnual =
+    rawNewAnnual && rawNewAnnual > 0 ? rawNewAnnual : rawNewMonthly && rawNewMonthly > 0 ? rawNewMonthly * 12 : 0
+
+  // Calculate monthly - use provided value, or calculate from annual if available
+  const oldMonthly = rawOldMonthly && rawOldMonthly > 0 ? rawOldMonthly : oldAnnual > 0 ? oldAnnual / 12 : null
+  const newMonthly = rawNewMonthly && rawNewMonthly > 0 ? rawNewMonthly : newAnnual > 0 ? newAnnual / 12 : null
+
+  // Check if annual/monthly data exists (at least one side has raw data > 0)
+  const hasAnnualMonthlyData =
+    (rawOldAnnual && rawOldAnnual > 0) ||
+    (rawOldMonthly && rawOldMonthly > 0) ||
+    (rawNewAnnual && rawNewAnnual > 0) ||
+    (rawNewMonthly && rawNewMonthly > 0)
+
+  // Check if hourly data exists (at least one side has data > 0)
+  const hasHourlyData =
+    (oldHourly !== null && oldHourly !== undefined && oldHourly > 0) ||
+    (newHourly !== null && newHourly !== undefined && newHourly > 0)
+
+  // Annual Salary - Only show if there's actual annual/monthly data
+  if (hasAnnualMonthlyData) {
+    rows.push({
+      key: 'annualSalary',
+      label: t('adjust-salary-review-annual-gross-salary', { defaultValue: 'Annual Gross Salary' }),
+      oldValue: formatCurrencyString(oldAnnual, { currency: currencyCode, locale }),
+      newValue: formatCurrencyString(newAnnual, { currency: currencyCode, locale })
+    })
+
+    // Monthly Salary - Only show if annual/monthly data exists
+    rows.push({
+      key: 'monthlySalary',
+      label: t('adjust-salary-review-monthly-gross-salary', { defaultValue: 'Monthly Gross Salary' }),
+      oldValue: formatCurrencyOrDash(oldMonthly, currencyCode, locale),
+      newValue: formatCurrencyOrDash(newMonthly, currencyCode, locale)
+    })
+  }
+
+  // Hourly Salary - Only show if there's actual hourly data
+  if (hasHourlyData) {
+    rows.push({
       key: 'hourlySalary',
       label: t('adjust-salary-review-hourly-gross-salary', { defaultValue: 'Hourly Gross Salary' }),
       oldValue: formatCurrencyOrDash(oldHourly, currencyCode, locale),
       newValue: formatCurrencyOrDash(newHourly, currencyCode, locale)
-    }
-    rows.push(hourlyRow)
+    })
   }
 
   return rows
+}
+
+/**
+ * Build detail rows for assign mode (single-column, no comparison)
+ * Shows only the new salary being assigned to the employee
+ */
+export function buildNewSalaryDetailRows(params: {
+  newSalaryData: EmployeeSalaryData
+  locale: string
+  t: TranslationFunction
+}): DetailRow[] {
+  const { newSalaryData, locale, t } = params
+  const rows: DetailRow[] = []
+
+  const currencyCode = extractCurrencyCode(newSalaryData.currencyRef)
+
+  // Get raw values from salary data
+  const rawAnnual = newSalaryData.annualGrossSalary
+  const rawMonthly = newSalaryData.monthlyGrossSalary
+  const newHourly = newSalaryData.hourlyGrossSalary
+
+  // Calculate annual - use provided value, or calculate from monthly if available
+  const newAnnual = rawAnnual && rawAnnual > 0 ? rawAnnual : rawMonthly && rawMonthly > 0 ? rawMonthly * 12 : 0
+
+  // Calculate monthly - use provided value, or calculate from annual if available
+  const newMonthly = rawMonthly && rawMonthly > 0 ? rawMonthly : newAnnual > 0 ? newAnnual / 12 : null
+
+  // Determine salary type based on what's being assigned
+  // Only consider hourly if there's no annual/monthly data at all
+  const hasAnnualMonthlyData = (rawAnnual && rawAnnual > 0) || (rawMonthly && rawMonthly > 0)
+  const isHourlySalary = newHourly !== null && newHourly !== undefined && newHourly > 0 && !hasAnnualMonthlyData
+
+  if (isHourlySalary) {
+    // Hourly salary assignment
+    rows.push({
+      key: 'hourlySalary',
+      label: t('assign-salary-review-hourly-salary', { defaultValue: 'Hourly Gross Salary' }),
+      value: formatCurrencyString(newHourly, { currency: currencyCode, locale })
+    })
+  } else {
+    // Annual/Monthly salary assignment - only show rows with meaningful values
+    if (newAnnual > 0) {
+      rows.push({
+        key: 'annualSalary',
+        label: t('assign-salary-review-annual-salary', { defaultValue: 'Annual Gross Salary' }),
+        value: formatCurrencyString(newAnnual, { currency: currencyCode, locale })
+      })
+    }
+
+    if (newMonthly !== null && newMonthly > 0) {
+      rows.push({
+        key: 'monthlySalary',
+        label: t('assign-salary-review-monthly-salary', { defaultValue: 'Monthly Gross Salary' }),
+        value: formatCurrencyString(newMonthly, { currency: currencyCode, locale })
+      })
+    }
+  }
+
+  // Currency
+  rows.push({
+    key: 'currency',
+    label: t('assign-salary-review-currency', { defaultValue: 'Currency' }),
+    value: currencyCode
+  })
+
+  return rows
+}
+
+/**
+ * Build assignment details for assign mode (no comparison/increase)
+ */
+export function buildAssignmentDetails(params: { newSalaryData: EmployeeSalaryData }): {
+  startDate: string
+  notes?: string
+} {
+  const { newSalaryData } = params
+
+  const startDateFormatted = formatEffectiveDate(newSalaryData.startDate)
+
+  return {
+    startDate: startDateFormatted,
+    notes: String(newSalaryData.notes ?? '').trim() || undefined
+  }
 }
 
 /**
@@ -141,7 +249,8 @@ function calculateHourlyIncreaseSummary(
   oldCompensation: OldEmployeeCompensation,
   newSalaryData: EmployeeSalaryData,
   currencyCode: string,
-  locale: string
+  locale: string,
+  t: TranslationFunction
 ): string {
   const oldHourly = oldCompensation.hourlyGrossSalary || 0
   const newHourly = newSalaryData.hourlyGrossSalary || 0
@@ -149,7 +258,11 @@ function calculateHourlyIncreaseSummary(
   const hourlyPercentageIncrease = oldHourly > 0 ? ((hourlyIncrease / oldHourly) * 100).toFixed(1) : '0.0'
 
   if (hourlyIncrease > 0) {
-    return `+${formatCurrencyString(hourlyIncrease, { currency: currencyCode, locale })}/hr (${hourlyPercentageIncrease}% increase)`
+    const increaseText = t('adjust-salary-review-increase-text', {
+      percentage: hourlyPercentageIncrease,
+      defaultValue: `${hourlyPercentageIncrease}% increase`
+    })
+    return `+${formatCurrencyString(hourlyIncrease, { currency: currencyCode, locale })}/hr (${increaseText})`
   }
   return formatCurrencyString(hourlyIncrease, { currency: currencyCode, locale }) + '/hr'
 }
@@ -162,7 +275,8 @@ function calculateAnnualIncreaseSummary(
   newSalaryData: EmployeeSalaryData,
   adjustmentValueDisplay: string,
   currencyCode: string,
-  locale: string
+  locale: string,
+  t: TranslationFunction
 ): string {
   const oldAnnual = oldCompensation.annualGrossSalary || 0
   const newAnnual = newSalaryData.annualGrossSalary || 0
@@ -173,7 +287,11 @@ function calculateAnnualIncreaseSummary(
     const percentageIncrease = oldAnnual > 0 ? ((absoluteIncrease / oldAnnual) * 100).toFixed(1) : '0.0'
 
     if (absoluteIncrease > 0) {
-      return `+${formatCurrencyString(absoluteIncrease, { currency: currencyCode, locale })} (${percentageIncrease}% increase)`
+      const increaseText = t('adjust-salary-review-increase-text', {
+        percentage: percentageIncrease,
+        defaultValue: `${percentageIncrease}% increase`
+      })
+      return `+${formatCurrencyString(absoluteIncrease, { currency: currencyCode, locale })} (${increaseText})`
     }
     return formatCurrencyString(absoluteIncrease, { currency: currencyCode, locale })
   }
@@ -236,8 +354,8 @@ export function buildAdjustmentDetails(params: {
   // Calculate increase summary (e.g., "+€6,000 (10% increase)")
   const isHourlyAdjustment = isHourlyOnlyAdjustment(oldCompensation, newSalaryData)
   const increaseSummary = isHourlyAdjustment
-    ? calculateHourlyIncreaseSummary(oldCompensation, newSalaryData, currencyCode, locale)
-    : calculateAnnualIncreaseSummary(oldCompensation, newSalaryData, adjustmentValueDisplay, currencyCode, locale)
+    ? calculateHourlyIncreaseSummary(oldCompensation, newSalaryData, currencyCode, locale, t)
+    : calculateAnnualIncreaseSummary(oldCompensation, newSalaryData, adjustmentValueDisplay, currencyCode, locale, t)
 
   const effectiveDateFormatted = formatEffectiveDate(newSalaryData.startDate)
   const reasonDisplay = extractReasonDisplay(newSalaryData.salaryAdjustReason, salaryAdjustReasonEntries)
