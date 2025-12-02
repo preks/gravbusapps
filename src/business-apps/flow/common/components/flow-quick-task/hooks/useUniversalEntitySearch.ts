@@ -507,13 +507,6 @@ export const useUniversalEntitySearch = (options: UseUniversalEntitySearchOption
         const employeeId = emp.employee?.id || emp.employeeId
         const generatedUrl = generateEntityDisplayUrl('employee', employeeId)
 
-        // Debug: Log what URL we're generating
-        console.log('[Employee URL Debug]', {
-          employeeId,
-          generatedUrl,
-          empData: emp
-        })
-
         results.push({
           id: employeeId,
           name,

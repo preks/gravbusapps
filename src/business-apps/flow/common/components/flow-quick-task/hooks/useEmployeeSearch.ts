@@ -40,7 +40,6 @@ export const useEmployeeSearch = (options: UseEmployeeSearchOptions | string): U
     async (searchTerm: string) => {
       // Skip if we've already fetched this exact search term (prevent duplicate fetches)
       if (lastSearchRef.current === searchTerm) {
-        console.log('[useEmployeeSearch] Skipping duplicate search for:', searchTerm)
         return
       }
 
@@ -67,13 +66,6 @@ export const useEmployeeSearch = (options: UseEmployeeSearchOptions | string): U
         // Search: show all structure employees matching search term
         const isInitialLoad = !searchTerm || searchTerm.trim() === ''
         const structureId = getCurrentActiveStructureId()
-
-        console.log('[useEmployeeSearch] Search params:', {
-          searchTerm,
-          isInitialLoad,
-          hasCurrentUserId: !!currentUserId,
-          structureId
-        })
 
         // On initial load with currentUserId, get team members from same org unit
         // OPTIMIZED: Filter by organizational unit in GraphQL query (server-side)
@@ -147,8 +139,6 @@ export const useEmployeeSearch = (options: UseEmployeeSearchOptions | string): U
 
         // For initial load with team members, use two-step query (optimized)
         if (currentUserId && isInitialLoad) {
-          console.log('[useEmployeeSearch] Fetching team members for currentUserId:', currentUserId)
-
           // Step 1: Get current user's organizational unit (no limit needed for this query)
           const orgUnitResponse = await graphqlClient.request<{
             currentUserPosition: any[]
@@ -159,8 +149,6 @@ export const useEmployeeSearch = (options: UseEmployeeSearchOptions | string): U
           })
 
           const currentUserOrgUnitId = orgUnitResponse.currentUserPosition[0]?.organizationalUnitId
-
-          console.log('[useEmployeeSearch] User org unit ID:', currentUserOrgUnitId)
 
           // Step 2: Fetch ONLY employees from that organizational unit (server-side filter)
           if (currentUserOrgUnitId) {
@@ -203,20 +191,16 @@ export const useEmployeeSearch = (options: UseEmployeeSearchOptions | string): U
             })
 
             employeePositions = teamMembersResponse.EmployeePosition
-            console.log('[useEmployeeSearch] Team members fetched:', employeePositions.length)
           } else {
             console.warn('[useEmployeeSearch] No org unit found for user, falling back to search')
           }
         } else {
           // For search, use single query
-          console.log('[useEmployeeSearch] Using search query (not initial load or no currentUserId)')
-
           const response = await graphqlClient.request<{
             EmployeePosition: any[]
           }>(query, variables)
 
           employeePositions = response.EmployeePosition
-          console.log('[useEmployeeSearch] Search results:', employeePositions.length)
         }
 
         const formattedEmployees: Employee[] = employeePositions

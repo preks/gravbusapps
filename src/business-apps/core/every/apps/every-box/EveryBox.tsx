@@ -42,7 +42,8 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import {
   QuickTaskModal,
   QuickTaskFormData,
-  QuickTaskFlowService
+  QuickTaskFlowService,
+  useQuickTaskFileUpload
 } from '@/business-apps/flow/common/components/flow-quick-task'
 import { useFeature } from '@/common/hooks/useFeature'
 import { Feature } from '@/common/types/constants/FeatureHub'
@@ -101,6 +102,11 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
 
   const [isQuickTaskModalOpen, setIsQuickTaskModalOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<ViewType>(getInitialView())
+
+  // File upload hook for Blink attachments
+  const { uploadFiles } = useQuickTaskFileUpload({
+    accessToken: context.accessToken
+  })
 
   // Fetch inbox tasks (active)
   const {
@@ -211,10 +217,30 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
     try {
       const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
 
-      // Execute the quick task using the service method
+      // Step 1: Upload files first if any are attached
+      let uploadResults: any[] = []
+      if (data.documents && data.documents.length > 0) {
+        // Extract actual File objects from QuickTaskUploadFile[] (skip files with errors)
+        const filesToUpload = data.documents
+          .filter(doc => doc.originFileObj && doc.status !== 'error')
+          .map(doc => doc.originFileObj!)
+
+        if (filesToUpload.length > 0) {
+          try {
+            uploadResults = await uploadFiles(filesToUpload)
+          } catch (uploadError) {
+            message.error(
+              `Failed to upload attachments: ${uploadError instanceof Error ? uploadError.message : 'Unknown error'}`
+            )
+            throw uploadError // Re-throw to prevent task creation with missing attachments
+          }
+        }
+      }
+
+      // Step 2: Execute the quick task with uploaded file results
       await QuickTaskFlowService.executeQuickTask({
         formData: data,
-        uploadResults: [], // File upload results if needed
+        uploadResults, // Now includes actual uploaded file data
         accessToken: context.accessToken,
         initiatorId: context.userInfo?.id || context.userInfo?.employeeDetails?.employeeId || 'unknown',
         apiBaseUrl: baseUrl

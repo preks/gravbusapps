@@ -173,13 +173,6 @@ export const QuickTaskFormFields: React.FC<QuickTaskFormFieldsProps> = ({
                   value={form.watch('entityId')}
                   onChange={(entityId, entityData) => {
                     if (entityData) {
-                      console.log('[Entity Selected]', {
-                        id: entityData.id,
-                        type: entityData.type,
-                        name: entityData.name,
-                        displayUrl: entityData.displayUrl,
-                        metadata: entityData.metadata
-                      })
                       form.setValue('entityId', entityData.id)
                       form.setValue('entityType', entityData.type)
                       form.setValue('entityName', entityData.name)

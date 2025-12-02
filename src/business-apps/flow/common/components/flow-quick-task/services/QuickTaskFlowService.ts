@@ -55,12 +55,8 @@ export class QuickTaskFlowService {
    * Generate a dynamic Quick Task template from form data
    */
   static generateFlowTemplate(data: QuickTaskFlowData): FlowTemplate {
-    console.log('[QuickTaskFlowService] generateFlowTemplate called with uploadResults:', data.uploadResults)
-
     // Create links for uploaded documents using actual file service results
     const documentLinks: Link[] = (data.uploadResults || []).map(result => {
-      console.log('[QuickTaskFlowService] Processing upload result:', result)
-
       const fileInfo = result?.fileInfo || result
       const fileMetadata = fileInfo?.fileMetadata || {}
 
@@ -84,11 +80,8 @@ export class QuickTaskFlowService {
         type: `document:${fileInfo?.fileId || 'unknown'}` // Include fileId in type for reference
       }
 
-      console.log('[QuickTaskFlowService] Generated link:', link)
       return link
     })
-
-    console.log('[QuickTaskFlowService] Total document links:', documentLinks.length, documentLinks)
 
     // Add entity reference as a special link (if provided)
     const allLinks: Link[] = [...documentLinks]
@@ -103,10 +96,7 @@ export class QuickTaskFlowService {
         }
       }
       allLinks.push(entityLink)
-      console.log('[QuickTaskFlowService] Added entity reference link:', entityLink)
     }
-
-    console.log('[QuickTaskFlowService] Total links (documents + entity):', allLinks.length, allLinks)
 
     // Calculate due date/time
     const dueConfig = this.calculateDueConfig(data)
@@ -121,8 +111,6 @@ export class QuickTaskFlowService {
       assignment: data.assignments,
       ...dueConfig // Either dueInMinutes or dueDate
     }
-
-    console.log('[QuickTaskFlowService] Created step with links:', step.links)
 
     // Tag for blink app filtering
     const tags = {
@@ -246,9 +234,6 @@ export class QuickTaskFlowService {
             entityDisplayUrl: formData.entityDisplayUrl
           })
       }
-
-      // Debug: Log what's being stored in workflow tags
-      console.log('[QuickTask Service] Workflow tags:', tagsWithGroup)
 
       // Execute the workflow for this assignee
       const response = await fetch(`${apiBaseUrl}/api/templates/execute-dynamic`, {
