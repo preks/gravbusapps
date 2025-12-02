@@ -2,8 +2,11 @@
 import { useCallback, useState, useEffect, useMemo } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import type { InvestmentOpportunity, INVESTMENT_OPPORTUNITY_DESCRIPTORS } from '../types/investmentOpportunityTypes'
-import { toInvestmentOpportunity } from '../types/investmentOpportunityTypes'
+import {
+  type InvestmentOpportunity,
+  toInvestmentOpportunity,
+  INVESTMENT_OPPORTUNITY_DESCRIPTORS
+} from '../types/investmentOpportunityTypes'
 import type { InvestmentTask } from '../types/investmentTaskTypes'
 import type { InvestmentActivity } from '../types/investmentActivityTypes'
 import type { InvestmentNote } from '../types/investmentNoteTypes'

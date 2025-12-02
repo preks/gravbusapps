@@ -165,13 +165,30 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
       try {
         const existingAllocations = await getAllocationsForAsset(assetId)
         const newStart = new Date(startDate)
+        newStart.setHours(0, 0, 0, 0)
         const newEnd = expectedEndDate ? new Date(expectedEndDate) : null
+        if (newEnd) {
+          newEnd.setHours(0, 0, 0, 0)
+        }
+
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
 
         for (const allocation of existingAllocations) {
-          if (allocation.isDeleted || allocation.endDate) continue
+          if (allocation.isDeleted) continue
+          if (allocation.endDate) continue
+          if (allocation.expectedEndDate) {
+            const expectedEnd = new Date(allocation.expectedEndDate)
+            expectedEnd.setHours(0, 0, 0, 0)
+            if (expectedEnd < today) continue
+          }
 
           const existingStart = new Date(allocation.startDate)
+          existingStart.setHours(0, 0, 0, 0)
           const existingEnd = allocation.expectedEndDate ? new Date(allocation.expectedEndDate) : null
+          if (existingEnd) {
+            existingEnd.setHours(0, 0, 0, 0)
+          }
 
           const hasOverlap =
             (newEnd === null || newEnd >= existingStart) && (existingEnd === null || newStart <= existingEnd)

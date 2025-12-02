@@ -69,6 +69,9 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/content/intranet': 'core/content/apps/content-portal',
   '/platform/content/intranet/content-record': 'core/content/records/content-record',
 
+  // Platform
+  '/platform/every-ai': 'platform/apps/every-ai',
+
   // Obsolete
   // TODO: Clean Up
   '/platform/crm/lead-list': 'crm/common/apps/lead-list',

@@ -136,7 +136,8 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
   )
 
   const fileClient = useFileClient({ accessToken: context.accessToken } as any)
-  const employeeId = context.userInfo?.employeeDetails?.employeeId
+  const flowEmployeeId = (context as any)?.additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId
+  const employeeId = flowEmployeeId || context.userInfo?.employeeDetails?.employeeId
 
   return (
     <div
@@ -313,7 +314,10 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
                     <DateInput
                       type="date"
                       value={field.value || ''}
-                      onChange={(v?: string) => field.onChange(v || '')}
+                      onChange={(v: string | [string | null, string | null] | null) => {
+                        const single = Array.isArray(v) ? v?.[0] : v
+                        field.onChange(single || '')
+                      }}
                       className="gba:w-full"
                     />
                   </div>

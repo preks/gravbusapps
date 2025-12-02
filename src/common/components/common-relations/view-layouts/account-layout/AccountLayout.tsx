@@ -245,13 +245,16 @@ function ConfigAccountLayout<TAccount extends Account = Account, TQueryVariables
     }
   }, [availableColumns, visibleColumns.length])
 
-  // Row actions - rendered internally
-  const rowActions = useMemo(
-    () => (row: { original: TAccount }) => (
+  // Row actions - rendered internally (only if actions are configured)
+  const rowActions = useMemo(() => {
+    // Hide actions column if no actions are configured
+    if (!config.rowActionsContextArray || config.rowActionsContextArray.length === 0) {
+      return undefined
+    }
+    return (row: { original: TAccount }) => (
       <AccountRowActions row={row} config={config} accessToken={context?.accessToken || ''} />
-    ),
-    [config, context?.accessToken]
-  )
+    )
+  }, [config, context?.accessToken])
 
   if (!context) {
     console.error('AccountLayout: context is required')

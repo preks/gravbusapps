@@ -1,96 +1,98 @@
-import React, { useMemo, useEffect } from 'react'
+import React, { useMemo } from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { SalesTeamMember } from '../../sales-members-list/types'
-import { useTeamAnalyticsData } from '../hooks/useTeamAnalyticsData'
 import { PiUsers, PiChartLine, PiTrendUp, PiCalendar } from 'react-icons/pi'
 
 const DATA_TEST_ID_PREFIX = 'TeamActivitiesStatistics'
 
+interface ActivityTypeAggregate {
+  activityType: string
+  count: number
+}
+
 interface TeamActivitiesStatisticsProps extends BusinessAppContextProps {
   teamMembers: SalesTeamMember[]
+  activityTypeAggregates: ActivityTypeAggregate[]
+  totalActivities: number
+  totalActivitiesLast30Days: number
+  thisWeekActivities: number
+  thisWeekActivitiesLast30Days: number
+  loading: boolean
+  error: string | null
+  retry: () => void
 }
 
 export const TeamActivitiesStatistics: React.FC<TeamActivitiesStatisticsProps> = ({
   teamMembers,
-  accessToken,
-  userInfo
+  activityTypeAggregates,
+  totalActivities,
+  totalActivitiesLast30Days,
+  thisWeekActivities,
+  thisWeekActivitiesLast30Days,
+  loading,
+  error,
+  retry
 }) => {
-  // Get employee IDs for data fetching
-  const employeeIds = useMemo(() => {
-    const memberIds = teamMembers.map(member => member.employeeId || member.id).filter((id): id is string => !!id)
+  // Data is passed from parent component (TeamPerformanceView)
 
-    // Also include manager IDs
-    const managerIds = teamMembers.map(member => member.manager?.id).filter((id): id is string => !!id)
-
-    return Array.from(new Set([...memberIds, ...managerIds]))
-  }, [teamMembers])
-
-  // Use the specialized analytics data hook (no query limits for comprehensive statistics)
-  const { activities, total, loading, error, loadAnalyticsData, retry } = useTeamAnalyticsData({
-    employeeIds,
-    accessToken,
-    userInfo
-  })
-
-  // Load data when component mounts or dependencies change
-  useEffect(() => {
-    if (employeeIds.length > 0) {
-      console.log('TeamActivitiesStatistics: Loading comprehensive analytics data for', employeeIds.length, 'employees')
-      loadAnalyticsData()
+  // Calculate trends (percentage change vs last 30 days)
+  const calculateTrend = (current: number, previous: number): { value: string; positive: boolean } => {
+    if (previous === 0) {
+      return {
+        value: current > 0 ? '+100%' : '0%',
+        positive: current > 0
+      }
     }
-  }, [employeeIds, loadAnalyticsData])
 
-  // Debug logging
-  useEffect(() => {
-    console.log('TeamActivitiesStatistics: Data state', {
-      activitiesCount: activities.length,
-      total,
-      loading,
-      error,
-      employeeIdsCount: employeeIds.length
-    })
-  }, [activities, total, loading, error, employeeIds])
+    const change = ((current - previous) / previous) * 100
+    const positive = change >= 0
 
-  // Calculate team statistics
+    return {
+      value: `${positive ? '+' : ''}${change.toFixed(1)}%`,
+      positive
+    }
+  }
+
+  // Calculate team statistics using aggregates
   const teamStats = useMemo(() => {
-    if (!activities.length) {
+    if (!activityTypeAggregates.length && totalActivities === 0) {
       return {
         totalActivities: 0,
+        totalActivitiesTrend: calculateTrend(0, 0),
         thisWeekActivities: 0,
+        thisWeekActivitiesTrend: calculateTrend(0, 0),
         avgPerMember: 0,
+        avgPerMemberTrend: calculateTrend(0, 0),
         mostActiveType: 'N/A'
       }
     }
 
-    const now = new Date()
-    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+    const mostActiveType =
+      activityTypeAggregates.length > 0
+        ? activityTypeAggregates.toSorted((a, b) => b.count - a.count)[0].activityType
+        : 'N/A'
 
-    const thisWeekActivities = activities.filter(activity => {
-      if (!activity.createdAt) return false
-      const createdDate = new Date(activity.createdAt)
-      return createdDate >= weekAgo
-    }).length
-
-    // Count activity types
-    const typeCounts = activities.reduce(
-      (acc, activity) => {
-        const type = activity.activityType?.value || 'Unknown'
-        acc[type] = (acc[type] || 0) + 1
-        return acc
-      },
-      {} as Record<string, number>
-    )
-
-    const mostActiveType = Object.entries(typeCounts).sort(([, a], [, b]) => b - a)[0]?.[0] || 'N/A'
+    const avgPerMember = teamMembers.length > 0 ? totalActivities / teamMembers.length : 0
+    const avgPerMemberLast30Days = teamMembers.length > 0 ? totalActivitiesLast30Days / teamMembers.length : 0
 
     return {
-      totalActivities: total,
+      totalActivities,
+      totalActivitiesTrend: calculateTrend(totalActivities, totalActivitiesLast30Days),
       thisWeekActivities,
-      avgPerMember: teamMembers.length > 0 ? total / teamMembers.length : 0,
+      thisWeekActivitiesTrend: calculateTrend(thisWeekActivities, thisWeekActivitiesLast30Days),
+      avgPerMember,
+      avgPerMemberTrend: calculateTrend(avgPerMember, avgPerMemberLast30Days),
       mostActiveType
     }
-  }, [activities, total, teamMembers.length])
+  }, [
+    activityTypeAggregates,
+    totalActivities,
+    totalActivitiesLast30Days,
+    thisWeekActivities,
+    thisWeekActivitiesLast30Days,
+    teamMembers.length
+  ])
 
   // Create widget items for statistics
   const createStatisticsWidgets = (): WidgetItem[] => [
@@ -101,7 +103,12 @@ export const TeamActivitiesStatistics: React.FC<TeamActivitiesStatisticsProps> =
       prefix: <PiChartLine />,
       color: '#1677ff',
       description: 'All team activities recorded',
-      precision: 0
+      precision: 0,
+      trend: {
+        value: teamStats.totalActivitiesTrend.value,
+        positive: teamStats.totalActivitiesTrend.positive,
+        description: 'vs last 30 days'
+      }
     },
     {
       key: 'this-week-activities',
@@ -110,7 +117,12 @@ export const TeamActivitiesStatistics: React.FC<TeamActivitiesStatisticsProps> =
       prefix: <PiTrendUp />,
       color: '#52c41a',
       description: 'Activities created this week',
-      precision: 0
+      precision: 0,
+      trend: {
+        value: teamStats.thisWeekActivitiesTrend.value,
+        positive: teamStats.thisWeekActivitiesTrend.positive,
+        description: 'vs same week last month'
+      }
     },
     {
       key: 'avg-per-member',
@@ -119,7 +131,12 @@ export const TeamActivitiesStatistics: React.FC<TeamActivitiesStatisticsProps> =
       prefix: <PiUsers />,
       color: '#722ed1',
       description: 'Average activities per team member',
-      precision: 1
+      precision: 1,
+      trend: {
+        value: teamStats.avgPerMemberTrend.value,
+        positive: teamStats.avgPerMemberTrend.positive,
+        description: 'vs last 30 days'
+      }
     },
     {
       key: 'most-active-type',

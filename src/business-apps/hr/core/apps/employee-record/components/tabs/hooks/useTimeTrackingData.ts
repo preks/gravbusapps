@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import {
   employeeAttendanceMonthlyQuery,
@@ -73,6 +73,11 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
   const [monthlyRequiredMinutes, setMonthlyRequiredMinutes] = useState(0)
   const [monthlyRequiredUntilYesterdayMinutes, setMonthlyRequiredUntilYesterdayMinutes] = useState(0)
   const [monthlyWorkedUntilYesterdayMinutes, setMonthlyWorkedUntilYesterdayMinutes] = useState(0)
+  // today's totals
+  const [todaysWorkedMinutes, setTodaysWorkedMinutes] = useState(0)
+  const [todaysProjectMinutes, setTodaysProjectMinutes] = useState(0)
+  const [todaysPlannedMinutes, setTodaysPlannedMinutes] = useState(0)
+  const [todayRecordedMinutes, setTodayRecordedMinutes] = useState(0)
 
   const prevMonth = useCallback(() => {
     setPage(1)
@@ -189,10 +194,35 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
 
     setIsClockedIn(isOpenAndToday)
     setClockInSince(
-      isOpenAndToday && mostRecent?.startTime
-        ? new Date(mostRecent.startTime).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
-        : null
+      isOpenAndToday && mostRecent?.startTime ? String(formatDate(mostRecent.startTime, 'time.short')) : null
     )
+
+    // compute today's worked minutes
+    try {
+      const todayKeyLocal = toLocalDateKey(new Date())
+      let todayMinutes = 0
+      let todayRecordedMinutes = 0
+      const todayRow = rows.find((r: any) => String(r?.attendanceDate) === todayKeyLocal)
+      if (todayRow?.effectiveTime) {
+        todayMinutes = parseDurationToMinutes(String(todayRow.effectiveTime))
+        todayRecordedMinutes = parseDurationToMinutes(String(todayRow.recordedTime))
+      }
+      if (isOpenAndToday && mostRecent?.startTime) {
+        const now = new Date()
+        const start = new Date(mostRecent.startTime)
+        const recorded = Math.max(0, Math.round((now.getTime() - start.getTime()) / 60000))
+        // assume 1h break for simplicity, capped at recorded
+        const effective = Math.max(0, recorded - 60)
+        todayMinutes = Math.max(todayMinutes, effective)
+        todayRecordedMinutes = Math.max(todayRecordedMinutes, recorded)
+      }
+      setTodaysWorkedMinutes(todayMinutes)
+      setTodayRecordedMinutes(todayRecordedMinutes)
+    } catch {
+      setTodaysWorkedMinutes(0)
+    }
+    // no project tracking yet in this screen
+    setTodaysProjectMinutes(0)
 
     // Resolve region holidays and build a set of holiday dates for current month
     const activeLocale = locale || 'en-US'
@@ -286,6 +316,14 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       return acc
     }, 0)
     setMonthlyWorkedUntilYesterdayMinutes(workedUntilYesterday)
+
+    // planned minutes for today from working hours
+    try {
+      const todayIso = new Date().toISOString()
+      setTodaysPlannedMinutes(getPlannedMinutesForDate(todayIso))
+    } catch {
+      setTodaysPlannedMinutes(0)
+    }
   }, [graphqlClient, employeeId, currentMonth, page, pageSize, locale])
 
   useEffect(() => {
@@ -345,7 +383,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       })
 
       setIsClockedIn(true)
-      setClockInSince(now.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }))
+      setClockInSince(String(formatDate(now, 'time.short')))
 
       // Refresh current page
       await loadFromGraphql()
@@ -360,9 +398,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     setIsSubmitting(true)
     try {
       const now = new Date()
-      // Simulate clock-out 5 hours later than current time
-      const simulatedEndTime = new Date(now.getTime() + 5 * 60 * 60 * 1000)
-      const isoNow = simulatedEndTime.toISOString()
+      const isoNow = now.toISOString()
 
       // Most recent record is first; must be open (no endTime)
       const mostRecent = allEntries[0]
@@ -375,11 +411,11 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       if (accessToken) client.setAccessToken(accessToken)
 
       const start = new Date(mostRecent.startTimeISO as string)
-      const recordedMs = Math.max(0, simulatedEndTime.getTime() - start.getTime())
+      const recordedMs = Math.max(0, now.getTime() - start.getTime())
       const recordedMinutes = Math.max(0, Math.round(recordedMs / 60000))
       const plannedMinutes = getPlannedMinutesForDate(mostRecent.attendanceDateISO)
-      // hardcoded 1h break
-      const breakMinutes = 60
+      // Use existing break time if present; otherwise 0
+      const breakMinutes = parseDurationToMinutes(mostRecent.breakTime || '0h')
       const effectiveMinutes = Math.max(0, recordedMinutes - breakMinutes)
       const diffMs = effectiveMinutes * 60000 - plannedMinutes * 60000
       const diffMinutes = diffMs === 0 ? 0 : Math.sign(diffMs) * Math.ceil(Math.abs(diffMs) / 60000)
@@ -443,6 +479,10 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     monthlyRequiredMinutes,
     monthlyRequiredUntilYesterdayMinutes,
     monthlyWorkedUntilYesterdayMinutes,
+    todaysWorkedMinutes,
+    todaysProjectMinutes,
+    todaysPlannedMinutes,
+    todayRecordedMinutes,
     // actions
     setSort: (key: keyof TimeEntry, dir: SortDirection) => {
       setPage(1)

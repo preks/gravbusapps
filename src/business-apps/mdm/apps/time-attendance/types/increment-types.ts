@@ -10,3 +10,21 @@ export interface IncrementType {
 export interface IncrementTypesResponse {
   IncrementType: IncrementType[]
 }
+
+export interface SimpleIncrementTypeResponse {
+  IncrementType: Array<{
+    id: string
+    name: string
+    version: number
+    code: string
+    incrementTypeVersion: { id: string }[]
+  }>
+}
+
+export interface SimpleIncrementType {
+  id: string
+  name: string
+  version: number
+  code: string
+  incrementTypeVersion: string[]
+}

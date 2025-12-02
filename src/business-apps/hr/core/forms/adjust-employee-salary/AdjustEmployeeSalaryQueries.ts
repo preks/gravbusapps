@@ -10,10 +10,12 @@ export const EMPLOYEE_DATA_QUERY = `query fetchEmployee($idEmployee: uuid!) {
 `
 
 export const EMPLOYEE_COMPENSATION_QUERY = `query fetchEmployeeCompensation($idEmployee: uuid!) {
-  EmployeeWorkingCondition(
-    where: { employeeId: { _eq: $idEmployee } }
-    orderBy: { createdAt: DESC }
-    limit: 1
+  AllEmployeeSalaries: EmployeeSalary(
+    where: { 
+      employeeId: { _eq: $idEmployee }
+      isDeleted: { _eq: false }
+    }
+    orderBy: [{ activeFrom: DESC }, { createdAt: DESC }]
   ) {
     id
     employeeId
@@ -21,6 +23,12 @@ export const EMPLOYEE_COMPENSATION_QUERY = `query fetchEmployeeCompensation($idE
     monthlyGrossSalary
     hourlyGrossSalary
     currencyRef
+    activeFrom
+    activeTo
+    startDate
+    endDate
+    createdAt
+    isDeleted
     currency {
       id
       code
@@ -37,4 +45,29 @@ export const EMPLOYEE_COMPENSATION_QUERY = `query fetchEmployeeCompensation($idE
 }
 `
 
-// No pay frequency catalog query needed - frequency is determined from employee compensation data
+export const SALARY_ADJUST_REASON_CATALOG_QUERY = `query fetchSalaryAdjustReasonCatalog {
+  CatalogEntry(
+    where: {
+      _and: [
+        { catalog: { identifier: { _eq: "SalaryAdjustReason" }, version: { _eq: "v1" } } },
+        { isDeleted: { _neq: true } }
+      ]
+    }
+    orderBy: [{ displayOrder: ASC }, { value: ASC }]
+  ) {
+    id
+    code
+    value
+    displayOrder
+    translations {
+      localeCode
+      value
+    }
+    catalog {
+      identifier
+      version
+      defaultLocale
+    }
+  }
+}
+`

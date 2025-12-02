@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { calculateTrend, getCurrentAndPreviousMonthDates } from '../../../utils/trendCalculations'
 
 export interface TrendData {
   currentValue: number
@@ -43,274 +44,11 @@ export const useSalesTeamTrendData = (accessToken: string) => {
       trend: 'stable',
       trendPercentage: 0
     },
-    isLoading: true,
+    isLoading: !!accessToken,
     error: null
   })
 
   const graphqlClient = useGraphQLClient(accessToken)
-
-  const calculateTrend = (
-    current: number,
-    previous: number
-  ): { trend: 'up' | 'down' | 'stable'; percentage: number } => {
-    if (previous === 0 && current > 0) return { trend: 'up', percentage: 100 }
-    if (previous === 0 && current === 0) return { trend: 'stable', percentage: 0 }
-
-    const percentage = ((current - previous) / previous) * 100
-    const trend = percentage > 5 ? 'up' : percentage < -5 ? 'down' : 'stable'
-
-    return { trend, percentage } // ✅ Removed Math.abs() to preserve sign
-  }
-
-  const getCurrentAndPreviousMonthDates = () => {
-    const now = new Date()
-    const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-    const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-    const previousMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59)
-
-    return {
-      currentStart: currentMonth.toISOString(),
-      previousStart: previousMonth.toISOString(),
-      previousEnd: previousMonthEnd.toISOString()
-    }
-  }
-
-  const fetchRevenueTrends = async () => {
-    const { currentStart, previousStart, previousEnd } = getCurrentAndPreviousMonthDates()
-
-    // Current month closed opportunities
-    const currentRevenueQuery = `
-      query GetCurrentMonthRevenue {
-        Opportunity(
-          where: {
-            closeDate: { _gte: "${currentStart}" }
-            salesPipelineStage: { value: { _eq: "Closed Won" } }
-            isDeleted: { _eq: false }
-          }
-        ) {
-          estimatedAmount
-        }
-      }
-    `
-
-    // Previous month closed opportunities
-    const previousRevenueQuery = `
-      query GetPreviousMonthRevenue {
-        Opportunity(
-          where: {
-            closeDate: { _gte: "${previousStart}", _lte: "${previousEnd}" }
-            salesPipelineStage: { value: { _eq: "Closed Won" } }
-            isDeleted: { _eq: false }
-          }
-        ) {
-          estimatedAmount
-        }
-      }
-    `
-
-    try {
-      const [currentResult, previousResult] = await Promise.all([
-        graphqlClient.request(currentRevenueQuery),
-        graphqlClient.request(previousRevenueQuery)
-      ])
-
-      const currentRevenue = (currentResult as any).Opportunity.reduce(
-        (sum: number, opp: any) => sum + (opp.estimatedAmount || 0),
-        0
-      )
-      const previousRevenue = (previousResult as any).Opportunity.reduce(
-        (sum: number, opp: any) => sum + (opp.estimatedAmount || 0),
-        0
-      )
-
-      const { trend, percentage } = calculateTrend(currentRevenue, previousRevenue)
-
-      return {
-        currentValue: currentRevenue,
-        previousValue: previousRevenue,
-        trend,
-        trendPercentage: percentage
-      }
-    } catch (error) {
-      console.error('Error fetching revenue trends:', error)
-      throw error
-    }
-  }
-
-  const fetchWinRateTrends = async () => {
-    const { currentStart, previousStart, previousEnd } = getCurrentAndPreviousMonthDates()
-
-    const currentWinRateQuery = `
-      query GetCurrentMonthWinRate {
-        closedOpportunities: Opportunity(
-          where: {
-            closeDate: { _gte: "${currentStart}" }
-            salesPipelineStage: { value: { _in: ["Closed Won", "Closed Lost"] } }
-            isDeleted: { _eq: false }
-          }
-        ) {
-          salesPipelineStage { value }
-        }
-      }
-    `
-
-    const previousWinRateQuery = `
-      query GetPreviousMonthWinRate {
-        closedOpportunities: Opportunity(
-          where: {
-            closeDate: { _gte: "${previousStart}", _lte: "${previousEnd}" }
-            salesPipelineStage: { value: { _in: ["Closed Won", "Closed Lost"] } }
-            isDeleted: { _eq: false }
-          }
-        ) {
-          salesPipelineStage { value }
-        }
-      }
-    `
-
-    try {
-      const [currentResult, previousResult] = await Promise.all([
-        graphqlClient.request(currentWinRateQuery),
-        graphqlClient.request(previousWinRateQuery)
-      ])
-
-      const calculateWinRate = (opportunities: any[]) => {
-        const total = opportunities.length
-        if (total === 0) return 0
-        const won = opportunities.filter(opp => opp.salesPipelineStage?.value === 'Closed Won').length
-        return (won / total) * 100
-      }
-
-      const currentWinRate = calculateWinRate((currentResult as any).closedOpportunities)
-      const previousWinRate = calculateWinRate((previousResult as any).closedOpportunities)
-
-      const { trend, percentage } = calculateTrend(currentWinRate, previousWinRate)
-
-      return {
-        currentValue: currentWinRate,
-        previousValue: previousWinRate,
-        trend,
-        trendPercentage: percentage
-      }
-    } catch (error) {
-      console.error('Error fetching win rate trends:', error)
-      throw error
-    }
-  }
-
-  const fetchActivityTrends = async () => {
-    const { currentStart, previousStart, previousEnd } = getCurrentAndPreviousMonthDates()
-
-    const currentActivitiesQuery = `
-      query GetCurrentMonthActivities {
-        SalesActivity(
-          where: {
-            createdAt: { _gte: "${currentStart}" }
-            isDeleted: { _eq: false }
-          }
-        ) {
-          id
-        }
-      }
-    `
-
-    const previousActivitiesQuery = `
-      query GetPreviousMonthActivities {
-        SalesActivity(
-          where: {
-            createdAt: { _gte: "${previousStart}", _lte: "${previousEnd}" }
-            isDeleted: { _eq: false }
-          }
-        ) {
-          id
-        }
-      }
-    `
-
-    try {
-      const [currentResult, previousResult] = await Promise.all([
-        graphqlClient.request(currentActivitiesQuery),
-        graphqlClient.request(previousActivitiesQuery)
-      ])
-
-      const currentActivities = (currentResult as any).SalesActivity.length
-      const previousActivities = (previousResult as any).SalesActivity.length
-
-      const { trend, percentage } = calculateTrend(currentActivities, previousActivities)
-
-      return {
-        currentValue: currentActivities,
-        previousValue: previousActivities,
-        trend,
-        trendPercentage: percentage
-      }
-    } catch (error) {
-      console.error('Error fetching activity trends:', error)
-      throw error
-    }
-  }
-
-  const fetchPipelineTrends = async () => {
-    const now = new Date()
-    const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-    const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-
-    const currentPipelineQuery = `
-      query GetCurrentPipeline {
-        Opportunity(
-          where: {
-            salesPipelineStage: { value: { _nin: ["Closed Won", "Closed Lost"] } }
-            isDeleted: { _eq: false }
-            createdAt: { _gte: "${currentMonth.toISOString()}" }
-          }
-        ) {
-          estimatedAmount
-        }
-      }
-    `
-
-    const previousPipelineQuery = `
-      query GetPreviousPipeline {
-        Opportunity(
-          where: {
-            salesPipelineStage: { value: { _nin: ["Closed Won", "Closed Lost"] } }
-            isDeleted: { _eq: false }
-            createdAt: { _gte: "${previousMonth.toISOString()}", _lt: "${currentMonth.toISOString()}" }
-          }
-        ) {
-          estimatedAmount
-        }
-      }
-    `
-
-    try {
-      const [currentResult, previousResult] = await Promise.all([
-        graphqlClient.request(currentPipelineQuery),
-        graphqlClient.request(previousPipelineQuery)
-      ])
-
-      const currentPipeline = (currentResult as any).Opportunity.reduce(
-        (sum: number, opp: any) => sum + (opp.estimatedAmount || 0),
-        0
-      )
-      const previousPipeline = (previousResult as any).Opportunity.reduce(
-        (sum: number, opp: any) => sum + (opp.estimatedAmount || 0),
-        0
-      )
-
-      const { trend, percentage } = calculateTrend(currentPipeline, previousPipeline)
-
-      return {
-        currentValue: currentPipeline,
-        previousValue: previousPipeline,
-        trend,
-        trendPercentage: percentage
-      }
-    } catch (error) {
-      console.error('Error fetching pipeline trends:', error)
-      throw error
-    }
-  }
 
   const fetchAllTrends = useCallback(async () => {
     if (!accessToken) return
@@ -318,29 +56,190 @@ export const useSalesTeamTrendData = (accessToken: string) => {
     setTrends(prev => ({ ...prev, isLoading: true, error: null }))
 
     try {
-      const [revenueTrend, winRateTrend, activityTrend, pipelineTrend] = await Promise.all([
-        fetchRevenueTrends(),
-        fetchWinRateTrends(),
-        fetchActivityTrends(),
-        fetchPipelineTrends()
-      ])
+      const { currentStart, previousStart, previousEnd } = getCurrentAndPreviousMonthDates()
+      const now = new Date()
+      const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+      const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+
+      // Combined query that fetches all team KPI data in a single request
+      const combinedQuery = `
+        query GetTeamKPITrends(
+          $currentStart: timestamptz!
+          $previousStart: timestamptz!
+          $previousEnd: timestamptz!
+          $currentMonthStart: timestamptz!
+          $previousMonthStart: timestamptz!
+        ) {
+          # Current Month Revenue (Closed Won)
+          currentRevenue: Opportunity(
+            where: {
+              closeDate: { _gte: $currentStart }
+              salesPipelineStage: { value: { _eq: "Closed Won" } }
+              isDeleted: { _eq: false }
+            }
+          ) {
+            estimatedAmount
+          }
+          
+          # Previous Month Revenue (Closed Won)
+          previousRevenue: Opportunity(
+            where: {
+              closeDate: { _gte: $previousStart, _lte: $previousEnd }
+              salesPipelineStage: { value: { _eq: "Closed Won" } }
+              isDeleted: { _eq: false }
+            }
+          ) {
+            estimatedAmount
+          }
+          
+          # Current Month Win Rate (Closed Won + Lost)
+          currentClosedOpportunities: Opportunity(
+            where: {
+              closeDate: { _gte: $currentStart }
+              salesPipelineStage: { value: { _in: ["Closed Won", "Closed Lost"] } }
+              isDeleted: { _eq: false }
+            }
+          ) {
+            salesPipelineStage { value }
+          }
+          
+          # Previous Month Win Rate (Closed Won + Lost)
+          previousClosedOpportunities: Opportunity(
+            where: {
+              closeDate: { _gte: $previousStart, _lte: $previousEnd }
+              salesPipelineStage: { value: { _in: ["Closed Won", "Closed Lost"] } }
+              isDeleted: { _eq: false }
+            }
+          ) {
+            salesPipelineStage { value }
+          }
+          
+          # Current Month Activities
+          currentActivities: SalesActivity(
+            where: {
+              createdAt: { _gte: $currentStart }
+              isDeleted: { _eq: false }
+            }
+          ) {
+            id
+          }
+          
+          # Previous Month Activities
+          previousActivities: SalesActivity(
+            where: {
+              createdAt: { _gte: $previousStart, _lte: $previousEnd }
+              isDeleted: { _eq: false }
+            }
+          ) {
+            id
+          }
+          
+          # Current Pipeline Value (Open opportunities)
+          currentPipeline: Opportunity(
+            where: {
+              salesPipelineStage: { value: { _nin: ["Closed Won", "Closed Lost"] } }
+              isDeleted: { _eq: false }
+              createdAt: { _gte: $currentMonthStart }
+            }
+          ) {
+            estimatedAmount
+          }
+          
+          # Previous Pipeline Value (Open opportunities)
+          previousPipeline: Opportunity(
+            where: {
+              salesPipelineStage: { value: { _nin: ["Closed Won", "Closed Lost"] } }
+              isDeleted: { _eq: false }
+              createdAt: { _gte: $previousMonthStart, _lt: $currentMonthStart }
+            }
+          ) {
+            estimatedAmount
+          }
+        }
+      `
+
+      const variables = {
+        currentStart,
+        previousStart,
+        previousEnd,
+        currentMonthStart: currentMonth.toISOString(),
+        previousMonthStart: previousMonth.toISOString()
+      }
+
+      const result = await graphqlClient.request<{
+        currentRevenue: Array<{ estimatedAmount: number }>
+        previousRevenue: Array<{ estimatedAmount: number }>
+        currentClosedOpportunities: Array<{ salesPipelineStage: { value: string } }>
+        previousClosedOpportunities: Array<{ salesPipelineStage: { value: string } }>
+        currentActivities: Array<{ id: string }>
+        previousActivities: Array<{ id: string }>
+        currentPipeline: Array<{ estimatedAmount: number }>
+        previousPipeline: Array<{ estimatedAmount: number }>
+      }>(combinedQuery, variables)
+
+      // Calculate Revenue (using 5% threshold for team-level trends)
+      const currentRevenue = result.currentRevenue.reduce((sum, opp) => sum + (opp.estimatedAmount || 0), 0)
+      const previousRevenue = result.previousRevenue.reduce((sum, opp) => sum + (opp.estimatedAmount || 0), 0)
+      const revenueTrend = calculateTrend(currentRevenue, previousRevenue, 5)
+
+      // Calculate Win Rate
+      const calculateWinRate = (opportunities: Array<{ salesPipelineStage: { value: string } }>) => {
+        const total = opportunities.length
+        if (total === 0) return 0
+        const won = opportunities.filter(opp => opp.salesPipelineStage?.value === 'Closed Won').length
+        return (won / total) * 100
+      }
+      const currentWinRate = calculateWinRate(result.currentClosedOpportunities)
+      const previousWinRate = calculateWinRate(result.previousClosedOpportunities)
+      const winRateTrend = calculateTrend(currentWinRate, previousWinRate, 5)
+
+      // Calculate Activities (using 5% threshold for team-level trends)
+      const currentActivities = result.currentActivities.length
+      const previousActivities = result.previousActivities.length
+      const activitiesTrend = calculateTrend(currentActivities, previousActivities, 5)
+
+      // Calculate Pipeline Value (using 5% threshold for team-level trends)
+      const currentPipeline = result.currentPipeline.reduce((sum, opp) => sum + (opp.estimatedAmount || 0), 0)
+      const previousPipeline = result.previousPipeline.reduce((sum, opp) => sum + (opp.estimatedAmount || 0), 0)
+      const pipelineTrend = calculateTrend(currentPipeline, previousPipeline, 5)
 
       setTrends({
-        totalRevenue: revenueTrend,
-        averageWinRate: winRateTrend,
-        totalActivities: activityTrend,
-        pipelineValue: pipelineTrend,
+        totalRevenue: {
+          currentValue: currentRevenue,
+          previousValue: previousRevenue,
+          trend: revenueTrend.trend,
+          trendPercentage: revenueTrend.percentage
+        },
+        averageWinRate: {
+          currentValue: currentWinRate,
+          previousValue: previousWinRate,
+          trend: winRateTrend.trend,
+          trendPercentage: winRateTrend.percentage
+        },
+        totalActivities: {
+          currentValue: currentActivities,
+          previousValue: previousActivities,
+          trend: activitiesTrend.trend,
+          trendPercentage: activitiesTrend.percentage
+        },
+        pipelineValue: {
+          currentValue: currentPipeline,
+          previousValue: previousPipeline,
+          trend: pipelineTrend.trend,
+          trendPercentage: pipelineTrend.percentage
+        },
         isLoading: false,
         error: null
       })
     } catch (error) {
+      console.error('Error fetching team trend data:', error)
       setTrends(prev => ({
         ...prev,
         isLoading: false,
         error: error instanceof Error ? error.message : 'Failed to fetch trend data'
       }))
     }
-  }, [accessToken])
+  }, [accessToken, graphqlClient])
 
   useEffect(() => {
     fetchAllTrends()

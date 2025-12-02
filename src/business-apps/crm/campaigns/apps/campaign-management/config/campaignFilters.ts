@@ -16,7 +16,6 @@ export const campaignFilterConfig: FilterConfiguration = {
           label: 'Campaign Type',
           type: 'multi-select',
           config: {
-            // Options will be populated dynamically from catalog data
             options: [],
             searchPlaceholder: 'Search types...'
           }
