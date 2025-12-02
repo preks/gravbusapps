@@ -581,55 +581,6 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
               data-testid="lead-investment-section-wrapper"
             />
 
-            {/* Activities & Notes - 1/2 width, spans 2 rows */}
-            <SectionWrapper
-              className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2"
-              sections={[
-                {
-                  id: 'activities-section',
-                  component: ActivitySection,
-                  props: {
-                    ...props,
-                    activities: activities,
-                    activitiesLoading: sectionsLoading,
-                    activitiesError: sectionsError,
-                    onReloadActivities: loadSectionData,
-                    activitySectionActionProps: {
-                      contextsArray: [FlowContextName.investmentActivityCreate],
-                      externalContextData: { leadId },
-                      prefixDataTestId: 'lead-activities'
-                    },
-                    activityEntityActionProps: {
-                      contextsArray: [FlowContextName.investmentActivityEntity],
-                      externalContextData: { leadId },
-                      prefixDataTestId: 'lead-activity-entity'
-                    }
-                  }
-                },
-                {
-                  id: 'notes-section',
-                  component: NoteSection as React.ComponentType<any>,
-                  props: {
-                    ...props,
-                    notes: notes,
-                    noteActionProps: {
-                      contextsArray: [FlowContextName.investmentNoteCreate],
-                      externalContextData: { leadId },
-                      prefixDataTestId: 'lead-notes',
-                      emptyStateBehavior: 'enable'
-                    },
-                    noteEntityActionProps: {
-                      contextsArray: [FlowContextName.investmentNoteEntity],
-                      externalContextData: { leadId },
-                      prefixDataTestId: 'lead-note-entity',
-                      emptyStateBehavior: 'enable'
-                    }
-                  }
-                }
-              ]}
-              data-testid="lead-activities-notes-section-wrapper"
-            />
-
             {/* Tasks & Approvals - 1/2 width, spans 2 rows */}
             <SectionWrapper
               className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2"
@@ -686,6 +637,55 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
                 }
               ]}
               data-testid="lead-tasks-approvals-section-wrapper"
+            />
+
+            {/* Activities & Notes - 1/2 width, spans 2 rows */}
+            <SectionWrapper
+              className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2"
+              sections={[
+                {
+                  id: 'activities-section',
+                  component: ActivitySection,
+                  props: {
+                    ...props,
+                    activities: activities,
+                    activitiesLoading: sectionsLoading,
+                    activitiesError: sectionsError,
+                    onReloadActivities: loadSectionData,
+                    activitySectionActionProps: {
+                      contextsArray: [FlowContextName.investmentActivityCreate],
+                      externalContextData: { leadId },
+                      prefixDataTestId: 'lead-activities'
+                    },
+                    activityEntityActionProps: {
+                      contextsArray: [FlowContextName.investmentActivityEntity],
+                      externalContextData: { leadId },
+                      prefixDataTestId: 'lead-activity-entity'
+                    }
+                  }
+                },
+                {
+                  id: 'notes-section',
+                  component: NoteSection as React.ComponentType<any>,
+                  props: {
+                    ...props,
+                    notes: notes,
+                    noteActionProps: {
+                      contextsArray: [FlowContextName.investmentNoteCreate],
+                      externalContextData: { leadId },
+                      prefixDataTestId: 'lead-notes',
+                      emptyStateBehavior: 'enable'
+                    },
+                    noteEntityActionProps: {
+                      contextsArray: [FlowContextName.investmentNoteEntity],
+                      externalContextData: { leadId },
+                      prefixDataTestId: 'lead-note-entity',
+                      emptyStateBehavior: 'enable'
+                    }
+                  }
+                }
+              ]}
+              data-testid="lead-activities-notes-section-wrapper"
             />
           </>
         )

@@ -95,14 +95,6 @@ export function usePageAnalytics(params: UsePageAnalyticsParams): UsePageAnalyti
 
       if (page_analytics) {
         analyticsRef.current = page_analytics
-        // Local debug log so we can see exactly what was collected
-        // This is safe for dev and can be removed or guarded by ENV flag later if needed
-
-        console.log('[usePageAnalytics] collected page analytics', {
-          entity,
-          sessionId,
-          analytics: analyticsRef.current
-        })
         setAnalyticsCollected(true)
         return page_analytics
       }

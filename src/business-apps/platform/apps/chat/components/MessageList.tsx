@@ -14,6 +14,7 @@ interface MessageListProps {
   hasMore?: boolean
   onLoadMore?: () => void
   conversationId: string
+  accessToken?: string
 }
 
 export const MessageList: React.FC<MessageListProps> = ({
@@ -24,7 +25,8 @@ export const MessageList: React.FC<MessageListProps> = ({
   isLoading = false,
   hasMore = false,
   onLoadMore,
-  conversationId
+  conversationId,
+  accessToken
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
@@ -233,7 +235,13 @@ export const MessageList: React.FC<MessageListProps> = ({
             )}
 
             {displayMessages.map(message => (
-              <MessageItem key={message.id} message={message} currentUserId={currentUserId} isGroupChat={isGroupChat} />
+              <MessageItem
+                key={message.id}
+                message={message}
+                currentUserId={currentUserId}
+                isGroupChat={isGroupChat}
+                accessToken={accessToken}
+              />
             ))}
 
             {conversationTypingUsers.length > 0 && (
