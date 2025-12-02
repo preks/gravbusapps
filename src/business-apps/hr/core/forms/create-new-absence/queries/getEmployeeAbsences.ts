@@ -131,3 +131,23 @@ export const employmentRegionHolidaysQuery = `
     }
   }
 `
+
+export const employeeWorkingHoursQuery = `
+  query GetEmployeeWorkingHours($employeeId: uuid!) {
+    employee: Employee(where: { isDeleted: { _eq: false }, id: { _eq: $employeeId } }) {
+      id
+      workingHours {
+        id
+        mondayHours
+        tuesdayHours
+        wednesdayHours
+        thursdayHours
+        fridayHours
+        saturdayHours
+        sundayHours
+        weeklyHours
+        weeklyDays
+      }
+    }
+  }
+`
