@@ -12,6 +12,7 @@ import {
 } from '@/business-apps/hr/core/apps/employee-record/queries/attendanceQueries'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { EmployeeTimeClient } from '@/common/network/employee-time/EmployeeTimeClient'
+import { fetchOfficeAndGeoLocation } from '../../../services/service-geo-location/geoLocationService'
 
 export type TimeEntry = {
   id: string
@@ -365,6 +366,18 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       const client = new EmployeeTimeClient()
       if (accessToken) client.setAccessToken(accessToken)
 
+      // Determine proximity to office/home and include in notes
+      let notesText = 'Clock-in'
+      try {
+        const geo = await fetchOfficeAndGeoLocation(graphqlClient, employeeId)
+        const isNearHome = Boolean(geo?.comparisons?.isNearHome)
+        const isNearOffice = Boolean(geo?.comparisons?.isNearOffice)
+        // Persist simple booleans so they are easy to audit/search later
+        notesText = `Clock-in | isNearHome=${isNearHome} | isNearOffice=${isNearOffice}`
+      } catch {
+        // Ignore geo errors; proceed with plain clock-in
+      }
+
       await client.createEmployeeAttendance({
         employeeAttendance: {
           version: 0,
@@ -377,7 +390,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
           plannedTime: formatMinutes(getPlannedMinutesForDate(isoNow)),
           differenceTime: '0h',
           manualOverride: false,
-          notes: 'Clock-in',
+          notes: notesText,
           employee: employeeId
         }
       })

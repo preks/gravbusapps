@@ -8,6 +8,9 @@ import MonthlySummary from './components/MonthlySummary'
 import SmartBooking from './components/SmartBooking'
 import History from './components/History'
 
+import { fetchOfficeAndGeoLocation } from '../../services/service-geo-location/geoLocationService'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+
 interface TimeTrackingTabProps extends BusinessAppContextProps {
   employee: any
   employeeId: string
@@ -27,8 +30,24 @@ const TimeTrackingTab: React.FC<TimeTrackingTabProps> = ({ employee, accessToken
     setActiveTab(value as TimeTrackingTabEnum)
   }
 
+  const graphqlClient = useGraphQLClient(accessToken)
+
   return (
     <div className="gba:time-tracking-tab gba:space-y-6" data-testid="time-tracking-tab-container">
+      <div className="gba:flex gba:items-start gba:justify-between" data-testid="time-tracking-header">
+        <div>
+          <div className="gba:font-bold gba:text-2xl" data-testid="time-tracking-title">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.title', 'Time Tracking')}
+          </div>
+          <div className="gba:text-muted-foreground gba:text-lg">
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:time_tracking.subtitle',
+              'Manage attendance and monthly timesheet'
+            )}
+          </div>
+        </div>
+      </div>
+
       <Tabs value={activeTab} onValueChange={handleTabChange} className="gba:w-full">
         <TabsList className="gba:mb-4 gba:w-full" data-testid="tabs-list">
           <TabsTrigger value="monthly-summary" data-testid="monthly-summary-subtab" className="gba:flex-1">
