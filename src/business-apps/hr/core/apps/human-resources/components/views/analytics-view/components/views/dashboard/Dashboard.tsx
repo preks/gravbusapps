@@ -28,11 +28,7 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken }) => {
     loading: employeeLoading
   } = useEmployeeCount(accessToken)
   const { count: newHiresCount, loading: hiresLoading } = useNewHiresCount(accessToken)
-  const {
-    rate: turnoverRate,
-    change: turnoverChange,
-    loading: turnoverLoading
-  } = useTurnoverRate(accessToken, employeeCount)
+  const { rate: turnoverRate, change: turnoverChange, loading: turnoverLoading } = useTurnoverRate(accessToken)
   const { averageSalary, loading: salaryLoading } = useAverageSalary(accessToken)
   const { hiresData, loading: hiresYearlyLoading, error: hiresYearlyError } = useHiresPerYear(accessToken)
   const {
