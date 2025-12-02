@@ -14,7 +14,6 @@ import { LowcoderScreenLoader } from './LowcoderScreenLoader'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { useKogitoProcess } from '../hooks/useKogitoProcess'
 import { env } from '@/common/env/EnvUtils'
-import { findDevScreenOverride } from '../config/dev-screen-overrides'
 import { UniversalCflowTaskDetails } from './UniversalCflowTaskDetails'
 import { useFlowStepData } from '../hooks/useFlowStepData'
 
@@ -341,52 +340,7 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
           return
         }
 
-        // Check for dev override
-        const { processName, taskName } = extractProcessAndTaskNames(task)
-        const devOverride = findDevScreenOverride(task.id, screenKey, processName, taskName)
-
-        if (devOverride) {
-          // Use dev override
-          console.log('🔧 [DEV] Using screen override:', {
-            taskId: task.id,
-            screenKey,
-            override: devOverride
-          })
-
-          setLoadingScreen(true)
-          try {
-            // Normalize componentPath (remove leading slash if present)
-            const normalizedComponentPath = devOverride.componentPath?.startsWith('/')
-              ? devOverride.componentPath.slice(1)
-              : devOverride.componentPath
-
-            // Create metadata object from override
-            const overrideMetadata: any = {
-              screenKey: screenKey,
-              builderType: devOverride.builderType || 'NATIVE_SCREEN',
-              componentPath: normalizedComponentPath,
-              version: devOverride.version,
-              _isDevOverride: true // Flag to track that this is a dev override
-            }
-
-            // Add LOWCODER-specific fields if needed
-            if (devOverride.builderType === 'LOWCODER') {
-              if (devOverride.appId) overrideMetadata.appId = devOverride.appId
-              if (devOverride.appName) overrideMetadata.appName = devOverride.appName
-            }
-
-            setScreenMetadata(overrideMetadata)
-          } catch (e) {
-            console.error('❌ [DEV] Error applying dev override, falling back to Screen Management API:', e)
-            // Fall through to normal Screen Management API flow
-            setScreenMetadata(null)
-          } finally {
-            setLoadingScreen(false)
-          }
-          return
-        }
-
-        // Try to fetch from Screen Management API
+        // Fetch from Screen Management API
         setLoadingScreen(true)
         try {
           const metadata = await fetchScreenByKey(screenKey)
@@ -409,52 +363,7 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
         return
       }
 
-      // Check for development override first
-      const { processName, taskName } = extractProcessAndTaskNames(task)
-      const devOverride = findDevScreenOverride(task.id, screenKey, processName, taskName)
-
-      if (devOverride) {
-        // Use dev override instead of fetching from API
-        console.log('🔧 [DEV] Using screen override:', {
-          taskId: task.id,
-          screenKey,
-          override: devOverride
-        })
-
-        setLoadingScreen(true)
-        try {
-          // Normalize componentPath (remove leading slash if present)
-          const normalizedComponentPath = devOverride.componentPath?.startsWith('/')
-            ? devOverride.componentPath.slice(1)
-            : devOverride.componentPath
-
-          // Create metadata object from override
-          const overrideMetadata: any = {
-            screenKey: screenKey,
-            builderType: devOverride.builderType || 'NATIVE_SCREEN',
-            componentPath: normalizedComponentPath,
-            version: devOverride.version,
-            _isDevOverride: true // Flag to track that this is a dev override
-          }
-
-          // Add LOWCODER-specific fields if needed
-          if (devOverride.builderType === 'LOWCODER') {
-            if (devOverride.appId) overrideMetadata.appId = devOverride.appId
-            if (devOverride.appName) overrideMetadata.appName = devOverride.appName
-          }
-
-          setScreenMetadata(overrideMetadata)
-        } catch (e) {
-          console.error('❌ [DEV] Error applying dev override, falling back to Screen Management API:', e)
-          // Fall through to normal Screen Management API flow
-          setScreenMetadata(null)
-        } finally {
-          setLoadingScreen(false)
-        }
-        return
-      }
-
-      // Normal flow: fetch from Screen Management API
+      // Fetch from Screen Management API
       setLoadingScreen(true)
       try {
         const metadata = await fetchScreenByKey(screenKey)

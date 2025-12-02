@@ -90,9 +90,6 @@ every-box/
 │   ├── useEmployeeData.ts          # Employee data fetching
 │   └── useTeamAbsences.ts          # Team absences data
 │
-├── config/
-│   └── dev-screen-overrides.ts     # Development screen overrides for NATIVE_SCREEN
-│
 ├── types/
 │   └── index.ts                    # TypeScript interfaces (UnifiedTask, Flow, etc.)
 │
@@ -104,8 +101,7 @@ every-box/
 │
 └── docs/
     ├── README.md                   # Additional documentation
-    ├── TASK_FOOTER_AUTO_ACTIONS.md # Task footer auto-actions guide
-    └── DEV_OVERRIDES_README.md     # Dev screen overrides documentation
+    └── TASK_FOOTER_AUTO_ACTIONS.md # Task footer auto-actions guide
 ```
 
 ## API Endpoints
@@ -179,18 +175,6 @@ Task details are rendered based on task type and configuration:
 2. **NATIVE_SCREEN** → `RemoteScreenLoader` (loads native React forms)
 3. **LOWCODER** → `LowcoderScreenLoader` (loads Lowcoder screens)
 
-### Dev Screen Overrides
-
-For development, screens can be overridden in `config/dev-screen-overrides.ts`:
-
-```typescript
-{
-  screenKey: 'frm_processNameTaskName',
-  componentPath: 'module/sub-module/forms/form-name',
-  builderType: 'NATIVE_SCREEN',
-}
-```
-
 ## Styling Guidelines
 
 - All classes use `gba:` prefix
@@ -228,5 +212,4 @@ All interactive elements have `data-testid` attributes:
 ## Related Documentation
 
 - [Task Footer Auto Actions](./docs/TASK_FOOTER_AUTO_ACTIONS.md)
-- [Dev Screen Overrides](./docs/DEV_OVERRIDES_README.md)
 - [Flow Step Data Integration](./docs/FLOW_STEP_DATA_INTEGRATION.md)
