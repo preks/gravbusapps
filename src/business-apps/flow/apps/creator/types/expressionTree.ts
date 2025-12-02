@@ -10,11 +10,18 @@ export interface TreeNode {
     | 'step'
     | 'field'
     | 'container'
+    | 'category'
+    | 'entities'
+    | 'entity'
+    | 'entity-browser'
+    | 'entity-instance'
+    | 'entity-field'
     | 'catalog'
     | 'catalog-container'
     | 'catalog-field'
     | 'catalog-browser'
     | 'catalog-entry'
+    | 'info'
   icon?: string
   dataType?: 'string' | 'number' | 'date' | 'datetime' | 'boolean' | 'object' | 'array'
   path?: string[]
@@ -25,6 +32,7 @@ export interface TreeNode {
   metadata?: {
     stepIndex?: number
     isCurrent?: boolean
+    entityType?: string
     catalogId?: string
     version?: string
     required?: boolean
@@ -33,6 +41,7 @@ export interface TreeNode {
     entryId?: string
     offset?: number
     hasMore?: boolean
+    search?: string
   }
   // For catalog-specific nodes
   expressionTemplate?: string // Template like {{$catalog.asset-management[ID_HERE].name}}
