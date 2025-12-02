@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import { type TeamComparisonData, type TeamRevenueTrendPoint, type TimeFilter, TEAM_COLORS } from '../types'
@@ -21,6 +21,7 @@ interface UseTeamComparisonResult {
   deselectTeam: (teamId: string) => void
   selectedTeamIds: string[]
   refetch: () => void
+  teamsData: OrganizationalUnit[]
 }
 
 interface OrganizationalUnitEmployee {
@@ -310,16 +311,29 @@ const buildTrendsQuery = (
   `
 }
 
+export interface UseTeamComparisonOptions {
+  accessToken: string
+  timeFilter?: TimeFilter
+  selectedCurrencyId?: string
+  selectedCurrencyCode?: string
+  selectedPipelineId?: string
+  maxTeams?: number
+  // Controlled state - if provided, the hook uses these instead of internal state
+  controlledSelectedTeamIds?: string[]
+  onTeamSelectionChange?: (teamIds: string[]) => void
+  // Auto-select user's team on first load
+  userTeamId?: string
+}
+
 /**
  * Hook to fetch and manage team comparison data
  * Allows selecting up to 4 teams and viewing their revenue trends
  *
- * @param accessToken - The access token for API authentication
- * @param timeFilter - Time filter for the chart (month, quarter, sixMonths, year, historical)
- * @param selectedCurrencyId - Optional currency ID to filter by (e.g., "Currency:v1:EUR")
- * @param selectedCurrencyCode - The currency code for display (e.g., "EUR")
- * @param selectedPipelineId - Optional pipeline ID to filter by
- * @param maxTeams - Maximum number of teams that can be selected
+ * Supports both controlled and uncontrolled modes:
+ * - Uncontrolled: manages selectedTeamIds internally
+ * - Controlled: uses controlledSelectedTeamIds and onTeamSelectionChange
+ *
+ * @param options - Configuration options for the hook
  */
 export const useTeamComparison = (
   accessToken: string,
@@ -327,16 +341,46 @@ export const useTeamComparison = (
   selectedCurrencyId?: string,
   selectedCurrencyCode: string = 'EUR',
   selectedPipelineId?: string,
-  maxTeams: number = 4
+  maxTeams: number = 4,
+  controlledSelectedTeamIds?: string[],
+  onTeamSelectionChange?: (teamIds: string[]) => void,
+  userTeamId?: string
 ): UseTeamComparisonResult => {
   const [availableTeams, setAvailableTeams] = useState<TeamOption[]>([])
-  const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([])
+  // Internal state for uncontrolled mode
+  const [internalSelectedTeamIds, setInternalSelectedTeamIds] = useState<string[]>([])
   const [selectedTeams, setSelectedTeams] = useState<TeamComparisonData[]>([])
   const [revenueTrends, setRevenueTrends] = useState<TeamRevenueTrendPoint[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingTrends, setIsLoadingTrends] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [teamsData, setTeamsData] = useState<OrganizationalUnit[]>([])
+  const [hasAutoSelectedUserTeam, setHasAutoSelectedUserTeam] = useState(false)
+
+  // Determine if we're in controlled mode
+  const isControlled = controlledSelectedTeamIds !== undefined && onTeamSelectionChange !== undefined
+  const selectedTeamIds = isControlled ? controlledSelectedTeamIds : internalSelectedTeamIds
+
+  // Use ref to avoid stale closures in callbacks
+  const onTeamSelectionChangeRef = useRef(onTeamSelectionChange)
+  onTeamSelectionChangeRef.current = onTeamSelectionChange
+
+  const controlledSelectedTeamIdsRef = useRef(controlledSelectedTeamIds)
+  controlledSelectedTeamIdsRef.current = controlledSelectedTeamIds
+
+  // Memoized setter that works for both controlled and uncontrolled modes
+  const setSelectedTeamIds = useCallback(
+    (updater: string[] | ((prev: string[]) => string[])) => {
+      if (isControlled && onTeamSelectionChangeRef.current) {
+        const currentIds = controlledSelectedTeamIdsRef.current || []
+        const newIds = typeof updater === 'function' ? updater(currentIds) : updater
+        onTeamSelectionChangeRef.current(newIds)
+      } else {
+        setInternalSelectedTeamIds(updater)
+      }
+    },
+    [isControlled]
+  )
 
   const graphqlClient = useGraphQLClient(accessToken)
   const structureId = getCurrentActiveStructureId()
@@ -505,18 +549,33 @@ export const useTeamComparison = (
         return [...prev, teamId]
       })
     },
-    [maxTeams]
+    [maxTeams, setSelectedTeamIds]
   )
 
   // Deselect a team
-  const deselectTeam = useCallback((teamId: string) => {
-    setSelectedTeamIds(prev => prev.filter(id => id !== teamId))
-  }, [])
+  const deselectTeam = useCallback(
+    (teamId: string) => {
+      setSelectedTeamIds(prev => prev.filter(id => id !== teamId))
+    },
+    [setSelectedTeamIds]
+  )
 
   // Initial fetch of available teams
   useEffect(() => {
     void fetchAvailableTeams()
   }, [fetchAvailableTeams])
+
+  // Auto-select user's team on first load (only if no teams are selected yet)
+  useEffect(() => {
+    if (userTeamId && !hasAutoSelectedUserTeam && !isLoading && teamsData.length > 0 && selectedTeamIds.length === 0) {
+      // Check if user's team exists in available teams
+      const userTeamExists = teamsData.some(team => team.id === userTeamId)
+      if (userTeamExists) {
+        setSelectedTeamIds([userTeamId])
+      }
+      setHasAutoSelectedUserTeam(true)
+    }
+  }, [userTeamId, hasAutoSelectedUserTeam, isLoading, teamsData, selectedTeamIds.length, setSelectedTeamIds])
 
   // Fetch data when selected teams change or filters change
   useEffect(() => {
@@ -535,6 +594,7 @@ export const useTeamComparison = (
     selectedTeamIds,
     refetch: () => {
       void fetchAvailableTeams()
-    }
+    },
+    teamsData
   }
 }

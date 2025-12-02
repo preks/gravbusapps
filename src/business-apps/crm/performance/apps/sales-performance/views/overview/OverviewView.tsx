@@ -1,12 +1,21 @@
 import React, { useState, useMemo } from 'react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Label } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { SalesKpis, RevenueTrendsChart, TopPerformersCard, TopTeamsCard } from '../../components'
+import {
+  SalesKpis,
+  RevenueTrendsChart,
+  TopPerformersCard,
+  TopTeamsCard,
+  NeedsAttentionEmployeesCard,
+  NeedsAttentionTeamsCard
+} from '../../components'
 import {
   useSalesPerformanceKpis,
   useRevenueTrends,
   useTopPerformers,
   useTopTeams,
+  useBottomPerformers,
+  useBottomTeams,
   usePipelines,
   useCurrencies
 } from '../../hooks'
@@ -117,6 +126,21 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ accessToken }) => {
     refetch: refetchTeams
   } = useTopTeams(accessToken, 5, selectedCurrencyId)
 
+  // Fetch bottom performers (needs attention)
+  const {
+    bottomPerformers,
+    isLoading: bottomPerformersLoading,
+    error: bottomPerformersError,
+    refetch: refetchBottomPerformers
+  } = useBottomPerformers(accessToken, 5, selectedCurrencyId)
+
+  const {
+    bottomTeams,
+    isLoading: bottomTeamsLoading,
+    error: bottomTeamsError,
+    refetch: refetchBottomTeams
+  } = useBottomTeams(accessToken, 5, selectedCurrencyId)
+
   return (
     <div className="gba:space-y-6" data-testid={DATA_TEST_ID_PREFIX}>
       {/* Currency Filter */}
@@ -162,6 +186,25 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ accessToken }) => {
           onRetry={refetchPerformers}
         />
         <TopTeamsCard topTeams={topTeams} isLoading={teamsLoading} error={teamsError} onRetry={refetchTeams} />
+      </section>
+
+      {/* Needs Attention Grid - employees and teams with lowest revenue */}
+      <section
+        className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-2 gba:gap-6 gba:items-stretch"
+        data-testid={`${DATA_TEST_ID_PREFIX}-needs-attention-section`}
+      >
+        <NeedsAttentionEmployeesCard
+          employees={bottomPerformers}
+          isLoading={bottomPerformersLoading}
+          error={bottomPerformersError}
+          onRetry={refetchBottomPerformers}
+        />
+        <NeedsAttentionTeamsCard
+          teams={bottomTeams}
+          isLoading={bottomTeamsLoading}
+          error={bottomTeamsError}
+          onRetry={refetchBottomTeams}
+        />
       </section>
     </div>
   )

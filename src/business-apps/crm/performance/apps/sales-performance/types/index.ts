@@ -79,3 +79,9 @@ export const TEAM_COLORS = [
   '#f59e0b', // Orange/Yellow
   '#a855f7' // Purple
 ] as const
+
+// Team Entity Counts Chart Types
+export interface TeamEntityCountsPoint {
+  entity: string
+  [teamId: string]: number | string // Dynamic team count values + entity string
+}

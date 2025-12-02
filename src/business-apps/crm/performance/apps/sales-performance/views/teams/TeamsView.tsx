@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useState, useMemo, useEffect, useRef } from 'react'
 import {
   Select,
   SelectContent,
@@ -13,11 +13,19 @@ import {
 } from '@newwork/nw-design-system'
 import { RefreshCwIcon, UsersIcon } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { TeamSelectionCard, TeamComparisonChart } from '../../components'
-import { useTeamComparison, useCurrencies, usePipelines } from '../../hooks'
-import { type TimeFilter } from '../../types'
+import { TeamSelectionCard, TeamComparisonChart, TeamEntityCountsChart } from '../../components'
+import { useTeamComparison, useCurrencies, usePipelines, useTeamEntityCounts } from '../../hooks'
+import { type TimeFilter, TEAM_COLORS } from '../../types'
 
-type TeamsViewProps = BusinessAppContextProps
+interface TeamsViewProps extends BusinessAppContextProps {
+  // Controlled state for team selection (persisted in parent)
+  selectedTeamIds: string[]
+  onTeamSelectionChange: (teamIds: string[]) => void
+  activeTeamIds: Set<string>
+  onActiveTeamIdsChange: (activeIds: Set<string>) => void
+  // User's team ID for auto-selection on first load
+  userTeamId?: string
+}
 
 const DATA_TEST_ID_PREFIX = 'sales-performance-teams'
 const DEFAULT_CURRENCY = 'EUR'
@@ -117,13 +125,21 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({
  * - Team selector (max 4 teams)
  * - Team cards with performance metrics (click to toggle chart visibility)
  * - Revenue comparison chart with pipeline and time filters
+ *
+ * Team selection is controlled by parent to persist across tab switches.
+ * User's team is auto-selected on first load.
  */
-export const TeamsView: React.FC<TeamsViewProps> = ({ accessToken }) => {
+export const TeamsView: React.FC<TeamsViewProps> = ({
+  accessToken,
+  selectedTeamIds,
+  onTeamSelectionChange,
+  activeTeamIds,
+  onActiveTeamIdsChange,
+  userTeamId
+}) => {
   const [selectedCurrencyCode, setSelectedCurrencyCode] = useState<string>(DEFAULT_CURRENCY)
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('sixMonths')
   const [selectedPipelineId, setSelectedPipelineId] = useState<string | undefined>(undefined)
-  // Track which teams are active (visible in chart) - all selected teams are active by default
-  const [activeTeamIds, setActiveTeamIds] = useState<Set<string>>(new Set())
 
   // Fetch currencies for the selector
   const { currencies, isLoading: currenciesLoading } = useCurrencies(accessToken)
@@ -142,7 +158,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ accessToken }) => {
     return currencies[0]?.id
   }, [selectedCurrencyCode, currencies])
 
-  // Fetch team comparison data with filters
+  // Fetch team comparison data with filters (controlled mode)
   const {
     availableTeams,
     selectedTeams,
@@ -152,54 +168,88 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ accessToken }) => {
     error,
     selectTeam,
     deselectTeam,
-    selectedTeamIds,
-    refetch
+    refetch,
+    teamsData
   } = useTeamComparison(
     accessToken,
     timeFilter,
     selectedCurrencyId,
     selectedCurrencyCode,
     selectedPipelineId,
-    MAX_TEAMS
+    MAX_TEAMS,
+    selectedTeamIds,
+    onTeamSelectionChange,
+    userTeamId
   )
 
-  // When a new team is selected, automatically make it active
-  useEffect(() => {
-    setActiveTeamIds(prev => {
-      const newSet = new Set(prev)
-      // Add any newly selected teams
-      selectedTeamIds.forEach(id => newSet.add(id))
-      // Remove any teams that are no longer selected
-      prev.forEach(id => {
-        if (!selectedTeamIds.includes(id)) {
-          newSet.delete(id)
-        }
-      })
-      return newSet
+  // Prepare teams data for entity counts hook
+  const teamsDataForEntityCounts = useMemo(() => {
+    return selectedTeamIds.map((teamId, index) => {
+      const team = teamsData.find(t => t.id === teamId)
+      return {
+        id: teamId,
+        name: team?.name || 'Unknown Team',
+        memberIds: team?.organizationalUnitEmployee.filter(e => e.employee).map(e => e.employeeId) || [],
+        color: TEAM_COLORS[index % TEAM_COLORS.length]
+      }
     })
-  }, [selectedTeamIds])
+  }, [selectedTeamIds, teamsData])
+
+  // Fetch entity counts for selected teams
+  const {
+    entityCounts,
+    isLoading: isLoadingEntityCounts,
+    error: entityCountsError,
+    refetch: refetchEntityCounts
+  } = useTeamEntityCounts(accessToken, teamsDataForEntityCounts, selectedTeamIds, activeTeamIds)
+
+  // Track previous selectedTeamIds to detect actual selection changes
+  const prevSelectedTeamIdsRef = useRef<string[]>([])
+
+  // When teams are added/removed from selection, sync activeTeamIds accordingly
+  // This should NOT re-add teams that the user has manually hidden
+  useEffect(() => {
+    const prevIds = prevSelectedTeamIdsRef.current
+    const currentIds = selectedTeamIds
+
+    // Find newly added teams (in current but not in previous)
+    const addedTeams = currentIds.filter(id => !prevIds.includes(id))
+    // Find removed teams (in previous but not in current)
+    const removedTeams = prevIds.filter(id => !currentIds.includes(id))
+
+    if (addedTeams.length > 0 || removedTeams.length > 0) {
+      const newSet = new Set(activeTeamIds)
+
+      // Add newly selected teams to active
+      addedTeams.forEach(id => newSet.add(id))
+
+      // Remove deselected teams from active
+      removedTeams.forEach(id => newSet.delete(id))
+
+      onActiveTeamIdsChange(newSet)
+    }
+
+    // Update ref for next comparison
+    prevSelectedTeamIdsRef.current = currentIds
+  }, [selectedTeamIds, activeTeamIds, onActiveTeamIdsChange])
 
   // Toggle team visibility in chart
   const handleToggleTeamActive = (teamId: string) => {
-    setActiveTeamIds(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(teamId)) {
-        newSet.delete(teamId)
-      } else {
-        newSet.add(teamId)
-      }
-      return newSet
-    })
+    const newSet = new Set(activeTeamIds)
+    if (newSet.has(teamId)) {
+      newSet.delete(teamId)
+    } else {
+      newSet.add(teamId)
+    }
+    onActiveTeamIdsChange(newSet)
   }
 
   // Handle removing a team completely
   const handleRemoveTeam = (teamId: string) => {
     deselectTeam(teamId)
-    setActiveTeamIds(prev => {
-      const newSet = new Set(prev)
-      newSet.delete(teamId)
-      return newSet
-    })
+    const newSet = new Set(activeTeamIds)
+    newSet.delete(teamId)
+    onActiveTeamIdsChange(newSet)
   }
 
   // Filter teams and trends for chart based on active teams
@@ -290,7 +340,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ accessToken }) => {
         </section>
       )}
 
-      {/* Chart Section */}
+      {/* Revenue Chart Section */}
       <section data-testid={`${DATA_TEST_ID_PREFIX}-chart-section`}>
         <TeamComparisonChart
           teams={activeTeams}
@@ -304,6 +354,17 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ accessToken }) => {
           selectedPipelineId={selectedPipelineId}
           onPipelineChange={setSelectedPipelineId}
           pipelinesLoading={pipelinesLoading}
+        />
+      </section>
+
+      {/* Entity Counts Chart Section */}
+      <section data-testid={`${DATA_TEST_ID_PREFIX}-entity-counts-section`}>
+        <TeamEntityCountsChart
+          teams={activeTeams}
+          entityCounts={entityCounts}
+          isLoading={isLoadingEntityCounts}
+          error={entityCountsError}
+          onRetry={refetchEntityCounts}
         />
       </section>
     </div>
