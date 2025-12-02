@@ -13,7 +13,12 @@ import {
 } from '@newwork/nw-design-system'
 import { RefreshCwIcon, UsersIcon } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { TeamSelectionCard, TeamComparisonChart, TeamEntityCountsChart } from '../../components'
+import {
+  TeamSelectionCard,
+  TeamComparisonChart,
+  TeamEntityCountsChart,
+  TeamPerformanceRadarChart
+} from '../../components'
 import { useTeamComparison, useCurrencies, usePipelines, useTeamEntityCounts } from '../../hooks'
 import { type TimeFilter, TEAM_COLORS } from '../../types'
 
@@ -357,8 +362,15 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
         />
       </section>
 
-      {/* Entity Counts Chart Section */}
-      <section data-testid={`${DATA_TEST_ID_PREFIX}-entity-counts-section`}>
+      {/* Performance Radar & Entity Counts - Side by Side */}
+      <section
+        className="gba:grid gba:grid-cols-1 gba:xl:grid-cols-2 gba:gap-6"
+        data-testid={`${DATA_TEST_ID_PREFIX}-metrics-section`}
+      >
+        {/* Team Performance Radar Chart */}
+        <TeamPerformanceRadarChart teams={activeTeams} isLoading={isLoadingTrends} error={error} onRetry={refetch} />
+
+        {/* Entity Counts Chart */}
         <TeamEntityCountsChart
           teams={activeTeams}
           entityCounts={entityCounts}

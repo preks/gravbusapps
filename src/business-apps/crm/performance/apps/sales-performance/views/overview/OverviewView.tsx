@@ -4,6 +4,8 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   SalesKpis,
   RevenueTrendsChart,
+  PipelineForecastChart,
+  SalesVelocityCard,
   TopPerformersCard,
   TopTeamsCard,
   NeedsAttentionEmployeesCard,
@@ -12,6 +14,8 @@ import {
 import {
   useSalesPerformanceKpis,
   useRevenueTrends,
+  usePipelineForecast,
+  useSalesVelocity,
   useTopPerformers,
   useTopTeams,
   useBottomPerformers,
@@ -75,6 +79,7 @@ const CurrencyFilter: React.FC<CurrencyFilterProps> = ({
 export const OverviewView: React.FC<OverviewViewProps> = ({ accessToken }) => {
   const [revenueTimeFilter, setRevenueTimeFilter] = useState<TimeFilter>('sixMonths')
   const [selectedPipelineId, setSelectedPipelineId] = useState<string | undefined>(undefined)
+  const [forecastPipelineId, setForecastPipelineId] = useState<string | undefined>(undefined)
   const [selectedCurrencyCode, setSelectedCurrencyCode] = useState<string>(DEFAULT_CURRENCY)
 
   // Fetch pipelines for the selector
@@ -111,6 +116,20 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ accessToken }) => {
     error: trendsError,
     refetch: refetchTrends
   } = useRevenueTrends(accessToken, revenueTimeFilter, selectedPipelineId, selectedCurrencyId)
+
+  const {
+    forecastData,
+    isLoading: forecastLoading,
+    error: forecastError,
+    refetch: refetchForecast
+  } = usePipelineForecast(accessToken, forecastPipelineId, selectedCurrencyId)
+
+  const {
+    velocityData,
+    isLoading: velocityLoading,
+    error: velocityError,
+    refetch: refetchVelocity
+  } = useSalesVelocity(accessToken, selectedCurrencyId)
 
   const {
     topPerformers,
@@ -156,6 +175,31 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ accessToken }) => {
       {/* KPI Section */}
       <section data-testid={`${DATA_TEST_ID_PREFIX}-kpis-section`}>
         <SalesKpis kpis={kpis} isLoading={kpisLoading} error={kpisError} onRetry={refetchKpis} />
+      </section>
+
+      {/* Monthly Sales Velocity Card */}
+      <section data-testid={`${DATA_TEST_ID_PREFIX}-velocity-section`}>
+        <SalesVelocityCard
+          velocityData={velocityData}
+          currencyCode={selectedCurrencyCode}
+          isLoading={velocityLoading}
+          error={velocityError}
+          onRetry={refetchVelocity}
+        />
+      </section>
+
+      {/* Pipeline Forecast Chart */}
+      <section data-testid={`${DATA_TEST_ID_PREFIX}-pipeline-forecast-section`}>
+        <PipelineForecastChart
+          forecastData={forecastData}
+          isLoading={forecastLoading}
+          error={forecastError}
+          onRetry={refetchForecast}
+          pipelines={pipelines}
+          selectedPipelineId={forecastPipelineId}
+          onPipelineChange={setForecastPipelineId}
+          pipelinesLoading={pipelinesLoading}
+        />
       </section>
 
       {/* Revenue Trends Chart */}

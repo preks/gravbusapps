@@ -109,36 +109,33 @@ const GET_ALL_EMPLOYEES = `
   }
 `
 
-// Map column IDs to GraphQL fields for sorting
-const mapColumnToGraphQLField = (columnId: string): string => {
-  const mapping: Record<string, string> = {
-    name: 'displayName',
-    position: 'employeePosition', // Will need special handling
-    department: 'employeePosition', // Will need special handling
-    totalRevenue: 'displayName' // Can't sort by revenue in GraphQL, fallback to name
-  }
-  return mapping[columnId] || 'displayName'
-}
+// Columns that can be sorted server-side via GraphQL
+const SERVER_SORTABLE_COLUMNS = ['name', 'position', 'department', 'manager']
 
-// Build orderBy clause for GraphQL
+// Build orderBy clause for GraphQL - only for server-sortable columns
 const buildOrderBy = (sorting: SortingItem[]): any[] => {
-  if (sorting.length === 0) {
+  // Filter to only server-sortable columns
+  const serverSorting = sorting.filter(s => SERVER_SORTABLE_COLUMNS.includes(s.id))
+
+  if (serverSorting.length === 0) {
     return [{ displayName: 'ASC' }]
   }
 
-  return sorting.map(sort => {
-    const field = mapColumnToGraphQLField(sort.id)
+  return serverSorting.map(sort => {
     const direction = sort.desc ? 'DESC' : 'ASC'
 
-    // Handle nested fields
-    if (sort.id === 'position') {
-      return { employeePosition: { jobPosition: { name: direction } } }
+    switch (sort.id) {
+      case 'name':
+        return { displayName: direction }
+      case 'position':
+        return { employeePosition: { jobPosition: { name: direction } } }
+      case 'department':
+        return { employeePosition: { organizationalUnit: { name: direction } } }
+      case 'manager':
+        return { employeePosition: { supervisor: { displayName: direction } } }
+      default:
+        return { displayName: direction }
     }
-    if (sort.id === 'department') {
-      return { employeePosition: { organizationalUnit: { name: direction } } }
-    }
-
-    return { [field]: direction }
   })
 }
 

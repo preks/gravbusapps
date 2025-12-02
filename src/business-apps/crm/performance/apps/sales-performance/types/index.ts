@@ -54,7 +54,8 @@ export interface TeamComparisonData {
   leadName: string
   revenue: number
   memberCount: number
-  dealsCount: number
+  dealsCount: number // Total opportunities
+  wonDealsCount: number // Won opportunities only
   winRate: number
   currencyCode: string
   color: string // for chart line color
@@ -84,4 +85,11 @@ export const TEAM_COLORS = [
 export interface TeamEntityCountsPoint {
   entity: string
   [teamId: string]: number | string // Dynamic team count values + entity string
+}
+
+// Pipeline Forecast Chart Types
+export interface PipelineForecastData {
+  month: string
+  forecastedRevenue: number
+  opportunityCount: number
 }

@@ -218,18 +218,16 @@ const buildTeamsQuery = (): string => `
 
 const buildTeamMetricsQuery = (
   teamMemberIds: string[],
-  dateStart: string,
-  dateEnd: string,
+  _dateStart: string,
+  _dateEnd: string,
   selectedCurrencyId?: string,
   selectedPipelineId?: string
 ): string => {
   const memberIdsJson = JSON.stringify(teamMemberIds)
 
-  // Same filters as chart - including date range and estimatedAmount not null
+  // Base filter for opportunities owned by team members
   let baseWhere = `isDeleted: {_eq: false}
-          ownerEmployeeId: {_in: ${memberIdsJson}}
-          estimatedAmount: {_isNull: false}
-          closeDate: {_gte: "${dateStart}", _lt: "${dateEnd}"}`
+          ownerEmployeeId: {_in: ${memberIdsJson}}`
 
   if (selectedCurrencyId) {
     baseWhere += `\n          currencyRef: {_eq: "${selectedCurrencyId}"}`
@@ -240,6 +238,17 @@ const buildTeamMetricsQuery = (
 
   return `
     query GetTeamMetrics {
+      # Total opportunities owned by team (all statuses)
+      totalOpportunities: OpportunityAggregate(
+        where: {
+          ${baseWhere}
+        }
+      ) {
+        aggregate {
+          count
+        }
+      }
+      # Won opportunities (status = WON, regardless of closeDate)
       wonOpportunities: OpportunityAggregate(
         where: {
           ${baseWhere}
@@ -251,6 +260,7 @@ const buildTeamMetricsQuery = (
           sum { estimatedAmount }
         }
       }
+      # All closed opportunities (won + lost) for win rate calculation
       allClosedOpportunities: OpportunityAggregate(
         where: {
           ${baseWhere}
@@ -458,6 +468,7 @@ export const useTeamComparison = (
             revenue: 0,
             memberCount: 0,
             dealsCount: 0,
+            wonDealsCount: 0,
             winRate: 0,
             currencyCode: selectedCurrencyCode,
             color: TEAM_COLORS[i % TEAM_COLORS.length]
@@ -474,10 +485,12 @@ export const useTeamComparison = (
           selectedPipelineId
         )
         const metricsResult = await graphqlClient.request<{
+          totalOpportunities: { aggregate: { count: number } }
           wonOpportunities: { aggregate: { count: number; sum: { estimatedAmount: number | null } } }
           allClosedOpportunities: { aggregate: { count: number } }
         }>(metricsQuery)
 
+        const totalCount = metricsResult.totalOpportunities.aggregate.count || 0
         const wonCount = metricsResult.wonOpportunities.aggregate.count || 0
         const totalClosed = metricsResult.allClosedOpportunities.aggregate.count || 0
         const revenue = metricsResult.wonOpportunities.aggregate.sum.estimatedAmount || 0
@@ -488,7 +501,8 @@ export const useTeamComparison = (
           leadName: findTeamLead(team.organizationalUnitEmployee),
           revenue,
           memberCount: memberIds.length,
-          dealsCount: wonCount,
+          dealsCount: totalCount,
+          wonDealsCount: wonCount,
           winRate: totalClosed > 0 ? (wonCount / totalClosed) * 100 : 0,
           currencyCode: selectedCurrencyCode,
           color: TEAM_COLORS[i % TEAM_COLORS.length]

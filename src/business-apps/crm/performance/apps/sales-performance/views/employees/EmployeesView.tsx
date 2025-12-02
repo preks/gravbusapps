@@ -146,7 +146,7 @@ const availableColumns: ColumnConfig[] = [
   { id: 'name', label: 'Name', visible: true, sortable: true },
   { id: 'position', label: 'Position', visible: true, sortable: true },
   { id: 'department', label: 'Department', visible: true, sortable: true },
-  { id: 'manager', label: 'Manager', visible: true, sortable: false },
+  { id: 'manager', label: 'Manager', visible: true, sortable: true },
   { id: 'totalRevenue', label: 'Total Sales', visible: true, sortable: true }
 ]
 
@@ -155,8 +155,12 @@ const sortableColumns: SortableColumn[] = [
   { id: 'name', label: 'Name' },
   { id: 'position', label: 'Position' },
   { id: 'department', label: 'Department' },
+  { id: 'manager', label: 'Manager' },
   { id: 'totalRevenue', label: 'Total Sales' }
 ]
+
+// Columns that require client-side sorting (can't be sorted via GraphQL)
+const CLIENT_SORT_COLUMNS = ['totalRevenue']
 
 /**
  * Employees View for Sales Performance
@@ -287,12 +291,36 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
   const handleSortingChange = useCallback(
     (newSorting: SortingState) => {
       setSorting(newSorting)
-      // Update hook sorting to trigger server-side query
-      setHookSorting(newSorting.map(s => ({ id: s.id, desc: s.desc })))
-      setCurrentPage(1) // Reset to first page when sorting changes
+      // Only send server-sortable columns to the hook
+      const serverSorting = newSorting.filter(s => !CLIENT_SORT_COLUMNS.includes(s.id))
+      setHookSorting(serverSorting.map(s => ({ id: s.id, desc: s.desc })))
+      // Only reset page for server-side sorting changes
+      if (serverSorting.length > 0 || newSorting.length === 0) {
+        setCurrentPage(1)
+      }
     },
     [setHookSorting, setCurrentPage]
   )
+
+  // Apply client-side sorting for columns that can't be sorted server-side
+  const sortedEmployees = useMemo(() => {
+    // Check if we need client-side sorting
+    const clientSort = sorting.find(s => CLIENT_SORT_COLUMNS.includes(s.id))
+    if (!clientSort) {
+      return employees
+    }
+
+    // Create a copy and sort client-side
+    const sorted = [...employees]
+    if (clientSort.id === 'totalRevenue') {
+      sorted.sort((a, b) => {
+        const diff = a.totalRevenue - b.totalRevenue
+        return clientSort.desc ? -diff : diff
+      })
+    }
+
+    return sorted
+  }, [employees, sorting])
 
   // Handle pagination change
   const handlePaginationChange = useCallback(
@@ -442,7 +470,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
         data-testid={DATA_TEST_ID_PREFIX}
       >
         <DataTable<EmployeeListItem>
-          data={employees}
+          data={sortedEmployees}
           columns={columns.filter(col => visibleColumns.includes(col.id as string))}
           loading={isLoading}
           error={error || undefined}
@@ -451,6 +479,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
           onPaginationChange={handlePaginationChange}
           sorting={sorting}
           onSortingChange={handleSortingChange}
+          manualSorting
           enablePagination
           enableSorting
           enableSelection={false}

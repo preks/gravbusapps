@@ -1,5 +1,7 @@
 export { useSalesPerformanceKpis } from './useSalesPerformanceKpis'
 export { useRevenueTrends } from './useRevenueTrends'
+export { usePipelineForecast } from './usePipelineForecast'
+export { useSalesVelocity, type SalesVelocityData } from './useSalesVelocity'
 export { useTopPerformers } from './useTopPerformers'
 export { useTopTeams } from './useTopTeams'
 export { useBottomPerformers } from './useBottomPerformers'

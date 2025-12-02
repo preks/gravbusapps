@@ -1,5 +1,5 @@
 import React from 'react'
-import { Card, Icon, Button, cn } from '@newwork/nw-design-system'
+import { Card, Button, cn } from '@newwork/nw-design-system'
 import { UsersIcon, TargetIcon, TrophyIcon, DollarSignIcon, XIcon, EyeIcon, EyeOffIcon } from 'lucide-react'
 import { type TeamComparisonData } from '../types'
 
@@ -78,12 +78,11 @@ export const TeamSelectionCard: React.FC<TeamSelectionCardProps> = ({ team, isAc
 
       {/* Active/Inactive Indicator */}
       <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3 gba:text-xs">
-        <Icon
-          icon={isActive ? EyeIcon : EyeOffIcon}
-          size="sm"
-          decorative
-          className={isActive ? 'gba:text-success' : 'gba:text-muted-foreground'}
-        />
+        {isActive ? (
+          <EyeIcon className="gba:h-3.5 gba:w-3.5 gba:text-success" />
+        ) : (
+          <EyeOffIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />
+        )}
         <span className={isActive ? 'gba:text-success' : 'gba:text-muted-foreground'}>
           {isActive ? 'Visible in chart' : 'Hidden from chart'}
         </span>
@@ -94,7 +93,7 @@ export const TeamSelectionCard: React.FC<TeamSelectionCardProps> = ({ team, isAc
         {/* Revenue */}
         <div className="gba:flex gba:items-center gba:justify-between">
           <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
-            <Icon icon={DollarSignIcon} size="sm" decorative />
+            <DollarSignIcon className="gba:h-3.5 gba:w-3.5" />
             <span>Revenue</span>
           </div>
           <span className="gba:font-semibold gba:text-foreground">
@@ -105,25 +104,34 @@ export const TeamSelectionCard: React.FC<TeamSelectionCardProps> = ({ team, isAc
         {/* Members */}
         <div className="gba:flex gba:items-center gba:justify-between">
           <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
-            <Icon icon={UsersIcon} size="sm" decorative />
+            <UsersIcon className="gba:h-3.5 gba:w-3.5" />
             <span>Members</span>
           </div>
           <span className="gba:font-semibold gba:text-foreground">{team.memberCount}</span>
         </div>
 
-        {/* Deals */}
+        {/* Deals (Total Opportunities) */}
         <div className="gba:flex gba:items-center gba:justify-between">
           <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
-            <Icon icon={TargetIcon} size="sm" decorative />
+            <TargetIcon className="gba:h-3.5 gba:w-3.5" />
             <span>Deals</span>
           </div>
           <span className="gba:font-semibold gba:text-foreground">{team.dealsCount}</span>
         </div>
 
+        {/* Won Deals */}
+        <div className="gba:flex gba:items-center gba:justify-between">
+          <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
+            <TrophyIcon className="gba:h-3.5 gba:w-3.5 gba:text-success" />
+            <span>Won Deals</span>
+          </div>
+          <span className="gba:font-semibold gba:text-success">{team.wonDealsCount}</span>
+        </div>
+
         {/* Win Rate */}
         <div className="gba:flex gba:items-center gba:justify-between">
           <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
-            <Icon icon={TrophyIcon} size="sm" decorative />
+            <TrophyIcon className="gba:h-3.5 gba:w-3.5" />
             <span>Win Rate</span>
           </div>
           <span className="gba:font-semibold gba:text-foreground">{team.winRate.toFixed(0)}%</span>
