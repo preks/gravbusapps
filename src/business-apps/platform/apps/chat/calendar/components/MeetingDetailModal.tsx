@@ -236,13 +236,45 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
             )}
           </div>
 
-          {/* Participants Summary */}
-          <div className="gba:flex gba:items-center gba:gap-3">
-            <Users className="gba:h-5 gba:w-5 gba:text-muted-foreground" />
-            <div className="gba:flex-1">
-              <div className="gba:text-sm gba:font-medium">
-                {event.acceptedCount} of {event.participantCount} attending
-              </div>
+          {/* Participants */}
+          <div className="gba:space-y-2">
+            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+              <Users className="gba:h-5 gba:w-5 gba:text-muted-foreground" />
+              <span className="gba:text-sm gba:font-medium">
+                Participants ({event.acceptedCount} of {event.participantCount} attending)
+              </span>
+            </div>
+            <div className="gba:space-y-2 gba:max-h-[200px] gba:overflow-y-auto gba:pr-2">
+              {event.participants.map(participant => {
+                const name =
+                  participant.displayName ||
+                  `${participant.firstName || ''} ${participant.lastName || ''}`.trim() ||
+                  participant.email
+                return (
+                  <div
+                    key={participant.id}
+                    className="gba:flex gba:items-center gba:gap-3 gba:py-1.5 gba:px-2 gba:rounded-md gba:bg-muted/30"
+                  >
+                    <IconAvatar label={name} icon={User} className="gba:h-7 gba:w-7" />
+                    <div className="gba:flex-1 gba:min-w-0">
+                      <div className="gba:text-sm gba:font-medium gba:truncate">{name}</div>
+                      {participant.comment && (
+                        <div className="gba:text-xs gba:text-muted-foreground gba:truncate">
+                          "{participant.comment}"
+                        </div>
+                      )}
+                    </div>
+                    <div className="gba:flex gba:items-center gba:gap-1.5">
+                      {participant.isOrganizer && (
+                        <Badge variant="outline" className="gba:text-[10px] gba:px-1">
+                          Host
+                        </Badge>
+                      )}
+                      {getParticipantStatusIcon(participant.status)}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </div>
 

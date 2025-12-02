@@ -78,6 +78,17 @@ export interface Meeting {
   participants?: MeetingParticipant[]
 }
 
+export interface EventParticipant {
+  id: string
+  firstName?: string
+  lastName?: string
+  displayName?: string
+  email: string
+  status: InvitationStatus
+  isOrganizer: boolean
+  comment?: string
+}
+
 export interface CalendarEvent {
   id: string
   title: string
@@ -98,6 +109,7 @@ export interface CalendarEvent {
   }
   participantCount: number
   acceptedCount: number
+  participants: EventParticipant[]
   meetingLink?: string
   location?: string
   conversationId?: string
