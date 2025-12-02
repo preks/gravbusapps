@@ -189,7 +189,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   const activeStructureId = getCurrentActiveStructureId()
   const devFeatureFlag = useFeature(Feature.Dev.Enabled.Key)
   const changeLogFeatureFlag = useFeature('dev.employee-record.changelog.enabled')
-  const previewFeatureFlag = useFeature('preview.enabled')
+  const servicesFeatureFlag = useFeature('services.enabled')
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -514,7 +514,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
             }
           ]
         : []),
-      ...(previewFeatureFlag
+      ...(servicesFeatureFlag
         ? [
             {
               key: TAB_KEYS.serviceRequests,

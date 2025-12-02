@@ -28,6 +28,7 @@ import {
   CalendarCheck
 } from '@phosphor-icons/react'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
+import EmptyState from '@/components/empty-state/EmptyState'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { FileInfo } from '@/common/types/FileTypes'
 import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
@@ -454,9 +455,10 @@ const TaskSection: React.FC<TaskSectionProps> = ({
             />
           </TooltipProvider>
         ) : (
-          <div className="gba:text-center gba:text-sm gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel('tasks.emptyState', 'No tasks yet. Create your first task.')}
-          </div>
+          <EmptyState
+            title="No Tasks"
+            description={getTranslationFromI18nKeyAndLabel('tasks.emptyState', 'No tasks yet. Create your first task.')}
+          />
         )}
       </div>
 

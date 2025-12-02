@@ -16,11 +16,24 @@ export interface HolidayEntry {
   objectValue?: any
 }
 
+export interface WorkingHours {
+  mondayHours?: number | null
+  tuesdayHours?: number | null
+  wednesdayHours?: number | null
+  thursdayHours?: number | null
+  fridayHours?: number | null
+  saturdayHours?: number | null
+  sundayHours?: number | null
+  weeklyHours?: number | null
+  weeklyDays?: number | null
+}
+
 export interface WorkingDaysOptions {
   holidays?: HolidayEntry[]
   year?: number
   excludeWeekends?: boolean
   halfDayDates?: Set<string>
+  workingHours?: WorkingHours | null
 }
 
 const parseHolidayDate = (code: string): Date | null => {
@@ -56,9 +69,36 @@ const parseHolidayDate = (code: string): Date | null => {
   return date
 }
 
-const isWeekend = (date: Date): boolean => {
+const getDayOfWeekHours = (date: Date, workingHours?: WorkingHours | null): number => {
+  if (!workingHours) {
+    const day = date.getDay()
+    return day === 0 || day === 6 ? 0 : 8
+  }
+
   const day = date.getDay()
-  return day === 0 || day === 6
+  switch (day) {
+    case 0:
+      return workingHours.sundayHours ?? 0
+    case 1:
+      return workingHours.mondayHours ?? 0
+    case 2:
+      return workingHours.tuesdayHours ?? 0
+    case 3:
+      return workingHours.wednesdayHours ?? 0
+    case 4:
+      return workingHours.thursdayHours ?? 0
+    case 5:
+      return workingHours.fridayHours ?? 0
+    case 6:
+      return workingHours.saturdayHours ?? 0
+    default:
+      return 0
+  }
+}
+
+const isWorkingDay = (date: Date, workingHours?: WorkingHours | null): boolean => {
+  const hours = getDayOfWeekHours(date, workingHours)
+  return hours > 0
 }
 
 const isHoliday = (date: Date, holidays: HolidayEntry[]): boolean => {
@@ -101,7 +141,7 @@ const isHalfDay = (date: Date, halfDayDates?: Set<string>): boolean => {
  * @returns Number of working days (including half days counted as 0.5)
  */
 export const calculateWorkingDays = (startDate: Date, endDate: Date, options: WorkingDaysOptions = {}): number => {
-  const { holidays = [], excludeWeekends = true, halfDayDates = new Set<string>() } = options
+  const { holidays = [], excludeWeekends = true, halfDayDates = new Set<string>(), workingHours } = options
 
   let workingDays = 0
   const start = dayjs(startDate).startOf('day')
@@ -115,9 +155,17 @@ export const calculateWorkingDays = (startDate: Date, endDate: Date, options: Wo
   while (current.isSameOrBefore(end)) {
     const currentDate = current.toDate()
 
-    if (excludeWeekends && isWeekend(currentDate)) {
-      current = current.add(1, 'day')
-      continue
+    if (workingHours) {
+      if (!isWorkingDay(currentDate, workingHours)) {
+        current = current.add(1, 'day')
+        continue
+      }
+    } else if (excludeWeekends) {
+      const day = currentDate.getDay()
+      if (day === 0 || day === 6) {
+        current = current.add(1, 'day')
+        continue
+      }
     }
 
     if (isHoliday(currentDate, holidays)) {
@@ -173,7 +221,8 @@ export interface DateRangeBreakdown {
 export const calculateDateRangeBreakdown = (
   startDate: Date,
   endDate: Date,
-  holidays: HolidayEntry[] = []
+  holidays: HolidayEntry[] = [],
+  workingHours?: WorkingHours | null
 ): DateRangeBreakdown => {
   const start = dayjs(startDate).startOf('day')
   const end = dayjs(endDate).startOf('day')
@@ -190,10 +239,19 @@ export const calculateDateRangeBreakdown = (
     const currentDate = current.toDate()
     const dateStr = current.format('YYYY-MM-DD')
 
-    if (isWeekend(currentDate)) {
-      weekends.push(dateStr)
-      current = current.add(1, 'day')
-      continue
+    if (workingHours) {
+      if (!isWorkingDay(currentDate, workingHours)) {
+        weekends.push(dateStr)
+        current = current.add(1, 'day')
+        continue
+      }
+    } else {
+      const day = currentDate.getDay()
+      if (day === 0 || day === 6) {
+        weekends.push(dateStr)
+        current = current.add(1, 'day')
+        continue
+      }
     }
 
     const holiday = holidays.find(h => {

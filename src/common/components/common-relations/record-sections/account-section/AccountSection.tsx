@@ -18,6 +18,7 @@ import { navigateTo } from '@/common/utils/navigationUtils'
 import { renderCommunicationChannels } from '@/common/utils/communicationChannelRenderer'
 import { createGetPages } from '../utils'
 import { ContactTypeBadge } from '../shared/ContactTypeBadge'
+import EmptyState from '@/components/empty-state/EmptyState'
 
 interface AddressObject {
   addressLine?: {
@@ -183,6 +184,18 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
   onTitleClick
 }) => {
   const cardClassName = `gba:w-full ${className}`.trim()
+
+  // Empty state - when no account data is available
+  if (!account) {
+    return (
+      <div className={`${cardClassName} gba:relative gba:flex gba:flex-col gba:h-full`}>
+        <EmptyState
+          title="No Account Data"
+          description="No account data is available for this object. Update its details to see the information here."
+        />
+      </div>
+    )
+  }
 
   // Extract logo URL - support both pictureThumbnail and URLs
   // Only use uploaded images or fallback to icon - no random/hardcoded images

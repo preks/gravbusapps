@@ -12,6 +12,7 @@ import { Plus, MagnifyingGlass, Users, User } from '@phosphor-icons/react'
 import { ConversationItem } from './ConversationItem'
 import { UserSearch } from './UserSearch'
 import type { Conversation } from '../types'
+import type { UserPresence } from '../hooks/usePresence'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface ConversationListProps {
@@ -28,6 +29,18 @@ interface ConversationListProps {
   currentUserId?: string | null
   accessToken: string
   compact?: boolean
+  getUserPresence?: (userId: string) => UserPresence
+}
+
+// Helper to get the other participant's user ID from a direct conversation
+const getOtherParticipantUserId = (conversation: Conversation, currentUserId?: string | null): string | null => {
+  if (conversation.type !== 'direct' || !conversation.participants) {
+    return null
+  }
+  const otherParticipant = conversation.participants.find(
+    p => p.userId !== currentUserId && p.user?.id !== currentUserId
+  )
+  return otherParticipant?.userId || otherParticipant?.user?.id || null
 }
 
 export const ConversationList: React.FC<ConversationListProps> = ({
@@ -43,7 +56,8 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   onLoadMore,
   currentUserId = null,
   accessToken,
-  compact = false
+  compact = false,
+  getUserPresence
 }) => {
   const [searchQuery, setSearchQuery] = useState('')
   const [showUserSearch, setShowUserSearch] = useState(false)
@@ -179,17 +193,23 @@ export const ConversationList: React.FC<ConversationListProps> = ({
         ) : (
           <>
             <div className="gba:py-1">
-              {filteredConversations.map(conversation => (
-                <ConversationItem
-                  key={conversation.id}
-                  conversation={conversation}
-                  onClick={() => onConversationSelect(conversation)}
-                  onRemove={onRemoveConversation}
-                  isActive={conversation.id === activeConversationId}
-                  currentUserId={currentUserId}
-                  compact={compact}
-                />
-              ))}
+              {filteredConversations.map(conversation => {
+                const otherUserId = getOtherParticipantUserId(conversation, currentUserId)
+                const otherUserPresence = otherUserId && getUserPresence ? getUserPresence(otherUserId) : undefined
+
+                return (
+                  <ConversationItem
+                    key={conversation.id}
+                    conversation={conversation}
+                    onClick={() => onConversationSelect(conversation)}
+                    onRemove={onRemoveConversation}
+                    isActive={conversation.id === activeConversationId}
+                    currentUserId={currentUserId}
+                    compact={compact}
+                    otherUserPresence={otherUserPresence}
+                  />
+                )
+              })}
             </div>
 
             {/* Loading more indicator */}
