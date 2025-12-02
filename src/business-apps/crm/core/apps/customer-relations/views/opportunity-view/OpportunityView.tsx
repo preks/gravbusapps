@@ -1,6 +1,4 @@
 import React, { useMemo } from 'react'
-import { Badge } from '@newwork/nw-design-system'
-import type { ColumnDef } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCustomerOpportunities } from '@/common/data/customer/hooks/useCustomerOpportunities'
 import { OpportunityLayout } from '@/common/components/common-relations/view-layouts/opportunity-layout'
@@ -12,7 +10,6 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useCustomerOpportunityFilters } from './hooks/useCustomerOpportunityFilters'
 import { useCustomerOpportunityStatistics } from '@/common/data/customer/hooks/useCustomerOpportunityStatistics'
 import { CUSTOMER_OPPORTUNITY_DESCRIPTORS } from '@/common/data/customer/types/customerOpportunityTypes'
-import { getWinningChanceBadgeVariant } from '@/common/utils/badgeUtils'
 
 // Separate component to properly use hooks with currency filtering
 const CustomerOpportunityStatistics: React.FC<{
@@ -42,33 +39,6 @@ export type OpportunityViewProps = BusinessAppContextProps
 
 export const OpportunityView: React.FC<OpportunityViewProps> = context => {
   const { fetchCustomerOpportunities } = useCustomerOpportunities(context)
-
-  // CRM-specific: Winning Chance column
-  const winningChanceColumn: ColumnDef<CustomerOpportunity> = useMemo(
-    () => ({
-      id: 'winningChance',
-      accessorKey: 'winningChance',
-      header: 'Winning Chance',
-      size: 130,
-      minSize: 100,
-      maxSize: 160,
-      cell: ({ row }) => {
-        const winningChance = row.original.winningChance
-        if (winningChance === undefined || winningChance === null) {
-          return <span className="gba:text-sm gba:text-muted-foreground">Not set</span>
-        }
-        return (
-          <Badge
-            variant={getWinningChanceBadgeVariant(winningChance)}
-            data-testid={`opportunity-winning-chance-${row.original.id}`}
-          >
-            {winningChance}%
-          </Badge>
-        )
-      }
-    }),
-    []
-  )
 
   const config = useMemo(
     () =>
@@ -125,10 +95,10 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
           opportunityId: row.original.id
         }),
 
-        // CRM-specific columns
-        additionalColumns: [winningChanceColumn]
+        // CRM-specific header for winning chance column
+        winningChanceHeader: 'Winning Chance'
       }),
-    [context, fetchCustomerOpportunities, winningChanceColumn]
+    [context, fetchCustomerOpportunities]
   )
 
   return <OpportunityLayout context={context} config={config} dataTestId="customer-opportunities-view" />
