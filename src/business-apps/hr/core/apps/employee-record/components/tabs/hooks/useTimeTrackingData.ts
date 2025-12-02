@@ -77,6 +77,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
   const [todaysWorkedMinutes, setTodaysWorkedMinutes] = useState(0)
   const [todaysProjectMinutes, setTodaysProjectMinutes] = useState(0)
   const [todaysPlannedMinutes, setTodaysPlannedMinutes] = useState(0)
+  const [todayRecordedMinutes, setTodayRecordedMinutes] = useState(0)
 
   const prevMonth = useCallback(() => {
     setPage(1)
@@ -200,9 +201,11 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     try {
       const todayKeyLocal = toLocalDateKey(new Date())
       let todayMinutes = 0
+      let todayRecordedMinutes = 0
       const todayRow = rows.find((r: any) => String(r?.attendanceDate) === todayKeyLocal)
       if (todayRow?.effectiveTime) {
         todayMinutes = parseDurationToMinutes(String(todayRow.effectiveTime))
+        todayRecordedMinutes = parseDurationToMinutes(String(todayRow.recordedTime))
       }
       if (isOpenAndToday && mostRecent?.startTime) {
         const now = new Date()
@@ -211,8 +214,10 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
         // assume 1h break for simplicity, capped at recorded
         const effective = Math.max(0, recorded - 60)
         todayMinutes = Math.max(todayMinutes, effective)
+        todayRecordedMinutes = Math.max(todayRecordedMinutes, recorded)
       }
       setTodaysWorkedMinutes(todayMinutes)
+      setTodayRecordedMinutes(todayRecordedMinutes)
     } catch {
       setTodaysWorkedMinutes(0)
     }
@@ -477,6 +482,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     todaysWorkedMinutes,
     todaysProjectMinutes,
     todaysPlannedMinutes,
+    todayRecordedMinutes,
     // actions
     setSort: (key: keyof TimeEntry, dir: SortDirection) => {
       setPage(1)
