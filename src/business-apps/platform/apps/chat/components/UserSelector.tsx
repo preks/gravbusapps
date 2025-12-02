@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Input, Checkbox, Avatar, IconAvatar, Spinner } from '@newwork/nw-design-system'
 import { MagnifyingGlass } from '@phosphor-icons/react'
-import { useUserManagementClient } from '../hooks/useUserManagementClient'
-import { useEmployeeAvatars } from '../hooks/useEmployeeAvatars'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import type { User } from '../types'
 import { UserIcon } from 'lucide-react'
 
@@ -12,6 +12,24 @@ interface UserSelectorProps {
   currentUserId: string | null
   prefixDataTestId?: string
   accessToken?: string
+}
+
+interface EmployeeSearchResult {
+  employeeId: string
+  firstName: string
+  lastName: string
+  employee: {
+    id: string
+    displayName: string
+    pictureThumbnail?: string
+    userId: string
+  }
+  jobPosition?: {
+    name: string
+  }
+  organizationalUnit?: {
+    name: string
+  }
 }
 
 export const UserSelector: React.FC<UserSelectorProps> = ({
@@ -34,13 +52,87 @@ export const UserSelector: React.FC<UserSelectorProps> = ({
 
   const LIMIT = 30
 
-  // Use the user management client for fetching all employees
-  const userManagementClient = useUserManagementClient(accessToken || '')
-  const employeeAvatarsClient = useEmployeeAvatars(accessToken || '')
+  const graphqlClient = useGraphQLClient(accessToken || '')
+
+  // Transform employee position data to User format
+  const transformToUser = useCallback(
+    (emp: EmployeeSearchResult): User => ({
+      id: emp.employee?.userId || emp.employeeId,
+      keycloakId: emp.employee?.userId,
+      username: emp.employee?.displayName || `${emp.firstName} ${emp.lastName}`,
+      email: '',
+      firstName: emp.firstName,
+      lastName: emp.lastName,
+      displayName: emp.employee?.displayName,
+      avatarUrl: emp.employee?.pictureThumbnail ? `data:image/png;base64,${emp.employee.pictureThumbnail}` : undefined,
+      employeeId: emp.employeeId,
+      isActive: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }),
+    []
+  )
+
+  // Search employees from active org structure
+  const searchEmployees = useCallback(
+    async (search: string, limit: number, offset: number) => {
+      const structureId = getCurrentActiveStructureId()
+      if (!structureId) {
+        throw new Error('No active structure ID')
+      }
+
+      const searchPattern = search ? `%${search}%` : '%'
+
+      const query = `
+      query SearchStructureEmployees($structureId: uuid!, $search: String!, $limit: Int!, $offset: Int!) {
+        EmployeePosition(
+          where: {
+            structureId: { _eq: $structureId },
+            employee: { isDeleted: { _eq: false } },
+            _or: [
+              { firstName: { _ilike: $search } },
+              { lastName: { _ilike: $search } },
+              { employee: { displayName: { _ilike: $search } } }
+            ]
+          },
+          limit: $limit,
+          offset: $offset,
+          orderBy: { firstName: ASC, lastName: ASC }
+        ) {
+          employeeId
+          firstName
+          lastName
+          employee {
+            id
+            displayName
+            pictureThumbnail
+            userId
+          }
+          jobPosition {
+            name
+          }
+          organizationalUnit {
+            name
+          }
+        }
+      }
+    `
+
+      const result = await graphqlClient.request<{ EmployeePosition: EmployeeSearchResult[] }>(query, {
+        structureId,
+        search: searchPattern,
+        limit,
+        offset
+      })
+
+      return result.EmployeePosition || []
+    },
+    [graphqlClient]
+  )
 
   // Load users on mount - only once
   useEffect(() => {
-    if (hasLoadedRef.current || !userManagementClient) return
+    if (hasLoadedRef.current || !accessToken) return
     hasLoadedRef.current = true
 
     const loadInitialUsers = async () => {
@@ -48,35 +140,12 @@ export const UserSelector: React.FC<UserSelectorProps> = ({
         setIsLoading(true)
         currentOffsetRef.current = 0
 
-        // Use User Management to get ALL employees
-        const results = await userManagementClient.searchUsers(undefined, LIMIT, 0)
-        let fetchedUsers: User[] = results
-          .filter(u => u.keycloakId !== currentUserId)
-          .map(u => ({
-            id: u.keycloakId,
-            keycloakId: u.keycloakId,
-            username: u.username,
-            firstName: u.firstName,
-            lastName: u.lastName,
-            email: u.email,
-            avatarUrl: u.avatarUrl,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          }))
+        const results = await searchEmployees('', LIMIT, 0)
+        const fetchedUsers = results
+          .map(transformToUser)
+          .filter(u => u.keycloakId !== currentUserId && u.id !== currentUserId)
 
         setHasMore(results.length >= LIMIT)
-
-        // Fetch avatars if we have accessToken
-        if (accessToken && fetchedUsers.length > 0) {
-          const userIds = fetchedUsers.map(u => u.keycloakId || u.id)
-          const avatarMap = await employeeAvatarsClient.fetchAvatars(userIds)
-          fetchedUsers = fetchedUsers.map(user => ({
-            ...user,
-            avatarUrl: avatarMap.get(user.keycloakId || user.id) || user.avatarUrl
-          }))
-        }
-
         setUsers(fetchedUsers)
         currentOffsetRef.current = LIMIT
       } catch (err) {
@@ -87,11 +156,11 @@ export const UserSelector: React.FC<UserSelectorProps> = ({
     }
 
     loadInitialUsers()
-  }, [userManagementClient, currentUserId])
+  }, [accessToken, currentUserId, searchEmployees, transformToUser])
 
   // Handle search with debounce
   useEffect(() => {
-    if (!userManagementClient) return
+    if (!accessToken) return
     // Skip if same search
     if (lastSearchRef.current === searchQuery) return
 
@@ -102,35 +171,12 @@ export const UserSelector: React.FC<UserSelectorProps> = ({
         setIsSearching(true)
         currentOffsetRef.current = 0
 
-        // Use User Management to search ALL employees
-        const results = await userManagementClient.searchUsers(searchQuery.trim() || undefined, LIMIT, 0)
-        let searchResults: User[] = results
-          .filter(u => u.keycloakId !== currentUserId)
-          .map(u => ({
-            id: u.keycloakId,
-            keycloakId: u.keycloakId,
-            username: u.username,
-            firstName: u.firstName,
-            lastName: u.lastName,
-            email: u.email,
-            avatarUrl: u.avatarUrl,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          }))
+        const results = await searchEmployees(searchQuery.trim(), LIMIT, 0)
+        const searchResults = results
+          .map(transformToUser)
+          .filter(u => u.keycloakId !== currentUserId && u.id !== currentUserId)
 
         setHasMore(results.length >= LIMIT)
-
-        // Fetch avatars if we have accessToken
-        if (accessToken && searchResults.length > 0) {
-          const userIds = searchResults.map(u => u.keycloakId || u.id)
-          const avatarMap = await employeeAvatarsClient.fetchAvatars(userIds)
-          searchResults = searchResults.map(user => ({
-            ...user,
-            avatarUrl: avatarMap.get(user.keycloakId || user.id) || user.avatarUrl
-          }))
-        }
-
         setUsers(searchResults)
         currentOffsetRef.current = LIMIT
       } catch (err) {
@@ -141,12 +187,12 @@ export const UserSelector: React.FC<UserSelectorProps> = ({
     }, 300)
 
     return () => clearTimeout(timer)
-  }, [searchQuery, userManagementClient])
+  }, [searchQuery, accessToken, currentUserId, searchEmployees, transformToUser])
 
   // Handle scroll for infinite loading
   useEffect(() => {
     const container = scrollContainerRef.current
-    if (!container || !userManagementClient) return
+    if (!container || !accessToken) return
 
     const handleScroll = async () => {
       if (isLoadingMoreRef.current || !hasMore) return
@@ -158,41 +204,16 @@ export const UserSelector: React.FC<UserSelectorProps> = ({
       isLoadingMoreRef.current = true
 
       try {
-        const results = await userManagementClient.searchUsers(
-          searchQuery.trim() || undefined,
-          LIMIT,
-          currentOffsetRef.current
-        )
+        const results = await searchEmployees(searchQuery.trim(), LIMIT, currentOffsetRef.current)
 
         if (results.length === 0) {
           setHasMore(false)
           return
         }
 
-        let newUsers: User[] = results
-          .filter(u => u.keycloakId !== currentUserId)
-          .map(u => ({
-            id: u.keycloakId,
-            keycloakId: u.keycloakId,
-            username: u.username,
-            firstName: u.firstName,
-            lastName: u.lastName,
-            email: u.email,
-            avatarUrl: u.avatarUrl,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          }))
-
-        // Fetch avatars
-        if (accessToken && newUsers.length > 0) {
-          const userIds = newUsers.map(u => u.keycloakId || u.id)
-          const avatarMap = await employeeAvatarsClient.fetchAvatars(userIds)
-          newUsers = newUsers.map(user => ({
-            ...user,
-            avatarUrl: avatarMap.get(user.keycloakId || user.id) || user.avatarUrl
-          }))
-        }
+        const newUsers = results
+          .map(transformToUser)
+          .filter(u => u.keycloakId !== currentUserId && u.id !== currentUserId)
 
         setUsers(prev => [...prev, ...newUsers])
         currentOffsetRef.current += LIMIT
@@ -206,7 +227,7 @@ export const UserSelector: React.FC<UserSelectorProps> = ({
 
     container.addEventListener('scroll', handleScroll, { passive: true })
     return () => container.removeEventListener('scroll', handleScroll)
-  }, [userManagementClient, hasMore, searchQuery])
+  }, [accessToken, hasMore, searchQuery, currentUserId, searchEmployees, transformToUser])
 
   const toggleUser = (userId: string) => {
     if (selectedUserIds.includes(userId)) {

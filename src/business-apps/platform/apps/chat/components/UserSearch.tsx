@@ -1,18 +1,35 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Input, IconAvatar, Spinner, Button, Avatar } from '@newwork/nw-design-system'
 import { ArrowLeft, MagnifyingGlass } from '@phosphor-icons/react'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import type { User } from '../types'
 import { UserIcon } from 'lucide-react'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { useUserManagementClient } from '../hooks/useUserManagementClient'
-import { useEmployeeAvatars } from '../hooks/useEmployeeAvatars'
+import { getTranslationFromI18nKeyAndLabel, getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 interface UserSearchProps {
   accessToken: string
   currentUserId: string | null
   onUserSelect: (user: User) => void
   onClose?: () => void
+}
+
+interface EmployeeSearchResult {
+  employeeId: string
+  firstName: string
+  lastName: string
+  employee: {
+    id: string
+    displayName: string
+    pictureThumbnail?: string
+    userId: string
+  }
+  jobPosition?: {
+    name: string
+  }
+  organizationalUnit?: {
+    name: string
+  }
 }
 
 export const UserSearch: React.FC<UserSearchProps> = ({ accessToken, currentUserId, onUserSelect, onClose }) => {
@@ -26,11 +43,84 @@ export const UserSearch: React.FC<UserSearchProps> = ({ accessToken, currentUser
   const isLoadingMoreRef = React.useRef(false)
   const currentOffsetRef = React.useRef(0)
 
-  // Get the client functions - don't add to effect dependencies as they change on every render
-  const userManagementClient = useUserManagementClient(accessToken)
-  const employeeAvatarsClient = useEmployeeAvatars(accessToken)
-
+  const graphqlClient = useGraphQLClient(accessToken)
   const LIMIT = 20
+
+  // Transform employee position data to User format
+  const transformToUser = useCallback(
+    (emp: EmployeeSearchResult): User => ({
+      id: emp.employee?.userId || emp.employeeId,
+      keycloakId: emp.employee?.userId,
+      username: emp.employee?.displayName || `${emp.firstName} ${emp.lastName}`,
+      email: '', // Not available from EmployeePosition
+      firstName: emp.firstName,
+      lastName: emp.lastName,
+      displayName: emp.employee?.displayName,
+      avatarUrl: emp.employee?.pictureThumbnail ? `data:image/png;base64,${emp.employee.pictureThumbnail}` : undefined,
+      employeeId: emp.employeeId,
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }),
+    []
+  )
+
+  // Search employees from active org structure
+  const searchEmployees = useCallback(
+    async (search: string, limit: number, offset: number) => {
+      const structureId = getCurrentActiveStructureId()
+      if (!structureId) {
+        throw new Error('No active structure ID')
+      }
+
+      const searchPattern = search ? `%${search}%` : '%'
+
+      const query = `
+      query SearchStructureEmployees($structureId: uuid!, $search: String!, $limit: Int!, $offset: Int!) {
+        EmployeePosition(
+          where: {
+            structureId: { _eq: $structureId },
+            employee: { isDeleted: { _eq: false } },
+            _or: [
+              { firstName: { _ilike: $search } },
+              { lastName: { _ilike: $search } },
+              { employee: { displayName: { _ilike: $search } } }
+            ]
+          },
+          limit: $limit,
+          offset: $offset,
+          orderBy: { firstName: ASC, lastName: ASC }
+        ) {
+          employeeId
+          firstName
+          lastName
+          employee {
+            id
+            displayName
+            pictureThumbnail
+            userId
+          }
+          jobPosition {
+            name
+          }
+          organizationalUnit {
+            name
+          }
+        }
+      }
+    `
+
+      const result = await graphqlClient.request<{ EmployeePosition: EmployeeSearchResult[] }>(query, {
+        structureId,
+        search: searchPattern,
+        limit,
+        offset
+      })
+
+      return result.EmployeePosition || []
+    },
+    [graphqlClient]
+  )
 
   // Handle search query changes (includes initial load)
   useEffect(() => {
@@ -42,37 +132,21 @@ export const UserSearch: React.FC<UserSearchProps> = ({ accessToken, currentUser
       setIsLoading(true)
 
       try {
-        const query = debouncedQuery.trim() || undefined
-
-        // Fetch users from user management service
-        const results = await userManagementClient.searchUsers(query, LIMIT, 0)
+        const results = await searchEmployees(debouncedQuery.trim(), LIMIT, 0)
 
         if (cancelled) return
 
-        // Filter out current user
-        const filteredResults = results.filter(user => user.keycloakId !== currentUserId)
+        // Transform and filter out current user
+        const transformedUsers = results
+          .map(transformToUser)
+          .filter(user => user.keycloakId !== currentUserId && user.id !== currentUserId)
 
-        // Check if there might be more results (check AFTER filtering)
-        const moreAvailable = filteredResults.length >= LIMIT - 1
-
-        // Fetch avatars for all users
-        const userIds = filteredResults.map(u => u.keycloakId)
-        const avatarMap = await employeeAvatarsClient.fetchAvatars(userIds)
-
-        if (cancelled) return
-
-        // Merge avatar data into user objects
-        const usersWithAvatars = filteredResults.map(user => ({
-          ...user,
-          avatarUrl: avatarMap.get(user.keycloakId) || user.avatarUrl
-        }))
-
-        setUsers(usersWithAvatars)
-        setHasMore(moreAvailable)
+        setUsers(transformedUsers)
+        setHasMore(results.length >= LIMIT)
         currentOffsetRef.current = LIMIT
       } catch (error) {
         if (!cancelled) {
-          console.error('Error searching users:', error)
+          console.error('Error searching employees:', error)
           setUsers([])
           setHasMore(false)
         }
@@ -88,8 +162,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({ accessToken, currentUser
     return () => {
       cancelled = true
     }
-    // Only re-run when query, token, or currentUserId changes - not when client functions change
-  }, [debouncedQuery, accessToken, currentUserId])
+  }, [debouncedQuery, accessToken, currentUserId, searchEmployees, transformToUser])
 
   // Handle scroll to load more
   useEffect(() => {
@@ -108,32 +181,18 @@ export const UserSearch: React.FC<UserSearchProps> = ({ accessToken, currentUser
         setIsLoadingMore(true)
 
         try {
-          const query = debouncedQuery.trim() || undefined
+          const results = await searchEmployees(debouncedQuery.trim(), LIMIT, currentOffsetRef.current)
 
-          // Fetch more users from user management service
-          const results = await userManagementClient.searchUsers(query, LIMIT, currentOffsetRef.current)
+          // Transform and filter out current user
+          const transformedUsers = results
+            .map(transformToUser)
+            .filter(user => user.keycloakId !== currentUserId && user.id !== currentUserId)
 
-          // Filter out current user
-          const filteredResults = results.filter(user => user.keycloakId !== currentUserId)
-
-          // Check if there might be more results (check AFTER filtering)
-          const moreAvailable = filteredResults.length >= LIMIT - 1
-
-          // Fetch avatars for new users
-          const userIds = filteredResults.map(u => u.keycloakId)
-          const avatarMap = await employeeAvatarsClient.fetchAvatars(userIds)
-
-          // Merge avatar data
-          const usersWithAvatars = filteredResults.map(user => ({
-            ...user,
-            avatarUrl: avatarMap.get(user.keycloakId) || user.avatarUrl
-          }))
-
-          setUsers(prev => [...prev, ...usersWithAvatars])
-          setHasMore(moreAvailable)
+          setUsers(prev => [...prev, ...transformedUsers])
+          setHasMore(results.length >= LIMIT)
           currentOffsetRef.current = currentOffsetRef.current + LIMIT
         } catch (error) {
-          console.error('Error loading more users:', error)
+          console.error('Error loading more employees:', error)
           setHasMore(false)
         } finally {
           setIsLoadingMore(false)
@@ -144,8 +203,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({ accessToken, currentUser
 
     container.addEventListener('scroll', handleScroll, { passive: true })
     return () => container.removeEventListener('scroll', handleScroll)
-    // Only re-run when these values change - not when client functions change
-  }, [hasMore, isLoading, debouncedQuery, currentUserId])
+  }, [hasMore, isLoading, debouncedQuery, currentUserId, searchEmployees, transformToUser])
 
   const handleUserClick = (user: User) => {
     onUserSelect(user)

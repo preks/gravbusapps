@@ -7,7 +7,9 @@ import {
   Button,
   Badge,
   Textarea,
-  IconAvatar,
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
   Spinner,
   Separator
 } from '@newwork/nw-design-system'
@@ -17,7 +19,6 @@ import {
   MapPin,
   Video,
   Users,
-  User,
   Check,
   X,
   HelpCircle,
@@ -26,6 +27,7 @@ import {
   Phone,
   MessageSquare
 } from 'lucide-react'
+import { navigateTo } from '@/common/utils/navigationUtils'
 import type { CalendarEvent, InvitationStatus, MeetingStatus } from '../types'
 
 interface MeetingDetailModalProps {
@@ -86,6 +88,21 @@ const getParticipantStatusIcon = (status?: InvitationStatus) => {
       return <HelpCircle className="gba:h-4 gba:w-4 gba:text-warning" />
     default:
       return <Clock className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+  }
+}
+
+const getInitials = (name: string): string => {
+  if (!name) return '?'
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 1) {
+    return parts[0].charAt(0).toUpperCase()
+  }
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase()
+}
+
+const handleNavigateToProfile = (employeeId?: string) => {
+  if (employeeId) {
+    navigateTo(`/platform/employee-record?employeeId=${employeeId}`)
   }
 }
 
@@ -224,9 +241,21 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
 
           {/* Organizer */}
           <div className="gba:flex gba:items-center gba:gap-3">
-            <IconAvatar label={organizerName} icon={User} className="gba:h-9 gba:w-9" />
+            <Avatar
+              className={`gba:h-9 gba:w-9 ${event.organizer.employeeId ? 'gba:cursor-pointer hover:gba:ring-2 hover:gba:ring-primary gba:transition-all' : ''}`}
+              onClick={() => handleNavigateToProfile(event.organizer.employeeId)}
+              title={event.organizer.employeeId ? 'View profile' : undefined}
+            >
+              {event.organizer.avatarUrl && <AvatarImage src={event.organizer.avatarUrl} alt={organizerName} />}
+              <AvatarFallback>{getInitials(organizerName)}</AvatarFallback>
+            </Avatar>
             <div className="gba:flex-1">
-              <div className="gba:font-medium gba:text-sm">{organizerName}</div>
+              <div
+                className={`gba:font-medium gba:text-sm ${event.organizer.employeeId ? 'gba:cursor-pointer hover:gba:text-primary gba:transition-colors' : ''}`}
+                onClick={() => handleNavigateToProfile(event.organizer.employeeId)}
+              >
+                {organizerName}
+              </div>
               <div className="gba:text-xs gba:text-muted-foreground">
                 {event.isOrganizer ? 'You (Organizer)' : 'Organizer'}
               </div>
@@ -253,14 +282,27 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
                     participant.displayName ||
                     `${participant.firstName || ''} ${participant.lastName || ''}`.trim() ||
                     participant.email
+                  const isClickable = !!participant.employeeId
                   return (
                     <div
                       key={participant.id}
                       className="gba:flex gba:items-center gba:gap-3 gba:py-1.5 gba:px-2 gba:rounded-md gba:bg-muted/30"
                     >
-                      <IconAvatar label={name} icon={User} className="gba:h-7 gba:w-7" />
+                      <Avatar
+                        className={`gba:h-7 gba:w-7 ${isClickable ? 'gba:cursor-pointer hover:gba:ring-2 hover:gba:ring-primary gba:transition-all' : ''}`}
+                        onClick={() => handleNavigateToProfile(participant.employeeId)}
+                        title={isClickable ? 'View profile' : undefined}
+                      >
+                        {participant.avatarUrl && <AvatarImage src={participant.avatarUrl} alt={name} />}
+                        <AvatarFallback className="gba:text-xs">{getInitials(name)}</AvatarFallback>
+                      </Avatar>
                       <div className="gba:flex-1 gba:min-w-0">
-                        <div className="gba:text-sm gba:font-medium gba:truncate">{name}</div>
+                        <div
+                          className={`gba:text-sm gba:font-medium gba:truncate ${isClickable ? 'gba:cursor-pointer hover:gba:text-primary gba:transition-colors' : ''}`}
+                          onClick={() => handleNavigateToProfile(participant.employeeId)}
+                        >
+                          {name}
+                        </div>
                         {participant.comment && (
                           <div className="gba:text-xs gba:text-muted-foreground gba:truncate">
                             "{participant.comment}"
