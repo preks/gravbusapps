@@ -30,6 +30,23 @@ adjust-salary-frequency-hourly = Hourly
 adjust-salary-current-salary = Current Salary
 adjust-salary-calculation-breakdown = Salary Adjustment Summary
 
+# Assign Salary Mode (new employee without existing salary)
+assign-salary-title = Assign Employee Salary
+assign-salary-type = Salary Type
+assign-salary-type-required = Salary type is required. Please select a salary type.
+assign-salary-type-yearly-monthly = Yearly / Monthly
+assign-salary-type-hourly = Hourly
+assign-salary-annual-salary = Annual Gross Salary
+assign-salary-annual-salary-required = Annual salary is required. Please enter the annual salary.
+assign-salary-annual-salary-positive = Annual salary must be greater than zero.
+assign-salary-hourly-salary = Hourly Gross Salary
+assign-salary-hourly-salary-required = Hourly salary is required. Please enter the hourly salary.
+assign-salary-hourly-salary-positive = Hourly salary must be greater than zero.
+assign-salary-currency-required = Currency is required. Please select a currency.
+assign-salary-monthly-equivalent = Monthly Equivalent
+assign-salary-start-date = Start Date
+assign-salary-start-date-required = Start date is required. Please select a start date.
+
 # Adjust Employee Salary Review Form
 adjust-salary-review-title = Employee Salary Adjustment Review for { $employeeName }
 adjust-salary-review-initiated-by = Initiated by { $initiatorName }
