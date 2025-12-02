@@ -15,7 +15,8 @@ import {
   extractHalfDayDates,
   calculateDateRangeBreakdown,
   type HolidayEntry,
-  type DateRangeBreakdown
+  type DateRangeBreakdown,
+  type WorkingHours
 } from '../utils/workingDaysCalculator'
 
 dayjs.extend(isSameOrBefore)
@@ -25,7 +26,8 @@ import {
   getEmployeeAbsenceBalance,
   getTodayAbsences,
   employeeRegionLookupQuery,
-  employmentRegionHolidaysQuery
+  employmentRegionHolidaysQuery,
+  employeeWorkingHoursQuery
 } from '../queries/getEmployeeAbsences'
 
 export interface AbsenceValidationError {
@@ -96,6 +98,7 @@ export const useAbsenceValidation = ({
   const [existingSickLeave, setExistingSickLeave] = useState<EmployeeAbsence | null>(null)
   const [holidays, setHolidays] = useState<HolidayEntry[]>([])
   const [dateRangeBreakdown, setDateRangeBreakdown] = useState<DateRangeBreakdown | null>(null)
+  const [workingHours, setWorkingHours] = useState<WorkingHours | null>(null)
 
   const { details: absenceTypeDetails } = useAbsenceTypeDetails(context, selectedType)
 
@@ -226,7 +229,21 @@ export const useAbsenceValidation = ({
       }
     }
 
+    const fetchWorkingHours = async () => {
+      try {
+        const workingHoursRes = await client.request(employeeWorkingHoursQuery, {
+          employeeId
+        })
+
+        const workingHoursData: WorkingHours | null = workingHoursRes?.employee?.[0]?.workingHours?.[0] || null
+        setWorkingHours(workingHoursData)
+      } catch {
+        setWorkingHours(null)
+      }
+    }
+
     fetchRegionAndHolidays()
+    fetchWorkingHours()
   }, [accessToken, employeeId, client])
 
   useEffect(() => {
@@ -409,15 +426,16 @@ export const useAbsenceValidation = ({
         requestedDays = calculateWorkingDays(newStartDate, newEndDate, {
           holidays,
           excludeWeekends: true,
-          halfDayDates
+          halfDayDates,
+          workingHours
         })
 
-        const breakdown = calculateDateRangeBreakdown(newStartDate, newEndDate, holidays)
+        const breakdown = calculateDateRangeBreakdown(newStartDate, newEndDate, holidays, workingHours)
         setDateRangeBreakdown(breakdown)
       } else {
         requestedDays = dayjs(newEndDate).diff(dayjs(newStartDate), 'day') + 1
 
-        const breakdown = calculateDateRangeBreakdown(newStartDate, newEndDate, holidays)
+        const breakdown = calculateDateRangeBreakdown(newStartDate, newEndDate, holidays, workingHours)
         setDateRangeBreakdown(breakdown)
       }
 
