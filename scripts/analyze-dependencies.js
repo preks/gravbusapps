@@ -99,15 +99,24 @@ async function findScreensImportingFile(changedFile) {
   const affectedScreens = new Set()
   const allScreens = await findAllScreens()
 
-  // Normalize the changed file path to an import path
+  // Normalize the changed file path to various import formats
   // e.g., src/common/utils/formatters.ts -> @/common/utils/formatters
-  let importPath = changedFile
-    .replace(/^src\//, '@/')
-    .replace(/\.(ts|tsx|js|jsx)$/, '')
-    .replace(/\/index$/, '')
+  const fileWithoutExt = changedFile.replace(/\.(ts|tsx|js|jsx)$/, '').replace(/\/index$/, '')
 
-  // Also get the directory path for folder imports
-  const importDir = path.dirname(importPath)
+  // Format 1: @/ alias (e.g., @/common/utils/formatters)
+  const aliasPath = fileWithoutExt.replace(/^src\//, '@/')
+
+  // Format 2: Raw path without src/ (e.g., common/utils/formatters)
+  const rawPath = fileWithoutExt.replace(/^src\//, '')
+
+  // Format 3: For relative imports, we need the path segments
+  // e.g., '../../../../../common/network/cost-center/useCostCentersByStructure'
+  // We look for the distinctive part: 'common/network/cost-center/useCostCentersByStructure'
+  const relativePath = rawPath
+
+  // Also get directory paths for folder imports
+  const aliasDir = path.dirname(aliasPath)
+  const rawDir = path.dirname(rawPath)
 
   for (const screen of allScreens) {
     const files = await getScreenFiles(screen)
@@ -116,12 +125,18 @@ async function findScreensImportingFile(changedFile) {
       try {
         const content = fs.readFileSync(file, 'utf8')
 
-        // Check for exact file import or directory import
+        // Check for various import formats:
+        // 1. @/ alias imports: import { x } from '@/common/utils/file'
+        // 2. Raw path imports: import { x } from 'common/utils/file'
+        // 3. Relative imports: import { x } from '../../../common/utils/file'
+        //    For relative imports, we just check if the path ends with our target
         if (
-          content.includes(importPath) ||
-          content.includes(importDir) ||
-          content.includes(importPath.replace('@/', '')) ||
-          content.includes(importDir.replace('@/', ''))
+          content.includes(aliasPath) ||
+          content.includes(aliasDir) ||
+          content.includes(`/${relativePath}'`) || // Matches '../../../common/utils/file'
+          content.includes(`/${relativePath}"`) || // Double quotes
+          content.includes(`/${rawDir}'`) ||
+          content.includes(`/${rawDir}"`)
         ) {
           affectedScreens.add(screen)
           break
