@@ -6,10 +6,6 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { toInvestmentDocument } from '@/common/data/investment/mappers/investmentRelatedEntityMappers'
 import { INVESTMENT_DOCUMENT } from '@/common/data/investment/queries/fragments/investmentFragments'
 
-/**
- * Get IRM document API configuration for DocumentSection
- * All IRM entities (investment, lead, account, contact, opportunity) use the same endpoints
- */
 export function getIrmDocumentApiConfig(entityFieldName: string) {
   return {
     baseEndpoint: '/investment-relations',

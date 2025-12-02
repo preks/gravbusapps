@@ -23,7 +23,8 @@ async function findAllScreens() {
     'src/business-apps/**/apps/*/index.ts',
     'src/business-apps/**/forms/*/index.ts',
     'src/business-apps/**/popups/*/index.ts',
-    'src/business-apps/**/records/*/index.ts'
+    'src/business-apps/**/records/*/index.ts',
+    'src/business-apps/**/debug/*/index.ts'
   ]
 
   const screens = new Set()
