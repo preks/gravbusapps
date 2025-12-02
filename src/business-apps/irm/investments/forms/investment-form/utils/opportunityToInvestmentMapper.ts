@@ -34,8 +34,16 @@ export const mapOpportunityToInvestmentFormValues = (
     }
   }
 
+  // Map additional common investment fields to main investment object
+  if (opportunityData.investmentRole) {
+    result.investment = { ...result.investment, investmentRole: opportunityData.investmentRole } as any
+  }
+  if (opportunityData.investmentStakeType) {
+    result.investment = { ...result.investment, investmentStakeType: opportunityData.investmentStakeType } as any
+  }
+
   // If no form fields definition provided, return static fields only
-  if (!formFieldsDefinition || !formFieldsDefinition.formFields) {
+  if (!formFieldsDefinition || !formFieldsDefinition.formFields || formFieldsDefinition.formFields.length === 0) {
     return result
   }
 
@@ -62,7 +70,7 @@ export const mapOpportunityToInvestmentFormValues = (
         continue
       }
 
-      // Map to the correct entity in the investment form structure
+      // Map to the correct entity (merge with existing mapped values)
       if (entityType === 'investment') {
         result.investment = {
           ...result.investment,

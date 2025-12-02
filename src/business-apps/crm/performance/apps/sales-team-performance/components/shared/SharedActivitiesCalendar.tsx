@@ -58,6 +58,16 @@ export interface MemberFilter {
   isManager?: boolean
 }
 
+// Absence period for calendar display
+export interface CalendarAbsence {
+  id: string
+  employeeId: string
+  startDate: string
+  endDate: string
+  type?: string
+  status?: string
+}
+
 export interface SharedActivitiesCalendarProps {
   activities: CalendarActivity[]
   isLoading?: boolean
@@ -73,6 +83,8 @@ export interface SharedActivitiesCalendarProps {
   dataTestIdPrefix?: string
   showActivityScores?: boolean // Show activity score badges (default: false)
   accessToken: string // Required for loading activity details
+  compact?: boolean // Use compact height for calendar cells (default: false)
+  absences?: CalendarAbsence[] // Optional absences to display on calendar
 }
 
 export const SharedActivitiesCalendar: React.FC<SharedActivitiesCalendarProps> = ({
@@ -88,12 +100,23 @@ export const SharedActivitiesCalendar: React.FC<SharedActivitiesCalendarProps> =
   managerInfo,
   dataTestIdPrefix = 'SharedActivitiesCalendar',
   showActivityScores = false,
-  accessToken
+  accessToken,
+  compact = false,
+  absences = []
 }) => {
   const [selectedActivityId, setSelectedActivityId] = useState<string | null>(null)
   const [selectedActivities, setSelectedActivities] = useState<CalendarActivity[]>([])
   const [selectedDate, setSelectedDate] = useState<string>('')
   const [activityDetailOpen, setActivityDetailOpen] = useState(false)
+
+  // Helper to check if a day falls within any absence period
+  const getAbsenceForDay = (day: dayjs.Dayjs): CalendarAbsence | undefined => {
+    return absences.find(absence => {
+      const start = dayjs(absence.startDate).startOf('day')
+      const end = dayjs(absence.endDate).endOf('day')
+      return day.isSame(start, 'day') || day.isSame(end, 'day') || (day.isAfter(start) && day.isBefore(end))
+    })
+  }
 
   // Generate calendar days
   const calendarDays = useMemo(() => {
@@ -107,6 +130,7 @@ export const SharedActivitiesCalendar: React.FC<SharedActivitiesCalendarProps> =
       isCurrentMonth: boolean
       isToday: boolean
       activities: CalendarActivity[]
+      absence?: CalendarAbsence
     }> = []
 
     let day = startDate
@@ -122,13 +146,14 @@ export const SharedActivitiesCalendar: React.FC<SharedActivitiesCalendarProps> =
         date: day,
         isCurrentMonth: day.month() === currentDate.month(),
         isToday: day.isSame(dayjs(), 'day'),
-        activities: dayActivities
+        activities: dayActivities,
+        absence: getAbsenceForDay(day)
       })
       day = day.add(1, 'day')
     }
 
     return days
-  }, [currentDate, activities])
+  }, [currentDate, activities, absences])
 
   // Helper functions
   const getActivityTypeIcon = (type: string, size = 12) => {
@@ -173,8 +198,8 @@ export const SharedActivitiesCalendar: React.FC<SharedActivitiesCalendarProps> =
   }
 
   const handleDayClick = (dayInfo: (typeof calendarDays)[0]) => {
+    // Open detail sheet when there are more activities than displayed
     if (dayInfo.activities.length > 3) {
-      // Open sheet with multiple activities
       setSelectedActivities(dayInfo.activities)
       setSelectedDate(dayInfo.date.format('MMMM D, YYYY'))
       setSelectedActivityId(null)
@@ -272,26 +297,48 @@ export const SharedActivitiesCalendar: React.FC<SharedActivitiesCalendarProps> =
 
               {/* Calendar days */}
               {calendarDays.map(dayInfo => {
-                const hasMoreThan3 = dayInfo.activities.length > 3
-                const displayedActivities = dayInfo.activities.slice(0, 3)
+                // In compact mode, show 3 activities, then "more" link
+                const maxActivities = compact ? 3 : 3
+                const hasMore = dayInfo.activities.length > maxActivities
+                const displayedActivities = dayInfo.activities.slice(0, maxActivities)
 
                 return (
                   <div
                     key={dayInfo.date.format('YYYY-MM-DD')}
-                    className={`gba:h-[270px] gba:border gba:rounded gba:p-2 gba:relative gba:flex gba:flex-col ${
+                    className={`${compact ? 'gba:h-[130px]' : 'gba:h-[270px]'} gba:border gba:rounded gba:p-1.5 gba:relative gba:flex gba:flex-col ${
                       dayInfo.isCurrentMonth ? 'gba:bg-hsl(var(--background))' : 'gba:bg-gray-50'
-                    } ${dayInfo.isToday ? 'gba:ring-2 gba:ring-primary' : ''}`}
+                    } ${dayInfo.isToday ? 'gba:ring-2 gba:ring-primary' : ''} ${
+                      dayInfo.absence ? 'gba:bg-info/10 gba:border-info/30' : ''
+                    }`}
                     data-testid={`${dataTestIdPrefix}-day-${dayInfo.date.format('YYYY-MM-DD')}`}
                   >
-                    <div
-                      className={`gba:text-sm gba:font-medium gba:mb-1 gba:shrink-0 ${
-                        dayInfo.isToday ? 'gba:text-primary' : 'gba:text-gray-700'
-                      }`}
-                    >
-                      {dayInfo.date.date()}
+                    <div className="gba:flex gba:items-center gba:justify-between gba:mb-1 gba:shrink-0">
+                      <span
+                        className={`gba:text-sm gba:font-medium ${
+                          dayInfo.isToday ? 'gba:text-primary' : 'gba:text-gray-700'
+                        }`}
+                      >
+                        {dayInfo.date.date()}
+                      </span>
+                      {/* Absence indicator */}
+                      {dayInfo.absence && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="gba:flex gba:items-center gba:gap-0.5 gba:px-1 gba:py-0.5 gba:rounded gba:bg-info/20 gba:text-info gba:text-[9px] gba:font-medium">
+                              <PiCalendar size={10} />
+                              <span>{compact ? 'Out' : dayInfo.absence.type || 'Absence'}</span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {dayInfo.absence.type || 'Absence'} ({dayInfo.absence.status || 'Approved'})
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
                     </div>
+
+                    {/* Show activities */}
                     <div className="gba:flex-1 gba:flex gba:flex-col gba:overflow-hidden">
-                      <div className="gba:space-y-1 gba:flex-1">
+                      <div className={`${compact ? 'gba:space-y-0.5' : 'gba:space-y-1'} gba:flex-1`}>
                         {displayedActivities.map(activity => {
                           const activityType = activity.activityType?.value || 'Task'
                           // Calculate score dynamically using the formula
@@ -299,6 +346,31 @@ export const SharedActivitiesCalendar: React.FC<SharedActivitiesCalendarProps> =
                           const formatTime = (dateStr: string) => dayjs(dateStr).format('HH:mm')
                           const isManagerActivity = managerInfo && activity.ownerEmployeeId === managerInfo.id
 
+                          // Compact mode: simplified display
+                          if (compact) {
+                            return (
+                              <button
+                                type="button"
+                                key={activity.id}
+                                onClick={e => {
+                                  e.stopPropagation()
+                                  handleActivityClick(activity.id)
+                                }}
+                                className="gba:w-full gba:px-1 gba:py-0.5 gba:rounded gba:text-[10px] gba:cursor-pointer hover:gba:opacity-80 gba:text-left gba:border-0 gba:bg-transparent gba:flex gba:items-center gba:gap-1"
+                                style={{
+                                  backgroundColor: `${getActivityColor(activityType)}15`
+                                }}
+                                data-testid={`${dataTestIdPrefix}-activity-${activity.id}`}
+                              >
+                                <div style={{ color: getActivityColor(activityType) }}>
+                                  {getActivityTypeIcon(activityType, 10)}
+                                </div>
+                                <span className="gba:truncate gba:flex-1 gba:text-gray-700">{activity.title}</span>
+                              </button>
+                            )
+                          }
+
+                          // Regular mode: full display
                           return (
                             <button
                               type="button"
@@ -345,14 +417,14 @@ export const SharedActivitiesCalendar: React.FC<SharedActivitiesCalendarProps> =
                           )
                         })}
                       </div>
-                      {hasMoreThan3 && (
+                      {hasMore && (
                         <button
                           type="button"
                           onClick={() => handleDayClick(dayInfo)}
                           className="gba:text-xs gba:text-center gba:text-primary gba:font-medium gba:mt-1 gba:shrink-0 gba:w-full gba:bg-transparent gba:border-0 gba:cursor-pointer hover:gba:underline gba:p-0"
                           data-testid={`${dataTestIdPrefix}-show-more-${dayInfo.date.format('YYYY-MM-DD')}`}
                         >
-                          +{dayInfo.activities.length - 3} more
+                          +{dayInfo.activities.length - maxActivities} more
                         </button>
                       )}
                     </div>
