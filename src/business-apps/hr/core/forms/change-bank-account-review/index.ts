@@ -1,4 +1,2 @@
-import { ChangeBankAccountReview } from './ChangeBankAccountReview'
-
-export { ChangeBankAccountReview }
-export default ChangeBankAccountReview
+export { default } from './ChangeBankAccountReview'
+export { default as ChangeBankAccountReview } from './ChangeBankAccountReview'
