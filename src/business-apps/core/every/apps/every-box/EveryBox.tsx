@@ -302,7 +302,7 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                     </TabsTrigger>
                   </TabsList>
 
-                  <TabsContent value="inbox" className="gba:flex-1 gba:overflow-hidden gba:px-3">
+                  <TabsContent value="inbox" className="gba:flex-1 gba:overflow-hidden gba:px-6">
                     <InboxView
                       {...context}
                       tasks={tasks}
@@ -326,7 +326,7 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                     />
                   </TabsContent>
 
-                  <TabsContent value="outbox" className="gba:flex-1 gba:overflow-hidden gba:px-3">
+                  <TabsContent value="outbox" className="gba:flex-1 gba:overflow-hidden gba:px-6">
                     <OutboxView
                       flows={flows}
                       isLoading={flowsLoading}
