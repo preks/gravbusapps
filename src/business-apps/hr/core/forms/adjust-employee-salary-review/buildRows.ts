@@ -95,18 +95,20 @@ export function buildSalaryComparisonRows(params: {
   const hasHourlyData = isPositiveNumber(oldHourly) || isPositiveNumber(newHourly)
 
   if (hasAnnualMonthlyData) {
-    rows.push({
-      key: 'annualSalary',
-      label: t('adjust-salary-review-annual-gross-salary', { defaultValue: 'Annual Gross Salary' }),
-      oldValue: formatCurrencyString(oldAnnual, { currency: currencyCode, locale }),
-      newValue: formatCurrencyString(newAnnual, { currency: currencyCode, locale })
-    })
-    rows.push({
-      key: 'monthlySalary',
-      label: t('adjust-salary-review-monthly-gross-salary', { defaultValue: 'Monthly Gross Salary' }),
-      oldValue: formatCurrencyOrDash(oldMonthly, currencyCode, locale),
-      newValue: formatCurrencyOrDash(newMonthly, currencyCode, locale)
-    })
+    rows.push(
+      {
+        key: 'annualSalary',
+        label: t('adjust-salary-review-annual-gross-salary', { defaultValue: 'Annual Gross Salary' }),
+        oldValue: formatCurrencyString(oldAnnual, { currency: currencyCode, locale }),
+        newValue: formatCurrencyString(newAnnual, { currency: currencyCode, locale })
+      },
+      {
+        key: 'monthlySalary',
+        label: t('adjust-salary-review-monthly-gross-salary', { defaultValue: 'Monthly Gross Salary' }),
+        oldValue: formatCurrencyOrDash(oldMonthly, currencyCode, locale),
+        newValue: formatCurrencyOrDash(newMonthly, currencyCode, locale)
+      }
+    )
   }
 
   if (hasHourlyData) {
@@ -147,7 +149,7 @@ export function buildNewSalaryDetailRows(params: {
     rows.push({
       key: 'hourlySalary',
       label: t('assign-salary-review-hourly-salary', { defaultValue: 'Hourly Gross Salary' }),
-      value: formatCurrencyString(newHourly!, { currency: currencyCode, locale })
+      value: formatCurrencyString(newHourly, { currency: currencyCode, locale })
     })
   } else {
     if (newAnnual > 0) {

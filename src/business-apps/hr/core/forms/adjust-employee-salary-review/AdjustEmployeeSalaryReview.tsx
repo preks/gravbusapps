@@ -37,20 +37,27 @@ export const AdjustEmployeeSalaryReview: React.FC<BusinessAppContextProps> = ({
   const newSalaryData = payload?.employeeSalary || {}
   const oldCompensation = payload?.oldEmployeeSalary
 
+  // Check if newSalaryData has meaningful salary values (not just an empty object)
+  const hasNewSalaryData =
+    newSalaryData.employee ||
+    newSalaryData.annualGrossSalary ||
+    newSalaryData.monthlyGrossSalary ||
+    newSalaryData.hourlyGrossSalary
+
   // ===== ADJUST MODE: Build salary comparison rows (old vs new) =====
   const comparisonRows = useMemo(() => {
-    if (reviewMode !== 'adjust' || !oldCompensation || !newSalaryData) return []
+    if (reviewMode !== 'adjust' || !oldCompensation || !hasNewSalaryData) return []
     return buildSalaryComparisonRows({
       oldCompensation: oldCompensation as any,
       newSalaryData: newSalaryData as any,
       locale,
       t
     })
-  }, [reviewMode, oldCompensation, newSalaryData, locale, t])
+  }, [reviewMode, oldCompensation, hasNewSalaryData, newSalaryData, locale, t])
 
   // ===== ADJUST MODE: Build adjustment details (with increase summary) =====
   const adjustmentDetails = useMemo(() => {
-    if (reviewMode !== 'adjust' || !oldCompensation || !newSalaryData) return null
+    if (reviewMode !== 'adjust' || !oldCompensation || !hasNewSalaryData) return null
     return buildAdjustmentDetails({
       oldCompensation: oldCompensation as any,
       newSalaryData: newSalaryData as any,
@@ -58,25 +65,25 @@ export const AdjustEmployeeSalaryReview: React.FC<BusinessAppContextProps> = ({
       salaryAdjustReasonEntries,
       t
     })
-  }, [reviewMode, oldCompensation, newSalaryData, locale, salaryAdjustReasonEntries, t])
+  }, [reviewMode, oldCompensation, hasNewSalaryData, newSalaryData, locale, salaryAdjustReasonEntries, t])
 
   // ===== ASSIGN MODE: Build new salary detail rows (single-column) =====
   const newSalaryDetailRows = useMemo(() => {
-    if (reviewMode !== 'assign' || !newSalaryData) return []
+    if (reviewMode !== 'assign' || !hasNewSalaryData) return []
     return buildNewSalaryDetailRows({
       newSalaryData: newSalaryData as any,
       locale,
       t
     })
-  }, [reviewMode, newSalaryData, locale, t])
+  }, [reviewMode, hasNewSalaryData, newSalaryData, locale, t])
 
   // ===== ASSIGN MODE: Build assignment details (start date, notes) =====
   const assignmentDetails = useMemo(() => {
-    if (reviewMode !== 'assign' || !newSalaryData) return null
+    if (reviewMode !== 'assign' || !hasNewSalaryData) return null
     return buildAssignmentDetails({
       newSalaryData: newSalaryData as any
     })
-  }, [reviewMode, newSalaryData])
+  }, [reviewMode, hasNewSalaryData, newSalaryData])
 
   // Build title with employee name - different for assign vs adjust mode
   const titleText = useMemo(() => {
