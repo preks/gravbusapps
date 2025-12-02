@@ -22,7 +22,11 @@ const { Title, Text } = Typography
 const Dashboard: React.FC<DashboardProps> = ({ accessToken }) => {
   const { t } = useTranslation(hrTranslations)
   // Get data from custom hooks
-  const { count: employeeCount, loading: employeeLoading } = useEmployeeCount(accessToken)
+  const {
+    count: employeeCount,
+    diffYoY: employeeCountDiffYoY,
+    loading: employeeLoading
+  } = useEmployeeCount(accessToken)
   const { count: newHiresCount, loading: hiresLoading } = useNewHiresCount(accessToken)
   const {
     rate: turnoverRate,
@@ -108,8 +112,8 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken }) => {
         icon: <Icon icon={UsersIcon} size="sm" decorative />,
         iconColor: 'var(--nw-info)',
         trend: {
-          value: analyticsData.newHires.value.toString(),
-          positive: analyticsData.newHires.value > 0 ? true : false,
+          value: `${employeeCountDiffYoY > 0 ? '+' : ''}${employeeCountDiffYoY}`,
+          positive: employeeCountDiffYoY > 0 ? true : false,
           description: t('hr-analytics-this-year')
         },
         footer: t('hr-analytics-active-employees')

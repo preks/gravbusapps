@@ -6,7 +6,12 @@ import { employeeCountQuery } from '../queries/getEmployeeCount'
  * GraphQL response type for employee count query
  */
 interface EmployeeCountResponse {
-  EmployeePositionAggregate: {
+  thisYear: {
+    aggregate: {
+      count: number
+    }
+  }
+  lastYear: {
     aggregate: {
       count: number
     }
@@ -20,7 +25,9 @@ interface EmployeeCountResponse {
  */
 export const useEmployeeCount = (accessToken: string) => {
   // Define all hooks at the top level to ensure consistent order
-  const [count, setCount] = useState<number>(0)
+  const [count, setCount] = useState<number>(0) // this year count (backward compatible)
+  const [lastYearCount, setLastYearCount] = useState<number>(0)
+  const [diffYoY, setDiffYoY] = useState<number>(0)
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<Error | null>(null)
   const isMounted = useRef<boolean>(true)
@@ -46,24 +53,27 @@ export const useEmployeeCount = (accessToken: string) => {
         setError(null)
       }
 
-      // Execute the GraphQL query using the imported query with isDeleted filter
-      const response = await graphQLClient.request<EmployeeCountResponse>(employeeCountQuery)
-      console.log('[useEmployeeCount] GraphQL response:', response)
+      // Define year ends for as-of-year-end headcount
+      const now = new Date()
+      const thisYearEnd = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999)
+      const lastYearEnd = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999)
 
-      // Validate response structure
-      if (!response || !response.EmployeePositionAggregate || !response.EmployeePositionAggregate.aggregate) {
-        throw new Error('Invalid response structure from GraphQL API')
-      }
+      const combinedResponse = await graphQLClient.request<EmployeeCountResponse>(employeeCountQuery, {
+        thisYearEnd: thisYearEnd.toISOString(),
+        lastYearEnd: lastYearEnd.toISOString()
+      })
 
-      // Extract and validate count
-      const employeeCount = Number(response.EmployeePositionAggregate.aggregate.count)
-      if (isNaN(employeeCount)) {
+      const thisYearCount = Number(combinedResponse?.thisYear?.aggregate?.count ?? 0)
+      const prevYearCount = Number(combinedResponse?.lastYear?.aggregate?.count ?? 0)
+
+      if (isNaN(thisYearCount) || isNaN(prevYearCount)) {
         throw new Error('Employee count is not a valid number')
       }
 
-      // Update state if component is still mounted
       if (isMounted.current) {
-        setCount(employeeCount)
+        setCount(thisYearCount)
+        setLastYearCount(prevYearCount)
+        setDiffYoY(thisYearCount - prevYearCount)
         setError(null)
       }
     } catch (err) {
@@ -99,6 +109,8 @@ export const useEmployeeCount = (accessToken: string) => {
 
   return {
     count,
+    lastYearCount,
+    diffYoY,
     loading,
     error,
     refetch
