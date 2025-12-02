@@ -109,7 +109,7 @@ export interface CalendarEvent {
   }
   participantCount: number
   acceptedCount: number
-  participants: EventParticipant[]
+  participants?: EventParticipant[]
   meetingLink?: string
   location?: string
   conversationId?: string
