@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useEffect } from 'react'
+import React, { useMemo, useRef, useEffect, useState } from 'react'
 import { cn } from '@newwork/nw-design-system'
 import type { CalendarEvent } from '../types'
 import { CalendarEventItem } from './CalendarEventItem'
@@ -76,10 +76,25 @@ export const DayView: React.FC<DayViewProps> = ({ currentDate, events, onEventCl
   const allDayEvents = dayEvents.filter(e => e.allDay)
   const timedEvents = dayEvents.filter(e => !e.allDay)
 
-  // Current time indicator position
-  const currentTimePosition = useMemo(() => {
+  // Current time indicator position - updates every minute
+  const [currentTimePosition, setCurrentTimePosition] = useState(() => {
     const now = new Date()
     return (now.getHours() + now.getMinutes() / 60) * HOUR_HEIGHT
+  })
+
+  // Update current time indicator every minute
+  useEffect(() => {
+    const updateCurrentTime = () => {
+      const now = new Date()
+      setCurrentTimePosition((now.getHours() + now.getMinutes() / 60) * HOUR_HEIGHT)
+    }
+
+    // Update immediately
+    updateCurrentTime()
+
+    // Update every minute
+    const interval = setInterval(updateCurrentTime, 60000)
+    return () => clearInterval(interval)
   }, [])
 
   // Scroll to current time on mount (or a reasonable morning time if early)
