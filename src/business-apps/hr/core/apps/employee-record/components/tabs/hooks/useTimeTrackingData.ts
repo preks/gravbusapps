@@ -13,6 +13,7 @@ import {
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { EmployeeTimeClient } from '@/common/network/employee-time/EmployeeTimeClient'
 import { fetchOfficeAndGeoLocation } from '../../../services/service-geo-location/geoLocationService'
+import { employeeAttendanceMonthlyAllQuery as allQuery } from '@/business-apps/hr/core/apps/employee-record/queries/attendanceQueries'
 
 export type TimeEntry = {
   id: string
@@ -79,6 +80,11 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
   const [todaysProjectMinutes, setTodaysProjectMinutes] = useState(0)
   const [todaysPlannedMinutes, setTodaysPlannedMinutes] = useState(0)
   const [todayRecordedMinutes, setTodayRecordedMinutes] = useState(0)
+  // proximity info parsed from notes of most recent entry (today)
+  const [isNearHome, setIsNearHome] = useState<boolean>(false)
+  const [isNearOffice, setIsNearOffice] = useState<boolean>(false)
+  // whether there is any attendance record (open or closed) for today
+  const [hasTodayAttendanceRecord, setHasTodayAttendanceRecord] = useState<boolean>(false)
 
   const prevMonth = useCallback(() => {
     setPage(1)
@@ -198,12 +204,25 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       isOpenAndToday && mostRecent?.startTime ? String(formatDate(mostRecent.startTime, 'time.short')) : null
     )
 
+    // Parse proximity flags from notes of most recent entry when it's from today
+    try {
+      const notes: string = String(mostRecent?.notes ?? '')
+      const homeMatch = /isNearHome\s*=\s*(true|false)/i.exec(notes)
+      const officeMatch = /isNearOffice\s*=\s*(true|false)/i.exec(notes)
+      setIsNearHome(Boolean(homeMatch && homeMatch[1].toLowerCase() === 'true'))
+      setIsNearOffice(Boolean(officeMatch && officeMatch[1].toLowerCase() === 'true'))
+    } catch {
+      setIsNearHome(false)
+      setIsNearOffice(false)
+    }
+
     // compute today's worked minutes
     try {
       const todayKeyLocal = toLocalDateKey(new Date())
       let todayMinutes = 0
       let todayRecordedMinutes = 0
       const todayRow = rows.find((r: any) => String(r?.attendanceDate) === todayKeyLocal)
+      setHasTodayAttendanceRecord(Boolean(todayRow?.startTime || todayRow?.endTime))
       if (todayRow?.effectiveTime) {
         todayMinutes = parseDurationToMinutes(String(todayRow.effectiveTime))
         todayRecordedMinutes = parseDurationToMinutes(String(todayRow.recordedTime))
@@ -397,6 +416,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
 
       setIsClockedIn(true)
       setClockInSince(String(formatDate(now, 'time.short')))
+      setHasTodayAttendanceRecord(true)
 
       // Refresh current page
       await loadFromGraphql()
@@ -475,6 +495,66 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     return { start, end, totalCount }
   }, [page, pageSize, totalCount])
 
+  /**
+   * Update today's attendance location flags and persist into notes.
+   * Also updates local state so the UI reflects the change immediately.
+   */
+  const updateLocationSelection = useCallback(
+    async (selection: 'home' | 'office' | 'remote') => {
+      try {
+        // Derive booleans from selection
+        const newIsNearHome = selection === 'home'
+        const newIsNearOffice = selection === 'office'
+
+        // Try to find today's attendance row id and version
+        const today = new Date()
+        const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
+        const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+
+        const allRes = await graphqlClient.request<any>(allQuery, {
+          employeeId,
+          dateFrom: toDateString(monthStart),
+          dateTo: toDateString(monthEnd)
+        })
+        const allRows: any[] = allRes?.EmployeeAttendance ?? []
+        const todayStr = toLocalDateKey(today) // format YYYY-MM-DD in local
+        // rows from allQuery include attendanceDate in YYYY-MM-DD
+        const todays = allRows.filter(r => String(r.attendanceDate) === todayStr)
+        const target = todays[todays.length - 1] || todays[0] // pick one if multiple
+        if (target?.id) {
+          const existingEntry = allEntries.find(e => e.id === target.id)
+          const existingNotes = existingEntry?.notes ?? ''
+          const withHome = existingNotes.match(/isNearHome\s*=\s*(true|false)/i)
+            ? existingNotes.replace(/isNearHome\s*=\s*(true|false)/gi, `isNearHome=${newIsNearHome}`)
+            : `${existingNotes}${existingNotes ? ' | ' : ''}isNearHome=${newIsNearHome}`
+          const newNotes = withHome.match(/isNearOffice\s*=\s*(true|false)/i)
+            ? withHome.replace(/isNearOffice\s*=\s*(true|false)/gi, `isNearOffice=${newIsNearOffice}`)
+            : `${withHome}${withHome ? ' | ' : ''}isNearOffice=${newIsNearOffice}`
+
+          const client = new EmployeeTimeClient()
+          if (accessToken) client.setAccessToken(accessToken)
+
+          await client.updateEmployeeAttendance({
+            employeeAttendance: {
+              id: target.id,
+              version: typeof target.version === 'number' ? target.version : 0,
+              notes: newNotes
+            }
+          })
+        }
+
+        // Update local flags immediately
+        setIsNearHome(newIsNearHome)
+        setIsNearOffice(newIsNearOffice)
+      } catch {
+        // If persistence fails, at least reflect locally
+        setIsNearHome(selection === 'home')
+        setIsNearOffice(selection === 'office')
+      }
+    },
+    [accessToken, allEntries, employeeId, graphqlClient]
+  )
+
   return {
     // state
     currentMonth,
@@ -482,6 +562,9 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     clockInSince,
     isSubmitting,
     error,
+    isNearHome,
+    isNearOffice,
+    hasTodayAttendanceRecord,
     entries,
     totalCount,
     page,
@@ -510,6 +593,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     prevMonth,
     nextMonth,
     clockIn,
-    clockOut
+    clockOut,
+    updateLocationSelection
   }
 }

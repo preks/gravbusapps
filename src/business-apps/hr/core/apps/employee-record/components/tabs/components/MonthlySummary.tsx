@@ -1,12 +1,23 @@
 'use client'
 
 import React from 'react'
-import { Button, Card, Alert, Icon } from '@newwork/nw-design-system'
+import {
+  Button,
+  Card,
+  Alert,
+  Icon,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useTimeTrackingData } from '../hooks/useTimeTrackingData'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { UserIcon, ClockIcon, TimerIcon, ListBulletsIcon, PencilIcon } from '@phosphor-icons/react'
+import { UserIcon, ClockIcon, TimerIcon, ListBulletsIcon, PencilIcon, MapPinIcon } from '@phosphor-icons/react'
 import { InterventionsTable } from './InterventionsTable'
 import { LiveClock } from './LiveClock'
 
@@ -27,7 +38,11 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, a
     clockOut,
     todaysWorkedMinutes,
     todaysPlannedMinutes,
-    todayRecordedMinutes
+    todayRecordedMinutes,
+    isNearHome,
+    isNearOffice,
+    hasTodayAttendanceRecord,
+    updateLocationSelection
   } = useTimeTrackingData({ employeeId, accessToken, workingHours: employee?.workingHours?.[0] })
 
   const formatHm = (minutes: number) => {
@@ -104,6 +119,20 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, a
     const m = raw.match(/^(\d{1,2}:\d{2})/)
     return m ? m[1] : raw
   }, [clockInSince])
+
+  const locationPrimaryLabel = React.useMemo(() => {
+    if (isNearOffice) return getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.location.office', 'Office')
+    if (isNearHome) return getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.location.home', 'Home')
+    return getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.location.remote', 'Remote Location')
+  }, [isNearHome, isNearOffice])
+  const confirmLocationLabel = React.useMemo(() => {
+    const label = `Not working from ${locationPrimaryLabel}?`
+    return getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.location.you_are_working_from_question', label, {
+      location: locationPrimaryLabel
+    })
+  }, [locationPrimaryLabel])
+
+  const [isLocationModalOpen, setIsLocationModalOpen] = React.useState(false)
 
   return (
     <div data-testid="monthly-summary-container">
@@ -274,7 +303,81 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, a
                 <span className={`gba:font-semibold ${balanceClass}`}>{formatHmSigned(balanceMinutes)}</span>
               </div>
             </div>
+            {(isClockedIn || hasTodayAttendanceRecord) && (
+              <div
+                className="gba:text-base gba:mt-2 gba:flex gba:items-start gba:justify-between gba:w-full"
+                data-testid="timeclock-location-status"
+              >
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <Icon icon={MapPinIcon} />
+                  <span>{getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.location.label', 'Location')}</span>
+                </div>
+                <div className="gba:text-right gba:flex gba:flex-col gba:items-end">
+                  <span className="gba:font-semibold">{locationPrimaryLabel}</span>
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="gba:!px-0 gba:text-warning gba:font-semibold gba:underline gba:mt-1"
+                    onClick={() => setIsLocationModalOpen(true)}
+                    data-testid="timeclock-location-open-modal-button"
+                  >
+                    {confirmLocationLabel}
+                  </Button>
+                </div>
+              </div>
+            )}
           </Card>
+
+          <Dialog open={isLocationModalOpen} onOpenChange={setIsLocationModalOpen}>
+            <DialogContent data-testid="timeclock-location-modal">
+              <DialogHeader>
+                <DialogTitle>
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:time_tracking.location.confirm_title',
+                    'Confirm location'
+                  )}
+                </DialogTitle>
+                <DialogDescription>
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:time_tracking.location.question',
+                    'Right now, the location you are working from is ... ?'
+                  )}
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="gba:flex gba:gap-2 gba:justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    updateLocationSelection('home')
+                    setIsLocationModalOpen(false)
+                  }}
+                  data-testid="timeclock-location-option-home"
+                >
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.location.home', 'Home')}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    updateLocationSelection('office')
+                    setIsLocationModalOpen(false)
+                  }}
+                  data-testid="timeclock-location-option-office"
+                >
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.location.office', 'Office')}
+                </Button>
+                <Button
+                  variant="default"
+                  onClick={() => {
+                    updateLocationSelection('remote')
+                    setIsLocationModalOpen(false)
+                  }}
+                  data-testid="timeclock-location-option-other"
+                >
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.location.other', 'Remote')}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
