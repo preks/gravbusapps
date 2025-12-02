@@ -28,14 +28,31 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Switch as NWSwitch
+  Switch as NWSwitch,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DateInput
 } from '@newwork/nw-design-system'
-import { PiPlus, PiPencil, PiCalendar, PiCheck, PiX, PiCoffee, PiBowlFood, PiMoon } from 'react-icons/pi'
+import {
+  PiPlus,
+  PiPencil,
+  PiCalendar,
+  PiCheck,
+  PiX,
+  PiCoffee,
+  PiBowlFood,
+  PiMoon,
+  PiDotsThreeVertical,
+  PiTrash,
+  PiWarning
+} from 'react-icons/pi'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 
 // Register dayjs plugins
 dayjs.extend(weekday)
@@ -48,6 +65,7 @@ interface DeductionTabProps {
   ruleId: string
   accessToken: string
   activeFrom: string
+  activeTo?: string
 }
 
 interface DeductionFormData {
@@ -67,7 +85,18 @@ interface DeductionFormData {
   version?: number
 }
 
-const DeductionTab: React.FC<DeductionTabProps> = ({ ruleId, accessToken, activeFrom }) => {
+// Usage check result
+interface UsageInfo {
+  isUsed: boolean
+  usedIn: {
+    planItems?: number
+    items?: number
+    positions?: number
+  }
+  message: string
+}
+
+const DeductionTab: React.FC<DeductionTabProps> = ({ ruleId, accessToken, activeFrom, activeTo }) => {
   const graphqlClient = useGraphQLClient(accessToken)
 
   const [deductions, setDeductions] = useState<ExpenseRuleDeduction[]>([])
@@ -88,6 +117,19 @@ const DeductionTab: React.FC<DeductionTabProps> = ({ ruleId, accessToken, active
     overnightAllowance: false,
     activeFrom: activeFrom
   })
+
+  // Delete confirmation dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [itemToDelete, setItemToDelete] = useState<ExpenseRuleDeduction | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  // Usage check state
+  const [isCheckingUsage, setIsCheckingUsage] = useState(false)
+  const [currentUsageInfo, setCurrentUsageInfo] = useState<UsageInfo | null>(null)
+  const [isRestrictedEdit, setIsRestrictedEdit] = useState(false)
+
+  // Pre-loaded usage status for all deductions (deduction id -> isUsed)
+  const [deductionUsageMap, setDeductionUsageMap] = useState<Record<string, boolean>>({})
 
   // Set up client
   expenseSettingsClient.setAccessToken(accessToken)
@@ -119,8 +161,6 @@ const DeductionTab: React.FC<DeductionTabProps> = ({ ruleId, accessToken, active
               version
               additionalProperties
               businessKey
-              express1
-              express2
             }
           }
         }
@@ -132,7 +172,13 @@ const DeductionTab: React.FC<DeductionTabProps> = ({ ruleId, accessToken, active
       )
 
       const expenseRule = result.ExpenseRule?.[0]
-      setDeductions(expenseRule?.expenseRuleDeduction || [])
+      const deductionsList = expenseRule?.expenseRuleDeduction || []
+      setDeductions(deductionsList)
+
+      // Load usage status for all deductions
+      if (deductionsList.length > 0) {
+        await loadDeductionUsageStatus(deductionsList.map(d => d.id))
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load deductions')
       console.error('Error fetching deductions:', err)
@@ -140,6 +186,27 @@ const DeductionTab: React.FC<DeductionTabProps> = ({ ruleId, accessToken, active
       setIsLoading(false)
     }
   }, [graphqlClient, ruleId])
+
+  // Load usage status for all deductions
+  // Note: Deductions don't have direct references in ExpensePosition,
+  // so we can't track usage. All deductions are treated as not in use.
+  const loadDeductionUsageStatus = useCallback(async (deductionIds: string[]) => {
+    if (deductionIds.length === 0) return
+
+    // Since there's no direct link to track usage, allow all operations
+    const usageMap: Record<string, boolean> = {}
+    deductionIds.forEach(id => {
+      usageMap[id] = false
+    })
+    setDeductionUsageMap(usageMap)
+  }, [])
+
+  // Check if a deduction is used
+  // Note: Deductions don't have direct references in ExpensePosition
+  const checkDeductionUsage = useCallback(async (): Promise<UsageInfo> => {
+    // Since there's no direct link to track usage, return not used
+    return { isUsed: false, usedIn: {}, message: '' }
+  }, [])
 
   useEffect(() => {
     if (ruleId && accessToken) {
@@ -149,10 +216,28 @@ const DeductionTab: React.FC<DeductionTabProps> = ({ ruleId, accessToken, active
 
   const handleAdd = () => {
     setEditingItem(null)
+    setIsRestrictedEdit(false)
+    setCurrentUsageInfo(null)
+
+    // Determine validity period based on existing entries
+    let validFromValue = activeFrom
+    let validToValue: string | undefined = undefined
+
+    if (deductions.length > 0) {
+      // Use the same validity period as the first existing entry
+      const existingEntry = deductions[0]
+      validFromValue = existingEntry.activeFrom
+      validToValue = existingEntry.activeTo
+    } else {
+      // No existing entries - set validTo to December 31, 9999 (or rule's activeTo if set)
+      validToValue = activeTo || '9999-12-31'
+    }
+
     setFormData({
       expenseRuleId: ruleId,
       deductionOrder: deductions.length + 1,
-      activeFrom: activeFrom,
+      activeFrom: validFromValue,
+      activeTo: validToValue,
       deductBreakfast: false,
       deductLunch: false,
       deductDinner: false,
@@ -164,63 +249,97 @@ const DeductionTab: React.FC<DeductionTabProps> = ({ ruleId, accessToken, active
     setIsModalVisible(true)
   }
 
+  // Handle edit action - checks usage first
   const handleEdit = async (record: ExpenseRuleDeduction) => {
-    setEditingItem(record)
+    setIsCheckingUsage(true)
 
     try {
-      // Use the existing record data to populate the form
-      const freshData = record
+      const usageInfo = await checkDeductionUsage(record.id)
+      setCurrentUsageInfo(usageInfo)
+      setIsRestrictedEdit(usageInfo.isUsed)
 
+      setEditingItem(record)
       setFormData({
-        id: freshData.id,
+        id: record.id,
         expenseRuleId: ruleId,
-        deductBreakfast: freshData.deductBreakfast,
-        deductLunch: freshData.deductLunch,
-        deductDinner: freshData.deductDinner,
-        taxBreakfast: freshData.taxBreakfast || false,
-        taxLunch: freshData.taxLunch || false,
-        taxDinner: freshData.taxDinner || false,
-        deductionDay: freshData.deductionDay,
-        deductionOrder: freshData.deductionOrder,
-        overnightAllowance: freshData.overnightAllowance,
-        activeFrom: freshData.activeFrom,
-        activeTo: freshData.activeTo,
-        version: freshData.version
+        deductBreakfast: record.deductBreakfast,
+        deductLunch: record.deductLunch,
+        deductDinner: record.deductDinner,
+        taxBreakfast: record.taxBreakfast || false,
+        taxLunch: record.taxLunch || false,
+        taxDinner: record.taxDinner || false,
+        deductionDay: record.deductionDay,
+        deductionOrder: record.deductionOrder,
+        overnightAllowance: record.overnightAllowance,
+        activeFrom: record.activeFrom,
+        activeTo: record.activeTo,
+        version: record.version
       })
 
       setIsModalVisible(true)
     } catch (err) {
-      toast.error('Failed to load latest data for editing')
+      toast.error('Failed to check usage status')
       console.error('Edit load error:', err)
+    } finally {
+      setIsCheckingUsage(false)
     }
   }
 
-  // Note: Delete actions are now handled through AppActionButton's context flow
+  // Handle delete action - opens confirmation dialog (usage already checked via deductionUsageMap)
+  const handleDeleteClick = (record: ExpenseRuleDeduction) => {
+    setItemToDelete(record)
+    setDeleteDialogOpen(true)
+  }
+
+  // Confirm delete
+  const handleConfirmDelete = async () => {
+    if (!itemToDelete) return
+
+    setIsDeleting(true)
+    try {
+      await expenseSettingsClient.deleteExpenseRuleDeduction(itemToDelete.id, itemToDelete.version || 1)
+      toast.success('Deduction rule deleted successfully')
+      setDeleteDialogOpen(false)
+      setItemToDelete(null)
+      await fetchDeductions()
+    } catch (error) {
+      toast.error('Failed to delete deduction rule')
+      console.error('Delete error:', error)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   const handleSave = async () => {
     try {
       setIsSaving(true)
 
-      const saveData: DeductionFormData = {
+      const saveData: any = {
         ...(editingItem && { id: editingItem.id, version: editingItem.version }),
         expenseRuleId: ruleId,
-        deductBreakfast: formData.deductBreakfast,
-        deductLunch: formData.deductLunch,
-        deductDinner: formData.deductDinner,
-        taxBreakfast: formData.taxBreakfast,
-        taxLunch: formData.taxLunch,
-        taxDinner: formData.taxDinner,
-        deductionDay: formData.deductionDay,
-        deductionOrder: formData.deductionOrder,
-        overnightAllowance: formData.overnightAllowance,
-        activeFrom: formData.activeFrom,
         activeTo: formData.activeTo
+      }
+
+      // Only include other fields if not in restricted edit mode
+      if (!isRestrictedEdit) {
+        saveData.deductBreakfast = formData.deductBreakfast
+        saveData.deductLunch = formData.deductLunch
+        saveData.deductDinner = formData.deductDinner
+        saveData.taxBreakfast = formData.taxBreakfast
+        saveData.taxLunch = formData.taxLunch
+        saveData.taxDinner = formData.taxDinner
+        saveData.deductionDay = formData.deductionDay
+        saveData.deductionOrder = formData.deductionOrder
+        saveData.overnightAllowance = formData.overnightAllowance
+        saveData.activeFrom = formData.activeFrom
       }
 
       await expenseSettingsClient.saveExpenseRuleDeduction(saveData)
       toast.success(`Deduction rule ${editingItem ? 'updated' : 'created'} successfully`)
 
       setIsModalVisible(false)
+      setIsRestrictedEdit(false)
+      setCurrentUsageInfo(null)
       await fetchDeductions()
     } catch (err) {
       toast.error(`Failed to ${editingItem ? 'update' : 'create'} deduction rule`)
@@ -402,25 +521,52 @@ const DeductionTab: React.FC<DeductionTabProps> = ({ ruleId, accessToken, active
                         <TableRow key={record.id} data-testid={`deduction-row-${record.id}`}>
                           <TableCell>
                             <div className="gba:flex gba:justify-start gba:gap-2">
-                              <AppActionButton
-                                data-testid={`deduction-action-${record.id}`}
-                                size="icon"
-                                contextsArray={[]}
-                                externalContextData={{ deductionId: record.id }}
-                                prefixDataTestId="deduction-action"
-                                accessToken={accessToken}
-                                emptyStateBehavior="enable"
-                                deferMainContextRequestsUntilClick
-                                onClick={e => e.stopPropagation()}
-                              />
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleEdit(record)}
-                                data-testid={`edit-deduction-${record.id}`}
-                              >
-                                <PiPencil className="gba:h-4 gba:w-4" />
-                              </Button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={e => e.stopPropagation()}
+                                    disabled={isCheckingUsage}
+                                    data-testid={`deduction-action-${record.id}`}
+                                  >
+                                    {isCheckingUsage ? (
+                                      <Spinner className="gba:h-4 gba:w-4" />
+                                    ) : (
+                                      <PiDotsThreeVertical className="gba:h-4 gba:w-4" />
+                                    )}
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem
+                                    onClick={e => {
+                                      e.stopPropagation()
+                                      handleEdit(record)
+                                    }}
+                                    data-testid={`deduction-edit-${record.id}`}
+                                  >
+                                    <PiPencil className="gba:h-4 gba:w-4 gba:mr-2" />
+                                    Update
+                                  </DropdownMenuItem>
+                                  {/* Only show delete option if deduction is not used */}
+                                  {!deductionUsageMap[record.id] && (
+                                    <>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem
+                                        onClick={e => {
+                                          e.stopPropagation()
+                                          handleDeleteClick(record)
+                                        }}
+                                        className="gba:text-destructive"
+                                        data-testid={`deduction-delete-${record.id}`}
+                                      >
+                                        <PiTrash className="gba:h-4 gba:w-4 gba:mr-2" />
+                                        Delete
+                                      </DropdownMenuItem>
+                                    </>
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </div>
                           </TableCell>
 
@@ -462,11 +608,28 @@ const DeductionTab: React.FC<DeductionTabProps> = ({ ruleId, accessToken, active
       </div>
 
       {/* Add/Edit Dialog */}
-      <Dialog open={isModalVisible} onOpenChange={setIsModalVisible}>
+      <Dialog
+        open={isModalVisible}
+        onOpenChange={open => {
+          setIsModalVisible(open)
+          if (!open) {
+            setIsRestrictedEdit(false)
+            setCurrentUsageInfo(null)
+          }
+        }}
+      >
         <DialogContent className="gba:max-w-3xl" data-testid="deduction-modal">
           <DialogHeader>
             <DialogTitle>{editingItem ? 'Edit' : 'Add'} Deduction Rule</DialogTitle>
           </DialogHeader>
+
+          {/* Restricted edit warning */}
+          {isRestrictedEdit && currentUsageInfo && (
+            <Alert variant="warning" className="gba:mb-4" data-testid="deduction-restricted-alert">
+              <PiWarning className="gba:h-4 gba:w-4" />
+              <AlertDescription>{currentUsageInfo.message}</AlertDescription>
+            </Alert>
+          )}
 
           <div data-testid="deduction-form" className="gba:space-y-6">
             {/* Order Field */}
@@ -480,6 +643,7 @@ const DeductionTab: React.FC<DeductionTabProps> = ({ ruleId, accessToken, active
                 min={1}
                 value={formData.deductionOrder}
                 onChange={e => setFormData({ ...formData, deductionOrder: parseInt(e.target.value) || 1 })}
+                disabled={isRestrictedEdit}
                 data-testid="deduction-order-input"
               />
             </div>
@@ -511,6 +675,7 @@ const DeductionTab: React.FC<DeductionTabProps> = ({ ruleId, accessToken, active
                           id="deductBreakfast"
                           checked={formData.deductBreakfast}
                           onCheckedChange={checked => setFormData({ ...formData, deductBreakfast: checked })}
+                          disabled={isRestrictedEdit}
                           data-testid="breakfast-deduct-switch"
                         />
                       </div>
@@ -522,6 +687,7 @@ const DeductionTab: React.FC<DeductionTabProps> = ({ ruleId, accessToken, active
                           id="taxBreakfast"
                           checked={formData.taxBreakfast}
                           onCheckedChange={checked => setFormData({ ...formData, taxBreakfast: checked })}
+                          disabled={isRestrictedEdit}
                           data-testid="breakfast-tax-switch"
                         />
                       </div>
@@ -545,6 +711,7 @@ const DeductionTab: React.FC<DeductionTabProps> = ({ ruleId, accessToken, active
                           id="deductLunch"
                           checked={formData.deductLunch}
                           onCheckedChange={checked => setFormData({ ...formData, deductLunch: checked })}
+                          disabled={isRestrictedEdit}
                           data-testid="lunch-deduct-switch"
                         />
                       </div>
@@ -556,6 +723,7 @@ const DeductionTab: React.FC<DeductionTabProps> = ({ ruleId, accessToken, active
                           id="taxLunch"
                           checked={formData.taxLunch}
                           onCheckedChange={checked => setFormData({ ...formData, taxLunch: checked })}
+                          disabled={isRestrictedEdit}
                           data-testid="lunch-tax-switch"
                         />
                       </div>
@@ -579,6 +747,7 @@ const DeductionTab: React.FC<DeductionTabProps> = ({ ruleId, accessToken, active
                           id="deductDinner"
                           checked={formData.deductDinner}
                           onCheckedChange={checked => setFormData({ ...formData, deductDinner: checked })}
+                          disabled={isRestrictedEdit}
                           data-testid="dinner-deduct-switch"
                         />
                       </div>
@@ -590,6 +759,7 @@ const DeductionTab: React.FC<DeductionTabProps> = ({ ruleId, accessToken, active
                           id="taxDinner"
                           checked={formData.taxDinner}
                           onCheckedChange={checked => setFormData({ ...formData, taxDinner: checked })}
+                          disabled={isRestrictedEdit}
                           data-testid="dinner-tax-switch"
                         />
                       </div>
@@ -608,6 +778,7 @@ const DeductionTab: React.FC<DeductionTabProps> = ({ ruleId, accessToken, active
                 <Select
                   value={formData.deductionDay}
                   onValueChange={value => setFormData({ ...formData, deductionDay: value })}
+                  disabled={isRestrictedEdit}
                 >
                   <SelectTrigger id="deductionDay" data-testid="deduction-day-select">
                     <SelectValue placeholder="Select deduction day type" />
@@ -637,6 +808,7 @@ const DeductionTab: React.FC<DeductionTabProps> = ({ ruleId, accessToken, active
                   id="overnightAllowance"
                   checked={formData.overnightAllowance}
                   onCheckedChange={checked => setFormData({ ...formData, overnightAllowance: checked })}
+                  disabled={isRestrictedEdit}
                   data-testid="overnight-allowance-switch"
                 />
               </div>
@@ -648,11 +820,13 @@ const DeductionTab: React.FC<DeductionTabProps> = ({ ruleId, accessToken, active
                 <Label htmlFor="activeFrom" data-testid="active-from-label">
                   Valid From *
                 </Label>
-                <Input
-                  id="activeFrom"
-                  type="date"
+                <DateInput
                   value={formData.activeFrom ? dayjs(formData.activeFrom).format('YYYY-MM-DD') : ''}
-                  onChange={e => setFormData({ ...formData, activeFrom: e.target.value })}
+                  onChange={value => setFormData({ ...formData, activeFrom: value || '' })}
+                  disabled={isRestrictedEdit}
+                  placeholder="Select date..."
+                  outputFormat="iso"
+                  captionLayout="dropdown"
                   data-testid="active-from-input"
                 />
               </div>
@@ -661,11 +835,12 @@ const DeductionTab: React.FC<DeductionTabProps> = ({ ruleId, accessToken, active
                 <Label htmlFor="activeTo" data-testid="active-to-label">
                   Valid To
                 </Label>
-                <Input
-                  id="activeTo"
-                  type="date"
+                <DateInput
                   value={formData.activeTo ? dayjs(formData.activeTo).format('YYYY-MM-DD') : ''}
-                  onChange={e => setFormData({ ...formData, activeTo: e.target.value || undefined })}
+                  onChange={value => setFormData({ ...formData, activeTo: value || undefined })}
+                  placeholder="Select date..."
+                  outputFormat="iso"
+                  captionLayout="dropdown"
                   data-testid="active-to-input"
                 />
               </div>
@@ -675,7 +850,11 @@ const DeductionTab: React.FC<DeductionTabProps> = ({ ruleId, accessToken, active
           <DialogFooter data-testid="deduction-modal-footer">
             <Button
               variant="outline"
-              onClick={() => setIsModalVisible(false)}
+              onClick={() => {
+                setIsModalVisible(false)
+                setIsRestrictedEdit(false)
+                setCurrentUsageInfo(null)
+              }}
               disabled={isSaving}
               data-testid="deduction-modal-cancel-button"
             >
@@ -684,6 +863,42 @@ const DeductionTab: React.FC<DeductionTabProps> = ({ ruleId, accessToken, active
             <Button onClick={handleSave} disabled={isSaving} data-testid="deduction-modal-save-button">
               {isSaving ? <Spinner className="gba:w-4 gba:h-4 gba:mr-2" /> : null}
               {editingItem ? 'Update' : 'Create'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent data-testid="deduction-delete-dialog">
+          <DialogHeader>
+            <DialogTitle>Delete Deduction Rule</DialogTitle>
+          </DialogHeader>
+          <div className="gba:py-4">
+            <p className="gba:text-sm gba:text-muted-foreground">
+              Are you sure you want to delete this deduction rule? This action cannot be undone.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeleteDialogOpen(false)
+                setItemToDelete(null)
+              }}
+              disabled={isDeleting}
+              data-testid="deduction-delete-cancel-button"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+              data-testid="deduction-delete-confirm-button"
+            >
+              {isDeleting ? <Spinner className="gba:w-4 gba:h-4 gba:mr-2" /> : null}
+              Delete
             </Button>
           </DialogFooter>
         </DialogContent>

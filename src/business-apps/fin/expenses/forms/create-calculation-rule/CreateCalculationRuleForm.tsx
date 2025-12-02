@@ -1,9 +1,27 @@
 import React, { useMemo, useState, useCallback, useEffect } from 'react'
-import { Separator, Button, Dialog, DialogContent, DialogHeader, DialogTitle } from '@newwork/nw-design-system'
-import RuleIdentitySection from './components/RuleIdentitySection'
-import DateRangeSection from './components/DateRangeSection'
-import SelectsSection from './components/SelectsSection'
-import OptionalCodesSection from './components/OptionalCodesSection'
+import {
+  Separator,
+  Button,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Checkbox,
+  DateInput
+} from '@newwork/nw-design-system'
+import { useForm } from 'react-hook-form'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { env } from '@/common/env/EnvUtils'
 import { BusinessAppContextProps } from '@/business-apps/types'
@@ -12,12 +30,30 @@ import { useRestClient } from '@/common/network/rest/useRestClient'
 import FormHeader from './components/FormHeader'
 import { useCreateCalculationRuleForm } from './context/useCreateCalculationRuleForm'
 import { getCollidingDates, getDatesWithinRange } from './utils/validationUtils'
-import LabeledToggle from './components/LabeledToggle'
 
 interface CreateCalculationRuleFormProps extends Pick<BusinessAppContextProps, 'accessToken'> {
   onCancel?: () => void
   onCreate?: () => void
   additionalData?: Record<string, any>
+}
+
+interface FormValues {
+  ruleCode: string
+  ruleName: string
+  validFrom: string
+  validTo: string
+  calculationTypeId: string
+  countryRefId: string
+  currencyId: string
+  advancePaymentCode: string
+  taxesCode: string
+  nonPayableCode: string
+  isStandard: boolean
+  austrianAbroad: boolean
+  romanianCalculation: boolean
+  useLastCountry: boolean
+  deductionLimit: boolean
+  useSingleCurrency: boolean
 }
 
 const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({
@@ -29,8 +65,6 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({
   const navigationPayload = (_navigationPayload as any)?.nvi_navigationPayload || null
   const {
     graphqlClient,
-    formState,
-    errors,
     calculationTypeOptions,
     currencyOptions,
     countryOptions,
@@ -39,19 +73,14 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({
     prefilledRule,
     flagsLoaded,
     isUpdate,
-    hasErrors,
-    noInitialValuesChanged,
-    initialSnapshotRef,
-    dispatch,
-    dispatchTouched,
-    setFormSubmitted,
-    setHasInteracted,
-    setStandardValidationFailed,
-    shouldShowError
+    initialSnapshotRef
   } = useCreateCalculationRuleForm({ accessToken, navigationPayload })
 
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [collidingDatesState, setCollidingDatesState] = useState<any[]>([])
+  const [standardValidationFailed, setStandardValidationFailed] = useState(false)
+  const [codeDuplicate, setCodeDuplicate] = useState(false)
+  const [initialSnapshot, setInitialSnapshot] = useState<FormValues | null>(null)
 
   const flowIconUrl = useMemo(() => {
     const base = env && typeof env === 'function' ? env('NEXT_PUBLIC_BASE_URL') || '' : ''
@@ -62,26 +91,136 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({
     env && typeof env === 'function' ? env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT') : undefined
   )
 
+  // Initialize react-hook-form
+  const form = useForm<FormValues>({
+    defaultValues: {
+      ruleCode: '',
+      ruleName: '',
+      validFrom: new Date().toISOString().slice(0, 10),
+      validTo: '9999-12-31',
+      calculationTypeId: '',
+      countryRefId: '',
+      currencyId: '',
+      advancePaymentCode: '',
+      taxesCode: '',
+      nonPayableCode: '',
+      isStandard: false,
+      austrianAbroad: false,
+      romanianCalculation: false,
+      useLastCountry: false,
+      deductionLimit: false,
+      useSingleCurrency: false
+    }
+  })
+
+  const { watch, setValue, reset } = form
+  const formValues = watch()
+
+  // Prefill form when editing
+  useEffect(() => {
+    if (!isUpdate || !prefilledRule) return
+
+    reset({
+      ruleCode: prefilledRule.code || '',
+      ruleName: prefilledRule.name || '',
+      validFrom: prefilledRule.activeFrom
+        ? prefilledRule.activeFrom.slice(0, 10)
+        : new Date().toISOString().slice(0, 10),
+      validTo: prefilledRule.activeTo ? prefilledRule.activeTo.slice(0, 10) : '9999-12-31',
+      calculationTypeId: prefilledRule.calculationTypeRef || '',
+      countryRefId: prefilledRule.countryRef || '',
+      currencyId: prefilledRule.currencyRef || prefilledRule.currency?.id || '',
+      advancePaymentCode: prefilledRule.advancePaymentCode || '',
+      taxesCode: prefilledRule.taxesCode || '',
+      nonPayableCode: prefilledRule.nonpayableCode || '',
+      isStandard: !!prefilledRule.standard,
+      austrianAbroad: false,
+      romanianCalculation: false,
+      useLastCountry: !!prefilledRule.useLastCountry,
+      deductionLimit: !!prefilledRule.deductionLimit,
+      useSingleCurrency: !!prefilledRule.useSingleCurrency
+    })
+  }, [isUpdate, prefilledRule, reset])
+
+  // Prefill flags when loaded
+  useEffect(() => {
+    if (!flagsLoaded || !existingFlag) return
+
+    const austrian = existingFlag.name === 'Austrian Abroad' && existingFlag.value === 'true'
+    const romanian = existingFlag.name === 'Romanian Calculation' && existingFlag.value === 'true'
+
+    if (austrian) setValue('austrianAbroad', true)
+    if (romanian) setValue('romanianCalculation', true)
+  }, [flagsLoaded, existingFlag, setValue])
+
+  // Capture initial snapshot for update mode (to detect if values changed)
   useEffect(() => {
     if (!isUpdate) return
-    if (initialSnapshotRef.current) return
+    if (initialSnapshot) return
     if (!prefilledRule) return
     if (!flagsLoaded) return
+    // Capture current form values as initial snapshot
+    setInitialSnapshot({ ...formValues })
     initialSnapshotRef.current = { initialized: true } as any
-  }, [isUpdate, prefilledRule, flagsLoaded, initialSnapshotRef])
+  }, [isUpdate, prefilledRule, flagsLoaded, initialSnapshotRef, formValues, initialSnapshot])
+
+  // Check if form values changed from initial snapshot
+  const noInitialValuesChanged = useMemo(() => {
+    if (!isUpdate || !initialSnapshot) return true
+    try {
+      return JSON.stringify(formValues) === JSON.stringify(initialSnapshot)
+    } catch {
+      return true
+    }
+  }, [formValues, isUpdate, initialSnapshot])
+
+  // Check if form has validation errors
+  const hasErrors = useMemo(() => {
+    const { errors } = form.formState
+    return Object.keys(errors).length > 0 || codeDuplicate || standardValidationFailed
+  }, [form.formState, codeDuplicate, standardValidationFailed])
+
+  // Code uniqueness check
+  useEffect(() => {
+    let cancelled = false
+    const code = (formValues.ruleCode || '').trim()
+
+    if (!code) {
+      setCodeDuplicate(false)
+      return
+    }
+
+    const timeoutId = setTimeout(async () => {
+      try {
+        const { getExpenseRuleAggregateByCode } = await import('./queries/CreateCalculationRuleQueries')
+        const res = await graphqlClient.request<any>(getExpenseRuleAggregateByCode, {
+          codeValue: code,
+          ruleId: isUpdate ? navigationPayload?.id : null
+        })
+        if (cancelled) return
+        const count = res?.ExpenseRuleAggregate?.aggregate?.count || 0
+        setCodeDuplicate(count > 0)
+      } catch {
+        if (!cancelled) setCodeDuplicate(false)
+      }
+    }, 500)
+
+    return () => {
+      cancelled = true
+      clearTimeout(timeoutId)
+    }
+  }, [formValues.ruleCode, graphqlClient, isUpdate, navigationPayload?.id])
 
   const handleStandardToggle = async (checked: boolean) => {
-    dispatch({ type: 'SET_FIELD', field: 'isStandard', value: !!checked })
-    setHasInteracted(true)
-    dispatchTouched({ type: 'SET_TOUCHED', field: 'isStandard', value: true })
+    setValue('isStandard', checked)
 
     if (!checked) {
       setStandardValidationFailed(false)
       return
     }
 
-    const currentFrom = formState.validFrom ?? null
-    const currentTo = formState.validTo ?? null
+    const currentFrom = formValues.validFrom ? new Date(formValues.validFrom) : null
+    const currentTo = formValues.validTo ? new Date(formValues.validTo) : null
     if (!currentFrom || !currentTo) {
       setStandardValidationFailed(false)
       return
@@ -113,39 +252,34 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({
     }
   }
 
-  const handleSubmitClick = useCallback(() => {
-    setHasInteracted(true)
-    setFormSubmitted(true)
-    if (hasErrors) {
-      return
-    }
-    if (isUpdate && noInitialValuesChanged) {
-      return
-    }
+  const onSubmit = useCallback(
+    async (data: FormValues) => {
+      // Extra validation checks
+      if (codeDuplicate) return
+      if (standardValidationFailed) return
+      if (isUpdate && noInitialValuesChanged) return
 
-    const submitForm = async () => {
       try {
-        // 1) Determine candidate id/version for update
         const candidateId = navigationPayload?.id || lastRuleId
         const candidateVersion = navigationPayload?.version || prefilledRule?.version || 0
 
-        // 2) Save ExpenseRule (INSERT/UPDATE)
         const basePayload = {
-          code: isUpdate ? (navigationPayload?.code ?? formState.ruleCode) : formState.ruleCode,
-          name: formState.ruleName,
-          calculationTypeRef: formState.calculationTypeId,
-          standard: !!formState.isStandard,
-          activeFrom: formState.validFrom ? `${formState.validFrom.toISOString().slice(0, 10)}T00:00:00.000Z` : null,
-          activeTo: formState.validTo ? `${formState.validTo.toISOString().slice(0, 10)}T00:00:00.000Z` : null,
-          currencyRef: formState.currencyId,
-          advancePaymentCode: formState.advancePaymentCode,
-          taxesCode: formState.taxesCode,
-          nonpayableCode: formState.nonPayableCode,
-          useLastCountry: !!formState.useLastCountry,
-          deductionLimit: !!formState.deductionLimit,
-          useSingleCurrency: !!formState.useSingleCurrency,
-          countryRef: formState.countryRefId
+          code: isUpdate ? (navigationPayload?.code ?? data.ruleCode) : data.ruleCode,
+          name: data.ruleName,
+          calculationTypeRef: data.calculationTypeId || null,
+          standard: !!data.isStandard,
+          activeFrom: data.validFrom ? `${data.validFrom}T00:00:00.000Z` : null,
+          activeTo: data.validTo ? `${data.validTo}T00:00:00.000Z` : null,
+          currencyRef: data.currencyId || null,
+          advancePaymentCode: data.advancePaymentCode,
+          taxesCode: data.taxesCode,
+          nonpayableCode: data.nonPayableCode,
+          useLastCountry: !!data.useLastCountry,
+          deductionLimit: !!data.deductionLimit,
+          useSingleCurrency: !!data.useSingleCurrency,
+          countryRef: data.countryRefId || null
         } as any
+
         const payload = isUpdate
           ? {
               expenseRule: { id: candidateId, version: candidateVersion, ...basePayload },
@@ -155,6 +289,7 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({
               expenseRule: basePayload,
               changeMode: 'INSERT' as const
             }
+
         await restClient.post('/employee-expense/saveExpenseRule', payload, {
           headers: {
             Authorization: `Bearer ${accessToken}`,
@@ -163,7 +298,7 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({
           }
         })
 
-        // 3) If we had collisions, update previous standard=false
+        // Handle colliding dates
         const toModify = collidingDatesState || []
         if (Array.isArray(toModify) && toModify.length) {
           await Promise.all(
@@ -187,9 +322,9 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({
           )
         }
 
-        // 4) Save ExpenseRuleFlag (INSERT/UPDATE)
-        const isAustrianAbroad = !!formState.austrianAbroad
-        const isRomanianCalculation = !!formState.romanianCalculation
+        // Save ExpenseRuleFlag
+        const isAustrianAbroad = !!data.austrianAbroad
+        const isRomanianCalculation = !!data.romanianCalculation
         const flagCode = isRomanianCalculation ? 'romanianCalculation' : 'austrianAbroad'
         const flagName = isRomanianCalculation ? 'Romanian Calculation' : 'Austrian Abroad'
         const flagValue = isAustrianAbroad || isRomanianCalculation ? 'true' : 'false'
@@ -226,302 +361,675 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({
       } catch {
         // keep minimal handling for now
       }
-    }
-
-    submitForm()
-  }, [
-    hasErrors,
-    isUpdate,
-    noInitialValuesChanged,
-    navigationPayload?.id,
-    prefilledRule?.version,
-    formState,
-    graphqlClient,
-    restClient,
-    accessToken,
-    onCreate
-  ])
+    },
+    [
+      isUpdate,
+      navigationPayload,
+      prefilledRule,
+      lastRuleId,
+      existingFlag,
+      collidingDatesState,
+      codeDuplicate,
+      standardValidationFailed,
+      noInitialValuesChanged,
+      graphqlClient,
+      restClient,
+      accessToken,
+      onCreate
+    ]
+  )
 
   return (
     <div
       data-testid="create-calculation-rule-form"
-      className="gba:flex gba:flex-col gba:flex-grow "
+      className="gba:flex gba:flex-col gba:flex-grow"
       style={{ width: '100%', maxWidth: '800px', height: '100%' }}
-      onMouseDown={() => setHasInteracted(true)}
-      onKeyDown={() => setHasInteracted(true)}
     >
-      {/* Header copied from ExpensePlanItem */}
       <FormHeader isUpdate={isUpdate} flowIconUrl={flowIconUrl} />
 
-      {/* Scrollable content container */}
-      <div data-testid="ccr-scroll-container">
-        <RuleIdentitySection
-          isUpdate={isUpdate}
-          ruleCode={formState.ruleCode}
-          ruleName={formState.ruleName}
-          onChangeCode={value => dispatch({ type: 'SET_FIELD', field: 'ruleCode', value })}
-          onChangeName={value => dispatch({ type: 'SET_FIELD', field: 'ruleName', value })}
-          onBlurCode={() => dispatchTouched({ type: 'SET_TOUCHED', field: 'code', value: true })}
-          onBlurName={() => dispatchTouched({ type: 'SET_TOUCHED', field: 'name', value: true })}
-          showCodeError={shouldShowError('code')}
-          showNameError={shouldShowError('name')}
-          errors={errors}
-        />
-
-        <DateRangeSection
-          isUpdate={isUpdate}
-          validFrom={formState.validFrom}
-          validTo={formState.validTo}
-          onChangeFrom={async value => {
-            dispatch({ type: 'SET_FIELD', field: 'validFrom', value })
-          }}
-          onChangeTo={async value => {
-            dispatch({ type: 'SET_FIELD', field: 'validTo', value })
-          }}
-          onBlurFrom={() => dispatchTouched({ type: 'SET_TOUCHED', field: 'validFrom', value: true })}
-          onBlurTo={() => dispatchTouched({ type: 'SET_TOUCHED', field: 'validTo', value: true })}
-          showFromError={shouldShowError('validFrom')}
-          showToError={shouldShowError('validTo')}
-          errors={errors}
-        />
-
-        {/* Standard (between Valid To and Currency) */}
-        <div className={`gba:hidden`}>
-          <LabeledToggle
-            label={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.standard_checkbox',
-              'Standard'
-            )}
-            name="ccrStandard"
-            value={formState.isStandard}
-            disabled={isUpdate}
-            onChange={next => handleStandardToggle(next)}
-            testId="ccr-standard-checkbox"
-          />
-        </div>
-
-        <SelectsSection
-          isUpdate={isUpdate}
-          calculationTypeId={formState.calculationTypeId}
-          countryRefId={formState.countryRefId}
-          currencyId={formState.currencyId}
-          calculationTypeOptions={calculationTypeOptions}
-          countryOptions={countryOptions}
-          currencyOptions={currencyOptions}
-          onChangeCalculation={value => {
-            dispatch({ type: 'SET_FIELD', field: 'calculationTypeId', value })
-            setHasInteracted(true)
-            dispatchTouched({ type: 'SET_TOUCHED', field: 'calculationType', value: true })
-          }}
-          onChangeCountry={value => {
-            dispatch({ type: 'SET_FIELD', field: 'countryRefId', value })
-            setHasInteracted(true)
-            dispatchTouched({ type: 'SET_TOUCHED', field: 'countryRefId', value: true })
-          }}
-          onChangeCurrency={value => {
-            dispatch({ type: 'SET_FIELD', field: 'currencyId', value })
-            setHasInteracted(true)
-            dispatchTouched({ type: 'SET_TOUCHED', field: 'currencyId', value: true })
-          }}
-          onBlurCalculation={() => dispatchTouched({ type: 'SET_TOUCHED', field: 'calculationType', value: true })}
-          onBlurCountry={() => dispatchTouched({ type: 'SET_TOUCHED', field: 'countryRefId', value: true })}
-          onBlurCurrency={() => dispatchTouched({ type: 'SET_TOUCHED', field: 'currencyId', value: true })}
-          showCalculationError={shouldShowError('calculationType')}
-          showCountryError={shouldShowError('countryRefId')}
-          showCurrencyError={shouldShowError('currencyId')}
-          errors={errors}
-        />
-
-        <OptionalCodesSection
-          isUpdate={isUpdate}
-          advancePaymentCode={formState.advancePaymentCode}
-          taxesCode={formState.taxesCode}
-          nonPayableCode={formState.nonPayableCode}
-          onChangeAdvance={value => dispatch({ type: 'SET_FIELD', field: 'advancePaymentCode', value })}
-          onChangeTaxes={value => dispatch({ type: 'SET_FIELD', field: 'taxesCode', value })}
-          onChangeNonPayable={value => dispatch({ type: 'SET_FIELD', field: 'nonPayableCode', value })}
-        />
-
-        {/* Boolean flags */}
-        <LabeledToggle
-          label={getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.austrian_abroad',
-            'Austrian Abroad'
-          )}
-          name="ccr-austrian-abroad"
-          value={formState.austrianAbroad}
-          disabled={isUpdate}
-          onChange={next => {
-            dispatch({ type: 'SET_FIELD', field: 'austrianAbroad', value: next })
-            if (next) dispatch({ type: 'SET_FIELD', field: 'romanianCalculation', value: false })
-          }}
-          testId="ccr-austrian-abroad-checkbox"
-        />
-
-        <LabeledToggle
-          label={getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.romanian_calculation',
-            'Romanian Calculation'
-          )}
-          name="ccr-romanian-calculation"
-          value={formState.romanianCalculation}
-          disabled={isUpdate}
-          onChange={next => {
-            dispatch({ type: 'SET_FIELD', field: 'romanianCalculation', value: next })
-            if (next) dispatch({ type: 'SET_FIELD', field: 'austrianAbroad', value: false })
-          }}
-          testId="ccr-romanian-calculation-checkbox"
-        />
-
-        <LabeledToggle
-          label={getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.use_last_country',
-            'Use Last Country'
-          )}
-          name="ccr-use-last-country"
-          value={formState.useLastCountry}
-          disabled={isUpdate}
-          onChange={next => dispatch({ type: 'SET_FIELD', field: 'useLastCountry', value: next })}
-          testId="ccr-use-last-country-checkbox"
-        />
-
-        <LabeledToggle
-          label={getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.deduction_limit',
-            'Deduction Limit'
-          )}
-          name="ccr-deduction-limit"
-          value={formState.deductionLimit}
-          disabled={isUpdate}
-          onChange={next => dispatch({ type: 'SET_FIELD', field: 'deductionLimit', value: next })}
-          testId="ccr-deduction-limit-checkbox"
-        />
-
-        <LabeledToggle
-          label={getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.use_single_currency',
-            'Use single currency'
-          )}
-          name="ccr-use-single-currency"
-          value={formState.useSingleCurrency}
-          disabled={isUpdate}
-          onChange={next => dispatch({ type: 'SET_FIELD', field: 'useSingleCurrency', value: next })}
-          testId="ccr-use-single-currency-checkbox"
-        />
-      </div>
-      {/* Confirmation modal for standard validation */}
-      <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
-        <DialogContent
-          data-testid="ccr-standard-confirm-modal"
-          onOpenAutoFocus={e => {
-            e.preventDefault()
-          }}
-        >
-          <DialogHeader>
-            <DialogTitle data-testid="ccr-standard-confirm-title" className="gba:leading-[1.2]">
-              {(() => {
-                const count = collidingDatesState?.length || 0
-                if (count === 1) {
-                  const entry = collidingDatesState[0] || {}
-                  const prefix = getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.checkbox_modal.checkbox_modal_text_first',
-                    'This will deselect the standard flag on rule: '
-                  )
-                  return `${prefix} ${entry.code || ''}-${entry.name || ''}`
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="gba:flex gba:flex-col gba:flex-grow">
+          <div data-testid="ccr-scroll-container" className="gba:space-y-4">
+            {/* Rule Code */}
+            <FormField
+              control={form.control}
+              name="ruleCode"
+              rules={{
+                required: getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.is_code_unique_first',
+                  "The 'Rule Code' field is required."
+                ),
+                validate: () => {
+                  if (codeDuplicate) {
+                    return getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.is_code_unique_second',
+                      'This code already exists'
+                    )
+                  }
+                  return true
                 }
-                if (count > 1) {
-                  return getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.checkbox_modal.checkbox_modal_text_second',
-                    'This will deselect the standard flag on multiple rules'
-                  )
-                }
-                return getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.checkbox_modal.checkbox_modal_text_third',
-                  'This Expense Calculation Rule will now only be used through the Expense Calculation Rule Assignment!This Expense Calculation Rule will now only be used through the Expense Calculation Rule Assignment!'
+              }}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.current_rule_code_label',
+                      'Rule Code'
+                    )}{' '}
+                    *
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      className="gba:w-full"
+                      placeholder={getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.current_rule_code_placeholder',
+                        'Enter Rule Code'
+                      )}
+                      disabled={isUpdate}
+                      data-testid="ccr-code-input"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Rule Name */}
+            <FormField
+              control={form.control}
+              name="ruleName"
+              rules={{
+                required: getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.current_rule_name_custom_rule',
+                  "The 'Rule Name' field is required"
                 )
-              })()}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="gba:flex gba:flex-col gba:items-center gba:gap-6">
-            <div data-testid="ccr-standard-confirm-message" className=" gba:font-medium">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.checkbox_modal.do_you_want_to_continue',
-                'Do you want to continue?'
+              }}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.current_rule_name_label',
+                      'Rule Name'
+                    )}{' '}
+                    *
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      className="gba:w-full"
+                      placeholder={getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.current_rule_name_placeholder',
+                        'Enter Rule Name'
+                      )}
+                      disabled={isUpdate}
+                      data-testid="ccr-name-input"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
               )}
-            </div>
-            <div className="gba:flex gba:gap-4">
-              <Button
-                variant="outline"
-                className="gba:min-w-[100px] gba:border-2 gba:text-base gba:font-semibold gba:px-4"
-                style={{ borderRadius: '22px', height: '40px' }}
-                data-testid="ccr-standard-confirm-no-button"
-                onClick={() => {
-                  setShowConfirmModal(false)
-                  dispatch({ type: 'SET_FIELD', field: 'isStandard', value: false })
-                  setStandardValidationFailed(false)
-                }}
-              >
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.checkbox_modal.no_button',
-                  'No'
+            />
+
+            {/* Valid From */}
+            <FormField
+              control={form.control}
+              name="validFrom"
+              rules={{
+                required: getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.is_valid_from_unique_first',
+                  "The 'Valid From' field is required."
+                )
+              }}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.valid_from_label',
+                      'Valid From'
+                    )}{' '}
+                    *
+                  </FormLabel>
+                  <FormControl>
+                    <DateInput
+                      value={field.value}
+                      onChange={date => field.onChange(date)}
+                      disabled={isUpdate}
+                      data-testid="ccr-valid-from-input"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Valid To */}
+            <FormField
+              control={form.control}
+              name="validTo"
+              rules={{
+                required: getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.is_valid_to_unique_first',
+                  "The 'Valid To' field is required."
+                ),
+                validate: () => {
+                  if (standardValidationFailed) {
+                    return getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.valid_to_custom_rule',
+                      'Standard already exists for this period'
+                    )
+                  }
+                  return true
+                }
+              }}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.valid_to_label',
+                      'Valid To'
+                    )}{' '}
+                    *
+                  </FormLabel>
+                  <FormControl>
+                    <DateInput
+                      value={field.value}
+                      onChange={date => field.onChange(date)}
+                      data-testid="ccr-valid-to-input"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                  {standardValidationFailed && (
+                    <p className="gba:text-sm gba:text-destructive">
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.valid_to_custom_rule',
+                        'Standard already exists for this period'
+                      )}
+                    </p>
+                  )}
+                </FormItem>
+              )}
+            />
+
+            {/* Standard Toggle - Hidden */}
+            <div className="gba:hidden">
+              <FormField
+                control={form.control}
+                name="isStandard"
+                render={({ field }) => (
+                  <FormItem className="gba:flex gba:flex-row gba:items-center gba:gap-3 gba:space-y-0">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={checked => handleStandardToggle(!!checked)}
+                        disabled={isUpdate}
+                        data-testid="ccr-standard-checkbox"
+                        className="gba:border-foreground/50 gba:disabled:opacity-100 gba:disabled:border-muted-foreground"
+                      />
+                    </FormControl>
+                    <FormLabel className={`gba:font-normal ${isUpdate ? 'gba:text-muted-foreground' : ''}`}>
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.standard_checkbox',
+                        'Standard'
+                      )}
+                    </FormLabel>
+                  </FormItem>
                 )}
-              </Button>
-              <Button
-                variant="default"
-                className="gba:min-w-[100px] gba:border-2 gba:text-base gba:font-semibold gba:px-4"
-                style={{ borderRadius: '22px', height: '40px' }}
-                data-testid="ccr-standard-confirm-yes-button"
-                onClick={() => {
-                  setShowConfirmModal(false)
-                }}
-              >
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.checkbox_modal.yes_button',
-                  'Yes'
-                )}
-              </Button>
+              />
             </div>
+
+            {/* Rule Calculation */}
+            <FormField
+              control={form.control}
+              name="calculationTypeId"
+              rules={{
+                required: getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.current_rule_period_custom_rule',
+                  "The 'Rule Calculation' field is required"
+                )
+              }}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.current_rule_period_label',
+                      'Rule Calculation'
+                    )}{' '}
+                    *
+                  </FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange} disabled={isUpdate}>
+                    <FormControl>
+                      <SelectTrigger className="gba:w-full" data-testid="ccr-calculation-select">
+                        <SelectValue
+                          placeholder={getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.current_rule_period_placeholder',
+                            'Select Rule Calculation'
+                          )}
+                        />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {calculationTypeOptions.map((option: any) => (
+                        <SelectItem key={option.id} value={option.id}>
+                          {option.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Country */}
+            <FormField
+              control={form.control}
+              name="countryRefId"
+              rules={{
+                required: getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.country_ref_select_custom_rule',
+                  'The Country field is required'
+                )
+              }}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.country_ref_select_label',
+                      'Country'
+                    )}{' '}
+                    *
+                  </FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange} disabled={isUpdate}>
+                    <FormControl>
+                      <SelectTrigger className="gba:w-full" data-testid="ccr-country-select">
+                        <SelectValue
+                          placeholder={getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.country_ref_select_placeholder',
+                            'Select Country'
+                          )}
+                        />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {countryOptions.map((option: any) => (
+                        <SelectItem key={option.id} value={option.id}>
+                          {option.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Currency */}
+            <FormField
+              control={form.control}
+              name="currencyId"
+              rules={{
+                required: getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.currenct_custom_rule',
+                  "The 'Currency' field is required"
+                )
+              }}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.currency_label',
+                      'Currency'
+                    )}{' '}
+                    *
+                  </FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange} disabled={isUpdate}>
+                    <FormControl>
+                      <SelectTrigger className="gba:w-full" data-testid="ccr-currency-select">
+                        <SelectValue
+                          placeholder={getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.currency_placeholder',
+                            'Select Currency'
+                          )}
+                        />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {currencyOptions.map((option: any) => (
+                        <SelectItem key={option.id} value={option.id}>
+                          {option.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Advance Payment Code */}
+            <FormField
+              control={form.control}
+              name="advancePaymentCode"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.advance_payment_code_input_label',
+                      'Advance Payment Code'
+                    )}
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      className="gba:w-full"
+                      placeholder={getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.advance_payment_code_input_placeholder',
+                        'Enter Advance Payment Code'
+                      )}
+                      disabled={isUpdate}
+                      data-testid="ccr-advance-payment-code-input"
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            {/* Taxes Code */}
+            <FormField
+              control={form.control}
+              name="taxesCode"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.taxes_code_input_label',
+                      'Taxes Code'
+                    )}
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      className="gba:w-full"
+                      placeholder={getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.taxes_code_input_placeholder',
+                        'Enter Taxes Code'
+                      )}
+                      disabled={isUpdate}
+                      data-testid="ccr-taxes-code-input"
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            {/* Non Payable Code */}
+            <FormField
+              control={form.control}
+              name="nonPayableCode"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.nonpayable_code_input_label',
+                      'Non Payable Code'
+                    )}
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      className="gba:w-full"
+                      placeholder={getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.nonpayable_code_input_placeholder',
+                        'Enter Non Payable Code'
+                      )}
+                      disabled={isUpdate}
+                      data-testid="ccr-nonpayable-code-input"
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            {/* Boolean Toggles */}
+            <FormField
+              control={form.control}
+              name="austrianAbroad"
+              render={({ field }) => (
+                <FormItem className="gba:flex gba:flex-row gba:items-center gba:gap-3 gba:space-y-0">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={checked => {
+                        field.onChange(checked)
+                        if (checked) setValue('romanianCalculation', false)
+                      }}
+                      disabled={isUpdate}
+                      data-testid="ccr-austrian-abroad-checkbox"
+                      className="gba:border-foreground/50 gba:disabled:opacity-100 gba:disabled:border-muted-foreground"
+                    />
+                  </FormControl>
+                  <FormLabel className={`gba:font-normal ${isUpdate ? 'gba:text-muted-foreground' : ''}`}>
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.austrian_abroad',
+                      'Austrian Abroad'
+                    )}
+                  </FormLabel>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="romanianCalculation"
+              render={({ field }) => (
+                <FormItem className="gba:flex gba:flex-row gba:items-center gba:gap-3 gba:space-y-0">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={checked => {
+                        field.onChange(checked)
+                        if (checked) setValue('austrianAbroad', false)
+                      }}
+                      disabled={isUpdate}
+                      data-testid="ccr-romanian-calculation-checkbox"
+                      className="gba:border-foreground/50 gba:disabled:opacity-100 gba:disabled:border-muted-foreground"
+                    />
+                  </FormControl>
+                  <FormLabel className={`gba:font-normal ${isUpdate ? 'gba:text-muted-foreground' : ''}`}>
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.romanian_calculation',
+                      'Romanian Calculation'
+                    )}
+                  </FormLabel>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="useLastCountry"
+              render={({ field }) => (
+                <FormItem className="gba:flex gba:flex-row gba:items-center gba:gap-3 gba:space-y-0">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      disabled={isUpdate}
+                      data-testid="ccr-use-last-country-checkbox"
+                      className="gba:border-foreground/50 gba:disabled:opacity-100 gba:disabled:border-muted-foreground"
+                    />
+                  </FormControl>
+                  <FormLabel className={`gba:font-normal ${isUpdate ? 'gba:text-muted-foreground' : ''}`}>
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.use_last_country',
+                      'Use Last Country'
+                    )}
+                  </FormLabel>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="deductionLimit"
+              render={({ field }) => (
+                <FormItem className="gba:flex gba:flex-row gba:items-center gba:gap-3 gba:space-y-0">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      disabled={isUpdate}
+                      data-testid="ccr-deduction-limit-checkbox"
+                      className="gba:border-foreground/50 gba:disabled:opacity-100 gba:disabled:border-muted-foreground"
+                    />
+                  </FormControl>
+                  <FormLabel className={`gba:font-normal ${isUpdate ? 'gba:text-muted-foreground' : ''}`}>
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.deduction_limit',
+                      'Deduction Limit'
+                    )}
+                  </FormLabel>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="useSingleCurrency"
+              render={({ field }) => (
+                <FormItem className="gba:flex gba:flex-row gba:items-center gba:gap-3 gba:space-y-0">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      disabled={isUpdate}
+                      data-testid="ccr-use-single-currency-checkbox"
+                      className="gba:border-foreground/50 gba:disabled:opacity-100 gba:disabled:border-muted-foreground"
+                    />
+                  </FormControl>
+                  <FormLabel className={`gba:font-normal ${isUpdate ? 'gba:text-muted-foreground' : ''}`}>
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.use_single_currency',
+                      'Use single currency'
+                    )}
+                  </FormLabel>
+                </FormItem>
+              )}
+            />
           </div>
-        </DialogContent>
-      </Dialog>
 
-      {/* Spacer to push actions to bottom */}
-      <div className="gba:flex-grow" data-testid="ccr-spacer" />
+          {/* Confirmation modal for standard validation */}
+          <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
+            <DialogContent data-testid="ccr-standard-confirm-modal" onOpenAutoFocus={e => e.preventDefault()}>
+              <DialogHeader>
+                <DialogTitle data-testid="ccr-standard-confirm-title" className="gba:leading-[1.2]">
+                  {(() => {
+                    const count = collidingDatesState?.length || 0
+                    if (count === 1) {
+                      const entry = collidingDatesState[0] || {}
+                      const prefix = getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.checkbox_modal.checkbox_modal_text_first',
+                        'This will deselect the standard flag on rule: '
+                      )
+                      return `${prefix} ${entry.code || ''}-${entry.name || ''}`
+                    }
+                    if (count > 1) {
+                      return getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.checkbox_modal.checkbox_modal_text_second',
+                        'This will deselect the standard flag on multiple rules'
+                      )
+                    }
+                    return getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.checkbox_modal.checkbox_modal_text_third',
+                      'This Expense Calculation Rule will now only be used through the Expense Calculation Rule Assignment!'
+                    )
+                  })()}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="gba:flex gba:flex-col gba:items-center gba:gap-6">
+                <div data-testid="ccr-standard-confirm-message" className="gba:font-medium">
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.checkbox_modal.do_you_want_to_continue',
+                    'Do you want to continue?'
+                  )}
+                </div>
+                <div className="gba:flex gba:gap-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="gba:min-w-[100px] gba:border-2 gba:text-base gba:font-semibold gba:px-4"
+                    style={{ borderRadius: '22px', height: '40px' }}
+                    data-testid="ccr-standard-confirm-no-button"
+                    onClick={() => {
+                      setShowConfirmModal(false)
+                      setValue('isStandard', false)
+                      setStandardValidationFailed(false)
+                    }}
+                  >
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.checkbox_modal.no_button',
+                      'No'
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="default"
+                    className="gba:min-w-[100px] gba:border-2 gba:text-base gba:font-semibold gba:px-4"
+                    style={{ borderRadius: '22px', height: '40px' }}
+                    data-testid="ccr-standard-confirm-yes-button"
+                    onClick={() => setShowConfirmModal(false)}
+                  >
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.checkbox_modal.yes_button',
+                      'Yes'
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
 
-      {/* Divider and actions (copying visual style from ExpensePlanItem bottom) */}
-      <Separator className="gba:mt-[30px] gba:mb-[30px]" data-testid="ccr-form-divider" />
-      <div className="gba:flex gba:justify-between gba:py-4" style={{ width: '100%' }} data-testid="ccr-actions">
-        <Button
-          variant="outline"
-          onClick={onCancel}
-          className="gba:min-w-[100px] gba:border-2 gba:text-base gba:font-semibold gba:px-4"
-          style={{ borderRadius: '22px', height: '40px' }}
-          data-testid="ccr-cancel-button"
-        >
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.btn_discard',
-            'Discard'
-          )}
-        </Button>
-        <Button
-          variant="default"
-          onClick={handleSubmitClick}
-          disabled={hasErrors || (isUpdate && noInitialValuesChanged)}
-          className="gba:min-w-[100px] gba:border-2 gba:text-base gba:font-semibold gba:px-4"
-          style={{ borderRadius: '22px', width: 'auto', height: '40px' }}
-          data-testid="ccr-create-button"
-        >
-          {isUpdate
-            ? getTranslationFromI18nKeyAndLabel(
-                'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.btn_update',
-                'Update'
-              )
-            : getTranslationFromI18nKeyAndLabel(
-                'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.btn_save',
-                'Save'
+          {/* Spacer */}
+          <div className="gba:flex-grow" data-testid="ccr-spacer" />
+
+          {/* Actions */}
+          <Separator className="gba:mt-[30px] gba:mb-[30px]" data-testid="ccr-form-divider" />
+          <div className="gba:flex gba:justify-between gba:py-4" style={{ width: '100%' }} data-testid="ccr-actions">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCancel}
+              className="gba:min-w-[100px] gba:border-2 gba:text-base gba:font-semibold gba:px-4"
+              style={{ borderRadius: '22px', height: '40px' }}
+              data-testid="ccr-cancel-button"
+            >
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.btn_discard',
+                'Discard'
               )}
-        </Button>
-      </div>
+            </Button>
+            <Button
+              type="submit"
+              variant="default"
+              disabled={hasErrors || (isUpdate && noInitialValuesChanged)}
+              className="gba:min-w-[100px] gba:border-2 gba:text-base gba:font-semibold gba:px-4"
+              style={{ borderRadius: '22px', width: 'auto', height: '40px' }}
+              data-testid="ccr-create-button"
+            >
+              {isUpdate
+                ? getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.btn_update',
+                    'Update'
+                  )
+                : getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.btn_save',
+                    'Save'
+                  )}
+            </Button>
+          </div>
+        </form>
+      </Form>
     </div>
   )
 }

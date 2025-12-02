@@ -23,9 +23,11 @@ import {
   Card,
   CardContent,
   Spinner,
-  Popover,
-  PopoverTrigger,
-  PopoverContent
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -43,8 +45,7 @@ import DeleteMileageRuleDialog from './DeleteMileageRuleDialog'
 import TimePeriodFilter from './filters/TimePeriodFilter'
 import RulePeriodFilter from './filters/RulePeriodFilter'
 import { MileageRulePeriod } from '../../types/ExpenseEnums'
-import { PiPlus, PiPencil, PiTrash } from 'react-icons/pi'
-import { Lightning } from '@phosphor-icons/react'
+import { PiPlus, PiPencil, PiTrash, PiDotsThreeVertical } from 'react-icons/pi'
 import { toast, Toaster } from 'sonner'
 
 // Re-export the enhanced interface for external use
@@ -361,6 +362,14 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({ prefixDataTestId = 
                       <Table data-testid={`${PREFIX}-table`} className="gba:min-w-[1100px] gba:w-[100%]">
                         <TableHeader>
                           <TableRow className="gba:border-b gba:bg-gray-50">
+                            <TableHead className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
+                              <span className="gba:whitespace-nowrap">
+                                {getTranslationFromI18nKeyAndLabel(
+                                  'expenseSettings.mileageRules.table.actions',
+                                  'Actions'
+                                )}
+                              </span>
+                            </TableHead>
                             <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
                               <span className="gba:whitespace-nowrap">
                                 {getTranslationFromI18nKeyAndLabel('expenseSettings.mileageRules.table.code', 'Code')}
@@ -400,14 +409,6 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({ prefixDataTestId = 
                                 {getTranslationFromI18nKeyAndLabel('expenseSettings.mileageRules.table.order', 'Order')}
                               </span>
                             </TableHead>
-                            <TableHead className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
-                              <span className="gba:whitespace-nowrap">
-                                {getTranslationFromI18nKeyAndLabel(
-                                  'expenseSettings.mileageRules.table.actions',
-                                  'Actions'
-                                )}
-                              </span>
-                            </TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -418,6 +419,56 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({ prefixDataTestId = 
                               onClick={() => handleViewRuleDetails(record)}
                               data-testid={`${PREFIX}-mileage-rule-row-${record.id}`}
                             >
+                              <TableCell
+                                className="gba:py-3 gba:px-6"
+                                onClick={e => e.stopPropagation()}
+                                data-testid={`${PREFIX}-cell-actions-${index}`}
+                              >
+                                <div className="gba:flex gba:justify-start gba:gap-2">
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={e => e.stopPropagation()}
+                                        data-testid={`${PREFIX}-actions-trigger-${index}`}
+                                      >
+                                        <PiDotsThreeVertical className="gba:h-4 gba:w-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuItem
+                                        onClick={e => {
+                                          e.stopPropagation()
+                                          handleEditRule(record)
+                                        }}
+                                        data-testid={`${PREFIX}-edit-rule-${index}`}
+                                      >
+                                        <PiPencil className="gba:h-4 gba:w-4 gba:mr-2" />
+                                        {getTranslationFromI18nKeyAndLabel(
+                                          'lowcoder:expense_calculation_rule.edit',
+                                          'Update'
+                                        )}
+                                      </DropdownMenuItem>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem
+                                        onClick={e => {
+                                          e.stopPropagation()
+                                          handleDeleteRule(record)
+                                        }}
+                                        className="gba:text-destructive"
+                                        data-testid={`${PREFIX}-delete-rule-${index}`}
+                                      >
+                                        <PiTrash className="gba:h-4 gba:w-4 gba:mr-2" />
+                                        {getTranslationFromI18nKeyAndLabel(
+                                          'lowcoder:expense_calculation_rule.delete',
+                                          'Delete'
+                                        )}
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </div>
+                              </TableCell>
                               <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-code-${index}`}>
                                 <div
                                   className="gba:font-mono gba:font-medium gba:text-sm gba:text-blue-600"
@@ -445,67 +496,6 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({ prefixDataTestId = 
                               </TableCell>
                               <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-order-${index}`}>
                                 <span className="gba:text-sm">{record.ruleOrder}</span>
-                              </TableCell>
-                              <TableCell
-                                className="gba:py-3 gba:px-6"
-                                onClick={e => e.stopPropagation()}
-                                data-testid={`${PREFIX}-cell-actions-${index}`}
-                              >
-                                <Popover>
-                                  <PopoverTrigger asChild>
-                                    <button
-                                      type="button"
-                                      className="gba:inline-flex gba:items-center gba:justify-center gba:gap-2 gba:whitespace-nowrap gba:rounded-sm gba:text-sm gba:font-medium gba:transition-all gba:disabled:pointer-events-none gba:disabled:opacity-50 gba:shrink-0 gba:outline-none gba:focus-visible:ring-[3px] gba:border gba:bg-background gba:size-9 gba:text-info-on-card gba:border-info/50 hover:gba:bg-info-secondary/10 hover:gba:text-info-on-card hover:gba:border-info gba:focus-visible:ring-info/40 gba:focus-visible:border-info"
-                                      data-testid={`${PREFIX}-actions-trigger-${index}`}
-                                    >
-                                      <Lightning className="gba:size-4 gba:shrink-0" weight="regular" />
-                                    </button>
-                                  </PopoverTrigger>
-                                  <PopoverContent
-                                    className="gba:w-auto gba:p-0"
-                                    align="end"
-                                    data-testid={`${PREFIX}-actions-popover-${index}`}
-                                  >
-                                    <div className="gba:flex gba:flex-col gba:gap-1 gba:p-1">
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="gba:justify-start gba:gap-2 gba:h-8 gba:px-2"
-                                        onClick={e => {
-                                          e.stopPropagation()
-                                          handleEditRule(record)
-                                        }}
-                                        data-testid={`${PREFIX}-edit-rule-${index}`}
-                                      >
-                                        <PiPencil className="gba:w-4 gba:h-4" />
-                                        <span>
-                                          {getTranslationFromI18nKeyAndLabel(
-                                            'lowcoder:expense_calculation_rule.edit',
-                                            'Edit'
-                                          )}
-                                        </span>
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="gba:justify-start gba:gap-2 gba:h-8 gba:px-2 gba:text-destructive"
-                                        onClick={e => {
-                                          e.stopPropagation()
-                                          handleDeleteRule(record)
-                                        }}
-                                        data-testid={`${PREFIX}-delete-rule-${index}`}
-                                      >
-                                        <PiTrash className="gba:w-4 gba:h-4" />
-                                        <span>
-                                          {getTranslationFromI18nKeyAndLabel(
-                                            'lowcoder:expense_calculation_rule.delete',
-                                            'Delete'
-                                          )}
-                                        </span>
-                                      </Button>
-                                    </div>
-                                  </PopoverContent>
-                                </Popover>
                               </TableCell>
                             </TableRow>
                           ))}

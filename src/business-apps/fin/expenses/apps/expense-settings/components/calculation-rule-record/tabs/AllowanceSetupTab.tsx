@@ -28,14 +28,30 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Switch as NWSwitch
+  Checkbox,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DateInput
 } from '@newwork/nw-design-system'
-import { PiPlus, PiPencil, PiCalendar, PiCheck, PiX, PiGear, PiCode } from 'react-icons/pi'
+import {
+  PiPlus,
+  PiPencil,
+  PiCalendar,
+  PiCheck,
+  PiX,
+  PiGear,
+  PiCode,
+  PiDotsThreeVertical,
+  PiTrash,
+  PiWarning
+} from 'react-icons/pi'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 
 // Register dayjs plugins
 dayjs.extend(weekday)
@@ -47,6 +63,7 @@ interface AllowanceSetupTabProps {
   ruleId: string
   accessToken: string
   activeFrom: string
+  activeTo?: string
 }
 
 interface AllowanceSetup {
@@ -82,7 +99,16 @@ interface AllowanceSetupFormData {
   version?: number
 }
 
-const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessToken, activeFrom }) => {
+// Usage check result
+interface UsageInfo {
+  isUsed: boolean
+  usedIn: {
+    positions?: number
+  }
+  message: string
+}
+
+const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessToken, activeFrom, activeTo }) => {
   const graphqlClient = useGraphQLClient(accessToken)
 
   const [allowanceSetups, setAllowanceSetups] = useState<AllowanceSetup[]>([])
@@ -95,15 +121,52 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
   const [allowanceCodes, setAllowanceCodes] = useState<any[]>([])
   const [formData, setFormData] = useState<AllowanceSetupFormData>({
     name: '',
-    issue: 'Daily Allowance',
+    issue: 'DAILY_ALLOWANCE',
     onlyTax: false,
     validFrom: activeFrom,
     allowancePeriodId: '',
     allowanceCodeId: ''
   })
 
+  // Delete confirmation dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [itemToDelete, setItemToDelete] = useState<AllowanceSetup | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  // Usage check state
+  const [, setIsCheckingUsage] = useState(false)
+  const [currentUsageInfo, setCurrentUsageInfo] = useState<UsageInfo | null>(null)
+  const [isRestrictedEdit, setIsRestrictedEdit] = useState(false)
+
+  // Pre-loaded usage status for all setups (setup id -> isUsed)
+  const [setupUsageMap, setSetupUsageMap] = useState<Record<string, boolean>>({})
+
+  // Form validation error
+  const [validityError, setValidityError] = useState<string | null>(null)
+
   // Set up client
   expenseSettingsClient.setAccessToken(accessToken)
+
+  // Load usage status for all setups
+  // Note: AllowanceSetup doesn't have direct references in ExpensePosition,
+  // so we can't track usage. All setups are treated as not in use.
+  const loadSetupUsageStatus = useCallback(async (setupIds: string[]) => {
+    if (setupIds.length === 0) return
+
+    // Since there's no direct link to track usage, allow all operations
+    const usageMap: Record<string, boolean> = {}
+    setupIds.forEach(id => {
+      usageMap[id] = false
+    })
+    setSetupUsageMap(usageMap)
+  }, [])
+
+  // Check detailed usage for a single setup
+  // Note: AllowanceSetup doesn't have direct references in ExpensePosition
+  const checkAllowanceSetupUsage = useCallback(async (): Promise<UsageInfo> => {
+    // Since there's no direct link to track usage, return not used
+    return { isUsed: false, usedIn: {}, message: '' }
+  }, [])
 
   const fetchAllowanceSetups = useCallback(async () => {
     setIsLoading(true)
@@ -172,12 +235,17 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
       setAllowanceSetups(transformedSetups)
       setAllowancePeriods(periods)
       setAllowanceCodes(codes)
+
+      // Load usage status for all setups
+      if (transformedSetups.length > 0) {
+        await loadSetupUsageStatus(transformedSetups.map(s => s.id))
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load allowance setups')
     } finally {
       setIsLoading(false)
     }
-  }, [ruleId, graphqlClient])
+  }, [ruleId, graphqlClient, loadSetupUsageStatus])
 
   useEffect(() => {
     if (ruleId && accessToken) {
@@ -189,29 +257,62 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
     return dayjs(dateString).format('DD/MM/YYYY')
   }
 
+  // Issue types - value is stored in DB, label is displayed in UI
   const issueOptions = [
-    { value: 'Daily Allowance', label: 'Daily Allowance' },
-    { value: 'Breakfast Deduction', label: 'Breakfast Deduction' },
-    { value: 'Lunch Deduction', label: 'Lunch Deduction' },
-    { value: 'Dinner Deduction', label: 'Dinner Deduction' },
-    { value: 'Special Allowance', label: 'Special Allowance' },
-    { value: 'Travel Allowance', label: 'Travel Allowance' }
+    { value: 'DAILY_ALLOWANCE', label: 'Daily Allowance' },
+    { value: 'BREAKFAST_DEDUCTION', label: 'Breakfast Deduction' },
+    { value: 'LUNCH_DEDUCTION', label: 'Lunch Deduction' },
+    { value: 'DINNER_DEDUCTION', label: 'Dinner Deduction' },
+    { value: 'OVERNIGHT_DEDUCTION', label: 'Overnight Deduction' }
   ]
+
+  // Helper to get display label for an issue value
+  const getIssueLabel = (value: string): string => {
+    const option = issueOptions.find(opt => opt.value === value)
+    return option?.label || value
+  }
 
   const handleAdd = () => {
     setEditingItem(null)
+    setIsRestrictedEdit(false)
+    setCurrentUsageInfo(null)
+    setValidityError(null)
+
+    // Determine validity period based on existing entries
+    let validFromValue = activeFrom
+    let validToValue: string | undefined = undefined
+
+    if (allowanceSetups.length > 0) {
+      // Use the same validity period as the first existing entry
+      const existingEntry = allowanceSetups[0]
+      validFromValue = existingEntry.validFrom
+      validToValue = existingEntry.validTo
+    } else {
+      // No existing entries - set validTo to December 31, 9999
+      validToValue = '9999-12-31'
+    }
+
     setFormData({
       name: '',
-      issue: 'Daily Allowance',
+      issue: 'DAILY_ALLOWANCE',
       onlyTax: false,
-      validFrom: activeFrom,
+      validFrom: validFromValue,
+      validTo: validToValue,
       allowancePeriodId: '',
       allowanceCodeId: ''
     })
     setIsModalVisible(true)
   }
 
-  const handleEdit = (record: AllowanceSetup) => {
+  const handleEdit = async (record: AllowanceSetup) => {
+    setIsCheckingUsage(true)
+    setValidityError(null)
+
+    // Check if setup is used
+    const usageInfo = await checkAllowanceSetupUsage(record.id)
+    setCurrentUsageInfo(usageInfo)
+    setIsRestrictedEdit(usageInfo.isUsed)
+
     setFormData({
       id: record.id,
       name: record.name,
@@ -225,35 +326,131 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
     })
 
     setEditingItem(record)
+    setIsCheckingUsage(false)
     setIsModalVisible(true)
   }
 
-  // Note: Delete actions are now handled through AppActionButton's context flow
+  const handleDeleteClick = (record: AllowanceSetup) => {
+    setItemToDelete(record)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!itemToDelete) return
+
+    setIsDeleting(true)
+    try {
+      await expenseSettingsClient.saveExpenseRuleAllowanceSetup({
+        id: itemToDelete.id,
+        version: itemToDelete.version,
+        expenseRuleId: ruleId,
+        name: itemToDelete.name,
+        issue: itemToDelete.issue,
+        activeFrom: itemToDelete.validFrom,
+        allowancePeriodId: itemToDelete.allowancePeriod.id,
+        allowanceCodeId: itemToDelete.allowanceCode.id,
+        isDeleted: true
+      })
+
+      toast.success('Allowance setup deleted successfully')
+      setDeleteDialogOpen(false)
+      setItemToDelete(null)
+      await fetchAllowanceSetups()
+    } catch (err) {
+      toast.error('Failed to delete allowance setup')
+      console.error('Delete error:', err)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   const handleSave = async () => {
     try {
       setIsSaving(true)
+      setValidityError(null)
 
-      await expenseSettingsClient.saveExpenseRuleAllowanceSetup({
-        ...(editingItem && { id: editingItem.id, version: editingItem.version }),
-        expenseRuleId: ruleId,
-        businessKey: undefined,
-        activeTo: formData.validTo,
-        additionalProperties: undefined,
-        name: formData.name,
-        issue: formData.issue,
-        onlyTax: formData.onlyTax,
-        activeFrom: formData.validFrom,
-        setupOrder: undefined,
-        allowancePeriodId: formData.allowancePeriodId,
-        allowanceCodeId: formData.allowanceCodeId
-      })
+      // Validate validity period
+      if (!formData.validFrom) {
+        setValidityError('Valid From date is required')
+        setIsSaving(false)
+        return
+      }
+
+      // Check if validFrom is within rule's validity period
+      if (activeFrom && dayjs(formData.validFrom).isBefore(dayjs(activeFrom))) {
+        setValidityError(`Valid From must be on or after ${dayjs(activeFrom).format('DD/MM/YYYY')} (rule start date)`)
+        setIsSaving(false)
+        return
+      }
+
+      // Check if validTo is within rule's validity period
+      if (activeTo && formData.validTo && dayjs(formData.validTo).isAfter(dayjs(activeTo))) {
+        setValidityError(`Valid To must be on or before ${dayjs(activeTo).format('DD/MM/YYYY')} (rule end date)`)
+        setIsSaving(false)
+        return
+      }
+
+      // Check if validFrom is before validTo
+      if (formData.validTo && dayjs(formData.validFrom).isAfter(dayjs(formData.validTo))) {
+        setValidityError('Valid From must be before Valid To')
+        setIsSaving(false)
+        return
+      }
+
+      // Convert dates to ISO format for backend (expects java.time.Instant)
+      const formatDateToISO = (dateStr: string | undefined): string | undefined => {
+        if (!dateStr) return undefined
+        return dayjs(dateStr).startOf('day').toISOString()
+      }
+
+      // If restricted edit, only update validTo
+      if (isRestrictedEdit && editingItem) {
+        await expenseSettingsClient.saveExpenseRuleAllowanceSetup({
+          id: editingItem.id,
+          version: editingItem.version,
+          expenseRuleId: ruleId,
+          name: editingItem.name,
+          issue: editingItem.issue,
+          onlyTax: editingItem.onlyTax,
+          activeFrom: formatDateToISO(editingItem.validFrom),
+          activeTo: formatDateToISO(formData.validTo),
+          allowancePeriodId: editingItem.allowancePeriod.id,
+          allowanceCodeId: editingItem.allowanceCode.id
+        })
+      } else {
+        // Full save
+        await expenseSettingsClient.saveExpenseRuleAllowanceSetup({
+          ...(editingItem && { id: editingItem.id, version: editingItem.version }),
+          expenseRuleId: ruleId,
+          businessKey: undefined,
+          activeTo: formatDateToISO(formData.validTo),
+          additionalProperties: undefined,
+          name: formData.name,
+          issue: formData.issue,
+          onlyTax: formData.onlyTax,
+          activeFrom: formatDateToISO(formData.validFrom),
+          setupOrder: undefined,
+          allowancePeriodId: formData.allowancePeriodId,
+          allowanceCodeId: formData.allowanceCodeId
+        })
+      }
 
       toast.success(`Allowance setup ${editingItem ? 'updated' : 'created'} successfully`)
       setIsModalVisible(false)
       await fetchAllowanceSetups()
     } catch (err) {
-      toast.error(`Failed to ${editingItem ? 'update' : 'create'} allowance setup`)
+      // Parse the error message for better user feedback
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+
+      if (errorMessage.includes('DateTimeParseException') || errorMessage.includes('Instant')) {
+        setValidityError('Invalid date format. Please check the validity dates.')
+      } else if (errorMessage.includes('activeFrom') || errorMessage.includes('validFrom')) {
+        setValidityError('Invalid Valid From date. Please check the date format.')
+      } else if (errorMessage.includes('activeTo') || errorMessage.includes('validTo')) {
+        setValidityError('Invalid Valid To date. Please check the date format.')
+      } else {
+        toast.error(`Failed to ${editingItem ? 'update' : 'create'} allowance setup`)
+      }
       console.error('Save error:', err)
     } finally {
       setIsSaving(false)
@@ -354,27 +551,40 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
                 {allowanceSetups.map(record => (
                   <TableRow key={record.id} data-testid={`allowance-setup-row-${record.id}`}>
                     <TableCell data-testid={`allowance-setup-actions-cell-${record.id}`}>
-                      <div className="gba:flex gba:justify-start gba:gap-2">
-                        <AppActionButton
-                          data-testid={`allowance-setup-action-${record.id}`}
-                          size="icon"
-                          contextsArray={[]}
-                          externalContextData={{ allowanceSetupId: record.id }}
-                          prefixDataTestId="allowance-setup-action"
-                          accessToken={accessToken}
-                          emptyStateBehavior="enable"
-                          deferMainContextRequestsUntilClick
-                          onClick={e => e.stopPropagation()}
-                        />
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEdit(record)}
-                          data-testid={`edit-allowance-setup-${record.id}`}
-                        >
-                          <PiPencil className="gba:h-4 gba:w-4" />
-                        </Button>
-                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            data-testid={`allowance-setup-action-${record.id}`}
+                            onClick={e => e.stopPropagation()}
+                          >
+                            <PiDotsThreeVertical className="gba:h-4 gba:w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => handleEdit(record)}
+                            data-testid={`edit-allowance-setup-${record.id}`}
+                          >
+                            <PiPencil className="gba:h-4 gba:w-4 gba:mr-2" />
+                            Update
+                          </DropdownMenuItem>
+                          {!setupUsageMap[record.id] && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => handleDeleteClick(record)}
+                                className="gba:text-destructive"
+                                data-testid={`delete-allowance-setup-${record.id}`}
+                              >
+                                <PiTrash className="gba:h-4 gba:w-4 gba:mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
 
                     <TableCell data-testid={`allowance-setup-period-cell-${record.id}`}>
@@ -416,23 +626,8 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
                     </TableCell>
 
                     <TableCell data-testid={`allowance-setup-issue-cell-${record.id}`}>
-                      <Badge
-                        variant={
-                          record.issue === 'Daily Allowance'
-                            ? 'default'
-                            : record.issue === 'Breakfast Deduction'
-                              ? 'default'
-                              : record.issue === 'Lunch Deduction'
-                                ? 'default'
-                                : record.issue === 'Dinner Deduction'
-                                  ? 'default'
-                                  : record.issue === 'Special Allowance'
-                                    ? 'default'
-                                    : 'default'
-                        }
-                        data-testid={`allowance-setup-issue-badge-${record.id}`}
-                      >
-                        {record.issue}
+                      <Badge variant="default" data-testid={`allowance-setup-issue-badge-${record.id}`}>
+                        {getIssueLabel(record.issue)}
                       </Badge>
                     </TableCell>
 
@@ -493,6 +688,38 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
         </CardContent>
       </Card>
 
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent data-testid="allowance-setup-delete-dialog">
+          <DialogHeader>
+            <DialogTitle>Delete Allowance Setup</DialogTitle>
+          </DialogHeader>
+          <div className="gba:py-4">
+            <p>
+              Are you sure you want to delete the allowance setup "{itemToDelete?.name}"? This action cannot be undone.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+              disabled={isDeleting}
+              data-testid="allowance-setup-delete-cancel-button"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+              data-testid="allowance-setup-delete-confirm-button"
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Add/Edit Dialog */}
       <Dialog open={isModalVisible} onOpenChange={setIsModalVisible}>
         <DialogContent className="gba:max-w-2xl" data-testid="allowance-setup-modal">
@@ -503,6 +730,13 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
           </DialogHeader>
 
           <div data-testid="allowance-setup-form" className="gba:space-y-4">
+            {isRestrictedEdit && currentUsageInfo && (
+              <Alert variant="warning" data-testid="allowance-setup-restricted-alert">
+                <PiWarning className="gba:h-4 gba:w-4" />
+                <AlertDescription>{currentUsageInfo.message}</AlertDescription>
+              </Alert>
+            )}
+
             {/* Allowance Period */}
             <div className="gba:space-y-2" data-testid="allowance-setup-period-field">
               <Label htmlFor="allowancePeriodId" data-testid="allowance-setup-period-label">
@@ -511,6 +745,7 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
               <Select
                 value={formData.allowancePeriodId}
                 onValueChange={value => setFormData({ ...formData, allowancePeriodId: value })}
+                disabled={isRestrictedEdit}
               >
                 <SelectTrigger id="allowancePeriodId" data-testid="allowance-setup-period-select">
                   <SelectValue placeholder="Select allowance period" />
@@ -537,6 +772,7 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
               <Select
                 value={formData.allowanceCodeId}
                 onValueChange={value => setFormData({ ...formData, allowanceCodeId: value })}
+                disabled={isRestrictedEdit}
               >
                 <SelectTrigger id="allowanceCodeId" data-testid="allowance-setup-code-select">
                   <SelectValue placeholder="Select allowance code" />
@@ -557,6 +793,7 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
                 Name *
               </Label>
               <Input
+                disabled={isRestrictedEdit}
                 id="name"
                 placeholder="e.g., Full Day Setup"
                 value={formData.name}
@@ -570,7 +807,11 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
               <Label htmlFor="issue" data-testid="allowance-setup-issue-label">
                 Issue *
               </Label>
-              <Select value={formData.issue} onValueChange={value => setFormData({ ...formData, issue: value })}>
+              <Select
+                value={formData.issue}
+                onValueChange={value => setFormData({ ...formData, issue: value })}
+                disabled={isRestrictedEdit}
+              >
                 <SelectTrigger id="issue" data-testid="allowance-setup-issue-select">
                   <SelectValue placeholder="Select issue type" />
                 </SelectTrigger>
@@ -589,21 +830,19 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
             </div>
 
             {/* Tax Only */}
-            <div className="gba:flex gba:items-center gba:justify-between" data-testid="allowance-setup-tax-only-field">
-              <Label htmlFor="onlyTax" data-testid="allowance-setup-tax-only-label">
-                Tax Only
-              </Label>
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <span className="gba:text-sm gba:text-muted-foreground" data-testid="allowance-setup-tax-only-status">
-                  {formData.onlyTax ? 'Tax Only' : 'Include Allowance'}
-                </span>
-                <NWSwitch
+            <div className="gba:space-y-2" data-testid="allowance-setup-tax-only-field">
+              <label className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
+                <Checkbox
                   id="onlyTax"
                   checked={formData.onlyTax}
-                  onCheckedChange={checked => setFormData({ ...formData, onlyTax: checked })}
-                  data-testid="allowance-setup-tax-only-switch"
+                  onCheckedChange={checked => setFormData({ ...formData, onlyTax: checked === true })}
+                  disabled={isRestrictedEdit}
+                  data-testid="allowance-setup-tax-only-checkbox"
                 />
-              </div>
+                <span className="gba:text-sm" data-testid="allowance-setup-tax-only-label">
+                  Tax Only
+                </span>
+              </label>
             </div>
 
             {/* Validity Period */}
@@ -612,11 +851,13 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
                 <Label htmlFor="validFrom" data-testid="allowance-setup-valid-from-label">
                   Valid From *
                 </Label>
-                <Input
-                  id="validFrom"
-                  type="date"
+                <DateInput
                   value={formData.validFrom ? dayjs(formData.validFrom).format('YYYY-MM-DD') : ''}
-                  onChange={e => setFormData({ ...formData, validFrom: e.target.value })}
+                  onChange={value => setFormData({ ...formData, validFrom: value || '' })}
+                  disabled={isRestrictedEdit}
+                  placeholder="Select date..."
+                  outputFormat="iso"
+                  captionLayout="dropdown"
                   data-testid="allowance-setup-valid-from-input"
                 />
               </div>
@@ -624,15 +865,23 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
                 <Label htmlFor="validTo" data-testid="allowance-setup-valid-to-label">
                   Valid To
                 </Label>
-                <Input
-                  id="validTo"
-                  type="date"
+                <DateInput
                   value={formData.validTo ? dayjs(formData.validTo).format('YYYY-MM-DD') : ''}
-                  onChange={e => setFormData({ ...formData, validTo: e.target.value || undefined })}
+                  onChange={value => setFormData({ ...formData, validTo: value || undefined })}
+                  placeholder="Select date..."
+                  outputFormat="iso"
+                  captionLayout="dropdown"
                   data-testid="allowance-setup-valid-to-input"
                 />
               </div>
             </div>
+
+            {/* Validity Error Message */}
+            {validityError && (
+              <div className="gba:text-sm gba:text-destructive gba:mt-2" data-testid="allowance-setup-validity-error">
+                {validityError}
+              </div>
+            )}
           </div>
 
           <DialogFooter data-testid="allowance-setup-modal-footer">

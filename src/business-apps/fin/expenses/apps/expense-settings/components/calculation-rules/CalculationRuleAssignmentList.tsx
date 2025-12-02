@@ -15,12 +15,13 @@ import {
   Card,
   CardContent,
   Spinner,
-  Popover,
-  PopoverTrigger,
-  PopoverContent
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator
 } from '@newwork/nw-design-system'
-import { PiPlus, PiPencil, PiTrash } from 'react-icons/pi'
-import { Lightning } from '@phosphor-icons/react'
+import { PiPlus, PiPencil, PiTrash, PiDotsThreeVertical } from 'react-icons/pi'
 import { ListBulletsIcon, SortAscendingIcon, SortDescendingIcon, CheckIcon, XIcon } from '@phosphor-icons/react'
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
 import { DataFilterGroup } from '@/components/data-filter/DataFilter'
@@ -220,9 +221,14 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
     setEffectivePeriodTo(null)
   }
 
-  // Columns definition
+  // Columns definition - Actions FIRST
   const columns = useMemo(
     () => [
+      {
+        key: 'actions',
+        title: getTranslationFromI18nKeyAndLabel('expenseSettings.table.actions', 'Actions'),
+        width: '60px'
+      },
       { key: 'ruleCode', title: getTranslationFromI18nKeyAndLabel('expenseSettings.table.ruleCode', 'Rule Code') },
       {
         key: 'companyName',
@@ -244,12 +250,7 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
       { key: 'standard', title: getTranslationFromI18nKeyAndLabel('expenseSettings.table.standard', 'Standard') },
       { key: 'orgUnit', title: getTranslationFromI18nKeyAndLabel('expenseSettings.table.orgUnit', 'Org Unit') },
       { key: 'cascading', title: getTranslationFromI18nKeyAndLabel('expenseSettings.table.cascading', 'Cascading') },
-      { key: 'order', title: getTranslationFromI18nKeyAndLabel('expenseSettings.table.order', 'Order') },
-      {
-        key: 'actions',
-        title: getTranslationFromI18nKeyAndLabel('expenseSettings.table.actions', 'Actions'),
-        width: '60px'
-      }
+      { key: 'order', title: getTranslationFromI18nKeyAndLabel('expenseSettings.table.order', 'Order') }
     ],
     []
   )
@@ -402,6 +403,54 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
                             >
                               <TableCell
                                 className="gba:py-3 gba:px-6"
+                                onClick={e => e.stopPropagation()}
+                                data-testid={`${PREFIX}-cell-actions-${index}`}
+                              >
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      data-testid={`${PREFIX}-actions-trigger-${index}`}
+                                      onClick={e => e.stopPropagation()}
+                                    >
+                                      <PiDotsThreeVertical className="gba:h-4 gba:w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem
+                                      onClick={e => {
+                                        e.stopPropagation()
+                                        handleEditAssignment(assignment)
+                                      }}
+                                      data-testid={`${PREFIX}-edit-assignment-${index}`}
+                                    >
+                                      <PiPencil className="gba:h-4 gba:w-4 gba:mr-2" />
+                                      {getTranslationFromI18nKeyAndLabel(
+                                        'lowcoder:expense_calculation_rule.edit',
+                                        'Edit'
+                                      )}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      onClick={e => {
+                                        e.stopPropagation()
+                                        handleDeleteAssignment(assignment)
+                                      }}
+                                      className="gba:text-destructive"
+                                      data-testid={`${PREFIX}-delete-assignment-${index}`}
+                                    >
+                                      <PiTrash className="gba:h-4 gba:w-4 gba:mr-2" />
+                                      {getTranslationFromI18nKeyAndLabel(
+                                        'lowcoder:expense_calculation_rule.delete',
+                                        'Delete'
+                                      )}
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </TableCell>
+                              <TableCell
+                                className="gba:py-3 gba:px-6"
                                 data-testid={`${PREFIX}-cell-rule-code-${index}`}
                               >
                                 <span className="gba:font-mono gba:text-sm">{assignment.ruleCode || ''}</span>
@@ -489,67 +538,6 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
                               </TableCell>
                               <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-order-${index}`}>
                                 <span className="gba:text-sm">{assignment.assignmentOrder}</span>
-                              </TableCell>
-                              <TableCell
-                                className="gba:py-3 gba:px-6"
-                                onClick={e => e.stopPropagation()}
-                                data-testid={`${PREFIX}-cell-actions-${index}`}
-                              >
-                                <Popover>
-                                  <PopoverTrigger asChild>
-                                    <button
-                                      type="button"
-                                      className="gba:inline-flex gba:items-center gba:justify-center gba:gap-2 gba:whitespace-nowrap gba:rounded-sm gba:text-sm gba:font-medium gba:transition-all gba:disabled:pointer-events-none gba:disabled:opacity-50 gba:shrink-0 gba:outline-none gba:focus-visible:ring-[3px] gba:border gba:bg-background gba:size-9 gba:text-info-on-card gba:border-info/50 hover:gba:bg-info-secondary/10 hover:gba:text-info-on-card hover:gba:border-info gba:focus-visible:ring-info/40 gba:focus-visible:border-info"
-                                      data-testid={`${PREFIX}-actions-trigger-${index}`}
-                                    >
-                                      <Lightning className="gba:size-4 gba:shrink-0" weight="regular" />
-                                    </button>
-                                  </PopoverTrigger>
-                                  <PopoverContent
-                                    className="gba:w-auto gba:p-0"
-                                    align="end"
-                                    data-testid={`${PREFIX}-actions-popover-${index}`}
-                                  >
-                                    <div className="gba:flex gba:flex-col gba:gap-1 gba:p-1">
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="gba:justify-start gba:gap-2 gba:h-8 gba:px-2"
-                                        onClick={e => {
-                                          e.stopPropagation()
-                                          handleEditAssignment(assignment)
-                                        }}
-                                        data-testid={`${PREFIX}-edit-assignment-${index}`}
-                                      >
-                                        <PiPencil className="gba:w-4 gba:h-4" />
-                                        <span>
-                                          {getTranslationFromI18nKeyAndLabel(
-                                            'lowcoder:expense_calculation_rule.edit',
-                                            'Edit'
-                                          )}
-                                        </span>
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="gba:justify-start gba:gap-2 gba:h-8 gba:px-2 gba:text-destructive"
-                                        onClick={e => {
-                                          e.stopPropagation()
-                                          handleDeleteAssignment(assignment)
-                                        }}
-                                        data-testid={`${PREFIX}-delete-assignment-${index}`}
-                                      >
-                                        <PiTrash className="gba:w-4 gba:h-4" />
-                                        <span>
-                                          {getTranslationFromI18nKeyAndLabel(
-                                            'lowcoder:expense_calculation_rule.delete',
-                                            'Delete'
-                                          )}
-                                        </span>
-                                      </Button>
-                                    </div>
-                                  </PopoverContent>
-                                </Popover>
                               </TableCell>
                             </TableRow>
                           ))}

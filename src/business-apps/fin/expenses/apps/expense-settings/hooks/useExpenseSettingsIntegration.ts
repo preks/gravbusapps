@@ -60,9 +60,15 @@ export interface UseExpenseSettingsIntegrationResult {
   searchRules: (params: { search?: string }) => Promise<void>
 }
 
+export interface UseExpenseSettingsIntegrationOptions {
+  skipInitialLoad?: boolean
+}
+
 export const useExpenseSettingsIntegration = (
-  context: BusinessAppContextProps
+  context: BusinessAppContextProps,
+  options?: UseExpenseSettingsIntegrationOptions
 ): UseExpenseSettingsIntegrationResult => {
+  const { skipInitialLoad = false } = options || {}
   // State
   const [assignments, setAssignments] = useState<EnhancedExpenseRuleAssignment[]>([])
   const [totalAssignments, setTotalAssignments] = useState(0)
@@ -427,12 +433,12 @@ export const useExpenseSettingsIntegration = (
     []
   )
 
-  // Initial data load
+  // Initial data load - skip if specified (for lazy loading)
   useEffect(() => {
-    if (context.accessToken) {
+    if (context.accessToken && !skipInitialLoad) {
       loadData()
     }
-  }, [context.accessToken, loadData])
+  }, [context.accessToken, loadData, skipInitialLoad])
 
   return {
     // Data

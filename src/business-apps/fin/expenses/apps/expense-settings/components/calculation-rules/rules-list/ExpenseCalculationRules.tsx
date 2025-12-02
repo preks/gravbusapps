@@ -18,10 +18,13 @@ import {
   Spinner,
   Alert,
   Button,
-  Popover,
-  PopoverTrigger,
-  PopoverContent
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator
 } from '@newwork/nw-design-system'
+import { PiDotsThreeVertical, PiPencil, PiTrash } from 'react-icons/pi'
 import { useExpenseCalculationRules } from './hooks/useExpenseCalculationRules'
 import {
   Pagination,
@@ -53,11 +56,13 @@ import DeleteRuleDialog from './components/DeleteRuleDialog'
 import { GET_EXPENSE_RULE_FLAGS, getExpensesWithRulePk } from './queries/ExpenseCalculationRules.queries'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 
-type ExpenseCalculationRulesProps = BusinessAppContextProps
+interface ExpenseCalculationRulesProps extends BusinessAppContextProps {
+  onRuleSelect?: (ruleId: string) => void
+}
 
 const PREFIX = 'expense-calculation-rules'
 
-const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = props => {
+const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = ({ onRuleSelect, ...props }) => {
   const {
     items,
     totalCount,
@@ -114,11 +119,6 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = props =>
     [sortField, sortOrder, setSort]
   )
 
-  const flowIconUrl = useMemo(() => {
-    const base = env('NEXT_PUBLIC_BASE_URL') || ''
-    return `${base}/_next/static/media/lowcoder-icons/newwork/flow_min_20x20.svg`
-  }, [])
-
   const buildRuleDetailsUrl = useCallback((row: any): string => {
     const base = env('NEXT_PUBLIC_BASE_URL') || ''
     const path = '/platform/landing_screen/srn_expenseCalculationRuleDetailsV2'
@@ -150,6 +150,13 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = props =>
 
   const handleRowClick = useCallback(
     async (row: any) => {
+      // If onRuleSelect callback is provided, use it instead of redirecting
+      if (onRuleSelect) {
+        onRuleSelect(row.id)
+        return
+      }
+
+      // Fallback to old redirect behavior for backwards compatibility
       try {
         const res = await graphqlClient.request<any>(GET_EXPENSE_RULE_FLAGS, { id: row.id })
         const flagIds = (res?.ExpenseRuleFlag || []).map((f: any) => f?.expenseRuleId)
@@ -160,7 +167,7 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = props =>
         window.location.href = url
       }
     },
-    [graphqlClient, GET_EXPENSE_RULE_FLAGS, buildRuleDetailsUrl]
+    [onRuleSelect, graphqlClient, GET_EXPENSE_RULE_FLAGS, buildRuleDetailsUrl]
   )
 
   const columns = useMemo(
@@ -406,68 +413,61 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = props =>
                             }}
                           >
                             <TableCell className="gba:py-3 gba:px-3" data-testid={`${PREFIX}-cell-actions-${index}`}>
-                              <Popover>
-                                <PopoverTrigger asChild>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
                                   <Button
-                                    variant="outline"
+                                    variant="ghost"
                                     size="icon"
-                                    className="gba:w-8 gba:h-8 gba:rounded"
                                     data-testid={`${PREFIX}-actions-button-${index}`}
                                     onClick={e => e.stopPropagation()}
                                   >
-                                    <img src={flowIconUrl} alt="Actions" className="gba:w-5 gba:h-5" />
+                                    <PiDotsThreeVertical className="gba:h-4 gba:w-4" />
                                   </Button>
-                                </PopoverTrigger>
-                                <PopoverContent
-                                  align="start"
-                                  className="gba:p-0 gba:w-auto"
-                                  onClick={e => e.stopPropagation()}
-                                >
-                                  <div className="gba:flex gba:flex-col">
-                                    <Button
-                                      variant="ghost"
-                                      className="gba:px-4 gba:py-2 gba:text-left gba:justify-start gba:text-[14px]"
-                                      data-testid={`${PREFIX}-action-edit-${index}`}
-                                      onClick={e => {
-                                        e.stopPropagation()
-                                        setSelectedRow(row as any)
-                                        setFlowModalOpen(true)
-                                      }}
-                                    >
-                                      {getTranslationFromI18nKeyAndLabel(
-                                        'lowcoder:expense_calculation_rule.expense_table.edit',
-                                        'Edit'
-                                      )}
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      className="gba:px-4 gba:py-2 gba:text-left gba:justify-start gba:text-[14px]"
-                                      data-testid={`${PREFIX}-action-delete-${index}`}
-                                      onClick={async e => {
-                                        e.stopPropagation()
-                                        setSelectedRow(row as any)
-                                        try {
-                                          const res = await graphqlClient.request<any>(getExpensesWithRulePk, {
-                                            ruleId: row.id
-                                          })
-                                          const c1 = res?.ExpenseItemAggregate?.aggregate?.count || 0
-                                          const c2 = res?.ExpenseRequestAggregate?.aggregate?.count || 0
-                                          const c3 = res?.ExpensePlanAggregate?.aggregate?.count || 0
-                                          setDeleteBlocked(c1 + c2 + c3 > 0)
-                                        } catch {
-                                          setDeleteBlocked(true)
-                                        }
-                                        setDeleteOpen(true)
-                                      }}
-                                    >
-                                      {getTranslationFromI18nKeyAndLabel(
-                                        'lowcoder:expense_calculation_rule.expense_table.delete',
-                                        'Delete'
-                                      )}
-                                    </Button>
-                                  </div>
-                                </PopoverContent>
-                              </Popover>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem
+                                    onClick={e => {
+                                      e.stopPropagation()
+                                      setSelectedRow(row as any)
+                                      setFlowModalOpen(true)
+                                    }}
+                                    data-testid={`${PREFIX}-action-edit-${index}`}
+                                  >
+                                    <PiPencil className="gba:h-4 gba:w-4 gba:mr-2" />
+                                    {getTranslationFromI18nKeyAndLabel(
+                                      'lowcoder:expense_calculation_rule.expense_table.edit',
+                                      'Edit'
+                                    )}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onClick={async e => {
+                                      e.stopPropagation()
+                                      setSelectedRow(row as any)
+                                      try {
+                                        const res = await graphqlClient.request<any>(getExpensesWithRulePk, {
+                                          ruleId: row.id
+                                        })
+                                        const c1 = res?.ExpenseItemAggregate?.aggregate?.count || 0
+                                        const c2 = res?.ExpenseRequestAggregate?.aggregate?.count || 0
+                                        const c3 = res?.ExpensePlanAggregate?.aggregate?.count || 0
+                                        setDeleteBlocked(c1 + c2 + c3 > 0)
+                                      } catch {
+                                        setDeleteBlocked(true)
+                                      }
+                                      setDeleteOpen(true)
+                                    }}
+                                    className="gba:text-destructive"
+                                    data-testid={`${PREFIX}-action-delete-${index}`}
+                                  >
+                                    <PiTrash className="gba:h-4 gba:w-4 gba:mr-2" />
+                                    {getTranslationFromI18nKeyAndLabel(
+                                      'lowcoder:expense_calculation_rule.expense_table.delete',
+                                      'Delete'
+                                    )}
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </TableCell>
                             <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-code-${index}`}>
                               {row.code ||
@@ -557,7 +557,7 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = props =>
                               aria-label="Go to previous page"
                               size="default"
                               className={`gba:gap-1 gba:pl-2.5 ${currentPage <= 1 ? 'gba:pointer-events-none gba:opacity-50' : 'gba:cursor-pointer'}`}
-                              onClick={() => handleEnhancedTableChange({ current: currentPage - 1, pageSize }, {}, {})}
+                              onClick={() => handleEnhancedTableChange({ current: currentPage - 1, pageSize })}
                               data-testid={`${PREFIX}-pagination-prev`}
                             >
                               <CaretLeftIcon className="gba:h-4 gba:w-4" />
@@ -585,7 +585,7 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = props =>
                                 )}
                                 <PaginationItem>
                                   <PaginationLink
-                                    onClick={() => handleEnhancedTableChange({ current: page, pageSize }, {}, {})}
+                                    onClick={() => handleEnhancedTableChange({ current: page, pageSize })}
                                     className={
                                       page === currentPage
                                         ? 'gba:bg-blue-500 gba:text-background'
@@ -603,7 +603,7 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = props =>
                               aria-label="Go to next page"
                               size="default"
                               className={`gba:gap-1 gba:pr-2.5 ${currentPage >= Math.ceil(totalCount / pageSize) ? 'gba:pointer-events-none gba:opacity-50' : 'gba:cursor-pointer'}`}
-                              onClick={() => handleEnhancedTableChange({ current: currentPage + 1, pageSize }, {}, {})}
+                              onClick={() => handleEnhancedTableChange({ current: currentPage + 1, pageSize })}
                               data-testid={`${PREFIX}-pagination-next`}
                             >
                               <span>
@@ -623,9 +623,7 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = props =>
                         </span>
                         <Select
                           value={String(pageSize)}
-                          onValueChange={val =>
-                            handleEnhancedTableChange({ current: 1, pageSize: Number(val) }, {}, {})
-                          }
+                          onValueChange={val => handleEnhancedTableChange({ current: 1, pageSize: Number(val) })}
                         >
                           <SelectTrigger className="gba:w-[80px]">
                             <SelectValue />

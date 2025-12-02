@@ -817,11 +817,21 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
           </TabsContent>
 
           <TabsContent value="expenses" data-testid="expenses-tab-content">
-            <GeneralExpensesTab ruleId={ruleId} accessToken={accessToken} activeFrom={ruleDetails.activeFrom} />
+            <GeneralExpensesTab
+              ruleId={ruleId}
+              accessToken={accessToken}
+              activeFrom={ruleDetails.activeFrom}
+              activeTo={ruleDetails.activeTo}
+            />
           </TabsContent>
 
           <TabsContent value="mileage" data-testid="mileage-tab-content">
-            <MileageRulesTab ruleId={ruleId} accessToken={accessToken} activeFrom={ruleDetails.activeFrom} />
+            <MileageRulesTab
+              ruleId={ruleId}
+              accessToken={accessToken}
+              activeFrom={ruleDetails.activeFrom}
+              activeTo={ruleDetails.activeTo}
+            />
           </TabsContent>
 
           <TabsContent value="allowance" data-testid="allowance-tab-content">
@@ -843,30 +853,60 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
                 </TabsList>
 
                 <TabsContent value="allowance-period">
-                  <AllowancePeriodTab ruleId={ruleId} accessToken={accessToken} activeFrom={ruleDetails.activeFrom} />
+                  <AllowancePeriodTab
+                    ruleId={ruleId}
+                    accessToken={accessToken}
+                    activeFrom={ruleDetails.activeFrom}
+                    activeTo={ruleDetails.activeTo}
+                  />
                 </TabsContent>
 
                 <TabsContent value="allowance-code">
-                  <AllowanceCodeTab ruleId={ruleId} accessToken={accessToken} activeFrom={ruleDetails.activeFrom} />
+                  <AllowanceCodeTab
+                    ruleId={ruleId}
+                    accessToken={accessToken}
+                    activeFrom={ruleDetails.activeFrom}
+                    activeTo={ruleDetails.activeTo}
+                  />
                 </TabsContent>
 
                 <TabsContent value="allowance-setup">
-                  <AllowanceSetupTab ruleId={ruleId} accessToken={accessToken} activeFrom={ruleDetails.activeFrom} />
+                  <AllowanceSetupTab
+                    ruleId={ruleId}
+                    accessToken={accessToken}
+                    activeFrom={ruleDetails.activeFrom}
+                    activeTo={ruleDetails.activeTo}
+                  />
                 </TabsContent>
 
                 <TabsContent value="allowance-deduction">
-                  <DeductionTab ruleId={ruleId} accessToken={accessToken} activeFrom={ruleDetails.activeFrom} />
+                  <DeductionTab
+                    ruleId={ruleId}
+                    accessToken={accessToken}
+                    activeFrom={ruleDetails.activeFrom}
+                    activeTo={ruleDetails.activeTo}
+                  />
                 </TabsContent>
               </Tabs>
             </div>
           </TabsContent>
 
           <TabsContent value="other-calculation" data-testid="other-calculation-tab-content">
-            <OtherCalculationTab ruleId={ruleId} accessToken={accessToken} activeFrom={ruleDetails.activeFrom} />
+            <OtherCalculationTab
+              ruleId={ruleId}
+              accessToken={accessToken}
+              activeFrom={ruleDetails.activeFrom}
+              activeTo={ruleDetails.activeTo}
+            />
           </TabsContent>
 
           <TabsContent value="custom-fields" data-testid="custom-fields-tab-content">
-            <CustomFieldsTab ruleId={ruleId} accessToken={accessToken} activeFrom={ruleDetails.activeFrom} />
+            <CustomFieldsTab
+              ruleId={ruleId}
+              accessToken={accessToken}
+              activeFrom={ruleDetails.activeFrom}
+              activeTo={ruleDetails.activeTo}
+            />
           </TabsContent>
         </Tabs>
       </div>

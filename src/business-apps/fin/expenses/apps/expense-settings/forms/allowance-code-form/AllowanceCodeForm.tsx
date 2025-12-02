@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useForm } from 'react-hook-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useFeature } from '@/common/hooks/useFeature'
 import {
@@ -8,14 +9,19 @@ import {
   CardContent,
   Button,
   Input,
-  Label,
   Alert,
   AlertDescription,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage
 } from '@newwork/nw-design-system'
 import { PiFloppyDisk, PiX, PiWarning } from 'react-icons/pi'
 import {
@@ -60,42 +66,35 @@ const AllowanceCodeForm: React.FC<AllowanceCodeFormProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // React Hook Form setup
+  const form = useForm<AllowanceCodeFormData>({
+    defaultValues: {
+      code: '',
+      amount: 0,
+      codeOrder: 1,
+      travelLocation: TravelLocation.BOTH
+    }
+  })
+
   // Feature flag guard
   if (isDevEnabled === false) {
     return null
   }
 
-  // Form state
-  const [formData, setFormData] = useState<AllowanceCodeFormData>({
-    code: '',
-    amount: 0,
-    codeOrder: 1,
-    travelLocation: TravelLocation.BOTH
-  })
-
-  // Validation errors
-  const [validationErrors, setValidationErrors] = useState<{
-    code?: string
-    amount?: string
-    codeOrder?: string
-    travelLocation?: string
-    allowanceType?: string
-  }>({})
-
-  // ✅ NEW: Hook for fetching fresh allowance code data
+  // ✅ Hook for fetching fresh allowance code data
   const { fetchExpenseRuleAllowanceCodeById } = useGetExpenseRuleAllowanceCodeById({
     accessToken
   } as BusinessAppContextProps)
 
-  // ✅ FIXED: Load fresh data when editing, use initial data when creating
+  // ✅ Load fresh data when editing, use initial data when creating
   useEffect(() => {
     const loadData = async () => {
       if (isEditing && initialData?.id) {
-        // ✅ NEW: For editing, fetch fresh data from the server
+        // For editing, fetch fresh data from the server
         try {
           const freshData = await fetchExpenseRuleAllowanceCodeById(initialData.id)
           if (freshData) {
-            setFormData({
+            form.reset({
               id: freshData.id,
               code: freshData.code,
               amount: freshData.amount,
@@ -106,15 +105,15 @@ const AllowanceCodeForm: React.FC<AllowanceCodeFormProps> = ({
             })
             return
           }
-        } catch (error) {
-          console.error('Failed to load fresh allowance code data:', error)
+        } catch (err) {
+          console.error('Failed to load fresh allowance code data:', err)
           // Continue with fallback to initial data
         }
       }
 
-      // ✅ Fallback: Use initial data (for creating or if fresh fetch failed)
+      // Fallback: Use initial data (for creating or if fresh fetch failed)
       if (initialData) {
-        setFormData({
+        form.reset({
           id: initialData.id,
           code: initialData.code,
           amount: initialData.amount,
@@ -127,49 +126,47 @@ const AllowanceCodeForm: React.FC<AllowanceCodeFormProps> = ({
     }
 
     loadData()
-  }, [initialData?.id, isEditing, fetchExpenseRuleAllowanceCodeById])
+  }, [initialData?.id, isEditing, fetchExpenseRuleAllowanceCodeById, form])
 
-  const validateForm = (): boolean => {
-    const errors: typeof validationErrors = {}
+  const handleSubmit = async (data: AllowanceCodeFormData) => {
+    // Validate required fields
+    let hasErrors = false
 
-    if (!formData.code?.trim()) {
-      errors.code = 'Allowance code is required'
-    } else if (formData.code.length > 10) {
-      errors.code = 'Code cannot exceed 10 characters'
+    if (!data.code?.trim()) {
+      form.setError('code', { message: 'Allowance code is required' })
+      hasErrors = true
+    } else if (data.code.length > 10) {
+      form.setError('code', { message: 'Code cannot exceed 10 characters' })
+      hasErrors = true
     }
 
-    if (formData.amount === undefined || formData.amount === null) {
-      errors.amount = 'Amount is required'
+    if (data.amount === undefined || data.amount === null) {
+      form.setError('amount', { message: 'Amount is required' })
+      hasErrors = true
     }
 
-    if (!formData.codeOrder || formData.codeOrder < 1) {
-      errors.codeOrder = 'Display order must be at least 1'
+    if (!data.codeOrder || data.codeOrder < 1) {
+      form.setError('codeOrder', { message: 'Display order must be at least 1' })
+      hasErrors = true
     }
 
-    if (!formData.travelLocation) {
-      errors.travelLocation = 'Travel location is required'
+    if (!data.travelLocation) {
+      form.setError('travelLocation', { message: 'Travel location is required' })
+      hasErrors = true
     }
 
-    if (!formData.allowanceType) {
-      errors.allowanceType = 'Allowance type is required'
+    if (!data.allowanceType) {
+      form.setError('allowanceType', { message: 'Allowance type is required' })
+      hasErrors = true
     }
 
-    setValidationErrors(errors)
-    return Object.keys(errors).length === 0
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!validateForm()) {
-      return
-    }
+    if (hasErrors) return
 
     setIsSubmitting(true)
     setError(null)
 
     try {
-      await onSave(formData)
+      await onSave(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save allowance code')
     } finally {
@@ -178,14 +175,12 @@ const AllowanceCodeForm: React.FC<AllowanceCodeFormProps> = ({
   }
 
   const handleCancel = () => {
-    // Reset form to initial state
-    setFormData({
+    form.reset({
       code: '',
       amount: 0,
       codeOrder: 1,
       travelLocation: TravelLocation.BOTH
     })
-    setValidationErrors({})
     setError(null)
     onCancel()
   }
@@ -204,173 +199,190 @@ const AllowanceCodeForm: React.FC<AllowanceCodeFormProps> = ({
             </Alert>
           )}
 
-          <form onSubmit={handleSubmit} data-testid="allowance-code-form">
-            {/* Code, Amount, and Order */}
-            <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-3 gba:gap-4 gba:mb-6">
-              <div className="gba:space-y-2">
-                <Label htmlFor="code">
-                  Allowance Code <span className="gba:text-destructive">*</span>
-                </Label>
-                <Input
-                  id="code"
-                  value={formData.code}
-                  onChange={e => {
-                    setFormData(prev => ({ ...prev, code: e.target.value }))
-                    setValidationErrors(prev => ({ ...prev, code: undefined }))
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleSubmit)} data-testid="allowance-code-form">
+              {/* Code, Amount, and Order */}
+              <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4 gba:mb-6">
+                <FormField
+                  control={form.control}
+                  name="code"
+                  rules={{
+                    required: 'Allowance code is required',
+                    maxLength: { value: 10, message: 'Code cannot exceed 10 characters' }
                   }}
-                  placeholder="Enter code (e.g., LHD)"
-                  data-testid="allowance-code-form-code-input"
-                  className={validationErrors.code ? 'gba:border-destructive' : ''}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Allowance Code <span className="gba:text-destructive">*</span>
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          placeholder="Enter code (e.g., LHD)"
+                          data-testid="allowance-code-form-code-input"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-                {validationErrors.code && <p className="gba:text-sm gba:text-destructive">{validationErrors.code}</p>}
-              </div>
 
-              <div className="gba:space-y-2">
-                <Label htmlFor="amount">
-                  Amount <span className="gba:text-destructive">*</span>
-                </Label>
-                <Input
-                  id="amount"
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  value={formData.amount}
-                  onChange={e => {
-                    setFormData(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))
-                    setValidationErrors(prev => ({ ...prev, amount: undefined }))
-                  }}
-                  placeholder="Enter amount"
-                  data-testid="allowance-code-form-amount-input"
-                  className={validationErrors.amount ? 'gba:border-destructive' : ''}
+                <FormField
+                  control={form.control}
+                  name="amount"
+                  rules={{ required: 'Amount is required' }}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Amount <span className="gba:text-destructive">*</span>
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min={0}
+                          step={0.01}
+                          {...field}
+                          onChange={e => field.onChange(parseFloat(e.target.value) || 0)}
+                          placeholder="Enter amount"
+                          data-testid="allowance-code-form-amount-input"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-                {validationErrors.amount && (
-                  <p className="gba:text-sm gba:text-destructive">{validationErrors.amount}</p>
-                )}
-              </div>
 
-              <div className="gba:space-y-2">
-                <Label htmlFor="codeOrder">
-                  Display Order <span className="gba:text-destructive">*</span>
-                </Label>
-                <Input
-                  id="codeOrder"
-                  type="number"
-                  min={1}
-                  value={formData.codeOrder}
-                  onChange={e => {
-                    setFormData(prev => ({ ...prev, codeOrder: parseInt(e.target.value) || 1 }))
-                    setValidationErrors(prev => ({ ...prev, codeOrder: undefined }))
+                <FormField
+                  control={form.control}
+                  name="codeOrder"
+                  rules={{
+                    required: 'Display order is required',
+                    min: { value: 1, message: 'Display order must be at least 1' }
                   }}
-                  placeholder="Enter order"
-                  data-testid="allowance-code-form-order-input"
-                  className={validationErrors.codeOrder ? 'gba:border-destructive' : ''}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Display Order <span className="gba:text-destructive">*</span>
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min={1}
+                          {...field}
+                          onChange={e => field.onChange(parseInt(e.target.value) || 1)}
+                          placeholder="Enter order"
+                          data-testid="allowance-code-form-order-input"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-                {validationErrors.codeOrder && (
-                  <p className="gba:text-sm gba:text-destructive">{validationErrors.codeOrder}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Travel Location and Allowance Type */}
-            <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4 gba:mb-6">
-              <div className="gba:space-y-2">
-                <Label htmlFor="travelLocation">
-                  Travel Location <span className="gba:text-destructive">*</span>
-                </Label>
-                <Select
-                  value={formData.travelLocation}
-                  onValueChange={value => {
-                    setFormData(prev => ({ ...prev, travelLocation: value as TravelLocation }))
-                    setValidationErrors(prev => ({ ...prev, travelLocation: undefined }))
-                  }}
-                >
-                  <SelectTrigger
-                    id="travelLocation"
-                    data-testid="allowance-code-form-travel-location-select"
-                    className={validationErrors.travelLocation ? 'gba:border-destructive' : ''}
-                  >
-                    <SelectValue placeholder="Select travel location" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {getTravelLocationOptions().map(option => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {validationErrors.travelLocation && (
-                  <p className="gba:text-sm gba:text-destructive">{validationErrors.travelLocation}</p>
-                )}
               </div>
 
-              <div className="gba:space-y-2">
-                <Label htmlFor="allowanceType">
-                  Allowance Type <span className="gba:text-destructive">*</span>
-                </Label>
-                <Select
-                  value={formData.allowanceType}
-                  onValueChange={value => {
-                    setFormData(prev => ({ ...prev, allowanceType: value as AllowanceType }))
-                    setValidationErrors(prev => ({ ...prev, allowanceType: undefined }))
-                  }}
-                >
-                  <SelectTrigger
-                    id="allowanceType"
-                    data-testid="allowance-code-form-allowance-type-select"
-                    className={validationErrors.allowanceType ? 'gba:border-destructive' : ''}
-                  >
-                    <SelectValue placeholder="Select allowance type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {getAllowanceTypeOptions().map(option => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {validationErrors.allowanceType && (
-                  <p className="gba:text-sm gba:text-destructive">{validationErrors.allowanceType}</p>
-                )}
-              </div>
-            </div>
+              {/* Travel Location and Allowance Type */}
+              <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4 gba:mb-6">
+                <FormField
+                  control={form.control}
+                  name="travelLocation"
+                  rules={{ required: 'Travel location is required' }}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Travel Location <span className="gba:text-destructive">*</span>
+                      </FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger data-testid="allowance-code-form-travel-location-select">
+                            <SelectValue placeholder="Select travel location" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {getTravelLocationOptions().map(option => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-            {/* Calculation Formula */}
-            <div className="gba:space-y-2 gba:mb-6">
-              <Label htmlFor="calculation">Calculation Formula</Label>
-              <Input
-                id="calculation"
-                value={formData.calculation || ''}
-                onChange={e => setFormData(prev => ({ ...prev, calculation: e.target.value }))}
-                placeholder="Enter calculation formula (optional)"
-                data-testid="allowance-code-form-calculation-input"
+                <FormField
+                  control={form.control}
+                  name="allowanceType"
+                  rules={{ required: 'Allowance type is required' }}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Allowance Type <span className="gba:text-destructive">*</span>
+                      </FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger data-testid="allowance-code-form-allowance-type-select">
+                            <SelectValue placeholder="Select allowance type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {getAllowanceTypeOptions().map(option => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Calculation Formula */}
+              <FormField
+                control={form.control}
+                name="calculation"
+                render={({ field }) => (
+                  <FormItem className="gba:mb-6">
+                    <FormLabel>Calculation Formula</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        value={field.value || ''}
+                        placeholder="Enter calculation formula (optional)"
+                        data-testid="allowance-code-form-calculation-input"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
 
-            {/* Action Buttons */}
-            <div className="gba:flex gba:gap-4 gba:mt-6">
-              <Button
-                type="submit"
-                disabled={isSubmitting || loading}
-                data-testid="allowance-code-form-save-button"
-                className="gba:flex gba:items-center gba:gap-2"
-              >
-                <PiFloppyDisk className="gba:h-4 gba:w-4" />
-                {isEditing ? 'Update Allowance Code' : 'Create Allowance Code'}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleCancel}
-                data-testid="allowance-code-form-cancel-button"
-                className="gba:flex gba:items-center gba:gap-2"
-              >
-                <PiX className="gba:h-4 gba:w-4" />
-                Cancel
-              </Button>
-            </div>
-          </form>
+              {/* Action Buttons */}
+              <div className="gba:flex gba:gap-4 gba:mt-6">
+                <Button
+                  type="submit"
+                  disabled={isSubmitting || loading}
+                  data-testid="allowance-code-form-save-button"
+                  className="gba:flex gba:items-center gba:gap-2"
+                >
+                  <PiFloppyDisk className="gba:h-4 gba:w-4" />
+                  {isEditing ? 'Update Allowance Code' : 'Create Allowance Code'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleCancel}
+                  data-testid="allowance-code-form-cancel-button"
+                  className="gba:flex gba:items-center gba:gap-2"
+                >
+                  <PiX className="gba:h-4 gba:w-4" />
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </Form>
         </CardContent>
       </Card>
     </div>

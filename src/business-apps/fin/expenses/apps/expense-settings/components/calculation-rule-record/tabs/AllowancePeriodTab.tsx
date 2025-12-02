@@ -23,14 +23,29 @@ import {
   Label,
   Spinner,
   Toaster,
-  Switch as NWSwitch
+  Switch as NWSwitch,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DateInput
 } from '@newwork/nw-design-system'
-import { PiPlus, PiPencil, PiCalendar, PiClock, PiCheck, PiX } from 'react-icons/pi'
+import {
+  PiPlus,
+  PiPencil,
+  PiCalendar,
+  PiClock,
+  PiCheck,
+  PiX,
+  PiDotsThreeVertical,
+  PiTrash,
+  PiWarning
+} from 'react-icons/pi'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 
 // Register dayjs plugins
 dayjs.extend(weekday)
@@ -42,6 +57,7 @@ interface AllowancePeriodTabProps {
   ruleId: string
   accessToken: string
   activeFrom: string
+  activeTo?: string
 }
 
 interface AllowancePeriod {
@@ -79,7 +95,16 @@ interface AllowancePeriodFormData {
   version?: number
 }
 
-const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessToken, activeFrom }) => {
+// Usage check result
+interface UsageInfo {
+  isUsed: boolean
+  usedIn: {
+    setups?: number
+  }
+  message: string
+}
+
+const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessToken, activeFrom, activeTo }) => {
   const graphqlClient = useGraphQLClient(accessToken)
 
   const [allowancePeriods, setAllowancePeriods] = useState<AllowancePeriod[]>([])
@@ -96,8 +121,104 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
     validFrom: activeFrom
   })
 
+  // Delete confirmation dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [itemToDelete, setItemToDelete] = useState<AllowancePeriod | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  // Usage check state
+  const [, setIsCheckingUsage] = useState(false)
+  const [currentUsageInfo, setCurrentUsageInfo] = useState<UsageInfo | null>(null)
+  const [isRestrictedEdit, setIsRestrictedEdit] = useState(false)
+
+  // Pre-loaded usage status for all periods (period id -> isUsed)
+  const [periodUsageMap, setPeriodUsageMap] = useState<Record<string, boolean>>({})
+
   // Set up client
   expenseSettingsClient.setAccessToken(accessToken)
+
+  // Load usage status for all periods in a single batched query
+  const loadPeriodUsageStatus = useCallback(
+    async (periodIds: string[]) => {
+      if (periodIds.length === 0) return
+
+      try {
+        // Check if periods are used in allowance setups (using correct field name: allowancePeriodId)
+        const usageQuery = `
+          query CheckAllowancePeriodsUsage($periodIds: [uuid!]!) {
+            ExpenseRuleAllowanceSetup(where: { 
+              allowancePeriodId: { _in: $periodIds },
+              isDeleted: { _eq: false }
+            }) {
+              id
+              allowancePeriodId
+            }
+          }
+        `
+
+        const result = await graphqlClient.request<{
+          ExpenseRuleAllowanceSetup: { id: string; allowancePeriodId: string }[]
+        }>(usageQuery, { periodIds })
+
+        const usageMap: Record<string, boolean> = {}
+        periodIds.forEach(id => {
+          const setupUsage = result.ExpenseRuleAllowanceSetup?.filter(s => s.allowancePeriodId === id) || []
+          usageMap[id] = setupUsage.length > 0
+        })
+        setPeriodUsageMap(usageMap)
+      } catch (err) {
+        console.error('Error loading period usage status:', err)
+        // Default to allowing operations if we can't check
+        const emptyMap: Record<string, boolean> = {}
+        periodIds.forEach(id => {
+          emptyMap[id] = false
+        })
+        setPeriodUsageMap(emptyMap)
+      }
+    },
+    [graphqlClient]
+  )
+
+  // Check detailed usage for a single period
+  const checkAllowancePeriodUsage = useCallback(
+    async (periodId: string): Promise<UsageInfo> => {
+      try {
+        // Only check ExpenseRuleAllowanceSetup - using correct field name: allowancePeriodId
+        const query = `
+          query CheckAllowancePeriodUsage($periodId: uuid!) {
+            setupCount: ExpenseRuleAllowanceSetupAggregate(where: { 
+              allowancePeriodId: { _eq: $periodId },
+              isDeleted: { _eq: false }
+            }) {
+              aggregate { count }
+            }
+          }
+        `
+
+        const result = await graphqlClient.request<{
+          setupCount: { aggregate: { count: number } }
+        }>(query, { periodId })
+
+        const setups = result.setupCount?.aggregate?.count || 0
+        const isUsed = setups > 0
+
+        const usageDetails: string[] = []
+        if (setups > 0) usageDetails.push(`${setups} allowance setup(s)`)
+
+        return {
+          isUsed,
+          usedIn: { setups },
+          message: isUsed
+            ? `This allowance period is used in ${usageDetails.join(' and ')}. Only the Valid To field can be modified.`
+            : ''
+        }
+      } catch (err) {
+        console.error('Error checking allowance period usage:', err)
+        return { isUsed: false, usedIn: {}, message: '' }
+      }
+    },
+    [graphqlClient]
+  )
 
   const fetchAllowancePeriods = useCallback(async () => {
     setIsLoading(true)
@@ -124,8 +245,6 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
               version
               additionalProperties
               businessKey
-              express1
-              express2
             }
           }
         }
@@ -157,12 +276,17 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
       }))
 
       setAllowancePeriods(transformedPeriods)
+
+      // Load usage status for all periods
+      if (transformedPeriods.length > 0) {
+        await loadPeriodUsageStatus(transformedPeriods.map(p => p.id))
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load allowance periods')
     } finally {
       setIsLoading(false)
     }
-  }, [ruleId, graphqlClient])
+  }, [ruleId, graphqlClient, loadPeriodUsageStatus])
 
   useEffect(() => {
     if (ruleId && accessToken) {
@@ -176,19 +300,44 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
 
   const handleAdd = () => {
     setEditingItem(null)
+    setIsRestrictedEdit(false)
+    setCurrentUsageInfo(null)
+
+    // Determine validity period based on existing entries
+    let validFromValue = activeFrom
+    let validToValue: string | undefined = undefined
+
+    if (allowancePeriods.length > 0) {
+      // Use the same validity period as the first existing entry
+      const existingEntry = allowancePeriods[0]
+      validFromValue = existingEntry.validFrom
+      validToValue = existingEntry.validTo
+    } else {
+      // No existing entries - set validTo to December 31, 9999 (or rule's activeTo if set)
+      validToValue = activeTo || '9999-12-31'
+    }
+
     setFormData({
       code: '',
       name: '',
       minHours: 0,
       midnightRule: false,
       overnightAccommodation: false,
-      validFrom: activeFrom,
+      validFrom: validFromValue,
+      validTo: validToValue,
       order: allowancePeriods.length + 1
     })
     setIsModalVisible(true)
   }
 
-  const handleEdit = (record: AllowancePeriod) => {
+  const handleEdit = async (record: AllowancePeriod) => {
+    setIsCheckingUsage(true)
+
+    // Check if period is used
+    const usageInfo = await checkAllowancePeriodUsage(record.id)
+    setCurrentUsageInfo(usageInfo)
+    setIsRestrictedEdit(usageInfo.isUsed)
+
     setFormData({
       id: record.id,
       code: record.code,
@@ -207,34 +356,83 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
     })
 
     setEditingItem(record)
+    setIsCheckingUsage(false)
     setIsModalVisible(true)
   }
 
-  // Note: Delete actions are now handled through AppActionButton's context flow
+  const handleDeleteClick = (record: AllowancePeriod) => {
+    setItemToDelete(record)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!itemToDelete) return
+
+    setIsDeleting(true)
+    try {
+      await expenseSettingsClient.saveExpenseRuleAllowancePeriod({
+        id: itemToDelete.id,
+        version: itemToDelete.version,
+        expenseRuleId: ruleId,
+        code: itemToDelete.code,
+        name: itemToDelete.name,
+        activeFrom: itemToDelete.validFrom,
+        isDeleted: true
+      })
+
+      toast.success('Allowance period deleted successfully')
+      setDeleteDialogOpen(false)
+      setItemToDelete(null)
+      await fetchAllowancePeriods()
+    } catch (err) {
+      toast.error('Failed to delete allowance period')
+      console.error('Delete error:', err)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   const handleSave = async () => {
     try {
       setIsSaving(true)
 
-      // Map to API payload and call client
-      await expenseSettingsClient.saveExpenseRuleAllowancePeriod({
-        ...(editingItem && { id: editingItem.id, version: editingItem.version }),
-        expenseRuleId: ruleId,
-        businessKey: undefined,
-        activeTo: formData.validTo,
-        additionalProperties: undefined,
-        code: formData.code,
-        name: formData.name,
-        overnightAccomodation: formData.overnightAccommodation,
-        fromTime: formData.fromTime,
-        toTime: formData.toTime,
-        minHours: formData.minHours,
-        midnightRule: formData.midnightRule,
-        startAfter: formData.startAfter,
-        returnBefore: formData.returnBefore,
-        activeFrom: formData.validFrom,
-        periodOrder: formData.order
-      })
+      // If restricted edit, only update validTo
+      if (isRestrictedEdit && editingItem) {
+        await expenseSettingsClient.saveExpenseRuleAllowancePeriod({
+          id: editingItem.id,
+          version: editingItem.version,
+          expenseRuleId: ruleId,
+          code: editingItem.code,
+          name: editingItem.name,
+          activeFrom: editingItem.validFrom,
+          activeTo: formData.validTo,
+          fromTime: editingItem.fromTime,
+          toTime: editingItem.toTime,
+          minHours: editingItem.minHours,
+          midnightRule: editingItem.midnightRule,
+          periodOrder: editingItem.order
+        })
+      } else {
+        // Full save
+        await expenseSettingsClient.saveExpenseRuleAllowancePeriod({
+          ...(editingItem && { id: editingItem.id, version: editingItem.version }),
+          expenseRuleId: ruleId,
+          businessKey: undefined,
+          activeTo: formData.validTo,
+          additionalProperties: undefined,
+          code: formData.code,
+          name: formData.name,
+          overnightAccomodation: formData.overnightAccommodation,
+          fromTime: formData.fromTime,
+          toTime: formData.toTime,
+          minHours: formData.minHours,
+          midnightRule: formData.midnightRule,
+          startAfter: formData.startAfter,
+          returnBefore: formData.returnBefore,
+          activeFrom: formData.validFrom,
+          periodOrder: formData.order
+        })
+      }
 
       toast.success(`Allowance period ${editingItem ? 'updated' : 'created'} successfully`)
       setIsModalVisible(false)
@@ -379,27 +577,40 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                     <TableRow key={record.id} data-testid={`allowance-period-row-${record.id}`}>
                       {/* Actions Column */}
                       <TableCell data-testid={`allowance-period-actions-cell-${record.id}`}>
-                        <div className="gba:flex gba:justify-start gba:gap-2">
-                          <AppActionButton
-                            data-testid={`allowance-period-action-${record.id}`}
-                            size="icon"
-                            contextsArray={[]}
-                            externalContextData={{ allowancePeriodId: record.id }}
-                            prefixDataTestId="allowance-period-action"
-                            accessToken={accessToken}
-                            emptyStateBehavior="enable"
-                            deferMainContextRequestsUntilClick
-                            onClick={e => e.stopPropagation()}
-                          />
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEdit(record)}
-                            data-testid={`edit-allowance-period-${record.id}`}
-                          >
-                            <PiPencil className="gba:h-4 gba:w-4" />
-                          </Button>
-                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              data-testid={`allowance-period-action-${record.id}`}
+                              onClick={e => e.stopPropagation()}
+                            >
+                              <PiDotsThreeVertical className="gba:h-4 gba:w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => handleEdit(record)}
+                              data-testid={`edit-allowance-period-${record.id}`}
+                            >
+                              <PiPencil className="gba:h-4 gba:w-4 gba:mr-2" />
+                              Update
+                            </DropdownMenuItem>
+                            {!periodUsageMap[record.id] && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => handleDeleteClick(record)}
+                                  className="gba:text-destructive"
+                                  data-testid={`delete-allowance-period-${record.id}`}
+                                >
+                                  <PiTrash className="gba:h-4 gba:w-4 gba:mr-2" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
 
                       {/* Code Column */}
@@ -589,6 +800,38 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
         </CardContent>
       </Card>
 
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent data-testid="allowance-period-delete-dialog">
+          <DialogHeader>
+            <DialogTitle>Delete Allowance Period</DialogTitle>
+          </DialogHeader>
+          <div className="gba:py-4">
+            <p>
+              Are you sure you want to delete the allowance period "{itemToDelete?.name}"? This action cannot be undone.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+              disabled={isDeleting}
+              data-testid="allowance-period-delete-cancel-button"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+              data-testid="allowance-period-delete-confirm-button"
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Add/Edit Dialog */}
       <Dialog open={isModalVisible} onOpenChange={setIsModalVisible}>
         <DialogContent className="gba:max-w-4xl" data-testid="allowance-period-modal">
@@ -599,6 +842,13 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
           </DialogHeader>
 
           <div data-testid="allowance-period-form" className="gba:space-y-4">
+            {isRestrictedEdit && currentUsageInfo && (
+              <Alert variant="warning" data-testid="allowance-period-restricted-alert">
+                <PiWarning className="gba:h-4 gba:w-4" />
+                <AlertDescription>{currentUsageInfo.message}</AlertDescription>
+              </Alert>
+            )}
+
             <div className="gba:grid gba:grid-cols-2 gba:gap-4">
               {/* Code */}
               <div className="gba:space-y-2" data-testid="allowance-period-code-field">
@@ -610,6 +860,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                   placeholder="e.g., FULL, 12, 24"
                   value={formData.code}
                   onChange={e => setFormData({ ...formData, code: e.target.value })}
+                  disabled={isRestrictedEdit}
                   data-testid="allowance-period-code-input"
                 />
               </div>
@@ -624,6 +875,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                   placeholder="e.g., Full Day, 12 hours"
                   value={formData.name}
                   onChange={e => setFormData({ ...formData, name: e.target.value })}
+                  disabled={isRestrictedEdit}
                   data-testid="allowance-period-name-input"
                 />
               </div>
@@ -641,6 +893,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                   placeholder="24"
                   value={formData.minHours}
                   onChange={e => setFormData({ ...formData, minHours: Number(e.target.value) })}
+                  disabled={isRestrictedEdit}
                   data-testid="allowance-period-min-hours-input"
                 />
               </div>
@@ -659,6 +912,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                   onChange={e =>
                     setFormData({ ...formData, order: e.target.value ? Number(e.target.value) : undefined })
                   }
+                  disabled={isRestrictedEdit}
                   data-testid="allowance-period-order-input"
                 />
               </div>
@@ -673,6 +927,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                   type="time"
                   value={formData.fromTime || ''}
                   onChange={e => setFormData({ ...formData, fromTime: e.target.value || undefined })}
+                  disabled={isRestrictedEdit}
                   data-testid="allowance-period-from-time-input"
                 />
               </div>
@@ -687,6 +942,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                   type="time"
                   value={formData.toTime || ''}
                   onChange={e => setFormData({ ...formData, toTime: e.target.value || undefined })}
+                  disabled={isRestrictedEdit}
                   data-testid="allowance-period-to-time-input"
                 />
               </div>
@@ -701,6 +957,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                   type="time"
                   value={formData.startAfter || ''}
                   onChange={e => setFormData({ ...formData, startAfter: e.target.value || undefined })}
+                  disabled={isRestrictedEdit}
                   data-testid="allowance-period-start-after-input"
                 />
               </div>
@@ -715,6 +972,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                   type="time"
                   value={formData.returnBefore || ''}
                   onChange={e => setFormData({ ...formData, returnBefore: e.target.value || undefined })}
+                  disabled={isRestrictedEdit}
                   data-testid="allowance-period-return-before-input"
                 />
               </div>
@@ -724,11 +982,13 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                 <Label htmlFor="validFrom" data-testid="allowance-period-valid-from-label">
                   Valid From *
                 </Label>
-                <Input
-                  id="validFrom"
-                  type="date"
+                <DateInput
                   value={formData.validFrom ? dayjs(formData.validFrom).format('YYYY-MM-DD') : ''}
-                  onChange={e => setFormData({ ...formData, validFrom: e.target.value })}
+                  onChange={value => setFormData({ ...formData, validFrom: value || '' })}
+                  disabled={isRestrictedEdit}
+                  placeholder="Select date..."
+                  outputFormat="iso"
+                  captionLayout="dropdown"
                   data-testid="allowance-period-valid-from-input"
                 />
               </div>
@@ -738,11 +998,12 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                 <Label htmlFor="validTo" data-testid="allowance-period-valid-to-label">
                   Valid To
                 </Label>
-                <Input
-                  id="validTo"
-                  type="date"
+                <DateInput
                   value={formData.validTo ? dayjs(formData.validTo).format('YYYY-MM-DD') : ''}
-                  onChange={e => setFormData({ ...formData, validTo: e.target.value || undefined })}
+                  onChange={value => setFormData({ ...formData, validTo: value || undefined })}
+                  placeholder="Select date..."
+                  outputFormat="iso"
+                  captionLayout="dropdown"
                   data-testid="allowance-period-valid-to-input"
                 />
               </div>
@@ -768,6 +1029,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                     id="midnightRule"
                     checked={formData.midnightRule}
                     onCheckedChange={checked => setFormData({ ...formData, midnightRule: checked })}
+                    disabled={isRestrictedEdit}
                     data-testid="allowance-period-midnight-rule-switch"
                   />
                 </div>
@@ -791,6 +1053,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                     id="overnightAccommodation"
                     checked={formData.overnightAccommodation || false}
                     onCheckedChange={checked => setFormData({ ...formData, overnightAccommodation: checked })}
+                    disabled={isRestrictedEdit}
                     data-testid="allowance-period-overnight-switch"
                   />
                 </div>

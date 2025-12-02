@@ -28,14 +28,19 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Switch as NWSwitch
+  Switch as NWSwitch,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DateInput
 } from '@newwork/nw-design-system'
-import { PiPlus, PiPencil, PiCalendar, PiCode, PiDatabase } from 'react-icons/pi'
+import { PiPlus, PiPencil, PiCalendar, PiCode, PiDotsThreeVertical, PiTrash, PiWarning } from 'react-icons/pi'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 
 // Register dayjs plugins
 dayjs.extend(weekday)
@@ -47,37 +52,52 @@ interface CustomFieldsTabProps {
   ruleId: string
   accessToken: string
   activeFrom: string
+  activeTo?: string
 }
 
 interface CustomField {
   id: string
-  source: string // derived from related entity
-  code: string // from related entity
-  name: string // from related entity
-  valueType: string // approximated or default
+  source: 'Expense' | 'Mileage'
+  infoValue: string
   mandatory: boolean
   validFrom: string
   validTo?: string
-  infoValue: string // the actual value/description
   version?: number
   isDeleted: boolean
-  relatedEntity: string // general or mileage
+  // Related entity info (for display)
+  relatedId?: string
+  relatedCode?: string
+  relatedName?: string
 }
 
 interface CustomFieldFormData {
   id?: string
-  source: string
-  code: string
-  name: string
-  valueType: string
+  source: 'Expense' | 'Mileage'
+  infoValue: string
   mandatory: boolean
   validFrom: string
   validTo?: string
-  infoValue: string
   version?: number
+  relatedId?: string
 }
 
-const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, activeFrom }) => {
+interface RelatedOption {
+  id: string
+  code: string
+  name: string
+}
+
+// Usage check result
+interface UsageInfo {
+  isUsed: boolean
+  usedIn: {
+    positions?: number
+    items?: number
+  }
+  message: string
+}
+
+const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, activeFrom, activeTo }) => {
   const graphqlClient = useGraphQLClient(accessToken)
 
   const [customFields, setCustomFields] = useState<CustomField[]>([])
@@ -86,20 +106,35 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
   const [isModalVisible, setIsModalVisible] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [editingItem, setEditingItem] = useState<CustomField | null>(null)
+
+  // Available expenses and mileage for this rule (for dropdowns)
+  const [availableExpenses, setAvailableExpenses] = useState<RelatedOption[]>([])
+  const [availableMileage, setAvailableMileage] = useState<RelatedOption[]>([])
+
   const [formData, setFormData] = useState<CustomFieldFormData>({
-    source: 'Manual Entry',
-    code: '',
-    name: '',
-    valueType: 'STRING',
+    source: 'Expense',
+    infoValue: '',
     mandatory: false,
-    validFrom: activeFrom,
-    infoValue: ''
+    validFrom: activeFrom
   })
+
+  // Delete confirmation dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [itemToDelete, setItemToDelete] = useState<CustomField | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  // Usage check state
+  const [, setIsCheckingUsage] = useState(false)
+  const [currentUsageInfo, setCurrentUsageInfo] = useState<UsageInfo | null>(null)
+  const [isRestrictedEdit, setIsRestrictedEdit] = useState(false)
+
+  // Pre-loaded usage status for all custom fields (field id -> isUsed)
+  const [fieldUsageMap, setFieldUsageMap] = useState<Record<string, boolean>>({})
 
   // Set up client
   expenseSettingsClient.setAccessToken(accessToken)
 
-  // REAL GraphQL data from ExpenseRuleOtherInfo
+  // REAL GraphQL data from ExpenseRuleOtherInfo + available expenses/mileage
   const fetchCustomFields = useCallback(async () => {
     setIsLoading(true)
     setError(null)
@@ -113,6 +148,7 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
             name
             expenseRuleOtherInfo(where: { isDeleted: { _eq: false } }, orderBy: { createdAt: ASC }) {
               id
+              source
               infoValue
               mandatory
               activeFrom
@@ -120,6 +156,8 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
               version
               businessKey
               additionalProperties
+              expenseRuleGeneralExpenseId
+              expenseRuleMileageId
               expenseRuleGeneralExpense {
                 id
                 code
@@ -131,69 +169,112 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
                 name
               }
             }
+            expenseRuleGeneralExpense(where: { isDeleted: { _eq: false } }, orderBy: { code: ASC }) {
+              id
+              code
+              name
+            }
+            expenseRuleMileage(where: { isDeleted: { _eq: false } }, orderBy: { code: ASC }) {
+              id
+              code
+              name
+            }
           }
         }
       `
 
-      const result = await graphqlClient.request<{ ExpenseRule: { expenseRuleOtherInfo: any[] }[] }>(query, { ruleId })
+      const result = await graphqlClient.request<{
+        ExpenseRule: {
+          expenseRuleOtherInfo: any[]
+          expenseRuleGeneralExpense: any[]
+          expenseRuleMileage: any[]
+        }[]
+      }>(query, { ruleId })
 
       const expenseRule = result.ExpenseRule?.[0]
       const otherInfos = expenseRule?.expenseRuleOtherInfo || []
 
+      // Set available options for dropdowns
+      const expenses = (expenseRule?.expenseRuleGeneralExpense || []).map((e: any) => ({
+        id: e.id,
+        code: e.code || '',
+        name: e.name || ''
+      }))
+      const mileage = (expenseRule?.expenseRuleMileage || []).map((m: any) => ({
+        id: m.id,
+        code: m.code || '',
+        name: m.name || ''
+      }))
+      setAvailableExpenses(expenses)
+      setAvailableMileage(mileage)
+
       const transformedFields: CustomField[] = otherInfos.map((info: any) => {
-        // Determine source and get code/name from related entity
-        let source = 'Manual Entry'
-        let code = 'CUSTOM_FIELD'
-        let name = 'Custom Field'
-        let relatedEntity = 'unknown'
+        // Determine source and related info
+        let source: 'Expense' | 'Mileage' = info.source === 'Mileage' ? 'Mileage' : 'Expense'
+        let relatedId: string | undefined
+        let relatedCode: string | undefined
+        let relatedName: string | undefined
 
         if (info.expenseRuleGeneralExpense) {
-          source = 'General Expense System'
-          code = info.expenseRuleGeneralExpense.code
-          name = info.expenseRuleGeneralExpense.name
-          relatedEntity = 'general'
+          source = 'Expense'
+          relatedId = info.expenseRuleGeneralExpenseId
+          relatedCode = info.expenseRuleGeneralExpense.code
+          relatedName = info.expenseRuleGeneralExpense.name
         } else if (info.expenseRuleMileage) {
-          source = 'Mileage System'
-          code = info.expenseRuleMileage.code
-          name = info.expenseRuleMileage.name
-          relatedEntity = 'mileage'
-        }
-
-        // Determine value type based on infoValue content (simple heuristic)
-        let valueType = 'STRING' // default
-        if (info.infoValue) {
-          if (!isNaN(Number(info.infoValue))) {
-            valueType = 'NUMBER'
-          } else if (info.infoValue.toLowerCase() === 'true' || info.infoValue.toLowerCase() === 'false') {
-            valueType = 'BOOLEAN'
-          } else if (info.infoValue.includes('/') && info.infoValue.length === 10) {
-            valueType = 'DATE'
-          }
+          source = 'Mileage'
+          relatedId = info.expenseRuleMileageId
+          relatedCode = info.expenseRuleMileage.code
+          relatedName = info.expenseRuleMileage.name
         }
 
         return {
           id: info.id,
           source,
-          code,
-          name,
-          valueType,
+          infoValue: info.infoValue || '',
           mandatory: info.mandatory || false,
           validFrom: info.activeFrom,
           validTo: info.activeTo,
-          infoValue: info.infoValue || '',
           version: info.version || 1,
           isDeleted: false,
-          relatedEntity
+          relatedId,
+          relatedCode,
+          relatedName
         }
       })
 
       setCustomFields(transformedFields)
+
+      // Load usage status for all custom fields
+      if (transformedFields.length > 0) {
+        await loadFieldUsageStatus(transformedFields.map(f => f.id))
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load custom fields')
     } finally {
       setIsLoading(false)
     }
   }, [ruleId, graphqlClient])
+
+  // Load usage status for all custom fields
+  // Note: Custom fields don't have direct references in ExpensePosition/ExpenseItem,
+  // so we can't track usage. All fields are treated as not in use.
+  const loadFieldUsageStatus = useCallback(async (fieldIds: string[]) => {
+    if (fieldIds.length === 0) return
+
+    // Since there's no direct link to track usage, allow all operations
+    const emptyMap: Record<string, boolean> = {}
+    fieldIds.forEach(id => {
+      emptyMap[id] = false
+    })
+    setFieldUsageMap(emptyMap)
+  }, [])
+
+  // Check detailed usage for a single custom field
+  // Note: Custom fields don't have direct references in ExpensePosition/ExpenseItem
+  const checkCustomFieldUsage = useCallback(async (): Promise<UsageInfo> => {
+    // Since there's no direct link to track usage, return not used
+    return { isUsed: false, usedIn: {}, message: '' }
+  }, [])
 
   useEffect(() => {
     if (ruleId && accessToken) {
@@ -205,85 +286,133 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
     return dayjs(dateString).format('DD/MM/YYYY')
   }
 
-  const valueTypeOptions = [
-    { value: 'STRING', label: 'String' },
-    { value: 'NUMBER', label: 'Number' },
-    { value: 'BOOLEAN', label: 'Boolean' },
-    { value: 'DATE', label: 'Date' },
-    { value: 'ENUM', label: 'Enumeration' },
-    { value: 'JSON', label: 'JSON Object' }
-  ]
-
   const sourceOptions = [
-    { value: 'Manual Entry', label: 'Manual Entry' },
-    { value: 'External API', label: 'External API' },
-    { value: 'HR System', label: 'HR System' },
-    { value: 'Finance System', label: 'Finance System' },
-    { value: 'Time Tracking', label: 'Time Tracking' }
+    { value: 'Expense', label: 'Expense' },
+    { value: 'Mileage', label: 'Mileage' }
   ]
 
   const handleAdd = () => {
     setEditingItem(null)
+    setIsRestrictedEdit(false)
+    setCurrentUsageInfo(null)
+
+    // Determine validity period based on existing entries
+    let validFromValue = activeFrom
+    let validToValue: string | undefined = undefined
+
+    if (customFields.length > 0) {
+      // Use the same validity period as the first existing entry
+      const existingEntry = customFields[0]
+      validFromValue = existingEntry.validFrom
+      validToValue = existingEntry.validTo
+    } else {
+      // No existing entries - set validTo to December 31, 9999 (or rule's activeTo if set)
+      validToValue = activeTo || '9999-12-31'
+    }
+
     setFormData({
-      source: 'Manual Entry',
-      code: '',
-      name: '',
-      valueType: 'STRING',
+      source: 'Expense',
+      infoValue: '',
       mandatory: false,
-      validFrom: activeFrom,
-      infoValue: ''
+      validFrom: validFromValue,
+      validTo: validToValue,
+      relatedId: undefined
     })
     setIsModalVisible(true)
   }
 
   const handleEdit = async (record: CustomField) => {
+    setIsCheckingUsage(true)
+
+    // Check if field is used
+    const usageInfo = await checkCustomFieldUsage(record.id)
+    setCurrentUsageInfo(usageInfo)
+    setIsRestrictedEdit(usageInfo.isUsed)
+
+    setFormData({
+      id: record.id,
+      source: record.source,
+      infoValue: record.infoValue,
+      mandatory: record.mandatory,
+      validFrom: record.validFrom,
+      validTo: record.validTo,
+      version: record.version,
+      relatedId: record.relatedId
+    })
+
     setEditingItem(record)
-
-    try {
-      // Use the existing record data to populate the form
-      const freshData = record
-
-      setFormData({
-        id: freshData.id,
-        source: freshData.source,
-        code: freshData.code,
-        name: freshData.name,
-        valueType: freshData.valueType,
-        mandatory: freshData.mandatory,
-        validFrom: freshData.validFrom,
-        validTo: freshData.validTo,
-        infoValue: freshData.infoValue,
-        version: freshData.version
-      })
-
-      setIsModalVisible(true)
-    } catch (err) {
-      toast.error('Failed to load latest data for editing')
-      console.error('Edit load error:', err)
-    }
+    setIsCheckingUsage(false)
+    setIsModalVisible(true)
   }
 
-  // Note: Delete actions are now handled through AppActionButton's context flow
+  const handleDeleteClick = (record: CustomField) => {
+    setItemToDelete(record)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!itemToDelete) return
+
+    setIsDeleting(true)
+    try {
+      await expenseSettingsClient.saveExpenseRuleOtherInfo({
+        id: itemToDelete.id,
+        version: itemToDelete.version,
+        expenseRuleId: ruleId,
+        source: itemToDelete.source,
+        infoValue: itemToDelete.infoValue,
+        activeFrom: itemToDelete.validFrom,
+        isDeleted: true
+      })
+
+      toast.success('Custom field deleted successfully')
+      setDeleteDialogOpen(false)
+      setItemToDelete(null)
+      await fetchCustomFields()
+    } catch (err) {
+      toast.error('Failed to delete custom field')
+      console.error('Delete error:', err)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   const handleSave = async () => {
     try {
       setIsSaving(true)
 
-      const payload = {
-        ...(editingItem && { id: editingItem.id, version: editingItem.version }),
-        expenseRuleId: ruleId,
-        businessKey: undefined,
-        activeTo: formData.validTo,
-        additionalProperties: undefined,
-        source: formData.source,
-        infoValue: formData.infoValue,
-        mandatory: formData.mandatory,
-        activeFrom: formData.validFrom,
-        // association optional; based on code/name we cannot infer IDs; keep undefined
-        expenseRuleMileageId: undefined,
-        expenseRuleGeneralExpenseId: undefined
+      // If restricted edit, only update validTo and infoValue
+      if (isRestrictedEdit && editingItem) {
+        await expenseSettingsClient.saveExpenseRuleOtherInfo({
+          id: editingItem.id,
+          version: editingItem.version,
+          expenseRuleId: ruleId,
+          source: editingItem.source,
+          infoValue: formData.infoValue,
+          mandatory: editingItem.mandatory,
+          activeFrom: editingItem.validFrom,
+          activeTo: formData.validTo || null,
+          expenseRuleMileageId: editingItem.source === 'Mileage' ? editingItem.relatedId : null,
+          expenseRuleGeneralExpenseId: editingItem.source === 'Expense' ? editingItem.relatedId : null
+        })
+      } else {
+        // Full save
+        const payload = {
+          ...(editingItem && { id: editingItem.id, version: editingItem.version }),
+          expenseRuleId: ruleId,
+          businessKey: undefined,
+          activeTo: formData.validTo || null,
+          additionalProperties: undefined,
+          source: formData.source,
+          infoValue: formData.infoValue,
+          mandatory: formData.mandatory,
+          activeFrom: formData.validFrom,
+          // Set the related ID based on source
+          expenseRuleMileageId: formData.source === 'Mileage' ? formData.relatedId : null,
+          expenseRuleGeneralExpenseId: formData.source === 'Expense' ? formData.relatedId : null
+        }
+        await expenseSettingsClient.saveExpenseRuleOtherInfo(payload)
       }
-      await expenseSettingsClient.saveExpenseRuleOtherInfo(payload)
 
       toast.success(`Custom field ${editingItem ? 'updated' : 'created'} successfully`)
       setIsModalVisible(false)
@@ -294,6 +423,13 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
     } finally {
       setIsSaving(false)
     }
+  }
+
+  // Get the options for the linked item dropdown based on source
+  const getRelatedOptions = (): RelatedOption[] => {
+    if (formData.source === 'Expense') return availableExpenses
+    if (formData.source === 'Mileage') return availableMileage
+    return []
   }
 
   // Removed Ant Design columns definition - using NW design system Table now
@@ -355,17 +491,14 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
                   <TableHead className="gba:w-[60px]" data-testid="custom-fields-table-header-actions">
                     ACTIONS
                   </TableHead>
-                  <TableHead className="gba:w-[130px]" data-testid="custom-fields-table-header-source">
+                  <TableHead className="gba:w-[100px]" data-testid="custom-fields-table-header-source">
                     SOURCE
                   </TableHead>
-                  <TableHead className="gba:w-[200px]" data-testid="custom-fields-table-header-code-name">
-                    CODE & NAME
+                  <TableHead className="gba:w-[200px]" data-testid="custom-fields-table-header-linked">
+                    LINKED ITEM
                   </TableHead>
-                  <TableHead className="gba:w-[150px]" data-testid="custom-fields-table-header-value">
-                    VALUE
-                  </TableHead>
-                  <TableHead className="gba:w-[120px]" data-testid="custom-fields-table-header-value-type">
-                    VALUE TYPE
+                  <TableHead className="gba:w-[200px]" data-testid="custom-fields-table-header-value">
+                    INFO VALUE
                   </TableHead>
                   <TableHead className="gba:w-[100px]" data-testid="custom-fields-table-header-mandatory">
                     MANDATORY
@@ -379,62 +512,76 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
                 {customFields.map(record => (
                   <TableRow key={record.id} data-testid={`custom-field-row-${record.id}`}>
                     <TableCell data-testid={`custom-field-actions-cell-${record.id}`}>
-                      <div className="gba:flex gba:justify-start gba:gap-2">
-                        <AppActionButton
-                          data-testid={`custom-field-action-${record.id}`}
-                          size="icon"
-                          contextsArray={[]}
-                          externalContextData={{ customFieldId: record.id }}
-                          prefixDataTestId="custom-field-action"
-                          accessToken={accessToken}
-                          emptyStateBehavior="enable"
-                          deferMainContextRequestsUntilClick
-                          onClick={e => e.stopPropagation()}
-                        />
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEdit(record)}
-                          data-testid={`edit-custom-field-${record.id}`}
-                        >
-                          <PiPencil className="gba:h-4 gba:w-4" />
-                        </Button>
-                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            data-testid={`custom-field-action-${record.id}`}
+                            onClick={e => e.stopPropagation()}
+                          >
+                            <PiDotsThreeVertical className="gba:h-4 gba:w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => handleEdit(record)}
+                            data-testid={`edit-custom-field-${record.id}`}
+                          >
+                            <PiPencil className="gba:h-4 gba:w-4 gba:mr-2" />
+                            Update
+                          </DropdownMenuItem>
+                          {!fieldUsageMap[record.id] && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => handleDeleteClick(record)}
+                                className="gba:text-destructive"
+                                data-testid={`delete-custom-field-${record.id}`}
+                              >
+                                <PiTrash className="gba:h-4 gba:w-4 gba:mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
 
                     <TableCell data-testid={`custom-field-source-cell-${record.id}`}>
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <PiDatabase
-                          className="gba:text-primary"
-                          data-testid={`custom-field-source-icon-${record.id}`}
-                        />
-                        <Badge variant="default" data-testid={`custom-field-source-badge-${record.id}`}>
-                          {record.source}
-                        </Badge>
-                      </div>
+                      <Badge
+                        variant={record.source === 'Expense' ? 'default' : 'secondary'}
+                        data-testid={`custom-field-source-badge-${record.id}`}
+                      >
+                        {record.source}
+                      </Badge>
                     </TableCell>
 
-                    <TableCell data-testid={`custom-field-code-name-cell-${record.id}`}>
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <PiCode
-                          className="gba:text-muted-foreground"
-                          data-testid={`custom-field-code-icon-${record.id}`}
-                        />
-                        <div>
-                          <div
-                            className="gba:font-mono gba:font-medium gba:text-sm"
-                            data-testid={`custom-field-code-text-${record.id}`}
-                          >
-                            {record.code}
-                          </div>
-                          <div
-                            className="gba:text-muted-foreground gba:text-xs"
-                            data-testid={`custom-field-name-text-${record.id}`}
-                          >
-                            {record.name}
+                    <TableCell data-testid={`custom-field-linked-cell-${record.id}`}>
+                      {record.relatedCode ? (
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <PiCode
+                            className="gba:text-muted-foreground"
+                            data-testid={`custom-field-linked-icon-${record.id}`}
+                          />
+                          <div>
+                            <div
+                              className="gba:font-mono gba:font-medium gba:text-sm"
+                              data-testid={`custom-field-linked-code-${record.id}`}
+                            >
+                              {record.relatedCode}
+                            </div>
+                            <div
+                              className="gba:text-muted-foreground gba:text-xs"
+                              data-testid={`custom-field-linked-name-${record.id}`}
+                            >
+                              {record.relatedName}
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      ) : (
+                        <span className="gba:text-muted-foreground gba:text-sm">Not linked</span>
+                      )}
                     </TableCell>
 
                     <TableCell data-testid={`custom-field-value-cell-${record.id}`}>
@@ -444,23 +591,6 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
                       >
                         {record.infoValue || '-'}
                       </span>
-                    </TableCell>
-
-                    <TableCell data-testid={`custom-field-value-type-cell-${record.id}`}>
-                      <Badge
-                        variant={
-                          record.valueType === 'STRING'
-                            ? 'default'
-                            : record.valueType === 'NUMBER'
-                              ? 'default'
-                              : record.valueType === 'BOOLEAN'
-                                ? 'default'
-                                : 'default'
-                        }
-                        data-testid={`custom-field-value-type-badge-${record.id}`}
-                      >
-                        {record.valueType}
-                      </Badge>
                     </TableCell>
 
                     <TableCell data-testid={`custom-field-mandatory-cell-${record.id}`}>
@@ -500,6 +630,39 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
         </CardContent>
       </Card>
 
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent data-testid="custom-field-delete-dialog">
+          <DialogHeader>
+            <DialogTitle>Delete Custom Field</DialogTitle>
+          </DialogHeader>
+          <div className="gba:py-4">
+            <p>
+              Are you sure you want to delete the custom field "{itemToDelete?.infoValue}"? This action cannot be
+              undone.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+              disabled={isDeleting}
+              data-testid="custom-field-delete-cancel-button"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+              data-testid="custom-field-delete-confirm-button"
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Add/Edit Dialog */}
       <Dialog open={isModalVisible} onOpenChange={setIsModalVisible}>
         <DialogContent className="gba:max-w-2xl" data-testid="custom-field-modal">
@@ -510,12 +673,29 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
           </DialogHeader>
 
           <div data-testid="custom-field-form" className="gba:space-y-4">
-            {/* Source */}
+            {isRestrictedEdit && currentUsageInfo && (
+              <Alert variant="warning" data-testid="custom-field-restricted-alert">
+                <PiWarning className="gba:h-4 gba:w-4" />
+                <AlertDescription>{currentUsageInfo.message}</AlertDescription>
+              </Alert>
+            )}
+
+            {/* Source (Expense/Mileage) */}
             <div className="gba:space-y-2" data-testid="custom-field-source-field">
               <Label htmlFor="source" data-testid="custom-field-source-label">
                 Source *
               </Label>
-              <Select value={formData.source} onValueChange={value => setFormData({ ...formData, source: value })}>
+              <Select
+                value={formData.source}
+                onValueChange={value =>
+                  setFormData({
+                    ...formData,
+                    source: value as 'Expense' | 'Mileage',
+                    relatedId: undefined // Reset selection when source changes
+                  })
+                }
+                disabled={isRestrictedEdit}
+              >
                 <SelectTrigger id="source" data-testid="custom-field-source-select">
                   <SelectValue placeholder="Select source" />
                 </SelectTrigger>
@@ -531,77 +711,59 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-
-            {/* Code */}
-            <div className="gba:space-y-2" data-testid="custom-field-code-field">
-              <Label htmlFor="code" data-testid="custom-field-code-label">
-                Code *
-              </Label>
-              <Input
-                id="code"
-                placeholder="e.g., PROJECT_CODE"
-                value={formData.code}
-                onChange={e => setFormData({ ...formData, code: e.target.value })}
-                data-testid="custom-field-code-input"
-              />
-              <p className="gba:text-xs gba:text-muted-foreground" data-testid="custom-field-code-hint">
-                Must be uppercase letters, numbers, and underscores only
+              <p className="gba:text-xs gba:text-muted-foreground" data-testid="custom-field-source-hint">
+                Select whether this custom field applies to Expense or Mileage items
               </p>
             </div>
 
-            {/* Name */}
-            <div className="gba:space-y-2" data-testid="custom-field-name-field">
-              <Label htmlFor="name" data-testid="custom-field-name-label">
-                Name *
-              </Label>
-              <Input
-                id="name"
-                placeholder="e.g., Project Code"
-                value={formData.name}
-                onChange={e => setFormData({ ...formData, name: e.target.value })}
-                data-testid="custom-field-name-input"
-              />
-            </div>
-
-            {/* Value/Description */}
-            <div className="gba:space-y-2" data-testid="custom-field-info-value-field">
-              <Label htmlFor="infoValue" data-testid="custom-field-info-value-label">
-                Value/Description *
-              </Label>
-              <Input
-                id="infoValue"
-                placeholder="e.g., License Plate"
-                value={formData.infoValue}
-                onChange={e => setFormData({ ...formData, infoValue: e.target.value })}
-                data-testid="custom-field-info-value-input"
-              />
-            </div>
-
-            {/* Value Type */}
-            <div className="gba:space-y-2" data-testid="custom-field-value-type-field">
-              <Label htmlFor="valueType" data-testid="custom-field-value-type-label">
-                Value Type *
+            {/* Linked Expense/Mileage */}
+            <div className="gba:space-y-2" data-testid="custom-field-linked-field">
+              <Label htmlFor="relatedId" data-testid="custom-field-linked-label">
+                Linked {formData.source}
               </Label>
               <Select
-                value={formData.valueType}
-                onValueChange={value => setFormData({ ...formData, valueType: value })}
+                value={formData.relatedId || 'none'}
+                onValueChange={value => setFormData({ ...formData, relatedId: value === 'none' ? undefined : value })}
+                disabled={isRestrictedEdit}
               >
-                <SelectTrigger id="valueType" data-testid="custom-field-value-type-select">
-                  <SelectValue placeholder="Select value type" />
+                <SelectTrigger id="relatedId" data-testid="custom-field-linked-select">
+                  <SelectValue placeholder={`Select ${formData.source.toLowerCase()} (optional)`} />
                 </SelectTrigger>
-                <SelectContent data-testid="custom-field-value-type-options">
-                  {valueTypeOptions.map(option => (
+                <SelectContent data-testid="custom-field-linked-options">
+                  <SelectItem value="none">Not linked to specific item</SelectItem>
+                  {getRelatedOptions().map(option => (
                     <SelectItem
-                      key={option.value}
-                      value={option.value}
-                      data-testid={`custom-field-value-type-option-${option.value}`}
+                      key={option.id}
+                      value={option.id}
+                      data-testid={`custom-field-linked-option-${option.id}`}
                     >
-                      {option.label}
+                      {option.code} - {option.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {getRelatedOptions().length === 0 && (
+                <p className="gba:text-xs gba:text-warning-foreground" data-testid="custom-field-linked-empty">
+                  No {formData.source === 'Expense' ? 'expenses' : 'mileage rules'} available for this rule
+                </p>
+              )}
+            </div>
+
+            {/* Info Value - allowed to edit even in restricted mode */}
+            <div className="gba:space-y-2" data-testid="custom-field-info-value-field">
+              <Label htmlFor="infoValue" data-testid="custom-field-info-value-label">
+                Info Value *
+              </Label>
+              <Input
+                id="infoValue"
+                placeholder="e.g., License Plate, Project Code, Cost Center"
+                value={formData.infoValue}
+                onChange={e => setFormData({ ...formData, infoValue: e.target.value })}
+                data-testid="custom-field-info-value-input"
+              />
+              <p className="gba:text-xs gba:text-muted-foreground" data-testid="custom-field-info-value-hint">
+                The custom field value or label that will appear on the item screen
+              </p>
             </div>
 
             {/* Mandatory */}
@@ -617,6 +779,7 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
                   id="mandatory"
                   checked={formData.mandatory}
                   onCheckedChange={checked => setFormData({ ...formData, mandatory: checked })}
+                  disabled={isRestrictedEdit}
                   data-testid="custom-field-mandatory-switch"
                 />
               </div>
@@ -628,11 +791,13 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
                 <Label htmlFor="validFrom" data-testid="custom-field-valid-from-label">
                   Valid From *
                 </Label>
-                <Input
-                  id="validFrom"
-                  type="date"
+                <DateInput
                   value={formData.validFrom ? dayjs(formData.validFrom).format('YYYY-MM-DD') : ''}
-                  onChange={e => setFormData({ ...formData, validFrom: e.target.value })}
+                  onChange={value => setFormData({ ...formData, validFrom: value || '' })}
+                  disabled={isRestrictedEdit}
+                  placeholder="Select date..."
+                  outputFormat="iso"
+                  captionLayout="dropdown"
                   data-testid="custom-field-valid-from-input"
                 />
               </div>
@@ -641,11 +806,12 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
                 <Label htmlFor="validTo" data-testid="custom-field-valid-to-label">
                   Valid To
                 </Label>
-                <Input
-                  id="validTo"
-                  type="date"
+                <DateInput
                   value={formData.validTo ? dayjs(formData.validTo).format('YYYY-MM-DD') : ''}
-                  onChange={e => setFormData({ ...formData, validTo: e.target.value || undefined })}
+                  onChange={value => setFormData({ ...formData, validTo: value || undefined })}
+                  placeholder="Select date..."
+                  outputFormat="iso"
+                  captionLayout="dropdown"
                   data-testid="custom-field-valid-to-input"
                 />
               </div>

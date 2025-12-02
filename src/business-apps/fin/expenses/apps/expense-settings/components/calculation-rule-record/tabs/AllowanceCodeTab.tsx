@@ -28,14 +28,29 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Switch as NWSwitch
+  Switch as NWSwitch,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DateInput
 } from '@newwork/nw-design-system'
-import { PiPlus, PiPencil, PiCalendar, PiCheck, PiX, PiCode } from 'react-icons/pi'
+import {
+  PiPlus,
+  PiPencil,
+  PiCalendar,
+  PiCheck,
+  PiX,
+  PiCode,
+  PiDotsThreeVertical,
+  PiTrash,
+  PiWarning
+} from 'react-icons/pi'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 
 // Register dayjs plugins
 dayjs.extend(weekday)
@@ -47,6 +62,7 @@ interface AllowanceCodeTabProps {
   ruleId: string
   accessToken: string
   activeFrom: string
+  activeTo?: string
 }
 
 interface AllowanceCode {
@@ -86,7 +102,7 @@ interface AllowanceCodeFormData {
   version?: number
 }
 
-const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken, activeFrom }) => {
+const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken, activeFrom, activeTo }) => {
   const graphqlClient = useGraphQLClient(accessToken)
 
   const [allowanceCodes, setAllowanceCodes] = useState<AllowanceCode[]>([])
@@ -105,6 +121,18 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
     amount: 0,
     validFrom: activeFrom
   })
+
+  // Pre-loaded usage status for all allowance codes (id -> isUsed)
+  const [allowanceCodeUsageMap, setAllowanceCodeUsageMap] = useState<Record<string, boolean>>({})
+
+  // Restricted edit state
+  const [isRestrictedEdit, setIsRestrictedEdit] = useState(false)
+  const [isCheckingUsage, setIsCheckingUsage] = useState(false)
+
+  // Delete confirmation dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [itemToDelete, setItemToDelete] = useState<AllowanceCode | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // Set up client
   expenseSettingsClient.setAccessToken(accessToken)
@@ -125,8 +153,11 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
               code
               name
               amount
-              abroad
-              calculation
+              calculation {
+                id
+                code
+                value
+              }
               calculationRef
               codeOrder
               activeFrom
@@ -137,8 +168,6 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
               reimbursable
               firstAllowanceRegionRulePercent
               secondAllowanceRegionRulePercent
-              firstTravelRegionPercent
-              secondTravelRegionPercent
               expenseGroup {
                 id
                 value
@@ -161,11 +190,11 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
         code: code.code || '',
         name: code.name || '',
         reimbursable: code.reimbursable || false,
-        locationRelation: code.abroad ? 'ABROAD' : 'HOME', // Map abroad boolean to location
+        locationRelation: 'HOME', // Default location
         travelRegionRule: 'Romania maximum tax free amount', // Default text, could be dynamic
         percentage: code.firstAllowanceRegionRulePercent || 0,
         amount: code.amount || 0,
-        calculation: code.calculation || '',
+        calculation: code.calculation?.value || code.calculationRef || '',
         expenseGroup: code.expenseGroup || { id: '', value: '', code: '' },
         validFrom: code.activeFrom,
         validTo: code.activeTo,
@@ -174,12 +203,63 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
       }))
 
       setAllowanceCodes(transformedCodes)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load allowance codes')
+
+      // Load usage status for all allowance codes
+      if (transformedCodes.length > 0) {
+        await loadAllowanceCodeUsageStatus(transformedCodes.map(c => c.id))
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to load allowance codes')
     } finally {
       setIsLoading(false)
     }
   }, [ruleId, graphqlClient])
+
+  // Load usage status for all allowance codes in a single batched query
+  const loadAllowanceCodeUsageStatus = useCallback(
+    async (allowanceCodeIds: string[]) => {
+      if (allowanceCodeIds.length === 0) return
+
+      try {
+        const query = `
+        query CheckAllAllowanceCodeUsage($allowanceCodeIds: [uuid!]!) {
+          planItems: ExpensePlanItem(
+            where: { expenseRuleAllowanceCodeId: { _in: $allowanceCodeIds }, isDeleted: { _eq: false } }
+          ) { expenseRuleAllowanceCodeId }
+          items: ExpenseItem(
+            where: { expenseRuleAllowanceCodeId: { _in: $allowanceCodeIds }, isDeleted: { _eq: false } }
+          ) { expenseRuleAllowanceCodeId }
+          positions: ExpensePosition(
+            where: { expenseRuleAllowanceCodeId: { _in: $allowanceCodeIds }, isDeleted: { _eq: false } }
+          ) { expenseRuleAllowanceCodeId }
+        }
+      `
+
+        const result = await graphqlClient.request<{
+          planItems: { expenseRuleAllowanceCodeId: string }[]
+          items: { expenseRuleAllowanceCodeId: string }[]
+          positions: { expenseRuleAllowanceCodeId: string }[]
+        }>(query, { allowanceCodeIds })
+
+        // Build a set of used allowance code IDs
+        const usedIds = new Set<string>()
+        result.planItems?.forEach(item => usedIds.add(item.expenseRuleAllowanceCodeId))
+        result.items?.forEach(item => usedIds.add(item.expenseRuleAllowanceCodeId))
+        result.positions?.forEach(item => usedIds.add(item.expenseRuleAllowanceCodeId))
+
+        // Create usage map
+        const usageMap: Record<string, boolean> = {}
+        allowanceCodeIds.forEach(id => {
+          usageMap[id] = usedIds.has(id)
+        })
+
+        setAllowanceCodeUsageMap(usageMap)
+      } catch (error) {
+        console.error('Error loading allowance code usage status:', error)
+      }
+    },
+    [graphqlClient]
+  )
 
   useEffect(() => {
     if (ruleId && accessToken) {
@@ -199,6 +279,22 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
 
   const handleAdd = () => {
     setEditingItem(null)
+    setIsRestrictedEdit(false)
+
+    // Determine validity period based on existing entries
+    let validFromValue = activeFrom
+    let validToValue: string | undefined = undefined
+
+    if (allowanceCodes.length > 0) {
+      // Use the same validity period as the first existing entry
+      const existingEntry = allowanceCodes[0]
+      validFromValue = existingEntry.validFrom
+      validToValue = existingEntry.validTo
+    } else {
+      // No existing entries - set validTo to December 31, 9999 (or rule's activeTo if set)
+      validToValue = activeTo || '9999-12-31'
+    }
+
     setFormData({
       code: '',
       name: '',
@@ -207,52 +303,100 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
       travelRegionRule: 'Romania maximum tax free amount',
       percentage: 0,
       amount: 0,
-      validFrom: activeFrom
+      validFrom: validFromValue,
+      validTo: validToValue
     })
     setIsModalVisible(true)
   }
 
-  const handleEdit = (record: AllowanceCode) => {
-    setFormData({
-      id: record.id,
-      code: record.code,
-      name: record.name,
-      reimbursable: record.reimbursable,
-      locationRelation: record.locationRelation,
-      travelRegionRule: record.travelRegionRule,
-      percentage: record.percentage,
-      amount: record.amount,
-      calculation: record.calculation,
-      expenseGroupRef: record.expenseGroup?.id,
-      validFrom: record.validFrom,
-      validTo: record.validTo,
-      version: record.version
-    })
+  const handleEdit = async (record: AllowanceCode) => {
+    setIsCheckingUsage(true)
 
-    setEditingItem(record)
-    setIsModalVisible(true)
+    try {
+      // Check if allowance code is used
+      const isUsed = allowanceCodeUsageMap[record.id] || false
+      setIsRestrictedEdit(isUsed)
+
+      setFormData({
+        id: record.id,
+        code: record.code,
+        name: record.name,
+        reimbursable: record.reimbursable,
+        locationRelation: record.locationRelation,
+        travelRegionRule: record.travelRegionRule,
+        percentage: record.percentage,
+        amount: record.amount,
+        calculation: record.calculation,
+        expenseGroupRef: record.expenseGroup?.id,
+        validFrom: record.validFrom,
+        validTo: record.validTo,
+        version: record.version
+      })
+
+      setEditingItem(record)
+      setIsModalVisible(true)
+    } catch {
+      toast.error('Failed to load allowance code for editing')
+    } finally {
+      setIsCheckingUsage(false)
+    }
   }
 
-  // Note: Delete actions are now handled through AppActionButton's context flow
+  const handleDeleteClick = (record: AllowanceCode) => {
+    setItemToDelete(record)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!itemToDelete) return
+
+    setIsDeleting(true)
+    try {
+      await expenseSettingsClient.deleteExpenseRuleAllowanceCode(itemToDelete.id, itemToDelete.version || 1)
+      toast.success('Allowance code deleted successfully')
+      setDeleteDialogOpen(false)
+      setItemToDelete(null)
+      await fetchAllowanceCodes()
+    } catch (error) {
+      toast.error('Failed to delete allowance code')
+      console.error('Delete error:', error)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   const handleSave = async () => {
     try {
       setIsSaving(true)
 
-      // TODO: Replace with real API call when available
-      if (editingItem) {
-        console.log('Updating allowance code:', { id: editingItem.id, ...formData })
-      } else {
-        console.log('Creating allowance code:', formData)
+      const saveData: any = {
+        ...(editingItem && { id: editingItem.id, version: editingItem.version }),
+        expenseRuleId: ruleId,
+        activeTo: formData.validTo || null
       }
 
-      await new Promise(resolve => setTimeout(resolve, 500))
+      // Only include other fields if not in restricted edit mode
+      if (!isRestrictedEdit) {
+        saveData.code = formData.code
+        saveData.name = formData.name
+        saveData.reimbursable = formData.reimbursable
+        saveData.locationRelation = formData.locationRelation
+        saveData.travelRegionRule = formData.travelRegionRule
+        saveData.percentage = formData.percentage
+        saveData.amount = formData.amount
+        saveData.calculation = formData.calculation
+        saveData.expenseGroupRef = formData.expenseGroupRef
+        saveData.activeFrom = formData.validFrom
+      }
+
+      await expenseSettingsClient.saveExpenseRuleAllowanceCode(saveData)
       toast.success(`Allowance code ${editingItem ? 'updated' : 'created'} successfully`)
       setIsModalVisible(false)
+      setIsRestrictedEdit(false)
       await fetchAllowanceCodes()
-    } catch (err) {
+    } catch (error) {
       toast.error(`Failed to ${editingItem ? 'update' : 'create'} allowance code`)
-      console.error('Save error:', err)
+      console.error('Save error:', error)
     } finally {
       setIsSaving(false)
     }
@@ -368,25 +512,52 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                       {/* Actions Column */}
                       <TableCell data-testid={`allowance-code-actions-cell-${record.id}`}>
                         <div className="gba:flex gba:justify-start gba:gap-2">
-                          <AppActionButton
-                            data-testid={`allowance-code-action-${record.id}`}
-                            size="icon"
-                            contextsArray={[]}
-                            externalContextData={{ allowanceCodeId: record.id }}
-                            prefixDataTestId="allowance-code-action"
-                            accessToken={accessToken}
-                            emptyStateBehavior="enable"
-                            deferMainContextRequestsUntilClick
-                            onClick={e => e.stopPropagation()}
-                          />
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEdit(record)}
-                            data-testid={`edit-allowance-code-${record.id}`}
-                          >
-                            <PiPencil className="gba:h-4 gba:w-4" />
-                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={e => e.stopPropagation()}
+                                disabled={isCheckingUsage}
+                                data-testid={`allowance-code-action-${record.id}`}
+                              >
+                                {isCheckingUsage ? (
+                                  <Spinner className="gba:h-4 gba:w-4" />
+                                ) : (
+                                  <PiDotsThreeVertical className="gba:h-4 gba:w-4" />
+                                )}
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={e => {
+                                  e.stopPropagation()
+                                  handleEdit(record)
+                                }}
+                                data-testid={`allowance-code-edit-${record.id}`}
+                              >
+                                <PiPencil className="gba:h-4 gba:w-4 gba:mr-2" />
+                                Update
+                              </DropdownMenuItem>
+                              {/* Only show delete option if allowance code is not used */}
+                              {!allowanceCodeUsageMap[record.id] && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onClick={e => {
+                                      e.stopPropagation()
+                                      handleDeleteClick(record)
+                                    }}
+                                    className="gba:text-destructive"
+                                    data-testid={`allowance-code-delete-${record.id}`}
+                                  >
+                                    <PiTrash className="gba:h-4 gba:w-4 gba:mr-2" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </TableCell>
 
@@ -541,13 +712,31 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
       </Card>
 
       {/* Add/Edit Dialog */}
-      <Dialog open={isModalVisible} onOpenChange={setIsModalVisible}>
+      <Dialog
+        open={isModalVisible}
+        onOpenChange={open => {
+          setIsModalVisible(open)
+          if (!open) {
+            setIsRestrictedEdit(false)
+          }
+        }}
+      >
         <DialogContent className="gba:max-w-3xl" data-testid="allowance-code-modal">
           <DialogHeader data-testid="allowance-code-modal-header">
             <DialogTitle data-testid="allowance-code-modal-title">
               {editingItem ? 'Edit' : 'Add'} Allowance Code
             </DialogTitle>
           </DialogHeader>
+
+          {/* Restricted edit warning */}
+          {isRestrictedEdit && (
+            <Alert variant="warning" className="gba:mb-4" data-testid="allowance-code-restricted-alert">
+              <PiWarning className="gba:h-4 gba:w-4" />
+              <AlertDescription>
+                This allowance code is used in expense items. Only &quot;Valid To&quot; can be edited.
+              </AlertDescription>
+            </Alert>
+          )}
 
           <div data-testid="allowance-code-form" className="gba:space-y-4">
             <div className="gba:grid gba:grid-cols-2 gba:gap-4">
@@ -561,6 +750,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                   placeholder="e.g., A-FULL, L-FULL"
                   value={formData.code}
                   onChange={e => setFormData({ ...formData, code: e.target.value })}
+                  disabled={isRestrictedEdit}
                   data-testid="allowance-code-code-input"
                 />
               </div>
@@ -575,6 +765,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                   placeholder="e.g., Abroad Full Day"
                   value={formData.name}
                   onChange={e => setFormData({ ...formData, name: e.target.value })}
+                  disabled={isRestrictedEdit}
                   data-testid="allowance-code-name-input"
                 />
               </div>
@@ -587,6 +778,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                 <Select
                   value={formData.locationRelation}
                   onValueChange={value => setFormData({ ...formData, locationRelation: value })}
+                  disabled={isRestrictedEdit}
                 >
                   <SelectTrigger id="locationRelation" data-testid="allowance-code-location-select">
                     <SelectValue placeholder="Select location" />
@@ -615,6 +807,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                   placeholder="e.g., Romania maximum tax free amount"
                   value={formData.travelRegionRule}
                   onChange={e => setFormData({ ...formData, travelRegionRule: e.target.value })}
+                  disabled={isRestrictedEdit}
                   data-testid="allowance-code-travel-region-input"
                 />
               </div>
@@ -632,6 +825,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                   placeholder="100"
                   value={formData.percentage}
                   onChange={e => setFormData({ ...formData, percentage: Number(e.target.value) })}
+                  disabled={isRestrictedEdit}
                   data-testid="allowance-code-percentage-input"
                 />
               </div>
@@ -649,6 +843,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                   placeholder="57.5"
                   value={formData.amount}
                   onChange={e => setFormData({ ...formData, amount: Number(e.target.value) })}
+                  disabled={isRestrictedEdit}
                   data-testid="allowance-code-amount-input"
                 />
               </div>
@@ -663,6 +858,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                   placeholder="Calculation method"
                   value={formData.calculation || ''}
                   onChange={e => setFormData({ ...formData, calculation: e.target.value || undefined })}
+                  disabled={isRestrictedEdit}
                   data-testid="allowance-code-calculation-input"
                 />
               </div>
@@ -675,11 +871,13 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                 <Label htmlFor="validFrom" data-testid="allowance-code-valid-from-label">
                   Valid From *
                 </Label>
-                <Input
-                  id="validFrom"
-                  type="date"
+                <DateInput
                   value={formData.validFrom ? dayjs(formData.validFrom).format('YYYY-MM-DD') : ''}
-                  onChange={e => setFormData({ ...formData, validFrom: e.target.value })}
+                  onChange={value => setFormData({ ...formData, validFrom: value || '' })}
+                  disabled={isRestrictedEdit}
+                  placeholder="Select date..."
+                  outputFormat="iso"
+                  captionLayout="dropdown"
                   data-testid="allowance-code-valid-from-input"
                 />
               </div>
@@ -689,11 +887,12 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                 <Label htmlFor="validTo" data-testid="allowance-code-valid-to-label">
                   Valid To
                 </Label>
-                <Input
-                  id="validTo"
-                  type="date"
+                <DateInput
                   value={formData.validTo ? dayjs(formData.validTo).format('YYYY-MM-DD') : ''}
-                  onChange={e => setFormData({ ...formData, validTo: e.target.value || undefined })}
+                  onChange={value => setFormData({ ...formData, validTo: value || undefined })}
+                  placeholder="Select date..."
+                  outputFormat="iso"
+                  captionLayout="dropdown"
                   data-testid="allowance-code-valid-to-input"
                 />
               </div>
@@ -718,6 +917,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                   id="reimbursable"
                   checked={formData.reimbursable}
                   onCheckedChange={checked => setFormData({ ...formData, reimbursable: checked })}
+                  disabled={isRestrictedEdit}
                   data-testid="allowance-code-reimbursable-switch"
                 />
               </div>
@@ -727,7 +927,10 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
           <DialogFooter data-testid="allowance-code-modal-footer">
             <Button
               variant="outline"
-              onClick={() => setIsModalVisible(false)}
+              onClick={() => {
+                setIsModalVisible(false)
+                setIsRestrictedEdit(false)
+              }}
               disabled={isSaving}
               data-testid="allowance-code-modal-cancel-button"
             >
@@ -735,6 +938,47 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
             </Button>
             <Button onClick={handleSave} disabled={isSaving} data-testid="allowance-code-modal-save-button">
               {isSaving ? 'Saving...' : editingItem ? 'Update' : 'Create'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="gba:max-w-md" data-testid="allowance-code-delete-confirmation-modal">
+          <DialogHeader data-testid="allowance-code-delete-confirmation-modal-header">
+            <DialogTitle data-testid="allowance-code-delete-confirmation-modal-title">
+              Delete Allowance Code
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="gba:py-4" data-testid="allowance-code-delete-confirmation-content">
+            <p className="gba:text-muted-foreground">
+              Are you sure you want to delete the allowance code &quot;{itemToDelete?.code} - {itemToDelete?.name}
+              &quot;?
+            </p>
+            <p className="gba:text-sm gba:text-destructive gba:mt-2">This action cannot be undone.</p>
+          </div>
+
+          <DialogFooter data-testid="allowance-code-delete-confirmation-modal-footer">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeleteDialogOpen(false)
+                setItemToDelete(null)
+              }}
+              disabled={isDeleting}
+              data-testid="allowance-code-delete-confirmation-cancel-button"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+              data-testid="allowance-code-delete-confirmation-confirm-button"
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -63,13 +63,16 @@ export const useExpenseCalculationRules = (context: BusinessAppContextProps): Us
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC' | ''>('')
   const [validityFrom, setValidityFrom] = useState<string | null>(null)
   const [validityTo, setValidityTo] = useState<string | null>(null)
-  const [standard, setStandard] = useState<boolean | null>(false)
+  const [standard, setStandard] = useState<boolean | null>(null) // Changed from false to null to avoid triggering filter on initial load
   const [selectedCalculationCodes, setSelectedCalculationCodes] = useState<string[]>([])
   const [selectedCurrencyCodes, setSelectedCurrencyCodes] = useState<string[]>([])
 
   const [calculationTypes, setCalculationTypes] = useState<CalculationTypeOption[]>([])
   const [refreshTick, setRefreshTick] = useState<number>(0)
   const [debouncedSearch, setDebouncedSearch] = useState<string>('')
+
+  // Track the last loaded filterKey to prevent duplicate calls with same params
+  const initialLoadDoneRef = useRef<string | null>(null)
 
   const orderBy = useMemo(() => {
     if (!sortField || !sortOrder) return undefined
@@ -140,19 +143,71 @@ export const useExpenseCalculationRules = (context: BusinessAppContextProps): Us
     }
   }, [context.accessToken])
 
-  // Load rules whenever dependencies change
+  // Create a stable key from all filter/pagination state to track changes
+  const filterKey = useMemo(() => {
+    return JSON.stringify({
+      currentPage,
+      pageSize,
+      debouncedSearch,
+      standard,
+      validityFrom,
+      validityTo,
+      selectedCalculationCodes,
+      selectedCurrencyCodes,
+      sortField,
+      sortOrder,
+      refreshTick
+    })
+  }, [
+    currentPage,
+    pageSize,
+    debouncedSearch,
+    standard,
+    validityFrom,
+    validityTo,
+    selectedCalculationCodes,
+    selectedCurrencyCodes,
+    sortField,
+    sortOrder,
+    refreshTick
+  ])
+
+  // Single effect for loading rules - runs on initial load and when filters change
+  // Use refs to access latest values without adding them as dependencies
+  const buildWhereRef = useRef(buildWhere)
+  const fetchExpenseRulesRef = useRef(fetchExpenseRules)
+  const orderByRef = useRef(orderBy)
+  const pageSizeRef = useRef(pageSize)
+  const currentPageRef = useRef(currentPage)
+
+  // Keep refs updated
+  useEffect(() => {
+    buildWhereRef.current = buildWhere
+    fetchExpenseRulesRef.current = fetchExpenseRules
+    orderByRef.current = orderBy
+    pageSizeRef.current = pageSize
+    currentPageRef.current = currentPage
+  })
+
   useEffect(() => {
     if (!context.accessToken) return
+
+    // Prevent duplicate calls with same params
+    if (initialLoadDoneRef.current === filterKey) {
+      return
+    }
+
     let cancelled = false
-    ;(async () => {
+
+    const loadRules = async () => {
       setIsLoading(true)
       setError(null)
       try {
-        const where = buildWhere()
-        const offset = (currentPage - 1) * pageSize
-        const { ExpenseRule, ExpenseRuleAggregate } = await fetchExpenseRules({
-          orderBy,
-          limit: pageSize,
+        const where = buildWhereRef.current()
+        const offset = (currentPageRef.current - 1) * pageSizeRef.current
+        const { ExpenseRule, ExpenseRuleAggregate } = await fetchExpenseRulesRef.current({
+          orderBy: orderByRef.current,
+          limit: pageSizeRef.current,
           offset,
           where,
           activeUserLocale: getCurrentActiveUserLocale()
@@ -165,6 +220,8 @@ export const useExpenseCalculationRules = (context: BusinessAppContextProps): Us
               (ExpenseRuleAggregate as any).aggregate.count) ??
             0
           setTotalCount(aggCount)
+          // Store the filterKey to prevent duplicate calls with same params
+          initialLoadDoneRef.current = filterKey
         }
       } catch (err: any) {
         if (!cancelled) {
@@ -175,11 +232,14 @@ export const useExpenseCalculationRules = (context: BusinessAppContextProps): Us
       } finally {
         if (!cancelled) setIsLoading(false)
       }
-    })()
+    }
+
+    loadRules()
+
     return () => {
       cancelled = true
     }
-  }, [context.accessToken, buildWhere, currentPage, pageSize, orderBy, fetchExpenseRules, refreshTick])
+  }, [context.accessToken, filterKey])
 
   // no standalone setSort helper; use inline setter in return to avoid extra re-creations
 

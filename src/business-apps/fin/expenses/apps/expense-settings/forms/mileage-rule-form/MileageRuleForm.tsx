@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react'
+import { useForm } from 'react-hook-form'
 import dayjs from 'dayjs'
 import { useFeature } from '@/common/hooks/useFeature'
 import {
   Button,
   Input,
-  Label,
   Select,
   SelectContent,
   SelectItem,
@@ -22,7 +22,14 @@ import {
   TableRow,
   Alert,
   AlertDescription,
-  Spinner
+  Spinner,
+  DateInput,
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage
 } from '@newwork/nw-design-system'
 import { PiPlus, PiTrash, PiWarning, PiDotsSixVertical } from 'react-icons/pi'
 import { getMileageRulePeriodOptions } from '../../types/ExpenseEnums'
@@ -103,7 +110,7 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
   // Feature flag check
   const isDevEnabled = useFeature('dev.enabled')
 
-  // ✅ NEW: Hook for fetching fresh data when editing
+  // ✅ Hook for fetching fresh data when editing
   const { fetchMileageRuleById } = useGetMileageRuleStandaloneById({ accessToken } as BusinessAppContextProps)
 
   // Feature flag guard
@@ -111,7 +118,20 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
     return null
   }
 
-  // Form state
+  // React Hook Form for basic fields
+  const form = useForm<MileageRuleFormData>({
+    defaultValues: {
+      code: initialData?.code || '',
+      ruleName: initialData?.ruleName || '',
+      description: initialData?.description || '',
+      rulePeriod: initialData?.rulePeriod || '',
+      activeFrom: initialData?.activeFrom || '',
+      activeTo: initialData?.activeTo || '',
+      details: initialData?.details || []
+    }
+  })
+
+  // Form state for details (kept separate due to complex management)
   const [formData, setFormData] = useState<MileageRuleFormData>(() => {
     const initialFormData = {
       ...(initialData?.id && { id: initialData.id }),
@@ -136,11 +156,11 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
   // Store original data for change detection
   const [originalFormData, setOriginalFormData] = useState<MileageRuleFormData | null>(null)
 
-  // ✅ FIXED: Fetch fresh data when editing, set initial data when creating
+  // ✅ Fetch fresh data when editing, set initial data when creating
   useEffect(() => {
     const loadData = async () => {
       if (initialData?.id) {
-        // ✅ NEW: For editing, fetch fresh data from the server
+        // For editing, fetch fresh data from the server
         try {
           const freshData = await fetchMileageRuleById(initialData.id)
           if (freshData) {
@@ -169,6 +189,16 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
             }
             setFormData(transformedData)
             setOriginalFormData(transformedData)
+            // Reset form with fresh data
+            form.reset({
+              code: transformedData.code,
+              ruleName: transformedData.ruleName,
+              description: transformedData.description,
+              rulePeriod: transformedData.rulePeriod,
+              activeFrom: transformedData.activeFrom,
+              activeTo: transformedData.activeTo,
+              details: transformedData.details
+            })
           }
         } catch {
           const fallbackData = {
@@ -184,6 +214,7 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
           }
           setFormData(fallbackData)
           setOriginalFormData(fallbackData)
+          form.reset(fallbackData)
         }
       } else if (initialData) {
         const originalData = {
@@ -199,11 +230,12 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
         }
         setFormData(originalData)
         setOriginalFormData(originalData)
+        form.reset(originalData)
       }
     }
 
     loadData()
-  }, [initialData?.id, fetchMileageRuleById])
+  }, [initialData?.id, fetchMileageRuleById, form])
 
   // Drag and drop sensors
   const sensors = useSensors(
@@ -588,284 +620,348 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
 
   return (
     <div className="gba:space-y-6" data-testid="mileage-rule-form">
-      {/* Basic Information */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Basic Information</CardTitle>
-        </CardHeader>
-        <CardContent className="gba:space-y-4 gba:overflow-visible">
-          <div className="gba:grid gba:grid-cols-3 gba:gap-4">
-            <div>
-              <Label htmlFor="code">Code *</Label>
-              <Input
-                id="code"
-                value={formData.code}
-                onChange={e => setFormData(prev => ({ ...prev, code: e.target.value }))}
-                placeholder="Enter code"
-                data-testid="mileage-rule-form-code"
+      <Form {...form}>
+        {/* Basic Information */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Basic Information</CardTitle>
+          </CardHeader>
+          <CardContent className="gba:space-y-4 gba:overflow-visible">
+            <div className="gba:grid gba:grid-cols-3 gba:gap-4">
+              <FormField
+                control={form.control}
+                name="code"
+                rules={{ required: 'Code is required' }}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Code *</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        onChange={e => {
+                          field.onChange(e)
+                          setFormData(prev => ({ ...prev, code: e.target.value }))
+                        }}
+                        placeholder="Enter code"
+                        data-testid="mileage-rule-form-code"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="ruleName"
+                rules={{ required: 'Rule name is required' }}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Rule Name *</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        onChange={e => {
+                          field.onChange(e)
+                          setFormData(prev => ({ ...prev, ruleName: e.target.value }))
+                        }}
+                        placeholder="Enter rule name"
+                        data-testid="mileage-rule-form-name"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="rulePeriod"
+                rules={{ required: 'Rule period is required' }}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Rule Period *</FormLabel>
+                    <Select
+                      value={field.value || undefined}
+                      onValueChange={value => {
+                        field.onChange(value)
+                        setFormData(prev => ({ ...prev, rulePeriod: value }))
+                      }}
+                    >
+                      <FormControl>
+                        <SelectTrigger data-testid="mileage-rule-form-rule-period">
+                          <SelectValue placeholder="Select rule period" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {getMileageRulePeriodOptions().map(option => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
             </div>
-            <div>
-              <Label htmlFor="ruleName">Rule Name *</Label>
-              <Input
-                id="ruleName"
-                value={formData.ruleName}
-                onChange={e => setFormData(prev => ({ ...prev, ruleName: e.target.value }))}
-                placeholder="Enter rule name"
-                data-testid="mileage-rule-form-name"
-              />
-            </div>
-            <div>
-              <Label htmlFor="rulePeriod">Rule Period *</Label>
-              <Select
-                value={formData.rulePeriod || undefined}
-                onValueChange={value => setFormData(prev => ({ ...prev, rulePeriod: value }))}
-                data-testid="mileage-rule-form-rule-period"
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select rule period" />
-                </SelectTrigger>
-                <SelectContent>
-                  {getMileageRulePeriodOptions().map(option => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
 
-          <div>
-            <Label htmlFor="description">Description</Label>
-            <Input
-              id="description"
-              value={formData.description}
-              onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
-              placeholder="Enter description"
-              data-testid="mileage-rule-form-description"
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Description</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      onChange={e => {
+                        field.onChange(e)
+                        setFormData(prev => ({ ...prev, description: e.target.value }))
+                      }}
+                      placeholder="Enter description"
+                      data-testid="mileage-rule-form-description"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
 
-          <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-            <div>
-              <Label htmlFor="activeFrom">Active From *</Label>
-              <Input
-                id="activeFrom"
-                type="date"
-                value={formData.activeFrom}
-                onChange={e => setFormData(prev => ({ ...prev, activeFrom: e.target.value }))}
-                data-testid="mileage-rule-form-active-from"
-                min="1900-01-01"
-                max="2099-12-31"
+            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+              <FormField
+                control={form.control}
+                name="activeFrom"
+                rules={{ required: 'Active from is required' }}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Active From *</FormLabel>
+                    <FormControl>
+                      <DateInput
+                        value={field.value}
+                        onChange={value => {
+                          field.onChange(value)
+                          setFormData(prev => ({ ...prev, activeFrom: value }))
+                        }}
+                        data-testid="mileage-rule-form-active-from"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="activeTo"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Active To</FormLabel>
+                    <FormControl>
+                      <DateInput
+                        value={field.value}
+                        onChange={value => {
+                          field.onChange(value)
+                          setFormData(prev => ({ ...prev, activeTo: value }))
+                        }}
+                        data-testid="mileage-rule-form-active-to"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
             </div>
-            <div>
-              <Label htmlFor="activeTo">Active To</Label>
-              <Input
-                id="activeTo"
-                type="date"
-                value={formData.activeTo}
-                onChange={e => setFormData(prev => ({ ...prev, activeTo: e.target.value }))}
-                data-testid="mileage-rule-form-active-to"
-                min="1900-01-01"
-                max="2099-12-31"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      {/* Mileage Details */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="gba:flex gba:justify-between gba:items-center">
-            <span>Mileage Details</span>
-            <Button
-              onClick={addDetail}
-              data-testid="mileage-rule-form-add-detail"
-              className="gba:flex gba:items-center gba:gap-2"
-            >
-              <PiPlus className="gba:w-4 gba:h-4" />
-              Add Detail
-            </Button>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {formData.details.length === 0 ? (
-            <Alert>
-              <AlertDescription>
-                No mileage details added yet. Click "Add Detail" to create your first rate.
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragStart={handleDragStart}
-              onDragEnd={handleDragEnd}
-              modifiers={[restrictToVerticalAxis]}
-            >
-              <SortableContext
-                items={formData.details.map(detail => detail.tempId!)}
-                strategy={verticalListSortingStrategy}
+        {/* Mileage Details */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="gba:flex gba:justify-between gba:items-center">
+              <span>Mileage Details</span>
+              <Button
+                onClick={addDetail}
+                data-testid="mileage-rule-form-add-detail"
+                className="gba:flex gba:items-center gba:gap-2"
               >
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="gba:w-10">Drag</TableHead>
-                      <TableHead>Limit From</TableHead>
-                      <TableHead>Limit To</TableHead>
-                      <TableHead>Rate Amount</TableHead>
-                      <TableHead>Active From</TableHead>
-                      <TableHead>Active To</TableHead>
-                      <TableHead className="gba:w-20">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {formData.details.map((detail, index) => {
-                      // Use stable identifier for data-testid
-                      const stableId = detail.tempId || detail.id || `detail-${index}`
+                <PiPlus className="gba:w-4 gba:h-4" />
+                Add Detail
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {formData.details.length === 0 ? (
+              <Alert>
+                <AlertDescription>
+                  No mileage details added yet. Click "Add Detail" to create your first rate.
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+                modifiers={[restrictToVerticalAxis]}
+              >
+                <SortableContext
+                  items={formData.details.map((detail, index) => detail.tempId || detail.id || `detail-${index}`)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="gba:w-10">Drag</TableHead>
+                        <TableHead className="gba:w-[60px]">Actions</TableHead>
+                        <TableHead>Limit From</TableHead>
+                        <TableHead>Limit To</TableHead>
+                        <TableHead>Rate Amount</TableHead>
+                        <TableHead>Active From</TableHead>
+                        <TableHead>Active To</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {formData.details.map((detail, index) => {
+                        // Use stable identifier for data-testid and key
+                        const stableId = detail.tempId || detail.id || `detail-${index}`
 
-                      return (
-                        <SortableRow key={detail.tempId} id={detail.tempId!}>
-                          <TableCell>
-                            <Input
-                              type="number"
-                              step="1"
-                              value={detail.limitFrom || ''}
-                              onChange={e =>
-                                updateDetail(
-                                  index,
-                                  'limitFrom',
-                                  e.target.value ? parseFloat(e.target.value) : undefined
-                                )
-                              }
-                              placeholder="0"
-                              data-testid={`mileage-rule-form-detail-limit-from-${stableId}`}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              type="number"
-                              step="1"
-                              value={detail.limitTo || ''}
-                              onChange={e =>
-                                updateDetail(index, 'limitTo', e.target.value ? parseFloat(e.target.value) : undefined)
-                              }
-                              placeholder="∞"
-                              data-testid={`mileage-rule-form-detail-limit-to-${stableId}`}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              value={detail.rateAmount || ''}
-                              onChange={e => {
-                                const value = e.target.value
-                                // Allow empty string for better editing experience
-                                if (value === '') {
-                                  updateDetail(index, 'rateAmount', 0)
-                                } else {
-                                  const parsedValue = parseFloat(value)
-                                  if (!isNaN(parsedValue)) {
-                                    updateDetail(index, 'rateAmount', parsedValue)
-                                  }
+                        return (
+                          <SortableRow key={stableId} id={stableId}>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeDetail(index)}
+                                data-testid={`mileage-rule-form-detail-delete-${stableId}`}
+                                className="gba:text-red-600 hover:gba:text-red-800"
+                              >
+                                <PiTrash className="gba:w-4 gba:h-4" />
+                              </Button>
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                step="1"
+                                value={detail.limitFrom || ''}
+                                onChange={e =>
+                                  updateDetail(
+                                    index,
+                                    'limitFrom',
+                                    e.target.value ? parseFloat(e.target.value) : undefined
+                                  )
                                 }
-                              }}
-                              placeholder="0.00"
-                              data-testid={`mileage-rule-form-detail-rate-amount-${stableId}`}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              type="date"
-                              value={detail.activeFrom}
-                              onChange={e => updateDetail(index, 'activeFrom', e.target.value)}
-                              data-testid={`mileage-rule-form-detail-active-from-${stableId}`}
-                              min="1900-01-01"
-                              max="2099-12-31"
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              type="date"
-                              value={detail.activeTo}
-                              onChange={e => updateDetail(index, 'activeTo', e.target.value)}
-                              data-testid={`mileage-rule-form-detail-active-to-${stableId}`}
-                              min="1900-01-01"
-                              max="2099-12-31"
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeDetail(index)}
-                              data-testid={`mileage-rule-form-detail-delete-${stableId}`}
-                              className="gba:text-red-600 hover:gba:text-red-800"
-                            >
-                              <PiTrash className="gba:w-4 gba:h-4" />
-                            </Button>
-                          </TableCell>
-                        </SortableRow>
-                      )
-                    })}
-                  </TableBody>
-                </Table>
-              </SortableContext>
-              <DragOverlay>
-                {activeId ? (
-                  <TableRow className="gba:bg-muted gba:opacity-80">
-                    <TableCell className="gba:w-10 gba:text-center">
-                      <PiDotsSixVertical className="gba:text-gray-400 gba:text-lg" />
-                    </TableCell>
-                    <TableCell>Dragging...</TableCell>
-                    <TableCell></TableCell>
-                    <TableCell></TableCell>
-                    <TableCell></TableCell>
-                    <TableCell></TableCell>
-                    <TableCell></TableCell>
-                  </TableRow>
-                ) : null}
-              </DragOverlay>
-            </DndContext>
-          )}
-        </CardContent>
-      </Card>
+                                placeholder="0"
+                                data-testid={`mileage-rule-form-detail-limit-from-${stableId}`}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                step="1"
+                                value={detail.limitTo || ''}
+                                onChange={e =>
+                                  updateDetail(
+                                    index,
+                                    'limitTo',
+                                    e.target.value ? parseFloat(e.target.value) : undefined
+                                  )
+                                }
+                                placeholder="∞"
+                                data-testid={`mileage-rule-form-detail-limit-to-${stableId}`}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                value={detail.rateAmount || ''}
+                                onChange={e => {
+                                  const value = e.target.value
+                                  // Allow empty string for better editing experience
+                                  if (value === '') {
+                                    updateDetail(index, 'rateAmount', 0)
+                                  } else {
+                                    const parsedValue = parseFloat(value)
+                                    if (!isNaN(parsedValue)) {
+                                      updateDetail(index, 'rateAmount', parsedValue)
+                                    }
+                                  }
+                                }}
+                                placeholder="0.00"
+                                data-testid={`mileage-rule-form-detail-rate-amount-${stableId}`}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <DateInput
+                                value={detail.activeFrom}
+                                onChange={value => updateDetail(index, 'activeFrom', value)}
+                                data-testid={`mileage-rule-form-detail-active-from-${stableId}`}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <DateInput
+                                value={detail.activeTo}
+                                onChange={value => updateDetail(index, 'activeTo', value)}
+                                data-testid={`mileage-rule-form-detail-active-to-${stableId}`}
+                              />
+                            </TableCell>
+                          </SortableRow>
+                        )
+                      })}
+                    </TableBody>
+                  </Table>
+                </SortableContext>
+                <DragOverlay>
+                  {activeId ? (
+                    <TableRow className="gba:bg-muted gba:opacity-80">
+                      <TableCell className="gba:w-10 gba:text-center">
+                        <PiDotsSixVertical className="gba:text-gray-400 gba:text-lg" />
+                      </TableCell>
+                      <TableCell></TableCell>
+                      <TableCell>Dragging...</TableCell>
+                      <TableCell></TableCell>
+                      <TableCell></TableCell>
+                      <TableCell></TableCell>
+                      <TableCell></TableCell>
+                    </TableRow>
+                  ) : null}
+                </DragOverlay>
+              </DndContext>
+            )}
+          </CardContent>
+        </Card>
 
-      {/* Validation Errors */}
-      {validationErrors.length > 0 && (
-        <Alert variant="destructive">
-          <PiWarning className="gba:w-4 gba:h-4" />
-          <AlertDescription>
-            <strong>Please fix the following issues:</strong>
-            <ul className="gba:list-disc gba:list-inside gba:mt-2">
-              {validationErrors.map((error, idx) => (
-                <li key={idx}>{error}</li>
-              ))}
-            </ul>
-          </AlertDescription>
-        </Alert>
-      )}
+        {/* Validation Errors */}
+        {validationErrors.length > 0 && (
+          <Alert variant="destructive">
+            <PiWarning className="gba:w-4 gba:h-4" />
+            <AlertDescription>
+              <strong>Please fix the following issues:</strong>
+              <ul className="gba:list-disc gba:list-inside gba:mt-2">
+                {validationErrors.map((error, idx) => (
+                  <li key={idx}>{error}</li>
+                ))}
+              </ul>
+            </AlertDescription>
+          </Alert>
+        )}
 
-      {/* Form Actions */}
-      <div className="gba:flex gba:justify-end gba:gap-3">
-        <Button variant="outline" onClick={onCancel} data-testid="mileage-rule-form-cancel">
-          Cancel
-        </Button>
-        <Button onClick={handleSubmit} disabled={isSubmitting || !hasAnyChanges} data-testid="mileage-rule-form-save">
-          {isSubmitting ? (
-            <>
-              <Spinner className="gba:w-4 gba:h-4 gba:mr-2" />
-              Saving...
-            </>
-          ) : (
-            'Save'
-          )}
-        </Button>
-      </div>
+        {/* Form Actions */}
+        <div className="gba:flex gba:justify-end gba:gap-3">
+          <Button variant="outline" onClick={onCancel} data-testid="mileage-rule-form-cancel">
+            Cancel
+          </Button>
+          <Button onClick={handleSubmit} disabled={isSubmitting || !hasAnyChanges} data-testid="mileage-rule-form-save">
+            {isSubmitting ? (
+              <>
+                <Spinner className="gba:w-4 gba:h-4 gba:mr-2" />
+                Saving...
+              </>
+            ) : (
+              'Save'
+            )}
+          </Button>
+        </div>
+      </Form>
     </div>
   )
 }

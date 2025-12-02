@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
+import { useForm } from 'react-hook-form'
 import {
   Dialog,
   DialogContent,
@@ -7,7 +8,14 @@ import {
   Button,
   Input,
   Alert,
-  AlertDescription
+  AlertDescription,
+  DateInput,
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -48,27 +56,45 @@ const AllowanceRegionRuleForm: React.FC<AllowanceRegionRuleFormProps> = ({
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [formData, setFormData] = useState<AllowanceRegionRuleFormData>({
-    code: '',
-    name: '',
-    description: '',
-    activeFrom: dayjs().format('YYYY-MM-DD'),
-    activeTo: '',
-    travelRegionSetRef: travelRegionSetId
+
+  // React Hook Form setup
+  const form = useForm<AllowanceRegionRuleFormData>({
+    defaultValues: {
+      code: '',
+      name: '',
+      description: '',
+      activeFrom: dayjs().format('YYYY-MM-DD'),
+      activeTo: '',
+      travelRegionSetRef: travelRegionSetId
+    }
   })
 
   const expenseSettingsClient = useMemo(() => new ExpenseSettingsClient(), [])
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (accessToken) {
       expenseSettingsClient.setAccessToken(accessToken)
     }
   }, [accessToken, expenseSettingsClient])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  // Reset form when dialog opens
+  useEffect(() => {
+    if (open) {
+      form.reset({
+        code: '',
+        name: '',
+        description: '',
+        activeFrom: dayjs().format('YYYY-MM-DD'),
+        activeTo: '',
+        travelRegionSetRef: travelRegionSetId
+      })
+      setError(null)
+    }
+  }, [open, travelRegionSetId, form])
 
-    if (!formData.code.trim() || !formData.name.trim()) {
+  const handleSubmit = async (data: AllowanceRegionRuleFormData) => {
+    // Validate required fields
+    if (!data.code.trim() || !data.name.trim()) {
       setError('Code and Name are required')
       return
     }
@@ -79,20 +105,20 @@ const AllowanceRegionRuleForm: React.FC<AllowanceRegionRuleFormProps> = ({
     try {
       // Create the allowance region rule
       const ruleData = {
-        code: formData.code.trim(),
-        name: formData.name.trim(),
-        description: formData.description?.trim() || '',
-        activeFrom: formData.activeFrom ? `${formData.activeFrom}T00:00:00+00:00` : null,
-        activeTo: formData.activeTo ? `${formData.activeTo}T00:00:00+00:00` : null,
+        code: data.code.trim(),
+        name: data.name.trim(),
+        description: data.description?.trim() || '',
+        activeFrom: data.activeFrom ? `${data.activeFrom}T00:00:00+00:00` : null,
+        activeTo: data.activeTo ? `${data.activeTo}T00:00:00+00:00` : null,
         travelRegionSetRef: travelRegionSetId,
         additionalProperties: {},
-        businessKey: formData.code.trim()
+        businessKey: data.code.trim()
       }
 
       await expenseSettingsClient.saveAllowanceRegionRule(ruleData)
 
       toast('Allowance region rule created successfully', 'success')
-      onSave(formData)
+      onSave(data)
       handleClose()
     } catch (err) {
       console.error('❌ Error creating Allowance Region Rule:', err)
@@ -104,7 +130,7 @@ const AllowanceRegionRuleForm: React.FC<AllowanceRegionRuleFormProps> = ({
   }
 
   const handleClose = () => {
-    setFormData({
+    form.reset({
       code: '',
       name: '',
       description: '',
@@ -116,10 +142,9 @@ const AllowanceRegionRuleForm: React.FC<AllowanceRegionRuleFormProps> = ({
     onClose()
   }
 
-  const handleInputChange = (field: keyof AllowanceRegionRuleFormData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
-    if (error) setError(null) // Clear error when user starts typing
-  }
+  // Watch form values for submit button disabled state
+  const codeValue = form.watch('code')
+  const nameValue = form.watch('name')
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -135,7 +160,7 @@ const AllowanceRegionRuleForm: React.FC<AllowanceRegionRuleFormProps> = ({
             )}
           </DialogTitle>
           {travelRegionSetName && (
-            <p className="gba:text-sm gba:text-gray-600 gba:mt-1">
+            <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">
               Adding to: <span className="gba:font-medium">{travelRegionSetName}</span>
             </p>
           )}
@@ -148,130 +173,151 @@ const AllowanceRegionRuleForm: React.FC<AllowanceRegionRuleFormProps> = ({
             </Alert>
           )}
 
-          <form onSubmit={handleSubmit} className="gba:space-y-3 gba:px-1">
-            <div className="gba:space-y-2">
-              <label
-                className="gba:text-sm gba:font-medium gba:text-gray-700"
-                htmlFor={`${prefixDataTestId}-code-input`}
-              >
-                {getTranslationFromI18nKeyAndLabel('expense-settings:code', 'Code')}
-                <span className="gba:text-red-500 gba:ml-1">*</span>
-              </label>
-              <Input
-                id={`${prefixDataTestId}-code-input`}
-                value={formData.code}
-                onChange={e => handleInputChange('code', e.target.value)}
-                placeholder="Enter unique code (e.g., HOTEL_EU)"
-                data-testid={`${prefixDataTestId}-code-input`}
-                disabled={isSubmitting}
-                className="gba:h-9 gba:text-sm"
-                required
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleSubmit)} className="gba:space-y-3 gba:px-1">
+              <FormField
+                control={form.control}
+                name="code"
+                rules={{ required: 'Code is required' }}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      {getTranslationFromI18nKeyAndLabel('expense-settings:code', 'Code')}
+                      <span className="gba:text-destructive gba:ml-1">*</span>
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        placeholder="Enter unique code (e.g., HOTEL_EU)"
+                        data-testid={`${prefixDataTestId}-code-input`}
+                        disabled={isSubmitting}
+                        className="gba:h-9 gba:text-sm"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
 
-            <div className="gba:space-y-2">
-              <label
-                className="gba:text-sm gba:font-medium gba:text-gray-700"
-                htmlFor={`${prefixDataTestId}-name-input`}
-              >
-                {getTranslationFromI18nKeyAndLabel('expense-settings:name', 'Name')}
-                <span className="gba:text-red-500 gba:ml-1">*</span>
-              </label>
-              <Input
-                id={`${prefixDataTestId}-name-input`}
-                value={formData.name}
-                onChange={e => handleInputChange('name', e.target.value)}
-                placeholder="Enter display name (e.g., Hotel Allowance Europe)"
-                data-testid={`${prefixDataTestId}-name-input`}
-                disabled={isSubmitting}
-                className="gba:h-9 gba:text-sm"
-                required
+              <FormField
+                control={form.control}
+                name="name"
+                rules={{ required: 'Name is required' }}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      {getTranslationFromI18nKeyAndLabel('expense-settings:name', 'Name')}
+                      <span className="gba:text-destructive gba:ml-1">*</span>
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        placeholder="Enter display name (e.g., Hotel Allowance Europe)"
+                        data-testid={`${prefixDataTestId}-name-input`}
+                        disabled={isSubmitting}
+                        className="gba:h-9 gba:text-sm"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
 
-            <div className="gba:space-y-2">
-              <label
-                className="gba:text-sm gba:font-medium gba:text-gray-700"
-                htmlFor={`${prefixDataTestId}-description-input`}
-              >
-                {getTranslationFromI18nKeyAndLabel('expense-settings:description', 'Description')}
-              </label>
-              <Input
-                id={`${prefixDataTestId}-description-input`}
-                value={formData.description}
-                onChange={e => handleInputChange('description', e.target.value)}
-                placeholder="Enter optional description"
-                data-testid={`${prefixDataTestId}-description-input`}
-                disabled={isSubmitting}
-                className="gba:h-9 gba:text-sm"
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      {getTranslationFromI18nKeyAndLabel('expense-settings:description', 'Description')}
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        value={field.value || ''}
+                        placeholder="Enter optional description"
+                        data-testid={`${prefixDataTestId}-description-input`}
+                        disabled={isSubmitting}
+                        className="gba:h-9 gba:text-sm"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
 
-            <div className="gba:grid gba:grid-cols-2 gba:gap-3">
-              <div className="gba:space-y-2">
-                <label
-                  className="gba:text-sm gba:font-medium gba:text-gray-700"
-                  htmlFor={`${prefixDataTestId}-active-from-input`}
-                >
-                  {getTranslationFromI18nKeyAndLabel('expense-settings:active_from', 'Active From')}
-                  <span className="gba:text-red-500 gba:ml-1">*</span>
-                </label>
-                <Input
-                  id={`${prefixDataTestId}-active-from-input`}
-                  type="date"
-                  value={formData.activeFrom}
-                  onChange={e => handleInputChange('activeFrom', e.target.value)}
-                  data-testid={`${prefixDataTestId}-active-from-input`}
-                  disabled={isSubmitting}
-                  className="gba:h-9 gba:text-sm"
-                  required
+              <div className="gba:grid gba:grid-cols-2 gba:gap-3">
+                <FormField
+                  control={form.control}
+                  name="activeFrom"
+                  rules={{ required: 'Active from is required' }}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        {getTranslationFromI18nKeyAndLabel('expense-settings:active_from', 'Active From')}
+                        <span className="gba:text-destructive gba:ml-1">*</span>
+                      </FormLabel>
+                      <FormControl>
+                        <DateInput
+                          value={field.value}
+                          onChange={field.onChange}
+                          data-testid={`${prefixDataTestId}-active-from-input`}
+                          disabled={isSubmitting}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="activeTo"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        {getTranslationFromI18nKeyAndLabel('expense-settings:active_to', 'Active To')}
+                      </FormLabel>
+                      <FormControl>
+                        <DateInput
+                          value={field.value || ''}
+                          onChange={field.onChange}
+                          data-testid={`${prefixDataTestId}-active-to-input`}
+                          disabled={isSubmitting}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
               </div>
 
-              <div className="gba:space-y-2">
-                <label
-                  className="gba:text-sm gba:font-medium gba:text-gray-700"
-                  htmlFor={`${prefixDataTestId}-active-to-input`}
-                >
-                  {getTranslationFromI18nKeyAndLabel('expense-settings:active_to', 'Active To')}
-                </label>
-                <Input
-                  id={`${prefixDataTestId}-active-to-input`}
-                  type="date"
-                  value={formData.activeTo}
-                  onChange={e => handleInputChange('activeTo', e.target.value)}
-                  data-testid={`${prefixDataTestId}-active-to-input`}
+              <div className="gba:flex gba:justify-end gba:gap-2 gba:pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleClose}
                   disabled={isSubmitting}
+                  size="sm"
                   className="gba:h-9 gba:text-sm"
-                />
+                  data-testid={`${prefixDataTestId}-cancel-button`}
+                >
+                  {getTranslationFromI18nKeyAndLabel('expense-settings:cancel', 'Cancel')}
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isSubmitting || !codeValue?.trim() || !nameValue?.trim()}
+                  size="sm"
+                  className="gba:h-9 gba:text-sm"
+                  data-testid={`${prefixDataTestId}-save-button`}
+                >
+                  {isSubmitting
+                    ? getTranslationFromI18nKeyAndLabel('expense-settings:creating', 'Creating...')
+                    : getTranslationFromI18nKeyAndLabel('expense-settings:create', 'Create')}
+                </Button>
               </div>
-            </div>
-
-            <div className="gba:flex gba:justify-end gba:gap-2 gba:pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleClose}
-                disabled={isSubmitting}
-                size="sm"
-                className="gba:h-9 gba:text-sm"
-                data-testid={`${prefixDataTestId}-cancel-button`}
-              >
-                {getTranslationFromI18nKeyAndLabel('expense-settings:cancel', 'Cancel')}
-              </Button>
-              <Button
-                type="submit"
-                disabled={isSubmitting || !formData.code.trim() || !formData.name.trim()}
-                size="sm"
-                className="gba:h-9 gba:text-sm"
-                data-testid={`${prefixDataTestId}-save-button`}
-              >
-                {isSubmitting
-                  ? getTranslationFromI18nKeyAndLabel('expense-settings:creating', 'Creating...')
-                  : getTranslationFromI18nKeyAndLabel('expense-settings:create', 'Create')}
-              </Button>
-            </div>
-          </form>
+            </form>
+          </Form>
         </div>
       </DialogContent>
     </Dialog>

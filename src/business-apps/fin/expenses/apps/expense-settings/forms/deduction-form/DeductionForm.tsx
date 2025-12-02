@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useForm } from 'react-hook-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useFeature } from '@/common/hooks/useFeature'
 import {
@@ -8,7 +9,6 @@ import {
   CardContent,
   Button,
   Input,
-  Label,
   Alert,
   AlertDescription,
   Select,
@@ -16,7 +16,13 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Switch
+  Checkbox,
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage
 } from '@newwork/nw-design-system'
 import { PiFloppyDisk, PiX, PiWarning } from 'react-icons/pi'
 import { DeductionDay, getDeductionDayOptions } from '../../types/ExpenseEnums'
@@ -53,41 +59,37 @@ const DeductionForm: React.FC<DeductionFormProps> = ({
   const isDevEnabled = useFeature('dev.enabled')
 
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // React Hook Form setup
+  const form = useForm<DeductionFormData>({
+    defaultValues: {
+      deductBreakfast: false,
+      deductLunch: false,
+      deductDinner: false,
+      deductionOrder: 1,
+      overnightAllowance: false,
+      deductionDay: DeductionDay.FIRST_DAY
+    }
+  })
 
   // Feature flag guard
   if (isDevEnabled === false) {
     return null
   }
-  const [error, setError] = useState<string | null>(null)
 
-  // Form state
-  const [formData, setFormData] = useState<DeductionFormData>({
-    deductBreakfast: false,
-    deductLunch: false,
-    deductDinner: false,
-    deductionOrder: 1,
-    overnightAllowance: false,
-    deductionDay: DeductionDay.FIRST_DAY
-  })
-
-  // Validation errors
-  const [validationErrors, setValidationErrors] = useState<{
-    deductionDay?: string
-    deductionOrder?: string
-  }>({})
-
-  // ✅ NEW: Hook for fetching fresh deduction data
+  // ✅ Hook for fetching fresh deduction data
   const { fetchExpenseRuleDeductionById } = useGetExpenseRuleDeductionById({ accessToken } as BusinessAppContextProps)
 
-  // ✅ FIXED: Load fresh data when editing, use initial data when creating
+  // ✅ Load fresh data when editing, use initial data when creating
   useEffect(() => {
     const loadData = async () => {
       if (isEditing && initialData?.id) {
-        // ✅ NEW: For editing, fetch fresh data from the server
+        // For editing, fetch fresh data from the server
         try {
           const freshData = await fetchExpenseRuleDeductionById(initialData.id)
           if (freshData) {
-            setFormData({
+            form.reset({
               id: freshData.id,
               deductBreakfast: freshData.deductBreakfast,
               deductLunch: freshData.deductLunch,
@@ -98,15 +100,15 @@ const DeductionForm: React.FC<DeductionFormProps> = ({
             })
             return
           }
-        } catch (error) {
-          console.error('Failed to load fresh deduction data:', error)
+        } catch (err) {
+          console.error('Failed to load fresh deduction data:', err)
           // Continue with fallback to initial data
         }
       }
 
-      // ✅ Fallback: Use initial data (for creating or if fresh fetch failed)
+      // Fallback: Use initial data (for creating or if fresh fetch failed)
       if (initialData) {
-        setFormData({
+        form.reset({
           id: initialData.id,
           deductBreakfast: initialData.deductBreakfast,
           deductLunch: initialData.deductLunch,
@@ -119,27 +121,16 @@ const DeductionForm: React.FC<DeductionFormProps> = ({
     }
 
     loadData()
-  }, [initialData?.id, isEditing, fetchExpenseRuleDeductionById])
+  }, [initialData?.id, isEditing, fetchExpenseRuleDeductionById, form])
 
-  const validateForm = (): boolean => {
-    const errors: typeof validationErrors = {}
-
-    if (!formData.deductionDay) {
-      errors.deductionDay = 'Deduction day is required'
+  const handleSubmit = async (data: DeductionFormData) => {
+    // Validate required fields
+    if (!data.deductionDay) {
+      form.setError('deductionDay', { message: 'Deduction day is required' })
+      return
     }
-
-    if (!formData.deductionOrder || formData.deductionOrder < 1) {
-      errors.deductionOrder = 'Deduction order must be at least 1'
-    }
-
-    setValidationErrors(errors)
-    return Object.keys(errors).length === 0
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!validateForm()) {
+    if (!data.deductionOrder || data.deductionOrder < 1) {
+      form.setError('deductionOrder', { message: 'Deduction order must be at least 1' })
       return
     }
 
@@ -147,7 +138,7 @@ const DeductionForm: React.FC<DeductionFormProps> = ({
     setError(null)
 
     try {
-      await onSave(formData)
+      await onSave(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save deduction')
     } finally {
@@ -156,8 +147,7 @@ const DeductionForm: React.FC<DeductionFormProps> = ({
   }
 
   const handleCancel = () => {
-    // Reset form to initial state
-    setFormData({
+    form.reset({
       deductBreakfast: false,
       deductLunch: false,
       deductDinner: false,
@@ -165,7 +155,6 @@ const DeductionForm: React.FC<DeductionFormProps> = ({
       overnightAllowance: false,
       deductionDay: DeductionDay.FIRST_DAY
     })
-    setValidationErrors({})
     setError(null)
     onCancel()
   }
@@ -184,152 +173,176 @@ const DeductionForm: React.FC<DeductionFormProps> = ({
             </Alert>
           )}
 
-          <form onSubmit={handleSubmit} data-testid="deduction-form">
-            {/* Deduction Day and Order */}
-            <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4 gba:mb-6">
-              <div className="gba:space-y-2">
-                <Label htmlFor="deductionDay">
-                  Deduction Day <span className="gba:text-destructive">*</span>
-                </Label>
-                <Select
-                  value={formData.deductionDay}
-                  onValueChange={value => {
-                    setFormData(prev => ({ ...prev, deductionDay: value as DeductionDay }))
-                    setValidationErrors(prev => ({ ...prev, deductionDay: undefined }))
-                  }}
-                >
-                  <SelectTrigger
-                    id="deductionDay"
-                    data-testid="deduction-form-deduction-day-select"
-                    className={validationErrors.deductionDay ? 'gba:border-destructive' : ''}
-                  >
-                    <SelectValue placeholder="Select deduction day" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {getDeductionDayOptions().map(option => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {validationErrors.deductionDay && (
-                  <p className="gba:text-sm gba:text-destructive">{validationErrors.deductionDay}</p>
-                )}
-              </div>
-
-              <div className="gba:space-y-2">
-                <Label htmlFor="deductionOrder">
-                  Deduction Order <span className="gba:text-destructive">*</span>
-                </Label>
-                <Input
-                  id="deductionOrder"
-                  type="number"
-                  min={1}
-                  value={formData.deductionOrder}
-                  onChange={e => {
-                    setFormData(prev => ({ ...prev, deductionOrder: parseInt(e.target.value) || 1 }))
-                    setValidationErrors(prev => ({ ...prev, deductionOrder: undefined }))
-                  }}
-                  placeholder="Enter order"
-                  data-testid="deduction-form-order-input"
-                  className={validationErrors.deductionOrder ? 'gba:border-destructive' : ''}
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleSubmit)} data-testid="deduction-form">
+              {/* Deduction Day and Order */}
+              <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4 gba:mb-6">
+                <FormField
+                  control={form.control}
+                  name="deductionDay"
+                  rules={{ required: 'Deduction day is required' }}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Deduction Day <span className="gba:text-destructive">*</span>
+                      </FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger data-testid="deduction-form-deduction-day-select">
+                            <SelectValue placeholder="Select deduction day" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {getDeductionDayOptions().map(option => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-                {validationErrors.deductionOrder && (
-                  <p className="gba:text-sm gba:text-destructive">{validationErrors.deductionOrder}</p>
-                )}
+
+                <FormField
+                  control={form.control}
+                  name="deductionOrder"
+                  rules={{
+                    required: 'Deduction order is required',
+                    min: { value: 1, message: 'Deduction order must be at least 1' }
+                  }}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Deduction Order <span className="gba:text-destructive">*</span>
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min={1}
+                          {...field}
+                          onChange={e => field.onChange(parseInt(e.target.value) || 1)}
+                          placeholder="Enter order"
+                          data-testid="deduction-form-order-input"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
-            </div>
 
-            {/* Meal Deductions */}
-            <Card className="gba:mb-6">
-              <CardHeader>
-                <CardTitle className="gba:text-base">Meal Deductions</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-3 gba:gap-6">
-                  <div className="gba:flex gba:items-center gba:justify-between gba:space-x-2">
-                    <Label htmlFor="deductBreakfast" className="gba:flex-1">
-                      Deduct Breakfast
-                    </Label>
-                    <Switch
-                      id="deductBreakfast"
-                      checked={formData.deductBreakfast}
-                      onCheckedChange={checked => setFormData(prev => ({ ...prev, deductBreakfast: checked }))}
-                      data-testid="deduction-form-breakfast-switch"
+              {/* Meal Deductions */}
+              <Card className="gba:mb-6">
+                <CardHeader>
+                  <CardTitle className="gba:text-base">Meal Deductions</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-6">
+                    <FormField
+                      control={form.control}
+                      name="deductBreakfast"
+                      render={({ field }) => (
+                        <FormItem className="gba:flex gba:flex-row gba:items-center gba:gap-3 gba:space-y-0">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                              data-testid="deduction-form-breakfast-checkbox"
+                            />
+                          </FormControl>
+                          <FormLabel className="gba:font-normal">Deduct Breakfast</FormLabel>
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="deductLunch"
+                      render={({ field }) => (
+                        <FormItem className="gba:flex gba:flex-row gba:items-center gba:gap-3 gba:space-y-0">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                              data-testid="deduction-form-lunch-checkbox"
+                            />
+                          </FormControl>
+                          <FormLabel className="gba:font-normal">Deduct Lunch</FormLabel>
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="deductDinner"
+                      render={({ field }) => (
+                        <FormItem className="gba:flex gba:flex-row gba:items-center gba:gap-3 gba:space-y-0">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                              data-testid="deduction-form-dinner-checkbox"
+                            />
+                          </FormControl>
+                          <FormLabel className="gba:font-normal">Deduct Dinner</FormLabel>
+                        </FormItem>
+                      )}
                     />
                   </div>
+                </CardContent>
+              </Card>
 
-                  <div className="gba:flex gba:items-center gba:justify-between gba:space-x-2">
-                    <Label htmlFor="deductLunch" className="gba:flex-1">
-                      Deduct Lunch
-                    </Label>
-                    <Switch
-                      id="deductLunch"
-                      checked={formData.deductLunch}
-                      onCheckedChange={checked => setFormData(prev => ({ ...prev, deductLunch: checked }))}
-                      data-testid="deduction-form-lunch-switch"
-                    />
-                  </div>
-
-                  <div className="gba:flex gba:items-center gba:justify-between gba:space-x-2">
-                    <Label htmlFor="deductDinner" className="gba:flex-1">
-                      Deduct Dinner
-                    </Label>
-                    <Switch
-                      id="deductDinner"
-                      checked={formData.deductDinner}
-                      onCheckedChange={checked => setFormData(prev => ({ ...prev, deductDinner: checked }))}
-                      data-testid="deduction-form-dinner-switch"
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Additional Options */}
-            <Card className="gba:mb-6">
-              <CardHeader>
-                <CardTitle className="gba:text-base">Additional Options</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="gba:flex gba:items-center gba:justify-between gba:space-x-2">
-                  <Label htmlFor="overnightAllowance" className="gba:flex-1">
-                    Overnight Allowance
-                  </Label>
-                  <Switch
-                    id="overnightAllowance"
-                    checked={formData.overnightAllowance}
-                    onCheckedChange={checked => setFormData(prev => ({ ...prev, overnightAllowance: checked }))}
-                    data-testid="deduction-form-overnight-switch"
+              {/* Additional Options */}
+              <Card className="gba:mb-6">
+                <CardHeader>
+                  <CardTitle className="gba:text-base">Additional Options</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <FormField
+                    control={form.control}
+                    name="overnightAllowance"
+                    render={({ field }) => (
+                      <FormItem className="gba:flex gba:flex-row gba:items-center gba:gap-3 gba:space-y-0">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            data-testid="deduction-form-overnight-checkbox"
+                          />
+                        </FormControl>
+                        <FormLabel className="gba:font-normal">Overnight Allowance</FormLabel>
+                      </FormItem>
+                    )}
                   />
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
 
-            {/* Action Buttons */}
-            <div className="gba:flex gba:gap-4 gba:mt-6">
-              <Button
-                type="submit"
-                disabled={isSubmitting || loading}
-                data-testid="deduction-form-save-button"
-                className="gba:flex gba:items-center gba:gap-2"
-              >
-                <PiFloppyDisk className="gba:h-4 gba:w-4" />
-                {isEditing ? 'Update Deduction Rule' : 'Create Deduction Rule'}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleCancel}
-                data-testid="deduction-form-cancel-button"
-                className="gba:flex gba:items-center gba:gap-2"
-              >
-                <PiX className="gba:h-4 gba:w-4" />
-                Cancel
-              </Button>
-            </div>
-          </form>
+              {/* Action Buttons */}
+              <div className="gba:flex gba:gap-4 gba:mt-6">
+                <Button
+                  type="submit"
+                  disabled={isSubmitting || loading}
+                  data-testid="deduction-form-save-button"
+                  className="gba:flex gba:items-center gba:gap-2"
+                >
+                  <PiFloppyDisk className="gba:h-4 gba:w-4" />
+                  {isEditing ? 'Update Deduction Rule' : 'Create Deduction Rule'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleCancel}
+                  data-testid="deduction-form-cancel-button"
+                  className="gba:flex gba:items-center gba:gap-2"
+                >
+                  <PiX className="gba:h-4 gba:w-4" />
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </Form>
         </CardContent>
       </Card>
     </div>

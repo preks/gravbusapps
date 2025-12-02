@@ -23,7 +23,8 @@ import {
   Calendar,
   Popover,
   PopoverContent,
-  PopoverTrigger
+  PopoverTrigger,
+  Label
 } from '@newwork/nw-design-system'
 import { PiFloppyDisk, PiX, PiWarning } from 'react-icons/pi'
 import dayjs from 'dayjs'
@@ -379,11 +380,11 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
             data-testid="calculation-rule-form"
             className="gba:space-y-6"
           >
-            <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
+            <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4">
               <div>
-                <label htmlFor="code" className="gba:block gba:text-sm gba:font-medium gba:mb-2">
+                <Label htmlFor="code" className="gba:block gba:mb-2">
                   Rule Code *
-                </label>
+                </Label>
                 <Input
                   id="code"
                   value={formData.code}
@@ -395,9 +396,9 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
               </div>
 
               <div>
-                <label htmlFor="name" className="gba:block gba:text-sm gba:font-medium gba:mb-2">
+                <Label htmlFor="name" className="gba:block gba:mb-2">
                   Rule Name
-                </label>
+                </Label>
                 <Input
                   id="name"
                   value={formData.name || ''}
@@ -409,9 +410,9 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
             </div>
 
             <div>
-              <label htmlFor="description" className="gba:block gba:text-sm gba:font-medium gba:mb-2">
+              <Label htmlFor="description" className="gba:block gba:mb-2">
                 Description
-              </label>
+              </Label>
               <textarea
                 id="description"
                 value={formData.description || ''}
@@ -419,15 +420,15 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
                 rows={3}
                 placeholder="Enter rule description"
                 data-testid="calculation-rule-form-description-input"
-                className="gba:w-full gba:min-h-[80px] gba:px-3 gba:py-2 gba:border gba:border-gray-300 gba:rounded-md gba:shadow-sm focus:gba:ring-2 focus:gba:ring-blue-500 focus:gba:border-blue-500 gba:resize-y"
+                className="gba:w-full gba:min-h-[80px] gba:px-3 gba:py-2 gba:border gba:border-input gba:rounded-md gba:focus:ring-2 gba:focus:ring-primary gba:focus:border-primary gba:resize-y"
               />
             </div>
 
-            <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-3 gba:gap-4">
+            <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4">
               <div>
-                <label htmlFor="calculationType" className="gba:block gba:text-sm gba:font-medium gba:mb-2">
+                <Label htmlFor="calculationType" className="gba:block gba:mb-2">
                   Calculation Type * ({calculationTypes.length} options)
-                </label>
+                </Label>
                 <Select
                   value={formData.calculationTypeRef}
                   onValueChange={value => {
@@ -453,9 +454,9 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
               </div>
 
               <div>
-                <label htmlFor="country" className="gba:block gba:text-sm gba:font-medium gba:mb-2">
+                <Label htmlFor="country" className="gba:block gba:mb-2">
                   Country ({countries.length} options)
-                </label>
+                </Label>
                 <Select
                   value={formData.countryRef}
                   onValueChange={value => {
@@ -481,9 +482,9 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
               </div>
 
               <div>
-                <label htmlFor="currency" className="gba:block gba:text-sm gba:font-medium gba:mb-2">
+                <Label htmlFor="currency" className="gba:block gba:mb-2">
                   Currency ({currencies.length} options)
-                </label>
+                </Label>
                 <Select
                   value={formData.currencyRef}
                   onValueChange={value => {
@@ -509,9 +510,9 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
               </div>
             </div>
 
-            <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
+            <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4">
               <div>
-                <label className="gba:block gba:text-sm gba:font-medium gba:mb-2">Active From *</label>
+                <Label className="gba:block gba:mb-2">Active From *</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
@@ -535,7 +536,7 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
               </div>
 
               <div>
-                <label className="gba:block gba:text-sm gba:font-medium gba:mb-2">Active To</label>
+                <Label className="gba:block gba:mb-2">Active To</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
@@ -563,11 +564,11 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
               </div>
             </div>
 
-            <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
+            <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4">
               <div>
-                <label htmlFor="advancePaymentCode" className="gba:block gba:text-sm gba:font-medium gba:mb-2">
+                <Label htmlFor="advancePaymentCode" className="gba:block gba:mb-2">
                   Advance Payment Code
-                </label>
+                </Label>
                 <Input
                   id="advancePaymentCode"
                   value={formData.advancePaymentCode || ''}
@@ -577,62 +578,54 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
                 />
               </div>
 
-              <div className="gba:flex gba:items-center gba:space-x-2">
+              <div className="gba:flex gba:items-center gba:gap-2">
                 <Switch
                   id="deductionLimit"
                   checked={formData.deductionLimit}
                   onCheckedChange={checked => setFormData(prev => ({ ...prev, deductionLimit: checked }))}
                   data-testid="calculation-rule-form-deduction-limit-switch"
                 />
-                <label htmlFor="deductionLimit" className="gba:text-sm gba:font-medium">
-                  Deduction Limit
-                </label>
+                <Label htmlFor="deductionLimit">Deduction Limit</Label>
               </div>
             </div>
 
-            <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-3 gba:gap-4">
-              <div className="gba:flex gba:items-center gba:space-x-2">
+            <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4">
+              <div className="gba:flex gba:items-center gba:gap-2">
                 <Switch
                   id="standard"
                   checked={formData.standard}
                   onCheckedChange={checked => setFormData(prev => ({ ...prev, standard: checked }))}
                   data-testid="calculation-rule-form-standard-switch"
                 />
-                <label htmlFor="standard" className="gba:text-sm gba:font-medium">
-                  Standard Rule
-                </label>
+                <Label htmlFor="standard">Standard Rule</Label>
               </div>
 
-              <div className="gba:flex gba:items-center gba:space-x-2">
+              <div className="gba:flex gba:items-center gba:gap-2">
                 <Switch
                   id="useLastCountry"
                   checked={formData.useLastCountry}
                   onCheckedChange={checked => setFormData(prev => ({ ...prev, useLastCountry: checked }))}
                   data-testid="calculation-rule-form-use-last-country-switch"
                 />
-                <label htmlFor="useLastCountry" className="gba:text-sm gba:font-medium">
-                  Use Last Country
-                </label>
+                <Label htmlFor="useLastCountry">Use Last Country</Label>
               </div>
 
-              <div className="gba:flex gba:items-center gba:space-x-2">
+              <div className="gba:flex gba:items-center gba:gap-2">
                 <Switch
                   id="useSingleCurrency"
                   checked={formData.useSingleCurrency}
                   onCheckedChange={checked => setFormData(prev => ({ ...prev, useSingleCurrency: checked }))}
                   data-testid="calculation-rule-form-use-single-currency-switch"
                 />
-                <label htmlFor="useSingleCurrency" className="gba:text-sm gba:font-medium">
-                  Use Single Currency
-                </label>
+                <Label htmlFor="useSingleCurrency">Use Single Currency</Label>
               </div>
             </div>
 
-            <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
+            <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4">
               <div>
-                <label htmlFor="taxesCode" className="gba:block gba:text-sm gba:font-medium gba:mb-2">
+                <Label htmlFor="taxesCode" className="gba:block gba:mb-2">
                   Taxes Code
-                </label>
+                </Label>
                 <Input
                   id="taxesCode"
                   value={formData.taxesCode || ''}
@@ -643,9 +636,9 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
               </div>
 
               <div>
-                <label htmlFor="nonpayableCode" className="gba:block gba:text-sm gba:font-medium gba:mb-2">
+                <Label htmlFor="nonpayableCode" className="gba:block gba:mb-2">
                   Non-payable Code
-                </label>
+                </Label>
                 <Input
                   id="nonpayableCode"
                   value={formData.nonpayableCode || ''}

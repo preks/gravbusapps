@@ -370,8 +370,8 @@ const UnassignedRulesView: React.FC<UnassignedRulesViewProps> = ({ accessToken, 
                   {getTranslationFromI18nKeyAndLabel('expense-settings:unassigned_rules', 'Unassigned Allowance Rules')}
                 </CardTitle>
                 <p className="gba:text-gray-600">
-                  {totalCount === 0 
-                    ? 'All rules are assigned to Travel Region Sets' 
+                  {totalCount === 0
+                    ? 'All rules are assigned to Travel Region Sets'
                     : `${totalCount} rules not assigned to any Travel Region Set`}
                 </p>
               </div>
@@ -391,24 +391,27 @@ const UnassignedRulesView: React.FC<UnassignedRulesViewProps> = ({ accessToken, 
       {unassignedRules.length > 0 ? (
         <>
           <div className="gba:w-full gba:overflow-x-auto">
-            <Table className="gba:min-w-[800px] gba:table-fixed" data-testid={`${prefixDataTestId}-unassigned-rules-table`}>
+            <Table
+              className="gba:min-w-[800px] gba:table-fixed"
+              data-testid={`${prefixDataTestId}-unassigned-rules-table`}
+            >
               <TableHeader>
                 <TableRow>
+                  <TableHead className="gba:w-[60px]">Actions</TableHead>
                   <TableHead className="gba:w-[250px]">Rule</TableHead>
                   <TableHead className="gba:w-[200px]">Validity Period</TableHead>
                   <TableHead className="gba:w-[120px]">Details Count</TableHead>
                   <TableHead className="gba:w-[100px]">Order</TableHead>
-                  <TableHead className="gba:w-[150px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {unassignedRules.map(record => (
                   <TableRow key={record.id}>
+                    <TableCell className="gba:w-[60px]">{renderActionsCell(record)}</TableCell>
                     <TableCell className="gba:w-[250px]">{renderRuleCell(record)}</TableCell>
                     <TableCell className="gba:w-[200px]">{renderValidityCell(record)}</TableCell>
                     <TableCell className="gba:w-[120px] gba:text-center">{renderDetailsCountCell(record)}</TableCell>
                     <TableCell className="gba:w-[100px] gba:text-center">{renderOrderCell(record)}</TableCell>
-                    <TableCell className="gba:w-[150px]">{renderActionsCell(record)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
