@@ -10,6 +10,11 @@ import {
 } from '@/common/data/relations/types/accountTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
+import {
+  filterCommunicationChannels,
+  filterAddresses,
+  filterAddressLines
+} from '@/common/data/common/utils/entityPayloadHelpers'
 import { type Investment, type InvestmentReport } from './investmentTypes'
 import type { InvestmentAddress } from './investmentAddressTypes'
 import type { InvestmentCommunicationChannel } from './investmentCommunicationChannelTypes'
@@ -90,6 +95,22 @@ export const investmentAccountFormFields = { ...AccountFormFields } as const
 export const buildInvestmentAccountPayload = (account: Partial<InvestmentAccount>) => {
   // Build base payload using investmentAccountFormFields for field mapping
   const payload = buildPayload(account, investmentAccountFormFields)
+
+  // Filter communication channels
+  const filteredChannels = filterCommunicationChannels(payload.communicationChannels)
+  if (filteredChannels) {
+    payload.communicationChannels = filteredChannels
+  } else {
+    delete payload.communicationChannels
+  }
+
+  // Filter addresses (IRM keeps addressLine as object)
+  const filteredAddresses = filterAddresses(payload.addresses, filterAddressLines)
+  if (filteredAddresses) {
+    payload.addresses = filteredAddresses
+  } else {
+    delete payload.addresses
+  }
 
   return {
     investmentAccount: payload

@@ -15,6 +15,7 @@ export interface CatalogEntry {
 export interface GrantEmployeeBonusContextData {
   employee: EmployeeDataResponse | null
   catalogs: CatalogsDataResponse | null
+  employeeCurrency: EmployeeBankAccountCurrency | null
 }
 
 export interface EmployeeDataResponse {
@@ -27,18 +28,20 @@ export interface EmployeeDataResponse {
   } | null
 }
 
+export interface EmployeeBankAccountCurrency {
+  currencyRef: string | null
+}
+
 export interface CatalogsDataResponse {
   bonusType: CatalogEntry[]
-  currency: CatalogEntry[]
 }
 
 export type GrantEmployeeBonusFormValues = {
   employeeBonusTypeRef: string
   amount: number | null
   currencyRef: string
-  paymentDate: string
+  paymentMonth: number
   fiscalYear: number
-  description: string
   notes: string
 }
 

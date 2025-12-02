@@ -41,82 +41,6 @@ const getOwnerName = (account: Account) => {
   return '-'
 }
 
-// Render revenue (band code may be a single number or a range "min-max")
-// Format similar to OpportunityLayout amount column
-const renderRevenueCell = (account: Account) => {
-  // Account has: accountAnnualRevenueBand (correct name)
-  const band = account.accountAnnualRevenueBand
-  if (!band?.code && !band?.value) {
-    return <div className="gba:text-right gba:text-sm gba:text-muted-foreground">No revenue</div>
-  }
-
-  const code = safeString(band.code || '').trim()
-  if (!code) {
-    return <div className="gba:text-right gba:text-sm gba:text-muted-foreground">No revenue</div>
-  }
-
-  // Parse numeric(s)
-  const parts = code
-    .split('-')
-    .map(s => Number(s.trim()))
-    .filter(n => !Number.isNaN(n))
-
-  if (parts.length === 0) {
-    // Fallback to value if code is not numeric
-    return (
-      <div className="gba:text-right gba:text-sm gba:truncate" title={safeString(band.value)}>
-        {safeString(band.value) || 'No revenue'}
-      </div>
-    )
-  }
-
-  // Default currency (could be made configurable)
-  const currencyCode = 'EUR'
-
-  if (parts.length === 1) {
-    // Single value: format like OpportunityLayout amount
-    const formattedValue = new Intl.NumberFormat(undefined, {
-      style: 'currency',
-      currency: currencyCode,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(parts[0])
-
-    return (
-      <div
-        className="gba:text-right gba:text-sm gba:font-mono gba:truncate"
-        data-testid={`account-revenue-${account.id}`}
-      >
-        {formattedValue}
-      </div>
-    )
-  }
-
-  // Range: show "min – max" formatted like OpportunityLayout
-  const [min, max] = parts
-  const formattedMin = new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency: currencyCode,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(min)
-  const formattedMax = new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency: currencyCode,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(max)
-
-  return (
-    <div
-      className="gba:text-right gba:text-sm gba:font-mono gba:truncate"
-      data-testid={`account-revenue-${account.id}`}
-    >
-      {formattedMin} – {formattedMax}
-    </div>
-  )
-}
-
 /**
  * Default Account Columns - Base columns that work for both Customer and Investment Accounts
  * Uses Account (the CORRECT structure)
@@ -293,9 +217,9 @@ export const commonAccountColumns: ColumnDef<Account>[] = [
       return additionalValue1 ? `${value}: ${additionalValue1}` : value
     },
     header: 'Priority',
-    size: 140,
+    size: 250,
     minSize: 120,
-    maxSize: 180,
+    maxSize: 250,
     enableResizing: false,
     cell: ({ row }) => {
       if (!row.original.accountPriority) {
@@ -392,18 +316,29 @@ export const commonAccountColumns: ColumnDef<Account>[] = [
   },
   {
     id: 'accountAnnualRevenueBand',
-    accessorKey: 'accountAnnualRevenueBand',
-    header: 'Revenue',
+    accessorFn: row => row.accountAnnualRevenueBand?.value || row.accountAnnualRevenueBand?.code || '',
+    header: 'Revenue Band',
     size: 150,
     minSize: 120,
     maxSize: 200,
     enableResizing: false,
-    meta: {
-      type: 'currency' as const,
-      currency: 'EUR',
-      align: 'right' as const
-    },
-    cell: ({ row }) => renderRevenueCell(row.original)
+    cell: ({ row }) => {
+      if (!row.original.accountAnnualRevenueBand) {
+        return <span className="gba:text-sm gba:text-muted-foreground">No revenue band</span>
+      }
+      const revenueBandValue = safeString(
+        row.original.accountAnnualRevenueBand.value || row.original.accountAnnualRevenueBand.code
+      )
+      return (
+        <span
+          className="gba:text-sm gba:truncate gba:block"
+          title={revenueBandValue}
+          data-testid={`revenue-band-cell-${row.original.id}`}
+        >
+          {revenueBandValue}
+        </span>
+      )
+    }
   },
   {
     id: 'ownerEmployee',
@@ -493,7 +428,7 @@ const ACCOUNT_COLUMN_LABELS: Record<string, string> = {
   industryClass: 'Industry',
   legalForm: 'Legal Form',
   size: 'Size',
-  accountAnnualRevenueBand: 'Revenue',
+  accountAnnualRevenueBand: 'Revenue Band',
   ownerEmployee: 'Owner',
   createdAt: 'Created Date',
   updatedAt: 'Updated Date'

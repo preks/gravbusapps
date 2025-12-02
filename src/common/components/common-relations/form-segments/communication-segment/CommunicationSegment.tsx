@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
 import {
   FormField,
   FormItem,
@@ -18,8 +18,19 @@ import { CommunicationChannelCode } from '@/common/data/relations/types/relation
 import { COMMUNICATION_CHANNEL } from '@/common/constants/commonCatalogs'
 import translations from './_i18n'
 
+// Default channel codes for different entity types
+export const DEFAULT_ACCOUNT_CHANNELS = [CommunicationChannelCode.EMAIL, CommunicationChannelCode.PHONE]
+export const DEFAULT_CONTACT_CHANNELS = [
+  CommunicationChannelCode.EMAIL,
+  CommunicationChannelCode.PHONE,
+  CommunicationChannelCode.LINKEDIN,
+  CommunicationChannelCode.XING
+]
+
 interface CommunicationSegmentProps {
   customFields?: React.ReactNode
+  // Default channel codes to pre-populate when no data exists
+  defaultChannelCodes?: string[]
 }
 
 // Separate component for each communication channel item
@@ -143,7 +154,10 @@ const CommunicationChannelItem: React.FC<{
   )
 }
 
-const CommunicationSegment: React.FC<CommunicationSegmentProps> = ({ customFields }) => {
+const CommunicationSegment: React.FC<CommunicationSegmentProps> = ({
+  customFields,
+  defaultChannelCodes = DEFAULT_CONTACT_CHANNELS
+}) => {
   const form = useFormContext<any>()
   const { t } = useTranslation(translations)
 
@@ -153,8 +167,20 @@ const CommunicationSegment: React.FC<CommunicationSegmentProps> = ({ customField
     name: 'communicationChannels'
   })
 
-  // Note: Initialization with PHONE and EMAIL is now handled in AccountFormComponent defaultValues
-  // This ensures proper initialization before form render
+  // Track if we've already initialized defaults to prevent infinite loops
+  const hasInitializedDefaults = useRef(false)
+
+  // Auto-populate default communication channels when no data exists
+  useEffect(() => {
+    if (fields.length === 0 && !hasInitializedDefaults.current) {
+      hasInitializedDefaults.current = true
+      const defaults = defaultChannelCodes.map(code => ({
+        communicationChannelRef: `${COMMUNICATION_CHANNEL}:${code}`,
+        value: ''
+      }))
+      append(defaults)
+    }
+  }, [fields.length, append, defaultChannelCodes])
 
   const handleAddChannel = () => {
     append({

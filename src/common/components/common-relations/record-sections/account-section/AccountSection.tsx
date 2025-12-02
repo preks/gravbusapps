@@ -5,20 +5,20 @@ import {
   AvatarImage,
   AvatarFallback,
   IconAvatar,
-  Badge,
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger
 } from '@newwork/nw-design-system'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { PiGlobe, PiPhone, PiUsers, PiMapPin, PiEnvelope } from 'react-icons/pi'
+import { PiGlobe, PiUsers, PiMapPin } from 'react-icons/pi'
 import { BankIcon, ChartLineUpIcon } from '@phosphor-icons/react'
 import { formatAddress } from '@/common/utils/addressFormatter'
 import { navigateTo } from '@/common/utils/navigationUtils'
-import { getEmailChannel, getPhoneChannel } from '@/common/data/common/utils/communicationChannelHelpers'
-import { getContactTypeLabel } from '@/common/data/relations/constants/contactConstants'
+import { renderCommunicationChannels } from '@/common/utils/communicationChannelRenderer'
 import { createGetPages } from '../utils'
+import { ContactTypeBadge } from '../shared/ContactTypeBadge'
+import EmptyState from '@/components/empty-state/EmptyState'
 
 interface AddressObject {
   addressLine?: {
@@ -185,30 +185,46 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
 }) => {
   const cardClassName = `gba:w-full ${className}`.trim()
 
-  // Extract logo URL - support both picture and pictureThumbnail
+  // Empty state - when no account data is available
+  if (!account) {
+    return (
+      <div className={`${cardClassName} gba:relative gba:flex gba:flex-col gba:h-full`}>
+        <EmptyState
+          title="No Account Data"
+          description="No account data is available for this object. Update its details to see the information here."
+        />
+      </div>
+    )
+  }
+
+  // Extract logo URL - support both pictureThumbnail and URLs
+  // Only use uploaded images or fallback to icon - no random/hardcoded images
   const logoUrl = account?.pictureThumbnail
     ? `data:image/gif;base64,${account.pictureThumbnail}`
-    : account?.picture || account?.pictureUrl || account?.pictureThumbnailUrl
+    : account?.pictureUrl || account?.pictureThumbnailUrl
 
   // Get contact type from extended account object (passed from parent via accountContacts)
   const contactType = account?.contactType
-  const contactTypeLabel = contactType ? getContactTypeLabel(contactType) : null
 
   return (
     <div className={`${cardClassName} gba:relative gba:flex gba:flex-col gba:h-full`}>
       <div className="gba:space-y-2 gba:flex-1">
         {/* Company Name and Icon with Action Button */}
         <div className="gba:flex gba:items-center gba:gap-3">
-          {logoUrl ? (
-            <Avatar className="gba:h-12 gba:w-12">
-              <AvatarImage src={logoUrl} alt="Company logo" />
-              <AvatarFallback>
-                <BankIcon />
-              </AvatarFallback>
-            </Avatar>
-          ) : (
-            <IconAvatar icon={BankIcon} variant="default" size="lg" title="Company" />
-          )}
+          <div className="gba:relative gba:shrink-0 gba:p-1">
+            {logoUrl ? (
+              <Avatar className="gba:h-12 gba:w-12">
+                <AvatarImage src={logoUrl} alt="Company logo" />
+                <AvatarFallback>
+                  <BankIcon />
+                </AvatarFallback>
+              </Avatar>
+            ) : (
+              <IconAvatar icon={BankIcon} variant="default" size="lg" title="Company" />
+            )}
+
+            <ContactTypeBadge contactType={contactType} />
+          </div>
           <div className="gba:flex gba:flex-col gba:gap-1 gba:min-w-0 gba:flex-1">
             <div className="gba:h-5 gba:flex gba:items-center gba:gap-2 gba:min-w-0">
               <TooltipProvider>
@@ -237,11 +253,6 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-              {contactTypeLabel && (
-                <Badge variant="outline" className="gba:shrink-0" data-testid="contact-type-badge">
-                  {contactTypeLabel}
-                </Badge>
-              )}
             </div>
             {/* Company Type and Industry - directly under name */}
             <div className="gba:h-5 gba:flex gba:items-center gba:min-w-0">
@@ -304,12 +315,8 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
         {/* Contact Information */}
         <div>
           {(() => {
-            // Extract email, phone direkt aus communicationChannels (KEINE Fallbacks auf deprecated email/phone)
-            const emailChannel = getEmailChannel(account?.communicationChannels)
-            const emailValue = emailChannel?.value
-
-            const phoneChannel = getPhoneChannel(account?.communicationChannels)
-            const phoneValue = phoneChannel?.value
+            // Get ALL communication channels dynamically
+            const communicationChannelItems = renderCommunicationChannels(account?.communicationChannels, 'account')
 
             // Website ist ein normales Feld, NICHT aus communicationChannels
             const websiteValue = account?.website
@@ -338,37 +345,8 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
                 }
               })()
 
-            const infoItems = [
-              {
-                icon: PiEnvelope,
-                title: 'Email',
-                value: emailValue,
-                render: (value: string) =>
-                  value ? (
-                    <a
-                      href={`mailto:${value}`}
-                      className="gba:text-sm gba:text-muted-foreground gba:no-underline gba:hover:underline"
-                      data-testid="account-email-link"
-                    >
-                      {value}
-                    </a>
-                  ) : null
-              },
-              {
-                icon: PiPhone,
-                title: 'Phone',
-                value: phoneValue,
-                render: (value: string) =>
-                  value ? (
-                    <a
-                      href={`tel:${value}`}
-                      className="gba:text-sm gba:text-muted-foreground gba:no-underline gba:hover:underline"
-                      data-testid="account-phone-link"
-                    >
-                      {value}
-                    </a>
-                  ) : null
-              },
+            // Static fields (not from communication channels)
+            const staticInfoItems = [
               {
                 icon: PiUsers,
                 title: 'Employees',
@@ -438,7 +416,10 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
               }
             ]
 
-            return infoItems.map((item, index) => {
+            // Combine dynamic communication channels with static fields
+            const allItems = [...communicationChannelItems, ...staticInfoItems]
+
+            return allItems.map((item, index) => {
               const IconComponent = item.icon
               const content = item.render(item.value || '')
 
