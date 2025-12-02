@@ -207,6 +207,28 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
     }
   }, [isPreviewEnabled, backgroundRefreshInbox, backgroundRefreshCompleted, refetchFlows])
 
+  // Listen for process completion events to refresh task lists
+  useEffect(() => {
+    if (!isPreviewEnabled) return
+
+    const handleProcessCompletion = (event: Event) => {
+      const customEvent = event as CustomEvent<{ resolution?: string }>
+      const resolution = customEvent.detail?.resolution
+
+      if (resolution === 'success') {
+        // Refresh both active and completed tasks
+        refetchTasks()
+        refetchCompleted()
+      }
+    }
+
+    window.addEventListener('com.newwork.process.processCompletion', handleProcessCompletion)
+
+    return () => {
+      window.removeEventListener('com.newwork.process.processCompletion', handleProcessCompletion)
+    }
+  }, [isPreviewEnabled, refetchTasks, refetchCompleted])
+
   // Feature flag guard - render null if preview is disabled (after all hooks)
   if (!isPreviewEnabled) {
     return null

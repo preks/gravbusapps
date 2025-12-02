@@ -1,7 +1,7 @@
 /**
- * AcknowledgeEmployeeVacationHRV2 Component
- * Standalone form for HR team to acknowledge already-approved employee vacation requests
- * Based on ApproveEmployeeVacationV2 with adapted UI for acknowledgment (no approve/reject actions)
+ * AcknowledgeEmployeeSpecialLeave Component
+ * Standalone form for HR team to acknowledge already-approved employee special leave requests
+ * Based on AcknowledgeEmployeeVacationHR with adapted UI for special leave acknowledgment
  */
 
 import React, { useState } from 'react'
@@ -9,7 +9,7 @@ import { Separator, Spinner, Alert } from '@newwork/nw-design-system'
 import { CheckCircle, AlertCircle } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
-import { useVacationApprovalData } from '../approve-employee-vacation-v2/hooks/useVacationApprovalData'
+import { useVacationApprovalData } from '../approve-employee-vacation/hooks/useVacationApprovalData'
 import { TeamAbsenceCalendar } from '@/business-apps/core/every/apps/every-box/components/TeamAbsenceCalendar'
 import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/components/TaskDetailHeader'
 import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
@@ -41,12 +41,12 @@ const formatWorkingDaysAndHours = (workingDays?: number, workingHours?: number):
   return parts.join('')
 }
 
-interface AcknowledgeEmployeeVacationHRV2Props extends BusinessAppContextProps {
+interface AcknowledgeEmployeeSpecialLeaveProps extends BusinessAppContextProps {
   // Additional props from task payload
   onClose?: () => void // Optional callback to close the modal
 }
 
-const AcknowledgeEmployeeVacationHRV2: React.FC<AcknowledgeEmployeeVacationHRV2Props> = ({
+const AcknowledgeEmployeeSpecialLeave: React.FC<AcknowledgeEmployeeSpecialLeaveProps> = ({
   accessToken,
   additionalData,
   userInfo,
@@ -67,7 +67,7 @@ const AcknowledgeEmployeeVacationHRV2: React.FC<AcknowledgeEmployeeVacationHRV2P
   const isTaskCompleted = taskStatus === 'COMPLETED'
 
   // Get task title from process metadata or use default
-  const taskTitle = processMetadata?.referenceTaskName || processMetadata?.nodeName || 'Acknowledge Vacation (HR)'
+  const taskTitle = processMetadata?.referenceTaskName || processMetadata?.nodeName || 'Acknowledge Special Leave'
 
   // Get task source from process metadata (fallback to 'kogito' if not available)
   const taskSource: 'kogito' | 'cflow' = processMetadata?.source || 'kogito'
@@ -87,14 +87,11 @@ const AcknowledgeEmployeeVacationHRV2: React.FC<AcknowledgeEmployeeVacationHRV2P
     absenceTypeRef: employeeAbsence?.typeRef
   })
 
-  // Determine if this is a business trip (A101)
-  const isBusinessTrip = employeeAbsence?.typeRef?.includes('A101')
-
   // Get supervisor ID for TeamAbsenceCalendar
   const supervisorId = userInfo?.employeeDetails?.employeeId
 
   // Extract approval data from employeeAbsence (already approved)
-  const approvalStatus = employeeAbsence?.status || 'APPROVED'
+  const approvalStatus = employeeAbsence?.status || null
   const approvalNote = employeeAbsence?.approvalNote || null
   const approverId = employeeAbsence?.approverId || null
   const absenceId = employeeAbsence?.id
@@ -126,7 +123,7 @@ const AcknowledgeEmployeeVacationHRV2: React.FC<AcknowledgeEmployeeVacationHRV2P
         event: 'pse_submit'
       })
 
-      setSuccessMessage('Vacation acknowledged successfully!')
+      setSuccessMessage('Special leave acknowledged successfully!')
 
       // Allow time for user to see success message before closing
       setTimeout(() => {
@@ -156,9 +153,12 @@ const AcknowledgeEmployeeVacationHRV2: React.FC<AcknowledgeEmployeeVacationHRV2P
   // Detect if we're in every-box context (has onClose callback)
   const isEveryBoxContext = !!onClose
 
+  // Get submission date (use createdAt or startDate as fallback)
+  const submissionDate = employeeAbsence?.createdAt || employeeAbsence?.startDate || null
+
   return (
     <TaskFormLayout
-      data-testid="acknowledge-employee-vacation-hr-v2"
+      data-testid="acknowledge-employee-special-leave"
       header={
         <TaskDetailHeader
           title={taskTitle}
@@ -214,11 +214,11 @@ const AcknowledgeEmployeeVacationHRV2: React.FC<AcknowledgeEmployeeVacationHRV2P
         </Alert>
       )}
 
-      {/* Vacation Request Details */}
+      {/* Request Details */}
       {employeeAbsence && typeof employeeAbsence === 'object' && (
         <>
-          <div data-testid="vacation-details-section">
-            <h4 className="gba:font-semibold gba:mb-4 gba:text-lg">Vacation Request Details</h4>
+          <div data-testid="request-details-section">
+            <h4 className="gba:font-semibold gba:mb-4 gba:text-lg">Request Details</h4>
             <div className="gba:bg-muted gba:p-4 gba:rounded-lg gba:space-y-3">
               {/* Type */}
               {absenceTypeName && (
@@ -228,11 +228,21 @@ const AcknowledgeEmployeeVacationHRV2: React.FC<AcknowledgeEmployeeVacationHRV2P
                 </div>
               )}
 
-              {/* Duration */}
+              {/* Submission Date */}
+              {submissionDate && (
+                <div className="gba:flex gba:items-start gba:gap-3">
+                  <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
+                    Submission Date:
+                  </span>
+                  <span className="gba:text-sm gba:flex-1">{dayjs(submissionDate).format('MMM D, YYYY')}</span>
+                </div>
+              )}
+
+              {/* Absence Duration */}
               {employeeAbsence.startDate && employeeAbsence.endDate && (
                 <div className="gba:flex gba:items-start gba:gap-3">
                   <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                    Duration:
+                    Absence Duration:
                   </span>
                   <span className="gba:text-sm gba:flex-1">
                     {(() => {
@@ -249,7 +259,7 @@ const AcknowledgeEmployeeVacationHRV2: React.FC<AcknowledgeEmployeeVacationHRV2P
                 </div>
               )}
 
-              {/* Working Days and Hours (combined) */}
+              {/* Working Days */}
               {(employeeAbsence.workingDays !== undefined || employeeAbsence.workingHours !== undefined) && (
                 <div className="gba:flex gba:items-start gba:gap-3">
                   <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
@@ -257,18 +267,6 @@ const AcknowledgeEmployeeVacationHRV2: React.FC<AcknowledgeEmployeeVacationHRV2P
                   </span>
                   <span className="gba:text-sm gba:flex-1">
                     {formatWorkingDaysAndHours(employeeAbsence.workingDays, employeeAbsence.workingHours)}
-                  </span>
-                </div>
-              )}
-
-              {/* Remaining Balance (not for business trips) */}
-              {employeeAbsence.balance !== undefined && !isBusinessTrip && (
-                <div className="gba:flex gba:items-start gba:gap-3">
-                  <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                    Remaining Balance:
-                  </span>
-                  <span className="gba:text-sm gba:flex-1 gba:font-medium gba:text-success">
-                    {employeeAbsence.balance} days
                   </span>
                 </div>
               )}
@@ -405,7 +403,7 @@ const AcknowledgeEmployeeVacationHRV2: React.FC<AcknowledgeEmployeeVacationHRV2P
               employeeName: employeeData?.displayName || creatorName || 'Unknown',
               position: employeeData?.position || undefined,
               type: absenceTypeName,
-              status: approvalStatus
+              status: approvalStatus || 'APPROVED'
             }}
           />
           <Separator />
@@ -415,4 +413,4 @@ const AcknowledgeEmployeeVacationHRV2: React.FC<AcknowledgeEmployeeVacationHRV2P
   )
 }
 
-export default AcknowledgeEmployeeVacationHRV2
+export default AcknowledgeEmployeeSpecialLeave

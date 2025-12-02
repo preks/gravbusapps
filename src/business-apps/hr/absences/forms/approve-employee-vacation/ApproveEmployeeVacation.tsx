@@ -1,7 +1,10 @@
 /**
- * ApproveEmployeeSpecialLeaveV2 Component
- * Standalone form for approving employee special leave requests from Kogito processes
- * Based on ApproveEmployeeVacationV2 structure
+ * ApproveEmployeeVacation Component
+ * Standalone form for approving employee vacation requests from Kogito processes
+ *
+ * Refactored to use:
+ * - TaskFormLayout: Proper layout wrapper with sticky header/footer
+ * - Auto-fetching: TaskDetailHeader automatically fetches employee data
  */
 
 import React, { useState, useEffect, useMemo, useRef } from 'react'
@@ -9,7 +12,8 @@ import { Separator, Textarea, Switch, Label, Spinner, Alert } from '@newwork/nw-
 import { ThumbsUp, XCircle, MessageSquare, CheckCircle, AlertCircle } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
-import { useVacationApprovalData } from '../approve-employee-vacation-v2/hooks/useVacationApprovalData'
+import { useVacationApprovalData } from './hooks/useVacationApprovalData'
+import { env } from '@/common/env/EnvUtils'
 import { TeamAbsenceCalendar } from '@/business-apps/core/every/apps/every-box/components/TeamAbsenceCalendar'
 import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/components/TaskDetailHeader'
 import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
@@ -64,16 +68,18 @@ const formatWorkingDaysAndHours = (workingDays?: number, workingHours?: number):
   return parts.join('')
 }
 
-interface ApproveEmployeeSpecialLeaveV2Props extends BusinessAppContextProps {
+interface ApproveEmployeeVacationProps extends BusinessAppContextProps {
   // Additional props from task payload
   onClose?: () => void // Optional callback to close the modal
+  onTaskUpdated?: () => void // Optional callback to refresh the task list
 }
 
-const ApproveEmployeeSpecialLeaveV2: React.FC<ApproveEmployeeSpecialLeaveV2Props> = ({
+const ApproveEmployeeVacation: React.FC<ApproveEmployeeVacationProps> = ({
   accessToken,
   additionalData,
   userInfo,
-  onClose
+  onClose,
+  onTaskUpdated
 }) => {
   // Cast additionalData to extended interface for proper typing
   const extendedAdditionalData = additionalData as ExtendedAdditionalData | undefined
@@ -105,7 +111,7 @@ const ApproveEmployeeSpecialLeaveV2: React.FC<ApproveEmployeeSpecialLeaveV2Props
   const isTaskCompleted = taskStatus === 'COMPLETED'
 
   // Get task title from process metadata or use default
-  const taskTitle = processMetadata?.referenceTaskName || processMetadata?.nodeName || 'Approve Special Leave Request'
+  const taskTitle = processMetadata?.referenceTaskName || processMetadata?.nodeName || 'Approve Vacation Request'
 
   // Use generic hooks for entity dates (request created)
   const { createdAt: requestCreatedAt, isLoading: isLoadingRequestDate } = useEntityDates({
@@ -193,6 +199,9 @@ const ApproveEmployeeSpecialLeaveV2: React.FC<ApproveEmployeeSpecialLeaveV2Props
     absenceTypeRef: employeeAbsence?.typeRef
   })
 
+  // Determine if this is a business trip (A101)
+  const isBusinessTrip = employeeAbsence?.typeRef?.includes('A101')
+
   // Get supervisor ID for TeamAbsenceCalendar
   const supervisorId = userInfo?.employeeDetails?.employeeId
 
@@ -261,7 +270,19 @@ const ApproveEmployeeSpecialLeaveV2: React.FC<ApproveEmployeeSpecialLeaveV2Props
           } else if (absence.approvalNote) {
             setActualApprovalNote(absence.approvalNote)
           } else {
-            setActualApprovalNote(null)
+            // For rejected status, try to get comment from other sources
+            const rejectionStatus = taskOutputApprovalStatus || absence.status
+            if (
+              rejectionStatus === 'REJECTED' ||
+              rejectionStatus === 'REJECTED_BY_MANAGER' ||
+              rejectionStatus === 'REJECTED_BY_HR'
+            ) {
+              // Try to get comment from taskPayload or other sources
+              const commentFromPayload = taskPayload?.approvalNote || extendedAdditionalData?.formData?.approvalNote
+              setActualApprovalNote(commentFromPayload || null)
+            } else {
+              setActualApprovalNote(null)
+            }
           }
 
           // Priority order for approval date:
@@ -315,20 +336,105 @@ const ApproveEmployeeSpecialLeaveV2: React.FC<ApproveEmployeeSpecialLeaveV2Props
     setSuccessMessage(null)
 
     try {
-      // Dispatch process continue event
-      dispatchProcessContinueEvent('pse_submit', {
-        approval: 'APPROVED',
-        approvalNote: comment || '',
-        event: 'pse_submit'
+      // Extract endpoint from processMetadata or additionalData
+      const endpoint =
+        processMetadata?.endpoint ||
+        extendedAdditionalData?.psi_taskPayload?.endpoint ||
+        extendedAdditionalData?.endpoint
+      console.log('🔍 Approve - Endpoint:', endpoint)
+
+      if (!endpoint) {
+        console.warn('⚠️ No endpoint found, using dispatchProcessContinueEvent fallback')
+        // Fallback to dispatchProcessContinueEvent if no endpoint
+        dispatchProcessContinueEvent('pse_submit', {
+          approval: 'APPROVED',
+          approvalNote: comment || '',
+          event: 'pse_submit'
+        })
+        setSuccessMessage('Absence request approved successfully!')
+        return
+      }
+
+      // Extract userId from JWT token
+      let userId = ''
+      try {
+        const tokenParts = accessToken.split('.')
+        if (tokenParts.length === 3) {
+          const tokenPayload = JSON.parse(atob(tokenParts[1]))
+          userId = tokenPayload.sub || ''
+        }
+      } catch {
+        // Ignore token parsing errors
+      }
+
+      // Build completion endpoint - match useKogitoProcess logic exactly
+      const kogitoBaseUrl = env('NEXT_PUBLIC_NEWWORK_PLATFORM_API_URL') || 'https://newwork-dev.newwork.com'
+      let completionEndpoint = ''
+
+      // Parse the endpoint to ensure it's a proper URL (same as useKogitoProcess)
+      if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) {
+        // Full URL provided - use the pathname only
+        const parsedUrl = new URL(endpoint)
+        completionEndpoint = parsedUrl.pathname
+      } else {
+        // Relative path provided - use as is
+        completionEndpoint = endpoint
+      }
+
+      // Ensure the endpoint starts with /
+      if (!completionEndpoint.startsWith('/')) {
+        completionEndpoint = `/${completionEndpoint}`
+      }
+
+      // Build full URL
+      completionEndpoint = `${kogitoBaseUrl}${completionEndpoint}`
+
+      const fullUrl = `${completionEndpoint}?phase=complete${userId ? `&user=${userId}` : ''}`
+      console.log('🔍 Approve - Full URL:', fullUrl)
+
+      // Call Kogito API directly
+      const response = await fetch(fullUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({
+          approval: 'APPROVED',
+          approvalNote: comment || '',
+          event: 'pse_submit'
+        })
       })
 
-      setSuccessMessage('Special leave request approved successfully!')
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('❌ Approve - Error response:', errorText)
+        throw new Error(`HTTP ${response.status}: ${errorText}`)
+      }
+
+      const result = await response.json()
+      console.log('✅ Approve - Success:', result)
+
+      setSuccessMessage('Absence request approved successfully!')
+
+      // Dispatch process completion event to refresh the task list
+      window.dispatchEvent(
+        new CustomEvent('com.newwork.process.processCompletion', {
+          detail: { resolution: 'success' }
+        })
+      )
 
       // Allow time for user to see success message before closing
       setTimeout(() => {
-        // Platform will handle closing the modal
+        if (onClose) {
+          onClose()
+        }
+        if (onTaskUpdated) {
+          onTaskUpdated()
+        }
       }, 1500)
     } catch (err) {
+      console.error('❌ Approve - Error:', err)
       const errorMsg = err instanceof Error ? err.message : 'Failed to approve'
       setErrorMessage(`Failed to approve: ${errorMsg}`)
     } finally {
@@ -348,20 +454,114 @@ const ApproveEmployeeSpecialLeaveV2: React.FC<ApproveEmployeeSpecialLeaveV2Props
     setSuccessMessage(null)
 
     try {
-      // Dispatch process continue event
-      dispatchProcessContinueEvent('pse_submit', {
+      // Extract endpoint from processMetadata or additionalData
+      const endpoint =
+        processMetadata?.endpoint ||
+        extendedAdditionalData?.psi_taskPayload?.endpoint ||
+        extendedAdditionalData?.endpoint
+      console.log('🔍 Reject - Endpoint:', endpoint)
+      console.log('🔍 Reject - ProcessMetadata:', processMetadata)
+      console.log('🔍 Reject - AdditionalData:', additionalData)
+
+      if (!endpoint) {
+        console.warn('⚠️ No endpoint found, using dispatchProcessContinueEvent fallback')
+        // Fallback to dispatchProcessContinueEvent if no endpoint
+        dispatchProcessContinueEvent('pse_submit', {
+          approval: 'REJECTED',
+          approvalNote: comment,
+          event: 'pse_submit'
+        })
+        setSuccessMessage('Absence request rejected successfully!')
+        return
+      }
+
+      // Extract userId from JWT token
+      let userId = ''
+      try {
+        const tokenParts = accessToken.split('.')
+        if (tokenParts.length === 3) {
+          const tokenPayload = JSON.parse(atob(tokenParts[1]))
+          userId = tokenPayload.sub || ''
+        }
+      } catch {
+        // Ignore token parsing errors
+      }
+
+      // Build completion endpoint - match useKogitoProcess logic exactly
+      const kogitoBaseUrl = env('NEXT_PUBLIC_NEWWORK_PLATFORM_API_URL') || 'https://newwork-dev.newwork.com'
+      let completionEndpoint = ''
+
+      // Parse the endpoint to ensure it's a proper URL (same as useKogitoProcess)
+      if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) {
+        // Full URL provided - use the pathname only
+        const parsedUrl = new URL(endpoint)
+        completionEndpoint = parsedUrl.pathname
+      } else {
+        // Relative path provided - use as is
+        completionEndpoint = endpoint
+      }
+
+      // Ensure the endpoint starts with /
+      if (!completionEndpoint.startsWith('/')) {
+        completionEndpoint = `/${completionEndpoint}`
+      }
+
+      // Build full URL
+      completionEndpoint = `${kogitoBaseUrl}${completionEndpoint}`
+
+      const fullUrl = `${completionEndpoint}?phase=complete${userId ? `&user=${userId}` : ''}`
+      console.log('🔍 Reject - Full URL:', fullUrl)
+      console.log('🔍 Reject - Payload:', {
         approval: 'REJECTED',
         approvalNote: comment,
         event: 'pse_submit'
       })
 
-      setSuccessMessage('Special leave request rejected successfully!')
+      // Call Kogito API directly
+      const response = await fetch(fullUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({
+          approval: 'REJECTED',
+          approvalNote: comment,
+          event: 'pse_submit'
+        })
+      })
+
+      console.log('🔍 Reject - Response status:', response.status)
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('❌ Reject - Error response:', errorText)
+        throw new Error(`HTTP ${response.status}: ${errorText}`)
+      }
+
+      const result = await response.json()
+      console.log('✅ Reject - Success:', result)
+
+      setSuccessMessage('Absence request rejected successfully!')
+
+      // Dispatch process completion event to refresh the task list
+      window.dispatchEvent(
+        new CustomEvent('com.newwork.process.processCompletion', {
+          detail: { resolution: 'success' }
+        })
+      )
 
       // Allow time for user to see success message before closing
       setTimeout(() => {
-        // Platform will handle closing the modal
+        if (onClose) {
+          onClose()
+        }
+        if (onTaskUpdated) {
+          onTaskUpdated()
+        }
       }, 1500)
     } catch (err) {
+      console.error('❌ Reject - Error:', err)
       const errorMsg = err instanceof Error ? err.message : 'Failed to reject'
       setErrorMessage(`Failed to reject: ${errorMsg}`)
     } finally {
@@ -387,30 +587,21 @@ const ApproveEmployeeSpecialLeaveV2: React.FC<ApproveEmployeeSpecialLeaveV2Props
 
   return (
     <TaskFormLayout
-      data-testid="approve-employee-special-leave-v2"
+      data-testid="approve-employee-vacation"
       header={
         <TaskDetailHeader
           title={taskTitle}
           status={taskStatus}
           source={taskSource}
           showEmployeeInfo={true}
-          employeeData={
-            employeeData
-              ? {
-                  displayName: employeeData.displayName,
-                  firstName: employeeData.firstName,
-                  lastName: employeeData.lastName,
-                  avatarUrl: employeeData.avatarUrl,
-                  position: employeeData.position
-                }
-              : undefined
-          }
-          isLoadingEmployee={isLoadingEmployee}
+          employeeId={employeeAbsence?.employeeId}
+          accessToken={accessToken}
           creatorName={creatorName}
           onClose={isEveryBoxContext ? handleClose : undefined}
         />
       }
       footer={
+        // Action Footer - Only show when task is not completed
         isTaskCompleted ? undefined : (
           <TaskDetailFooter
             data-testid="action-footer"
@@ -452,11 +643,11 @@ const ApproveEmployeeSpecialLeaveV2: React.FC<ApproveEmployeeSpecialLeaveV2Props
         </Alert>
       )}
 
-      {/* Special Leave Request Details */}
+      {/* Vacation Request Details */}
       {employeeAbsence && typeof employeeAbsence === 'object' && (
         <>
-          <div data-testid="special-leave-details-section">
-            <h4 className="gba:font-semibold gba:mb-4 gba:text-lg">Special Leave Request Details</h4>
+          <div data-testid="vacation-details-section">
+            <h4 className="gba:font-semibold gba:mb-4 gba:text-lg">Vacation Request Details</h4>
             <div className="gba:bg-muted gba:p-4 gba:rounded-lg gba:space-y-3">
               {/* Type */}
               {absenceTypeName && (
@@ -499,14 +690,14 @@ const ApproveEmployeeSpecialLeaveV2: React.FC<ApproveEmployeeSpecialLeaveV2Props
                 </div>
               )}
 
-              {/* Reason - Only show if there is a reason */}
-              {employeeAbsence.reason?.trim() && (
+              {/* Remaining Balance (not for business trips) */}
+              {employeeAbsence.balance !== undefined && !isBusinessTrip && (
                 <div className="gba:flex gba:items-start gba:gap-3">
                   <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                    Reason:
+                    Remaining Balance:
                   </span>
-                  <span className="gba:text-sm gba:flex-1 gba:text-muted-foreground">
-                    {employeeAbsence.reason.trim()}
+                  <span className="gba:text-sm gba:flex-1 gba:font-medium gba:text-success">
+                    {employeeAbsence.balance} days
                   </span>
                 </div>
               )}
@@ -616,14 +807,27 @@ const ApproveEmployeeSpecialLeaveV2: React.FC<ApproveEmployeeSpecialLeaveV2Props
                     </div>
                   )}
 
-                  {/* Comment - Only show if there is a comment */}
-                  {approvalNote?.trim() && (
-                    <div className="gba:flex gba:items-start gba:gap-3">
-                      <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                        Comment:
-                      </span>
-                      <span className="gba:text-sm gba:flex-1 gba:text-muted-foreground">{approvalNote.trim()}</span>
-                    </div>
+                  {/* Comment - Show if there is a comment (regardless of status), or always show for rejected status */}
+                  {(approvalNote?.trim() ||
+                    approvalStatus === 'REJECTED' ||
+                    approvalStatus === 'REJECTED_BY_MANAGER' ||
+                    approvalStatus === 'REJECTED_BY_HR') && (
+                    <>
+                      {approvalDate && <Separator />}
+                      <div className="gba:flex gba:items-start gba:gap-3">
+                        <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
+                          Comment:
+                        </span>
+                        <span className="gba:text-sm gba:flex-1 gba:text-muted-foreground gba:whitespace-pre-wrap">
+                          {approvalNote?.trim() ||
+                            (approvalStatus === 'REJECTED' ||
+                            approvalStatus === 'REJECTED_BY_MANAGER' ||
+                            approvalStatus === 'REJECTED_BY_HR'
+                              ? 'No comment provided'
+                              : '')}
+                        </span>
+                      </div>
+                    </>
                   )}
                 </div>
               </div>
@@ -690,4 +894,4 @@ const ApproveEmployeeSpecialLeaveV2: React.FC<ApproveEmployeeSpecialLeaveV2Props
   )
 }
 
-export default ApproveEmployeeSpecialLeaveV2
+export default ApproveEmployeeVacation

@@ -11,7 +11,7 @@
  * 3. Specify either a local component path (for local development) or CDN path
  *
  * Examples:
- * - Override by task ID: { taskId: '123', componentPath: 'hr/absences/forms/approve-employee-vacation-v2/ApproveEmployeeVacationV2' }
+ * - Override by task ID: { taskId: '123', componentPath: 'hr/absences/forms/approve-employee-vacation/ApproveEmployeeVacation' }
  * - Override by screen key: { screenKey: 'frm_approveEmployeeVacationApproveEmployeeVacation', componentPath: '...' }
  * - Override by process: { processName: 'approveEmployeeVacation', taskName: 'ApproveEmployeeVacation', componentPath: '...' }
  */
@@ -28,8 +28,8 @@ export interface DevScreenOverride {
   taskName?: string
 
   // Component path - can be:
-  // 1. Local path: 'hr/absences/forms/approve-employee-vacation-v2/ApproveEmployeeVacationV2'
-  // 2. CDN path: 'hr/absences/forms/approve-employee-vacation-v2/ApproveEmployeeVacationV2' (will use CDN)
+  // 1. Local path: 'hr/absences/forms/approve-employee-vacation/ApproveEmployeeVacation'
+  // 2. CDN path: 'hr/absences/forms/approve-employee-vacation/ApproveEmployeeVacation' (will use CDN)
   componentPath: string
 
   // Optional: version for CDN (if not specified, uses 'latest' or no version)
@@ -56,40 +56,40 @@ export const ENABLE_DEV_SCREEN_OVERRIDES = true
 export const DEV_SCREEN_OVERRIDES: DevScreenOverride[] = [
   // Approve Employee Vacation - NATIVE_SCREEN override
   // Override by screen key (most reliable)
-  {
-    screenKey: 'frm_approveEmployeeVacationApproveEmployeeVacation',
-    componentPath: 'hr/absences/forms/approve-employee-vacation-v2',
-    builderType: 'NATIVE_SCREEN'
-  },
+  //{
+  //screenKey: 'frm_approveEmployeeVacationApproveEmployeeVacation',
+  //componentPath: 'hr/absences/forms/approve-employee-vacation',
+  //builderType: 'NATIVE_SCREEN'
+  //},
 
   // Approve Employee Work Leave - NATIVE_SCREEN override
-  {
-    screenKey: 'frm_approveEmployeeWorkLeaveApproveEmployeeWorkLeave',
-    componentPath: 'hr/absences/forms/approve-employee-work-leave-v2',
-    builderType: 'NATIVE_SCREEN'
-  },
+  //{
+  //screenKey: 'frm_approveEmployeeWorkLeaveApproveEmployeeWorkLeave',
+  //componentPath: 'hr/absences/forms/approve-employee-work-leave',
+  //builderType: 'NATIVE_SCREEN'
+  //},
 
   // Acknowledge Employee Sick Leave Manager - NATIVE_SCREEN override
   // Override LOWCODER screen sa NATIVE_SCREEN formom
-  {
-    screenKey: 'frm_acknowledgeSickLeaveAcknowledgeSickLeaveManager',
-    componentPath: 'hr/absences/forms/acknowledge-employee-sick-leave-manager-v2',
-    builderType: 'NATIVE_SCREEN'
-  },
+  //{
+  //screenKey: 'frm_acknowledgeSickLeaveAcknowledgeSickLeaveManager',
+  //componentPath: 'hr/absences/forms/acknowledge-employee-sick-leave-manager',
+  //builderType: 'NATIVE_SCREEN'
+  //},
 
   // Acknowledge Employee Sick Leave HR - NATIVE_SCREEN override
-  {
-    screenKey: 'frm_acknowledgeSickLeaveAcknowledgeSickLeaveHR',
-    componentPath: 'hr/absences/forms/acknowledge-employee-sick-leave-HR-v2',
-    builderType: 'NATIVE_SCREEN'
-  },
+  //{
+  //screenKey: 'frm_acknowledgeSickLeaveAcknowledgeSickLeaveHR',
+  //componentPath: 'hr/absences/forms/acknowledge-employee-sick-leave-HR',
+  //builderType: 'NATIVE_SCREEN'
+  //},
 
   // Acknowledge Employee Vacation HR - NATIVE_SCREEN override
-  {
-    screenKey: 'frm_acknowledgeVacationAcknowledgeVacation',
-    componentPath: 'hr/absences/forms/acknowledge-employee-vacation-HR-v2',
-    builderType: 'NATIVE_SCREEN'
-  },
+  //{
+  //screenKey: 'frm_acknowledgeVacationAcknowledgeVacation',
+  //componentPath: 'hr/absences/forms/acknowledge-employee-vacation',
+  //builderType: 'NATIVE_SCREEN'
+  //},
 
   // Approve Feedback - NATIVE_SCREEN override
   {
@@ -99,18 +99,18 @@ export const DEV_SCREEN_OVERRIDES: DevScreenOverride[] = [
   },
 
   // Approve Employee Special Leave - NATIVE_SCREEN override
-  {
-    screenKey: 'frm_approveEmployeeSpecialLeaveApproveEmployeeSpecialLeave',
-    componentPath: 'hr/absences/forms/approve-employee-special-leave-v2',
-    builderType: 'NATIVE_SCREEN'
-  },
+  //{
+  //screenKey: 'frm_approveEmployeeSpecialLeaveApproveEmployeeSpecialLeave',
+  //componentPath: 'hr/absences/forms/approve-employee-special-leave',
+  //builderType: 'NATIVE_SCREEN'
+  //},
 
   // Acknowledge Employee Special Leave - NATIVE_SCREEN override
-  {
-    screenKey: 'frm_acknowledgeSpecialLeaveAcknowledgeSpecialLeave',
-    componentPath: 'hr/absences/forms/acknowledge-employee-special-leave-v2',
-    builderType: 'NATIVE_SCREEN'
-  },
+  //{
+  //screenKey: 'frm_acknowledgeSpecialLeaveAcknowledgeSpecialLeave',
+  //componentPath: 'hr/absences/forms/acknowledge-employee-special-leave',
+  //builderType: 'NATIVE_SCREEN'
+  //},
 
   // Approve Expense Request V2 - NATIVE_SCREEN override
   {

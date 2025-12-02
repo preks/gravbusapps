@@ -1,7 +1,7 @@
 /**
- * ApproveEmployeeWorkLeaveV2 Component
+ * ApproveEmployeeWorkLeave Component
  * Standalone form for approving employee work leave requests from Kogito processes
- * Based on ApproveEmployeeVacationV2 with adapted UI for work leave approval
+ * Based on ApproveEmployeeVacation with adapted UI for work leave approval
  */
 
 import React, { useState, useEffect, useMemo, useRef } from 'react'
@@ -9,7 +9,7 @@ import { Separator, Textarea, Switch, Label, Spinner, Alert } from '@newwork/nw-
 import { ThumbsUp, XCircle, MessageSquare, CheckCircle, AlertCircle } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
-import { useVacationApprovalData } from '../approve-employee-vacation-v2/hooks/useVacationApprovalData'
+import { useVacationApprovalData } from '../approve-employee-vacation/hooks/useVacationApprovalData'
 import { TeamAbsenceCalendar } from '@/business-apps/core/every/apps/every-box/components/TeamAbsenceCalendar'
 import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/components/TaskDetailHeader'
 import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
@@ -64,12 +64,12 @@ const formatWorkingDaysAndHours = (workingDays?: number, workingHours?: number):
   return parts.join('')
 }
 
-interface ApproveEmployeeWorkLeaveV2Props extends BusinessAppContextProps {
+interface ApproveEmployeeWorkLeaveProps extends BusinessAppContextProps {
   // Additional props from task payload
   onClose?: () => void // Optional callback to close the modal
 }
 
-const ApproveEmployeeWorkLeaveV2: React.FC<ApproveEmployeeWorkLeaveV2Props> = ({
+const ApproveEmployeeWorkLeave: React.FC<ApproveEmployeeWorkLeaveProps> = ({
   accessToken,
   additionalData,
   userInfo,
@@ -387,7 +387,7 @@ const ApproveEmployeeWorkLeaveV2: React.FC<ApproveEmployeeWorkLeaveV2Props> = ({
 
   return (
     <TaskFormLayout
-      data-testid="approve-employee-work-leave-v2"
+      data-testid="approve-employee-work-leave"
       header={
         <TaskDetailHeader
           title={taskTitle}
@@ -678,4 +678,4 @@ const ApproveEmployeeWorkLeaveV2: React.FC<ApproveEmployeeWorkLeaveV2Props> = ({
   )
 }
 
-export default ApproveEmployeeWorkLeaveV2
+export default ApproveEmployeeWorkLeave

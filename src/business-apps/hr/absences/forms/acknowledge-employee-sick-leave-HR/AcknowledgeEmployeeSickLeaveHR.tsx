@@ -1,22 +1,21 @@
 /**
- * AcknowledgeEmployeeSpecialLeaveV2 Component
- * Standalone form for HR team to acknowledge already-approved employee special leave requests
- * Based on AcknowledgeEmployeeVacationHRV2 with adapted UI for special leave acknowledgment
+ * AcknowledgeEmployeeSickLeaveHR Component
+ * Standalone form for acknowledging employee sick leave requests by HR team
+ * Based on AcknowledgeEmployeeSickLeaveManager with adapted UI for HR acknowledgment
  */
 
 import React, { useState } from 'react'
 import { Separator, Spinner, Alert } from '@newwork/nw-design-system'
-import { CheckCircle, AlertCircle } from 'lucide-react'
+import { CheckCircle } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
-import { useVacationApprovalData } from '../approve-employee-vacation-v2/hooks/useVacationApprovalData'
+import { useVacationApprovalData } from '../approve-employee-vacation/hooks/useVacationApprovalData'
 import { TeamAbsenceCalendar } from '@/business-apps/core/every/apps/every-box/components/TeamAbsenceCalendar'
 import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/components/TaskDetailHeader'
 import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
 import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
 import { formatDateTime } from '@/business-apps/core/every/apps/every-box/utils/taskFormatters'
 import { useEntityDates } from '@/common/data/common/hooks/useEntityDates'
-import { useApproverData } from '@/common/data/employee/hooks/useApproverData'
 import dayjs from 'dayjs'
 
 /**
@@ -41,12 +40,12 @@ const formatWorkingDaysAndHours = (workingDays?: number, workingHours?: number):
   return parts.join('')
 }
 
-interface AcknowledgeEmployeeSpecialLeaveV2Props extends BusinessAppContextProps {
+interface AcknowledgeEmployeeSickLeaveHRProps extends BusinessAppContextProps {
   // Additional props from task payload
   onClose?: () => void // Optional callback to close the modal
 }
 
-const AcknowledgeEmployeeSpecialLeaveV2: React.FC<AcknowledgeEmployeeSpecialLeaveV2Props> = ({
+const AcknowledgeEmployeeSickLeaveHR: React.FC<AcknowledgeEmployeeSickLeaveHRProps> = ({
   accessToken,
   additionalData,
   userInfo,
@@ -67,7 +66,14 @@ const AcknowledgeEmployeeSpecialLeaveV2: React.FC<AcknowledgeEmployeeSpecialLeav
   const isTaskCompleted = taskStatus === 'COMPLETED'
 
   // Get task title from process metadata or use default
-  const taskTitle = processMetadata?.referenceTaskName || processMetadata?.nodeName || 'Acknowledge Special Leave (HR)'
+  const taskTitle = processMetadata?.referenceTaskName || processMetadata?.nodeName || 'Acknowledge Sick Leave'
+
+  // Use generic hooks for entity dates (request created)
+  const { createdAt: requestCreatedAt, isLoading: isLoadingRequestDate } = useEntityDates({
+    accessToken,
+    entityId: employeeAbsence?.id,
+    entityType: 'EmployeeAbsence'
+  })
 
   // Get task source from process metadata (fallback to 'kogito' if not available)
   const taskSource: 'kogito' | 'cflow' = processMetadata?.source || 'kogito'
@@ -87,30 +93,8 @@ const AcknowledgeEmployeeSpecialLeaveV2: React.FC<AcknowledgeEmployeeSpecialLeav
     absenceTypeRef: employeeAbsence?.typeRef
   })
 
-  // Get supervisor ID for TeamAbsenceCalendar
+  // Get supervisor ID for TeamAbsenceCalendar (HR can view team calendar)
   const supervisorId = userInfo?.employeeDetails?.employeeId
-
-  // Extract approval data from employeeAbsence (already approved)
-  const approvalStatus = employeeAbsence?.status || null
-  const approvalNote = employeeAbsence?.approvalNote || null
-  const approverId = employeeAbsence?.approverId || null
-  const absenceId = employeeAbsence?.id
-
-  // Use generic hooks for approver name and entity dates
-  const { approverName, isLoading: isLoadingApprover } = useApproverData({
-    accessToken,
-    approverId
-  })
-
-  const {
-    createdAt: requestCreatedAt,
-    updatedAt: approvalDate,
-    isLoading: isLoadingDates
-  } = useEntityDates({
-    accessToken,
-    entityId: absenceId,
-    entityType: 'EmployeeAbsence'
-  })
 
   const handleAcknowledge = async () => {
     setIsAcknowledging(true)
@@ -123,7 +107,7 @@ const AcknowledgeEmployeeSpecialLeaveV2: React.FC<AcknowledgeEmployeeSpecialLeav
         event: 'pse_submit'
       })
 
-      setSuccessMessage('Special leave acknowledged successfully!')
+      setSuccessMessage('Sick leave acknowledged successfully!')
 
       // Allow time for user to see success message before closing
       setTimeout(() => {
@@ -158,7 +142,7 @@ const AcknowledgeEmployeeSpecialLeaveV2: React.FC<AcknowledgeEmployeeSpecialLeav
 
   return (
     <TaskFormLayout
-      data-testid="acknowledge-employee-special-leave-v2"
+      data-testid="acknowledge-employee-sick-leave-hr"
       header={
         <TaskDetailHeader
           title={taskTitle}
@@ -289,7 +273,7 @@ const AcknowledgeEmployeeSpecialLeaveV2: React.FC<AcknowledgeEmployeeSpecialLeav
                   <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
                     Description:
                   </span>
-                  <span className="gba:text-sm gba:flex-1 gba:text-muted-foreground gba:whitespace-pre-wrap">
+                  <span className="gba:text-sm gba:flex-1 gba:text-muted-foreground">
                     {employeeAbsence.description.trim()}
                   </span>
                 </div>
@@ -302,87 +286,9 @@ const AcknowledgeEmployeeSpecialLeaveV2: React.FC<AcknowledgeEmployeeSpecialLeav
                     Request Created:
                   </span>
                   <span className="gba:text-sm gba:flex-1">
-                    {isLoadingDates ? <Spinner size="sm" /> : formatDateTime(requestCreatedAt)}
+                    {isLoadingRequestDate ? <Spinner size="sm" /> : formatDateTime(requestCreatedAt)}
                   </span>
                 </div>
-              )}
-            </div>
-          </div>
-          <Separator />
-        </>
-      )}
-
-      {/* Approval Details Section - Show who approved and when */}
-      {approvalStatus && (
-        <>
-          <div data-testid="approval-details-section">
-            <h4 className="gba:font-semibold gba:mb-4 gba:text-lg">Approval Details</h4>
-            <div className="gba:bg-muted gba:p-4 gba:rounded-lg gba:space-y-3">
-              {/* Status */}
-              <div className="gba:flex gba:items-start gba:gap-3">
-                <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">Status:</span>
-                <span
-                  className={`gba:text-sm gba:flex-1 gba:font-medium ${
-                    approvalStatus === 'APPROVED' ||
-                    approvalStatus === 'APPROVED_BY_MANAGER' ||
-                    approvalStatus === 'APPROVED_BY_HR'
-                      ? 'gba:text-success'
-                      : 'gba:text-destructive'
-                  }`}
-                >
-                  {approvalStatus === 'APPROVED' ||
-                  approvalStatus === 'APPROVED_BY_MANAGER' ||
-                  approvalStatus === 'APPROVED_BY_HR' ? (
-                    <span className="gba:flex gba:items-center gba:gap-2">
-                      <CheckCircle className="gba:h-4 gba:w-4" />
-                      Approved
-                    </span>
-                  ) : (
-                    <span className="gba:flex gba:items-center gba:gap-2">
-                      <AlertCircle className="gba:h-4 gba:w-4" />
-                      {approvalStatus}
-                    </span>
-                  )}
-                </span>
-              </div>
-
-              {/* Approver Name - Show if available */}
-              {(approverId || approverName) && (
-                <div className="gba:flex gba:items-start gba:gap-3">
-                  <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                    Approved By:
-                  </span>
-                  <span className="gba:text-sm gba:flex-1">
-                    {isLoadingApprover ? <Spinner size="sm" /> : approverName || 'Unknown'}
-                  </span>
-                </div>
-              )}
-
-              {/* Approval Date - Show when available */}
-              {approvalDate && (
-                <div className="gba:flex gba:items-start gba:gap-3">
-                  <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                    Approval Date:
-                  </span>
-                  <span className="gba:text-sm gba:flex-1">
-                    {isLoadingDates ? <Spinner size="sm" /> : formatDateTime(approvalDate)}
-                  </span>
-                </div>
-              )}
-
-              {/* Comment - Show if there is a comment */}
-              {approvalNote?.trim() && (
-                <>
-                  <Separator />
-                  <div className="gba:flex gba:items-start gba:gap-3">
-                    <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                      Comment:
-                    </span>
-                    <span className="gba:text-sm gba:flex-1 gba:text-muted-foreground gba:whitespace-pre-wrap">
-                      {approvalNote.trim()}
-                    </span>
-                  </div>
-                </>
               )}
             </div>
           </div>
@@ -403,7 +309,7 @@ const AcknowledgeEmployeeSpecialLeaveV2: React.FC<AcknowledgeEmployeeSpecialLeav
               employeeName: employeeData?.displayName || creatorName || 'Unknown',
               position: employeeData?.position || undefined,
               type: absenceTypeName,
-              status: approvalStatus || 'APPROVED'
+              status: 'PENDING_APPROVAL'
             }}
           />
           <Separator />
@@ -413,4 +319,4 @@ const AcknowledgeEmployeeSpecialLeaveV2: React.FC<AcknowledgeEmployeeSpecialLeav
   )
 }
 
-export default AcknowledgeEmployeeSpecialLeaveV2
+export default AcknowledgeEmployeeSickLeaveHR

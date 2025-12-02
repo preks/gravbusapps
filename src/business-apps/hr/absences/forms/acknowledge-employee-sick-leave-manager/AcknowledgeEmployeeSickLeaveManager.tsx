@@ -1,7 +1,7 @@
 /**
- * AcknowledgeEmployeeSickLeaveManagerV2 Component
+ * AcknowledgeEmployeeSickLeaveManager Component
  * Standalone form for acknowledging employee sick leave requests from Kogito processes
- * Based on ApproveEmployeeVacationV2 with adapted UI for sick leave acknowledgment
+ * Based on ApproveEmployeeVacation with adapted UI for sick leave acknowledgment
  */
 
 import React, { useState } from 'react'
@@ -9,7 +9,7 @@ import { Separator, Spinner, Alert } from '@newwork/nw-design-system'
 import { CheckCircle } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
-import { useVacationApprovalData } from '../approve-employee-vacation-v2/hooks/useVacationApprovalData'
+import { useVacationApprovalData } from '../approve-employee-vacation/hooks/useVacationApprovalData'
 import { TeamAbsenceCalendar } from '@/business-apps/core/every/apps/every-box/components/TeamAbsenceCalendar'
 import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/components/TaskDetailHeader'
 import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
@@ -40,12 +40,12 @@ const formatWorkingDaysAndHours = (workingDays?: number, workingHours?: number):
   return parts.join('')
 }
 
-interface AcknowledgeEmployeeSickLeaveManagerV2Props extends BusinessAppContextProps {
+interface AcknowledgeEmployeeSickLeaveManagerProps extends BusinessAppContextProps {
   // Additional props from task payload
   onClose?: () => void // Optional callback to close the modal
 }
 
-const AcknowledgeEmployeeSickLeaveManagerV2: React.FC<AcknowledgeEmployeeSickLeaveManagerV2Props> = ({
+const AcknowledgeEmployeeSickLeaveManager: React.FC<AcknowledgeEmployeeSickLeaveManagerProps> = ({
   accessToken,
   additionalData,
   userInfo,
@@ -142,7 +142,7 @@ const AcknowledgeEmployeeSickLeaveManagerV2: React.FC<AcknowledgeEmployeeSickLea
 
   return (
     <TaskFormLayout
-      data-testid="acknowledge-employee-sick-leave-manager-v2"
+      data-testid="acknowledge-employee-sick-leave-manager"
       header={
         <TaskDetailHeader
           title={taskTitle}
@@ -319,4 +319,4 @@ const AcknowledgeEmployeeSickLeaveManagerV2: React.FC<AcknowledgeEmployeeSickLea
   )
 }
 
-export default AcknowledgeEmployeeSickLeaveManagerV2
+export default AcknowledgeEmployeeSickLeaveManager
