@@ -50,11 +50,13 @@ const formatDate = (date: Date): string => {
 }
 
 const formatTime = (date: Date): string => {
-  return date.toLocaleTimeString(undefined, {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true
-  })
+  // Use getHours()/getMinutes() to ensure consistency with calendar position calculations
+  const hours = date.getHours()
+  const minutes = date.getMinutes()
+  const period = hours >= 12 ? 'PM' : 'AM'
+  const hour12 = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours
+  const minuteStr = minutes.toString().padStart(2, '0')
+  return `${hour12}:${minuteStr} ${period}`
 }
 
 const getStatusBadge = (status: MeetingStatus) => {
