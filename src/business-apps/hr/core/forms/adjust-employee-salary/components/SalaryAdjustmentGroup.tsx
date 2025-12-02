@@ -8,6 +8,22 @@ import SalaryCalculatorInputs from './SalaryCalculatorInputs'
 import SalaryCalculationVisualization from './SalaryCalculationVisualization'
 import SalaryAdjustmentFields from './SalaryAdjustmentFields'
 
+export interface SalaryAdjustReasonEntry {
+  id: string
+  code: string
+  value: string
+  displayOrder: number | null
+  translations: Array<{
+    localeCode: string
+    value: string
+  }>
+  catalog: {
+    identifier: string
+    version: string
+    defaultLocale: string
+  }
+}
+
 export interface SalaryAdjustmentGroupProps {
   control: Control<AdjustEmployeeSalaryFormValues>
   currentSalaryAnnual: number
@@ -15,6 +31,7 @@ export interface SalaryAdjustmentGroupProps {
   currentSalaryHourly: number | null
   currentCurrency: CatalogEntry | null
   locale: string
+  salaryAdjustReasonEntries?: SalaryAdjustReasonEntry[]
 }
 
 const SalaryAdjustmentGroup: React.FC<SalaryAdjustmentGroupProps> = ({
@@ -23,7 +40,8 @@ const SalaryAdjustmentGroup: React.FC<SalaryAdjustmentGroupProps> = ({
   currentSalaryMonthly,
   currentSalaryHourly,
   currentCurrency,
-  locale
+  locale,
+  salaryAdjustReasonEntries
 }) => {
   // Watch form values
   const adjustmentFrequency = useWatch({ control, name: 'adjustmentFrequency' }) || 'annually'
@@ -63,7 +81,7 @@ const SalaryAdjustmentGroup: React.FC<SalaryAdjustmentGroupProps> = ({
       />
 
       {/* Other Form Fields */}
-      <SalaryAdjustmentFields control={control} />
+      <SalaryAdjustmentFields control={control} salaryAdjustReasonEntries={salaryAdjustReasonEntries} />
     </div>
   )
 }

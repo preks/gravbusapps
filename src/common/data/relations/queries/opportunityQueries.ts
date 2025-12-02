@@ -365,6 +365,7 @@ export const buildOpportunityWhereCondition = (
   if (descriptors.length === 0) {
     throw new Error('Query Descriptor is missing')
   }
+
   return buildWhere({
     variables,
     descriptors,

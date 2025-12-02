@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Card, CardContent, Spinner } from '@newwork/nw-design-system'
 import { KanbanBoard, KanbanItem, KanbanStage } from '@/components/kanban-board'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -6,6 +6,11 @@ import { useGenericPipelineStages } from '@/components/kanban-board/hooks/useGen
 import { startProcess } from '@/common/utils/start-process'
 import { FileText } from 'lucide-react'
 import type { GenericOpportunityForBoard, OpportunityBoardConfig } from '../config/opportunityBoardTypes'
+import { OpportunityDetailSheet } from '@/common/components/common-relations/detail-sheets/opportunity-detail-sheet'
+
+// Click detection thresholds
+const CLICK_TIMEOUT_MS = 300 // Maximum duration for a click (vs drag)
+const DRAG_THRESHOLD_PX = 5 // Maximum movement distance for a click (vs drag)
 
 export interface OpportunityBoardLayoutProps<T extends GenericOpportunityForBoard> extends BusinessAppContextProps {
   // Configuration
@@ -50,6 +55,14 @@ export function OpportunityBoardLayout<T extends GenericOpportunityForBoard>(
   // Track recent process starts to prevent duplicates
   const [recentProcessStarts, setRecentProcessStarts] = useState<Set<string>>(new Set())
 
+  // State for detail sheet
+  const [selectedOpportunity, setSelectedOpportunity] = useState<T | null>(null)
+  const [isDetailSheetOpen, setIsDetailSheetOpen] = useState(false)
+
+  // Track mouse down time and position for click detection
+  const mouseDownTime = useRef<number>(0)
+  const mouseDownPos = useRef<{ x: number; y: number }>({ x: 0, y: 0 })
+
   // Load stages for selected pipeline
   const { stages, isLoading: isLoadingStages } = useGenericPipelineStages(
     accessToken,
@@ -81,6 +94,12 @@ export function OpportunityBoardLayout<T extends GenericOpportunityForBoard>(
     }))
   }, [opportunities, getOpportunityStageId])
 
+  // Handle card click to open detail sheet
+  const handleCardClick = useCallback((opp: T) => {
+    setSelectedOpportunity(opp)
+    setIsDetailSheetOpen(true)
+  }, [])
+
   // Default card renderer if none provided
   const defaultRenderCard = useCallback(
     (item: KanbanItem) => {
@@ -97,19 +116,64 @@ export function OpportunityBoardLayout<T extends GenericOpportunityForBoard>(
           }).format(amount)
 
       return (
-        <div
-          className="gba:bg-white gba:dark:bg-gray-800 gba:rounded-md gba:shadow-sm gba:border gba:border-gray-200 gba:dark:border-gray-700 gba:p-3"
+        <button
+          type="button"
+          className="gba:bg-white gba:dark:bg-gray-800 gba:rounded-md gba:shadow-sm gba:border gba:border-gray-200 gba:dark:border-gray-700 gba:p-3 gba:cursor-pointer gba:hover:shadow-md gba:transition-shadow gba:w-full gba:text-left"
           data-testid={`opportunity-card-${opp.id}`}
+          onClick={e => {
+            e.stopPropagation()
+            handleCardClick(opp)
+          }}
         >
           <h4 className="gba:font-medium gba:text-sm gba:line-clamp-2 gba:mb-2">{opp.name || 'Unnamed Opportunity'}</h4>
           <p className="gba:text-xs gba:text-gray-500 gba:dark:text-gray-400 gba:line-clamp-1">
             {opp.account?.name || '-'}
           </p>
           <div className="gba:mt-2 gba:font-bold gba:text-sm">{formattedAmount}</div>
-        </div>
+        </button>
       )
     },
-    [config.formatCurrency]
+    [config.formatCurrency, handleCardClick]
+  )
+
+  // Wrapped card renderer that adds click handling to any card (custom or default)
+  const wrappedRenderCard = useCallback(
+    (item: KanbanItem) => {
+      const opp = item.opportunityData as T
+      const cardContent = renderCard ? renderCard(opp) : defaultRenderCard(item)
+
+      // If using custom renderCard, wrap it with click handler
+      // We use onMouseDown + onMouseUp with timing to distinguish clicks from drags
+      if (renderCard) {
+        return (
+          <button
+            type="button"
+            className="gba:cursor-pointer gba:hover:opacity-90 gba:transition-opacity gba:w-full gba:bg-transparent gba:border-none gba:p-0 gba:font-inherit gba:text-inherit gba:text-left"
+            onMouseDown={e => {
+              mouseDownTime.current = Date.now()
+              mouseDownPos.current = { x: e.clientX, y: e.clientY }
+            }}
+            onMouseUp={e => {
+              const timeDiff = Date.now() - mouseDownTime.current
+              const dx = Math.abs(e.clientX - mouseDownPos.current.x)
+              const dy = Math.abs(e.clientY - mouseDownPos.current.y)
+
+              // If quick click and minimal movement, treat as click (not drag)
+              if (timeDiff < CLICK_TIMEOUT_MS && dx < DRAG_THRESHOLD_PX && dy < DRAG_THRESHOLD_PX) {
+                e.stopPropagation()
+                handleCardClick(opp)
+              }
+            }}
+          >
+            {cardContent}
+          </button>
+        )
+      }
+
+      // Default card already has click handler built in
+      return cardContent
+    },
+    [renderCard, defaultRenderCard, handleCardClick]
   )
 
   // Custom stage header with totals
@@ -265,11 +329,19 @@ export function OpportunityBoardLayout<T extends GenericOpportunityForBoard>(
         stages={stages}
         items={kanbanItems}
         onDragEnd={handleDragEnd}
-        renderCard={renderCard ? item => renderCard(item.opportunityData as T) : defaultRenderCard}
+        renderCard={wrappedRenderCard}
         renderStageHeader={renderStageHeader}
         loading={isLoading}
         allowReorderWithinStage={false}
         className="gba:w-full"
+      />
+
+      {/* Opportunity Detail Sheet */}
+      <OpportunityDetailSheet
+        opportunity={selectedOpportunity as any}
+        open={isDetailSheetOpen}
+        onOpenChange={setIsDetailSheetOpen}
+        data-testid="opportunity-board-detail-sheet"
       />
     </div>
   )

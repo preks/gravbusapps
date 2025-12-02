@@ -2,6 +2,7 @@ import React, { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCustomerOpportunities } from '@/common/data/customer/hooks/useCustomerOpportunities'
 import { OpportunityLayout } from '@/common/components/common-relations/view-layouts/opportunity-layout'
+import { OpportunityStatisticsLayout } from '@/common/components/common-relations/view-layouts/opportunity-layout/components/OpportunityStatisticsLayout'
 import { createOpportunityConfig } from '@/common/components/common-relations/view-layouts/opportunity-layout/utils/opportunityConfigBuilder'
 import type { CustomerOpportunity } from '@/common/data/customer/types/customerOpportunityTypes'
 import type { CustomerOpportunityQueryVariables } from '@/common/data/customer/queries/customerOpportunityQueries'
@@ -36,6 +37,30 @@ const CustomerOpportunityStatistics: React.FC<{
   )
 }
 
+// Separate component to properly use hooks with currency filtering
+const CustomerOpportunityStatistics: React.FC<{
+  context: BusinessAppContextProps
+  selectedCurrency?: string // Full currency ID like "Currency:v1:EUR" or undefined
+}> = ({ context, selectedCurrency }) => {
+  const opportunityStatistics = useCustomerOpportunityStatistics(context, selectedCurrency)
+
+  if (!opportunityStatistics.trendData) return null
+
+  return (
+    <OpportunityStatisticsLayout
+      statistics={{
+        recentOpportunities: opportunityStatistics.trendData.recentOpportunities,
+        totalOpportunities: opportunityStatistics.trendData.totalOpportunities,
+        winRate: opportunityStatistics.trendData.winRate,
+        opportunitiesThisYear: opportunityStatistics.trendData.opportunitiesThisYear,
+        isLoading: opportunityStatistics.isLoading,
+        error: opportunityStatistics.error,
+        refetch: () => void opportunityStatistics.refetch()
+      }}
+    />
+  )
+}
+
 export type OpportunityViewProps = BusinessAppContextProps
 
 export const OpportunityView: React.FC<OpportunityViewProps> = context => {
@@ -47,9 +72,7 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
         contextType: 'customer',
 
         extendQueryVariables: vars => ({
-          ...vars,
-          // Filter for OPEN status only on kanban board
-          opportunityStatusIds: ['SalesOpportunityStatus:v1:OPEN']
+          ...vars
         }),
 
         fetchOpportunities: async variables => {

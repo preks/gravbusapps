@@ -1,11 +1,17 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EMPLOYEE_COMPENSATION_DATA } from '../queries/compensationQueries'
-import { CompensationData, EmployeeBonus, EmployeeBenefit } from '../types/compensationTypes'
+import {
+  CompensationData,
+  EmployeeBonus,
+  EmployeeBenefit,
+  EmployeeSalary,
+  EmployeeSalaryResponse
+} from '../types/compensationTypes'
 import { isCompensationStatusActive, isBenefitActive } from '../types/compensationEnums'
 import {
   transformCompensationBand,
-  transformWorkingConditionToCompensation,
+  transformEmployeeSalaryToCompensation,
   transformBonus,
   transformBenefit
 } from '../utils/compensationTransformers'
@@ -14,10 +20,16 @@ import {
  * Hook to fetch and manage current employee compensation data
  *
  * Fetches:
- * - Current salary from EmployeeWorkingCondition
+ * - Current salary from EmployeeSalary (active salary, or most recent as fallback)
  * - Compensation band from CompensationBand via EmployeePosition
  * - Current year bonuses from EmployeeBonus
  * - Active benefits from EmployeeBenefit
+ *
+ * Salary selection logic:
+ * 1. Filters out deleted records (isDeleted = false)
+ * 2. Finds active salary where activeFrom <= now AND activeTo >= now (or null)
+ * 3. Falls back to most recent salary if no active salary found
+ * 4. Returns null if no salaries exist (UI will show "No active salary configured")
  *
  * @param employeeId - The employee ID to fetch data for
  * @param accessToken - Access token for API authentication
@@ -48,7 +60,7 @@ export const useCurrentCompensation = (employeeId: string, accessToken: string) 
       setError(null)
 
       // Fetch current compensation data from GraphQL
-      const result = await graphqlClient.request<any>(GET_EMPLOYEE_COMPENSATION_DATA, {
+      const result = await graphqlClient.request<EmployeeSalaryResponse>(GET_EMPLOYEE_COMPENSATION_DATA, {
         employeeId
       })
 
@@ -57,12 +69,41 @@ export const useCurrentCompensation = (employeeId: string, accessToken: string) 
         throw new Error('No data received from server')
       }
 
-      // Extract and transform working condition
-      const workingCondition = result?.EmployeeWorkingCondition?.[0]
+      // Get all employee salaries from EmployeeSalary table
+      const allEmployeeSalaries: EmployeeSalary[] = result?.AllEmployeeSalaries || []
 
-      if (!workingCondition) {
-        console.warn('No working condition found for employee:', employeeId)
-      }
+      // Filter out deleted records client-side
+      const nonDeletedSalaries = allEmployeeSalaries.filter(salary => !salary.isDeleted)
+
+      // Current timestamp for active salary filtering
+      const nowDate = new Date()
+
+      // Find active salary: activeFrom <= now AND activeTo >= now (or null)
+      const activeSalary = nonDeletedSalaries.find(salary => {
+        const activeFrom = salary.activeFrom ? new Date(salary.activeFrom) : null
+        const activeTo = salary.activeTo ? new Date(salary.activeTo) : null
+
+        // Null activeFrom means always valid from beginning
+        // Null activeTo means never expires
+        const isActiveFrom = !activeFrom || activeFrom <= nowDate
+        const isActiveTo = !activeTo || activeTo >= nowDate
+
+        return isActiveFrom && isActiveTo
+      })
+
+      // Sort by activeFrom descending (most recent first), handling null dates
+      // Creating a copy with spread operator before sorting to avoid mutating nonDeletedSalaries
+      const sortedSalaries = [...nonDeletedSalaries].sort((a, b) => {
+        const dateA = a.activeFrom ? new Date(a.activeFrom).getTime() : 0
+        const dateB = b.activeFrom ? new Date(b.activeFrom).getTime() : 0
+        return dateB - dateA
+      })
+
+      // Fallback: Most recent salary (even if expired)
+      const recentSalary = sortedSalaries[0] || null
+
+      // Prefer active salary, fallback to most recent
+      const employeeSalary: EmployeeSalary | null = activeSalary || recentSalary || null
 
       // Extract and transform compensation band
       const employeePosition = result?.EmployeePosition?.[0]
@@ -70,8 +111,8 @@ export const useCurrentCompensation = (employeeId: string, accessToken: string) 
       const compensationBandData = jobLevel?.compensationBand
       const compensationBand = transformCompensationBand(compensationBandData)
 
-      // Transform working condition to current compensation
-      const currentCompensation = transformWorkingConditionToCompensation(workingCondition, compensationBand)
+      // Transform employee salary to current compensation
+      const currentCompensation = transformEmployeeSalaryToCompensation(employeeSalary, compensationBand)
 
       // Transform bonuses
       const bonuses = (result?.EmployeeBonus || []).map(transformBonus)
@@ -81,12 +122,12 @@ export const useCurrentCompensation = (employeeId: string, accessToken: string) 
 
       // Calculate total bonuses for current year (YTD)
       const currentYear = new Date().getFullYear()
-      const totalBonusesYTD = bonuses
-        .filter((bonus: EmployeeBonus) => {
-          const bonusYear = new Date(bonus.paymentDate).getFullYear()
-          return bonusYear === currentYear && isCompensationStatusActive(bonus.status)
-        })
-        .reduce((sum: number, bonus: EmployeeBonus) => sum + bonus.amount, 0)
+      const activeBonuses = bonuses.filter((bonus: EmployeeBonus) => {
+        const bonusYear = new Date(bonus.paymentDate).getFullYear()
+        return bonusYear === currentYear && isCompensationStatusActive(bonus.status)
+      })
+      const totalBonusesYTD = activeBonuses.reduce((sum: number, bonus: EmployeeBonus) => sum + bonus.amount, 0)
+      const activeBonusesCount = activeBonuses.length
 
       // Count active benefits
       const activeBenefitsCount = benefits.filter((benefit: EmployeeBenefit) =>
@@ -97,6 +138,7 @@ export const useCurrentCompensation = (employeeId: string, accessToken: string) 
       setData({
         currentCompensation,
         totalBonusesYTD,
+        activeBonusesCount,
         activeBenefitsCount,
         bonuses,
         benefits

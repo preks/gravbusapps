@@ -1,17 +1,9 @@
 import React from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import {
-  useTranslation,
-  Skeleton,
-  FormAccordion,
-  FormAccordionItem,
-  FormAccordionTrigger,
-  FormAccordionContent
-} from '@newwork/nw-design-system'
+import { useTranslation, Skeleton, FormSection } from '@newwork/nw-design-system'
 import { ContactInformationSegment } from '../../form-segments/contact-information-segment'
 import { ContactDetailsSegment } from '../../form-segments/contact-details-segment'
-import { AddressSegment } from '../../form-segments/address-segment'
-import { CommunicationSegment } from '../../form-segments/communication-segment'
+import { CommunicationSegment, DEFAULT_CONTACT_CHANNELS } from '../../form-segments/communication-segment'
 import translations from './_i18n'
 
 interface ContactLayoutProps {
@@ -36,12 +28,10 @@ interface ContactLayoutProps {
   contactInformationCustomFields?: React.ReactNode
   // Custom fields injection for ContactDetailsSegment
   contactDetailsCustomFields?: React.ReactNode
-  // Custom fields injection for AddressSegment
-  addressCustomFields?: React.ReactNode
   // Custom fields injection for CommunicationSegment
   communicationCustomFields?: React.ReactNode
 
-  // Custom segments to add to the FormAccordion (after standard segments)
+  // Custom segments to add after standard segments
   customSegments?: Array<{
     id: string
     title: string
@@ -62,7 +52,6 @@ const ContactLayout: React.FC<ContactLayoutProps> = ({
   useAccounts,
   contactInformationCustomFields,
   contactDetailsCustomFields,
-  addressCustomFields,
   communicationCustomFields,
   customSegments = [],
   avatarFileRef,
@@ -89,7 +78,7 @@ const ContactLayout: React.FC<ContactLayoutProps> = ({
           <Skeleton className="gba:h-10 gba:w-full" />
           <Skeleton className="gba:h-32 gba:w-full" />
         </div>
-        {/* FormAccordion Skeleton */}
+        {/* FormSection Skeleton */}
         <div className="gba:space-y-2">
           <Skeleton className="gba:h-12 gba:w-full" />
           <Skeleton className="gba:h-12 gba:w-full" />
@@ -111,33 +100,18 @@ const ContactLayout: React.FC<ContactLayoutProps> = ({
         avatarFileRef={avatarFileRef}
       />
 
-      {/* Other Segments in FormAccordion */}
-      <FormAccordion type="multiple" className="gba:w-full" data-testid="contact-layout-FormAccordion">
-        <FormAccordionItem value="personal-information">
-          <FormAccordionTrigger>{t('personal-title')}</FormAccordionTrigger>
-          <FormAccordionContent>
-            <ContactDetailsSegment customFields={contactDetailsCustomFields} />
-          </FormAccordionContent>
-        </FormAccordionItem>
-        <FormAccordionItem value="communication-channels">
-          <FormAccordionTrigger>{t('communication-title')}</FormAccordionTrigger>
-          <FormAccordionContent>
-            <CommunicationSegment customFields={communicationCustomFields} />
-          </FormAccordionContent>
-        </FormAccordionItem>
-        <FormAccordionItem value="address-information">
-          <FormAccordionTrigger>{t('address-title')}</FormAccordionTrigger>
-          <FormAccordionContent>
-            <AddressSegment customFields={addressCustomFields} />
-          </FormAccordionContent>
-        </FormAccordionItem>
-        {customSegments.map(segment => (
-          <FormAccordionItem key={segment.id} value={segment.id}>
-            <FormAccordionTrigger>{segment.title}</FormAccordionTrigger>
-            <FormAccordionContent>{segment.content}</FormAccordionContent>
-          </FormAccordionItem>
-        ))}
-      </FormAccordion>
+      {/* Other Segments */}
+      <FormSection title={t('personal-title')} value="personal-information">
+        <ContactDetailsSegment customFields={contactDetailsCustomFields} />
+      </FormSection>
+      <FormSection title={t('communication-title')} value="communication-channels">
+        <CommunicationSegment customFields={communicationCustomFields} defaultChannelCodes={DEFAULT_CONTACT_CHANNELS} />
+      </FormSection>
+      {customSegments.map(segment => (
+        <FormSection key={segment.id} title={segment.title} value={segment.id}>
+          {segment.content}
+        </FormSection>
+      ))}
     </div>
   )
 }

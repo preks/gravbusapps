@@ -22,13 +22,30 @@ adjust-salary-adjustment-value-positive = Valoarea trebuie să fie pozitivă
 adjust-salary-currency-required = Moneda este obligatorie. Vă rugăm să selectați o monedă.
 adjust-salary-effective-date-required = Data efectivă este obligatorie. Vă rugăm să selectați o dată efectivă.
 adjust-salary-reason-required = Motivul este obligatoriu. Vă rugăm să selectați un motiv.
-adjust-salary-frequency = Frecvență plată
-adjust-salary-frequency-required = Frecvența este obligatorie. Vă rugăm să selectați o frecvență.
+adjust-salary-frequency = Tip ajustare salariu
+adjust-salary-frequency-required = Tipul ajustării salariului este obligatoriu. Vă rugăm să selectați un tip de ajustare salariu.
 adjust-salary-frequency-annually = Anual
 adjust-salary-frequency-monthly = Lunar
 adjust-salary-frequency-hourly = Pe oră
 adjust-salary-current-salary = Salariu curent
 adjust-salary-calculation-breakdown = Rezumat ajustare salariu
+
+# Adjust Employee Salary Review Form
+adjust-salary-review-title = Revizuire ajustare salariu pentru { $employeeName }
+adjust-salary-review-initiated-by = Inițiat de { $initiatorName }
+adjust-salary-review-salary-comparison = Comparație salariu
+adjust-salary-review-current-salary = Salariu curent
+adjust-salary-review-new-salary = Salariu nou
+adjust-salary-review-adjustment-details = Detalii ajustare
+adjust-salary-review-total-increase = Creștere totală
+adjust-salary-review-effective-date = Dată efectivă
+adjust-salary-review-reason = Motiv
+adjust-salary-review-notes = Note
+adjust-salary-review-acknowledge = Confirmă
+adjust-salary-review-reject = Respinge
+adjust-salary-review-annual-gross-salary = Salariu brut anual
+adjust-salary-review-monthly-gross-salary = Salariu brut lunar
+adjust-salary-review-hourly-gross-salary = Salariu brut pe oră
 
 # Common Actions
 action-select-placeholder = Vă rugăm să selectați
@@ -51,18 +68,43 @@ placeholder-enter = Vă rugăm să introduceți
 field-bonus-type = Tipul bonusului
 field-amount = Sumă
 field-currency = Monedă
-field-payment-date = Data plății
+field-payment-month = Luna plății
 field-fiscal-year = Anul fiscal
-field-description = Descriere
 field-notes = Note
 
 # Validation Messages
 validation-bonus-type-required = Tipul bonusului este obligatoriu. Vă rugăm să selectați un tip de bonus.
 validation-amount-required = Suma este obligatorie. Vă rugăm să introduceți suma bonusului.
 validation-amount-positive = Suma trebuie să fie mai mare decât zero.
-validation-currency-required = Moneda este obligatorie. Vă rugăm să selectați o monedă.
-validation-payment-date-required = Data plății este obligatorie. Vă rugăm să selectați o dată de plată.
-validation-payment-date-invalid = Vă rugăm să introduceți o dată de plată validă.
+validation-payment-month-required = Luna plății este obligatorie. Vă rugăm să selectați o lună de plată.
+validation-payment-month-invalid = Vă rugăm să selectați o lună de plată validă.
 validation-fiscal-year-required = Anul fiscal este obligatoriu. Vă rugăm să introduceți anul fiscal.
 validation-fiscal-year-range = Anul fiscal trebuie să fie între {$minYear} și {$maxYear}.
 
+# Month Names
+month-january = Ianuarie
+month-february = Februarie
+month-march = Martie
+month-april = Aprilie
+month-may = Mai
+month-june = Iunie
+month-july = Iulie
+month-august = August
+month-september = Septembrie
+month-october = Octombrie
+month-november = Noiembrie
+month-december = Decembrie
+
+# Grant Employee Bonus Review Form
+grant-bonus-review-title = Revizuire bonus pentru { $employeeName }
+grant-bonus-review-initiated-by = Inițiat de { $initiatorName }
+grant-bonus-review-bonus-details = Detalii bonus
+grant-bonus-review-bonus-type = Tipul bonusului
+grant-bonus-review-amount = Sumă
+grant-bonus-review-payment-month = Luna plății
+grant-bonus-review-fiscal-year = Anul fiscal
+grant-bonus-review-additional-info = Informații suplimentare
+grant-bonus-review-description = Descriere
+grant-bonus-review-notes = Note
+grant-bonus-review-acknowledge = Confirmă
+grant-bonus-review-reject = Respinge

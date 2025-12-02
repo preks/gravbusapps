@@ -75,7 +75,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
             component: AccountSection,
             props: {
               ...props,
-              accounts: contact?.accountContacts?.map(ac => ac.account).filter(Boolean) || [],
+              accounts:
+                contact?.accountContacts
+                  ?.map(ac => ({
+                    ...ac.account,
+                    contactType: ac.contactType
+                  }))
+                  .filter(Boolean) || [],
               accountId: contact?.accountContacts?.[0]?.account?.id,
               recordUrl: contact?.accountContacts?.[0]?.account?.id
                 ? buildPlatformUrl('/platform/crm/account-record', {

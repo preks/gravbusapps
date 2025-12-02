@@ -420,4 +420,7 @@ hr-pagination-prev-page-sr = Go to previous page
 hr-pagination-next-page-sr = Go to next page
 hr-pagination-last-page-sr = Go to last page
 
+#Picture
+employee-edit-picture = EDIT PICTURE
+
 

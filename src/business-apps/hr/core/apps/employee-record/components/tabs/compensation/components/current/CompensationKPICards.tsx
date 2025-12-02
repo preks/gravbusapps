@@ -3,7 +3,7 @@
 import React from 'react'
 import { Card } from '@newwork/nw-design-system'
 import { CompensationData } from '../../types/compensationTypes'
-import { PiCurrencyEur, PiGift, PiHeartbeat, PiPencilSimple } from 'react-icons/pi'
+import { PiCurrencyEur, PiGift, PiHeartbeat } from 'react-icons/pi'
 import { formatCurrencyString } from '@/common/utils/numberFormatter'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -34,7 +34,7 @@ const CompensationKPICards: React.FC<CompensationKPICardsProps> = ({
   hasPermissionToAdjustSalary,
   hasPermissionToGrantBonus
 }) => {
-  const { currentCompensation, totalBonusesYTD, activeBenefitsCount, bonuses } = compensationData
+  const { currentCompensation, totalBonusesYTD, activeBonusesCount, activeBenefitsCount } = compensationData
 
   const currencyCode = currentCompensation?.currency?.code || 'EUR'
 
@@ -68,11 +68,11 @@ const CompensationKPICards: React.FC<CompensationKPICardsProps> = ({
     <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4">
       {/* Base Salary Card */}
       <Card className="gba:p-6 gba:relative" data-testid="compensation-base-salary-card">
-        {/* Show pencil icon only if user has permission to adjust salary (managers/HR admins) */}
+        {/* Show pencil icon only for managers/HR admins (permission already excludes self-view) */}
         {hasPermissionToAdjustSalary && (
           <div className="gba:absolute gba:top-4 gba:right-4">
             <AppAction
-              mode="trigger"
+              variant="update-secondary"
               contexts={[
                 {
                   context: FlowContextName.adjustEmployeeSalary,
@@ -81,14 +81,8 @@ const CompensationKPICards: React.FC<CompensationKPICardsProps> = ({
               ]}
               prefixDataTestId="adjust-employee-salary-action"
               accessToken={accessToken}
-              emptyState="enable"
-              lazyLoad={true}
-            >
-              <PiPencilSimple
-                className="gba:w-4 gba:h-4 gba:text-muted-foreground hover:gba:text-primary gba:cursor-pointer"
-                data-testid="adjust-employee-salary-action-button"
-              />
-            </AppAction>
+              data-testid="adjust-employee-salary-action-button"
+            />
           </div>
         )}
         <div className="gba:min-h-[120px]">
@@ -130,12 +124,14 @@ const CompensationKPICards: React.FC<CompensationKPICardsProps> = ({
                 )}
               </>
             ) : (
-              <div className="gba:text-3xl gba:font-bold gba:text-foreground">-</div>
+              <div className="gba:text-3xl gba:font-bold gba:text-foreground">
+                {t('no-salary-record', 'No salary record')}
+              </div>
             )}
           </div>
         </div>
         {/* Icon container - fixed position at bottom right of card */}
-        <div className="gba:absolute gba:bottom-6 gba:right-6">
+        <div className="gba:absolute gba:bottom-4 gba:right-4">
           <div className="gba:p-3 gba:rounded-lg gba:bg-muted">
             <PiCurrencyEur className="gba:w-6 gba:h-6 gba:text-primary" />
           </div>
@@ -144,10 +140,11 @@ const CompensationKPICards: React.FC<CompensationKPICardsProps> = ({
 
       {/* Total Bonuses Card */}
       <Card className="gba:p-6 gba:relative" data-testid="compensation-bonuses-card">
-        {/* Show pencil icon only if user has permission to grant bonuses (managers/HR admins) */}
+        {/* Show pencil icon only for managers/HR admins (permission already excludes self-view) */}
         {hasPermissionToGrantBonus && (
           <div className="gba:absolute gba:top-4 gba:right-4">
             <AppAction
+              variant="update-secondary"
               contexts={[
                 {
                   context: FlowContextName.grantEmployeeBonus,
@@ -158,14 +155,8 @@ const CompensationKPICards: React.FC<CompensationKPICardsProps> = ({
               ]}
               prefixDataTestId="grant-employee-bonus-action"
               accessToken={accessToken}
-              emptyState="enable"
-              lazyLoad
-            >
-              <PiPencilSimple
-                className="gba:w-4 gba:h-4 gba:text-muted-foreground hover:gba:text-primary gba:cursor-pointer"
-                data-testid="grant-employee-bonus-action-button"
-              />
-            </AppAction>
+              data-testid="grant-employee-bonus-action-button"
+            />
           </div>
         )}
         <div className="gba:min-h-[120px]">
@@ -182,12 +173,12 @@ const CompensationKPICards: React.FC<CompensationKPICardsProps> = ({
                   })}
             </div>
             <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-              {bonuses.length} {bonuses.length === 1 ? t('current-bonus') : t('current-bonuses')}
+              {activeBonusesCount} {activeBonusesCount === 1 ? t('current-bonus') : t('current-bonuses')}
             </div>
           </div>
         </div>
         {/* Icon container - fixed position at bottom right of card */}
-        <div className="gba:absolute gba:bottom-6 gba:right-6">
+        <div className="gba:absolute gba:bottom-4 gba:right-4">
           <div className="gba:p-3 gba:rounded-lg gba:bg-muted">
             <PiGift className="gba:w-6 gba:h-6 gba:text-primary" />
           </div>
@@ -204,7 +195,7 @@ const CompensationKPICards: React.FC<CompensationKPICardsProps> = ({
           </div>
         </div>
         {/* Icon container - fixed position at bottom right of card */}
-        <div className="gba:absolute gba:bottom-6 gba:right-6">
+        <div className="gba:absolute gba:bottom-4 gba:right-4">
           <div className="gba:p-3 gba:rounded-lg gba:bg-muted">
             <PiHeartbeat className="gba:w-6 gba:h-6 gba:text-primary" />
           </div>

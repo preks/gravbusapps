@@ -68,7 +68,7 @@ export interface ActivitiesStatisticsProps extends BusinessAppContextProps {
 export interface ActivitiesTableProps {
   employeeId: string
   accessToken: string
-  userInfo?: any // Add userInfo for proper createdBy filtering
+  userInfo?: any
   onTotalChange?: (total: number) => void
 }
 
