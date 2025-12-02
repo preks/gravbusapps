@@ -13,37 +13,45 @@ interface UseBottomPerformersResult {
 // Sales Associate capability name for filtering
 const SALES_ASSOCIATE_CAPABILITY = 'Sales Associate'
 
-// Build query using central EMPLOYEE_REF fragment - filtered to Sales Associate capability
-const buildBottomPerformersQuery = (selectedCurrencyId?: string): string => {
+// Query to get all employees with Sales Associate capability
+const buildSalesAssociateEmployeesQuery = (): string => `
+  query GetSalesAssociateEmployees {
+    Employee(
+      where: {
+        isDeleted: {_eq: false}
+        employeePosition: {
+          employeeCapabilities: {
+            capability: {
+              name: {_eq: "${SALES_ASSOCIATE_CAPABILITY}"}
+            }
+          }
+        }
+      }
+    ) {
+      ${EMPLOYEE_REF}
+    }
+  }
+`
+
+// Query to get WON opportunities for specific employees
+const buildOpportunitiesForEmployeesQuery = (selectedCurrencyId?: string): string => {
   const currencyFilter = selectedCurrencyId ? `currencyRef: {_eq: "${selectedCurrencyId}"}` : ''
   const baseWhere = `isDeleted: {_eq: false}${currencyFilter ? '\n        ' + currencyFilter : ''}`
 
   return `
-  query GetBottomPerformers {
+  query GetWonOpportunitiesForEmployees($employeeIds: [uuid!]!) {
     Opportunity(
       where: {
         ${baseWhere}
         opportunityStatus: {code: {_eq: "WON"}}
-        ownerEmployeeId: {_isNull: false}
+        ownerEmployeeId: {_in: $employeeIds}
         estimatedAmount: {_isNull: false}
-        ownerEmployee: {
-          employeePosition: {
-            employeeCapabilities: {
-              capability: {
-                name: {_eq: "${SALES_ASSOCIATE_CAPABILITY}"}
-              }
-            }
-          }
-        }
       }
     ) {
       id
       estimatedAmount
       currencyRef
       ownerEmployeeId
-      ownerEmployee {
-        ${EMPLOYEE_REF}
-      }
     }
   }
 `
@@ -64,18 +72,18 @@ interface EmployeeRef {
   }>
 }
 
-interface OpportunityWithEmployee {
+interface OpportunityData {
   id: string
   estimatedAmount: number
   currencyRef: string
   ownerEmployeeId: string
-  ownerEmployee: EmployeeRef
 }
 
 /**
  * Hook to fetch bottom 5 individual performers (employees) by revenue generated
- * These are employees that need attention - lowest revenue
+ * These are employees that need attention - lowest revenue (including €0)
  * Revenue is calculated from opportunities with status WON
+ * Includes ALL Sales Associate employees, even those with no WON opportunities
  *
  * @param accessToken - The access token for API authentication
  * @param limit - Maximum number of performers to return
@@ -102,34 +110,40 @@ export const useBottomPerformers = (
     setError(null)
 
     try {
-      const query = buildBottomPerformersQuery(selectedCurrencyId)
+      // Step 1: Get all Sales Associate employees
+      const employeesQuery = buildSalesAssociateEmployeesQuery()
+      const employeesResult = await graphqlClient.request<{
+        Employee: EmployeeRef[]
+      }>(employeesQuery)
 
-      const result = await graphqlClient.request<{
-        Opportunity: OpportunityWithEmployee[]
-      }>(query)
+      const employees = employeesResult.Employee || []
 
-      const opportunities = result.Opportunity || []
+      if (employees.length === 0) {
+        setBottomPerformers([])
+        setIsLoading(false)
+        return
+      }
 
-      // Aggregate by employee
-      const performerMap = new Map<string, TopPerformer>()
+      // Step 2: Get WON opportunities for these employees
+      const employeeIds = employees.map(emp => emp.id)
+      const opportunitiesQuery = buildOpportunitiesForEmployeesQuery(selectedCurrencyId)
+      const opportunitiesResult = await graphqlClient.request<{
+        Opportunity: OpportunityData[]
+      }>(opportunitiesQuery, { employeeIds })
 
+      const opportunities = opportunitiesResult.Opportunity || []
+
+      // Create a map of employee revenue
+      const employeeRevenue = new Map<string, { revenue: number; dealsWon: number; currencyCode: string }>()
       opportunities.forEach(opp => {
-        const employee = opp.ownerEmployee
-        if (!employee) return
-
-        const existing = performerMap.get(employee.id)
+        const existing = employeeRevenue.get(opp.ownerEmployeeId)
         const currencyCode = opp.currencyRef?.split(':').pop() || 'EUR'
 
         if (existing) {
           existing.revenue += opp.estimatedAmount
           existing.dealsWon += 1
         } else {
-          performerMap.set(employee.id, {
-            id: employee.id,
-            name: employee.fullName || `${employee.firstName} ${employee.lastName}`,
-            displayName: employee.displayName || employee.fullName || `${employee.firstName} ${employee.lastName}`,
-            picture: employee.picture || undefined,
-            pictureThumbnail: employee.pictureThumbnail || undefined,
+          employeeRevenue.set(opp.ownerEmployeeId, {
             revenue: opp.estimatedAmount,
             dealsWon: 1,
             currencyCode
@@ -137,10 +151,25 @@ export const useBottomPerformers = (
         }
       })
 
+      // Build performer list including ALL employees (even €0 revenue)
+      const defaultCurrencyCode = selectedCurrencyId?.split(':').pop() || 'EUR'
+      const allPerformers: TopPerformer[] = employees.map(employee => {
+        const revenueData = employeeRevenue.get(employee.id)
+
+        return {
+          id: employee.id,
+          name: employee.fullName || `${employee.firstName} ${employee.lastName}`,
+          displayName: employee.displayName || employee.fullName || `${employee.firstName} ${employee.lastName}`,
+          picture: employee.picture || undefined,
+          pictureThumbnail: employee.pictureThumbnail || undefined,
+          revenue: revenueData?.revenue || 0,
+          dealsWon: revenueData?.dealsWon || 0,
+          currencyCode: revenueData?.currencyCode || defaultCurrencyCode
+        }
+      })
+
       // Sort by revenue ASCENDING (lowest first) and take bottom performers
-      const sortedPerformers = Array.from(performerMap.values())
-        .sort((a, b) => a.revenue - b.revenue)
-        .slice(0, limit)
+      const sortedPerformers = allPerformers.sort((a, b) => a.revenue - b.revenue).slice(0, limit)
 
       setBottomPerformers(sortedPerformers)
     } catch (err) {

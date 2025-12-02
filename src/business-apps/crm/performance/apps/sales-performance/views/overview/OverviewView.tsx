@@ -145,20 +145,36 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ accessToken }) => {
     refetch: refetchTeams
   } = useTopTeams(accessToken, 5, selectedCurrencyId)
 
-  // Fetch bottom performers (needs attention)
+  // Fetch bottom performers (needs attention) - fetch more to account for filtering
   const {
-    bottomPerformers,
+    bottomPerformers: rawBottomPerformers,
     isLoading: bottomPerformersLoading,
     error: bottomPerformersError,
     refetch: refetchBottomPerformers
-  } = useBottomPerformers(accessToken, 5, selectedCurrencyId)
+  } = useBottomPerformers(accessToken, 10, selectedCurrencyId)
 
   const {
-    bottomTeams,
+    bottomTeams: rawBottomTeams,
     isLoading: bottomTeamsLoading,
     error: bottomTeamsError,
     refetch: refetchBottomTeams
-  } = useBottomTeams(accessToken, 5, selectedCurrencyId)
+  } = useBottomTeams(accessToken, 10, selectedCurrencyId)
+
+  // Filter out top performers/teams from the "needs attention" lists
+  // This ensures the same person/team doesn't appear in both sections
+  const topPerformerIds = useMemo(() => new Set(topPerformers.map(p => p.id)), [topPerformers])
+
+  const topTeamIds = useMemo(() => new Set(topTeams.map(t => t.id)), [topTeams])
+
+  const filteredBottomPerformers = useMemo(
+    () => rawBottomPerformers.filter(p => !topPerformerIds.has(p.id)).slice(0, 5),
+    [rawBottomPerformers, topPerformerIds]
+  )
+
+  const filteredBottomTeams = useMemo(
+    () => rawBottomTeams.filter(t => !topTeamIds.has(t.id)).slice(0, 5),
+    [rawBottomTeams, topTeamIds]
+  )
 
   return (
     <div className="gba:space-y-6" data-testid={DATA_TEST_ID_PREFIX}>
@@ -233,18 +249,19 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ accessToken }) => {
       </section>
 
       {/* Needs Attention Grid - employees and teams with lowest revenue */}
+      {/* Excludes anyone who appears in Top Performers/Teams */}
       <section
         className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-2 gba:gap-6 gba:items-stretch"
         data-testid={`${DATA_TEST_ID_PREFIX}-needs-attention-section`}
       >
         <NeedsAttentionEmployeesCard
-          employees={bottomPerformers}
+          employees={filteredBottomPerformers}
           isLoading={bottomPerformersLoading}
           error={bottomPerformersError}
           onRetry={refetchBottomPerformers}
         />
         <NeedsAttentionTeamsCard
-          teams={bottomTeams}
+          teams={filteredBottomTeams}
           isLoading={bottomTeamsLoading}
           error={bottomTeamsError}
           onRetry={refetchBottomTeams}

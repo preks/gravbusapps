@@ -73,10 +73,13 @@ export const EmployeePerformanceView: React.FC<EmployeePerformanceViewProps> = (
   const headerContent = useMemo(() => {
     if (!headerData) return null
 
+    // Check if employee has a valid manager (not themselves)
+    const hasValidManager = headerData.managerName && headerData.managerId && headerData.managerId !== headerData.id
+
     return (
       <div className="gba:flex gba:items-center gba:gap-6 gba:flex-wrap gba:mt-4 gba:pl-4">
-        {/* Manager Info with Avatar */}
-        {headerData.managerName && (
+        {/* Manager Info with Avatar - only show if manager exists and is not the employee themselves */}
+        {hasValidManager && (
           <>
             <div className="gba:flex gba:items-center gba:gap-2">
               <Avatar size="sm">
@@ -86,7 +89,7 @@ export const EmployeePerformanceView: React.FC<EmployeePerformanceViewProps> = (
                     alt={headerData.managerName}
                   />
                 )}
-                <AvatarFallback className="gba:text-xs">{getManagerInitials(headerData.managerName)}</AvatarFallback>
+                <AvatarFallback className="gba:text-xs">{getManagerInitials(headerData.managerName!)}</AvatarFallback>
               </Avatar>
               <div className="gba:text-sm">
                 <div className="gba:text-xs gba:text-muted-foreground">Manager</div>
@@ -187,7 +190,12 @@ export const EmployeePerformanceView: React.FC<EmployeePerformanceViewProps> = (
           'EMPLOYEE PERFORMANCE'
         )}
         onBack={onBack}
-        headerTitle={headerData?.displayName || 'Employee Performance'}
+        headerTitle={
+          headerData?.displayName ||
+          (headerData?.firstName && headerData?.lastName
+            ? `${headerData.firstName} ${headerData.lastName}`
+            : 'Employee')
+        }
         headerMeta={headerMeta}
         headerContent={headerContent}
         subViews={subViewsConfig}
