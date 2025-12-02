@@ -221,26 +221,53 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
       const startDateTime = new Date(`${date}T${startTime}`)
       const endDateTime = new Date(`${date}T${endTime}`)
 
-      const meetingData: CreateMeetingData = {
-        title: title.trim(),
-        description: description.trim() || undefined,
-        startTime: startDateTime.toISOString(),
-        endTime: endDateTime.toISOString(),
-        location: location.trim() || undefined,
-        meetingLink: isVideoCall ? 'auto-generate' : undefined,
-        isAllDay,
-        recurrence,
-        recurrenceEndDate:
-          recurrence !== 'none' && recurrenceEndDate ? new Date(recurrenceEndDate).toISOString() : undefined,
-        color: selectedColor,
-        reminderMinutes,
-        // Use userId (keycloak ID) for the backend, fall back to id if not available
-        participantIds: selectedParticipants.map(p => p.userId || p.id)
-      }
-
       if (isEditMode && editMeeting && onUpdate) {
-        await onUpdate(editMeeting.id, meetingData)
+        // For updates, calculate which participants to add/remove
+        const currentParticipantIds = selectedParticipants.map(p => p.userId || p.id)
+        const originalParticipantIds = editMeeting.participants?.map(p => p.id) || []
+
+        // Find new participants (in current but not in original)
+        const addParticipantIds = currentParticipantIds.filter(id => !originalParticipantIds.includes(id))
+        // Find removed participants (in original but not in current)
+        const removeParticipantIds = originalParticipantIds.filter(id => !currentParticipantIds.includes(id))
+
+        const updateData = {
+          title: title.trim(),
+          description: description.trim() || undefined,
+          startTime: startDateTime.toISOString(),
+          endTime: endDateTime.toISOString(),
+          location: location.trim() || undefined,
+          meetingLink: isVideoCall ? 'auto-generate' : undefined,
+          isAllDay,
+          recurrence,
+          recurrenceEndDate:
+            recurrence !== 'none' && recurrenceEndDate ? new Date(recurrenceEndDate).toISOString() : undefined,
+          color: selectedColor,
+          reminderMinutes,
+          // For updates, use addParticipantIds and removeParticipantIds
+          ...(addParticipantIds.length > 0 && { addParticipantIds }),
+          ...(removeParticipantIds.length > 0 && { removeParticipantIds })
+        }
+
+        await onUpdate(editMeeting.id, updateData)
       } else {
+        // For create, use participantIds
+        const meetingData: CreateMeetingData = {
+          title: title.trim(),
+          description: description.trim() || undefined,
+          startTime: startDateTime.toISOString(),
+          endTime: endDateTime.toISOString(),
+          location: location.trim() || undefined,
+          meetingLink: isVideoCall ? 'auto-generate' : undefined,
+          isAllDay,
+          recurrence,
+          recurrenceEndDate:
+            recurrence !== 'none' && recurrenceEndDate ? new Date(recurrenceEndDate).toISOString() : undefined,
+          color: selectedColor,
+          reminderMinutes,
+          participantIds: selectedParticipants.map(p => p.userId || p.id)
+        }
+
         await onSubmit(meetingData)
       }
 
