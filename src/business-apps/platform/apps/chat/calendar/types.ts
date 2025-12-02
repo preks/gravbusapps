@@ -84,6 +84,8 @@ export interface EventParticipant {
   lastName?: string
   displayName?: string
   email: string
+  avatarUrl?: string
+  employeeId?: string
   status: InvitationStatus
   isOrganizer: boolean
   comment?: string
@@ -106,6 +108,8 @@ export interface CalendarEvent {
     lastName?: string
     displayName?: string
     email: string
+    avatarUrl?: string
+    employeeId?: string
   }
   participantCount: number
   acceptedCount: number

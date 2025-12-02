@@ -1,8 +1,9 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import { Alert, AlertDescription, Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { env } from '@/common/env/EnvUtils'
 import { useCalendar } from './hooks/useCalendar'
+import { useEmployeeAvatars } from '../hooks/useEmployeeAvatars'
 import { CalendarHeader, DayView, WeekView, MonthView, CreateMeetingModal, MeetingDetailModal } from './components'
 import type { CalendarEvent, Meeting, CreateMeetingData, InvitationStatus } from './types'
 
@@ -48,6 +49,72 @@ export const Calendar: React.FC<CalendarProps> = ({ accessToken, prefixDataTestI
   const [createModalInitialDate, setCreateModalInitialDate] = useState<Date | undefined>()
   const [createModalInitialHour, setCreateModalInitialHour] = useState<number | undefined>()
   const [editingMeeting, setEditingMeeting] = useState<CalendarEvent | null>(null)
+  const [enrichedSelectedEvent, setEnrichedSelectedEvent] = useState<CalendarEvent | null>(null)
+
+  // Avatar fetching hook
+  const { fetchAvatarsWithEmployeeIds } = useEmployeeAvatars(accessToken)
+
+  // Fetch avatars when selected event changes
+  useEffect(() => {
+    const enrichEventWithAvatars = async () => {
+      if (!selectedEvent || !isDetailModalOpen) {
+        setEnrichedSelectedEvent(null)
+        return
+      }
+
+      // Collect all user IDs that need avatars
+      const userIds: string[] = []
+
+      // Add organizer
+      if (selectedEvent.organizer?.id) {
+        userIds.push(selectedEvent.organizer.id)
+      }
+
+      // Add participants
+      if (selectedEvent.participants) {
+        selectedEvent.participants.forEach(p => {
+          if (p.id) userIds.push(p.id)
+        })
+      }
+
+      if (userIds.length === 0) {
+        setEnrichedSelectedEvent(selectedEvent)
+        return
+      }
+
+      try {
+        const employeeInfoMap = await fetchAvatarsWithEmployeeIds(userIds)
+
+        // Get organizer info
+        const organizerInfo = employeeInfoMap.get(selectedEvent.organizer.id)
+
+        // Enrich the event with avatar URLs and employee IDs
+        const enrichedEvent: CalendarEvent = {
+          ...selectedEvent,
+          organizer: {
+            ...selectedEvent.organizer,
+            avatarUrl: organizerInfo?.avatarUrl || selectedEvent.organizer.avatarUrl,
+            employeeId: organizerInfo?.employeeId || selectedEvent.organizer.employeeId
+          },
+          participants: selectedEvent.participants?.map(p => {
+            const participantInfo = employeeInfoMap.get(p.id)
+            return {
+              ...p,
+              avatarUrl: participantInfo?.avatarUrl || p.avatarUrl,
+              employeeId: participantInfo?.employeeId || p.employeeId
+            }
+          })
+        }
+
+        setEnrichedSelectedEvent(enrichedEvent)
+      } catch (error) {
+        console.error('Error fetching participant avatars:', error)
+        setEnrichedSelectedEvent(selectedEvent)
+      }
+    }
+
+    enrichEventWithAvatars()
+  }, [selectedEvent, isDetailModalOpen, fetchAvatarsWithEmployeeIds])
 
   // Handle event click
   const handleEventClick = useCallback(
@@ -315,12 +382,12 @@ export const Calendar: React.FC<CalendarProps> = ({ accessToken, prefixDataTestI
       />
 
       <MeetingDetailModal
-        event={selectedEvent}
+        event={enrichedSelectedEvent}
         isOpen={isDetailModalOpen}
         onClose={handleCloseDetailModal}
         onRespond={handleRespondToInvitation}
-        onEdit={selectedEvent?.isOrganizer ? handleEditMeeting : undefined}
-        onDelete={selectedEvent?.isOrganizer ? handleDeleteMeeting : undefined}
+        onEdit={enrichedSelectedEvent?.isOrganizer ? handleEditMeeting : undefined}
+        onDelete={enrichedSelectedEvent?.isOrganizer ? handleDeleteMeeting : undefined}
       />
     </div>
   )
