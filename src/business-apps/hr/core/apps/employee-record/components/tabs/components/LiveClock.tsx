@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { formatDate, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
 interface LiveClockProps {
   className?: string
@@ -14,28 +14,27 @@ export const LiveClock: React.FC<LiveClockProps> = ({ className }) => {
   useEffect(() => {
     const formatter = () => {
       const now = new Date()
-      const locale = getCurrentActiveUserLocale()
+      const formattedTime = String(formatDate(now, 'time.long') || '')
+      const formattedDate = String(formatDate(now, 'date.long') || '')
 
-      const humanTime = new Intl.DateTimeFormat(locale, {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false
-      }).format(now)
-      const dateOptions: Intl.DateTimeFormatOptions = {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: '2-digit'
-      }
-      let humanDate = new Intl.DateTimeFormat(locale, dateOptions).format(now)
-      // Some environments can still return numeric-only formats for certain locales.
-      // If no letters are present (e.g., 27.11.2025), try a locale-specific fallback.
-      if (!/[A-Za-z]/.test(humanDate)) {
-        const lc = (locale || '').toLowerCase()
-        const fallbackLocale = lc.startsWith('de') ? 'de-DE' : locale || 'en-US'
-        humanDate = new Intl.DateTimeFormat(fallbackLocale, dateOptions).format(now)
-      }
+      // If the formatter returns an ISO-like string (fallback), compose a human-friendly text locally
+      const isIsoLike = (v: string) => v.includes('T') || /^\d{4}-\d{2}-\d{2}/.test(v)
+
+      const locale = getCurrentActiveUserLocale() || navigator.language || 'en-US'
+      const use12h = String(locale).toLowerCase().startsWith('en')
+
+      const humanTime = isIsoLike(formattedTime)
+        ? now.toLocaleTimeString(undefined, {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: use12h
+          })
+        : formattedTime
+
+      const humanDate = isIsoLike(formattedDate)
+        ? now.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: '2-digit' })
+        : formattedDate
 
       setTime(humanTime)
       setDate(humanDate)

@@ -8,9 +8,6 @@ import MonthlySummary from './components/MonthlySummary'
 import SmartBooking from './components/SmartBooking'
 import History from './components/History'
 
-import { fetchOfficeAndGeoLocation } from '../../services/service-geo-location/geoLocationService'
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-
 interface TimeTrackingTabProps extends BusinessAppContextProps {
   employee: any
   employeeId: string
@@ -29,8 +26,6 @@ const TimeTrackingTab: React.FC<TimeTrackingTabProps> = ({ employee, accessToken
   const handleTabChange = (value: string) => {
     setActiveTab(value as TimeTrackingTabEnum)
   }
-
-  const graphqlClient = useGraphQLClient(accessToken)
 
   return (
     <div className="gba:time-tracking-tab gba:space-y-6" data-testid="time-tracking-tab-container">
