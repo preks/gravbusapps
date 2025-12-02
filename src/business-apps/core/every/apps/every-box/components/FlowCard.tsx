@@ -3,7 +3,7 @@
  * Individual flow card with status and progress indicators
  */
 
-import React, { memo, useMemo } from 'react'
+import React, { memo, useMemo, useState, useEffect } from 'react'
 import { Card, CardContent, Badge, Progress, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
 import { Calendar, Users, Zap, ArrowRight, FileText, DollarSign } from 'lucide-react'
 import { Flow } from '../types'
@@ -32,7 +32,7 @@ interface AssigneeAvatarProps {
 }
 
 const AssigneeAvatar: React.FC<AssigneeAvatarProps> = memo(({ userId, accessToken }) => {
-  const { employeeData } = useEmployeeAvatar(accessToken, userId)
+  const { employeeData, isLoading } = useEmployeeAvatar(accessToken, userId)
 
   const displayName = getDisplayName(employeeData?.displayName, employeeData?.firstName, employeeData?.lastName)
   const initials = getInitials(employeeData?.firstName, employeeData?.lastName)
@@ -40,13 +40,41 @@ const AssigneeAvatar: React.FC<AssigneeAvatarProps> = memo(({ userId, accessToke
     return employeeData?.pictureThumbnail ? base64ToObjectURL(employeeData.pictureThumbnail) : undefined
   }, [employeeData?.pictureThumbnail])
 
+  // Avatar image preload state to prevent initials flicker
+  const [avatarStatus, setAvatarStatus] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle')
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    if (!avatarUrl) {
+      setAvatarStatus('error')
+      return
+    }
+
+    setAvatarStatus('loading')
+
+    const img = new Image()
+    img.src = avatarUrl
+
+    const handleLoad = () => setAvatarStatus('loaded')
+    const handleError = () => setAvatarStatus('error')
+
+    img.addEventListener('load', handleLoad)
+    img.addEventListener('error', handleError)
+
+    return () => {
+      img.removeEventListener('load', handleLoad)
+      img.removeEventListener('error', handleError)
+    }
+  }, [avatarUrl])
+
+  const showAvatarImage = avatarStatus === 'loaded' && !!avatarUrl
+  const showAvatarFallback = !isLoading && (!avatarUrl || avatarStatus === 'error')
+
   return (
     <Avatar className="gba:h-6 gba:w-6 gba:border-2 gba:border-white" title={displayName}>
-      {avatarUrl ? (
-        <AvatarImage src={avatarUrl} alt={displayName} />
-      ) : (
-        <AvatarFallback className="gba:text-xs">{initials}</AvatarFallback>
-      )}
+      {showAvatarImage && <AvatarImage src={avatarUrl} alt={displayName} />}
+      {showAvatarFallback && <AvatarFallback className="gba:text-xs">{initials}</AvatarFallback>}
     </Avatar>
   )
 })

@@ -29,7 +29,7 @@
  * ```
  */
 
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { Button, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
 import { X } from 'lucide-react'
 import { getInitials } from '../utils/avatarUtils'
@@ -111,6 +111,35 @@ export const TaskDetailHeader: React.FC<TaskDetailHeaderProps> = ({
   const employeeData = manualEmployeeData || fetchedEmployeeData
   const isLoadingEmployee = manualEmployeeData ? manualIsLoadingEmployee : isFetchingEmployee
 
+  // Avatar image preload state to prevent initials flicker
+  const [avatarStatus, setAvatarStatus] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle')
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const avatarUrl = employeeData?.avatarUrl
+    if (!avatarUrl) {
+      setAvatarStatus('error')
+      return
+    }
+
+    setAvatarStatus('loading')
+
+    const img = new Image()
+    img.src = avatarUrl
+
+    const handleLoad = () => setAvatarStatus('loaded')
+    const handleError = () => setAvatarStatus('error')
+
+    img.addEventListener('load', handleLoad)
+    img.addEventListener('error', handleError)
+
+    return () => {
+      img.removeEventListener('load', handleLoad)
+      img.removeEventListener('error', handleError)
+    }
+  }, [employeeData?.avatarUrl])
+
   // Debug auto-fetch errors and data
   React.useEffect(() => {
     if (fetchError && shouldAutoFetch) {
@@ -129,6 +158,10 @@ export const TaskDetailHeader: React.FC<TaskDetailHeaderProps> = ({
 
   const shouldShowEmployee = showEmployeeInfo && (employeeData || isLoadingEmployee || creatorName)
 
+  // Determine what to show in avatar
+  const showAvatarImage = avatarStatus === 'loaded' && !!employeeData?.avatarUrl
+  const showAvatarFallback = !isLoadingEmployee && (!employeeData?.avatarUrl || avatarStatus === 'error')
+
   return (
     <div className="gba:z-40 gba:bg-card/95 gba:backdrop-blur-sm gba:border-b gba:shadow-sm gba:py-0 gba:mb-2 gba:sticky gba:top-0 gba:-mx-6 gba:w-[calc(100%+3rem)]">
       <div className="gba:px-6 gba:py-4 gba:flex gba:items-center gba:justify-between gba:gap-4">
@@ -142,12 +175,20 @@ export const TaskDetailHeader: React.FC<TaskDetailHeaderProps> = ({
               <div className="gba:h-9 gba:w-9 gba:rounded-full gba:bg-muted gba:animate-pulse gba:flex-shrink-0" />
             ) : (
               <Avatar className="gba:h-9 gba:w-9 gba:flex-shrink-0">
-                {employeeData?.avatarUrl && (
-                  <AvatarImage src={employeeData.avatarUrl} alt={employeeData.displayName || 'Employee avatar'} />
+                {/* 
+                  Avatar rendering rules:
+                  - While image is loading: show nothing (empty avatar to avoid initials flicker)
+                  - On successful load: show AvatarImage
+                  - On error or missing URL: show initials in AvatarFallback
+                */}
+                {showAvatarImage && (
+                  <AvatarImage src={employeeData?.avatarUrl} alt={employeeData?.displayName || 'Employee avatar'} />
                 )}
-                <AvatarFallback className="gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white gba:text-xs">
-                  {getAvatarInitials(employeeData, creatorName)}
-                </AvatarFallback>
+                {showAvatarFallback && (
+                  <AvatarFallback className="gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white gba:text-xs">
+                    {getAvatarInitials(employeeData, creatorName)}
+                  </AvatarFallback>
+                )}
               </Avatar>
             )}
             <div className="gba:flex-1 gba:min-w-0">

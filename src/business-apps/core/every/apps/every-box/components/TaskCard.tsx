@@ -3,7 +3,7 @@
  * Individual task card with priority badges and quick actions
  */
 
-import React, { memo } from 'react'
+import React, { memo, useEffect, useState } from 'react'
 import { Card, CardContent, Badge, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
 import { Clock, AlertTriangle, User, Zap } from 'lucide-react'
 import { UnifiedTask } from '../types'
@@ -17,6 +17,11 @@ interface TaskCardProps {
   employeeMap: Map<string, EmployeeAvatarData>
   isSelected?: boolean
   isDetailViewOpen?: boolean
+  /**
+   * Indicates whether avatar data is still being loaded in the parent hook.
+   * When true, we hide the fallback initials to avoid flicker before avatar URLs arrive.
+   */
+  areAvatarsLoading?: boolean
 }
 
 // Helper function to get due date text
@@ -34,24 +39,13 @@ const getDueDateClass = (overdue: boolean, dueSoon: boolean): string => {
 }
 
 export const TaskCard: React.FC<TaskCardProps> = memo(
-  ({ task, onView, employeeMap, isSelected = false, isDetailViewOpen = false }) => {
+  ({ task, onView, employeeMap, isSelected = false, isDetailViewOpen = false, areAvatarsLoading = false }) => {
     // Check if task is completed
     const isCompleted = task.status === 'COMPLETED' || !!task.completedAt
 
     // Only show overdue/due soon for non-completed tasks
     const overdue = !isCompleted && isOverdue(task.dueDate)
     const dueSoon = !isCompleted && isDueSoon(task.dueDate)
-
-    const getSourceBadgeText = (source: UnifiedTask['source']): string => {
-      switch (source) {
-        case 'cflow':
-          return 'CFlow'
-        case 'kogito':
-          return 'Kogito'
-        default:
-          return 'Task'
-      }
-    }
 
     // Check if this is a Blink task (quick direct task from one person to another)
     const isBlinkTask = task.source === 'cflow' && task.tags?.app === 'quick-task'
@@ -92,6 +86,43 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
     // The map contains both userId and employeeId as keys, so this works for both
     const employeeData = creatorId ? employeeMap.get(creatorId) : null
 
+    // Avatar loading state to prevent initials flicker
+    const [avatarStatus, setAvatarStatus] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle')
+
+    useEffect(() => {
+      // SSR/Node safety
+      if (typeof window === 'undefined') return
+
+      const avatarUrl = employeeData?.avatarUrl
+
+      // No avatar URL – immediately fall back to initials
+      if (!avatarUrl) {
+        setAvatarStatus('error')
+        return
+      }
+
+      setAvatarStatus('loading')
+
+      const img = new Image()
+      img.src = avatarUrl
+
+      const handleLoad = () => {
+        setAvatarStatus('loaded')
+      }
+
+      const handleError = () => {
+        setAvatarStatus('error')
+      }
+
+      img.addEventListener('load', handleLoad)
+      img.addEventListener('error', handleError)
+
+      return () => {
+        img.removeEventListener('load', handleLoad)
+        img.removeEventListener('error', handleError)
+      }
+    }, [employeeData?.avatarUrl])
+
     // Get creator name - prefer fetched data, fallback to metadata
     const creatorName = employeeData
       ? `${employeeData.firstName} ${employeeData.lastName}`.trim()
@@ -111,6 +142,23 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
       return name.substring(0, 2).toUpperCase()
     }
 
+    // Show avatar image only when fully loaded
+    const showAvatarImage = avatarStatus === 'loaded' && !!employeeData?.avatarUrl
+
+    // Show fallback (initials) only when:
+    // 1. Avatars batch fetch is complete (!areAvatarsLoading)
+    // 2. AND one of:
+    //    a) avatarStatus is 'error' (no avatar URL or image failed to load)
+    //    b) avatarStatus is 'idle' AND there's no avatarUrl (employee not found or has no picture)
+    //
+    // Do NOT show fallback when:
+    // - Still fetching employee data (areAvatarsLoading)
+    // - Image is being preloaded (avatarStatus === 'loading')
+    // - avatarStatus is 'idle' but avatarUrl exists (about to start preloading)
+    // - Image has loaded successfully (avatarStatus === 'loaded')
+    const noAvatarAvailable = avatarStatus === 'idle' && !employeeData?.avatarUrl
+    const showAvatarFallback = !areAvatarsLoading && (avatarStatus === 'error' || noAvatarAvailable)
+
     return (
       <Card
         className={`gba:cursor-pointer gba:hover:shadow-md gba:transition-all gba:duration-300 nw:py-0 ${
@@ -129,15 +177,18 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
               data-testid="task-creator-section"
             >
               <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0" data-testid="task-creator-avatar">
-                <AvatarImage
-                  src={employeeData?.avatarUrl} // Use cached Object URL for browser-level caching
-                  alt={creatorName}
-                  onLoad={() => {}}
-                  onError={() => {}}
-                />
-                <AvatarFallback className="gba:text-xs gba:font-medium gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
-                  {getInitials(creatorName)}
-                </AvatarFallback>
+                {/* 
+                  Avatar rendering rules:
+                  - While loading: show nothing (empty avatar to avoid initials flicker)
+                  - On successful load: show AvatarImage
+                  - On error or missing URL: show initials in AvatarFallback
+                */}
+                {showAvatarImage && <AvatarImage src={employeeData?.avatarUrl} alt={creatorName} />}
+                {showAvatarFallback && (
+                  <AvatarFallback className="gba:text-xs gba:font-medium gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
+                    {getInitials(creatorName)}
+                  </AvatarFallback>
+                )}
               </Avatar>
               <div className="gba:flex gba:flex-col gba:w-48 gba:flex-shrink-0 gba:leading-none gba:gap-0.5">
                 <div className="gba:flex gba:items-center gba:gap-2">
@@ -183,9 +234,6 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
                   </span>
                   {!isDetailViewOpen && (
                     <>
-                      <Badge variant="outline" data-testid="task-source-badge" className="gba:flex-shrink-0">
-                        {getSourceBadgeText(task.source)}
-                      </Badge>
                       {moduleName && (
                         <Badge variant="secondary" data-testid="task-module-badge" className="gba:flex-shrink-0">
                           {moduleName}

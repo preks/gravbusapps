@@ -3,7 +3,7 @@
  * Displays detailed flow information with step-by-step progress
  */
 
-import React, { useMemo } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import {
   Card,
   CardContent,
@@ -59,7 +59,7 @@ interface AssigneeItemProps {
 const AssigneeItem: React.FC<AssigneeItemProps> = ({ assigneeFlow, index, accessToken }) => {
   // Get assignee user ID from the flow tags (set when workflow was created)
   const assigneeUserId = assigneeFlow.assignedUserId || ''
-  const { employeeData } = useEmployeeAvatar(accessToken, assigneeUserId)
+  const { employeeData, isLoading } = useEmployeeAvatar(accessToken, assigneeUserId)
 
   const isCompleted = assigneeFlow.status === 'COMPLETED'
 
@@ -80,12 +80,43 @@ const AssigneeItem: React.FC<AssigneeItemProps> = ({ assigneeFlow, index, access
     return undefined
   }, [employeeData?.pictureThumbnail])
 
+  // Avatar image preload state to prevent initials flicker
+  const [avatarStatus, setAvatarStatus] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle')
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    if (!avatarUrl) {
+      setAvatarStatus('error')
+      return
+    }
+
+    setAvatarStatus('loading')
+
+    const img = new Image()
+    img.src = avatarUrl
+
+    const handleLoad = () => setAvatarStatus('loaded')
+    const handleError = () => setAvatarStatus('error')
+
+    img.addEventListener('load', handleLoad)
+    img.addEventListener('error', handleError)
+
+    return () => {
+      img.removeEventListener('load', handleLoad)
+      img.removeEventListener('error', handleError)
+    }
+  }, [avatarUrl])
+
+  const showAvatarImage = avatarStatus === 'loaded' && !!avatarUrl
+  const showAvatarFallback = !isLoading && (!avatarUrl || avatarStatus === 'error')
+
   return (
     <div className="gba:flex gba:items-center gba:gap-3" data-testid={`assignee-${index}`}>
       {/* Avatar */}
       <Avatar className="gba:h-10 gba:w-10">
-        {avatarUrl ? <AvatarImage src={avatarUrl} alt={displayName} /> : null}
-        <AvatarFallback>{initials}</AvatarFallback>
+        {showAvatarImage && <AvatarImage src={avatarUrl} alt={displayName} />}
+        {showAvatarFallback && <AvatarFallback>{initials}</AvatarFallback>}
       </Avatar>
 
       {/* Status Icon */}
@@ -126,7 +157,7 @@ interface InitiatorInfoProps {
 }
 
 const InitiatorInfo: React.FC<InitiatorInfoProps> = ({ initiatorUserId, accessToken }) => {
-  const { employeeData } = useEmployeeAvatar(accessToken, initiatorUserId)
+  const { employeeData, isLoading } = useEmployeeAvatar(accessToken, initiatorUserId)
 
   // Get display name and initials
   const displayName =
@@ -145,11 +176,42 @@ const InitiatorInfo: React.FC<InitiatorInfoProps> = ({ initiatorUserId, accessTo
     return undefined
   }, [employeeData?.pictureThumbnail])
 
+  // Avatar image preload state to prevent initials flicker
+  const [avatarStatus, setAvatarStatus] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle')
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    if (!avatarUrl) {
+      setAvatarStatus('error')
+      return
+    }
+
+    setAvatarStatus('loading')
+
+    const img = new Image()
+    img.src = avatarUrl
+
+    const handleLoad = () => setAvatarStatus('loaded')
+    const handleError = () => setAvatarStatus('error')
+
+    img.addEventListener('load', handleLoad)
+    img.addEventListener('error', handleError)
+
+    return () => {
+      img.removeEventListener('load', handleLoad)
+      img.removeEventListener('error', handleError)
+    }
+  }, [avatarUrl])
+
+  const showAvatarImage = avatarStatus === 'loaded' && !!avatarUrl
+  const showAvatarFallback = !isLoading && (!avatarUrl || avatarStatus === 'error')
+
   return (
     <div className="gba:flex gba:items-center gba:gap-2">
       <Avatar className="gba:h-8 gba:w-8">
-        {avatarUrl ? <AvatarImage src={avatarUrl} alt={displayName} /> : null}
-        <AvatarFallback className="gba:text-xs">{initials}</AvatarFallback>
+        {showAvatarImage && <AvatarImage src={avatarUrl} alt={displayName} />}
+        {showAvatarFallback && <AvatarFallback className="gba:text-xs">{initials}</AvatarFallback>}
       </Avatar>
       <div className="gba:font-medium">{displayName}</div>
     </div>
