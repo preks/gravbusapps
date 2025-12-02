@@ -237,7 +237,7 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
           cancelButtonText={t('action-cancel')}
           submitButtonText={t('action-submit')}
           isSubmitDisabled={!form.formState.isValid || isUnchangedNow}
-          onCancel={() => {}}
+          showCancelButton={true}
           onSubmit={async (values: AdjustEmployeeSalaryFormValues) => {
             // Mark as submitting to prevent form resets during submission
             isSubmittingRef.current = true
