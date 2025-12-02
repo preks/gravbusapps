@@ -4,14 +4,34 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import {
   EMPLOYEE_DATA_QUERY,
   EMPLOYEE_COMPENSATION_QUERY,
-  SALARY_ADJUST_REASON_CATALOG_QUERY
+  SALARY_ADJUST_REASON_CATALOG_QUERY,
+  CURRENCY_CATALOG_QUERY,
+  EMPLOYEE_WORKING_CONDITION_QUERY
 } from './AdjustEmployeeSalaryQueries'
 import type {
   AdjustEmployeeSalaryContextData,
   EmployeeDataResponse,
   EmployeeCompensationResponse,
-  SalaryAdjustReasonCatalogResponse
+  SalaryAdjustReasonCatalogResponse,
+  EmployeeWorkingConditionResponse,
+  FormMode,
+  CurrencyOption
 } from './types'
+
+interface CurrencyCatalogResponse {
+  CatalogEntry: Array<{
+    id: string
+    code: string
+    value: string
+    translations: Array<{
+      localeCode: string
+      value: string
+    }>
+    catalog: {
+      defaultLocale: string
+    }
+  }>
+}
 
 interface AdjustEmployeeSalaryContextValue {
   data: AdjustEmployeeSalaryContextData | null
@@ -61,11 +81,36 @@ export const AdjustEmployeeSalaryProvider: React.FC<ProviderProps> = ({
       const empVariables = { idEmployee: employeeId }
 
       // Fetch all queries in parallel to prevent UI twitch
-      const [employeeData, compensationData, salaryAdjustReasonCatalog] = await Promise.all([
-        graphqlClient.request<EmployeeDataResponse>(EMPLOYEE_DATA_QUERY, empVariables),
-        graphqlClient.request<EmployeeCompensationResponse>(EMPLOYEE_COMPENSATION_QUERY, empVariables),
-        graphqlClient.request<SalaryAdjustReasonCatalogResponse>(SALARY_ADJUST_REASON_CATALOG_QUERY)
-      ])
+      const [employeeData, compensationData, salaryAdjustReasonCatalog, currencyCatalog, workingConditionData] =
+        await Promise.all([
+          graphqlClient.request<EmployeeDataResponse>(EMPLOYEE_DATA_QUERY, empVariables),
+          graphqlClient.request<EmployeeCompensationResponse>(EMPLOYEE_COMPENSATION_QUERY, empVariables),
+          graphqlClient.request<SalaryAdjustReasonCatalogResponse>(SALARY_ADJUST_REASON_CATALOG_QUERY),
+          graphqlClient.request<CurrencyCatalogResponse>(CURRENCY_CATALOG_QUERY),
+          graphqlClient.request<EmployeeWorkingConditionResponse>(EMPLOYEE_WORKING_CONDITION_QUERY, empVariables)
+        ])
+
+      // Determine form mode based on whether employee has salary records
+      const salaries = compensationData?.AllEmployeeSalaries || []
+      const formMode: FormMode = salaries.length > 0 ? 'adjust' : 'assign'
+
+      // Extract hire date from working condition (first/most recent record)
+      const workingCondition = workingConditionData?.EmployeeWorkingCondition?.[0]
+      const hireDate = workingCondition?.hireDate || null
+
+      // Map currency catalog entries to CurrencyOption format
+      const currencies: CurrencyOption[] = (currencyCatalog?.CatalogEntry || [])
+        .map(entry => ({
+          id: entry.id,
+          code: entry.code,
+          value: entry.value
+        }))
+        // Sort with EUR first, then alphabetically by code
+        .sort((a, b) => {
+          if (a.code === 'EUR') return -1
+          if (b.code === 'EUR') return 1
+          return a.code.localeCompare(b.code)
+        })
 
       // Set data only once with all results
       setData({
@@ -73,7 +118,10 @@ export const AdjustEmployeeSalaryProvider: React.FC<ProviderProps> = ({
         compensation: compensationData,
         catalogs: {
           salaryAdjustReason: salaryAdjustReasonCatalog
-        }
+        },
+        currencies,
+        formMode,
+        hireDate
       })
       setIsLoading(false)
     } catch (e: any) {
