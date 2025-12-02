@@ -513,7 +513,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
   }, [tasks, totalCount, hasMore, completedTotalCount, completedHasMore, loggedInUserId])
 
   if (currentIsLoading && currentTasks.length === 0) {
-    return <LoadingSkeleton count={5} type="task" />
+    return <LoadingSkeleton type="task" />
   }
 
   return (
@@ -584,25 +584,18 @@ export const InboxView: React.FC<InboxViewProps> = ({
           </Button>
         </div>
 
-        {/* Task Type Filters - Full when wide, compact when detail panel open */}
-        <div
-          className={`gba:flex gba:items-center ${selectedTask ? 'gba:gap-0.5' : 'gba:gap-1'}`}
-          data-testid="inbox-filter-buttons"
-        >
+        {/* Task Type Filters */}
+        <div className="gba:flex gba:items-center gba:gap-1 gba:max-w-[40%]" data-testid="inbox-filter-buttons">
           <Button
             variant={filterType === 'all' ? 'default' : 'outline'}
             size="sm"
             onClick={() => setFilterType('all')}
             data-testid="inbox-filter-all"
-            className={`gba:flex gba:items-center ${selectedTask ? 'gba:gap-0.5 gba:px-1 gba:h-7' : 'gba:gap-1 gba:px-2'}`}
-            title="All"
+            className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:flex-shrink-0"
           >
-            <Inbox className={selectedTask ? 'gba:h-3 gba:w-3' : 'gba:h-3.5 gba:w-3.5'} />
-            {!selectedTask && <span>All</span>}
-            <Badge
-              variant="secondary"
-              className={selectedTask ? 'gba:px-1 gba:py-0 gba:text-[10px]' : 'gba:px-1.5 gba:py-0 gba:text-xs'}
-            >
+            <Inbox className="gba:h-3.5 gba:w-3.5" />
+            <span>All</span>
+            <Badge variant="secondary" className="gba:px-1.5 gba:py-0 gba:text-xs">
               {taskCounts.all}
               {taskCounts.allHasMore ? '+' : ''}
             </Badge>
@@ -612,16 +605,12 @@ export const InboxView: React.FC<InboxViewProps> = ({
             size="sm"
             onClick={() => setFilterType('blinks')}
             data-testid="inbox-filter-blinks"
-            className={`gba:flex gba:items-center ${selectedTask ? 'gba:gap-0.5 gba:px-1 gba:h-7' : 'gba:gap-1 gba:px-2'}`}
-            title="Blinks"
+            className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:flex-shrink-0"
           >
-            <Zap className={selectedTask ? 'gba:h-3 gba:w-3' : 'gba:h-3.5 gba:w-3.5'} />
-            {!selectedTask && <span>Blinks</span>}
+            <Zap className="gba:h-3.5 gba:w-3.5" />
+            <span>Blinks</span>
             {taskCounts.blinks > 0 && (
-              <Badge
-                variant="secondary"
-                className={selectedTask ? 'gba:px-1 gba:py-0 gba:text-[10px]' : 'gba:px-1.5 gba:py-0 gba:text-xs'}
-              >
+              <Badge variant="secondary" className="gba:px-1.5 gba:py-0 gba:text-xs">
                 {taskCounts.blinks}
                 {taskCounts.blinksHasMore ? '+' : ''}
               </Badge>
@@ -632,16 +621,12 @@ export const InboxView: React.FC<InboxViewProps> = ({
             size="sm"
             onClick={() => setFilterType('approvals')}
             data-testid="inbox-filter-approvals"
-            className={`gba:flex gba:items-center ${selectedTask ? 'gba:gap-0.5 gba:px-1 gba:h-7' : 'gba:gap-1 gba:px-2'}`}
-            title="Approvals"
+            className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:flex-shrink-0"
           >
-            <CheckCircle className={selectedTask ? 'gba:h-3 gba:w-3' : 'gba:h-3.5 gba:w-3.5'} />
-            {!selectedTask && <span>Approvals</span>}
+            <CheckCircle className="gba:h-3.5 gba:w-3.5" />
+            <span>Approvals</span>
             {taskCounts.approvals > 0 && (
-              <Badge
-                variant="secondary"
-                className={selectedTask ? 'gba:px-1 gba:py-0 gba:text-[10px]' : 'gba:px-1.5 gba:py-0 gba:text-xs'}
-              >
+              <Badge variant="secondary" className="gba:px-1.5 gba:py-0 gba:text-xs">
                 {taskCounts.approvals}
                 {taskCounts.approvalsHasMore ? '+' : ''}
               </Badge>
@@ -652,16 +637,12 @@ export const InboxView: React.FC<InboxViewProps> = ({
             size="sm"
             onClick={() => setFilterType('completed')}
             data-testid="inbox-filter-completed"
-            className={`gba:flex gba:items-center ${selectedTask ? 'gba:gap-0.5 gba:px-1 gba:h-7' : 'gba:gap-1 gba:px-2'}`}
-            title="Completed"
+            className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:flex-shrink-0"
           >
-            <CheckCheck className={selectedTask ? 'gba:h-3 gba:w-3' : 'gba:h-3.5 gba:w-3.5'} />
-            {!selectedTask && <span>Completed</span>}
+            <CheckCheck className="gba:h-3.5 gba:w-3.5" />
+            <span>Completed</span>
             {taskCounts.completed > 0 && (
-              <Badge
-                variant="secondary"
-                className={selectedTask ? 'gba:px-1 gba:py-0 gba:text-[10px]' : 'gba:px-1.5 gba:py-0 gba:text-xs'}
-              >
+              <Badge variant="secondary" className="gba:px-1.5 gba:py-0 gba:text-xs">
                 {taskCounts.completed}
                 {taskCounts.completedHasMore ? '+' : ''}
               </Badge>

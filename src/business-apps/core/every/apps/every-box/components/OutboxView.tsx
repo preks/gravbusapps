@@ -184,7 +184,7 @@ export const OutboxView: React.FC<OutboxViewProps> = ({ flows, isLoading, error,
   }, [flows])
 
   if (isLoading && flows.length === 0) {
-    return <LoadingSkeleton count={5} type="flow" />
+    return <LoadingSkeleton type="flow" />
   }
 
   if (error) {
