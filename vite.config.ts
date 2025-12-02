@@ -186,9 +186,27 @@ export default defineConfig(({ command, mode }) => {
   // Define content for the __APP_BUILD_INFO__ banner
   const gitUserForBanner = env.VITE_GIT_USER || 'N/A'
   const publishTimeForBanner = env.VITE_PUBLISH_TIME || new Date().toISOString()
+
+  // Build Bitbucket PR URL if available (set during pipeline runs)
+  const bitbucketPrId = env.BITBUCKET_PR_ID
+  const bitbucketWorkspace = env.BITBUCKET_WORKSPACE
+  const bitbucketRepoSlug = env.BITBUCKET_REPO_SLUG
+  const bitbucketBuildNumber = env.BITBUCKET_BUILD_NUMBER
+  const prUrl =
+    bitbucketPrId && bitbucketWorkspace && bitbucketRepoSlug
+      ? `https://bitbucket.org/${bitbucketWorkspace}/${bitbucketRepoSlug}/pull-requests/${bitbucketPrId}`
+      : null
+  const pipelineUrl =
+    bitbucketBuildNumber && bitbucketWorkspace && bitbucketRepoSlug
+      ? `https://bitbucket.org/${bitbucketWorkspace}/${bitbucketRepoSlug}/pipelines/results/${bitbucketBuildNumber}`
+      : null
+
   const appBuildInfoObject = {
     gitUser: gitUserForBanner,
-    publishTime: publishTimeForBanner
+    publishTime: publishTimeForBanner,
+    prUrl: prUrl,
+    pipelineUrl: pipelineUrl,
+    buildNumber: bitbucketBuildNumber || null
   }
   const appBuildInfoStringForBanner = JSON.stringify(appBuildInfoObject)
 
@@ -219,12 +237,20 @@ if (globalThis.__APP_BUILD_INFO__) {
   // Construct the desired format, ensuring timezone is handled gracefully
   const formattedBuildTime = \`\${parts.day}.\${parts.month}.\${parts.year} \${parts.hour}:\${parts.minute} \${parts.timeZoneName || ''}\`.trim();
 
-  console.log(\`---------------------------------------
-       Screen Build Information
----------------------------------------
-  Built by:    \${buildInfo.gitUser}
-  Build time:  \${formattedBuildTime}
----------------------------------------\`);
+  const extraLines = [];
+  if (buildInfo.buildNumber) extraLines.push('  Build #:     ' + buildInfo.buildNumber);
+  if (buildInfo.prUrl) extraLines.push('  PR:          ' + buildInfo.prUrl);
+  if (buildInfo.pipelineUrl) extraLines.push('  Pipeline:    ' + buildInfo.pipelineUrl);
+  
+  console.log('---------------------------------------');
+  console.log('       Screen Build Information');
+  console.log('---------------------------------------');
+  console.log('  Built by:    ' + buildInfo.gitUser);
+  console.log('  Build time:  ' + formattedBuildTime);
+  if (extraLines.length > 0) {
+    extraLines.forEach(function(line) { console.log(line); });
+  }
+  console.log('---------------------------------------');
 } else {
   console.log('Screen Build Info: Not available');
 }
