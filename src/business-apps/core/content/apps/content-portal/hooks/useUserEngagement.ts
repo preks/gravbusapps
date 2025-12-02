@@ -45,14 +45,14 @@ interface EngagementResponse {
   }
 }
 
-const buildUserEngagementQuery = (employeeId: string): string => {
+const buildUserEngagementQuery = (userId: string): string => {
   return `
     query getUserEngagement {
       articlesCreated: ContentEntryAggregate(
         where: {
           role: { _eq: "${ContentRole.ROOT}" }
           contentGroupRef: { _in: ["${ContentGroup.NEWS}", "${ContentGroup.KNOWLEDGE}"] }
-          creatorEmployeeId: { _eq: "${employeeId}" }
+          createdBy: { _eq: "${userId}" }
           isDeleted: { _eq: false }
         }
       ) {
@@ -64,7 +64,7 @@ const buildUserEngagementQuery = (employeeId: string): string => {
         where: {
           role: { _eq: "${ContentRole.ROOT}" }
           contentGroupRef: { _eq: "${ContentGroup.QUESTION}" }
-          creatorEmployeeId: { _eq: "${employeeId}" }
+          createdBy: { _eq: "${userId}" }
           isDeleted: { _eq: false }
         }
       ) {
@@ -74,7 +74,7 @@ const buildUserEngagementQuery = (employeeId: string): string => {
       }
       documentsUploaded: ContentDocumentAggregate(
         where: {
-          createdBy: { _eq: "${employeeId}" }
+          createdBy: { _eq: "${userId}" }
           isDeleted: { _eq: false }
         }
       ) {
@@ -85,7 +85,7 @@ const buildUserEngagementQuery = (employeeId: string): string => {
       commentsMade: ContentEntryAggregate(
         where: {
           role: { _eq: "${ContentRole.COMMENT}" }
-          creatorEmployeeId: { _eq: "${employeeId}" }
+          createdBy: { _eq: "${userId}" }
           isDeleted: { _eq: false }
         }
       ) {
@@ -97,7 +97,7 @@ const buildUserEngagementQuery = (employeeId: string): string => {
         where: {
           role: { _eq: "${ContentRole.COMMENT}" }
           parentContentEntryId: { _isNull: false }
-          creatorEmployeeId: { _eq: "${employeeId}" }
+          createdBy: { _eq: "${userId}" }
           isDeleted: { _eq: false }
           parentContentEntry: {
             contentGroupRef: { _eq: "${ContentGroup.QUESTION}" }
@@ -111,7 +111,7 @@ const buildUserEngagementQuery = (employeeId: string): string => {
       }
       reactionsGiven: ContentEntryReactionAggregate(
         where: {
-          creatorEmployeeId: { _eq: "${employeeId}" }
+          createdBy: { _eq: "${userId}" }
           isDeleted: { _eq: false }
         }
       ) {
@@ -123,7 +123,7 @@ const buildUserEngagementQuery = (employeeId: string): string => {
   `
 }
 
-export const useUserEngagement = (employeeId: string | undefined, accessToken?: string) => {
+export const useUserEngagement = (userId: string | undefined, accessToken?: string) => {
   const [engagementData, setEngagementData] = useState<UserEngagementData>({
     articlesCreated: 0,
     questionsAsked: 0,
@@ -167,7 +167,7 @@ export const useUserEngagement = (employeeId: string | undefined, accessToken?: 
   )
 
   const fetchEngagement = useCallback(async () => {
-    if (!employeeId || !accessToken) {
+    if (!userId || !accessToken) {
       setIsLoading(false)
       return
     }
@@ -176,7 +176,7 @@ export const useUserEngagement = (employeeId: string | undefined, accessToken?: 
     setError(null)
 
     try {
-      const query = buildUserEngagementQuery(employeeId)
+      const query = buildUserEngagementQuery(userId)
       const response = await graphqlClient.request<EngagementResponse>(query)
 
       const data: UserEngagementData = {
@@ -196,7 +196,7 @@ export const useUserEngagement = (employeeId: string | undefined, accessToken?: 
     } finally {
       setIsLoading(false)
     }
-  }, [employeeId, accessToken, graphqlClient, calculateScore])
+  }, [userId, accessToken, graphqlClient, calculateScore])
 
   useEffect(() => {
     fetchEngagement()

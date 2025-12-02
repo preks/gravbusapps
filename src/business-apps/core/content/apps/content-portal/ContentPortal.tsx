@@ -40,8 +40,8 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
     usePortalTranslation(accessToken)
 
   // Get user engagement score for badge
-  const employeeId = context.userInfo?.employeeDetails?.employeeId
-  const { engagementData } = useUserEngagement(employeeId, accessToken)
+  const userId = context.userInfo?.id
+  const { engagementData } = useUserEngagement(userId, accessToken)
 
   // Load allowed reactions from catalog (once for entire app)
   useEffect(() => {

@@ -61,8 +61,8 @@ const ACHIEVEMENT_LEVELS: AchievementLevel[] = [
 
 const EngagementView: React.FC<EngagementViewProps> = ({ accessToken, userInfo }) => {
   const { t } = useTranslation(translations)
-  const employeeId = userInfo?.employeeDetails?.employeeId
-  const { engagementData, isLoading, error, refetch } = useUserEngagement(employeeId, accessToken)
+  const userId = userInfo?.id
+  const { engagementData, isLoading, error, refetch } = useUserEngagement(userId, accessToken)
 
   const getCurrentLevel = () => {
     const sortedLevels = [...ACHIEVEMENT_LEVELS].sort((a, b) => b.points - a.points)
@@ -102,12 +102,12 @@ const EngagementView: React.FC<EngagementViewProps> = ({ accessToken, userInfo }
   const currentLevel = getCurrentLevel()
   const progress = calculateProgress()
 
-  if (!employeeId) {
+  if (!userId) {
     return (
-      <div className="gba:p-6" data-testid="engagement-view-no-employee">
+      <div className="gba:p-6" data-testid="engagement-view-no-user">
         <Alert variant="destructive">
           <AlertTitle>{t('error')}</AlertTitle>
-          <AlertDescription>Employee ID not available. Cannot load engagement data.</AlertDescription>
+          <AlertDescription>User ID not available. Cannot load engagement data.</AlertDescription>
         </Alert>
       </div>
     )
