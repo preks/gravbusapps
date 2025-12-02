@@ -130,6 +130,9 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
   const handleCreateConversation = useCallback(
     async (user: User) => {
       try {
+        // Mark as processed to prevent URL restoration effect from re-triggering
+        conversationIdFromUrlProcessed.current = true
+
         const conversation = await createDirectConversation(user.id)
         setShowConversationList(false)
 
@@ -148,6 +151,9 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
 
   const handleConversationSelect = useCallback(
     (conversation: Conversation) => {
+      // Mark as processed to prevent URL restoration effect from re-triggering
+      conversationIdFromUrlProcessed.current = true
+
       setActiveConversation(conversation)
       setShowConversationList(false)
 
@@ -210,6 +216,9 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
   const handleCreateGroupSubmit = useCallback(
     async (name: string, participantIds: string[], description?: string) => {
       try {
+        // Mark as processed to prevent URL restoration effect from re-triggering
+        conversationIdFromUrlProcessed.current = true
+
         const conversation = await createGroupConversation(name, participantIds, description)
         setShowCreateGroupModal(false)
 
@@ -270,8 +279,8 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
 
   // Restore active conversation from URL parameter (for panel reopen persistence)
   useEffect(() => {
-    // Only process once when conversations are loaded
-    if (conversationIdFromUrlProcessed.current || !conversations.length) {
+    // Only process once when conversations are loaded, and only if no conversation is already active
+    if (conversationIdFromUrlProcessed.current || !conversations.length || activeConversationId) {
       return
     }
 
@@ -287,7 +296,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
         setShowConversationList(false)
       }
     }
-  }, [conversations, setActiveConversation])
+  }, [conversations, setActiveConversation, activeConversationId])
 
   // Handle URL parameters for context and AI agent conversations (only once)
   useEffect(() => {
@@ -306,6 +315,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
     if ((aiAgentParam === 'true' || typeParam === 'ai-agent') && createAiAgentConversation) {
       // Mark as processed immediately to prevent duplicate calls
       urlContextProcessed.current = true
+      conversationIdFromUrlProcessed.current = true
 
       // Parse context if provided for AI agent
       let contextEntity: string | undefined
@@ -343,6 +353,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
       if (contextEntity && contextEntityId) {
         // Mark as processed immediately to prevent duplicate calls
         urlContextProcessed.current = true
+        conversationIdFromUrlProcessed.current = true
 
         // Parse users if provided
         const users = usersParam ? usersParam.split(',').filter(Boolean) : undefined

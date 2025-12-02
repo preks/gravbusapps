@@ -56,6 +56,39 @@ export const CalendarEventItem: React.FC<CalendarEventItemProps> = ({ event, com
     `${event.organizer.firstName || ''} ${event.organizer.lastName || ''}`.trim() ||
     event.organizer.email
 
+  // Determine opacity and styling based on participant status (for non-organizers)
+  const getParticipantStatusStyle = () => {
+    if (event.isOrganizer) return {}
+
+    if (event.participantStatus === 'declined') {
+      return {
+        opacity: 0.3,
+        textDecoration: 'line-through' as const
+      }
+    }
+
+    if (event.participantStatus === 'pending') {
+      return {
+        opacity: 0.3
+      }
+    }
+
+    return {}
+  }
+
+  const participantStyle = getParticipantStatusStyle()
+
+  // Get additional classes for pending meetings
+  const getPendingClasses = () => {
+    if (event.isOrganizer) return ''
+    if (event.participantStatus === 'pending') {
+      return 'gba:border-dashed'
+    }
+    return ''
+  }
+
+  const pendingClasses = getPendingClasses()
+
   // Determine what to show based on available height
   // Height thresholds: <25px = just color bar, 25-40px = title only, 40-60px = title + time, >60px = full
   const showTitle = !height || height >= 20
@@ -72,8 +105,8 @@ export const CalendarEventItem: React.FC<CalendarEventItemProps> = ({ event, com
           <TooltipTrigger asChild>
             <button
               onClick={onClick}
-              className="gba:w-full gba:h-full gba:rounded gba:transition-opacity gba:hover:opacity-80"
-              style={{ backgroundColor: event.color, minHeight: '4px' }}
+              className={`gba:w-full gba:h-full gba:rounded gba:transition-opacity gba:hover:opacity-80 ${pendingClasses}`}
+              style={{ backgroundColor: event.color, minHeight: '4px', ...participantStyle }}
               data-testid={`calendar-event-${event.id}`}
             />
           </TooltipTrigger>
@@ -104,8 +137,11 @@ export const CalendarEventItem: React.FC<CalendarEventItemProps> = ({ event, com
           <TooltipTrigger asChild>
             <button
               onClick={onClick}
-              className={`gba:w-full gba:h-full gba:text-left gba:px-1.5 gba:py-0.5 gba:rounded gba:text-[10px] gba:font-medium gba:overflow-hidden gba:transition-opacity gba:hover:opacity-80 ${statusClass}`}
-              style={{ backgroundColor: event.status === 'scheduled' ? event.color : undefined }}
+              className={`gba:w-full gba:h-full gba:text-left gba:px-1.5 gba:py-0.5 gba:rounded gba:text-[10px] gba:font-medium gba:overflow-hidden gba:transition-opacity gba:hover:opacity-80 ${statusClass} ${pendingClasses}`}
+              style={{
+                backgroundColor: event.status === 'scheduled' ? event.color : undefined,
+                ...participantStyle
+              }}
               data-testid={`calendar-event-${event.id}`}
             >
               <div className="gba:text-white gba:drop-shadow-sm gba:truncate gba:leading-tight">
@@ -145,10 +181,11 @@ export const CalendarEventItem: React.FC<CalendarEventItemProps> = ({ event, com
   return (
     <button
       onClick={onClick}
-      className={`gba:w-full gba:h-full gba:text-left gba:p-2 gba:rounded gba:border gba:border-border/50 gba:transition-all gba:hover:shadow-md gba:cursor-pointer gba:overflow-hidden ${statusClass}`}
+      className={`gba:w-full gba:h-full gba:text-left gba:p-2 gba:rounded gba:border gba:border-border/50 gba:transition-all gba:hover:shadow-md gba:cursor-pointer gba:overflow-hidden ${statusClass} ${pendingClasses}`}
       style={{
         borderLeftWidth: '3px',
-        borderLeftColor: event.color
+        borderLeftColor: event.color,
+        ...participantStyle
       }}
       data-testid={`calendar-event-${event.id}`}
     >

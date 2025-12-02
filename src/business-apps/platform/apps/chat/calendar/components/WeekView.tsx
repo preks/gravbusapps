@@ -198,10 +198,10 @@ export const WeekView: React.FC<WeekViewProps> = ({ dateRange, events, onEventCl
           {HOURS.map(hour => (
             <div
               key={hour}
-              className="gba:pr-1 gba:sm:pr-2 gba:text-right gba:text-[10px] gba:sm:text-xs gba:text-muted-foreground gba:-mt-2"
+              className="gba:text-center gba:text-[10px] gba:sm:text-xs gba:text-muted-foreground gba:flex gba:items-start gba:justify-center"
               style={{ height: HOUR_HEIGHT }}
             >
-              {hour > 0 && formatHour(hour)}
+              {hour > 0 && <span className="gba:pt-0.5">{formatHour(hour)}</span>}
             </div>
           ))}
         </div>

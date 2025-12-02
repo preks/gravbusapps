@@ -167,10 +167,10 @@ export const DayView: React.FC<DayViewProps> = ({ currentDate, events, onEventCl
           {HOURS.map(hour => (
             <div
               key={hour}
-              className="gba:pr-3 gba:text-right gba:text-xs gba:text-muted-foreground gba:-mt-2"
+              className="gba:text-center gba:text-xs gba:text-muted-foreground gba:flex gba:items-start gba:justify-center"
               style={{ height: HOUR_HEIGHT }}
             >
-              {hour > 0 && formatHour(hour)}
+              {hour > 0 && <span className="gba:pt-0.5">{formatHour(hour)}</span>}
             </div>
           ))}
         </div>
