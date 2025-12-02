@@ -314,7 +314,14 @@ function getChangedPackages(gitDiffOutput) {
  * Main analysis function
  */
 async function analyzeChangedDependencies(changedFiles) {
-  const affectedScreens = new Set()
+  // Check if we're in a PR (skip package rebuilds) or branch build (rebuild everything)
+  const isPullRequest = !!process.env.BITBUCKET_PR_DESTINATION_BRANCH
+
+  // Separate tracking: package-affected vs shared-code-affected
+  // In PRs: package-affected = log only (too slow to rebuild 200+ screens)
+  // In branch builds: package-affected = rebuild (need to update hashes)
+  const packageAffectedScreens = new Set()
+  const sharedCodeAffectedScreens = new Set()
   const analysis = {
     packageChanges: [],
     globalSharedChanges: [],
@@ -352,7 +359,7 @@ async function analyzeChangedDependencies(changedFiles) {
           }
           diff = execSync(`git diff ${targetBranch}...HEAD -- package.json`, { encoding: 'utf8' })
         } else {
-          // Branch build (develop/main) - use last commit
+          // Branch build - use last commit
           diff = execSync('git show --pretty="" HEAD -- package.json', { encoding: 'utf8' })
         }
         const changedPackages = getChangedPackages(diff)
@@ -370,7 +377,7 @@ async function analyzeChangedDependencies(changedFiles) {
 
             for (const screen of allScreens) {
               if (await screenUsesPackage(screen, pkg)) {
-                affectedScreens.add(screen)
+                packageAffectedScreens.add(screen)
                 analysis.affectedByPackage[pkg].direct.push(screen)
               }
             }
@@ -382,7 +389,7 @@ async function analyzeChangedDependencies(changedFiles) {
 
             for (const screen of transitiveScreens) {
               if (!analysis.affectedByPackage[pkg].direct.includes(screen)) {
-                affectedScreens.add(screen)
+                packageAffectedScreens.add(screen)
                 analysis.affectedByPackage[pkg].transitive.push(screen)
               }
             }
@@ -430,7 +437,7 @@ async function analyzeChangedDependencies(changedFiles) {
       }
 
       for (const screen of importingScreens) {
-        affectedScreens.add(screen)
+        sharedCodeAffectedScreens.add(screen)
       }
 
       console.log(`   → ${importingScreens.size} screen(s) import from this file`)
@@ -438,7 +445,13 @@ async function analyzeChangedDependencies(changedFiles) {
   }
 
   return {
-    affectedScreens: Array.from(affectedScreens).sort(),
+    // Screens affected by shared code changes - ALWAYS BUILD
+    sharedCodeAffectedScreens: Array.from(sharedCodeAffectedScreens).sort(),
+    // Screens affected by package changes
+    // - PRs: log only (too slow to rebuild 200+ screens for validation)
+    // - Branch builds: rebuild (need to update hashes for prod comparison)
+    packageAffectedScreens: Array.from(packageAffectedScreens).sort(),
+    isPullRequest,
     analysis
   }
 }
@@ -521,6 +534,11 @@ async function main() {
   console.log('📊 ANALYSIS RESULTS')
   console.log('='.repeat(60))
 
+  // ========================================================================
+  // Package changes
+  // - PRs: log only (validation, too slow to rebuild 200+ screens)
+  // - Branch builds: will be rebuilt (need to update hashes for prod)
+  // ========================================================================
   if (result.analysis.packageChanges.length > 0) {
     console.log(`\n📦 Package changes: ${result.analysis.packageChanges.length}`)
     for (const pkg of result.analysis.packageChanges) {
@@ -530,8 +548,22 @@ async function main() {
       const totalCount = directCount + transitiveCount
       console.log(`   ${pkg}: ${totalCount} screen(s) (${directCount} direct, ${transitiveCount} via shared code)`)
     }
+
+    if (result.isPullRequest) {
+      console.log(
+        `\n   ⏩ PR mode: Package-affected screens (${result.packageAffectedScreens.length}) will NOT be rebuilt`
+      )
+      console.log(`   ℹ️  These will be rebuilt when PR is merged`)
+    } else {
+      console.log(
+        `\n   🔨 Branch mode: Package-affected screens (${result.packageAffectedScreens.length}) WILL be rebuilt`
+      )
+    }
   }
 
+  // ========================================================================
+  // Shared code changes - WILL BE BUILT
+  // ========================================================================
   if (result.analysis.globalSharedChanges?.length > 0) {
     console.log(`\n📁 Global shared code (src/* except business-apps): ${result.analysis.globalSharedChanges.length}`)
     for (const file of result.analysis.globalSharedChanges) {
@@ -550,19 +582,43 @@ async function main() {
     }
   }
 
-  console.log(`\n✅ Total affected screens: ${result.affectedScreens.length}`)
+  // ========================================================================
+  // Summary and output
+  // ========================================================================
+  console.log(`\n📊 Summary:`)
+  console.log(
+    `   🔀 Mode: ${result.isPullRequest ? 'Pull Request (skip package rebuilds)' : 'Branch Build (rebuild all)'}`
+  )
+  console.log(`   📦 Package-affected screens: ${result.packageAffectedScreens.length}`)
+  console.log(`   📁 Shared-code-affected screens: ${result.sharedCodeAffectedScreens.length}`)
 
-  if (result.affectedScreens.length > 0) {
-    console.log('\nAffected screens:')
-    result.affectedScreens.slice(0, 10).forEach(screen => console.log(`   src/business-apps/${screen}`))
-    if (result.affectedScreens.length > 10) {
-      console.log(`      ... and ${result.affectedScreens.length - 10} more`)
+  // Determine which screens to include in output file
+  // - Shared code changes: ALWAYS include
+  // - Package changes: Only in branch builds, not in PRs
+  const screensToRebuild = new Set(result.sharedCodeAffectedScreens)
+
+  if (!result.isPullRequest) {
+    // Branch build: also include package-affected screens
+    result.packageAffectedScreens.forEach(s => screensToRebuild.add(s))
+  }
+
+  const screensToRebuildArray = Array.from(screensToRebuild).sort()
+
+  console.log(`   🔨 Total screens to rebuild: ${screensToRebuildArray.length}`)
+
+  if (screensToRebuildArray.length > 0) {
+    console.log('\n🔨 Screens to rebuild:')
+    screensToRebuildArray.slice(0, 10).forEach(screen => console.log(`   src/business-apps/${screen}`))
+    if (screensToRebuildArray.length > 10) {
+      console.log(`      ... and ${screensToRebuildArray.length - 10} more`)
     }
 
     // Write to output file for pipeline consumption
     const outputFile = 'dependency-affected-screens.txt'
-    fs.writeFileSync(outputFile, result.affectedScreens.map(s => `src/business-apps/${s}`).join('\n') + '\n')
+    fs.writeFileSync(outputFile, screensToRebuildArray.map(s => `src/business-apps/${s}`).join('\n') + '\n')
     console.log(`\n📝 Written to: ${outputFile}`)
+  } else {
+    console.log('\n✅ No screens need rebuilding from dependency changes')
   }
 }
 
