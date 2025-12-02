@@ -233,8 +233,8 @@ async function main() {
   let successCount = 0
   const failedScreens = []
 
-  // Build screens in parallel chunks of 2 for faster validation
-  const CHUNK_SIZE = 2
+  // Build screens in parallel chunks for faster validation
+  const CHUNK_SIZE = 4
   let buildAborted = false
 
   for (let i = 0; i < changedScreens.length && !buildAborted; i += CHUNK_SIZE) {

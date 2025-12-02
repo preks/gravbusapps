@@ -109,8 +109,6 @@ async function findScreensImportingFile(changedFile) {
   // Also get the directory path for folder imports
   const importDir = path.dirname(importPath)
 
-  console.log(`   Checking imports for: ${importPath}`)
-
   for (const screen of allScreens) {
     const files = await getScreenFiles(screen)
 
@@ -264,31 +262,48 @@ async function findScreensAffectedByPackageTransitively(packageName) {
 
 /**
  * Parse package.json diff to find changed packages
+ * Only looks at dependencies, devDependencies, and peerDependencies sections
  */
 function getChangedPackages(gitDiffOutput) {
   const changedPackages = new Set()
 
-  // Look for lines like: +    "@newwork/nw-design-system": "^0.0.1-51",
-  // or -    "@newwork/nw-design-system": "^0.0.1-50",
-  const packagePattern = /^[+-]\s*"(@?[\w\-/.]+)":\s*"/gm
+  // First, read the actual package.json to understand which packages are in dependency sections
+  const packageJsonPath = path.join(process.cwd(), 'package.json')
+  let dependencyPackages = new Set()
 
-  let match
-  while ((match = packagePattern.exec(gitDiffOutput)) !== null) {
-    const packageName = match[1]
-    // Skip metadata fields
-    if (
-      ![
-        'name',
-        'version',
-        'description',
-        'main',
-        'scripts',
-        'devDependencies',
-        'dependencies',
-        'peerDependencies'
-      ].includes(packageName)
-    ) {
-      changedPackages.add(packageName)
+  try {
+    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
+
+    // Collect all package names from dependency sections
+    const dependencySections = ['dependencies', 'devDependencies', 'peerDependencies']
+    for (const section of dependencySections) {
+      if (packageJson[section]) {
+        Object.keys(packageJson[section]).forEach(pkg => dependencyPackages.add(pkg))
+      }
+    }
+  } catch (e) {
+    console.log(`   Warning: Could not read package.json: ${e.message}`)
+  }
+
+  // Now scan the diff for changed lines that match known dependency packages
+  const lines = gitDiffOutput.split('\n')
+
+  for (const line of lines) {
+    // Only look at added or removed lines
+    if (!/^[+-]/.test(line)) continue
+
+    // Skip diff metadata lines
+    if (line.startsWith('+++') || line.startsWith('---')) continue
+
+    // Match package entries like: +    "@newwork/nw-design-system": "^0.0.1-51",
+    const packageMatch = line.match(/^[+-]\s*"(@?[\w\-/.]+)":\s*"/)
+    if (packageMatch) {
+      const packageName = packageMatch[1]
+
+      // Only include if this package exists in a dependency section
+      if (dependencyPackages.has(packageName)) {
+        changedPackages.add(packageName)
+      }
     }
   }
 
@@ -321,7 +336,6 @@ async function analyzeChangedDependencies(changedFiles) {
 
       try {
         // Get the diff for package.json
-        // Use the same comparison as detect-changed-screens.sh:
         // - For PRs: compare against target branch (BITBUCKET_PR_DESTINATION_BRANCH)
         // - For branch builds: use git show HEAD
         let diff
@@ -539,9 +553,11 @@ async function main() {
   console.log(`\n✅ Total affected screens: ${result.affectedScreens.length}`)
 
   if (result.affectedScreens.length > 0) {
-    // Output affected screens (one per line for easy parsing)
     console.log('\nAffected screens:')
-    result.affectedScreens.forEach(screen => console.log(`   src/business-apps/${screen}`))
+    result.affectedScreens.slice(0, 10).forEach(screen => console.log(`   src/business-apps/${screen}`))
+    if (result.affectedScreens.length > 10) {
+      console.log(`      ... and ${result.affectedScreens.length - 10} more`)
+    }
 
     // Write to output file for pipeline consumption
     const outputFile = 'dependency-affected-screens.txt'

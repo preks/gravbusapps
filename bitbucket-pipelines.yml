@@ -60,7 +60,7 @@ definitions:
   steps:
     - step: &install_dependencies
         name: Install dependencies
-        size: 2x
+        size: 1x
         clone:
           enabled: true
           depth: full
@@ -80,11 +80,14 @@ definitions:
 
     - step: &detect-changed-screens
         name: Detect Changed Screens
-        size: 2x
+        size: 1x
         services:
           - docker
         script:
           - bash scripts/detect-changed-screens.sh
+          - |
+            echo "Changed screens:"
+            cat changed-tsx.txt
         artifacts:
           - changed-tsx.txt
 

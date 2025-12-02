@@ -346,9 +346,6 @@ echo "="
 if [[ -s changed-tsx.txt ]]; then
   total=$(wc -l < changed-tsx.txt)
   echo "✅ Total screens to publish: $total"
-  echo ""
-  echo "Screens:"
-  cat changed-tsx.txt
 else
   echo "ℹ️  No screens to publish"
 fi
