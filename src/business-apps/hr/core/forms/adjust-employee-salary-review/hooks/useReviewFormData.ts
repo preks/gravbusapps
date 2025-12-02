@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import {
@@ -23,6 +23,16 @@ interface UseReviewFormDataResult {
   payload: SalaryChangePayload
   reviewMode: ReviewMode
   employeeIdFromPayload: string | undefined
+}
+
+interface EmployeeNameResponse {
+  firstName: string
+  lastName: string
+}
+
+function formatFullName(employee: EmployeeNameResponse | undefined): string {
+  if (!employee) return ''
+  return `${employee.firstName || ''} ${employee.lastName || ''}`.trim()
 }
 
 /**
@@ -61,45 +71,47 @@ export function useReviewFormData({
   // Initiator employee ID
   const initiatorEmployeeId: string | undefined = payload?.initiatorEmployeeId
 
-  // Fetch affected employee name
-  useEffect(() => {
-    const fetchName = async () => {
+  // Reusable function to fetch employee name
+  const fetchEmployeeName = useCallback(
+    async <T extends Record<string, EmployeeNameResponse | undefined>>(
+      id: string | undefined,
+      query: string,
+      variables: Record<string, string>,
+      resultKey: keyof T,
+      setter: (name: string) => void
+    ) => {
+      if (!accessToken || !id) return
       try {
-        if (!accessToken || !employeeIdFromPayload) return
-        const result = await graphqlClient.request<{ employee: { firstName: string; lastName: string } }>(
-          GET_EMPLOYEE_NAME,
-          { employeeId: employeeIdFromPayload }
-        )
-        const emp = result?.employee
-        if (emp) {
-          setEmployeeName(`${emp.firstName || ''} ${emp.lastName || ''}`.trim())
-        }
+        const result = await graphqlClient.request<T>(query, variables)
+        setter(formatFullName(result?.[resultKey]))
       } catch {
         // ignore
       }
-    }
-    fetchName()
-  }, [accessToken, employeeIdFromPayload, graphqlClient])
+    },
+    [accessToken, graphqlClient]
+  )
+
+  // Fetch affected employee name
+  useEffect(() => {
+    fetchEmployeeName<{ employee: EmployeeNameResponse }>(
+      employeeIdFromPayload,
+      GET_EMPLOYEE_NAME,
+      { employeeId: employeeIdFromPayload! },
+      'employee',
+      setEmployeeName
+    )
+  }, [employeeIdFromPayload, fetchEmployeeName])
 
   // Fetch initiator employee name (who created the request)
   useEffect(() => {
-    const fetchInitiatorName = async () => {
-      try {
-        if (!accessToken || !initiatorEmployeeId) return
-        const result = await graphqlClient.request<{ initiator: { firstName: string; lastName: string } }>(
-          GET_INITIATOR_EMPLOYEE_NAME,
-          { initiatorEmployeeId }
-        )
-        const initiator = result?.initiator
-        if (initiator) {
-          setInitiatorName(`${initiator.firstName || ''} ${initiator.lastName || ''}`.trim())
-        }
-      } catch {
-        // ignore
-      }
-    }
-    fetchInitiatorName()
-  }, [accessToken, initiatorEmployeeId, graphqlClient])
+    fetchEmployeeName<{ initiator: EmployeeNameResponse }>(
+      initiatorEmployeeId,
+      GET_INITIATOR_EMPLOYEE_NAME,
+      { initiatorEmployeeId: initiatorEmployeeId! },
+      'initiator',
+      setInitiatorName
+    )
+  }, [initiatorEmployeeId, fetchEmployeeName])
 
   // Fetch salary adjustment reason catalog
   useEffect(() => {
