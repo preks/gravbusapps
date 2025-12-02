@@ -22,6 +22,7 @@ interface GroupSettingsModalProps {
   apiClient: ChatApiClient | null
   onRefresh: () => void
   prefixDataTestId?: string
+  accessToken?: string
 }
 
 export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
@@ -31,7 +32,8 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
   currentUserId,
   apiClient,
   onRefresh,
-  prefixDataTestId = 'group-settings-modal'
+  prefixDataTestId = 'group-settings-modal',
+  accessToken
 }) => {
   const [isAddingMembers, setIsAddingMembers] = useState(false)
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([])
@@ -156,13 +158,13 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
 
             {isAddingMembers ? (
               <div className="gba:space-y-4">
-                <div className="gba:h-64">
+                <div className="gba:h-72">
                   <UserSelector
-                    apiClient={apiClient}
                     selectedUserIds={selectedUserIds}
                     onSelectionChange={setSelectedUserIds}
                     currentUserId={currentUserId}
                     prefixDataTestId={`${prefixDataTestId}-user-selector`}
+                    accessToken={accessToken}
                   />
                 </div>
                 <div className="gba:flex gba:gap-2 gba:justify-end">

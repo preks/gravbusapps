@@ -2,7 +2,7 @@
  * TypeScript interfaces for employee compensation data
  *
  * ✅ CONNECTED TO REAL DATABASE TABLES:
- * - EmployeeWorkingCondition (monthly_gross_salary, annually_gross_salary, stock_options)
+ * - EmployeeSalary (monthlyGrossSalary, annualGrossSalary, hourlyGrossSalary)
  * - CompensationBand
  * - EmployeeBonus (bonus payments tracking)
  * - EmployeeBenefit (employee benefits and perks)
@@ -40,22 +40,44 @@ export interface CompensationBand {
 }
 
 /**
+ * Employee Salary Interface
+ * ✅ CONNECTED TO REAL DATABASE: EmployeeSalary table
+ */
+export interface EmployeeSalary {
+  id: string
+  employeeId: string
+  annualGrossSalary: number | null
+  monthlyGrossSalary: number | null
+  hourlyGrossSalary: number | null
+  stockOptions: number | null
+  currency: CatalogEntry
+  currencyRef: string
+  activeFrom: string | null
+  activeTo: string | null
+  startDate: string | null
+  endDate: string | null
+  createdAt: string
+  isDeleted: boolean
+  requestStatus?: string
+}
+
+/**
  * Employee Compensation Interface
- * Derived from EmployeeWorkingCondition table
+ * Derived from EmployeeSalary table
  */
 export interface EmployeeCompensation {
   id: string
   employeeId: string
-  baseSalary: number // Maps to annuallyGrossSalary
+  baseSalary: number | null // Maps to annualGrossSalary
   currency: CatalogEntry
   payFrequency: CatalogEntry
   compensationBand: CompensationBand | null
-  effectiveDate: string // Maps to effectiveFrom
-  endDate: string | null // Maps to effectiveTo
-  // Additional fields from EmployeeWorkingCondition
-  monthlyGrossSalary?: number
-  hourlyGrossSalary?: number
-  stockOptions?: number
+  effectiveDate: string | null // Maps to activeFrom or startDate
+  endDate: string | null // Maps to activeTo or endDate
+  // Additional fields from EmployeeSalary
+  monthlyGrossSalary?: number | null
+  hourlyGrossSalary?: number | null
+  stockOptions?: number | null
 }
 
 /**
@@ -127,6 +149,7 @@ export interface EmployeePayslip {
 export interface CompensationData {
   currentCompensation: EmployeeCompensation | null
   totalBonusesYTD: number
+  activeBonusesCount: number
   activeBenefitsCount: number
   bonuses: EmployeeBonus[]
   benefits: EmployeeBenefit[]
@@ -139,16 +162,16 @@ export interface CompensationData {
 export interface CompensationHistoryRecord {
   id: string
   employeeId: string
-  baseSalary: number // annuallyGrossSalary
+  baseSalary: number | null // annualGrossSalary - null means no salary configured
   currency: CatalogEntry
   compensationBand: Pick<CompensationBand, 'id' | 'name' | 'payGrade'> | null
-  effectiveDate: string
+  effectiveDate: string | null // Can be null if no valid date is available
   endDate: string | null
-  changeReason?: string // Optional: can be added to EmployeeWorkingCondition later
+  changeReason?: string
   notes?: string
-  // Additional fields from EmployeeWorkingCondition
-  monthlyGrossSalary?: number
-  stockOptions?: number
+  // Additional fields from EmployeeSalary
+  monthlyGrossSalary?: number | null // null means no monthly salary configured
+  stockOptions?: number | null
 }
 
 /**
@@ -233,24 +256,15 @@ export interface GrowthData {
 /**
  * GraphQL Response Types
  */
-export interface EmployeeWorkingConditionResponse {
-  EmployeeWorkingCondition: Array<{
-    id: string
-    employeeId: string
-    monthlyGrossSalary: number
-    annualGrossSalary: number // Correct field name (not annuallyGrossSalary)
-    stockOptions: number
-    hireDate: string // Actual field in database
-    exitDate: string | null // Actual field in database
-    isDeleted: boolean
-    compensationBand: CompensationBand | null
-    payFrequencyRef: string
-    payFrequency: CatalogEntry
-    currencyRef: string
-    currency: CatalogEntry
-    createdAt: string
-    updatedAt: string
-    createdBy: string
-    updatedBy: string
+export interface EmployeeSalaryResponse {
+  AllEmployeeSalaries: Array<EmployeeSalary>
+  EmployeePosition: Array<{
+    jobPosition?: {
+      jobLevel?: {
+        compensationBand?: any
+      }
+    }
   }>
+  EmployeeBonus: any[]
+  EmployeeBenefit: any[]
 }

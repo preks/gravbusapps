@@ -49,6 +49,10 @@ export interface TaskSegmentProps {
   priorityCatalog?: string
   statusCatalog?: string
 
+  // Type selection control
+  initialTypeRef?: string | null
+  hideTypeSelection?: boolean
+
   // Entity selection (still needs entities array until EntitySelect is refactored)
   showEntitySelection?: boolean
   entities?: Array<{
@@ -93,6 +97,8 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
   typeCatalog,
   priorityCatalog,
   statusCatalog,
+  initialTypeRef,
+  hideTypeSelection = false,
   showEntitySelection = false,
   entities = [],
   entitiesLoading = false,
@@ -113,17 +119,24 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
   // Determine if new entity (for auto-select)
   const isNewEntity = !entityId
 
-  const timingTypeOptions = [
+  const taskTimingOptions = [
     { value: 'DEADLINE', label: 'Deadline' },
     { value: 'SCHEDULED', label: 'Scheduled' }
   ]
 
-  // Preselect default timing type
+  // Preselect default task timing
   React.useEffect(() => {
-    if (!form.getValues('timingType')) {
-      form.setValue('timingType', 'DEADLINE', { shouldValidate: true })
+    if (!form.getValues('taskTiming')) {
+      form.setValue('taskTiming', 'DEADLINE', { shouldValidate: true })
     }
   }, [form])
+
+  // Pre-select type from initialTypeRef
+  React.useEffect(() => {
+    if (initialTypeRef && !form.getValues('taskTypeRef')) {
+      form.setValue('taskTypeRef', initialTypeRef, { shouldValidate: true })
+    }
+  }, [initialTypeRef, form])
 
   const entitySelectOptions = React.useMemo(
     () =>
@@ -270,7 +283,7 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
 
         <FormField
           control={form.control as any}
-          name="timingType"
+          name="taskTiming"
           render={({ field }) => (
             <FormItem>
               <FormLabel>{t('task-timing-type-label')}</FormLabel>
@@ -281,7 +294,7 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {timingTypeOptions.map(opt => (
+                  {taskTimingOptions.map(opt => (
                     <SelectItem key={opt.value} value={opt.value}>
                       <span className="gba:flex gba:items-center gba:gap-2">
                         {opt.value === 'DEADLINE' ? (
@@ -303,7 +316,7 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
 
       {/* Type and Priority */}
       <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-        {typeCatalog && (
+        {typeCatalog && !hideTypeSelection && (
           <FormField
             control={form.control as any}
             name="taskTypeRef"
@@ -329,7 +342,7 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
             control={form.control as any}
             name="taskPriorityRef"
             render={({ field }) => (
-              <FormItem>
+              <FormItem className={hideTypeSelection && typeCatalog ? 'gba:col-span-2' : undefined}>
                 <FormLabel>{t('task-priority-label')}</FormLabel>
                 <FormControl>
                   <CatalogSelect
@@ -506,7 +519,7 @@ const buildTaskSegmentSchema = (options?: {
   const requireType = options?.requireType !== false
   return z.object({
     name: z.string().min(1, 'Name is required'),
-    timingType: z.enum(['DEADLINE', 'SCHEDULED']).refine(v => !!v, {
+    taskTiming: z.enum(['DEADLINE', 'SCHEDULED']).refine(v => !!v, {
       message: 'Timing is required'
     }),
     taskTypeRef: requireType ? z.string().min(1, 'Type is required') : z.string().optional(),

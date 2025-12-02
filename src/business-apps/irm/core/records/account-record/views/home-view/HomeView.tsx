@@ -202,7 +202,13 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
             component: ContactSection,
             props: {
               ...props,
-              contacts: accountData?.accountContacts?.map((ac: any) => ac.contact).filter(Boolean) || [],
+              contacts:
+                accountData?.accountContacts
+                  ?.map((ac: any) => ({
+                    ...ac.contact,
+                    contactType: ac.contactType
+                  }))
+                  .filter(Boolean) || [],
               contactId: accountData?.accountContacts?.[0]?.contact?.id || undefined,
               recordUrl: accountData?.accountContacts?.[0]?.contact?.id
                 ? buildPlatformUrl('/platform/irm/contact-record', {
@@ -243,55 +249,6 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
           }
         ]}
         data-testid="account-investment-section-wrapper"
-      />
-
-      {/* Activities & Notes - 1/2 width, spans 2 rows - EXACT MATCH TO LEAD */}
-      <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2"
-        sections={[
-          {
-            id: 'activities-section',
-            component: ActivitySection,
-            props: {
-              ...props,
-              activities: activities,
-              activitiesLoading: sectionsLoading,
-              activitiesError: sectionsError,
-              onReloadActivities: loadSectionData,
-              activitySectionActionProps: {
-                contextsArray: [FlowContextName.investmentActivityCreate],
-                externalContextData: { accountId },
-                prefixDataTestId: 'account-activities'
-              },
-              activityEntityActionProps: {
-                contextsArray: [FlowContextName.investmentActivityEntity],
-                externalContextData: { accountId },
-                prefixDataTestId: 'account-activity-entity'
-              }
-            }
-          },
-          {
-            id: 'notes-section',
-            component: NoteSection as React.ComponentType<any>,
-            props: {
-              ...props,
-              notes: notes,
-              noteActionProps: {
-                contextsArray: [FlowContextName.investmentNoteCreate],
-                externalContextData: { accountId },
-                prefixDataTestId: 'account-notes',
-                emptyStateBehavior: 'enable'
-              },
-              noteEntityActionProps: {
-                contextsArray: [FlowContextName.investmentNoteEntity],
-                externalContextData: { accountId },
-                prefixDataTestId: 'account-note-entity',
-                emptyStateBehavior: 'enable'
-              }
-            }
-          }
-        ]}
-        data-testid="account-activities-notes-section-wrapper"
       />
 
       {/* Tasks & Approvals - 1/2 width, spans 2 rows - EXACT MATCH TO LEAD */}
@@ -348,6 +305,55 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
           }
         ]}
         data-testid="account-tasks-approvals-section-wrapper"
+      />
+
+      {/* Activities & Notes - 1/2 width, spans 2 rows - EXACT MATCH TO LEAD */}
+      <SectionWrapper
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2"
+        sections={[
+          {
+            id: 'activities-section',
+            component: ActivitySection,
+            props: {
+              ...props,
+              activities: activities,
+              activitiesLoading: sectionsLoading,
+              activitiesError: sectionsError,
+              onReloadActivities: loadSectionData,
+              activitySectionActionProps: {
+                contextsArray: [FlowContextName.investmentActivityCreate],
+                externalContextData: { accountId },
+                prefixDataTestId: 'account-activities'
+              },
+              activityEntityActionProps: {
+                contextsArray: [FlowContextName.investmentActivityEntity],
+                externalContextData: { accountId },
+                prefixDataTestId: 'account-activity-entity'
+              }
+            }
+          },
+          {
+            id: 'notes-section',
+            component: NoteSection as React.ComponentType<any>,
+            props: {
+              ...props,
+              notes: notes,
+              noteActionProps: {
+                contextsArray: [FlowContextName.investmentNoteCreate],
+                externalContextData: { accountId },
+                prefixDataTestId: 'account-notes',
+                emptyStateBehavior: 'enable'
+              },
+              noteEntityActionProps: {
+                contextsArray: [FlowContextName.investmentNoteEntity],
+                externalContextData: { accountId },
+                prefixDataTestId: 'account-note-entity',
+                emptyStateBehavior: 'enable'
+              }
+            }
+          }
+        ]}
+        data-testid="account-activities-notes-section-wrapper"
       />
     </>
   )

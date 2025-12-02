@@ -21,17 +21,12 @@ export const CATALOG_DATA_QUERY = `query fetchCatalogData($activeUserLocale: Str
       defaultLocale
     }
   }
-  
-  currency: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "Currency"}}, isDeleted: {_eq: false}}, orderBy: {displayOrder: ASC}) {
-    value
-    id
-    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
-      localeCode
-      value
-    }
-    catalog {
-      defaultLocale
-    }
+}
+`
+
+export const EMPLOYEE_BANK_ACCOUNT_CURRENCY_QUERY = `query fetchEmployeeBankAccountCurrency($employeeId: uuid!) {
+  EmployeeBankAccount(where: {employeeId: {_eq: $employeeId}}, limit: 1) {
+    currencyRef
   }
 }
 `

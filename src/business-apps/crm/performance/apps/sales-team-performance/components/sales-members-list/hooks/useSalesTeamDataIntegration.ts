@@ -18,7 +18,7 @@ export interface UseSalesTeamDataIntegrationResult {
 export const useSalesTeamDataIntegration = (context: BusinessAppContextProps): UseSalesTeamDataIntegrationResult => {
   const [members, setMembers] = useState<SalesTeamMember[]>([])
   const [total, setTotal] = useState(0)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(!!context.accessToken) // Only set to true if accessToken exists
   const [error, setError] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(false)
   const [currentPageSize, setCurrentPageSize] = useState(20)
@@ -146,13 +146,12 @@ export const useSalesTeamDataIntegration = (context: BusinessAppContextProps): U
   const loadData = useCallback(
     async (page: number, pageSize: number, search?: string) => {
       if (!context.accessToken) {
-        console.log('⚠️ useSalesTeamDataIntegration: No access token available, waiting...')
-        setError('Access token required')
+        // Silently skip loading when accessToken is empty (intentionally disabled)
         setIsLoading(false)
+        setError(null) // Don't set error - this is intentional
         return
       }
 
-      console.log('✅ useSalesTeamDataIntegration: Access token available, loading data...')
       setIsLoading(true)
       setError(null)
 

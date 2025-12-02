@@ -211,7 +211,11 @@ const InvestmentDisplay: React.FC<InvestmentDisplayProps> = ({
         </div>
 
         {/* Dynamic Investment Fields */}
-        <DynamicInvestmentFields investmentData={investment} accessToken={businessAppContext?.accessToken || ''} />
+        <DynamicInvestmentFields
+          investmentData={investment}
+          accessToken={businessAppContext?.accessToken || ''}
+          fields={fields}
+        />
       </div>
     </div>
   )

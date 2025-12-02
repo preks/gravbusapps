@@ -44,6 +44,7 @@ export interface AppActionFormProps {
   formType?: 'form' | 'wizard'
   // Wizard-specific props
   wizardSteps?: WizardStep<any>[]
+  allowStepJumping?: boolean
   // Pre-submission handler (e.g., for file uploads)
   handlePreSubmit?: (formData: any) => Promise<any>
   isSubmitDisabled?: boolean
@@ -210,6 +211,7 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
   disableFormSubmission = false,
   formType = 'form',
   wizardSteps,
+  allowStepJumping = true,
   handlePreSubmit,
   isSubmitDisabled = false,
   onProcessCompletion
@@ -402,9 +404,9 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
         <WizardForm
           form={form}
           steps={wizardSteps}
-          onSubmit={form.handleSubmit(vals => handleSubmit(vals), handleValidationErrors)}
+          onSubmit={handleSubmit}
           showStepIndicator={true}
-          allowStepJumping={true}
+          allowStepJumping={allowStepJumping}
           className="gba:w-full"
           {...(schema ? { schema: schema as any } : {})}
         >

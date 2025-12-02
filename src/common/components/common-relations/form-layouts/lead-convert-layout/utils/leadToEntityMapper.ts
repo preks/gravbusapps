@@ -2,6 +2,8 @@ import type { Lead } from '@/common/data/relations/types/leadTypes'
 import type { Account } from '@/common/data/relations/types/accountTypes'
 import type { Contact } from '@/common/data/relations/types/contactTypes'
 import type { Address, CommunicationChannel } from '@/common/data/common/types/commonTypes'
+import { CommunicationChannelCode } from '@/common/data/common/types/commonTypes'
+import { COMMUNICATION_CHANNEL } from '@/common/constants/commonCatalogs'
 import { opportunitySchema } from '@/common/components/common-relations/form-layouts/opportunity-layout'
 import { z } from 'zod'
 import { mapLeadAddresses, mapLeadCommunicationChannels } from './index'
@@ -39,14 +41,14 @@ export function mapLeadToAccount(leadData: Lead | Record<string, unknown> | null
   const communicationChannels: Partial<CommunicationChannel>[] = []
   if (communicationData.email) {
     communicationChannels.push({
-      communicationChannelRef: 'CommunicationChannel:v1:EMAIL',
+      communicationChannelRef: `${COMMUNICATION_CHANNEL}:${CommunicationChannelCode.EMAIL}`,
       value: communicationData.email,
       valueExtension: undefined
     })
   }
   if (communicationData.phoneNumber) {
     communicationChannels.push({
-      communicationChannelRef: 'CommunicationChannel:v1:PHONE',
+      communicationChannelRef: `${COMMUNICATION_CHANNEL}:${CommunicationChannelCode.PHONE}`,
       value: communicationData.phoneNumber,
       valueExtension: undefined
     })
@@ -81,14 +83,14 @@ export function mapLeadToContact(leadData: Lead | Record<string, unknown> | null
   const communicationChannels: Partial<CommunicationChannel>[] = []
   if (communicationData.email) {
     communicationChannels.push({
-      communicationChannelRef: 'CommunicationChannel:v1:EMAIL',
+      communicationChannelRef: `${COMMUNICATION_CHANNEL}:${CommunicationChannelCode.EMAIL}`,
       value: communicationData.email,
       valueExtension: undefined
     })
   }
   if (communicationData.phoneNumber) {
     communicationChannels.push({
-      communicationChannelRef: 'CommunicationChannel:v1:PHONE',
+      communicationChannelRef: `${COMMUNICATION_CHANNEL}:${CommunicationChannelCode.PHONE}`,
       value: communicationData.phoneNumber,
       valueExtension: undefined
     })

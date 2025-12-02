@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react'
-import PipelineSettings from '@/common/components/common-relations/setting-pages/pipeline/PipelineSettings'
+import PipelineSettings from '@/common/components/common-relations/setting-pages/pipelines/PipelineSettings'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { usePipelineSettings } from '@/common/components/common-relations/setting-pages/pipeline/hooks/usePipelineSettings'
+import { usePipelineSettings } from '@/common/components/common-relations/setting-pages/pipelines/hooks/usePipelineSettings'
 
 export interface PipelineDataPageProps extends BusinessAppContextProps {
   className?: string
