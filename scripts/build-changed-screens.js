@@ -233,27 +233,57 @@ async function main() {
   let successCount = 0
   const failedScreens = []
 
-  for (const screen of changedScreens) {
-    console.log(`\n🔨 Validating screen: ${screen}`)
+  // Build screens in parallel chunks of 2 for faster validation
+  const CHUNK_SIZE = 2
+  let buildAborted = false
 
-    try {
-      const result = await buildScreenOnly(screen)
+  for (let i = 0; i < changedScreens.length && !buildAborted; i += CHUNK_SIZE) {
+    const chunk = changedScreens.slice(i, i + CHUNK_SIZE)
+    const chunkNum = Math.floor(i / CHUNK_SIZE) + 1
+    const totalChunks = Math.ceil(changedScreens.length / CHUNK_SIZE)
 
-      console.log(`   ✅ Screen validation successful`)
-      buildResults.push({
-        screen,
-        success: true,
-        result
+    console.log(`\n${'─'.repeat(60)}`)
+    console.log(`🔨 Building chunk ${chunkNum}/${totalChunks} (${chunk.length} screen${chunk.length > 1 ? 's' : ''})`)
+    chunk.forEach(s => console.log(`   - ${s}`))
+    console.log(`${'─'.repeat(60)}`)
+
+    // Build all screens in this chunk in parallel
+    const chunkResults = await Promise.all(
+      chunk.map(async screen => {
+        try {
+          const result = await buildScreenOnly(screen)
+          return { screen, success: true, result }
+        } catch (error) {
+          return { screen, success: false, error: error.message }
+        }
       })
-      successCount++
-    } catch (error) {
-      console.error(`   ❌ Screen validation failed: ${error.message}`)
-      failedScreens.push({
-        screen,
-        error: error.message,
-        stage: 'build_validation'
-      })
-      break
+    )
+
+    // Process results and check for failures
+    for (const result of chunkResults) {
+      if (result.success) {
+        console.log(`   ✅ ${result.screen}: Build successful`)
+        buildResults.push({
+          screen: result.screen,
+          success: true,
+          result: result.result
+        })
+        successCount++
+      } else {
+        console.error(`   ❌ ${result.screen}: Build failed - ${result.error}`)
+        failedScreens.push({
+          screen: result.screen,
+          error: result.error,
+          stage: 'build_validation'
+        })
+      }
+    }
+
+    // If any screen in this chunk failed, abort the build
+    const chunkHasFailure = chunkResults.some(r => !r.success)
+    if (chunkHasFailure) {
+      console.error(`\n🛑 Chunk ${chunkNum} had failures - aborting build`)
+      buildAborted = true
     }
   }
 

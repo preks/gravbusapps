@@ -14,7 +14,7 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 // Configuration
-const LOGS_DIR = path.join(__dirname, '..', 'logs')
+const LOGS_DIR = path.join(__dirname, '..', '..', 'logs')
 const MAX_LOG_FILES = 10 // Keep only the 10 most recent log files
 const MAX_AGE_DAYS = 7 // Delete logs older than 7 days
 

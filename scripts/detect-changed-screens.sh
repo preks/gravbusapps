@@ -11,7 +11,6 @@ extract_app_paths() {
   
   # Check if input file exists and has content
   if [[ ! -f "$input_file" ]] || [[ ! -s "$input_file" ]]; then
-    echo "No .tsx files to process"
     return 0
   fi
   
@@ -175,7 +174,7 @@ else
 fi
 
 # Extract directory paths from the changed .tsx files
-echo "Raw .tsx files found:"
+echo "Changed files found:"
 cat "$temp_tsx_file" || echo "No files in temp file"
 
 extract_app_paths "$temp_tsx_file" "changed-tsx.txt"
@@ -210,10 +209,10 @@ fi
 
 # Build cache of screen directories (folders with index.ts)
 build_screen_dirs_cache() {
-  # Find all index.ts files in apps/forms/popups/records and get their directories
+  # Find all index.ts files in screens and get their directories
   find src/business-apps -type f -name 'index.ts' 2>/dev/null | while read -r index_file; do
     dir=$(dirname "$index_file")
-    # Check if it's in apps/forms/popups/records
+    # Check if it's in screens
     if echo "$dir" | grep -qE '/(apps|forms|popups|records)/[^/]+$'; then
       echo "$dir"
     fi
@@ -224,11 +223,10 @@ build_screen_dirs_cache() {
 SCREEN_DIRS_CACHE=$(build_screen_dirs_cache)
 
 # Function to check if a file is screen-specific
-# A screen is a folder in apps/forms/popups/records that has an index.ts file
 is_screen_specific() {
   local file="$1"
   
-  # Must be in apps/forms/popups/records to even be considered
+  # Must be in screens to even be considered
   if ! echo "$file" | grep -qE '/(apps|forms|popups|records)/'; then
     return 1  # false - not in screen folder type
   fi
@@ -240,7 +238,7 @@ is_screen_specific() {
     fi
   done <<< "$SCREEN_DIRS_CACHE"
   
-  # File is in apps/forms/popups/records but NOT in a folder with index.ts
+  # File is in screens but NOT in a folder with index.ts
   # This means it's shared code (e.g., forms/components/)
   return 1  # false - is shared
 }
@@ -248,11 +246,11 @@ is_screen_specific() {
 # Check if there are dependency-related changes:
 # - Package files (package.json, etc.)
 # - Global shared code (src/* except business-apps)
-# - Module-level shared code (business-apps/**/hooks/, components/, etc. - NOT in apps/forms/popups/records)
-has_package_changes=$(grep -qE '^(package\.json|package-lock\.json|yarn\.lock)' "$temp_all_changes" 2>/dev/null && echo "yes" || echo "no")
+# - Module-level shared code (business-apps/**/hooks/, components/, etc. - NOT in screens itself)
+has_package_changes=$(grep -qE '^(package\.json)' "$temp_all_changes" 2>/dev/null && echo "yes" || echo "no")
 has_global_shared=$(grep -E '^src/' "$temp_all_changes" 2>/dev/null | grep -vE '^src/business-apps/' | grep -q . && echo "yes" || echo "no")
 
-# Check for module-level shared code (in business-apps but NOT in apps/forms/popups/records)
+# Check for module-level shared code (in business-apps but NOT in screens)
 module_shared_changes=""
 while IFS= read -r line; do
   if [[ "$line" == src/business-apps/* ]] && ! is_screen_specific "$line"; then
@@ -268,7 +266,7 @@ if [[ "$has_package_changes" == "yes" || "$has_global_shared" == "yes" || "$has_
   # Show package changes
   if [[ "$has_package_changes" == "yes" ]]; then
     echo "   📦 Package files:"
-    grep -E '^(package\.json|package-lock\.json|yarn\.lock)' "$temp_all_changes" | while read -r line; do
+    grep -E '^(package\.json)' "$temp_all_changes" | while read -r line; do
       echo "      - $line"
     done
   fi

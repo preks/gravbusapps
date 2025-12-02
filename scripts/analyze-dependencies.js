@@ -207,9 +207,6 @@ async function isScreenSpecificFile(filePath) {
 async function findSharedFilesUsingPackage(packageName) {
   const sharedFiles = []
 
-  // Pre-load screen directories cache
-  await getScreenDirectories()
-
   // Search in ALL src/ folders
   const allSrcFiles = await glob('src/**/*.{ts,tsx,js,jsx}', {
     cwd: projectRoot,
@@ -319,7 +316,7 @@ async function analyzeChangedDependencies(changedFiles) {
     console.log(`\n🔍 Analyzing: ${changedFile}`)
 
     // Handle package.json changes
-    if (changedFile === 'package.json' || changedFile === 'package-lock.json' || changedFile === 'yarn.lock') {
+    if (changedFile === 'package.json') {
       console.log('   📦 Package file changed - analyzing affected packages...')
 
       try {
@@ -351,7 +348,6 @@ async function analyzeChangedDependencies(changedFiles) {
             const transitiveScreens = await findScreensAffectedByPackageTransitively(pkg)
 
             for (const screen of transitiveScreens) {
-              // Only add if not already counted as direct
               if (!analysis.affectedByPackage[pkg].direct.includes(screen)) {
                 affectedScreens.add(screen)
                 analysis.affectedByPackage[pkg].transitive.push(screen)
@@ -440,16 +436,13 @@ async function main() {
   console.log('='.repeat(60))
   console.log(`📝 Changed files to analyze: ${changedFiles.length}`)
 
-  // Pre-load screen directories cache
-  await getScreenDirectories()
-
   // Filter to dependency-related files:
   // - Package files (package.json, etc.)
   // - Global shared code (src/* except business-apps)
   // - Shared code in business-apps (NOT inside a screen folder with index.ts)
   const dependencyFiles = []
   for (const f of changedFiles) {
-    if (f === 'package.json' || f === 'package-lock.json' || f === 'yarn.lock') {
+    if (f === 'package.json') {
       dependencyFiles.push(f)
     } else if (f.startsWith('src/') && !f.startsWith('src/business-apps/')) {
       dependencyFiles.push(f) // Global shared code
@@ -464,9 +457,7 @@ async function main() {
   }
 
   // Categorize for display
-  const packageFiles = dependencyFiles.filter(
-    f => f === 'package.json' || f === 'package-lock.json' || f === 'yarn.lock'
-  )
+  const packageFiles = dependencyFiles.filter(f => f === 'package.json')
   const globalSharedFiles = dependencyFiles.filter(f => f.startsWith('src/') && !f.startsWith('src/business-apps/'))
   // Module shared files are everything else that's in business-apps
   const moduleSharedFiles = dependencyFiles.filter(f => f.startsWith('src/business-apps/'))

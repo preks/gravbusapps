@@ -625,6 +625,7 @@ export default wrapWithUiCatalog(wrapWithLocalizationProvider(OriginalComponent)
         cssFileName: 'main'
       },
       minify: isProduction ? 'esbuild' : false, // Ensure minification for production
+      reportCompressedSize: isUnversionedBuild,
       // Enable CSS processing
       css: {
         devSourcemap: true
