@@ -4,8 +4,8 @@
  */
 
 import React, { memo, useEffect, useState } from 'react'
-import { Card, CardContent, Badge, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
-import { Clock, AlertTriangle, User, Zap } from 'lucide-react'
+import { Badge, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
+import { Clock, AlertTriangle, Zap } from 'lucide-react'
 import { UnifiedTask } from '../types'
 import { formatRelativeTime, formatDateTime, isOverdue, isDueSoon } from '../utils/taskFormatters'
 import { EmployeeAvatarData } from '../hooks/useEmployeeAvatarsBatch'
@@ -159,137 +159,149 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
     const noAvatarAvailable = avatarStatus === 'idle' && !employeeData?.avatarUrl
     const showAvatarFallback = !areAvatarsLoading && (avatarStatus === 'error' || noAvatarAvailable)
 
+    // Full list view (no task selected) - single row layout with fixed columns
+    if (!isDetailViewOpen) {
+      return (
+        <div
+          className="gba:cursor-pointer gba:transition-all gba:duration-200 gba:rounded-md gba:px-4 gba:py-2.5 gba:hover:bg-muted/50"
+          onClick={() => onView(task)}
+          data-testid={`task-card-${task.id}`}
+        >
+          <div className="gba:flex gba:items-center gba:gap-4">
+            {/* 1. Date - fixed 140px */}
+            <span
+              className="gba:text-xs gba:text-muted-foreground gba:w-[140px] gba:flex-shrink-0"
+              data-testid="task-created-at"
+            >
+              {task.status === 'COMPLETED' && task.completedAt ? (
+                <span className="gba:text-success">✓ {formatDateTime(task.completedAt)}</span>
+              ) : (
+                createdAt && formatDateTime(createdAt)
+              )}
+            </span>
+
+            {/* 2. Avatar */}
+            <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0" data-testid="task-creator-avatar">
+              {showAvatarImage && <AvatarImage src={employeeData?.avatarUrl} alt={creatorName} />}
+              {showAvatarFallback && (
+                <AvatarFallback className="gba:text-xs gba:font-medium gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
+                  {getInitials(creatorName)}
+                </AvatarFallback>
+              )}
+            </Avatar>
+
+            {/* 3. Creator name */}
+            <span
+              className="gba:text-sm gba:font-medium gba:truncate gba:text-foreground gba:w-[160px] gba:flex-shrink-0"
+              data-testid="task-creator-name"
+            >
+              {creatorName}
+            </span>
+
+            {/* 4. Module Icon */}
+            <span title={moduleInfo.name} className="gba:w-5 gba:flex-shrink-0">
+              <ModuleIcon className={`gba:h-5 gba:w-5 ${moduleInfo.color}`} />
+            </span>
+
+            {/* 5. Task title + Blink indicator */}
+            <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1 gba:min-w-0">
+              <span className="gba:text-base gba:font-medium gba:truncate gba:text-foreground" data-testid="task-title">
+                {taskTitle}
+              </span>
+              {isBlinkTask && (
+                <div
+                  className="gba:flex gba:items-center gba:gap-0.5 gba:flex-shrink-0"
+                  data-testid="task-blink-indicator"
+                >
+                  <Zap className="gba:h-4 gba:w-4 gba:text-blue-500" strokeWidth={2.5} />
+                  <span className="gba:text-sm gba:font-medium gba:text-blue-500">Blink</span>
+                </div>
+              )}
+            </div>
+
+            {/* 6. Right side: Module badge + Due date */}
+            <div className="gba:flex gba:items-center gba:gap-3 gba:flex-shrink-0">
+              {moduleName && (
+                <Badge variant="secondary" data-testid="task-module-badge">
+                  {moduleName}
+                </Badge>
+              )}
+              {!isCompleted && task.dueDate && (
+                <div className="gba:flex gba:items-center gba:gap-1">
+                  {overdue || dueSoon ? (
+                    <AlertTriangle className="gba:h-4 gba:w-4" />
+                  ) : (
+                    <Clock className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+                  )}
+                  <span className={`gba:text-sm ${getDueDateClass(overdue, dueSoon)}`} data-testid="task-due-date">
+                    {getDueDateText(overdue, dueSoon, task.dueDate)}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    // Split view (task selected) - Date | Avatar | Name | Icon | Task
     return (
-      <Card
-        className={`gba:cursor-pointer gba:hover:shadow-md gba:transition-all gba:duration-300 nw:py-0 ${
+      <div
+        className={`gba:cursor-pointer gba:transition-all gba:duration-200 gba:rounded-md gba:px-3 gba:py-2.5 ${
           isSelected
-            ? 'gba:border-primary gba:border-2 gba:shadow-lg gba:bg-primary/5'
-            : 'gba:border gba:hover:border-primary/50'
+            ? 'gba:bg-primary/10 gba:border-l-2 gba:border-l-primary'
+            : 'gba:hover:bg-muted/50 gba:border-l-2 gba:border-l-transparent'
         }`}
         onClick={() => onView(task)}
         data-testid={`task-card-${task.id}`}
       >
-        <CardContent className="gba:px-4 gba:py-0">
-          <div className="gba:flex gba:items-center gba:gap-4">
-            {/* Left side: Avatar, creator info, task title, source badge */}
-            <div
-              className="gba:flex gba:items-center gba:gap-3 gba:flex-1 gba:min-w-0"
-              data-testid="task-creator-section"
-            >
-              <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0" data-testid="task-creator-avatar">
-                {/* 
-                  Avatar rendering rules:
-                  - While loading: show nothing (empty avatar to avoid initials flicker)
-                  - On successful load: show AvatarImage
-                  - On error or missing URL: show initials in AvatarFallback
-                */}
-                {showAvatarImage && <AvatarImage src={employeeData?.avatarUrl} alt={creatorName} />}
-                {showAvatarFallback && (
-                  <AvatarFallback className="gba:text-xs gba:font-medium gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
-                    {getInitials(creatorName)}
-                  </AvatarFallback>
-                )}
-              </Avatar>
-              <div className="gba:flex gba:flex-col gba:w-48 gba:flex-shrink-0 gba:leading-none gba:gap-0.5">
-                <div className="gba:flex gba:items-center gba:gap-2">
-                  <User className="gba:h-3 gba:w-3 gba:text-muted-foreground" />
-                  <span
-                    className="gba:text-xs gba:font-medium gba:truncate gba:leading-tight"
-                    data-testid="task-creator-name"
-                  >
-                    {creatorName}
-                  </span>
-                </div>
-                {task.status === 'COMPLETED' && task.completedAt && (
-                  <div className="gba:flex gba:items-center gba:gap-1">
-                    <Clock className="gba:h-3 gba:w-3 gba:text-success" />
-                    <span
-                      className="gba:text-xs gba:text-success gba:leading-tight gba:whitespace-nowrap gba:font-medium"
-                      data-testid="task-completed-at"
-                    >
-                      ✓ {formatDateTime(task.completedAt)}
-                    </span>
-                  </div>
-                )}
-                {!(task.status === 'COMPLETED' && task.completedAt) && createdAt && (
-                  <div className="gba:flex gba:items-center gba:gap-1">
-                    <Clock className="gba:h-3 gba:w-3 gba:text-muted-foreground" />
-                    <span
-                      className="gba:text-xs gba:text-muted-foreground gba:leading-tight gba:whitespace-nowrap"
-                      data-testid="task-created-at"
-                    >
-                      {formatDateTime(createdAt)}
-                    </span>
-                  </div>
-                )}
-              </div>
-              {/* Module Icon - Vertically centered with title and description */}
-              <span title={moduleInfo.name} className="gba:flex-shrink-0 gba:self-center">
-                <ModuleIcon className={`gba:h-5 gba:w-5 ${moduleInfo.color}`} />
-              </span>
-              <div className="gba:flex gba:flex-col gba:gap-0.5 gba:flex-1 gba:min-w-0">
-                <div className="gba:flex gba:items-center gba:gap-2">
-                  <span className="gba:text-base gba:font-semibold gba:truncate" data-testid="task-title">
-                    {taskTitle}
-                  </span>
-                  {!isDetailViewOpen && (
-                    <>
-                      {moduleName && (
-                        <Badge variant="secondary" data-testid="task-module-badge" className="gba:flex-shrink-0">
-                          {moduleName}
-                        </Badge>
-                      )}
-                      {isBlinkTask && (
-                        <div
-                          className="gba:flex gba:items-center gba:gap-1 gba:flex-shrink-0"
-                          data-testid="task-blink-indicator"
-                        >
-                          <Zap className="gba:h-4 gba:w-4 gba:text-blue-500" strokeWidth={2.5} />
-                          <span className="gba:text-sm gba:font-medium gba:text-blue-500">Blink</span>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-                {!isSelected && (task.description || task.message) && (
-                  <p
-                    className="gba:text-xs gba:text-muted-foreground gba:line-clamp-1 gba:px-2"
-                    data-testid="task-description"
-                  >
-                    {task.description || task.message}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Right side: Due date only - Hidden when selected except for Blink icon */}
-            {/* Don't show due date for completed tasks */}
-            {!isSelected && !isCompleted && (
-              <div className="gba:flex gba:flex-col gba:gap-1 gba:items-end gba:flex-shrink-0">
-                {task.dueDate && (
-                  <div className="gba:flex gba:items-center gba:gap-1">
-                    {overdue || dueSoon ? (
-                      <AlertTriangle className="gba:h-3 gba:w-3" />
-                    ) : (
-                      <Clock className="gba:h-3 gba:w-3" />
-                    )}
-                    <span className={`gba:text-xs ${getDueDateClass(overdue, dueSoon)}`} data-testid="task-due-date">
-                      {getDueDateText(overdue, dueSoon, task.dueDate)}
-                    </span>
-                  </div>
-                )}
-              </div>
+        <div className="gba:flex gba:items-center gba:gap-2">
+          {/* 1. Date (compact) */}
+          <span
+            className="gba:text-[11px] gba:text-muted-foreground gba:w-[85px] gba:flex-shrink-0"
+            data-testid="task-created-at"
+          >
+            {task.status === 'COMPLETED' && task.completedAt ? (
+              <span className="gba:text-success">✓ {formatDateTime(task.completedAt)}</span>
+            ) : (
+              createdAt && formatDateTime(createdAt)
             )}
+          </span>
 
-            {/* Show only Blink icon when selected */}
-            {isSelected && isBlinkTask && (
-              <div className="gba:flex-shrink-0 gba:ml-2">
-                <Zap className="gba:h-4 gba:w-4 gba:text-blue-500" strokeWidth={2.5} />
-              </div>
+          {/* 2. Avatar */}
+          <Avatar className="gba:h-6 gba:w-6 gba:flex-shrink-0" data-testid="task-creator-avatar">
+            {showAvatarImage && <AvatarImage src={employeeData?.avatarUrl} alt={creatorName} />}
+            {showAvatarFallback && (
+              <AvatarFallback className="gba:text-[9px] gba:font-medium gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
+                {getInitials(creatorName)}
+              </AvatarFallback>
+            )}
+          </Avatar>
+
+          {/* 3. Creator name - 2 lines allowed */}
+          <span
+            className="gba:text-xs gba:font-medium gba:text-foreground gba:w-[140px] gba:flex-shrink-0 gba:line-clamp-2 gba:leading-tight"
+            data-testid="task-creator-name"
+          >
+            {creatorName}
+          </span>
+
+          {/* 4. Module Icon */}
+          <span title={moduleInfo.name} className="gba:flex-shrink-0">
+            <ModuleIcon className={`gba:h-4 gba:w-4 ${moduleInfo.color}`} />
+          </span>
+
+          {/* 5. Task title + Blink */}
+          <div className="gba:flex gba:items-center gba:gap-1 gba:flex-1 gba:min-w-0">
+            <span className="gba:text-sm gba:font-medium gba:truncate gba:text-foreground" data-testid="task-title">
+              {taskTitle}
+            </span>
+            {isBlinkTask && (
+              <Zap className="gba:h-3.5 gba:w-3.5 gba:text-blue-500 gba:flex-shrink-0" strokeWidth={2.5} />
             )}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     )
   }
 )

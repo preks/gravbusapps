@@ -664,7 +664,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
             <EmptyState type="inbox" message={getEmptyStateMessage(searchQuery, filterType)} />
           ) : (
             <>
-              <div className="gba:space-y-0" data-testid="inbox-task-list">
+              <div className="gba:divide-y gba:divide-border/50" data-testid="inbox-task-list">
                 {filteredTasks.map(task => (
                   <TaskCard
                     key={task.id}
