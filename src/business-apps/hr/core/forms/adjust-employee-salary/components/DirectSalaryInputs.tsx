@@ -11,7 +11,7 @@ import {
 } from '@newwork/nw-design-system'
 import { useWatch } from 'react-hook-form'
 import type { Control, Path } from 'react-hook-form'
-import type { AdjustEmployeeSalaryFormValues, SalaryType } from '../types'
+import type { AdjustEmployeeSalaryFormValues } from '../types'
 import { formatCurrencyString } from '@/common/utils/numberFormatter'
 import translations from '../../_i18n'
 
@@ -25,7 +25,7 @@ const DirectSalaryInputs: React.FC<DirectSalaryInputsProps> = ({ control, curren
   const { t } = useTranslation(translations)
   const placeholderEnter = t('action-enter-placeholder', { defaultValue: 'Please Enter' })
 
-  const salaryType = useWatch({ control, name: 'salaryType' }) as SalaryType
+  const salaryType = useWatch({ control, name: 'salaryType' })
   const annualSalary = useWatch({ control, name: 'annualSalary' })
 
   // Calculate monthly equivalent for yearly/monthly type

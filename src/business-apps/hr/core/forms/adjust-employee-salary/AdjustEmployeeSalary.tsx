@@ -255,6 +255,12 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
               // === ASSIGN MODE ===
               if (formMode === 'assign') {
                 const isHourly = values.salaryType === 'hourly'
+                // Calculate monthly salary for yearly/monthly type
+                const monthlyGrossSalary = isHourly
+                  ? null
+                  : values.annualSalary !== null
+                    ? values.annualSalary / 12
+                    : null
                 const payload = {
                   event: 'pse_submit',
                   employeeId: employeeId,
@@ -263,7 +269,7 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
                   employeeSalary: {
                     employee: employeeId,
                     annualGrossSalary: isHourly ? null : values.annualSalary,
-                    monthlyGrossSalary: isHourly ? null : values.annualSalary != null ? values.annualSalary / 12 : null,
+                    monthlyGrossSalary: monthlyGrossSalary,
                     hourlyGrossSalary: isHourly ? values.hourlySalary : null,
                     currencyRef: values.currency || '',
                     salaryAdjustReason: null, // No reason for assign mode
