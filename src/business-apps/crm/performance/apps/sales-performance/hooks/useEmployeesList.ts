@@ -69,7 +69,11 @@ const buildEmployeeRevenuesQuery = (currencyId?: string) => {
   `
 }
 
+// Sales Associate capability name for filtering
+const SALES_ASSOCIATE_CAPABILITY = 'Sales Associate'
+
 // Query to get all employees with their position and department via employeePosition
+// Filtered to only include employees with Sales Associate capability
 const GET_ALL_EMPLOYEES = `
   query GetAllEmployees($limit: Int, $offset: Int, $where: EmployeeBoolExp, $orderBy: [EmployeeOrderBy!]) {
     Employee(
@@ -233,9 +237,16 @@ export const useEmployeesList = (accessToken: string, currencyId?: string): UseE
     setError(null)
 
     try {
-      // Build where condition
+      // Build where condition - always filter by Sales Associate capability
       const whereCondition: any = {
-        isDeleted: { _eq: false }
+        isDeleted: { _eq: false },
+        employeePosition: {
+          employeeCapabilities: {
+            capability: {
+              name: { _eq: SALES_ASSOCIATE_CAPABILITY }
+            }
+          }
+        }
       }
 
       // Add search filter if provided

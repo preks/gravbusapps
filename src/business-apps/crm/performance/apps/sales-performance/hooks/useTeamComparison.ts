@@ -185,6 +185,9 @@ const findTeamLead = (employees: OrganizationalUnitEmployee[]): string => {
   return 'No Lead Assigned'
 }
 
+// Sales Associate capability name for filtering
+const SALES_ASSOCIATE_CAPABILITY = 'Sales Associate'
+
 const buildTeamsQuery = (): string => `
   query GetAllTeams($structureId: uuid!) {
     OrganizationalUnit(
@@ -192,6 +195,18 @@ const buildTeamsQuery = (): string => `
         isDeleted: {_eq: false}
         structureId: {_eq: $structureId}
         type: {_in: ["TEAM", "DEPARTMENT", "UNIT"]}
+        organizationalUnitEmployee: {
+          employee: {
+            isDeleted: {_eq: false}
+            employeePosition: {
+              employeeCapabilities: {
+                capability: {
+                  name: {_eq: "${SALES_ASSOCIATE_CAPABILITY}"}
+                }
+              }
+            }
+          }
+        }
       }
       orderBy: {name: ASC}
     ) {
@@ -199,7 +214,16 @@ const buildTeamsQuery = (): string => `
       name
       organizationalUnitEmployee(
         where: {
-          employee: {isDeleted: {_eq: false}}
+          employee: {
+            isDeleted: {_eq: false}
+            employeePosition: {
+              employeeCapabilities: {
+                capability: {
+                  name: {_eq: "${SALES_ASSOCIATE_CAPABILITY}"}
+                }
+              }
+            }
+          }
         }
       ) {
         employeeId

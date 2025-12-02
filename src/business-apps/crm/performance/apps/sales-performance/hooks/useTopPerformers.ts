@@ -10,7 +10,10 @@ interface UseTopPerformersResult {
   refetch: () => void
 }
 
-// Build query using central EMPLOYEE_REF fragment
+// Sales Associate capability name for filtering
+const SALES_ASSOCIATE_CAPABILITY = 'Sales Associate'
+
+// Build query using central EMPLOYEE_REF fragment - filtered to Sales Associate capability
 const buildTopPerformersQuery = (selectedCurrencyId?: string): string => {
   const currencyFilter = selectedCurrencyId ? `currencyRef: {_eq: "${selectedCurrencyId}"}` : ''
   const baseWhere = `isDeleted: {_eq: false}${currencyFilter ? '\n        ' + currencyFilter : ''}`
@@ -23,6 +26,15 @@ const buildTopPerformersQuery = (selectedCurrencyId?: string): string => {
         opportunityStatus: {code: {_eq: "WON"}}
         ownerEmployeeId: {_isNull: false}
         estimatedAmount: {_isNull: false}
+        ownerEmployee: {
+          employeePosition: {
+            employeeCapabilities: {
+              capability: {
+                name: {_eq: "${SALES_ASSOCIATE_CAPABILITY}"}
+              }
+            }
+          }
+        }
       }
     ) {
       id

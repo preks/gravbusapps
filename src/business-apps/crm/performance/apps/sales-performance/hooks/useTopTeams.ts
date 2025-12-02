@@ -27,7 +27,10 @@ interface OrganizationalUnit {
   organizationalUnitEmployee: OrganizationalUnitEmployee[]
 }
 
-// Build teams query using central EMPLOYEE_REF fragment
+// Sales Associate capability name for filtering
+const SALES_ASSOCIATE_CAPABILITY = 'Sales Associate'
+
+// Build teams query using central EMPLOYEE_REF fragment - filtered to Sales Associate capability
 const buildTeamsWithMembersQuery = (): string => `
   query GetTeamsWithMembers($structureId: uuid!) {
     OrganizationalUnit(
@@ -35,13 +38,34 @@ const buildTeamsWithMembersQuery = (): string => `
         isDeleted: {_eq: false}
         structureId: {_eq: $structureId}
         type: {_in: ["TEAM", "DEPARTMENT", "UNIT"]}
+        organizationalUnitEmployee: {
+          employee: {
+            isDeleted: {_eq: false}
+            employeePosition: {
+              employeeCapabilities: {
+                capability: {
+                  name: {_eq: "${SALES_ASSOCIATE_CAPABILITY}"}
+                }
+              }
+            }
+          }
+        }
       }
     ) {
       id
       name
       organizationalUnitEmployee(
         where: {
-          employee: {isDeleted: {_eq: false}}
+          employee: {
+            isDeleted: {_eq: false}
+            employeePosition: {
+              employeeCapabilities: {
+                capability: {
+                  name: {_eq: "${SALES_ASSOCIATE_CAPABILITY}"}
+                }
+              }
+            }
+          }
         }
       ) {
         employeeId
