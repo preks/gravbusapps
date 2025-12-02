@@ -1,17 +1,26 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { TabSwitch, TabSwitchList, TabSwitchTrigger, TabSwitchContent, useTranslation } from '@newwork/nw-design-system'
-import { Home, Newspaper, BookOpen, FileText, MessageCircleQuestion } from 'lucide-react'
+import {
+  TabSwitch,
+  TabSwitchList,
+  TabSwitchTrigger,
+  TabSwitchContent,
+  useTranslation,
+  Badge
+} from '@newwork/nw-design-system'
+import { Home, Newspaper, BookOpen, FileText, MessageCircleQuestion, TrendingUp } from 'lucide-react'
 import translations from './_i18n'
 import NewsView from './views/news-view'
 import HomeView from './views/home-view'
 import KnowledgeView from './views/knowledge-view'
 import DocumentView from './views/document-view'
 import QuestionView from './views/question-view'
+import EngagementView from './views/engagement-view'
 import { BannerCarousel, BannerVariant, BannerConfig } from './components/shared/Banner'
 import { useCatalogEntries } from '@/common/data/catalog/hooks/useCatalogEntries'
 import { usePortalTranslation } from './hooks/usePortalTranslation'
 import { AiTranslationButton } from '@/common/components/content'
+import { useUserEngagement } from './hooks/useUserEngagement'
 
 export interface ContentPortalProps extends BusinessAppContextProps {
   tab?: string
@@ -29,6 +38,10 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
   // Portal translation hook
   const { targetLanguage, translatedItems, isTranslating, translateAllContent, setTargetLanguage, resetTranslation } =
     usePortalTranslation(accessToken)
+
+  // Get user engagement score for badge
+  const employeeId = context.userInfo?.employeeDetails?.employeeId
+  const { engagementData } = useUserEngagement(employeeId, accessToken)
 
   // Load allowed reactions from catalog (once for entire app)
   useEffect(() => {
@@ -108,7 +121,7 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
   const [activeTab, setActiveTab] = useState(initialTab)
 
   // Tab order for carousel-style animation
-  const tabOrder = ['home', 'news', 'knowledge', 'documents', 'questions']
+  const tabOrder = ['home', 'news', 'knowledge', 'documents', 'questions', 'engagement']
   const activeTabIndex = tabOrder.indexOf(activeTab)
 
   // Update URL when tab changes
@@ -199,6 +212,12 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
           title: t('question-welcome-title'),
           subtitle: t('question-welcome-subtitle')
         }
+      case 'engagement':
+        return {
+          variant: BannerVariant.INTRANET,
+          title: t('engagement-dashboard-title'),
+          subtitle: t('engagement-dashboard-subtitle')
+        }
       default:
         return {
           variant: BannerVariant.INTRANET,
@@ -256,23 +275,39 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
                 >
                   {t('questions')}
                 </TabSwitchTrigger>
+                <TabSwitchTrigger
+                  value="engagement"
+                  startIcon={<TrendingUp className="gba:w-4 gba:h-4" />}
+                  data-testid="intranet-tab-engagement"
+                >
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <span>{t('engagement')}</span>
+                    {engagementData.totalScore > 0 && (
+                      <Badge variant="secondary" className="gba:text-xs">
+                        {engagementData.totalScore}
+                      </Badge>
+                    )}
+                  </div>
+                </TabSwitchTrigger>
               </TabSwitchList>
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <AiTranslationButton
-                  detectedLanguage={null}
-                  targetLanguage={targetLanguage}
-                  isDetecting={false}
-                  isTranslating={isTranslating}
-                  accessToken={accessToken}
-                  onLanguageSelect={handleLanguageSelect}
-                  data-testid="portal-translation-button"
-                />
-              </div>
+              {activeTab !== 'engagement' && (
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <AiTranslationButton
+                    detectedLanguage={null}
+                    targetLanguage={targetLanguage}
+                    isDetecting={false}
+                    isTranslating={isTranslating}
+                    accessToken={accessToken}
+                    onLanguageSelect={handleLanguageSelect}
+                    data-testid="portal-translation-button"
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        <TabSwitchContent value="home" data-testid="intranet-content-home" keepMounted>
+        <TabSwitchContent value="home" data-testid="intranet-content-home">
           <HomeView
             accessToken={context.accessToken}
             userInfo={context.userInfo}
@@ -287,7 +322,7 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
           />
         </TabSwitchContent>
 
-        <TabSwitchContent value="news" data-testid="intranet-content-news" keepMounted>
+        <TabSwitchContent value="news" data-testid="intranet-content-news">
           <NewsView
             accessToken={context.accessToken}
             userInfo={context.userInfo}
@@ -301,7 +336,7 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
           />
         </TabSwitchContent>
 
-        <TabSwitchContent value="knowledge" data-testid="intranet-content-knowledge" keepMounted>
+        <TabSwitchContent value="knowledge" data-testid="intranet-content-knowledge">
           <KnowledgeView
             accessToken={context.accessToken}
             userInfo={context.userInfo}
@@ -316,7 +351,7 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
           />
         </TabSwitchContent>
 
-        <TabSwitchContent value="documents" data-testid="intranet-content-documents" keepMounted>
+        <TabSwitchContent value="documents" data-testid="intranet-content-documents">
           <DocumentView
             accessToken={context.accessToken}
             userInfo={context.userInfo}
@@ -330,7 +365,7 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
           />
         </TabSwitchContent>
 
-        <TabSwitchContent value="questions" data-testid="intranet-content-questions" keepMounted>
+        <TabSwitchContent value="questions" data-testid="intranet-content-questions">
           <QuestionView
             accessToken={context.accessToken}
             userInfo={context.userInfo}
@@ -342,6 +377,10 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
             translatedItems={translatedItems}
             onTranslate={translateAllContent}
           />
+        </TabSwitchContent>
+
+        <TabSwitchContent value="engagement" data-testid="intranet-content-engagement">
+          <EngagementView accessToken={context.accessToken} userInfo={context.userInfo} hideBanner />
         </TabSwitchContent>
       </TabSwitch>
     </div>

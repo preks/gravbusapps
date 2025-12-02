@@ -68,3 +68,22 @@ knowledge_image = Wissensbeitragsbild
 news_image = Nachrichtenbild
 intranet_image = Intranet-Bild
 document_image = Dokumentbild
+
+# Engagement
+engagement = Engagement
+engagement-dashboard-title = Engagement Dashboard
+engagement-dashboard-subtitle = Verfolgen Sie Ihre Aktivitäten und Beiträge
+current-level = Aktuelles Level
+progress-to-next-level = Fortschritt zum nächsten Level
+total-score = Gesamtpunktzahl
+articles-created = Erstellte Artikel
+questions-asked = Gestellte Fragen
+documents-uploaded = Hochgeladene Dokumente
+comments-made = Abgegebene Kommentare
+answers-given = Gegebene Antworten
+reactions-given = Gegebene Reaktionen
+achievement-levels = Erfolgsstufen
+current = Aktuell
+points = Punkte
+error = Fehler
+retry = Erneut versuchen

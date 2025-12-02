@@ -306,7 +306,7 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
                             <div
                               className="gba:text-foreground gba:leading-relaxed gba:mb-4"
                               dangerouslySetInnerHTML={{
-                                __html: truncateText(entry.description.replace(/<[^>]*>/g, ''), 300)
+                                __html: truncateText(entry.description.replace(/<[^>]+>/g, ''), 300)
                               }}
                             />
                           )}

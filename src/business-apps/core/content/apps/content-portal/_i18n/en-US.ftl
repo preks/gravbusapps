@@ -82,3 +82,22 @@ knowledge_image = Knowledge article image
 news_image = News article image
 intranet_image = Intranet article image
 document_image = Document image
+
+# Engagement
+engagement = Engagement
+engagement-dashboard-title = Engagement Dashboard
+engagement-dashboard-subtitle = Track your activity and contributions
+current-level = Current Level
+progress-to-next-level = Progress to next level
+total-score = Total Score
+articles-created = Articles Created
+questions-asked = Questions Asked
+documents-uploaded = Documents Uploaded
+comments-made = Comments Made
+answers-given = Answers Given
+reactions-given = Reactions Given
+achievement-levels = Achievement Levels
+current = Current
+points = points
+error = Error
+retry = Retry

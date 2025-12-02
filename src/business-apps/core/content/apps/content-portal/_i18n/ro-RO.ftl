@@ -68,3 +68,22 @@ knowledge_image = Imagine articol cunoștințe
 news_image = Imagine știre
 intranet_image = Imagine intranet
 document_image = Imagine document
+
+# Engagement
+engagement = Engagement
+engagement-dashboard-title = Dashboard Engagement
+engagement-dashboard-subtitle = Urmărește activitatea și contribuțiile tale
+current-level = Nivel Curent
+progress-to-next-level = Progres către următorul nivel
+total-score = Scor Total
+articles-created = Articole Create
+questions-asked = Întrebări Puse
+documents-uploaded = Documente Încărcate
+comments-made = Comentarii Făcute
+answers-given = Răspunsuri Date
+reactions-given = Reacții Date
+achievement-levels = Niveluri de Realizare
+current = Curent
+points = puncte
+error = Eroare
+retry = Încearcă din nou
