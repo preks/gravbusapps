@@ -321,7 +321,26 @@ async function analyzeChangedDependencies(changedFiles) {
 
       try {
         // Get the diff for package.json
-        const diff = execSync('git show --pretty="" HEAD -- package.json', { encoding: 'utf8' })
+        // Use the same comparison as detect-changed-screens.sh:
+        // - For PRs: compare against target branch (BITBUCKET_PR_DESTINATION_BRANCH)
+        // - For branch builds: use git show HEAD
+        let diff
+        const targetBranch = process.env.BITBUCKET_PR_DESTINATION_BRANCH
+        const currentBranch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8' }).trim()
+
+        if (targetBranch && targetBranch !== currentBranch) {
+          // PR build - compare against target branch
+          console.log(`   Comparing against target branch: ${targetBranch}`)
+          try {
+            execSync(`git fetch origin ${targetBranch}:${targetBranch}`, { encoding: 'utf8', stdio: 'pipe' })
+          } catch {
+            // Ignore fetch errors - branch might already exist locally
+          }
+          diff = execSync(`git diff ${targetBranch}...HEAD -- package.json`, { encoding: 'utf8' })
+        } else {
+          // Branch build (develop/main) - use last commit
+          diff = execSync('git show --pretty="" HEAD -- package.json', { encoding: 'utf8' })
+        }
         const changedPackages = getChangedPackages(diff)
 
         if (changedPackages.length > 0) {
