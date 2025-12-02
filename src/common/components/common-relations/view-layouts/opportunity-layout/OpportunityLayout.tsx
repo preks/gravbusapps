@@ -141,6 +141,9 @@ export interface OpportunityViewConfig<TOpportunity extends { id: string }, TQue
 
   rowActionsContextArray: FlowContextName[]
   buildRowActionsExternalContextData: (row: { original: TOpportunity }) => Record<string, string>
+
+  // Additional columns specific to this context (CRM or IRM)
+  additionalColumns?: ColumnDef<TOpportunity>[]
 }
 
 export type OpportunityTabKey = 'list' | 'board'
@@ -530,6 +533,17 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     }
   }, [pipelines, boardPipelineId])
 
+  // Add additional columns to visible columns when they're configured
+  useEffect(() => {
+    if (config.additionalColumns?.length) {
+      const additionalColumnIds = config.additionalColumns.map(col => col.id as string)
+      const newColumnIds = additionalColumnIds.filter(id => !visibleColumns.includes(id))
+      if (newColumnIds.length > 0) {
+        setVisibleColumns(prev => [...prev, ...newColumnIds])
+      }
+    }
+  }, [config.additionalColumns])
+
   // Initial parallel load: Load BOTH list and board data for badge counts
   useEffect(() => {
     if (!accessToken || !isInitialLoad) return
@@ -615,8 +629,8 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
 
   // Columns
   const columns = useMemo(() => config.createColumns(config.buildAccountUrl), [config])
-  const availableColumns = useMemo(
-    () => [
+  const availableColumns = useMemo(() => {
+    const baseColumns = [
       { id: 'opportunity', label: 'Opportunity' },
       { id: 'amount', label: 'Value' },
       { id: 'opportunityPipeline', label: 'Pipeline' },
@@ -626,9 +640,19 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
       { id: 'account', label: 'Account' },
       { id: 'owner', label: 'Owner' },
       { id: 'created', label: 'Created' }
-    ],
-    []
-  )
+    ]
+
+    // Add additional columns from config (if any)
+    if (config.additionalColumns?.length) {
+      const additionalColumnOptions = config.additionalColumns.map(col => ({
+        id: col.id as string,
+        label: (col.header as string) || (col.id as string)
+      }))
+      return [...baseColumns, ...additionalColumnOptions]
+    }
+
+    return baseColumns
+  }, [config.additionalColumns])
 
   // Row actions - rendered internally
   // Row actions - rendered internally (only if actions are configured)

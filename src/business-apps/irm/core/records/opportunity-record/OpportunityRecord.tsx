@@ -15,7 +15,8 @@ import {
   Star,
   Lightbulb as LightbulbIcon,
   Trash as Trash2,
-  PencilSimple as Edit
+  PencilSimple as Edit,
+  TrendingUp
 } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -680,6 +681,14 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
             icon: Star
           },
           {
+            label: getTranslationFromI18nKeyAndLabel('irm.opportunity.dealProbability', 'Deal Probability'),
+            value:
+              opportunityData?.winningChance !== undefined && opportunityData?.winningChance !== null
+                ? `${opportunityData.winningChance}%`
+                : getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
+            icon: TrendingUp
+          },
+          {
             label: getTranslationFromI18nKeyAndLabel('crm.opportunity.expectedCloseDate', 'Expected Close Date'),
             value: opportunityData?.closeDate
               ? (() => {
@@ -712,6 +721,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     ],
     [
       opportunityData?.dealType,
+      opportunityData?.winningChance,
       opportunityData?.closeDate,
       opportunityData?.currency?.id,
       opportunityData?.estimatedAmount,

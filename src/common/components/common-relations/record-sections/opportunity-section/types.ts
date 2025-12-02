@@ -24,6 +24,9 @@ export interface GenericOpportunity {
   estimatedAmount?: number
   closeDate?: string
 
+  // Win probability
+  winningChance?: number
+
   // Catalog references (normalized names)
   currency?: CatalogEntry
   opportunityPipelineStage?: CatalogEntry
@@ -52,4 +55,6 @@ export interface OpportunitySectionProps<T extends GenericOpportunity = GenericO
   accountUrlBuilder?: (accountId: string) => string // Optional, for account navigation
   className?: string
   'data-testid'?: string
+  // Context type for determining labels (CRM: "Winning Chance", IRM: "Deal Probability")
+  contextType?: 'customer' | 'investment'
 }

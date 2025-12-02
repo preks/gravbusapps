@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { Spinner, Button, RecordLayout, Badge } from '@newwork/nw-design-system'
-import { User, FileText, Star, Lightbulb, Bot } from 'lucide-react'
+import { User, FileText, Star, Lightbulb, Bot, TrendingUp } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
@@ -383,6 +383,14 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
             value: extractCurrencyCode(opportunityData?.currency?.id || 'Currency:v1:EUR')
           },
           {
+            label: getTranslationFromI18nKeyAndLabel('crm.opportunity.winningChance', 'Winning Chance'),
+            value:
+              opportunityData?.winningChance !== undefined && opportunityData?.winningChance !== null
+                ? `${opportunityData.winningChance}%`
+                : getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
+            icon: TrendingUp
+          },
+          {
             label: getTranslationFromI18nKeyAndLabel('crm.opportunity.estimatedAmount', 'Estimated Amount'),
             value: opportunityData?.estimatedAmount
               ? formatCurrency(opportunityData.estimatedAmount, opportunityData.currency?.id || 'Currency:v1:EUR')
@@ -405,6 +413,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
     opportunityData?.opportunityPipelineStage?.code,
     opportunityData?.closeDate,
     opportunityData?.currency?.id,
+    opportunityData?.winningChance,
     opportunityData?.estimatedAmount,
     opportunityData?.ownerEmployee
   ])

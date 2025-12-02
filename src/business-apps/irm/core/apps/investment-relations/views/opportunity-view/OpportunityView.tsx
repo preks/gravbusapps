@@ -1,4 +1,6 @@
 import React, { useMemo } from 'react'
+import { Badge } from '@newwork/nw-design-system'
+import type { ColumnDef } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetInvestmentOpportunities } from '@/common/data/investment/hooks/useInvestmentOpportunities'
 import { OpportunityLayout } from '@/common/components/common-relations/view-layouts/opportunity-layout'
@@ -10,6 +12,7 @@ import { useInvestmentOpportunityFilters } from './hooks/useInvestmentOpportunit
 import { useInvestmentOpportunityStatistics } from '@/common/data/investment/hooks/useInvestmentOpportunityStatistics'
 import { INVESTMENT_OPPORTUNITY_DESCRIPTORS } from '@/common/data/investment/types/investmentOpportunityTypes'
 import { OpportunityStatisticsLayout } from '@/common/components/common-relations/view-layouts/opportunity-layout/components/OpportunityStatisticsLayout'
+import { getWinningChanceBadgeVariant } from '@/common/utils/badgeUtils'
 
 // Separate component to properly use hooks
 const InvestmentOpportunityStatistics: React.FC<{
@@ -39,6 +42,33 @@ export type OpportunityViewProps = BusinessAppContextProps
 
 export const OpportunityView: React.FC<OpportunityViewProps> = context => {
   const { fetchInvestmentOpportunities } = useGetInvestmentOpportunities(context)
+
+  // IRM-specific: Deal Probability column
+  const dealProbabilityColumn: ColumnDef<InvestmentOpportunity> = useMemo(
+    () => ({
+      id: 'winningChance',
+      accessorKey: 'winningChance',
+      header: 'Deal Probability',
+      size: 130,
+      minSize: 100,
+      maxSize: 160,
+      cell: ({ row }) => {
+        const winningChance = row.original.winningChance
+        if (winningChance === undefined || winningChance === null) {
+          return <span className="gba:text-sm gba:text-muted-foreground">Not set</span>
+        }
+        return (
+          <Badge
+            variant={getWinningChanceBadgeVariant(winningChance)}
+            data-testid={`opportunity-deal-probability-${row.original.id}`}
+          >
+            {winningChance}%
+          </Badge>
+        )
+      }
+    }),
+    []
+  )
 
   const config = useMemo(
     () =>
@@ -97,9 +127,12 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
         rowActionsContextArray: [FlowContextName.investmentOpportunityEntity],
         buildRowActionsExternalContextData: (row: { original: InvestmentOpportunity }) => ({
           opportunityId: row.original.id
-        })
+        }),
+
+        // IRM-specific columns
+        additionalColumns: [dealProbabilityColumn]
       }),
-    [context, fetchInvestmentOpportunities]
+    [context, fetchInvestmentOpportunities, dealProbabilityColumn]
   )
 
   return <OpportunityLayout context={context} config={config} dataTestId="investment-opportunities-view" />

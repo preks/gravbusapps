@@ -36,6 +36,7 @@ export const OpportunityView: React.FC<OpportunityViewProps> = ({ contactId, ...
       error={error}
       recordUrlBuilder={recordUrlBuilder}
       accountUrlBuilder={accountUrlBuilder}
+      contextType="customer"
       data-testid="contact-opportunities-section"
     />
   )

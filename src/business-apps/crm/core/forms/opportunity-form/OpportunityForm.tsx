@@ -15,7 +15,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { mapToFormValues } from '@/common/utils/formMappingUtils'
 import { buildCustomerOpportunityPayload } from '@/common/data/customer/types/customerOpportunityTypes'
 import { CampaignSelect } from '@/common/components/customer/selects/campaign-select'
-import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@newwork/nw-design-system'
+import { FormField, FormItem, FormLabel, FormControl, FormMessage, Input } from '@newwork/nw-design-system'
 import { useCustomerAccountsList } from '@/common/data/customer/hooks/useCustomerAccounts'
 import { useCustomerContactsList } from '@/common/data/customer/hooks/useCustomerContacts'
 import {
@@ -26,9 +26,10 @@ import {
 } from '@/common/data/customer/constants/customerCatalogs'
 import { ErrorAlert } from '@/components/error-alert'
 
-// CRM-specific schema extension (adds salesCampaignId only)
+// CRM-specific schema extension (adds salesCampaignId and winningChance)
 export const customerOpportunitySchema = opportunitySchema.extend({
-  salesCampaignId: z.string().nullable().optional()
+  salesCampaignId: z.string().nullable().optional(),
+  winningChance: z.coerce.number().min(0).max(100).nullable().optional()
 })
 
 type OpportunityFormProps = BusinessAppContextProps
@@ -109,6 +110,38 @@ const OpportunityForm: React.FC<OpportunityFormProps> = ({ accessToken, userInfo
     return formData
   }
 
+  // Winning Chance field (CRM-specific)
+  const winningChanceField = (
+    <FormField
+      control={form.control}
+      name="winningChance"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>Winning Chance (%)</FormLabel>
+          <FormControl>
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              step={1}
+              placeholder="Enter winning chance (0-100)..."
+              data-testid={formatDataTestId('customer-opportunity-form', 'winning-chance-input')}
+              value={field.value ?? ''}
+              onChange={e => {
+                const value = e.target.value
+                field.onChange(value === '' ? null : Number(value))
+              }}
+              onBlur={field.onBlur}
+              name={field.name}
+              ref={field.ref}
+            />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  )
+
   // Sales Campaign selector (CRM-specific custom field)
   const salesCampaignSelect = (
     <FormField
@@ -142,6 +175,14 @@ const OpportunityForm: React.FC<OpportunityFormProps> = ({ accessToken, userInfo
     />
   )
 
+  // Combined CRM-specific custom fields
+  const crmCustomFields = (
+    <>
+      {winningChanceField}
+      {salesCampaignSelect}
+    </>
+  )
+
   const processType = opportunity?.id ? 'update' : 'create'
 
   return (
@@ -170,7 +211,7 @@ const OpportunityForm: React.FC<OpportunityFormProps> = ({ accessToken, userInfo
           stageCatalogIdentifier={OPPORTUNITY_PIPELINE_STAGE}
           opportunityStatusCatalogIdentifier={OPPORTUNITY_STATUS}
           opportunityForecastCatalogIdentifier={OPPORTUNITY_FORECAST}
-          opportunityInformationCustomFields={salesCampaignSelect}
+          opportunityInformationCustomFields={crmCustomFields}
           loading={loading && !!opportunityId}
         />
       </AppActionForm>

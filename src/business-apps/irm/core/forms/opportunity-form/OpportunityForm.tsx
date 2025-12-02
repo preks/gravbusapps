@@ -27,6 +27,7 @@ import {
   FormLabel,
   FormControl,
   FormMessage,
+  Input,
   Select,
   SelectContent,
   SelectItem,
@@ -68,7 +69,8 @@ export const investmentOpportunitySchema = opportunitySchema.extend({
       z.null()
     ])
     .optional(),
-  dealType: z.string().nullable().optional()
+  dealType: z.string().nullable().optional(),
+  winningChance: z.coerce.number().min(0).max(100).nullable().optional()
 })
 
 // Deal types for Investment Opportunities (matching backend enum values)
@@ -244,6 +246,38 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
     return formData
   }
 
+  // Deal Probability field (IRM-specific)
+  const dealProbabilityField = (
+    <FormField
+      control={form.control}
+      name="winningChance"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>Deal Probability (%)</FormLabel>
+          <FormControl>
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              step={1}
+              placeholder="Enter deal probability (0-100)..."
+              data-testid={formatDataTestId(prefixDataTestId, 'deal-probability-input')}
+              value={field.value ?? ''}
+              onChange={e => {
+                const value = e.target.value
+                field.onChange(value === '' ? null : Number(value))
+              }}
+              onBlur={field.onBlur}
+              name={field.name}
+              ref={field.ref}
+            />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  )
+
   // Deal Type selector (IRM-specific custom field)
   const dealTypeField = dealType ? null : (
     <FormField
@@ -274,6 +308,14 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
         </FormItem>
       )}
     />
+  )
+
+  // Combined IRM-specific custom fields
+  const irmCustomFields = (
+    <>
+      {dealProbabilityField}
+      {dealTypeField}
+    </>
   )
 
   // Collect all errors for centralized early return (AFTER all hooks)
@@ -327,7 +369,7 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
           stageCatalogIdentifier={OPPORTUNITY_PIPELINE_STAGE}
           opportunityStatusCatalogIdentifier={OPPORTUNITY_STATUS}
           opportunityForecastCatalogIdentifier={OPPORTUNITY_FORECAST}
-          opportunityInformationCustomFields={dealTypeField}
+          opportunityInformationCustomFields={irmCustomFields}
           loading={loading && !!opportunityId}
           customSegments={[
             {

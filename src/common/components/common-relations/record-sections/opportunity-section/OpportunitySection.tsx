@@ -1,8 +1,10 @@
 import { useState, useCallback, useMemo } from 'react'
-import { Card, CardContent, DataDisplay } from '@newwork/nw-design-system'
+import { Card, CardContent, DataDisplay, Badge } from '@newwork/nw-design-system'
+import type { ColumnDef } from '@tanstack/react-table'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { OpportunityListLayout } from '@/common/components/common-relations/view-layouts/opportunity-layout'
 import { createOpportunityColumns } from '@/common/components/common-relations/view-layouts/opportunity-layout/config/opportunityColumns'
+import { getWinningChanceBadgeVariant } from '@/common/utils/badgeUtils'
 import type { GenericOpportunity, OpportunitySectionProps } from './types'
 
 export const OpportunitySection = <T extends GenericOpportunity = GenericOpportunity>({
@@ -12,8 +14,11 @@ export const OpportunitySection = <T extends GenericOpportunity = GenericOpportu
   recordUrlBuilder,
   accountUrlBuilder,
   className = '',
-  'data-testid': dataTestId = 'opportunity-section'
+  'data-testid': dataTestId = 'opportunity-section',
+  contextType = 'customer'
 }: Omit<OpportunitySectionProps<T>, 'onRetry'>) => {
+  // Context-specific label for winning chance
+  const winningChanceLabel = contextType === 'investment' ? 'Deal Probability' : 'Winning Chance'
   // State for DataTable
   const [searchTerm, setSearchTerm] = useState('')
   const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([{ id: 'created', desc: true }])
@@ -21,6 +26,7 @@ export const OpportunitySection = <T extends GenericOpportunity = GenericOpportu
   const [visibleColumns, setVisibleColumns] = useState<string[]>([
     'opportunity',
     'amount',
+    'winningChance',
     'account',
     'stage',
     'status',
@@ -77,6 +83,10 @@ export const OpportunitySection = <T extends GenericOpportunity = GenericOpportu
           aVal = a.estimatedAmount || 0
           bVal = b.estimatedAmount || 0
           break
+        case 'winningChance':
+          aVal = a.winningChance ?? -1
+          bVal = b.winningChance ?? -1
+          break
         case 'stage':
           aVal = a.opportunityPipelineStage?.value || a.opportunityPipelineStage?.code || ''
           bVal = b.opportunityPipelineStage?.value || b.opportunityPipelineStage?.code || ''
@@ -120,13 +130,44 @@ export const OpportunitySection = <T extends GenericOpportunity = GenericOpportu
     return sortedOpportunities.slice(start, end)
   }, [sortedOpportunities, pagination])
 
-  // Use central columns
-  const columns = useMemo(() => createOpportunityColumns(accountUrlBuilder || (() => '')), [accountUrlBuilder])
+  // Winning Chance column definition
+  const winningChanceColumn: ColumnDef<T> = useMemo(
+    () => ({
+      id: 'winningChance',
+      accessorKey: 'winningChance',
+      header: winningChanceLabel,
+      size: 120,
+      minSize: 100,
+      maxSize: 150,
+      cell: ({ row }) => {
+        const winningChance = (row.original as GenericOpportunity).winningChance
+        if (winningChance === undefined || winningChance === null) {
+          return <span className="gba:text-sm gba:text-muted-foreground">Not set</span>
+        }
+        return (
+          <Badge
+            variant={getWinningChanceBadgeVariant(winningChance)}
+            data-testid={`opportunity-winning-chance-${row.original.id}`}
+          >
+            {winningChance}%
+          </Badge>
+        )
+      }
+    }),
+    [winningChanceLabel]
+  )
+
+  // Use central columns + winningChance column
+  const columns = useMemo(() => {
+    const baseColumns = createOpportunityColumns(accountUrlBuilder || (() => ''))
+    return [...baseColumns, winningChanceColumn] as ColumnDef<T>[]
+  }, [accountUrlBuilder, winningChanceColumn])
 
   const availableColumns = useMemo(
     () => [
       { id: 'opportunity', label: 'Opportunity Name' },
       { id: 'amount', label: 'Value' },
+      { id: 'winningChance', label: winningChanceLabel },
       { id: 'account', label: 'Account' },
       { id: 'stage', label: 'Stage' },
       { id: 'status', label: 'Status' },
@@ -134,13 +175,14 @@ export const OpportunitySection = <T extends GenericOpportunity = GenericOpportu
       { id: 'closeDate', label: 'Close Date' },
       { id: 'created', label: 'Created' }
     ],
-    []
+    [winningChanceLabel]
   )
 
   const sortableColumns = useMemo(
     () => [
       { id: 'opportunity', label: 'Opportunity Name' },
       { id: 'amount', label: 'Value' },
+      { id: 'winningChance', label: winningChanceLabel },
       { id: 'account', label: 'Account' },
       { id: 'stage', label: 'Stage' },
       { id: 'status', label: 'Status' },
@@ -148,7 +190,7 @@ export const OpportunitySection = <T extends GenericOpportunity = GenericOpportu
       { id: 'closeDate', label: 'Close Date' },
       { id: 'created', label: 'Created' }
     ],
-    []
+    [winningChanceLabel]
   )
 
   return (
