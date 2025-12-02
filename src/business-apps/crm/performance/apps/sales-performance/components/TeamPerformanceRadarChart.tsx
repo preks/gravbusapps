@@ -236,11 +236,8 @@ export const TeamPerformanceRadarChart: React.FC<TeamPerformanceRadarChartProps>
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <ChartContainer
-          config={chartConfig}
-          className="gba:mx-auto gba:aspect-square gba:max-h-[350px] gba:max-w-[350px]"
-        >
-          <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="65%">
+        <ChartContainer config={chartConfig} className="gba:mx-auto gba:h-[300px] gba:w-full">
+          <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="75%">
             <PolarGrid stroke="hsl(var(--border))" />
             <PolarAngleAxis
               dataKey="metric"
@@ -265,7 +262,7 @@ export const TeamPerformanceRadarChart: React.FC<TeamPerformanceRadarChartProps>
         </ChartContainer>
 
         {/* Metrics explanation */}
-        <div className="gba:mt-4 gba:pt-4 gba:border-t gba:text-xs gba:text-muted-foreground gba:text-center">
+        <div className="gba:mt-2 gba:pt-2 gba:border-t gba:text-xs gba:text-muted-foreground gba:text-center">
           Values are normalized to 0-100 scale for comparison (except Win Rate which shows actual %)
         </div>
       </CardContent>
