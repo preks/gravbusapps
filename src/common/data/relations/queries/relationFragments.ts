@@ -90,6 +90,7 @@ export const buildContactFragment = (fields: Record<keyof typeof ContactFields, 
     ${EMPLOYEE_REF}
   }
   ${fields.ownerEmployeeId}
+  ${fields.pictureThumbnail}
   ${fields.salutation} {
     ${CATALOG_ENTRY}
   }
@@ -213,7 +214,7 @@ export const buildLeadFragment = (fields: Record<keyof typeof LeadFields, string
   }
   ${fields.ownerEmployeeId}
   ${fields.phoneNumber}
-  ${fields.position}
+  ${fields.jobPosition}
   ${fields.postalCode}
   ${fields.region} {
     ${CATALOG_ENTRY}

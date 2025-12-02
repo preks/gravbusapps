@@ -15,8 +15,9 @@ import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { StatusProgression } from './components/StatusProgression'
+import { useInvestmentLead } from '@/common/data/investment/hooks/useInvestmentLead'
+import { buildLeadStatusesQuery } from '@/common/data/relations/queries/leadQueries'
 import {
-  useGetInvestmentLeadById,
   useGetInvestmentActivitiesByLeadId,
   useGetInvestmentNotesByLeadId,
   useGetInvestmentTasksByLeadId
@@ -25,11 +26,13 @@ import { LeadDocuments } from './components/LeadDocuments'
 import AccountSection from '@/common/components/common-relations/record-sections/account-section/AccountSection'
 import ContactSection from '@/common/components/common-relations/record-sections/contact-section/ContactSection'
 import InvestmentSection from '@/common/components/common-relations/record-sections/investment-section/InvestmentSection'
+import type { Investment } from '@/common/data/investment/types'
 import {
   buildInvestmentAccountFromLead,
   buildInvestmentContactFromLead,
   buildInvestmentFromLead
 } from './utils/leadDataTransformers'
+import { buildFormFieldsFromCatalogData } from '../utils/investmentFieldsBuilder'
 import ActivitySection from '@/common/components/common-relations/record-sections/activity-section/ActivitySection'
 import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
@@ -61,54 +64,32 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
     return getValidTab(new URLSearchParams(window.location.search).get('tab'))
   })
 
-  // Fetch lead data using central hook
-  const { fetchInvestmentLeadById } = useGetInvestmentLeadById(props)
-
-  // State for lead data
-  const [leadData, setLeadData] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [leadStatuses, setLeadStatuses] = useState<any[]>([])
-
-  // Fetch lead data
-  const fetchLeadData = useCallback(async () => {
-    if (!leadId || !props.accessToken) {
-      setLoading(false)
-      return
-    }
-
-    try {
-      setLoading(true)
-      setError(null)
-      const result = await fetchInvestmentLeadById(leadId)
-      if (result && result.lead) {
-        setLeadData(result.lead)
-        // Extract lead statuses from lead object if available
-        if (result.lead.leadStatuses && Array.isArray(result.lead.leadStatuses)) {
-          // Statuses are already sorted by alternativeCode from GraphQL query
-          setLeadStatuses(
-            result.lead.leadStatuses.map((status: any) => ({
-              id: status.id,
-              code: status.code,
-              value: status.value,
-              alternativeCode: status.alternativeCode
-            }))
-          )
-        }
-      } else {
-        setError('Lead not found')
+  // Use new declarative hook for lead data with additional leadStatuses query
+  const additionalQueries = useMemo(
+    () => [
+      {
+        query: buildLeadStatusesQuery('InvestmentLeadStatus'),
+        data: (result: any) => result.leadStatuses || [],
+        key: 'leadStatuses' as const
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch lead data')
-    } finally {
-      setLoading(false)
-    }
-  }, [leadId, props.accessToken, fetchInvestmentLeadById])
+    ],
+    []
+  )
 
-  // Load data on mount
-  useEffect(() => {
-    fetchLeadData()
-  }, [fetchLeadData])
+  const {
+    lead: leadData,
+    leadStatuses,
+    loading,
+    error,
+    refetch
+  } = useInvestmentLead(props.accessToken, leadId, {
+    additionalQueries
+  })
+
+  // Fetch lead data function for refetch
+  const fetchLeadData = useCallback(async () => {
+    await refetch()
+  }, [refetch])
 
   // Always call useAiSummary hook, but conditionally use its result
   const aiSummary = useAiSummary(leadId, props.accessToken)
@@ -347,6 +328,12 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
     )
   }, [props.accessToken, leadId, rejectionReasons, rejectionReasonsError, loadRejectionReasons])
 
+  // Transform catalog referenceFields to formFields format for InvestmentSection
+  const investmentFields = useMemo(
+    () => buildFormFieldsFromCatalogData(leadData?.investmentType, leadData?.investmentGroup),
+    [leadData?.investmentType, leadData?.investmentGroup]
+  )
+
   // Prepare header content for RecordLayout - MUST be before conditional returns
   const headerTitle = (
     <div className="gba:flex gba:items-center gba:gap-2">
@@ -504,7 +491,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
   // Status progression content
   const headerContent = (
     <>
-      {leadStatuses.length > 0 && lead && (
+      {leadStatuses && Array.isArray(leadStatuses) && leadStatuses.length > 0 && lead && (
         <StatusProgression
           currentStatus={lead?.leadStatus?.value || getTranslationFromI18nKeyAndLabel('crm.common.status.new', 'New')}
           statuses={leadStatuses}
@@ -513,7 +500,6 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
             typeof leadData?.version === 'string' ? Number.parseInt(leadData.version, 10) : leadData?.version || 0
           }
           accessToken={props.accessToken}
-          onStatusUpdate={fetchLeadData}
         />
       )}
     </>
@@ -573,63 +559,18 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
                   component: InvestmentSection,
                   props: {
                     ...props,
-                    investment: buildInvestmentFromLead(leadData),
-                    investments: leadData ? [buildInvestmentFromLead(leadData)].filter(Boolean) : undefined,
+                    investment: buildInvestmentFromLead(leadData) || undefined,
+                    investments: leadData
+                      ? [buildInvestmentFromLead(leadData)].filter((inv): inv is Investment => inv !== null)
+                      : undefined,
+                    fields: investmentFields,
+                    recordUrl: undefined, // No navigation - investment data is part of lead, not a separate entity
                     isLoading: loading,
                     error: error
                   }
                 }
               ]}
               data-testid="lead-investment-section-wrapper"
-            />
-
-            {/* Activities & Notes - 1/2 width, spans 2 rows */}
-            <SectionWrapper
-              className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2"
-              sections={[
-                {
-                  id: 'activities-section',
-                  component: ActivitySection,
-                  props: {
-                    ...props,
-                    activities: activities,
-                    activitiesLoading: sectionsLoading,
-                    activitiesError: sectionsError,
-                    onReloadActivities: loadSectionData,
-                    activitySectionActionProps: {
-                      contextsArray: [FlowContextName.investmentActivityCreate],
-                      externalContextData: { leadId },
-                      prefixDataTestId: 'lead-activities'
-                    },
-                    activityEntityActionProps: {
-                      contextsArray: [FlowContextName.investmentActivityEntity],
-                      externalContextData: { leadId },
-                      prefixDataTestId: 'lead-activity-entity'
-                    }
-                  }
-                },
-                {
-                  id: 'notes-section',
-                  component: NoteSection as React.ComponentType<any>,
-                  props: {
-                    ...props,
-                    notes: notes,
-                    noteActionProps: {
-                      contextsArray: [FlowContextName.investmentNoteCreate],
-                      externalContextData: { leadId },
-                      prefixDataTestId: 'lead-notes',
-                      emptyStateBehavior: 'enable'
-                    },
-                    noteEntityActionProps: {
-                      contextsArray: [FlowContextName.investmentNoteEntity],
-                      externalContextData: { leadId },
-                      prefixDataTestId: 'lead-note-entity',
-                      emptyStateBehavior: 'enable'
-                    }
-                  }
-                }
-              ]}
-              data-testid="lead-activities-notes-section-wrapper"
             />
 
             {/* Tasks & Approvals - 1/2 width, spans 2 rows */}
@@ -688,6 +629,55 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
                 }
               ]}
               data-testid="lead-tasks-approvals-section-wrapper"
+            />
+
+            {/* Activities & Notes - 1/2 width, spans 2 rows */}
+            <SectionWrapper
+              className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2"
+              sections={[
+                {
+                  id: 'activities-section',
+                  component: ActivitySection,
+                  props: {
+                    ...props,
+                    activities: activities,
+                    activitiesLoading: sectionsLoading,
+                    activitiesError: sectionsError,
+                    onReloadActivities: loadSectionData,
+                    activitySectionActionProps: {
+                      contextsArray: [FlowContextName.investmentActivityCreate],
+                      externalContextData: { leadId },
+                      prefixDataTestId: 'lead-activities'
+                    },
+                    activityEntityActionProps: {
+                      contextsArray: [FlowContextName.investmentActivityEntity],
+                      externalContextData: { leadId },
+                      prefixDataTestId: 'lead-activity-entity'
+                    }
+                  }
+                },
+                {
+                  id: 'notes-section',
+                  component: NoteSection as React.ComponentType<any>,
+                  props: {
+                    ...props,
+                    notes: notes,
+                    noteActionProps: {
+                      contextsArray: [FlowContextName.investmentNoteCreate],
+                      externalContextData: { leadId },
+                      prefixDataTestId: 'lead-notes',
+                      emptyStateBehavior: 'enable'
+                    },
+                    noteEntityActionProps: {
+                      contextsArray: [FlowContextName.investmentNoteEntity],
+                      externalContextData: { leadId },
+                      prefixDataTestId: 'lead-note-entity',
+                      emptyStateBehavior: 'enable'
+                    }
+                  }
+                }
+              ]}
+              data-testid="lead-activities-notes-section-wrapper"
             />
           </>
         )

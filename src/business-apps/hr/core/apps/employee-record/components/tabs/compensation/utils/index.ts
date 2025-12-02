@@ -6,11 +6,11 @@
 export {
   normalizeCurrency,
   transformCompensationBand,
-  transformWorkingConditionToCompensation,
+  transformEmployeeSalaryToCompensation,
+  transformEmployeeSalaryToHistory,
   transformBonus,
   transformBenefit,
-  transformPayslip,
-  transformWorkingConditionToHistory
+  transformPayslip
 } from './compensationTransformers'
 
 export {
@@ -18,3 +18,11 @@ export {
   getTranslatedProviderValue,
   getTranslatedCatalogEntryValue
 } from './benefitTranslationUtils'
+
+export {
+  normalizeSalaryData,
+  hasAnySalaryData,
+  calculateYearlyFromMonthly,
+  calculateMonthlyFromYearly,
+  type NormalizedSalaryData
+} from './salaryCalculations'

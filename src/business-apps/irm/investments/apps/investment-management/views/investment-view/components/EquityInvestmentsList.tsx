@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Badge, Button } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetInvestments } from '@/common/data/investment/hooks/useInvestments'
-import type { Investment } from '@/common/data/investment/types'
+import type { Investment } from '@/common/data/investment/types/investmentTypes'
 import type { InvestmentQueryVariables } from '@/common/data/investment/queries/investmentQueries'
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
 import { AppAction } from '@/components/app-action/AppAction'
@@ -10,7 +10,7 @@ import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { Building2, Calendar, Plus } from 'lucide-react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { formatDate } from '@/common/data/investment'
+import { formatDate } from '@/common/data/investment/utils/formatters'
 import { formatCurrencyParts } from '@/common/utils/numberFormatter'
 import { useEquityInvestmentsFilters } from '../hooks/useEquityInvestmentsFilters'
 import { ColumnConfig } from '@/components/dataController'
@@ -21,10 +21,11 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export interface EquityInvestmentsListProps extends BusinessAppContextProps {
   sourceApp?: string
+  currencyCode?: string
 }
 
 const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = props => {
-  const { accessToken } = props
+  const { accessToken, currencyCode } = props
 
   // Use the shared controller for URL sync and state management
   const {
@@ -110,12 +111,13 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = props => {
       orderBy: sortField
         ? [{ field: sortField, direction: sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST' }]
         : [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }],
+      currencyCode: currencyCode || undefined,
       ...filters
     }
     // Always filter by equity investment types
     v.investmentGroupIds = ['InvestmentGroup:v1:EQUITY']
     return v
-  }, [currentPage, pageSize, search, sortField, sortOrder, getFilters])
+  }, [currentPage, pageSize, search, sortField, sortOrder, currencyCode, getFilters])
 
   const loadData = useCallback(async () => {
     if (!accessToken) return
@@ -139,7 +141,7 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = props => {
   // Trigger search when search term changes
   useEffect(() => {
     if (initialLoadDone.current && filtersInitialized) {
-      updateURLParams({ search, page: 1 })
+      updateURLParams({ page: 1 })
       loadData()
     }
   }, [search, filtersInitialized, loadData, updateURLParams])

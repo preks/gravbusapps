@@ -114,12 +114,12 @@ const ReturnAssetContent: React.FC<BusinessAppContextProps> = (context: Business
   })
 
   const title = useMemo(
-    () => getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.return_asset_form', 'Return Asset'),
+    () => getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.retrieve_asset', 'Retrieve Asset'),
     [currentLocale]
   )
 
   const returnButtonText = useMemo(
-    () => getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.return_asset_form', 'Return Asset'),
+    () => getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.retrieve_asset', 'Retrieve Asset'),
     [currentLocale]
   )
 

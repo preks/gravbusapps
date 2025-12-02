@@ -8,17 +8,18 @@ import { useExitOpportunityMetrics } from '../hooks/useExitOpportunityMetrics'
 
 export interface ExitOpportunityStatisticsProps extends BusinessAppContextProps {
   onRefresh?: () => void
+  currencyCode?: string
 }
 
-export const ExitOpportunityStatistics: React.FC<ExitOpportunityStatisticsProps> = ({ accessToken }) => {
+export const ExitOpportunityStatistics: React.FC<ExitOpportunityStatisticsProps> = ({ accessToken, currencyCode }) => {
   const { metrics, isLoading, error, loadMetrics } = useExitOpportunityMetrics({ accessToken })
 
-  // Load metrics on mount and when accessToken changes
+  // Load metrics on mount and when accessToken or currencyCode changes
   useEffect(() => {
     if (accessToken) {
-      loadMetrics({ dealType: 'DIVESTMENT_DEAL' })
+      loadMetrics({ dealType: 'DIVESTMENT_DEAL', currencyCode: currencyCode || undefined })
     }
-  }, [accessToken])
+  }, [accessToken, currencyCode, loadMetrics])
 
   // Show loading state while loading or if no metrics yet
   if (isLoading || !metrics) {
@@ -35,8 +36,8 @@ export const ExitOpportunityStatistics: React.FC<ExitOpportunityStatisticsProps>
     )
   }
 
-  const currency = metrics.currency || 'EUR'
-  const currencyCode = extractCurrencyCode(currency)
+  // Use currencyCode from props, fallback to metrics currency if not provided
+  const finalCurrencyCode = currencyCode || (metrics.currency ? extractCurrencyCode(metrics.currency) : 'EUR')
 
   // Helper function to format percentage change
   const formatPercentageChange = (change: number): string => {
@@ -62,7 +63,7 @@ export const ExitOpportunityStatistics: React.FC<ExitOpportunityStatisticsProps>
     {
       key: 'total-value',
       title: getTranslationFromI18nKeyAndLabel('total_value', 'Total Value'),
-      value: formatCompactCurrency(metrics.totalValue, currencyCode),
+      value: formatCompactCurrency(metrics.totalValue, finalCurrencyCode),
       valueIsString: true,
       prefix: <TrendingUp className="gba:h-5 gba:w-5 gba:text-green-600" />,
       color: '#52c41a',
@@ -77,7 +78,7 @@ export const ExitOpportunityStatistics: React.FC<ExitOpportunityStatisticsProps>
     {
       key: 'average-value',
       title: getTranslationFromI18nKeyAndLabel('average_value', 'Average Value'),
-      value: formatCompactCurrency(metrics.averageValue, currencyCode),
+      value: formatCompactCurrency(metrics.averageValue, finalCurrencyCode),
       valueIsString: true,
       prefix: <Target className="gba:h-5 gba:w-5 gba:text-purple-600" />,
       color: '#722ed1',

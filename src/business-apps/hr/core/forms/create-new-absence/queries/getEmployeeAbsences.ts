@@ -88,3 +88,66 @@ export const getTodayAbsences = `
     }
   }
 `
+
+export const employeeRegionLookupQuery = `
+  query GetEmployeeRegion($employeeId: uuid!, $activeUserLocale: String!) {
+    employee: Employee(where: { isDeleted: { _eq: false }, id: { _eq: $employeeId } }) {
+      id
+      workingCondition {
+        region {
+          id
+          value
+          translations(where: { localeCode: { _eq: $activeUserLocale } }) { value }
+          catalog { defaultLocale }
+        }
+      }
+    }
+  }
+`
+
+export const employmentRegionHolidaysQuery = `
+  query GetEmploymentRegionHolidays($activeUserLocale: String!, $regionIds: [String!]!) {
+    holidays: CatalogEntry(
+      where: {
+        catalog: { version: { _eq: "v1" }, identifier: { _eq: "EmploymentRegionHoliday" } }
+        additionalValue2: { _in: $regionIds }
+      }
+      orderBy: { value: ASC }
+    ) {
+      id
+      value
+      code
+      alternativeCode
+      additionalValue1
+      additionalValue2
+      additionalValue3
+      objectValue
+      translations(where: { localeCode: { _eq: $activeUserLocale } }) {
+        value
+      }
+      catalog {
+        defaultLocale
+      }
+    }
+  }
+`
+
+export const employeeWorkingHoursQuery = `
+  query GetEmployeeWorkingHours($employeeId: uuid!) {
+    employee: Employee(where: { isDeleted: { _eq: false }, id: { _eq: $employeeId } }) {
+      id
+      workingHours {
+        id
+        mondayHours
+        tuesdayHours
+        wednesdayHours
+        thursdayHours
+        fridayHours
+        saturdayHours
+        sundayHours
+        weeklyHours
+        weeklyDays
+      }
+    }
+  }
+`

@@ -13,7 +13,7 @@ import {
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetInvestments } from '@/common/data/investment/hooks/useInvestments'
-import { formatDate } from '@/common/data/investment'
+import { formatDate } from '@/common/data/investment/utils/formatters'
 import type { Investment } from '@/common/data/investment/types/investmentTypes'
 import type { InvestmentQueryVariables } from '@/common/data/investment/queries/investmentQueries'
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
@@ -22,15 +22,41 @@ import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { Building2, Calendar, ChevronUp, ChevronDown, Plus } from 'lucide-react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { formatCurrencyParts } from '@/common/utils/numberFormatter'
 import { ColumnConfig } from '@/components/dataController'
 import { useInvestmentListController } from '../hooks/useInvestmentListController'
 import { useLiquidFundInvestmentsFilters } from '../hooks/useLiquidFundInvestmentsFilters'
 import { OwnerDisplay } from '@/business-apps/irm/core/apps/investment-relations/views/task-view/components/OwnerDisplay' // TODO: Extract to common
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
-export type LiquidFundInvestmentsListProps = BusinessAppContextProps
+// Currency Display Component
+interface CurrencyDisplayProps {
+  amount: number
+  currencyCode?: string
+}
 
-const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = context => {
+const CurrencyDisplay: React.FC<CurrencyDisplayProps> = ({ amount, currencyCode }) => {
+  const { number, symbol } = formatCurrencyParts(amount, {
+    currency: currencyCode,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2
+  })
+
+  return (
+    <>
+      <span className="gba:text-sm gba:[font-variant-numeric:tabular-nums]">{number}</span>
+      <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">
+        {symbol}
+      </span>
+    </>
+  )
+}
+
+export interface LiquidFundInvestmentsListProps extends BusinessAppContextProps {
+  currencyCode?: string
+}
+
+const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = ({ currencyCode, ...context }) => {
   const { accessToken } = context
 
   // Use the shared controller for URL sync and state management
@@ -93,6 +119,7 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = cont
   const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(() => [
     { id: 'investment', label: 'Investment', visible: true },
     { id: 'investmentType', label: 'Investment Type', visible: true },
+    { id: 'totalInvestment', label: 'Total Investment', visible: true },
     { id: 'fundType', label: 'Fund Type', visible: true },
     { id: 'owner', label: 'Owner', visible: true },
     { id: 'status', label: 'Status', visible: true },
@@ -165,12 +192,13 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = cont
       orderBy: sortField
         ? [{ field: sortField, direction: sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST' }]
         : [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }],
+      currencyCode: currencyCode || undefined,
       ...filters
     }
     // Always filter by liquid fund investment types
     v.investmentGroupIds = ['InvestmentGroup:v1:LIQUID_FUND']
     return v
-  }, [currentPage, pageSize, search, sortField, sortOrder, getFilters])
+  }, [currentPage, pageSize, search, sortField, sortOrder, currencyCode, getFilters])
 
   const loadData = useCallback(async () => {
     if (!accessToken) return
@@ -199,7 +227,7 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = cont
   // Trigger search when search term changes
   useEffect(() => {
     if (initialLoadDone.current && filtersInitialized) {
-      updateURLParams({ search, page: 1 })
+      updateURLParams({ page: 1 })
       loadData()
     }
   }, [search, filtersInitialized, loadData, updateURLParams])
@@ -421,6 +449,20 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = cont
                     )}
                   </SortableTableHead>
                 )}
+                {visibleColumns.includes('totalInvestment') && (
+                  <SortableTableHead
+                    field="totalInvestmentAmount"
+                    currentSortField={sortField}
+                    currentSortOrder={sortOrder}
+                    onSort={handleSortingChange}
+                    className="gba:text-right"
+                  >
+                    {getTranslationFromI18nKeyAndLabel(
+                      'investment:liquidFund.columns.totalInvestment',
+                      'Total Investment'
+                    )}
+                  </SortableTableHead>
+                )}
                 {visibleColumns.includes('fundType') && (
                   <TableHead>
                     {getTranslationFromI18nKeyAndLabel('investment:liquidFund.columns.fundType', 'Fund Type')}
@@ -473,6 +515,11 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = cont
                   {visibleColumns.includes('investmentType') && (
                     <TableCell>
                       <Badge variant="secondary">{inv?.investmentType?.value || 'Liquid Fund'}</Badge>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('totalInvestment') && (
+                    <TableCell className="gba:text-right">
+                      <CurrencyDisplay amount={inv.totalInvestmentAmount || 0} currencyCode={inv.currency?.code} />
                     </TableCell>
                   )}
                   {visibleColumns.includes('fundType') && (

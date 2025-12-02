@@ -5,6 +5,7 @@ import { useDepartmentMonthlySalaryStack } from '../../../../hooks/useDepartment
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useTranslation } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
 const { Title, Text } = Typography
 
@@ -28,13 +29,14 @@ const SalaryChangesChart: React.FC<BusinessAppContextProps> = props => {
       return (
         <div className="gba:bg-primary-foreground gba:shadow-lg gba:rounded gba:p-4" data-testid="salary-tooltip">
           <div className="gba:font-semibold gba:text-base gba:mb-1">
-            {d.month && new Date(d.month + '-01').toLocaleString(undefined, { month: 'short', year: 'numeric' })}
+            {d.month &&
+              new Date(d.month + '-01').toLocaleString(getCurrentActiveUserLocale() ?? 'en-US', {
+                month: 'short',
+                year: 'numeric'
+              })}
           </div>
           <div className={value > 0 ? 'gba:text-success gba:text-sm' : 'gba:text-destructive gba:text-sm'}>
-            <span className="gba:font-medium">
-              {t('hr-analytics-salary-change')}:
-            </span>{' '}
-            {value > 0 ? '+' : ''}
+            <span className="gba:font-medium">{t('hr-analytics-salary-change')}:</span> {value > 0 ? '+' : ''}
             {value.toLocaleString()}
           </div>
         </div>

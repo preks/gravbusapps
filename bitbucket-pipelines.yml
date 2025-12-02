@@ -44,8 +44,11 @@ definitions:
   services:
     docker:
       memory: 3072
-    docker-large:
+    docker-medium:
       memory: 7168
+      type: docker
+    docker-large:
+      memory: 15360
       type: docker
   caches:
     nodecustom:
@@ -190,30 +193,45 @@ definitions:
         caches:
           - nodecustom
         services:
-          - docker-large
+          - docker-medium
         script:
           - pipe: sonarsource/sonarcloud-scan:4.1.0
             variables:
               SONAR_SCANNER_OPTS: -Xmx6144m
-              EXTRA_ARGS: ['-Dsonar.javascript.node.maxspace=4096']
+              EXTRA_ARGS: ['-Dsonar.javascript.node.maxspace=5120']
+
+    - step: &sonar_scan_main
+        name: Sonar scan (main)
+        size: 4x
+        clone:
+          enabled: true
+          depth: full # SonarCloud scanner needs the full history to assign issues properly
+        caches:
+          - nodecustom
+        services:
+          - docker-large
+        script:
+          - pipe: sonarsource/sonarcloud-scan:4.1.0
+            variables:
+              SONAR_SCANNER_OPTS: -Xmx14336m
+              EXTRA_ARGS: ['-Dsonar.javascript.node.maxspace=13312']
 
 pipelines:
   pull-requests:
     '**':
       - step: *install_dependencies
-      - step: *build-validate-screens
-      - step: *sonar_scan
+      - parallel:
+        - step: *build-validate-screens
+        - step: *sonar_scan
 
   branches:
     develop:
       - step: *install_dependencies
       - step: *publish-changed-screens
-    # Deactivated due to current SonarCloud sizing limits
-    #      - step: *sonar_scan
+
     hotfix/*:
       - step: *install_dependencies
       - step: *publish-changed-prod-screens
-      - step: *sonar_scan
 
     main:
       - step: *install_dependencies
@@ -222,6 +240,10 @@ pipelines:
   custom:
     dry-run:
       - step: *detect-changed-screens
+
+    sonar-scan-main:
+      - step: *install_dependencies
+      - step: *sonar_scan_main
 
     build-manual:
       - variables:

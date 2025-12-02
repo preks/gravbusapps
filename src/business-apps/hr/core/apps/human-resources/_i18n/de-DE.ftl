@@ -417,4 +417,5 @@ hr-pagination-prev-page-sr = Zur vorherigen Seite
 hr-pagination-next-page-sr = Zur nächsten Seite
 hr-pagination-last-page-sr = Zur letzten Seite
 
-
+#Picture
+employee-edit-picture = BILD BEARBEITEN

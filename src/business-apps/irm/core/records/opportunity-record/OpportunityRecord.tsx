@@ -21,9 +21,9 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
-import type { InvestmentOpportunity } from '@/common/data/investment/types'
+import { useInvestmentOpportunity } from '@/common/data/investment/hooks/useInvestmentOpportunity'
 import { formatCurrency, extractCurrencyCode } from '@/common/utils/numberFormatter'
-import { getOpportunityStatusBadgeVariant } from '@/common/utils/badgeUtils'
+import { getOpportunityStatusBadgeVariant, getOpportunityForecastBadgeVariant } from '@/common/utils/badgeUtils'
 import { useAiSummary } from './hooks/useAiSummary'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
@@ -40,6 +40,7 @@ import { getEmployeeName } from '@/common/components/common-relations/record-sec
 import type { Stage, StageCondition } from '@/components/stage-progression/types'
 import { isOpportunityOpen } from './utils/opportunityStatusUtils'
 import { buildInvestmentFromOpportunity } from './utils/opportunityDataTransformers'
+import { buildFormFieldsFromCatalogData } from '../utils/investmentFieldsBuilder'
 import AccountSection from '@/common/components/common-relations/record-sections/account-section/AccountSection'
 import ContactSection from '@/common/components/common-relations/record-sections/contact-section/ContactSection'
 import ActivitySection from '@/common/components/common-relations/record-sections/activity-section/ActivitySection'
@@ -48,7 +49,6 @@ import TaskSection from '@/common/components/common-relations/record-sections/ta
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
 import { DocumentSection, type DocumentItem } from '@/components/document-section'
 import {
-  useGetInvestmentOpportunityById,
   useGetInvestmentActivitiesByOpportunityId,
   useGetInvestmentNotesByOpportunityId,
   useGetInvestmentTasksByOpportunityId
@@ -88,13 +88,6 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     opportunityName?: string
   }>({ open: false })
 
-  // Construct businessAppContext from props for sections
-  const businessAppContext: BusinessAppContextProps = {
-    accessToken: props.accessToken,
-    userInfo: props.userInfo,
-    additionalData: props.additionalData
-  }
-
   // Initialize activeTab from URL on mount and write default if missing
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -114,9 +107,15 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
-  const [opportunityData, setOpportunityData] = useState<InvestmentOpportunity | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  // Use new declarative hook for opportunity data
+  const {
+    opportunity: opportunityData,
+    loading,
+    error,
+    refetch
+  } = useInvestmentOpportunity(props.accessToken, opportunityId)
+  const graphQLClient = useGraphQLClient(props.accessToken)
+
   const [stageConditionStatuses, setStageConditionStatuses] = useState<any[]>([])
   const [opportunityStages, setOpportunityStages] = useState<any[]>([])
   const [catalogStageConditions, setCatalogStageConditions] = useState<any[]>([])
@@ -162,35 +161,30 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     [extractIrmStageConditions]
   )
 
-  const { fetchInvestmentOpportunityById } = useGetInvestmentOpportunityById(props)
-  const graphqlClient = useGraphQLClient(props.accessToken)
+  // Extract stageConditionStatuses from opportunityData
+  useEffect(() => {
+    if (opportunityData?.opportunityStageConditions) {
+      setStageConditionStatuses(opportunityData.opportunityStageConditions)
+    } else {
+      setStageConditionStatuses([])
+    }
+  }, [opportunityData?.opportunityStageConditions])
 
   // Refetch function for process completion events
   const refetchOpportunityData = useCallback(async () => {
-    if (!opportunityId || !props.accessToken) return
-    try {
-      const result = await fetchInvestmentOpportunityById(opportunityId)
-      if (result?.opportunity) {
-        setOpportunityData(result.opportunity)
-        if (result.opportunity.opportunityStageConditions) {
-          setStageConditionStatuses(result.opportunity.opportunityStageConditions)
-        }
-      }
-    } catch (err) {
-      console.error('Error refreshing opportunity:', err)
-    }
-  }, [opportunityId, props.accessToken, fetchInvestmentOpportunityById])
+    await refetch()
+  }, [refetch])
 
   // Fetch catalog conditions for stages
   const fetchCatalogConditions = useCallback(
     async (stageIds: string[]) => {
-      if (!stageIds.length || !graphqlClient) {
+      if (!stageIds.length || !props.accessToken) {
         setCatalogStageConditions([])
         return
       }
 
       try {
-        const query = `
+        const GET_STAGE_CONDITIONS = `
         query GetStageConditions($stageIds: [String!]!) {
           conditions: CatalogEntry(
             where: {
@@ -211,14 +205,14 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
         }
       `
 
-        const result = await graphqlClient.request<{ conditions: any[] }>(query, { stageIds })
+        const result = await graphQLClient.request<{ conditions: any[] }>(GET_STAGE_CONDITIONS, { stageIds })
         setCatalogStageConditions(result.conditions || [])
       } catch (err) {
-        console.error('Error fetching catalog stage conditions:', err, err)
+        console.error('Error fetching catalog stage conditions:', err)
         setCatalogStageConditions([])
       }
     },
-    [graphqlClient]
+    [props.accessToken, graphQLClient]
   )
 
   // Fetch opportunity stages from pipeline childEntries
@@ -226,8 +220,9 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     try {
       setLoadingStages(true)
       setStagesError(null)
-      if (opportunityData?.opportunityPipeline?.childEntries?.length) {
-        const sorted = [...(opportunityData.opportunityPipeline.childEntries as any[])].sort(
+      const childEntries = (opportunityData?.opportunityPipeline as any)?.childEntries
+      if (childEntries?.length) {
+        const sorted = [...(childEntries as any[])].sort(
           (a: any, b: any) => (a?.displayOrder ?? 0) - (b?.displayOrder ?? 0)
         )
         const stageData = sorted.map((entry: any) => ({
@@ -253,34 +248,6 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
       setLoadingStages(false)
     }
   }, [opportunityData?.opportunityPipeline, fetchCatalogConditions])
-
-  // Fetch opportunity data
-  useEffect(() => {
-    const loadOpportunityData = async () => {
-      if (!opportunityId || !props.accessToken) return
-
-      try {
-        setLoading(true)
-        setError(null)
-        const result = await fetchInvestmentOpportunityById(opportunityId)
-        if (result?.opportunity) {
-          setOpportunityData(result.opportunity)
-          if (result.opportunity.opportunityStageConditions) {
-            setStageConditionStatuses(result.opportunity.opportunityStageConditions)
-          }
-        } else {
-          setError('Opportunity not found')
-        }
-      } catch (err) {
-        console.error('Error fetching opportunity:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load opportunity')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadOpportunityData()
-  }, [opportunityId, props.accessToken, fetchInvestmentOpportunityById])
 
   // Fetch stages when opportunityData is available
   useEffect(() => {
@@ -627,19 +594,29 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
   // Handler to open status update popup
   const handleUpdateStatus = () => {
     const versionNumber =
-      typeof opportunity?.version === 'number' ? opportunity.version : Number.parseInt(opportunity?.version || '1', 10)
+      typeof opportunityData?.version === 'number'
+        ? opportunityData.version
+        : Number.parseInt(opportunityData?.version || '1', 10)
 
     setStatusUpdatePopup({
       open: true,
       opportunityId: opportunityId,
       opportunityVersion: versionNumber,
-      opportunityName: opportunity?.name || opportunityData?.name || 'Unnamed Opportunity'
+      opportunityName: opportunityData?.name || 'Unnamed Opportunity'
     })
   }
 
   // Memoize RecordLayout data to prevent unnecessary re-renders (must be before early returns)
-  const headerMeta = useMemo(
-    () => (
+  const headerMeta = useMemo(() => {
+    // Forecast badge
+    const forecast = opportunityData?.opportunityForecast
+    const forecastValue = forecast?.value || forecast?.code || ''
+    const forecastAdditionalValue1 = forecast?.additionalValue1 || ''
+    const forecastDisplayValue = forecastAdditionalValue1
+      ? `${forecastValue}: ${forecastAdditionalValue1}`
+      : forecastValue
+
+    return (
       <div className="gba:flex gba:items-center gba:gap-2">
         {opportunityData?.opportunityStatus?.value && (
           <Badge
@@ -651,14 +628,30 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
             {opportunityData.opportunityStatus.value}
           </Badge>
         )}
+        {forecast && forecastDisplayValue && (
+          <Badge variant={getOpportunityForecastBadgeVariant(forecast)} data-testid="opportunity-forecast-badge">
+            {forecastDisplayValue}
+          </Badge>
+        )}
         {opportunityData?.estimatedAmount && (
           <Badge variant="outline" className="gba:gap-1">
             {formatCurrency(opportunityData.estimatedAmount, opportunityData?.currency?.id || 'Currency:v1:EUR')}
           </Badge>
         )}
       </div>
-    ),
-    [opportunityData?.estimatedAmount, opportunityData?.currency?.id, opportunityData?.opportunityStatus?.value]
+    )
+  }, [
+    opportunityData?.estimatedAmount,
+    opportunityData?.currency?.id,
+    opportunityData?.opportunityStatus?.value,
+    opportunityData?.opportunityForecast,
+    handleUpdateStatus
+  ])
+
+  // Transform catalog referenceFields to formFields format for InvestmentSection
+  const investmentFields = useMemo(
+    () => buildFormFieldsFromCatalogData(opportunityData?.investmentType, opportunityData?.investmentGroup),
+    [opportunityData?.investmentType, opportunityData?.investmentGroup]
   )
 
   // Helper function to convert deal type codes to human-readable values
@@ -901,7 +894,12 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                   component: ContactSection,
                   props: {
                     ...props,
-                    contacts: opportunityData?.opportunityContacts?.map((ioc: any) => ioc.contact).filter(Boolean),
+                    contacts: opportunityData?.opportunityContacts
+                      ?.map((ioc: any) => ({
+                        ...ioc.contact,
+                        contactType: ioc.contactType
+                      }))
+                      .filter(Boolean),
                     contactId: opportunityData?.opportunityContacts?.[0]?.contact?.id,
                     recordUrl: opportunityData?.opportunityContacts?.[0]?.contact?.id
                       ? buildPlatformUrl('/platform/irm/contact-record', {
@@ -932,10 +930,14 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                   component: InvestmentSection,
                   props: {
                     ...props,
-                    investment: buildInvestmentFromOpportunity(opportunityData),
+                    investment: buildInvestmentFromOpportunity(opportunityData) || undefined,
                     investments: opportunityData
-                      ? [buildInvestmentFromOpportunity(opportunityData)].filter(Boolean)
+                      ? [buildInvestmentFromOpportunity(opportunityData)].filter(
+                          (inv): inv is NonNullable<typeof inv> => inv !== null
+                        )
                       : undefined,
+                    fields: investmentFields,
+                    recordUrl: undefined, // No navigation - investment data is part of opportunity, not a separate entity
                     isLoading: loading,
                     error: error
                   }

@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { InvestmentAccount } from '@/common/data/investment/types'
+import { InvestmentAccount } from '@/common/data/investment/types/investmentAccountTypes'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
 import {
@@ -10,8 +10,10 @@ import {
   useGetInvestmentNotesByAccountId,
   useGetInvestmentTasksByAccountId
 } from '@/common/data/investment/hooks/useInvestmentAccounts'
+import { useGetInvestmentsByAccountId } from '@/common/data/investment/hooks/useInvestments'
 import AccountSection from '@/common/components/common-relations/record-sections/account-section/AccountSection'
 import ContactSection from '@/common/components/common-relations/record-sections/contact-section/ContactSection'
+import InvestmentSection from '@/common/components/common-relations/record-sections/investment-section/InvestmentSection'
 import ActivitySection from '@/common/components/common-relations/record-sections/activity-section/ActivitySection'
 import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
@@ -27,12 +29,14 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
   const { fetchInvestmentActivitiesByAccountId } = useGetInvestmentActivitiesByAccountId(props)
   const { fetchInvestmentNotesByAccountId } = useGetInvestmentNotesByAccountId(props)
   const { fetchInvestmentTasksByAccountId } = useGetInvestmentTasksByAccountId(props)
+  const { fetchInvestmentsByAccountId } = useGetInvestmentsByAccountId(props)
 
   // State for section data
   const [activities, setActivities] = useState<any[]>([])
   const [notes, setNotes] = useState<any[]>([])
   const [tasks, setTasks] = useState<any[]>([])
   const [approvals, setApprovals] = useState<any[]>([])
+  const [investments, setInvestments] = useState<any[]>([])
   const [sectionsLoading, setSectionsLoading] = useState(true)
   const [sectionsError, setSectionsError] = useState<string | null>(null)
 
@@ -62,10 +66,11 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
     setSectionsError(null)
 
     try {
-      const [activitiesData, notesData, tasksData] = await Promise.all([
+      const [activitiesData, notesData, tasksData, investmentsData] = await Promise.all([
         fetchInvestmentActivitiesByAccountId(accountId),
         fetchInvestmentNotesByAccountId(accountId),
-        fetchInvestmentTasksByAccountId(accountId)
+        fetchInvestmentTasksByAccountId(accountId),
+        fetchInvestmentsByAccountId(accountId)
       ])
 
       const sortedActivities = (activitiesData || []).sort(
@@ -94,6 +99,7 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
       setNotes(sortedNotes)
       setTasks(regularTasks)
       setApprovals(approvalTasks)
+      setInvestments(investmentsData?.Investment || [])
     } catch (error) {
       console.error('Error loading section data:', error)
       setSectionsError(
@@ -109,7 +115,8 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
     props.accessToken,
     fetchInvestmentActivitiesByAccountId,
     fetchInvestmentNotesByAccountId,
-    fetchInvestmentTasksByAccountId
+    fetchInvestmentTasksByAccountId,
+    fetchInvestmentsByAccountId
   ])
 
   // Load section data on mount
@@ -162,59 +169,18 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
     }
   }, [loadSectionData])
 
-  // Action props for sections
-  const activityActionProps = useMemo(
-    () => ({
-      contextsArray: [FlowContextName.investmentActivityCreate],
-      externalContextData: { accountId },
-      prefixDataTestId: 'account-activity'
-    }),
-    [accountId]
-  )
-
-  const noteActionProps = useMemo(
-    () => ({
-      contextsArray: [FlowContextName.investmentNoteCreate],
-      externalContextData: { accountId },
-      prefixDataTestId: 'account-note'
-    }),
-    [accountId]
-  )
-
-  const taskActionProps = useMemo(
-    () => ({
-      contextsArray: [FlowContextName.investmentTaskCreate],
-      externalContextData: { accountId },
-      prefixDataTestId: 'account-task'
-    }),
-    [accountId]
-  )
-
-  const approvalActionProps = useMemo(
-    () => ({
-      contextsArray: [FlowContextName.investmentTaskCreate],
-      externalContextData: {
-        accountId,
-        typeRef: 'InvestmentTaskType:v1:APPROVAL',
-        investmentTask: { account: accountId, type: 'InvestmentTaskType:v1:APPROVAL' }
-      },
-      prefixDataTestId: 'account-approval'
-    }),
-    [accountId]
-  )
-
   return (
     <>
-      {/* Account Section - 1/3 width */}
+      {/* Account Section - 1/4 width - EXACT MATCH TO LEAD */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-1"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1"
         sections={[
           {
             id: 'account-section',
             component: AccountSection,
             props: {
               ...props,
-              account: accountData, // ✅ Vollständiges InvestmentAccount-Objekt
+              account: accountData,
               accountId: accountId,
               actionButtonProps: {
                 contextsArray: [FlowContextName.investmentAccountEntity],
@@ -227,9 +193,9 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
         data-testid="account-account-section-wrapper"
       />
 
-      {/* Contact Section - 1/3 width */}
+      {/* Contact Section - 1/4 width - EXACT MATCH TO LEAD */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-1"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1"
         sections={[
           {
             id: 'contact-section',
@@ -237,11 +203,16 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
             props: {
               ...props,
               contacts:
-                (accountData as any)?.investmentAccountContact?.map((ac: any) => ac.contact).filter(Boolean) || [],
-              contactId: (accountData as any)?.investmentAccountContact?.[0]?.contact?.id || undefined,
-              recordUrl: (accountData as any)?.investmentAccountContact?.[0]?.contact?.id
+                accountData?.accountContacts
+                  ?.map((ac: any) => ({
+                    ...ac.contact,
+                    contactType: ac.contactType
+                  }))
+                  .filter(Boolean) || [],
+              contactId: accountData?.accountContacts?.[0]?.contact?.id || undefined,
+              recordUrl: accountData?.accountContacts?.[0]?.contact?.id
                 ? buildPlatformUrl('/platform/irm/contact-record', {
-                    contactId: (accountData as any).investmentAccountContact[0].contact.id,
+                    contactId: accountData.accountContacts[0].contact.id,
                     source: 'account-relations',
                     fromEntity: 'accounts'
                   })
@@ -257,39 +228,32 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
         data-testid="account-contact-section-wrapper"
       />
 
-      {/* Activities Section - 1/3 width, full height */}
+      {/* Investment Section - 1/2 width - EXACT MATCH TO LEAD */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-5"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-1"
         sections={[
           {
-            id: 'activities-section',
-            component: ActivitySection,
+            id: 'investment-section',
+            component: InvestmentSection,
             props: {
               ...props,
-              activities: activities,
-              activitiesLoading: sectionsLoading,
-              activitiesError: sectionsError,
-              onReloadActivities: loadSectionData,
-              alignment: 'right',
-              activitySectionActionProps: {
-                ...activityActionProps,
-                emptyStateBehavior: 'enable'
-              },
-              activityEntityActionProps: {
-                contextsArray: [FlowContextName.investmentActivityEntity],
+              investments: investments,
+              isLoading: sectionsLoading,
+              error: sectionsError,
+              actionButtonProps: {
+                contextsArray: [FlowContextName.investmentEntity],
                 externalContextData: { accountId },
-                prefixDataTestId: 'account-activity-entity',
-                emptyStateBehavior: 'enable'
+                prefixDataTestId: 'account-investment'
               }
             }
           }
         ]}
-        data-testid="account-activities-section-wrapper"
+        data-testid="account-investment-section-wrapper"
       />
 
-      {/* Tasks & Approvals - 2/3 width, spans 2 rows */}
+      {/* Tasks & Approvals - 1/2 width, spans 2 rows - EXACT MATCH TO LEAD */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-8 gba:lg:col-span-8 gba:row-span-2"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2"
         sections={[
           {
             id: 'tasks-section',
@@ -299,7 +263,9 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
               buildReferenceUrl,
               tasks: tasks,
               taskActionProps: {
-                ...taskActionProps,
+                contextsArray: [FlowContextName.investmentTaskCreate],
+                externalContextData: { accountId },
+                prefixDataTestId: 'account-tasks',
                 emptyStateBehavior: 'enable'
               },
               taskEntityActionProps: {
@@ -325,7 +291,14 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
                 emptyStateBehavior: 'enable'
               },
               taskActionProps: {
-                ...approvalActionProps,
+                contextsArray: [FlowContextName.investmentTaskCreate],
+                externalContextData: {
+                  accountId,
+                  account: accountId,
+                  typeRef: 'InvestmentTaskType:v1:APPROVAL',
+                  investmentTask: { account: accountId, type: 'InvestmentTaskType:v1:APPROVAL' }
+                },
+                prefixDataTestId: 'account-approvals',
                 emptyStateBehavior: 'enable'
               }
             }
@@ -334,18 +307,41 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
         data-testid="account-tasks-approvals-section-wrapper"
       />
 
-      {/* Notes Section - 2/3 width, spans 2 rows */}
+      {/* Activities & Notes - 1/2 width, spans 2 rows - EXACT MATCH TO LEAD */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-8 gba:lg:col-span-8 gba:row-span-2"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2"
         sections={[
           {
+            id: 'activities-section',
+            component: ActivitySection,
+            props: {
+              ...props,
+              activities: activities,
+              activitiesLoading: sectionsLoading,
+              activitiesError: sectionsError,
+              onReloadActivities: loadSectionData,
+              activitySectionActionProps: {
+                contextsArray: [FlowContextName.investmentActivityCreate],
+                externalContextData: { accountId },
+                prefixDataTestId: 'account-activities'
+              },
+              activityEntityActionProps: {
+                contextsArray: [FlowContextName.investmentActivityEntity],
+                externalContextData: { accountId },
+                prefixDataTestId: 'account-activity-entity'
+              }
+            }
+          },
+          {
             id: 'notes-section',
-            component: NoteSection,
+            component: NoteSection as React.ComponentType<any>,
             props: {
               ...props,
               notes: notes,
               noteActionProps: {
-                ...noteActionProps,
+                contextsArray: [FlowContextName.investmentNoteCreate],
+                externalContextData: { accountId },
+                prefixDataTestId: 'account-notes',
                 emptyStateBehavior: 'enable'
               },
               noteEntityActionProps: {
@@ -357,7 +353,7 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
             }
           }
         ]}
-        data-testid="account-notes-section-wrapper"
+        data-testid="account-activities-notes-section-wrapper"
       />
     </>
   )

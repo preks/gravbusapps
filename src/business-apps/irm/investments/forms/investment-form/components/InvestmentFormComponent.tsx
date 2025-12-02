@@ -14,11 +14,12 @@ import {
 } from './segments'
 import { getCurrencySymbol } from '@/common/utils/numberFormatter'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
-import { useGetInvestmentById, useGetInvestmentOpportunityById } from '@/common/data/investment'
+import { useGetInvestmentById } from '@/common/data/investment/hooks/useInvestments'
+import { useInvestmentOpportunity } from '@/common/data/investment/hooks/useInvestmentOpportunity'
 import { getInvestmentGroupFromContext } from '../utils/investmentDataTransformer'
 import { createInvestmentFormResolver } from '../utils/investmentFormSchema'
 import { InvestmentFormValues } from '../types'
-import { buildInvestmentPayload } from '@/common/data/investment'
+import { buildInvestmentPayload } from '@/common/data/investment/payloads/investmentPayloads'
 import { mapOpportunityToInvestmentFormValues } from '../utils/opportunityToInvestmentMapper'
 
 const prefixDataTestId = 'InvestmentForm'
@@ -29,9 +30,23 @@ export const InvestmentFormComponent: React.FC = () => {
   const { businessAppContext, formValues, setFormValues, getFormFieldsDefinition, currentEmployee } =
     useInvestmentFormContext()
 
+  // Extract investmentId and opportunityId from additionalData (must be before hooks)
+  const externalInvestmentId =
+    formValues.investment.id ||
+    businessAppContext.additionalData?.investmentId ||
+    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.investmentId
+  const externalOpportunityId =
+    businessAppContext.additionalData?.opportunityId ||
+    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.opportunityId
+
   // Add the investment and opportunity fetch hooks
   const { fetchInvestmentById } = useGetInvestmentById(businessAppContext)
-  const { fetchInvestmentOpportunityById } = useGetInvestmentOpportunityById(businessAppContext)
+  // Use new declarative hook for opportunity
+  const {
+    opportunity: fetchedOpportunity,
+    loading: opportunityLoading,
+    error: opportunityError
+  } = useInvestmentOpportunity(businessAppContext.accessToken, externalOpportunityId)
 
   // UI state
   const [currentStep, setCurrentStep] = useState<FormStep>('select')
@@ -41,15 +56,6 @@ export const InvestmentFormComponent: React.FC = () => {
 
   // Store raw investment data for payload building
   const [rawInvestmentData, setRawInvestmentData] = useState<any>(null)
-
-  // Extract investmentId and opportunityId from additionalData
-  const externalInvestmentId =
-    formValues.investment.id ||
-    businessAppContext.additionalData?.investmentId ||
-    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.investmentId
-  const externalOpportunityId =
-    businessAppContext.additionalData?.opportunityId ||
-    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.opportunityId
   const preSelectedGroup = getInvestmentGroupFromContext(businessAppContext.additionalData)
   const isUpdate = Boolean(externalInvestmentId)
 
@@ -85,12 +91,35 @@ export const InvestmentFormComponent: React.FC = () => {
         // Step 2: Conditional flow based on opportunityId or investmentId
         if (externalOpportunityId && !externalInvestmentId) {
           // Opportunity pre-fill mode: Load opportunity data and map to investment form
-          const { opportunity } = await fetchInvestmentOpportunityById(externalOpportunityId)
+
+          // Check if opportunity is still loading
+          if (opportunityLoading) {
+            // Keep loading state, don't show error yet
+            return
+          }
+
+          // Check if there was an error loading the opportunity
+          if (opportunityError) {
+            setLoadingError(`Failed to load opportunity: ${opportunityError}`)
+            return
+          }
+
+          // Use opportunity from declarative hook
+          const opportunity = fetchedOpportunity
 
           if (opportunity) {
-            // Extract form fields definition directly from the opportunity's investment group
-            // The opportunity already contains the full catalog entry with objectValue.formFields
-            const formFieldsDefinition = opportunity.investmentGroup?.objectValue as any
+            // Extract form fields definition - check Type first (more specific), then fall back to Group
+            // Some catalogs have formFields at Type level, others at Group level
+            const groupObjectValue = opportunity.investmentGroup?.objectValue as any
+            const typeObjectValue = opportunity.investmentType?.objectValue as any
+
+            // Use Type's formFields if available, otherwise fall back to Group's formFields
+            const formFieldsDefinition =
+              typeObjectValue?.formFields?.length > 0
+                ? typeObjectValue
+                : groupObjectValue?.formFields?.length > 0
+                  ? groupObjectValue
+                  : typeObjectValue || groupObjectValue
 
             // Map ALL fields (static + dynamic) using the form fields definition from opportunity
             const allMappedValues = mapOpportunityToInvestmentFormValues(opportunity, formFieldsDefinition)
@@ -134,9 +163,23 @@ export const InvestmentFormComponent: React.FC = () => {
                 ...(rawInvestment.investmentAccount && { investmentAccount: rawInvestment.investmentAccount }), // Full account object
                 ...(rawInvestment.investmentType && { investmentType: rawInvestment.investmentType }) // Full catalog object
               },
-              // Load subtype data (keep full catalog objects)
-              ...((rawInvestment as any).liquidFundInvestment?.[0]?.investmentLiquidFundType && {
+              // Load subtype data (keep full catalog objects and preserve id/version for updates)
+              ...((rawInvestment as any).equityInvestment?.[0] && {
+                equityInvestment: {
+                  id: (rawInvestment as any).equityInvestment[0].id,
+                  version: (rawInvestment as any).equityInvestment[0].version
+                }
+              }),
+              ...((rawInvestment as any).realEstateInvestment?.[0] && {
+                realEstateInvestment: {
+                  id: (rawInvestment as any).realEstateInvestment[0].id,
+                  version: (rawInvestment as any).realEstateInvestment[0].version
+                }
+              }),
+              ...((rawInvestment as any).liquidFundInvestment?.[0] && {
                 liquidFundInvestment: {
+                  id: (rawInvestment as any).liquidFundInvestment[0].id,
+                  version: (rawInvestment as any).liquidFundInvestment[0].version,
                   investmentLiquidFundType: (rawInvestment as any).liquidFundInvestment[0].investmentLiquidFundType // Full catalog object
                 }
               })
@@ -174,7 +217,14 @@ export const InvestmentFormComponent: React.FC = () => {
     }
 
     initializeForm()
-  }, [externalInvestmentId, externalOpportunityId, preSelectedGroup])
+  }, [
+    externalInvestmentId,
+    externalOpportunityId,
+    preSelectedGroup,
+    fetchedOpportunity,
+    opportunityLoading,
+    opportunityError
+  ])
 
   // Handle group selection from SelectSegment
   const handleGroupSelect = (group: string) => {

@@ -15,7 +15,13 @@ import {
   expenseRequestByCurrencyQuery
 } from '../ExpenseItemQueries'
 import { fetchEmployeeRule } from '../ExpenseItemQueries'
-import { DEFAULT_EMPLOYEE_ID, DEFAULT_POSITION, FORM_STEPS, FormStepType } from '../constants/constants'
+import {
+  DEFAULT_CURRENCY_ID,
+  DEFAULT_EMPLOYEE_ID,
+  DEFAULT_POSITION,
+  FORM_STEPS,
+  FormStepType
+} from '../constants/constants'
 import { transformCurrencies } from '../utils/currencyUtils'
 import { createGraphQLClient } from '../services/graphqlClient'
 import {
@@ -40,6 +46,7 @@ interface ExpenseItemContextProps {
   setCurrentStep: (step: 'start' | 'form') => void
   loading: boolean
   setLoading: (loading: boolean) => void
+  isInitialized: boolean
   fileList: any[]
   setFileList: (files: any[]) => void
   isProcessingFiles: boolean
@@ -99,6 +106,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   const [form] = Form.useForm()
   const [currentStep, setCurrentStep] = useState<FormStepType>(FORM_STEPS.START)
   const [loading, setLoading] = useState<boolean>(false)
+  const [isInitialized, setIsInitialized] = useState<boolean>(false)
   const [fileList, setFileList] = useState<any[]>([])
   const [isProcessingFiles, setIsProcessingFiles] = useState<boolean>(false)
   const [isFormDisabled, setIsFormDisabled] = useState<boolean>(false)
@@ -163,34 +171,67 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     }
   }, [generalDataResponse, catalogueDataResponse, accessToken])
 
+  const initialRequestsHydratedRef = useRef(false)
+
   useEffect(() => {
-    if (catalogueDataResponse && accessToken && !expenseRuleError) {
-      addRequestsWrapper()
+    if (!catalogueDataResponse || !accessToken || expenseRuleError || initialRequestsHydratedRef.current) {
+      return
+    }
 
-      // Get expenseRequestId from either the wizard or task payload
-      const expenseRequestId =
-        additionalData?.expenseRequestId || additionalData?.psi_taskPayload?.psi_initialParameters?.expenseRequest
-      if (expenseRequestId) {
-        form.setFieldsValue({ expenseRequestId })
-      } else if (!isEditMode) {
-        form.setFieldsValue({ expenseRequestId: '0' })
-      }
+    const hydrateRequestsForInitialCurrency = async () => {
+      try {
+        let effectiveCurrencyId: string | undefined = form.getFieldValue('currency')
 
-      // Handle itemCurrency and useSingleCurrency if provided from wizard
-      if (additionalData?.itemCurrency && currencies.length > 0) {
-        const currencyToSet = currencies.find(c => c.id === additionalData.itemCurrency)
-        if (currencyToSet) {
-          if (typeof additionalData?.useSingleCurrency === 'boolean') {
-            form.setFieldsValue({ fixedCurrency: additionalData.useSingleCurrency })
-          }
-          form.setFieldsValue({ currency: currencyToSet.id })
+        // If embedded in a wizard or task, prefer the provided itemCurrency
+        if (!effectiveCurrencyId && additionalData?.itemCurrency) {
+          effectiveCurrencyId = additionalData.itemCurrency
         }
+
+        // Fall back to default currency for brand new items
+        if (!effectiveCurrencyId) {
+          effectiveCurrencyId = DEFAULT_CURRENCY_ID
+        }
+
+        // Persist the chosen currency into the form (unless it already has one)
+        if (!form.getFieldValue('currency') && effectiveCurrencyId) {
+          form.setFieldsValue({ currency: effectiveCurrencyId })
+        }
+
+        // If a wizard forces a single currency, respect that flag
+        if (typeof additionalData?.useSingleCurrency === 'boolean') {
+          form.setFieldsValue({ fixedCurrency: additionalData.useSingleCurrency })
+        }
+
+        if (effectiveCurrencyId) {
+          initialRequestsHydratedRef.current = true
+          suppressRequestResetRef.current = true
+          await handleCurrencyChangeWrapper(effectiveCurrencyId, { suppressRequestReset: true })
+          suppressRequestResetRef.current = false
+        } else {
+          addRequestsWrapper()
+          initialRequestsHydratedRef.current = true
+        }
+
+        // Get expenseRequestId from either the wizard or task payload
+        const expenseRequestId =
+          additionalData?.expenseRequestId || additionalData?.psi_taskPayload?.psi_initialParameters?.expenseRequest
+        if (expenseRequestId) {
+          form.setFieldsValue({ expenseRequestId })
+        } else if (!isEditMode) {
+          form.setFieldsValue({ expenseRequestId: '0' })
+        }
+      } catch {
+        suppressRequestResetRef.current = false
       }
     }
-  }, [catalogueDataResponse, accessToken, additionalData, currencies])
+
+    void hydrateRequestsForInitialCurrency()
+  }, [catalogueDataResponse, accessToken, additionalData, expenseRuleError, isEditMode])
 
   // Avoid refetch loops: track attempted (requestId|currency) hydrations
   const attemptedLabelHydrationsRef = useRef<Set<string>>(new Set())
+  // Internal flag to avoid clearing request when currency is set programmatically (e.g. on init/label hydration)
+  const suppressRequestResetRef = useRef(false)
 
   // Ensure expense request labels are available after edits/flows
   useEffect(() => {
@@ -208,12 +249,20 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     }
     attemptedLabelHydrationsRef.current.add(hydrateKey)
 
-    handleCurrencyChangeWrapper(currencyId).catch(() => {
-      showToast(
-        t('lowcoder:create_expense_type_item.process_error_expense_requests_fetch', 'Error fetching expense requests'),
-        'error'
-      )
-    })
+    suppressRequestResetRef.current = true
+    handleCurrencyChangeWrapper(currencyId, { suppressRequestReset: true })
+      .catch(() => {
+        showToast(
+          t(
+            'lowcoder:create_expense_type_item.process_error_expense_requests_fetch',
+            'Error fetching expense requests'
+          ),
+          'error'
+        )
+      })
+      .finally(() => {
+        suppressRequestResetRef.current = false
+      })
   }, [expenseRequests])
 
   useEffect(() => {
@@ -327,6 +376,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
           'There is no rule set for your user, please reach out to your administrator.'
         )
         setExpenseRuleError(errorMsg)
+        setIsInitialized(true)
       }
     } catch {
       const errorMsg = t(
@@ -335,6 +385,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       )
       setExpenseRuleError(errorMsg)
       showToast(errorMsg, 'error')
+      setIsInitialized(true)
     }
   }
 
@@ -404,16 +455,20 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     try {
       const itemCurrencyId = editData?.ExpenseItemByPk?.currency?.id || form.getFieldValue('currency')
       if (itemCurrencyId) {
-        await handleCurrencyChangeWrapper(itemCurrencyId)
+        suppressRequestResetRef.current = true
+        await handleCurrencyChangeWrapper(itemCurrencyId, { suppressRequestReset: true })
+        suppressRequestResetRef.current = false
       }
-    } catch {}
+    } catch {
+      suppressRequestResetRef.current = false
+    }
     setIsEditMode(true)
   }
 
   /**
    * Initializes cost centers for employee position
    */
-  const initializeCostCenters = async (structureId: string, employeePosition: any, costCenterData: any) => {
+  const initializeCostCenters = async (employeePosition: any, costCenterData: any) => {
     try {
       const updatedPositions = [...positions]
       const employeePositionCostCenterId = employeePosition[0]?.costCenterId
@@ -500,8 +555,11 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
             setCostCenters([])
           }
 
-          // Initialize cost centers for positions
-          await initializeCostCenters(structureId, employeePosition, costCenterData)
+          // Initialize cost centers for positions only when creating a new item.
+          // In edit mode, the backend values (hydrated via setByEdit) must not be overridden.
+          if (!expenseIdValue) {
+            await initializeCostCenters(employeePosition, costCenterData)
+          }
 
           // Initialize currencies
           initializeCurrencies(catalogueData)
@@ -512,6 +570,8 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       setRerunRule(false)
     } catch {
       showToast(t('lowcoder:create_expense_type_item.process_error_data_fetch', 'Error fetching data'), 'error')
+    } finally {
+      setIsInitialized(true)
     }
   }
 
@@ -742,7 +802,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       setIsProcessingFiles(true)
       setIsFormDisabled(true)
 
-      const result = await handleFileUpload(files, accessToken, aiGroupsAndTypes, t)
+      const result = await handleFileUpload(files, accessToken, aiGroupsAndTypes)
 
       if (result) {
         setByReceipts(result)
@@ -837,7 +897,10 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     )
   }
 
-  const handleCurrencyChangeWrapper = async (currencyId: string): Promise<void> => {
+  const handleCurrencyChangeWrapper = async (
+    currencyId: string,
+    options?: { suppressRequestReset?: boolean }
+  ): Promise<void> => {
     if (!accessToken || !userInfo) {
       return
     }
@@ -846,6 +909,17 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
 
       if (!employeeIdValue) {
         return
+      }
+
+      const currentRequestId = form.getFieldValue('expenseRequestId')
+      if (
+        isEditMode &&
+        !options?.suppressRequestReset &&
+        !suppressRequestResetRef.current &&
+        currentRequestId &&
+        currentRequestId !== '0'
+      ) {
+        form.setFieldsValue({ expenseRequestId: undefined })
       }
 
       const expenseRequestByCurrency = await graphqlClient.query({
@@ -951,6 +1025,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       setCurrentStep,
       loading,
       setLoading,
+      isInitialized,
       fileList,
       setFileList,
       isProcessingFiles,
@@ -990,6 +1065,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       form,
       currentStep,
       loading,
+      isInitialized,
       fileList,
       isProcessingFiles,
       isFormDisabled,

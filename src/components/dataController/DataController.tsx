@@ -296,7 +296,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
       {/* Filter pills row: always below the bar group, left-aligned */}
       {((filter && filter.length > 0) || hasDateRangeFilter) && (
         <div
-          className="gba:flex gba:flex-wrap gba:items-start gba:gap-2 gba:self-start gba:mt-4 gba:max-w-full"
+          className="gba:flex gba:flex-wrap gba:items-start gba:gap-2 gba:self-start gba:mb-4 gba:max-w-full"
           data-testid="data-controller-filters-section"
         >
           {/* Date range filter pill */}

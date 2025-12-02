@@ -34,8 +34,9 @@ export const AdditionalPropertiesProvider: React.FC<ProviderProps> = ({
 
   const employeeId: string | undefined = useMemo(() => {
     return (
+      additionalData?.employeeId ||
       additionalData?.psi_taskPayload?.employeeId ||
-      additionalData?.psi_taskPayload?.initialParameters?.employeeId ||
+      additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId ||
       userInfo?.employeeDetails?.employeeId
     )
   }, [additionalData, userInfo])

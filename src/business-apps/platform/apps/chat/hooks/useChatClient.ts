@@ -6,14 +6,16 @@ import { ChatWebSocketClient } from '../services/chatWebSocketClient'
 import { useConversations } from './useConversations'
 import { useMessages } from './useMessages'
 import { useTypingIndicator } from './useTypingIndicator'
+import { usePresence } from './usePresence'
 
 interface UseChatClientOptions {
   accessToken: string
   apiUrl: string
   wsUrl: string
+  wsSocketPath?: string
 }
 
-export function useChatClient({ accessToken, apiUrl, wsUrl }: UseChatClientOptions) {
+export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseChatClientOptions) {
   const [isConnected, setIsConnected] = useState(false)
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
@@ -117,6 +119,13 @@ export function useChatClient({ accessToken, apiUrl, wsUrl }: UseChatClientOptio
     }
   })
 
+  // Presence tracking hook
+  const presenceHook = usePresence({
+    wsClient: wsClientRef.current,
+    apiClient: apiClientRef.current,
+    isConnected
+  })
+
   // Keep hook refs up to date
   useEffect(() => {
     conversationsHookRef.current = conversationsHook
@@ -127,7 +136,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl }: UseChatClientOptio
   // Initialize WebSocket client
   useEffect(() => {
     if (accessToken && apiClientRef.current) {
-      wsClientRef.current = new ChatWebSocketClient(wsUrl)
+      wsClientRef.current = new ChatWebSocketClient(wsUrl, { path: wsSocketPath })
 
       const socket = wsClientRef.current.connect(accessToken)
 
@@ -143,6 +152,12 @@ export function useChatClient({ accessToken, apiUrl, wsUrl }: UseChatClientOptio
           wsClientRef.current.joinConversation(activeConversationId)
           currentConversationIdRef.current = activeConversationId
         }
+
+        // Refresh conversations after WebSocket connects to get accurate unread counts
+        // This ensures the unreadCount reflects the latest lastReadAt from the backend
+        setTimeout(() => {
+          conversationsHookRef.current?.loadConversations?.()
+        }, 500)
       })
 
       socket.on('disconnect', () => {
@@ -526,7 +541,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl }: UseChatClientOptio
   }, [activeConversationId, isConnected])
 
   const sendMessage = useCallback(
-    async (conversationId: string, content: string) => {
+    async (conversationId: string, content: string, metadata?: Record<string, any>) => {
       if (!currentUser) {
         throw new Error('User not authenticated')
       }
@@ -546,6 +561,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl }: UseChatClientOptio
             status: 'sent',
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
+            metadata,
             sender: {
               id: currentUser.id,
               keycloakId: currentUser.keycloakId || '',
@@ -568,7 +584,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl }: UseChatClientOptio
           })
 
           // Send via WebSocket - the gateway will create the message and broadcast it
-          wsClientRef.current.sendMessage(conversationId, content, currentUser.id)
+          wsClientRef.current.sendMessage(conversationId, content, currentUser.id, undefined, metadata)
 
           // The real message will be received via WebSocket 'new_message' event
           // and will replace the optimistic one
@@ -585,7 +601,13 @@ export function useChatClient({ accessToken, apiUrl, wsUrl }: UseChatClientOptio
       }
 
       try {
-        const message = await apiClientRef.current.sendMessage(conversationId, content, currentUser.id)
+        const message = await apiClientRef.current.sendMessage(
+          conversationId,
+          content,
+          currentUser.id,
+          undefined,
+          metadata
+        )
         messagesHook.addMessage(message)
         typingHook.stopTyping(conversationId)
         return message
@@ -800,6 +822,11 @@ export function useChatClient({ accessToken, apiUrl, wsUrl }: UseChatClientOptio
     hasMoreMessages: messagesHook.hasMore,
     // Typing
     typingUsers: typingHook.typingUsers,
+    // Presence
+    presenceMap: presenceHook.presenceMap,
+    getUserPresence: presenceHook.getUserPresence,
+    isUserOnline: presenceHook.isUserOnline,
+    updatePresenceFromUser: presenceHook.updatePresenceFromUser,
     // Actions
     sendMessage,
     createDirectConversation,

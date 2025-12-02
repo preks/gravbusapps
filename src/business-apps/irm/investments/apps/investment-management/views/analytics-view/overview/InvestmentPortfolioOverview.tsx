@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState } from 'react'
 import {
   Alert,
   AlertTitle,
@@ -22,6 +22,7 @@ import { WidgetGroup } from '@/components/widget-group'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { useAvailableCurrencies } from '@/common/data/investment/hooks/useAvailableCurrencies'
 import { useInvestmentPortfolioIntegration } from './hooks'
 import { PortfolioTimelineCharts } from './components/PortfolioTimelineCharts'
 import { PortfolioAnalyticsCharts } from './components/PortfolioAnalyticsCharts'
@@ -47,23 +48,13 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
   const [activeTab, setActiveTab] = useState('distribution')
   const [selectedCurrency, setSelectedCurrency] = useState<string>('EUR')
 
-  const { investments, kpis, previousKpis, isLoading, error, refetch } = useInvestmentPortfolioIntegration(
-    props,
-    selectedCurrency
-  )
+  const { kpis, previousKpis, isLoading, error, refetch } = useInvestmentPortfolioIntegration(props, selectedCurrency)
 
-  // Extract unique currencies from investments
-  const availableCurrencies = useMemo(() => {
-    const currencies = new Set<string>()
-    for (const inv of investments) {
-      if (inv.currencyCode) {
-        currencies.add(inv.currencyCode)
-      }
-    }
-    const currencyArray = Array.from(currencies).sort((a, b) => a.localeCompare(b))
-    // Ensure at least the default currency is available
-    return currencyArray.length > 0 ? currencyArray : ['EUR']
-  }, [investments])
+  // Fetch available currencies efficiently using distinctOn
+  const { currencies: availableCurrencies } = useAvailableCurrencies(props, {
+    filters: { entity: 'Investment' },
+    returnFormat: 'codes'
+  })
 
   if (isLoading) {
     return (

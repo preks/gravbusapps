@@ -67,7 +67,7 @@ export const AccountView: React.FC<AccountViewProps> = context => {
     return {
       recentAccounts: accountStatistics.trendData.recentAccounts,
       activeAccounts: accountStatistics.trendData.activeAccounts,
-      revenue: accountStatistics.trendData.revenue,
+      totalAccounts: accountStatistics.trendData.totalAccounts,
       accountsThisYear: accountStatistics.trendData.accountsThisYear,
       isLoading: accountStatistics.isLoading,
       error: accountStatistics.error,
@@ -87,7 +87,7 @@ export const AccountView: React.FC<AccountViewProps> = context => {
         industryClass: 'Industry',
         legalForm: 'Legal Form',
         companySize: 'Size',
-        accountAnnualRevenueBand: 'Revenue',
+        accountAnnualRevenueBand: 'Revenue Band',
         ownerEmployee: 'Owner',
         createdAt: 'Created Date',
         updatedAt: 'Updated Date'

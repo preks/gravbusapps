@@ -1,15 +1,24 @@
 'use client'
 
 import React, { useState, useMemo, useCallback } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, Label, Input, Textarea } from '@newwork/nw-design-system'
+import { Label, Input, Textarea, useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import AppActionForm from '@/components/app-action-form/AppActionForm'
-import { BenefitCatalogItem } from '@/business-apps/hr/core/apps/employee-record/components/tabs/compensation/types/benefitCatalogTypes'
+import {
+  BenefitCatalogItem,
+  ProviderEntry
+} from '@/business-apps/hr/core/apps/employee-record/components/tabs/compensation/types/benefitCatalogTypes'
 import { BENEFIT_FORM_VALIDATION } from '@/business-apps/hr/core/apps/employee-record/components/tabs/compensation/constants/benefitFormValidation'
 import { getDefaultStartDate } from '@/business-apps/hr/core/apps/employee-record/utils/utils'
 import BenefitProviderField from '@/business-apps/hr/core/apps/employee-record/components/tabs/compensation/components/form-fields/BenefitProviderField'
-import BenefitValueField from '@/business-apps/hr/core/apps/employee-record/components/tabs/compensation/components/form-fields/BenefitValueField'
-
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import translations from '@/business-apps/hr/core/apps/employee-record/_i18n'
+import FormHeader from '../components/FormHeader'
+import flowIconUrl from '@/assets/icons/flowSmall.svg'
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { fetchBenefitProvidersForBenefit } from './utils'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { extractCurrencyCode } from '@/common/utils/numberFormatter'
 export interface BenefitRequestScreenProps extends BusinessAppContextProps {
   /**
    * Translation function
@@ -50,7 +59,6 @@ export interface BenefitRequestScreenProps extends BusinessAppContextProps {
  * When Kogito flows are registered, this will trigger via AppAction instead of manual button.
  */
 const BenefitRequestScreen: React.FC<BenefitRequestScreenProps> = ({
-  t,
   isOpen,
   onClose,
   benefit,
@@ -60,11 +68,79 @@ const BenefitRequestScreen: React.FC<BenefitRequestScreenProps> = ({
   additionalData,
   onSuccess
 }) => {
+  const catalogClient = useCatalogManagerClient(accessToken || '')
+  const graphqlClient = useGraphQLClient(accessToken || '')
   // Form state
   const [provider, setProvider] = useState<string>('')
-  const [yearlyValue, setYearlyValue] = useState<string>('')
   const [startDate, setStartDate] = useState<string>('')
   const [justification, setJustification] = useState('')
+  const [period, setPeriod] = useState<string>('')
+  const [countryCurrencyRef, setCountryCurrencyRef] = useState<string | null>(null)
+  const [countryCurrencyCode, setCountryCurrencyCode] = useState<string>('')
+  const [providersFromCatalog, setProvidersFromCatalog] = useState<ProviderEntry[]>([])
+  const { t } = useTranslation(translations)
+  const selectedBenefit =
+    benefit || additionalData?.benefit || additionalData?.psi_taskPayload?.psi_initialParameters?.benefit
+
+  // TEMP: Fetch BenefitProvider catalog and log it
+  React.useEffect(() => {
+    ;(async () => {
+      try {
+        const mapped = await fetchBenefitProvidersForBenefit(catalogClient, selectedBenefit)
+        setProvidersFromCatalog(mapped)
+      } catch (err) {
+        console.error('Failed to fetch BenefitProvider catalog', err)
+      }
+    })()
+  }, [catalogClient, selectedBenefit?.catalogEntry?.type, selectedBenefit?.catalogId])
+
+  /**
+   * Fetch country currency from parent country catalog entry objectValue
+   */
+  React.useEffect(() => {
+    ;(async () => {
+      try {
+        const countryId = selectedBenefit?.catalogEntry?.parentEntryId
+        if (!countryId || !graphqlClient) return
+        const res = await graphqlClient.request<any>(
+          /* sql */ `
+          query GetCountry($id: String!) {
+            CatalogEntry(where: { id: { _eq: $id } }) {
+              id
+              objectValue
+            }
+          }
+        `,
+          { id: countryId }
+        )
+        const raw = res?.CatalogEntry?.[0]?.objectValue
+        if (raw) {
+          let obj: any = raw
+          if (typeof raw === 'string') {
+            try {
+              obj = JSON.parse(raw)
+            } catch {
+              obj = raw
+            }
+          }
+          const currencyRef: string | undefined = obj?.currency || obj?.defaultCurrency || obj?.currencyRef
+          if (currencyRef && typeof currencyRef === 'string') {
+            setCountryCurrencyRef(currencyRef)
+            setCountryCurrencyCode(extractCurrencyCode(currencyRef))
+          } else {
+            setCountryCurrencyRef(null)
+            setCountryCurrencyCode('')
+          }
+        } else {
+          setCountryCurrencyRef(null)
+          setCountryCurrencyCode('')
+        }
+      } catch {
+        setCountryCurrencyRef(null)
+        setCountryCurrencyCode('')
+      }
+    })()
+  }, [graphqlClient, selectedBenefit?.catalogEntry?.parentEntryId])
 
   /**
    * Initialize start date on mount
@@ -75,6 +151,81 @@ const BenefitRequestScreen: React.FC<BenefitRequestScreenProps> = ({
     }
   }, [isOpen])
 
+  const currentLocale = getCurrentActiveUserLocale()
+
+  /**
+   * Resolve value/period from catalog entry objectValue (preferred), with fallback to additional values.
+   * - objectValue may be stored either on the entry or on the translation (localized)
+   * - Expected keys (best effort): value/amount/yearlyAmount/monthlyAmount, unit/currency; period/periodicity/frequency
+   */
+  const { includedValueDisplay, additionalValue1Number, resolvedPeriodDisplay, derivedAmountNumber } = useMemo(() => {
+    // 1) Prefer objectValue (translation first, then entry)
+    const rawObjectValue = selectedBenefit?.catalogEntry?.objectValue
+    let ov: any = null
+    if (rawObjectValue != null) {
+      try {
+        ov = typeof rawObjectValue === 'string' ? JSON.parse(rawObjectValue as string) : rawObjectValue
+      } catch {
+        ov = null
+      }
+    }
+
+    let displayFromOV = undefined as string | undefined
+    let periodFromOV = undefined as string | undefined
+    let amountNumberFromOV = undefined as number | undefined
+
+    if (ov) {
+      // Prefer simple direct keys; avoid over-generic scans that could miss simple shapes
+      const amount =
+        (ov as any)?.displayValue ??
+        (ov as any)?.value ??
+        (ov as any)?.amount ??
+        (ov as any)?.yearlyAmount ??
+        (ov as any)?.monthlyAmount
+
+      const unit = (ov as any)?.unit ?? (ov as any)?.currency ?? (ov as any)?.currencyCode ?? (ov as any)?.unitLabel
+
+      if (amount != null) {
+        displayFromOV = `${amount}${unit ? ` ${unit}` : ''}`
+        const parsedAmount = typeof amount === 'number' ? amount : Number.parseFloat(String(amount).replace(',', '.'))
+        if (Number.isFinite(parsedAmount)) {
+          amountNumberFromOV = parsedAmount
+        }
+      }
+      const periodCandidate =
+        (ov as any)?.period ?? (ov as any)?.periodicity ?? (ov as any)?.frequency ?? (ov as any)?.interval
+      if (periodCandidate != null) {
+        periodFromOV = String(periodCandidate)
+      }
+    }
+
+    return {
+      includedValueDisplay: displayFromOV ?? '-',
+      additionalValue1Number: amountNumberFromOV ?? 0,
+      resolvedPeriodDisplay: periodFromOV || '',
+      derivedAmountNumber: amountNumberFromOV
+    }
+  }, [selectedBenefit, currentLocale])
+
+  // Compose final display for value including country currency (if present)
+  const includedDisplayWithCurrency = useMemo(() => {
+    const base = includedValueDisplay
+    if (!base || base === '-') return '-'
+    if (countryCurrencyCode) {
+      const upper = base.toUpperCase()
+      const hasAlready = upper.endsWith(` ${countryCurrencyCode}`) || upper.includes(` ${countryCurrencyCode} `)
+      return hasAlready ? base : `${base} ${countryCurrencyCode}`
+    }
+    return base
+  }, [includedValueDisplay, countryCurrencyCode])
+
+  // Initialize period from objectValue on open/benefit change
+  React.useEffect(() => {
+    if (isOpen) {
+      setPeriod(resolvedPeriodDisplay || '')
+    }
+  }, [isOpen, resolvedPeriodDisplay])
+
   /**
    * Validation function for AppActionForm
    * Returns array of error messages or null if valid
@@ -82,15 +233,7 @@ const BenefitRequestScreen: React.FC<BenefitRequestScreenProps> = ({
   const validateForm = useCallback(() => {
     const errors: string[] = []
 
-    // Check providers availability
-    if (!benefit.availableProviders || benefit.availableProviders.length === 0) {
-      errors.push(t('error-no-providers'))
-    }
-
-    // Check provider selection
-    if (!provider || provider.length === 0) {
-      errors.push(t('error-provider-required'))
-    }
+    // Provider is optional: no validation needed for provider or availability
 
     // Check start date
     if (!startDate || startDate.length === 0) {
@@ -122,45 +265,56 @@ const BenefitRequestScreen: React.FC<BenefitRequestScreenProps> = ({
     }
 
     return errors.length > 0 ? errors : null
-  }, [benefit, provider, startDate, justification, t])
+  }, [selectedBenefit, provider, startDate, justification, t])
 
   /**
    * Check if form is valid for disabling submit button
    */
   const isFormValid = useMemo(() => {
-    const hasProviders = benefit.availableProviders && benefit.availableProviders.length > 0
     const trimmedJustification = justification.trim()
     return (
-      hasProviders &&
-      provider.length > 0 &&
+      // Provider is optional
       startDate.length > 0 &&
       trimmedJustification.length >= BENEFIT_FORM_VALIDATION.MIN_TEXT_LENGTH &&
       trimmedJustification.length <= BENEFIT_FORM_VALIDATION.MAX_TEXT_LENGTH
     )
-  }, [benefit.availableProviders, provider, startDate, justification])
+  }, [startDate, justification])
 
   /**
    * Form submission handler
    * Builds the payload for the benefit request process
    */
   const handleSubmit = useCallback(async () => {
-    // Parse yearly value
-    const yearlyAmountValue = yearlyValue.trim() ? Number.parseFloat(yearlyValue) : 0
+    // Derive yearly amount from catalog Additional Value 1 (if numeric)
+    const yearlyAmountValue = derivedAmountNumber || 0
 
     // Build and return payload for Kogito process
+    const periodValue = period || resolvedPeriodDisplay || null
     return {
       employeeId,
-      benefitTypeRef: benefit.catalogId,
-      benefitProviderRef: provider,
+      benefitTypeRef: selectedBenefit?.catalogId,
+      benefitProviderRef: provider || null,
       yearlyAmount: yearlyAmountValue,
-      currencyRef: BENEFIT_FORM_VALIDATION.DEFAULT_CURRENCY_REF,
+      period: periodValue,
+      currencyRef: countryCurrencyRef || BENEFIT_FORM_VALIDATION.DEFAULT_CURRENCY_REF,
       startDate: new Date(startDate).toISOString(),
       justification: justification.trim(),
       requestedBy: employeeId,
       requestDate: new Date().toISOString(),
       status: 'PENDING'
     }
-  }, [employeeId, benefit.catalogId, provider, yearlyValue, startDate, justification])
+  }, [
+    employeeId,
+    selectedBenefit?.catalogId,
+    provider,
+    additionalValue1Number,
+    derivedAmountNumber,
+    startDate,
+    justification,
+    period,
+    resolvedPeriodDisplay,
+    countryCurrencyRef
+  ])
 
   /**
    * Success handler - called after process starts
@@ -171,18 +325,23 @@ const BenefitRequestScreen: React.FC<BenefitRequestScreenProps> = ({
 
     // Reset form state
     setProvider('')
-    setYearlyValue('')
     setStartDate(getDefaultStartDate())
     setJustification('')
+    setPeriod('')
   }, [onSuccess, onClose])
 
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="gba:max-w-md gba:p-0" data-testid="request-benefit-modal">
-        <DialogHeader className="gba:px-6 gba:pt-6 gba:pb-0">
-          <DialogTitle data-testid="request-benefit-modal-title">{t('modal-request-title')}</DialogTitle>
-        </DialogHeader>
 
+  return (
+    <div
+      className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-full"
+      data-testid="flw_addSkills_addSkillsContainer"
+    >
+      <FormHeader title={t('modal-request-title')} flowIconUrl={flowIconUrl} className="gba:px-6" />
+
+      <div
+        className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='add-skill-form']]:!py-0"
+        data-testid="activate-benefit-form-content"
+      >
         <AppActionForm
           processType="create"
           formData={{}}
@@ -192,7 +351,6 @@ const BenefitRequestScreen: React.FC<BenefitRequestScreenProps> = ({
           submitEventType="pse_submit"
           cancelEventType="pse_abort"
           onCancel={onClose}
-          customFormLayout={true}
           submitButtonText={t('modal-request-submit-button')}
           cancelButtonText={t('modal-request-cancel-button')}
           isSubmitDisabled={!isFormValid}
@@ -211,7 +369,7 @@ const BenefitRequestScreen: React.FC<BenefitRequestScreenProps> = ({
                 className="gba:w-full gba:rounded-md gba:border gba:border-border gba:bg-muted gba:px-3 gba:py-2 gba:text-sm"
                 data-testid="request-benefit-benefit-type-display"
               >
-                {benefit.benefitType}
+                {selectedBenefit?.benefitType}
               </div>
             </div>
 
@@ -220,12 +378,39 @@ const BenefitRequestScreen: React.FC<BenefitRequestScreenProps> = ({
               t={t}
               value={provider}
               onChange={setProvider}
-              providers={benefit.availableProviders || []}
-              required
+              providers={
+                (providersFromCatalog?.length ?? 0) > 0
+                  ? providersFromCatalog
+                  : selectedBenefit?.availableProviders || []
+              }
+              required={false}
             />
 
-            {/* Expected Yearly Value (Optional) */}
-            <BenefitValueField t={t} value={yearlyValue} onChange={setYearlyValue} />
+            {/* Benefit Value (from objectValue preferred, fallback to additional values) */}
+            <div className="gba:space-y-2">
+              <Label className="gba:text-sm gba:font-medium gba:text-foreground">
+                {t('modal-request-value-label')}
+              </Label>
+              <div
+                className="gba:w-full gba:rounded-md gba:border gba:border-border gba:bg-muted gba:px-3 gba:py-2 gba:text-sm"
+                data-testid="request-benefit-included-value-display"
+              >
+                {includedDisplayWithCurrency}
+              </div>
+            </div>
+
+            {/* Period (pre-populated from objectValue, read-only display) */}
+            <div className="gba:space-y-2">
+              <Label className="gba:text-sm gba:font-medium gba:text-foreground">
+                {t('modal-request-period-label')}
+              </Label>
+              <div
+                className="gba:w-full gba:rounded-md gba:border gba:border-border gba:bg-muted gba:px-3 gba:py-2 gba:text-sm"
+                data-testid="request-benefit-period-display"
+              >
+                {period || resolvedPeriodDisplay || '-'}
+              </div>
+            </div>
 
             {/* Preferred Start Date (Required) */}
             <div className="gba:space-y-2">
@@ -268,8 +453,8 @@ const BenefitRequestScreen: React.FC<BenefitRequestScreenProps> = ({
             </div>
           </div>
         </AppActionForm>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   )
 }
 

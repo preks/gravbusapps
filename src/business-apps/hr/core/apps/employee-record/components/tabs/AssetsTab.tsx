@@ -1,10 +1,9 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState, useCallback, useEffect } from 'react'
 import dayjs from 'dayjs'
 import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableHeader,
   TableRow,
   Spinner,
@@ -25,6 +24,8 @@ import { AssetStatus } from '../../../../apps/assets/types'
 import { PiPackage, PiCalendar, PiWarning } from 'react-icons/pi'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel, formatDate, getCatalogValue } from '@/common/utils/windowUtils'
+import { SortableTableHead } from '../../../../apps/assets/components/SortableTableHead'
+import { AssetTablePagination } from '../../../../apps/assets/components/AssetTablePagination'
 
 interface AssetsTabProps {
   employee: Employee
@@ -33,103 +34,96 @@ interface AssetsTabProps {
   isSelfView: boolean
 }
 
+type EmployeeAsset = ReturnType<typeof useEmployeeAssets>['assets'][0]
+
+const TABLE_COLUMNS = [
+  { field: 'category', label: 'lowcoder:hr_assets.category', default: 'Category' },
+  { field: 'brand', label: 'lowcoder:hr_assets.brand_model', default: 'Brand & Model' },
+  { field: 'serialNumber', label: 'lowcoder:hr_assets.serial_number', default: 'Serial Number' },
+  { field: 'startDate', label: 'lowcoder:hr_assets.assignment_period', default: 'Assignment Period' },
+  { field: 'condition', label: 'lowcoder:hr_assets.condition', default: 'Condition' },
+  { field: 'status', label: 'lowcoder:hr_assets.status', default: 'Status' }
+]
+
+const STATS_CONFIG = [
+  { label: 'lowcoder:hr_assets.total_assets', default: 'Total Assets', className: 'gba:text-foreground' },
+  { label: 'lowcoder:hr_assets.in_use', default: 'In Use', className: 'gba:text-success' },
+  { label: 'lowcoder:hr_assets.status_in_repair', default: 'In Repair', className: 'gba:text-warning' },
+  { label: 'lowcoder:hr_assets.handed_over', default: 'Handed Over', className: 'gba:text-muted-foreground' }
+]
+
+const STATUS_VARIANTS: Record<string, 'default' | 'success' | 'destructive' | 'warning' | 'info'> = {
+  [AssetStatus.AVAILABLE]: 'success',
+  [AssetStatus.ALLOCATED]: 'info',
+  [AssetStatus.UNDER_REPAIR]: 'warning',
+  [AssetStatus.RETIRED]: 'destructive'
+}
+
 const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId, isSelfView }) => {
   const effectiveEmployeeId = employeeId || employee.id
   const { assets, isLoading, error } = useEmployeeAssets(accessToken, effectiveEmployeeId)
-
+  const [sortField, setSortField] = useState<string>('status')
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('ASC')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
   const { options: conditionOptions } = useAssetConditionCatalog({ accessToken })
 
-  const conditionLookup = useMemo(() => {
-    const lookup = new Map<string, string>()
-    conditionOptions.forEach((option: AssetConditionOption) => {
-      // Use the value field from the catalog query
-      lookup.set(option.id, option.value)
-    })
-    return lookup
-  }, [conditionOptions])
+  const conditionLookup = useMemo(
+    () => new Map(conditionOptions.map((opt: AssetConditionOption) => [opt.id, opt.value])),
+    [conditionOptions]
+  )
 
   const conditionVariantLookup = useMemo(() => {
     const lookup = new Map<string, 'default' | 'success' | 'warning' | 'destructive' | 'info'>()
     conditionOptions.forEach((option: AssetConditionOption) => {
       const code = option.code?.toUpperCase()
       const id = option.id.toUpperCase()
-
-      if (code === 'NEW' || id.includes(':NEW')) {
-        lookup.set(option.id, 'success')
-      } else if (code === 'LIKE_NEW' || id.includes(':LIKE_NEW')) {
-        lookup.set(option.id, 'info')
-      } else if (code === 'ACCEPTABLE' || id.includes(':ACCEPTABLE')) {
-        lookup.set(option.id, 'warning')
-      } else if (code === 'DEFEATED' || id.includes(':DEFEATED') || code === 'POOR' || id.includes(':POOR')) {
+      if (code === 'NEW' || id.includes(':NEW')) lookup.set(option.id, 'success')
+      else if (code === 'LIKE_NEW' || id.includes(':LIKE_NEW')) lookup.set(option.id, 'info')
+      else if (code === 'ACCEPTABLE' || id.includes(':ACCEPTABLE')) lookup.set(option.id, 'warning')
+      else if (code === 'DEFEATED' || id.includes(':DEFEATED') || code === 'POOR' || id.includes(':POOR'))
         lookup.set(option.id, 'destructive')
-      } else {
-        lookup.set(option.id, 'default')
-      }
+      else lookup.set(option.id, 'default')
     })
     return lookup
   }, [conditionOptions])
 
-  const getAssetStatusBadgeVariant = (status: string): 'default' | 'success' | 'destructive' | 'warning' | 'info' => {
-    switch (status) {
-      case AssetStatus.AVAILABLE:
-        return 'success'
-      case AssetStatus.ALLOCATED:
-        return 'info'
-      case AssetStatus.UNDER_REPAIR:
-        return 'warning'
-      case AssetStatus.RETIRED:
-        return 'destructive'
-      default:
-        return 'default'
-    }
-  }
+  const getAssetStatusBadgeVariant = (status: string) => STATUS_VARIANTS[status] || 'default'
 
   const formatAssetStatus = (status: string): string => {
-    if (status === AssetStatus.AVAILABLE) {
-      return getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_available', 'Available')
+    const statusMap: Record<string, string> = {
+      [AssetStatus.AVAILABLE]: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_available', 'Available'),
+      [AssetStatus.ALLOCATED]: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_allocated', 'Allocated'),
+      [AssetStatus.UNDER_REPAIR]: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_in_repair', 'In Repair'),
+      [AssetStatus.RETIRED]: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_retired', 'Retired')
     }
-    if (status === AssetStatus.ALLOCATED) {
-      return getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_allocated', 'Allocated')
-    }
-    if (status === AssetStatus.UNDER_REPAIR) {
-      return getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_in_repair', 'In Repair')
-    }
-    if (status === AssetStatus.RETIRED) {
-      return getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_retired', 'Retired')
-    }
-    return status
-      .replace(/_ASSET$/, '')
-      .replace(/_/g, ' ')
-      .toLowerCase()
-      .replace(/\b\w/g, l => l.toUpperCase())
+    return (
+      statusMap[status] ||
+      status
+        .replace(/_ASSET$/, '')
+        .replace(/_/g, ' ')
+        .toLowerCase()
+        .replace(/\b\w/g, l => l.toUpperCase())
+    )
   }
 
-  const getDisplayStatus = (asset: {
-    asset: { assetStatus: string }
-    startDate: string
-    endDate?: string
-  }): {
-    status: string
-    variant: 'default' | 'success' | 'destructive' | 'warning' | 'info'
-  } => {
+  const getDisplayStatus = (asset: EmployeeAsset) => {
     const today = dayjs().startOf('day')
     const startDate = dayjs(asset.startDate).startOf('day')
     const endDate = asset.endDate ? dayjs(asset.endDate).startOf('day') : null
 
-    if (endDate && endDate.isSameOrBefore(today)) {
+    if (endDate?.isSameOrBefore(today)) {
       return {
         status: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_handed_over', 'Handed Over'),
-        variant: 'success'
+        variant: 'success' as const
       }
     }
-
     if (asset.asset.assetStatus === AssetStatus.ALLOCATED && startDate.isSameOrBefore(today)) {
       return {
         status: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_in_use', 'In Use'),
-        variant: 'info'
+        variant: 'info' as const
       }
     }
-
     return {
       status: formatAssetStatus(asset.asset.assetStatus),
       variant: getAssetStatusBadgeVariant(asset.asset.assetStatus)
@@ -139,51 +133,141 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
   const getConditionDisplayValue = (conditionRef?: string, conditionValue?: string): string => {
     if (!conditionRef && !conditionValue)
       return getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A')
-    if (conditionRef && conditionLookup.has(conditionRef)) {
-      return conditionLookup.get(conditionRef)!
-    }
-    return conditionValue || getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A')
+    return conditionRef && conditionLookup.has(conditionRef)
+      ? conditionLookup.get(conditionRef)!
+      : conditionValue || getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A')
   }
 
-  const getConditionBadgeVariant = (
-    conditionRef?: string
-  ): 'default' | 'success' | 'warning' | 'destructive' | 'info' => {
-    if (!conditionRef) return 'default'
+  const getConditionBadgeVariant = (conditionRef?: string) =>
+    conditionRef && conditionVariantLookup.has(conditionRef) ? conditionVariantLookup.get(conditionRef)! : 'default'
 
-    if (conditionVariantLookup.has(conditionRef)) {
-      return conditionVariantLookup.get(conditionRef)!
-    }
-
-    return 'default'
-  }
-
-  const isCurrentlyInUse = (asset: { asset: { assetStatus: string }; startDate: string; endDate?: string }) => {
+  const isAssetActive = (asset: EmployeeAsset, status: AssetStatus) => {
     const today = dayjs().startOf('day')
     const startDate = dayjs(asset.startDate).startOf('day')
     const endDate = asset.endDate ? dayjs(asset.endDate).startOf('day') : null
+    return !endDate?.isSameOrBefore(today) && asset.asset.assetStatus === status && startDate.isSameOrBefore(today)
+  }
 
-    if (endDate && endDate.isSameOrBefore(today)) {
-      return false
+  const isCurrentlyInUse = (asset: EmployeeAsset) => isAssetActive(asset, AssetStatus.ALLOCATED)
+  const isInRepair = (asset: EmployeeAsset) => isAssetActive(asset, AssetStatus.UNDER_REPAIR)
+
+  const handleSortChange = useCallback((field: string, order: 'ASC' | 'DESC' | '') => {
+    setSortField(order === '' ? '' : field)
+    setSortOrder(order === '' ? 'DESC' : order)
+    setCurrentPage(1)
+  }, [])
+
+  const handlePageChange = useCallback((page: number) => setCurrentPage(page), [])
+  const handlePageSizeChange = useCallback((newPageSize: number) => {
+    setPageSize(newPageSize)
+    setCurrentPage(1)
+  }, [])
+
+  useEffect(() => setCurrentPage(1), [assets.length])
+
+  const compareValues = (a: any, b: any): number => {
+    const aStr = String(a).toLowerCase()
+    const bStr = String(b).toLowerCase()
+    if (aStr < bStr) return sortOrder === 'ASC' ? -1 : 1
+    if (aStr > bStr) return sortOrder === 'ASC' ? 1 : -1
+    return 0
+  }
+
+  const compareCondition = (a: string, b: string) => {
+    if (a !== b) {
+      if (!a && b) return sortOrder === 'ASC' ? 1 : -1
+      if (a && !b) return sortOrder === 'ASC' ? -1 : 1
+      return compareValues(a, b)
     }
-
-    return asset.asset.assetStatus === AssetStatus.ALLOCATED && startDate.isSameOrBefore(today)
+    return null
   }
 
-  const handleRequestNewAsset = () => {
-    const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
-    const url = `${baseUrl}/platform/sales-demo/service-launcher`
-    navigateTo(url)
-  }
+  const sortedAssets = useMemo(() => {
+    if (!sortField) return assets
+    const today = dayjs().startOf('day')
+    return [...assets].sort((a, b) => {
+      switch (sortField) {
+        case 'category':
+          return compareValues(
+            getCatalogValue(a.asset.assetCategory) || '',
+            getCatalogValue(b.asset.assetCategory) || ''
+          )
+        case 'brand': {
+          const aBrand = getCatalogValue(a.asset.assetBrand) || ''
+          const bBrand = getCatalogValue(b.asset.assetBrand) || ''
+          return aBrand !== bBrand
+            ? compareValues(aBrand, bBrand)
+            : compareValues(a.asset.model || '', b.asset.model || '')
+        }
 
-  if (isLoading) {
+        case 'serialNumber':
+          return compareValues(a.asset.serialNumber || '', b.asset.serialNumber || '')
+        case 'startDate':
+          return compareValues(dayjs(a.startDate).valueOf(), dayjs(b.startDate).valueOf())
+        case 'status': {
+          const aEndDate = a.endDate ? dayjs(a.endDate).startOf('day') : null
+          const bEndDate = b.endDate ? dayjs(b.endDate).startOf('day') : null
+          const aIsHandedOver = !!aEndDate?.isSameOrBefore(today)
+          const bIsHandedOver = !!bEndDate?.isSameOrBefore(today)
+          const getStatusPriority = (asset: EmployeeAsset, isHandedOver: boolean): number => {
+            if (isHandedOver) return 2
+            const startDate = dayjs(asset.startDate).startOf('day')
+            if (
+              (asset.asset.assetStatus === AssetStatus.ALLOCATED ||
+                asset.asset.assetStatus === AssetStatus.UNDER_REPAIR) &&
+              startDate.isSameOrBefore(today)
+            )
+              return 1
+            return 3
+          }
+          const aPriority = getStatusPriority(a, aIsHandedOver)
+          const bPriority = getStatusPriority(b, bIsHandedOver)
+          if (aPriority !== bPriority) return sortOrder === 'ASC' ? aPriority - bPriority : bPriority - aPriority
+          return compareValues(getDisplayStatus(a).status, getDisplayStatus(b).status)
+        }
+        case 'condition': {
+          const aStart = getConditionDisplayValue(a.startAssetConditionRef, a.startAssetCondition?.value) || ''
+          const bStart = getConditionDisplayValue(b.startAssetConditionRef, b.startAssetCondition?.value) || ''
+          const startCompare = compareCondition(aStart, bStart)
+          if (startCompare !== null) return startCompare
+          const aEnd = getConditionDisplayValue(a.endAssetConditionRef, a.endAssetCondition?.value) || ''
+          const bEnd = getConditionDisplayValue(b.endAssetConditionRef, b.endAssetCondition?.value) || ''
+          const endCompare = compareCondition(aEnd, bEnd)
+          return endCompare !== null ? endCompare : 0
+        }
+        default:
+          return 0
+      }
+    })
+  }, [assets, sortField, sortOrder, conditionLookup])
+
+  const paginatedAssets = useMemo(
+    () => sortedAssets.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+    [sortedAssets, currentPage, pageSize]
+  )
+
+  const stats = useMemo(
+    () => ({
+      total: assets.length,
+      inUse: assets.filter(isCurrentlyInUse).length,
+      inRepair: assets.filter(isInRepair).length,
+      handedOver: assets.filter(a => {
+        const today = dayjs().startOf('day')
+        const endDate = a.endDate ? dayjs(a.endDate).startOf('day') : null
+        return endDate?.isSameOrBefore(today)
+      }).length
+    }),
+    [assets]
+  )
+
+  if (isLoading)
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:py-12" data-testid="assets-loading">
         <Spinner size="lg" />
       </div>
     )
-  }
 
-  if (error) {
+  if (error)
     return (
       <Card data-testid="assets-error">
         <CardContent className="gba:p-6">
@@ -199,9 +283,8 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
         </CardContent>
       </Card>
     )
-  }
 
-  if (assets.length === 0) {
+  if (assets.length === 0)
     return (
       <Card data-testid="assets-empty-state">
         <CardContent className="gba:py-12">
@@ -231,53 +314,40 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
         </CardContent>
       </Card>
     )
-  }
 
   return (
     <div className="gba:space-y-6" data-testid="assets-tab-content">
-      {/* Assets Summary Card */}
       <Card data-testid="assets-summary-card">
         <CardHeader>
           <div className="gba:flex gba:items-center gba:justify-between">
             <CardTitle className="gba:flex gba:items-center gba:gap-2">
               <PiPackage className="gba:h-5 gba:w-5" />
-              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.assigned_equipment', 'Assigned Equipment')}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.assigned_equipment', 'Asset Summary')}
             </CardTitle>
-            <Button onClick={handleRequestNewAsset} data-testid="request-new-asset-button">
+            <Button
+              onClick={() =>
+                navigateTo(
+                  `${typeof window !== 'undefined' ? window.location.origin : ''}/platform/sales-demo/service-launcher`
+                )
+              }
+              data-testid="request-new-asset-button"
+            >
               {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.request_new_asset', 'Request New Asset')}
             </Button>
           </div>
         </CardHeader>
         <CardContent>
           <div className="gba:flex gba:gap-6 gba:text-sm">
-            <div>
-              <div className="gba:text-muted-foreground">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.total_assets', 'Total Assets')}
+            {STATS_CONFIG.map(({ label, default: defaultLabel, className }, idx) => (
+              <div key={label}>
+                <div className="gba:text-muted-foreground">
+                  {getTranslationFromI18nKeyAndLabel(label, defaultLabel)}
+                </div>
+                <div className={`gba:text-2xl gba:font-semibold ${className}`}>
+                  {[stats.total, stats.inUse, stats.inRepair, stats.handedOver][idx]}
+                </div>
               </div>
-              <div className="gba:text-2xl gba:font-semibold gba:text-foreground">{assets.length}</div>
-            </div>
-            <div>
-              <div className="gba:text-muted-foreground">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.in_use', 'In Use')}
-              </div>
-              <div className="gba:text-2xl gba:font-semibold gba:text-success">
-                {assets.filter(a => isCurrentlyInUse(a)).length}
-              </div>
-            </div>
-            <div>
-              <div className="gba:text-muted-foreground">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.handed_over', 'Handed Over')}
-              </div>
-              <div className="gba:text-2xl gba:font-semibold gba:text-muted-foreground">
-                {
-                  assets.filter(a => {
-                    const today = dayjs().startOf('day')
-                    const endDate = a.endDate ? dayjs(a.endDate).startOf('day') : null
-                    return endDate && endDate.isSameOrBefore(today)
-                  }).length
-                }
-              </div>
-            </div>
+            ))}
           </div>
         </CardContent>
       </Card>
@@ -292,109 +362,128 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
           </CardTitle>
         </CardHeader>
         <CardContent className="gba:p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.category', 'Category')}</TableHead>
-                <TableHead>
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.brand_model', 'Brand & Model')}
-                </TableHead>
-                <TableHead>
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.serial_number', 'Serial Number')}
-                </TableHead>
-                <TableHead>
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.assignment_period', 'Assignment Period')}
-                </TableHead>
-                <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.condition', 'Condition')}</TableHead>
-                <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status', 'Status')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {assets.map(asset => (
-                <TableRow key={asset.id} data-testid={`asset-row-${asset.id}`}>
-                  <TableCell>
-                    <div className="gba:font-medium gba:text-foreground">
-                      {asset.asset.assetCategory
-                        ? getCatalogValue(asset.asset.assetCategory)
-                        : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A')}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="gba:space-y-1">
-                      <div className="gba:font-medium gba:text-foreground">
-                        {asset.asset.assetBrand
-                          ? getCatalogValue(asset.asset.assetBrand)
-                          : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.unknown', 'Unknown')}
-                      </div>
-                      <div className="gba:text-sm gba:text-muted-foreground">{asset.asset.model}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <span className="gba:font-mono gba:text-sm gba:text-muted-foreground">
-                      {asset.asset.serialNumber}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <div className="gba:space-y-1">
-                      <div className="gba:flex gba:items-center gba:gap-1 gba:text-sm">
-                        <PiCalendar className="gba:h-3 gba:w-3 gba:text-muted-foreground" />
-                        <span className="gba:text-foreground">{formatDate(asset.startDate) || asset.startDate}</span>
-                      </div>
-                      {asset.endDate ? (
-                        <div className="gba:text-sm gba:text-muted-foreground">
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.to', 'to')}{' '}
-                          {formatDate(asset.endDate) || asset.endDate}
-                        </div>
-                      ) : asset.expectedEndDate ? (
-                        <div className="gba:text-sm gba:text-warning">
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.expected', 'Expected')}:{' '}
-                          {formatDate(asset.expectedEndDate) || asset.expectedEndDate}
-                        </div>
-                      ) : (
-                        <div className="gba:text-sm gba:text-success">
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.currently_active', 'Currently Active')}
-                        </div>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="gba:space-y-1">
-                      {asset.startAssetConditionRef && (
-                        <div className="gba:text-sm">
-                          <Badge
-                            variant={getConditionBadgeVariant(asset.startAssetConditionRef)}
-                            className="gba:text-xs"
-                          >
-                            {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.start', 'Start')}:{' '}
-                            {getConditionDisplayValue(asset.startAssetConditionRef, asset.startAssetCondition?.value)}
-                          </Badge>
-                        </div>
-                      )}
-                      {asset.endAssetConditionRef && (
-                        <div className="gba:text-sm">
-                          <Badge variant={getConditionBadgeVariant(asset.endAssetConditionRef)} className="gba:text-xs">
-                            {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.end', 'End')}:{' '}
-                            {getConditionDisplayValue(asset.endAssetConditionRef, asset.endAssetCondition?.value)}
-                          </Badge>
-                        </div>
-                      )}
-                      {!asset.startAssetConditionRef && !asset.endAssetConditionRef && (
-                        <span className="gba:text-sm gba:text-muted-foreground">
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A')}
-                        </span>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {(() => {
-                      const displayStatus = getDisplayStatus(asset)
-                      return <Badge variant={displayStatus.variant}>{displayStatus.status}</Badge>
-                    })()}
-                  </TableCell>
+          <div className="gba:border gba:rounded-lg">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  {TABLE_COLUMNS.map(({ field, label, default: defaultLabel }) => (
+                    <SortableTableHead
+                      key={field}
+                      field={field}
+                      currentSortField={sortField}
+                      currentSortOrder={sortOrder}
+                      onSort={handleSortChange}
+                    >
+                      {getTranslationFromI18nKeyAndLabel(label, defaultLabel)}
+                    </SortableTableHead>
+                  ))}
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {paginatedAssets.map(asset => {
+                  const displayStatus = getDisplayStatus(asset)
+                  return (
+                    <TableRow key={asset.id} data-testid={`asset-row-${asset.id}`}>
+                      <TableCell>
+                        <div className="gba:font-medium gba:text-foreground">
+                          {asset.asset.assetCategory
+                            ? getCatalogValue(asset.asset.assetCategory)
+                            : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A')}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="gba:space-y-1">
+                          <div className="gba:font-medium gba:text-foreground">
+                            {asset.asset.assetBrand
+                              ? getCatalogValue(asset.asset.assetBrand)
+                              : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.unknown', 'Unknown')}
+                          </div>
+                          <div className="gba:text-sm gba:text-muted-foreground">{asset.asset.model}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="gba:font-mono gba:text-sm gba:text-muted-foreground">
+                          {asset.asset.serialNumber}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="gba:space-y-1">
+                          <div className="gba:flex gba:items-center gba:gap-1 gba:text-sm">
+                            <PiCalendar className="gba:h-3 gba:w-3 gba:text-muted-foreground" />
+                            <span className="gba:text-foreground">
+                              {formatDate(asset.startDate) || asset.startDate}
+                            </span>
+                          </div>
+                          {asset.endDate ? (
+                            <div className="gba:text-sm gba:text-muted-foreground">
+                              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.to', 'to')}{' '}
+                              {formatDate(asset.endDate) || asset.endDate}
+                            </div>
+                          ) : asset.expectedEndDate ? (
+                            <div className="gba:text-sm gba:text-warning">
+                              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.expected', 'Expected')}:{' '}
+                              {formatDate(asset.expectedEndDate) || asset.expectedEndDate}
+                            </div>
+                          ) : (
+                            <div className="gba:text-sm gba:text-success">
+                              {getTranslationFromI18nKeyAndLabel(
+                                'lowcoder:hr_assets.currently_active',
+                                'Currently Active'
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="gba:space-y-1">
+                          {asset.startAssetConditionRef && (
+                            <div className="gba:text-sm">
+                              <Badge
+                                variant={getConditionBadgeVariant(asset.startAssetConditionRef)}
+                                className="gba:text-xs"
+                              >
+                                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.start', 'Start')}:{' '}
+                                {getConditionDisplayValue(
+                                  asset.startAssetConditionRef,
+                                  asset.startAssetCondition?.value
+                                )}
+                              </Badge>
+                            </div>
+                          )}
+                          {asset.endAssetConditionRef && (
+                            <div className="gba:text-sm">
+                              <Badge
+                                variant={getConditionBadgeVariant(asset.endAssetConditionRef)}
+                                className="gba:text-xs"
+                              >
+                                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.end', 'End')}:{' '}
+                                {getConditionDisplayValue(asset.endAssetConditionRef, asset.endAssetCondition?.value)}
+                              </Badge>
+                            </div>
+                          )}
+                          {!asset.startAssetConditionRef && !asset.endAssetConditionRef && (
+                            <span className="gba:text-sm gba:text-muted-foreground">
+                              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A')}
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={displayStatus.variant}>{displayStatus.status}</Badge>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </div>
+          <AssetTablePagination
+            currentPage={currentPage}
+            pageSize={pageSize}
+            totalCount={sortedAssets.length}
+            onPageChange={handlePageChange}
+            onPageSizeChange={handlePageSizeChange}
+          />
         </CardContent>
       </Card>
 

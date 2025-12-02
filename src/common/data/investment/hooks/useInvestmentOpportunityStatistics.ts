@@ -12,7 +12,7 @@ interface TrendData {
 
 interface OpportunityStatisticsTrendData {
   recentOpportunities: TrendData
-  opportunityValue: TrendData
+  totalOpportunities: TrendData
   winRate: TrendData
   opportunitiesThisYear: TrendData
 }
@@ -32,66 +32,75 @@ const GET_ALL_INVESTMENT_OPPORTUNITY_STATISTICS_WITH_TREND = `
     $lastQuarter: timestamptz!,
     $thisYearStart: timestamptz!,
     $lastYearStart: timestamptz!,
-    $lastYearEnd: timestamptz!
+    $lastYearEnd: timestamptz!,
+    $currencyId: String
   ) {
     recentOpportunitiesCurrent: InvestmentOpportunityAggregate(where: {
       createdAt: {_gte: $currentStart},
-      isDeleted: {_eq: false}
+      isDeleted: {_eq: false},
+      _and: [{ currencyRef: { _eq: $currencyId } }]
     }) {
       aggregate { count }
     }
     recentOpportunitiesPrevious: InvestmentOpportunityAggregate(where: {
       createdAt: {_gte: $previousStart, _lt: $previousEnd},
-      isDeleted: {_eq: false}
+      isDeleted: {_eq: false},
+      _and: [{ currencyRef: { _eq: $currencyId } }]
     }) {
       aggregate { count }
     }
-    opportunityValueCurrent: InvestmentOpportunityAggregate(where: {
+    totalOpportunitiesCurrent: InvestmentOpportunityAggregate(where: {
       isDeleted: {_eq: false},
-      estimatedAmount: {_isNull: false}
+      _and: [{ currencyRef: { _eq: $currencyId } }]
     }) {
-      aggregate { sum { estimatedAmount } }
+      aggregate { count }
     }
-    opportunityValuePrevious: InvestmentOpportunityAggregate(where: {
+    totalOpportunitiesPrevious: InvestmentOpportunityAggregate(where: {
       isDeleted: {_eq: false},
-      estimatedAmount: {_isNull: false},
-      createdAt: {_lt: $lastQuarter}
+      createdAt: {_lt: $lastQuarter},
+      _and: [{ currencyRef: { _eq: $currencyId } }]
     }) {
-      aggregate { sum { estimatedAmount } }
+      aggregate { count }
     }
     winRateCurrentTotal: InvestmentOpportunityAggregate(where: {
-      isDeleted: {_eq: false}
+      isDeleted: {_eq: false},
+      _and: [{ currencyRef: { _eq: $currencyId } }]
     }) {
       aggregate { count }
     }
     winRateCurrentWins: InvestmentOpportunityAggregate(where: {
       isDeleted: {_eq: false},
-      opportunityStatus: { code: {_eq: "WON"} }
+      opportunityStatus: { code: {_eq: "WON"} },
+      _and: [{ currencyRef: { _eq: $currencyId } }]
     }) {
       aggregate { count }
     }
     winRatePreviousTotal: InvestmentOpportunityAggregate(where: {
       isDeleted: {_eq: false},
-      createdAt: {_lt: $lastQuarter}
+      createdAt: {_lt: $lastQuarter},
+      _and: [{ currencyRef: { _eq: $currencyId } }]
     }) {
       aggregate { count }
     }
     winRatePreviousWins: InvestmentOpportunityAggregate(where: {
       isDeleted: {_eq: false},
       opportunityStatus: { code: {_eq: "WON"} },
-      createdAt: {_lt: $lastQuarter}
+      createdAt: {_lt: $lastQuarter},
+      _and: [{ currencyRef: { _eq: $currencyId } }]
     }) {
       aggregate { count }
     }
     opportunitiesThisYearCurrent: InvestmentOpportunityAggregate(where: {
       createdAt: {_gte: $thisYearStart},
-      isDeleted: {_eq: false}
+      isDeleted: {_eq: false},
+      _and: [{ currencyRef: { _eq: $currencyId } }]
     }) {
       aggregate { count }
     }
     opportunitiesThisYearPrevious: InvestmentOpportunityAggregate(where: {
       createdAt: {_gte: $lastYearStart, _lt: $lastYearEnd},
-      isDeleted: {_eq: false}
+      isDeleted: {_eq: false},
+      _and: [{ currencyRef: { _eq: $currencyId } }]
     }) {
       aggregate { count }
     }
@@ -119,7 +128,8 @@ const calculateTrend = (current: number, previous: number): TrendData => {
 }
 
 export const useInvestmentOpportunityStatistics = (
-  context: BusinessAppContextProps
+  context: BusinessAppContextProps,
+  currencyId?: string
 ): UseInvestmentOpportunityStatisticsReturn => {
   const [trendData, setTrendData] = useState<OpportunityStatisticsTrendData | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -148,8 +158,8 @@ export const useInvestmentOpportunityStatistics = (
       const result = await graphqlClient.request<{
         recentOpportunitiesCurrent: { aggregate: { count: number } }
         recentOpportunitiesPrevious: { aggregate: { count: number } }
-        opportunityValueCurrent: { aggregate: { sum: { estimatedAmount: number | null } } }
-        opportunityValuePrevious: { aggregate: { sum: { estimatedAmount: number | null } } }
+        totalOpportunitiesCurrent: { aggregate: { count: number } }
+        totalOpportunitiesPrevious: { aggregate: { count: number } }
         winRateCurrentTotal: { aggregate: { count: number } }
         winRateCurrentWins: { aggregate: { count: number } }
         winRatePreviousTotal: { aggregate: { count: number } }
@@ -163,7 +173,8 @@ export const useInvestmentOpportunityStatistics = (
         lastQuarter: lastQuarter.toISOString(),
         thisYearStart: thisYearStart.toISOString(),
         lastYearStart: lastYearStart.toISOString(),
-        lastYearEnd: lastYearEnd.toISOString()
+        lastYearEnd: lastYearEnd.toISOString(),
+        currencyId: currencyId || null
       })
 
       const currentRate =
@@ -180,9 +191,9 @@ export const useInvestmentOpportunityStatistics = (
           result.recentOpportunitiesCurrent.aggregate.count,
           result.recentOpportunitiesPrevious.aggregate.count
         ),
-        opportunityValue: calculateTrend(
-          result.opportunityValueCurrent.aggregate.sum?.estimatedAmount || 0,
-          result.opportunityValuePrevious.aggregate.sum?.estimatedAmount || 0
+        totalOpportunities: calculateTrend(
+          result.totalOpportunitiesCurrent.aggregate.count,
+          result.totalOpportunitiesPrevious.aggregate.count
         ),
         winRate: calculateTrend(currentRate, previousRate),
         opportunitiesThisYear: calculateTrend(
@@ -196,13 +207,13 @@ export const useInvestmentOpportunityStatistics = (
     } finally {
       setIsLoading(false)
     }
-  }, [context.accessToken, graphqlClient])
+  }, [context.accessToken, graphqlClient, currencyId])
 
   useEffect(() => {
     if (context.accessToken) {
       refetch()
     }
-  }, [context.accessToken, refetch])
+  }, [context.accessToken, currencyId, refetch])
 
   return {
     trendData,

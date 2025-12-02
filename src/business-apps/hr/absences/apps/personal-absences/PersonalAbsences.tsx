@@ -8,6 +8,12 @@ import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EMPLOYEE_ABSENCES, GET_EMPLOYEE_ENTITLEMENTS } from './queries/graphql'
 import { getAbsenceGroups } from '@/business-apps/hr/core/forms/create-new-absence/queries/getAbsenceGroups'
 import dayjs from 'dayjs'
+import isSameOrAfter from 'dayjs/plugin/isSameOrAfter'
+import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
+
+dayjs.extend(isSameOrAfter)
+dayjs.extend(isSameOrBefore)
+
 import {
   getCurrentActiveUserLocale,
   getTranslationFromI18nKeyAndLabel,
@@ -21,6 +27,7 @@ import { startProcess } from '@/common/utils/start-process'
 
 import AbsencesTab from '@/business-apps/hr/core/apps/employee-record/components/tabs/AbsencesTab'
 import { useEmployeeData } from '@/business-apps/hr/core/apps/employee-record/hooks/useEmployeeData'
+import { AbsenceList } from './components/absence-list-table'
 
 export const PersonalAbsences = (props: BusinessAppContextProps) => {
   const [activeTab, setActiveTab] = useState('calendar')
@@ -73,7 +80,13 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
     setError(null)
     Promise.all([
       client.request(GET_EMPLOYEE_ABSENCES, {
-        employeeId,
+        where: {
+          employee: { id: { _eq: employeeId } },
+          isDeleted: { _eq: false }
+        },
+        offset: 0,
+        limit: 1000,
+        orderBy: [{ createdAt: 'DESC' }],
         activeUserLocale: getCurrentActiveUserLocale()
       }),
       client.request(GET_EMPLOYEE_ENTITLEMENTS, {
@@ -140,8 +153,23 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
             }))
         )
 
+        const currentYear = dayjs().year()
+        const firstDayOfYear = dayjs(`${currentYear}-01-01`).startOf('day')
+        const lastDayOfYear = dayjs(`${currentYear}-12-31`).endOf('day')
+
+        const currentYearEntitlements = (entitlementRes?.EmployeeAbsenceEntitlement || []).filter((ent: any) => {
+          if (!ent.validFrom || !ent.validTo) {
+            return false
+          }
+
+          const validFrom = dayjs(ent.validFrom)
+          const validTo = dayjs(ent.validTo)
+
+          return validFrom.isSameOrBefore(lastDayOfYear) && validTo.isSameOrAfter(firstDayOfYear)
+        })
+
         setEntitlements(
-          (entitlementRes?.EmployeeAbsenceEntitlement || []).map((ent: any) => ({
+          currentYearEntitlements.map((ent: any) => ({
             type: ent.type ? getCatalogValue(ent.type) || '' : '',
             color: ent.type?.objectValue?.color || 'blue',
             used: ent.approved,
@@ -160,8 +188,9 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
           }))
         )
 
+        // Use the same filtered entitlements for stats
         setStats(
-          (entitlementRes?.EmployeeAbsenceEntitlement || []).map((ent: any) => ({
+          currentYearEntitlements.map((ent: any) => ({
             title: ent.type ? getCatalogValue(ent.type) || '' : '',
             used: ent.approved,
             total: ent.total,
@@ -308,7 +337,6 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
 
     switch (activeTab) {
       case 'calendar':
-      case 'absence-list':
       case 'entitlements':
         if (employee && absenceEntitlements) {
           return (
@@ -319,6 +347,12 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
               shownTab={activeTab}
             />
           )
+        }
+        return null
+
+      case 'absence-list':
+        if (employeeId && accessToken) {
+          return <AbsenceList {...props} employeeId={employeeId} />
         }
         return null
 

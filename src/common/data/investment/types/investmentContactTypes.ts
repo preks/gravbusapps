@@ -1,5 +1,12 @@
-import { type Contact, ContactFields, createContactDescriptors } from '@/common/data/relations/types/contactTypes'
+import {
+  type Contact,
+  ContactFields,
+  createContactDescriptors,
+  contactFormFields
+} from '@/common/data/relations/types/contactTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
+import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
+import { filterCommunicationChannels } from '@/common/data/common/utils/entityPayloadHelpers'
 import type { InvestmentActivity } from './investmentActivityTypes'
 import type { InvestmentAddress } from './investmentAddressTypes'
 import type { InvestmentCommunicationChannel } from './investmentCommunicationChannelTypes'
@@ -22,11 +29,6 @@ export interface InvestmentContact extends Contact {
 
   // IRM-specific fields
   userId?: string // Keycloak user ID for portal users
-
-  // Base fields for mapping
-  investmentAccountContact?: InvestmentAccountContact[] // Mapped to accountContacts
-  investmentLead?: InvestmentLead[] // Mapped to leads
-  investmentOpportunityContact?: InvestmentOpportunityContact[] // Mapped to opportunityContacts
 }
 
 /**
@@ -43,8 +45,6 @@ export const InvestmentContactFields = {
   userId: 'userId'
 } as const
 
-export type InvestmentContactFieldName = (typeof InvestmentContactFields)[keyof typeof InvestmentContactFields]
-
 /**
  * Investment Contact Descriptors
  * Uses createContactDescriptors with InvestmentContactFields mapping
@@ -59,3 +59,63 @@ export const INVESTMENT_CONTACT_DESCRIPTORS: Descriptor[] = [
     kind: 'inIds'
   }
 ]
+
+/**
+ * Investment Contact Form Fields Configuration
+ * Extends contactFormFields with IRM-specific fields
+ */
+export const investmentContactFormFields = {
+  ...contactFormFields,
+  // IRM-specific fields
+  userId: 'userId'
+} as const
+
+/**
+ * Build Investment Contact payload for IRM module
+ *
+ * Automatically handles:
+ * - Field name mapping via investmentContactFormFields
+ * - Empty value exclusion
+ * - ID/version automatically included if present (determines update vs create)
+ * - IRM-specific fields (sensitive, additionalProperties, tags)
+ *
+ * @param contact - Partial InvestmentContact entity (only fields provided by form)
+ * @returns Payload object ready for API submission
+ */
+export const buildInvestmentContactPayload = (contact: Partial<InvestmentContact>) => {
+  // Build base payload using investmentContactFormFields for field mapping
+  const basePayload = buildPayload(contact, investmentContactFormFields)
+
+  // Filter communication channels
+  const filteredChannels = filterCommunicationChannels(basePayload.communicationChannels)
+  if (filteredChannels) {
+    basePayload.communicationChannels = filteredChannels
+  } else {
+    delete basePayload.communicationChannels
+  }
+
+  return {
+    investmentContact: basePayload
+  }
+}
+
+/**
+ * Transform InvestmentContact (GraphQL response) to InvestmentContact (enhanced with field mappings)
+ *
+ * Handles IRM-prefixed field name mappings (fallback only):
+ * - investmentAccountContact → accountContacts (fallback only)
+ * - investmentLead → leads (fallback only)
+ * - investmentOpportunityContact → opportunityContacts (fallback only)
+ */
+export function toInvestmentContact(raw: any): InvestmentContact {
+  // Extract incorrectly named fields to exclude from spread
+  const { investmentAccountContact, investmentLead, investmentOpportunityContact, ...rest } = raw
+
+  return {
+    ...rest,
+    // Map only if target field doesn't already exist (fallback mapping)
+    accountContacts: raw.accountContacts ?? investmentAccountContact,
+    leads: raw.leads ?? investmentLead,
+    opportunityContacts: raw.opportunityContacts ?? investmentOpportunityContact
+  } as InvestmentContact
+}

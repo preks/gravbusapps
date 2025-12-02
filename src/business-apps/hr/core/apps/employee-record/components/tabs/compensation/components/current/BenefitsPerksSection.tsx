@@ -33,6 +33,10 @@ interface BenefitsPerksProps extends BusinessAppContextProps {
    * Locale for formatting currency
    */
   locale: string
+  /**
+   * Whether user has HR backoffice permission; when false exclude HR_BACKOFFICE benefits
+   */
+  hrBackofficeHasPermission?: boolean
 }
 
 /**
@@ -54,7 +58,8 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
   additionalData,
   currencyCode = 'EUR',
   loading: externalLoading = false,
-  locale
+  locale,
+  hrBackofficeHasPermission
 }) => {
   // State
   const [searchQuery, setSearchQuery] = useState('')
@@ -64,7 +69,14 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
   const [selectedBenefit, setSelectedBenefit] = useState<BenefitCatalogItem | null>(null)
 
   // Fetch benefits catalog
-  const { catalogData, loading: catalogLoading, error, refetch } = useBenefitsCatalog(employeeId, accessToken)
+  const {
+    catalogData,
+    loading: catalogLoading,
+    error,
+    refetch
+  } = useBenefitsCatalog(employeeId, accessToken, {
+    excludeHrBackoffice: hrBackofficeHasPermission === false
+  })
 
   // Use external loading or internal loading
   const loading = externalLoading || catalogLoading
@@ -89,12 +101,40 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
       )
     }
 
+    // Eligibility filter based on catalogEntry.objectValue.groups
+    const hasHrBackoffice = hrBackofficeHasPermission === true
+    const isEligibleByGroups = (b: BenefitCatalogItem): boolean => {
+      const raw = b.catalogEntry?.objectValue as any
+      let obj: any = raw
+      if (raw && typeof raw === 'string') {
+        try {
+          obj = JSON.parse(raw)
+        } catch {
+          obj = null
+        }
+      }
+      const groups: string[] = Array.isArray(obj?.groups) ? obj.groups.filter((g: any) => typeof g === 'string') : []
+      if (groups.length === 0) return true
+
+      // Require that ALL groups are satisfied
+      const satisfies = (g: string): boolean => {
+        if (g === 'all-employees') return true
+        if (g === 'all-hr-backoffice') return hasHrBackoffice
+        // Unknown or unsupported groups are not satisfied
+        return false
+      }
+
+      return groups.every(satisfies)
+    }
+
+    benefits = benefits.filter(isEligibleByGroups)
+
     // Split into active and available
     const active = benefits.filter(b => b.isActive)
     const available = benefits.filter(b => !b.isActive)
 
     return { activeBenefits: active, availableBenefits: available }
-  }, [catalogData, searchQuery])
+  }, [catalogData, searchQuery, hrBackofficeHasPermission])
 
   /**
    * Handle benefit request action
