@@ -277,6 +277,64 @@ async function findScreensAffectedByPackageTransitively(packageName) {
 }
 
 /**
+ * Find screens affected by a shared file change through transitive dependencies
+ * Path: changed shared file -> other shared files that import it -> screens
+ */
+async function findScreensAffectedBySharedFileTransitively(changedFile) {
+  const affectedScreens = new Set()
+
+  // Normalize the changed file path for import matching
+  const fileWithoutExt = changedFile.replace(/\.(ts|tsx|js|jsx)$/, '').replace(/\/index$/, '')
+
+  const rawPath = fileWithoutExt.replace(/^src\//, '')
+
+  // Find all shared files that import this changed file
+  const allSrcFiles = await glob('src/**/*.{ts,tsx,js,jsx}', {
+    cwd: projectRoot,
+    nodir: true
+  })
+
+  const sharedFilesImportingChanged = []
+
+  for (const file of allSrcFiles) {
+    // Skip the changed file itself
+    if (file === changedFile) continue
+
+    // Skip screen-specific files (we only want shared files)
+    if (await isScreenSpecificFile(file)) continue
+
+    const filePath = path.join(projectRoot, file)
+    try {
+      const content = fs.readFileSync(filePath, 'utf8')
+
+      // Check if this file imports the changed file
+      if (
+        content.includes(`/${rawPath}'`) ||
+        content.includes(`/${rawPath}"`) ||
+        content.includes(`@/${rawPath.replace(/^common\//, 'common/')}'`) ||
+        content.includes(`@/${rawPath.replace(/^common\//, 'common/')}"`)
+      ) {
+        sharedFilesImportingChanged.push(file)
+      }
+    } catch {
+      // Skip unreadable files
+    }
+  }
+
+  if (sharedFilesImportingChanged.length > 0) {
+    // Find screens that import from these intermediate shared files
+    for (const sharedFile of sharedFilesImportingChanged) {
+      const screensUsingFile = await findScreensImportingFile(sharedFile)
+      for (const screen of screensUsingFile) {
+        affectedScreens.add(screen)
+      }
+    }
+  }
+
+  return affectedScreens
+}
+
+/**
  * Parse package.json diff to find changed packages
  * Only looks at dependencies, devDependencies, and peerDependencies sections
  */
@@ -441,22 +499,32 @@ async function analyzeChangedDependencies(changedFiles) {
         analysis.globalSharedChanges.push(changedFile)
       }
 
-      const importingScreens = await findScreensImportingFile(changedFile)
+      // STEP 1: Find screens that DIRECTLY import the changed file
+      const directScreens = await findScreensImportingFile(changedFile)
+      console.log(`      Direct imports: ${directScreens.size} screen(s)`)
+
+      // STEP 2: Find screens affected via TRANSITIVE dependencies
+      // (other shared files that import the changed file, then screens that import those)
+      const transitiveScreens = await findScreensAffectedBySharedFileTransitively(changedFile)
+      console.log(`      Transitive imports: ${transitiveScreens.size} screen(s)`)
+
+      // Combine direct and transitive
+      const allAffectedScreens = new Set([...directScreens, ...transitiveScreens])
 
       // Store affected screens
       if (isModuleLevelShared) {
         if (!analysis.affectedByModuleShared) analysis.affectedByModuleShared = {}
-        analysis.affectedByModuleShared[changedFile] = Array.from(importingScreens)
+        analysis.affectedByModuleShared[changedFile] = Array.from(allAffectedScreens)
       } else {
         if (!analysis.affectedByGlobalShared) analysis.affectedByGlobalShared = {}
-        analysis.affectedByGlobalShared[changedFile] = Array.from(importingScreens)
+        analysis.affectedByGlobalShared[changedFile] = Array.from(allAffectedScreens)
       }
 
-      for (const screen of importingScreens) {
+      for (const screen of allAffectedScreens) {
         sharedCodeAffectedScreens.add(screen)
       }
 
-      console.log(`   → ${importingScreens.size} screen(s) import from this file`)
+      console.log(`   → ${allAffectedScreens.size} screen(s) total (direct + transitive)`)
     }
   }
 
