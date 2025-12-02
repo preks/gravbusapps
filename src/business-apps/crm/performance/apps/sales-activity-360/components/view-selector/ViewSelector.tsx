@@ -7,7 +7,6 @@ import { useViewSelectorData } from './hooks/useViewSelectorData'
 import { AIInsightsSection } from './components/AIInsightsSection'
 import { ViewOptionsGrid } from './components/ViewOptionsGrid'
 import { EntitySelectorOverlay } from './components/EntitySelectorOverlay'
-import dayjs from 'dayjs'
 
 const DATA_TEST_ID_PREFIX = 'SalesActivity360-ViewSelector'
 
@@ -26,8 +25,7 @@ export const ViewSelector: React.FC<ExtendedViewSelectorProps> = ({
   const [overlayOpen, setOverlayOpen] = useState(false)
   const [selectedEntityType, setSelectedEntityType] = useState<ActivityViewFilter>('all')
   // Use custom hook for all data fetching
-  const { stats, topPerformers, underperformers, onLeave, loading, insightsLoading, lastUpdated } =
-    useViewSelectorData(accessToken)
+  const { stats, topPerformers, underperformers, onLeave, loading, insightsLoading } = useViewSelectorData(accessToken)
 
   // Handle employee click - navigate to their activities
   const handleEmployeeClick = useCallback(
@@ -178,25 +176,10 @@ export const ViewSelector: React.FC<ExtendedViewSelectorProps> = ({
     [stats]
   )
 
-  const formatLastUpdated = () => {
-    return dayjs(lastUpdated).format('HH:mm:ss')
-  }
-
   return (
     <div className="gba:space-y-6" data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
-      {/* Live indicator + Quick Access Bar */}
-      <div className="gba:flex gba:items-center gba:justify-between gba:flex-wrap gba:gap-4">
-        <ViewOptionsGrid options={viewOptions} loading={loading} onSelect={handleViewOptionSelect} />
-
-        {/* Live indicator */}
-        <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:text-muted-foreground">
-          <span className="gba:relative gba:flex gba:h-2 gba:w-2">
-            <span className="gba:animate-ping gba:absolute gba:inline-flex gba:h-full gba:w-full gba:rounded-full gba:bg-success gba:opacity-75"></span>
-            <span className="gba:relative gba:inline-flex gba:rounded-full gba:h-2 gba:w-2 gba:bg-success"></span>
-          </span>
-          <span>Live • {formatLastUpdated()}</span>
-        </div>
-      </div>
+      {/* Quick Access Bar */}
+      <ViewOptionsGrid options={viewOptions} loading={loading} onSelect={handleViewOptionSelect} />
 
       {/* Global KPI Cards */}
       <WidgetGroup

@@ -26,7 +26,8 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, a
     clockIn,
     clockOut,
     todaysWorkedMinutes,
-    todaysPlannedMinutes
+    todaysPlannedMinutes,
+    todayRecordedMinutes
   } = useTimeTrackingData({ employeeId, accessToken, workingHours: employee?.workingHours?.[0] })
 
   const formatHm = (minutes: number) => {
@@ -35,12 +36,22 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, a
     const m = abs % 60
     return `${h}:${String(m).padStart(2, '0')}`
   }
+  const formatHmSigned = (minutes: number) => {
+    const sign = minutes < 0 ? '-' : ''
+    const abs = Math.abs(Math.floor(minutes))
+    const h = Math.floor(abs / 60)
+    const m = abs % 60
+    return `${sign}${h}:${String(m).padStart(2, '0')}`
+  }
+
+  const balanceMinutes = todaysWorkedMinutes - todaysPlannedMinutes
+  const balanceClass = balanceMinutes === 0 ? '' : balanceMinutes > 0 ? 'gba:text-success' : 'gba:text-destructive'
 
   const employeeName =
     employee?.displayName || getTranslationFromI18nKeyAndLabel('lowcoder:common.employee', 'Employee')
 
   // Build header text with optional secondary line for clocked-in state
-  const isClockedOutWithWork = !isClockedIn && todaysWorkedMinutes > 0
+  const isClockedOutWithWork = !isClockedIn && todayRecordedMinutes > 0
   const headerPrimary = isClockedIn
     ? getTranslationFromI18nKeyAndLabel(
         'lowcoder:time_tracking.summary.header.clock_in',
@@ -249,6 +260,18 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, a
                   )}
                 </span>
                 <span className="gba:font-semibold">{formatHm(todaysPlannedMinutes)}</span>
+              </div>
+            </div>
+            <div
+              className="gba:text-base gba:mt-2 gba:flex gba:items-center gba:gap-2"
+              data-testid="timeclock-balance-today"
+            >
+              <Icon icon={ClockIcon} />
+              <div className="gba:flex gba:justify-between gba:w-full">
+                <span>
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.balance_today', 'Balance Today')}
+                </span>
+                <span className={`gba:font-semibold ${balanceClass}`}>{formatHmSigned(balanceMinutes)}</span>
               </div>
             </div>
           </Card>
