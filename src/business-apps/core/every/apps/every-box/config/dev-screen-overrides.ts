@@ -61,14 +61,12 @@ export const DEV_SCREEN_OVERRIDES: DevScreenOverride[] = [
   //componentPath: 'hr/absences/forms/approve-employee-vacation',
   //builderType: 'NATIVE_SCREEN'
   //},
-
   // Approve Employee Work Leave - NATIVE_SCREEN override
   //{
   //screenKey: 'frm_approveEmployeeWorkLeaveApproveEmployeeWorkLeave',
   //componentPath: 'hr/absences/forms/approve-employee-work-leave',
   //builderType: 'NATIVE_SCREEN'
   //},
-
   // Acknowledge Employee Sick Leave Manager - NATIVE_SCREEN override
   // Override LOWCODER screen sa NATIVE_SCREEN formom
   //{
@@ -76,98 +74,84 @@ export const DEV_SCREEN_OVERRIDES: DevScreenOverride[] = [
   //componentPath: 'hr/absences/forms/acknowledge-employee-sick-leave-manager',
   //builderType: 'NATIVE_SCREEN'
   //},
-
   // Acknowledge Employee Sick Leave HR - NATIVE_SCREEN override
   //{
   //screenKey: 'frm_acknowledgeSickLeaveAcknowledgeSickLeaveHR',
   //componentPath: 'hr/absences/forms/acknowledge-employee-sick-leave-HR',
   //builderType: 'NATIVE_SCREEN'
   //},
-
   // Acknowledge Employee Vacation HR - NATIVE_SCREEN override
   //{
   //screenKey: 'frm_acknowledgeVacationAcknowledgeVacation',
   //componentPath: 'hr/absences/forms/acknowledge-employee-vacation',
   //builderType: 'NATIVE_SCREEN'
   //},
-
   // Approve Feedback - NATIVE_SCREEN override
   //{
   //screenKey: 'frm_giveFeedbackApproveFeedback',
   // componentPath: 'hr/core/forms/feedback-approval-form',
   // builderType: 'NATIVE_SCREEN'
   // },
-
   // Approve Employee Special Leave - NATIVE_SCREEN override
   //{
   //screenKey: 'frm_approveEmployeeSpecialLeaveApproveEmployeeSpecialLeave',
   //componentPath: 'hr/absences/forms/approve-employee-special-leave',
   //builderType: 'NATIVE_SCREEN'
   //},
-
   // Acknowledge Employee Special Leave - NATIVE_SCREEN override
   //{
   //screenKey: 'frm_acknowledgeSpecialLeaveAcknowledgeSpecialLeave',
   //componentPath: 'hr/absences/forms/acknowledge-employee-special-leave',
   //builderType: 'NATIVE_SCREEN'
   //},
-
-  // Approve Expense Request V2 - NATIVE_SCREEN override
-  {
-    screenKey: 'frm_approveExpenseRequestApproveExpenseRequest',
-    componentPath: 'fin/expenses/forms/approve-expense-request-v2',
-    builderType: 'NATIVE_SCREEN'
-  },
-
-  // Approve Expense Request Store Director V2 - NATIVE_SCREEN override
-  {
-    screenKey: 'frm_approveExpenseRequestApproveExpenseRequestStoreDirector',
-    componentPath: 'fin/expenses/forms/approve-expense-request-v2',
-    builderType: 'NATIVE_SCREEN'
-  },
-
-  // Approve Expense Plan V2 - NATIVE_SCREEN override
-  {
-    screenKey: 'frm_approveExpensePlanApproveExpensePlan',
-    componentPath: 'fin/expenses/forms/approve-expense-plan-v2',
-    builderType: 'NATIVE_SCREEN'
-  },
-
-  // Approve Expense Plan Store Director V2 - NATIVE_SCREEN override
-  {
-    screenKey: 'frm_approveExpensePlanApproveExpensePlanStoreDirector',
-    componentPath: 'fin/expenses/forms/approve-expense-plan-v2',
-    builderType: 'NATIVE_SCREEN'
-  },
-
+  // Approve Expense Request - NATIVE_SCREEN override
+  //{
+  //screenKey: 'frm_approveExpenseRequestApproveExpenseRequest',
+  //componentPath: 'fin/expenses/forms/approve-expense-request',
+  //builderType: 'NATIVE_SCREEN'
+  //},
+  // Approve Expense Request Store Director - NATIVE_SCREEN override
+  //{
+  //screenKey: 'frm_approveExpenseRequestApproveExpenseRequestStoreDirector',
+  //componentPath: 'fin/expenses/forms/approve-expense-request',
+  //builderType: 'NATIVE_SCREEN'
+  //},
+  // Approve Expense Plan - NATIVE_SCREEN override
+  //{
+  //screenKey: 'frm_approveExpensePlanApproveExpensePlan',
+  //componentPath: 'fin/expenses/forms/approve-expense-plan',
+  //builderType: 'NATIVE_SCREEN'
+  //},
+  // Approve Expense Plan Store Director - NATIVE_SCREEN override
+  //{
+  //screenKey: 'frm_approveExpensePlanApproveExpensePlanStoreDirector',
+  //componentPath: 'fin/expenses/forms/approve-expense-plan',
+  //builderType: 'NATIVE_SCREEN'
+  //},
   // Confirm Transfer Advance Payment V2 - NATIVE_SCREEN override
-  {
-    screenKey: 'frm_transferAdvancePaymentTransferAdvancePayment',
-    componentPath: 'fin/expenses/forms/confirm-transfer-adv-payment-v2',
-    builderType: 'NATIVE_SCREEN'
-  },
-
-  // Approve Advance Payment V2 - NATIVE_SCREEN override
-  {
-    screenKey: 'frm_approveAdvancePaymentApproveAdvancePayment',
-    componentPath: 'fin/expenses/forms/advance-payment-approval-v2',
-    builderType: 'NATIVE_SCREEN'
-  },
-
-  // Approve Advance Payment Store Director V2 - NATIVE_SCREEN override
-  {
-    screenKey: 'frm_approveAdvancePaymentApproveAdvancePaymentStoreDirector',
-    componentPath: 'fin/expenses/forms/advance-payment-approval-v2',
-    builderType: 'NATIVE_SCREEN'
-  },
-
-  // Pay Transfer Advance Payment V2 - NATIVE_SCREEN override
-  {
-    screenKey: 'frm_payAdvancePaymentHandOutAdvancePayment',
-    componentPath: 'fin/expenses/forms/pay-transfer-adv-payment-v2',
-    builderType: 'NATIVE_SCREEN'
-  },
-
+  //{
+  //screenKey: 'frm_transferAdvancePaymentTransferAdvancePayment',
+  //componentPath: 'fin/expenses/forms/confirm-transfer-adv-payment',
+  //builderType: 'NATIVE_SCREEN'
+  //},
+  // Approve Advance Payment - NATIVE_SCREEN override
+  //{
+  // screenKey: 'frm_approveAdvancePaymentApproveAdvancePayment',
+  // componentPath: 'fin/expenses/forms/advance-payment-approval',
+  // builderType: 'NATIVE_SCREEN'
+  // },
+  // Approve Advance Payment Store Director - NATIVE_SCREEN override
+  //{
+  //screenKey: 'frm_approveAdvancePaymentApproveAdvancePaymentStoreDirector',
+  //componentPath: 'fin/expenses/forms/advance-payment-approval',
+  //builderType: 'NATIVE_SCREEN'
+  //},
+  // Pay Transfer Advance Payment - NATIVE_SCREEN override
+  //{
+  //screenKey: 'frm_payAdvancePaymentHandOutAdvancePayment',
+  //componentPath: 'fin/expenses/forms/pay-transfer-adv-payment',
+  //builderType: 'NATIVE_SCREEN'
+  //},
   // Change Bank Account Review - NATIVE_SCREEN override
   // Screen key from API response
   //{
@@ -175,21 +159,18 @@ export const DEV_SCREEN_OVERRIDES: DevScreenOverride[] = [
   //componentPath: 'hr/core/forms/change-bank-account-review',
   //builderType: 'NATIVE_SCREEN'
   //},
-
   // Change Employee Address Review - NATIVE_SCREEN override
   //{
   //screenKey: 'frm_changeAddressAcknowledgeChangeAddress',
   //componentPath: 'hr/core/forms/change-employee-address-review',
   //builderType: 'NATIVE_SCREEN'
   //},
-
   // Change Relationship Review - NATIVE_SCREEN override
-  {
-    screenKey: 'frm_changeRelationshipAcknowledgeChangeRelationship',
-    componentPath: 'hr/core/forms/change-relationship-review',
-    builderType: 'NATIVE_SCREEN'
-  }
-
+  //{
+  //screenKey: 'frm_changeRelationshipAcknowledgeChangeRelationship',
+  //componentPath: 'hr/core/forms/change-relationship-review',
+  //builderType: 'NATIVE_SCREEN'
+  //}
   // Change Personal Data Review - NATIVE_SCREEN override
   // Screen key from API response (REAL DATA)
   //{
