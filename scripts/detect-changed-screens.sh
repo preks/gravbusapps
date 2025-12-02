@@ -274,10 +274,10 @@ if [[ "$has_package_changes" == "yes" || "$has_global_shared" == "yes" || "$has_
   # Show global shared src/ changes (anything NOT in business-apps)
   if [[ "$has_global_shared" == "yes" ]]; then
     global_shared=$(grep -E '^src/' "$temp_all_changes" | grep -vE '^src/business-apps/' || true)
-    global_count=$(echo "$global_shared" | wc -l)
+    global_count=$(echo "$global_shared" | wc -l | tr -d ' ')
     echo "   📁 Global shared code:"
     echo "$global_shared" | head -10 | while read -r line; do
-      echo "      - $line"
+      [[ -n "$line" ]] && echo "      - $line"
     done
     if [[ "$global_count" -gt 10 ]]; then
       echo "      ... and $((global_count - 10)) more"
@@ -286,7 +286,7 @@ if [[ "$has_package_changes" == "yes" || "$has_global_shared" == "yes" || "$has_
   
   # Show module-level shared changes
   if [[ "$has_module_shared" == "yes" ]]; then
-    module_count=$(echo "$module_shared_changes" | grep -c . || echo "0")
+    module_count=$(echo "$module_shared_changes" | wc -l | tr -d ' ')
     echo "   📂 Module-level shared code:"
     echo "$module_shared_changes" | head -10 | while read -r line; do
       [[ -n "$line" ]] && echo "      - $line"
