@@ -82,8 +82,7 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
       task.sourceMetadata?.createdBy ||
       task.sourceMetadata?.initiatedBy
 
-    // Get employee data from the batch-fetched map
-    // The map contains both userId and employeeId as keys, so this works for both
+    // Get employee data from the batch-fetched map (used for avatar only, name comes from metadata)
     const employeeData = creatorId ? employeeMap.get(creatorId) : null
 
     // Avatar loading state to prevent initials flicker
@@ -123,18 +122,18 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
       }
     }, [employeeData?.avatarUrl])
 
-    // Get creator name - prefer fetched data, fallback to metadata
-    const creatorName = employeeData
-      ? `${employeeData.firstName} ${employeeData.lastName}`.trim()
-      : task.sourceMetadata?.creatorName || task.sourceMetadata?.ownerName || 'Unknown'
+    // Get creator name - prefer metadata (instant, no loading), then employee data
+    // Kogito provides creatorName, CFlow does not (flowInitiatedByName not sent by backend)
+    // For CFlow: show empty while loading, then real name when employee data loads
+    const creatorName =
+      task.sourceMetadata?.creatorName ||
+      task.sourceMetadata?.ownerName ||
+      (areAvatarsLoading ? '' : employeeData ? `${employeeData.firstName} ${employeeData.lastName}`.trim() : 'Unknown')
 
     const createdAt = task.createdAt || task.scheduledAt || task.sourceMetadata?.createdAt
 
-    // Generate initials from creator name
+    // Generate initials from creator name (use metadata name, consistent with creatorName)
     const getInitials = (name: string): string => {
-      if (employeeData) {
-        return `${employeeData.firstName?.[0] || ''}${employeeData.lastName?.[0] || ''}`.toUpperCase()
-      }
       const parts = name.trim().split(/\s+/)
       if (parts.length >= 2) {
         return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()

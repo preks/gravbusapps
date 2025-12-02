@@ -16,6 +16,7 @@ import { FlowDetailDialog } from './FlowDetailDialog'
 import { EmptyState } from './EmptyState'
 import { LoadingSkeleton } from './LoadingSkeleton'
 import { sortFlowsByDate, filterFlowsBySearch } from '../utils/taskGrouping'
+import { useEmployeeAvatarsBatch } from '../hooks/useEmployeeAvatarsBatch'
 
 type FlowFilterType = 'all' | 'blinks' | 'requests'
 
@@ -74,6 +75,41 @@ export const OutboxView: React.FC<OutboxViewProps> = ({ flows, isLoading, error,
   const [selectedFlow, setSelectedFlow] = useState<Flow | null>(null)
   const [filterType, setFilterType] = useState<FlowFilterType>('all')
   const [isInitialized, setIsInitialized] = useState(false)
+
+  // Extract all user IDs from flows for batch fetching (assignees + initiators)
+  const allUserIds = useMemo(() => {
+    const userIds = new Set<string>()
+
+    flows.forEach(flow => {
+      // Initiator
+      if (flow.initiatorUserId) {
+        userIds.add(flow.initiatorUserId)
+      }
+
+      // Assignee for single flows
+      if (flow.assignedUserId) {
+        userIds.add(flow.assignedUserId)
+      }
+
+      // Assignees from grouped flows (blinks)
+      if (flow.groupedFlows) {
+        flow.groupedFlows.forEach(gf => {
+          if (gf.assignedUserId) {
+            userIds.add(gf.assignedUserId)
+          }
+        })
+      }
+    })
+
+    return Array.from(userIds)
+  }, [flows])
+
+  // Batch fetch all employee avatars in ONE request
+  const { employeeMap } = useEmployeeAvatarsBatch(
+    accessToken,
+    allUserIds,
+    [] // No employee IDs needed
+  )
 
   // Helper functions to categorize flows
   const isBlinkFlow = (flow: Flow): boolean => {
@@ -308,6 +344,7 @@ export const OutboxView: React.FC<OutboxViewProps> = ({ flows, isLoading, error,
                   onView={handleSelectFlow}
                   accessToken={accessToken}
                   isSelected={selectedFlow?.id === flow.id}
+                  employeeMap={employeeMap}
                 />
               ))}
             </div>

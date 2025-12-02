@@ -5,6 +5,7 @@
 
 import React from 'react'
 import { Card, CardContent, Skeleton } from '@newwork/nw-design-system'
+// Note: Card/CardContent used only for flow skeleton, not task skeleton
 
 interface LoadingSkeletonProps {
   count?: number
@@ -72,7 +73,7 @@ export const LoadingSkeleton: React.FC<LoadingSkeletonProps> = ({ count = 10, ty
     )
   }
 
-  // Task skeleton - matches InboxView layout
+  // Task skeleton - matches InboxView layout (full list view)
   return (
     <div className="gba:flex gba:flex-col gba:gap-3 gba:h-full" data-testid="loading-skeleton-task">
       {/* Search bar + Refresh button */}
@@ -89,35 +90,33 @@ export const LoadingSkeleton: React.FC<LoadingSkeletonProps> = ({ count = 10, ty
         <Skeleton className="gba:h-8 gba:w-28 gba:rounded-md" />
       </div>
 
-      {/* Task cards */}
-      <div className="gba:space-y-0 gba:flex-1 gba:overflow-hidden">
+      {/* Task cards - borderless list style */}
+      <div className="gba:divide-y gba:divide-border/50 gba:flex-1 gba:overflow-hidden">
         {Array.from({ length: count }).map((_, index) => (
-          <Card key={`skeleton-task-${index}`} className="nw:py-0">
-            <CardContent className="gba:px-4 gba:py-3">
-              <div className="gba:flex gba:items-center gba:gap-4">
-                {/* Avatar */}
-                <Skeleton className="gba:h-8 gba:w-8 gba:rounded-full gba:flex-shrink-0" />
+          <div key={`skeleton-task-${index}`} className="gba:px-4 gba:py-2.5">
+            <div className="gba:flex gba:items-center gba:gap-4">
+              {/* 1. Date - 140px */}
+              <Skeleton className="gba:h-4 gba:w-[140px] gba:flex-shrink-0" />
 
-                {/* Creator info column */}
-                <div className="gba:flex gba:flex-col gba:gap-1 gba:w-48 gba:flex-shrink-0">
-                  <Skeleton className="gba:h-3 gba:w-28" />
-                  <Skeleton className="gba:h-3 gba:w-24" />
-                </div>
+              {/* 2. Avatar */}
+              <Skeleton className="gba:h-8 gba:w-8 gba:rounded-full gba:flex-shrink-0" />
 
-                {/* Module icon */}
-                <Skeleton className="gba:h-5 gba:w-5 gba:rounded gba:flex-shrink-0" />
+              {/* 3. Creator name - 160px */}
+              <Skeleton className="gba:h-4 gba:w-[160px] gba:flex-shrink-0" />
 
-                {/* Task title and description */}
-                <div className="gba:flex gba:flex-col gba:gap-1 gba:flex-1 gba:min-w-0">
-                  <Skeleton className="gba:h-5 gba:w-3/4" />
-                  <Skeleton className="gba:h-3 gba:w-1/2" />
-                </div>
+              {/* 4. Module icon */}
+              <Skeleton className="gba:h-5 gba:w-5 gba:rounded gba:flex-shrink-0" />
 
-                {/* Due date */}
-                <Skeleton className="gba:h-3 gba:w-20 gba:flex-shrink-0" />
+              {/* 5. Task title */}
+              <Skeleton className="gba:h-5 gba:flex-1 gba:min-w-0" />
+
+              {/* 6. Badge + Due date */}
+              <div className="gba:flex gba:items-center gba:gap-3 gba:flex-shrink-0">
+                <Skeleton className="gba:h-5 gba:w-16 gba:rounded-full" />
+                <Skeleton className="gba:h-4 gba:w-20" />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         ))}
       </div>
     </div>

@@ -2,6 +2,8 @@
  * Hook to fetch employee avatar data by userId or employeeId
  * Tries userId first (for Kogito tasks), then fallback to employeeId (for CFlow tasks)
  * Fetches pictureThumbnail, firstName, lastName from GraphQL
+ *
+ * INCLUDES CACHING: Global in-memory cache with 30 min TTL to prevent redundant API calls
  */
 
 import { useState, useEffect, useCallback } from 'react'
@@ -14,6 +16,24 @@ export interface EmployeeAvatarData {
   displayName: string
   pictureThumbnail?: string
   position?: string
+}
+
+// Global in-memory cache for employee avatar data
+const avatarCache = new Map<string, EmployeeAvatarData>()
+const cacheTimestamps = new Map<string, number>()
+const CACHE_TTL_MS = 30 * 60 * 1000 // 30 minutes
+
+// Check if cache entry is valid
+const isCacheValid = (key: string): boolean => {
+  const timestamp = cacheTimestamps.get(key)
+  if (!timestamp) return false
+  return Date.now() - timestamp < CACHE_TTL_MS
+}
+
+// Add to cache
+const addToCache = (key: string, data: EmployeeAvatarData) => {
+  avatarCache.set(key, data)
+  cacheTimestamps.set(key, Date.now())
 }
 
 const GET_EMPLOYEE_AVATAR_BY_USER_ID = `
@@ -74,6 +94,13 @@ export const useEmployeeAvatar = (accessToken: string, id?: string) => {
     async (id: string) => {
       if (!id || !accessToken) {
         setEmployeeData(null)
+        setError(null)
+        return
+      }
+
+      // Check cache first
+      if (isCacheValid(id) && avatarCache.has(id)) {
+        setEmployeeData(avatarCache.get(id)!)
         setError(null)
         return
       }
@@ -149,6 +176,8 @@ export const useEmployeeAvatar = (accessToken: string, id?: string) => {
         }
 
         if (employee) {
+          // Add to cache
+          addToCache(id, employee)
           setEmployeeData(employee)
         } else {
           setEmployeeData(null)
