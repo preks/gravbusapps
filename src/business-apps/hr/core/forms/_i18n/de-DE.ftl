@@ -66,7 +66,7 @@ adjust-salary-review-hourly-gross-salary = Stündliches Bruttogehalt
 adjust-salary-review-increase-text = { $percentage }% Erhöhung
 
 # Assign Employee Salary Review Form (new employee without existing salary)
-assign-salary-review-title = Neue Mitarbeiter-Gehaltszuweisung prüfen für { $employeeName }
+assign-salary-review-title = Erstmalige Gehaltszuweisung prüfen für { $employeeName }
 assign-salary-review-salary-details = Gehaltsdetails
 assign-salary-review-assignment-details = Zuweisungsdetails
 assign-salary-review-annual-salary = Jahresbruttogehalt

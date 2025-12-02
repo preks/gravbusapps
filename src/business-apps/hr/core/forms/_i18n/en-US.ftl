@@ -66,7 +66,7 @@ adjust-salary-review-hourly-gross-salary = Hourly Gross Salary
 adjust-salary-review-increase-text = { $percentage }% increase
 
 # Assign Employee Salary Review Form (new employee without existing salary)
-assign-salary-review-title = New Employee Salary Assignment Review for { $employeeName }
+assign-salary-review-title = Initial Salary Assignment Review for { $employeeName }
 assign-salary-review-salary-details = Salary Details
 assign-salary-review-assignment-details = Assignment Details
 assign-salary-review-annual-salary = Annual Gross Salary
