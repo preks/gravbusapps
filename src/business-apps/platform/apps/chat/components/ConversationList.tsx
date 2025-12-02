@@ -12,6 +12,7 @@ import { Plus, MagnifyingGlass, Users, User } from '@phosphor-icons/react'
 import { ConversationItem } from './ConversationItem'
 import { UserSearch } from './UserSearch'
 import type { Conversation } from '../types'
+import type { UserPresence } from '../hooks/usePresence'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface ConversationListProps {
@@ -27,6 +28,19 @@ interface ConversationListProps {
   onLoadMore?: () => void
   currentUserId?: string | null
   accessToken: string
+  compact?: boolean
+  getUserPresence?: (userId: string) => UserPresence
+}
+
+// Helper to get the other participant's user ID from a direct conversation
+const getOtherParticipantUserId = (conversation: Conversation, currentUserId?: string | null): string | null => {
+  if (conversation.type !== 'direct' || !conversation.participants) {
+    return null
+  }
+  const otherParticipant = conversation.participants.find(
+    p => p.userId !== currentUserId && p.user?.id !== currentUserId
+  )
+  return otherParticipant?.userId || otherParticipant?.user?.id || null
 }
 
 export const ConversationList: React.FC<ConversationListProps> = ({
@@ -41,7 +55,9 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   hasMore = false,
   onLoadMore,
   currentUserId = null,
-  accessToken
+  accessToken,
+  compact = false,
+  getUserPresence
 }) => {
   const [searchQuery, setSearchQuery] = useState('')
   const [showUserSearch, setShowUserSearch] = useState(false)
@@ -117,14 +133,18 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   }
 
   return (
-    <div className="gba:flex gba:flex-col gba:h-full" data-testid="conversation-list">
+    <div className="gba:flex gba:flex-col gba:h-full gba:min-h-0" data-testid="conversation-list">
       {/* Header */}
-      <div className="gba:flex gba:items-center gba:justify-between gba:p-4 gba:border-b">
-        <h1 className="gba:text-lg gba:font-semibold">{getTranslationFromI18nKeyAndLabel('chat.appHeader', 'Chat')}</h1>
+      <div
+        className={`gba:flex gba:items-center gba:justify-between gba:border-b gba:border-border/50 gba:bg-background/50 gba:backdrop-blur-sm gba:sticky gba:top-0 gba:z-10 ${compact ? 'gba:px-3 gba:py-2' : 'gba:p-4'}`}
+      >
+        <h1 className={`gba:font-semibold gba:text-foreground ${compact ? 'gba:text-base' : 'gba:text-lg'}`}>
+          {getTranslationFromI18nKeyAndLabel('chat.appHeader', 'Chat')}
+        </h1>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" data-testid="new-conversation-button">
-              <Plus className="gba:w-5 gba:h-5" />
+            <Button variant="ghost" size="icon" className="gba:h-8 gba:w-8" data-testid="new-conversation-button">
+              <Plus className="gba:w-4 gba:h-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
@@ -143,51 +163,58 @@ export const ConversationList: React.FC<ConversationListProps> = ({
       </div>
 
       {/* Search */}
-      <div className="gba:p-4 gba:border-b">
+      <div className={`gba:border-b gba:border-border/50 ${compact ? 'gba:px-3 gba:py-2' : 'gba:p-3'}`}>
         <div className="gba:relative">
-          <div className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:pointer-events-none gba:flex gba:items-center gba:z-10">
-            <MagnifyingGlass className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
-          </div>
+          <MagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground gba:pointer-events-none gba:z-10" />
           <Input
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            placeholder={getTranslationFromI18nKeyAndLabel('chat.searchConversations', 'Search conversations...')}
-            style={{ paddingLeft: '2.5rem' }}
+            placeholder={getTranslationFromI18nKeyAndLabel('chat.searchConversations', 'Search...')}
+            className="gba:h-8 gba:text-sm gba:!pl-10 gba:bg-background/50"
             data-testid="conversation-search-input"
           />
         </div>
       </div>
 
       {/* Conversations */}
-      <div ref={scrollContainerRef} className="gba:flex-1 gba:overflow-y-auto">
+      <div ref={scrollContainerRef} className="gba:flex-1 gba:overflow-y-auto gba:min-h-0">
         {isLoading ? (
-          <div className="gba:flex gba:items-center gba:justify-center gba:p-8">
-            <Spinner />
+          <div className="gba:flex gba:items-center gba:justify-center gba:p-6">
+            <Spinner size="sm" />
           </div>
         ) : filteredConversations.length === 0 ? (
-          <div className="gba:p-8 gba:text-center gba:text-muted-foreground">
-            {searchQuery.trim()
-              ? getTranslationFromI18nKeyAndLabel('chat.noConversationsFound', 'No conversations found')
-              : getTranslationFromI18nKeyAndLabel('chat.noConversationsYet', 'No conversations yet')}
+          <div className="gba:p-6 gba:text-center">
+            <p className="gba:text-sm gba:text-muted-foreground">
+              {searchQuery.trim()
+                ? getTranslationFromI18nKeyAndLabel('chat.noConversationsFound', 'No conversations found')
+                : getTranslationFromI18nKeyAndLabel('chat.noConversationsYet', 'No conversations yet')}
+            </p>
           </div>
         ) : (
           <>
-            <div className="gba:divide-y">
-              {filteredConversations.map(conversation => (
-                <ConversationItem
-                  key={conversation.id}
-                  conversation={conversation}
-                  onClick={() => onConversationSelect(conversation)}
-                  onRemove={onRemoveConversation}
-                  isActive={conversation.id === activeConversationId}
-                  currentUserId={currentUserId}
-                />
-              ))}
+            <div className="gba:py-1">
+              {filteredConversations.map(conversation => {
+                const otherUserId = getOtherParticipantUserId(conversation, currentUserId)
+                const otherUserPresence = otherUserId && getUserPresence ? getUserPresence(otherUserId) : undefined
+
+                return (
+                  <ConversationItem
+                    key={conversation.id}
+                    conversation={conversation}
+                    onClick={() => onConversationSelect(conversation)}
+                    onRemove={onRemoveConversation}
+                    isActive={conversation.id === activeConversationId}
+                    currentUserId={currentUserId}
+                    compact={compact}
+                    otherUserPresence={otherUserPresence}
+                  />
+                )
+              })}
             </div>
 
             {/* Loading more indicator */}
             {isLoadingMore && (
-              <div className="gba:flex gba:items-center gba:justify-center gba:p-4">
+              <div className="gba:flex gba:items-center gba:justify-center gba:py-3">
                 <Spinner size="sm" />
               </div>
             )}

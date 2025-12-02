@@ -1,12 +1,21 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { v4 as uuidv4 } from 'uuid'
-import type { ConversationTurn, OutputItem, FileMeta } from '../types/models'
+import type { ConversationTurn, OutputItem, FileMeta, CurrentPageContext } from '../types/models'
 import { getCurrentPageContext } from '../utils/pageContext'
+import { usePageAnalytics } from '@/page-analitics/hooks/usePageAnalytics'
+import { prepareCurrentPageContext } from '@/page-analitics/send/page-analytics'
 import { env } from '@/common/env/EnvUtils'
 
 const STORAGE_KEY = 'newwork_every_ai'
 const LLM_MODEL = 'gpt-4.1'
 const SUBMITTING_FORM_MESSAGE = 'Submitting form data...'
+const DEFAULT_FLOWBOT_BASE_URL = 'https://newwork-dev.newwork.com'
+
+function resolveFlowbotBaseUrl(): string {
+  return env('NEXT_PUBLIC_FLOWBOT_ENDPOINT') || env('NEXT_PUBLIC_BASE_URL') || DEFAULT_FLOWBOT_BASE_URL
+}
+
+const FLOWBOT_BASE_URL = resolveFlowbotBaseUrl()
 
 type ConversationState = {
   conversation: ConversationTurn[]
@@ -75,10 +84,8 @@ function loadState(): ConversationState {
 async function loadHistory(accessToken: string, sessionId: string | null): Promise<ConversationState> {
   if (!sessionId) return { conversation: [], sessionId: null }
 
-  const baseUrl = env('NEXT_PUBLIC_FLOWBOT') || env('NEXT_PUBLIC_BASE_URL') || 'https://newwork-dev.newwork.com'
-
   try {
-    const res = await fetch(`${baseUrl}/flowbot/api/agent/session/${sessionId}/history`, {
+    const res = await fetch(`${FLOWBOT_BASE_URL}/flowbot/api/agent/session/${sessionId}/history`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -191,6 +198,44 @@ async function loadHistory(accessToken: string, sessionId: string | null): Promi
   }
 }
 
+type AnalyticsEntityInput = {
+  type: string
+  id: string
+  name?: string
+}
+
+const ANALYTICS_ENTITY_MAP: Record<string, string> = {
+  // IRM entities
+  investment: 'investment',
+  investment_account: 'investment_account',
+  investment_contact: 'investment_contact',
+  investment_lead: 'investment_lead',
+  investment_opportunity: 'investment_opportunity',
+  // CRM entities
+  account: 'account',
+  contact: 'contact',
+  lead: 'lead',
+  opportunity: 'opportunity'
+}
+
+function resolveAnalyticsEntity(context: CurrentPageContext): AnalyticsEntityInput | null {
+  if (context.type !== 'entity' || !context.id) {
+    return null
+  }
+
+  const mappedType = ANALYTICS_ENTITY_MAP[context.entity_name ?? ''] || context.entity_name || 'unknown'
+
+  if (!mappedType || mappedType === 'unknown') {
+    return null
+  }
+
+  return {
+    type: mappedType,
+    id: context.id,
+    name: context.entity_name
+  }
+}
+
 export function useFlowBot(accessToken: string) {
   const rawPageContext = getCurrentPageContext()
   const currentPageContext = useMemo(() => rawPageContext, [JSON.stringify(rawPageContext)])
@@ -203,7 +248,28 @@ export function useFlowBot(accessToken: string) {
   const isPrechatLoadingRef = useRef(false)
   const inFlightRef = useRef(false)
 
+  const analyticsEntity = useMemo(() => resolveAnalyticsEntity(currentPageContext), [currentPageContext])
+  const analyticsHookEntity = useMemo<AnalyticsEntityInput>(
+    () => analyticsEntity ?? { type: 'unknown', id: '' },
+    [analyticsEntity]
+  )
+
+  const { getPageAnalyticsContext, resetAnalytics, collectAnalytics } = usePageAnalytics({
+    entity: analyticsHookEntity,
+    accessToken,
+    sessionId: state.sessionId ?? undefined
+  })
+
   useEffect(() => saveState(state), [state])
+
+  useEffect(() => {
+    if (!accessToken) return
+    if (!analyticsEntity?.id || analyticsEntity.type === 'unknown') return
+
+    collectAnalytics().catch(error => {
+      console.error('Failed to prefetch page analytics:', error)
+    })
+  }, [accessToken, analyticsEntity, collectAnalytics])
 
   const nextStepProposals = useMemo(() => {
     if (state.conversation.length === 0) {
@@ -226,9 +292,42 @@ export function useFlowBot(accessToken: string) {
     setState(prev => ({ ...prev, conversation: [...prev.conversation, turn] }))
   }, [])
 
-  const updateSessionId = useCallback((newSessionId: string) => {
-    setState(prev => ({ ...prev, sessionId: newSessionId }))
-  }, [])
+  const updateSessionId = useCallback(
+    (newSessionId: string) => {
+      setState(prev => ({ ...prev, sessionId: newSessionId }))
+      resetAnalytics(newSessionId)
+    },
+    [resetAnalytics]
+  )
+
+  const buildCurrentPageContextPayload = useCallback(async () => {
+    const url = typeof window !== 'undefined' ? window.location.href : ''
+    const route = typeof window !== 'undefined' ? window.location.pathname : ''
+
+    const baseCurrentPage = {
+      url,
+      route,
+      view: undefined as string | undefined,
+      type: currentPageContext.type,
+      entity_name:
+        currentPageContext.type === 'entity' || currentPageContext.type === 'overview'
+          ? currentPageContext.entity_name
+          : undefined,
+      id: currentPageContext.type === 'entity' ? currentPageContext.id : undefined
+    }
+
+    if (analyticsEntity?.id && analyticsEntity.type !== 'unknown') {
+      try {
+        return await getPageAnalyticsContext(baseCurrentPage)
+      } catch (error) {
+        console.error('Failed to enrich page context with analytics:', error)
+      }
+    }
+
+    return prepareCurrentPageContext({
+      currentPage: baseCurrentPage
+    })
+  }, [analyticsEntity, currentPageContext, getPageAnalyticsContext])
 
   const appendOutputItemToLastAgentTurn = useCallback((outputItem: OutputItem) => {
     setState(prevState => {
@@ -362,7 +461,8 @@ export function useFlowBot(accessToken: string) {
         form.append('llm_model', isThinking ? 'o4-mini' : LLM_MODEL)
         form.append('use_web_search_tool', (isSearching ?? false).toString())
 
-        form.append('current_page_context', JSON.stringify(currentPageContext))
+        const currentPagePayload = await buildCurrentPageContextPayload()
+        form.append('current_page_context', JSON.stringify(currentPagePayload))
 
         if (mentions && mentions.length > 0) {
           const enriched = mentions.map(m => ({
@@ -378,8 +478,18 @@ export function useFlowBot(accessToken: string) {
 
         files.forEach(file => form.append('files', file))
 
-        const baseUrl = env('NEXT_PUBLIC_FLOWBOT') || env('NEXT_PUBLIC_BASE_URL') || 'https://newwork-dev.newwork.com'
+        // Use local FlowBot in development
+        const isLocalDev = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+        const baseUrl = isLocalDev
+          ? 'http://localhost:8000'
+          : FLOWBOT_BASE_URL
         const url = `${baseUrl}/flowbot/api/agent/v2/chat`
+
+        // Debug log only in development
+        if (isLocalDev) {
+          console.log('📤 [FlowBot] Sending to local:', userInputText.substring(0, 50))
+        }
+
         const res = await fetch(url, {
           method: 'POST',
           headers: {
@@ -454,9 +564,9 @@ export function useFlowBot(accessToken: string) {
       pushTurn,
       state.sessionId,
       appendOutputItemToLastAgentTurn,
-      currentPageContext,
       pruneEphemeralOutputsFromLastAgentTurn,
-      updateSessionId
+      updateSessionId,
+      buildCurrentPageContextPayload
     ]
   )
 
@@ -467,16 +577,32 @@ export function useFlowBot(accessToken: string) {
       isPrechatLoadingRef.current = true
       setPrechatSuggestions([])
       setIsPrechatLoading(true)
-      const baseUrl = env('NEXT_PUBLIC_FLOWBOT') || env('NEXT_PUBLIC_BASE_URL') || 'https://newwork-dev.newwork.com'
 
       const form = new FormData()
-      form.append('current_page_context', JSON.stringify(currentPageContext))
+      // For prechat suggestions we only need lightweight page context without analytics
+      const url = typeof window !== 'undefined' ? window.location.href : ''
+      const route = typeof window !== 'undefined' ? window.location.pathname : ''
+      const baseCurrentPage = {
+        url,
+        route,
+        view: undefined as string | undefined,
+        type: currentPageContext.type,
+        entity_name:
+          currentPageContext.type === 'entity' || currentPageContext.type === 'overview'
+            ? currentPageContext.entity_name
+            : undefined,
+        id: currentPageContext.type === 'entity' ? currentPageContext.id : undefined
+      }
+      const prechatContext = prepareCurrentPageContext({
+        currentPage: baseCurrentPage
+      })
+      form.append('current_page_context', JSON.stringify(prechatContext))
 
       // Add timeout to prevent long waits
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 3000) // 3 second timeout
 
-      const res = await fetch(`${baseUrl}/flowbot/api/agent/prechat-suggestions`, {
+      const res = await fetch(`${FLOWBOT_BASE_URL}/flowbot/api/agent/prechat-suggestions`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${accessToken}`
@@ -507,13 +633,14 @@ export function useFlowBot(accessToken: string) {
 
   const clearConversation = useCallback(() => {
     setState({ conversation: [], sessionId: null })
+    resetAnalytics()
     if (typeof window !== 'undefined') localStorage.removeItem(STORAGE_KEY)
     setPrechatSuggestions([])
     isPrechatLoadingRef.current = false
     setTimeout(() => {
       fetchPrechatSuggestions()
     }, 100)
-  }, [fetchPrechatSuggestions])
+  }, [fetchPrechatSuggestions, resetAnalytics])
 
   useEffect(() => {
     if (state.conversation.length === 0 && accessToken) {

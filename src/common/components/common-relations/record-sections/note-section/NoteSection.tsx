@@ -10,6 +10,7 @@ import { buildFileUrl, getFileIcon } from '@/common/utils/fileUtils'
 import { FileInfo } from '@/common/types/FileTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { Note } from '@/common/data/relations/types/noteTypes'
+import EmptyState from '@/components/empty-state/EmptyState'
 
 export type NoteDocument = {
   id: string
@@ -106,7 +107,7 @@ const NoteSection: React.FC<NoteSectionProps> = props => {
   return (
     <div data-testid={props['data-testid'] || 'note-section-new-content'} className="gba:space-y-4">
       {notes.length === 0 ? (
-        <div className="gba:text-center gba:py-8 gba:text-muted-foreground">No notes yet. Create your first note.</div>
+        <EmptyState title="No Notes" description="No notes yet. Create your first note." />
       ) : (
         notes.map(note => (
           <Card key={note.id} className="gba:shadow-none gba:border gba:border-gray-200">

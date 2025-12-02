@@ -10,6 +10,11 @@ import {
 } from '@/common/data/relations/types/accountTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
+import {
+  filterCommunicationChannels,
+  filterAddresses,
+  addressLineToString
+} from '@/common/data/common/utils/entityPayloadHelpers'
 import type { CustomerAddress } from './customerAddressTypes'
 import type { CustomerCommunicationChannel } from './customerCommunicationChannelTypes'
 import type { CustomerContact } from './customerContactTypes'
@@ -125,26 +130,20 @@ export const buildCustomerAccountPayload = (account: Partial<CustomerAccount>) =
   // Build base payload using customerAccountFormFields for field mapping
   const basePayload = buildPayload(account, customerAccountFormFields)
 
-  // Transform addressLine in addresses array: CRM expects string, not object
-  // Filter out empty lines before converting to string
-  if (basePayload.addresses && Array.isArray(basePayload.addresses)) {
-    basePayload.addresses = basePayload.addresses.map((addr: any) => {
-      if (addr.addressLine !== undefined && addr.addressLine !== null) {
-        if (typeof addr.addressLine === 'object' && addr.addressLine.lines) {
-          // Filter out empty lines (null, undefined, or empty string)
-          const filledLines = addr.addressLine.lines.filter(
-            (line: string | null | undefined) => line !== null && line !== undefined && line.trim() !== ''
-          )
-          // Only include addressLine if there are filled lines
-          if (filledLines.length > 0) {
-            addr.addressLine = JSON.stringify({ lines: filledLines })
-          } else {
-            delete addr.addressLine
-          }
-        }
-      }
-      return addr
-    })
+  // Filter communication channels
+  const filteredChannels = filterCommunicationChannels(basePayload.communicationChannels)
+  if (filteredChannels) {
+    basePayload.communicationChannels = filteredChannels
+  } else {
+    delete basePayload.communicationChannels
+  }
+
+  // Filter and transform addresses (CRM uses JSON string for addressLine)
+  const filteredAddresses = filterAddresses(basePayload.addresses, addressLineToString)
+  if (filteredAddresses) {
+    basePayload.addresses = filteredAddresses
+  } else {
+    delete basePayload.addresses
   }
 
   return {
