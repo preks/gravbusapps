@@ -57,9 +57,9 @@ export interface OverviewMetricsWidgetsProps {
 const calculateTrend = (current: number, previous: number) => {
   const change = ((current - previous) / Math.max(previous, 1)) * 100
   return {
-    value: `${Math.abs(change).toFixed(1)}%`,
+    value: `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`,
     positive: change >= 0,
-    description: `${change >= 0 ? 'Increase' : 'Decrease'} from last period`
+    description: 'vs previous period (30 days ago)'
   }
 }
 
@@ -150,12 +150,12 @@ export const OverviewMetricsWidgets: React.FC<OverviewMetricsWidgetsProps> = ({
         : {})
     },
     {
-      key: 'sales-cycle-length',
-      title: 'Sales Cycle Length',
-      value: `${conversionMetrics.salesCycleLength} days`,
-      valueIsString: true,
-      prefix: <UserOutlined />,
-      description: 'Average time to close deals',
+      key: 'total-won-revenue',
+      title: 'Total Won Revenue',
+      value: conversionMetrics.salesCycleLength,
+      prefix: <DollarCircleOutlined />,
+      description: 'Total revenue from won opportunities',
+      precision: 0,
       ...(trendData && !trendLoading
         ? { trend: calculateTrend(trendData.currentMonthSalesCycleLength, trendData.previousMonthSalesCycleLength) }
         : {})

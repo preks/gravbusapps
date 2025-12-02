@@ -86,9 +86,9 @@ export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
       ...(totalGrowth !== undefined && totalLastMonth !== undefined
         ? {
             trend: {
-              value: `${Math.abs(totalGrowth).toFixed(1)}%`,
+              value: `${(totalGrowth || 0) >= 0 ? '+' : ''}${totalGrowth.toFixed(1)}%`,
               positive: (totalGrowth || 0) >= 0,
-              description: `${totalContacts} total vs ${totalLastMonth} last month`
+              description: 'vs previous period (30 days ago)'
             }
           }
         : {})
@@ -102,9 +102,9 @@ export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
       ...(thisMonth !== undefined && lastMonth !== undefined
         ? {
             trend: {
-              value: `${newThisMonthTrendPercent.toFixed(1)}%`,
+              value: `${newThisMonthPositive ? '+' : ''}${newThisMonthTrendPercent.toFixed(1)}%`,
               positive: newThisMonthPositive,
-              description: `${thisMonth} this month vs ${lastMonth} last month`
+              description: 'vs previous period (30 days ago)'
             }
           }
         : {})
@@ -119,9 +119,9 @@ export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
       ...(growth !== undefined
         ? {
             trend: {
-              value: `${Math.abs(growth || 0).toFixed(1)}%`,
+              value: `${(growth || 0) >= 0 ? '+' : ''}${(growth || 0).toFixed(1)}%`,
               positive: (growth || 0) >= 0,
-              description: `${safeThisMonth} this month vs ${safeLastMonth} last month`
+              description: 'vs previous period (30 days ago)'
             }
           }
         : {})
@@ -136,9 +136,9 @@ export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
       ...(avgPerAccount !== undefined && avgPerAccountLastMonth !== undefined
         ? {
             trend: {
-              value: `${(avgPerAccountTrendPercent ?? 0).toFixed(1)}%`,
+              value: `${avgPerAccountPositive ? '+' : ''}${(avgPerAccountTrendPercent ?? 0).toFixed(1)}%`,
               positive: !!avgPerAccountPositive,
-              description: `${(avgPerAccount ?? 0).toFixed(1)} now vs ${(avgPerAccountLastMonth ?? 0).toFixed(1)} last month`
+              description: 'vs previous period (30 days ago)'
             }
           }
         : {})

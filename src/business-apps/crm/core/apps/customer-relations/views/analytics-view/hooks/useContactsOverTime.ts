@@ -15,6 +15,7 @@ export interface ContactsOverTimeMetrics {
   growth: number
   totalGrowth: number
   data: ContactsOverTimeData[]
+  totalAccounts: number // For calculating average contacts per account
 }
 
 export type TimeFilter = 'month' | 'quarter' | 'year' | 'historical'
@@ -139,6 +140,16 @@ export const useContactsOverTime = ({ accessToken, timeFilter = 'quarter' }: Use
                 count
               }
             }
+            # Account count for calculating average contacts per account
+            totalAccounts: AccountAggregate(
+              where: {
+                isDeleted: { _eq: false }
+              }
+            ) {
+              aggregate {
+                count
+              }
+            }
           }
         `
 
@@ -190,6 +201,7 @@ export const useContactsOverTime = ({ accessToken, timeFilter = 'quarter' }: Use
         const growth = lastMonth > 0 ? Math.round(((thisMonth - lastMonth) / lastMonth) * 100) : 0
 
         const totalGrowth = totalLastMonth > 0 ? Math.round(((total - totalLastMonth) / totalLastMonth) * 100) : 0
+        const totalAccounts = result.totalAccounts?.aggregate?.count || 0
 
         setData({
           total,
@@ -198,7 +210,8 @@ export const useContactsOverTime = ({ accessToken, timeFilter = 'quarter' }: Use
           lastMonth,
           growth,
           totalGrowth,
-          data: timeSeriesData
+          data: timeSeriesData,
+          totalAccounts
         })
       } catch (err) {
         // console.error("Error fetching contacts over time:", err);

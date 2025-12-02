@@ -24,18 +24,18 @@ export const useTopRevenueEarners = (accessToken: string, currencyCode?: string)
         // Build currency filter if provided
         const currencyFilter = currencyCode ? `, currency: { code: { _eq: "${currencyCode}" } }` : ''
 
-        const query = `
-          query GetTopRevenueEarners {
+        // Step 1: Get distinct employee IDs who have won opportunities
+        const employeeIdsQuery = `
+          query GetEmployeeIds {
             opportunities: Opportunity(
+              distinctOn: [ownerEmployeeId]
               where: { 
                 isDeleted: { _eq: false }
                 opportunityStatus: { code: { _eq: "WON" } }
-                ownerEmployeeId: { _neq: null }${currencyFilter}
+                ownerEmployeeId: { _isNull: false }${currencyFilter}
               }
             ) { 
-              id 
-              name 
-              estimatedAmount 
+              ownerEmployeeId
               ownerEmployee {
                 id
                 firstName
@@ -45,42 +45,59 @@ export const useTopRevenueEarners = (accessToken: string, currencyCode?: string)
             }
           }
         `
-        const result = await graphqlClient.request<any>(query)
-        const opportunities = result.opportunities || []
+        const employeeIdsResult = await graphqlClient.request<any>(employeeIdsQuery)
+        const employees = employeeIdsResult.opportunities || []
 
-        // Group opportunities by owner employee
-        const employeeMap = new Map<string, { employee: any; totalRevenue: number; wonOpportunities: number }>()
+        if (employees.length === 0) {
+          setContacts([])
+          return
+        }
 
-        opportunities.forEach((opp: any) => {
-          const ownerId = opp.ownerEmployee?.id
-          if (!ownerId) return
+        // Step 2: Get aggregates for each employee using separate aliases
+        const aggregateQueries = employees
+          .map((emp: any, index: number) => {
+            return `
+            emp_${index}: OpportunityAggregate(
+              where: {
+                isDeleted: { _eq: false }
+                opportunityStatus: { code: { _eq: "WON" } }
+                ownerEmployeeId: { _eq: "${emp.ownerEmployeeId}" }${currencyFilter}
+              }
+            ) {
+              aggregate {
+                count
+                sum { estimatedAmount }
+              }
+            }
+          `
+          })
+          .join('\n')
 
-          if (!employeeMap.has(ownerId)) {
-            employeeMap.set(ownerId, {
-              employee: opp.ownerEmployee,
-              totalRevenue: 0,
-              wonOpportunities: 0
-            })
+        const aggregateQuery = `
+          query GetEmployeeAggregates {
+            ${aggregateQueries}
           }
+        `
 
-          const data = employeeMap.get(ownerId)!
-          data.totalRevenue += opp.estimatedAmount || 0
-          data.wonOpportunities += 1
-        })
+        const aggregateResult = await graphqlClient.request<any>(aggregateQuery)
 
-        // Convert to array and sort
-        const list = Array.from(employeeMap.values())
-          .map(({ employee, totalRevenue, wonOpportunities }) => ({
-            id: employee.id,
-            firstName: employee.firstName || 'Unknown',
-            lastName: employee.lastName || 'Employee',
-            email: '', // Not available in this query
-            accountName: '', // Not relevant for employee-based ranking
-            totalRevenue,
-            wonOpportunities
-          }))
+        // Step 3: Combine employee info with aggregates
+        const list = employees
+          .map((emp: any, index: number) => {
+            const aggData = aggregateResult[`emp_${index}`]
+            return {
+              id: emp.ownerEmployee?.id || '',
+              firstName: emp.ownerEmployee?.firstName || 'Unknown',
+              lastName: emp.ownerEmployee?.lastName || 'Employee',
+              email: '',
+              accountName: '',
+              totalRevenue: aggData?.aggregate?.sum?.estimatedAmount || 0,
+              wonOpportunities: aggData?.aggregate?.count || 0
+            }
+          })
           .sort((a, b) => b.totalRevenue - a.totalRevenue)
           .slice(0, 10)
+
         setContacts(list)
       } finally {
         setIsLoading(false)

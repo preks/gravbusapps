@@ -217,70 +217,26 @@ export const useKpiTrendData = (accessToken: string, currencyCode?: string) => {
               }
             ) { aggregate { count sum { estimatedAmount } } }
             
-            # Sales cycle length data (individual records for calculation)
-            currentMonthWonOpportunitiesForCycle: Opportunity(
+            # Total Won Revenue for current and previous months
+            currentMonthWonRevenue: OpportunityAggregate(
               where: {
                 isDeleted: {_eq: false}
                 opportunityStatus: {code: {_eq: "WON"}}
                 closeDate: {_gte: "${currentMonthStart}", _lt: "${nextMonthStart}"}${currencyFilter}
               }
-            ) {
-              createdAt
-              closeDate
-            }
+            ) { aggregate { sum { estimatedAmount } } }
             
-            previousMonthWonOpportunitiesForCycle: Opportunity(
+            previousMonthWonRevenue: OpportunityAggregate(
               where: {
                 isDeleted: {_eq: false}
                 opportunityStatus: {code: {_eq: "WON"}}
                 closeDate: {_gte: "${previousMonthStart}", _lt: "${currentMonthStart}"}${currencyFilter}
               }
-            ) {
-              createdAt
-              closeDate
-            }
+            ) { aggregate { sum { estimatedAmount } } }
           }
         `
 
         const result = await graphqlClient.request(query)
-
-        // Helper function to calculate average sales cycle length
-        const calculateSalesCycleLength = (opportunities: Array<{ createdAt: string; closeDate: string | null }>) => {
-          if (!opportunities || opportunities.length === 0) return 0
-
-          const validOpportunities = opportunities.filter(opp => opp.closeDate)
-          if (validOpportunities.length === 0) return 0
-
-          const totalDays = validOpportunities.reduce((sum, opp) => {
-            const created = new Date(opp.createdAt)
-            const closed = new Date(opp.closeDate!)
-
-            // Validate that closeDate is not before createdAt
-            if (closed < created) {
-              return sum // Skip invalid data
-            }
-
-            const days = Math.ceil((closed.getTime() - created.getTime()) / (1000 * 60 * 60 * 24))
-
-            // Safety check for negative days
-            if (days < 0) {
-              return sum // Skip invalid data
-            }
-
-            return sum + days
-          }, 0)
-
-          // Count only valid opportunities (those that passed validation)
-          const validOpsWithCorrectDates = validOpportunities.filter(opp => {
-            const created = new Date(opp.createdAt)
-            const closed = new Date(opp.closeDate!)
-            return closed >= created
-          })
-
-          if (validOpsWithCorrectDates.length === 0) return 0
-
-          return Math.round(totalDays / validOpsWithCorrectDates.length)
-        }
 
         setTrendData({
           currentMonthLeads: result.currentMonthLeads.aggregate.count,
@@ -356,8 +312,9 @@ export const useKpiTrendData = (accessToken: string, currencyCode?: string) => {
               ? (result.previousMonthWonOpportunities.aggregate.sum?.estimatedAmount || 0) /
                 result.previousMonthWonOpportunities.aggregate.count
               : 0,
-          currentMonthSalesCycleLength: calculateSalesCycleLength(result.currentMonthWonOpportunitiesForCycle || []),
-          previousMonthSalesCycleLength: calculateSalesCycleLength(result.previousMonthWonOpportunitiesForCycle || [])
+          // Total Won Revenue (replaces Sales Cycle Length)
+          currentMonthSalesCycleLength: result.currentMonthWonRevenue?.aggregate?.sum?.estimatedAmount || 0,
+          previousMonthSalesCycleLength: result.previousMonthWonRevenue?.aggregate?.sum?.estimatedAmount || 0
         })
       } catch (err) {
         console.error('Error fetching KPI trend data:', err)

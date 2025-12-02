@@ -57,16 +57,16 @@ const calculateTrend = (
 ): { value: string; positive: boolean; description: string } => {
   if (previous === 0) {
     return {
-      value: current > 0 ? '100%' : '0%',
+      value: current > 0 ? '+100%' : '0%',
       positive: current >= 0,
-      description: `${current.toFixed(1)} this period vs ${previous.toFixed(1)} last period`
+      description: 'vs previous period (30 days ago)'
     }
   }
   const change = ((current - previous) / previous) * 100
   return {
-    value: `${Math.abs(change).toFixed(1)}%`,
+    value: `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`,
     positive: change >= 0,
-    description: `${current.toFixed(1)} this period vs ${previous.toFixed(1)} last period`
+    description: 'vs previous period (30 days ago)'
   }
 }
 

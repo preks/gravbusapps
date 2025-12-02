@@ -120,6 +120,15 @@ export const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({
     }).format(value)
   }
 
+  const formatXAxisLabel = (value: string) => {
+    if (selectedTimeFilter === 'historical') {
+      // For historical view, try to extract year from the value
+      const date = new Date(value)
+      return date.getFullYear().toString() // Show only year for historical view
+    }
+    return value // For other views, return as is (already formatted in data)
+  }
+
   const currentFilterLabel =
     timeFilterOptions.find(option => option.key === selectedTimeFilter)?.label || 'Last 6 Months'
 
@@ -238,7 +247,7 @@ export const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({
             className="gba:h-[400px] gba:w-full gba:aspect-auto"
           >
             <AreaChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-              <XAxis dataKey="month" tickLine={false} />
+              <XAxis dataKey="month" tickLine={false} tickFormatter={formatXAxisLabel} />
               <YAxis tickFormatter={formatCurrency} tickLine={false} />
               <ChartTooltip content={<ChartTooltipContent labelKey="month" />} />
               <ChartLegend content={<ChartLegendContent />} />

@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 interface TrendData {
   current: number
@@ -146,8 +147,12 @@ export const useCustomerOpportunityStatistics = (
   props: BusinessAppContextProps,
   currencyId?: string
 ): UseCustomerOpportunityStatisticsReturn => {
-  const { selectedCurrency } = options
+  const graphqlClient = useGraphQLClient(props.accessToken)
   const [trendData, setTrendData] = useState<OpportunityStatisticsTrendData | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
+
+  const refetch = useCallback(async () => {
     if (!props.accessToken) {
       console.warn('No access token provided for customer opportunity statistics with trend loading')
       return
@@ -186,7 +191,7 @@ export const useCustomerOpportunityStatistics = (
         thisYearStart: thisYearStart.toISOString(),
         lastYearStart: lastYearStart.toISOString(),
         lastYearEnd: lastYearEnd.toISOString(),
-        currencyCode: selectedCurrency || null
+        currencyCode: currencyId || null
       })
 
       const currentWon = result.winRateCurrentWon.aggregate.count || 0

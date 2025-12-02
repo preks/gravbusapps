@@ -1,5 +1,7 @@
 export interface CrmAnalyticsData {
   overview: OverviewAnalytics
+  overviewTrendData?: any // Trend data for overview KPIs
+  overviewGeographicData?: Array<{ country: string; accounts: number }> // Geographic distribution data
   leads: LeadsAnalytics
   accounts: AccountsAnalytics
   opportunities: OpportunitiesAnalytics
@@ -65,13 +67,7 @@ export interface LeadsAnalytics {
     percentage: number
     sampleRevenue?: string
   }[]
-  leadsOverTime: {
-    date: string
-    count: number // Keep for backward compatibility
-    leadsCreated: number
-    leadsConverted: number
-    leadsLost: number
-  }[]
+  // leadsOverTime moved to separate useLeadsOverTime hook
   conversionRate: number
   avgTimeToConversion: number
   topOwners: {

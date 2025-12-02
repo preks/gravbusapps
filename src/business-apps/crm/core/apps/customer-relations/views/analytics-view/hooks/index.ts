@@ -8,6 +8,8 @@ export { useOpportunityTrendData } from './useOpportunityTrendData'
 export { useOpportunitiesOverTime } from './useOpportunitiesOverTime'
 export { useContactsOverTime } from './useContactsOverTime'
 export { useLeadsTrendData } from './useLeadsTrendData'
+export { useLeadsOverTime } from './useLeadsOverTime'
+export { useLeadsStaticData } from './useLeadsStaticData'
 
 export type { RevenueTrendData } from './useRevenueTrends'
 export type { PipelineHealthData } from './usePipelineHealth'

@@ -29,6 +29,7 @@ export interface LeadsOverTimePoint {
 
 export interface LeadLifecycleChartProps {
   data: LeadsOverTimePoint[]
+  isLoading?: boolean
   selectedTimeFilter: TimeFilter
   onTimeFilterChange: (filter: TimeFilter) => void
   moduleColor?: string
@@ -44,6 +45,7 @@ const timeFilterOptions = [
 
 export const LeadLifecycleChart: React.FC<LeadLifecycleChartProps> = ({
   data,
+  isLoading = false,
   selectedTimeFilter,
   onTimeFilterChange,
   moduleColor
@@ -69,10 +71,21 @@ export const LeadLifecycleChart: React.FC<LeadLifecycleChartProps> = ({
     if (selectedTimeFilter === 'month') {
       return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     }
+    if (selectedTimeFilter === 'historical') {
+      return date.getFullYear().toString() // Show only year for historical view
+    }
     return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
   }
 
-  // Removed unused formatTooltip function
+  // Chart configuration (moved to top level to avoid conditional hook calls)
+  const chartConfig = useMemo(
+    () => ({
+      leadsCreated: { label: 'Leads Created' },
+      leadsConverted: { label: 'Leads Converted' },
+      leadsLost: { label: 'Leads Lost' }
+    }),
+    []
+  )
 
   // Just display the data passed in - filtering happens at parent level
   const chartData = data
@@ -128,7 +141,17 @@ export const LeadLifecycleChart: React.FC<LeadLifecycleChartProps> = ({
         </div>
       </CardHeader>
       <CardContent>
-        {chartData.length === 0 ? (
+        {isLoading ? (
+          <div
+            className="gba:flex gba:items-center gba:justify-center gba:h-[400px]"
+            data-testid="LeadLifecycleChart-loading"
+          >
+            <div className="gba:text-center">
+              <div className="gba:animate-spin gba:rounded-full gba:h-12 gba:w-12 gba:border-b-2 gba:border-primary gba:mx-auto" />
+              <p className="gba:mt-4 gba:text-sm gba:text-muted-foreground">Loading chart data...</p>
+            </div>
+          </div>
+        ) : chartData.length === 0 ? (
           <div className="gba:text-center gba:p-8" data-testid="LeadLifecycleChart-empty-state">
             <ChartLineIcon className="gba:mx-auto gba:h-12 gba:w-12 gba:text-gray-400" />
             <h3 className="gba:mt-2 gba:text-sm gba:font-medium gba:text-gray-900">No data available</h3>
@@ -138,14 +161,7 @@ export const LeadLifecycleChart: React.FC<LeadLifecycleChartProps> = ({
           </div>
         ) : (
           <ChartContainer
-            config={useMemo(
-              () => ({
-                leadsCreated: { label: 'Leads Created' },
-                leadsConverted: { label: 'Leads Converted' },
-                leadsLost: { label: 'Leads Lost' }
-              }),
-              []
-            )}
+            config={chartConfig}
             className="gba:h-[320px] gba:w-full"
             data-testid="LeadLifecycleChart-chart"
           >

@@ -1,24 +1,25 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   CrmAnalyticsData,
   OverviewAnalytics,
-  LeadsAnalytics,
   AccountsAnalytics,
   OpportunitiesAnalytics,
   ContactsAnalytics
 } from '../types/analyticsTypes'
 import {
-  GET_CRM_OVERVIEW_ANALYTICS,
-  GET_LEADS_ANALYTICS,
+  GET_OVERVIEW_ONLY_ANALYTICS,
   GET_ACCOUNTS_ANALYTICS,
   GET_OPPORTUNITIES_ANALYTICS,
   GET_CONTACTS_ANALYTICS
 } from '../queries/analyticsQueries'
 
+type AnalyticsTab = 'overview' | 'leads' | 'accounts' | 'opportunities' | 'contacts'
+
 export const useCrmAnalyticsData = (
   context: BusinessAppContextProps,
+  activeTab: AnalyticsTab,
   kpiCurrency?: string,
   accountsCurrency?: string,
   opportunitiesCurrency?: string
@@ -28,67 +29,112 @@ export const useCrmAnalyticsData = (
   const [error, setError] = useState<string | null>(null)
   const graphqlClient = useGraphQLClient(context.accessToken)
 
-  const fetchAnalyticsData = useCallback(async () => {
-    if (!context.accessToken) {
-      setError('Access token is required')
-      setIsLoading(false)
-      return
-    }
+  // Cache to store fetched tab data
+  const tabDataCache = useRef<Partial<CrmAnalyticsData>>({})
+  const fetchedTabs = useRef<Set<AnalyticsTab>>(new Set())
+  const isFetching = useRef(false)
+  const lastCurrencyKey = useRef('')
 
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      // Fetch all analytics data in parallel with optional currency filter
-      // Fetch opportunities three times: once for overview KPIs, once for accounts tab, once for opportunities tab
-      const [
-        overviewResponse,
-        leadsResponse,
-        accountsResponse,
-        opportunitiesForKPIResponse,
-        opportunitiesForAccountsResponse,
-        opportunitiesResponse,
-        contactsResponse
-      ] = await Promise.all([
-        graphqlClient.request(GET_CRM_OVERVIEW_ANALYTICS(kpiCurrency)),
-        graphqlClient.request(GET_LEADS_ANALYTICS, {}),
-        graphqlClient.request(GET_ACCOUNTS_ANALYTICS, {}),
-        graphqlClient.request(GET_OPPORTUNITIES_ANALYTICS(kpiCurrency)), // For overview KPIs
-        graphqlClient.request(GET_OPPORTUNITIES_ANALYTICS(accountsCurrency || kpiCurrency)), // For accounts tab (topAccounts)
-        graphqlClient.request(GET_OPPORTUNITIES_ANALYTICS(opportunitiesCurrency || kpiCurrency)), // For opportunities tab
-        graphqlClient.request(GET_CONTACTS_ANALYTICS, {})
-      ])
-
-      // Transform and combine the data
-      const analyticsData: CrmAnalyticsData = {
-        overview: transformOverviewData(
-          overviewResponse,
-          leadsResponse,
-          accountsResponse,
-          opportunitiesForKPIResponse, // Use KPI-specific opportunities
-          contactsResponse
-        ),
-        leads: transformLeadsData(leadsResponse),
-        accounts: transformAccountsData(accountsResponse, opportunitiesForAccountsResponse), // Use accounts-specific opportunities
-        opportunities: transformOpportunitiesData(opportunitiesResponse), // Use opportunities-specific data
-        contacts: transformContactsData(contactsResponse)
+  // Fetch data when active tab or currencies change
+  useEffect(() => {
+    const fetchTabData = async () => {
+      if (!context.accessToken) {
+        setError('Access token is required')
+        setIsLoading(false)
+        return
       }
 
-      setData(analyticsData)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load analytics data')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [context.accessToken, graphqlClient, kpiCurrency, accountsCurrency, opportunitiesCurrency])
+      // Prevent multiple simultaneous fetches
+      if (isFetching.current) {
+        return
+      }
 
-  useEffect(() => {
-    fetchAnalyticsData()
-  }, [fetchAnalyticsData, kpiCurrency, accountsCurrency, opportunitiesCurrency])
+      // Clear cache when currencies change
+      const currencyKey = `${kpiCurrency}-${accountsCurrency}-${opportunitiesCurrency}`
+      if (lastCurrencyKey.current && lastCurrencyKey.current !== currencyKey) {
+        tabDataCache.current = {}
+        fetchedTabs.current.clear()
+      }
+      lastCurrencyKey.current = currencyKey
+
+      // If tab data is already cached, use it
+      if (fetchedTabs.current.has(activeTab)) {
+        setIsLoading(false)
+        return
+      }
+
+      isFetching.current = true
+      setIsLoading(true)
+      setError(null)
+
+      try {
+        const tabData: Partial<CrmAnalyticsData> = {}
+
+        // Fetch only the data for the active tab
+        switch (activeTab) {
+          case 'overview': {
+            const overviewResponse = await graphqlClient.request(GET_OVERVIEW_ONLY_ANALYTICS(kpiCurrency))
+            const { overview, trendData, geographicData } = transformOverviewOnlyData(overviewResponse)
+            tabData.overview = overview
+            tabData.overviewTrendData = trendData
+            tabData.overviewGeographicData = geographicData
+            break
+          }
+
+          case 'leads': {
+            // No longer needed - all leads data now comes from useLeadsStaticData hook
+            break
+          }
+
+          case 'accounts': {
+            const [accountsResponse, opportunitiesResponse] = await Promise.all([
+              graphqlClient.request(GET_ACCOUNTS_ANALYTICS, {}),
+              graphqlClient.request(GET_OPPORTUNITIES_ANALYTICS(accountsCurrency || kpiCurrency))
+            ])
+            tabData.accounts = transformAccountsData(accountsResponse, opportunitiesResponse)
+            break
+          }
+
+          case 'opportunities': {
+            const opportunitiesResponse = await graphqlClient.request(
+              GET_OPPORTUNITIES_ANALYTICS(opportunitiesCurrency || kpiCurrency)
+            )
+            tabData.opportunities = transformOpportunitiesData(opportunitiesResponse)
+            break
+          }
+
+          case 'contacts': {
+            const contactsResponse = await graphqlClient.request(GET_CONTACTS_ANALYTICS, {})
+            tabData.contacts = transformContactsData(contactsResponse)
+            break
+          }
+        }
+
+        // Cache the fetched tab data
+        tabDataCache.current = { ...tabDataCache.current, ...tabData }
+        fetchedTabs.current.add(activeTab)
+
+        // Update the full data with cached tabs
+        setData(tabDataCache.current as CrmAnalyticsData)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : `Failed to load ${activeTab} analytics data`)
+      } finally {
+        setIsLoading(false)
+        isFetching.current = false
+      }
+    }
+
+    fetchTabData()
+  }, [activeTab, context.accessToken, graphqlClient, kpiCurrency, accountsCurrency, opportunitiesCurrency])
 
   const refetch = useCallback(() => {
-    fetchAnalyticsData()
-  }, [fetchAnalyticsData])
+    // Clear cache and force refetch current tab
+    tabDataCache.current = {}
+    fetchedTabs.current.clear()
+    isFetching.current = false
+    lastCurrencyKey.current = '' // Force cache clear
+    setIsLoading(true)
+  }, [])
 
   return {
     data,
@@ -99,139 +145,135 @@ export const useCrmAnalyticsData = (
 }
 
 // Transform functions
-const transformOverviewData = (
-  overview: any,
-  leads: any,
-  accounts: any,
-  opportunities: any,
-  contacts: any
-): OverviewAnalytics => {
-  const oneWeekAgo = new Date()
-  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
+const transformOverviewOnlyData = (
+  response: any
+): {
+  overview: OverviewAnalytics
+  trendData: any
+  geographicData: Array<{ country: string; accounts: number }>
+} => {
+  // Calculate conversion metrics from aggregates only
+  const totalLeads = response.LeadAggregate?.aggregate?.count || 0
+  const totalOpportunities = response.OpportunityAggregate?.aggregate?.count || 0
+  const wonOpportunitiesCount = response.WonOpportunities?.aggregate?.count || 0
+  const totalWonRevenue = response.WonOpportunities?.aggregate?.sum?.estimatedAmount || 0
+
+  // Last 30 days data
+  const last30DaysLeads = response.Last30DaysLeads?.aggregate?.count || 0
+  const last30DaysAccounts = response.Last30DaysAccounts?.aggregate?.count || 0
+  const last30DaysOpportunities = response.Last30DaysOpportunities?.aggregate?.count || 0
+  const last30DaysContacts = response.Last30DaysContacts?.aggregate?.count || 0
+  const last30DaysWonOpportunities = response.Last30DaysWonOpportunities?.aggregate?.count || 0
+  const last30DaysWonRevenue = response.Last30DaysWonOpportunities?.aggregate?.sum?.estimatedAmount || 0
+  const last30DaysConvertedLeads = response.Last30DaysConvertedLeads?.aggregate?.count || 0
+
+  // Previous 30 days data
+  const previous30DaysLeads = response.Previous30DaysLeads?.aggregate?.count || 0
+  const previous30DaysAccounts = response.Previous30DaysAccounts?.aggregate?.count || 0
+  const previous30DaysOpportunities = response.Previous30DaysOpportunities?.aggregate?.count || 0
+  const previous30DaysContacts = response.Previous30DaysContacts?.aggregate?.count || 0
+  const previous30DaysWonOpportunities = response.Previous30DaysWonOpportunities?.aggregate?.count || 0
+  const previous30DaysWonRevenue = response.Previous30DaysWonOpportunities?.aggregate?.sum?.estimatedAmount || 0
+  const previous30DaysConvertedLeads = response.Previous30DaysConvertedLeads?.aggregate?.count || 0
+
+  // Calculate conversion rates for last 30 days and previous 30 days
+  const last30DaysLeadConversionRate = last30DaysLeads > 0 ? (last30DaysConvertedLeads / last30DaysLeads) * 100 : 0
+  const previous30DaysLeadConversionRate =
+    previous30DaysLeads > 0 ? (previous30DaysConvertedLeads / previous30DaysLeads) * 100 : 0
+
+  const last30DaysAvgDealSize = last30DaysWonOpportunities > 0 ? last30DaysWonRevenue / last30DaysWonOpportunities : 0
+  const previous30DaysAvgDealSize =
+    previous30DaysWonOpportunities > 0 ? previous30DaysWonRevenue / previous30DaysWonOpportunities : 0
+
+  // Process geographic distribution data
+  // Note: Query uses distinctOn(accountId, countryRef) to fetch only unique account-country pairs
+  // This reduces data transfer significantly (e.g., 10,000 addresses → 2,000 unique pairs)
+  const accountAddresses = response.accountAddresses || []
+  const countryMap = new Map<string, Set<string>>()
+
+  // Group unique account IDs by country
+  accountAddresses.forEach((address: any) => {
+    const country = address.country?.value
+    const accountId = address.accountId
+    if (country && accountId) {
+      if (!countryMap.has(country)) {
+        countryMap.set(country, new Set())
+      }
+      countryMap.get(country)!.add(accountId) // Set handles any remaining duplicates
+    }
+  })
+
+  const geographicData = Array.from(countryMap.entries())
+    .map(([country, accountIds]) => ({ country, accounts: accountIds.size }))
+    .sort((a, b) => b.accounts - a.accounts)
+    .slice(0, 5) // Top 5 countries
 
   return {
-    totalCounts: {
-      leads: leads.LeadAggregate?.aggregate?.count || 0,
-      accounts: accounts.AccountAggregate?.aggregate?.count || 0,
-      opportunities: opportunities.OpportunityAggregate?.aggregate?.count || 0,
-      contacts: contacts.ContactAggregate?.aggregate?.count || 0
+    overview: {
+      totalCounts: {
+        leads: totalLeads,
+        accounts: response.AccountAggregate?.aggregate?.count || 0,
+        opportunities: totalOpportunities,
+        contacts: response.ContactAggregate?.aggregate?.count || 0
+      },
+      recentActivity: {
+        // These would require full record queries, so we set them to 0 for overview-only
+        newLeadsThisWeek: 0,
+        convertedLeadsThisWeek: 0,
+        newAccountsThisWeek: 0,
+        accountsWithWonOpportunitiesThisWeek: 0,
+        newOpportunitiesThisWeek: 0,
+        wonOpportunitiesThisWeek: 0,
+        newContactsThisWeek: 0,
+        contactsRelatedToWonAccountsThisWeek: 0
+      },
+      conversionMetrics: {
+        leadToOpportunityRate: totalLeads > 0 ? Math.round((totalOpportunities / totalLeads) * 100) : 0,
+        opportunityWinRate: totalOpportunities > 0 ? Math.round((wonOpportunitiesCount / totalOpportunities) * 100) : 0,
+        avgDealSize: wonOpportunitiesCount > 0 ? Math.round(totalWonRevenue / wonOpportunitiesCount) : 0,
+        salesCycleLength: totalWonRevenue // Now represents Total Won Revenue instead of sales cycle days
+      },
+      topPerformers: [] // Will be populated by useTopRevenueEarners hook
     },
-    recentActivity: {
-      newLeadsThisWeek: (leads.Lead || []).filter((lead: any) => new Date(lead.createdAt) > oneWeekAgo).length,
-      convertedLeadsThisWeek: (leads.Lead || []).filter(
-        (lead: any) =>
-          new Date(lead.createdAt) > oneWeekAgo &&
-          (lead.leadStatus?.code === 'CONVERTED' || lead.leadStatus?.value?.toLowerCase().includes('converted'))
-      ).length,
-      newAccountsThisWeek: (accounts.Account || []).filter((account: any) => new Date(account.createdAt) > oneWeekAgo)
-        .length,
-      accountsWithWonOpportunitiesThisWeek: (accounts.Account || []).filter(
-        (account: any) =>
-          new Date(account.createdAt) > oneWeekAgo &&
-          (opportunities.Opportunity || []).some(
-            (opp: any) =>
-              opp.accountId === account.id &&
-              (opp.opportunityStatus?.code === 'WON' || opp.opportunityStatus?.value?.toLowerCase().includes('won'))
-          )
-      ).length,
-      newOpportunitiesThisWeek: (opportunities.Opportunity || []).filter(
-        (opp: any) => new Date(opp.createdAt) > oneWeekAgo
-      ).length,
-      wonOpportunitiesThisWeek: (opportunities.Opportunity || []).filter(
-        (opp: any) =>
-          new Date(opp.createdAt) > oneWeekAgo &&
-          (opp.opportunityStatus?.code === 'WON' || opp.opportunityStatus?.value?.toLowerCase().includes('won'))
-      ).length,
-      newContactsThisWeek: (contacts.Contact || []).filter((contact: any) => new Date(contact.createdAt) > oneWeekAgo)
-        .length,
-      contactsRelatedToWonAccountsThisWeek: (contacts.Contact || []).filter(
-        (contact: any) =>
-          new Date(contact.createdAt) > oneWeekAgo &&
-          contact.accountId &&
-          (opportunities.Opportunity || []).some(
-            (opp: any) =>
-              opp.accountId === contact.accountId &&
-              (opp.opportunityStatus?.code === 'WON' || opp.opportunityStatus?.value?.toLowerCase().includes('won'))
-          )
-      ).length
+    trendData: {
+      // Last 30 days vs Previous 30 days for entity counts
+      totalLeadsThisMonth: last30DaysLeads,
+      totalLeadsLastMonth: previous30DaysLeads,
+      totalAccountsThisMonth: last30DaysAccounts,
+      totalAccountsLastMonth: previous30DaysAccounts,
+      totalOpportunitiesThisMonth: last30DaysOpportunities,
+      totalOpportunitiesLastMonth: previous30DaysOpportunities,
+      totalContactsThisMonth: last30DaysContacts,
+      totalContactsLastMonth: previous30DaysContacts,
+
+      // Won opportunities trend
+      currentMonthWonOpportunities: last30DaysWonOpportunities,
+      previousMonthWonOpportunities: previous30DaysWonOpportunities,
+
+      // Conversion metrics trend
+      currentMonthLeadConversionRate: last30DaysLeadConversionRate,
+      previousMonthLeadConversionRate: previous30DaysLeadConversionRate,
+      currentMonthAvgDealSize: last30DaysAvgDealSize,
+      previousMonthAvgDealSize: previous30DaysAvgDealSize,
+      currentMonthSalesCycleLength: last30DaysWonRevenue,
+      previousMonthSalesCycleLength: previous30DaysWonRevenue,
+
+      // Additional fields for compatibility
+      currentMonthLeads: last30DaysLeads,
+      previousMonthLeads: previous30DaysLeads,
+      currentMonthAccounts: last30DaysAccounts,
+      previousMonthAccounts: previous30DaysAccounts,
+      currentMonthOpportunities: last30DaysOpportunities,
+      previousMonthOpportunities: previous30DaysOpportunities
     },
-    conversionMetrics: {
-      leadToOpportunityRate: calculateConversionRate(leads, opportunities),
-      opportunityWinRate: calculateWinRate(opportunities),
-      avgDealSize: calculateAvgDealSize(opportunities),
-      salesCycleLength: calculateSalesCycleLength(opportunities)
-    },
-    topPerformers: extractTopPerformers(opportunities)
-  }
-}
-
-const transformLeadsData = (data: any): LeadsAnalytics => {
-  const leads = data.Lead || []
-  const totalLeads = data.LeadAggregate?.aggregate?.count || 0
-
-  // Group by status
-  const statusGroups = groupByField(leads, 'leadStatus', 'value')
-  const leadsByStatus = statusGroups.map(group => ({
-    status: group.key || 'Unknown',
-    count: group.count,
-    percentage: totalLeads > 0 ? Math.round((group.count / totalLeads) * 100) : 0
-  }))
-
-  // Group by source
-  const sourceGroups = groupByField(leads, 'leadSource', 'value')
-  const leadsBySource = sourceGroups.map(group => ({
-    source: group.key || 'Unknown',
-    count: group.count,
-    percentage: totalLeads > 0 ? Math.round((group.count / totalLeads) * 100) : 0
-  }))
-
-  // Group by source type
-  const sourceTypeGroups = groupByField(leads, 'leadSourceType')
-  const leadsBySourceType = sourceTypeGroups.map(group => ({
-    sourceType: group.key || 'Unknown',
-    count: group.count,
-    percentage: totalLeads > 0 ? Math.round((group.count / totalLeads) * 100) : 0
-  }))
-
-  // Group by rating
-  const ratingGroups = groupByField(leads, 'leadRating', 'value')
-  const leadsByRating = ratingGroups.map(group => ({
-    rating: group.key || 'Unknown',
-    count: group.count,
-    percentage: totalLeads > 0 ? Math.round((group.count / totalLeads) * 100) : 0
-  }))
-
-  // Group by company size (based on annual revenue)
-  const companySizeGroups = groupLeadsByCompanySize(leads)
-  const leadsByCompanySize = companySizeGroups.map(group => ({
-    sizeCategory: group.key,
-    count: group.count,
-    percentage: totalLeads > 0 ? Math.round((group.count / totalLeads) * 100) : 0,
-    sampleRevenue: group.sampleRevenue // For debugging in tooltips
-  }))
-
-  // Create lead lifecycle time series data with daily granularity (we'll filter in component)
-  const leadsOverTime = createLeadLifecycleTimeSeriesData(leads, 'daily') // Generate daily dataset for past year
-  const convertedLeads = data.convertedLeads?.aggregate?.count || 0
-  const conversionRate = totalLeads > 0 ? Math.round((convertedLeads / totalLeads) * 100) : 0
-
-  return {
-    totalLeads,
-    leadsByStatus,
-    leadsBySource,
-    leadsBySourceType,
-    leadsByRating,
-    leadsByCompanySize,
-    leadsOverTime,
-    conversionRate: conversionRate,
-    avgTimeToConversion: 0, // TODO: Calculate - requires convertedAt field on Lead entity
-    topOwners: extractTopLeadOwners(leads)
+    geographicData
   }
 }
 
 const transformAccountsData = (data: any, opportunitiesData: any): AccountsAnalytics => {
   const accounts = data.Account || []
-  const opportunities = opportunitiesData.Opportunity || []
+  // Use OpportunityForAccounts for accounts tab (accounts currency filtered)
+  const opportunities = opportunitiesData.OpportunityForAccounts || []
   const totalAccounts = data.AccountAggregate?.aggregate?.count || 0
 
   // Group by industry - show top 5 and aggregate rest
@@ -333,7 +375,7 @@ const transformAccountsData = (data: any, opportunitiesData: any): AccountsAnaly
 
 const transformOpportunitiesData = (data: any): OpportunitiesAnalytics => {
   const opportunities = data.Opportunity || []
-  const totalOpportunities = data.OpportunityAggregate?.aggregate?.count || 0
+  const totalOpportunities = data.OpportunityForOpportunitiesTab?.aggregate?.count || 0
   const totalValue = opportunities.reduce((sum: number, opp: any) => sum + (opp.estimatedAmount || 0), 0)
 
   // Group by stage
@@ -578,99 +620,7 @@ const createAccountLifecycleTimeSeriesData = (accounts: any[]) => {
     }))
 }
 
-const createLeadLifecycleTimeSeriesData = (leads: any[]) => {
-  // Always generate daily data for the past year to support all time filters
-  const endDate = new Date()
-  const startDate = new Date()
-  startDate.setFullYear(endDate.getFullYear() - 1) // Always go back 1 year for daily data
-
-  const periodMap = new Map<
-    string,
-    {
-      leadsCreated: number
-      leadsConverted: number
-      leadsLost: number
-      count: number
-    }
-  >()
-
-  // Generate daily periods for the entire year
-  const generateDailyPeriods = () => {
-    const current = new Date(startDate)
-
-    while (current <= endDate) {
-      const periodKey = current.toISOString().split('T')[0]
-      periodMap.set(periodKey, {
-        leadsCreated: 0,
-        leadsConverted: 0,
-        leadsLost: 0,
-        count: 0
-      })
-      current.setDate(current.getDate() + 1)
-    }
-  }
-
-  generateDailyPeriods()
-
-  // Helper function to get period key from date (always daily now)
-  const getPeriodKey = (dateStr: string): string => {
-    const date = new Date(dateStr)
-    return date.toISOString().split('T')[0]
-  }
-
-  // Process leads data
-  leads.forEach((lead: any) => {
-    const leadDate = new Date(lead.createdAt)
-
-    // Only process leads within our date range
-    if (leadDate >= startDate && leadDate <= endDate) {
-      // Track leads created
-      const createdPeriodKey = getPeriodKey(lead.createdAt)
-      const createdPeriod = periodMap.get(createdPeriodKey)
-      if (createdPeriod) {
-        createdPeriod.leadsCreated += 1
-        createdPeriod.count += 1 // For backward compatibility
-      }
-
-      // Track leads converted
-      if (lead.leadStatus?.code === 'CONVERTED' || lead.leadStatus?.value?.toLowerCase().includes('converted')) {
-        const convertedDate = lead.updatedAt || lead.createdAt
-        const convertedPeriodKey = getPeriodKey(convertedDate)
-        const convertedPeriod = periodMap.get(convertedPeriodKey)
-        if (convertedPeriod) {
-          convertedPeriod.leadsConverted += 1
-        }
-      }
-
-      // Track leads lost
-      if (
-        lead.leadStatus?.code === 'LOST' ||
-        lead.leadStatus?.code === 'DEAD' ||
-        lead.leadStatus?.value?.toLowerCase().includes('lost') ||
-        lead.leadStatus?.value?.toLowerCase().includes('dead') ||
-        lead.leadStatus?.value?.toLowerCase().includes('closed')
-      ) {
-        const lostDate = lead.updatedAt || lead.createdAt
-        const lostPeriodKey = getPeriodKey(lostDate)
-        const lostPeriod = periodMap.get(lostPeriodKey)
-        if (lostPeriod) {
-          lostPeriod.leadsLost += 1
-        }
-      }
-    }
-  })
-
-  // Return sorted periods
-  return Array.from(periodMap.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([period, data]) => ({
-      date: period,
-      count: data.count,
-      leadsCreated: data.leadsCreated,
-      leadsConverted: data.leadsConverted,
-      leadsLost: data.leadsLost
-    }))
-}
+// createLeadLifecycleTimeSeriesData removed - now using separate useLeadsOverTime hook with GraphQL aggregates
 
 const createTimeSeriesDataWithValue = (items: any[], dateField: string, valueField: string) => {
   const groups = items.reduce((acc, item) => {
@@ -693,30 +643,7 @@ const createTimeSeriesDataWithValue = (items: any[], dateField: string, valueFie
     }))
 }
 
-const extractTopLeadOwners = (items: any[]) => {
-  const ownerGroups = items.reduce((acc, item) => {
-    const owner = item.ownerEmployee
-    if (owner) {
-      const key = owner.id
-      const name = owner.displayName || `${owner.firstName} ${owner.lastName}`
-      if (!acc[key]) {
-        acc[key] = { employeeId: key, employeeName: name, count: 0 }
-      }
-      acc[key].count += 1
-    }
-    return acc
-  }, {})
-
-  return Object.values(ownerGroups)
-    .sort((a: any, b: any) => b.count - a.count)
-    .slice(0, 5)
-    .map((owner: any) => ({
-      employeeId: owner.employeeId,
-      employeeName: owner.employeeName,
-      leadCount: owner.count,
-      conversionRate: 0 // TODO: Calculate conversion rate
-    }))
-}
+// extractTopLeadOwners removed - now handled in useLeadsStaticData hook
 
 const extractTopContactOwners = (items: any[]) => {
   const ownerGroups = items.reduce((acc, item) => {
@@ -740,37 +667,6 @@ const extractTopContactOwners = (items: any[]) => {
       employeeName: owner.employeeName,
       contactCount: owner.count
     }))
-}
-
-const extractTopPerformers = (opportunities: any): any[] => {
-  const opportunitiesList = opportunities.Opportunity || []
-  const performerMap = new Map()
-
-  opportunitiesList.forEach((opp: any) => {
-    const ownerId = opp.ownerEmployee?.id
-    const ownerName = opp.ownerEmployee?.displayName || `${opp.ownerEmployee?.firstName} ${opp.ownerEmployee?.lastName}`
-
-    if (ownerId) {
-      if (!performerMap.has(ownerId)) {
-        performerMap.set(ownerId, {
-          employeeId: ownerId,
-          employeeName: ownerName,
-          dealsWon: 0,
-          totalValue: 0
-        })
-      }
-
-      const performer = performerMap.get(ownerId)
-      if (opp.stage === 'WON' || opp.opportunityStatus?.code === 'WON') {
-        performer.dealsWon += 1
-        performer.totalValue += opp.estimatedAmount || 0
-      }
-    }
-  })
-
-  return Array.from(performerMap.values())
-    .sort((a, b) => b.totalValue - a.totalValue)
-    .slice(0, 5)
 }
 
 const calculateConversionRate = (leads: any, opportunities: any): number => {
@@ -836,81 +732,4 @@ const calculatePipelineVelocity = (opportunities: any): number => {
   }, 0)
 
   return Math.round(totalDays / opportunitiesList.length)
-}
-
-const groupLeadsByCompanySize = (leads: any[]): { key: string; count: number; sampleRevenue: string }[] => {
-  const sizeMap = new Map<string, { count: number; sampleRevenue: string }>()
-
-  leads.forEach((lead: any) => {
-    const revenueValue = lead.annualRevenue?.value || lead.annualRevenue?.code
-    let category = 'Unknown'
-
-    if (revenueValue) {
-      const revenue = revenueValue.toString()
-      const revenueClean = revenue.toLowerCase()
-
-      // Handle numeric ranges (e.g., "25,000,000-100,000,000" or "5,000,001-10,000,000")
-      if (revenueClean.includes('-') || revenueClean.includes(',') || /\d/.test(revenueClean)) {
-        // Extract all numbers and use the first one for categorization
-        const numberMatch = revenueClean.match(/[\d,]+/)
-        if (numberMatch) {
-          const firstNumber = parseInt(numberMatch[0].replace(/,/g, ''))
-
-          if (!isNaN(firstNumber)) {
-            if (firstNumber <= 10000000) {
-              // Up to 10M
-              category = 'Small'
-            } else if (firstNumber <= 100000000) {
-              // 10M - 100M
-              category = 'Medium'
-            } else {
-              // 100M+
-              category = 'Large'
-            }
-          }
-        }
-      } else {
-        // Handle text-based categories
-        if (revenueClean.includes('small') || revenueClean.includes('startup') || revenueClean.includes('micro')) {
-          category = 'Small'
-        } else if (revenueClean.includes('medium') || revenueClean.includes('mid')) {
-          category = 'Medium'
-        } else if (
-          revenueClean.includes('large') ||
-          revenueClean.includes('enterprise') ||
-          revenueClean.includes('corp')
-        ) {
-          category = 'Large'
-        } else {
-          category = 'Unknown'
-        }
-      }
-
-      // Store category with sample revenue for debugging
-      const existing = sizeMap.get(category) || {
-        count: 0,
-        sampleRevenue: revenue
-      }
-      sizeMap.set(category, {
-        count: existing.count + 1,
-        sampleRevenue: existing.sampleRevenue
-      })
-    } else {
-      // No revenue data
-      const existing = sizeMap.get('Unknown') || {
-        count: 0,
-        sampleRevenue: 'No data'
-      }
-      sizeMap.set('Unknown', {
-        count: existing.count + 1,
-        sampleRevenue: existing.sampleRevenue
-      })
-    }
-  })
-
-  return Array.from(sizeMap.entries()).map(([key, data]) => ({
-    key,
-    count: data.count,
-    sampleRevenue: data.sampleRevenue
-  }))
 }

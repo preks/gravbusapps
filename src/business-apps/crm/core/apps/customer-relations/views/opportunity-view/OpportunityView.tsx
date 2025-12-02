@@ -10,32 +10,6 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useCustomerOpportunityFilters } from './hooks/useCustomerOpportunityFilters'
 import { useCustomerOpportunityStatistics } from '@/common/data/customer/hooks/useCustomerOpportunityStatistics'
 import { CUSTOMER_OPPORTUNITY_DESCRIPTORS } from '@/common/data/customer/types/customerOpportunityTypes'
-import { OpportunityStatisticsLayout } from '@/common/components/common-relations/view-layouts/opportunity-layout/components/OpportunityStatisticsLayout'
-
-// Separate component to properly use hooks with currency filter
-const CustomerOpportunityStatistics: React.FC<{
-  context: BusinessAppContextProps
-  selectedCurrency?: string
-}> = ({ context, selectedCurrency }) => {
-  const opportunityStatistics = useCustomerOpportunityStatistics(context, { selectedCurrency })
-
-  if (!opportunityStatistics.trendData) return null
-
-  return (
-    <OpportunityStatisticsLayout
-      statistics={{
-        recentOpportunities: opportunityStatistics.trendData.recentOpportunities,
-        opportunityValue: opportunityStatistics.trendData.opportunityValue,
-        winRate: opportunityStatistics.trendData.winRate,
-        opportunitiesThisYear: opportunityStatistics.trendData.opportunitiesThisYear,
-        isLoading: opportunityStatistics.isLoading,
-        error: opportunityStatistics.error,
-        refetch: () => void opportunityStatistics.refetch()
-      }}
-      selectedCurrency={selectedCurrency}
-    />
-  )
-}
 
 // Separate component to properly use hooks with currency filtering
 const CustomerOpportunityStatistics: React.FC<{

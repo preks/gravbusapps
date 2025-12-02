@@ -92,10 +92,10 @@ export const ActivityHeatmapChart: React.FC<ActivityHeatmapChartProps> = ({
                 {hours.map(hour => (
                   <div
                     key={hour}
-                    className="gba:text-xs gba:text-gray-500 gba:text-center gba:w-4"
-                    style={{ fontSize: '10px' }}
+                    className="gba:text-xs gba:text-gray-500 gba:text-center gba:w-4 gba:whitespace-nowrap"
+                    style={{ fontSize: '11px' }}
                   >
-                    {hour === 0 ? '12a' : hour < 12 ? `${hour}a` : hour === 12 ? '12p' : `${hour - 12}p`}
+                    {hour === 0 ? '12AM' : hour < 12 ? `${hour}AM` : hour === 12 ? '12PM' : `${hour - 12}PM`}
                   </div>
                 ))}
               </div>

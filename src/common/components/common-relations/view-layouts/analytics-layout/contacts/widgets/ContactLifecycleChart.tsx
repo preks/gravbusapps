@@ -73,6 +73,15 @@ export const ContactLifecycleChart: React.FC<ContactLifecycleChartProps> = ({
 
   const chartData = data
 
+  // Move useMemo to top level - hooks must not be called conditionally
+  const chartConfig = useMemo(
+    () => ({
+      count: { label: 'Monthly Created' },
+      cumulative: { label: 'Cumulative Total' }
+    }),
+    []
+  )
+
   return (
     <Card data-testid="contact-lifecycle-chart">
       <CardHeader>
@@ -150,13 +159,7 @@ export const ContactLifecycleChart: React.FC<ContactLifecycleChartProps> = ({
           </div>
         ) : (
           <ChartContainer
-            config={useMemo(
-              () => ({
-                count: { label: 'Monthly Created' },
-                cumulative: { label: 'Cumulative Total' }
-              }),
-              []
-            )}
+            config={chartConfig}
             className="gba:h-[400px] gba:w-full"
             data-testid="contact-lifecycle-chart-container"
           >

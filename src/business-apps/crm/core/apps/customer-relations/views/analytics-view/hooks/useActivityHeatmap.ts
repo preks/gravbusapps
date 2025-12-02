@@ -25,38 +25,7 @@ export const useActivityHeatmap = (accessToken: string) => {
 
         const query = `
           query GetActivityHeatmap {
-            # Lead creation activities
-            leadActivities: Lead(
-              where: {
-                isDeleted: {_eq: false}
-                createdAt: {_gte: "${thirtyDaysAgo}"}
-              }
-            ) {
-              createdAt
-            }
-            
-            # Account creation activities
-            accountActivities: Account(
-              where: {
-                isDeleted: {_eq: false}
-                createdAt: {_gte: "${thirtyDaysAgo}"}
-              }
-            ) {
-              createdAt
-            }
-            
-            # Opportunity creation activities
-            opportunityActivities: Opportunity(
-              where: {
-                isDeleted: {_eq: false}
-                createdAt: {_gte: "${thirtyDaysAgo}"}
-              }
-            ) {
-              createdAt
-            }
-            
-            # Contact creation activities
-            contactActivities: Contact(
+            activities: SalesActivity(
               where: {
                 isDeleted: {_eq: false}
                 createdAt: {_gte: "${thirtyDaysAgo}"}
@@ -69,19 +38,13 @@ export const useActivityHeatmap = (accessToken: string) => {
 
         const result = await graphqlClient.request(query)
 
-        // Combine all activities
-        const allActivities = [
-          ...result.leadActivities,
-          ...result.accountActivities,
-          ...result.opportunityActivities,
-          ...result.contactActivities
-        ]
+        const allActivities = result.activities || []
 
-        // Create heatmap data structure
+        // Create heatmap data structure (7 days × 24 hours = 168 data points)
         const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
         const heatmapData: ActivityHeatmapData[] = []
 
-        // Initialize data structure
+        // Initialize data structure with zeros
         dayNames.forEach((day, dayIndex) => {
           for (let hour = 0; hour < 24; hour++) {
             heatmapData.push({

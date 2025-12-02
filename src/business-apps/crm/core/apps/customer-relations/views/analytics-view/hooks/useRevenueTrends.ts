@@ -180,20 +180,16 @@ function generateTimePeriods(timeFilter: TimeFilter) {
       break
 
     case 'historical':
-      // Last 24 months
-      for (let i = 23; i >= 0; i--) {
-        const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1)
-        const monthStart = date.toISOString()
-        const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 1).toISOString()
-        const monthName = date.toLocaleDateString('en-US', {
-          month: 'short',
-          year: 'numeric'
-        })
+      // Last 5 years (yearly)
+      const currentYear = currentDate.getFullYear()
+      for (let i = 4; i >= 0; i--) {
+        const yearStart = new Date(currentYear - i, 0, 1) // January 1st
+        const yearEnd = new Date(currentYear - i + 1, 0, 1) // Next year January 1st
 
         periods.push({
-          start: monthStart,
-          end: monthEnd,
-          label: monthName
+          start: yearStart.toISOString(),
+          end: yearEnd.toISOString(),
+          label: yearStart.getFullYear().toString()
         })
       }
       break
