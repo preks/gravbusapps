@@ -11,13 +11,23 @@ interface MonthViewProps {
 }
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-const MAX_EVENTS_VISIBLE = 3
+const WEEKDAYS_SHORT = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+const MAX_EVENTS_VISIBLE = 2 // Reduced for better mobile fit
 
 interface CalendarDay {
   date: Date
   isCurrentMonth: boolean
   isToday: boolean
   events: CalendarEvent[]
+}
+
+// Check if two dates are the same day in local time
+const isSameDay = (date1: Date, date2: Date): boolean => {
+  return (
+    date1.getDate() === date2.getDate() &&
+    date1.getMonth() === date2.getMonth() &&
+    date1.getFullYear() === date2.getFullYear()
+  )
 }
 
 const getCalendarDays = (currentDate: Date, events: CalendarEvent[]): CalendarDay[] => {
@@ -45,19 +55,20 @@ const getCalendarDays = (currentDate: Date, events: CalendarEvent[]): CalendarDa
   while (current <= endDate) {
     const dayDate = new Date(current)
     const dayEvents = events.filter(event => {
-      const eventDate = new Date(event.start)
-      return (
-        eventDate.getDate() === dayDate.getDate() &&
-        eventDate.getMonth() === dayDate.getMonth() &&
-        eventDate.getFullYear() === dayDate.getFullYear()
-      )
+      // Ensure we have a Date object in local time
+      const eventDate = event.start instanceof Date ? event.start : new Date(event.start)
+      return isSameDay(eventDate, dayDate)
     })
 
     days.push({
       date: dayDate,
       isCurrentMonth: current.getMonth() === month,
-      isToday: current.getTime() === today.getTime(),
-      events: dayEvents.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
+      isToday: isSameDay(current, today),
+      events: dayEvents.sort((a, b) => {
+        const aStart = a.start instanceof Date ? a.start : new Date(a.start)
+        const bStart = b.start instanceof Date ? b.start : new Date(b.start)
+        return aStart.getTime() - bStart.getTime()
+      })
     })
 
     current.setDate(current.getDate() + 1)
@@ -66,8 +77,9 @@ const getCalendarDays = (currentDate: Date, events: CalendarEvent[]): CalendarDa
   return days
 }
 
-const formatEventTime = (date: Date): string => {
-  return date.toLocaleTimeString(undefined, {
+const formatEventTime = (date: Date | string): string => {
+  const d = date instanceof Date ? date : new Date(date)
+  return d.toLocaleTimeString(undefined, {
     hour: 'numeric',
     minute: '2-digit',
     hour12: true
@@ -90,12 +102,13 @@ export const MonthView: React.FC<MonthViewProps> = ({ currentDate, events, onEve
     <div className="gba:flex gba:flex-col gba:h-full gba:overflow-hidden" data-testid="calendar-month-view">
       {/* Weekday headers */}
       <div className="gba:grid gba:grid-cols-7 gba:border-b gba:border-border/50 gba:bg-muted/30">
-        {WEEKDAYS.map(day => (
+        {WEEKDAYS.map((day, index) => (
           <div
             key={day}
-            className="gba:py-2 gba:text-center gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase"
+            className="gba:py-1 gba:sm:py-2 gba:text-center gba:text-[10px] gba:sm:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase"
           >
-            {day}
+            <span className="gba:hidden gba:sm:inline">{day}</span>
+            <span className="gba:sm:hidden">{WEEKDAYS_SHORT[index]}</span>
           </div>
         ))}
       </div>
@@ -111,7 +124,7 @@ export const MonthView: React.FC<MonthViewProps> = ({ currentDate, events, onEve
               <div
                 key={dayIndex}
                 className={cn(
-                  'gba:min-h-[100px] gba:border-r gba:border-border/30 gba:last:border-r-0 gba:p-1',
+                  'gba:min-h-[60px] gba:sm:min-h-[80px] gba:border-r gba:border-border/30 gba:last:border-r-0 gba:p-0.5 gba:sm:p-1',
                   !day.isCurrentMonth && 'gba:bg-muted/20',
                   day.isToday && 'gba:bg-primary/5'
                 )}
@@ -120,7 +133,7 @@ export const MonthView: React.FC<MonthViewProps> = ({ currentDate, events, onEve
                 <button
                   onClick={() => onDayClick(day.date)}
                   className={cn(
-                    'gba:w-7 gba:h-7 gba:flex gba:items-center gba:justify-center gba:rounded-full gba:text-sm gba:mb-1 gba:transition-colors',
+                    'gba:w-5 gba:h-5 gba:sm:w-7 gba:sm:h-7 gba:flex gba:items-center gba:justify-center gba:rounded-full gba:text-xs gba:sm:text-sm gba:mb-0.5 gba:sm:mb-1 gba:transition-colors',
                     day.isToday
                       ? 'gba:bg-primary gba:text-primary-foreground gba:font-bold'
                       : day.isCurrentMonth
@@ -141,7 +154,7 @@ export const MonthView: React.FC<MonthViewProps> = ({ currentDate, events, onEve
                         onEventClick(event)
                       }}
                       className={cn(
-                        'gba:w-full gba:text-left gba:px-1.5 gba:py-0.5 gba:rounded gba:text-[10px] gba:font-medium gba:truncate gba:transition-opacity gba:hover:opacity-80',
+                        'gba:w-full gba:text-left gba:px-1 gba:sm:px-1.5 gba:py-0.5 gba:rounded gba:text-[8px] gba:sm:text-[10px] gba:font-medium gba:truncate gba:transition-opacity gba:hover:opacity-80',
                         event.status === 'cancelled' && 'gba:line-through gba:opacity-50'
                       )}
                       style={{
@@ -151,8 +164,13 @@ export const MonthView: React.FC<MonthViewProps> = ({ currentDate, events, onEve
                       }}
                       data-testid={`calendar-event-${event.id}`}
                     >
-                      {!event.allDay && <span className="gba:opacity-75 gba:mr-1">{formatEventTime(event.start)}</span>}
-                      {event.title}
+                      <span className="gba:hidden gba:sm:inline">
+                        {!event.allDay && (
+                          <span className="gba:opacity-75 gba:mr-1">{formatEventTime(event.start)}</span>
+                        )}
+                        {event.title}
+                      </span>
+                      <span className="gba:sm:hidden">{event.title}</span>
                     </button>
                   ))}
 
@@ -160,9 +178,9 @@ export const MonthView: React.FC<MonthViewProps> = ({ currentDate, events, onEve
                   {day.events.length > MAX_EVENTS_VISIBLE && (
                     <button
                       onClick={() => onDayClick(day.date)}
-                      className="gba:w-full gba:text-left gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:text-muted-foreground gba:hover:text-foreground gba:transition-colors"
+                      className="gba:w-full gba:text-left gba:px-1 gba:py-0.5 gba:text-[8px] gba:sm:text-[10px] gba:text-muted-foreground gba:hover:text-foreground gba:transition-colors"
                     >
-                      +{day.events.length - MAX_EVENTS_VISIBLE} more
+                      +{day.events.length - MAX_EVENTS_VISIBLE}
                     </button>
                   )}
                 </div>

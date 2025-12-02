@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useRef, useEffect } from 'react'
 import { cn } from '@newwork/nw-design-system'
 import type { CalendarEvent, DateRange } from '../types'
 import { CalendarEventItem } from './CalendarEventItem'
@@ -11,7 +11,7 @@ interface WeekViewProps {
 }
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i)
-const HOUR_HEIGHT = 60 // pixels per hour
+const HOUR_HEIGHT = 48 // pixels per hour (reduced for better mobile fit)
 
 const formatHour = (hour: number): string => {
   if (hour === 0) return '12 AM'
@@ -29,6 +29,14 @@ const getDaysInWeek = (startDate: Date): Date[] => {
   return days
 }
 
+// Get date key in local timezone (YYYY-MM-DD format)
+const getLocalDateKey = (date: Date): string => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 const isToday = (date: Date): boolean => {
   const today = new Date()
   return (
@@ -38,18 +46,28 @@ const isToday = (date: Date): boolean => {
   )
 }
 
+const isSameDay = (date1: Date, date2: Date): boolean => {
+  return (
+    date1.getDate() === date2.getDate() &&
+    date1.getMonth() === date2.getMonth() &&
+    date1.getFullYear() === date2.getFullYear()
+  )
+}
+
 const getEventPosition = (event: CalendarEvent, dayStart: Date): { top: number; height: number } | null => {
-  const eventStart = new Date(event.start)
-  const eventEnd = new Date(event.end)
+  // Ensure we have proper Date objects
+  const eventStart = event.start instanceof Date ? event.start : new Date(event.start)
+  const eventEnd = event.end instanceof Date ? event.end : new Date(event.end)
+
   const dayEnd = new Date(dayStart)
   dayEnd.setHours(23, 59, 59, 999)
 
-  // Check if event is on this day
+  // Check if event is on this day using local time comparison
   if (eventStart > dayEnd || eventEnd < dayStart) {
     return null
   }
 
-  // Calculate position
+  // Calculate position using local time
   const effectiveStart = eventStart < dayStart ? dayStart : eventStart
   const effectiveEnd = eventEnd > dayEnd ? dayEnd : eventEnd
 
@@ -57,27 +75,49 @@ const getEventPosition = (event: CalendarEvent, dayStart: Date): { top: number; 
   const endHour = effectiveEnd.getHours() + effectiveEnd.getMinutes() / 60
 
   const top = startHour * HOUR_HEIGHT
-  const height = Math.max((endHour - startHour) * HOUR_HEIGHT, 20) // Minimum height of 20px
+  const height = Math.max((endHour - startHour) * HOUR_HEIGHT, 16) // Minimum height of 16px
 
   return { top, height }
 }
 
 export const WeekView: React.FC<WeekViewProps> = ({ dateRange, events, onEventClick, onTimeSlotClick }) => {
   const days = useMemo(() => getDaysInWeek(dateRange.start), [dateRange.start])
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const hasScrolledRef = useRef(false)
 
-  // Group events by day
+  // Scroll to current time on mount
+  useEffect(() => {
+    if (scrollContainerRef.current && !hasScrolledRef.current) {
+      const now = new Date()
+      // Scroll to current hour minus 1 (so current time is visible, not at top edge)
+      const scrollToHour = Math.max(0, now.getHours() - 1)
+      const scrollPosition = scrollToHour * HOUR_HEIGHT
+
+      requestAnimationFrame(() => {
+        scrollContainerRef.current?.scrollTo({
+          top: scrollPosition,
+          behavior: 'auto'
+        })
+      })
+      hasScrolledRef.current = true
+    }
+  }, [])
+
+  // Reset scroll flag when date range changes
+  useEffect(() => {
+    hasScrolledRef.current = false
+  }, [dateRange])
+
+  // Group events by day using local time
   const eventsByDay = useMemo(() => {
     const byDay = new Map<string, CalendarEvent[]>()
 
     days.forEach(day => {
-      const dayKey = day.toISOString().split('T')[0]
+      const dayKey = getLocalDateKey(day)
       const dayEvents = events.filter(event => {
-        const eventDate = new Date(event.start)
-        return (
-          eventDate.getDate() === day.getDate() &&
-          eventDate.getMonth() === day.getMonth() &&
-          eventDate.getFullYear() === day.getFullYear()
-        )
+        // Ensure we have a Date object
+        const eventDate = event.start instanceof Date ? event.start : new Date(event.start)
+        return isSameDay(eventDate, day)
       })
       byDay.set(dayKey, dayEvents)
     })
@@ -96,11 +136,11 @@ export const WeekView: React.FC<WeekViewProps> = ({ dateRange, events, onEventCl
       {/* Day headers */}
       <div className="gba:flex gba:border-b gba:border-border/50 gba:bg-muted/30 gba:sticky gba:top-0 gba:z-10">
         {/* Time gutter */}
-        <div className="gba:w-16 gba:flex-shrink-0 gba:border-r gba:border-border/50" />
+        <div className="gba:w-10 gba:sm:w-14 gba:flex-shrink-0 gba:border-r gba:border-border/50" />
 
         {/* Day columns headers */}
         {days.map(day => {
-          const dayKey = day.toISOString().split('T')[0]
+          const dayKey = getLocalDateKey(day)
           const dayEvents = eventsByDay.get(dayKey) || []
           const isTodayDate = isToday(day)
 
@@ -108,25 +148,25 @@ export const WeekView: React.FC<WeekViewProps> = ({ dateRange, events, onEventCl
             <div
               key={dayKey}
               className={cn(
-                'gba:flex-1 gba:text-center gba:py-2 gba:border-r gba:border-border/50 gba:last:border-r-0',
+                'gba:flex-1 gba:min-w-0 gba:text-center gba:py-1 gba:sm:py-2 gba:border-r gba:border-border/50 gba:last:border-r-0',
                 isTodayDate && 'gba:bg-primary/5'
               )}
             >
-              <div className="gba:text-xs gba:text-muted-foreground gba:uppercase">
-                {day.toLocaleDateString(undefined, { weekday: 'short' })}
+              <div className="gba:text-[10px] gba:sm:text-xs gba:text-muted-foreground gba:uppercase">
+                {day.toLocaleDateString(undefined, { weekday: 'narrow' })}
               </div>
               <div
                 className={cn(
-                  'gba:text-lg gba:font-semibold',
+                  'gba:text-sm gba:sm:text-lg gba:font-semibold',
                   isTodayDate
-                    ? 'gba:w-8 gba:h-8 gba:rounded-full gba:bg-primary gba:text-primary-foreground gba:flex gba:items-center gba:justify-center gba:mx-auto'
+                    ? 'gba:w-6 gba:h-6 gba:sm:w-8 gba:sm:h-8 gba:rounded-full gba:bg-primary gba:text-primary-foreground gba:flex gba:items-center gba:justify-center gba:mx-auto gba:text-xs gba:sm:text-base'
                     : 'gba:text-foreground'
                 )}
               >
                 {day.getDate()}
               </div>
               {dayEvents.length > 0 && (
-                <div className="gba:text-[10px] gba:text-muted-foreground">
+                <div className="gba:hidden gba:sm:block gba:text-[10px] gba:text-muted-foreground">
                   {dayEvents.length} event{dayEvents.length !== 1 ? 's' : ''}
                 </div>
               )}
@@ -136,13 +176,14 @@ export const WeekView: React.FC<WeekViewProps> = ({ dateRange, events, onEventCl
       </div>
 
       {/* Time grid */}
-      <div className="gba:flex gba:flex-1 gba:overflow-y-auto">
+      <div ref={scrollContainerRef} className="gba:flex gba:flex-1 gba:overflow-y-auto">
         {/* Time labels */}
-        <div className="gba:w-16 gba:flex-shrink-0 gba:border-r gba:border-border/50">
+        <div className="gba:w-10 gba:sm:w-14 gba:flex-shrink-0 gba:border-r gba:border-border/50">
           {HOURS.map(hour => (
             <div
               key={hour}
-              className="gba:h-[60px] gba:pr-2 gba:text-right gba:text-xs gba:text-muted-foreground gba:-mt-2"
+              className="gba:pr-1 gba:sm:pr-2 gba:text-right gba:text-[10px] gba:sm:text-xs gba:text-muted-foreground gba:-mt-2"
+              style={{ height: HOUR_HEIGHT }}
             >
               {hour > 0 && formatHour(hour)}
             </div>
@@ -151,7 +192,7 @@ export const WeekView: React.FC<WeekViewProps> = ({ dateRange, events, onEventCl
 
         {/* Day columns */}
         {days.map(day => {
-          const dayKey = day.toISOString().split('T')[0]
+          const dayKey = getLocalDateKey(day)
           const dayEvents = eventsByDay.get(dayKey) || []
           const isTodayDate = isToday(day)
 
@@ -159,7 +200,7 @@ export const WeekView: React.FC<WeekViewProps> = ({ dateRange, events, onEventCl
             <div
               key={dayKey}
               className={cn(
-                'gba:flex-1 gba:relative gba:border-r gba:border-border/50 gba:last:border-r-0',
+                'gba:flex-1 gba:min-w-0 gba:relative gba:border-r gba:border-border/50 gba:last:border-r-0',
                 isTodayDate && 'gba:bg-primary/5'
               )}
             >
@@ -167,7 +208,8 @@ export const WeekView: React.FC<WeekViewProps> = ({ dateRange, events, onEventCl
               {HOURS.map(hour => (
                 <div
                   key={hour}
-                  className="gba:h-[60px] gba:border-b gba:border-border/30 gba:cursor-pointer gba:hover:bg-muted/30 gba:transition-colors"
+                  className="gba:border-b gba:border-border/30 gba:cursor-pointer gba:hover:bg-muted/30 gba:transition-colors"
+                  style={{ height: HOUR_HEIGHT }}
                   onClick={() => {
                     if (onTimeSlotClick) {
                       const slotDate = new Date(day)
@@ -185,7 +227,7 @@ export const WeekView: React.FC<WeekViewProps> = ({ dateRange, events, onEventCl
                   style={{ top: currentTimePosition }}
                 >
                   <div className="gba:flex gba:items-center">
-                    <div className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-destructive" />
+                    <div className="gba:w-1.5 gba:h-1.5 gba:sm:w-2 gba:sm:h-2 gba:rounded-full gba:bg-destructive" />
                     <div className="gba:flex-1 gba:h-[2px] gba:bg-destructive" />
                   </div>
                 </div>
@@ -202,7 +244,7 @@ export const WeekView: React.FC<WeekViewProps> = ({ dateRange, events, onEventCl
                 return (
                   <div
                     key={event.id}
-                    className="gba:absolute gba:left-1 gba:right-1 gba:z-10 gba:overflow-hidden"
+                    className="gba:absolute gba:left-0.5 gba:right-0.5 gba:sm:left-1 gba:sm:right-1 gba:z-10"
                     style={{
                       top: position.top,
                       height: position.height
@@ -210,7 +252,8 @@ export const WeekView: React.FC<WeekViewProps> = ({ dateRange, events, onEventCl
                   >
                     <CalendarEventItem
                       event={event}
-                      compact={position.height < 50}
+                      compact={true}
+                      height={position.height}
                       onClick={() => onEventClick(event)}
                     />
                   </div>

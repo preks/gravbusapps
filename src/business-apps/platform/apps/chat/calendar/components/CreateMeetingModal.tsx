@@ -27,9 +27,26 @@ interface CreateMeetingModalProps {
   isOpen: boolean
   onClose: () => void
   onSubmit: (data: CreateMeetingData) => Promise<void>
+  onUpdate?: (meetingId: string, data: Partial<CreateMeetingData>) => Promise<void>
   accessToken: string
   initialDate?: Date
   initialHour?: number
+  // For editing existing meeting
+  editMeeting?: {
+    id: string
+    title: string
+    description?: string
+    startTime: Date
+    endTime: Date
+    location?: string
+    meetingLink?: string
+    isAllDay?: boolean
+    recurrence?: MeetingRecurrence
+    recurrenceEndDate?: Date
+    color?: string
+    reminderMinutes?: number[]
+    participants?: Array<{ id: string; displayName?: string; firstName?: string; lastName?: string }>
+  }
 }
 
 const formatDateForInput = (date: Date): string => {
@@ -44,11 +61,15 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
   isOpen,
   onClose,
   onSubmit,
+  onUpdate,
   accessToken,
   initialDate,
-  initialHour
+  initialHour,
+  editMeeting
 }) => {
-  // Form state
+  const isEditMode = !!editMeeting
+
+  // Form state - initialize from editMeeting if available
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [date, setDate] = useState(formatDateForInput(initialDate || new Date()))
@@ -67,6 +88,46 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
   const [recurrenceEndDate, setRecurrenceEndDate] = useState('')
   const [selectedColor, setSelectedColor] = useState(MEETING_COLORS[0].value)
   const [reminderMinutes, setReminderMinutes] = useState<number[]>([15])
+
+  // Initialize form when editMeeting changes
+  useEffect(() => {
+    if (editMeeting && isOpen) {
+      setTitle(editMeeting.title || '')
+      setDescription(editMeeting.description || '')
+      setDate(formatDateForInput(editMeeting.startTime))
+      setStartTime(formatTimeForInput(editMeeting.startTime))
+      setEndTime(formatTimeForInput(editMeeting.endTime))
+      setLocation(editMeeting.location || '')
+      setIsVideoCall(!!editMeeting.meetingLink)
+      setIsAllDay(editMeeting.isAllDay || false)
+      setRecurrence(editMeeting.recurrence || 'none')
+      setRecurrenceEndDate(editMeeting.recurrenceEndDate ? formatDateForInput(editMeeting.recurrenceEndDate) : '')
+      setSelectedColor(editMeeting.color || MEETING_COLORS[0].value)
+      setReminderMinutes(editMeeting.reminderMinutes || [15])
+      // Convert participants to CalendarEmployee format
+      if (editMeeting.participants) {
+        setSelectedParticipants(
+          editMeeting.participants.map(p => ({
+            id: p.id,
+            userId: p.id,
+            displayName: p.displayName,
+            firstName: p.firstName,
+            lastName: p.lastName
+          }))
+        )
+      }
+    } else if (!editMeeting && isOpen) {
+      // Reset for create mode
+      resetForm()
+      if (initialDate) {
+        setDate(formatDateForInput(initialDate))
+      }
+      if (initialHour !== undefined) {
+        setStartTime(`${String(initialHour).padStart(2, '0')}:00`)
+        setEndTime(`${String(Math.min(initialHour + 1, 23)).padStart(2, '0')}:00`)
+      }
+    }
+  }, [editMeeting, isOpen, initialDate, initialHour])
 
   // Participants (using real employees)
   const [searchQuery, setSearchQuery] = useState('')
@@ -177,13 +238,17 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
         participantIds: selectedParticipants.map(p => p.userId || p.id)
       }
 
-      await onSubmit(meetingData)
+      if (isEditMode && editMeeting && onUpdate) {
+        await onUpdate(editMeeting.id, meetingData)
+      } else {
+        await onSubmit(meetingData)
+      }
 
       // Reset form
       resetForm()
       onClose()
     } catch (error) {
-      console.error('Error creating meeting:', error)
+      console.error('Error saving meeting:', error)
     } finally {
       setIsSubmitting(false)
     }
@@ -209,11 +274,11 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={open => !open && onClose()}>
-      <DialogContent className="gba:max-w-lg gba:max-h-[90vh] gba:overflow-y-auto">
+      <DialogContent className="gba:max-w-lg gba:w-[95vw] gba:sm:w-full gba:max-h-[90vh] gba:overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <Calendar className="gba:h-5 gba:w-5 gba:text-primary" />
-            Schedule Meeting
+            {isEditMode ? 'Edit Meeting' : 'Schedule Meeting'}
           </DialogTitle>
         </DialogHeader>
 
@@ -231,7 +296,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
           </div>
 
           {/* Date and Time */}
-          <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+          <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:gap-3 gba:sm:gap-4">
             <div className="gba:space-y-2">
               <Label htmlFor="date">Date *</Label>
               <Input
@@ -242,7 +307,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
                 data-testid="meeting-date-input"
               />
             </div>
-            <div className="gba:flex gba:items-center gba:gap-2 gba:pt-6">
+            <div className="gba:flex gba:items-center gba:gap-2 gba:sm:pt-6">
               <Switch checked={isAllDay} onCheckedChange={setIsAllDay} id="allDay" />
               <Label htmlFor="allDay" className="gba:text-sm">
                 All day
@@ -251,11 +316,11 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
           </div>
 
           {!isAllDay && (
-            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+            <div className="gba:grid gba:grid-cols-2 gba:gap-3 gba:sm:gap-4">
               <div className="gba:space-y-2">
-                <Label htmlFor="startTime" className="gba:flex gba:items-center gba:gap-1">
+                <Label htmlFor="startTime" className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:sm:text-sm">
                   <Clock className="gba:h-3 gba:w-3" />
-                  Start Time
+                  Start
                 </Label>
                 <Input
                   id="startTime"
@@ -266,9 +331,9 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
                 />
               </div>
               <div className="gba:space-y-2">
-                <Label htmlFor="endTime" className="gba:flex gba:items-center gba:gap-1">
+                <Label htmlFor="endTime" className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:sm:text-sm">
                   <Clock className="gba:h-3 gba:w-3" />
-                  End Time
+                  End
                 </Label>
                 <Input
                   id="endTime"
@@ -334,7 +399,6 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
                     <span>
                       {employee.displayName ||
                         `${employee.firstName || ''} ${employee.lastName || ''}`.trim() ||
-                        employee.email ||
                         'Unknown'}
                     </span>
                     <button
@@ -354,7 +418,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
               <Input
                 value={searchQuery}
                 onChange={e => handleSearch(e.target.value)}
-                placeholder="Search by name or email..."
+                placeholder="Search by name..."
                 data-testid="meeting-participant-search"
               />
 
@@ -383,9 +447,9 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
                             {employee.displayName || `${employee.firstName || ''} ${employee.lastName || ''}`.trim()}
                           </div>
                           <div className="gba:text-xs gba:text-muted-foreground gba:truncate">
-                            {employee.jobPositionName && employee.organizationalUnitName
-                              ? `${employee.jobPositionName} • ${employee.organizationalUnitName}`
-                              : employee.email || 'Employee'}
+                            {employee.jobPositionName || employee.organizationalUnitName
+                              ? `${employee.jobPositionName || ''}${employee.jobPositionName && employee.organizationalUnitName ? ' • ' : ''}${employee.organizationalUnitName || ''}`
+                              : 'Employee'}
                           </div>
                         </div>
                       </button>
@@ -402,7 +466,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
               <Repeat className="gba:h-3 gba:w-3" />
               Repeat
             </Label>
-            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+            <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:gap-3 gba:sm:gap-4">
               <Select value={recurrence} onValueChange={v => setRecurrence(v as MeetingRecurrence)}>
                 <SelectTrigger>
                   <SelectValue />
@@ -479,8 +543,10 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
             {isSubmitting ? (
               <>
                 <Spinner className="gba:h-4 gba:w-4 gba:mr-2" />
-                Creating...
+                {isEditMode ? 'Saving...' : 'Creating...'}
               </>
+            ) : isEditMode ? (
+              'Save Changes'
             ) : (
               'Create Meeting'
             )}

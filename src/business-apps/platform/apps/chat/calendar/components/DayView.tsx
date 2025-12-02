@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useRef, useEffect } from 'react'
 import { cn } from '@newwork/nw-design-system'
 import type { CalendarEvent } from '../types'
 import { CalendarEventItem } from './CalendarEventItem'
@@ -28,9 +28,18 @@ const isToday = (date: Date): boolean => {
   )
 }
 
+const isSameDay = (date1: Date, date2: Date): boolean => {
+  return (
+    date1.getDate() === date2.getDate() &&
+    date1.getMonth() === date2.getMonth() &&
+    date1.getFullYear() === date2.getFullYear()
+  )
+}
+
 const getEventPosition = (event: CalendarEvent, dayStart: Date): { top: number; height: number } | null => {
-  const eventStart = new Date(event.start)
-  const eventEnd = new Date(event.end)
+  // Ensure we have proper Date objects in local time
+  const eventStart = event.start instanceof Date ? event.start : new Date(event.start)
+  const eventEnd = event.end instanceof Date ? event.end : new Date(event.end)
   const dayEnd = new Date(dayStart)
   dayEnd.setHours(23, 59, 59, 999)
 
@@ -45,23 +54,21 @@ const getEventPosition = (event: CalendarEvent, dayStart: Date): { top: number; 
   const endHour = effectiveEnd.getHours() + effectiveEnd.getMinutes() / 60
 
   const top = startHour * HOUR_HEIGHT
-  const height = Math.max((endHour - startHour) * HOUR_HEIGHT, 30)
+  const height = Math.max((endHour - startHour) * HOUR_HEIGHT, 24)
 
   return { top, height }
 }
 
 export const DayView: React.FC<DayViewProps> = ({ currentDate, events, onEventClick, onTimeSlotClick }) => {
   const isTodayDate = isToday(currentDate)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const hasScrolledRef = useRef(false)
 
-  // Filter events for current day
+  // Filter events for current day using local time
   const dayEvents = useMemo(() => {
     return events.filter(event => {
-      const eventDate = new Date(event.start)
-      return (
-        eventDate.getDate() === currentDate.getDate() &&
-        eventDate.getMonth() === currentDate.getMonth() &&
-        eventDate.getFullYear() === currentDate.getFullYear()
-      )
+      const eventDate = event.start instanceof Date ? event.start : new Date(event.start)
+      return isSameDay(eventDate, currentDate)
     })
   }, [events, currentDate])
 
@@ -74,6 +81,30 @@ export const DayView: React.FC<DayViewProps> = ({ currentDate, events, onEventCl
     const now = new Date()
     return (now.getHours() + now.getMinutes() / 60) * HOUR_HEIGHT
   }, [])
+
+  // Scroll to current time on mount (or a reasonable morning time if early)
+  useEffect(() => {
+    if (scrollContainerRef.current && !hasScrolledRef.current) {
+      const now = new Date()
+      // Scroll to current hour minus 1 (so current time is visible, not at top edge)
+      const scrollToHour = Math.max(0, now.getHours() - 1)
+      const scrollPosition = scrollToHour * HOUR_HEIGHT
+
+      // Use requestAnimationFrame to ensure DOM is ready
+      requestAnimationFrame(() => {
+        scrollContainerRef.current?.scrollTo({
+          top: scrollPosition,
+          behavior: 'auto' // instant scroll on initial load
+        })
+      })
+      hasScrolledRef.current = true
+    }
+  }, [])
+
+  // Reset scroll flag when date changes to allow re-scrolling
+  useEffect(() => {
+    hasScrolledRef.current = false
+  }, [currentDate])
 
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:overflow-hidden" data-testid="calendar-day-view">
@@ -115,7 +146,7 @@ export const DayView: React.FC<DayViewProps> = ({ currentDate, events, onEventCl
       )}
 
       {/* Time grid */}
-      <div className="gba:flex gba:flex-1 gba:overflow-y-auto">
+      <div ref={scrollContainerRef} className="gba:flex gba:flex-1 gba:overflow-y-auto">
         {/* Time labels */}
         <div className="gba:w-20 gba:flex-shrink-0 gba:border-r gba:border-border/50">
           {HOURS.map(hour => (
@@ -171,13 +202,18 @@ export const DayView: React.FC<DayViewProps> = ({ currentDate, events, onEventCl
             return (
               <div
                 key={event.id}
-                className="gba:absolute gba:left-2 gba:right-2 gba:z-10 gba:overflow-hidden"
+                className="gba:absolute gba:left-2 gba:right-2 gba:z-10"
                 style={{
                   top: position.top,
                   height: position.height
                 }}
               >
-                <CalendarEventItem event={event} compact={position.height < 60} onClick={() => onEventClick(event)} />
+                <CalendarEventItem
+                  event={event}
+                  compact={position.height < 80}
+                  height={position.height}
+                  onClick={() => onEventClick(event)}
+                />
               </div>
             )
           })}

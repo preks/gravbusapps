@@ -58,7 +58,7 @@ interface UseCalendarReturn {
 
 export const useCalendar = ({ accessToken, apiUrl }: UseCalendarOptions): UseCalendarReturn => {
   const [currentDate, setCurrentDate] = useState<Date>(new Date())
-  const [view, setView] = useState<CalendarView>('week')
+  const [view, setView] = useState<CalendarView>('day')
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [pendingInvitations, setPendingInvitations] = useState<Meeting[]>([])
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)

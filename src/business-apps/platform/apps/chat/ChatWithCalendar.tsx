@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system'
+import { Tabs, TabsContent } from '@newwork/nw-design-system'
 import { MessageSquare, Calendar as CalendarIcon } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Chat } from './Chat'
@@ -53,30 +53,40 @@ export const ChatWithCalendar: React.FC<ChatWithCalendarProps> = ({
   return (
     <div className="gba:h-full gba:flex gba:flex-col gba:bg-background" data-testid={prefixDataTestId}>
       <Tabs value={activeTab} onValueChange={handleTabChange} className="gba:h-full gba:flex gba:flex-col">
-        {/* Tab header */}
-        <div className="gba:flex gba:items-center gba:justify-center gba:px-4 gba:py-2 gba:border-b gba:border-border/50 gba:bg-muted/30">
-          <TabsList className="gba:grid gba:grid-cols-2 gba:w-[280px]">
-            <TabsTrigger
-              value="chat"
-              className="gba:flex gba:items-center gba:gap-2 gba:text-sm"
+        {/* Minimal tab bar */}
+        <div className="gba:flex gba:justify-center gba:border-b gba:border-border/40">
+          <div className="gba:flex gba:gap-0">
+            <button
+              onClick={() => handleTabChange('chat')}
+              className={`gba:relative gba:flex gba:items-center gba:gap-1.5 gba:px-4 gba:py-2 gba:text-xs gba:font-medium gba:transition-colors ${
+                activeTab === 'chat' ? 'gba:text-foreground' : 'gba:text-muted-foreground gba:hover:text-foreground'
+              }`}
               data-testid={`${prefixDataTestId}-chat-tab`}
             >
-              <MessageSquare className="gba:h-4 gba:w-4" />
+              <MessageSquare className="gba:h-3.5 gba:w-3.5" />
               <span>Chat</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="calendar"
-              className="gba:flex gba:items-center gba:gap-2 gba:text-sm"
+              {activeTab === 'chat' && (
+                <span className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:h-0.5 gba:bg-primary gba:rounded-full" />
+              )}
+            </button>
+            <button
+              onClick={() => handleTabChange('calendar')}
+              className={`gba:relative gba:flex gba:items-center gba:gap-1.5 gba:px-4 gba:py-2 gba:text-xs gba:font-medium gba:transition-colors ${
+                activeTab === 'calendar' ? 'gba:text-foreground' : 'gba:text-muted-foreground gba:hover:text-foreground'
+              }`}
               data-testid={`${prefixDataTestId}-calendar-tab`}
             >
-              <CalendarIcon className="gba:h-4 gba:w-4" />
+              <CalendarIcon className="gba:h-3.5 gba:w-3.5" />
               <span>Calendar</span>
-            </TabsTrigger>
-          </TabsList>
+              {activeTab === 'calendar' && (
+                <span className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:h-0.5 gba:bg-primary gba:rounded-full" />
+              )}
+            </button>
+          </div>
         </div>
 
-        {/* Tab content */}
-        <TabsContent value="chat" className="gba:flex-1 gba:m-0 gba:overflow-hidden">
+        {/* Tab content - ensure proper height for mobile web views */}
+        <TabsContent value="chat" className="gba:flex-1 gba:m-0 gba:h-full gba:min-h-0 gba:overflow-hidden">
           <Chat
             accessToken={accessToken}
             userInfo={userInfo}
@@ -85,7 +95,7 @@ export const ChatWithCalendar: React.FC<ChatWithCalendarProps> = ({
           />
         </TabsContent>
 
-        <TabsContent value="calendar" className="gba:flex-1 gba:m-0 gba:overflow-hidden">
+        <TabsContent value="calendar" className="gba:flex-1 gba:m-0 gba:h-full gba:min-h-0 gba:overflow-hidden">
           <Calendar
             accessToken={accessToken}
             userInfo={userInfo}

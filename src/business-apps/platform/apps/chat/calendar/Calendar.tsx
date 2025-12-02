@@ -3,15 +3,7 @@ import { Alert, AlertDescription, Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { env } from '@/common/env/EnvUtils'
 import { useCalendar } from './hooks/useCalendar'
-import {
-  CalendarHeader,
-  DayView,
-  WeekView,
-  MonthView,
-  CreateMeetingModal,
-  MeetingDetailModal,
-  PendingInvitationsPanel
-} from './components'
+import { CalendarHeader, DayView, WeekView, MonthView, CreateMeetingModal, MeetingDetailModal } from './components'
 import type { CalendarEvent, Meeting, CreateMeetingData, InvitationStatus } from './types'
 
 interface CalendarProps extends BusinessAppContextProps {
@@ -40,6 +32,7 @@ export const Calendar: React.FC<CalendarProps> = ({ accessToken, prefixDataTestI
     goToNext,
     selectEvent,
     createMeeting,
+    updateMeeting,
     cancelMeeting,
     respondToInvitation,
     dateRange,
@@ -54,6 +47,7 @@ export const Calendar: React.FC<CalendarProps> = ({ accessToken, prefixDataTestI
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
   const [createModalInitialDate, setCreateModalInitialDate] = useState<Date | undefined>()
   const [createModalInitialHour, setCreateModalInitialHour] = useState<number | undefined>()
+  const [editingMeeting, setEditingMeeting] = useState<CalendarEvent | null>(null)
 
   // Handle event click
   const handleEventClick = useCallback(
@@ -66,6 +60,7 @@ export const Calendar: React.FC<CalendarProps> = ({ accessToken, prefixDataTestI
 
   // Handle time slot click (for creating meetings)
   const handleTimeSlotClick = useCallback((date: Date, hour: number) => {
+    setEditingMeeting(null)
     setCreateModalInitialDate(date)
     setCreateModalInitialHour(hour)
     setIsCreateModalOpen(true)
@@ -86,9 +81,29 @@ export const Calendar: React.FC<CalendarProps> = ({ accessToken, prefixDataTestI
     async (data: CreateMeetingData) => {
       await createMeeting(data)
       setIsCreateModalOpen(false)
+      setEditingMeeting(null)
     },
     [createMeeting]
   )
+
+  // Handle update meeting
+  const handleUpdateMeeting = useCallback(
+    async (meetingId: string, data: Partial<CreateMeetingData>) => {
+      await updateMeeting(meetingId, data)
+      setIsCreateModalOpen(false)
+      setEditingMeeting(null)
+      setIsDetailModalOpen(false)
+    },
+    [updateMeeting]
+  )
+
+  // Handle edit button click from detail modal
+  const handleEditMeeting = useCallback(() => {
+    if (!selectedEvent) return
+    setEditingMeeting(selectedEvent)
+    setIsDetailModalOpen(false)
+    setIsCreateModalOpen(true)
+  }, [selectedEvent])
 
   // Handle respond to invitation
   const handleRespondToInvitation = useCallback(
@@ -111,7 +126,7 @@ export const Calendar: React.FC<CalendarProps> = ({ accessToken, prefixDataTestI
           comment: statusOrComment as string | undefined
         })
       } else {
-        // Called from PendingInvitationsPanel: (meetingId, status)
+        // Called with explicit meetingId: (meetingId, status)
         await respondToInvitation(meetingIdOrStatus as string, {
           status: statusOrComment as InvitationStatus,
           comment
@@ -119,14 +134,6 @@ export const Calendar: React.FC<CalendarProps> = ({ accessToken, prefixDataTestI
       }
     },
     [respondToInvitation, selectedEvent]
-  )
-
-  // Handle quick response from pending invitations
-  const handleQuickResponse = useCallback(
-    async (meetingId: string, status: InvitationStatus) => {
-      await respondToInvitation(meetingId, { status })
-    },
-    [respondToInvitation]
   )
 
   // Handle view meeting details from pending invitations
@@ -172,6 +179,7 @@ export const Calendar: React.FC<CalendarProps> = ({ accessToken, prefixDataTestI
 
   // Handle create button click
   const handleCreateButtonClick = useCallback(() => {
+    setEditingMeeting(null)
     setCreateModalInitialDate(undefined)
     setCreateModalInitialHour(undefined)
     setIsCreateModalOpen(true)
@@ -250,44 +258,29 @@ export const Calendar: React.FC<CalendarProps> = ({ accessToken, prefixDataTestI
         pendingInvitationsCount={pendingInvitations.length}
       />
 
-      {/* Main content */}
-      <div className="gba:flex-1 gba:flex gba:overflow-hidden">
-        {/* Sidebar with pending invitations (desktop only) */}
-        {pendingInvitations.length > 0 && (
-          <div className="gba:w-80 gba:flex-shrink-0 gba:border-r gba:border-border/50 gba:overflow-y-auto gba:p-4 gba:hidden gba:lg:block">
-            <PendingInvitationsPanel
-              invitations={pendingInvitations}
-              onRespond={handleQuickResponse}
-              onViewDetails={handleViewInvitationDetails}
-            />
+      {/* Main content - just the calendar view, no sidebar to save space */}
+      <div className="gba:flex-1 gba:overflow-hidden gba:relative">
+        {isLoading && (
+          <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:bg-background/50 gba:z-30">
+            <Spinner className="gba:h-8 gba:w-8" />
           </div>
         )}
-
-        {/* Calendar view */}
-        <div className="gba:flex-1 gba:overflow-hidden gba:relative">
-          {isLoading && (
-            <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:bg-background/50 gba:z-30">
-              <Spinner className="gba:h-8 gba:w-8" />
-            </div>
-          )}
-          {renderCalendarView()}
-        </div>
+        {renderCalendarView()}
       </div>
 
-      {/* Mobile pending invitations (as floating badge) */}
+      {/* Floating pending invitations badge */}
       {pendingInvitations.length > 0 && (
-        <div className="gba:fixed gba:bottom-4 gba:right-4 gba:lg:hidden gba:z-20">
+        <div className="gba:absolute gba:bottom-3 gba:right-3 gba:z-20">
           <button
             onClick={() => {
               if (pendingInvitations[0]) {
                 handleViewInvitationDetails(pendingInvitations[0])
               }
             }}
-            className="gba:flex gba:items-center gba:gap-2 gba:px-4 gba:py-2 gba:bg-warning gba:text-warning-foreground gba:rounded-full gba:shadow-lg gba:font-medium gba:text-sm"
+            className="gba:flex gba:items-center gba:gap-1.5 gba:px-2.5 gba:py-1.5 gba:bg-warning gba:text-warning-foreground gba:rounded-full gba:shadow-md gba:font-medium gba:text-xs"
+            data-testid="calendar-pending-invitations-badge"
           >
-            <span>
-              {pendingInvitations.length} pending invitation{pendingInvitations.length !== 1 ? 's' : ''}
-            </span>
+            <span>{pendingInvitations.length} pending</span>
           </button>
         </div>
       )}
@@ -295,11 +288,30 @@ export const Calendar: React.FC<CalendarProps> = ({ accessToken, prefixDataTestI
       {/* Modals */}
       <CreateMeetingModal
         isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
+        onClose={() => {
+          setIsCreateModalOpen(false)
+          setEditingMeeting(null)
+        }}
         onSubmit={handleCreateMeeting}
+        onUpdate={handleUpdateMeeting}
         accessToken={accessToken}
         initialDate={createModalInitialDate}
         initialHour={createModalInitialHour}
+        editMeeting={
+          editingMeeting
+            ? {
+                id: editingMeeting.id,
+                title: editingMeeting.title,
+                description: editingMeeting.description,
+                startTime: editingMeeting.start,
+                endTime: editingMeeting.end,
+                location: editingMeeting.location,
+                meetingLink: editingMeeting.meetingLink,
+                isAllDay: editingMeeting.allDay,
+                color: editingMeeting.color
+              }
+            : undefined
+        }
       />
 
       <MeetingDetailModal
@@ -307,6 +319,7 @@ export const Calendar: React.FC<CalendarProps> = ({ accessToken, prefixDataTestI
         isOpen={isDetailModalOpen}
         onClose={handleCloseDetailModal}
         onRespond={handleRespondToInvitation}
+        onEdit={selectedEvent?.isOrganizer ? handleEditMeeting : undefined}
         onDelete={selectedEvent?.isOrganizer ? handleDeleteMeeting : undefined}
       />
     </div>

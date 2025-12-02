@@ -11,7 +11,6 @@ export interface CalendarEmployee {
   firstName?: string
   lastName?: string
   userId: string
-  email?: string
   pictureThumbnail?: string
   organizationalUnitName?: string
   jobPositionName?: string
@@ -25,6 +24,7 @@ export interface EmployeeSearchVariables {
 
 /**
  * GraphQL query for searching employees
+ * Note: Employee entity only allows filtering by firstName, lastName, code - NOT email or displayName
  */
 export const SEARCH_EMPLOYEES_QUERY = (variables: EmployeeSearchVariables = {}): string => {
   const search = (variables.search || '').trim()
@@ -36,18 +36,15 @@ export const SEARCH_EMPLOYEES_QUERY = (variables: EmployeeSearchVariables = {}):
       Employee(
         limit: ${limit}
         offset: ${offset}
-        orderBy: { displayName: ASC }
+        orderBy: { firstName: ASC }
         where: {
-          isDeleted: { _eq: false }
           _and: [
-            {
-              _or: [
-                { displayName: { _ilike: "%${search}%" } },
-                { firstName: { _ilike: "%${search}%" } },
-                { lastName: { _ilike: "%${search}%" } },
-                { email: { _ilike: "%${search}%" } }
-              ]
-            }
+            { isDeleted: { _eq: false } }
+            { _or: [
+              { firstName: { _ilike: "%${search}%" } }
+              { lastName: { _ilike: "%${search}%" } }
+              { code: { _ilike: "%${search}%" } }
+            ]}
           ]
         }
       ) {
@@ -56,11 +53,10 @@ export const SEARCH_EMPLOYEES_QUERY = (variables: EmployeeSearchVariables = {}):
         firstName
         lastName
         userId
-        email
         pictureThumbnail
         employeePosition {
           jobPosition { name }
-          organizationalUnit { id name }
+          organizationalUnit { name }
         }
       }
     }
@@ -79,7 +75,7 @@ export class EmployeeSearchService {
     // a standalone client.
     this.graphqlClient = {
       request: async <T>(query: string): Promise<T> => {
-        const baseUrl = import.meta.env.VITE_GRAPHQL_URL || 'https://newwork-dev.newwork.com/data-api/graphql'
+        const baseUrl = import.meta.env.VITE_GRAPHQL_URL || 'https://newwork-dev.newwork.com/v1/graphql'
 
         const response = await fetch(baseUrl, {
           method: 'POST',
@@ -119,7 +115,6 @@ export class EmployeeSearchService {
         firstName: e.firstName,
         lastName: e.lastName,
         userId: e.userId,
-        email: e.email,
         pictureThumbnail: e.pictureThumbnail,
         organizationalUnitName: e.employeePosition?.organizationalUnit?.name,
         jobPositionName: e.employeePosition?.jobPosition?.name
