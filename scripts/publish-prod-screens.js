@@ -345,7 +345,7 @@ async function handleResourceUrlSynchronization(screenPath, azureDestinationPath
           authorization: `Bearer ${accessToken}`,
           'content-type': 'application/json'
         },
-        timeout: 10000
+        timeout: 30000
       })
 
       console.log(`   ✅ Resource URL successfully registered in prod: ${devResourceUrl.url}`)
