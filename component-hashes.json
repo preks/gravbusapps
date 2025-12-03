@@ -1,14 +1,1 @@
-{
-  "OpportunityOverview-crm-overview-screens-OpportunityOverview-OpportunityOverview": "cfdeae1ab4654aadabf44ca68e0874d7",
-  "AbsenceManagementHub-hr-absence-overview-screens-AbsenceManagementHub-AbsenceManagementHub": "18d154d409777cab9d3b2021b9e32045",
-  "KPISection-hr-absence-overview-screens-KPISection-KPISection": "8348e2108fa410c5d828c55142701c10",
-  "AppHeader-hr-absence-overview-screens-AppHeader-AppHeader": "2f9722f17a6888f6f2f6ce85378cb9cf",
-  "HeroBanner-hr-absence-overview-screens-HeroBanner-HeroBanner": "a611ee2633bc9ba32e2e4f516e209bf9",
-  "QuickActions-hr-absence-overview-screens-QuickActions-QuickActions": "49cff7f877a6114df3dc9ed725d30c09",
-  "InsightsSection-hr-absence-overview-screens-InsightsSection-InsightsSection": "0fbd76cebd16fe1fd7fc916ed1be8716",
-  "AbsenceOverview-hr-absence-overview-screens-AbsenceOverview-AbsenceOverview": "14434f22ded61b120df9be2a5918d473",
-  "LeadDetail-irm-detail-screens-LeadDetail-LeadDetail": "c55268afa2da6584dae3d5aa7796c9e6",
-  "LeadOverview-irm-overview-screens-LeadOverview-LeadOverview": "f6845a4cfeb9851fcf0cabc471207680",
-  "KanbanBoard-irm-kanban-board-KanbanBoard": "9ea6f560fb6501dc8f7c1cfd001904f6",
-  "ProfileOverview-irm-contact-screens-ProfileOverview-ProfileOverview": "bae21744bcd5792cea6b9d9b096c1fe5"
-}
+{}
