@@ -1,6 +1,7 @@
 import React from 'react'
 import { useEmployeeDetails } from '../../queries/employeeQueries'
 import { AvatarWithInitials } from '../shared/AvatarWithInitials'
+import { navigateTo } from '@/common/utils/navigationUtils'
 
 interface EmployeeLinkChipProps {
   employeeId: string
@@ -28,7 +29,14 @@ const EmployeeLinkChip: React.FC<EmployeeLinkChipProps> = ({ employeeId, token }
   return (
     <a
       href={state.employee?.profileUrl}
+      data-testid={`every-ai-employee-link-chip-${state.employee.id}`}
       className="gba:inline-flex gba:items-center gba:gap-1 gba:px-2 gba:py-0.5 gba:rounded-full gba:bg-muted hover:gba:bg-accent gba:text-sm gba:cursor-pointer gba:transition-colors"
+      onClick={e => {
+        e.preventDefault()
+        if (state.employee?.profileUrl) {
+          navigateTo(state.employee.profileUrl)
+        }
+      }}
     >
       <AvatarWithInitials
         firstName={state.employee.firstName}

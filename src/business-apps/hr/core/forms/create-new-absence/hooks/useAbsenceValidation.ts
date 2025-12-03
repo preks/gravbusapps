@@ -15,7 +15,8 @@ import {
   extractHalfDayDates,
   calculateDateRangeBreakdown,
   type HolidayEntry,
-  type DateRangeBreakdown
+  type DateRangeBreakdown,
+  type WorkingHours
 } from '../utils/workingDaysCalculator'
 
 dayjs.extend(isSameOrBefore)
@@ -25,7 +26,8 @@ import {
   getEmployeeAbsenceBalance,
   getTodayAbsences,
   employeeRegionLookupQuery,
-  employmentRegionHolidaysQuery
+  employmentRegionHolidaysQuery,
+  employeeWorkingHoursQuery
 } from '../queries/getEmployeeAbsences'
 
 export interface AbsenceValidationError {
@@ -96,6 +98,7 @@ export const useAbsenceValidation = ({
   const [existingSickLeave, setExistingSickLeave] = useState<EmployeeAbsence | null>(null)
   const [holidays, setHolidays] = useState<HolidayEntry[]>([])
   const [dateRangeBreakdown, setDateRangeBreakdown] = useState<DateRangeBreakdown | null>(null)
+  const [workingHours, setWorkingHours] = useState<WorkingHours | null>(null)
 
   const { details: absenceTypeDetails } = useAbsenceTypeDetails(context, selectedType)
 
@@ -226,7 +229,21 @@ export const useAbsenceValidation = ({
       }
     }
 
+    const fetchWorkingHours = async () => {
+      try {
+        const workingHoursRes = await client.request(employeeWorkingHoursQuery, {
+          employeeId
+        })
+
+        const workingHoursData: WorkingHours | null = workingHoursRes?.employee?.[0]?.workingHours?.[0] || null
+        setWorkingHours(workingHoursData)
+      } catch {
+        setWorkingHours(null)
+      }
+    }
+
     fetchRegionAndHolidays()
+    fetchWorkingHours()
   }, [accessToken, employeeId, client])
 
   useEffect(() => {
@@ -344,9 +361,9 @@ export const useAbsenceValidation = ({
           if (newPriority >= existingPriority) {
             errors.push({
               type: 'overlap',
-              message: `There is already a ${absenceTypeName} absence scheduled from ${existingStart.format(
+              message: `${getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.absence_exists', 'There is already a')} ${absenceTypeName} ${getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.absence_scheduled', 'absence scheduled')} ${getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.from', 'from')} ${existingStart.format(
                 getDateFormat('date-long')
-              )} to ${existingEnd.format(getDateFormat('date-long'))}.`,
+              )} ${getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.to', 'to')} ${existingEnd.format(getDateFormat('date-long'))}.`,
               details: {
                 conflictingAbsence: absence,
                 conflictingDates: {
@@ -391,7 +408,10 @@ export const useAbsenceValidation = ({
       if (!absenceBalance) {
         warnings.push({
           type: 'balance',
-          message: 'Unable to verify absence balance. Please check manually.',
+          message: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:hr_absences.unable_to_verify_absence_balance',
+            'Unable to verify absence balance. Please check manually.'
+          ),
           details: { reason: 'no_balance_info' }
         })
         return { errors, warnings }
@@ -406,15 +426,16 @@ export const useAbsenceValidation = ({
         requestedDays = calculateWorkingDays(newStartDate, newEndDate, {
           holidays,
           excludeWeekends: true,
-          halfDayDates
+          halfDayDates,
+          workingHours
         })
 
-        const breakdown = calculateDateRangeBreakdown(newStartDate, newEndDate, holidays)
+        const breakdown = calculateDateRangeBreakdown(newStartDate, newEndDate, holidays, workingHours)
         setDateRangeBreakdown(breakdown)
       } else {
         requestedDays = dayjs(newEndDate).diff(dayjs(newStartDate), 'day') + 1
 
-        const breakdown = calculateDateRangeBreakdown(newStartDate, newEndDate, holidays)
+        const breakdown = calculateDateRangeBreakdown(newStartDate, newEndDate, holidays, workingHours)
         setDateRangeBreakdown(breakdown)
       }
 
@@ -462,7 +483,10 @@ export const useAbsenceValidation = ({
       if (dayjs(validationEndDate).isBefore(dayjs(validationStartDate).subtract(1, 'day'))) {
         const dateOrderError: AbsenceValidationError = {
           type: 'general',
-          message: 'End date must be after start date'
+          message: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:hr_absences.end_date_must_be_after_start_date',
+            'End date must be after start date'
+          )
         }
         setValidationErrors([dateOrderError])
         return [dateOrderError]

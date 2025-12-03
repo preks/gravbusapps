@@ -18,9 +18,17 @@ import translations from '../../_i18n'
 
 interface SalaryFrequencySelectorProps {
   control: Control<AdjustEmployeeSalaryFormValues>
+  /** Whether hourly salary data exists for this employee */
+  hasHourlySalary?: boolean
+  /** Whether annual/monthly salary data exists for this employee */
+  hasAnnualMonthlySalary?: boolean
 }
 
-const SalaryFrequencySelector: React.FC<SalaryFrequencySelectorProps> = ({ control }) => {
+const SalaryFrequencySelector: React.FC<SalaryFrequencySelectorProps> = ({
+  control,
+  hasHourlySalary = false,
+  hasAnnualMonthlySalary = true
+}) => {
   const { t } = useTranslation(translations)
   const placeholderSelect = t('action-select-placeholder', { defaultValue: 'Please Select' })
 
@@ -50,13 +58,25 @@ const SalaryFrequencySelector: React.FC<SalaryFrequencySelectorProps> = ({ contr
               </SelectTrigger>
             </FormControl>
             <SelectContent>
-              <SelectItem value="annually" data-testid="adjust-employee-salary-frequency-option-annually">
+              <SelectItem
+                value="annually"
+                disabled={!hasAnnualMonthlySalary}
+                data-testid="adjust-employee-salary-frequency-option-annually"
+              >
                 {t('adjust-salary-frequency-annually')}
               </SelectItem>
-              <SelectItem value="monthly" data-testid="adjust-employee-salary-frequency-option-monthly">
+              <SelectItem
+                value="monthly"
+                disabled={!hasAnnualMonthlySalary}
+                data-testid="adjust-employee-salary-frequency-option-monthly"
+              >
                 {t('adjust-salary-frequency-monthly')}
               </SelectItem>
-              <SelectItem value="hourly" data-testid="adjust-employee-salary-frequency-option-hourly">
+              <SelectItem
+                value="hourly"
+                disabled={!hasHourlySalary}
+                data-testid="adjust-employee-salary-frequency-option-hourly"
+              >
                 {t('adjust-salary-frequency-hourly')}
               </SelectItem>
             </SelectContent>

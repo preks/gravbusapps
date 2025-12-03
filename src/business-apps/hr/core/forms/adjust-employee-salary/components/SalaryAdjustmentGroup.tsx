@@ -48,10 +48,27 @@ const SalaryAdjustmentGroup: React.FC<SalaryAdjustmentGroupProps> = ({
   const amountIncrease = useWatch({ control, name: 'amountIncrease' }) || null
   const percentageIncrease = useWatch({ control, name: 'percentageIncrease' }) || null
 
+  // Detect "assign salary" mode: when employee has no existing salary data
+  const isAssignMode =
+    currentSalaryAnnual <= 0 &&
+    (currentSalaryMonthly == null || currentSalaryMonthly <= 0) &&
+    (currentSalaryHourly == null || currentSalaryHourly <= 0)
+
+  // Determine which salary types are available:
+  // - In "assign" mode: all options enabled (new employee, no existing salary)
+  // - In "adjust" mode: only enable options with existing salary data
+  const hasHourlySalary = isAssignMode || (currentSalaryHourly != null && currentSalaryHourly > 0)
+  const hasAnnualMonthlySalary =
+    isAssignMode || currentSalaryAnnual > 0 || (currentSalaryMonthly != null && currentSalaryMonthly > 0)
+
   return (
     <div className="gba:space-y-4" data-testid="adjust-employee-salary-details-group">
-      {/* Frequency Selector */}
-      <SalaryFrequencySelector control={control} />
+      {/* Frequency Selector - with availability props to disable unavailable options */}
+      <SalaryFrequencySelector
+        control={control}
+        hasHourlySalary={hasHourlySalary}
+        hasAnnualMonthlySalary={hasAnnualMonthlySalary}
+      />
 
       {/* Current Salary Display - Reduced top spacing */}
       <div className="gba:-mt-2">

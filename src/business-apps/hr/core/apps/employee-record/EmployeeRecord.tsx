@@ -189,7 +189,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   const activeStructureId = getCurrentActiveStructureId()
   const devFeatureFlag = useFeature(Feature.Dev.Enabled.Key)
   const changeLogFeatureFlag = useFeature('dev.employee-record.changelog.enabled')
-  const previewFeatureFlag = useFeature('preview.enabled')
+  const servicesFeatureFlag = useFeature('services.enabled')
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -425,7 +425,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
                   <PiCurrencyEur className="gba:text-xl gba:inline-block gba:align-middle" />
                   <span className="gba:inline-block gba:align-middle">
                     {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:employee_profile.employee_tabs.compensation',
+                      'lowcoder:human_resources_page.analytics_section.compensation_tab_label',
                       'Compensation'
                     )}
                   </span>
@@ -514,7 +514,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
             }
           ]
         : []),
-      ...(previewFeatureFlag
+      ...(servicesFeatureFlag
         ? [
             {
               key: TAB_KEYS.serviceRequests,

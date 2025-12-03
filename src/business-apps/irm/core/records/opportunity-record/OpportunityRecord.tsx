@@ -26,8 +26,7 @@ import { formatCurrency, extractCurrencyCode } from '@/common/utils/numberFormat
 import { getOpportunityStatusBadgeVariant, getOpportunityForecastBadgeVariant } from '@/common/utils/badgeUtils'
 import { useAiSummary } from './hooks/useAiSummary'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
-import { AppAction } from '@/components/app-action/AppAction'
+import { AppAction } from '@/components/app-action'
 import { Bot } from 'lucide-react'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
 import { useProspectRejectionReasons } from '@/common/data/investment/hooks/useProspectRejectionReasons'
@@ -430,17 +429,25 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
   // Memoize header action button to prevent recreation
   const headerActionButton = useMemo(
     () => (
-      <AppActionButton
-        size="icon"
-        contextsArray={[FlowContextName.investmentOpportunityEntity]}
-        externalContextData={{ opportunityId }}
+      <AppAction
+        variant="header"
+        contexts={[
+          {
+            context: FlowContextName.investmentOpportunityEntity,
+            contextData: { opportunityId }
+          }
+        ]}
+        shareContext={{
+          entityType: 'investment-opportunity',
+          entityId: opportunityId,
+          entityName: opportunityData?.name || 'Opportunity',
+          entityUrl: `/platform/irm/opportunity-record?opportunityId=${opportunityId}`
+        }}
         prefixDataTestId="opportunity-record-action"
-        emptyStateBehavior="hide"
-        deferMainContextRequestsUntilClick={false}
         accessToken={props.accessToken}
       />
     ),
-    [opportunityId, props.accessToken]
+    [opportunityId, opportunityData?.name, props.accessToken]
   )
 
   // Memoize action props to prevent recreation and unnecessary re-renders
@@ -894,7 +901,12 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                   component: ContactSection,
                   props: {
                     ...props,
-                    contacts: opportunityData?.opportunityContacts?.map((ioc: any) => ioc.contact).filter(Boolean),
+                    contacts: opportunityData?.opportunityContacts
+                      ?.map((ioc: any) => ({
+                        ...ioc.contact,
+                        contactType: ioc.contactType
+                      }))
+                      .filter(Boolean),
                     contactId: opportunityData?.opportunityContacts?.[0]?.contact?.id,
                     recordUrl: opportunityData?.opportunityContacts?.[0]?.contact?.id
                       ? buildPlatformUrl('/platform/irm/contact-record', {

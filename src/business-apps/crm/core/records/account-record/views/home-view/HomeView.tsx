@@ -285,7 +285,8 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
                 accountData?.accountContacts
                   ?.map((ac: any) => ({
                     ...ac.contact,
-                    jobPosition: ac.contact?.jobTitle // Map CRM jobTitle to jobPosition for ContactSection
+                    jobPosition: ac.contact?.jobTitle, // Map CRM jobTitle to jobPosition for ContactSection
+                    contactType: ac.contactType
                   }))
                   .filter(Boolean) || [],
               contactId: accountData?.accountContacts?.[0]?.contact?.id || undefined,

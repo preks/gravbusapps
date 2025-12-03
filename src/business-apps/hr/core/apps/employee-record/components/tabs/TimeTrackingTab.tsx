@@ -29,8 +29,29 @@ const TimeTrackingTab: React.FC<TimeTrackingTabProps> = ({ employee, accessToken
 
   return (
     <div className="gba:time-tracking-tab gba:space-y-6" data-testid="time-tracking-tab-container">
-      <div className="gba:flex gba:items-start gba:justify-between" data-testid="time-tracking-header">
-        <div>
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="gba:w-full">
+        <TabsList className="gba:mb-4 gba:w-full" data-testid="tabs-list">
+          <TabsTrigger value="monthly-summary" data-testid="monthly-summary-subtab" className="gba:flex-1">
+            <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
+              <span>{getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.summary.title', 'Timesheet')}</span>
+            </div>
+          </TabsTrigger>
+          <TabsTrigger value="history" data-testid="history-subtab" className="gba:flex-1">
+            <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
+              <span>{getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.activity_log', 'Activity log')}</span>
+            </div>
+          </TabsTrigger>
+          {/* Disable smart booking tab for now until it is implemented on BE */}
+          {/* <TabsTrigger value="smart-booking" data-testid="smart-booking-subtab" className="gba:flex-1">
+            <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
+              <span>
+                {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.title', 'Project time booking')}
+              </span>
+            </div>
+          </TabsTrigger> */}
+        </TabsList>
+        {/* Title and subtitle under subtabs selector */}
+        <div className="gba:mb-2" data-testid="time-tracking-header">
           <div className="gba:font-bold gba:text-2xl" data-testid="time-tracking-title">
             {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.title', 'Time Tracking')}
           </div>
@@ -41,31 +62,6 @@ const TimeTrackingTab: React.FC<TimeTrackingTabProps> = ({ employee, accessToken
             )}
           </div>
         </div>
-      </div>
-
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="gba:w-full">
-        <TabsList className="gba:mb-4 gba:w-full" data-testid="tabs-list">
-          <TabsTrigger value="monthly-summary" data-testid="monthly-summary-subtab" className="gba:flex-1">
-            <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
-              <span>
-                {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.summary.title', 'Monthly summary')}
-              </span>
-            </div>
-          </TabsTrigger>
-          <TabsTrigger value="history" data-testid="history-subtab" className="gba:flex-1">
-            <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
-              <span>{getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.history', 'History')}</span>
-            </div>
-          </TabsTrigger>
-          {/* Disable smart booking tab for now until it is implemented on BE */}
-          {/* <TabsTrigger value="smart-booking" data-testid="smart-booking-subtab" className="gba:flex-1">
-            <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
-              <span>
-                {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.title', 'Smart booking')}
-              </span>
-            </div>
-          </TabsTrigger> */}
-        </TabsList>
         <TabsContent value="monthly-summary" data-testid="monthly-summary-content" className="gba:mt-4">
           <MonthlySummary
             employee={employee}

@@ -30,6 +30,23 @@ adjust-salary-frequency-hourly = Hourly
 adjust-salary-current-salary = Current Salary
 adjust-salary-calculation-breakdown = Salary Adjustment Summary
 
+# Assign Salary Mode (new employee without existing salary)
+assign-salary-title = Assign Employee Salary
+assign-salary-type = Salary Type
+assign-salary-type-required = Salary type is required. Please select a salary type.
+assign-salary-type-yearly-monthly = Yearly / Monthly
+assign-salary-type-hourly = Hourly
+assign-salary-annual-salary = Annual Gross Salary
+assign-salary-annual-salary-required = Annual salary is required. Please enter the annual salary.
+assign-salary-annual-salary-positive = Annual salary must be greater than zero.
+assign-salary-hourly-salary = Hourly Gross Salary
+assign-salary-hourly-salary-required = Hourly salary is required. Please enter the hourly salary.
+assign-salary-hourly-salary-positive = Hourly salary must be greater than zero.
+assign-salary-currency-required = Currency is required. Please select a currency.
+assign-salary-monthly-equivalent = Monthly Equivalent
+assign-salary-start-date = Start Date
+assign-salary-start-date-required = Start date is required. Please select a start date.
+
 # Adjust Employee Salary Review Form
 adjust-salary-review-title = Employee Salary Adjustment Review for { $employeeName }
 adjust-salary-review-initiated-by = Initiated by { $initiatorName }
@@ -68,18 +85,43 @@ placeholder-enter = Please Enter
 field-bonus-type = Bonus Type
 field-amount = Amount
 field-currency = Currency
-field-payment-date = Payment Date
+field-payment-month = Payment Month
 field-fiscal-year = Fiscal Year
-field-description = Description
 field-notes = Notes
 
 # Validation Messages
 validation-bonus-type-required = Bonus type is required. Please select a bonus type.
 validation-amount-required = Amount is required. Please enter the bonus amount.
 validation-amount-positive = Amount must be greater than zero.
-validation-currency-required = Currency is required. Please select a currency.
-validation-payment-date-required = Payment date is required. Please select a payment date.
-validation-payment-date-invalid = Please enter a valid payment date.
+validation-payment-month-required = Payment month is required. Please select a payment month.
+validation-payment-month-invalid = Please select a valid payment month.
 validation-fiscal-year-required = Fiscal year is required. Please enter the fiscal year.
 validation-fiscal-year-range = Fiscal year must be between {$minYear} and {$maxYear}.
 
+# Month Names
+month-january = January
+month-february = February
+month-march = March
+month-april = April
+month-may = May
+month-june = June
+month-july = July
+month-august = August
+month-september = September
+month-october = October
+month-november = November
+month-december = December
+
+# Grant Employee Bonus Review Form
+grant-bonus-review-title = Employee Bonus Review for { $employeeName }
+grant-bonus-review-initiated-by = Initiated by { $initiatorName }
+grant-bonus-review-bonus-details = Bonus Details
+grant-bonus-review-bonus-type = Bonus Type
+grant-bonus-review-amount = Amount
+grant-bonus-review-payment-month = Payment Month
+grant-bonus-review-fiscal-year = Fiscal Year
+grant-bonus-review-additional-info = Additional Information
+grant-bonus-review-description = Description
+grant-bonus-review-notes = Notes
+grant-bonus-review-acknowledge = Acknowledge
+grant-bonus-review-reject = Reject

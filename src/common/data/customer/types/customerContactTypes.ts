@@ -11,6 +11,7 @@ import {
 } from '@/common/data/relations/types/contactTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
+import { filterCommunicationChannels } from '@/common/data/common/utils/entityPayloadHelpers'
 import type { CustomerActivity } from './customerActivityTypes'
 import type { CustomerAddress } from './customerAddressTypes'
 import type { CustomerCommunicationChannel } from './customerCommunicationChannelTypes'
@@ -125,26 +126,12 @@ export const buildCustomerContactPayload = (contact: Partial<CustomerContact>) =
   // Build base payload using customerContactFormFields for field mapping
   const basePayload = buildPayload(contact, customerContactFormFields)
 
-  // Transform addressLine in addresses array: CRM expects string, not object
-  // Filter out empty lines before converting to string
-  if (basePayload.addresses && Array.isArray(basePayload.addresses)) {
-    basePayload.addresses = basePayload.addresses.map((addr: any) => {
-      if (addr.addressLine !== undefined && addr.addressLine !== null) {
-        if (typeof addr.addressLine === 'object' && addr.addressLine.lines) {
-          // Filter out empty lines (null, undefined, or empty string)
-          const filledLines = addr.addressLine.lines.filter(
-            (line: string | null | undefined) => line !== null && line !== undefined && line.trim() !== ''
-          )
-          // Only include addressLine if there are filled lines
-          if (filledLines.length > 0) {
-            addr.addressLine = JSON.stringify({ lines: filledLines })
-          } else {
-            delete addr.addressLine
-          }
-        }
-      }
-      return addr
-    })
+  // Filter communication channels
+  const filteredChannels = filterCommunicationChannels(basePayload.communicationChannels)
+  if (filteredChannels) {
+    basePayload.communicationChannels = filteredChannels
+  } else {
+    delete basePayload.communicationChannels
   }
 
   return {

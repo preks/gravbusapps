@@ -14,6 +14,8 @@ const ENTITY_URL_PATTERNS = [
   },
 
   // IRM entities (investment-specific)
+
+  { pattern: /\/platform\/irm\/investment-record\?[^#]*investmentId=([^&]+)/, entity_name: 'investment' },
   { pattern: /\/platform\/irm\/lead-record\?leadId=([^&]+)/, entity_name: 'investment_lead' },
   { pattern: /\/platform\/irm\/contact-record\?contactId=([^&]+)/, entity_name: 'investment_contact' },
   { pattern: /\/platform\/irm\/company-record\?companyId=([^&]+)/, entity_name: 'investment_company' },
@@ -29,7 +31,10 @@ const ENTITY_URL_PATTERNS = [
   // Employee/HR entities
   { pattern: /\/platform\/employee-record\?employeeId=([^&]+)/, entity_name: 'employee' },
   { pattern: /\/platform\/employee\/([^/?]+)/, entity_name: 'employee' },
-  { pattern: /\/platform\/orgchart\/([^/?]+)/, entity_name: 'employee' }
+  { pattern: /\/platform\/orgchart\/([^/?]+)/, entity_name: 'employee' },
+
+  // Content entities
+  { pattern: /\/platform\/content\/intranet\/content-record\?[^#]*contentId=([^&]+)/, entity_name: 'content_entry' }
 ] as const
 
 /**
@@ -48,7 +53,81 @@ const OVERVIEW_URL_PATTERNS = [
   { pattern: /\/platform\/irm\/investment-relations\?view=leads/, entity_name: 'investment_lead' },
   { pattern: /\/platform\/irm\/investment-relations\?view=contacts/, entity_name: 'investment_contact' },
   { pattern: /\/platform\/irm\/investment-relations\?view=companies/, entity_name: 'investment_company' },
-  { pattern: /\/platform\/irm\/investment-relations\?view=accounts/, entity_name: 'investment_account' }
+  { pattern: /\/platform\/irm\/investment-relations\?view=accounts/, entity_name: 'investment_account' },
+
+  // IRM investment-management overviews
+  { pattern: /\/platform\/irm\/investment-management\?view=investments/, entity_name: 'investment' }
+] as const
+
+/**
+ * Local dev (dynamic screen loader) app routes and matching entity configuration
+ */
+const APP_ENTITY_PATTERNS = [
+  {
+    pattern: /investments\/records\/investment-record$/,
+    entity_name: 'investment',
+    idParams: ['investmentId']
+  },
+  {
+    pattern: /investments\/records\/lead-record$/,
+    entity_name: 'investment_lead',
+    idParams: ['leadId']
+  },
+  {
+    pattern: /investments\/records\/contact-record$/,
+    entity_name: 'investment_contact',
+    idParams: ['contactId']
+  },
+  {
+    pattern: /investments\/records\/company-record$/,
+    entity_name: 'investment_company',
+    idParams: ['companyId']
+  },
+  {
+    pattern: /investments\/records\/account-record$/,
+    entity_name: 'investment_account',
+    idParams: ['accountId']
+  },
+  {
+    pattern: /crm\/opportunity-record$/,
+    entity_name: 'opportunity',
+    idParams: ['opportunityId']
+  },
+  {
+    pattern: /crm\/core\/records\/opportunity-record$/,
+    entity_name: 'opportunity',
+    idParams: ['opportunityId', 'id']
+  },
+  {
+    pattern: /crm\/lead-record$/,
+    entity_name: 'lead',
+    idParams: ['leadId']
+  },
+  {
+    pattern: /crm\/core\/records\/lead-record$/,
+    entity_name: 'lead',
+    idParams: ['leadId']
+  },
+  {
+    pattern: /crm\/contact-record$/,
+    entity_name: 'contact',
+    idParams: ['contactId']
+  },
+  {
+    pattern: /crm\/core\/records\/contact-record$/,
+    entity_name: 'contact',
+    idParams: ['contactId']
+  },
+  {
+    pattern: /crm\/account-record$/,
+    entity_name: 'account',
+    idParams: ['accountId']
+  },
+  {
+    pattern: /crm\/core\/records\/account-record$/,
+    entity_name: 'account',
+    idParams: ['accountId']
+  }
 ] as const
 
 /**
@@ -79,6 +158,27 @@ export function parsePageContext(url: string): CurrentPageContext {
         return {
           type: 'overview',
           entity_name
+        }
+      }
+    }
+
+    // Support local dev URLs loaded via dynamic screen loader (?app=...)
+    const appParam = urlObj.searchParams.get('app')
+    if (appParam) {
+      const normalizedApp = decodeURIComponent(appParam).replace(/^\//, '').split('?')[0]
+
+      for (const { pattern, entity_name, idParams } of APP_ENTITY_PATTERNS) {
+        if (pattern.test(normalizedApp)) {
+          for (const idParam of idParams) {
+            const entityId = urlObj.searchParams.get(idParam)
+            if (entityId) {
+              return {
+                type: 'entity',
+                entity_name,
+                id: entityId
+              }
+            }
+          }
         }
       }
     }
