@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react'
-import type { ContentEntry } from '@/common/data/content/types/contentTypes'
-import type { ContentDocument } from '@/common/data/content/types/contentTypes'
+import type { ContentEntry, ContentDocument } from '@/common/data/content/types/contentTypes'
 import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
 
 /**

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react'
-import { useTranslation, Button, Alert, AlertTitle, AlertDescription, Card, Skeleton } from '@newwork/nw-design-system'
+import { useTranslation, Button, Alert, AlertTitle, AlertDescription, Skeleton } from '@newwork/nw-design-system'
 import { useContentEntries } from '@/common/data/content/hooks/useContentEntries'
 import { ContentRole, ContentGroup } from '@/common/data/content/types/contentEnums'
 import ContentCard from '../../components/cards/ContentCard'
@@ -12,14 +12,16 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useKnowledgeCategories } from '../../hooks/useKnowledgeCategories'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { useInfiniteScroll } from '@/common/hooks/useInfiniteScroll'
-import { BookOpen, ChevronRight, Folder, Eye } from 'lucide-react'
+import { BookOpen, ChevronRight } from 'lucide-react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import CategorySidebar from './components/CategorySidebar'
+import FeaturedArticlesSection from './components/FeaturedArticlesSection'
+import RegularArticlesSection from './components/RegularArticlesSection'
 import translations from '../../_i18n'
 
 const PAGE_SIZE = 20
 
 interface KnowledgeViewProps extends BusinessAppContextProps {
-  onNavigate?: (tab: string) => void
   hideBanner?: boolean
   currentTab?: string
   allowedReactions?: string[]
@@ -183,11 +185,15 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
             <div className="gba:flex gba:gap-2 gba:items-center">
               <SearchInput onSearch={handleSearch} placeholder={t('search_knowledge')} className="gba:w-[300px]" />
               <AppAction
-                contextsArray={[FlowContextName.contentEntryCreate]}
-                externalContextData={{ contentGroup: ContentGroup.KNOWLEDGE }}
+                contexts={[
+                  {
+                    context: FlowContextName.contentEntryCreate,
+                    contextData: { contentGroup: ContentGroup.KNOWLEDGE }
+                  }
+                ]}
                 accessToken={accessToken}
-                emptyStateBehavior="enable"
-                deferMainContextRequestsUntilClick
+                emptyState="enable"
+                lazyLoad
                 data-testid="knowledge-view-create-button"
               >
                 <Button>{t('create_article')}</Button>
@@ -198,55 +204,13 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
 
         {/* Wiki Layout: Sidebar + Content */}
         <div className="gba:grid gba:grid-cols-[260px_1fr] gba:gap-6">
-          {/* Left Sidebar - Category Navigation */}
-          <div className="gba:sticky gba:top-4 gba:h-fit">
-            <Card className="gba:p-4">
-              <h3 className="gba:text-sm gba:font-semibold gba:mb-4 gba:text-muted-foreground gba:uppercase">
-                {t('categories')}
-              </h3>
-
-              {categoriesLoading ? (
-                <div className="gba:text-sm gba:text-muted-foreground gba:py-2">{t('loading')}</div>
-              ) : (
-                <nav className="gba:space-y-1">
-                  <button
-                    onClick={() => handleCategoryClick(null)}
-                    className={`gba:w-full gba:flex gba:items-center gba:justify-between gba:px-3 gba:py-2 gba:rounded-md gba:text-sm gba:transition-colors ${
-                      selectedCategoryRef === null
-                        ? 'gba:bg-primary gba:text-primary-foreground'
-                        : 'gba:hover:bg-accent gba:text-foreground'
-                    }`}
-                    data-testid="knowledge-category-all"
-                  >
-                    <span className="gba:flex gba:items-center gba:gap-2">
-                      <Folder className="gba:w-4 gba:h-4" />
-                      {t('all_articles')}
-                    </span>
-                    <ChevronRight className="gba:w-4 gba:h-4" />
-                  </button>
-
-                  {categories.map(category => (
-                    <button
-                      key={category.id}
-                      onClick={() => handleCategoryClick(category.id)}
-                      className={`gba:w-full gba:flex gba:items-center gba:justify-between gba:px-3 gba:py-2 gba:rounded-md gba:text-sm gba:transition-colors ${
-                        selectedCategoryRef === category.id
-                          ? 'gba:bg-primary gba:text-primary-foreground'
-                          : 'gba:hover:bg-accent gba:text-foreground'
-                      }`}
-                      data-testid={`knowledge-category-${category.code?.toLowerCase()}`}
-                    >
-                      <span className="gba:flex gba:items-center gba:gap-2">
-                        <Folder className="gba:w-4 gba:h-4" />
-                        {category.value}
-                      </span>
-                      <ChevronRight className="gba:w-4 gba:h-4" />
-                    </button>
-                  ))}
-                </nav>
-              )}
-            </Card>
-          </div>
+          <CategorySidebar
+            categories={categories}
+            isLoading={categoriesLoading}
+            selectedCategoryRef={selectedCategoryRef}
+            onCategoryClick={handleCategoryClick}
+            t={t}
+          />
 
           {/* Main Content Area */}
           <div>
@@ -264,7 +228,7 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
               </div>
             )}
 
-            {/* Featured Articles Section - Wiki Style with Content Preview */}
+            {/* Featured Articles Section */}
             {isLoading ? (
               <div className="gba:mb-8">
                 <Skeleton className="gba:h-6 gba:w-48 gba:mb-4" />
@@ -272,110 +236,30 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
                   <ContentCardSkeleton variant="horizontal" count={3} />
                 </div>
               </div>
-            ) : featuredArticles.length > 0 && isInitialLoad && !searchQuery ? (
-              <div className="gba:mb-8">
-                <h2 className="gba:text-xl gba:font-semibold gba:mb-4 gba:text-foreground">{t('recent_articles')}</h2>
-                <div className="gba:space-y-4">
-                  {featuredArticles.map(entry => (
-                    <Card
-                      key={entry.id}
-                      className="gba:p-6 gba:cursor-pointer gba:hover:shadow-lg gba:transition-shadow"
-                      onClick={() => handleArticleClick(entry.id)}
-                      data-testid={`featured-article-${entry.id}`}
-                    >
-                      <div className="gba:flex gba:gap-6">
-                        {entry.picture && (
-                          <div className="gba:w-48 gba:h-32 gba:rounded-lg gba:overflow-hidden gba:shrink-0">
-                            <img
-                              src={entry.picture}
-                              alt={entry.title || ''}
-                              className="gba:w-full gba:h-full gba:object-cover"
-                            />
-                          </div>
-                        )}
-                        <div className="gba:flex-1">
-                          <h3 className="gba:text-2xl gba:font-bold gba:mb-2 gba:text-foreground gba:hover:text-primary gba:transition-colors">
-                            {entry.title}
-                          </h3>
-                          {entry.previewText && (
-                            <p className="gba:text-sm gba:text-muted-foreground gba:mb-3 gba:italic">
-                              {truncateText(entry.previewText, 150)}
-                            </p>
-                          )}
-                          {entry.description && (
-                            <div
-                              className="gba:text-foreground gba:leading-relaxed gba:mb-4"
-                              dangerouslySetInnerHTML={{
-                                __html: truncateText(entry.description.replace(/<[^>]+>/g, ''), 300)
-                              }}
-                            />
-                          )}
-                          <div className="gba:flex gba:items-center gba:gap-4 gba:text-sm gba:text-muted-foreground">
-                            <div className="gba:flex gba:items-center gba:gap-1">
-                              <Eye className="gba:w-4 gba:h-4" />
-                              <span>{entry.viewCount || 0} views</span>
-                            </div>
-                            {entry.contentEntryReactionCounts && entry.contentEntryReactionCounts.length > 0 && (
-                              <span className="gba:flex gba:items-center gba:gap-1">
-                                <span>❤️</span>
-                                {entry.contentEntryReactionCounts.reduce((sum, item) => sum + (item.count || 0), 0)}
-                              </span>
-                            )}
-                            {entry.createdAt && (
-                              <span>
-                                {new Date(entry.createdAt).toLocaleDateString('en-US', {
-                                  year: 'numeric',
-                                  month: 'short',
-                                  day: 'numeric'
-                                })}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-            ) : null}
+            ) : (
+              <FeaturedArticlesSection
+                articles={featuredArticles}
+                onArticleClick={handleArticleClick}
+                truncateText={truncateText}
+                t={t}
+              />
+            )}
 
             {/* Regular Articles Grid */}
-            {isLoading ? (
-              <div className="gba:mb-4">
-                <Skeleton className="gba:h-6 gba:w-48 gba:mb-4" />
-                <div className="gba:grid gba:grid-cols-3 gba:gap-4 gba:mb-8">
-                  <ContentCardSkeleton count={9} />
-                </div>
-              </div>
-            ) : regularArticles.length > 0 ? (
-              <div className="gba:mb-4">
-                <h2 className="gba:text-xl gba:font-semibold gba:mb-4 gba:text-foreground">
-                  {isInitialLoad && !searchQuery ? t('more_articles') : t('all_articles')}
-                </h2>
-                <div className="gba:grid gba:grid-cols-3 gba:gap-4 gba:mb-8">
-                  {regularArticles.map(entry => {
-                    const item = entry
-                    const translated = translatedItems?.[item.id || '']
-                    return (
-                      <ContentCard
-                        key={item.id}
-                        item={item}
-                        variant="knowledge"
-                        currentTab={currentTab}
-                        accessToken={accessToken}
-                        userInfo={userInfo}
-                        allowedReactions={allowedReactions}
-                        reactionCatalogMap={reactionCatalogMap}
-                        onReactionsRefetch={refetch}
-                        authorLabel="Creator"
-                        translatedTitle={translated?.title}
-                        translatedPreview={translated?.preview}
-                      />
-                    )
-                  })}
-                </div>
-              </div>
-            ) : null}
+            <RegularArticlesSection
+              articles={regularArticles}
+              isLoading={isLoading}
+              isInitialLoad={isInitialLoad}
+              searchQuery={searchQuery}
+              currentTab={currentTab}
+              accessToken={accessToken}
+              userInfo={userInfo}
+              allowedReactions={allowedReactions}
+              reactionCatalogMap={reactionCatalogMap}
+              translatedItems={translatedItems}
+              onReactionsRefetch={refetch}
+              t={t}
+            />
 
             {/* Show all articles in grid if searching or not on first page */}
             {(searchQuery || !isInitialLoad) && data.length > 0 && (

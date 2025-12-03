@@ -67,13 +67,13 @@ export const EmployeeHoverCard: React.FC<EmployeeHoverCardProps> = ({ employee, 
 
   const handleEmailClick = () => {
     if (employeeWorkEmail) {
-      window.location.href = `mailto:${employeeWorkEmail}`
+      globalThis.window.location.href = `mailto:${employeeWorkEmail}`
     }
   }
 
   const handlePhoneClick = () => {
     if (employeeWorkPhone) {
-      window.location.href = `tel:${employeeWorkPhone}`
+      globalThis.window.location.href = `tel:${employeeWorkPhone}`
     }
   }
 

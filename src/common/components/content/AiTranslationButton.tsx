@@ -179,14 +179,15 @@ export const AiTranslationButton: React.FC<AiTranslationButtonProps> = ({
     const searchLower = debouncedSearchQuery.toLowerCase().trim()
 
     // Filter priority languages - show all if no search, or only matching ones if searching
-    const priorityToShow = !searchLower
-      ? priorityLanguages
-      : priorityLanguages.filter(
-          lang =>
-            lang.value.toLowerCase().includes(searchLower) ||
-            lang.code?.toLowerCase().includes(searchLower) ||
-            lang.id.toLowerCase().includes(searchLower)
-        )
+    const priorityToShow =
+      searchLower === ''
+        ? priorityLanguages
+        : priorityLanguages.filter(
+            lang =>
+              lang.value.toLowerCase().includes(searchLower) ||
+              lang.code?.toLowerCase().includes(searchLower) ||
+              lang.id.toLowerCase().includes(searchLower)
+          )
 
     // Sort regular languages alphabetically by value
     const sortedLanguages = [...languages].sort((a, b) => {

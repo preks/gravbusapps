@@ -84,17 +84,18 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
         })
 
         // Sort emoji codes by display order
-        const sortedCodes = [...allowedCodes].sort((a, b) => {
+        const sortByDisplayOrder = (a: string, b: string): number => {
           const entryA = result.entries.find(e => e.additionalValue2 === a)
           const entryB = result.entries.find(e => e.additionalValue2 === b)
           return (entryA?.displayOrder || 0) - (entryB?.displayOrder || 0)
-        })
+        }
+        const sortedCodes = [...allowedCodes].sort(sortByDisplayOrder)
 
         setAllowedReactions(sortedCodes)
         setReactionCatalogMap(catalogMap)
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      } catch (_error) {
+      } catch (error) {
         // Fallback to default reactions
+        console.error('Error loading reactions catalog:', error)
         setAllowedReactions([
           '1f44d', // 👍
           '2764-fe0f', // ❤️
@@ -115,7 +116,7 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
 
   // Initialize activeTab from props or URL query parameter
   const initialTab = useMemo(() => {
-    return context.tab || new URLSearchParams(window.location.search).get('tab') || 'home'
+    return context.tab || new URLSearchParams(globalThis.window.location.search).get('tab') || 'home'
   }, [context.tab])
 
   const [activeTab, setActiveTab] = useState(initialTab)
@@ -126,10 +127,10 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
 
   // Update URL when tab changes
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const url = new URL(window.location.href)
+    if (typeof globalThis.window !== 'undefined') {
+      const url = new URL(globalThis.window.location.href)
       url.searchParams.set('tab', activeTab)
-      window.history.replaceState({}, '', url.toString())
+      globalThis.window.history.replaceState({}, '', url.toString())
     }
   }, [activeTab])
 

@@ -27,8 +27,10 @@ export interface BusinessAppInfo {
   module: string
   subModule?: string
   screenKey: string
-  type: 'app' | 'form' | 'popup' | 'window'
+  type: BusinessAppType
 }
+
+type BusinessAppType = 'app' | 'form' | 'popup' | 'window'
 
 export interface IDEMainMenuProps {
   businessApps: BusinessAppInfo[]

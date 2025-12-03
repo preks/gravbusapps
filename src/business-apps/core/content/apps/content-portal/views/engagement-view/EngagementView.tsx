@@ -15,9 +15,7 @@ import { useUserEngagement } from '../../hooks/useUserEngagement'
 import { Eye, Heart, MessageCircle, HelpCircle, Target, Trophy, TrendingUp, Upload } from 'lucide-react'
 import translations from '../../_i18n'
 
-interface EngagementViewProps extends BusinessAppContextProps {
-  hideBanner?: boolean
-}
+type EngagementViewProps = BusinessAppContextProps
 
 interface AchievementLevel {
   name: string
@@ -176,8 +174,8 @@ const EngagementView: React.FC<EngagementViewProps> = ({ accessToken, userInfo }
         {/* Activity Metrics */}
         {isLoading ? (
           <div className="gba:grid gba:grid-cols-2 gba:md:grid-cols-3 gba:gap-4 gba:mb-8">
-            {[...Array(6)].map((_, i) => (
-              <Card key={i} className="gba:p-6">
+            {Array.from({ length: 6 }, (_, i) => (
+              <Card key={`activity-skeleton-${i}`} className="gba:p-6">
                 <Skeleton className="gba:h-8 gba:w-8 gba:mb-4" />
                 <Skeleton className="gba:h-6 gba:w-24 gba:mb-2" />
                 <Skeleton className="gba:h-8 gba:w-16" />
@@ -266,13 +264,13 @@ const EngagementView: React.FC<EngagementViewProps> = ({ accessToken, userInfo }
               return (
                 <div
                   key={level.name}
-                  className={`gba:flex gba:items-center gba:justify-between gba:p-4 gba:rounded-lg gba:border gba:transition-colors ${
-                    isCurrent
-                      ? 'gba:bg-success/10 gba:border-success'
-                      : isAchieved
-                        ? 'gba:bg-muted/50 gba:border-border'
-                        : 'gba:bg-muted/20 gba:border-border gba:opacity-60'
-                  }`}
+                  className={(() => {
+                    const baseClasses =
+                      'gba:flex gba:items-center gba:justify-between gba:p-4 gba:rounded-lg gba:border gba:transition-colors'
+                    if (isCurrent) return `${baseClasses} gba:bg-success/10 gba:border-success`
+                    if (isAchieved) return `${baseClasses} gba:bg-muted/50 gba:border-border`
+                    return `${baseClasses} gba:bg-muted/20 gba:border-border gba:opacity-60`
+                  })()}
                   data-testid={`achievement-level-${level.name.toLowerCase()}`}
                 >
                   <div className="gba:flex gba:items-center gba:gap-3">

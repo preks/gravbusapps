@@ -5,16 +5,21 @@
 
 /**
  * Extracts plain text from HTML string for translation
+ * Uses DOMParser for safe parsing (avoids ReDoS vulnerabilities)
  */
 export const extractTextFromHTML = (html: string): string => {
   if (!html) return ''
 
-  // Create a temporary DOM element to parse HTML
-  const tempDiv = document.createElement('div')
-  tempDiv.innerHTML = html
-
-  // Get text content and clean up whitespace
-  return tempDiv.textContent || tempDiv.innerText || ''
+  try {
+    // Use DOMParser for safe HTML parsing (avoids XSS and ReDoS)
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(html, 'text/html')
+    return (doc.body.textContent || doc.body.innerText || '').trim()
+  } catch (error) {
+    // Fallback: if DOMParser fails, return empty string
+    console.warn('Failed to parse HTML:', error)
+    return ''
+  }
 }
 
 /**

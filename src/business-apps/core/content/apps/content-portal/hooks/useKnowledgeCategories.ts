@@ -35,7 +35,7 @@ export const useKnowledgeCategories = (
       })
 
       // Sort by displayOrder for consistent sidebar ordering
-      const sorted = result.entries.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
+      const sorted = [...result.entries].sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
 
       setCategories(sorted)
     } catch (err) {

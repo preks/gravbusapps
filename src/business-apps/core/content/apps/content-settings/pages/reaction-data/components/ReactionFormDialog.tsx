@@ -237,8 +237,8 @@ export const ReactionFormDialog: React.FC<ReactionFormDialogProps> = ({
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {selectedEmojiData.names.map((name, index) => (
-                              <SelectItem key={index} value={name}>
+                            {selectedEmojiData.names.map(name => (
+                              <SelectItem key={`reaction-name-${name}`} value={name}>
                                 {name}
                               </SelectItem>
                             ))}
@@ -343,7 +343,7 @@ export const ReactionFormDialog: React.FC<ReactionFormDialogProps> = ({
                     <Input
                       {...field}
                       type="number"
-                      onChange={e => field.onChange(parseInt(e.target.value))}
+                      onChange={e => field.onChange(Number.parseInt(e.target.value, 10))}
                       data-testid={`${prefixDataTestId}-order-input`}
                     />
                   </FormControl>
@@ -361,7 +361,10 @@ export const ReactionFormDialog: React.FC<ReactionFormDialogProps> = ({
                 disabled={submitting || (!selectedEmoji && !customImageUrl)}
                 data-testid={`${prefixDataTestId}-submit`}
               >
-                {submitting ? (initialData ? 'Updating...' : 'Creating...') : initialData ? 'Update' : 'Create'}
+                {(() => {
+                  if (submitting) return initialData ? 'Updating...' : 'Creating...'
+                  return initialData ? 'Update' : 'Create'
+                })()}
               </Button>
             </DialogFooter>
           </form>

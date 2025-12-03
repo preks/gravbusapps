@@ -52,8 +52,8 @@ const KnowledgeArticleView: React.FC<KnowledgeArticleViewProps> = ({
         {/* Tags */}
         {item.tagNames && item.tagNames.length > 0 && (
           <div className="gba:flex gba:flex-row gba:flex-wrap gba:gap-2 gba:mb-4">
-            {item.tagNames.map((tag, index) => (
-              <Badge key={index} variant="outline">
+            {item.tagNames.map(tag => (
+              <Badge key={`knowledge-tag-${tag}`} variant="outline">
                 #{tag}
               </Badge>
             ))}

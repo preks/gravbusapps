@@ -1,7 +1,11 @@
 import { useState, useCallback } from 'react'
 import { flowbotClient } from '@/common/network/flowbot'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
-import { collectAllTexts, mapTranslationsToContentEntry } from '@/business-apps/core/content/utils/translationUtils'
+import {
+  collectAllTexts,
+  mapTranslationsToContentEntry,
+  extractTextFromHTML
+} from '@/business-apps/core/content/utils/translationUtils'
 import type { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
 
 export interface TranslatedTexts {
@@ -81,7 +85,7 @@ export const useContentTranslation = (accessToken: string): UseContentTranslatio
    */
   const detectLanguage = useCallback(
     async (content: string) => {
-      if (!content || !content.trim()) {
+      if (!content?.trim()) {
         setError('No content provided for language detection')
         return
       }
@@ -90,8 +94,8 @@ export const useContentTranslation = (accessToken: string): UseContentTranslatio
       setError(null)
 
       try {
-        // Extract plain text from HTML if needed
-        const plainText = content.replace(/<[^>]*>/g, '').trim()
+        // Extract plain text from HTML if needed (using safe DOMParser)
+        const plainText = extractTextFromHTML(content)
         if (!plainText) {
           setError('No text content found')
           setIsDetecting(false)
@@ -146,7 +150,7 @@ export const useContentTranslation = (accessToken: string): UseContentTranslatio
 
         setDetectedLanguage({
           languageId,
-          confidence: 1.0, // 100% confidence since it's stored in the database
+          confidence: 1, // 100% confidence since it's stored in the database
           catalogEntryValue: displayValue
         })
       } catch (err) {

@@ -10,7 +10,7 @@ import { ContentRole } from '../../types/contentEnums'
 import { CONTENT_DOCUMENT_FRAGMENT } from '../../types/contentDocumentTypes'
 
 // Re-export document fragment for backwards compatibility
-export { CONTENT_DOCUMENT_FRAGMENT }
+export { CONTENT_DOCUMENT_FRAGMENT } from '../../types/contentDocumentTypes'
 
 /**
  * Employee reference fragment

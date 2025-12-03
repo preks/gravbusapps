@@ -1,14 +1,12 @@
 import React, { useMemo, useState, useEffect } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useTranslation } from '@newwork/nw-design-system'
-import { Button, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
+import { useTranslation, Button, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
 import { ArrowLeft } from 'lucide-react'
-import { AiTranslationButton } from '@/common/components/content'
+import { AiTranslationButton, useContentTranslation } from '@/common/components/content'
 import { useContentEntry } from '@/common/data/content/hooks/useContentEntry'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import ContentPage from './components/ContentPage'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
-import { useContentTranslation } from '@/common/components/content'
 import translations from './_i18n'
 
 export interface ContentRecordProps extends BusinessAppContextProps {
@@ -83,11 +81,12 @@ const ContentRecord: React.FC<ContentRecordProps> = context => {
         })
 
         // Sort emoji codes by display order
-        const sortedCodes = [...allowedCodes].sort((a, b) => {
+        const sortByDisplayOrder = (a: string, b: string): number => {
           const entryA = entries.find((e: any) => e.additionalValue2 === a)
           const entryB = entries.find((e: any) => e.additionalValue2 === b)
           return (entryA?.displayOrder || 0) - (entryB?.displayOrder || 0)
-        })
+        }
+        const sortedCodes = [...allowedCodes].sort(sortByDisplayOrder)
 
         console.log('🔥 ContentRecord - Loaded Reactions:', {
           totalEntries: entries.length,
@@ -201,7 +200,7 @@ const ContentRecord: React.FC<ContentRecordProps> = context => {
     return (
       <div className="gba:p-6 gba:max-w-4xl gba:mx-auto" data-testid="content-record-error">
         <Alert variant="destructive">
-          <AlertTitle>{!item ? t('content_not_found') : t('error_loading_content')}</AlertTitle>
+          <AlertTitle>{item ? t('error_loading_content') : t('content_not_found')}</AlertTitle>
           <AlertDescription>
             <Button onClick={handleBackClick} variant="outline" className="gba:mt-2">
               {t('go_back')}

@@ -26,16 +26,14 @@ const ContentManager: React.FC<ContentManagerProps> = context => {
   const questionContent = useContentData({ type: 'question', accessToken: accessToken || '' })
 
   // Get current section data
-  const current =
-    currentSection === 'all'
-      ? allContent
-      : currentSection === 'news'
-        ? newsContent
-        : currentSection === 'knowledge'
-          ? knowledgeContent
-          : currentSection === 'document'
-            ? documentContent
-            : questionContent
+  const getCurrentSectionData = () => {
+    if (currentSection === 'all') return allContent
+    if (currentSection === 'news') return newsContent
+    if (currentSection === 'knowledge') return knowledgeContent
+    if (currentSection === 'document') return documentContent
+    return questionContent
+  }
+  const current = getCurrentSectionData()
 
   // Create columns
   const columns = createContentColumns({ accessToken: accessToken || '' })
@@ -121,11 +119,15 @@ const ContentManager: React.FC<ContentManagerProps> = context => {
         // Primary action - Add Content
         primaryAction={
           <AppAction
-            contextsArray={[FlowContextName.contentEntryCreate]}
-            externalContextData={{}}
+            contexts={[
+              {
+                context: FlowContextName.contentEntryCreate,
+                contextData: {}
+              }
+            ]}
             accessToken={accessToken || ''}
-            emptyStateBehavior="hide"
-            deferMainContextRequestsUntilClick={false}
+            emptyState="hide"
+            lazyLoad={false}
           >
             <Button variant="default">
               <PlusIcon className="gba:w-4 gba:h-4" />
@@ -151,8 +153,8 @@ const ContentManager: React.FC<ContentManagerProps> = context => {
         onSortingChange={current.setSorting}
         // Column visibility
         availableColumns={columns.map(col => ({
-          id: col.id!,
-          label: col.header as string
+          id: col.id ?? '',
+          label: typeof col.header === 'string' ? col.header : ''
         }))}
         visibleColumns={current.visibleColumns}
         onVisibleColumnsChange={current.setVisibleColumns}
@@ -175,7 +177,7 @@ const ContentManager: React.FC<ContentManagerProps> = context => {
         {/* DataTable dynamically renders based on current section */}
         <DataTable<ContentEntry>
           data={current.data}
-          columns={columns.filter(col => current.visibleColumns.includes(col.id!))}
+          columns={columns.filter(col => col.id && current.visibleColumns.includes(col.id))}
           loading={current.loading}
           error={current.error?.message}
           totalCount={current.total}

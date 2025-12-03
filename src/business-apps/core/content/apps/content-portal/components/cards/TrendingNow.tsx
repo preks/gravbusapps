@@ -38,10 +38,17 @@ const TrendingNow: React.FC<TrendingNowProps> = ({ entries, className = '', curr
         <h3 className="gba:text-xl gba:text-foreground gba:font-bold">{t('trending_now')}</h3>
       </div>
       {trendingEntries.map(entry => (
-        <div
+        <button
           key={entry.id}
-          className="gba:flex gba:gap-3 gba:cursor-pointer gba:hover:bg-accent gba:p-2 gba:rounded-md gba:transition-colors"
+          type="button"
+          className="gba:flex gba:gap-3 gba:cursor-pointer gba:hover:bg-accent gba:p-2 gba:rounded-md gba:transition-colors gba:w-full gba:text-left gba:bg-transparent gba:border-0"
           onClick={() => handleArticleClick(entry)}
+          onKeyDown={e => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              handleArticleClick(entry)
+            }
+          }}
           data-testid={`trending-article-${entry.id}`}
         >
           <div className="gba:w-16 gba:h-16 gba:rounded-md gba:overflow-hidden gba:shrink-0">
@@ -71,7 +78,7 @@ const TrendingNow: React.FC<TrendingNowProps> = ({ entries, className = '', curr
               </div>
             </div>
           </div>
-        </div>
+        </button>
       ))}
     </div>
   )

@@ -1,9 +1,8 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
-import { Chip } from '@newwork/nw-design-system'
+import { Chip, cn } from '@newwork/nw-design-system'
 import { Plus } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
-import { cn } from '@newwork/nw-design-system'
 
 export interface CatalogMultiSelectOption {
   id: string
@@ -174,7 +173,7 @@ export const CatalogMultiSelect = React.forwardRef<any, CatalogMultiSelectProps>
     const allOptions = useMemo(() => {
       const combined = [...options]
       newItems.forEach(item => {
-        if (!combined.find(opt => opt.id === item.id)) {
+        if (!combined.some(opt => opt.id === item.id)) {
           combined.push(item)
         }
       })
@@ -272,6 +271,27 @@ export const CatalogMultiSelect = React.forwardRef<any, CatalogMultiSelectProps>
       [value, onValueChange, newItems, onNewItemsChange]
     )
 
+    // Check if search matches existing
+    const searchMatchesExisting = useMemo(() => {
+      return allOptions.some(opt => opt.label.toLowerCase() === inputValue.toLowerCase())
+    }, [allOptions, inputValue])
+
+    // Helper: Handle Enter key
+    const handleEnterKey = useCallback(() => {
+      if (highlightedIndex >= 0 && highlightedIndex < filteredOptions.length) {
+        addOption(filteredOptions[highlightedIndex])
+      } else if (
+        highlightedIndex === filteredOptions.length &&
+        allowCreate &&
+        inputValue.trim() &&
+        !searchMatchesExisting
+      ) {
+        createNewOption()
+      } else if (inputValue.trim() && allowCreate) {
+        createNewOption()
+      }
+    }, [highlightedIndex, filteredOptions, addOption, allowCreate, inputValue, searchMatchesExisting, createNewOption])
+
     // Keyboard navigation
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (!showSuggestions) return
@@ -288,18 +308,7 @@ export const CatalogMultiSelect = React.forwardRef<any, CatalogMultiSelectProps>
         setHighlightedIndex(prev => (prev > 0 ? prev - 1 : -1))
       } else if (e.key === 'Enter') {
         e.preventDefault()
-        if (highlightedIndex >= 0 && highlightedIndex < filteredOptions.length) {
-          addOption(filteredOptions[highlightedIndex])
-        } else if (
-          highlightedIndex === filteredOptions.length &&
-          allowCreate &&
-          inputValue.trim() &&
-          !searchMatchesExisting
-        ) {
-          createNewOption()
-        } else if (inputValue.trim() && allowCreate) {
-          createNewOption()
-        }
+        handleEnterKey()
       } else if (e.key === 'Escape') {
         setShowSuggestions(false)
         setHighlightedIndex(-1)
@@ -307,11 +316,6 @@ export const CatalogMultiSelect = React.forwardRef<any, CatalogMultiSelectProps>
         removeOption(value[value.length - 1])
       }
     }
-
-    // Check if search matches existing
-    const searchMatchesExisting = useMemo(() => {
-      return allOptions.some(opt => opt.label.toLowerCase() === inputValue.toLowerCase())
-    }, [allOptions, inputValue])
 
     // Get new items for ref
     const getNewItems = useCallback((): CatalogMultiSelectOption[] => {
@@ -400,12 +404,13 @@ export const CatalogMultiSelect = React.forwardRef<any, CatalogMultiSelectProps>
 
               {/* Existing options */}
               {filteredOptions.map((option, index) => (
-                <div
+                <button
                   key={option.id}
+                  type="button"
                   className={cn(
-                    'gba:px-3 gba:py-2 gba:text-sm gba:cursor-pointer gba:rounded-sm',
+                    'gba:px-3 gba:py-2 gba:text-sm gba:cursor-pointer gba:rounded-sm gba:w-full gba:text-left',
                     'hover:gba:bg-accent hover:gba:text-accent-foreground',
-                    'gba:flex gba:items-center gba:gap-2',
+                    'gba:flex gba:items-center gba:gap-2 gba:bg-transparent gba:border-0',
                     highlightedIndex === index && 'gba:bg-accent gba:text-accent-foreground'
                   )}
                   onMouseDown={e => {
@@ -413,10 +418,11 @@ export const CatalogMultiSelect = React.forwardRef<any, CatalogMultiSelectProps>
                     addOption(option)
                   }}
                   onMouseEnter={() => setHighlightedIndex(index)}
+                  onClick={() => addOption(option)}
                 >
                   {option.isNew && <Plus className="gba:h-3 gba:w-3 gba:text-muted-foreground" />}
                   <span>{option.label}</span>
-                </div>
+                </button>
               ))}
 
               {/* Infinite scroll trigger */}
@@ -424,6 +430,8 @@ export const CatalogMultiSelect = React.forwardRef<any, CatalogMultiSelectProps>
                 <div
                   ref={observerTarget}
                   className="gba:px-3 gba:py-2 gba:text-sm gba:text-muted-foreground gba:text-center"
+                  role="status"
+                  aria-live="polite"
                 >
                   {loading ? 'Loading more...' : ''}
                 </div>

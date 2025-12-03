@@ -21,7 +21,7 @@ export interface UseContentCommentsResult {
   allComments: ContentEntry[]
   isLoading: boolean
   error: string | null
-  refetch: () => void
+  refetch: () => Promise<void>
 }
 
 /**
@@ -142,11 +142,15 @@ export const useContentComments = (
     return rootComments
   }, [allComments, contentEntryId])
 
+  const refetch = useCallback(async () => {
+    await fetchComments()
+  }, [fetchComments])
+
   return {
     comments,
     allComments,
     isLoading,
     error,
-    refetch: fetchComments
+    refetch
   }
 }

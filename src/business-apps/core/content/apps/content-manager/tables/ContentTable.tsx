@@ -23,7 +23,7 @@ export const ContentTable: React.FC<ContentTableProps> = ({ type, accessToken, o
   const defaultColumns = getDefaultVisibleColumns(type)
   const visibleColumns = contentData.visibleColumns.length > 0 ? contentData.visibleColumns : defaultColumns
 
-  const filteredColumns = columns.filter(col => visibleColumns.includes(col.id!))
+  const filteredColumns = columns.filter(col => col.id && visibleColumns.includes(col.id))
 
   return (
     <DataTable<ContentEntry>

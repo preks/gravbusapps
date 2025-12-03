@@ -14,16 +14,16 @@ import {
 } from '@newwork/nw-design-system'
 import { CatalogSelect } from '@/components/catalog-select'
 import {
-  Sparkle,
-  MagicWand,
-  FileText,
-  CheckCircle,
-  ArrowsIn,
-  SpeakerHigh,
-  Translate,
-  ArrowLeft,
-  MagnifyingGlass,
-  PaperPlaneTilt
+  SparkleIcon,
+  MagicWandIcon,
+  FileTextIcon,
+  CheckCircleIcon,
+  ArrowsInIcon,
+  SpeakerHighIcon,
+  TranslateIcon,
+  ArrowLeftIcon,
+  MagnifyingGlassIcon,
+  PaperPlaneTiltIcon
 } from '@phosphor-icons/react'
 import { AiResponsePopover } from './AiResponsePopover'
 import type { ContentAiTextGeneratorProps, AiActionType, AiResponse } from './aiTextGeneratorTypes'
@@ -192,49 +192,49 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
     {
       type: 'generate' as AiActionType,
       label: 'Generate',
-      icon: MagicWand,
+      icon: MagicWandIcon,
       description: 'Generate new content with AI',
       keywords: ['generate', 'create', 'write', 'new']
     },
     {
       type: 'improve' as AiActionType,
       label: 'Improve',
-      icon: Sparkle,
+      icon: SparkleIcon,
       description: 'Improve existing content',
       keywords: ['improve', 'enhance', 'better', 'refine']
     },
     {
       type: 'summarize' as AiActionType,
       label: 'Summarize',
-      icon: FileText,
+      icon: FileTextIcon,
       description: 'Summarize the content',
       keywords: ['summarize', 'summary', 'brief', 'short']
     },
     {
       type: 'fixSpelling' as AiActionType,
       label: 'Fix spelling & grammar',
-      icon: CheckCircle,
+      icon: CheckCircleIcon,
       description: 'Fix spelling and grammar errors',
       keywords: ['fix', 'spelling', 'grammar', 'correct', 'errors']
     },
     {
       type: 'shorten' as AiActionType,
       label: 'Shorten',
-      icon: ArrowsIn,
+      icon: ArrowsInIcon,
       description: 'Make content shorter',
       keywords: ['shorten', 'reduce', 'condense', 'compact']
     },
     {
       type: 'changeTone' as AiActionType,
       label: 'Change tone to...',
-      icon: SpeakerHigh,
+      icon: SpeakerHighIcon,
       description: 'Change the tone of the content',
       keywords: ['tone', 'style', 'voice', 'change']
     },
     {
       type: 'translate' as AiActionType,
       label: 'Translate to...',
-      icon: Translate,
+      icon: TranslateIcon,
       description: 'Translate content to another language',
       keywords: ['translate', 'language', 'translation']
     }
@@ -274,7 +274,7 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
         {/* Search Input */}
         <div className="gba:px-3 gba:pt-3 gba:pb-2">
           <div className="gba:relative">
-            <MagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground gba:pointer-events-none gba:z-10" />
+            <MagnifyingGlassIcon className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground gba:pointer-events-none gba:z-10" />
             <Input
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
@@ -342,7 +342,7 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
           className="gba:h-8 gba:w-8"
           data-testid="ai-generate-back-button"
         >
-          <ArrowLeft size={16} />
+          <ArrowLeftIcon size={16} />
         </Button>
         <div className="gba:text-sm gba:font-medium">Generate</div>
       </div>
@@ -372,7 +372,7 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
               disabled={!generatePrompt.trim()}
               data-testid="ai-generate-submit-button"
             >
-              <PaperPlaneTilt size={16} />
+              <PaperPlaneTiltIcon size={16} />
               <span className="gba:sr-only">Generate</span>
             </InputGroupButton>
           </InputGroupAddon>
@@ -395,7 +395,7 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
           className="gba:h-8 gba:w-8"
           data-testid="ai-translate-back-button"
         >
-          <ArrowLeft size={16} />
+          <ArrowLeftIcon size={16} />
         </Button>
         <div className="gba:text-sm gba:font-medium">Translate to...</div>
       </div>
@@ -432,7 +432,7 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
           className="gba:h-8 gba:w-8"
           data-testid="ai-change-tone-back-button"
         >
-          <ArrowLeft size={16} />
+          <ArrowLeftIcon size={16} />
         </Button>
         <div className="gba:text-sm gba:font-medium">Change tone to...</div>
       </div>
@@ -446,7 +446,7 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
             className="gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2.5 gba:rounded-md hover:gba:bg-accent hover:gba:text-accent-foreground gba:transition-colors gba:text-left"
             data-testid={`ai-action-tone-${tone.toLowerCase()}`}
           >
-            <SpeakerHigh size={16} className="gba:flex-shrink-0" />
+            <SpeakerHighIcon size={16} className="gba:flex-shrink-0" />
             <div className="gba:text-sm gba:font-medium">{tone}</div>
           </button>
         ))}
@@ -455,46 +455,44 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
   )
 
   return (
-    <>
-      <div className="gba:relative">
-        <Popover open={isMainPopoverOpen} onOpenChange={setIsMainPopoverOpen}>
-          <PopoverAnchor asChild>
-            <div ref={buttonRef}>
-              <AiButton
-                variant="default"
-                size="sm"
-                showIcon={true}
-                icon={<Sparkle size={16} />}
-                autoExecuteSingleAction={false}
-                emptyStateBehavior="enable"
-                onClick={() => setIsMainPopoverOpen(true)}
-                data-testid="content-ai-text-generator-button"
-              >
-                AI Assist
-              </AiButton>
-            </div>
-          </PopoverAnchor>
-          <PopoverContent side="bottom" align="end" className="gba:w-[400px] gba:p-0 gba:rounded-lg" sideOffset={8}>
-            {view === 'main' && renderMainView()}
-            {view === 'generate' && renderGenerateView()}
-            {view === 'translate' && renderTranslateView()}
-            {view === 'changeTone' && renderChangeToneView()}
-          </PopoverContent>
-        </Popover>
+    <div className="gba:relative">
+      <Popover open={isMainPopoverOpen} onOpenChange={setIsMainPopoverOpen}>
+        <PopoverAnchor asChild>
+          <div ref={buttonRef}>
+            <AiButton
+              variant="default"
+              size="sm"
+              showIcon={true}
+              icon={<SparkleIcon size={16} />}
+              autoExecuteSingleAction={false}
+              emptyStateBehavior="enable"
+              onClick={() => setIsMainPopoverOpen(true)}
+              data-testid="content-ai-text-generator-button"
+            >
+              AI Assist
+            </AiButton>
+          </div>
+        </PopoverAnchor>
+        <PopoverContent side="bottom" align="end" className="gba:w-[400px] gba:p-0 gba:rounded-lg" sideOffset={8}>
+          {view === 'main' && renderMainView()}
+          {view === 'generate' && renderGenerateView()}
+          {view === 'translate' && renderTranslateView()}
+          {view === 'changeTone' && renderChangeToneView()}
+        </PopoverContent>
+      </Popover>
 
-        <AiResponsePopover
-          isOpen={isResponsePopoverOpen}
-          onOpenChange={setIsResponsePopoverOpen}
-          response={response}
-          isLoading={isLoading}
-          error={error}
-          onDiscard={handleDiscard}
-          onRefine={handleRefine}
-          onInsert={handleInsert}
-          actionType={activeAction}
-          anchorRef={buttonRef}
-        />
-      </div>
-    </>
+      <AiResponsePopover
+        isOpen={isResponsePopoverOpen}
+        onOpenChange={setIsResponsePopoverOpen}
+        response={response}
+        isLoading={isLoading}
+        error={error}
+        onDiscard={handleDiscard}
+        onRefine={handleRefine}
+        onInsert={handleInsert}
+        actionType={activeAction}
+        anchorRef={buttonRef}
+      />
+    </div>
   )
 }

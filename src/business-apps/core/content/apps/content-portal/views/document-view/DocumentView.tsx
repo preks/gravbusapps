@@ -16,9 +16,6 @@ import { EmployeeHoverCard } from '@/common/components/employee'
 
 interface DocumentViewProps extends BusinessAppContextProps {
   hideBanner?: boolean
-  currentTab?: string
-  allowedReactions?: string[]
-  reactionCatalogMap?: Record<string, string>
   targetLanguage?: string | null
   translatedItems?: Record<string, { id: string; title?: string; preview?: string }>
   onTranslate?: (items: any[], targetLanguage: string) => Promise<void>
@@ -198,11 +195,15 @@ const DocumentView: React.FC<DocumentViewProps> = ({
                 <div className="gba:flex gba:gap-2 gba:items-center">
                   <SearchInput onSearch={handleSearch} placeholder={t('search_documents')} className="gba:w-[300px]" />
                   <AppAction
-                    contextsArray={[FlowContextName.contentEntryCreate]}
-                    externalContextData={{ contentGroup: ContentGroup.DOCUMENT }}
+                    contexts={[
+                      {
+                        context: FlowContextName.contentEntryCreate,
+                        contextData: { contentGroup: ContentGroup.DOCUMENT }
+                      }
+                    ]}
                     accessToken={accessToken}
-                    emptyStateBehavior="enable"
-                    deferMainContextRequestsUntilClick
+                    emptyState="enable"
+                    lazyLoad
                     data-testid="create-document-area-button"
                   >
                     <Button>{t('create_area')}</Button>

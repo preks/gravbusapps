@@ -20,7 +20,7 @@ const SKIN_TONE_MODIFIERS = [
  * "Heart" -> "HEART"
  */
 export const generateCode = (name: string): string => {
-  return name.toUpperCase().replace(/\s+/g, '_')
+  return name.toUpperCase().replaceAll(/\s+/g, '_')
 }
 
 /**
@@ -42,7 +42,7 @@ export const formatUnicode = (unified: string): string => {
  * "Heart" -> ":heart:"
  */
 export const generateShortcode = (name: string): string => {
-  return `:${name.toLowerCase().replace(/\s+/g, '_')}:`
+  return `:${name.toLowerCase().replaceAll(/\s+/g, '_')}:`
 }
 
 /**
@@ -72,7 +72,7 @@ export const supportsSkinTones = (unified: string): boolean => {
  * Render emoji with skin tone modifier
  */
 export const renderEmojiWithSkinTone = (baseUnified: string, skinToneCode: string): string => {
-  return String.fromCodePoint(parseInt(baseUnified, 16), parseInt(skinToneCode, 16))
+  return String.fromCodePoint(Number.parseInt(baseUnified, 16), Number.parseInt(skinToneCode, 16))
 }
 
 /**

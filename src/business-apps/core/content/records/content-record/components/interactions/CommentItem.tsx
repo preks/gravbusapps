@@ -126,17 +126,21 @@ export const CommentItem: React.FC<CommentItemProps> = ({
         <div className="gba:flex-1 gba:space-y-1">
           {/* Header */}
           <div className="gba:flex gba:items-center gba:gap-2">
-            {isOwnComment ? (
-              <span className="gba:text-sm gba:font-semibold gba:text-foreground">You</span>
-            ) : comment.creatorEmployee ? (
-              <EmployeeHoverCard employee={comment.creatorEmployee}>
-                <span className="gba:text-sm gba:font-semibold gba:text-foreground gba:cursor-pointer hover:gba:text-primary hover:gba:underline">
-                  {displayName}
-                </span>
-              </EmployeeHoverCard>
-            ) : (
-              <span className="gba:text-sm gba:font-semibold gba:text-foreground">{displayName}</span>
-            )}
+            {(() => {
+              if (isOwnComment) {
+                return <span className="gba:text-sm gba:font-semibold gba:text-foreground">You</span>
+              }
+              if (comment.creatorEmployee) {
+                return (
+                  <EmployeeHoverCard employee={comment.creatorEmployee}>
+                    <span className="gba:text-sm gba:font-semibold gba:text-foreground gba:cursor-pointer hover:gba:text-primary hover:gba:underline">
+                      {displayName}
+                    </span>
+                  </EmployeeHoverCard>
+                )
+              }
+              return <span className="gba:text-sm gba:font-semibold gba:text-foreground">{displayName}</span>
+            })()}
             <span className="gba:text-xs gba:text-muted-foreground">{formattedDate}</span>
             {isCollapsed && totalReplies > 0 && (
               <button

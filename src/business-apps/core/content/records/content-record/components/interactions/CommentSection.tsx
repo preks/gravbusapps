@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
 import { MessageCircle, ChevronDown, ChevronUp } from 'lucide-react'
@@ -37,6 +37,27 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
   const [visibleRepliesPerComment, setVisibleRepliesPerComment] = useState<Record<string, number>>({})
   const [translatedComments, setTranslatedComments] = useState<Record<string, string>>({})
 
+  // Helper function to collect comment texts (extracted to reduce nesting)
+  const collectCommentTexts = useCallback((commentList: CommentWithReplies[]): { texts: string[]; idMap: string[] } => {
+    const allCommentTexts: string[] = []
+    const commentIdMap: string[] = []
+
+    const collectTexts = (comments: CommentWithReplies[]) => {
+      for (const comment of comments) {
+        if (comment.content) {
+          allCommentTexts.push(comment.content)
+          commentIdMap.push(comment.id || '')
+        }
+        if (comment.replies && comment.replies.length > 0) {
+          collectTexts(comment.replies)
+        }
+      }
+    }
+
+    collectTexts(commentList)
+    return { texts: allCommentTexts, idMap: commentIdMap }
+  }, [])
+
   // Translate comments when targetLanguage is set and comments are loaded
   useEffect(() => {
     const translateAllComments = async () => {
@@ -46,22 +67,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
       }
 
       // Collect all comment texts (including replies)
-      const allCommentTexts: string[] = []
-      const commentIdMap: string[] = []
-
-      const collectTexts = (commentList: CommentWithReplies[]) => {
-        commentList.forEach(comment => {
-          if (comment.content) {
-            allCommentTexts.push(comment.content)
-            commentIdMap.push(comment.id || '')
-          }
-          if (comment.replies && comment.replies.length > 0) {
-            collectTexts(comment.replies)
-          }
-        })
-      }
-
-      collectTexts(comments)
+      const { texts: allCommentTexts, idMap: commentIdMap } = collectCommentTexts(comments)
 
       if (allCommentTexts.length === 0) {
         return
@@ -83,15 +89,11 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
     }
 
     translateAllComments()
-  }, [comments, targetLanguage, onTranslateComments])
+  }, [comments, targetLanguage, onTranslateComments, collectCommentTexts])
 
   // Helper to get translated content for a comment
   const getTranslatedContent = (commentId: string, originalContent: string): string => {
     return translatedComments[commentId] || originalContent
-  }
-
-  if (!allowComment) {
-    return null
   }
 
   // Show comments based on visible count
@@ -103,13 +105,17 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
     setVisibleCommentsCount(prev => prev + 10)
   }
 
-  // Infinite scroll hook
+  // Infinite scroll hook - must be called unconditionally
   const sentinelRef = useInfiniteScroll({
     onLoadMore: loadMoreComments,
-    hasMore: hasMoreComments,
+    hasMore: hasMoreComments && allowComment,
     isLoading: false,
     threshold: 300
   })
+
+  if (!allowComment) {
+    return null
+  }
 
   const getVisibleReplies = (commentId: string) => {
     return visibleRepliesPerComment[commentId] || 3

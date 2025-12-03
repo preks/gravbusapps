@@ -89,75 +89,83 @@ const CONFIGS: Record<string, Array<keyof ContentEntry>> = {
   ]
 }
 
-/**
- * Builds ContentEntry fields string (GraphQL body only)
- * Returns: Field list to insert into ContentEntry { ... } or ContentEntryByPk { ... }
- */
-export function buildContentEntryFields(options: ContentEntryQueryOptions): string {
-  const fields = options.config ? CONFIGS[options.config] : options.fields || CONFIGS.minimal
-  const limit = options.relationLimit ?? 10
-  const offset = options.relationOffset ?? 0
+// Scalar field names
+const SCALAR_FIELDS = [
+  'id',
+  'version',
+  'title',
+  'preview',
+  'content',
+  'picture',
+  'pictureThumbnail',
+  'contentGroupRef',
+  'contentTypeRef',
+  'languageRef',
+  'creatorEmployeeId',
+  'updaterEmployeeId',
+  'acceptorEmployeeId',
+  'parentContentEntryId',
+  'rootContentEntryId',
+  'role',
+  'allowComment',
+  'allowReaction',
+  'accepted',
+  'displayCreator',
+  'displayUpdater',
+  'timeToRead',
+  'entryVersion',
+  'createdAt',
+  'updatedAt',
+  'createdBy',
+  'updatedBy',
+  'activeFrom',
+  'activeTo',
+  'isDeleted',
+  'recordState'
+] as const
 
+/**
+ * Builds scalar fields for ContentEntry query
+ */
+function buildScalarFields(fields: Array<keyof ContentEntry>): string[] {
+  const parts: string[] = []
+  for (const field of SCALAR_FIELDS) {
+    if (fields.includes(field)) {
+      parts.push(field)
+    }
+  }
+  return parts
+}
+
+/**
+ * Builds relation fields for ContentEntry query
+ */
+function buildRelationFields(fields: Array<keyof ContentEntry>, limit: number, offset: number): string[] {
   const parts: string[] = []
 
-  // Scalar fields
-  if (fields.includes('id')) parts.push('id')
-  if (fields.includes('version')) parts.push('version')
-  if (fields.includes('title')) parts.push('title')
-  if (fields.includes('preview')) parts.push('preview')
-  if (fields.includes('content')) parts.push('content')
-  if (fields.includes('picture')) parts.push('picture')
-  if (fields.includes('pictureThumbnail')) parts.push('pictureThumbnail')
-  if (fields.includes('contentGroupRef')) parts.push('contentGroupRef')
-  if (fields.includes('contentTypeRef')) parts.push('contentTypeRef')
-  if (fields.includes('languageRef')) parts.push('languageRef')
-  if (fields.includes('creatorEmployeeId')) parts.push('creatorEmployeeId')
-  if (fields.includes('updaterEmployeeId')) parts.push('updaterEmployeeId')
-  if (fields.includes('acceptorEmployeeId')) parts.push('acceptorEmployeeId')
-  if (fields.includes('parentContentEntryId')) parts.push('parentContentEntryId')
-  if (fields.includes('rootContentEntryId')) parts.push('rootContentEntryId')
-  if (fields.includes('role')) parts.push('role')
-  if (fields.includes('allowComment')) parts.push('allowComment')
-  if (fields.includes('allowReaction')) parts.push('allowReaction')
-  if (fields.includes('accepted')) parts.push('accepted')
-  if (fields.includes('displayCreator')) parts.push('displayCreator')
-  if (fields.includes('displayUpdater')) parts.push('displayUpdater')
-  if (fields.includes('timeToRead')) parts.push('timeToRead')
-  if (fields.includes('entryVersion')) parts.push('entryVersion')
-  if (fields.includes('createdAt')) parts.push('createdAt')
-  if (fields.includes('updatedAt')) parts.push('updatedAt')
-  if (fields.includes('createdBy')) parts.push('createdBy')
-  if (fields.includes('updatedBy')) parts.push('updatedBy')
-  if (fields.includes('activeFrom')) parts.push('activeFrom')
-  if (fields.includes('activeTo')) parts.push('activeTo')
-  if (fields.includes('isDeleted')) parts.push('isDeleted')
-  if (fields.includes('recordState')) parts.push('recordState')
-
-  // Relation fields
+  // Simple catalog relations
   if (fields.includes('contentGroup')) {
     parts.push(`contentGroup { ${CATALOG_ENTRY_REF} }`)
   }
-
   if (fields.includes('contentType')) {
     parts.push(`contentType { ${CATALOG_ENTRY_REF} }`)
   }
-
   if (fields.includes('language')) {
     parts.push(`language { ${CATALOG_ENTRY_REF} }`)
   }
 
+  // Employee relations
   if (fields.includes('creatorEmployee')) {
     parts.push(`creatorEmployee { ${EMPLOYEE_REF} }`)
   }
-
   if (fields.includes('updaterEmployee')) {
     parts.push(`updaterEmployee { ${EMPLOYEE_REF} }`)
   }
-
   if (fields.includes('acceptorEmployee')) {
     parts.push(`acceptorEmployee { ${EMPLOYEE_REF} }`)
   }
 
+  // Content entry categories
   if (fields.includes('contentEntryCategories')) {
     parts.push(`
       contentEntryCategories(
@@ -174,6 +182,7 @@ export function buildContentEntryFields(options: ContentEntryQueryOptions): stri
     `)
   }
 
+  // Content entry tags
   if (fields.includes('contentEntryTags')) {
     parts.push(`
       contentEntryTags(
@@ -190,6 +199,7 @@ export function buildContentEntryFields(options: ContentEntryQueryOptions): stri
     `)
   }
 
+  // Content documents
   if (fields.includes('contentDocuments')) {
     parts.push(`
       contentDocuments(
@@ -202,6 +212,7 @@ export function buildContentEntryFields(options: ContentEntryQueryOptions): stri
     `)
   }
 
+  // Content entry reactions
   if (fields.includes('contentEntryReactions')) {
     parts.push(`
       contentEntryReactions(
@@ -222,6 +233,7 @@ export function buildContentEntryFields(options: ContentEntryQueryOptions): stri
     `)
   }
 
+  // Content entry reaction counts
   if (fields.includes('contentEntryReactionCounts')) {
     parts.push(`
       contentEntryReactionCounts {
@@ -234,6 +246,7 @@ export function buildContentEntryFields(options: ContentEntryQueryOptions): stri
     `)
   }
 
+  // Child content entries
   if (fields.includes('childContentEntries')) {
     parts.push(`
       childContentEntries(
@@ -257,6 +270,7 @@ export function buildContentEntryFields(options: ContentEntryQueryOptions): stri
     `)
   }
 
+  // Descendant content entries aggregate
   if (fields.includes('descendantContentEntriesAggregate')) {
     parts.push(`
       descendantContentEntriesAggregate(
@@ -267,6 +281,7 @@ export function buildContentEntryFields(options: ContentEntryQueryOptions): stri
     `)
   }
 
+  // Child content entries aggregate
   if (fields.includes('childContentEntriesAggregate')) {
     parts.push(`
       childContentEntriesAggregate(
@@ -277,5 +292,20 @@ export function buildContentEntryFields(options: ContentEntryQueryOptions): stri
     `)
   }
 
-  return parts.join('\n')
+  return parts
+}
+
+/**
+ * Builds ContentEntry fields string (GraphQL body only)
+ * Returns: Field list to insert into ContentEntry { ... } or ContentEntryByPk { ... }
+ */
+export function buildContentEntryFields(options: ContentEntryQueryOptions): string {
+  const fields = options.config ? CONFIGS[options.config] : options.fields || CONFIGS.minimal
+  const limit = options.relationLimit ?? 10
+  const offset = options.relationOffset ?? 0
+
+  const scalarFields = buildScalarFields(fields)
+  const relationFields = buildRelationFields(fields, limit, offset)
+
+  return [...scalarFields, ...relationFields].join('\n')
 }

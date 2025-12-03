@@ -16,7 +16,6 @@ import translations from '../../_i18n'
 const PAGE_SIZE = 20
 
 interface HomeViewProps extends BusinessAppContextProps {
-  onNavigate?: (tab: string) => void
   hideBanner?: boolean
   currentTab?: string
   allowedReactions?: string[]
@@ -189,34 +188,39 @@ const HomeView: React.FC<HomeViewProps> = ({
         )}
 
         {/* Featured Section - Always visible, not affected by search */}
-        {isLoading ? (
-          <div className="gba:mb-8">
-            <Card className="gba:p-6 gba:h-80">
-              <div className="gba:space-y-4">
-                <Skeleton className="gba:h-8 gba:w-3/4" />
-                <Skeleton className="gba:h-4 gba:w-full" />
-                <Skeleton className="gba:h-4 gba:w-full" />
-                <Skeleton className="gba:h-4 gba:w-2/3" />
+        {(() => {
+          if (isLoading) {
+            return (
+              <div className="gba:mb-8">
+                <Card className="gba:p-6 gba:h-80">
+                  <div className="gba:space-y-4">
+                    <Skeleton className="gba:h-8 gba:w-3/4" />
+                    <Skeleton className="gba:h-4 gba:w-full" />
+                    <Skeleton className="gba:h-4 gba:w-full" />
+                    <Skeleton className="gba:h-4 gba:w-2/3" />
+                  </div>
+                </Card>
               </div>
-            </Card>
-          </div>
-        ) : featuredEntries.length > 0 ? (
-          <>
-            {/* Carousel Section - Centered and narrower */}
-            <div className="gba:mb-8">
-              <ContentCarousel
-                articles={topArticles}
-                currentTab={currentTab}
-                accessToken={accessToken}
-                userInfo={userInfo}
-                allowedReactions={allowedReactions}
-                reactionCatalogMap={reactionCatalogMap}
-                onReactionsRefetch={refetchFeatured}
-                translatedItems={translatedItems}
-              />
-            </div>
-          </>
-        ) : null}
+            )
+          }
+          if (featuredEntries.length > 0) {
+            return (
+              <div className="gba:mb-8">
+                <ContentCarousel
+                  articles={topArticles}
+                  currentTab={currentTab}
+                  accessToken={accessToken}
+                  userInfo={userInfo}
+                  allowedReactions={allowedReactions}
+                  reactionCatalogMap={reactionCatalogMap}
+                  onReactionsRefetch={refetchFeatured}
+                  translatedItems={translatedItems}
+                />
+              </div>
+            )
+          }
+          return null
+        })()}
 
         <div className="gba:mb-6 gba:mt-8">
           <h2 className="gba:text-2xl gba:md:text-3xl gba:text-foreground gba:font-semibold">{t('recent_content')}</h2>

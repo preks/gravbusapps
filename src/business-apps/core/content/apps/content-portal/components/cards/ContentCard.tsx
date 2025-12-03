@@ -90,7 +90,17 @@ const ContentCard: React.FC<ContentCardProps> = ({
       } ${className}`}
       data-testid={`content-card-${item.id}`}
     >
-      <div className="gba:cursor-pointer gba:flex gba:flex-col gba:h-full" onClick={handleClick}>
+      <button
+        type="button"
+        className="gba:cursor-pointer gba:flex gba:flex-col gba:h-full gba:w-full gba:text-left gba:bg-transparent gba:border-0 gba:p-0"
+        onClick={handleClick}
+        onKeyDown={e => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            handleClick()
+          }
+        }}
+      >
         {/* Image */}
         <div className="gba:w-full gba:h-[200px] gba:overflow-hidden gba:relative">
           {item.picture ? (
@@ -166,7 +176,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
             {/* Stats */}
             <div className="gba:flex gba:items-center gba:gap-4 gba:pt-2 gba:border-t gba:border-border">
               {item.allowReaction && (
-                <div onClick={e => e.stopPropagation()}>
+                <div onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
                   <ReactionPicker
                     contentEntryId={item.id || ''}
                     reactionSummary={reactionSummary}
@@ -199,7 +209,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
             </div>
           </div>
         </div>
-      </div>
+      </button>
       {entityType && (
         <ShareDialog
           open={shareDialogOpen}

@@ -27,7 +27,6 @@ export interface ReactionPickerProps {
   accessToken: string
   employeeId: string
   onSuccess?: () => void
-  size?: 'sm' | 'md' | 'lg'
   'data-testid'?: string
   allowedReactions?: string[]
   reactionCatalogMap?: Record<string, string>
@@ -190,9 +189,7 @@ export const ReactionPicker: React.FC<ReactionPickerProps> = ({
                       setReactionSummary(newState)
 
                       // Call backend
-                      executeAction({}).catch(() => {
-                        handleReactionError(previousState)
-                      })
+                      executeAction({}).catch(() => handleReactionError(previousState))
                     }}
                     disabled={isLoading}
                     data-testid={`${dataTestId}-${emoji}`}

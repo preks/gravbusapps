@@ -72,11 +72,9 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
               height = (height * maxWidth) / width
               width = maxWidth
             }
-          } else {
-            if (height > maxHeight) {
-              width = (width * maxHeight) / height
-              height = maxHeight
-            }
+          } else if (height > maxHeight) {
+            width = (width * maxHeight) / height
+            height = maxHeight
           }
 
           // Create canvas and draw resized image
@@ -266,27 +264,16 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
     }
   }, [authorName, form])
 
-  // PreSubmit Handler: Create new categories, tags, and upload image
-  const handlePreSubmit = useCallback(
-    async (data: ContentEntryFormValues): Promise<ContentEntryFormValues> => {
-      const updatedData = { ...data }
-
-      // Identify new categories (those with 'new-' prefix)
-      const categoriesToCreate = (data.categories || []).filter(id => id.startsWith('new-'))
-      const existingCategories = (data.categories || []).filter(id => !id.startsWith('new-'))
-
-      // Identify new tags (those with 'new-' prefix)
-      const tagsToCreate = (data.tags || []).filter(id => id.startsWith('new-'))
-      const existingTags = (data.tags || []).filter(id => !id.startsWith('new-'))
-
-      // Create new categories
+  // Helper: Create new categories
+  const createNewCategories = useCallback(
+    async (categoriesToCreate: string[]): Promise<string[]> => {
       const createdCategoryIds: string[] = []
       for (const tempId of categoriesToCreate) {
         const item = newCategories.find(c => c.id === tempId)
         if (item) {
           try {
             const response = await createCatalogEntry('ContentCategory', 'v1', {
-              code: item.label.toUpperCase().replace(/\s+/g, '_'),
+              code: item.label.toUpperCase().replaceAll(/\s+/g, '_'),
               value: item.label,
               translations: []
             })
@@ -297,15 +284,21 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
           }
         }
       }
+      return createdCategoryIds
+    },
+    [createCatalogEntry, newCategories]
+  )
 
-      // Create new tags
+  // Helper: Create new tags
+  const createNewTags = useCallback(
+    async (tagsToCreate: string[]): Promise<string[]> => {
       const createdTagIds: string[] = []
       for (const tempId of tagsToCreate) {
         const item = newTags.find(t => t.id === tempId)
         if (item) {
           try {
             const response = await createCatalogEntry('ContentTag', 'v1', {
-              code: item.label.toUpperCase().replace(/\s+/g, '_'),
+              code: item.label.toUpperCase().replaceAll(/\s+/g, '_'),
               value: item.label,
               translations: []
             })
@@ -316,31 +309,101 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
           }
         }
       }
+      return createdTagIds
+    },
+    [createCatalogEntry, newTags]
+  )
 
-      // Upload image if it's a base64 string (new upload) or if we have a file
+  // Helper: Upload image file
+  const uploadImageFile = useCallback(
+    async (file: File, updatedData: ContentEntryFormValues): Promise<void> => {
+      const contentEntryId = context.contentId || 'temp'
+      const folderPath = `/content/${contentEntryId}/images`
+
+      const thumbnail = await generateThumbnail(file)
+      updatedData.pictureThumbnail = thumbnail
+
+      const uploadResponse = await fileClient.uploadFile(
+        file,
+        { accessScope: 'tenant' },
+        {
+          appName: 'content',
+          folderPath: folderPath,
+          mimeType: file.type
+        }
+      )
+
+      if (uploadResponse?.fileInfo) {
+        updatedData.contentImage = JSON.stringify(uploadResponse.fileInfo)
+      }
+    },
+    [fileClient, context.contentId]
+  )
+
+  // Helper: Convert base64 to file and upload
+  const uploadBase64Image = useCallback(
+    async (base64Data: string, updatedData: ContentEntryFormValues): Promise<void> => {
+      const regex = /^data:image\/(\w+);base64,(.+)$/
+      const execResult = regex.exec(base64Data)
+      if (!execResult) {
+        throw new Error('Invalid base64 image format')
+      }
+
+      const mimeType = execResult[1]
+      const base64String = execResult[2]
+      const byteCharacters = atob(base64String)
+      const byteNumbers = new Array(byteCharacters.length)
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.codePointAt(i) ?? 0
+      }
+      const byteArray = new Uint8Array(byteNumbers)
+      const blob = new Blob([byteArray], { type: `image/${mimeType}` })
+      const file = new File([blob], `image.${mimeType}`, { type: `image/${mimeType}` })
+
+      const thumbnail = await generateThumbnail(base64Data)
+      updatedData.pictureThumbnail = thumbnail
+
+      const contentEntryId = context.contentId || 'temp'
+      const folderPath = `/content/${contentEntryId}/images`
+
+      const uploadResponse = await fileClient.uploadFile(
+        file,
+        { accessScope: 'tenant' },
+        {
+          appName: 'content',
+          folderPath: folderPath,
+          mimeType: file.type
+        }
+      )
+
+      if (uploadResponse?.fileInfo) {
+        updatedData.contentImage = JSON.stringify(uploadResponse.fileInfo)
+      }
+    },
+    [fileClient, context.contentId]
+  )
+
+  // PreSubmit Handler: Create new categories, tags, and upload image
+  const handlePreSubmit = useCallback(
+    async (data: ContentEntryFormValues): Promise<ContentEntryFormValues> => {
+      const updatedData = { ...data }
+
+      // Identify new categories and tags
+      const categoriesToCreate = (data.categories || []).filter(id => id.startsWith('new-'))
+      const existingCategories = (data.categories || []).filter(id => !id.startsWith('new-'))
+      const tagsToCreate = (data.tags || []).filter(id => id.startsWith('new-'))
+      const existingTags = (data.tags || []).filter(id => !id.startsWith('new-'))
+
+      // Create new categories and tags in parallel
+      const [createdCategoryIds, createdTagIds] = await Promise.all([
+        createNewCategories(categoriesToCreate),
+        createNewTags(tagsToCreate)
+      ])
+
+      // Upload image
       if (imageFile && data.contentImage) {
         try {
-          const contentEntryId = context.contentId || 'temp'
-          const folderPath = `/content/${contentEntryId}/images`
-
-          // Generate thumbnail before uploading
-          const thumbnail = await generateThumbnail(imageFile)
-          updatedData.pictureThumbnail = thumbnail
-
-          const uploadResponse = await fileClient.uploadFile(
-            imageFile,
-            { accessScope: 'tenant' },
-            {
-              appName: 'content',
-              folderPath: folderPath,
-              mimeType: imageFile.type
-            }
-          )
-
-          if (uploadResponse?.fileInfo) {
-            // Store fileInfo as JSON string in picture field
-            updatedData.contentImage = JSON.stringify(uploadResponse.fileInfo)
-          }
+          await uploadImageFile(imageFile, updatedData)
         } catch (error) {
           console.error('Error uploading image:', error)
           throw new Error('Failed to upload image')
@@ -350,46 +413,8 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
         typeof data.contentImage === 'string' &&
         data.contentImage.startsWith('data:image/')
       ) {
-        // Convert base64 to File and upload
         try {
-          const base64Data = data.contentImage
-          const matches = base64Data.match(/^data:image\/(\w+);base64,(.+)$/)
-          if (!matches) {
-            throw new Error('Invalid base64 image format')
-          }
-
-          const mimeType = matches[1]
-          const base64String = matches[2]
-          const byteCharacters = atob(base64String)
-          const byteNumbers = new Array(byteCharacters.length)
-          for (let i = 0; i < byteCharacters.length; i++) {
-            byteNumbers[i] = byteCharacters.charCodeAt(i)
-          }
-          const byteArray = new Uint8Array(byteNumbers)
-          const blob = new Blob([byteArray], { type: `image/${mimeType}` })
-          const file = new File([blob], `image.${mimeType}`, { type: `image/${mimeType}` })
-
-          // Generate thumbnail from base64
-          const thumbnail = await generateThumbnail(base64Data)
-          updatedData.pictureThumbnail = thumbnail
-
-          const contentEntryId = context.contentId || 'temp'
-          const folderPath = `/content/${contentEntryId}/images`
-
-          const uploadResponse = await fileClient.uploadFile(
-            file,
-            { accessScope: 'tenant' },
-            {
-              appName: 'content',
-              folderPath: folderPath,
-              mimeType: file.type
-            }
-          )
-
-          if (uploadResponse?.fileInfo) {
-            // Store fileInfo as JSON string in picture field
-            updatedData.contentImage = JSON.stringify(uploadResponse.fileInfo)
-          }
+          await uploadBase64Image(data.contentImage, updatedData)
         } catch (error) {
           console.error('Error uploading base64 image:', error)
           throw new Error('Failed to upload image')
@@ -402,7 +427,7 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
 
       return updatedData
     },
-    [createCatalogEntry, newCategories, newTags, fileClient, imageFile, context.contentId]
+    [createNewCategories, createNewTags, uploadImageFile, uploadBase64Image, imageFile]
   )
 
   const handleSubmit = async (data: ContentEntryFormValues) => {
@@ -495,8 +520,6 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
       schema={schema}
       submitButtonText={context.contentId ? t('update-content') : t('create-content')}
       cancelButtonText={t('cancel') || 'Cancel'}
-      showCancelButton={true}
-      businessAppContext={context}
       data-testid="content-entry-window"
     >
       <div className="gba:flex gba:flex-col gba:h-full gba:gap-4">

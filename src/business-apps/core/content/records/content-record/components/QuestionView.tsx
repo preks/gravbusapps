@@ -1,11 +1,10 @@
-import React, { useState, useMemo, useEffect } from 'react'
-import { useTranslation } from '@newwork/nw-design-system'
-import { Badge, Button, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
+import React, { useState, useMemo, useEffect, useCallback } from 'react'
+import { useTranslation, Badge, Button, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
 import { MessageCircle, CheckCircle, Share2, ChevronDown, ChevronUp } from 'lucide-react'
 import { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
 import { useContentComments, CommentWithReplies } from '@/common/data/content/hooks/useContentComments'
 import { useUserContentReactions } from '@/common/data/content/hooks/useUserContentReactions'
-import { VoteButtons, type VoteState } from '@/common/components/content'
+import { VoteButtons, type VoteState, type TranslatedTexts } from '@/common/components/content'
 import { AcceptAnswerButton } from '@/common/components/content/AcceptAnswerButton'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { ShareDialog } from '@/components/share-dialog'
@@ -15,7 +14,6 @@ import relativeTime from 'dayjs/plugin/relativeTime'
 import CommentForm from './interactions/CommentForm'
 import CommentItem from './interactions/CommentItem'
 import AnswerForm from './AnswerForm'
-import type { TranslatedTexts } from '@/common/components/content'
 import translations from '../_i18n'
 
 dayjs.extend(relativeTime)
@@ -111,6 +109,27 @@ const QuestionView: React.FC<QuestionViewProps> = ({
     translateAllAnswers()
   }, [answers, targetLanguage, onTranslateComments])
 
+  // Helper function to collect comment texts (extracted to reduce nesting)
+  const collectCommentTexts = useCallback((commentList: CommentWithReplies[]): { texts: string[]; idMap: string[] } => {
+    const allCommentTexts: string[] = []
+    const commentIdMap: string[] = []
+
+    const collectTexts = (comments: CommentWithReplies[]) => {
+      for (const comment of comments) {
+        if (comment.content) {
+          allCommentTexts.push(comment.content)
+          commentIdMap.push(comment.id || '')
+        }
+        if (comment.replies && comment.replies.length > 0) {
+          collectTexts(comment.replies)
+        }
+      }
+    }
+
+    collectTexts(commentList)
+    return { texts: allCommentTexts, idMap: commentIdMap }
+  }, [])
+
   // Translate comments for expanded answers when they are opened
   useEffect(() => {
     const translateAnswerComments = async () => {
@@ -120,7 +139,7 @@ const QuestionView: React.FC<QuestionViewProps> = ({
 
       // Find the expanded answer
       const expandedAnswer = answers.find(a => a.id === expandedAnswerId)
-      if (!expandedAnswer || !expandedAnswer.replies || expandedAnswer.replies.length === 0) {
+      if (!expandedAnswer?.replies || expandedAnswer.replies.length === 0) {
         return
       }
 
@@ -130,22 +149,7 @@ const QuestionView: React.FC<QuestionViewProps> = ({
       }
 
       // Collect all comment texts (including nested replies)
-      const allCommentTexts: string[] = []
-      const commentIdMap: string[] = []
-
-      const collectTexts = (commentList: CommentWithReplies[]) => {
-        commentList.forEach(comment => {
-          if (comment.content) {
-            allCommentTexts.push(comment.content)
-            commentIdMap.push(comment.id || '')
-          }
-          if (comment.replies && comment.replies.length > 0) {
-            collectTexts(comment.replies)
-          }
-        })
-      }
-
-      collectTexts(expandedAnswer.replies)
+      const { texts: allCommentTexts, idMap: commentIdMap } = collectCommentTexts(expandedAnswer.replies)
 
       if (allCommentTexts.length === 0) {
         return
@@ -169,7 +173,28 @@ const QuestionView: React.FC<QuestionViewProps> = ({
     }
 
     translateAnswerComments()
-  }, [expandedAnswerId, targetLanguage, onTranslateComments, answers])
+  }, [expandedAnswerId, targetLanguage, onTranslateComments, answers, collectCommentTexts, translatedAnswerComments])
+
+  // Helper function to flatten nested replies (extracted to reduce nesting)
+  const flattenReplies = useCallback((comment: CommentWithReplies): CommentWithReplies[] => {
+    const allReplies: CommentWithReplies[] = []
+    const collectReplies = (replies: CommentWithReplies[]) => {
+      for (const reply of replies) {
+        const flatReply: CommentWithReplies = {
+          ...reply,
+          replies: []
+        }
+        allReplies.push(flatReply)
+        if (reply.replies && reply.replies.length > 0) {
+          collectReplies(reply.replies)
+        }
+      }
+    }
+    if (comment.replies && comment.replies.length > 0) {
+      collectReplies(comment.replies)
+    }
+    return allReplies
+  }, [])
 
   // Get answer IDs for batch reaction fetching
   const answerIds = useMemo(() => answers.map(answer => answer.id || '').filter(Boolean), [answers])
@@ -259,7 +284,7 @@ const QuestionView: React.FC<QuestionViewProps> = ({
     setExpandedAnswerId(expandedAnswerId === answerId ? null : answerId)
   }
 
-  const handleAuthorClick = (e: React.MouseEvent, employeeId: string | undefined) => {
+  const handleAuthorClick = (e: React.MouseEvent | React.KeyboardEvent, employeeId: string | undefined) => {
     e.stopPropagation()
     if (employeeId) {
       const employeeUrl = buildPlatformUrl('/platform/employee-record', { employeeId })
@@ -329,11 +354,14 @@ const QuestionView: React.FC<QuestionViewProps> = ({
               {/* Tags */}
               {item.contentEntryTags && item.contentEntryTags.length > 0 && (
                 <div className="gba:flex gba:flex-row gba:flex-wrap gba:gap-2 gba:mb-4">
-                  {item.contentEntryTags.map((tagEntry, index) => (
-                    <Badge key={index} variant="secondary">
-                      #{tagEntry.contentTag?.value || ''}
-                    </Badge>
-                  ))}
+                  {item.contentEntryTags.map(tagEntry => {
+                    const tagId = tagEntry.contentTag?.id || tagEntry.id || tagEntry.contentTag?.value || ''
+                    return (
+                      <Badge key={`question-tag-${tagId}`} variant="secondary">
+                        #{tagEntry.contentTag?.value || ''}
+                      </Badge>
+                    )
+                  })}
                 </div>
               )}
 
@@ -362,12 +390,19 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                 <div className="gba:flex gba:flex-row gba:items-center">
                   {item.displayCreator && item.creatorEmployee?.displayName && (
                     <>
-                      <p
-                        className="gba:text-sm gba:font-bold gba:text-foreground gba:cursor-pointer hover:gba:text-primary hover:gba:underline"
+                      <button
+                        type="button"
+                        className="gba:text-sm gba:font-bold gba:text-foreground gba:cursor-pointer hover:gba:text-primary hover:gba:underline gba:bg-transparent gba:border-0 gba:p-0"
                         onClick={e => handleAuthorClick(e, item.creatorEmployeeId || undefined)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            handleAuthorClick(e, item.creatorEmployeeId || undefined)
+                          }
+                        }}
                       >
                         {item.creatorEmployee.displayName}
-                      </p>
+                      </button>
                       <p className="gba:text-sm gba:font-regular gba:mx-3 gba:text-muted-foreground">•</p>
                     </>
                   )}
@@ -512,12 +547,19 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                     <div className="gba:flex gba:items-center gba:gap-4 gba:text-sm gba:text-muted-foreground gba:mb-3">
                       <span>
                         {t('answered_by')}{' '}
-                        <span
-                          className="gba:cursor-pointer hover:gba:text-primary hover:gba:underline"
+                        <button
+                          type="button"
+                          className="gba:cursor-pointer hover:gba:text-primary hover:gba:underline gba:bg-transparent gba:border-0 gba:p-0"
                           onClick={e => handleAuthorClick(e, answer.creatorEmployeeId || undefined)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault()
+                              handleAuthorClick(e, answer.creatorEmployeeId || undefined)
+                            }
+                          }}
                         >
                           {answer.creatorEmployee?.displayName || t('unknown')}
-                        </span>
+                        </button>
                       </span>
                       {answer.createdAt && (
                         <>
@@ -590,27 +632,6 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                         {answer.replies && answer.replies.length > 0 ? (
                           <div className="gba:space-y-4">
                             {answer.replies.slice(0, getVisibleComments(answer.id || '')).map(comment => {
-                              // Flatten replies
-                              const flattenReplies = (c: CommentWithReplies): CommentWithReplies[] => {
-                                const allReplies: CommentWithReplies[] = []
-                                const collectReplies = (replies: CommentWithReplies[]) => {
-                                  replies.forEach(reply => {
-                                    const flatReply: CommentWithReplies = {
-                                      ...reply,
-                                      replies: []
-                                    }
-                                    allReplies.push(flatReply)
-                                    if (reply.replies && reply.replies.length > 0) {
-                                      collectReplies(reply.replies)
-                                    }
-                                  })
-                                }
-                                if (c.replies && c.replies.length > 0) {
-                                  collectReplies(c.replies)
-                                }
-                                return allReplies
-                              }
-
                               const flatReplies = flattenReplies(comment)
                               const isExpanded = isCommentExpanded(comment.id || '')
                               const visibleRepliesCount = getVisibleReplies(comment.id || '')

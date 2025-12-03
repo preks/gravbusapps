@@ -156,7 +156,11 @@ export const CommentForm: React.FC<CommentFormProps> = ({
                     </Button>
                   )}
                   <Button type="submit" disabled={isFormLoading} data-testid={`${dataTestId}-submit-button`}>
-                    {isFormLoading ? 'Posting...' : articleCommentId ? 'Reply' : 'Comment'}
+                    {(() => {
+                      if (isFormLoading) return 'Posting...'
+                      if (articleCommentId) return 'Reply'
+                      return 'Comment'
+                    })()}
                   </Button>
                 </div>
               </form>

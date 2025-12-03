@@ -19,7 +19,7 @@ const ContentSettings: React.FC<ContentSettingsProps> = ({ className, prefixData
 
   // Read page from URL query params
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
+    const params = new URLSearchParams(globalThis.window.location.search)
     const page = params.get('page')
     if (page) {
       setInlinePage({ key: page })
@@ -29,13 +29,13 @@ const ContentSettings: React.FC<ContentSettingsProps> = ({ className, prefixData
   // Update URL when inline page changes
   useEffect(() => {
     if (inlinePage) {
-      const url = new URL(window.location.href)
+      const url = new URL(globalThis.window.location.href)
       url.searchParams.set('page', inlinePage.key)
-      window.history.pushState({}, '', url.toString())
+      globalThis.window.history.pushState({}, '', url.toString())
     } else {
-      const url = new URL(window.location.href)
+      const url = new URL(globalThis.window.location.href)
       url.searchParams.delete('page')
-      window.history.pushState({}, '', url.toString())
+      globalThis.window.history.pushState({}, '', url.toString())
     }
   }, [inlinePage])
 

@@ -35,7 +35,6 @@ interface ReactionFormData {
 
 interface ReactionTableProps {
   reactions: CatalogEntry[]
-  isLoading: boolean
   error: string | null
   onCreate: (data: ReactionFormData) => Promise<void>
   onUpdate: (id: string, data: ReactionFormData) => Promise<void>
@@ -59,8 +58,7 @@ export const ReactionTable: React.FC<ReactionTableProps> = ({
   const [submitting, setSubmitting] = useState(false)
 
   // Calculate next display order for new reactions (starts at 0)
-  const nextDisplayOrder =
-    reactions.length > 0 ? Math.max(...reactions.map(r => (r.displayOrder !== undefined ? r.displayOrder : -1))) + 1 : 0
+  const nextDisplayOrder = reactions.length > 0 ? Math.max(...reactions.map(r => r.displayOrder ?? -1)) + 1 : 0
 
   const handleCreate = async (data: ReactionFormData) => {
     setSubmitting(true)

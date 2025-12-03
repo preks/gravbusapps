@@ -271,8 +271,6 @@ const ContentDocumentPopupContent: React.FC<ContentDocumentPopupProps> = context
       formData={defaultValues}
       form={form}
       submitButtonText="Upload Documents"
-      showCancelButton={true}
-      businessAppContext={context}
       data-testid="content-document-popup"
     >
       <div className="gba:space-y-6">
@@ -320,11 +318,11 @@ const ContentDocumentPopupContent: React.FC<ContentDocumentPopupProps> = context
                     <SelectTrigger data-testid="content-document-popup-parent-select">
                       <SelectValue
                         placeholder={
-                          !watchContentEntryId
-                            ? 'Select area first...'
-                            : isLoadingFolders
+                          watchContentEntryId
+                            ? isLoadingFolders
                               ? 'Loading folders...'
                               : 'Root level (no parent)'
+                            : 'Select area first...'
                         }
                       />
                     </SelectTrigger>
@@ -396,7 +394,7 @@ const ContentDocumentPopupContent: React.FC<ContentDocumentPopupProps> = context
               accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png,.gif,.zip,.rar"
               layout="list"
               preview="icon"
-              onFilesChange={handleFilesChange}
+              onChange={handleFilesChange}
             />
           </div>
           {form.formState.errors.files && (

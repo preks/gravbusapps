@@ -12,7 +12,7 @@ import {
   Switch,
   useTranslation
 } from '@newwork/nw-design-system'
-import { Image, CaretLeft, CaretRight } from '@phosphor-icons/react'
+import { ImageSquare, CaretLeft, CaretRight } from '@phosphor-icons/react'
 import ReactQuill from 'react-quill'
 import { CatalogSelect } from '@/components/catalog-select'
 import { CatalogMultiSelect, CatalogMultiSelectOption } from '@/components/catalog-multi-select'
@@ -352,7 +352,7 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
                     />
                     <Button type="button" variant="outline" size="sm" asChild>
                       <span>
-                        <Image className="gba:mr-2" size={20} />
+                        <ImageSquare className="gba:mr-2" size={20} />
                         {t('upload-image') || 'Upload Image'}
                       </span>
                     </Button>

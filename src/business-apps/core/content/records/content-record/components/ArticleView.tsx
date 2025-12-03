@@ -1,6 +1,5 @@
 import React from 'react'
-import { useTranslation } from '@newwork/nw-design-system'
-import { Badge } from '@newwork/nw-design-system'
+import { useTranslation, Badge } from '@newwork/nw-design-system'
 import { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
 import { CommentSection } from '@/business-apps/core/content/records/content-record/components/interactions'
 import ContentInfoSection from './ContentInfoSection'
@@ -46,11 +45,14 @@ const ArticleView: React.FC<ArticleViewProps> = ({
         {/* Tags */}
         {item.contentEntryTags && item.contentEntryTags.length > 0 && (
           <div className="gba:flex gba:flex-row gba:flex-wrap gba:gap-2 gba:mb-4">
-            {item.contentEntryTags.map((tagEntry, index) => (
-              <Badge key={index} variant="secondary">
-                #{tagEntry.contentTag?.value || ''}
-              </Badge>
-            ))}
+            {item.contentEntryTags.map(tagEntry => {
+              const tagId = tagEntry.contentTag?.id || tagEntry.id || tagEntry.contentTag?.value || ''
+              return (
+                <Badge key={`article-tag-${tagId}`} variant="secondary">
+                  #{tagEntry.contentTag?.value || ''}
+                </Badge>
+              )
+            })}
           </div>
         )}
 
@@ -101,11 +103,11 @@ const ArticleView: React.FC<ArticleViewProps> = ({
         />
 
         {/* Comment Section */}
-        {item.allowComment && (
+        {item.allowComment && item.id && employeeId && (
           <CommentSection
             articleId={item.id}
             allowComment={item.allowComment}
-            commentCount={item.commentCount || 0}
+            commentCount={0}
             accessToken={accessToken}
             employeeId={employeeId}
             currentUserId={userId}

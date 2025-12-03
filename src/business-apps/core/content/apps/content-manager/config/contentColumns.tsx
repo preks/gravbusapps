@@ -1,8 +1,8 @@
 import React from 'react'
-import { Badge, Button } from '@newwork/nw-design-system'
+import { Badge } from '@newwork/nw-design-system'
 import type { ContentEntry } from '@/common/data/content/types/contentTypes'
 import dayjs from 'dayjs'
-import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
+import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 
 export interface ContentColumnConfig {
@@ -156,10 +156,11 @@ export const createContentColumns = (config: ContentColumnConfig): ContentColumn
 
         return (
           <div className="gba:flex gba:flex-wrap gba:gap-1">
-            {visibleTags.map((tagEntry: any, index: number) => {
+            {visibleTags.map((tagEntry: any) => {
               const tagValue = tagEntry.contentTag?.value || tagEntry.value || 'Unknown'
+              const tagId = tagEntry.contentTag?.id || tagEntry.id || tagValue
               return (
-                <Badge key={`tag-${index}`} variant="secondary" className="gba:text-xs">
+                <Badge key={`tag-${tagId}`} variant="secondary" className="gba:text-xs">
                   #{tagValue}
                 </Badge>
               )
@@ -181,39 +182,40 @@ export const createContentColumns = (config: ContentColumnConfig): ContentColumn
       cell: ({ row }) => {
         return (
           <div className="gba:flex gba:justify-start gba:gap-2">
-            <AppActionMenu
-              data-testid={`content-actions-menu-${row.original.id}`}
-              contextsArray={[FlowContextName.contentEntryEntity]}
-              externalContextData={{
-                contentEntryId: row.original.id
-              }}
+            <AppAction
+              mode="button"
+              contexts={[
+                {
+                  context: FlowContextName.contentEntryEntity,
+                  contextData: {
+                    contentEntryId: row.original.id
+                  }
+                }
+              ]}
               prefixDataTestId="content-actions"
               accessToken={accessToken}
-              emptyStateBehavior="enable"
-              deferMainContextRequestsUntilClick
+              emptyState="enable"
+              lazyLoad
+              buttonSize="icon"
+              buttonVariant="ghost"
+              data-testid={`content-actions-menu-${row.original.id}`}
+              onClick={e => e.stopPropagation()}
             >
-              <Button
-                size="icon"
-                variant="ghost"
+              <svg
+                className="gba:w-4 gba:h-4 gba:text-gray-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
                 aria-label="Content actions"
-                data-testid={`content-actions-trigger-${row.original.id}`}
-                onClick={e => e.stopPropagation()}
               >
-                <svg
-                  className="gba:w-4 gba:h-4 gba:text-gray-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
-                  />
-                </svg>
-              </Button>
-            </AppActionMenu>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+                />
+              </svg>
+            </AppAction>
           </div>
         )
       }

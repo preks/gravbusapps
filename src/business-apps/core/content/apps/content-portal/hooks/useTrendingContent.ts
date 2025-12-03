@@ -61,10 +61,8 @@ export const useTrendingContent = ({ entries, limit = 5 }: TrendingContentParams
     }))
 
     // Sort by score (highest first) and take top N
-    return scored
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit)
-      .map(item => item.entry)
+    const sorted = [...scored].sort((a, b) => b.score - a.score)
+    return sorted.slice(0, limit).map(item => item.entry)
   }, [entries, limit])
 
   return trendingEntries

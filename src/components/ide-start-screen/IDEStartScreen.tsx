@@ -1,20 +1,12 @@
 import React from 'react'
 import { Card, CardContent, Button, Badge } from '@newwork/nw-design-system'
-import {
-  Play,
-  Folder,
-  AppWindow,
-  Article,
-  ChatCircle,
-  SquaresFour,
-  Clock,
-  CaretDown,
-  CaretRight
-} from '@phosphor-icons/react'
+import { Play, Folder, SquaresFour, Article, ChatCircle, Clock, CaretDown, CaretRight } from '@phosphor-icons/react'
 
 import { PageLayout } from '../layout/pageLayout'
 
 // Removed antd Typography and Collapse imports - using nw-design-system instead
+
+type BusinessAppType = 'app' | 'form' | 'popup' | 'window'
 
 interface BusinessAppInfo {
   name: string
@@ -22,7 +14,7 @@ interface BusinessAppInfo {
   module: string
   subModule?: string
   screenKey: string
-  type: 'app' | 'form' | 'popup' | 'window'
+  type: BusinessAppType
 }
 
 interface RecentlyUsedApp {
@@ -141,7 +133,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
     return subModule === 'default' ? 'General' : subModule.charAt(0).toUpperCase() + subModule.slice(1)
   }
 
-  const getTypeIcon = (type: 'app' | 'form' | 'popup' | 'window') => {
+  const getTypeIcon = (type: BusinessAppType) => {
     switch (type) {
       case 'app':
         return <Play />
@@ -150,13 +142,13 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
       case 'popup':
         return <ChatCircle />
       case 'window':
-        return <AppWindow />
+        return <SquaresFour />
       default:
         return <Play />
     }
   }
 
-  const getTypeLabel = (type: 'app' | 'form' | 'popup' | 'window'): string => {
+  const getTypeLabel = (type: BusinessAppType): string => {
     switch (type) {
       case 'app':
         return 'App'
@@ -172,7 +164,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
   }
 
   // Tailwind token-based classes to replace inline color styles
-  const getTypeTextClass = (type: 'app' | 'form' | 'popup' | 'window'): string => {
+  const getTypeTextClass = (type: BusinessAppType): string => {
     switch (type) {
       case 'app':
         return 'gba:text-ext-1'
@@ -187,7 +179,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
     }
   }
 
-  const getTypeBadgeClasses = (type: 'app' | 'form' | 'popup' | 'window'): string => {
+  const getTypeBadgeClasses = (type: BusinessAppType): string => {
     switch (type) {
       case 'app':
         return 'gba:bg-ext-1-secondary gba:text-ext-1-secondary-foreground'
@@ -384,7 +376,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                       >
                         <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
                           <span className="gba:flex gba:items-center gba:gap-2 gba:font-semibold">
-                            <AppWindow className="gba:text-purple-600" />
+                            <SquaresFour className="gba:text-purple-600" />
                             Windows
                           </span>
                           <Badge variant="secondary">{exampleItems.windows.length}</Badge>
@@ -450,7 +442,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
             {/* Module Cards */}
             <div className="gba:mb-4">
               <h4 className="gba:mb-4 gba:flex gba:items-center gba:gap-2 gba:text-black gba:text-lg gba:font-semibold">
-                <AppWindow className="gba:text-foreground" />
+                <SquaresFour className="gba:text-foreground" />
                 All Applications
               </h4>
               {Object.keys(groupedApps).length === 0 ? (
@@ -470,7 +462,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                         <CardContent className="gba:p-3 gba:flex gba:flex-col gba:flex-1 gba:min-h-0 gba:h-full">
                           <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
                             <span className="gba:flex gba:items-center gba:gap-2 gba:font-semibold">
-                              <AppWindow className="gba:text-blue-600" />
+                              <SquaresFour className="gba:text-blue-600" />
                               {formatModuleName(module)}
                             </span>
                             <Badge variant="secondary">{totalApps}</Badge>

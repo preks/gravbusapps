@@ -120,9 +120,9 @@ const ContentDebug: React.FC<ContentDebugProps> = context => {
     if (data) {
       if (Array.isArray(data)) itemCount = data.length
       if (typeof data === 'object') {
-        const arrayValues = Object.values(data).find(v => Array.isArray(v)) as any[] | undefined
-        if (arrayValues) itemCount = arrayValues.length
-        if ((data as any).total) itemCount = (data as any).total
+        const arrayValues = Object.values(data).find(v => Array.isArray(v))
+        if (Array.isArray(arrayValues)) itemCount = arrayValues.length
+        if (typeof data === 'object' && 'total' in data && typeof data.total === 'number') itemCount = data.total
       }
     }
 

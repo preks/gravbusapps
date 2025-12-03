@@ -78,8 +78,8 @@ export const usePortalTranslation = (accessToken: string): UsePortalTranslationR
         itemTextMap.forEach(({ itemId, titleIndex, previewIndex }) => {
           translated[itemId] = {
             id: itemId,
-            title: titleIndex !== undefined ? response.translations[titleIndex] : undefined,
-            preview: previewIndex !== undefined ? response.translations[previewIndex] : undefined
+            title: titleIndex === undefined ? undefined : response.translations[titleIndex],
+            preview: previewIndex === undefined ? undefined : response.translations[previewIndex]
           }
         })
 

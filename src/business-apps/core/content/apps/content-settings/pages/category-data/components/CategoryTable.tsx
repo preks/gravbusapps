@@ -237,7 +237,7 @@ export const CategoryTable: React.FC<CategoryTableProps> = ({
                       <Input
                         {...field}
                         type="number"
-                        onChange={e => field.onChange(parseInt(e.target.value))}
+                        onChange={e => field.onChange(Number.parseInt(e.target.value, 10))}
                         data-testid={`${prefixDataTestId}-create-order-input`}
                       />
                     </FormControl>
@@ -303,7 +303,7 @@ export const CategoryTable: React.FC<CategoryTableProps> = ({
                       <Input
                         {...field}
                         type="number"
-                        onChange={e => field.onChange(parseInt(e.target.value))}
+                        onChange={e => field.onChange(Number.parseInt(e.target.value, 10))}
                         data-testid={`${prefixDataTestId}-edit-order-input`}
                       />
                     </FormControl>

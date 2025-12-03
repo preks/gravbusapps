@@ -27,7 +27,7 @@ export interface ContentDocument extends BaseEntity {
 
   // Relations from GraphQL
   parentDocument?: ContentDocument | null
-  contentEntry?: any | null // ContentEntry (avoid circular)
+  contentEntry?: unknown | null // ContentEntry (avoid circular dependency)
   documentGroup?: CatalogEntry | null
   documentType?: CatalogEntry | null
   childDocuments?: ContentDocument[]

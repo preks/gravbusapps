@@ -43,7 +43,7 @@ export const useContentTypes = (
       })
 
       // Sort by displayOrder for consistent ordering
-      const sorted = result.entries.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
+      const sorted = [...result.entries].sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
 
       setTypes(sorted)
     } catch (err) {

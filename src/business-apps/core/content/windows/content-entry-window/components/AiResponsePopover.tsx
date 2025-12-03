@@ -10,7 +10,7 @@ import {
   CardTitle,
   CardContent
 } from '@newwork/nw-design-system'
-import { X, ArrowClockwise, Check } from '@phosphor-icons/react'
+import { XIcon, ArrowClockwiseIcon, CheckCircleIcon } from '@phosphor-icons/react'
 import type { AiResponsePopoverProps } from './aiTextGeneratorTypes'
 
 export const AiResponsePopover: React.FC<AiResponsePopoverProps & { anchorRef?: React.RefObject<HTMLElement> }> = ({
@@ -113,15 +113,15 @@ export const AiResponsePopover: React.FC<AiResponsePopoverProps & { anchorRef?: 
               {/* Action Buttons */}
               <div className="gba:flex gba:items-center gba:justify-end gba:gap-2 gba:pt-2 gba:border-t gba:border-border">
                 <Button variant="ghost" size="sm" onClick={onDiscard} data-testid="ai-response-discard-btn">
-                  <X className="gba:mr-2" size={16} />
+                  <XIcon className="gba:mr-2" size={16} />
                   Discard
                 </Button>
                 <Button variant="ghost" size="sm" onClick={onRefine} data-testid="ai-response-refine-btn">
-                  <ArrowClockwise className="gba:mr-2" size={16} />
+                  <ArrowClockwiseIcon className="gba:mr-2" size={16} />
                   Refine
                 </Button>
                 <Button variant="default" size="sm" onClick={onInsert} data-testid="ai-response-insert-btn">
-                  <Check className="gba:mr-2" size={16} />
+                  <CheckCircleIcon className="gba:mr-2" size={16} />
                   Insert
                 </Button>
               </div>

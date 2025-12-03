@@ -18,7 +18,7 @@ const MAX_SIZE = MAX_IMAGE_SIZE_MB * 1024 * 1024 // 1MB in bytes
 const ALL_TAG = 'All'
 
 export const copyUrlToClipboard = (message: string, contentId?: string) => {
-  const url = contentId ? `${window.location.href}/${contentId}` : window.location.href
+  const url = contentId ? `${globalThis.window.location.href}/${contentId}` : globalThis.window.location.href
   navigator.clipboard.writeText(url)
   toast.success(message)
 }
@@ -141,7 +141,7 @@ export const formatTag = (tagIdOrName: string, availableTags: ContentTagAPI[] = 
   }
 
   // Case 3: Fallback - create readable name from ID
-  const displayName = tagIdOrName.toString().replace(/^\d+_/, '').replace(/_/g, ' ')
+  const displayName = tagIdOrName.toString().replace(/^\d+_/, '').replaceAll(/_/g, ' ')
   return { tag: displayName, tag_id: tagIdOrName }
 }
 
@@ -196,5 +196,5 @@ export const formatEditContentTags = (tags: any[] = [], availableTags: ContentTa
 }
 
 export const removeDiacriticalMarks = (str: string): string => {
-  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  return str.normalize('NFD').replaceAll(/[\u0300-\u036f]/g, '')
 }

@@ -66,7 +66,23 @@ const MainFeaturedArticle: React.FC<MainFeaturedArticleProps> = ({
       className="gba:w-full gba:rounded-lg gba:overflow-hidden gba:shadow-md gba:hover:shadow-lg gba:hover:-translate-y-1 gba:transition-all gba:duration-300 gba:bg-card gba:border gba:border-border"
       data-testid="main-featured-article"
     >
-      <div onClick={handleClick} className="gba:cursor-pointer">
+      <button
+        type="button"
+        onClick={handleClick}
+        onKeyDown={e => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            handleClick()
+          }
+        }}
+        className="gba:cursor-pointer gba:w-full gba:text-left gba:bg-transparent gba:border-0 gba:p-0"
+        onKeyDown={e => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            handleClick()
+          }
+        }}
+      >
         <div className="gba:h-[280px] gba:overflow-hidden gba:relative">
           {item.picture ? (
             <img src={item.picture} alt={t('knowledge_image')} className="gba:w-full gba:h-full gba:object-cover" />
@@ -162,7 +178,7 @@ const MainFeaturedArticle: React.FC<MainFeaturedArticleProps> = ({
             </div>
           </div>
         </div>
-      </div>
+      </button>
       {entityType && accessToken && userInfo?.id && (
         <ShareDialog
           open={shareDialogOpen}

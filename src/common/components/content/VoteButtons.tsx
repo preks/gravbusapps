@@ -165,13 +165,12 @@ export const VoteButtons: React.FC<VoteButtonsProps> = ({
 
       {/* Vote count */}
       <span
-        className={`gba:font-bold ${config.text} ${
-          voteState.score > 0
-            ? 'gba:text-success'
-            : voteState.score < 0
-              ? 'gba:text-destructive'
-              : 'gba:text-foreground'
-        }`}
+        className={(() => {
+          const baseClasses = `gba:font-bold ${config.text}`
+          if (voteState.score > 0) return `${baseClasses} gba:text-success`
+          if (voteState.score < 0) return `${baseClasses} gba:text-destructive`
+          return `${baseClasses} gba:text-foreground`
+        })()}
         data-testid={`${dataTestId}-score`}
       >
         {voteState.score}

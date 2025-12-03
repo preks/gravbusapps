@@ -11,6 +11,7 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import { CatalogMultiSelect, CatalogMultiSelectOption } from '@/components/catalog-multi-select'
+import { CatalogSelect } from '@/components/catalog-select'
 import { ContentEntryFormValues } from '../ContentEntryWindow'
 import translations from '../_i18n'
 
@@ -107,6 +108,28 @@ export const QuestionSegment: React.FC<QuestionSegmentProps> = ({
             <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
               {t('question-details-hint') || 'Provide enough context so others can understand and answer.'}
             </div>
+          </FormItem>
+        )}
+      />
+
+      {/* Content Type Selection */}
+      <FormField
+        control={control as any}
+        name="contentTypeRef"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>{t('content-type')}</FormLabel>
+            <FormControl>
+              <CatalogSelect
+                catalogIdentifier="ContentType:v1"
+                parentField="contentGroupRef"
+                requireSourceForEnable={true}
+                value={field.value || null}
+                onValueChange={field.onChange}
+                data-testid="question-segment-type-select"
+              />
+            </FormControl>
+            <FormMessage />
           </FormItem>
         )}
       />

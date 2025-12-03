@@ -218,11 +218,15 @@ const NewsView: React.FC<NewsViewProps> = ({
             <div className="gba:flex gba:gap-2 gba:items-center">
               <SearchInput onSearch={handleSearch} placeholder={t('search_news')} className="gba:w-[300px]" />
               <AppAction
-                contextsArray={[FlowContextName.contentEntryCreate]}
-                externalContextData={{ contentGroup: ContentGroup.NEWS }}
+                contexts={[
+                  {
+                    context: FlowContextName.contentEntryCreate,
+                    contextData: { contentGroup: ContentGroup.NEWS }
+                  }
+                ]}
                 accessToken={accessToken}
-                emptyStateBehavior="enable"
-                deferMainContextRequestsUntilClick
+                emptyState="enable"
+                lazyLoad
                 data-testid="news-view-create-button"
               >
                 <Button>{t('publish_news')}</Button>
@@ -236,30 +240,28 @@ const NewsView: React.FC<NewsViewProps> = ({
             <ContentCardSkeleton variant="featured" count={2} />
           </div>
         ) : featuredArticles.length > 0 ? (
-          <>
-            <div className="gba:grid gba:grid-cols-2 gba:gap-6 gba:mb-10">
-              {featuredArticles.map(item => {
-                const translated = translatedItems?.[item.id || '']
-                return (
-                  <ContentCard
-                    key={item.articleId}
-                    item={item}
-                    variant="news"
-                    featured={true}
-                    currentTab={currentTab}
-                    accessToken={accessToken}
-                    userInfo={userInfo}
-                    allowedReactions={allowedReactions}
-                    reactionCatalogMap={reactionCatalogMap}
-                    onReactionsRefetch={refetch}
-                    authorLabel="Author"
-                    translatedTitle={translated?.title}
-                    translatedPreview={translated?.preview}
-                  />
-                )
-              })}
-            </div>
-          </>
+          <div className="gba:grid gba:grid-cols-2 gba:gap-6 gba:mb-10">
+            {featuredArticles.map(item => {
+              const translated = translatedItems?.[item.id || '']
+              return (
+                <ContentCard
+                  key={item.articleId}
+                  item={item}
+                  variant="news"
+                  featured={true}
+                  currentTab={currentTab}
+                  accessToken={accessToken}
+                  userInfo={userInfo}
+                  allowedReactions={allowedReactions}
+                  reactionCatalogMap={reactionCatalogMap}
+                  onReactionsRefetch={refetch}
+                  authorLabel="Author"
+                  translatedTitle={translated?.title}
+                  translatedPreview={translated?.preview}
+                />
+              )
+            })}
+          </div>
         ) : null}
 
         {/* Category Filter */}

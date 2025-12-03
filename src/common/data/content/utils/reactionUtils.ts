@@ -29,11 +29,24 @@ export const buildReactionSummaryFromCounts = (entry: EntryWithReactions, curren
 
     // Get emoji from value (description) or code
     // Note: contentReaction from view uses CatalogEntry which has 'value' field, not 'description'
-    const emoji = (contentReaction as any).description || contentReaction.value || contentReaction.code || ''
+    const description =
+      'description' in contentReaction && typeof contentReaction.description === 'string'
+        ? contentReaction.description
+        : null
+    const emoji = description || contentReaction.value || contentReaction.code || ''
     if (!emoji) return
 
     // Check if user reacted to this specific reaction type
     const userReacted = userReaction?.contentReactionRef === contentReaction.id
+
+    // Get imageUrl if type is CUSTOM
+    const imageUrl =
+      'type' in contentReaction &&
+      contentReaction.type === 'CUSTOM' &&
+      'additionalValue3' in contentReaction &&
+      typeof contentReaction.additionalValue3 === 'string'
+        ? contentReaction.additionalValue3
+        : undefined
 
     summary[emoji] = {
       emoji,
@@ -41,7 +54,7 @@ export const buildReactionSummaryFromCounts = (entry: EntryWithReactions, curren
       userReacted,
       reactionId: userReacted ? userReaction?.id : undefined,
       catalogEntryId: contentReaction.id,
-      imageUrl: contentReaction.type === 'CUSTOM' ? contentReaction.additionalValue3 : undefined,
+      imageUrl,
       version: userReacted ? userReaction?.version : undefined
     }
   })
