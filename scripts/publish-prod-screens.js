@@ -1659,6 +1659,9 @@ async function main() {
       saveHashFile(prodHashFile, prodHashes)
       console.log(`\n   📝 Updated ${updatedCount} prod hash(es)`)
 
+      // Keep our new hashes for merge conflict resolution
+      const ourNewProdHashes = { ...prodHashes }
+
       // Commit and push to main
       try {
         configureGit(projectRootDirForHashes, execSync)
@@ -1677,6 +1680,46 @@ async function main() {
             console.log('   ✅ Prod hashes committed and pushed to main')
             break
           } catch (error) {
+            // Check if this is a rebase conflict
+            const errorMsg = error.message || ''
+            if (errorMsg.includes('CONFLICT') || errorMsg.includes('Merge conflict')) {
+              console.log('   ⚠️  Rebase conflict detected, merging hashes manually')
+
+              // During rebase: --ours = remote (origin/main), --theirs = our local changes
+              // Get the remote version and merge our changes into it
+              execSync('git checkout --ours component-hashes-prod.json', { cwd: projectRootDirForHashes })
+
+              // Load the remote hashes
+              const remoteHashes = loadHashFile(prodHashFile)
+
+              // Merge our new hashes into the remote version
+              const mergedHashes = { ...remoteHashes, ...ourNewProdHashes }
+
+              // Save the merged result
+              saveHashFile(prodHashFile, mergedHashes)
+              console.log(
+                `   🔀 Merged ${Object.keys(ourNewProdHashes).length} local hash(es) with ${Object.keys(remoteHashes).length} remote hash(es)`
+              )
+
+              execSync('git add component-hashes-prod.json', { cwd: projectRootDirForHashes })
+
+              // Continue the rebase
+              try {
+                execSync('git rebase --continue', {
+                  cwd: projectRootDirForHashes,
+                  env: { ...process.env, GIT_EDITOR: 'true' }
+                })
+              } catch {
+                execSync('git -c core.editor=true rebase --continue', { cwd: projectRootDirForHashes })
+              }
+
+              // Try to push after resolving conflict
+              execSync('git push origin main', { cwd: projectRootDirForHashes, stdio: 'inherit' })
+              pushSuccess = true
+              console.log('   ✅ Prod hashes committed and pushed to main (after conflict resolution)')
+              break
+            }
+
             if (attempt < 3) {
               console.log(`   🔄 Push failed (attempt ${attempt}/3), retrying with rebase...`)
               await new Promise(resolve => setTimeout(resolve, 2000 * attempt))

@@ -67,6 +67,9 @@ async function main() {
     saveHashFile(hashFilePath, componentHashes)
     console.log(`\n   📝 Updated ${updatedCount} component hash(es)`)
 
+    // Keep our new hashes for merge conflict resolution
+    const ourNewHashes = { ...componentHashes }
+
     // Commit and push to develop
     try {
       configureGit(projectRootDir, execSync)
@@ -77,12 +80,35 @@ async function main() {
       try {
         execSync('git pull --rebase origin develop', { cwd: projectRootDir, stdio: 'inherit' })
       } catch {
-        console.log('   ⚠️  Rebase conflict detected, keeping our changes')
-        // Conflicts are unlikely since we're only adding/updating keys
-        // If conflict occurs, keep our version
+        console.log('   ⚠️  Rebase conflict detected, merging hashes manually')
+
+        // During rebase: --ours = remote (origin/develop), --theirs = our local changes
+        // We need to merge both: take the remote version and add our new hashes
+
+        // First, get the remote version (the branch we're rebasing onto)
         execSync('git checkout --ours component-hashes.json', { cwd: projectRootDir })
+
+        // Load the remote hashes
+        const remoteHashes = loadHashFile(hashFilePath)
+
+        // Merge our new hashes into the remote version
+        const mergedHashes = { ...remoteHashes, ...ourNewHashes }
+
+        // Save the merged result
+        saveHashFile(hashFilePath, mergedHashes)
+        console.log(
+          `   🔀 Merged ${Object.keys(ourNewHashes).length} local hash(es) with ${Object.keys(remoteHashes).length} remote hash(es)`
+        )
+
         execSync('git add component-hashes.json', { cwd: projectRootDir })
-        execSync('git rebase --continue', { cwd: projectRootDir })
+
+        // Continue the rebase with --no-edit to use the original commit message
+        try {
+          execSync('git rebase --continue', { cwd: projectRootDir, env: { ...process.env, GIT_EDITOR: 'true' } })
+        } catch {
+          // If rebase --continue fails, try with no-edit flag
+          execSync('git -c core.editor=true rebase --continue', { cwd: projectRootDir })
+        }
       }
 
       execSync('git push origin develop', { cwd: projectRootDir, stdio: 'inherit' })

@@ -276,9 +276,13 @@ async function main() {
     console.log('📤 Committing and pushing changes...')
     console.log(`${'='.repeat(60)}`)
 
+    // Keep our new hashes for merge conflict resolution
+    const ourNewHashes = { ...hashes }
+    const hashFileName = path.basename(hashFile)
+
     try {
       configureGit(projectRoot, execSync)
-      execSync(`git add ${path.basename(hashFile)}`, { cwd: projectRoot })
+      execSync(`git add ${hashFileName}`, { cwd: projectRoot })
       execSync(
         `git commit -m "chore(ci): calculate ${args.env} component hashes (${successCount} screens) [skip ci]"`,
         {
@@ -296,6 +300,43 @@ async function main() {
           console.log(`✅ Changes committed and pushed to ${branch}`)
           break
         } catch (error) {
+          // Check if this is a rebase conflict
+          const errorMsg = error.message || ''
+          if (errorMsg.includes('CONFLICT') || errorMsg.includes('Merge conflict')) {
+            console.log('   ⚠️  Rebase conflict detected, merging hashes manually')
+
+            // During rebase: --ours = remote, --theirs = our local changes
+            // Get the remote version and merge our changes into it
+            execSync(`git checkout --ours ${hashFileName}`, { cwd: projectRoot })
+
+            // Load the remote hashes
+            const remoteHashes = loadHashFile(hashFile)
+
+            // Merge our new hashes into the remote version
+            const mergedHashes = { ...remoteHashes, ...ourNewHashes }
+
+            // Save the merged result
+            saveHashFile(hashFile, mergedHashes)
+            console.log(
+              `   🔀 Merged ${Object.keys(ourNewHashes).length} local hash(es) with ${Object.keys(remoteHashes).length} remote hash(es)`
+            )
+
+            execSync(`git add ${hashFileName}`, { cwd: projectRoot })
+
+            // Continue the rebase
+            try {
+              execSync('git rebase --continue', { cwd: projectRoot, env: { ...process.env, GIT_EDITOR: 'true' } })
+            } catch {
+              execSync('git -c core.editor=true rebase --continue', { cwd: projectRoot })
+            }
+
+            // Try to push after resolving conflict
+            execSync(`git push origin ${branch}`, { cwd: projectRoot, stdio: 'inherit' })
+            pushSuccess = true
+            console.log(`✅ Changes committed and pushed to ${branch} (after conflict resolution)`)
+            break
+          }
+
           if (attempt < 3) {
             console.log(`🔄 Push failed (attempt ${attempt}/3), retrying...`)
             await new Promise(resolve => setTimeout(resolve, 2000 * attempt))
