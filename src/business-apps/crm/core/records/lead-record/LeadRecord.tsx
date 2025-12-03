@@ -19,7 +19,7 @@ import { buildLeadStatusesQuery } from '@/common/data/relations/queries/leadQuer
 import { useCustomerActivities } from '@/common/data/customer/hooks/useCustomerActivities'
 import { useCustomerNotes } from '@/common/data/customer/hooks/useCustomerNotes'
 import { useCustomerTasks } from '@/common/data/customer/hooks/useCustomerTasks'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { useAiSummary } from './hooks/useAiSummary'
@@ -314,22 +314,34 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
     )
   }, [aiSummaryHook, leadId])
 
+  // Calculate leadName early for use in headerActionButton
+  const leadName =
+    leadData?.companyName ||
+    (leadData?.firstName && leadData?.lastName ? `${leadData.firstName} ${leadData.lastName}`.trim() : '') ||
+    getTranslationFromI18nKeyAndLabel('crm.lead.unnamed', 'Unnamed Lead')
+
   const headerActionButton = useMemo(
     () => (
-      <AppActionButton
+      <AppAction
         data-testid="lead-record-action-button"
-        size="icon"
-        contextsArray={[FlowContextName.customerLeadEntity]}
-        externalContextData={{
-          leadId: leadId
+        variant="header"
+        contexts={[
+          {
+            context: FlowContextName.customerLeadEntity,
+            contextData: { leadId }
+          }
+        ]}
+        shareContext={{
+          entityType: 'lead',
+          entityId: leadId,
+          entityName: leadName,
+          entityUrl: `/platform/crm/lead-record?leadId=${leadId}`
         }}
         prefixDataTestId="lead-record-action"
         accessToken={props.accessToken}
-        emptyStateBehavior="hide"
-        deferMainContextRequestsUntilClick={false}
       />
     ),
-    [leadId, props.accessToken]
+    [leadId, leadName, props.accessToken]
   )
 
   // Action props for sections - must be defined before subViewsConfig
@@ -500,11 +512,6 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
       </div>
     )
   }
-
-  const leadName =
-    leadData?.companyName ||
-    (leadData?.firstName && leadData?.lastName ? `${leadData.firstName} ${leadData.lastName}`.trim() : '') ||
-    getTranslationFromI18nKeyAndLabel('crm.lead.unnamed', 'Unnamed Lead')
 
   // Create header title with sensitive badge
   const headerTitle = (

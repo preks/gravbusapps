@@ -63,6 +63,18 @@ adjust-salary-review-reject = Reject
 adjust-salary-review-annual-gross-salary = Annual Gross Salary
 adjust-salary-review-monthly-gross-salary = Monthly Gross Salary
 adjust-salary-review-hourly-gross-salary = Hourly Gross Salary
+adjust-salary-review-increase-text = { $percentage }% increase
+
+# Assign Employee Salary Review Form (new employee without existing salary)
+assign-salary-review-title = Initial Salary Assignment Review for { $employeeName }
+assign-salary-review-salary-details = Salary Details
+assign-salary-review-assignment-details = Assignment Details
+assign-salary-review-annual-salary = Annual Gross Salary
+assign-salary-review-monthly-salary = Monthly Gross Salary
+assign-salary-review-hourly-salary = Hourly Gross Salary
+assign-salary-review-currency = Currency
+assign-salary-review-start-date = Start Date
+assign-salary-review-notes = Notes
 
 # Common Actions
 action-select-placeholder = Please Select
