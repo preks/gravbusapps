@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { getTurnoverMetricsQuery } from '../queries/getTurnoverMetrics'
 import dayjs from 'dayjs'
+import { formatDate } from '@/common/utils/windowUtils'
 
 /**
  * GraphQL response type for combined turnover metrics
@@ -37,12 +38,12 @@ export const useTurnoverRate = (accessToken: string) => {
    */
   const getCurrentAndPreviousMonthRanges = useCallback(() => {
     const now = dayjs()
-    const currentStart = now.startOf('month').format('YYYY-MM-DD HH:mm:ss')
-    const currentEnd = now.endOf('month').format('YYYY-MM-DD HH:mm:ss')
+    const currentStart = formatDate(now.startOf('month').toDate(), 'fullDateTime.ISO') as string
+    const currentEnd = formatDate(now.endOf('month').toDate(), 'fullDateTime.ISO') as string
 
     const prev = now.subtract(1, 'month')
-    const previousStart = prev.startOf('month').format('YYYY-MM-DD HH:mm:ss')
-    const previousEnd = prev.endOf('month').format('YYYY-MM-DD HH:mm:ss')
+    const previousStart = formatDate(prev.startOf('month').toDate(), 'fullDateTime.ISO') as string
+    const previousEnd = formatDate(prev.endOf('month').toDate(), 'fullDateTime.ISO') as string
 
     return {
       current: { startDate: currentStart, endDate: currentEnd },
@@ -68,8 +69,8 @@ export const useTurnoverRate = (accessToken: string) => {
       const { current, previous } = getCurrentAndPreviousMonthRanges()
 
       // Cutoffs for end-of-month denominators
-      const currentCutoff = dayjs().endOf('month').format('YYYY-MM-DD HH:mm:ss')
-      const prevCutoff = dayjs(previous.endDate).format('YYYY-MM-DD HH:mm:ss')
+      const currentCutoff = formatDate(dayjs().endOf('month').toDate(), 'fullDateTime.ISO') as string
+      const prevCutoff = previous.endDate
 
       // Single combined call
       const metrics = await graphQLClient.request<TurnoverMetricsResponse>(getTurnoverMetricsQuery, {

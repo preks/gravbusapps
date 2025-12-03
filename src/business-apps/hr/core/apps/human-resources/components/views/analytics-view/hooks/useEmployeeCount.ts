@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { employeeCountQuery } from '../queries/getEmployeeCount'
+import { formatDate } from '@/common/utils/windowUtils'
 
 /**
  * GraphQL response type for employee count query
@@ -59,8 +60,8 @@ export const useEmployeeCount = (accessToken: string) => {
       const lastYearEnd = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999)
 
       const combinedResponse = await graphQLClient.request<EmployeeCountResponse>(employeeCountQuery, {
-        thisYearEnd: thisYearEnd.toISOString(),
-        lastYearEnd: lastYearEnd.toISOString()
+        thisYearEnd: formatDate(thisYearEnd, 'fullDateTime.ISO') as string,
+        lastYearEnd: formatDate(lastYearEnd, 'fullDateTime.ISO') as string
       })
 
       const thisYearCount = Number(combinedResponse?.thisYear?.aggregate?.count ?? 0)

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { getEmployeesPerYearBatchQuery } from '../queries/getEmployeesPerYear'
 import dayjs from 'dayjs'
+import { formatDate } from '@/common/utils/windowUtils'
 
 /**
  * Interface for yearly employee count data
@@ -55,11 +56,11 @@ export const useEmployeesPerYear = (accessToken: string) => {
 
       const currentYear = dayjs().year()
       // Build 5 year-end cutoffs: y0=current year end, y1=prev, ... y4
-      const y0 = dayjs(`${currentYear}-12-31 23:59:59`).format('YYYY-MM-DD HH:mm:ss')
-      const y1 = dayjs(`${currentYear - 1}-12-31 23:59:59`).format('YYYY-MM-DD HH:mm:ss')
-      const y2 = dayjs(`${currentYear - 2}-12-31 23:59:59`).format('YYYY-MM-DD HH:mm:ss')
-      const y3 = dayjs(`${currentYear - 3}-12-31 23:59:59`).format('YYYY-MM-DD HH:mm:ss')
-      const y4 = dayjs(`${currentYear - 4}-12-31 23:59:59`).format('YYYY-MM-DD HH:mm:ss')
+      const y0 = formatDate(new Date(currentYear, 11, 31, 23, 59, 59, 999), 'fullDateTime.ISO') as string
+      const y1 = formatDate(new Date(currentYear - 1, 11, 31, 23, 59, 59, 999), 'fullDateTime.ISO') as string
+      const y2 = formatDate(new Date(currentYear - 2, 11, 31, 23, 59, 59, 999), 'fullDateTime.ISO') as string
+      const y3 = formatDate(new Date(currentYear - 3, 11, 31, 23, 59, 59, 999), 'fullDateTime.ISO') as string
+      const y4 = formatDate(new Date(currentYear - 4, 11, 31, 23, 59, 59, 999), 'fullDateTime.ISO') as string
 
       const response = await graphQLClient.request<EmployeesPerYearBatchResponse>(getEmployeesPerYearBatchQuery, {
         y0,

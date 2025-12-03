@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { getHiresPerYearBatchQuery } from '../queries/getHiresPerYear'
 import dayjs from 'dayjs'
+import { formatDate } from '@/common/utils/windowUtils'
 
 /**
  * Interface for year and hire count data
@@ -47,16 +48,16 @@ export const useHiresPerYear = (accessToken: string) => {
       }
 
       const currentYear = dayjs().year()
-      const s0 = dayjs(`${currentYear}-01-01 00:00:00`).format('YYYY-MM-DD HH:mm:ss')
-      const e0 = dayjs(`${currentYear}-12-31 23:59:59`).format('YYYY-MM-DD HH:mm:ss')
-      const s1 = dayjs(`${currentYear - 1}-01-01 00:00:00`).format('YYYY-MM-DD HH:mm:ss')
-      const e1 = dayjs(`${currentYear - 1}-12-31 23:59:59`).format('YYYY-MM-DD HH:mm:ss')
-      const s2 = dayjs(`${currentYear - 2}-01-01 00:00:00`).format('YYYY-MM-DD HH:mm:ss')
-      const e2 = dayjs(`${currentYear - 2}-12-31 23:59:59`).format('YYYY-MM-DD HH:mm:ss')
-      const s3 = dayjs(`${currentYear - 3}-01-01 00:00:00`).format('YYYY-MM-DD HH:mm:ss')
-      const e3 = dayjs(`${currentYear - 3}-12-31 23:59:59`).format('YYYY-MM-DD HH:mm:ss')
-      const s4 = dayjs(`${currentYear - 4}-01-01 00:00:00`).format('YYYY-MM-DD HH:mm:ss')
-      const e4 = dayjs(`${currentYear - 4}-12-31 23:59:59`).format('YYYY-MM-DD HH:mm:ss')
+      const s0 = formatDate(new Date(currentYear, 0, 1, 0, 0, 0, 0), 'fullDateTime.ISO') as string
+      const e0 = formatDate(new Date(currentYear, 11, 31, 23, 59, 59, 999), 'fullDateTime.ISO') as string
+      const s1 = formatDate(new Date(currentYear - 1, 0, 1, 0, 0, 0, 0), 'fullDateTime.ISO') as string
+      const e1 = formatDate(new Date(currentYear - 1, 11, 31, 23, 59, 59, 999), 'fullDateTime.ISO') as string
+      const s2 = formatDate(new Date(currentYear - 2, 0, 1, 0, 0, 0, 0), 'fullDateTime.ISO') as string
+      const e2 = formatDate(new Date(currentYear - 2, 11, 31, 23, 59, 59, 999), 'fullDateTime.ISO') as string
+      const s3 = formatDate(new Date(currentYear - 3, 0, 1, 0, 0, 0, 0), 'fullDateTime.ISO') as string
+      const e3 = formatDate(new Date(currentYear - 3, 11, 31, 23, 59, 59, 999), 'fullDateTime.ISO') as string
+      const s4 = formatDate(new Date(currentYear - 4, 0, 1, 0, 0, 0, 0), 'fullDateTime.ISO') as string
+      const e4 = formatDate(new Date(currentYear - 4, 11, 31, 23, 59, 59, 999), 'fullDateTime.ISO') as string
 
       const resp = await graphQLClient.request<HiresBatchResponse>(getHiresPerYearBatchQuery, {
         s0,
