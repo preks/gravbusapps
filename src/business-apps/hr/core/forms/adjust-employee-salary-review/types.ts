@@ -49,9 +49,17 @@ export interface EmployeeSalaryData {
   decisionEmployee: string | null
 }
 
+/**
+ * Review mode determines the UI and behavior of the review form
+ * - 'adjust': Employee has existing salary - show comparison
+ * - 'assign': Employee has no existing salary - show new salary only
+ */
+export type ReviewMode = 'adjust' | 'assign'
+
 export interface SalaryChangePayload {
   employeeSalary: EmployeeSalaryData
-  oldEmployeeSalary: OldEmployeeCompensation
+  /** Can be null for assign mode (new employee without existing salary) */
+  oldEmployeeSalary: OldEmployeeCompensation | null
   employeeId?: string
   initiatorEmployeeId?: string
 }
