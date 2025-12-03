@@ -98,13 +98,17 @@ const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = cont
       }
     }
 
+    const employeeId =
+      (context as any)?.additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId ||
+      context.userInfo?.employeeDetails?.employeeId
+
     return {
       employeeCommunication: {
         channelRef: formState.channelType,
         typeRef: formState.valueType,
         purpose: formState.purpose,
         value: formattedValue,
-        employeeId: context.userInfo?.employeeDetails?.employeeId,
+        employeeId,
         ...(typeof formState.baseline?.version === 'number' ? { version: formState.baseline?.version } : {}),
         ...(formState.baseline?.id ? { id: formState.baseline.id } : {})
       }
