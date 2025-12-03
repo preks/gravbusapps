@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useGraphqlClient } from '../graphql/useGraphQLClient'
 
+// Query for cost centers by structure ID
 export const costCentersByStructureQuery = `
   query fetchCostCentersByStructure($structureId: uuid!) {
     userCostCenters: CostCenter(

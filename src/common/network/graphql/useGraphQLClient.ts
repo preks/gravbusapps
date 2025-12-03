@@ -27,4 +27,5 @@ export const useGraphqlClient = (accessToken?: string) => {
   return graphQLClient
 }
 
+// TODO: Replace old useGraphqlClient everywhere
 export { useGraphqlClient as useGraphQLClient }
