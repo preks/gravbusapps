@@ -306,7 +306,7 @@ pipelines:
       - step: *install_dependencies
       - step:
           name: Calculate screen hashes
-          size: 1x
+          size: 2x
           caches:
           - nodecustom
           script:
