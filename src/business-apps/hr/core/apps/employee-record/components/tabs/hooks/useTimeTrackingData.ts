@@ -87,6 +87,8 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
   const [isNearOffice, setIsNearOffice] = useState<boolean>(false)
   // whether there is any attendance record (open or closed) for today
   const [hasTodayAttendanceRecord, setHasTodayAttendanceRecord] = useState<boolean>(false)
+  // transient message shown after user confirms a new location from modal
+  const [locationBanner, setLocationBanner] = useState<null | 'home' | 'office' | 'remote'>(null)
 
   const prevMonth = useCallback(() => {
     setPage(1)
@@ -419,6 +421,17 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       setIsClockedIn(true)
       setClockInSince(String(formatDate(now, 'time.short')))
       setHasTodayAttendanceRecord(true)
+      // show welcome banner in right panel for 5s based on detected location
+      try {
+        const banner =
+          attendanceLocation === 'IS_NEAR_HOME' ? 'home' : attendanceLocation === 'IS_NEAR_OFFICE' ? 'office' : 'remote'
+        setIsNearHome(banner === 'home')
+        setIsNearOffice(banner === 'office')
+        setLocationBanner(banner)
+        setTimeout(() => setLocationBanner(null), 5000)
+      } catch {
+        // ignore banner errors
+      }
 
       // Refresh current page
       await loadFromGraphql()
@@ -498,17 +511,14 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
   }, [page, pageSize, totalCount])
 
   /**
-   * Update today's attendance location flags and persist into notes.
-   * Also updates local state so the UI reflects the change immediately.
+   * Update today's attendance location and show a short welcome banner
    */
   const updateLocationSelection = useCallback(
     async (selection: 'home' | 'office' | 'remote') => {
       try {
-        // Derive booleans from selection
-        const newIsNearHome = selection === 'home'
-        const newIsNearOffice = selection === 'office'
+        const newLoc =
+          selection === 'home' ? 'IS_NEAR_HOME' : selection === 'office' ? 'IS_NEAR_OFFICE' : 'IS_OTHER_LOCATION'
 
-        // Try to find today's attendance row id and version
         const today = new Date()
         const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
         const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0)
@@ -519,17 +529,12 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
           dateTo: toDateString(monthEnd)
         })
         const allRows: any[] = allRes?.EmployeeAttendance ?? []
-        const todayStr = toLocalDateKey(today) // format YYYY-MM-DD in local
-        // rows from allQuery include attendanceDate in YYYY-MM-DD
+        const todayStr = toLocalDateKey(today)
         const todays = allRows.filter(r => String(r.attendanceDate) === todayStr)
-        const target = todays[todays.length - 1] || todays[0] // pick one if multiple
+        const target = todays[todays.length - 1] || todays[0]
         if (target?.id) {
-          const newLoc =
-            selection === 'home' ? 'IS_NEAR_HOME' : selection === 'office' ? 'IS_NEAR_OFFICE' : 'IS_OTHER_LOCATION'
-
           const client = new EmployeeTimeClient()
           if (accessToken) client.setAccessToken(accessToken)
-
           await client.updateEmployeeAttendance({
             employeeAttendance: {
               id: target.id,
@@ -539,16 +544,20 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
           })
         }
 
-        // Update local flags immediately
-        setIsNearHome(newIsNearHome)
-        setIsNearOffice(newIsNearOffice)
-      } catch {
-        // If persistence fails, at least reflect locally
+        // Update local flags immediately and show banner for 5s
         setIsNearHome(selection === 'home')
         setIsNearOffice(selection === 'office')
+        setLocationBanner(selection)
+        setTimeout(() => setLocationBanner(null), 5000)
+      } catch {
+        // still update local state for UX
+        setIsNearHome(selection === 'home')
+        setIsNearOffice(selection === 'office')
+        setLocationBanner(selection)
+        setTimeout(() => setLocationBanner(null), 5000)
       }
     },
-    [accessToken, allEntries, employeeId, graphqlClient]
+    [accessToken, employeeId, graphqlClient]
   )
 
   return {
@@ -575,6 +584,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     todaysProjectMinutes,
     todaysPlannedMinutes,
     todayRecordedMinutes,
+    locationBanner,
     // actions
     setSort: (key: keyof TimeEntry, dir: SortDirection) => {
       setPage(1)

@@ -17,9 +17,21 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useTimeTrackingData } from '../hooks/useTimeTrackingData'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { UserIcon, ClockIcon, TimerIcon, ListBulletsIcon, PencilIcon, MapPinIcon } from '@phosphor-icons/react'
+import {
+  UserIcon,
+  ClockIcon,
+  TimerIcon,
+  ListBulletsIcon,
+  PencilIcon,
+  MapPinIcon,
+  HouseIcon,
+  BuildingsIcon,
+  GlobeIcon
+} from '@phosphor-icons/react'
 import { InterventionsTable } from './InterventionsTable'
 import { LiveClock } from './LiveClock'
+import timeTrackingTranslations from './_i18n'
+import { useTranslation } from '@newwork/nw-design-system'
 
 interface MonthlySummaryProps {
   employee: any
@@ -42,8 +54,11 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, a
     isNearHome,
     isNearOffice,
     hasTodayAttendanceRecord,
-    updateLocationSelection
+    updateLocationSelection,
+    locationBanner
   } = useTimeTrackingData({ employeeId, accessToken, workingHours: employee?.workingHours?.[0] })
+
+  const { t } = useTranslation(timeTrackingTranslations)
 
   const formatHm = (minutes: number) => {
     const abs = Math.max(0, Math.floor(minutes))
@@ -51,16 +66,6 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, a
     const m = abs % 60
     return `${h}:${String(m).padStart(2, '0')}`
   }
-  const formatHmSigned = (minutes: number) => {
-    const sign = minutes < 0 ? '-' : ''
-    const abs = Math.abs(Math.floor(minutes))
-    const h = Math.floor(abs / 60)
-    const m = abs % 60
-    return `${sign}${h}:${String(m).padStart(2, '0')}`
-  }
-
-  const balanceMinutes = todaysWorkedMinutes - todaysPlannedMinutes
-  const balanceClass = balanceMinutes === 0 ? '' : balanceMinutes > 0 ? 'gba:text-success' : 'gba:text-destructive'
 
   const employeeName =
     employee?.displayName || getTranslationFromI18nKeyAndLabel('lowcoder:common.employee', 'Employee')
@@ -135,6 +140,19 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, a
   }, [locationPrimaryLabel])
 
   const [isLocationModalOpen, setIsLocationModalOpen] = React.useState(false)
+
+  const welcomeText = React.useMemo(() => {
+    if (locationBanner === 'office') return t('time-tracking-welcome-office')
+    if (locationBanner === 'home') return t('time-tracking-welcome-home')
+    if (locationBanner === 'remote') return t('time-tracking-welcome-other')
+    return ''
+  }, [locationBanner, t])
+
+  const welcomeIcon = React.useMemo(() => {
+    if (locationBanner === 'office') return BuildingsIcon
+    if (locationBanner === 'home') return HouseIcon
+    return GlobeIcon
+  }, [locationBanner])
 
   return (
     <div data-testid="monthly-summary-container">
@@ -237,96 +255,98 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, a
         {/* Right column: Employee status */}
         <div className="gba:flex gba:flex-col gba:gap-4 gba:h-full" data-testid="timeclock-right-column">
           <Card className="gba:p-4 gba:h-full" data-testid="timeclock-employee-card">
-            <div className="gba:flex gba:items-center gba:gap-2 gba:text-base gba:font-semibold">
-              <Icon icon={UserIcon} />
-              {employee?.displayName || getTranslationFromI18nKeyAndLabel('lowcoder:common.employee', 'Employee')}
-            </div>
-            <div
-              className="gba:mt-2 gba:flex gba:items-center gba:gap-2 gba:text-base"
-              data-testid="timeclock-status-text"
-            >
-              <Icon icon={ClockIcon} />
-              {isClockedIn ? (
-                <div className="gba:flex gba:justify-between gba:w-full">
-                  <span>
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:time_tracking.status.clocked_in_since_label',
-                      'Currently clocked in since'
-                    )}
-                  </span>
-                  <span className="gba:font-semibold">{displayClockInSince}</span>
-                </div>
-              ) : isClockedOutWithWork ? (
-                <span>
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.status.clocked_out', 'Clocked out')}
-                </span>
-              ) : (
-                <span>
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.status.not_clocked_in', 'Not clocked in')}
-                </span>
-              )}
-            </div>
-            <div
-              className="gba:text-base gba:mt-2 gba:flex gba:items-center gba:gap-2"
-              data-testid="timeclock-work-hours-today"
-            >
-              <Icon icon={TimerIcon} />
-              <div className="gba:flex gba:justify-between gba:w-full">
-                <span>
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.work_hours_today', 'Work Hours Today')}
-                </span>
-                <span className="gba:font-semibold">{formatHm(todaysWorkedMinutes)}</span>
+            {locationBanner ? (
+              <div className="gba:flex gba:items-center gba:gap-3 gba:py-6 gba:justify-center">
+                <Icon icon={welcomeIcon} className="gba:text-info gba:text-3xl" />
+                <div className="gba:text-lg gba:font-semibold">{welcomeText}</div>
               </div>
-            </div>
-            <div
-              className="gba:text-base gba:mt-2 gba:flex gba:items-center gba:gap-2"
-              data-testid="timeclock-work-hours-assigned"
-            >
-              <Icon icon={ListBulletsIcon} />
-              <div className="gba:flex gba:justify-between gba:w-full">
-                <span>
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:time_tracking.work_hours_assigned',
-                    'Work Hours Assigned'
+            ) : (
+              <>
+                <div className="gba:flex gba:items-center gba:gap-2 gba:text-base gba:font-semibold">
+                  <Icon icon={UserIcon} />
+                  {employee?.displayName || getTranslationFromI18nKeyAndLabel('lowcoder:common.employee', 'Employee')}
+                </div>
+                <div
+                  className="gba:mt-2 gba:flex gba:items-center gba:gap-2 gba:text-base"
+                  data-testid="timeclock-status-text"
+                >
+                  <Icon icon={ClockIcon} />
+                  {isClockedIn ? (
+                    <div className="gba:flex gba:justify-between gba:w-full">
+                      <span>
+                        {getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:time_tracking.status.clocked_in_since_label',
+                          'Currently clocked in since'
+                        )}
+                      </span>
+                      <span className="gba:font-semibold">{displayClockInSince}</span>
+                    </div>
+                  ) : isClockedOutWithWork ? (
+                    <span>
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.status.clocked_out', 'Clocked out')}
+                    </span>
+                  ) : (
+                    <span>
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:time_tracking.status.not_clocked_in',
+                        'Not clocked in'
+                      )}
+                    </span>
                   )}
-                </span>
-                <span className="gba:font-semibold">{formatHm(todaysPlannedMinutes)}</span>
-              </div>
-            </div>
-            <div
-              className="gba:text-base gba:mt-2 gba:flex gba:items-center gba:gap-2"
-              data-testid="timeclock-balance-today"
-            >
-              <Icon icon={ClockIcon} />
-              <div className="gba:flex gba:justify-between gba:w-full">
-                <span>
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.ballance_today', 'Balance Today')}
-                </span>
-                <span className={`gba:font-semibold ${balanceClass}`}>{formatHmSigned(balanceMinutes)}</span>
-              </div>
-            </div>
-            {(isClockedIn || hasTodayAttendanceRecord) && (
-              <div
-                className="gba:text-base gba:mt-2 gba:flex gba:items-start gba:justify-between gba:w-full"
-                data-testid="timeclock-location-status"
-              >
-                <div className="gba:flex gba:items-center gba:gap-2">
-                  <Icon icon={MapPinIcon} />
-                  <span>{getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.location.label', 'Location')}</span>
                 </div>
-                <div className="gba:text-right gba:flex gba:flex-col gba:items-end">
-                  <span className="gba:font-semibold">{locationPrimaryLabel}</span>
-                  <Button
-                    variant="link"
-                    size="sm"
-                    className="gba:!px-0 gba:text-warning gba:font-semibold gba:underline gba:mt-1"
-                    onClick={() => setIsLocationModalOpen(true)}
-                    data-testid="timeclock-location-open-modal-button"
+                <div
+                  className="gba:text-base gba:mt-2 gba:flex gba:items-center gba:gap-2"
+                  data-testid="timeclock-work-hours-today"
+                >
+                  <Icon icon={TimerIcon} />
+                  <div className="gba:flex gba:justify-between gba:w-full">
+                    <span>
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.work_hours_today', 'Work Hours Today')}
+                    </span>
+                    <span className="gba:font-semibold">{formatHm(todaysWorkedMinutes)}</span>
+                  </div>
+                </div>
+                <div
+                  className="gba:text-base gba:mt-2 gba:flex gba:items-center gba:gap-2"
+                  data-testid="timeclock-work-hours-assigned"
+                >
+                  <Icon icon={ListBulletsIcon} />
+                  <div className="gba:flex gba:justify-between gba:w-full">
+                    <span>
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:time_tracking.work_hours_assigned',
+                        'Work Hours Assigned'
+                      )}
+                    </span>
+                    <span className="gba:font-semibold">{formatHm(todaysPlannedMinutes)}</span>
+                  </div>
+                </div>
+                {(isClockedIn || hasTodayAttendanceRecord) && (
+                  <div
+                    className="gba:text-base gba:mt-2 gba:flex gba:items-start gba:justify-between gba:w-full"
+                    data-testid="timeclock-location-status"
                   >
-                    {confirmLocationLabel}
-                  </Button>
-                </div>
-              </div>
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <Icon icon={MapPinIcon} />
+                      <span>
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.location.label', 'Location')}
+                      </span>
+                    </div>
+                    <div className="gba:text-right gba:flex gba:flex-col gba:items-end">
+                      <span className="gba:font-semibold">{locationPrimaryLabel}</span>
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="gba:!px-0 gba:font-semibold gba:underline gba:mt-1"
+                        onClick={() => setIsLocationModalOpen(true)}
+                        data-testid="timeclock-location-open-modal-button"
+                      >
+                        {confirmLocationLabel}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </Card>
 
