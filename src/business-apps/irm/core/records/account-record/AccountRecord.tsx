@@ -5,7 +5,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useInvestmentAccount } from '@/common/data/investment/hooks/useInvestmentAccount'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { useAccountAiSummary } from './hooks/useAccountAiSummary'
@@ -231,20 +231,26 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
 
   const headerActionButton = useMemo(
     () => (
-      <AppActionButton
+      <AppAction
         data-testid="investment-account-record-action-button"
-        size="icon"
-        contextsArray={[FlowContextName.investmentAccountEntity]}
-        externalContextData={{
-          accountId: accountId
+        variant="header"
+        contexts={[
+          {
+            context: FlowContextName.investmentAccountEntity,
+            contextData: { accountId }
+          }
+        ]}
+        shareContext={{
+          entityType: 'investment-account',
+          entityId: accountId,
+          entityName: accountData?.name || 'Account',
+          entityUrl: `/platform/irm/account-record?accountId=${accountId}`
         }}
         prefixDataTestId="investment-account-record-action"
         accessToken={props.accessToken}
-        emptyStateBehavior="hide"
-        deferMainContextRequestsUntilClick={false}
       />
     ),
-    [accountId, props.accessToken]
+    [accountId, accountData?.name, props.accessToken]
   )
 
   const subViewsConfig = useMemo(

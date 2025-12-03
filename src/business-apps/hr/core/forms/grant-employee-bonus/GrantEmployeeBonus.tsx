@@ -134,6 +134,8 @@ const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ addition
           cancelButtonText={t('action-cancel')}
           submitButtonText={t('action-submit')}
           isSubmitDisabled={!form.formState.isValid || isUnchangedNow}
+          // Shows cancel button - default cancelEventType="pse_abort" handles process abort
+          onCancel={() => undefined}
           onSubmit={async (values: GrantEmployeeBonusFormValues) => {
             const payload = {
               // Manager context for Kogito flow

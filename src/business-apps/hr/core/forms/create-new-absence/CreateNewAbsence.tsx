@@ -7,14 +7,11 @@ import {
   SelectValue,
   Button,
   Textarea,
-  Calendar,
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
   Label,
-  Alert
+  Alert,
+  DateInput
 } from '@newwork/nw-design-system'
-import { CalendarIcon, AlertCircle } from 'lucide-react'
+import { AlertCircle } from 'lucide-react'
 import { Upload } from 'antd'
 import type { UploadFile } from 'antd'
 import { UploadOutlined } from '@ant-design/icons'
@@ -422,70 +419,50 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
                   </div>
                 </div>
                 <div className="gba:mb-4">
-                  <Label className="gba:block gba:mb-2 gba:font-medium" data-testid="start-date-Label">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.start_date', 'Start Date')}
-                    <span className="gba:text-destructive gba:ml-1">*</span>
-                  </Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="gba:w-full gba:justify-start gba:text-left gba:font-normal"
-                        data-testid="start-date-trigger"
-                      >
-                        <CalendarIcon className="gba:mr-2 gba:h-4 gba:w-4" />
-                        {formValuesState.startDate
-                          ? dayjs(formValuesState.startDate).format('YYYY-MM-DD')
-                          : getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:absence_form.select_start_date',
-                              'Select start date'
-                            )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="gba:w-auto gba:p-0">
-                      <Calendar
-                        mode="single"
-                        selected={formValuesState.startDate}
-                        onSelect={(date: Date | undefined) => form.setValue('startDate', date)}
-                        data-testid="start-date-calendar"
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                <div className="gba:mb-4">
-                  <Label className="gba:block gba:mb-2 gba:font-medium" data-testid="end-date-Label">
+                  <Label className="gba:block gba:mb-2 gba:font-medium" data-testid="date-range-label">
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.start_date', 'Start Date')} /{' '}
                     {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.end_date', 'End Date')}
                     <span className="gba:text-destructive gba:ml-1">*</span>
                   </Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="gba:w-full gba:justify-start gba:text-left gba:font-normal"
-                        data-testid="end-date-trigger"
-                      >
-                        <CalendarIcon className="gba:mr-2 gba:h-4 gba:w-4" />
-                        {formValuesState.endDate
-                          ? dayjs(formValuesState.endDate).format('YYYY-MM-DD')
-                          : getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:absence_form.select_end_date',
-                              'Select end date'
-                            )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="gba:w-auto gba:p-0">
-                      <Calendar
-                        mode="single"
-                        selected={formValuesState.endDate}
-                        onSelect={(date: Date | undefined) => form.setValue('endDate', date)}
-                        disabled={date => {
-                          if (!formValuesState.startDate) return false
-                          return date < formValuesState.startDate || date === formValuesState.startDate
-                        }}
-                        data-testid="end-date-calendar"
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <DateInput
+                    mode="range"
+                    type="date"
+                    value={
+                      formValuesState.startDate && formValuesState.endDate
+                        ? ([
+                            formValuesState.startDate.toISOString().split('T')[0],
+                            formValuesState.endDate.toISOString().split('T')[0]
+                          ] as any)
+                        : formValuesState.startDate
+                          ? ([formValuesState.startDate.toISOString().split('T')[0], null] as any)
+                          : undefined
+                    }
+                    onChange={(value: string | [string | null, string | null] | null) => {
+                      if (Array.isArray(value)) {
+                        const startDateStr = value[0]
+                        const endDateStr = value[1]
+                        form.setValue('startDate', startDateStr ? new Date(startDateStr) : undefined)
+                        form.setValue('endDate', endDateStr ? new Date(endDateStr) : undefined)
+                      } else if (value) {
+                        form.setValue('startDate', new Date(value))
+                        form.setValue('endDate', undefined)
+                      } else {
+                        form.setValue('startDate', undefined)
+                        form.setValue('endDate', undefined)
+                      }
+                    }}
+                    outputFormat="iso"
+                    placeholder={
+                      getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:absence_form.select_start_date',
+                        'Select start date'
+                      ) +
+                      ' / ' +
+                      getTranslationFromI18nKeyAndLabel('lowcoder:absence_form.select_end_date', 'Select end date')
+                    }
+                    className="gba:w-full"
+                    data-testid="absence-date-range-input"
+                  />
                 </div>
                 {absenceType !== 'AbsenceGroup:v1:WORK' && (
                   <div className="gba:mb-4 gba:w-full">
@@ -526,7 +503,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
                   </Label>
                   <Textarea
                     data-testid="comment-textarea"
-                    className="gba:w-full gba:min-h-[80px] gba:rounded gba:border gba:border-border gba:p-2 gba:text-base"
+                    className="gba:w-full gba:min-h-[80px]"
                     value={formValuesState.comment || ''}
                     onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => form.setValue('comment', e.target.value)}
                     placeholder={getTranslationFromI18nKeyAndLabel(
