@@ -7,7 +7,7 @@
  * - Desktop: Table-based view with horizontal scrolling
  * - Mobile: Card-based view with stacked employee cards
  */
-import React, { useMemo, useState, useEffect } from 'react'
+import React, { useMemo, useState, useEffect, useCallback } from 'react'
 import {
   Alert,
   Spinner,
@@ -26,6 +26,7 @@ import {
 import { Users, Calendar, ChevronDown, ChevronUp } from 'lucide-react'
 import { useTeamAbsences } from '../hooks/useTeamAbsences'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 
 interface TeamAbsenceCalendarProps {
   accessToken: string
@@ -98,6 +99,74 @@ const getAbsenceStatusDisplay = (status: string) => {
   }
 }
 
+// Extract color from absence type's parent entry (AbsenceGroup) - same colors as Absence Table
+const getAbsenceGroupColor = (absence: {
+  type?: { parentEntry?: { objectValue?: { color?: string } } }
+}): string | null => {
+  const objectValue = absence?.type?.parentEntry?.objectValue
+  if (objectValue && typeof objectValue === 'object') {
+    const color = (objectValue as { color?: string }).color
+    if (color && typeof color === 'string') {
+      // Ensure color has # prefix
+      return color.startsWith('#') ? color : `#${color}`
+    }
+  }
+  return null
+}
+
+// Fallback colors for absence groups (matching the catalog colors order)
+const FALLBACK_GROUP_COLORS: Record<string, string> = {
+  Vacation: 'var(--nw-chart-3)',
+  'Sick Leave': 'var(--nw-chart-6)',
+  'Special Leave': 'var(--nw-chart-5)',
+  'Work Leave': 'var(--nw-chart-1)',
+  Urlaub: 'var(--nw-chart-3)',
+  Krankenstand: 'var(--nw-chart-6)',
+  Sonderurlaub: 'var(--nw-chart-5)',
+  Dienstfreistellung: 'var(--nw-chart-1)'
+}
+
+// Get the group name from absence for fallback color lookup
+const getAbsenceGroupName = (absence: { type?: { parentEntry?: { value?: string }; value?: string } }): string => {
+  return absence?.type?.parentEntry?.value || absence?.type?.value || 'Unknown'
+}
+
+// Hook to fetch AbsenceGroup catalog colors
+const useAbsenceGroupColors = (accessToken: string) => {
+  const [colorMap, setColorMap] = useState<Record<string, string>>({})
+  const catalogClient = useCatalogManagerClient(accessToken)
+
+  const fetchColors = useCallback(async () => {
+    if (!accessToken) return
+
+    try {
+      const response = await catalogClient.getCatalogEntriesList(
+        { catalogIdentifier: 'AbsenceGroup', version: 'v1' },
+        { limit: 100, offset: 0, returnTotalRecords: true, includeChildCatalogEntries: true }
+      )
+
+      const colors: Record<string, string> = {}
+      response.data?.forEach((entry: any) => {
+        if (entry.objectValue && typeof entry.objectValue === 'object') {
+          const color = entry.objectValue.color
+          if (color && typeof color === 'string') {
+            colors[entry.value] = color.startsWith('#') ? color : `#${color}`
+          }
+        }
+      })
+      setColorMap(colors)
+    } catch (error) {
+      console.error('Error fetching absence group colors:', error)
+    }
+  }, [catalogClient, accessToken])
+
+  useEffect(() => {
+    fetchColors()
+  }, [fetchColors])
+
+  return colorMap
+}
+
 export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
   accessToken,
   supervisorId,
@@ -108,6 +177,9 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
   const userLocale = getCurrentActiveUserLocale() ?? 'en-US'
   const isMobile = useIsMobile()
   const [expandedEmployees, setExpandedEmployees] = useState<Set<string>>(new Set())
+
+  // Fetch AbsenceGroup catalog colors for consistent coloring with Absence Table
+  const catalogGroupColors = useAbsenceGroupColors(accessToken)
 
   // Toggle employee card expansion on mobile
   const toggleEmployeeExpanded = (employeeId: string) => {
@@ -182,19 +254,30 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
   const absenceMap = useMemo((): EmployeeAbsenceMap => {
     const map: EmployeeAbsenceMap = {}
 
+    // First, build a color map from fetched absences to use for currentAbsence
+    const groupColorMap: Record<string, string> = {}
+    absences.forEach(absence => {
+      const groupName = getAbsenceGroupName(absence)
+      if (groupName && !groupColorMap[groupName]) {
+        const catalogColor = getAbsenceGroupColor(absence)
+        if (catalogColor) {
+          groupColorMap[groupName] = catalogColor
+        }
+      }
+    })
+
     // Add current absence being acknowledged/approved if provided
     if (currentAbsence) {
       map[currentAbsence.employeeId] = {}
 
       const statusDisplay = getAbsenceStatusDisplay(currentAbsence.status)
-      let color = 'gba:bg-info'
-      if (statusDisplay.type === 'approved') {
-        color = 'gba:bg-success'
-      } else if (statusDisplay.type === 'rejected') {
-        color = 'gba:bg-destructive'
-      } else if (statusDisplay.type === 'pending') {
-        color = 'gba:bg-warning'
-      }
+      // Priority: 1) Catalog colors, 2) Colors from fetched absences, 3) Fallback
+      const groupName = currentAbsence.type
+      const groupColor =
+        catalogGroupColors[groupName] ||
+        groupColorMap[groupName] ||
+        FALLBACK_GROUP_COLORS[groupName] ||
+        'var(--nw-chart-1)'
 
       const absStart = new Date(startDate.split('T')[0] + 'T12:00:00')
       const absEnd = new Date(endDate.split('T')[0] + 'T12:00:00')
@@ -205,7 +288,7 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
         map[currentAbsence.employeeId][dateStr] = {
           type: currentAbsence.type,
           status: statusDisplay.label,
-          color
+          color: groupColor
         }
         currentDate.setDate(currentDate.getDate() + 1)
       }
@@ -228,19 +311,15 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
         map[employeeId] = {}
       }
 
-      // Get absence type and color
+      // Get absence type and group color (same as Absence Table)
       const statusDisplay = getAbsenceStatusDisplay(absence.status)
       const absenceType = absence.type?.value || 'Absence'
 
-      // Determine color based on status
-      let color = 'gba:bg-info'
-      if (statusDisplay.type === 'approved') {
-        color = 'gba:bg-success'
-      } else if (statusDisplay.type === 'rejected') {
-        color = 'gba:bg-destructive'
-      } else if (statusDisplay.type === 'pending') {
-        color = 'gba:bg-warning'
-      }
+      // Get color from catalog (parent entry = AbsenceGroup) - priority to catalog color
+      const catalogColor = getAbsenceGroupColor(absence)
+      const groupName = getAbsenceGroupName(absence)
+      const fallbackColor = FALLBACK_GROUP_COLORS[groupName] || 'var(--nw-chart-1)'
+      const color = catalogColor || fallbackColor
 
       // Mark all days in the absence range (only within the week range)
       const currentDate = new Date(Math.max(absStart.getTime(), weekRange.weekStart.getTime()))
@@ -258,7 +337,7 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
     })
 
     return map
-  }, [absences, currentAbsence, startDate, endDate, weekRange])
+  }, [absences, currentAbsence, startDate, endDate, weekRange, catalogGroupColors])
 
   if (!supervisorId) {
     return null
@@ -364,9 +443,13 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
                 return (
                   <span
                     key={groupKey}
-                    className={`${group.color} gba:text-white gba:text-[10px] gba:px-2 gba:py-0.5 gba:rounded gba:font-medium ${
+                    className={`gba:text-[10px] gba:px-2 gba:py-0.5 gba:rounded gba:font-medium ${
                       isCurrentAbsenceDay ? 'gba:ring-1 gba:ring-primary gba:ring-offset-1' : ''
                     }`}
+                    style={{
+                      backgroundColor: group.color,
+                      color: 'var(--nw-primary-foreground)'
+                    }}
                   >
                     {group.type}
                     {group.days.length > 1
@@ -407,7 +490,11 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
                         {day.monthShort} {day.dayNumber}
                       </div>
                       <div
-                        className={`${day.absence.color} gba:text-white gba:text-[10px] gba:px-1.5 gba:py-0.5 gba:rounded gba:mt-1 gba:font-medium gba:truncate`}
+                        className="gba:text-[10px] gba:px-1.5 gba:py-0.5 gba:rounded gba:mt-1 gba:font-medium gba:truncate"
+                        style={{
+                          backgroundColor: day.absence.color,
+                          color: 'var(--nw-primary-foreground)'
+                        }}
                         title={`${day.absence.type} - ${day.absence.status}`}
                       >
                         {day.absence.type}
@@ -549,11 +636,15 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
                             <TableCell key={day.dateString} className="gba:text-center gba:p-2 gba:bg-muted">
                               {absence ? (
                                 <div
-                                  className={`${absence.color} gba:text-white gba:text-xs gba:py-1 gba:px-2 gba:rounded gba:font-medium gba:relative ${
+                                  className={`gba:text-xs gba:py-1 gba:px-2 gba:rounded gba:font-medium gba:relative ${
                                     isCurrentAbsenceDay
                                       ? 'gba:ring-2 gba:ring-primary gba:ring-offset-2 gba:shadow-lg'
                                       : ''
                                   }`}
+                                  style={{
+                                    backgroundColor: absence.color,
+                                    color: 'var(--nw-primary-foreground)'
+                                  }}
                                   title={`${absence.type} - ${absence.status}${isCurrentAbsenceDay ? ' (This absence is pending approval)' : ''}`}
                                 >
                                   {absence.type}
@@ -598,7 +689,11 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
                               >
                                 {absence ? (
                                   <div
-                                    className={`${absence.color} gba:text-white gba:text-xs gba:py-1 gba:px-2 gba:rounded gba:font-medium`}
+                                    className="gba:text-xs gba:py-1 gba:px-2 gba:rounded gba:font-medium"
+                                    style={{
+                                      backgroundColor: absence.color,
+                                      color: 'var(--nw-primary-foreground)'
+                                    }}
                                     title={`${absence.type} - ${absence.status}`}
                                   >
                                     {absence.type}
