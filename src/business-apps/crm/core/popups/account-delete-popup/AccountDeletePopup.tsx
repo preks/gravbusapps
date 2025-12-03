@@ -1,7 +1,8 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { AccountDeletePopup as CommonAccountDeletePopup } from '@/common/components/common-relations/popups/account-delete-popup'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCustomerAccount } from '@/common/data/customer/hooks/useCustomerAccount'
+import { navigateTo } from '@/common/utils/navigationUtils'
 
 export interface AccountDeletePopupValues {
   accountId: string
@@ -24,6 +25,16 @@ const AccountDeletePopup: React.FC<AccountDeletePopupProps> = ({ initialValues =
     ''
 
   const { account, loading, error } = useCustomerAccount(props.accessToken || '', accountId)
+
+  useEffect(() => {
+    const handleProcessComplete = (e: Event) => {
+      if ((e as CustomEvent)?.detail?.resolution === 'success') {
+        navigateTo('/platform/crm/customer-relations?view=accounts')
+      }
+    }
+    window.addEventListener('com.newwork.process.processCompletion', handleProcessComplete)
+    return () => window.removeEventListener('com.newwork.process.processCompletion', handleProcessComplete)
+  }, [])
 
   return (
     <CommonAccountDeletePopup

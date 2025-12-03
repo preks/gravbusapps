@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { Alert, AlertDescription, Badge, Spinner } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 export interface InvestmentDeletePopupValues {
   investmentId: string
@@ -151,6 +152,14 @@ const InvestmentDeletePopup: React.FC<InvestmentDeletePopupProps> = ({ initialVa
     return null
   }
 
+  // Handle process completion - redirect to investments list on success
+  const handleProcessCompletion = useCallback((detail: { resolution?: 'success' | 'failure' } | null) => {
+    if (detail?.resolution === 'success') {
+      const url = buildPlatformUrl('/platform/irm/investment-management', { view: 'investments' })
+      navigateTo(url)
+    }
+  }, [])
+
   if (loading) {
     return (
       <div className="gba:p-6 gba:text-center" data-testid={formatDataTestId(prefixDataTestId, 'loading')}>
@@ -180,7 +189,7 @@ const InvestmentDeletePopup: React.FC<InvestmentDeletePopupProps> = ({ initialVa
       validateForm={validateForm}
       submitButtonText={getTranslationFromI18nKeyAndLabel('common.delete', 'Delete')}
       submitButtonVariant="destructive"
-      businessAppContext={props}
+      onProcessCompletion={handleProcessCompletion}
       data-testid={formatDataTestId(prefixDataTestId, 'form')}
     >
       <div className="gba:space-y-4" data-testid={formatDataTestId(prefixDataTestId, 'container')}>

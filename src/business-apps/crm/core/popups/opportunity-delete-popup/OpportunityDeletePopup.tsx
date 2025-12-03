@@ -1,7 +1,8 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { OpportunityDeletePopup as CommonOpportunityDeletePopup } from '@/common/components/common-relations/popups/opportunity-delete-popup'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCustomerOpportunity } from '@/common/data/customer/hooks/useCustomerOpportunity'
+import { navigateTo } from '@/common/utils/navigationUtils'
 
 export interface OpportunityDeletePopupValues {
   opportunityId: string
@@ -24,6 +25,16 @@ const OpportunityDeletePopup: React.FC<OpportunityDeletePopupProps> = ({ initial
     ''
 
   const { opportunity, loading, error } = useCustomerOpportunity(props.accessToken || '', opportunityId)
+
+  useEffect(() => {
+    const handleProcessComplete = (e: Event) => {
+      if ((e as CustomEvent)?.detail?.resolution === 'success') {
+        navigateTo('/platform/crm/customer-relations?view=opportunities')
+      }
+    }
+    window.addEventListener('com.newwork.process.processCompletion', handleProcessComplete)
+    return () => window.removeEventListener('com.newwork.process.processCompletion', handleProcessComplete)
+  }, [])
 
   return (
     <CommonOpportunityDeletePopup
