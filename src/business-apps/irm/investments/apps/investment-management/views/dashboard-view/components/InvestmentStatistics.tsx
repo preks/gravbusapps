@@ -63,7 +63,7 @@ export const InvestmentStatistics: React.FC<InvestmentStatisticsProps> = ({ sele
       prefix: <PieChartOutlined />,
       color: '#1677ff',
       span: { xs: 24, sm: 12, lg: 6 },
-      description: 'Across all investment types',
+      description: 'All types',
       trend: {
         value: investmentsChange.value,
         positive: investmentsChange.positive,
@@ -78,7 +78,7 @@ export const InvestmentStatistics: React.FC<InvestmentStatisticsProps> = ({ sele
       color: '#52c41a',
       valueIsString: true,
       span: { xs: 24, sm: 12, lg: 6 },
-      description: 'Sum of total investment amounts',
+      description: 'Total capital',
       trend: {
         value: investedChange.value,
         positive: investedChange.positive,
@@ -93,7 +93,7 @@ export const InvestmentStatistics: React.FC<InvestmentStatisticsProps> = ({ sele
       color: '#faad14',
       valueIsString: true,
       span: { xs: 24, sm: 12, lg: 6 },
-      description: 'Average across all investments',
+      description: 'Portfolio avg',
       trend: {
         value: stakeChange.value,
         positive: stakeChange.positive,
@@ -108,7 +108,7 @@ export const InvestmentStatistics: React.FC<InvestmentStatisticsProps> = ({ sele
       color: '#722ed1',
       valueIsString: true,
       span: { xs: 24, sm: 12, lg: 6 },
-      description: 'Current market valuation',
+      description: 'Current valuation',
       trend: {
         value: marketValueChange.value,
         positive: marketValueChange.positive,
