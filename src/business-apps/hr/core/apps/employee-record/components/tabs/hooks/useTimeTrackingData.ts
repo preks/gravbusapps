@@ -8,12 +8,12 @@ import {
   employeeAttendanceForDateQuery,
   employeeAttendanceMonthlyAllQuery,
   employeeRegionLookupQuery,
-  employmentRegionHolidaysQuery
+  employmentRegionHolidaysQuery,
+  employeeAttendanceMonthlyAllQuery as allQuery
 } from '@/business-apps/hr/core/apps/employee-record/queries/attendanceQueries'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { EmployeeTimeClient } from '@/common/network/employee-time/EmployeeTimeClient'
 import { fetchOfficeAndGeoLocation } from '../../../services/service-geo-location/geoLocationService'
-import { employeeAttendanceMonthlyAllQuery as allQuery } from '@/business-apps/hr/core/apps/employee-record/queries/attendanceQueries'
 
 export type TimeEntry = {
   id: string

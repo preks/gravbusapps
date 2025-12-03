@@ -11,7 +11,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter
+  DialogFooter,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useTimeTrackingData } from '../hooks/useTimeTrackingData'
@@ -31,7 +32,6 @@ import {
 import { InterventionsTable } from './InterventionsTable'
 import { LiveClock } from './LiveClock'
 import timeTrackingTranslations from './_i18n'
-import { useTranslation } from '@newwork/nw-design-system'
 
 interface MonthlySummaryProps {
   employee: any
