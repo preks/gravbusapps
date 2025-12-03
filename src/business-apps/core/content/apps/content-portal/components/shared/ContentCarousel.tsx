@@ -1,10 +1,9 @@
 import React, { useCallback, useEffect, useState, useRef, useMemo } from 'react'
 import type { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
-import { useTranslation } from 'react-i18next'
+import { Button } from '@newwork/nw-design-system'
 import { ChevronLeft, ChevronRight, MessageCircle, Share2 } from 'lucide-react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { ReactionPicker } from '@/common/components/content'
-import { Button } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ShareDialog } from '@/components/share-dialog'
 import { getEntityTypeFromTab, buildContentRecordUrl } from '@/business-apps/core/content/utils/shareUtils'
@@ -31,7 +30,6 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
   onReactionsRefetch,
   translatedItems
 }) => {
-  const { t } = useTranslation('content')
   const [activeIndex, setActiveIndex] = useState<number>(0)
   const [autoplay, setAutoplay] = useState<boolean>(true)
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
@@ -106,6 +104,7 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
   }
 
   const handleArticleClick = (article: ContentEntry) => {
+    if (!article.id) return
     const url = buildPlatformUrl('/platform/content/intranet/content-record', {
       contentId: article.id,
       ...(currentTab && { tab: currentTab })
@@ -145,9 +144,8 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
 
               return (
                 <div key={article.id} className="gba:min-w-full">
-                  <button
-                    type="button"
-                    className="gba:relative gba:flex gba:flex-row gba:py-6 gba:px-14 gba:gap-6 gba:cursor-pointer gba:w-full gba:text-left gba:bg-transparent gba:border-0"
+                  <div
+                    className="gba:relative gba:flex gba:flex-row gba:py-6 gba:px-14 gba:gap-6 gba:cursor-pointer gba:w-full gba:text-left"
                     onClick={() => handleArticleClick(article)}
                     onKeyDown={e => {
                       if (e.key === 'Enter' || e.key === ' ') {
@@ -155,6 +153,8 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
                         handleArticleClick(article)
                       }
                     }}
+                    role="button"
+                    tabIndex={0}
                   >
                     <div className="gba:w-2/5 gba:h-64 gba:overflow-hidden gba:rounded-lg gba:shrink-0 gba:relative">
                       {article.picture ? (
@@ -196,7 +196,7 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
                       <div className="gba:flex gba:items-center gba:mb-3">
                         {article.creatorEmployee && (
                           <span className="gba:text-sm gba:text-muted-foreground">
-                            {t('by')} {article.creatorEmployee.displayName || article.creatorEmployee.fullName}
+                            {article.creatorEmployee.displayName || article.creatorEmployee.fullName}
                           </span>
                         )}
                       </div>
@@ -212,7 +212,6 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
                               accessToken={accessToken}
                               employeeId={userInfo?.employeeDetails?.employeeId || ''}
                               onSuccess={onReactionsRefetch}
-                              size="sm"
                               allowedReactions={allowedReactions}
                               reactionCatalogMap={reactionCatalogMap}
                               data-testid={`carousel-reaction-${article.id}`}
@@ -236,7 +235,7 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
                         </Button>
                       </div>
                     </div>
-                  </button>
+                  </div>
                 </div>
               )
             })}

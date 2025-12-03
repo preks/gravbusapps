@@ -69,7 +69,7 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
       onSubmit={handleShare}
       title="Share via Blink"
       description="Share this content with employees instantly"
-      employeeId={currentUserId}
+      currentUserId={currentUserId}
       config={{
         assigneeSelector: { mode: 'employee-search', required: true },
         enableFileUpload: false,

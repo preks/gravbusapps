@@ -88,12 +88,22 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
     return entries
   }, [entries])
 
+  // Memoize item IDs to prevent unnecessary re-renders (sorted for consistency)
+  const allItemsIds = useMemo(() => {
+    const ids = allItems.map(item => item.id).filter(Boolean)
+    return ids.sort().join(',')
+  }, [allItems])
+
   // Trigger translation when targetLanguage is set
   useEffect(() => {
-    if (targetLanguage && onTranslate && allItems.length > 0) {
-      onTranslate(allItems, targetLanguage)
+    if (!targetLanguage || !onTranslate || allItems.length === 0) {
+      return
     }
-  }, [targetLanguage, allItems, onTranslate])
+
+    onTranslate(allItems, targetLanguage).catch(() => {
+      // Error handling is done in the translation hook
+    })
+  }, [targetLanguage, allItemsIds, onTranslate, allItems])
 
   // Infinite scroll
   const sentinelRef = useInfiniteScroll({
@@ -303,4 +313,25 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
   )
 }
 
-export default KnowledgeView
+// Memoize component to prevent unnecessary re-renders
+export default React.memo(KnowledgeView, (prevProps, nextProps) => {
+  const changedProps: string[] = []
+
+  if (prevProps.accessToken !== nextProps.accessToken) changedProps.push('accessToken')
+  if (prevProps.currentTab !== nextProps.currentTab) changedProps.push('currentTab')
+  if (prevProps.targetLanguage !== nextProps.targetLanguage) changedProps.push('targetLanguage')
+  if (prevProps.allowedReactions?.join(',') !== nextProps.allowedReactions?.join(','))
+    changedProps.push('allowedReactions')
+  if (JSON.stringify(prevProps.reactionCatalogMap) !== JSON.stringify(nextProps.reactionCatalogMap))
+    changedProps.push('reactionCatalogMap')
+  if (JSON.stringify(prevProps.translatedItems) !== JSON.stringify(nextProps.translatedItems))
+    changedProps.push('translatedItems')
+  if (prevProps.userInfo?.id !== nextProps.userInfo?.id) changedProps.push('userInfo.id')
+  if (prevProps.hideBanner !== nextProps.hideBanner) changedProps.push('hideBanner')
+
+  if (changedProps.length > 0) {
+    return false // Re-render
+  }
+
+  return true // Skip re-render
+})

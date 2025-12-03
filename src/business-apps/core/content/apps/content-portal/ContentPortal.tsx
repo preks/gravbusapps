@@ -52,17 +52,6 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
           offset: 0
         })
 
-        console.log('🔥 ContentPortal - Fetched catalog entries:', {
-          totalEntries: result.entries.length,
-          entries: result.entries.map(e => ({
-            id: e.id,
-            type: e.type,
-            additionalValue2: e.additionalValue2,
-            parentEntryId: e.parentEntryId,
-            displayOrder: e.displayOrder
-          }))
-        })
-
         // Build map for both vote reactions (+1/-1) and emoji reactions
         const catalogMap: Record<string, string> = {}
         const allowedCodes: string[] = []
@@ -96,16 +85,6 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
       } catch (error) {
         // Fallback to default reactions
         console.error('Error loading reactions catalog:', error)
-        setAllowedReactions([
-          '1f44d', // 👍
-          '2764-fe0f', // ❤️
-          '1f602', // 😂
-          '1f44f', // 👏
-          '1f525', // 🔥
-          '1f389', // 🎉
-          '1f64f', // 🙏
-          '1f440' // 👀
-        ])
       }
     }
 
@@ -168,10 +147,6 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
     return t('greeting-generic')
   }, [t])
 
-  const handleNavigate = (tab: string) => {
-    handleTabChange(tab)
-  }
-
   // Helper function to get banner configuration for any tab
   const getBannerConfig = (tab: string): BannerConfig => {
     switch (tab) {
@@ -230,6 +205,11 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
 
   // Get all banner configs for carousel
   const bannerConfigs = useMemo(() => tabOrder.map(tab => getBannerConfig(tab)), [t, greeting, formattedDate])
+
+  // Stabilize props to prevent unnecessary re-renders
+  const stableAllowedReactions = useMemo(() => allowedReactions, [allowedReactions.join(',')])
+  const stableReactionCatalogMap = useMemo(() => reactionCatalogMap, [JSON.stringify(reactionCatalogMap)])
+  const stableTranslatedItems = useMemo(() => translatedItems, [JSON.stringify(translatedItems)])
 
   return (
     <div className="gba:min-h-screen gba:flex gba:flex-col gba:w-full gba:bg-background" data-testid="intranet">
@@ -312,13 +292,12 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
           <HomeView
             accessToken={context.accessToken}
             userInfo={context.userInfo}
-            onNavigate={handleNavigate}
             hideBanner
             currentTab="home"
-            allowedReactions={allowedReactions}
-            reactionCatalogMap={reactionCatalogMap}
+            allowedReactions={stableAllowedReactions}
+            reactionCatalogMap={stableReactionCatalogMap}
             targetLanguage={targetLanguage}
-            translatedItems={translatedItems}
+            translatedItems={stableTranslatedItems}
             onTranslate={translateAllContent}
           />
         </TabSwitchContent>
@@ -329,10 +308,10 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
             userInfo={context.userInfo}
             hideBanner
             currentTab="news"
-            allowedReactions={allowedReactions}
-            reactionCatalogMap={reactionCatalogMap}
+            allowedReactions={stableAllowedReactions}
+            reactionCatalogMap={stableReactionCatalogMap}
             targetLanguage={targetLanguage}
-            translatedItems={translatedItems}
+            translatedItems={stableTranslatedItems}
             onTranslate={translateAllContent}
           />
         </TabSwitchContent>
@@ -341,13 +320,12 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
           <KnowledgeView
             accessToken={context.accessToken}
             userInfo={context.userInfo}
-            onNavigate={handleNavigate}
             hideBanner
             currentTab="knowledge"
-            allowedReactions={allowedReactions}
-            reactionCatalogMap={reactionCatalogMap}
+            allowedReactions={stableAllowedReactions}
+            reactionCatalogMap={stableReactionCatalogMap}
             targetLanguage={targetLanguage}
-            translatedItems={translatedItems}
+            translatedItems={stableTranslatedItems}
             onTranslate={translateAllContent}
           />
         </TabSwitchContent>
@@ -357,11 +335,8 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
             accessToken={context.accessToken}
             userInfo={context.userInfo}
             hideBanner
-            currentTab="documents"
-            allowedReactions={allowedReactions}
-            reactionCatalogMap={reactionCatalogMap}
             targetLanguage={targetLanguage}
-            translatedItems={translatedItems}
+            translatedItems={stableTranslatedItems}
             onTranslate={translateAllContent}
           />
         </TabSwitchContent>
@@ -372,16 +347,16 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
             userInfo={context.userInfo}
             hideBanner
             currentTab="questions"
-            allowedReactions={allowedReactions}
-            reactionCatalogMap={reactionCatalogMap}
+            allowedReactions={stableAllowedReactions}
+            reactionCatalogMap={stableReactionCatalogMap}
             targetLanguage={targetLanguage}
-            translatedItems={translatedItems}
+            translatedItems={stableTranslatedItems}
             onTranslate={translateAllContent}
           />
         </TabSwitchContent>
 
         <TabSwitchContent value="engagement" data-testid="intranet-content-engagement">
-          <EngagementView accessToken={context.accessToken} userInfo={context.userInfo} hideBanner />
+          <EngagementView accessToken={context.accessToken} userInfo={context.userInfo} />
         </TabSwitchContent>
       </TabSwitch>
     </div>

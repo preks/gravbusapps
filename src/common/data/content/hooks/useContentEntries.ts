@@ -2,7 +2,7 @@
  * useContentEntries Hook
  * Fetch multiple content entries with filtering and pagination
  */
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import type { ContentEntry } from '../types/contentEntryTypes'
 import type { ContentEntryQueryParams } from '../queries/contentQueries'
@@ -108,6 +108,9 @@ export const useContentEntries = (
 
   const graphqlClient = useGraphQLClient(accessToken)
 
+  // Serialize params to create stable dependency
+  const paramsKey = useMemo(() => JSON.stringify(params), [params])
+
   const fetchEntries = useCallback(
     async (silent = false) => {
       // If we've loaded before and have data, this is a background refetch
@@ -194,18 +197,17 @@ export const useContentEntries = (
       } catch (err) {
         const errorObj = err instanceof Error ? err : new Error('Failed to fetch content entries')
         setError(errorObj)
-        console.error('Error fetching content entries:', err)
       } finally {
         setIsLoading(false)
         setIsRefetching(false)
       }
     },
-    [params, accessToken, graphqlClient, options]
+    [paramsKey, accessToken, graphqlClient, options]
   )
 
   useEffect(() => {
     fetchEntries()
-  }, [fetchEntries])
+  }, [fetchEntries, paramsKey])
 
   return {
     entries,

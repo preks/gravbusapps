@@ -87,17 +87,29 @@ const HomeView: React.FC<HomeViewProps> = ({
 
   const hasMore = entries.length > 0 && entries.length < totalCount
 
-  // Collect all items for translation
+  // Collect all items for translation (remove duplicates)
   const allItems = useMemo(() => {
-    return [...featuredData, ...data]
+    const featuredIds = new Set(featuredData.map(item => item.id))
+    const uniqueMainItems = data.filter(item => !featuredIds.has(item.id))
+    return [...featuredData, ...uniqueMainItems]
   }, [featuredData, data])
+
+  // Memoize item IDs to prevent unnecessary re-renders (sorted for consistency)
+  const allItemsIds = useMemo(() => {
+    const ids = allItems.map(item => item.id).filter(Boolean)
+    return ids.sort().join(',')
+  }, [allItems])
 
   // Trigger translation when targetLanguage is set
   useEffect(() => {
-    if (targetLanguage && onTranslate && allItems.length > 0) {
-      onTranslate(allItems, targetLanguage)
+    if (!targetLanguage || !onTranslate || allItems.length === 0) {
+      return
     }
-  }, [targetLanguage, allItems, onTranslate])
+
+    onTranslate(allItems, targetLanguage).catch(() => {
+      // Error handling is done in the translation hook
+    })
+  }, [targetLanguage, allItemsIds, onTranslate, allItems])
 
   // Infinite scroll
   const sentinelRef = useInfiniteScroll({
@@ -233,11 +245,11 @@ const HomeView: React.FC<HomeViewProps> = ({
         ) : (
           <div className="gba:grid gba:grid-cols-2 gba:gap-6 gba:mb-8">
             {remainingArticles.length > 0 ? (
-              remainingArticles.map(item => {
+              remainingArticles.map((item, index) => {
                 const translated = translatedItems?.[item.id || '']
                 return (
                   <ContentCard
-                    key={item.articleId}
+                    key={item.id || `article-${index}`}
                     item={item}
                     variant="intranet"
                     currentTab={currentTab}
@@ -273,4 +285,25 @@ const HomeView: React.FC<HomeViewProps> = ({
   )
 }
 
-export default HomeView
+// Memoize component to prevent unnecessary re-renders
+export default React.memo(HomeView, (prevProps, nextProps) => {
+  const changedProps: string[] = []
+
+  if (prevProps.accessToken !== nextProps.accessToken) changedProps.push('accessToken')
+  if (prevProps.currentTab !== nextProps.currentTab) changedProps.push('currentTab')
+  if (prevProps.targetLanguage !== nextProps.targetLanguage) changedProps.push('targetLanguage')
+  if (prevProps.allowedReactions?.join(',') !== nextProps.allowedReactions?.join(','))
+    changedProps.push('allowedReactions')
+  if (JSON.stringify(prevProps.reactionCatalogMap) !== JSON.stringify(nextProps.reactionCatalogMap))
+    changedProps.push('reactionCatalogMap')
+  if (JSON.stringify(prevProps.translatedItems) !== JSON.stringify(nextProps.translatedItems))
+    changedProps.push('translatedItems')
+  if (prevProps.userInfo?.id !== nextProps.userInfo?.id) changedProps.push('userInfo.id')
+  if (prevProps.hideBanner !== nextProps.hideBanner) changedProps.push('hideBanner')
+
+  if (changedProps.length > 0) {
+    return false // Re-render
+  }
+
+  return true // Skip re-render
+})

@@ -130,22 +130,34 @@ const NewsView: React.FC<NewsViewProps> = ({
   // Use entries directly (no conversion needed)
   const data = entries
   const featuredData = featuredEntries
-  const featuredArticles = featuredData.slice(0, 2)
-  const otherArticles = data
+  const featuredArticles = useMemo(() => featuredData.slice(0, 2), [featuredData])
+  const otherArticles = useMemo(() => data, [data])
 
   const hasMore = entries.length > 0 && entries.length < totalCount
 
-  // Collect all items for translation
+  // Collect all items for translation (remove duplicates)
   const allItems = useMemo(() => {
-    return [...featuredArticles, ...otherArticles]
+    const featuredIds = new Set(featuredArticles.map(item => item.id))
+    const uniqueOtherItems = otherArticles.filter(item => !featuredIds.has(item.id))
+    return [...featuredArticles, ...uniqueOtherItems]
   }, [featuredArticles, otherArticles])
+
+  // Memoize item IDs to prevent unnecessary re-renders (sorted for consistency)
+  const allItemsIds = useMemo(() => {
+    const ids = allItems.map(item => item.id).filter(Boolean)
+    return ids.sort().join(',')
+  }, [allItems])
 
   // Trigger translation when targetLanguage is set
   useEffect(() => {
-    if (targetLanguage && onTranslate && allItems.length > 0) {
-      onTranslate(allItems, targetLanguage)
+    if (!targetLanguage || !onTranslate || allItems.length === 0) {
+      return
     }
-  }, [targetLanguage, allItems, onTranslate])
+
+    onTranslate(allItems, targetLanguage).catch(() => {
+      // Error handling is done in the translation hook
+    })
+  }, [targetLanguage, allItemsIds, onTranslate, allItems])
 
   // Infinite scroll
   const sentinelRef = useInfiniteScroll({
@@ -241,11 +253,11 @@ const NewsView: React.FC<NewsViewProps> = ({
           </div>
         ) : featuredArticles.length > 0 ? (
           <div className="gba:grid gba:grid-cols-2 gba:gap-6 gba:mb-10">
-            {featuredArticles.map(item => {
+            {featuredArticles.map((item, index) => {
               const translated = translatedItems?.[item.id || '']
               return (
                 <ContentCard
-                  key={item.articleId}
+                  key={item.id || `featured-${index}`}
                   item={item}
                   variant="news"
                   featured={true}
@@ -278,11 +290,11 @@ const NewsView: React.FC<NewsViewProps> = ({
           {isLoading ? (
             <ContentCardSkeleton variant="horizontal" count={5} />
           ) : (
-            otherArticles.map(item => {
+            otherArticles.map((item, index) => {
               const translated = translatedItems?.[item.id || '']
               return (
                 <ContentCard
-                  key={item.articleId}
+                  key={item.id || `article-${index}`}
                   item={item}
                   variant="news"
                   currentTab={currentTab}
@@ -313,4 +325,25 @@ const NewsView: React.FC<NewsViewProps> = ({
   )
 }
 
-export default NewsView
+// Memoize component to prevent unnecessary re-renders
+export default React.memo(NewsView, (prevProps, nextProps) => {
+  const changedProps: string[] = []
+
+  if (prevProps.accessToken !== nextProps.accessToken) changedProps.push('accessToken')
+  if (prevProps.currentTab !== nextProps.currentTab) changedProps.push('currentTab')
+  if (prevProps.targetLanguage !== nextProps.targetLanguage) changedProps.push('targetLanguage')
+  if (prevProps.allowedReactions?.join(',') !== nextProps.allowedReactions?.join(','))
+    changedProps.push('allowedReactions')
+  if (JSON.stringify(prevProps.reactionCatalogMap) !== JSON.stringify(nextProps.reactionCatalogMap))
+    changedProps.push('reactionCatalogMap')
+  if (JSON.stringify(prevProps.translatedItems) !== JSON.stringify(nextProps.translatedItems))
+    changedProps.push('translatedItems')
+  if (prevProps.userInfo?.id !== nextProps.userInfo?.id) changedProps.push('userInfo.id')
+  if (prevProps.hideBanner !== nextProps.hideBanner) changedProps.push('hideBanner')
+
+  if (changedProps.length > 0) {
+    return false // Re-render
+  }
+
+  return true // Skip re-render
+})

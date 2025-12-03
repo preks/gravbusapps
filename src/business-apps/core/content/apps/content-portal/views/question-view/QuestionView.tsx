@@ -304,11 +304,15 @@ const QuestionView: React.FC<QuestionViewProps> = ({
             <div className="gba:flex gba:gap-2 gba:items-center">
               <SearchInput onSearch={handleSearch} placeholder={t('search_questions')} className="gba:w-[300px]" />
               <AppAction
-                contextsArray={[FlowContextName.contentEntryCreate]}
-                externalContextData={{ contentGroup: ContentGroup.QUESTION }}
+                contexts={[
+                  {
+                    context: FlowContextName.contentEntryCreate,
+                    contextData: { contentGroup: ContentGroup.QUESTION }
+                  }
+                ]}
                 accessToken={accessToken}
-                emptyStateBehavior="enable"
-                deferMainContextRequestsUntilClick
+                emptyState="enable"
+                lazyLoad
                 data-testid="question-view-create-button"
               >
                 <Button>{t('ask_question')}</Button>

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { flowbotClient } from '@/common/network/flowbot'
 import type { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
 
@@ -23,6 +23,7 @@ export const usePortalTranslation = (accessToken: string): UsePortalTranslationR
   const [translatedItems, setTranslatedItems] = useState<Record<string, TranslatedItem>>({})
   const [isTranslating, setIsTranslating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const isTranslatingRef = useRef(false)
 
   // Set access token for flowbot client
   flowbotClient.setAccessToken(accessToken)
@@ -36,6 +37,12 @@ export const usePortalTranslation = (accessToken: string): UsePortalTranslationR
       return
     }
 
+    // Skip if already translating
+    if (isTranslatingRef.current) {
+      return
+    }
+
+    isTranslatingRef.current = true
     setIsTranslating(true)
     setError(null)
 
@@ -93,6 +100,7 @@ export const usePortalTranslation = (accessToken: string): UsePortalTranslationR
       setError(err instanceof Error ? err.message : 'Failed to translate content')
       setTranslatedItems({})
     } finally {
+      isTranslatingRef.current = false
       setIsTranslating(false)
     }
   }, [])

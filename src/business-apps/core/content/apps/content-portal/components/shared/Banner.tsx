@@ -102,7 +102,7 @@ export const BannerCarousel: React.FC<BannerCarouselProps> = ({ configs, activeI
       {/* All Banner Backgrounds - Stacked with Opacity Transition */}
       {configs.map((config, index) => (
         <div
-          key={config.variant}
+          key={`${config.variant}-${index}`}
           className={`gba:absolute gba:inset-0 gba:transition-opacity gba:duration-700 gba:ease-in-out ${gradients[config.variant].className} ${
             index === activeIndex ? 'gba:opacity-100' : 'gba:opacity-0'
           }`}
