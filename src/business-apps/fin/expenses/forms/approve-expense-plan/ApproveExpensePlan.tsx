@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useRef, useEffect } from 'react'
 import {
   Card,
   CardContent,
@@ -9,10 +9,12 @@ import {
   Spinner,
   Alert,
   AlertTitle,
-  AlertDescription
+  AlertDescription,
+  Switch,
+  Textarea
 } from '@newwork/nw-design-system'
 import { PiCalendarDuotone, PiClock, PiMapPin } from 'react-icons/pi'
-import { ThumbsUp, XCircle } from 'lucide-react'
+import { ThumbsUp, XCircle, MessageSquare } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { formatDateTime } from '@/business-apps/core/every/apps/every-box/utils/taskFormatters'
@@ -76,6 +78,20 @@ const ApproveExpensePlanContent: React.FC<ApproveExpensePlanProps> = ({
 
   const [isApproving, setIsApproving] = useState(false)
   const [isRejecting, setIsRejecting] = useState(false)
+  const [showComment, setShowComment] = useState(false)
+  const [comment, setComment] = useState('')
+
+  // Ref for scrolling to comment section
+  const commentSectionRef = useRef<HTMLDivElement>(null)
+
+  // Scroll to comment section when it becomes visible
+  useEffect(() => {
+    if (showComment) {
+      setTimeout(() => {
+        commentSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 100)
+    }
+  }, [showComment])
 
   const { expensePlan, loading, error, refetch } = useExpensePlanData({ planId, accessToken })
 
@@ -252,7 +268,7 @@ const ApproveExpensePlanContent: React.FC<ApproveExpensePlanProps> = ({
         event: 'pse_approve',
         expensePlanComment: {
           commentDate: new Date().toISOString().slice(0, 19),
-          comment: '',
+          comment: showComment && comment.trim() ? comment.trim() : '',
           commentType: 'APPROVE_COMMENT',
           authorEmployee: userInfo?.employeeDetails?.employeeId,
           expensePlan: expensePlan?.id
@@ -281,13 +297,19 @@ const ApproveExpensePlanContent: React.FC<ApproveExpensePlanProps> = ({
   }
 
   const handleReject = async () => {
+    // Require comment for rejection
+    if (!comment.trim()) {
+      setShowComment(true)
+      return
+    }
+
     setIsRejecting(true)
     try {
       const rejectionPayload = {
         event: 'pse_reject',
         expensePlanComment: {
           commentDate: new Date().toISOString().slice(0, 19),
-          comment: '',
+          comment: comment.trim(),
           commentType: 'REJECT_COMMENT',
           authorEmployee: userInfo?.employeeDetails?.employeeId,
           expensePlan: expensePlan?.id
@@ -531,6 +553,34 @@ const ApproveExpensePlanContent: React.FC<ApproveExpensePlanProps> = ({
           formatCurrency={formatCurrency}
           prefixDataTestId="approve-expense-plan"
         />
+      )}
+
+      {/* 7. Comment Section - Only for active tasks */}
+      {!isTaskCompleted && (
+        <div ref={commentSectionRef} data-testid="approve-expense-plan-comment-section">
+          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
+            <Switch id="show-comment" checked={showComment} onCheckedChange={setShowComment} />
+            <Label
+              htmlFor="show-comment"
+              className="gba:text-sm gba:font-medium gba:cursor-pointer gba:flex gba:items-center gba:gap-2"
+            >
+              <MessageSquare className="gba:h-4 gba:w-4" />
+              Add Comment (Required for rejection)
+            </Label>
+          </div>
+
+          {showComment && (
+            <Textarea
+              id="comment"
+              placeholder="Enter your approval comment or rejection reason..."
+              value={comment}
+              onChange={e => setComment(e.target.value)}
+              rows={4}
+              className="gba:w-full"
+              data-testid="approve-expense-plan-comment-input"
+            />
+          )}
+        </div>
       )}
     </TaskFormLayout>
   )
