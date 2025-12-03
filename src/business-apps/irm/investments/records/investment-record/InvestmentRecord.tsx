@@ -15,8 +15,6 @@ import { useInvestmentAiSummary } from './hooks/useInvestmentAiSummary'
 import { TrendingUp, Home, BarChart3 } from 'lucide-react'
 import { createHeaderMeta, getTypeSpecificDetailGroups } from './utils/investmentHeaderConfig'
 import { createInvestmentTabsConfig } from './utils/investmentTabConfig'
-import { InvestmentRecordAnalyticsChat } from '@/ai-insights/components/InvestmentRecordAnalyticsChat'
-import { extractCurrencyCode } from '@/common/utils/numberFormatter'
 
 type InvestmentRecordProps = BusinessAppContextProps
 
@@ -388,18 +386,6 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
         headerDetailGroups={headerDetailGroups}
         subViews={subViewsConfig}
       />
-
-      {/* Analytics assistant for the page */}
-      {investmentId && investmentData && props.accessToken && (
-        <div className="gba:px-4 gba:py-2">
-          <InvestmentRecordAnalyticsChat
-            investmentId={investmentId}
-            investmentName={investmentData.name}
-            accessToken={props.accessToken}
-            currency={extractCurrencyCode(investmentData.currency?.id || investmentData.currency?.code)}
-          />
-        </div>
-      )}
     </div>
   )
 }
