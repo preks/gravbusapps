@@ -10,7 +10,11 @@ import { execSync } from 'node:child_process'
 import path, { dirname } from 'node:path'
 import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { promisify } from 'node:util'
+import { exec } from 'node:child_process'
 import dotenv from '@dotenvx/dotenvx'
+
+const execAsync = promisify(exec)
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -109,7 +113,7 @@ async function buildScreenOnly(screenPath) {
   const buildEnv = {
     ...process.env,
     PROJECT_ROOT_DIR: projectRootDir,
-    VITE_GIT_USER: process.env.VITE_GIT_USER || execSync('git config user.name').toString().trim(),
+    VITE_GIT_USER: process.env.VITE_GIT_USER || (await execAsync('git config user.name')).toString().trim(),
     VITE_PUBLISH_TIME: new Date().toISOString(),
     VITE_BUILD_VERSION: BUILD_VERSION,
     TARGET_ENTRY_FILE: sourceEntryFile,
@@ -127,7 +131,7 @@ async function buildScreenOnly(screenPath) {
   console.log(`   Build version: ${BUILD_VERSION}`)
 
   try {
-    execSync(viteBuildCommand, {
+    await execAsync(viteBuildCommand, {
       stdio: 'inherit',
       cwd: projectRootDir,
       env: buildEnv
