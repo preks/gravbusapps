@@ -29,6 +29,8 @@ export type TimeEntry = {
   differenceTime?: string // Text like "-30m" or "-1h"
   manualOverride?: boolean
   notes?: string
+  // persisted location enum from BE
+  attendanceLocation?: 'UNKNOWN_LOCATION' | 'IS_NEAR_HOME' | 'IS_NEAR_OFFICE' | 'IS_OTHER_LOCATION'
   // optional external workflow status (kept for UI badge if available)
   status?: 'approved' | 'pending' | 'rejected' | 'open'
   // derived for internal calculations (not rendered directly)
@@ -161,6 +163,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       differenceTime: row.differenceTime,
       manualOverride: Boolean(row.manualOverride),
       notes: row.notes ?? '',
+      attendanceLocation: row?.attendanceLocation ?? undefined,
       status: 'approved',
       totalMinutes
     }
@@ -204,13 +207,11 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       isOpenAndToday && mostRecent?.startTime ? String(formatDate(mostRecent.startTime, 'time.short')) : null
     )
 
-    // Parse proximity flags from notes of most recent entry when it's from today
+    // Parse proximity flags from attendanceLocation field when it's from today
     try {
-      const notes: string = String(mostRecent?.notes ?? '')
-      const homeMatch = /isNearHome\s*=\s*(true|false)/i.exec(notes)
-      const officeMatch = /isNearOffice\s*=\s*(true|false)/i.exec(notes)
-      setIsNearHome(Boolean(homeMatch && homeMatch[1].toLowerCase() === 'true'))
-      setIsNearOffice(Boolean(officeMatch && officeMatch[1].toLowerCase() === 'true'))
+      const attLoc: string = String(mostRecent?.attendanceLocation ?? 'UNKNOWN_LOCATION')
+      setIsNearHome(attLoc === 'IS_NEAR_HOME')
+      setIsNearOffice(attLoc === 'IS_NEAR_OFFICE')
     } catch {
       setIsNearHome(false)
       setIsNearOffice(false)
@@ -385,16 +386,16 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       const client = new EmployeeTimeClient()
       if (accessToken) client.setAccessToken(accessToken)
 
-      // Determine proximity to office/home and include in notes
-      let notesText = 'Clock-in'
+      // Determine proximity and set attendanceLocation
+      let attendanceLocation: 'UNKNOWN_LOCATION' | 'IS_NEAR_HOME' | 'IS_NEAR_OFFICE' | 'IS_OTHER_LOCATION' =
+        'UNKNOWN_LOCATION'
       try {
         const geo = await fetchOfficeAndGeoLocation(graphqlClient, employeeId)
-        const isNearHome = Boolean(geo?.comparisons?.isNearHome)
-        const isNearOffice = Boolean(geo?.comparisons?.isNearOffice)
-        // Persist simple booleans so they are easy to audit/search later
-        notesText = `Clock-in | isNearHome=${isNearHome} | isNearOffice=${isNearOffice}`
+        const nearHome = Boolean(geo?.comparisons?.isNearHome)
+        const nearOffice = Boolean(geo?.comparisons?.isNearOffice)
+        attendanceLocation = nearHome ? 'IS_NEAR_HOME' : nearOffice ? 'IS_NEAR_OFFICE' : 'IS_OTHER_LOCATION'
       } catch {
-        // Ignore geo errors; proceed with plain clock-in
+        // Ignore geo errors; leave UNKNOWN_LOCATION
       }
 
       await client.createEmployeeAttendance({
@@ -409,7 +410,8 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
           plannedTime: formatMinutes(getPlannedMinutesForDate(isoNow)),
           differenceTime: '0h',
           manualOverride: false,
-          notes: notesText,
+          notes: 'Clock-in',
+          attendanceLocation,
           employee: employeeId
         }
       })
@@ -522,14 +524,8 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
         const todays = allRows.filter(r => String(r.attendanceDate) === todayStr)
         const target = todays[todays.length - 1] || todays[0] // pick one if multiple
         if (target?.id) {
-          const existingEntry = allEntries.find(e => e.id === target.id)
-          const existingNotes = existingEntry?.notes ?? ''
-          const withHome = existingNotes.match(/isNearHome\s*=\s*(true|false)/i)
-            ? existingNotes.replace(/isNearHome\s*=\s*(true|false)/gi, `isNearHome=${newIsNearHome}`)
-            : `${existingNotes}${existingNotes ? ' | ' : ''}isNearHome=${newIsNearHome}`
-          const newNotes = withHome.match(/isNearOffice\s*=\s*(true|false)/i)
-            ? withHome.replace(/isNearOffice\s*=\s*(true|false)/gi, `isNearOffice=${newIsNearOffice}`)
-            : `${withHome}${withHome ? ' | ' : ''}isNearOffice=${newIsNearOffice}`
+          const newLoc =
+            selection === 'home' ? 'IS_NEAR_HOME' : selection === 'office' ? 'IS_NEAR_OFFICE' : 'IS_OTHER_LOCATION'
 
           const client = new EmployeeTimeClient()
           if (accessToken) client.setAccessToken(accessToken)
@@ -538,7 +534,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
             employeeAttendance: {
               id: target.id,
               version: typeof target.version === 'number' ? target.version : 0,
-              notes: newNotes
+              attendanceLocation: newLoc
             }
           })
         }

@@ -125,7 +125,7 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, a
   const locationPrimaryLabel = React.useMemo(() => {
     if (isNearOffice) return getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.location.office', 'Office')
     if (isNearHome) return getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.location.home', 'Home')
-    return getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.location.remote', 'Remote Location')
+    return getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.location.remote', 'Remote')
   }, [isNearHome, isNearOffice])
   const confirmLocationLabel = React.useMemo(() => {
     const label = `Not working from ${locationPrimaryLabel}?`
@@ -300,7 +300,7 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, a
               <Icon icon={ClockIcon} />
               <div className="gba:flex gba:justify-between gba:w-full">
                 <span>
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.balance_today', 'Balance Today')}
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.ballance_today', 'Balance Today')}
                 </span>
                 <span className={`gba:font-semibold ${balanceClass}`}>{formatHmSigned(balanceMinutes)}</span>
               </div>

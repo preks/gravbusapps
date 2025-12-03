@@ -219,7 +219,7 @@ export const InterventionsTable: React.FC<InterventionsTableProps> = ({ employee
                               )}{' '}
                               {formatHm(item.workedMinutes)}
                               {deficit > 0
-                                ? ` • ${getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.interventions.balance', 'Balance')} -${formatHm(deficit)}`
+                                ? ` • ${getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.interventions.ballance', 'Balance')} -${formatHm(deficit)}`
                                 : ''}
                             </div>
                           </div>
