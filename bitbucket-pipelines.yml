@@ -306,6 +306,9 @@ pipelines:
       - step: *install_dependencies
       - step:
           name: Calculate screen hashes
+          size: 1x
+          caches:
+          - nodecustom
           script:
             - echo "🔧 Calculating hashes for $HASH_ENV environment"
             - |
