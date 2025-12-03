@@ -1637,7 +1637,7 @@ async function main() {
   // ============================================================================
   // STEP 3: UPDATE PROD HASH FILE
   // ============================================================================
-  if (successfulScreens.length > 0) {
+  if (useHashComparison && successfulScreens.length > 0) {
     console.log(`\n${'='.repeat(80)}`)
     console.log(`📝 STEP 3: UPDATE PROD HASH FILE`)
     console.log(`${'='.repeat(80)}`)
