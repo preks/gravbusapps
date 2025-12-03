@@ -1,0 +1,590 @@
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { ChatWebSocketClient } from '../services/chatWebSocketClient'
+import { ChatApiClient } from '../services/chatApiClient'
+
+// Generate a unique call ID using crypto API (available in all modern browsers)
+const generateCallId = (): string => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID()
+  }
+  // Fallback for older browsers
+  return 'call-' + Date.now().toString(36) + '-' + Math.random().toString(36).substring(2, 15)
+}
+import { WebRTCClient, CallType, CallParticipant, CallState, CallSignal } from '../services/webrtcClient'
+
+const RING_TIMEOUT = 30000 // 30 seconds ring timeout
+
+export interface UseCallOptions {
+  wsClient: ChatWebSocketClient | null
+  apiClient?: ChatApiClient | null
+  currentUser: CallParticipant | null
+  onCallStarted?: (callId: string, participant: CallParticipant) => void
+  onCallEnded?: (callId: string, duration: number) => void
+}
+
+export interface UseCallReturn {
+  // State
+  callState: CallState
+  isInCall: boolean
+  hasIncomingCall: boolean
+  // Actions
+  initiateCall: (participant: CallParticipant, type: CallType, conversationId?: string) => Promise<void>
+  acceptCall: () => Promise<void>
+  rejectCall: () => void
+  endCall: () => void
+  toggleMute: () => void
+  toggleVideo: () => void
+  toggleScreenShare: () => Promise<void>
+  // Streams
+  localStream: MediaStream | null
+  remoteStream: MediaStream | null
+}
+
+const initialCallState: CallState = {
+  callId: null,
+  status: 'idle',
+  direction: null,
+  type: 'audio',
+  localStream: null,
+  remoteStream: null,
+  localParticipant: null,
+  remoteParticipant: null,
+  isMuted: false,
+  isVideoOff: false,
+  isScreenSharing: false,
+  error: null,
+  startTime: null
+}
+
+export const useCall = ({
+  wsClient,
+  apiClient,
+  currentUser,
+  onCallStarted,
+  onCallEnded
+}: UseCallOptions): UseCallReturn => {
+  const [callState, setCallState] = useState<CallState>(initialCallState)
+  const webrtcRef = useRef<WebRTCClient | null>(null)
+  const ringTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const pendingSignalRef = useRef<CallSignal | null>(null)
+  const iceServersRef = useRef<RTCIceServer[] | null>(null)
+
+  // Use refs to avoid stale closures in WebRTC callbacks
+  const callStateRef = useRef<CallState>(initialCallState)
+  const wsClientRef = useRef<ChatWebSocketClient | null>(null)
+  const currentUserRef = useRef<CallParticipant | null>(null)
+  const apiClientRef = useRef<ChatApiClient | null>(null)
+
+  // Keep refs in sync with state/props
+  callStateRef.current = callState
+  wsClientRef.current = wsClient
+  currentUserRef.current = currentUser
+  apiClientRef.current = apiClient || null
+
+  // Update call state helper
+  const updateCallState = useCallback((updates: Partial<CallState>) => {
+    setCallState(prev => ({ ...prev, ...updates }))
+  }, [])
+
+  // Clear ring timeout
+  const clearRingTimeout = useCallback(() => {
+    if (ringTimeoutRef.current) {
+      clearTimeout(ringTimeoutRef.current)
+      ringTimeoutRef.current = null
+    }
+  }, [])
+
+  // Cleanup call resources
+  const cleanupCall = useCallback(
+    (reportDuration = true) => {
+      clearRingTimeout()
+
+      const callId = callState.callId
+      const startTime = callState.startTime
+      const remoteParticipant = callState.remoteParticipant
+
+      if (webrtcRef.current) {
+        webrtcRef.current.endCall()
+        webrtcRef.current.destroy()
+        webrtcRef.current = null
+      }
+
+      setCallState(initialCallState)
+      pendingSignalRef.current = null
+
+      // Report call ended with duration
+      if (reportDuration && callId && startTime && remoteParticipant) {
+        const duration = Date.now() - startTime
+        onCallEnded?.(callId, duration)
+      }
+    },
+    [callState.callId, callState.startTime, callState.remoteParticipant, clearRingTimeout, onCallEnded]
+  )
+
+  // Fetch ICE servers from backend (with caching)
+  const fetchIceServers = useCallback(async (): Promise<RTCIceServer[]> => {
+    // Return cached ICE servers if available
+    if (iceServersRef.current) {
+      return iceServersRef.current
+    }
+
+    // Try to fetch from backend
+    if (apiClientRef.current) {
+      try {
+        const response = await apiClientRef.current.getIceServers()
+        const iceServers = response.iceServers.map(server => ({
+          urls: server.urls,
+          username: server.username,
+          credential: server.credential
+        }))
+        iceServersRef.current = iceServers
+        console.debug('Fetched ICE servers from backend:', iceServers.length, 'servers')
+        return iceServers
+      } catch (error) {
+        console.warn('Failed to fetch ICE servers from backend, using defaults:', error)
+      }
+    }
+
+    // Return null to use default STUN servers in WebRTCClient
+    return []
+  }, [])
+
+  // Initialize WebRTC and set up event handlers
+  const initializeWebRTC = useCallback(async (): Promise<WebRTCClient> => {
+    if (webrtcRef.current) {
+      webrtcRef.current.destroy()
+    }
+
+    // Fetch ICE servers (TURN credentials) from backend
+    const iceServers = await fetchIceServers()
+
+    const webrtc = new WebRTCClient(iceServers.length > 0 ? iceServers : undefined)
+    webrtcRef.current = webrtc
+
+    // Handle local stream ready
+    webrtc.on('localStreamReady', (stream: MediaStream) => {
+      updateCallState({ localStream: stream })
+    })
+
+    // Handle remote stream ready
+    webrtc.on('remoteStreamReady', (stream: MediaStream) => {
+      updateCallState({ remoteStream: stream })
+    })
+
+    // Handle ICE connection state changes
+    webrtc.on('iceConnectionStateChanged', (state: RTCIceConnectionState) => {
+      console.debug('ICE state changed:', state)
+      if (state === 'connected' || state === 'completed') {
+        updateCallState({ status: 'connected', startTime: Date.now() })
+      } else if (state === 'failed') {
+        updateCallState({ status: 'failed', error: 'Connection failed' })
+        // Auto-cleanup after failure
+        setTimeout(() => cleanupCall(false), 3000)
+      } else if (state === 'disconnected') {
+        // Could be temporary, wait a bit
+        console.warn('ICE disconnected, waiting for reconnection...')
+      }
+    })
+
+    // Handle signals ready (ICE candidates, etc.)
+    // Use refs to avoid stale closures
+    webrtc.on('signalReady', (signal: { type: string; payload: any }) => {
+      if (signal.type === 'ice-candidate' && wsClientRef.current && currentUserRef.current) {
+        const remoteParticipant = callStateRef.current.remoteParticipant || pendingSignalRef.current?.from
+        const callId = callStateRef.current.callId
+        if (remoteParticipant && callId) {
+          wsClientRef.current.sendIceCandidate({
+            callId,
+            from: currentUserRef.current,
+            to: remoteParticipant,
+            payload: signal.payload
+          })
+        }
+      }
+    })
+
+    // Handle errors
+    webrtc.on('error', (error: { type: string; message: string }) => {
+      console.error('WebRTC error:', error)
+      updateCallState({ error: error.message })
+    })
+
+    return webrtc
+  }, [updateCallState, cleanupCall, fetchIceServers])
+
+  // Initiate a call
+  const initiateCall = useCallback(
+    async (participant: CallParticipant, type: CallType, conversationId?: string) => {
+      if (!wsClient || !currentUser) {
+        console.error('Cannot initiate call: WebSocket or user not available')
+        return
+      }
+
+      if (callState.status !== 'idle') {
+        console.warn('Already in a call')
+        return
+      }
+
+      const callId = generateCallId()
+
+      try {
+        // Update state
+        updateCallState({
+          callId,
+          status: 'initiating',
+          direction: 'outgoing',
+          type,
+          localParticipant: currentUser,
+          remoteParticipant: participant,
+          error: null
+        })
+
+        // Initialize WebRTC (fetches ICE servers from backend)
+        const webrtc = await initializeWebRTC()
+
+        // Get local media stream
+        await webrtc.initializeLocalStream(type)
+
+        // Create peer connection
+        webrtc.createPeerConnection()
+
+        // Send call initiation signal
+        wsClient.initiateCall({
+          callId,
+          callType: type,
+          from: currentUser,
+          to: participant,
+          conversationId
+        })
+
+        // Update status to ringing
+        updateCallState({ status: 'ringing' })
+
+        // Set ring timeout
+        ringTimeoutRef.current = setTimeout(() => {
+          console.warn('Call ring timeout')
+          updateCallState({ status: 'ended', error: 'No answer' })
+          wsClient.endCall({
+            callId,
+            from: currentUser,
+            to: participant
+          })
+          setTimeout(() => cleanupCall(false), 2000)
+        }, RING_TIMEOUT)
+      } catch (error) {
+        console.error('Failed to initiate call:', error)
+        updateCallState({
+          status: 'failed',
+          error: error instanceof Error ? error.message : 'Failed to start call'
+        })
+        cleanupCall(false)
+      }
+    },
+    [wsClient, currentUser, callState.status, updateCallState, initializeWebRTC, cleanupCall]
+  )
+
+  // Accept incoming call
+  const acceptCall = useCallback(async () => {
+    if (!wsClient || !currentUser || !pendingSignalRef.current) {
+      console.error('Cannot accept call: missing requirements')
+      return
+    }
+
+    const signal = pendingSignalRef.current
+    clearRingTimeout()
+
+    try {
+      updateCallState({ status: 'connecting' })
+
+      // Initialize WebRTC (fetches ICE servers from backend)
+      const webrtc = await initializeWebRTC()
+
+      // Get local media stream
+      await webrtc.initializeLocalStream(signal.callType)
+
+      // Create peer connection
+      webrtc.createPeerConnection()
+
+      // Send accept signal
+      wsClient.acceptCall({
+        callId: signal.callId,
+        callType: signal.callType,
+        from: currentUser,
+        to: signal.from
+      })
+
+      onCallStarted?.(signal.callId, signal.from)
+    } catch (error) {
+      console.error('Failed to accept call:', error)
+      updateCallState({
+        status: 'failed',
+        error: error instanceof Error ? error.message : 'Failed to accept call'
+      })
+      cleanupCall(false)
+    }
+  }, [wsClient, currentUser, updateCallState, initializeWebRTC, clearRingTimeout, cleanupCall, onCallStarted])
+
+  // Reject incoming call
+  const rejectCall = useCallback(() => {
+    if (!wsClient || !currentUser || !pendingSignalRef.current) {
+      return
+    }
+
+    const signal = pendingSignalRef.current
+    clearRingTimeout()
+
+    wsClient.rejectCall({
+      callId: signal.callId,
+      from: currentUser,
+      to: signal.from,
+      reason: 'rejected'
+    })
+
+    cleanupCall(false)
+  }, [wsClient, currentUser, clearRingTimeout, cleanupCall])
+
+  // End active call
+  const endCall = useCallback(() => {
+    if (!wsClient || !currentUser || !callState.callId) {
+      cleanupCall(false)
+      return
+    }
+
+    const remoteParticipant = callState.remoteParticipant
+    if (remoteParticipant) {
+      wsClient.endCall({
+        callId: callState.callId,
+        from: currentUser,
+        to: remoteParticipant
+      })
+    }
+
+    cleanupCall(true)
+  }, [wsClient, currentUser, callState.callId, callState.remoteParticipant, cleanupCall])
+
+  // Toggle mute
+  const toggleMute = useCallback(() => {
+    if (webrtcRef.current) {
+      const isMuted = webrtcRef.current.toggleMute()
+      updateCallState({ isMuted })
+    }
+  }, [updateCallState])
+
+  // Toggle video
+  const toggleVideo = useCallback(() => {
+    if (webrtcRef.current) {
+      const isVideoOff = webrtcRef.current.toggleVideo()
+      updateCallState({ isVideoOff })
+    }
+  }, [updateCallState])
+
+  // Toggle screen share
+  const toggleScreenShare = useCallback(async () => {
+    if (!webrtcRef.current) return
+
+    try {
+      if (webrtcRef.current.isScreenSharing()) {
+        await webrtcRef.current.stopScreenShare()
+        updateCallState({ isScreenSharing: false })
+      } else {
+        await webrtcRef.current.startScreenShare()
+        updateCallState({ isScreenSharing: true })
+      }
+    } catch (error) {
+      console.error('Screen share error:', error)
+    }
+  }, [updateCallState])
+
+  // Handle incoming call signals
+  // Using refs to avoid recreating handlers on every state change
+  useEffect(() => {
+    if (!wsClient || !currentUser) return
+
+    // Handle incoming call initiation
+    const handleCallInitiate = (signal: CallSignal) => {
+      console.debug('Received call:initiate', signal)
+
+      // Ignore if already in a call (use ref to get latest status)
+      if (callStateRef.current.status !== 'idle') {
+        wsClient.sendBusy({
+          callId: signal.callId,
+          from: currentUser,
+          to: signal.from
+        })
+        return
+      }
+
+      // Store pending signal
+      pendingSignalRef.current = signal
+
+      // Update state for incoming call
+      updateCallState({
+        callId: signal.callId,
+        status: 'ringing',
+        direction: 'incoming',
+        type: signal.callType,
+        localParticipant: currentUser,
+        remoteParticipant: signal.from
+      })
+
+      // Set ring timeout
+      ringTimeoutRef.current = setTimeout(() => {
+        console.warn('Incoming call ring timeout')
+        cleanupCall(false)
+      }, RING_TIMEOUT)
+    }
+
+    // Handle call accepted
+    const handleCallAccept = async (signal: CallSignal) => {
+      console.debug('Received call:accept', signal)
+
+      if (callStateRef.current.callId !== signal.callId) return
+      clearRingTimeout()
+
+      updateCallState({ status: 'connecting' })
+
+      try {
+        if (webrtcRef.current) {
+          // Create and send offer
+          const offer = await webrtcRef.current.createOffer()
+          wsClient.sendCallOffer({
+            callId: signal.callId,
+            callType: callStateRef.current.type,
+            from: currentUser,
+            to: signal.from,
+            payload: offer
+          })
+
+          onCallStarted?.(signal.callId, signal.from)
+        }
+      } catch (error) {
+        console.error('Failed to create offer:', error)
+        updateCallState({ status: 'failed', error: 'Failed to connect' })
+        cleanupCall(false)
+      }
+    }
+
+    // Handle call rejected
+    const handleCallReject = (signal: CallSignal) => {
+      console.debug('Received call:reject', signal)
+
+      if (callStateRef.current.callId !== signal.callId) return
+
+      updateCallState({ status: 'ended', error: signal.payload?.toString() || 'Call rejected' })
+      setTimeout(() => cleanupCall(false), 2000)
+    }
+
+    // Handle call ended
+    const handleCallEnd = (signal: CallSignal) => {
+      console.debug('Received call:end', signal)
+
+      if (callStateRef.current.callId !== signal.callId) return
+
+      updateCallState({ status: 'ended' })
+      cleanupCall(true)
+    }
+
+    // Handle WebRTC offer
+    const handleCallOffer = async (signal: CallSignal) => {
+      console.debug('Received call:offer', signal)
+
+      if (callStateRef.current.callId !== signal.callId || !signal.payload) return
+
+      try {
+        if (webrtcRef.current) {
+          const answer = await webrtcRef.current.handleOffer(signal.payload as RTCSessionDescriptionInit)
+          wsClient.sendCallAnswer({
+            callId: signal.callId,
+            callType: callStateRef.current.type,
+            from: currentUser,
+            to: signal.from,
+            payload: answer
+          })
+        }
+      } catch (error) {
+        console.error('Failed to handle offer:', error)
+        updateCallState({ status: 'failed', error: 'Failed to connect' })
+        cleanupCall(false)
+      }
+    }
+
+    // Handle WebRTC answer
+    const handleCallAnswer = async (signal: CallSignal) => {
+      console.debug('Received call:answer', signal)
+
+      if (callStateRef.current.callId !== signal.callId || !signal.payload) return
+
+      try {
+        if (webrtcRef.current) {
+          await webrtcRef.current.handleAnswer(signal.payload as RTCSessionDescriptionInit)
+        }
+      } catch (error) {
+        console.error('Failed to handle answer:', error)
+        updateCallState({ status: 'failed', error: 'Failed to connect' })
+        cleanupCall(false)
+      }
+    }
+
+    // Handle ICE candidate
+    const handleIceCandidate = async (signal: CallSignal) => {
+      if (callStateRef.current.callId !== signal.callId || !signal.payload) return
+
+      try {
+        if (webrtcRef.current) {
+          await webrtcRef.current.addIceCandidate(signal.payload as RTCIceCandidateInit)
+        }
+      } catch (error) {
+        console.error('Failed to add ICE candidate:', error)
+      }
+    }
+
+    // Handle busy signal
+    const handleCallBusy = (signal: CallSignal) => {
+      console.debug('Received call:busy', signal)
+
+      if (callStateRef.current.callId !== signal.callId) return
+
+      updateCallState({ status: 'ended', error: 'User is busy' })
+      setTimeout(() => cleanupCall(false), 2000)
+    }
+
+    // Register listeners
+    wsClient.onCallInitiate(handleCallInitiate)
+    wsClient.onCallAccept(handleCallAccept)
+    wsClient.onCallReject(handleCallReject)
+    wsClient.onCallEnd(handleCallEnd)
+    wsClient.onCallOffer(handleCallOffer)
+    wsClient.onCallAnswer(handleCallAnswer)
+    wsClient.onCallIceCandidate(handleIceCandidate)
+    wsClient.onCallBusy(handleCallBusy)
+
+    return () => {
+      wsClient.removeCallListeners()
+    }
+  }, [wsClient, currentUser, updateCallState, clearRingTimeout, cleanupCall, onCallStarted])
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      clearRingTimeout()
+      if (webrtcRef.current) {
+        webrtcRef.current.destroy()
+      }
+    }
+  }, [clearRingTimeout])
+
+  return {
+    callState,
+    isInCall: callState.status === 'connected' || callState.status === 'connecting',
+    hasIncomingCall: callState.status === 'ringing' && callState.direction === 'incoming',
+    initiateCall,
+    acceptCall,
+    rejectCall,
+    endCall,
+    toggleMute,
+    toggleVideo,
+    toggleScreenShare,
+    localStream: callState.localStream,
+    remoteStream: callState.remoteStream
+  }
+}

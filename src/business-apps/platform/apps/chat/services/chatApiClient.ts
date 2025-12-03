@@ -225,6 +225,42 @@ export class ChatApiClient {
     await this.client.post(`/messages/conversation/${conversationId}/mark-read`)
   }
 
+  // WebRTC endpoints
+  /**
+   * Get ICE servers configuration from the backend
+   * Returns TURN servers with temporary credentials (if configured) or fallback STUN servers
+   */
+  async getIceServers(): Promise<IceServersResponse> {
+    const response = await this.client.get<IceServersResponse>('/webrtc/ice-servers')
+    return response.data
+  }
+
+  /**
+   * Get active WebRTC sessions for current user
+   */
+  async getActiveSessions() {
+    const response = await this.client.get('/webrtc/sessions/active')
+    return response.data
+  }
+
+  /**
+   * Get call history for current user
+   */
+  async getCallHistory(page: number = 1, limit: number = 20) {
+    const response = await this.client.get('/webrtc/sessions/history', {
+      params: { page, limit }
+    })
+    return response.data
+  }
+
+  /**
+   * Get call statistics for current user
+   */
+  async getCallStats() {
+    const response = await this.client.get('/webrtc/sessions/stats')
+    return response.data
+  }
+
   // File upload endpoints
   async uploadFiles(conversationId: string, files: File[]): Promise<UploadedAttachment[]> {
     const formData = new FormData()
@@ -247,4 +283,12 @@ export interface UploadedAttachment {
   size: number
   mimeType: string
   url: string
+}
+
+export interface IceServersResponse {
+  iceServers: Array<{
+    urls: string[]
+    username?: string
+    credential?: string
+  }>
 }

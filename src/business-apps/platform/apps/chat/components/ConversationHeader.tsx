@@ -17,7 +17,7 @@ import {
   DialogTitle
 } from '@newwork/nw-design-system'
 import { ArrowLeft, DotsThreeVertical, SignOut, X, Info, Users } from '@phosphor-icons/react'
-import { UserIcon } from 'lucide-react'
+import { UserIcon, Phone, Video } from 'lucide-react'
 import type { Conversation } from '../types'
 import type { UserPresence } from '../hooks/usePresence'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -29,10 +29,14 @@ interface ConversationHeaderProps {
   onClose?: () => void
   onRemove?: () => void
   onGroupSettings?: () => void
+  onAudioCall?: () => void
+  onVideoCall?: () => void
   showBackButton?: boolean
   currentUserId?: string | null
   compact?: boolean
   otherUserPresence?: UserPresence
+  isCallEnabled?: boolean
+  isInCall?: boolean
 }
 
 const getOtherParticipant = (conversation: Conversation, currentUserId?: string | null) => {
@@ -205,10 +209,14 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
   onClose,
   onRemove,
   onGroupSettings,
+  onAudioCall,
+  onVideoCall,
   showBackButton = false,
   currentUserId = null,
   compact = false,
-  otherUserPresence
+  otherUserPresence,
+  isCallEnabled = true,
+  isInCall = false
 }) => {
   const name = getConversationName(conversation, currentUserId)
   const avatarUrl = getConversationAvatarUrl(conversation, currentUserId)
@@ -311,6 +319,36 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
         </div>
 
         <div className="gba:flex gba:items-center gba:gap-1">
+          {/* Call Buttons - only for direct chats and when not already in a call */}
+          {isDirectChat && isCallEnabled && !isInCall && (
+            <>
+              {onAudioCall && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onAudioCall}
+                  className="gba:h-8 gba:w-8 gba:flex-shrink-0 gba:text-muted-foreground hover:gba:text-success hover:gba:bg-success/10"
+                  data-testid="conversation-audio-call-button"
+                  title={getTranslationFromI18nKeyAndLabel('chat.audioCall', 'Audio call')}
+                >
+                  <Phone className="gba:w-4 gba:h-4" />
+                </Button>
+              )}
+              {onVideoCall && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onVideoCall}
+                  className="gba:h-8 gba:w-8 gba:flex-shrink-0 gba:text-muted-foreground hover:gba:text-primary hover:gba:bg-primary/10"
+                  data-testid="conversation-video-call-button"
+                  title={getTranslationFromI18nKeyAndLabel('chat.videoCall', 'Video call')}
+                >
+                  <Video className="gba:w-4 gba:h-4" />
+                </Button>
+              )}
+            </>
+          )}
+
           {!showBackButton && onClose && (
             <Button
               variant="ghost"

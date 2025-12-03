@@ -1,5 +1,6 @@
 import { io, Socket } from 'socket.io-client'
 import type { Message, TypingIndicator, PresenceStatus } from '../types'
+import type { CallSignal, CallType, CallParticipant } from './webrtcClient'
 
 export type ChatEventHandler = (data: any) => void
 
@@ -237,6 +238,142 @@ export class ChatWebSocketClient {
 
   sendTypingStop(conversationId: string) {
     this.socket?.emit('typing_stop', { conversationId })
+  }
+
+  // ==================== Call Signaling Events ====================
+
+  /**
+   * Initiate a call to another user
+   */
+  initiateCall(signal: {
+    callId: string
+    callType: CallType
+    from: CallParticipant
+    to: CallParticipant
+    conversationId?: string
+  }) {
+    console.debug('Emitting call:initiate', signal)
+    this.socket?.emit('call:initiate', signal)
+  }
+
+  /**
+   * Accept an incoming call
+   */
+  acceptCall(signal: { callId: string; callType: CallType; from: CallParticipant; to: CallParticipant }) {
+    console.debug('Emitting call:accept', signal)
+    this.socket?.emit('call:accept', signal)
+  }
+
+  /**
+   * Reject an incoming call
+   */
+  rejectCall(signal: { callId: string; from: CallParticipant; to: CallParticipant; reason?: string }) {
+    console.debug('Emitting call:reject', signal)
+    this.socket?.emit('call:reject', signal)
+  }
+
+  /**
+   * End an active call
+   */
+  endCall(signal: { callId: string; from: CallParticipant; to: CallParticipant }) {
+    console.debug('Emitting call:end', signal)
+    this.socket?.emit('call:end', signal)
+  }
+
+  /**
+   * Send WebRTC offer
+   */
+  sendCallOffer(signal: {
+    callId: string
+    callType: CallType
+    from: CallParticipant
+    to: CallParticipant
+    payload: RTCSessionDescriptionInit
+  }) {
+    console.debug('Emitting call:offer', signal)
+    this.socket?.emit('call:offer', signal)
+  }
+
+  /**
+   * Send WebRTC answer
+   */
+  sendCallAnswer(signal: {
+    callId: string
+    callType: CallType
+    from: CallParticipant
+    to: CallParticipant
+    payload: RTCSessionDescriptionInit
+  }) {
+    console.debug('Emitting call:answer', signal)
+    this.socket?.emit('call:answer', signal)
+  }
+
+  /**
+   * Send ICE candidate
+   */
+  sendIceCandidate(signal: {
+    callId: string
+    from: CallParticipant
+    to: CallParticipant
+    payload: RTCIceCandidateInit
+  }) {
+    console.debug('Emitting call:ice-candidate')
+    this.socket?.emit('call:ice-candidate', signal)
+  }
+
+  /**
+   * Signal that user is busy (already in a call)
+   */
+  sendBusy(signal: { callId: string; from: CallParticipant; to: CallParticipant }) {
+    console.debug('Emitting call:busy', signal)
+    this.socket?.emit('call:busy', signal)
+  }
+
+  // Call event listeners
+  onCallInitiate(handler: (signal: CallSignal) => void) {
+    this.socket?.on('call:initiate', handler)
+  }
+
+  onCallAccept(handler: (signal: CallSignal) => void) {
+    this.socket?.on('call:accept', handler)
+  }
+
+  onCallReject(handler: (signal: CallSignal) => void) {
+    this.socket?.on('call:reject', handler)
+  }
+
+  onCallEnd(handler: (signal: CallSignal) => void) {
+    this.socket?.on('call:end', handler)
+  }
+
+  onCallOffer(handler: (signal: CallSignal) => void) {
+    this.socket?.on('call:offer', handler)
+  }
+
+  onCallAnswer(handler: (signal: CallSignal) => void) {
+    this.socket?.on('call:answer', handler)
+  }
+
+  onCallIceCandidate(handler: (signal: CallSignal) => void) {
+    this.socket?.on('call:ice-candidate', handler)
+  }
+
+  onCallBusy(handler: (signal: CallSignal) => void) {
+    this.socket?.on('call:busy', handler)
+  }
+
+  /**
+   * Remove all call event listeners
+   */
+  removeCallListeners() {
+    this.socket?.off('call:initiate')
+    this.socket?.off('call:accept')
+    this.socket?.off('call:reject')
+    this.socket?.off('call:end')
+    this.socket?.off('call:offer')
+    this.socket?.off('call:answer')
+    this.socket?.off('call:ice-candidate')
+    this.socket?.off('call:busy')
   }
 
   // Remove event listeners

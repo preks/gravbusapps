@@ -1,14 +1,18 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react'
-import { Alert, AlertDescription, Spinner } from '@newwork/nw-design-system'
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
+import { Alert, AlertDescription, Spinner, TooltipProvider } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useChatClient } from './hooks/useChatClient'
+import { useCall } from './hooks/useCall'
 import { ConversationList } from './components/ConversationList'
 import { ConversationHeader } from './components/ConversationHeader'
 import { MessageList } from './components/MessageList'
 import { MessageInput } from './components/MessageInput'
 import { CreateGroupModal } from './components/CreateGroupModal'
 import { GroupSettingsModal } from './components/GroupSettingsModal'
+import { CallModal } from './components/CallModal'
+import { IncomingCallDialog } from './components/IncomingCallDialog'
 import type { Conversation, User, MessageEntityReference } from './types'
+import type { CallParticipant } from './services/webrtcClient'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { env } from '@/common/env/EnvUtils'
 
@@ -70,8 +74,49 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
     refreshConversations,
     startTyping,
     stopTyping,
-    apiClient
+    apiClient,
+    wsClient
   } = chatClient
+
+  // Convert current user to CallParticipant format
+  const currentUserAsParticipant: CallParticipant | null = useMemo(() => {
+    if (!currentUser) return null
+    return {
+      id: currentUser.id,
+      odId: currentUser.id,
+      odName:
+        currentUser.displayName ||
+        `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() ||
+        currentUser.username ||
+        'Unknown',
+      avatarUrl: currentUser.avatarUrl
+    }
+  }, [currentUser])
+
+  // Call functionality
+  const {
+    callState,
+    isInCall,
+    initiateCall,
+    acceptCall,
+    rejectCall,
+    endCall,
+    toggleMute,
+    toggleVideo,
+    toggleScreenShare,
+    localStream,
+    remoteStream
+  } = useCall({
+    wsClient: wsClient || null,
+    apiClient: apiClient || null,
+    currentUser: currentUserAsParticipant,
+    onCallStarted: (callId, participant) => {
+      console.debug('Call started:', callId, participant)
+    },
+    onCallEnded: (callId, duration) => {
+      console.debug('Call ended:', callId, 'Duration:', duration, 'ms')
+    }
+  })
 
   // Initialize presence status from conversation participants' user data
   useEffect(() => {
@@ -465,6 +510,43 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
     return otherParticipant?.userId || otherParticipant?.user?.id || null
   }
 
+  // Helper to get other participant as CallParticipant
+  const getOtherParticipantForCall = (conversation: Conversation): CallParticipant | null => {
+    if (conversation.type !== 'direct' || !conversation.participants) {
+      return null
+    }
+    const otherParticipant = conversation.participants.find(
+      p => p.userId !== currentUser?.id && p.user?.id !== currentUser?.id
+    )
+    if (!otherParticipant?.user) return null
+
+    const user = otherParticipant.user
+    return {
+      id: user.id,
+      odId: user.id,
+      odName: user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || 'Unknown',
+      avatarUrl: user.avatarUrl
+    }
+  }
+
+  // Handle initiating audio call
+  const handleAudioCall = useCallback(() => {
+    if (!activeConversation) return
+    const participant = getOtherParticipantForCall(activeConversation)
+    if (participant) {
+      initiateCall(participant, 'audio', activeConversation.id)
+    }
+  }, [activeConversation, initiateCall])
+
+  // Handle initiating video call
+  const handleVideoCall = useCallback(() => {
+    if (!activeConversation) return
+    const participant = getOtherParticipantForCall(activeConversation)
+    if (participant) {
+      initiateCall(participant, 'video', activeConversation.id)
+    }
+  }, [activeConversation, initiateCall])
+
   // Chat view component (header + messages + input)
   const ChatView = () => {
     // Get presence for the other user in direct conversations
@@ -481,10 +563,14 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
               onClose={handleCloseConversation}
               onRemove={handleRemoveConversation}
               onGroupSettings={handleShowGroupSettings}
+              onAudioCall={handleAudioCall}
+              onVideoCall={handleVideoCall}
               showBackButton={isSingleViewMode}
               currentUserId={currentUser?.id || null}
               compact={viewMode === 'compact'}
               otherUserPresence={otherUserPresence}
+              isCallEnabled={isConnected}
+              isInCall={isInCall}
             />
             <MessageList
               messages={messages}
@@ -595,6 +681,32 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
         onRefresh={refreshConversations}
         prefixDataTestId={`${prefixDataTestId}-group-settings-modal`}
       />
+
+      {/* Call Components */}
+      <TooltipProvider>
+        {/* Incoming Call Dialog */}
+        <IncomingCallDialog
+          callState={callState}
+          onAccept={acceptCall}
+          onReject={rejectCall}
+          prefixDataTestId={`${prefixDataTestId}-incoming-call`}
+        />
+
+        {/* Active Call Modal */}
+        {(callState.status !== 'idle' && callState.status !== 'ringing') ||
+        (callState.status === 'ringing' && callState.direction === 'outgoing') ? (
+          <CallModal
+            callState={callState}
+            localStream={localStream}
+            remoteStream={remoteStream}
+            onEndCall={endCall}
+            onToggleMute={toggleMute}
+            onToggleVideo={toggleVideo}
+            onToggleScreenShare={toggleScreenShare}
+            prefixDataTestId={`${prefixDataTestId}-call`}
+          />
+        ) : null}
+      </TooltipProvider>
     </div>
   )
 }
