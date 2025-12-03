@@ -112,10 +112,7 @@ const SalaryAdjustmentFields: React.FC<SalaryAdjustmentFieldsProps> = ({ control
               onValueChange={v => field.onChange(v || '')}
             >
               <FormControl>
-                <SelectTrigger
-                  className="gba:block gba:w-full! gba:min-w-0 gba:max-w-none!"
-                  data-testid="adjust-employee-salary-reason-select"
-                >
+                <SelectTrigger className="gba:w-full" data-testid="adjust-employee-salary-reason-select">
                   <SelectValue placeholder={placeholderSelect} />
                 </SelectTrigger>
               </FormControl>

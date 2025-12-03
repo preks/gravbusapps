@@ -40,10 +40,7 @@ const CurrencySelector: React.FC<CurrencySelectorProps> = ({ control, currencies
           </FormLabel>
           <Select value={(field.value as string) || undefined} onValueChange={(value: string) => field.onChange(value)}>
             <FormControl>
-              <SelectTrigger
-                className="gba:block gba:w-full! gba:min-w-0 gba:max-w-none!"
-                data-testid="assign-employee-salary-currency-select"
-              >
+              <SelectTrigger className="gba:w-full" data-testid="assign-employee-salary-currency-select">
                 <SelectValue placeholder={placeholderSelect} />
               </SelectTrigger>
             </FormControl>
