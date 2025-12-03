@@ -6,7 +6,11 @@ import { LeftOutlined, RightOutlined } from '@ant-design/icons'
 import { CalendarProps } from '../../../queries/types'
 
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
-import { getAbsenceStatusLabel } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
+import {
+  getAbsenceStatusLabel,
+  getAllAbsenceStatusConfigs,
+  getAbsenceStatusBackgroundClass
+} from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 
 // Import dayjs locale
 import 'dayjs/locale/ro'
@@ -251,10 +255,9 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                                 overlayStyle={{ zIndex: 9999 }}
                               >
                                 <div
-                                  className="gba:flex gba:items-center gba:justify-center gba:rounded-full gba:cursor-help gba:transition-all gba:duration-200 hover:gba:h-6 gba:min-h-4 gba:px-1"
+                                  className={`gba:flex gba:items-center gba:justify-center gba:rounded-full gba:cursor-help gba:transition-all gba:duration-200 hover:gba:h-6 gba:min-h-4 gba:px-1 ${getAbsenceStatusBackgroundClass(a.originalStatus || a.status)}`}
                                   style={{
-                                    width: segmentWidth,
-                                    backgroundColor: a.statusColor || 'var(--nw-offline)'
+                                    width: segmentWidth
                                   }}
                                 >
                                   <span className="gba:text-xs gba:font-medium gba:text-primary gba:truncate gba:leading-none">
@@ -276,33 +279,16 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
         {/* Status Legend */}
         <div className="gba:calendar-legend gba:px-4 gba:py-3 gba:border-t gba:border-border gba:bg-muted">
           <div className="gba:flex gba:items-center gba:gap-6 gba:flex-wrap">
-            <div className="gba:flex gba:items-center gba:gap-1">
-              <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-success" />
-              <span className="gba:text-xs gba:ml-1">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approved', 'Approved')}
-              </span>
-            </div>
-            <div className="gba:flex gba:items-center gba:gap-1">
-              <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-warning" />
-              <span className="gba:text-xs gba:ml-1">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_approval', 'In Approval')}
-              </span>
-            </div>
-            <div className="gba:flex gba:items-center gba:gap-1">
-              <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-destructive" />
-              <span className="gba:text-xs gba:ml-1">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected')}
-              </span>
-            </div>
-            <div className="gba:flex gba:items-center gba:gap-1">
-              <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-offline" />
-              <span className="gba:text-xs gba:ml-1">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:absences_overview_entry_screen.cancelled_status',
-                  'Cancelled'
-                )}
-              </span>
-            </div>
+            {getAllAbsenceStatusConfigs()
+              .filter(statusConfig => ['APPROVED', 'PENDING', 'REJECTED', 'CANCELLED'].includes(statusConfig.status))
+              .map(statusConfig => (
+                <div key={statusConfig.status} className="gba:flex gba:items-center gba:gap-2">
+                  <div
+                    className={`gba:w-3 gba:h-3 gba:rounded-full ${getAbsenceStatusBackgroundClass(statusConfig.status)}`}
+                  />
+                  <span className="gba:text-xs">{statusConfig.label}</span>
+                </div>
+              ))}
           </div>
         </div>
 
