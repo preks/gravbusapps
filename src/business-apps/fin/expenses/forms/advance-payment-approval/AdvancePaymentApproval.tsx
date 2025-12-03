@@ -62,10 +62,10 @@ const AdvancePaymentApprovalContent: React.FC<AdvancePaymentApprovalProps> = ({
 
   // Scroll to comment section when it becomes visible
   useEffect(() => {
-    if (showComment) {
-      setTimeout(() => {
+    if (showComment && commentSectionRef.current) {
+      requestAnimationFrame(() => {
         commentSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      }, 100)
+      })
     }
   }, [showComment])
 

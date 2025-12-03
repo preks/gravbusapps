@@ -86,10 +86,10 @@ const ApproveExpensePlanContent: React.FC<ApproveExpensePlanProps> = ({
 
   // Scroll to comment section when it becomes visible
   useEffect(() => {
-    if (showComment) {
-      setTimeout(() => {
+    if (showComment && commentSectionRef.current) {
+      requestAnimationFrame(() => {
         commentSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      }, 100)
+      })
     }
   }, [showComment])
 
@@ -268,7 +268,7 @@ const ApproveExpensePlanContent: React.FC<ApproveExpensePlanProps> = ({
         event: 'pse_approve',
         expensePlanComment: {
           commentDate: new Date().toISOString().slice(0, 19),
-          comment: showComment && comment.trim() ? comment.trim() : '',
+          comment: (showComment && comment.trim()) || '',
           commentType: 'APPROVE_COMMENT',
           authorEmployee: userInfo?.employeeDetails?.employeeId,
           expensePlan: expensePlan?.id
