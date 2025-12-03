@@ -1,2 +1,5 @@
 export { Chat } from './Chat'
-export { Chat as default } from './Chat'
+export { ChatWithCalendar } from './ChatWithCalendar'
+export { ChatWithCalendar as default } from './ChatWithCalendar'
+export { Calendar } from './calendar/Calendar'
+export * from './calendar/types'

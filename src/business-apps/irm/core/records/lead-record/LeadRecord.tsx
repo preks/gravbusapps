@@ -39,8 +39,7 @@ import TaskSection from '@/common/components/common-relations/record-sections/ta
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { useAiSummary } from './hooks/useAiSummary'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
-import { AppAction } from '@/components/app-action/AppAction'
+import { AppAction } from '@/components/app-action'
 import { Bot, Flag } from 'lucide-react'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
 import { useProspectRejectionReasons } from '@/common/data/investment/hooks/useProspectRejectionReasons'
@@ -421,23 +420,32 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
     )
   }, [props.accessToken, leadId, aiSummary])
 
+  const leadDisplayName =
+    lead?.displayName || `${lead?.firstName || ''} ${lead?.lastName || ''}`.trim() || 'Investment Lead'
+
   const headerActionButton = useMemo(
     () =>
       props.accessToken && (
-        <AppActionButton
+        <AppAction
           data-testid="investment-lead-record-action-button"
-          size="icon"
-          contextsArray={[FlowContextName.investmentLeadEntity]}
-          externalContextData={{
-            leadId: leadId
+          variant="header"
+          contexts={[
+            {
+              context: FlowContextName.investmentLeadEntity,
+              contextData: { leadId }
+            }
+          ]}
+          shareContext={{
+            entityType: 'investment-lead',
+            entityId: leadId,
+            entityName: leadDisplayName,
+            entityUrl: `/platform/irm/lead-record?leadId=${leadId}`
           }}
           prefixDataTestId="lead-record-action"
           accessToken={props.accessToken}
-          emptyStateBehavior="hide"
-          deferMainContextRequestsUntilClick={false}
         />
       ),
-    [props.accessToken, leadId]
+    [props.accessToken, leadId, leadDisplayName]
   )
 
   // Tab handling hooks - MUST be before conditional returns to comply with Rules of Hooks

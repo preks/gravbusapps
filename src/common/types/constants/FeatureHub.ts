@@ -64,6 +64,10 @@ const DevFeature = {
   Enabled: { Key: 'dev.enabled' }
 }
 
+const PreviewFeature = {
+  Enabled: { Key: 'preview.enabled' }
+}
+
 export const Feature = {
   OrgChart: OrgChartFeature,
   Core: CoreFeature,
@@ -72,5 +76,6 @@ export const Feature = {
   Services: ServicesFeature,
   FLOW: FLOWFeature,
   Platform: PlatformFeature,
-  Dev: DevFeature
+  Dev: DevFeature,
+  Preview: PreviewFeature
 }

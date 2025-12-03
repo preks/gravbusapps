@@ -1,14 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
-import {
-  Button,
-  Input,
-  Spinner,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from '@newwork/nw-design-system'
-import { Plus, MagnifyingGlass, Users, User } from '@phosphor-icons/react'
+import { Button, Input, Spinner, Popover, PopoverContent, PopoverTrigger } from '@newwork/nw-design-system'
+import { Plus, MagnifyingGlass, User, UsersThree } from '@phosphor-icons/react'
 import { ConversationItem } from './ConversationItem'
 import { UserSearch } from './UserSearch'
 import type { Conversation } from '../types'
@@ -61,6 +53,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('')
   const [showUserSearch, setShowUserSearch] = useState(false)
+  const [showNewChatMenu, setShowNewChatMenu] = useState(false)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   const filteredConversations = conversations.filter(conv => {
@@ -141,25 +134,48 @@ export const ConversationList: React.FC<ConversationListProps> = ({
         <h1 className={`gba:font-semibold gba:text-foreground ${compact ? 'gba:text-base' : 'gba:text-lg'}`}>
           {getTranslationFromI18nKeyAndLabel('chat.appHeader', 'Chat')}
         </h1>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+        <Popover open={showNewChatMenu} onOpenChange={setShowNewChatMenu}>
+          <PopoverTrigger asChild>
             <Button variant="ghost" size="icon" className="gba:h-8 gba:w-8" data-testid="new-conversation-button">
               <Plus className="gba:w-4 gba:h-4" />
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => setShowUserSearch(true)} data-testid="new-direct-message-option">
-              <User className="gba:w-4 gba:h-4 gba:mr-2" />
-              {getTranslationFromI18nKeyAndLabel('chat.newDirectMessage', 'New Direct Message')}
-            </DropdownMenuItem>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="gba:w-52 gba:p-1">
+            <button
+              onClick={() => {
+                setShowNewChatMenu(false)
+                setShowUserSearch(true)
+              }}
+              className="gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2.5 gba:rounded-md gba:text-left hover:gba:bg-accent gba:transition-colors"
+              data-testid="new-direct-message-option"
+            >
+              <div className="gba:p-1.5 gba:rounded-md gba:bg-primary/10">
+                <User className="gba:w-4 gba:h-4 gba:text-primary" weight="fill" />
+              </div>
+              <span className="gba:text-sm gba:font-medium">
+                {getTranslationFromI18nKeyAndLabel('chat.directMessage', 'Direct Message')}
+              </span>
+            </button>
+
             {onCreateGroup && (
-              <DropdownMenuItem onClick={onCreateGroup} data-testid="new-group-chat-option">
-                <Users className="gba:w-4 gba:h-4 gba:mr-2" />
-                {getTranslationFromI18nKeyAndLabel('chat.newGroupChat', 'New Group Chat')}
-              </DropdownMenuItem>
+              <button
+                onClick={() => {
+                  setShowNewChatMenu(false)
+                  onCreateGroup()
+                }}
+                className="gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2.5 gba:rounded-md gba:text-left hover:gba:bg-accent gba:transition-colors"
+                data-testid="new-group-chat-option"
+              >
+                <div className="gba:p-1.5 gba:rounded-md gba:bg-muted">
+                  <UsersThree className="gba:w-4 gba:h-4 gba:text-muted-foreground" weight="fill" />
+                </div>
+                <span className="gba:text-sm gba:font-medium">
+                  {getTranslationFromI18nKeyAndLabel('chat.groupChat', 'Group Chat')}
+                </span>
+              </button>
             )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+          </PopoverContent>
+        </Popover>
       </div>
 
       {/* Search */}
