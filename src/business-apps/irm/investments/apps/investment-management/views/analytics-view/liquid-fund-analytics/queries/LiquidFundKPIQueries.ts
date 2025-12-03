@@ -40,7 +40,7 @@ export const GET_LIQUID_FUND_KPIS_WITH_COMPARISON = (comparisonDate: string, cur
         }
       }
       
-      # Previous period data (liquid fund investments existing 30 days ago)
+      # Previous period data (liquid fund investments existing 91 days ago)
       previousAggregate: InvestmentAggregate(
         where: {
           _and: [
@@ -88,10 +88,10 @@ export const useGetLiquidFundKPIs = (context: BusinessAppContextProps, currency?
   const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchLiquidFundKPIs = useCallback(async (): Promise<LiquidFundKPIComparison> => {
-    // Calculate date 30 days ago for comparison
-    const thirtyDaysAgo = new Date()
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-    const comparisonDate = thirtyDaysAgo.toISOString()
+    // Calculate date 91 days ago for comparison
+    const quarterAgo = new Date()
+    quarterAgo.setDate(quarterAgo.getDate() - 91)
+    const comparisonDate = quarterAgo.toISOString()
 
     const query = GET_LIQUID_FUND_KPIS_WITH_COMPARISON(comparisonDate, currency)
     const result = await graphqlClient.request<LiquidFundKPIResponse>(query)

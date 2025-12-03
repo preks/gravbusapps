@@ -6,10 +6,10 @@
  * - Executed on master merge
  */
 
-import { execSync } from 'child_process'
-import path, { dirname } from 'path'
-import fs from 'fs'
-import { fileURLToPath } from 'url'
+import { execSync } from 'node:child_process'
+import path, { dirname } from 'node:path'
+import fs from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import dotenv from '@dotenvx/dotenvx'
 import { BlobServiceClient } from '@azure/storage-blob'
 import { glob } from 'glob'
@@ -31,6 +31,7 @@ import {
   deleteScreenInScreenManagement,
   updateScreenConfigInScreenManagementDetailed
 } from './api-client.js'
+import { compareScreenHashes, loadHashFile, saveHashFile, configureGit } from './utils/componentHashUtils.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -100,8 +101,8 @@ const requiredEnvVars = [
   { name: 'BITBUCKET_BUILD_NUMBER', value: BITBUCKET_BUILD_NUMBER },
   { name: 'SCREEN_MANAGEMENT_SERVICE_API_PROD', value: SCREEN_MANAGEMENT_SERVICE_API_PROD },
   { name: 'NAVIGATION_SERVICE_API_PROD', value: NAVIGATION_SERVICE_API_PROD },
-  { name: 'OAUTH_CLIENT_ID', value: OAUTH_CLIENT_ID_PROD },
-  { name: 'OAUTH_CLIENT_SECRET', value: OAUTH_CLIENT_SECRET_PROD }
+  { name: 'OAUTH_CLIENT_ID_PROD', value: OAUTH_CLIENT_ID_PROD },
+  { name: 'OAUTH_CLIENT_SECRET_PROD', value: OAUTH_CLIENT_SECRET_PROD }
 ]
 
 const missingVars = requiredEnvVars.filter(envVar => !envVar.value)
@@ -165,6 +166,10 @@ const SECONDARY_TARGET =
         }
       }
     : null
+
+// ============================================================================
+// Hash-based Publishing Utility Functions
+// ============================================================================
 
 // Helper function to detect if the screen is a form
 function isFormScreen(screenPath) {
@@ -339,7 +344,8 @@ async function handleResourceUrlSynchronization(screenPath, azureDestinationPath
           accept: 'application/json',
           authorization: `Bearer ${accessToken}`,
           'content-type': 'application/json'
-        }
+        },
+        timeout: 30000
       })
 
       console.log(`   ✅ Resource URL successfully registered in prod: ${devResourceUrl.url}`)
@@ -908,9 +914,27 @@ async function uploadDirectory(buildOutputDir, azureDestinationPath, azureTarget
   console.log('✅ All files uploaded successfully.')
 }
 
-async function publishScreen(screenPath, options = {}) {
-  console.log(`🚀 Publishing screen: ${screenPath} (Version: ${PUBLISH_VERSION})`)
+async function publishScreen(
+  screenPath,
+  { skipResourceUrlSync = false, skipScreenRegistration = false, azureTargets = [], targets = [] } = {}
+) {
+  if (!skipResourceUrlSync) {
+    skipResourceUrlSync = process.env.SKIP_RESOURCE_URL_SYNC === 'true'
+  }
 
+  if (!skipScreenRegistration) {
+    skipScreenRegistration = false
+  }
+
+  if (!azureTargets || azureTargets.length === 0) {
+    azureTargets = [PRIMARY_TARGET.azure]
+  }
+
+  if (!targets || targets.length === 0) {
+    targets = [PRIMARY_TARGET]
+  }
+
+  console.log(`🚀 Publishing screen: ${screenPath} (Version: ${PUBLISH_VERSION})`)
   const projectRootDir = path.resolve(__dirname, '..')
   console.log(`   Project Root Dir: ${projectRootDir}`)
 
@@ -998,6 +1022,7 @@ async function publishScreen(screenPath, options = {}) {
     TEMP_INDEX_CSS: tempIndexCssPath.replace(/\\/g, '/'),
     SINGLE_SCREEN_CSS: 'true',
     NODE_ENV: 'production',
+    VITE_BUILD_FOR_DEPLOYMENT: 'false',
     // Add build number to filename
     VITE_BUILD_NUMBER: BITBUCKET_BUILD_NUMBER
   }
@@ -1027,8 +1052,8 @@ async function publishScreen(screenPath, options = {}) {
   }
 
   await renameFilesWithBuildNumber(buildOutputDir, PUBLISH_VERSION)
-  const azureTargets =
-    options.azureTargets && options.azureTargets.length > 0 ? options.azureTargets : [PRIMARY_TARGET.azure]
+
+  // Upload to Azure
   for (const target of azureTargets) {
     try {
       await uploadDirectory(buildOutputDir, azureDestinationPath, target, PUBLISH_VERSION)
@@ -1106,13 +1131,6 @@ async function publishScreen(screenPath, options = {}) {
   }
 
   // Handle both forms and regular screens with resource URL synchronization across targets
-
-  // Check if resource URL sync should be skipped
-  const skipResourceUrlSync = options.skipResourceUrlSync || process.env.SKIP_RESOURCE_URL_SYNC === 'true'
-  const skipScreenRegistration = options.skipScreenRegistration || false
-
-  const targets = options.targets && options.targets.length > 0 ? options.targets : [PRIMARY_TARGET]
-
   for (const target of targets) {
     let resourceUrlResult
     if (!skipResourceUrlSync) {
@@ -1398,6 +1416,30 @@ async function handleComprehensiveScreenSyncForTarget(changedScreens, target) {
   }
 }
 
+// Detect manual publish mode from pipeline
+
+/**
+ * Find all screen directories in the project
+ */
+async function findAllScreenDirectories() {
+  const appIndexFiles = await glob('src/business-apps/**/apps/*/index.ts', { nodir: true })
+  const formIndexFiles = await glob('src/business-apps/**/forms/*/index.ts', { nodir: true })
+  const popupIndexFiles = await glob('src/business-apps/**/popups/*/index.ts', { nodir: true })
+  const recordIndexFiles = await glob('src/business-apps/**/records/*/index.ts', { nodir: true })
+
+  const allIndexFiles = [...appIndexFiles, ...formIndexFiles, ...popupIndexFiles, ...recordIndexFiles]
+  const uniqueDirs = new Set()
+
+  for (const filePath of allIndexFiles) {
+    const dir = path.dirname(filePath)
+    // strip prefix 'src/business-apps/' to get publish path
+    const publishPath = dir.replace(/^src[\\/]+business-apps[\\/]+/, '').replace(/\\/g, '/')
+    if (publishPath) uniqueDirs.add(publishPath)
+  }
+
+  return Array.from(uniqueDirs).sort()
+}
+
 async function main() {
   console.log('🚀 Starting production screen publishing...')
   console.log(`🔢 Build number: ${BITBUCKET_BUILD_NUMBER}`)
@@ -1405,145 +1447,254 @@ async function main() {
   console.log(`🔗 Resource URL sync: ${process.env.SKIP_RESOURCE_URL_SYNC === 'true' ? 'DISABLED' : 'ENABLED'}`)
   console.log(`🌐 Secondary target ${SECONDARY_TARGET ? 'DETECTED' : 'NOT configured'}`)
 
-  // Check if manual screen list file is provided as command line argument
+  // Determine which screens to publish
+  let candidateScreens = []
+  let isManualScreenList = false
   const manualScreensFile = process.argv[2]
-  let screensFile
 
   if (manualScreensFile && fs.existsSync(manualScreensFile)) {
-    console.log(`📋 Using manually specified screens from: ${manualScreensFile}`)
-    screensFile = manualScreensFile
-  } else {
-    console.log('🔍 Using change detection to find screens to publish...')
+    // Manual screen list provided - use these screens directly (force deploy)
+    console.log(`📋 MANUAL MODE: Using specified screens from: ${manualScreensFile}`)
+    isManualScreenList = true
 
-    try {
-      execSync('bash scripts/detect-changed-screens.sh', { stdio: 'inherit' })
-    } catch (error) {
-      console.error('❌ Failed to detect changed screens:', error.message)
-      process.exit(1)
-    }
+    const specifiedScreens = fs
+      .readFileSync(manualScreensFile, 'utf8')
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0)
+      .map(line => {
+        // Convert all backslashes to forward slashes (Windows paths)
+        let normalized = line.replace(/\\/g, '/')
+        // Remove any leading slashes that might remain
+        normalized = normalized.replace(/^\/+/, '')
+        // Remove src/business-apps/ prefix if present (handles both original and converted paths)
+        normalized = normalized.replace(/^src\/business-apps\//, '')
+        // Remove .ts or .tsx extension if present
+        normalized = normalized.replace(/\.tsx?$/, '')
+        // Extract screen directory (module/sub-module/.../app-name) - remove subfolders
+        // e.g., hr/core/apps/employee-record/components/Foo -> hr/core/apps/employee-record
+        const screenMatch = normalized.match(/^(.*?\/(?:apps|forms|popups|records)\/[^/]+)/)
+        if (screenMatch) {
+          normalized = screenMatch[1]
+        }
+        return normalized
+      })
 
-    screensFile = 'changed-tsx.txt'
-  }
+    console.log(`📋 Found ${specifiedScreens.length} manually specified screen(s):`)
+    specifiedScreens.forEach(screen => console.log(`   - ${screen}`))
 
-  // Check if any screens were found
-  if (!fs.existsSync(screensFile) || !fs.statSync(screensFile).size) {
-    console.log('✅ No screens found to publish. Nothing to publish.')
-    return
-  }
-
-  // Read the screens to publish
-  const detectedScreens = fs
-    .readFileSync(screensFile, 'utf8')
-    .split('\n')
-    .map(line => line.trim())
-    .filter(line => line.length > 0)
-    .map(line => {
-      // Convert all backslashes to forward slashes (Windows paths)
-      let normalized = line.replace(/\\/g, '/')
-      // Remove any leading slashes that might remain
-      normalized = normalized.replace(/^\/+/, '')
-      // Remove src/business-apps/ prefix if present (handles both original and converted paths)
-      normalized = normalized.replace(/^src\/business-apps\//, '')
-      // Remove .ts or .tsx extension if present
-      normalized = normalized.replace(/\.tsx?$/, '')
-      // Extract screen directory (module/sub-module/.../app-name) - remove subfolders
-      // e.g., hr/core/apps/employee-record/components/Foo -> hr/core/apps/employee-record
-      const screenMatch = normalized.match(/^(.*?\/(?:apps|forms|popups|records)\/[^/]+)/)
-      if (screenMatch) {
-        normalized = screenMatch[1]
+    // Filter out screens that don't exist
+    const projectRootDir = path.resolve(__dirname, '..')
+    candidateScreens = specifiedScreens.filter(screen => {
+      const sourceEntryFile = path.join(projectRootDir, 'src', 'business-apps', screen, 'index.ts')
+      const exists = fs.existsSync(sourceEntryFile)
+      if (!exists) {
+        console.log(`   ⚠️  Skipping non-existent screen: ${screen}`)
       }
-      return normalized
+      return exists
     })
 
-  console.log(`📋 Detected ${detectedScreens.length} screen(s) from change detection:`)
-  detectedScreens.forEach(screen => console.log(`   - ${screen}`))
-
-  // Filter out screens that don't exist (were removed)
-  const projectRootDir = path.resolve(__dirname, '..')
-  const existingScreens = detectedScreens.filter(screen => {
-    const sourceEntryFile = path.join(projectRootDir, 'src', 'business-apps', screen, 'index.ts')
-    const exists = fs.existsSync(sourceEntryFile)
-    if (!exists) {
-      console.log(`   ⚠️  Skipping removed screen: ${screen} (${sourceEntryFile} not found)`)
-    }
-    return exists
-  })
-
-  const removedCount = detectedScreens.length - existingScreens.length
-  if (removedCount > 0) {
-    console.log(`📋 Filtered out ${removedCount} removed screen(s).`)
+    console.log(`✅ Will force-deploy ${candidateScreens.length} screen(s) (no hash comparison)`)
+  } else {
+    // No manual list - compare ALL screens' dev hashes vs prod hashes
+    console.log('🔍 AUTO MODE: Comparing dev vs prod hashes for ALL screens...')
+    candidateScreens = await findAllScreenDirectories()
+    console.log(`📋 Found ${candidateScreens.length} total screen(s) in project`)
   }
 
-  console.log(`📋 Found ${existingScreens.length} existing screen(s) to publish:`)
-  existingScreens.forEach(screen => console.log(`   - ${screen}`))
-
-  const changedScreens = existingScreens
-
-  // NEW: Comprehensive Screen Synchronization Step (run per target)
-  console.log(`\n${'='.repeat(80)}`)
-  console.log(`🔄 COMPREHENSIVE SCREEN SYNCHRONIZATION`)
-  console.log(`${'='.repeat(80)}`)
+  const changedScreens = candidateScreens
+  const useHashComparison = !isManualScreenList // Skip hash comparison for manual deploys
   const targets = [PRIMARY_TARGET]
   if (SECONDARY_TARGET) targets.push(SECONDARY_TARGET)
 
-  const comprehensiveSyncResults = []
-  for (const target of targets) {
-    console.log(
-      `\n▶️ Target: ${target.label.toUpperCase()} | ScreenMgmt: ${target.services.screenManagementApi} | Nav: ${target.services.navigationApi}`
-    )
-    const result = await handleComprehensiveScreenSyncForTarget(changedScreens, target)
-    comprehensiveSyncResults.push({ label: target.label, result })
-    if (result.success) {
-      console.log(`✅ [${target.label}] Comprehensive sync completed successfully!`)
-      console.log(`   📋 Processed screens: ${result.processedScreens}`)
-      console.log(`   🔗 Synced resource URLs: ${result.syncedResources}`)
-      console.log(`   📱 Synced screens: ${result.syncedScreens}`)
-    } else {
-      console.error(`❌ [${target.label}] Comprehensive sync failed: ${result.error}`)
-      console.log('⚠️  Continuing with individual screen publishing as fallback for uploads...')
-    }
-  }
+  const projectRootDirForHashes = path.resolve(__dirname, '..')
+  const devHashFile = path.join(projectRootDirForHashes, 'component-hashes.json')
+  const prodHashFile = path.join(projectRootDirForHashes, 'component-hashes-prod.json')
 
-  // STREAMLINED: Individual Screen Building and Azure Upload
-  // (Resource URLs and screen registration handled by comprehensive sync above)
-  console.log(`\n${'='.repeat(80)}`)
-  console.log(`🔨 INDIVIDUAL SCREEN BUILDING AND AZURE UPLOAD`)
-  console.log(`${'='.repeat(80)}`)
+  // Load hash files ONCE at the beginning (keep in memory throughout)
+  const devHashes = loadHashFile(devHashFile)
+  const prodHashes = loadHashFile(prodHashFile)
 
+  // ============================================================================
+  // STEP 1: PRE-BUILD HASH COMPARISON (skip if manual screen list provided)
+  // ============================================================================
+  let screensToPublish = []
+  const skippedScreens = []
   const failedScreens = []
 
-  // Add comprehensive sync failures to failed screens list (aggregate)
-  for (const { result, label } of comprehensiveSyncResults) {
-    if (result.failedSyncScreens && result.failedSyncScreens.length > 0) {
-      failedScreens.push(...result.failedSyncScreens.map(f => ({ ...f, target: label })))
-      console.log(`⚠️  [${label}] ${result.failedSyncScreens.length} screen(s) failed during comprehensive sync`)
+  if (useHashComparison) {
+    console.log(`\n${'='.repeat(80)}`)
+    console.log(`🔍 STEP 1: PRE-BUILD HASH COMPARISON`)
+    console.log(`${'='.repeat(80)}`)
+
+    console.log(`   Dev hashes loaded: ${Object.keys(devHashes).length} screens`)
+    console.log(`   Prod hashes loaded: ${Object.keys(prodHashes).length} screens`)
+
+    for (const screen of changedScreens) {
+      const comparison = compareScreenHashes(screen, devHashes, prodHashes)
+
+      if (comparison.changed) {
+        console.log(`   🔨 ${screen}: ${comparison.reason}`)
+        screensToPublish.push(screen)
+      } else {
+        skippedScreens.push({
+          screen,
+          hash: comparison.devHash,
+          reason: 'hash_match'
+        })
+      }
     }
+
+    console.log(`\n   📊 Pre-build comparison results:`)
+    console.log(`      Changed screens (will build): ${screensToPublish.length}`)
+    console.log(`      Unchanged screens (skip build): ${skippedScreens.length}`)
+    console.log(`      Time saved: ~${skippedScreens.length * 10} minutes ⚡`)
+  } else {
+    console.log(`\n${'='.repeat(80)}`)
+    console.log(`🎯 MANUAL SCREEN LIST - SKIPPING HASH COMPARISON`)
+    console.log(`${'='.repeat(80)}`)
+    console.log(`   All ${changedScreens.length} specified screen(s) will be force-deployed`)
+    screensToPublish = changedScreens
   }
 
-  for (const screen of changedScreens) {
-    console.log(`\n📦 Building and uploading screen: ${screen}`)
+  // ============================================================================
+  // STEP 2: BUILD AND PUBLISH (only changed screens or all if manual)
+  // ============================================================================
+  if (screensToPublish.length === 0) {
+    console.log(`\n✅ No screens need publishing - all unchanged!`)
+    return
+  }
+
+  console.log(`\n${'='.repeat(80)}`)
+  console.log(`🔨 STEP 2: BUILD AND PUBLISH (${screensToPublish.length} screens)`)
+  console.log(`${'='.repeat(80)}`)
+
+  const successfulScreens = []
+
+  for (const screen of screensToPublish) {
+    console.log(`\n📦 Publishing: ${screen}`)
 
     try {
-      // Use existing publishScreen function but skip resource URL and screen registration
-      // since those are handled by comprehensive sync above; upload to all Azure targets
       const azureTargets = targets.map(t => t.azure).filter(t => t !== null)
       await publishScreen(screen, {
         skipResourceUrlSync: true,
         skipScreenRegistration: true,
-        buildOnly: true,
         azureTargets,
         targets
       })
 
-      console.log(`   ✅ Screen built and uploaded successfully`)
+      successfulScreens.push(screen)
+      console.log(`   ✅ Published successfully`)
     } catch (error) {
-      console.error(`   ❌ Error building/uploading ${screen}: ${error.message}`)
+      console.error(`   ❌ Failed: ${error.message}`)
       failedScreens.push({
         screen,
         error: error.message,
         stage: 'build_upload',
         target: error.targetLabel || 'unknown'
       })
+    }
+  }
+
+  // ============================================================================
+  // STEP 2: Comprehensive Sync - ONLY for screens that actually changed
+  // ============================================================================
+  let comprehensiveSyncResults = []
+
+  if (screensToPublish.length > 0) {
+    console.log(`\n${'='.repeat(80)}`)
+    console.log(`🔄 STEP 2: COMPREHENSIVE SYNC (${screensToPublish.length} changed screens)`)
+    console.log(`${'='.repeat(80)}`)
+
+    for (const target of targets) {
+      console.log(
+        `\n▶️ Target: ${target.label.toUpperCase()} | ScreenMgmt: ${target.services.screenManagementApi} | Nav: ${target.services.navigationApi}`
+      )
+      const result = await handleComprehensiveScreenSyncForTarget(screensToPublish, target)
+      comprehensiveSyncResults.push({ label: target.label, result })
+      if (result.success) {
+        console.log(`✅ [${target.label}] Comprehensive sync completed successfully!`)
+        console.log(`   📋 Processed screens: ${result.processedScreens}`)
+        console.log(`   🔗 Synced resource URLs: ${result.syncedResources}`)
+        console.log(`   📱 Synced screens: ${result.syncedScreens}`)
+      } else {
+        console.error(`❌ [${target.label}] Comprehensive sync failed: ${result.error}`)
+        console.log('⚠️  Continuing with individual screen uploads as fallback...')
+      }
+    }
+
+    // Add comprehensive sync failures to failed screens list
+    for (const { result, label } of comprehensiveSyncResults) {
+      if (result.failedSyncScreens && result.failedSyncScreens.length > 0) {
+        failedScreens.push(...result.failedSyncScreens.map(f => ({ ...f, target: label })))
+        console.log(`⚠️  [${label}] ${result.failedSyncScreens.length} screen(s) failed during comprehensive sync`)
+      }
+    }
+  } else {
+    console.log(`\n⏩ No screens need comprehensive sync - all ${skippedScreens.length} screen(s) unchanged!`)
+  }
+
+  // ============================================================================
+  // STEP 3: UPDATE PROD HASH FILE
+  // ============================================================================
+  if (useHashComparison && successfulScreens.length > 0) {
+    console.log(`\n${'='.repeat(80)}`)
+    console.log(`📝 STEP 3: UPDATE PROD HASH FILE`)
+    console.log(`${'='.repeat(80)}`)
+
+    // Update in-memory prod hashes with dev hashes for successfully published screens
+    let updatedCount = 0
+    for (const screen of successfulScreens) {
+      if (devHashes[screen]) {
+        prodHashes[screen] = devHashes[screen]
+        updatedCount++
+        console.log(`   ✅ ${screen}: ${devHashes[screen].substring(0, 16)}...`)
+      } else {
+        console.log(`   ⚠️  ${screen}: No dev hash found (screen not in component-hashes.json)`)
+      }
+    }
+
+    if (updatedCount > 0) {
+      // Save updated prod hashes
+      saveHashFile(prodHashFile, prodHashes)
+      console.log(`\n   📝 Updated ${updatedCount} prod hash(es)`)
+
+      // Commit and push to main
+      try {
+        configureGit(projectRootDirForHashes, execSync)
+        execSync('git add component-hashes-prod.json', { cwd: projectRootDirForHashes })
+        execSync(`git commit -m "chore(ci): update prod component hashes to ${PUBLISH_VERSION} [skip ci]"`, {
+          cwd: projectRootDirForHashes
+        })
+
+        // Pull with rebase for concurrent pipeline safety
+        let pushSuccess = false
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          try {
+            execSync('git pull --rebase origin main', { cwd: projectRootDirForHashes, stdio: 'inherit' })
+            execSync('git push origin main', { cwd: projectRootDirForHashes, stdio: 'inherit' })
+            pushSuccess = true
+            console.log('   ✅ Prod hashes committed and pushed to main')
+            break
+          } catch (error) {
+            if (attempt < 3) {
+              console.log(`   🔄 Push failed (attempt ${attempt}/3), retrying with rebase...`)
+              await new Promise(resolve => setTimeout(resolve, 2000 * attempt))
+            } else {
+              throw error
+            }
+          }
+        }
+
+        if (!pushSuccess) {
+          throw new Error('Failed to push after 3 retries')
+        }
+      } catch (error) {
+        console.log(`   ⚠️  Failed to commit/push prod hashes: ${error.message}`)
+        console.log('   ℹ️  Screens were published successfully, hash update is non-critical')
+      }
+    } else {
+      console.log('   ℹ️  No hashes to update')
     }
   }
 
@@ -1557,9 +1708,11 @@ async function main() {
   console.log(`📈 Total screens processed: ${changedScreens.length}`)
 
   const totalFailures = failedScreens.length
-  const actualSuccessCount = changedScreens.length - totalFailures
+  const totalSkipped = skippedScreens.length
+  const actualSuccessCount = changedScreens.length - totalFailures - totalSkipped
 
   console.log(`✅ Successfully published: ${actualSuccessCount}`)
+  console.log(`⏩ Skipped (unchanged): ${totalSkipped}`)
   console.log(`❌ Failed: ${totalFailures}`)
 
   // Add comprehensive sync summary per target
@@ -1577,6 +1730,18 @@ async function main() {
     } else {
       console.log(`   ❌ Comprehensive sync: FAILED${result.error ? ` (${result.error})` : ''}`)
     }
+  }
+
+  // Display skipped screens details
+  if (skippedScreens.length > 0) {
+    console.log(`\n⏩ SKIPPED SCREENS (hashes matched):`)
+    console.log(`${'='.repeat(50)}`)
+    skippedScreens.forEach((skip, index) => {
+      console.log(`\n${index + 1}. Screen: ${skip.screen}`)
+      console.log(`   Hash: ${skip.hash ? skip.hash.substring(0, 16) + '...' : 'N/A'}`)
+      console.log(`   Reason: ${skip.reason}`)
+      console.log(`   ${'─'.repeat(40)}`)
+    })
   }
 
   if (failedScreens.length > 0) {

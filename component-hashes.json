@@ -1,14 +1,12 @@
 {
-  "OpportunityOverview-crm-overview-screens-OpportunityOverview-OpportunityOverview": "cfdeae1ab4654aadabf44ca68e0874d7",
-  "AbsenceManagementHub-hr-absence-overview-screens-AbsenceManagementHub-AbsenceManagementHub": "18d154d409777cab9d3b2021b9e32045",
-  "KPISection-hr-absence-overview-screens-KPISection-KPISection": "8348e2108fa410c5d828c55142701c10",
-  "AppHeader-hr-absence-overview-screens-AppHeader-AppHeader": "2f9722f17a6888f6f2f6ce85378cb9cf",
-  "HeroBanner-hr-absence-overview-screens-HeroBanner-HeroBanner": "a611ee2633bc9ba32e2e4f516e209bf9",
-  "QuickActions-hr-absence-overview-screens-QuickActions-QuickActions": "49cff7f877a6114df3dc9ed725d30c09",
-  "InsightsSection-hr-absence-overview-screens-InsightsSection-InsightsSection": "0fbd76cebd16fe1fd7fc916ed1be8716",
-  "AbsenceOverview-hr-absence-overview-screens-AbsenceOverview-AbsenceOverview": "14434f22ded61b120df9be2a5918d473",
-  "LeadDetail-irm-detail-screens-LeadDetail-LeadDetail": "c55268afa2da6584dae3d5aa7796c9e6",
-  "LeadOverview-irm-overview-screens-LeadOverview-LeadOverview": "f6845a4cfeb9851fcf0cabc471207680",
-  "KanbanBoard-irm-kanban-board-KanbanBoard": "9ea6f560fb6501dc8f7c1cfd001904f6",
-  "ProfileOverview-irm-contact-screens-ProfileOverview-ProfileOverview": "bae21744bcd5792cea6b9d9b096c1fe5"
+  "fin/expenses/forms/advance-payment-approval": "517b491d69c8e5643f7e6b3b4c09e4d9",
+  "fin/expenses/forms/approve-expense-plan": "03b694030a08d5fe6bfac7cbc5e1ebdb",
+  "fin/expenses/forms/approve-expense-request": "f614381aff5499ed0e9f62e1d29e563e",
+  "hr/absences/apps/personal-absences": "ed90774f04a7762bd18512759e8da6e6",
+  "hr/absences/forms/acknowledge-employee-vacation": "99edae4f2a1e7ede81166147ba4512d6",
+  "hr/absences/forms/approve-employee-special-leave": "fd8329e14a33b171899d77bade19c612",
+  "hr/absences/forms/approve-employee-vacation": "8ff294eec850874607395e95f385ec81",
+  "hr/absences/forms/approve-employee-work-leave": "e2c3e4b22a9d706324df8946bb090963",
+  "hr/core/apps/employee-record": "939bc461647e4d151a07d87d75f467b4",
+  "irm/investments/records/investment-record": "b83f9d8ed10989f4957dfd76a836e090"
 }

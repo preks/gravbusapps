@@ -67,7 +67,7 @@ export const InvestmentStatistics: React.FC<InvestmentStatisticsProps> = ({ sele
       trend: {
         value: investmentsChange.value,
         positive: investmentsChange.positive,
-        description: 'vs 30 days ago'
+        description: 'vs last quarter'
       }
     },
     {
@@ -82,7 +82,7 @@ export const InvestmentStatistics: React.FC<InvestmentStatisticsProps> = ({ sele
       trend: {
         value: investedChange.value,
         positive: investedChange.positive,
-        description: 'vs 30 days ago'
+        description: 'vs last quarter'
       }
     },
     {
@@ -97,7 +97,7 @@ export const InvestmentStatistics: React.FC<InvestmentStatisticsProps> = ({ sele
       trend: {
         value: stakeChange.value,
         positive: stakeChange.positive,
-        description: 'vs 30 days ago'
+        description: 'vs last quarter'
       }
     },
     {
@@ -112,7 +112,7 @@ export const InvestmentStatistics: React.FC<InvestmentStatisticsProps> = ({ sele
       trend: {
         value: marketValueChange.value,
         positive: marketValueChange.positive,
-        description: 'vs 30 days ago'
+        description: 'vs last quarter'
       }
     }
   ]

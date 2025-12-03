@@ -488,11 +488,10 @@ export const InputRenderer: React.FC<InputRendererProps> = ({
         return (
           <div className="gba:mb-4">
             <Checkbox
-              data-testid={`${testId}-input-${index}`}
+              data-testid={`${testId}-input-${index}-checkbox`}
               disabled={readOnly}
               checked={value || false}
               onChange={e => onChange?.(e.target.checked)}
-              data-testid={`${testId}-input-${index}-checkbox`}
             >
               {input.placeholder || input.label}
             </Checkbox>

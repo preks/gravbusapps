@@ -108,7 +108,7 @@ export const InvestmentStatistics: React.FC<InvestmentStatisticsProps> = ({ curr
       trend: {
         value: investmentsChange.value,
         positive: investmentsChange.positive,
-        description: 'vs 30 days ago'
+        description: 'vs last quarter'
       }
     },
     {
@@ -123,7 +123,7 @@ export const InvestmentStatistics: React.FC<InvestmentStatisticsProps> = ({ curr
       trend: {
         value: investedChange.value,
         positive: investedChange.positive,
-        description: 'vs 30 days ago'
+        description: 'vs last quarter'
       }
     },
     {
@@ -138,7 +138,7 @@ export const InvestmentStatistics: React.FC<InvestmentStatisticsProps> = ({ curr
       trend: {
         value: stakeChange.value,
         positive: stakeChange.positive,
-        description: 'vs 30 days ago'
+        description: 'vs last quarter'
       }
     },
     {
@@ -153,7 +153,7 @@ export const InvestmentStatistics: React.FC<InvestmentStatisticsProps> = ({ curr
       trend: {
         value: marketValueChange.value,
         positive: marketValueChange.positive,
-        description: 'vs 30 days ago'
+        description: 'vs last quarter'
       }
     }
   ]

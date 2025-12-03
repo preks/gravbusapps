@@ -123,10 +123,10 @@ export const useGetInvestmentKPIs = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchInvestmentKPIs = async (currencyCode?: string): Promise<InvestmentKPIComparison> => {
-    // Calculate date 30 days ago for comparison (stable within this call)
-    const thirtyDaysAgo = new Date()
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-    const comparisonDate = thirtyDaysAgo.toISOString()
+    // Calculate date 91 days ago for comparison (stable within this call)
+    const quarterAgo = new Date()
+    quarterAgo.setDate(quarterAgo.getDate() - 91)
+    const comparisonDate = quarterAgo.toISOString()
 
     const query = GET_INVESTMENT_KPIS_WITH_COMPARISON(comparisonDate, currencyCode)
     try {
