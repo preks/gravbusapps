@@ -8,5 +8,6 @@
   "hr/absences/forms/approve-employee-vacation": "8ff294eec850874607395e95f385ec81",
   "hr/absences/forms/approve-employee-work-leave": "e2c3e4b22a9d706324df8946bb090963",
   "hr/core/apps/employee-record": "115fdbd4e3c2734918fefa4c54b06e45",
+  "irm/core/popups/document-popup": "6ea1f4ffc5e9f23e6983f104c14190ea",
   "irm/investments/records/investment-record": "b83f9d8ed10989f4957dfd76a836e090"
 }
