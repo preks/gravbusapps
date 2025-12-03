@@ -27,6 +27,7 @@ import { Users, Calendar, ChevronDown, ChevronUp } from 'lucide-react'
 import { useTeamAbsences } from '../hooks/useTeamAbsences'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import type { CatalogEntry } from '@/common/types/CatalogTypes'
 
 interface TeamAbsenceCalendarProps {
   accessToken: string
@@ -101,11 +102,11 @@ const getAbsenceStatusDisplay = (status: string) => {
 
 // Extract color from absence type's parent entry (AbsenceGroup) - same colors as Absence Table
 const getAbsenceGroupColor = (absence: {
-  type?: { parentEntry?: { objectValue?: { color?: string } } }
+  type?: { parentEntry?: { objectValue?: Record<string, unknown> } }
 }): string | null => {
   const objectValue = absence?.type?.parentEntry?.objectValue
-  if (objectValue && typeof objectValue === 'object') {
-    const color = (objectValue as { color?: string }).color
+  if (objectValue && typeof objectValue === 'object' && !Array.isArray(objectValue)) {
+    const color = objectValue.color
     if (color && typeof color === 'string') {
       // Ensure color has # prefix
       return color.startsWith('#') ? color : `#${color}`
@@ -146,8 +147,8 @@ const useAbsenceGroupColors = (accessToken: string) => {
       )
 
       const colors: Record<string, string> = {}
-      response.data?.forEach((entry: any) => {
-        if (entry.objectValue && typeof entry.objectValue === 'object') {
+      response.data?.forEach((entry: CatalogEntry) => {
+        if (entry.objectValue && typeof entry.objectValue === 'object' && !Array.isArray(entry.objectValue)) {
           const color = entry.objectValue.color
           if (color && typeof color === 'string') {
             colors[entry.value] = color.startsWith('#') ? color : `#${color}`
