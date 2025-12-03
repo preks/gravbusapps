@@ -8,6 +8,7 @@ import { readFile, rename as fsRename } from 'fs/promises' // For asynchronous f
 import crypto from 'crypto'
 import path from 'path'
 import dotenv from '@dotenvx/dotenvx'
+import { execSync } from 'child_process'
 
 // Function to get dynamic entries for Vite build using synchronous fs methods
 function getDynamicEntries(projectRootDir: string): Record<string, string> {
@@ -184,18 +185,67 @@ export default defineConfig(({ command, mode }) => {
   }
 
   // Define content for the __APP_BUILD_INFO__ banner
-  const gitUserForBanner = env.VITE_GIT_USER || 'N/A'
+  // Try to get the author who last modified this specific screen
+  let gitUserForBanner = env.VITE_GIT_USER || 'N/A'
+  try {
+    // Get the author of the last commit that modified this specific screen's directory
+    const screenDir = targetEntryFile ? path.dirname(targetEntryFile) : null
+    let commitAuthor = ''
+
+    if (screenDir) {
+      // Get author of last commit that modified files in this screen's directory
+      commitAuthor = execSync(`git log -1 --pretty=format:%an -- "${screenDir}"`, { encoding: 'utf8' }).trim()
+    }
+
+    // Fallback to last commit author if screen-specific lookup fails
+    if (!commitAuthor) {
+      commitAuthor = execSync('git log -1 --pretty=format:%an', { encoding: 'utf8' }).trim()
+    }
+
+    if (commitAuthor && commitAuthor !== 'Bitbucket Pipeline' && commitAuthor !== 'bitbucket-pipelines') {
+      gitUserForBanner = commitAuthor
+    }
+  } catch {
+    // Keep the default VITE_GIT_USER value
+  }
   const publishTimeForBanner = env.VITE_PUBLISH_TIME || new Date().toISOString()
 
-  // Build Bitbucket PR URL if available (set during pipeline runs)
-  const bitbucketPrId = env.BITBUCKET_PR_ID
+  // Build Bitbucket PR URL if available
   const bitbucketWorkspace = env.BITBUCKET_WORKSPACE
   const bitbucketRepoSlug = env.BITBUCKET_REPO_SLUG
   const bitbucketBuildNumber = env.BITBUCKET_BUILD_NUMBER
-  const prUrl =
-    bitbucketPrId && bitbucketWorkspace && bitbucketRepoSlug
-      ? `https://bitbucket.org/${bitbucketWorkspace}/${bitbucketRepoSlug}/pull-requests/${bitbucketPrId}`
-      : null
+
+  // First try explicit PR ID (available in PR pipelines)
+  let prUrl: string | null = null
+  const bitbucketPrId = env.BITBUCKET_PR_ID
+  if (bitbucketPrId && bitbucketWorkspace && bitbucketRepoSlug) {
+    prUrl = `https://bitbucket.org/${bitbucketWorkspace}/${bitbucketRepoSlug}/pull-requests/${bitbucketPrId}`
+  } else if (bitbucketWorkspace && bitbucketRepoSlug) {
+    // For merge commits, try to extract PR number from the commit that last modified this screen
+    // Bitbucket merge commits have format: "Merged in branch-name (pull request #123)"
+    try {
+      const screenDir = targetEntryFile ? path.dirname(targetEntryFile) : null
+      let commitMsg = ''
+
+      if (screenDir) {
+        // Get commit message of the last commit that modified this screen
+        commitMsg = execSync(`git log -1 --pretty=format:%s -- "${screenDir}"`, { encoding: 'utf8' }).trim()
+      }
+
+      // Fallback to last commit if screen-specific lookup fails
+      if (!commitMsg) {
+        commitMsg = execSync('git log -1 --pretty=format:%s', { encoding: 'utf8' }).trim()
+      }
+
+      const prMatch = commitMsg.match(/\(pull request #(\d+)\)/)
+      if (prMatch) {
+        prUrl = `https://bitbucket.org/${bitbucketWorkspace}/${bitbucketRepoSlug}/pull-requests/${prMatch[1]}`
+      }
+    } catch {
+      // Couldn't extract PR from commit message
+    }
+  }
+
   const pipelineUrl =
     bitbucketBuildNumber && bitbucketWorkspace && bitbucketRepoSlug
       ? `https://bitbucket.org/${bitbucketWorkspace}/${bitbucketRepoSlug}/pipelines/results/${bitbucketBuildNumber}`

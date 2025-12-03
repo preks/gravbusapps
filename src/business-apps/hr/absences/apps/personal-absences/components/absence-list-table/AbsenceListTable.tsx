@@ -53,6 +53,7 @@ const renderSortIcon = (field: string, sortField: string, sortOrder: 'ASC' | 'DE
   if (sortField !== field) return null
   if (sortOrder === 'ASC') return <PiArrowUp className="gba:inline gba:ml-1" size={12} />
   if (sortOrder === 'DESC') return <PiArrowDown className="gba:inline gba:ml-1" size={12} />
+  // When sortOrder is empty (none state), return null (no icon shown)
   return null
 }
 
