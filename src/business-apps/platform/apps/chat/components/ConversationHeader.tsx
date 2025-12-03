@@ -3,6 +3,8 @@ import {
   Button,
   IconAvatar,
   Avatar,
+  AvatarImage,
+  AvatarFallback,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -19,6 +21,7 @@ import { UserIcon } from 'lucide-react'
 import type { Conversation } from '../types'
 import type { UserPresence } from '../hooks/usePresence'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { navigateTo } from '@/common/utils/navigationUtils'
 
 interface ConversationHeaderProps {
   conversation: Conversation
@@ -70,6 +73,27 @@ const getConversationAvatarUrl = (conversation: Conversation, currentUserId?: st
   return otherParticipant?.user?.avatarUrl
 }
 
+const getOtherParticipantEmployeeId = (
+  conversation: Conversation,
+  currentUserId?: string | null
+): string | undefined => {
+  if (conversation.type !== 'direct') {
+    return undefined
+  }
+
+  const otherParticipant = getOtherParticipant(conversation, currentUserId)
+  return otherParticipant?.user?.employeeId
+}
+
+const getInitials = (name: string): string => {
+  if (!name) return '?'
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 1) {
+    return parts[0].charAt(0).toUpperCase()
+  }
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase()
+}
+
 // Presence status indicator component - only shows for online/away, not offline
 const PresenceIndicator: React.FC<{ status: 'online' | 'away' | 'offline'; size?: 'sm' | 'md' }> = ({
   status,
@@ -100,6 +124,73 @@ const PresenceIndicator: React.FC<{ status: 'online' | 'away' | 'offline'; size?
   )
 }
 
+// Stacked avatars component for group chats
+interface StackedAvatarsProps {
+  participants: Conversation['participants']
+  currentUserId?: string | null
+  size?: 'sm' | 'md'
+  maxAvatars?: number
+}
+
+const StackedAvatars: React.FC<StackedAvatarsProps> = ({
+  participants,
+  currentUserId,
+  size = 'md',
+  maxAvatars = 3
+}) => {
+  if (!participants || participants.length === 0) {
+    return <IconAvatar className={size === 'sm' ? 'gba:w-8 gba:h-8' : 'gba:w-9 gba:h-9'} label="Group" icon={Users} />
+  }
+
+  // Filter out current user and get other participants
+  const otherParticipants = participants.filter(p => p.userId !== currentUserId && p.user?.id !== currentUserId)
+
+  // Take only the first maxAvatars participants
+  const visibleParticipants = otherParticipants.slice(0, maxAvatars)
+  const remainingCount = otherParticipants.length - maxAvatars
+
+  const avatarSizeClass = size === 'sm' ? 'gba:w-6 gba:h-6' : 'gba:w-7 gba:h-7'
+  const containerWidth = size === 'sm' ? 'gba:w-10' : 'gba:w-11'
+  const containerHeight = size === 'sm' ? 'gba:h-8' : 'gba:h-9'
+
+  return (
+    <div className={`gba:relative gba:flex gba:items-center ${containerWidth} ${containerHeight}`}>
+      {visibleParticipants.map((participant, index) => {
+        const user = participant.user
+        const name =
+          user?.displayName || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.username || 'User'
+
+        return (
+          <Avatar
+            key={participant.id || index}
+            className={`${avatarSizeClass} gba:border-2 gba:border-background gba:absolute`}
+            style={{
+              left: `${index * (size === 'sm' ? 10 : 12)}px`,
+              zIndex: maxAvatars - index
+            }}
+            title={name}
+          >
+            {user?.avatarUrl && <AvatarImage src={user.avatarUrl} alt={name} />}
+            <AvatarFallback className="gba:text-[10px]">{getInitials(name)}</AvatarFallback>
+          </Avatar>
+        )
+      })}
+      {remainingCount > 0 && (
+        <div
+          className={`${avatarSizeClass} gba:rounded-full gba:bg-muted gba:border-2 gba:border-background gba:flex gba:items-center gba:justify-center gba:text-[10px] gba:font-medium gba:text-muted-foreground gba:absolute`}
+          style={{
+            left: `${visibleParticipants.length * (size === 'sm' ? 10 : 12)}px`,
+            zIndex: 0
+          }}
+          title={`+${remainingCount} more`}
+        >
+          +{remainingCount}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // Get presence status text for display - returns null for offline
 const getPresenceStatusText = (presence?: UserPresence): string | null => {
   if (!presence || presence.status === 'offline') return null
@@ -121,11 +212,19 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
 }) => {
   const name = getConversationName(conversation, currentUserId)
   const avatarUrl = getConversationAvatarUrl(conversation, currentUserId)
+  const employeeId = getOtherParticipantEmployeeId(conversation, currentUserId)
   const [showRemoveDialog, setShowRemoveDialog] = useState(false)
   const isGroupChat = conversation.type === 'group'
   const isDirectChat = conversation.type === 'direct'
   const presenceStatus = otherUserPresence?.status || 'offline'
   const presenceStatusText = isDirectChat ? getPresenceStatusText(otherUserPresence) : null
+  const isClickable = isDirectChat && !!employeeId
+
+  const handleProfileClick = () => {
+    if (isClickable) {
+      navigateTo(`/platform/employee-record?employeeId=${employeeId}`)
+    }
+  }
 
   const handleRemoveClick = () => {
     setShowRemoveDialog(true)
@@ -158,20 +257,39 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
           </Button>
         )}
 
-        <div className="gba:relative gba:flex-shrink-0">
-          {avatarUrl ? (
-            <Avatar className={avatarSize}>
-              <img src={avatarUrl} alt={name} className="gba:w-full gba:h-full gba:object-cover gba:rounded-full" />
+        <div
+          className={`gba:relative gba:flex-shrink-0 ${isClickable ? 'gba:cursor-pointer' : ''}`}
+          onClick={handleProfileClick}
+          title={isClickable ? 'View profile' : undefined}
+        >
+          {isGroupChat ? (
+            <StackedAvatars
+              participants={conversation.participants}
+              currentUserId={currentUserId}
+              size={compact ? 'sm' : 'md'}
+              maxAvatars={3}
+            />
+          ) : avatarUrl ? (
+            <Avatar
+              className={`${avatarSize} ${isClickable ? 'hover:gba:ring-2 hover:gba:ring-primary gba:transition-all' : ''}`}
+            >
+              <AvatarImage src={avatarUrl} alt={name} />
+              <AvatarFallback>{getInitials(name)}</AvatarFallback>
             </Avatar>
           ) : (
-            <IconAvatar className={avatarSize} label={name} icon={isGroupChat ? Users : UserIcon} />
+            <IconAvatar
+              className={`${avatarSize} ${isClickable ? 'hover:gba:ring-2 hover:gba:ring-primary gba:transition-all' : ''}`}
+              label={name}
+              icon={UserIcon}
+            />
           )}
           {isDirectChat && <PresenceIndicator status={presenceStatus} size={compact ? 'sm' : 'md'} />}
         </div>
 
         <div className="gba:flex-1 gba:min-w-0">
           <h2
-            className={`gba:font-semibold gba:truncate gba:text-foreground ${compact ? 'gba:text-sm' : 'gba:text-base'}`}
+            className={`gba:font-semibold gba:truncate gba:text-foreground ${compact ? 'gba:text-sm' : 'gba:text-base'} ${isClickable ? 'gba:cursor-pointer hover:gba:text-primary gba:transition-colors' : ''}`}
+            onClick={handleProfileClick}
           >
             {name}
           </h2>
