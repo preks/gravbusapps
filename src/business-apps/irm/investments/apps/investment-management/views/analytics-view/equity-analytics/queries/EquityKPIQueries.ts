@@ -57,7 +57,7 @@ const GET_EQUITY_KPIS_WITH_COMPARISON = (comparisonDate: string, currencyFilter?
         investmentMarketValue
       }
       
-      # Previous period data (equity investments existing 30 days ago)
+      # Previous period data (equity investments existing 91 days ago)
       previousAggregate: InvestmentAggregate(
         where: {
           _and: [
@@ -136,10 +136,10 @@ export const useGetEquityKPIs = (context: BusinessAppContextProps, currency?: st
   const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchEquityKPIs = useCallback(async (): Promise<EquityKPIComparison> => {
-    // Calculate date 30 days ago for comparison
-    const thirtyDaysAgo = new Date()
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-    const comparisonDate = thirtyDaysAgo.toISOString()
+    // Calculate date 91 days ago for comparison
+    const quarterAgo = new Date()
+    quarterAgo.setDate(quarterAgo.getDate() - 91)
+    const comparisonDate = quarterAgo.toISOString()
 
     const query = GET_EQUITY_KPIS_WITH_COMPARISON(comparisonDate, currency)
     try {

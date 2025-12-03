@@ -279,9 +279,12 @@ async function main() {
     try {
       configureGit(projectRoot, execSync)
       execSync(`git add ${path.basename(hashFile)}`, { cwd: projectRoot })
-      execSync(`git commit -m "chore(ci): calculate ${args.env} hashes (${successCount} screens) [skip ci]"`, {
-        cwd: projectRoot
-      })
+      execSync(
+        `git commit -m "chore(ci): calculate ${args.env} component hashes (${successCount} screens) [skip ci]"`,
+        {
+          cwd: projectRoot
+        }
+      )
 
       // Pull with rebase and push
       let pushSuccess = false

@@ -54,7 +54,7 @@ export const GET_PORTFOLIO_KPIS_WITH_COMPARISON = (comparisonDate: string, curre
         }
       }
       
-      # Previous period data (investments that existed 30 days ago)
+      # Previous period data (investments that existed 91 days ago)
       previousAggregate: InvestmentAggregate(
         where: {
           _and: [
@@ -73,7 +73,7 @@ export const GET_PORTFOLIO_KPIS_WITH_COMPARISON = (comparisonDate: string, curre
         }
       }
       
-      # Previous active investments count (investments that were active 30 days ago)
+      # Previous active investments count (investments that were active 91 days ago)
       previousActiveAggregate: InvestmentAggregate(
         where: {
           _and: [
@@ -127,10 +127,10 @@ export const useGetPortfolioKPIs = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchPortfolioKPIs = async (currencyCode?: string): Promise<PortfolioKPIComparison> => {
-    // Calculate date 30 days ago for comparison
-    const thirtyDaysAgo = new Date()
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-    const comparisonDate = thirtyDaysAgo.toISOString()
+    // Calculate date 91 days ago for comparison
+    const quarterAgo = new Date()
+    quarterAgo.setDate(quarterAgo.getDate() - 91)
+    const comparisonDate = quarterAgo.toISOString()
 
     const query = GET_PORTFOLIO_KPIS_WITH_COMPARISON(comparisonDate, currencyCode)
     try {

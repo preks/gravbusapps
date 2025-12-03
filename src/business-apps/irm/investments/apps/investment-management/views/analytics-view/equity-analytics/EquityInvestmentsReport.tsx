@@ -326,7 +326,7 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
               trend: {
                 value: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).value,
                 positive: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).positive,
-                description: 'vs 30 days ago'
+                description: 'vs last quarter'
               }
             },
             {
@@ -348,7 +348,7 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
               trend: {
                 value: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).value,
                 positive: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).positive,
-                description: 'vs 30 days ago'
+                description: 'vs last quarter'
               }
             },
             {
@@ -363,7 +363,7 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
               trend: {
                 value: calculateChange(kpis.portfolioMoic, previousKpis.portfolioMoic).value,
                 positive: calculateChange(kpis.portfolioMoic, previousKpis.portfolioMoic).positive,
-                description: 'vs 30 days ago'
+                description: 'vs last quarter'
               }
             },
             {
@@ -378,7 +378,7 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
               trend: {
                 value: calculateChange(kpis.averageDuration, previousKpis.averageDuration).value,
                 positive: calculateChange(kpis.averageDuration, previousKpis.averageDuration).positive,
-                description: 'vs 30 days ago'
+                description: 'vs last quarter'
               }
             }
           ]}

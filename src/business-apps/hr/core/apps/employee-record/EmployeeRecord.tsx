@@ -96,10 +96,8 @@ const NotFoundUI = () => (
 
 export const EmployeeRecord: React.FC<BusinessAppContextProps> = props => {
   const urlParams = getUrlParams()
-
   const urlEmployeeId = urlParams.employeeId
   const currentUserEmployeeId = props.userInfo?.employeeDetails?.employeeId || ''
-
   const employeeIdToShow = urlEmployeeId || currentUserEmployeeId
 
   const updateUrlWithSubView = (targetTab: string, subView: string) => {

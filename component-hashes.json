@@ -1,1 +1,12 @@
-{}
+{
+  "fin/expenses/forms/advance-payment-approval": "517b491d69c8e5643f7e6b3b4c09e4d9",
+  "fin/expenses/forms/approve-expense-plan": "03b694030a08d5fe6bfac7cbc5e1ebdb",
+  "fin/expenses/forms/approve-expense-request": "f614381aff5499ed0e9f62e1d29e563e",
+  "hr/absences/apps/personal-absences": "ed90774f04a7762bd18512759e8da6e6",
+  "hr/absences/forms/acknowledge-employee-vacation": "99edae4f2a1e7ede81166147ba4512d6",
+  "hr/absences/forms/approve-employee-special-leave": "fd8329e14a33b171899d77bade19c612",
+  "hr/absences/forms/approve-employee-vacation": "8ff294eec850874607395e95f385ec81",
+  "hr/absences/forms/approve-employee-work-leave": "e2c3e4b22a9d706324df8946bb090963",
+  "hr/core/apps/employee-record": "939bc461647e4d151a07d87d75f467b4",
+  "irm/investments/records/investment-record": "b83f9d8ed10989f4957dfd76a836e090"
+}
