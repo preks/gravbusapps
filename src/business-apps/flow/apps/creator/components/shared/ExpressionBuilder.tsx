@@ -150,7 +150,7 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
   const [treeData, setTreeData] = useState<TreeNodeType[]>([])
 
   // Validation state
-  const { validateExpression } = useExpressionValidator(template, stepIndex, entitySchemas)
+  const { validateExpression } = useExpressionValidator(template, stepIndex, entitySchemas ?? undefined)
   const [validationResult, setValidationResult] = useState<{ isValid: boolean; message?: string } | null>(null)
   const validationTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -641,6 +641,7 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
 
   /**
    * Handle Entity Browse - load entities via datasource API
+   * Supports group filters for hierarchical entity browsing
    */
   const handleEntityBrowse = async (node: TreeNodeType, search?: string) => {
     if (node.type !== 'entity-browser' || !node.metadata?.entityType) {
@@ -649,21 +650,36 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
 
     const entityType = node.metadata.entityType
     const searchTerm = search !== undefined ? search : node.metadata.search || ''
+    const groupFilters = node.metadata.groupFilters as
+      | Array<{ field: string; operator: string; value: any }>
+      | undefined
+    const groupDisplayName = node.metadata.groupDisplayName as string | undefined
+
+    // Build display label
+    const displayLabel = groupDisplayName || entityType
 
     // Set loading state
     setTreeData(prevTree =>
       updateTreeNode(prevTree, node.id, n => ({
         ...n,
-        label: `🔍 Loading ${entityType}...`,
+        label: `🔍 Loading ${displayLabel}...`,
         metadata: { ...n.metadata, loadingState: 'loading', search: searchTerm }
       }))
     )
 
     try {
+      // Convert group filters to FilterInput format
+      const filters = groupFilters?.map(gf => ({
+        field: gf.field,
+        operator: gf.operator as any,
+        value: gf.value
+      }))
+
       const result = await listEntities(entityType, {
         search: searchTerm,
         limit: 20,
-        offset: typeof node.metadata?.offset === 'number' ? node.metadata.offset : 0
+        offset: typeof node.metadata?.offset === 'number' ? node.metadata.offset : 0,
+        filters: filters
       })
 
       const rawEntities = (result?.entities || []) as any[]
@@ -766,7 +782,7 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
           })
           return {
             ...n,
-            label: `🔍 Browse ${entityType} (${total} total${searchTerm ? `, search="${searchTerm}"` : ''})`,
+            label: `🔍 Browse ${displayLabel} (${total} total${searchTerm ? `, search="${searchTerm}"` : ''})`,
             isExpanded: true,
             children:
               typeof node.metadata?.offset === 'number' && node.metadata.offset > 0 && n.children
@@ -787,12 +803,12 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
         return updated
       })
     } catch (error) {
-      console.error(`Failed to browse entities for ${entityType}:`, error)
+      console.error(`Failed to browse entities for ${displayLabel}:`, error)
       // Update to error state
       setTreeData(prevTree =>
         updateTreeNode(prevTree, node.id, n => ({
           ...n,
-          label: `🔍 Browse ${entityType} (Error)`,
+          label: `🔍 Browse ${displayLabel} (Error)`,
           metadata: { ...n.metadata, loadingState: 'error' }
         }))
       )

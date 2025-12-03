@@ -3,10 +3,20 @@
  *
  * Builds tree nodes from entity schemas fetched from backend.
  * Used by expression builder to provide visual entity navigation.
+ *
+ * Supports hierarchical groups for entities with defined groups (e.g., Content)
+ * Groups can be nested recursively via the children property.
  */
 
 import { TreeNode } from '../types/expressionTree'
-import { EntitySchema, EntityFieldSchema, EntityFieldType, EntityFieldTypeValue } from '../hooks/useEntitySchemas'
+import {
+  EntitySchema,
+  EntityFieldSchema,
+  EntityFieldType,
+  EntityFieldTypeValue,
+  EntityGroup,
+  EntityGroupFilter
+} from '../hooks/useEntitySchemas'
 
 /**
  * Field type to icon mapping
@@ -40,6 +50,16 @@ const CATEGORY_NAMES: Record<string, string> = {
   skills: 'Skills & Capabilities',
   location: 'Location',
   assignment: 'Assignment',
+  content: 'Content',
+  classification: 'Classification',
+  authorship: 'Authorship',
+  settings: 'Settings',
+  workflow: 'Workflow',
+  dates: 'Dates',
+  audit: 'Audit',
+  advance: 'Advance Payments',
+  relationship: 'Relationships',
+  investment: 'Investment',
   other: 'Other'
 }
 
@@ -125,10 +145,132 @@ const buildFieldNodes = (fields: EntityFieldSchema[], pathPrefix: string): TreeN
 }
 
 /**
+ * Build group filter array from EntityGroupFilter
+ * Combines parent filters with current group filter
+ */
+const buildGroupFilters = (group: EntityGroup, parentFilters: EntityGroupFilter[] = []): EntityGroupFilter[] => {
+  return [...parentFilters, group.filter]
+}
+
+/**
+ * Build tree nodes for entity groups (recursive)
+ * Supports nested sub-groups via children property
+ */
+const buildGroupNodes = (
+  groups: EntityGroup[],
+  entityType: string,
+  entityDisplayName: string,
+  pathPrefix: string,
+  parentFilters: EntityGroupFilter[] = [],
+  depth: number = 0
+): TreeNode[] => {
+  return groups.map(group => {
+    const groupFilters = buildGroupFilters(group, parentFilters)
+    const groupId = `entity-${entityType}-group-${group.key}`
+
+    // Build children: sub-groups first, then browse action
+    const children: TreeNode[] = []
+
+    // Add nested sub-groups if they exist (recursive)
+    if (group.children && group.children.length > 0) {
+      children.push(
+        ...buildGroupNodes(group.children, entityType, entityDisplayName, pathPrefix, groupFilters, depth + 1)
+      )
+    }
+
+    // Add browse action for this group
+    children.push({
+      id: `${groupId}-browse`,
+      label: `🔍 Browse ${group.displayName}`,
+      type: 'entity-browser',
+      icon: 'search',
+      description: group.description || `Search and browse ${group.displayName.toLowerCase()}`,
+      isExpanded: false,
+      metadata: {
+        entityType: entityType,
+        loadingState: 'idle',
+        offset: 0,
+        hasMore: false,
+        // Pass group filters for filtered browsing
+        groupFilters: groupFilters,
+        groupKey: group.key,
+        groupDisplayName: group.displayName
+      },
+      children: []
+    })
+
+    return {
+      id: groupId,
+      label: group.displayName,
+      type: 'entity-group',
+      icon: group.icon || 'folder',
+      description: group.description,
+      isExpanded: false,
+      metadata: {
+        entityType: entityType,
+        groupKey: group.key,
+        groupFilters: groupFilters,
+        depth: depth
+      },
+      children
+    }
+  })
+}
+
+/**
  * Build tree node for a single entity
+ * Supports hierarchical groups if defined in schema
  */
 export const buildEntityTreeNode = (schema: EntitySchema): TreeNode => {
   const pathPrefix = `$entity.${schema.type}.{id}`
+
+  // Check if entity has groups defined
+  const hasGroups = schema.groups && schema.groups.length > 0
+
+  // Build children based on whether entity has groups
+  const children: TreeNode[] = []
+
+  if (hasGroups && schema.groups) {
+    // Entity with groups: show hierarchical group navigation
+    children.push(...buildGroupNodes(schema.groups, schema.type, schema.displayName, pathPrefix))
+
+    // Also add a "Browse All" option at the end
+    children.push({
+      id: `entity-${schema.type}-browse-all`,
+      label: `🔍 Browse All ${schema.displayName}`,
+      type: 'entity-browser',
+      icon: 'folder-open',
+      description: `Search and browse all ${schema.displayName.toLowerCase()} (no filter)`,
+      isExpanded: false,
+      metadata: {
+        entityType: schema.type,
+        loadingState: 'idle',
+        offset: 0,
+        hasMore: false
+      },
+      children: []
+    })
+  } else {
+    // Entity without groups: show standard browse action
+    children.push({
+      id: `entity-${schema.type}-browse`,
+      label: `🔍 Browse ${schema.displayName}`,
+      type: 'entity-browser',
+      icon: 'folder-open',
+      description: `Search and browse ${schema.displayName.toLowerCase()} entities`,
+      isExpanded: false,
+      metadata: {
+        entityType: schema.type,
+        loadingState: 'idle',
+        offset: 0,
+        hasMore: false
+      },
+      children: []
+    })
+  }
+
+  // Add field nodes
+  children.push(...buildFieldNodes(schema.fields, pathPrefix))
 
   return {
     id: `entity-${schema.type}`,
@@ -137,24 +279,7 @@ export const buildEntityTreeNode = (schema: EntitySchema): TreeNode => {
     icon: schema.icon || 'database',
     description: schema.description,
     isExpanded: false,
-    children: [
-      {
-        id: `entity-${schema.type}-browse`,
-        label: `🔍 Browse ${schema.displayName}`,
-        type: 'entity-browser',
-        icon: 'folder-open',
-        description: `Search and browse ${schema.displayName.toLowerCase()} entities`,
-        isExpanded: false,
-        metadata: {
-          entityType: schema.type,
-          loadingState: 'idle',
-          offset: 0,
-          hasMore: false
-        },
-        children: []
-      },
-      ...buildFieldNodes(schema.fields, pathPrefix)
-    ]
+    children
   }
 }
 

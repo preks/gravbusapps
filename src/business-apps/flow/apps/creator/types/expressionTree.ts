@@ -1,4 +1,13 @@
 /**
+ * Entity group filter for hierarchical navigation
+ */
+export interface EntityGroupFilter {
+  field: string
+  operator: string
+  value: any
+}
+
+/**
  * Tree node representing a data field or container in the expression builder
  */
 export interface TreeNode {
@@ -13,6 +22,7 @@ export interface TreeNode {
     | 'category'
     | 'entities'
     | 'entity'
+    | 'entity-group'
     | 'entity-browser'
     | 'entity-instance'
     | 'entity-field'
@@ -42,6 +52,13 @@ export interface TreeNode {
     offset?: number
     hasMore?: boolean
     search?: string
+    // Entity group navigation
+    groupKey?: string
+    groupDisplayName?: string
+    groupFilters?: EntityGroupFilter[]
+    depth?: number
+    entityCode?: string
+    entityTypeValue?: string
   }
   // For catalog-specific nodes
   expressionTemplate?: string // Template like {{$catalog.asset-management[ID_HERE].name}}

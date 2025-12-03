@@ -52,6 +52,30 @@ export interface EntityFieldSchema {
 }
 
 /**
+ * Entity group filter definition
+ * Used to pre-filter entities when browsing a specific group
+ */
+export interface EntityGroupFilter {
+  field: string
+  operator: 'eq' | 'neq' | 'in' | 'nin' | 'like' | 'ilike' | 'isNull' | 'isNotNull'
+  value: any
+}
+
+/**
+ * Entity group definition for hierarchical navigation
+ * Supports recursive nesting via children property
+ */
+export interface EntityGroup {
+  key: string // Unique key for this group (e.g., 'news', 'knowledge')
+  displayName: string // Human-readable name
+  description?: string // Optional description
+  icon?: string // Icon name for UI
+  filter: EntityGroupFilter // Filter to apply when browsing this group
+  children?: EntityGroup[] // Nested sub-groups (recursive)
+  exampleId?: string // Example entity ID for this group
+}
+
+/**
  * Entity schema interface
  */
 export interface EntitySchema {
@@ -62,6 +86,10 @@ export interface EntitySchema {
   apiEndpoint?: string
   exampleId?: string
   fields: EntityFieldSchema[]
+
+  // Optional: Hierarchical groups for navigation
+  // When defined, the entity will show as a tree with browsable sub-groups
+  groups?: EntityGroup[]
 }
 
 /**
