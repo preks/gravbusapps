@@ -7,7 +7,7 @@ export interface SalesVelocityData {
   currentMonthDeals: number
   currentMonthName: string
 
-  // 3 months ago metrics
+  // Last month metrics
   comparisonMonthRevenue: number
   comparisonMonthDeals: number
   comparisonMonthName: string
@@ -31,8 +31,8 @@ interface UseSalesVelocityResult {
 }
 
 /**
- * Hook to calculate monthly sales velocity with 3-month comparison
- * Shows current month revenue vs 3 months ago
+ * Hook to calculate monthly sales velocity with last month comparison
+ * Shows current month revenue vs last month
  * @param accessToken - Access token for API calls
  * @param selectedCurrencyId - Optional currency ID to filter by
  */
@@ -58,9 +58,9 @@ export const useSalesVelocity = (accessToken: string, selectedCurrencyId?: strin
       const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
       const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1)
 
-      // 3 months ago boundaries
-      const comparisonMonthStart = new Date(now.getFullYear(), now.getMonth() - 3, 1)
-      const comparisonMonthEnd = new Date(now.getFullYear(), now.getMonth() - 2, 1)
+      // Last month boundaries
+      const comparisonMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+      const comparisonMonthEnd = new Date(now.getFullYear(), now.getMonth(), 1)
 
       // Build currency filter
       const currencyFilter = selectedCurrencyId ? `currencyRef: {_eq: "${selectedCurrencyId}"}` : ''
@@ -94,7 +94,7 @@ export const useSalesVelocity = (accessToken: string, selectedCurrencyId?: strin
             aggregate { count }
           }
 
-          # 3 months ago - Won opportunities
+          # Last month - Won opportunities
           comparisonMonthWon: Opportunity(
             where: {
               isDeleted: {_eq: false}
@@ -109,7 +109,7 @@ export const useSalesVelocity = (accessToken: string, selectedCurrencyId?: strin
             closeDate
           }
 
-          # 3 months ago - All closed opportunities (for win rate)
+          # Last month - All closed opportunities (for win rate)
           comparisonMonthClosed: OpportunityAggregate(
             where: {
               isDeleted: {_eq: false}
@@ -149,7 +149,7 @@ export const useSalesVelocity = (accessToken: string, selectedCurrencyId?: strin
       const avgSalesCycleDays =
         cycleDays.length > 0 ? Math.round(cycleDays.reduce((sum, days) => sum + days, 0) / cycleDays.length) : 0
 
-      // Comparison month calculations (3 months ago)
+      // Comparison month calculations (last month)
       const comparisonWonDeals = result.comparisonMonthWon || []
       const comparisonMonthRevenue = comparisonWonDeals.reduce((sum, opp) => sum + (opp.estimatedAmount || 0), 0)
       const comparisonMonthDeals = comparisonWonDeals.length
