@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { getNewHiresCountQuery } from '../queries/getNewHiresCount'
 import dayjs from 'dayjs'
+import { formatDate } from '@/common/utils/windowUtils'
 
 /**
  * GraphQL response type for new hires count query using the EmployeeWorkingCondition.hireDate field
@@ -33,21 +34,20 @@ export const useNewHiresCount = (accessToken: string) => {
   const graphQLClient = useGraphqlClient(accessToken)
 
   /**
-   * Get the start and end dates for the current month in YYYY-MM-DD HH:mm:ss format
-   * which is compatible with the GraphQL API's timestamp type (without timezone)
+   * Get the start and end dates for the current month using standardized ISO formatting.
+   * Uses a half-open interval: [monthStart, nextMonthStart)
    */
   const getMonthDateRange = useCallback(() => {
     const now = dayjs()
-    // Format as YYYY-MM-DD HH:mm:ss for timestamp type (without timezone)
-    const startOfMonth = now.startOf('month').format('YYYY-MM-DD HH:mm:ss')
-    const endOfMonth = now.endOf('month').format('YYYY-MM-DD HH:mm:ss')
+    const startOfMonth = formatDate(now.startOf('month').toDate(), 'fullDateTime.ISO') as string
+    const startOfNextMonth = formatDate(now.add(1, 'month').startOf('month').toDate(), 'fullDateTime.ISO') as string
 
     // Log the date range for debugging
-    console.log(`[useNewHiresCount] Date range for hireDate filter: ${startOfMonth} to ${endOfMonth}`)
+    console.log(`[useNewHiresCount] Date range for hireDate filter: ${startOfMonth} to ${startOfNextMonth}`)
 
     return {
       startDate: startOfMonth,
-      endDate: endOfMonth
+      endDate: startOfNextMonth
     }
   }, [])
 

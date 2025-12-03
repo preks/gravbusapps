@@ -14,6 +14,56 @@ interface DocumentPdfModalProps {
   employeeId?: string // Add employee ID for file path construction
 }
 
+// Helper function to render modal content based on state
+const renderModalContent = (
+  isLoading: boolean,
+  hasError: string | false,
+  canShowDocument: boolean,
+  documentUrl: string
+): React.ReactNode => {
+  if (isLoading) {
+    return (
+      <div className="gba:flex gba:justify-center gba:items-center gba:h-96">
+        <Spinner size="lg" />
+        <div>Loading PDF...</div>
+      </div>
+    )
+  }
+
+  if (hasError) {
+    return (
+      <div className="gba:flex gba:justify-center gba:items-center gba:h-96">
+        <Alert variant="destructive">
+          <div className="gba:font-medium">Error Loading PDF</div>
+          <div className="gba:text-sm">{hasError}</div>
+        </Alert>
+      </div>
+    )
+  }
+
+  if (canShowDocument) {
+    return (
+      <iframe
+        src={documentUrl}
+        style={{
+          width: '100%',
+          height: '80vh',
+          border: 'none',
+          display: 'block'
+        }}
+        title="Advance Payment Document PDF"
+        data-testid="document-pdf-iframe"
+      />
+    )
+  }
+
+  return (
+    <div className="gba:text-center gba:p-8 gba:text-gray-500">
+      {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_document', 'No PDF URL available')}
+    </div>
+  )
+}
+
 const DocumentPdfModal: React.FC<DocumentPdfModalProps> = ({
   isVisible,
   pdfUrl,
@@ -143,35 +193,7 @@ const DocumentPdfModal: React.FC<DocumentPdfModalProps> = ({
 
         {/* Modal Content */}
         <div className="gba:bg-background gba:min-h-[80vh]">
-          {isLoading ? (
-            <div className="gba:flex gba:justify-center gba:items-center gba:h-96">
-              <Spinner size="lg" />
-              <div>Loading PDF...</div>
-            </div>
-          ) : hasError ? (
-            <div className="gba:flex gba:justify-center gba:items-center gba:h-96">
-              <Alert variant="destructive">
-                <div className="gba:font-medium">Error Loading PDF</div>
-                <div className="gba:text-sm">{hasError}</div>
-              </Alert>
-            </div>
-          ) : canShowDocument ? (
-            <iframe
-              src={documentUrl}
-              style={{
-                width: '100%',
-                height: '80vh',
-                border: 'none',
-                display: 'block'
-              }}
-              title="Advance Payment Document PDF"
-              data-testid="document-pdf-iframe"
-            />
-          ) : (
-            <div className="gba:text-center gba:p-8 gba:text-gray-500">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_document', 'No PDF URL available')}
-            </div>
-          )}
+          {renderModalContent(isLoading, hasError, canShowDocument, documentUrl)}
         </div>
       </DialogContent>
     </Dialog>

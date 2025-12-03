@@ -43,20 +43,20 @@ const getIconComponent = (groupName: string) => {
 }
 
 // Helper function to calculate trend data
-// Compares current total investment vs total investment 30 days ago (based on createdAt)
+// Compares current total investment vs total investment 91 days ago (based on createdAt)
 const calculateTrendData = (investments: Investment[]): TrendData => {
   const now = new Date()
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+  const quarterAgo = new Date(now.getTime() - 91 * 24 * 60 * 60 * 1000)
 
   // Current total: all investments
   const currentTotal = investments.reduce((sum, inv) => sum + (inv.totalInvestmentAmount || 0), 0)
 
-  // Previous total: investments that existed 30 days ago (created before 30 days ago)
+  // Previous total: investments that existed 91 days ago (created before 91 days ago)
   const previousTotal = investments
     .filter(inv => {
       if (!inv.createdAt) return true // Include if no createdAt (assume old)
       const createdDate = new Date(inv.createdAt)
-      return createdDate < thirtyDaysAgo
+      return createdDate < quarterAgo
     })
     .reduce((sum, inv) => sum + (inv.totalInvestmentAmount || 0), 0)
 

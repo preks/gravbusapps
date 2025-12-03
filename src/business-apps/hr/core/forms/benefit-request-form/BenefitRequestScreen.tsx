@@ -17,6 +17,8 @@ import FormHeader from '../components/FormHeader'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { fetchBenefitProvidersForBenefit } from './utils'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { extractCurrencyCode } from '@/common/utils/numberFormatter'
 export interface BenefitRequestScreenProps extends BusinessAppContextProps {
   /**
    * Translation function
@@ -67,10 +69,14 @@ const BenefitRequestScreen: React.FC<BenefitRequestScreenProps> = ({
   onSuccess
 }) => {
   const catalogClient = useCatalogManagerClient(accessToken || '')
+  const graphqlClient = useGraphQLClient(accessToken || '')
   // Form state
   const [provider, setProvider] = useState<string>('')
   const [startDate, setStartDate] = useState<string>('')
   const [justification, setJustification] = useState('')
+  const [period, setPeriod] = useState<string>('')
+  const [countryCurrencyRef, setCountryCurrencyRef] = useState<string | null>(null)
+  const [countryCurrencyCode, setCountryCurrencyCode] = useState<string>('')
   const [providersFromCatalog, setProvidersFromCatalog] = useState<ProviderEntry[]>([])
   const { t } = useTranslation(translations)
   const selectedBenefit =
@@ -89,6 +95,54 @@ const BenefitRequestScreen: React.FC<BenefitRequestScreenProps> = ({
   }, [catalogClient, selectedBenefit?.catalogEntry?.type, selectedBenefit?.catalogId])
 
   /**
+   * Fetch country currency from parent country catalog entry objectValue
+   */
+  React.useEffect(() => {
+    ;(async () => {
+      try {
+        const countryId = selectedBenefit?.catalogEntry?.parentEntryId
+        if (!countryId || !graphqlClient) return
+        const res = await graphqlClient.request<any>(
+          /* sql */ `
+          query GetCountry($id: String!) {
+            CatalogEntry(where: { id: { _eq: $id } }) {
+              id
+              objectValue
+            }
+          }
+        `,
+          { id: countryId }
+        )
+        const raw = res?.CatalogEntry?.[0]?.objectValue
+        if (raw) {
+          let obj: any = raw
+          if (typeof raw === 'string') {
+            try {
+              obj = JSON.parse(raw)
+            } catch {
+              obj = raw
+            }
+          }
+          const currencyRef: string | undefined = obj?.currency || obj?.defaultCurrency || obj?.currencyRef
+          if (currencyRef && typeof currencyRef === 'string') {
+            setCountryCurrencyRef(currencyRef)
+            setCountryCurrencyCode(extractCurrencyCode(currencyRef))
+          } else {
+            setCountryCurrencyRef(null)
+            setCountryCurrencyCode('')
+          }
+        } else {
+          setCountryCurrencyRef(null)
+          setCountryCurrencyCode('')
+        }
+      } catch {
+        setCountryCurrencyRef(null)
+        setCountryCurrencyCode('')
+      }
+    })()
+  }, [graphqlClient, selectedBenefit?.catalogEntry?.parentEntryId])
+
+  /**
    * Initialize start date on mount
    */
   React.useEffect(() => {
@@ -100,26 +154,77 @@ const BenefitRequestScreen: React.FC<BenefitRequestScreenProps> = ({
   const currentLocale = getCurrentActiveUserLocale()
 
   /**
-   * Resolve localized additional values from catalog entry
-   * - additionalValue1: numeric value
-   * - additionalValue2: unit label
+   * Resolve value/period from catalog entry objectValue (preferred), with fallback to additional values.
+   * - objectValue may be stored either on the entry or on the translation (localized)
+   * - Expected keys (best effort): value/amount/yearlyAmount/monthlyAmount, unit/currency; period/periodicity/frequency
    */
-  const { additionalValue1Display, additionalValue2Display, additionalValue1Number } = useMemo(() => {
-    const tr = selectedBenefit?.catalogEntry?.translations?.find(t => t.localeCode === currentLocale)
+  const { includedValueDisplay, additionalValue1Number, resolvedPeriodDisplay, derivedAmountNumber } = useMemo(() => {
+    // 1) Prefer objectValue (translation first, then entry)
+    const rawObjectValue = selectedBenefit?.catalogEntry?.objectValue
+    let ov: any = null
+    if (rawObjectValue != null) {
+      try {
+        ov = typeof rawObjectValue === 'string' ? JSON.parse(rawObjectValue as string) : rawObjectValue
+      } catch {
+        ov = null
+      }
+    }
 
-    const av1 = (tr?.additionalValue1 ?? selectedBenefit?.catalogEntry?.additionalValue1 ?? '').toString()
-    const av2 = (tr?.additionalValue2 ?? selectedBenefit?.catalogEntry?.additionalValue2 ?? '').toString()
+    let displayFromOV = undefined as string | undefined
+    let periodFromOV = undefined as string | undefined
+    let amountNumberFromOV = undefined as number | undefined
 
-    // Normalize decimal separators (e.g., "100,50" -> "100.50")
-    const normalized = av1.replace(',', '.')
-    const parsed = Number.parseFloat(normalized)
+    if (ov) {
+      // Prefer simple direct keys; avoid over-generic scans that could miss simple shapes
+      const amount =
+        (ov as any)?.displayValue ??
+        (ov as any)?.value ??
+        (ov as any)?.amount ??
+        (ov as any)?.yearlyAmount ??
+        (ov as any)?.monthlyAmount
+
+      const unit = (ov as any)?.unit ?? (ov as any)?.currency ?? (ov as any)?.currencyCode ?? (ov as any)?.unitLabel
+
+      if (amount != null) {
+        displayFromOV = `${amount}${unit ? ` ${unit}` : ''}`
+        const parsedAmount = typeof amount === 'number' ? amount : Number.parseFloat(String(amount).replace(',', '.'))
+        if (Number.isFinite(parsedAmount)) {
+          amountNumberFromOV = parsedAmount
+        }
+      }
+      const periodCandidate =
+        (ov as any)?.period ?? (ov as any)?.periodicity ?? (ov as any)?.frequency ?? (ov as any)?.interval
+      if (periodCandidate != null) {
+        periodFromOV = String(periodCandidate)
+      }
+    }
 
     return {
-      additionalValue1Display: av1,
-      additionalValue2Display: av2,
-      additionalValue1Number: Number.isFinite(parsed) ? parsed : 0
+      includedValueDisplay: displayFromOV ?? '-',
+      additionalValue1Number: amountNumberFromOV ?? 0,
+      resolvedPeriodDisplay: periodFromOV || '',
+      derivedAmountNumber: amountNumberFromOV
     }
   }, [selectedBenefit, currentLocale])
+
+  // Compose final display for value including country currency (if present)
+  const includedDisplayWithCurrency = useMemo(() => {
+    const base = includedValueDisplay
+    if (!base || base === '-') return '-'
+    if (countryCurrencyCode) {
+      const upper = base.toUpperCase()
+      const hasAlready = upper.endsWith(` ${countryCurrencyCode}`) || upper.includes(` ${countryCurrencyCode} `)
+      return hasAlready ? base : `${base} ${countryCurrencyCode}`
+    }
+    return base
+  }, [includedValueDisplay, countryCurrencyCode])
+
+  // Initialize period from objectValue on open/benefit change
+  React.useEffect(() => {
+    if (isOpen) {
+      setPeriod(resolvedPeriodDisplay || '')
+    }
+  }, [isOpen, resolvedPeriodDisplay])
 
   /**
    * Validation function for AppActionForm
@@ -181,22 +286,35 @@ const BenefitRequestScreen: React.FC<BenefitRequestScreenProps> = ({
    */
   const handleSubmit = useCallback(async () => {
     // Derive yearly amount from catalog Additional Value 1 (if numeric)
-    const yearlyAmountValue = additionalValue1Number || 0
+    const yearlyAmountValue = derivedAmountNumber || 0
 
     // Build and return payload for Kogito process
+    const periodValue = period || resolvedPeriodDisplay || null
     return {
       employeeId,
       benefitTypeRef: selectedBenefit?.catalogId,
       benefitProviderRef: provider || null,
       yearlyAmount: yearlyAmountValue,
-      currencyRef: BENEFIT_FORM_VALIDATION.DEFAULT_CURRENCY_REF,
+      period: periodValue,
+      currencyRef: countryCurrencyRef || BENEFIT_FORM_VALIDATION.DEFAULT_CURRENCY_REF,
       startDate: new Date(startDate).toISOString(),
       justification: justification.trim(),
       requestedBy: employeeId,
       requestDate: new Date().toISOString(),
       status: 'PENDING'
     }
-  }, [employeeId, selectedBenefit?.catalogId, provider, additionalValue1Number, startDate, justification])
+  }, [
+    employeeId,
+    selectedBenefit?.catalogId,
+    provider,
+    additionalValue1Number,
+    derivedAmountNumber,
+    startDate,
+    justification,
+    period,
+    resolvedPeriodDisplay,
+    countryCurrencyRef
+  ])
 
   /**
    * Success handler - called after process starts
@@ -209,7 +327,9 @@ const BenefitRequestScreen: React.FC<BenefitRequestScreenProps> = ({
     setProvider('')
     setStartDate(getDefaultStartDate())
     setJustification('')
+    setPeriod('')
   }, [onSuccess, onClose])
+
 
   return (
     <div
@@ -266,7 +386,7 @@ const BenefitRequestScreen: React.FC<BenefitRequestScreenProps> = ({
               required={false}
             />
 
-            {/* Catalog Value (from Additional Value 1 + Additional Value 2) */}
+            {/* Benefit Value (from objectValue preferred, fallback to additional values) */}
             <div className="gba:space-y-2">
               <Label className="gba:text-sm gba:font-medium gba:text-foreground">
                 {t('modal-request-value-label')}
@@ -275,9 +395,20 @@ const BenefitRequestScreen: React.FC<BenefitRequestScreenProps> = ({
                 className="gba:w-full gba:rounded-md gba:border gba:border-border gba:bg-muted gba:px-3 gba:py-2 gba:text-sm"
                 data-testid="request-benefit-included-value-display"
               >
-                {additionalValue1Display || additionalValue2Display
-                  ? `${additionalValue1Display}${additionalValue2Display ? ` ${additionalValue2Display}` : ''}`
-                  : '-'}
+                {includedDisplayWithCurrency}
+              </div>
+            </div>
+
+            {/* Period (pre-populated from objectValue, read-only display) */}
+            <div className="gba:space-y-2">
+              <Label className="gba:text-sm gba:font-medium gba:text-foreground">
+                {t('modal-request-period-label')}
+              </Label>
+              <div
+                className="gba:w-full gba:rounded-md gba:border gba:border-border gba:bg-muted gba:px-3 gba:py-2 gba:text-sm"
+                data-testid="request-benefit-period-display"
+              >
+                {period || resolvedPeriodDisplay || '-'}
               </div>
             </div>
 

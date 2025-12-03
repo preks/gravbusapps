@@ -4,7 +4,7 @@ import { UsersIcon, TrendUpIcon, FileTextIcon, BankIcon } from '@phosphor-icons/
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useCustomerAccount } from '@/common/data/customer/hooks/useCustomerAccount'
 import { OpportunityView } from './views/opportunity-view/OpportunityView'
@@ -164,20 +164,26 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
 
   const headerActionButton = useMemo(
     () => (
-      <AppActionButton
+      <AppAction
         data-testid="customer-account-record-action-button"
-        size="icon"
-        contextsArray={[FlowContextName.customerAccountEntity]}
-        externalContextData={{
-          accountId: accountId
+        variant="header"
+        contexts={[
+          {
+            context: FlowContextName.customerAccountEntity,
+            contextData: { accountId }
+          }
+        ]}
+        shareContext={{
+          entityType: 'account',
+          entityId: accountId,
+          entityName: accountData?.name || 'Account',
+          entityUrl: `/platform/crm/account-record?accountId=${accountId}`
         }}
         prefixDataTestId="customer-account-record-action"
         accessToken={props.accessToken}
-        emptyStateBehavior="hide"
-        deferMainContextRequestsUntilClick={false}
       />
     ),
-    [accountId, props.accessToken]
+    [accountId, accountData?.name, props.accessToken]
   )
 
   const subViewsConfig = useMemo(

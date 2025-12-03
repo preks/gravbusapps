@@ -11,7 +11,7 @@ const SEARCH_DEBOUNCE_DELAY_MS = 300
  * Handles employee search, form initialization, and submission
  */
 export function useQuickTaskForm(options: UseQuickTaskFormOptions): UseQuickTaskFormResult {
-  const { accessToken, config = {}, defaultValues, onSubmit, employeeId } = options
+  const { accessToken, currentUserId, config = {}, defaultValues, onSubmit } = options
 
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -21,7 +21,7 @@ export function useQuickTaskForm(options: UseQuickTaskFormOptions): UseQuickTask
       title: '',
       message: '',
       documents: [],
-      assignedUserId: '',
+      assignedUserIds: [],
       dueDate: '',
       ...defaultValues
     }
@@ -29,7 +29,7 @@ export function useQuickTaskForm(options: UseQuickTaskFormOptions): UseQuickTask
 
   // Employee search logic (only if using employee-search mode)
   const assigneeMode = config.assigneeSelector?.mode || 'employee-search'
-  const { employees, loading: employeesLoading, searchEmployees } = useEmployeeSearch(accessToken, employeeId)
+  const { employees, loading: employeesLoading, searchEmployees } = useEmployeeSearch({ accessToken, currentUserId })
 
   // Debounce timer ref
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
@@ -55,8 +55,14 @@ export function useQuickTaskForm(options: UseQuickTaskFormOptions): UseQuickTask
     [assigneeMode, searchEmployees, config.assigneeSelector]
   )
 
-  // Note: We no longer trigger initial search here because useEmployeeSearch
-  // automatically initializes with teammates when they load
+  // Trigger initial search on mount ONCE (for employee-search mode)
+  const hasInitialLoadedRef = useRef(false)
+  useEffect(() => {
+    if (assigneeMode === 'employee-search' && !hasInitialLoadedRef.current) {
+      hasInitialLoadedRef.current = true
+      searchEmployees('') // Load initial results with empty search - only once
+    }
+  }, [assigneeMode, searchEmployees])
 
   // Cleanup debounce timer on unmount
   useEffect(() => {
@@ -67,7 +73,7 @@ export function useQuickTaskForm(options: UseQuickTaskFormOptions): UseQuickTask
     }
   }, [])
 
-  // Convert employees to combobox options with avatar support
+  // Convert employees to combobox options
   const employeeOptions: AssigneeOption[] = useMemo(() => {
     if (assigneeMode !== 'employee-search') {
       return []
@@ -77,10 +83,8 @@ export function useQuickTaskForm(options: UseQuickTaskFormOptions): UseQuickTask
       .map(employee => ({
         value: employee.userId,
         label: employee.fullName,
-        avatarUrl: employee.avatarUrl,
-        email: employee.email,
-        firstName: employee.firstName,
-        lastName: employee.lastName
+        displayName: employee.displayName,
+        avatar: employee.pictureThumbnail
       }))
   }, [employees, assigneeMode])
 

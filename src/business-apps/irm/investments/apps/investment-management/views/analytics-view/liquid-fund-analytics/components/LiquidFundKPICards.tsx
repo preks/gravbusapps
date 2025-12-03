@@ -48,11 +48,11 @@ export const LiquidFundKPICards: React.FC<LiquidFundKPICardsProps> = ({
       prefix: <TeamOutlined />,
       color: 'var(--nw-color-primary-500)',
       span: { xs: 24, sm: 12, lg: 6 },
-      description: 'Total number of liquid fund investments',
+      description: 'Fund count',
       trend: {
         value: totalInvestmentsChange.value,
         positive: totalInvestmentsChange.positive,
-        description: 'vs 30 days ago'
+        description: 'vs last quarter'
       }
     },
     {
@@ -63,11 +63,11 @@ export const LiquidFundKPICards: React.FC<LiquidFundKPICardsProps> = ({
       color: 'var(--nw-color-success-500)',
       valueIsString: true,
       span: { xs: 24, sm: 12, lg: 6 },
-      description: 'Average value per liquid fund investment',
+      description: 'Avg per fund',
       trend: {
         value: averageInvestmentValueChange.value,
         positive: averageInvestmentValueChange.positive,
-        description: 'vs 30 days ago'
+        description: 'vs last quarter'
       }
     },
     {
@@ -78,11 +78,11 @@ export const LiquidFundKPICards: React.FC<LiquidFundKPICardsProps> = ({
       color: 'var(--nw-color-purple-500)',
       valueIsString: true,
       span: { xs: 24, sm: 12, lg: 6 },
-      description: 'Average current market value',
+      description: 'Avg market value',
       trend: {
         value: averageMarketValueChange.value,
         positive: averageMarketValueChange.positive,
-        description: 'vs 30 days ago'
+        description: 'vs last quarter'
       }
     },
     {
@@ -93,11 +93,11 @@ export const LiquidFundKPICards: React.FC<LiquidFundKPICardsProps> = ({
       color: 'var(--nw-color-warning-500)',
       valueIsString: true,
       span: { xs: 24, sm: 12, lg: 6 },
-      description: 'Total value of all liquid fund investments',
+      description: 'All funds',
       trend: {
         value: totalFundValueChange.value,
         positive: totalFundValueChange.positive,
-        description: 'vs 30 days ago'
+        description: 'vs last quarter'
       }
     }
   ]

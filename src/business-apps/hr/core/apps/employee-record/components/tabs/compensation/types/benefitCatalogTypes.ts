@@ -27,12 +27,14 @@ export interface CatalogBenefitEntry {
   additionalValue1?: string
   additionalValue2?: string
   additionalValue3?: string
+  objectValue?: unknown
   translations?: Array<{
     localeCode: string
     value: string
     additionalValue1?: string
     additionalValue2?: string
     additionalValue3?: string
+    objectValue?: unknown
   }>
   childEntries?: ProviderEntry[]
 }
