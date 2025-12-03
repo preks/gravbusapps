@@ -9,6 +9,7 @@
   "hr/absences/forms/approve-employee-work-leave": "e2c3e4b22a9d706324df8946bb090963",
   "hr/core/apps/employee-record": "115fdbd4e3c2734918fefa4c54b06e45",
   "hr/core/forms/change-communication": "d44c196927e6551502c9e178d46a143e",
+  "hr/core/forms/change-relationship": "f7a9f3bbacf38ada8073dabd2b059d7e",
   "irm/core/popups/document-popup": "6ea1f4ffc5e9f23e6983f104c14190ea",
   "irm/investments/records/investment-record": "b83f9d8ed10989f4957dfd76a836e090"
 }
