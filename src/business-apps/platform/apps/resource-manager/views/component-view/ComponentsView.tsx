@@ -24,47 +24,67 @@ export const ComponentsView: React.FC<ComponentsViewProps> = ({
   const limit = pagination.pageSize
   const offset = pagination.pageIndex * pagination.pageSize
 
-  const { resources, totalCount, isLoading, error, refetch } = useComponentResources(context, { limit, offset })
+  // Build sort parameter from sorting state
+  const sortParam = useMemo(() => {
+    if (sorting.length > 0) {
+      const sort = sorting[0]
+      return {
+        field: sort.id,
+        order: sort.desc ? 'DESC' : ('ASC' as 'ASC' | 'DESC')
+      }
+    }
+    return { field: 'name', order: 'ASC' as const }
+  }, [sorting])
 
-  // Track last fetched pagination to prevent duplicate requests
-  const lastFetchedRef = useRef<{ limit: number; offset: number } | null>(null)
+  const { resources, totalCount, isLoading, error, refetch } = useComponentResources(context, {
+    searchParameter: searchTerm.trim() || undefined,
+    sort: sortParam,
+    limit,
+    offset
+  })
+
+  // Track last fetched params to prevent duplicate requests
+  const lastFetchedRef = useRef<{
+    limit: number
+    offset: number
+    search?: string
+    sortField?: string
+    sortOrder?: string
+  } | null>(null)
   const isInitialMount = useRef(true)
 
-  // Load data when pagination changes
+  // Load data when pagination, search, or sorting changes
   useEffect(() => {
-    // Only fetch if pagination actually changed
-    const paginationKey = `${limit}-${offset}`
-    const lastKey = lastFetchedRef.current ? `${lastFetchedRef.current.limit}-${lastFetchedRef.current.offset}` : null
+    // Only fetch if params actually changed
+    const paramsKey = `${limit}-${offset}-${searchTerm.trim()}-${sortParam.field}-${sortParam.order}`
+    const lastKey = lastFetchedRef.current
+      ? `${lastFetchedRef.current.limit}-${lastFetchedRef.current.offset}-${lastFetchedRef.current.search || ''}-${lastFetchedRef.current.sortField || ''}-${lastFetchedRef.current.sortOrder || ''}`
+      : null
 
-    if (paginationKey !== lastKey) {
-      lastFetchedRef.current = { limit, offset }
+    if (paramsKey !== lastKey) {
+      lastFetchedRef.current = {
+        limit,
+        offset,
+        search: searchTerm.trim() || undefined,
+        sortField: sortParam.field,
+        sortOrder: sortParam.order
+      }
       // Only show loading on initial mount
-      refetch({ limit, offset }, isInitialMount.current)
+      refetch(
+        {
+          searchParameter: searchTerm.trim() || undefined,
+          sort: sortParam,
+          limit,
+          offset
+        },
+        isInitialMount.current
+      )
       isInitialMount.current = false
     }
-  }, [limit, offset]) // Don't include refetch to avoid infinite loops
+  }, [limit, offset, searchTerm, sortParam, refetch])
 
-  // Note: Search should be API-based in the future
-  // For now, we use client-side filtering as a temporary solution
-  // API handles pagination, so we use resources directly
-  const filteredResources = useMemo(() => {
-    if (!searchTerm.trim()) {
-      return resources
-    }
-
-    const search = searchTerm.toLowerCase()
-    return resources.filter(resource => {
-      return (
-        resource.name.toLowerCase().includes(search) ||
-        resource.screenKey.toLowerCase().includes(search) ||
-        resource.screenComponents?.formDefinition?.componentPath?.toLowerCase().includes(search) ||
-        resource.screenComponents?.formDefinition?.version?.toLowerCase().includes(search)
-      )
-    })
-  }, [resources, searchTerm])
-
-  // Use filtered resources (API handles pagination, we only filter client-side for search)
-  const displayResources = filteredResources
+  // Use resources directly - API handles pagination, search, and sorting
+  const displayResources = resources
 
   const formatComponentPath = (path: string | undefined): string => {
     if (!path) return '-'

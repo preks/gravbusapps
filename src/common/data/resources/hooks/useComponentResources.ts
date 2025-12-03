@@ -5,6 +5,16 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useResourceClient } from './useResourceClient'
 
 interface UseComponentResourcesParams {
+  searchParameter?: string
+  filter?: {
+    appId?: string
+    screenKey?: string
+    builderType?: 'LOWCODER' | 'FORMIO' | 'NATIVE_SCREEN'
+  }
+  sort?: {
+    field: string
+    order: 'ASC' | 'DESC'
+  }
   limit?: number
   offset?: number
 }
@@ -79,14 +89,48 @@ export const useComponentResources = (
         // Use provided params or defaults
         const limit = fetchParams?.limit ?? params?.limit ?? 20
         const offset = fetchParams?.offset ?? params?.offset ?? 0
+        const searchParameter = fetchParams?.searchParameter ?? params?.searchParameter
+        const filter = fetchParams?.filter ?? params?.filter
+        const sort = fetchParams?.sort ?? params?.sort
 
-        // Single request with pagination
-        const response = await resourceClient.component.getComponents({
-          builderType: 'NATIVE_SCREEN',
+        // Build request params according to OpenAPI spec
+        const requestParams: {
+          searchParameter?: string
+          filter?: {
+            appId?: string
+            screenKey?: string
+            builderType?: 'LOWCODER' | 'FORMIO' | 'NATIVE_SCREEN'
+          }
+          sort?: {
+            field: string
+            order: 'ASC' | 'DESC'
+          }
+          limit: number
+          offset: number
+          returnTotalRecords: boolean
+        } = {
           limit: limit,
           offset: offset,
           returnTotalRecords: true // Always request total count for pagination
-        })
+        }
+
+        // Add search parameter if provided
+        if (searchParameter?.trim()) {
+          requestParams.searchParameter = searchParameter.trim()
+        }
+
+        // Add filter if provided (optional)
+        if (filter) {
+          requestParams.filter = filter
+        }
+
+        // Add sort if provided (defaults to name ASC in ComponentClient)
+        if (sort) {
+          requestParams.sort = sort
+        }
+
+        // Single request with pagination, search, filter, and sort
+        const response = await resourceClient.component.getComponents(requestParams)
 
         if (response?.data && Array.isArray(response.data)) {
           setComponents(response.data)

@@ -397,6 +397,46 @@ export const createActionTableColumns = (
       }
     },
     {
+      id: 'builderType',
+      header: 'Builder Type',
+      size: 150,
+      cell: ({ row }) => {
+        const actionId = row.original.action.id
+        const action = config.actionEntries.find(a => a.id === actionId)
+        const edits = config.editableState.state.editedEntries.get(actionId)
+        const builderTypeValue = edits?.builderType !== undefined ? edits.builderType : action?.builderType || 'native'
+        const isEdited = config.editableState.isFieldEdited(actionId, 'builderType')
+        const isSaving = config.editableState.state.savingEntryId === actionId && config.editableState.state.isSaving
+
+        const builderTypeOptions = [
+          { value: 'native', label: 'Native' },
+          { value: 'lowcoder', label: 'Lowcoder' },
+          { value: 'NATIVE_SCREEN', label: 'NATIVE_SCREEN' },
+          { value: 'LOWCODER', label: 'LOWCODER' }
+        ]
+
+        return (
+          <div className="gba:relative">
+            <EditableSelectCell
+              value={builderTypeValue}
+              onChange={value => config.editableState.onFieldEdit(actionId, 'builderType', value)}
+              options={builderTypeOptions}
+              testId={`${config.dataTestId}-builderType-${actionId}`}
+              isEdited={isEdited}
+              disabled={isSaving}
+              placeholder="Select builder type..."
+            />
+            {builderTypeValue !== 'native' && (
+              <span
+                className="gba:absolute gba:-top-1 gba:-right-1 gba:w-2 gba:h-2 gba:bg-orange-500 gba:rounded-full"
+                title="Deprecated"
+              />
+            )}
+          </div>
+        )
+      }
+    },
+    {
       id: 'actions',
       header: 'Actions',
       size: 150,
@@ -449,46 +489,6 @@ export const createActionTableColumns = (
               <Trash className="gba:h-4 gba:w-4" />
             </Button>
           </ButtonGroup>
-        )
-      }
-    },
-    {
-      id: 'builderType',
-      header: 'Builder Type',
-      size: 150,
-      cell: ({ row }) => {
-        const actionId = row.original.action.id
-        const action = config.actionEntries.find(a => a.id === actionId)
-        const edits = config.editableState.state.editedEntries.get(actionId)
-        const builderTypeValue = edits?.builderType !== undefined ? edits.builderType : action?.builderType || 'native'
-        const isEdited = config.editableState.isFieldEdited(actionId, 'builderType')
-        const isSaving = config.editableState.state.savingEntryId === actionId && config.editableState.state.isSaving
-
-        const builderTypeOptions = [
-          { value: 'native', label: 'Native' },
-          { value: 'lowcoder', label: 'Lowcoder' },
-          { value: 'NATIVE_SCREEN', label: 'NATIVE_SCREEN' },
-          { value: 'LOWCODER', label: 'LOWCODER' }
-        ]
-
-        return (
-          <div className="gba:relative">
-            <EditableSelectCell
-              value={builderTypeValue}
-              onChange={value => config.editableState.onFieldEdit(actionId, 'builderType', value)}
-              options={builderTypeOptions}
-              testId={`${config.dataTestId}-builderType-${actionId}`}
-              isEdited={isEdited}
-              disabled={isSaving}
-              placeholder="Select builder type..."
-            />
-            {builderTypeValue !== 'native' && (
-              <span
-                className="gba:absolute gba:-top-1 gba:-right-1 gba:w-2 gba:h-2 gba:bg-orange-500 gba:rounded-full"
-                title="Deprecated"
-              />
-            )}
-          </div>
         )
       }
     }

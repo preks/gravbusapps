@@ -34,7 +34,6 @@ export const useComponents = (context: BusinessAppContextProps): UseComponentsRe
       // Load only first page - no pagination loop
       const limit = 100
       const response = await resourceClient.component.getComponents({
-        builderType: 'NATIVE_SCREEN',
         limit: limit,
         offset: 0,
         returnTotalRecords: false

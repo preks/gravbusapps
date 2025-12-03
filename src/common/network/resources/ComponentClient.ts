@@ -13,18 +13,55 @@ export class ComponentClient {
 
   public async getComponents(
     params?: {
-      builderType?: string
+      searchParameter?: string
+      filter?: {
+        appId?: string
+        screenKey?: string
+        builderType?: 'LOWCODER' | 'FORMIO' | 'NATIVE_SCREEN'
+      }
+      sort?: {
+        field: string
+        order: 'ASC' | 'DESC'
+      }
       limit?: number
       offset?: number
       returnTotalRecords?: boolean
     },
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<ComponentApiResponse> {
+    // Build query parameters according to OpenAPI spec
+    // filter and sort are required by API, so we always send them
+    const queryParams: Record<string, string | number | boolean> = {}
+
+    if (params?.searchParameter) {
+      queryParams.searchParameter = params.searchParameter
+    }
+
+    // Filter is required by API - send empty object if not specified
+    const filter = params?.filter || {}
+    queryParams.filter = JSON.stringify(filter)
+
+    // Sort is required by API - provide default sort if not specified
+    const sort = params?.sort || { field: 'name', order: 'ASC' }
+    queryParams.sort = JSON.stringify(sort)
+
+    if (params?.limit !== undefined) {
+      queryParams.limit = params.limit
+    }
+
+    if (params?.offset !== undefined) {
+      queryParams.offset = params.offset
+    }
+
+    if (params?.returnTotalRecords !== undefined) {
+      queryParams.returnTotalRecords = params.returnTotalRecords
+    }
+
     const response = await this.resourceClient['get']<ComponentApiResponse>(
       '/screen',
       {
         ...options,
-        params: params as Record<string, string | number | boolean>,
+        params: queryParams,
         withCredentials: false
       },
       this.baseUrl
