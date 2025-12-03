@@ -204,40 +204,40 @@ const generateTimePeriods = (filter: TimeFilter): Array<{ start: string; end: st
     }
 
     case 'quarter': {
-      // Last 3 months (weekly)
-      const weeksInQuarter = 12
-      for (let i = weeksInQuarter - 1; i >= 0; i--) {
-        const weekStart = new Date(now)
-        weekStart.setDate(weekStart.getDate() - i * 7 - (i === weeksInQuarter - 1 ? 0 : 7))
-        weekStart.setHours(0, 0, 0, 0)
-
-        const weekEnd = new Date(weekStart)
-        weekEnd.setDate(weekEnd.getDate() + 7)
+      // Last 3 months (monthly aggregation like Revenue Trends)
+      for (let i = 2; i >= 0; i--) {
+        const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
+        const monthStart = date.toISOString()
+        const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 1).toISOString()
+        const monthName = date.toLocaleDateString('en-US', {
+          month: 'short',
+          year: 'numeric'
+        })
 
         periods.push({
-          start: weekStart.toISOString(),
-          end: weekEnd.toISOString(),
-          label: `Week ${weeksInQuarter - i}`
+          start: monthStart,
+          end: monthEnd,
+          label: monthName
         })
       }
       break
     }
 
     case 'sixMonths': {
-      // Last 6 months (weekly)
-      const weeksInSixMonths = 26
-      for (let i = weeksInSixMonths - 1; i >= 0; i--) {
-        const weekStart = new Date(now)
-        weekStart.setDate(weekStart.getDate() - i * 7 - (i === weeksInSixMonths - 1 ? 0 : 7))
-        weekStart.setHours(0, 0, 0, 0)
-
-        const weekEnd = new Date(weekStart)
-        weekEnd.setDate(weekEnd.getDate() + 7)
+      // Last 6 months (monthly aggregation like Revenue Trends)
+      for (let i = 5; i >= 0; i--) {
+        const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
+        const monthStart = date.toISOString()
+        const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 1).toISOString()
+        const monthName = date.toLocaleDateString('en-US', {
+          month: 'short',
+          year: 'numeric'
+        })
 
         periods.push({
-          start: weekStart.toISOString(),
-          end: weekEnd.toISOString(),
-          label: weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+          start: monthStart,
+          end: monthEnd,
+          label: monthName
         })
       }
       break

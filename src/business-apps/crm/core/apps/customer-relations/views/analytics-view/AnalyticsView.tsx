@@ -9,7 +9,8 @@ import { useAvailableCurrencies } from '@/common/data/common/hooks/useAvailableC
 import { useOpportunitiesOverTime } from './hooks/useOpportunitiesOverTime'
 import { useOpportunityTrendData } from './hooks/useOpportunityTrendData'
 import { useOpportunitiesByStage } from './hooks/useOpportunitiesByStage'
-import { useContactsOverTime as useCustomerContactsOverTime } from './hooks/useContactsOverTime'
+import { useContactsOverTime } from './hooks/useContactsOverTime'
+import { useContactsStaticData } from './hooks/useContactsStaticData'
 import { useContactInsights } from './hooks/useContactInsights'
 import { useContactQualityData } from './hooks/useContactQualityData'
 import { useTopRevenueEarners } from './hooks/useTopRevenueEarners'
@@ -23,6 +24,8 @@ import { useDealHealthData } from './hooks/useDealHealthData'
 import { useLeadsTrendData } from './hooks/useLeadsTrendData'
 import { useLeadsOverTime } from './hooks/useLeadsOverTime'
 import { useLeadsStaticData } from './hooks/useLeadsStaticData'
+import { useAccountsStaticData } from './hooks/useAccountsStaticData'
+import { useAccountsOverTime } from './hooks/useAccountsOverTime'
 import { useTopDeals } from './hooks/useTopDeals'
 
 export interface AnalyticsViewProps extends BusinessAppContextProps {
@@ -37,6 +40,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     'quarter'
   )
   const [contactsTimeFilter, setContactsTimeFilter] = useState<
+    'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'
+  >('quarter')
+  const [accountsTimeFilter, setAccountsTimeFilter] = useState<
     'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'
   >('quarter')
   const [revenueTimeFilter, setRevenueTimeFilter] = useState<'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'>(
@@ -128,16 +134,10 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
 
   const availableCurrencies = currencyOptions as string[]
 
-  // Fetch available pipelines for filtering (always fetched as they're needed for multiple tabs)
-  const { pipelines } = usePipelines(context.accessToken)
+  // Fetch available pipelines for filtering (only for Overview tab)
+  const { pipelines } = usePipelines(activeAnalyticsTab === 'overview' ? context.accessToken : '')
 
-  // Helper function to convert our time filter to contacts time filter
-  const convertToContactsTimeFilter = (
-    filter: 'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'
-  ): 'month' | 'quarter' | 'year' | 'historical' => {
-    if (filter === 'sixMonths') return 'quarter' // Map sixMonths to quarter for contacts
-    return filter
-  }
+  // Contacts now uses same time filter types as Leads and Accounts
 
   // Data hooks - Pass active tab for lazy loading
   const { data, isLoading, error, refetch } = useCrmAnalyticsData(
@@ -182,6 +182,17 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     activeAnalyticsTab === 'leads' ? context.accessToken : ''
   )
 
+  // Accounts static data (KPIs + trends) - single query
+  const { data: accountsStaticData, isLoading: accountsStaticLoading } = useAccountsStaticData(
+    activeAnalyticsTab === 'accounts' ? context.accessToken : ''
+  )
+
+  // Accounts lifecycle chart data - dynamic time filter
+  const { accountsOverTime: accountsLifecycleData, isLoading: accountsLifecycleLoading } = useAccountsOverTime(
+    activeAnalyticsTab === 'accounts' ? context.accessToken : '',
+    accountsTimeFilter as 'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'
+  )
+
   // Lifecycle chart data uses dynamic time filter selected by user
   // Pass statusCatalogCodes from leadsStaticData to avoid duplicate catalog fetch
   const { leadsOverTime: leadsLifecycleData, isLoading: leadsLifecycleLoading } = useLeadsOverTime(
@@ -217,11 +228,17 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     topDealsCurrency
   )
 
-  // Contacts tab data
-  const { data: contactsMetrics } = useCustomerContactsOverTime({
-    accessToken: activeAnalyticsTab === 'contacts' ? context.accessToken : '',
-    timeFilter: convertToContactsTimeFilter(contactsTimeFilter)
-  })
+  // Contacts tab static data (KPIs)
+  const { data: contactsStaticData, isLoading: contactsStaticLoading } = useContactsStaticData(
+    activeAnalyticsTab === 'contacts' ? context.accessToken : ''
+  )
+
+  // Contacts lifecycle chart data - dynamic time filter
+  const { contactsOverTime: contactsLifecycleData, isLoading: contactsLifecycleLoading } = useContactsOverTime(
+    activeAnalyticsTab === 'contacts' ? context.accessToken : '',
+    contactsTimeFilter
+  )
+
   const { data: contactInsights } = useContactInsights(activeAnalyticsTab === 'contacts' ? context.accessToken : '')
   const { data: contactQuality } = useContactQualityData(activeAnalyticsTab === 'contacts' ? context.accessToken : '')
 
@@ -364,22 +381,30 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
   // Prepare Accounts Props - Always show tab
   const accountsProps = {
     title: 'Accounts Analytics',
-    totalAccounts: data?.accounts?.totalAccounts || 0,
-    accountsWithOpportunities: data?.accounts?.accountsWithOpportunities || 0,
-    avgOpportunitiesPerAccount: data?.accounts?.avgOpportunitiesPerAccount || 0,
-    trendData: kpiTrendData
+    totalAccounts: accountsStaticData?.totalAccounts || 0,
+    accountsWithOpportunities: accountsStaticData?.accountsWithOpportunities || 0,
+    avgOpportunitiesPerAccount: accountsStaticData?.avgOpportunitiesPerAccount || 0,
+    trendData: accountsStaticData
       ? {
-          currentMonthAccounts: kpiTrendData.currentMonthAccounts,
-          previousMonthAccounts: kpiTrendData.previousMonthAccounts,
-          currentMonthOpportunities: kpiTrendData.currentMonthOpportunities,
-          previousMonthOpportunities: kpiTrendData.previousMonthOpportunities
+          currentMonthAccounts: accountsStaticData.last30DaysAccounts,
+          previousMonthAccounts: accountsStaticData.previous30DaysAccounts,
+          currentMonthOpportunities: 0, // TODO: Add if needed
+          previousMonthOpportunities: 0, // TODO: Add if needed
+          currentMonthAccountsWithOpportunities: accountsStaticData.last30DaysAccountsWithOpportunities,
+          previousMonthAccountsWithOpportunities: accountsStaticData.previous30DaysAccountsWithOpportunities
         }
       : null,
-    trendLoading: false,
-    accountsOverTime: data?.accounts?.accountsOverTime || [],
-    accountsByIndustry: data?.accounts?.accountsByIndustry || [],
-    accountsBySize: data?.accounts?.accountsBySize || [],
-    topAccounts: data?.accounts?.topAccounts || [],
+    trendLoading: accountsStaticLoading,
+    accountsOverTime: accountsLifecycleData || [],
+    accountsOverTimeLoading: accountsLifecycleLoading,
+    selectedTimeFilter: accountsTimeFilter,
+    onTimeFilterChange: setAccountsTimeFilter,
+    accountsByIndustry: accountsStaticData?.accountsByIndustry || [],
+    accountsBySize: accountsStaticData?.accountsBySize || [],
+    topAccounts: accountsStaticData?.topAccounts || [],
+    monthlyGrowthTrend: accountsStaticData?.monthlyGrowthTrend || [],
+    growthLoading: accountsStaticLoading,
+    healthLoading: accountsStaticLoading,
     selectedCurrency: accountsCurrency,
     onCurrencyChange: setAccountsCurrency,
     availableCurrencies: availableCurrencies
@@ -422,18 +447,32 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     availableCurrencies: availableCurrencies
   }
 
-  // Prepare Contacts Props - Always show tab
+  // Prepare Contacts Props - Always show tab (matches Leads/Accounts pattern)
   const contactsProps = {
     title: 'Contacts Analytics',
-    totalContacts: contactsMetrics?.total || 0,
-    thisMonth: contactsMetrics?.thisMonth || 0,
-    lastMonth: contactsMetrics?.lastMonth || 0,
-    growth: contactsMetrics?.growth || 0,
-    totalLastMonth: contactsMetrics?.totalLastMonth || 0,
-    totalGrowth: contactsMetrics?.totalGrowth || 0,
-    selectedTimeFilter: convertToContactsTimeFilter(contactsTimeFilter),
-    onTimeFilterChange: (filter: 'month' | 'quarter' | 'year' | 'historical') => setContactsTimeFilter(filter),
-    overTimeData: contactsMetrics?.data || [],
+    totalContacts: contactsStaticData?.totalContacts || 0,
+    thisMonth: contactsStaticData?.last30DaysContacts || 0,
+    lastMonth: contactsStaticData?.previous30DaysContacts || 0,
+    growth: contactsStaticData?.previous30DaysContacts
+      ? Math.round(
+          ((contactsStaticData.last30DaysContacts - contactsStaticData.previous30DaysContacts) /
+            contactsStaticData.previous30DaysContacts) *
+            100
+        )
+      : 0,
+    totalLastMonth: contactsStaticData?.totalAtPreviousPeriodEnd || 0,
+    totalGrowth: contactsStaticData?.totalAtPreviousPeriodEnd
+      ? Math.round(
+          ((contactsStaticData.totalContacts - contactsStaticData.totalAtPreviousPeriodEnd) /
+            contactsStaticData.totalAtPreviousPeriodEnd) *
+            100
+        )
+      : 0,
+    trendLoading: contactsStaticLoading,
+    selectedTimeFilter: contactsTimeFilter,
+    onTimeFilterChange: setContactsTimeFilter,
+    contactsOverTime: contactsLifecycleData || [],
+    contactsOverTimeLoading: contactsLifecycleLoading,
     topAccountsByContacts: contactInsights?.topAccountsByContacts || [],
     recentContacts: contactInsights?.recentContacts || [],
     insightsData: {
@@ -444,12 +483,12 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     },
     qualityData: contactQuality || undefined,
     avgPerAccount:
-      contactsMetrics?.totalAccounts && contactsMetrics.totalAccounts > 0
-        ? Math.round((contactsMetrics.total / contactsMetrics.totalAccounts) * 10) / 10
+      contactsStaticData?.totalAccounts && contactsStaticData.totalAccounts > 0
+        ? Math.round((contactsStaticData.totalContacts / contactsStaticData.totalAccounts) * 10) / 10
         : 0,
     avgPerAccountLastMonth:
-      contactsMetrics?.totalAccounts && contactsMetrics.totalAccounts > 0
-        ? Math.round((contactsMetrics.totalLastMonth / contactsMetrics.totalAccounts) * 10) / 10
+      contactsStaticData?.totalAccounts && contactsStaticData.totalAccounts > 0
+        ? Math.round((contactsStaticData.totalAtPreviousPeriodEnd / contactsStaticData.totalAccounts) * 10) / 10
         : 0
   }
 

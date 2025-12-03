@@ -11,7 +11,8 @@ import {
   ChartTooltip,
   ChartTooltipContent,
   ChartLegend,
-  ChartLegendContent
+  ChartLegendContent,
+  Spinner
 } from '@newwork/nw-design-system'
 import { AreaChart, Area, XAxis, YAxis } from 'recharts'
 import { ChartLineIcon, CalendarIcon, EyeIcon } from '@phosphor-icons/react'
@@ -26,6 +27,7 @@ interface AccountLifecycleChartProps {
     accountsWithOpportunities: number
     accountsActive: number
   }>
+  isLoading?: boolean
   selectedTimeFilter: TimeFilter
   onTimeFilterChange: (filter: TimeFilter) => void
   visibleLines: { accountsCreated: boolean; accountsWithOpportunities: boolean; accountsActive: boolean }
@@ -39,6 +41,7 @@ const DATA_TEST_ID_PREFIX = 'account-lifecycle-overview'
 
 export const AccountLifecycleChart: React.FC<AccountLifecycleChartProps> = ({
   data,
+  isLoading = false,
   selectedTimeFilter,
   onTimeFilterChange,
   visibleLines,
@@ -115,7 +118,14 @@ export const AccountLifecycleChart: React.FC<AccountLifecycleChartProps> = ({
         </div>
       </CardHeader>
       <CardContent>
-        {data.length === 0 ? (
+        {isLoading ? (
+          <div
+            className="gba:flex gba:justify-center gba:items-center gba:h-[320px]"
+            data-testid={`${DATA_TEST_ID_PREFIX}-loading`}
+          >
+            <Spinner size="lg" />
+          </div>
+        ) : data.length === 0 ? (
           <div className="gba:text-center gba:p-8" data-testid={`${DATA_TEST_ID_PREFIX}-empty-state`}>
             <ChartLineIcon className="gba:mx-auto gba:h-12 gba:w-12 gba:text-gray-400" />
             <h3 className="gba:mt-2 gba:text-sm gba:font-medium gba:text-gray-900">No data available</h3>

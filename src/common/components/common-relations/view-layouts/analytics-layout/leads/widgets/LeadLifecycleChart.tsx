@@ -69,12 +69,13 @@ export const LeadLifecycleChart: React.FC<LeadLifecycleChartProps> = ({
   const formatXAxisLabel = (value: string) => {
     const date = new Date(value)
     if (selectedTimeFilter === 'month') {
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) // "Nov 1", "Nov 2"
     }
     if (selectedTimeFilter === 'historical') {
-      return date.getFullYear().toString() // Show only year for historical view
+      return date.getFullYear().toString() // "2024"
     }
-    return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+    // For quarter, sixMonths, and year: show month + year (monthly aggregation)
+    return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) // "Nov 2025"
   }
 
   // Chart configuration (moved to top level to avoid conditional hook calls)

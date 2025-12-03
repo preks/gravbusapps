@@ -1,18 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import {
-  CrmAnalyticsData,
-  OverviewAnalytics,
-  AccountsAnalytics,
-  OpportunitiesAnalytics,
-  ContactsAnalytics
-} from '../types/analyticsTypes'
+import { CrmAnalyticsData, OverviewAnalytics, AccountsAnalytics, OpportunitiesAnalytics } from '../types/analyticsTypes'
 import {
   GET_OVERVIEW_ONLY_ANALYTICS,
   GET_ACCOUNTS_ANALYTICS,
-  GET_OPPORTUNITIES_ANALYTICS,
-  GET_CONTACTS_ANALYTICS
+  GET_OPPORTUNITIES_ANALYTICS
 } from '../queries/analyticsQueries'
 
 type AnalyticsTab = 'overview' | 'leads' | 'accounts' | 'opportunities' | 'contacts'
@@ -103,11 +96,8 @@ export const useCrmAnalyticsData = (
             break
           }
 
-          case 'contacts': {
-            const contactsResponse = await graphqlClient.request(GET_CONTACTS_ANALYTICS, {})
-            tabData.contacts = transformContactsData(contactsResponse)
-            break
-          }
+          // Contacts tab uses useContactsOverTime hook directly in AnalyticsView.tsx
+          // No need to fetch via useCrmAnalyticsData
         }
 
         // Cache the fetched tab data
@@ -440,43 +430,7 @@ const transformOpportunitiesData = (data: any): OpportunitiesAnalytics => {
   }
 }
 
-const transformContactsData = (data: any): ContactsAnalytics => {
-  const contacts = data.Contact || []
-  const totalContacts = data.ContactAggregate?.aggregate?.count || 0
-
-  // Group by account
-  const accountGroups = groupByField(
-    contacts.filter((c: any) => c.account),
-    'account',
-    'name'
-  )
-  const contactsByAccount = accountGroups
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 10)
-    .map(group => ({
-      accountName: group.key || 'Unknown',
-      contactCount: group.count
-    }))
-
-  // Create time series data
-  const contactsOverTime = createTimeSeriesData(contacts, 'createdAt')
-
-  // Top contact owners
-  const topContactOwners = extractTopContactOwners(contacts)
-
-  return {
-    totalContacts,
-    contactsByAccount,
-    contactsOverTime,
-    contactsWithOpportunities: 0, // Simplified - no complex relationship query
-    topContactOwners,
-    contactsWithoutAccounts: data.ContactsWithoutAccount?.aggregate?.count || 0,
-    avgContactsPerAccount:
-      contactsByAccount.length > 0
-        ? contactsByAccount.reduce((sum, item) => sum + item.contactCount, 0) / contactsByAccount.length
-        : 0
-  }
-}
+// transformContactsData removed - Contacts tab now uses useContactsOverTime hook directly
 
 // Helper functions
 const groupByField = (items: any[], field: string, subField?: string) => {
@@ -534,18 +488,7 @@ const groupAccountsBySize = (accounts: any[]) => {
   })
 }
 
-const createTimeSeriesData = (items: any[], dateField: string) => {
-  const groups = items.reduce((acc, item) => {
-    const date = new Date(item[dateField]).toISOString().split('T')[0]
-    acc[date] = (acc[date] || 0) + 1
-    return acc
-  }, {})
-
-  return Object.entries(groups)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .slice(-30) // Last 30 days
-    .map(([date, count]) => ({ date, count: count as number }))
-}
+// createTimeSeriesData removed - no longer needed
 
 const createAccountLifecycleTimeSeriesData = (accounts: any[]) => {
   // Always generate daily data for the past year (same as leads)
@@ -645,29 +588,7 @@ const createTimeSeriesDataWithValue = (items: any[], dateField: string, valueFie
 
 // extractTopLeadOwners removed - now handled in useLeadsStaticData hook
 
-const extractTopContactOwners = (items: any[]) => {
-  const ownerGroups = items.reduce((acc, item) => {
-    const owner = item.ownerEmployee
-    if (owner) {
-      const key = owner.id
-      const name = owner.displayName || `${owner.firstName} ${owner.lastName}`
-      if (!acc[key]) {
-        acc[key] = { employeeId: key, employeeName: name, count: 0 }
-      }
-      acc[key].count += 1
-    }
-    return acc
-  }, {})
-
-  return Object.values(ownerGroups)
-    .sort((a: any, b: any) => b.count - a.count)
-    .slice(0, 5)
-    .map((owner: any) => ({
-      employeeId: owner.employeeId,
-      employeeName: owner.employeeName,
-      contactCount: owner.count
-    }))
-}
+// extractTopContactOwners removed - no longer needed
 
 const calculateConversionRate = (leads: any, opportunities: any): number => {
   const totalLeads = leads.LeadAggregate?.aggregate?.count || 0

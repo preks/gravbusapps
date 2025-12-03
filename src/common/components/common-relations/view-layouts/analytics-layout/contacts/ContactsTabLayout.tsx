@@ -6,12 +6,11 @@ import { ContactInsightsDashboard, ContactInsightsDashboardData } from './widget
 import { ContactQualityMatrix, ContactQualityData } from './widgets/ContactQualityMatrix'
 import { ContactLifecycleChart } from './widgets/ContactLifecycleChart'
 
-export type TimeFilter = 'month' | 'quarter' | 'year' | 'historical'
+export type TimeFilter = 'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'
 
 export interface ContactsOverTimePoint {
   date: string
-  count: number
-  cumulative: number
+  contactsCreated: number
 }
 
 export interface ContactsTabLayoutProps {
@@ -22,11 +21,13 @@ export interface ContactsTabLayoutProps {
   growth?: number
   totalLastMonth?: number
   totalGrowth?: number
+  trendLoading?: boolean
   avgPerAccount?: number
   avgPerAccountLastMonth?: number
   selectedTimeFilter: TimeFilter
   onTimeFilterChange: (filter: TimeFilter) => void
-  overTimeData: ContactsOverTimePoint[]
+  contactsOverTime: ContactsOverTimePoint[]
+  contactsOverTimeLoading?: boolean
   topAccountsByContacts: Array<{ accountName: string; contactCount: number }>
   recentContacts: Array<{
     id: string
@@ -48,11 +49,13 @@ export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
   growth,
   totalLastMonth,
   totalGrowth,
+  trendLoading,
   avgPerAccount,
   avgPerAccountLastMonth,
   selectedTimeFilter,
   onTimeFilterChange,
-  overTimeData,
+  contactsOverTime,
+  contactsOverTimeLoading,
   topAccountsByContacts,
   recentContacts,
   insightsData,
@@ -149,11 +152,12 @@ export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
     <div className="gba:space-y-6" data-testid="contacts-analytics-tab">
       <div>
         <h2 className="gba:text-2xl gba:font-bold gba:mb-4">{title}</h2>
-        <WidgetGroup widgets={kpis} data-testid="contacts-key-metrics" />
+        <WidgetGroup widgets={kpis} isLoading={trendLoading} data-testid="contacts-key-metrics" />
       </div>
 
       <ContactLifecycleChart
-        data={overTimeData}
+        data={contactsOverTime}
+        isLoading={contactsOverTimeLoading}
         selectedTimeFilter={selectedTimeFilter}
         onTimeFilterChange={onTimeFilterChange}
         moduleColor={moduleColor}

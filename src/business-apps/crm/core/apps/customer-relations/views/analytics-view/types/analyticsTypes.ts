@@ -5,7 +5,7 @@ export interface CrmAnalyticsData {
   leads: LeadsAnalytics
   accounts: AccountsAnalytics
   opportunities: OpportunitiesAnalytics
-  contacts: ContactsAnalytics
+  // contacts: Uses useContactsStaticData and useContactsOverTime hooks directly
 }
 
 export interface OverviewAnalytics {
@@ -147,25 +147,7 @@ export interface OpportunitiesAnalytics {
   }[]
 }
 
-export interface ContactsAnalytics {
-  totalContacts: number
-  contactsByAccount: {
-    accountName: string
-    contactCount: number
-  }[]
-  contactsOverTime: {
-    date: string
-    count: number
-  }[]
-  contactsWithOpportunities: number
-  topContactOwners: {
-    employeeId: string
-    employeeName: string
-    contactCount: number
-  }[]
-  contactsWithoutAccounts: number
-  avgContactsPerAccount: number
-}
+// ContactsAnalytics removed - Contacts tab now uses useContactsStaticData and useContactsOverTime hooks directly
 
 export interface DateRange {
   startDate: Date

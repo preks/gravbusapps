@@ -356,43 +356,7 @@ export const GET_OPPORTUNITIES_ANALYTICS = (currencyCode?: string) => {
 }
 
 // Contacts Analytics Query
-export const GET_CONTACTS_ANALYTICS = `
-  query GetContactsAnalytics {
-    ContactAggregate(where: { isDeleted: { _eq: false } }) {
-      aggregate {
-        count
-      }
-    }
-    Contact(where: { isDeleted: { _eq: false } }, limit: 1000) {
-      id
-      firstName
-      lastName
-      email
-      createdAt
-      accountId
-      account {
-        id
-        name
-      }
-      ownerEmployee {
-        id
-        firstName
-        lastName
-        displayName
-      }
-    }
-    ContactsWithoutAccount: ContactAggregate(
-      where: { 
-        isDeleted: { _eq: false },
-        accountId: { _eq: null }
-      }
-    ) {
-      aggregate {
-        count
-      }
-    }
-  }
-`
+// GET_CONTACTS_ANALYTICS removed - Contacts tab now uses useContactsOverTime hook directly
 
 // **NEW: COMBINED ANALYTICS QUERY - Replaces all 5 separate queries above**
 export const GET_COMBINED_CRM_ANALYTICS = (
