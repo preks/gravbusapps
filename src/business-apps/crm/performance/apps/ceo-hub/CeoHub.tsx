@@ -14,7 +14,7 @@ import {
 } from '@newwork/nw-design-system'
 import { useCeoHubStats } from './hooks/useCeoHubStats'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { ChartLineUp, Lightning, PresentationChart, UsersThree, Crown } from '@phosphor-icons/react'
+import { ChartLineUp, Lightning, PresentationChart, UsersThree, Lightbulb } from '@phosphor-icons/react'
 import { RefreshCwIcon } from 'lucide-react'
 
 type CeoHubProps = BusinessAppContextProps
@@ -208,8 +208,8 @@ const CeoHub: React.FC<CeoHubProps> = ({ accessToken }) => {
         data-testid={`${DATA_TEST_ID_PREFIX}-loading`}
       >
         <div className="gba:max-w-md gba:mx-auto gba:p-6 gba:text-center">
-          <Crown
-            className="gba:h-16 gba:w-16 gba:text-amber-400 gba:mx-auto gba:mb-4 gba:animate-pulse"
+          <Lightbulb
+            className="gba:h-16 gba:w-16 gba:text-primary gba:mx-auto gba:mb-4 gba:animate-pulse"
             weight="duotone"
           />
           <Spinner size="lg" className="gba:mb-4" />
@@ -248,7 +248,7 @@ const CeoHub: React.FC<CeoHubProps> = ({ accessToken }) => {
     <LauncherLayout
       title="Executive Hub"
       description="Executive-level insights and strategic sales intelligence for data-driven decision making"
-      icon={Crown}
+      icon={Lightbulb}
       headerKpis={headerKpis}
       sections={sections}
       quickActions={quickActions}
