@@ -242,18 +242,20 @@ const SchemaField: React.FC<SchemaFieldProps & { accessToken: string }> = ({
 
         if (rawEnumOptions || rawOneOfOptions) {
           type SelectOption = { id: string; label: string; rawValue: unknown }
-          const options: SelectOption[] = (rawEnumOptions || rawOneOfOptions || []).map((option: unknown, index: number) => {
-            const rawValue = rawEnumOptions ? option : ((option as any)?.const ?? (option as any)?.value ?? option)
-            const id = String(toOptionId(rawValue ?? index))
-            const labelText = String(
-              rawEnumOptions ? toDisplayString(option) : ((option as any)?.title ?? toDisplayString(rawValue))
-            )
-            return {
-              id,
-              label: labelText,
-              rawValue
+          const options: SelectOption[] = (rawEnumOptions || rawOneOfOptions || []).map(
+            (option: unknown, index: number) => {
+              const rawValue = rawEnumOptions ? option : ((option as any)?.const ?? (option as any)?.value ?? option)
+              const id = String(toOptionId(rawValue ?? index))
+              const labelText = String(
+                rawEnumOptions ? toDisplayString(option) : ((option as any)?.title ?? toDisplayString(rawValue))
+              )
+              return {
+                id,
+                label: labelText,
+                rawValue
+              }
             }
-          })
+          )
 
           const selectedOptionId = String(
             options.find((opt: SelectOption) => deepEquals(opt.rawValue, value))?.id ??
@@ -450,18 +452,18 @@ const SearchableUuidField: React.FC<{
     entityType === 'employee' ? accessToken : '',
     { search: entityType === 'employee' ? debouncedSearch : '', limit: 50 }
   )
-  const { accounts, isLoading: accountLoading } = useAccountSearch(
-    entityType === 'account' ? accessToken : '',
-    { search: entityType === 'account' ? debouncedSearch : '', limit: 50 }
-  )
-  const { contacts, isLoading: contactLoading } = useContactSearch(
-    entityType === 'contact' ? accessToken : '',
-    { search: entityType === 'contact' ? debouncedSearch : '', limit: 50 }
-  )
-  const { leads, isLoading: leadLoading } = useLeadSearch(
-    entityType === 'lead' ? accessToken : '',
-    { search: entityType === 'lead' ? debouncedSearch : '', limit: 50 }
-  )
+  const { accounts, isLoading: accountLoading } = useAccountSearch(entityType === 'account' ? accessToken : '', {
+    search: entityType === 'account' ? debouncedSearch : '',
+    limit: 50
+  })
+  const { contacts, isLoading: contactLoading } = useContactSearch(entityType === 'contact' ? accessToken : '', {
+    search: entityType === 'contact' ? debouncedSearch : '',
+    limit: 50
+  })
+  const { leads, isLoading: leadLoading } = useLeadSearch(entityType === 'lead' ? accessToken : '', {
+    search: entityType === 'lead' ? debouncedSearch : '',
+    limit: 50
+  })
   const { opportunities, isLoading: opportunityLoading } = useOpportunitySearch(
     entityType === 'opportunity' ? accessToken : '',
     { search: entityType === 'opportunity' ? debouncedSearch : '', limit: 50 }
@@ -490,7 +492,10 @@ const SearchableUuidField: React.FC<{
         return {
           options: leads.map(l => ({
             value: l.id,
-            label: `${l.firstName ?? ''} ${l.lastName ?? ''}`.trim() + (l.companyName ? ` (${l.companyName})` : '') || l.email || l.id
+            label:
+              `${l.firstName ?? ''} ${l.lastName ?? ''}`.trim() + (l.companyName ? ` (${l.companyName})` : '') ||
+              l.email ||
+              l.id
           })),
           isLoading: leadLoading
         }
@@ -512,16 +517,33 @@ const SearchableUuidField: React.FC<{
           isLoading: employeeLoading
         }
     }
-  }, [entityType, employees, accounts, contacts, leads, opportunities, employeeLoading, accountLoading, contactLoading, leadLoading, opportunityLoading])
+  }, [
+    entityType,
+    employees,
+    accounts,
+    contacts,
+    leads,
+    opportunities,
+    employeeLoading,
+    accountLoading,
+    contactLoading,
+    leadLoading,
+    opportunityLoading
+  ])
 
   // Get placeholder text based on entity type
   const placeholderText = useMemo(() => {
     switch (entityType) {
-      case 'account': return 'Search accounts...'
-      case 'contact': return 'Search contacts...'
-      case 'lead': return 'Search leads...'
-      case 'opportunity': return 'Search opportunities...'
-      default: return 'Search employees...'
+      case 'account':
+        return 'Search accounts...'
+      case 'contact':
+        return 'Search contacts...'
+      case 'lead':
+        return 'Search leads...'
+      case 'opportunity':
+        return 'Search opportunities...'
+      default:
+        return 'Search employees...'
     }
   }, [entityType])
 
@@ -690,7 +712,14 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
         try {
           const parsed = JSON.parse(turn.text)
           if (parsed?.action === 'form_submission') {
-            console.log('[DynamicFormDisplay] Found form_submission at turn:', i, 'uuid:', parsed?.uuid, 'flow_name:', parsed?.flow_name)
+            console.log(
+              '[DynamicFormDisplay] Found form_submission at turn:',
+              i,
+              'uuid:',
+              parsed?.uuid,
+              'flow_name:',
+              parsed?.flow_name
+            )
             // Match by UUID, flow_name, or if this form has no UUID yet, match by flow_name
             const uuidMatch = parsed?.uuid && data.uuid && parsed.uuid === data.uuid
             const flowNameMatch = parsed?.flow_name && data.flow_name && parsed.flow_name === data.flow_name
@@ -1106,6 +1135,7 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
     accessToken: string
   }> = ({ fields, requiredFields, isCompleted, formData, onFieldValueChange, onFieldChange, accessToken }) => {
     const [open, setOpen] = useState(false)
+    const [isHovered, setIsHovered] = useState(false)
     const hiddenMissingCount = useMemo(() => {
       return fields.reduce((acc, [fname]) => {
         if (requiredFields?.includes(fname)) {
@@ -1121,38 +1151,66 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
     }, [hiddenMissingCount])
 
     if (fields.length === 0) return null
+
+    const buttonText = open ? 'Hide advanced fields' : 'Show advanced fields'
+
     return (
-      <details
-        open={open}
-        onToggle={e => setOpen((e.target as HTMLDetailsElement).open)}
-        className={isCompleted ? 'gba:opacity-60 gba:pointer-events-none' : ''}
-      >
-        <summary className="gba:cursor-pointer gba:text-sm gba:font-medium gba:select-none gba:list-none gba:mb-2">
-          Other fields
-          {hiddenMissingCount > 0 && (
-            <span className="gba:ml-2 gba:inline-flex gba:items-center gba:rounded-full gba:border gba:px-2 gba:py-0.5 gba:text-xs">
-              Missing: {hiddenMissingCount}
-            </span>
+      <div>
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          onMouseEnter={() => !isCompleted && setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+          disabled={isCompleted}
+          className="gba:inline-flex gba:items-center gba:gap-1 gba:text-sm gba:text-muted-foreground gba:transition-all gba:duration-200 gba:cursor-pointer disabled:gba:opacity-60 disabled:gba:cursor-not-allowed"
+        >
+          <span
+            className={`gba:text-xs gba:leading-none gba:transition-all gba:duration-200 ${
+              isHovered && !isCompleted ? 'gba:translate-x-px gba:text-foreground' : ''
+            }`}
+          >
+            {open ? '▾' : '▸'}
+          </span>
+          <span
+            className={`gba:transition-all gba:duration-200 ${
+              isHovered && !isCompleted ? 'gba:text-foreground gba:underline' : ''
+            }`}
+            style={
+              isHovered && !isCompleted
+                ? {
+                    textDecorationThickness: '1px',
+                    textUnderlineOffset: '2px',
+                    textDecorationColor: 'rgba(0, 0, 0, 0.6)'
+                  }
+                : undefined
+            }
+          >
+            {buttonText}
+          </span>
+          {hiddenMissingCount > 0 && !open && (
+            <span className="gba:ml-1 gba:text-xs">(Missing: {hiddenMissingCount})</span>
           )}
-        </summary>
-        <div className="gba:mt-3 gba:space-y-4">
-          {fields.map(([fieldName, fieldSchema]) => (
-            <SchemaField
-              key={`s-${fieldName}`}
-              name={fieldName}
-              path=""
-              schema={fieldSchema}
-              required={requiredFields.includes(fieldName)}
-              disabled={isCompleted}
-              value={formData[fieldName]}
-              onChange={value => onFieldChange(fieldName, value)}
-              formData={formData}
-              onFieldValueChange={onFieldValueChange}
-              accessToken={accessToken}
-            />
-          ))}
-        </div>
-      </details>
+        </button>
+        {open && (
+          <div className="gba:mt-3 gba:space-y-4">
+            {fields.map(([fieldName, fieldSchema]) => (
+              <SchemaField
+                key={`s-${fieldName}`}
+                name={fieldName}
+                path=""
+                schema={fieldSchema}
+                required={requiredFields.includes(fieldName)}
+                disabled={isCompleted}
+                value={formData[fieldName]}
+                onChange={value => onFieldChange(fieldName, value)}
+                formData={formData}
+                onFieldValueChange={onFieldValueChange}
+                accessToken={accessToken}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     )
   }
 
@@ -1175,7 +1233,7 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
   // Store latest handlers in refs so they're always up-to-date without triggering re-registration
   const submitHandlerRef = useRef(() => {})
   const cancelHandlerRef = useRef(() => {})
-  const updateFieldRef = useRef((_field: string, _value: any) => {})
+  const updateFieldRef = useRef<(fieldName: string, value: any) => void>(() => {})
 
   useEffect(() => {
     submitHandlerRef.current = () => {
@@ -1223,7 +1281,10 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
           })
         }
       } else {
-        console.log(`[Voice] Could not find field matching "${fieldName}". Available fields:`, fields.map(f => f[0]))
+        console.log(
+          `[Voice] Could not find field matching "${fieldName}". Available fields:`,
+          fields.map(f => f[0])
+        )
       }
     }
   }, [fields])
