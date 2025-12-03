@@ -1,0 +1,279 @@
+'use client'
+
+import React from 'react'
+import { Button, Card, Alert, Icon } from '@newwork/nw-design-system'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useTimeTrackingData } from '@/business-apps/hr/core/apps/employee-record/components/tabs/hooks/useTimeTrackingData'
+import {
+  ClockIcon
+  // other icons reserved for future
+} from '@phosphor-icons/react'
+import { InterventionsTable } from '@/business-apps/hr/core/apps/employee-record/components/tabs/components/InterventionsTable'
+import HeroLiveClock from './HeroLiveClock'
+
+interface MonthlySummaryProps {
+  employee: any
+  employeeId: string
+  accessToken: string
+  isSelfView: boolean
+}
+
+const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, accessToken, isSelfView }) => {
+  const {
+    isClockedIn,
+    clockInSince,
+    isSubmitting,
+    error,
+    clockIn,
+    clockOut,
+    todaysWorkedMinutes,
+    todaysPlannedMinutes,
+    todayRecordedMinutes,
+    hasTodayAttendanceRecord,
+    entries
+  } = useTimeTrackingData({ employeeId, accessToken, workingHours: employee?.workingHours?.[0] })
+
+  console.log(employee?.workingHours?.[0], 'woking hours')
+
+  console.log('todaysPlannedMinutes', todaysPlannedMinutes)
+
+  const formatHm = (minutes: number) => {
+    const abs = Math.max(0, Math.floor(minutes))
+    const h = Math.floor(abs / 60)
+    const m = abs % 60
+    return `${h}:${String(m).padStart(2, '0')}`
+  }
+
+  const employeeName =
+    employee?.displayName || getTranslationFromI18nKeyAndLabel('lowcoder:common.employee', 'Employee')
+
+  // Secondary helper message for hero card
+  const isClockedOutWithWork = !isClockedIn && todayRecordedMinutes > 0
+  const headerSecondary = isClockedIn
+    ? getTranslationFromI18nKeyAndLabel(
+        'lowcoder:time_tracking.summary.header.clock_IN_secondary',
+        "Let's make this day count."
+      )
+    : isClockedOutWithWork
+      ? getTranslationFromI18nKeyAndLabel(
+          'lowcoder:time_tracking.summary.header.clock_OUT_secondary',
+          'Great work today — see you tomorrow, fresh and focused.'
+        )
+      : getTranslationFromI18nKeyAndLabel(
+          'lowcoder:time_tracking.summary.header.welcome_secondary',
+          'Let’s set things in motion — your hours start with a single click.'
+        )
+
+  const workedHm = `${formatHm(todaysWorkedMinutes)}h`
+  const plannedHm = `${formatHm(todaysPlannedMinutes)}h`
+  const workProgressPct = React.useMemo(() => {
+    if (!todaysPlannedMinutes || todaysPlannedMinutes <= 0) return 0
+    const pct = (todaysWorkedMinutes / todaysPlannedMinutes) * 100
+    return Math.max(0, Math.min(100, Math.round(pct)))
+  }, [todaysWorkedMinutes, todaysPlannedMinutes])
+
+  // "Clocked in since" formatting (aligned with MonthlySummary)
+  const displayClockInSince = React.useMemo(() => {
+    if (!clockInSince) return ''
+    const raw = String(clockInSince)
+    if (raw.includes('T')) {
+      try {
+        const locale = (typeof window !== 'undefined' && (window as any)?.lowcoder?.i18n?.selectedLocale) || 'en-US'
+        const use12h = String(locale).toLowerCase().startsWith('en')
+        return new Date(raw).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: use12h })
+      } catch {
+        return raw
+      }
+    }
+    const m = raw.match(/^(\d{1,2}:\d{2})/)
+    return m ? m[1] : raw
+  }, [clockInSince])
+
+  const formatIsoToTime = (iso?: string) => {
+    if (!iso) return ''
+    try {
+      const locale = (typeof window !== 'undefined' && (window as any)?.lowcoder?.i18n?.selectedLocale) || 'en-US'
+      const use12h = String(locale).toLowerCase().startsWith('en')
+      return new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: use12h })
+    } catch {
+      return ''
+    }
+  }
+
+  const getTodayTimes = () => {
+    try {
+      const now = new Date()
+      const key = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+      const todayEntry = entries.find(e => {
+        const d = new Date(e.attendanceDateISO)
+        const entryKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+        return entryKey === key
+      })
+      return {
+        start: formatIsoToTime(todayEntry?.startTimeISO),
+        end: formatIsoToTime(todayEntry?.endTimeISO)
+      }
+    } catch {
+      return { start: '', end: '' }
+    }
+  }
+
+  return (
+    <div data-testid="monthly-summary-container">
+      {error && (
+        <Alert variant="destructive" className="gba:w-full gba:whitespace-normal gba:!inline-block gba:mt-4">
+          {error}
+        </Alert>
+      )}
+
+      {/* Main row: Hero, Timeline and Today at a Glance */}
+      <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4 gba:mt-4" data-testid="timeclock-main-row">
+        {/* Hero time card */}
+        <Card
+          className="gba:p-10 gba:bg-info-on-card gba:text-info-foreground gba:min-h-96"
+          data-testid="timeclock-hero-card"
+        >
+          <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:text-center gba:gap-4 gba:h-full">
+            <div className="gba:bg-info-secondary gba:rounded-full gba:p-5 gba:inline-flex">
+              <Icon icon={ClockIcon} className="gba:text-5xl" />
+            </div>
+            <HeroLiveClock className="gba:flex gba:flex-col gba:items-center gba:justify-center" />
+            <div className="gba:text-base gba:opacity-90 gba:max-w-xl">
+              {isClockedIn
+                ? headerSecondary
+                : getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:time_tracking.summary.header.clock_out',
+                    `Clocked out — time to recharge, ${employeeName}.`,
+                    { employeeName }
+                  )}
+            </div>
+            <div className="gba:w-full">
+              {isClockedIn ? (
+                <Button
+                  className="gba:w-full gba:bg-card gba:text-card-foreground"
+                  variant="secondary"
+                  disabled={!isSelfView || !isClockedIn || isSubmitting}
+                  onClick={clockOut}
+                  data-testid="timeclock-hero-clock-out-button"
+                >
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.actions.clock_out', 'Clock Out')}
+                </Button>
+              ) : (
+                <Button
+                  className="gba:w-full gba:bg-card gba:text-card-foreground"
+                  variant="secondary"
+                  disabled={!isSelfView || isClockedIn || isSubmitting}
+                  onClick={clockIn}
+                  data-testid="timeclock-hero-clock-in-button"
+                >
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.actions.clock_in', 'Clock In')}
+                </Button>
+              )}
+            </div>
+          </div>
+        </Card>
+
+        {/* Today's Timeline */}
+        <Card className="gba:p-8 gba:min-h-96" data-testid="timeclock-timeline-card">
+          <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
+            <div className="gba:text-lg gba:font-semibold">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.timeline.today', "Today's Timeline")}
+            </div>
+          </div>
+          {isClockedIn && (
+            <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
+              <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
+                <Icon icon={ClockIcon} />
+                <span>
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:time_tracking.status.clocked_in_since_label',
+                    'Currently clocked in since'
+                  )}
+                </span>
+              </div>
+              <div className="gba:text-sm gba:font-semibold">{displayClockInSince}</div>
+            </div>
+          )}
+          {!isClockedIn && hasTodayAttendanceRecord && (
+            <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <Icon icon={ClockIcon} />
+                <div className="gba:flex gba:flex-col">
+                  <div className="gba:text-sm gba:text-muted-foreground">
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.timeline.worked_today', 'Worked today')}
+                  </div>
+                  <div className="gba:text-base gba:font-medium">
+                    {formatHm(todaysWorkedMinutes)} (
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.timeline.recorded', 'Recorded')}{' '}
+                    {formatHm(todayRecordedMinutes)})
+                  </div>
+                  <div className="gba:text-sm gba:text-muted-foreground">
+                    {(() => {
+                      const t = getTodayTimes()
+                      const start = t.start || '—'
+                      const end = t.end || '—'
+                      return `${getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.timeline.start', 'Start')} ${start} • ${getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.timeline.end', 'End')} ${end}`
+                    })()}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          {!isClockedIn && !hasTodayAttendanceRecord && (
+            <div className="gba:text-muted-foreground gba:text-sm gba:py-8 gba:text-center">
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:time_tracking.timeline.empty_today',
+                'No time entries for today yet'
+              )}
+            </div>
+          )}
+        </Card>
+
+        {/* Today at a Glance */}
+        <Card className="gba:p-8 gba:min-h-96" data-testid="timeclock-glance-card">
+          <div className="gba:text-lg gba:font-semibold gba:mb-3">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.glance.title', 'Today at a Glance')}
+          </div>
+
+          {/* Work Hours */}
+          <div className="gba:border gba:border-muted gba:rounded-md gba:p-3 gba:mb-3">
+            <div className="gba:flex gba:items-center gba:justify-between">
+              <div className="gba:text-sm gba:text-muted-foreground">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.glance.work_hours', 'Work Hours')}
+              </div>
+              <Icon icon={ClockIcon} />
+            </div>
+            <div className="gba:mt-2 gba:text-xl gba:font-semibold">
+              {workedHm} <span className="gba:text-muted-foreground gba:text-base">/ {plannedHm} planned</span>
+            </div>
+            <div className="gba:mt-2 gba:h-2 gba:bg-muted gba:rounded-full">
+              <div className="gba:h-2 gba:bg-primary gba:rounded-full" style={{ width: `${workProgressPct}%` }} />
+            </div>
+          </div>
+
+          {/* Status */}
+          <div className="gba:border gba:border-muted gba:rounded-md gba:p-3">
+            <div className="gba:text-sm gba:text-muted-foreground gba:mb-2">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.glance.status', 'Status')}
+            </div>
+            <div className="gba:inline-flex gba:items-center gba:gap-2 gba:px-2.5 gba:py-1 gba:rounded-full gba:bg-info-secondary gba:text-info gba:text-sm gba:font-medium">
+              <Icon icon={ClockIcon} />
+              {isClockedIn
+                ? getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.status.in_progress', 'In progress')
+                : getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.status.clocked_out', 'Clocked out')}
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Interventions table */}
+      <InterventionsTable
+        employeeId={employeeId}
+        accessToken={accessToken}
+        workingHours={employee?.workingHours?.[0]}
+      />
+    </div>
+  )
+}
+
+export default MonthlySummary

@@ -58,6 +58,8 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, a
     locationBanner
   } = useTimeTrackingData({ employeeId, accessToken, workingHours: employee?.workingHours?.[0] })
 
+  console.log(employee?.workingHours?.[0], 'woking hours')
+
   const { t } = useTranslation(timeTrackingTranslations)
 
   const formatHm = (minutes: number) => {
