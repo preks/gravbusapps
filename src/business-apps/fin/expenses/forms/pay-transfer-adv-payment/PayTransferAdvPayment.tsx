@@ -1,153 +1,134 @@
 import React, { useState, useEffect } from 'react'
-import { Spinner, Alert, AlertTitle, AlertDescription, Button } from '@newwork/nw-design-system'
-
-import { useGetAdvancePaymentForApproval } from './queries'
-import { AdvancePaymentData } from './types'
+import { Spinner, Alert, AlertTitle, AlertDescription, Badge } from '@newwork/nw-design-system'
+import { Check } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/components/TaskDetailHeader'
+import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
+import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
+import { useAdvancePaymentData } from './hooks/useAdvancePaymentData'
+import { useEntityDates } from '@/common/data/common/hooks/useEntityDates'
+import { formatDateToISO } from './utils/formatters'
 
 // Component imports
-import PaymentHeader from './components/PaymentHeader'
-import EmployeeInfoSection from './components/EmployeeInfoSection'
-import SupervisorInfoSection from './components/SupervisorInfoSection'
-import TransactionSection from './components/TransactionSection'
-import ActionButtons from './components/ActionButtons'
+import {
+  RequestDetailsSection,
+  ApprovedBySection,
+  TransactionConfirmationSection,
+  TransactionConfirmationDetailsSection
+} from './components'
 
-const PayTransferAdvPaymentContent: React.FC<BusinessAppContextProps> = ({ additionalData, accessToken, userInfo }) => {
-  const [paymentData, setPaymentData] = useState<AdvancePaymentData | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+/**
+ * Extended interface for additionalData with form-specific properties
+ */
+interface ExtendedAdditionalData {
+  [k: string]: unknown
+  psi_taskCompletedAt?: string
+  psi_taskPayload?: {
+    [k: string]: unknown
+  }
+  psi_processMetadata?: {
+    [k: string]: unknown
+  }
+  psi_taskStatus?: string
+}
+
+interface PayTransferAdvPaymentProps extends BusinessAppContextProps {
+  onClose?: () => void
+}
+
+const PayTransferAdvPaymentContent: React.FC<PayTransferAdvPaymentProps> = ({
+  accessToken,
+  additionalData,
+  userInfo,
+  onClose
+}) => {
+  // Cast additionalData to extended interface for proper typing
+  const extendedAdditionalData = additionalData as ExtendedAdditionalData | undefined
+
+  // Extract paymentId from additionalData or URL parameters
+  const paymentId =
+    additionalData?.paymentId ||
+    additionalData?.psi_taskPayload?.advancePayment?.id ||
+    new URLSearchParams(globalThis.location.search).get('paymentId')
+
+  const [isConfirming, setIsConfirming] = useState(false)
   const [transactionDate, setTransactionDate] = useState<string>('')
   const [confirmationChecked, setConfirmationChecked] = useState(false)
-  const [extractedPaymentId, setExtractedPaymentId] = useState<string>('')
 
-  const { fetchAdvancePaymentData } = useGetAdvancePaymentForApproval(accessToken)
+  const { advancePayment, loading, error, refetch } = useAdvancePaymentData({ paymentId, accessToken })
 
-  const formatDateToISO = (dateString: string): string => {
-    if (!dateString) {
-      return new Date().toISOString()
-    }
+  // Extract task metadata
+  const taskPayload = additionalData?.psi_taskPayload || {}
+  const processMetadata = additionalData?.psi_processMetadata || {}
+  const taskStatus = additionalData?.psi_taskStatus || processMetadata?.status || 'IN_PROGRESS'
+  const taskCompletedAt = processMetadata?.completedAt || extendedAdditionalData?.psi_taskCompletedAt
+  // Task is completed if status is COMPLETED OR if completedAt exists
+  const isTaskCompleted = taskStatus === 'COMPLETED' || !!taskCompletedAt
+  const taskTitle =
+    processMetadata?.referenceTaskName ||
+    processMetadata?.nodeName ||
+    getTranslationFromI18nKeyAndLabel('lowcoder:pay_transfer_advance_payment.title', 'Hand out Advance Payment')
+  const taskSource: 'kogito' | 'cflow' = processMetadata?.source || 'kogito'
+  const creatorName = taskPayload?.creatorName as string | undefined
 
-    try {
-      const dateRegex = /^\d{4}-\d{2}-\d{2}$/
-      if (!dateRegex.test(dateString)) {
-        return new Date().toISOString()
-      }
+  // Use generic hooks for entity dates (request created)
+  const { createdAt: requestCreatedAt } = useEntityDates({
+    accessToken,
+    entityId: advancePayment?.id,
+    entityType: 'AdvancePayment'
+  })
 
-      const dateWithTime = dateString + 'T00:00:00'
-      const date = new Date(dateWithTime)
-
-      if (isNaN(date.getTime())) {
-        return new Date().toISOString()
-      }
-
-      return date.toISOString()
-    } catch {
-      return new Date().toISOString()
-    }
-  }
-
-  useEffect(() => {
-    if (!extractedPaymentId) {
-      const paymentId = additionalData?.psi_taskPayload?.advancePayment?.id
-      if (paymentId) {
-        setExtractedPaymentId(paymentId)
-      }
-    }
-  }, [extractedPaymentId, additionalData])
-
-  useEffect(() => {
-    if (extractedPaymentId) {
-      fetchPaymentData()
-    }
-  }, [extractedPaymentId])
-
-  const fetchPaymentData = async () => {
-    if (!extractedPaymentId) {
-      return
-    }
-
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      const data = await fetchAdvancePaymentData(extractedPaymentId)
-
-      if (data) {
-        setPaymentData(data)
-      } else {
-        setError('No payment data received from server')
-      }
-    } catch (err) {
-      if (err instanceof Error && err.message.includes('429')) {
-        setError('API rate limit exceeded. Please wait a moment and try again.')
-      } else {
-        setError(err instanceof Error ? err.message : 'Failed to fetch payment data')
-      }
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
+  // Initialize transaction date to today
   useEffect(() => {
     const today = new Date()
     const todayString = today.toISOString().split('T')[0]
     setTransactionDate(todayString)
   }, [])
 
+  // Detect if we're in every-box context (has onClose callback)
+  const isEveryBoxContext = !!onClose
+
+  const handleClose = () => {
+    if (onClose) {
+      onClose()
+    } else {
+      dispatchProcessContinueEvent('pse_abort', {
+        event: 'pse_abort'
+      })
+    }
+  }
+
   const handleConfirm = async () => {
-    if (!userInfo?.employeeDetails?.employeeId) {
+    if (!paymentId || !userInfo?.employeeDetails?.employeeId || !transactionDate || !confirmationChecked) {
       return
     }
 
-    if (!transactionDate) {
-      setError('Transaction date is required')
-      return
-    }
-
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/
-    if (!dateRegex.test(transactionDate)) {
-      setError('Please enter a valid transaction date (YYYY-MM-DD)')
-      return
-    }
-
-    if (!confirmationChecked) {
-      setError('Please confirm the payment transfer')
-      return
-    }
-
+    setIsConfirming(true)
     try {
-      setIsLoading(true)
-      setError(null)
-
       const formattedTransactionDate = formatDateToISO(transactionDate)
 
       const payload = {
+        event: 'pse_approve',
         advancePayment: {
-          id: extractedPaymentId,
-          version: paymentData?.version,
-          amount: paymentData?.amount,
+          id: paymentId,
+          amount: advancePayment?.amount,
           transactionDate: formattedTransactionDate,
           transactionConfirmed: confirmationChecked,
           transactionConfirmedByEmployee: userInfo.employeeDetails.employeeId
         }
       }
 
-      window.dispatchEvent(
-        new CustomEvent('com.newwork.process.continue', {
-          detail: {
-            event: 'pse_approve',
-            payload
-          }
-        })
-      )
-    } catch {
-      setError('Failed to confirm payment. Please try again.')
+      dispatchProcessContinueEvent('pse_approve', payload)
+    } catch (err) {
+      console.error('Error confirming payment transfer:', err)
     } finally {
-      setIsLoading(false)
+      setIsConfirming(false)
     }
   }
 
-  if (isLoading) {
+  if (loading) {
     return (
       <div
         className="gba:flex gba:justify-center gba:items-center gba:min-h-[400px]"
@@ -161,72 +142,145 @@ const PayTransferAdvPaymentContent: React.FC<BusinessAppContextProps> = ({ addit
   if (error) {
     return (
       <Alert variant="destructive" data-testid="pay-transfer-adv-payment-error">
-        <AlertTitle>Error Loading Payment Data</AlertTitle>
+        <AlertTitle>Error Loading Advance Payment</AlertTitle>
         <AlertDescription>
           {error}
-          {error.includes('rate limit') && (
-            <div style={{ marginTop: 'var(--nw-spacing-md)' }}>
-              <Button
-                onClick={() => {
-                  fetchPaymentData()
-                }}
-                variant="outline"
-                size="sm"
-                data-testid="retry-button"
-              >
-                Retry
-              </Button>
-            </div>
-          )}
+          <button
+            onClick={refetch}
+            className="gba:mt-2 gba:px-3 gba:py-1 gba:bg-destructive gba:text-destructive-foreground gba:rounded gba:text-sm"
+          >
+            Retry
+          </button>
         </AlertDescription>
       </Alert>
     )
   }
 
-  if (!paymentData) {
+  if (!advancePayment) {
     return (
       <Alert data-testid="pay-transfer-adv-payment-no-data">
-        <AlertTitle>No Payment Data</AlertTitle>
-        <AlertDescription>Unable to load payment information. Please try refreshing the page.</AlertDescription>
+        <AlertTitle>No Data</AlertTitle>
+        <AlertDescription>Advance payment not found</AlertDescription>
       </Alert>
     )
   }
 
-  const { expensePlan } = paymentData
-  const { employee } = expensePlan
-
-  const handleTransactionDateChange = (value: string) => {
-    setTransactionDate(value)
+  // Get status display
+  const getStatusDisplay = (status?: string) => {
+    if (!status) return { label: 'Pending', variant: 'default' as const }
+    const statusLower = status.toLowerCase()
+    if (statusLower.includes('transferred') || statusLower.includes('confirmed')) {
+      return { label: 'Transferred', variant: 'success' as const }
+    }
+    if (statusLower.includes('booked')) return { label: 'Booked', variant: 'default' as const }
+    if (statusLower.includes('approved')) return { label: 'Approved', variant: 'success' as const }
+    if (statusLower.includes('pending')) return { label: 'Pending', variant: 'default' as const }
+    return { label: status, variant: 'default' as const }
   }
 
-  const handleConfirmationChange = (checked: boolean) => {
-    setConfirmationChecked(checked)
-  }
+  const statusDisplay = getStatusDisplay(advancePayment.status)
+  const displayName =
+    `${advancePayment.expensePlan?.employee?.firstName || ''} ${advancePayment.expensePlan?.employee?.lastName || ''}`.trim() ||
+    'Employee'
+
+  // Check if all required fields are filled
+  const isConfirmButtonDisabled = !transactionDate || !confirmationChecked || isConfirming
 
   return (
-    <div className="gba:border-0" data-testid="pay-transfer-adv-payment-container">
-      <PaymentHeader />
-
-      <EmployeeInfoSection
-        employee={employee}
-        amount={paymentData.amount}
-        currency={paymentData.currency}
-        status={paymentData.status}
-        expensePlan={expensePlan}
-        accessToken={accessToken}
+    <TaskFormLayout
+      data-testid="pay-transfer-adv-payment-container"
+      header={
+        <TaskDetailHeader
+          title={taskTitle}
+          status={taskStatus}
+          source={taskSource}
+          showEmployeeInfo={true}
+          employeeData={
+            advancePayment?.expensePlan?.employee
+              ? {
+                  displayName,
+                  firstName: advancePayment.expensePlan.employee.firstName,
+                  lastName: advancePayment.expensePlan.employee.lastName,
+                  avatarUrl: advancePayment.expensePlan.employee.pictureThumbnail
+                    ? `data:image/jpeg;base64,${advancePayment.expensePlan.employee.pictureThumbnail}`
+                    : undefined,
+                  position: advancePayment.expensePlan.employee.employeePosition?.jobPosition?.name
+                }
+              : undefined
+          }
+          isLoadingEmployee={loading}
+          creatorName={creatorName}
+          onClose={isEveryBoxContext ? handleClose : undefined}
+          customBadges={
+            <Badge variant={statusDisplay.variant} data-testid="advance-payment-status-badge">
+              {statusDisplay.label}
+            </Badge>
+          }
+        />
+      }
+      footer={
+        isTaskCompleted ? undefined : (
+          <TaskDetailFooter
+            data-testid="pay-transfer-adv-payment-actions"
+            actions={[
+              {
+                label: 'Confirm',
+                onClick: handleConfirm,
+                variant: 'default' as const,
+                disabled: isConfirmButtonDisabled,
+                loading: isConfirming,
+                icon: Check,
+                className: 'gba:bg-success gba:text-success-foreground hover:gba:bg-success/90',
+                testId: 'confirm-transfer-button'
+              }
+            ]}
+          />
+        )
+      }
+      contentClassName="gba:space-y-6"
+    >
+      {/* 1. Request Details - Amount, Request Date, Status */}
+      <RequestDetailsSection
+        amount={advancePayment.amount}
+        currency={advancePayment.currency}
+        requestDate={advancePayment.expensePlan?.decisionDate || requestCreatedAt}
+        status={advancePayment.status || 'PENDING'}
+        expensePlanTitle={advancePayment.expensePlan?.title}
+        expensePlanDocument={advancePayment.expensePlan?.employeeDocument}
+        prefixDataTestId="pay-transfer-adv-payment"
       />
 
-      <SupervisorInfoSection supervisor={employee.employeePosition.supervisor} />
-
-      <TransactionSection
-        transactionDate={transactionDate}
-        confirmationChecked={confirmationChecked}
-        onTransactionDateChange={handleTransactionDateChange}
-        onConfirmationChange={handleConfirmationChange}
+      {/* 2. Approved By - Supervisor Information */}
+      <ApprovedBySection
+        approver={advancePayment.expensePlan?.employee?.employeePosition?.supervisor}
+        prefixDataTestId="pay-transfer-adv-payment"
       />
 
-      <ActionButtons onConfirm={handleConfirm} isLoading={isLoading} confirmationChecked={confirmationChecked} />
-    </div>
+      {/* 3. Pickup Confirmation (only for non-completed tasks) */}
+      {!isTaskCompleted && (
+        <TransactionConfirmationSection
+          transactionDate={transactionDate}
+          confirmationChecked={confirmationChecked}
+          onTransactionDateChange={setTransactionDate}
+          onConfirmationChange={setConfirmationChecked}
+          prefixDataTestId="pay-transfer-adv-payment"
+        />
+      )}
+
+      {/* 4. Transaction Confirmation Details (only for completed tasks) */}
+      {isTaskCompleted && advancePayment.transactionDate && (
+        <TransactionConfirmationDetailsSection
+          transactionDate={advancePayment.transactionDate}
+          transactionNumber={advancePayment.transactionNumber}
+          transactionConfirmedBy={
+            advancePayment.transactionConfirmedByEmployee
+              ? `${advancePayment.transactionConfirmedByEmployee.firstName} ${advancePayment.transactionConfirmedByEmployee.lastName}`
+              : undefined
+          }
+          prefixDataTestId="pay-transfer-adv-payment"
+        />
+      )}
+    </TaskFormLayout>
   )
 }
 
@@ -235,10 +289,17 @@ const PayTransferAdvPaymentContent: React.FC<BusinessAppContextProps> = ({ addit
  * @param props - Business app context props
  * @returns Pay Transfer Advance Payment component
  */
-const PayTransferAdvPayment: React.FC<BusinessAppContextProps> = props => {
+const PayTransferAdvPayment: React.FC<PayTransferAdvPaymentProps> = props => {
+  const { accessToken, additionalData, userInfo, onClose } = props
+
   return (
     <div data-testid="pay-transfer-adv-payment-wrapper">
-      <PayTransferAdvPaymentContent {...props} />
+      <PayTransferAdvPaymentContent
+        accessToken={accessToken}
+        additionalData={additionalData}
+        userInfo={userInfo}
+        onClose={onClose}
+      />
     </div>
   )
 }

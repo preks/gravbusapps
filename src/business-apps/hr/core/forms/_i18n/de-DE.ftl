@@ -30,6 +30,23 @@ adjust-salary-frequency-hourly = Stündlich
 adjust-salary-current-salary = Aktuelles Gehalt
 adjust-salary-calculation-breakdown = Gehaltsanpassung Zusammenfassung
 
+# Assign Salary Mode (new employee without existing salary)
+assign-salary-title = Gehalt zuweisen
+assign-salary-type = Gehaltstyp
+assign-salary-type-required = Gehaltstyp ist erforderlich. Bitte wählen Sie einen Gehaltstyp.
+assign-salary-type-yearly-monthly = Jährlich / Monatlich
+assign-salary-type-hourly = Stündlich
+assign-salary-annual-salary = Jahresbruttogehalt
+assign-salary-annual-salary-required = Jahresbruttogehalt ist erforderlich. Bitte geben Sie das Jahresbruttogehalt ein.
+assign-salary-annual-salary-positive = Das Jahresbruttogehalt muss größer als Null sein.
+assign-salary-hourly-salary = Stundenlohn
+assign-salary-hourly-salary-required = Stundenlohn ist erforderlich. Bitte geben Sie den Stundenlohn ein.
+assign-salary-hourly-salary-positive = Der Stundenlohn muss größer als Null sein.
+assign-salary-currency-required = Währung ist erforderlich. Bitte wählen Sie eine Währung.
+assign-salary-monthly-equivalent = Monatliches Äquivalent
+assign-salary-start-date = Startdatum
+assign-salary-start-date-required = Startdatum ist erforderlich. Bitte wählen Sie ein Startdatum.
+
 # Adjust Employee Salary Review Form
 adjust-salary-review-title = Gehaltsanpassungsprüfung für { $employeeName }
 adjust-salary-review-initiated-by = Initiiert von { $initiatorName }
@@ -46,6 +63,18 @@ adjust-salary-review-reject = Ablehnen
 adjust-salary-review-annual-gross-salary = Jahresbruttogehalt
 adjust-salary-review-monthly-gross-salary = Monatliches Bruttogehalt
 adjust-salary-review-hourly-gross-salary = Stündliches Bruttogehalt
+adjust-salary-review-increase-text = { $percentage }% Erhöhung
+
+# Assign Employee Salary Review Form (new employee without existing salary)
+assign-salary-review-title = Erstmalige Gehaltszuweisung prüfen für { $employeeName }
+assign-salary-review-salary-details = Gehaltsdetails
+assign-salary-review-assignment-details = Zuweisungsdetails
+assign-salary-review-annual-salary = Jahresbruttogehalt
+assign-salary-review-monthly-salary = Monatliches Bruttogehalt
+assign-salary-review-hourly-salary = Stündliches Bruttogehalt
+assign-salary-review-currency = Währung
+assign-salary-review-start-date = Startdatum
+assign-salary-review-notes = Notizen
 
 # Common Actions
 action-select-placeholder = Bitte auswählen

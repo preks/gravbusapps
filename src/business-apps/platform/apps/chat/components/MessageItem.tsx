@@ -1,13 +1,30 @@
 import React, { useMemo, useState } from 'react'
-import { IconAvatar, Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@newwork/nw-design-system'
-import { UserIcon } from 'lucide-react'
+import {
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  TooltipProvider
+} from '@newwork/nw-design-system'
 import type { Message } from '../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { navigateTo } from '@/common/utils/navigationUtils'
 import { formatTime, formatFullTimestamp, getStatusIcon } from './utils/messageUtils'
 import { isPreviewable } from './utils/attachmentUtils'
 import { renderContentWithReferences } from './EntityReferenceBadge'
 import { MessageAttachments, type MessageAttachment } from './MessageAttachments'
 import { AttachmentPreviewDialog } from './AttachmentPreviewDialog'
+
+const getInitials = (name: string): string => {
+  if (!name) return '?'
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 1) {
+    return parts[0].charAt(0).toUpperCase()
+  }
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase()
+}
 
 interface MessageItemProps {
   message: Message
@@ -75,11 +92,25 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, currentUserId
       >
         {/* Avatar for other users in group chat */}
         {!isOwnMessage && isGroupChat && (
-          <IconAvatar
-            className="gba:w-7 gba:h-7 gba:flex-shrink-0 gba:mt-0.5"
-            label={sender?.firstName || sender?.username || getTranslationFromI18nKeyAndLabel('chat.user', 'User')}
-            icon={UserIcon}
-          />
+          <Avatar
+            className={`gba:w-7 gba:h-7 gba:flex-shrink-0 gba:mt-0.5 ${sender?.employeeId ? 'gba:cursor-pointer hover:gba:ring-2 hover:gba:ring-primary gba:transition-all' : ''}`}
+            onClick={() => {
+              if (sender?.employeeId) {
+                navigateTo(`/platform/employee-record?employeeId=${sender.employeeId}`)
+              }
+            }}
+            title={sender?.employeeId ? 'View profile' : undefined}
+          >
+            {sender?.avatarUrl && <AvatarImage src={sender.avatarUrl} alt={sender?.firstName || 'User'} />}
+            <AvatarFallback className="gba:text-xs">
+              {getInitials(
+                sender?.displayName ||
+                  `${sender?.firstName || ''} ${sender?.lastName || ''}`.trim() ||
+                  sender?.username ||
+                  getTranslationFromI18nKeyAndLabel('chat.user', 'User')
+              )}
+            </AvatarFallback>
+          </Avatar>
         )}
 
         {/* Message bubble */}
@@ -92,7 +123,14 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, currentUserId
         >
           {/* Sender name in group chat */}
           {!isOwnMessage && isGroupChat && sender && (
-            <div className="gba:text-[11px] gba:font-medium gba:mb-0.5 gba:text-primary">
+            <div
+              className={`gba:text-[11px] gba:font-medium gba:mb-0.5 gba:text-primary ${sender.employeeId ? 'gba:cursor-pointer hover:gba:underline' : ''}`}
+              onClick={() => {
+                if (sender.employeeId) {
+                  navigateTo(`/platform/employee-record?employeeId=${sender.employeeId}`)
+                }
+              }}
+            >
               {sender.firstName} {sender.lastName}
             </div>
           )}
