@@ -589,21 +589,15 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     return calculateTotal(positions)
   }
 
-  /**
-   * Validates currency match between receipt and request
-   */
   const validateReceiptCurrency = (data: any): boolean => {
-    // Reset previous error
     setReceiptCurrencyError(null)
 
-    // No wizard/request currency provided – keep current behaviour
     if (!additionalData?.itemCurrency) {
       return true
     }
 
     const requestCurrency = currencies.find(c => c.id === additionalData.itemCurrency)
 
-    // When single-currency is enforced, we must be able to resolve the rule/request currency
     if (additionalData?.useSingleCurrency && !requestCurrency) {
       const errorMsg = t(
         'lowcoder:expense_item.currency_validation_unavailable',
@@ -631,9 +625,6 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     return false
   }
 
-  /**
-   * Parses invoice date from various formats
-   */
   const parseInvoiceDate = (invoiceDate: any): Date | null => {
     try {
       let dateValue: Date
@@ -656,9 +647,6 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     }
   }
 
-  /**
-   * Populates basic form fields from receipt data
-   */
   const populateBasicFields = (data: any): void => {
     if (data.vendor?.name) {
       form.setFieldsValue({ title: data.vendor.name })
@@ -866,6 +854,12 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   }
 
   const handleSubmitWrapper = async (): Promise<void> => {
+    // Block submission if receipt currency doesn't match request currency
+    if (receiptCurrencyError) {
+      showToast(receiptCurrencyError, 'error')
+      throw new Error(receiptCurrencyError)
+    }
+
     return await handleSubmit(
       form,
       positions,
@@ -1056,10 +1050,13 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
 
   const setFileList = (files: any[]) => {
     setFileListState(files)
-    // Any change to the attached receipts should reset the previous
-    // currency validation error. It will be re-evaluated on the next
-    // receipt processing.
-    setReceiptCurrencyError(null)
+
+    // Clear currency error when all files are removed
+    // When multiple files are uploaded together, they're treated as a batch
+    // User must remove all and re-upload only valid receipts
+    if (!files || files.length === 0) {
+      setReceiptCurrencyError(null)
+    }
   }
 
   const contextValue: ExpenseItemContextProps = useMemo(

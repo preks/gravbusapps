@@ -72,9 +72,9 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
     expenseRuleError,
     receiptCurrencyError,
     handleCurrencyChange,
-    isEditMode, additionalData
-  } =
-    useExpenseItem()
+    isEditMode,
+    additionalData
+  } = useExpenseItem()
 
   const selectedExpenseRequestId = Form.useWatch('expenseRequestId', form)
   const hadBackendRequestRef = useRef(false)
@@ -103,40 +103,33 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
     ? expenseRequestOptions.filter(option => option.id !== '0')
     : expenseRequestOptions
 
-  const hasReceiptCurrencyError = Boolean(receiptCurrencyError && fileList && fileList.length > 0)
-
   // Memoize the submit handler to prevent re-creating on every render
   const handleCreateClick = useCallback(
     async (e: React.MouseEvent) => {
       e.stopPropagation()
       e.preventDefault()
 
-      if (hasReceiptCurrencyError) {
-        return
-      }
+      try {
+        await form.validateFields()
 
+        if (expenseRuleError) {
+          return
+        }
 
-      setTimeout(async () => {
-        try {
-          await form.validateFields()
-
-          if (expenseRuleError) {
-            return
-          }
-
-          handleSubmit()
-        } catch (errorInfo) {
-          const firstErrorField = (errorInfo as any)?.errorFields?.[0]?.name?.[0]
-          if (firstErrorField) {
-            const element = document.querySelector(`[name="${firstErrorField}"]`)
-            if (element) {
-              element.scrollIntoView({ behavior: 'smooth', block: 'center' })
-            }
+        await handleSubmit()
+      } catch (errorInfo: any) {
+        // Handle form validation errors - scroll to first invalid field
+        const firstErrorField = errorInfo?.errorFields?.[0]?.name?.[0]
+        if (firstErrorField) {
+          const element = document.querySelector(`[name="${firstErrorField}"]`)
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' })
           }
         }
-      }, 0)
+        // Currency/submission errors are already handled by context with toast
+      }
     },
-    [form, expenseRuleError, hasReceiptCurrencyError, handleSubmit]
+    [form, expenseRuleError, handleSubmit]
   )
 
   return (
@@ -155,7 +148,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         <UploadComponent fileList={fileList} setFileList={setFileList} />
       </div>
 
-      {hasReceiptCurrencyError && (
+      {receiptCurrencyError && fileList && fileList.length > 0 && (
         <div
           className="gba:mb-4 gba:rounded-md gba:bg-destructive-secondary gba:text-destructive-secondary-foreground gba:px-4 gba:py-3"
           data-testid="receipt-currency-error-container"
@@ -457,7 +450,11 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         <Button
           variant="primary"
           onClick={handleCreateClick}
-          disabled={isProcessingFiles || (isEditMode && hadBackendRequestRef.current && !selectedExpenseRequestId) || hasReceiptCurrencyError}
+          disabled={
+            isProcessingFiles ||
+            (isEditMode && hadBackendRequestRef.current && !selectedExpenseRequestId) ||
+            !!receiptCurrencyError
+          }
           className="gba:min-w-[100px] gba:border-2 gba:text-base gba:font-semibold gba:px-4"
           style={{ borderRadius: '22px', width: 'auto', height: '40px' }}
           data-testid="submit-button"
