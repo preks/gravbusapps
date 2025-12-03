@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import {
   Button,
@@ -113,6 +113,13 @@ interface TaxCodeOption {
   code: string
 }
 
+interface ExpenseGroupOption {
+  id: string
+  value: string
+  code: string
+  translations?: { localeCode: string; value: string }[]
+}
+
 const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessToken, activeFrom, activeTo }) => {
   const graphqlClient = useGraphQLClient(accessToken)
   const catalogClient = useCatalogManagerClient(accessToken)
@@ -155,6 +162,9 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
   const [taxCodes, setTaxCodes] = useState<TaxCodeOption[]>([])
   const [catalogsLoading, setCatalogsLoading] = useState(true)
 
+  // ExpenseGroup catalog state
+  const [expenseGroups, setExpenseGroups] = useState<ExpenseGroupOption[]>([])
+
   // Set up client
   expenseSettingsClient.setAccessToken(accessToken)
 
@@ -178,6 +188,27 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
       console.error('Error loading TaxCode catalog:', error)
     } finally {
       setCatalogsLoading(false)
+    }
+  }, [catalogClient])
+
+  // Load ExpenseGroup catalog
+  const loadExpenseGroups = useCallback(async () => {
+    try {
+      const response = await catalogClient.getCatalogEntriesList(
+        { catalogIdentifier: 'ExpenseGroup', version: 'v1' },
+        { limit: 100, offset: 0, returnTotalRecords: true }
+      )
+
+      setExpenseGroups(
+        response.data.map((item: any) => ({
+          id: item.id,
+          value: item.value,
+          code: item.code,
+          translations: item.translations
+        }))
+      )
+    } catch (error) {
+      console.error('Error loading ExpenseGroup catalog:', error)
     }
   }, [catalogClient])
 
@@ -289,8 +320,9 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
     if (ruleId && accessToken) {
       fetchGeneralExpenses()
       loadTaxCodes()
+      loadExpenseGroups()
     }
-  }, [ruleId, accessToken, fetchGeneralExpenses, loadTaxCodes])
+  }, [ruleId, accessToken, fetchGeneralExpenses, loadTaxCodes, loadExpenseGroups])
 
   // Check if a general expense is used in ExpensePlanItem, ExpenseItem, or ExpensePosition
   const checkGeneralExpenseUsage = useCallback(
@@ -461,6 +493,39 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
 
       const formData = form.getValues()
 
+      // Validate that expense validity period is within rule's validity period
+      const expenseFrom = dayjs(formData.activeFrom)
+      const expenseTo = formData.activeTo ? dayjs(formData.activeTo) : null
+      const ruleFrom = dayjs(activeFrom)
+      const ruleTo = activeTo ? dayjs(activeTo) : null
+
+      // Check: Expense's activeFrom must be >= Rule's activeFrom
+      if (expenseFrom.isBefore(ruleFrom)) {
+        toast.error(
+          `Expense "Valid From" (${expenseFrom.format('DD.MM.YYYY')}) cannot be before the rule's "Valid From" (${ruleFrom.format('DD.MM.YYYY')})`
+        )
+        setIsSaving(false)
+        return
+      }
+
+      // Check: Expense's activeTo must be <= Rule's activeTo (if rule has an end date)
+      if (ruleTo && expenseTo && expenseTo.isAfter(ruleTo)) {
+        toast.error(
+          `Expense "Valid To" (${expenseTo.format('DD.MM.YYYY')}) cannot be after the rule's "Valid To" (${ruleTo.format('DD.MM.YYYY')})`
+        )
+        setIsSaving(false)
+        return
+      }
+
+      // Check: Expense's activeFrom must be <= Rule's activeTo (if rule has an end date)
+      if (ruleTo && expenseFrom.isAfter(ruleTo)) {
+        toast.error(
+          `Expense "Valid From" (${expenseFrom.format('DD.MM.YYYY')}) cannot be after the rule's "Valid To" (${ruleTo.format('DD.MM.YYYY')})`
+        )
+        setIsSaving(false)
+        return
+      }
+
       // Parse additionalProperties from JSON string
       let parsedAdditionalProperties: Record<string, unknown> | undefined
       if (additionalPropertiesJson.trim()) {
@@ -515,14 +580,22 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
     return `${taxValue}%`
   }
 
-  // Mock expense group options - in real implementation, these would come from catalog
-  const expenseGroupOptions = [
-    { value: 'ExpenseGroup:v1:TRAVEL', label: 'Travel Expenses' },
-    { value: 'ExpenseGroup:v1:MEALS', label: 'Meals & Entertainment' },
-    { value: 'ExpenseGroup:v1:OFFICE', label: 'Office Supplies' },
-    { value: 'ExpenseGroup:v1:TRANSPORT', label: 'Transportation' },
-    { value: 'ExpenseGroup:v1:ACCOMMODATION', label: 'Accommodation' }
-  ]
+  // Get localized label for expense group
+  const getExpenseGroupLabel = useCallback((group: ExpenseGroupOption): string => {
+    const currentLocale = 'en-US' // Could use getCurrentActiveUserLocale()
+    const translation = group.translations?.find(t => t.localeCode === currentLocale)
+    return translation?.value || group.value || group.code
+  }, [])
+
+  // Map expense groups from catalog to select options
+  const expenseGroupOptions = useMemo(
+    () =>
+      expenseGroups.map(group => ({
+        value: group.id,
+        label: getExpenseGroupLabel(group)
+      })),
+    [expenseGroups, getExpenseGroupLabel]
+  )
 
   const formatReimbursable = (reimbursable: boolean): React.ReactNode => {
     if (reimbursable === true) {
