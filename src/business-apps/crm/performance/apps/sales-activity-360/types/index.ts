@@ -4,7 +4,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 export type ActivityViewFilter = 'all' | 'by-employee' | 'by-account' | 'by-lead' | 'by-opportunity' | 'by-contact'
 
 // Tab types
-export type ActivityTabType = 'list' | 'calendar'
+export type ActivityTabType = 'list' | 'calendar' | 'comparison'
 
 // View selection state
 export interface ViewSelectionState {

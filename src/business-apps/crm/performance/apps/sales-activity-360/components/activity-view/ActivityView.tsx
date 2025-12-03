@@ -12,11 +12,13 @@ import {
   PiEnvelope,
   PiPhone,
   PiDeviceMobile,
-  PiMapPin
+  PiMapPin,
+  PiUsersThree
 } from 'react-icons/pi'
 import { ActivityViewProps, ActivityViewFilter, ActivityTabType } from '../../types'
 import { Activity360ListTab } from '../tabs/Activity360ListTab'
 import { Activity360CalendarTab } from '../tabs/Activity360CalendarTab'
+import { Activity360ComparisonTab } from '../tabs/Activity360ComparisonTab'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
@@ -162,11 +164,16 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
   onBack
 }) => {
   // Get initial tab from URL or default
+  // Note: 'comparison' tab is only available for 'all' filter
   const getInitialTab = (): ActivityTabType => {
     const urlParams = new URLSearchParams(globalThis.location.search)
     const subViewFromUrl = urlParams.get('tab')
     if (subViewFromUrl === 'list' || subViewFromUrl === 'calendar') {
       return subViewFromUrl
+    }
+    // Comparison tab only allowed for 'all' filter
+    if (subViewFromUrl === 'comparison' && filter === 'all') {
+      return 'comparison'
     }
     return 'list'
   }
@@ -329,43 +336,70 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
   // Custom wide content className for full width tables/calendars
   const wideContentClassName = 'gba:py-4 gba:w-full gba:max-w-full'
 
+  // Build tabs array - comparison tab only available for 'all' filter
+  const tabItems = useMemo(() => {
+    const items = [
+      {
+        value: 'list',
+        label: getTranslationFromI18nKeyAndLabel('crm.salesActivity360.activityList', 'Activity List'),
+        icon: <PiListBullets className="gba:mr-2" />,
+        contentClassName: wideContentClassName,
+        content: (
+          <div data-testid={`${DATA_TEST_ID_PREFIX}-list-content`}>
+            <Activity360ListTab accessToken={accessToken} userInfo={userInfo} filter={filter} entityId={entityId} />
+          </div>
+        )
+      },
+      {
+        value: 'calendar',
+        label: getTranslationFromI18nKeyAndLabel('crm.salesActivity360.activityCalendar', 'Activity Calendar'),
+        icon: <PiCalendar className="gba:mr-2" />,
+        contentClassName: wideContentClassName,
+        content: (
+          <div data-testid={`${DATA_TEST_ID_PREFIX}-calendar-content`}>
+            <Activity360CalendarTab
+              accessToken={accessToken}
+              userInfo={userInfo}
+              filter={filter}
+              entityId={entityId}
+              compact
+            />
+          </div>
+        )
+      }
+    ]
+
+    // Only add comparison tab for 'all' filter
+    if (filter === 'all') {
+      items.push({
+        value: 'comparison',
+        label: getTranslationFromI18nKeyAndLabel('crm.salesActivity360.employeeComparison', 'Employee Comparison'),
+        icon: <PiUsersThree className="gba:mr-2" />,
+        contentClassName: wideContentClassName,
+        content: (
+          <div data-testid={`${DATA_TEST_ID_PREFIX}-comparison-content`}>
+            <Activity360ComparisonTab
+              accessToken={accessToken}
+              userInfo={userInfo}
+              filter={filter}
+              entityId={entityId}
+            />
+          </div>
+        )
+      })
+    }
+
+    return items
+  }, [accessToken, userInfo, filter, entityId, wideContentClassName])
+
   // Prepare subviews configuration (tabs)
   const subViewsConfig = useMemo(
     () => ({
       defaultValue: activeTab,
       onValueChange: handleTabChange,
-      items: [
-        {
-          value: 'list',
-          label: getTranslationFromI18nKeyAndLabel('crm.salesActivity360.activityList', 'Activity List'),
-          icon: <PiListBullets className="gba:mr-2" />,
-          contentClassName: wideContentClassName,
-          content: (
-            <div data-testid={`${DATA_TEST_ID_PREFIX}-list-content`}>
-              <Activity360ListTab accessToken={accessToken} userInfo={userInfo} filter={filter} entityId={entityId} />
-            </div>
-          )
-        },
-        {
-          value: 'calendar',
-          label: getTranslationFromI18nKeyAndLabel('crm.salesActivity360.activityCalendar', 'Activity Calendar'),
-          icon: <PiCalendar className="gba:mr-2" />,
-          contentClassName: wideContentClassName,
-          content: (
-            <div data-testid={`${DATA_TEST_ID_PREFIX}-calendar-content`}>
-              <Activity360CalendarTab
-                accessToken={accessToken}
-                userInfo={userInfo}
-                filter={filter}
-                entityId={entityId}
-                compact
-              />
-            </div>
-          )
-        }
-      ]
+      items: tabItems
     }),
-    [activeTab, accessToken, userInfo, filter, entityId, handleTabChange]
+    [activeTab, handleTabChange, tabItems]
   )
 
   // Show loading for employee header fetch
