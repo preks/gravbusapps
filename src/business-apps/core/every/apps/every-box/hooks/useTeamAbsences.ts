@@ -14,14 +14,6 @@ export interface TeamAbsence {
   type: {
     value: string
     objectValue?: any
-    parentEntryId?: string
-    parentEntry?: {
-      id: string
-      value: string
-      objectValue?: {
-        color?: string
-      }
-    }
     translations?: Array<{
       localeCode: string
       value: string
@@ -129,12 +121,6 @@ export const useTeamAbsences = ({
         type {
           value
           objectValue
-          parentEntryId
-          parentEntry {
-            id
-            value
-            objectValue
-          }
           translations {
             localeCode
             value
