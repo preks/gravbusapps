@@ -1663,7 +1663,7 @@ async function main() {
       try {
         configureGit(projectRootDirForHashes, execSync)
         execSync('git add component-hashes-prod.json', { cwd: projectRootDirForHashes })
-        execSync(`git commit -m "chore(ci): update component hashes to ${PUBLISH_VERSION} [skip ci]"`, {
+        execSync(`git commit -m "chore(ci): update prod component hashes to ${PUBLISH_VERSION} [skip ci]"`, {
           cwd: projectRootDirForHashes
         })
 
