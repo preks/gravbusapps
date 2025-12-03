@@ -110,12 +110,9 @@ export const fetchOfficeAndGeoLocation = async (
     // Reverse geocode to human-readable address
     geoAddress = await getAddressFromCoords(position.coords.lat, position.coords.lng)
 
-    console.log(position.accuracy, 'accuracy')
-
     // If accuracy is poor, try Google Geolocation API and prefer the more accurate result
     if (position.accuracy > 500) {
       const googleResult = await tryGoogleGeolocation()
-      console.log(googleResult?.accuracy, 'googleResult.accuracy')
       if (googleResult && googleResult.accuracy < position.accuracy) {
         position = {
           coords: { lat: googleResult.lat, lng: googleResult.lng },
@@ -178,12 +175,6 @@ export const fetchOfficeAndGeoLocation = async (
       officeTextMatchScore
     }
   }
-
-  console.log('comparisons', comparisons)
-  console.log('position', position)
-  console.log('geoAddress', geoAddress)
-  console.log('homeAddress', homeAddress)
-  console.log('officeLocation', officeLocation)
 
   return { officeLocation, homeAddress, geoAddress, position, comparisons }
 }
