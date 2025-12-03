@@ -29,19 +29,19 @@ import { QuickTaskFormFields } from './QuickTaskFormFields'
 export const QuickTaskForm: React.FC<QuickTaskFormProps> = ({
   config,
   accessToken,
+  currentUserId,
   onSubmit,
   onCancel,
   defaultValues,
-  isSubmitting: externalIsSubmitting,
-  employeeId
+  isSubmitting: externalIsSubmitting
 }) => {
   const { form, handleSubmit, isSubmitting, employeeOptions, employeesLoading, handleEmployeeSearch } =
     useQuickTaskForm({
       accessToken,
+      currentUserId,
       config,
       defaultValues,
-      onSubmit,
-      employeeId
+      onSubmit
     })
 
   // Use external isSubmitting if provided, otherwise use internal
@@ -53,6 +53,7 @@ export const QuickTaskForm: React.FC<QuickTaskFormProps> = ({
       onSubmit={handleSubmit}
       onCancel={onCancel}
       config={config}
+      accessToken={accessToken}
       employeeOptions={employeeOptions}
       employeesLoading={employeesLoading}
       onEmployeeSearch={handleEmployeeSearch}

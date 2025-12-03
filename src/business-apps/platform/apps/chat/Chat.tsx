@@ -25,6 +25,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
   const [showCreateGroupModal, setShowCreateGroupModal] = useState(false)
   const [showGroupSettingsModal, setShowGroupSettingsModal] = useState(false)
   const urlContextProcessed = useRef(false)
+  const conversationIdFromUrlProcessed = useRef(false)
 
   let baseUrl = env('NEXT_PUBLIC_BASE_URL') || ''
   baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
@@ -129,8 +130,18 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
   const handleCreateConversation = useCallback(
     async (user: User) => {
       try {
-        await createDirectConversation(user.id)
+        // Mark as processed to prevent URL restoration effect from re-triggering
+        conversationIdFromUrlProcessed.current = true
+
+        const conversation = await createDirectConversation(user.id)
         setShowConversationList(false)
+
+        // Persist conversation ID in URL for panel reopen persistence
+        if (conversation?.id) {
+          const url = new URL(window.location.href)
+          url.searchParams.set('conversationId', conversation.id)
+          window.history.replaceState({}, '', url.toString())
+        }
       } catch (err) {
         console.error('Error creating conversation:', err)
       }
@@ -140,8 +151,16 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
 
   const handleConversationSelect = useCallback(
     (conversation: Conversation) => {
+      // Mark as processed to prevent URL restoration effect from re-triggering
+      conversationIdFromUrlProcessed.current = true
+
       setActiveConversation(conversation)
       setShowConversationList(false)
+
+      // Persist conversation ID in URL for panel reopen persistence
+      const url = new URL(window.location.href)
+      url.searchParams.set('conversationId', conversation.id)
+      window.history.replaceState({}, '', url.toString())
     },
     [setActiveConversation]
   )
@@ -149,6 +168,11 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
   const handleBack = useCallback(() => {
     setShowConversationList(true)
     setActiveConversation(null)
+
+    // Clear conversation ID from URL when going back to list
+    const url = new URL(window.location.href)
+    url.searchParams.delete('conversationId')
+    window.history.replaceState({}, '', url.toString())
   }, [setActiveConversation])
 
   const handleCloseConversation = useCallback(() => {
@@ -159,6 +183,11 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
     if (viewMode !== 'full') {
       setShowConversationList(true)
     }
+
+    // Clear conversation ID from URL
+    const url = new URL(window.location.href)
+    url.searchParams.delete('conversationId')
+    window.history.replaceState({}, '', url.toString())
   }, [setActiveConversation, viewMode])
 
   const handleRemoveConversation = useCallback(async () => {
@@ -170,6 +199,11 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
       if (viewMode !== 'full') {
         setShowConversationList(true)
       }
+
+      // Clear conversation ID from URL
+      const url = new URL(window.location.href)
+      url.searchParams.delete('conversationId')
+      window.history.replaceState({}, '', url.toString())
     } catch (error) {
       console.error('Failed to remove conversation:', error)
     }
@@ -182,8 +216,18 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
   const handleCreateGroupSubmit = useCallback(
     async (name: string, participantIds: string[], description?: string) => {
       try {
-        await createGroupConversation(name, participantIds, description)
+        // Mark as processed to prevent URL restoration effect from re-triggering
+        conversationIdFromUrlProcessed.current = true
+
+        const conversation = await createGroupConversation(name, participantIds, description)
         setShowCreateGroupModal(false)
+
+        // Persist conversation ID in URL for panel reopen persistence
+        if (conversation?.id) {
+          const url = new URL(window.location.href)
+          url.searchParams.set('conversationId', conversation.id)
+          window.history.replaceState({}, '', url.toString())
+        }
       } catch (error) {
         console.error('Failed to create group:', error)
         throw error
@@ -233,6 +277,27 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
     return () => resizeObserver.disconnect()
   }, [])
 
+  // Restore active conversation from URL parameter (for panel reopen persistence)
+  useEffect(() => {
+    // Only process once when conversations are loaded, and only if no conversation is already active
+    if (conversationIdFromUrlProcessed.current || !conversations.length || activeConversationId) {
+      return
+    }
+
+    const urlParams = new URLSearchParams(window.location.search)
+    const conversationIdParam = urlParams.get('conversationId')
+
+    if (conversationIdParam) {
+      // Find the conversation in the loaded list
+      const conversation = conversations.find(c => c.id === conversationIdParam)
+      if (conversation) {
+        conversationIdFromUrlProcessed.current = true
+        setActiveConversation(conversation)
+        setShowConversationList(false)
+      }
+    }
+  }, [conversations, setActiveConversation, activeConversationId])
+
   // Handle URL parameters for context and AI agent conversations (only once)
   useEffect(() => {
     // Only process URL params once when user is connected
@@ -250,6 +315,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
     if ((aiAgentParam === 'true' || typeParam === 'ai-agent') && createAiAgentConversation) {
       // Mark as processed immediately to prevent duplicate calls
       urlContextProcessed.current = true
+      conversationIdFromUrlProcessed.current = true
 
       // Parse context if provided for AI agent
       let contextEntity: string | undefined
@@ -263,10 +329,17 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
       }
 
       createAiAgentConversation(contextEntity, contextEntityId)
-        .then(() => {
+        .then(conversation => {
           // Hide conversation list in compact/mobile modes after opening AI chat
           if (viewMode !== 'full') {
             setShowConversationList(false)
+          }
+
+          // Persist conversation ID in URL for panel reopen persistence
+          if (conversation?.id) {
+            const url = new URL(window.location.href)
+            url.searchParams.set('conversationId', conversation.id)
+            window.history.replaceState({}, '', url.toString())
           }
         })
         .catch(err => {
@@ -280,6 +353,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
       if (contextEntity && contextEntityId) {
         // Mark as processed immediately to prevent duplicate calls
         urlContextProcessed.current = true
+        conversationIdFromUrlProcessed.current = true
 
         // Parse users if provided
         const users = usersParam ? usersParam.split(',').filter(Boolean) : undefined
@@ -291,10 +365,17 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
           undefined, // Let backend generate default name
           users
         )
-          .then(() => {
+          .then(conversation => {
             // Hide conversation list in compact/mobile modes after opening context chat
             if (viewMode !== 'full') {
               setShowConversationList(false)
+            }
+
+            // Persist conversation ID in URL for panel reopen persistence
+            if (conversation?.id) {
+              const url = new URL(window.location.href)
+              url.searchParams.set('conversationId', conversation.id)
+              window.history.replaceState({}, '', url.toString())
             }
           })
           .catch(err => {
@@ -391,7 +472,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
     const otherUserPresence = otherUserId ? getUserPresence(otherUserId) : undefined
 
     return (
-      <div className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:min-h-0">
+      <div className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:h-full gba:max-h-full gba:overflow-hidden">
         {activeConversation ? (
           <>
             <ConversationHeader
@@ -463,11 +544,11 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
     >
       <OfflineBanner />
 
-      <div className="gba:flex-1 gba:flex gba:flex-row gba:min-h-0 gba:overflow-hidden">
+      <div className="gba:flex-1 gba:flex gba:flex-row gba:min-h-0 gba:h-full gba:overflow-hidden">
         {/* Conversation List */}
         {showListView && (
           <div
-            className={`gba:flex gba:flex-col gba:border-r gba:border-border/50 gba:bg-muted/30 ${
+            className={`gba:flex gba:flex-col gba:h-full gba:border-r gba:border-border/50 gba:bg-muted/30 ${
               isSingleViewMode ? 'gba:w-full' : 'gba:w-72 gba:flex-shrink-0'
             }`}
           >
