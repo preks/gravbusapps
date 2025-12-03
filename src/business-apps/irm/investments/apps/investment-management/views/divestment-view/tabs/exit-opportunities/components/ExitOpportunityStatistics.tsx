@@ -7,7 +7,6 @@ import { formatCompactCurrency, extractCurrencyCode } from '@/common/utils/numbe
 import { useExitOpportunityMetrics } from '../hooks/useExitOpportunityMetrics'
 
 export interface ExitOpportunityStatisticsProps extends BusinessAppContextProps {
-  onRefresh?: () => void
   currencyCode?: string
 }
 
@@ -57,7 +56,7 @@ export const ExitOpportunityStatistics: React.FC<ExitOpportunityStatisticsProps>
       trend: {
         value: formatPercentageChange(metrics.countChange),
         positive: metrics.countChange >= 0,
-        description: getTranslationFromI18nKeyAndLabel('vs_last_30_days', 'vs last 30 days')
+        description: getTranslationFromI18nKeyAndLabel('vs_last_quarter', 'vs last quarter')
       }
     },
     {
@@ -72,7 +71,7 @@ export const ExitOpportunityStatistics: React.FC<ExitOpportunityStatisticsProps>
       trend: {
         value: formatPercentageChange(metrics.totalValueChange),
         positive: metrics.totalValueChange >= 0,
-        description: getTranslationFromI18nKeyAndLabel('vs_last_30_days', 'vs last 30 days')
+        description: getTranslationFromI18nKeyAndLabel('vs_last_quarter', 'vs last quarter')
       }
     },
     {
@@ -87,7 +86,7 @@ export const ExitOpportunityStatistics: React.FC<ExitOpportunityStatisticsProps>
       trend: {
         value: formatPercentageChange(metrics.averageValueChange),
         positive: metrics.averageValueChange >= 0,
-        description: getTranslationFromI18nKeyAndLabel('vs_last_30_days', 'vs last 30 days')
+        description: getTranslationFromI18nKeyAndLabel('vs_last_quarter', 'vs last quarter')
       }
     },
     {
@@ -102,7 +101,7 @@ export const ExitOpportunityStatistics: React.FC<ExitOpportunityStatisticsProps>
       trend: {
         value: formatPercentageChange(metrics.winRateChange),
         positive: metrics.winRateChange >= 0,
-        description: getTranslationFromI18nKeyAndLabel('vs_last_30_days', 'vs last 30 days')
+        description: getTranslationFromI18nKeyAndLabel('vs_last_quarter', 'vs last quarter')
       }
     }
   ]
@@ -112,6 +111,7 @@ export const ExitOpportunityStatistics: React.FC<ExitOpportunityStatisticsProps>
       widgets={widgets}
       isLoading={isLoading}
       error={error ? new Error(error) : null}
+      onRetry={() => loadMetrics({ dealType: 'DIVESTMENT_DEAL', currencyCode: currencyCode || undefined })}
       skeletonCount={4}
       defaultSpan={{ xs: 24, sm: 12, md: 12, lg: 6 }}
       emptyText={getTranslationFromI18nKeyAndLabel('no_metrics_available', 'No metrics available')}

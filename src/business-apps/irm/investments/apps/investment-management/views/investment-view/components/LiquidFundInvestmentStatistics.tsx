@@ -46,7 +46,7 @@ export const LiquidFundInvestmentStatistics: React.FC<LiquidFundInvestmentStatis
       trend: {
         value: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).value,
         positive: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).positive,
-        description: 'vs 30 days ago'
+        description: 'vs last quarter'
       }
     },
     {
@@ -61,7 +61,7 @@ export const LiquidFundInvestmentStatistics: React.FC<LiquidFundInvestmentStatis
       trend: {
         value: calculateChange(kpis.averageInvestmentValue, previousKpis.averageInvestmentValue).value,
         positive: calculateChange(kpis.averageInvestmentValue, previousKpis.averageInvestmentValue).positive,
-        description: 'vs 30 days ago'
+        description: 'vs last quarter'
       }
     },
     {
@@ -76,7 +76,7 @@ export const LiquidFundInvestmentStatistics: React.FC<LiquidFundInvestmentStatis
       trend: {
         value: calculateChange(kpis.averageMarketValue, previousKpis.averageMarketValue).value,
         positive: calculateChange(kpis.averageMarketValue, previousKpis.averageMarketValue).positive,
-        description: 'vs 30 days ago'
+        description: 'vs last quarter'
       }
     },
     {
@@ -91,7 +91,7 @@ export const LiquidFundInvestmentStatistics: React.FC<LiquidFundInvestmentStatis
       trend: {
         value: calculateChange(kpis.totalMarketValue, previousKpis.totalMarketValue).value,
         positive: calculateChange(kpis.totalMarketValue, previousKpis.totalMarketValue).positive,
-        description: 'vs 30 days ago'
+        description: 'vs last quarter'
       }
     }
   ]

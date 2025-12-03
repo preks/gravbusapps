@@ -26,12 +26,12 @@ import {
 import type { InvestmentOpportunity } from '@/common/data/investment/types/investmentOpportunityTypes'
 import type { InvestmentOpportunityQueryVariables } from '@/common/data/investment/queries/investmentOpportunityQueries'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { SalesStatistics } from './components/SalesStatistics'
+import { ExitsStatistics } from './components/ExitsStatistics'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 
-export type SalesTabProps = BusinessAppContextProps
+export type ExitsTabProps = BusinessAppContextProps
 
-export const SalesTab: React.FC<SalesTabProps> = context => {
+export const ExitsTab: React.FC<ExitsTabProps> = context => {
   const { accessToken } = context
   const [selectedCurrency, setSelectedCurrency] = useState('EUR')
   const { fetchInvestmentOpportunities } = useGetInvestmentOpportunities(context)
@@ -206,7 +206,7 @@ export const SalesTab: React.FC<SalesTabProps> = context => {
       setOpportunities(result.InvestmentOpportunity || [])
       setTotalCount(result.totalCount || 0)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load sales opportunities')
+      setError(err instanceof Error ? err.message : 'Failed to load exit opportunities')
       setOpportunities([])
       setTotalCount(0)
     } finally {
@@ -264,7 +264,7 @@ export const SalesTab: React.FC<SalesTabProps> = context => {
     const url = buildPlatformUrl('/platform/irm/opportunity-record', {
       opportunityId: opportunity.id,
       source: 'divestment-view',
-      tab: 'sales'
+      tab: 'exits'
     })
     navigateTo(url)
   }, [])
@@ -284,7 +284,7 @@ export const SalesTab: React.FC<SalesTabProps> = context => {
   const availableColumns = useMemo(
     () => [
       { id: 'opportunity', label: 'Opportunity' },
-      { id: 'amount', label: 'Sale Amount' },
+      { id: 'amount', label: 'Exit Amount' },
       { id: 'account', label: 'Account' },
       { id: 'status', label: 'Status' },
       { id: 'closeDate', label: 'Close Date' },
@@ -328,24 +328,24 @@ export const SalesTab: React.FC<SalesTabProps> = context => {
   // No need for client-side pagination anymore - using server-side pagination
 
   return (
-    <div data-testid="sales-tab-container" className="gba:space-y-6">
+    <div data-testid="exits-tab-container" className="gba:space-y-6">
       {/* Statistics */}
-      <SalesStatistics {...context} currencyCode={selectedCurrency} />
+      <ExitsStatistics {...context} currencyCode={selectedCurrency} />
 
       {/* Data Display with List */}
       <DataDisplay
         titleSections={[
           {
-            id: 'sales',
-            label: 'Sold Opportunities',
+            id: 'exits',
+            label: 'Exited Opportunities',
             metadata: {
               count: totalCount
             }
           }
         ]}
-        currentSection="sales"
+        currentSection="exits"
         searchValue={searchTerm}
-        searchPlaceholder="Search sold opportunities..."
+        searchPlaceholder="Search exited opportunities..."
         onSearchChange={handleSearch}
         filters={selectedFilters}
         filterConfiguration={dynamicFilterConfig}
@@ -370,11 +370,11 @@ export const SalesTab: React.FC<SalesTabProps> = context => {
           pagination={pagination}
           onPaginationChange={setPagination}
           onRowClick={handleRowClick}
-          dataTestId="sales-opportunities-list"
+          dataTestId="exits-opportunities-list"
         />
       </DataDisplay>
     </div>
   )
 }
 
-export default SalesTab
+export default ExitsTab

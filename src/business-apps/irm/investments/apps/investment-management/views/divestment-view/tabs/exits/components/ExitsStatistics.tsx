@@ -9,20 +9,19 @@ import { useInvestmentOpportunityFilters } from '@/business-apps/irm/core/apps/i
 import type { InvestmentOpportunityQueryVariables } from '@/common/data/investment/queries/investmentOpportunityQueries'
 import type { InvestmentOpportunity } from '@/common/data/investment/types/investmentOpportunityTypes'
 
-export interface SalesStatisticsProps extends BusinessAppContextProps {
-  onRefresh?: () => void
+export interface ExitsStatisticsProps extends BusinessAppContextProps {
   currencyCode?: string
 }
 
-interface SalesMetrics {
-  totalSold: number
-  totalRevenue: number
-  averageRevenue: number
-  salesThisYear: number
-  totalSoldChange: number
-  totalRevenueChange: number
-  averageRevenueChange: number
-  salesThisYearChange: number
+interface ExitsMetrics {
+  totalExits: number
+  totalExitAmount: number
+  averageExitAmount: number
+  exitsThisYear: number
+  totalExitsChange: number
+  totalExitAmountChange: number
+  averageExitAmountChange: number
+  exitsThisYearChange: number
   currencyCode: string
 }
 
@@ -47,25 +46,25 @@ const calculateMetrics = (opportunities: InvestmentOpportunity[], beforeDate?: D
   const totalValue = filteredOpportunities.reduce((sum, opp) => sum + (opp.estimatedAmount || 0), 0)
   const averageValue = filteredOpportunities.length > 0 ? totalValue / filteredOpportunities.length : 0
 
-  // Count sales closed this year
+  // Count exits closed this year
   const now = new Date()
   const thisYearStart = new Date(now.getFullYear(), 0, 1)
-  const salesThisYear = filteredOpportunities.filter(opp => {
+  const exitsThisYear = filteredOpportunities.filter(opp => {
     if (!opp.closeDate) return false
     const closeDate = new Date(opp.closeDate)
     return closeDate >= thisYearStart
   }).length
 
   return {
-    totalSold: filteredOpportunities.length,
-    totalRevenue: totalValue,
-    averageRevenue: averageValue,
-    salesThisYear
+    totalExits: filteredOpportunities.length,
+    totalExitAmount: totalValue,
+    averageExitAmount: averageValue,
+    exitsThisYear
   }
 }
 
-export const SalesStatistics: React.FC<SalesStatisticsProps> = ({ accessToken, userInfo, currencyCode }) => {
-  const [metrics, setMetrics] = useState<SalesMetrics | null>(null)
+export const ExitsStatistics: React.FC<ExitsStatisticsProps> = ({ accessToken, userInfo, currencyCode }) => {
+  const [metrics, setMetrics] = useState<ExitsMetrics | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -76,7 +75,7 @@ export const SalesStatistics: React.FC<SalesStatisticsProps> = ({ accessToken, u
   const filterData = useInvestmentOpportunityFilters(context)
   const { statuses } = filterData
 
-  // Identify WON status IDs for server-side filtering (same logic as SalesTab)
+  // Identify WON status IDs for server-side filtering (same logic as ExitsTab)
   const wonStatusIds = React.useMemo(() => {
     return statuses
       .filter(status => {
@@ -92,14 +91,14 @@ export const SalesStatistics: React.FC<SalesStatisticsProps> = ({ accessToken, u
       // If no WON statuses found, set empty metrics
       if (wonStatusIds.length === 0) {
         setMetrics({
-          totalSold: 0,
-          totalRevenue: 0,
-          averageRevenue: 0,
-          salesThisYear: 0,
-          totalSoldChange: 0,
-          totalRevenueChange: 0,
-          averageRevenueChange: 0,
-          salesThisYearChange: 0,
+          totalExits: 0,
+          totalExitAmount: 0,
+          averageExitAmount: 0,
+          exitsThisYear: 0,
+          totalExitsChange: 0,
+          totalExitAmountChange: 0,
+          averageExitAmountChange: 0,
+          exitsThisYearChange: 0,
           currencyCode: currencyCode || 'EUR'
         })
         setIsLoading(false)
@@ -126,17 +125,17 @@ export const SalesStatistics: React.FC<SalesStatisticsProps> = ({ accessToken, u
 
       // Calculate current and historical metrics
       const currentDate = new Date()
-      const thirtyDaysAgo = new Date()
-      thirtyDaysAgo.setDate(currentDate.getDate() - 30)
+      const quarterAgo = new Date()
+      quarterAgo.setDate(currentDate.getDate() - 91)
 
       const current = calculateMetrics(wonOpportunities)
-      const historical = calculateMetrics(wonOpportunities, thirtyDaysAgo)
+      const historical = calculateMetrics(wonOpportunities, quarterAgo)
 
-      // Year-over-year for sales this year
+      // Year-over-year for exits this year
       const lastYearStart = new Date(currentDate.getFullYear() - 1, 0, 1)
       const lastYearEnd = new Date(currentDate.getFullYear() - 1, currentDate.getMonth(), currentDate.getDate())
 
-      const salesLastYearSamePeriod = wonOpportunities.filter(opp => {
+      const exitsLastYearSamePeriod = wonOpportunities.filter(opp => {
         if (!opp.closeDate) return false
         const closeDate = new Date(opp.closeDate)
         return closeDate >= lastYearStart && closeDate <= lastYearEnd
@@ -151,13 +150,13 @@ export const SalesStatistics: React.FC<SalesStatisticsProps> = ({ accessToken, u
       setMetrics({
         ...current,
         currencyCode: extractedCurrency,
-        totalSoldChange: calculatePercentageChange(current.totalSold, historical.totalSold),
-        totalRevenueChange: calculatePercentageChange(current.totalRevenue, historical.totalRevenue),
-        averageRevenueChange: calculatePercentageChange(current.averageRevenue, historical.averageRevenue),
-        salesThisYearChange: calculatePercentageChange(current.salesThisYear, salesLastYearSamePeriod)
+        totalExitsChange: calculatePercentageChange(current.totalExits, historical.totalExits),
+        totalExitAmountChange: calculatePercentageChange(current.totalExitAmount, historical.totalExitAmount),
+        averageExitAmountChange: calculatePercentageChange(current.averageExitAmount, historical.averageExitAmount),
+        exitsThisYearChange: calculatePercentageChange(current.exitsThisYear, exitsLastYearSamePeriod)
       })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load sales metrics')
+      setError(err instanceof Error ? err.message : 'Failed to load exits metrics')
     } finally {
       setIsLoading(false)
     }
@@ -182,70 +181,70 @@ export const SalesStatistics: React.FC<SalesStatisticsProps> = ({ accessToken, u
         skeletonCount={4}
         defaultSpan={{ xs: 24, sm: 12, md: 12, lg: 6 }}
         emptyText={getTranslationFromI18nKeyAndLabel('loading_metrics', 'Loading metrics...')}
-        data-testid="sales-statistics-loading"
+        data-testid="exits-statistics-loading"
       />
     )
   }
 
   const widgets: WidgetItem[] = [
     {
-      key: 'total-sold',
-      title: getTranslationFromI18nKeyAndLabel('total_sold', 'Total Sold'),
-      value: metrics.totalSold,
+      key: 'total-exits',
+      title: getTranslationFromI18nKeyAndLabel('total_exits', 'Total Exit'),
+      value: metrics.totalExits,
       prefix: <CheckCircle className="gba:h-5 gba:w-5 gba:text-green-600" />,
       color: '#52c41a',
       span: { xs: 24, sm: 12, md: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel(
-        'successfully_sold_opportunities',
-        'Successfully sold opportunities'
+        'successfully_exited_opportunities',
+        'Successfully exited opportunities'
       ),
       trend: {
-        value: formatPercentageChange(metrics.totalSoldChange),
-        positive: metrics.totalSoldChange >= 0,
-        description: getTranslationFromI18nKeyAndLabel('vs_last_30_days', 'vs last 30 days')
+        value: formatPercentageChange(metrics.totalExitsChange),
+        positive: metrics.totalExitsChange >= 0,
+        description: getTranslationFromI18nKeyAndLabel('vs_last_quarter', 'vs last quarter')
       }
     },
     {
-      key: 'average-sale-amount',
-      title: getTranslationFromI18nKeyAndLabel('average_sale_amount', 'Average Sale Amount'),
-      value: formatCompactCurrency(metrics.averageRevenue, metrics.currencyCode),
+      key: 'average-exit-amount',
+      title: getTranslationFromI18nKeyAndLabel('average_exit_amount', 'Average Exit Amount'),
+      value: formatCompactCurrency(metrics.averageExitAmount, metrics.currencyCode),
       valueIsString: true,
       prefix: <Target className="gba:h-5 gba:w-5 gba:text-purple-600" />,
       color: '#722ed1',
       span: { xs: 24, sm: 12, md: 12, lg: 6 },
-      description: getTranslationFromI18nKeyAndLabel('average_amount_per_sale', 'Average amount per sale'),
+      description: getTranslationFromI18nKeyAndLabel('average_amount_per_exit', 'Average amount per exit'),
       trend: {
-        value: formatPercentageChange(metrics.averageRevenueChange),
-        positive: metrics.averageRevenueChange >= 0,
-        description: getTranslationFromI18nKeyAndLabel('vs_last_30_days', 'vs last 30 days')
+        value: formatPercentageChange(metrics.averageExitAmountChange),
+        positive: metrics.averageExitAmountChange >= 0,
+        description: getTranslationFromI18nKeyAndLabel('vs_last_quarter', 'vs last quarter')
       }
     },
     {
-      key: 'total-revenue',
-      title: getTranslationFromI18nKeyAndLabel('total_revenue', 'Total Revenue'),
-      value: formatCompactCurrency(metrics.totalRevenue, metrics.currencyCode),
+      key: 'total-exit-amount',
+      title: getTranslationFromI18nKeyAndLabel('total_exit_amount', 'Total Exit Amount'),
+      value: formatCompactCurrency(metrics.totalExitAmount, metrics.currencyCode),
       valueIsString: true,
       prefix: <DollarSign className="gba:h-5 gba:w-5 gba:text-green-600" />,
       color: '#389e0d',
       span: { xs: 24, sm: 12, md: 12, lg: 6 },
-      description: getTranslationFromI18nKeyAndLabel('total_revenue_generated', 'Total revenue generated from sales'),
+      description: getTranslationFromI18nKeyAndLabel('total_amount_generated', 'Total amount generated from exits'),
       trend: {
-        value: formatPercentageChange(metrics.totalRevenueChange),
-        positive: metrics.totalRevenueChange >= 0,
-        description: getTranslationFromI18nKeyAndLabel('vs_last_30_days', 'vs last 30 days')
+        value: formatPercentageChange(metrics.totalExitAmountChange),
+        positive: metrics.totalExitAmountChange >= 0,
+        description: getTranslationFromI18nKeyAndLabel('vs_last_quarter', 'vs last quarter')
       }
     },
     {
-      key: 'sales-this-year',
-      title: getTranslationFromI18nKeyAndLabel('sales_this_year', 'Sales This Year'),
-      value: metrics.salesThisYear,
+      key: 'exits-this-year',
+      title: getTranslationFromI18nKeyAndLabel('exits_this_year', 'Exits This Year'),
+      value: metrics.exitsThisYear,
       prefix: <Award className="gba:h-5 gba:w-5 gba:text-blue-600" />,
       color: '#1890ff',
       span: { xs: 24, sm: 12, md: 12, lg: 6 },
-      description: getTranslationFromI18nKeyAndLabel('closed_sales_this_year', 'Closed sales this year'),
+      description: getTranslationFromI18nKeyAndLabel('closed_exits_this_year', 'Closed exits this year'),
       trend: {
-        value: formatPercentageChange(metrics.salesThisYearChange),
-        positive: metrics.salesThisYearChange >= 0,
+        value: formatPercentageChange(metrics.exitsThisYearChange),
+        positive: metrics.exitsThisYearChange >= 0,
         description: getTranslationFromI18nKeyAndLabel('vs_same_period_last_year', 'vs same period last year')
       }
     }
@@ -256,12 +255,13 @@ export const SalesStatistics: React.FC<SalesStatisticsProps> = ({ accessToken, u
       widgets={widgets}
       isLoading={isLoading}
       error={error ? new Error(error) : null}
+      onRetry={loadMetrics}
       skeletonCount={4}
       defaultSpan={{ xs: 24, sm: 12, md: 12, lg: 6 }}
       emptyText={getTranslationFromI18nKeyAndLabel('no_metrics_available', 'No metrics available')}
-      data-testid="sales-statistics"
+      data-testid="exits-statistics"
     />
   )
 }
 
-export default SalesStatistics
+export default ExitsStatistics
