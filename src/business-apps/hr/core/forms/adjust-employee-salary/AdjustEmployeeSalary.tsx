@@ -50,15 +50,20 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
   const locale = useMemo(() => getCurrentActiveUserLocale(), [])
 
   // Calculate default frequency based on available salary data (for adjust mode)
+  // Default to 'annually' if employee has annual/monthly salary, only use 'hourly' if employee has hourly salary only
   const defaultFrequency = useMemo<'annually' | 'monthly' | 'hourly'>(() => {
-    if (currentSalaryHourly != null && currentSalaryHourly > 0) {
+    const hasAnnualOrMonthlySalary =
+      (currentSalaryAnnual != null && currentSalaryAnnual > 0) ||
+      (currentSalaryMonthly != null && currentSalaryMonthly > 0)
+    const hasHourlySalary = currentSalaryHourly != null && currentSalaryHourly > 0
+
+    // If employee has hourly salary but no annual/monthly, default to hourly
+    if (hasHourlySalary && !hasAnnualOrMonthlySalary) {
       return 'hourly'
-    } else if (currentSalaryMonthly != null && currentSalaryMonthly > 0) {
-      return 'monthly'
-    } else {
-      return 'annually'
     }
-  }, [currentSalaryMonthly, currentSalaryHourly])
+    // Otherwise default to annually
+    return 'annually'
+  }, [currentSalaryAnnual, currentSalaryMonthly, currentSalaryHourly])
 
   // Default currency (EUR if available, otherwise first in list)
   const defaultCurrency = useMemo(() => {
@@ -237,6 +242,8 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
           cancelButtonText={t('action-cancel')}
           submitButtonText={t('action-submit')}
           isSubmitDisabled={!form.formState.isValid || isUnchangedNow}
+          // Shows cancel button - default cancelEventType="pse_abort" handles process abort
+          onCancel={() => undefined}
           onSubmit={async (values: AdjustEmployeeSalaryFormValues) => {
             // Mark as submitting to prevent form resets during submission
             isSubmittingRef.current = true
