@@ -1733,8 +1733,39 @@ async function main() {
       }
 
       // Commit and push to main
+      const targetBranch = 'main'
+
       try {
         configureGit(projectRootDirForHashes, execSync)
+
+        // Get the current branch name
+        const currentBranch = execSync('git rev-parse --abbrev-ref HEAD', {
+          cwd: projectRootDirForHashes,
+          encoding: 'utf8'
+        }).trim()
+        console.log(`   Current branch: ${currentBranch}`)
+        console.log(`   Target branch: ${targetBranch}`)
+
+        // Check if we're already on the target branch
+        const needsBranchSwitch = currentBranch !== targetBranch
+
+        if (needsBranchSwitch) {
+          console.log(`   📌 Switching from ${currentBranch} to ${targetBranch}...`)
+
+          // Save the hash file content before switching
+          const hashFileContent = fs.readFileSync(prodHashFile, 'utf8')
+
+          // Fetch the target branch
+          execSync(`git fetch origin ${targetBranch}:${targetBranch}`, { cwd: projectRootDirForHashes, stdio: 'pipe' })
+
+          // Checkout the target branch
+          execSync(`git checkout ${targetBranch}`, { cwd: projectRootDirForHashes, stdio: 'pipe' })
+
+          // Restore the hash file with our changes
+          fs.writeFileSync(prodHashFile, hashFileContent, 'utf8')
+          console.log(`   ✅ Switched to ${targetBranch} and restored hash file`)
+        }
+
         execSync(`git add ${hashFileName}`, { cwd: projectRootDirForHashes })
         execSync(`git commit -m "chore(ci): update prod component hashes to ${PUBLISH_VERSION} [skip ci]"`, {
           cwd: projectRootDirForHashes
@@ -1750,13 +1781,13 @@ async function main() {
               resolveHashConflict()
             } else {
               console.log(`   🔄 Attempt ${attempt}/3: Pulling and rebasing...`)
-              execSync('git pull --rebase origin main', { cwd: projectRootDirForHashes, stdio: 'pipe' })
+              execSync(`git pull --rebase origin ${targetBranch}`, { cwd: projectRootDirForHashes, stdio: 'pipe' })
             }
 
             // If we got here, rebase succeeded - try to push
-            execSync('git push origin main', { cwd: projectRootDirForHashes, stdio: 'pipe' })
+            execSync(`git push origin ${targetBranch}`, { cwd: projectRootDirForHashes, stdio: 'pipe' })
             pushSuccess = true
-            console.log('   ✅ Prod hashes committed and pushed to main')
+            console.log(`   ✅ Prod hashes committed and pushed to ${targetBranch}`)
             break
           } catch (error) {
             const errorOutput =
@@ -1774,9 +1805,9 @@ async function main() {
               try {
                 resolveHashConflict()
                 // After resolving, try to push
-                execSync('git push origin main', { cwd: projectRootDirForHashes, stdio: 'pipe' })
+                execSync(`git push origin ${targetBranch}`, { cwd: projectRootDirForHashes, stdio: 'pipe' })
                 pushSuccess = true
-                console.log('   ✅ Prod hashes committed and pushed to main (after conflict resolution)')
+                console.log(`   ✅ Prod hashes committed and pushed to ${targetBranch} (after conflict resolution)`)
                 break
               } catch (pushError) {
                 const pushErrorOutput =

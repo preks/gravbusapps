@@ -354,6 +354,33 @@ async function main() {
 
     try {
       configureGit(projectRoot, execSync)
+
+      // Get the current branch name
+      const currentBranch = execSync('git rev-parse --abbrev-ref HEAD', { cwd: projectRoot, encoding: 'utf8' }).trim()
+      console.log(`   Current branch: ${currentBranch}`)
+      console.log(`   Target branch: ${branch}`)
+
+      // Check if we're already on the target branch
+      const needsBranchSwitch = currentBranch !== branch
+
+      if (needsBranchSwitch) {
+        console.log(`   📌 Switching from ${currentBranch} to ${branch}...`)
+
+        // Stash any uncommitted changes (the hash file we just modified)
+        // We'll use a different approach: copy the hash file, switch branch, then restore
+        const hashFileContent = fs.readFileSync(hashFile, 'utf8')
+
+        // Fetch the target branch
+        execSync(`git fetch origin ${branch}:${branch}`, { cwd: projectRoot, stdio: 'pipe' })
+
+        // Checkout the target branch
+        execSync(`git checkout ${branch}`, { cwd: projectRoot, stdio: 'pipe' })
+
+        // Restore the hash file with our changes
+        fs.writeFileSync(hashFile, hashFileContent, 'utf8')
+        console.log(`   ✅ Switched to ${branch} and restored hash file`)
+      }
+
       execSync(`git add ${hashFileName}`, { cwd: projectRoot })
       execSync(
         `git commit -m "chore(ci): calculate ${args.env} component hashes (${successCount} screens) [skip ci]"`,
