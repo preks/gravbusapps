@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Button, Card, Alert, Icon } from '@newwork/nw-design-system'
+import { Button, Card, Alert, Icon, useTranslation } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useTimeTrackingData } from '@/business-apps/hr/core/apps/employee-record/components/tabs/hooks/useTimeTrackingData'
 import {
@@ -10,15 +10,16 @@ import {
 } from '@phosphor-icons/react'
 import { InterventionsTable } from '@/business-apps/hr/core/apps/employee-record/components/tabs/components/InterventionsTable'
 import HeroLiveClock from './HeroLiveClock'
+import timeTrackingTranslations from '../_i18n'
 
-interface MonthlySummaryProps {
+interface TimeTrackingProps {
   employee: any
   employeeId: string
   accessToken: string
   isSelfView: boolean
 }
 
-const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, accessToken, isSelfView }) => {
+const TimeTracking: React.FC<TimeTrackingProps> = ({ employee, employeeId, accessToken, isSelfView }) => {
   const {
     isClockedIn,
     clockInSince,
@@ -33,9 +34,7 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, a
     entries
   } = useTimeTrackingData({ employeeId, accessToken, workingHours: employee?.workingHours?.[0] })
 
-  console.log(employee?.workingHours?.[0], 'woking hours')
-
-  console.log('todaysPlannedMinutes', todaysPlannedMinutes)
+  const { t } = useTranslation(timeTrackingTranslations)
 
   const formatHm = (minutes: number) => {
     const abs = Math.max(0, Math.floor(minutes))
@@ -47,24 +46,27 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, a
   const employeeName =
     employee?.displayName || getTranslationFromI18nKeyAndLabel('lowcoder:common.employee', 'Employee')
 
-  // Secondary helper message for hero card
+  // Secondary helper message for hero card (avoid nested ternary)
   const isClockedOutWithWork = !isClockedIn && todayRecordedMinutes > 0
-  const headerSecondary = isClockedIn
-    ? getTranslationFromI18nKeyAndLabel(
-        'lowcoder:time_tracking.summary.header.clock_IN_secondary',
-        "Let's make this day count."
-      )
-    : isClockedOutWithWork
-      ? getTranslationFromI18nKeyAndLabel(
-          'lowcoder:time_tracking.summary.header.clock_OUT_secondary',
-          'Great work today — see you tomorrow, fresh and focused.'
-        )
-      : getTranslationFromI18nKeyAndLabel(
-          'lowcoder:time_tracking.summary.header.welcome_secondary',
-          'Let’s set things in motion — your hours start with a single click.'
-        )
+  let headerSecondary = ''
+  if (isClockedIn) {
+    headerSecondary = getTranslationFromI18nKeyAndLabel(
+      'lowcoder:time_tracking.summary.header.clock_IN_secondary',
+      "Let's make this day count."
+    )
+  } else if (isClockedOutWithWork) {
+    headerSecondary = getTranslationFromI18nKeyAndLabel(
+      'lowcoder:time_tracking.summary.header.clock_OUT_secondary',
+      'Great work today — see you tomorrow, fresh and focused.'
+    )
+  } else {
+    headerSecondary = getTranslationFromI18nKeyAndLabel(
+      'lowcoder:time_tracking.summary.header.welcome_secondary',
+      'Let’s set things in motion — your hours start with a single click.'
+    )
+  }
 
-  const workedHm = `${formatHm(todaysWorkedMinutes)}h`
+  const workedHm = `${formatHm(todayRecordedMinutes)}h`
   const plannedHm = `${formatHm(todaysPlannedMinutes)}h`
   const workProgressPct = React.useMemo(() => {
     if (!todaysPlannedMinutes || todaysPlannedMinutes <= 0) return 0
@@ -78,7 +80,8 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, a
     const raw = String(clockInSince)
     if (raw.includes('T')) {
       try {
-        const locale = (typeof window !== 'undefined' && (window as any)?.lowcoder?.i18n?.selectedLocale) || 'en-US'
+        const locale =
+          (typeof globalThis !== 'undefined' && (globalThis as any)?.lowcoder?.i18n?.selectedLocale) || 'en-US'
         const use12h = String(locale).toLowerCase().startsWith('en')
         return new Date(raw).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: use12h })
       } catch {
@@ -92,7 +95,8 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, a
   const formatIsoToTime = (iso?: string) => {
     if (!iso) return ''
     try {
-      const locale = (typeof window !== 'undefined' && (window as any)?.lowcoder?.i18n?.selectedLocale) || 'en-US'
+      const locale =
+        (typeof globalThis !== 'undefined' && (globalThis as any)?.lowcoder?.i18n?.selectedLocale) || 'en-US'
       const use12h = String(locale).toLowerCase().startsWith('en')
       return new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: use12h })
     } catch {
@@ -176,9 +180,7 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, a
         {/* Today's Timeline */}
         <Card className="gba:p-8 gba:min-h-96" data-testid="timeclock-timeline-card">
           <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
-            <div className="gba:text-lg gba:font-semibold">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.timeline.today', "Today's Timeline")}
-            </div>
+            <div className="gba:text-lg gba:font-semibold">{t('today_timeline')}</div>
           </div>
           {isClockedIn && (
             <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
@@ -199,20 +201,16 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, a
               <div className="gba:flex gba:items-center gba:gap-2">
                 <Icon icon={ClockIcon} />
                 <div className="gba:flex gba:flex-col">
-                  <div className="gba:text-sm gba:text-muted-foreground">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.timeline.worked_today', 'Worked today')}
-                  </div>
+                  <div className="gba:text-sm gba:text-muted-foreground">{t('worked_today')}</div>
                   <div className="gba:text-base gba:font-medium">
-                    {formatHm(todaysWorkedMinutes)} (
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.timeline.recorded', 'Recorded')}{' '}
-                    {formatHm(todayRecordedMinutes)})
+                    {formatHm(todaysWorkedMinutes)} ({t('recorded')} {formatHm(todayRecordedMinutes)})
                   </div>
                   <div className="gba:text-sm gba:text-muted-foreground">
                     {(() => {
                       const t = getTodayTimes()
                       const start = t.start || '—'
                       const end = t.end || '—'
-                      return `${getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.timeline.start', 'Start')} ${start} • ${getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.timeline.end', 'End')} ${end}`
+                      return `${getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.actions.clock_in', 'Clock In')} ${start} • ${getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.actions.clock_out', 'Clock Out')} ${end}`
                     })()}
                   </div>
                 </div>
@@ -221,30 +219,28 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, a
           )}
           {!isClockedIn && !hasTodayAttendanceRecord && (
             <div className="gba:text-muted-foreground gba:text-sm gba:py-8 gba:text-center">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:time_tracking.timeline.empty_today',
-                'No time entries for today yet'
-              )}
+              {t('no_time_entries_for_today')}
             </div>
           )}
         </Card>
 
         {/* Today at a Glance */}
         <Card className="gba:p-8 gba:min-h-96" data-testid="timeclock-glance-card">
-          <div className="gba:text-lg gba:font-semibold gba:mb-3">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.glance.title', 'Today at a Glance')}
-          </div>
+          <div className="gba:text-lg gba:font-semibold gba:mb-3">{t('today_at_a_glance')}</div>
 
           {/* Work Hours */}
           <div className="gba:border gba:border-muted gba:rounded-md gba:p-3 gba:mb-3">
             <div className="gba:flex gba:items-center gba:justify-between">
               <div className="gba:text-sm gba:text-muted-foreground">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.glance.work_hours', 'Work Hours')}
+                {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.work_hours_today', 'Work Hours Today')}
               </div>
               <Icon icon={ClockIcon} />
             </div>
             <div className="gba:mt-2 gba:text-xl gba:font-semibold">
-              {workedHm} <span className="gba:text-muted-foreground gba:text-base">/ {plannedHm} planned</span>
+              {workedHm}{' '}
+              <span className="gba:text-muted-foreground gba:text-base">
+                / {plannedHm} {t('planned')}
+              </span>
             </div>
             <div className="gba:mt-2 gba:h-2 gba:bg-muted gba:rounded-full">
               <div className="gba:h-2 gba:bg-primary gba:rounded-full" style={{ width: `${workProgressPct}%` }} />
@@ -253,13 +249,11 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, a
 
           {/* Status */}
           <div className="gba:border gba:border-muted gba:rounded-md gba:p-3">
-            <div className="gba:text-sm gba:text-muted-foreground gba:mb-2">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.glance.status', 'Status')}
-            </div>
+            <div className="gba:text-sm gba:text-muted-foreground gba:mb-2">{t('status')}</div>
             <div className="gba:inline-flex gba:items-center gba:gap-2 gba:px-2.5 gba:py-1 gba:rounded-full gba:bg-info-secondary gba:text-info gba:text-sm gba:font-medium">
               <Icon icon={ClockIcon} />
               {isClockedIn
-                ? getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.status.in_progress', 'In progress')
+                ? t('in_progress')
                 : getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.status.clocked_out', 'Clocked out')}
             </div>
           </div>
@@ -276,4 +270,4 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, a
   )
 }
 
-export default MonthlySummary
+export default TimeTracking

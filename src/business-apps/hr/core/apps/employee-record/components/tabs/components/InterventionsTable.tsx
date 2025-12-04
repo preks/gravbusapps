@@ -179,15 +179,17 @@ export const InterventionsTable: React.FC<InterventionsTableProps> = ({ employee
           )}
 
           <div className="gba:w-full" data-testid="time-interventions-list" ref={listRef}>
-            {isLoading ? (
+            {isLoading && (
               <div className="gba:py-3">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:common.loading', 'Loading...')}
               </div>
-            ) : visibleItems.length === 0 ? (
+            )}
+            {!isLoading && visibleItems.length === 0 && (
               <div className="gba:py-3">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.interventions.empty', 'No issues found')}
               </div>
-            ) : (
+            )}
+            {!isLoading && visibleItems.length > 0 && (
               <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:lg:grid-cols-3 gba:gap-3">
                 {visibleItems.map(item => {
                   const IconCmp = getReasonIcon(item.reason)
