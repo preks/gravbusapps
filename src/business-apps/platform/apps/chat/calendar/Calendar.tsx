@@ -1,37 +1,74 @@
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, useEffect, useMemo } from 'react'
 import { Alert, AlertDescription, Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { env } from '@/common/env/EnvUtils'
 import { useCalendar } from './hooks/useCalendar'
 import { useEmployeeAvatars } from '../hooks/useEmployeeAvatars'
 import { CalendarHeader, DayView, WeekView, MonthView, CreateMeetingModal, MeetingDetailModal } from './components'
+import { CallModal } from '../components/CallModal'
+import { IncomingCallDialog } from '../components/IncomingCallDialog'
+import { useCall } from '../hooks/useCall'
+import { useChatClient } from '../hooks/useChatClient'
 import type { CalendarEvent, Meeting, CreateMeetingData, InvitationStatus } from './types'
 import type { CallParticipant } from '../services/webrtcClient'
 
 interface CalendarProps extends BusinessAppContextProps {
   prefixDataTestId?: string
-  // Optional callback when user wants to join a meeting call
-  // Parent component can use this to initiate a WebRTC call
-  onJoinMeetingCall?: (meeting: {
-    id: string
-    title: string
-    participants: CallParticipant[]
-    meetingLink?: string
-  }) => void
-  // Optional callback to open chat for a conversation
-  onOpenChat?: (conversationId: string) => void
 }
 
-export const Calendar: React.FC<CalendarProps> = ({
-  accessToken,
-  prefixDataTestId = 'calendar',
-  onJoinMeetingCall,
-  onOpenChat
-}) => {
+export const Calendar: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId = 'calendar' }) => {
   // Build API URL
   let baseUrl = env('NEXT_PUBLIC_BASE_URL') || ''
   baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
   const apiUrl = env('NEXT_PUBLIC_CHAT_API') || `${baseUrl}/chat-service/api/v1`
+
+  // Initialize chat client for WebSocket and API access (needed for calls)
+  const chatClient = useChatClient({
+    accessToken,
+    apiUrl
+  })
+
+  const { currentUser, wsClient, apiClient } = chatClient
+
+  // Convert current user to CallParticipant format
+  const currentUserAsParticipant: CallParticipant | null = useMemo(() => {
+    if (!currentUser) return null
+    return {
+      id: currentUser.id,
+      odId: currentUser.id,
+      odName:
+        currentUser.displayName ||
+        `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() ||
+        currentUser.username ||
+        'Unknown',
+      avatarUrl: currentUser.avatarUrl
+    }
+  }, [currentUser])
+
+  // Call functionality
+  const {
+    callState,
+    isInCall,
+    initiateCall,
+    acceptCall,
+    rejectCall,
+    endCall,
+    toggleMute,
+    toggleVideo,
+    toggleScreenShare,
+    localStream,
+    remoteStream
+  } = useCall({
+    wsClient: wsClient || null,
+    apiClient: apiClient || null,
+    currentUser: currentUserAsParticipant,
+    onCallStarted: (callId, participant) => {
+      console.debug('Meeting call started:', callId, participant)
+    },
+    onCallEnded: (callId, duration) => {
+      console.debug('Meeting call ended:', callId, 'Duration:', duration, 'ms')
+    }
+  })
 
   // Calendar hook
   const {
@@ -262,28 +299,34 @@ export const Calendar: React.FC<CalendarProps> = ({
 
   // Handle starting a meeting call
   const handleStartCall = useCallback(() => {
-    if (!enrichedSelectedEvent || !onJoinMeetingCall) return
+    if (!enrichedSelectedEvent || !currentUser) return
 
-    // Convert participants to CallParticipant format
-    const callParticipants: CallParticipant[] = []
+    // Find the first other participant to call (for 1:1 call)
+    // In the future, this could be extended to support group calls
+    let targetParticipant: CallParticipant | null = null
 
-    // Add all accepted participants (excluding current user - parent will handle that)
+    // First, try to find an accepted participant who is not the current user
     if (enrichedSelectedEvent.participants) {
-      enrichedSelectedEvent.participants.forEach(p => {
-        if (p.status === 'accepted' || p.isOrganizer) {
-          callParticipants.push({
+      for (const p of enrichedSelectedEvent.participants) {
+        if ((p.status === 'accepted' || p.isOrganizer) && p.id !== currentUser.id) {
+          targetParticipant = {
             id: p.id,
             odId: p.id,
             odName: p.displayName || `${p.firstName || ''} ${p.lastName || ''}`.trim() || p.email || 'Unknown',
             avatarUrl: p.avatarUrl
-          })
+          }
+          break
         }
-      })
+      }
     }
 
-    // Also add organizer if not already included
-    if (enrichedSelectedEvent.organizer && !callParticipants.find(p => p.id === enrichedSelectedEvent.organizer.id)) {
-      callParticipants.push({
+    // If no participant found, try the organizer (if not current user)
+    if (
+      !targetParticipant &&
+      enrichedSelectedEvent.organizer &&
+      enrichedSelectedEvent.organizer.id !== currentUser.id
+    ) {
+      targetParticipant = {
         id: enrichedSelectedEvent.organizer.id,
         odId: enrichedSelectedEvent.organizer.id,
         odName:
@@ -292,25 +335,26 @@ export const Calendar: React.FC<CalendarProps> = ({
           enrichedSelectedEvent.organizer.email ||
           'Unknown',
         avatarUrl: enrichedSelectedEvent.organizer.avatarUrl
-      })
+      }
     }
 
-    onJoinMeetingCall({
-      id: enrichedSelectedEvent.id,
-      title: enrichedSelectedEvent.title,
-      participants: callParticipants,
-      meetingLink: enrichedSelectedEvent.meetingLink
-    })
+    if (targetParticipant) {
+      // Initiate a video call with the target participant
+      initiateCall(targetParticipant, 'video', enrichedSelectedEvent.id)
+      setIsDetailModalOpen(false)
+    } else {
+      console.warn('No valid participant found to call')
+    }
+  }, [enrichedSelectedEvent, currentUser, initiateCall])
 
-    setIsDetailModalOpen(false)
-  }, [enrichedSelectedEvent, onJoinMeetingCall])
-
-  // Handle opening chat for conversation
+  // Handle opening chat for conversation - navigate to chat with conversation ID
   const handleOpenChat = useCallback(() => {
-    if (!enrichedSelectedEvent?.conversationId || !onOpenChat) return
-    onOpenChat(enrichedSelectedEvent.conversationId)
+    if (!enrichedSelectedEvent?.conversationId) return
+    // Navigate to chat with the conversation ID
+    const chatUrl = `/platform/apps/chat?conversationId=${enrichedSelectedEvent.conversationId}`
+    window.location.href = chatUrl
     setIsDetailModalOpen(false)
-  }, [enrichedSelectedEvent, onOpenChat])
+  }, [enrichedSelectedEvent])
 
   // Handle create button click
   const handleCreateButtonClick = useCallback(() => {
@@ -456,9 +500,32 @@ export const Calendar: React.FC<CalendarProps> = ({
         onRespond={handleRespondToInvitation}
         onEdit={enrichedSelectedEvent?.isOrganizer ? handleEditMeeting : undefined}
         onDelete={enrichedSelectedEvent?.isOrganizer ? handleDeleteMeeting : undefined}
-        onStartCall={enrichedSelectedEvent?.meetingLink && onJoinMeetingCall ? handleStartCall : undefined}
-        onOpenChat={enrichedSelectedEvent?.conversationId && onOpenChat ? handleOpenChat : undefined}
+        onStartCall={enrichedSelectedEvent?.meetingLink && !isInCall ? handleStartCall : undefined}
+        onOpenChat={enrichedSelectedEvent?.conversationId ? handleOpenChat : undefined}
       />
+
+      {/* Call Components - render only when needed */}
+      {callState.status === 'ringing' && callState.direction === 'incoming' && (
+        <IncomingCallDialog
+          callState={callState}
+          onAccept={acceptCall}
+          onReject={rejectCall}
+          prefixDataTestId={`${prefixDataTestId}-incoming-call`}
+        />
+      )}
+
+      {callState.status !== 'idle' && !(callState.status === 'ringing' && callState.direction === 'incoming') && (
+        <CallModal
+          callState={callState}
+          localStream={localStream}
+          remoteStream={remoteStream}
+          onEndCall={endCall}
+          onToggleMute={toggleMute}
+          onToggleVideo={toggleVideo}
+          onToggleScreenShare={toggleScreenShare}
+          prefixDataTestId={`${prefixDataTestId}-call`}
+        />
+      )}
     </div>
   )
 }
