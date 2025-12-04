@@ -1,6 +1,8 @@
 import { FlowTemplate } from '../types/flowTemplate'
 import { TreeNode } from '../types/expressionTree'
 import { CatalogMetadata } from '../types/catalogTypes'
+import { EntitySchema } from '../hooks/useEntitySchemas'
+import { buildEntitiesRootNode } from './entityTreeBuilder'
 
 /**
  * Build complete expression tree for data navigator
@@ -8,7 +10,8 @@ import { CatalogMetadata } from '../types/catalogTypes'
 export const buildExpressionTree = (
   template: FlowTemplate,
   stepIndex: number,
-  catalogs?: CatalogMetadata[]
+  catalogs?: CatalogMetadata[],
+  entitySchemas?: Record<string, EntitySchema> | null
 ): TreeNode[] => {
   const nodes: TreeNode[] = []
 
@@ -23,8 +26,8 @@ export const buildExpressionTree = (
     nodes.push(buildCatalogsNode(catalogs))
   }
 
-  // Add entities node (placeholder for future implementation)
-  nodes.push(buildEntitiesNode())
+  // Add entities node (dynamic from fetched schemas)
+  nodes.push(buildEntitiesRootNode(entitySchemas || null))
 
   return nodes.filter(Boolean)
 }
@@ -294,20 +297,7 @@ const buildCatalogsNode = (catalogs: CatalogMetadata[]): TreeNode => {
   }
 }
 
-/**
- * Build entities node (placeholder)
- */
-const buildEntitiesNode = (): TreeNode => {
-  return {
-    id: 'entities',
-    label: 'Entities',
-    type: 'container',
-    icon: 'link',
-    description: 'External entity references (coming soon)',
-    isExpanded: false,
-    children: []
-  }
-}
+// buildEntitiesNode removed - now using buildEntitiesRootNode from entityTreeBuilder.ts
 
 /**
  * Get appropriate icon for field type

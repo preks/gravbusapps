@@ -7,6 +7,7 @@ import LeadDataPage from './pages/lead-data/LeadDataPage'
 import EngagementDataPage from './pages/engagement-data/EngagementDataPage'
 import PipelineDataPage from './pages/pipeline-data/PipelineDataPage'
 import TaskTemplateDataPage from './pages/task-template-data/TaskTemplateDataPage'
+import { FolderTemplateDataPage, ModuleType } from '@/common/components/common-relations/setting-pages/folder-templates'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 export interface CustomerSettingsProps extends BusinessAppContextProps {
@@ -42,6 +43,10 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
         {
           label: t('crm.document_templates', 'Document Templates'),
           onClick: () => setInlinePage({ key: 'document-templates' })
+        },
+        {
+          label: t('crm.folder_templates', 'Folder Templates'),
+          onClick: () => setInlinePage({ key: 'folder-templates' })
         },
         {
           label: t('crm.task_templates', 'Task Templates'),
@@ -131,6 +136,17 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
       <TaskTemplateDataPage
         {...context}
         prefixDataTestId={`${prefixDataTestId || ''}-CustomerTaskTemplateSettings`}
+        onBack={() => setInlinePage(null)}
+      />
+    )
+  }
+
+  if (inlinePage?.key === 'folder-templates') {
+    return (
+      <FolderTemplateDataPage
+        accessToken={context.accessToken}
+        moduleType={ModuleType.CRM}
+        prefixDataTestId={`${prefixDataTestId || ''}-CustomerFolderTemplateSettings`}
         onBack={() => setInlinePage(null)}
       />
     )
