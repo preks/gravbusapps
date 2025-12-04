@@ -6,7 +6,9 @@ import {
   EMPLOYEE_COMPENSATION_QUERY,
   SALARY_ADJUST_REASON_CATALOG_QUERY,
   CURRENCY_CATALOG_QUERY,
-  EMPLOYEE_WORKING_CONDITION_QUERY
+  EMPLOYEE_WORKING_CONDITION_QUERY,
+  EMPLOYEE_WORKING_HOURS_QUERY,
+  EMPLOYEE_BANK_ACCOUNT_CURRENCY_QUERY
 } from './AdjustEmployeeSalaryQueries'
 import type {
   AdjustEmployeeSalaryContextData,
@@ -14,6 +16,8 @@ import type {
   EmployeeCompensationResponse,
   SalaryAdjustReasonCatalogResponse,
   EmployeeWorkingConditionResponse,
+  EmployeeWorkingHoursResponse,
+  EmployeeBankAccountCurrencyResponse,
   FormMode,
   CurrencyOption
 } from './types'
@@ -81,22 +85,42 @@ export const AdjustEmployeeSalaryProvider: React.FC<ProviderProps> = ({
       const empVariables = { idEmployee: employeeId }
 
       // Fetch all queries in parallel to prevent UI twitch
-      const [employeeData, compensationData, salaryAdjustReasonCatalog, currencyCatalog, workingConditionData] =
-        await Promise.all([
-          graphqlClient.request<EmployeeDataResponse>(EMPLOYEE_DATA_QUERY, empVariables),
-          graphqlClient.request<EmployeeCompensationResponse>(EMPLOYEE_COMPENSATION_QUERY, empVariables),
-          graphqlClient.request<SalaryAdjustReasonCatalogResponse>(SALARY_ADJUST_REASON_CATALOG_QUERY),
-          graphqlClient.request<CurrencyCatalogResponse>(CURRENCY_CATALOG_QUERY),
-          graphqlClient.request<EmployeeWorkingConditionResponse>(EMPLOYEE_WORKING_CONDITION_QUERY, empVariables)
-        ])
+      const [
+        employeeData,
+        compensationData,
+        salaryAdjustReasonCatalog,
+        currencyCatalog,
+        workingConditionData,
+        workingHoursData,
+        bankAccountData
+      ] = await Promise.all([
+        graphqlClient.request<EmployeeDataResponse>(EMPLOYEE_DATA_QUERY, empVariables),
+        graphqlClient.request<EmployeeCompensationResponse>(EMPLOYEE_COMPENSATION_QUERY, empVariables),
+        graphqlClient.request<SalaryAdjustReasonCatalogResponse>(SALARY_ADJUST_REASON_CATALOG_QUERY),
+        graphqlClient.request<CurrencyCatalogResponse>(CURRENCY_CATALOG_QUERY),
+        graphqlClient.request<EmployeeWorkingConditionResponse>(EMPLOYEE_WORKING_CONDITION_QUERY, empVariables),
+        graphqlClient.request<EmployeeWorkingHoursResponse>(EMPLOYEE_WORKING_HOURS_QUERY, empVariables),
+        graphqlClient.request<EmployeeBankAccountCurrencyResponse>(EMPLOYEE_BANK_ACCOUNT_CURRENCY_QUERY, empVariables)
+      ])
 
-      // Determine form mode based on whether employee has salary records
+      // Determine form mode based on whether employee has salary records with actual values
       const salaries = compensationData?.AllEmployeeSalaries || []
-      const formMode: FormMode = salaries.length > 0 ? 'adjust' : 'assign'
+      // Check if there's at least one salary record with actual salary values (not just empty records)
+      const hasValidSalary = salaries.some(
+        s => s.annualGrossSalary != null || s.monthlyGrossSalary != null || s.hourlyGrossSalary != null
+      )
+      const formMode: FormMode = hasValidSalary ? 'adjust' : 'assign'
 
       // Extract hire date from working condition (first/most recent record)
       const workingCondition = workingConditionData?.EmployeeWorkingCondition?.[0]
       const hireDate = workingCondition?.hireDate || null
+
+      // Extract weekly hours from employee working hours (separate table)
+      const workingHours = workingHoursData?.EmployeeWorkingHours?.[0]
+      const weeklyHours = workingHours?.weeklyHours || null
+
+      // Extract bank account currency (first record if exists)
+      const bankAccountCurrency = bankAccountData?.EmployeeBankAccount?.[0]?.currencyRef || null
 
       // Map currency catalog entries to CurrencyOption format
       const currencies: CurrencyOption[] = (currencyCatalog?.CatalogEntry || [])
@@ -121,7 +145,9 @@ export const AdjustEmployeeSalaryProvider: React.FC<ProviderProps> = ({
         },
         currencies,
         formMode,
-        hireDate
+        hireDate,
+        weeklyHours,
+        bankAccountCurrency
       })
       setIsLoading(false)
     } catch (e: any) {
