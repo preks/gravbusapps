@@ -14,6 +14,7 @@ import {
   type EntityType
 } from '../queries/employeeQueries'
 import { useVoiceFormContext } from '../context/VoiceFormContext'
+import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 
 interface DynamicFormDisplayProps {
   data: FlowProposalOutput
@@ -1218,6 +1219,92 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
       .replace(/\w\S*/g, txt => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase())
   }
 
+  // Detect operation type from root level
+  const operation = data.operation
+  const isDeleteOperation = operation === 'delete'
+  const isCreateOperation = operation === 'create'
+  const isUpdateOperation = operation === 'update'
+
+  // Helper function to build entity URL based on entity type
+  const buildEntityUrl = useCallback((entityType: string, entityId: string): string | null => {
+    if (!entityId) return null
+
+    // Map entity types to their platform URLs
+    const entityUrlMap: Record<string, { path: string; param: string }> = {
+      contentEntry: { path: '/platform/content/intranet/content-record', param: 'contentId' },
+      lead: { path: '/platform/crm/lead-record', param: 'leadId' },
+      contact: { path: '/platform/crm/contact-record', param: 'contactId' },
+      account: { path: '/platform/crm/account-record', param: 'accountId' },
+      opportunity: { path: '/platform/crm/opportunity-record', param: 'opportunityId' },
+      employee: { path: '/platform/employee-record', param: 'employeeId' },
+      investmentLead: { path: '/platform/irm/lead-record', param: 'leadId' },
+      investmentContact: { path: '/platform/irm/contact-record', param: 'contactId' },
+      investmentAccount: { path: '/platform/irm/account-record', param: 'accountId' },
+      investmentOpportunity: { path: '/platform/irm/opportunity-record', param: 'opportunityId' }
+    }
+
+    const urlConfig = entityUrlMap[entityType]
+    if (!urlConfig) return null
+
+    return buildPlatformUrl(urlConfig.path, { [urlConfig.param]: entityId })
+  }, [])
+
+  // Extract summary for delete operations
+  const deleteSummary = useMemo(() => {
+    if (!isDeleteOperation) return null
+
+    const flowData = data.arguments?.flow || {}
+    const taskData = data.arguments?.task || {}
+
+    // Find the main entity object (similar to initialValues extraction)
+    const findEntityObject = (obj: Record<string, any>): any => {
+      for (const [key, value] of Object.entries(obj)) {
+        if (
+          typeof value === 'object' &&
+          value !== null &&
+          !Array.isArray(value) &&
+          !['changeMode', 'id', 'version', 'businessKey', 'meta', 'reason'].includes(key)
+        ) {
+          return { key, value }
+        }
+      }
+      return null
+    }
+
+    const taskEntity = findEntityObject(taskData)
+    const flowEntity = findEntityObject(flowData)
+
+    const entity = taskEntity || flowEntity
+    if (!entity) return null
+
+    const entityData = entity.value
+    const entityType = entity.key
+    const entityId = entityData.id
+
+    // Extract display fields
+    const summary: Array<{ label: string; value: string }> = []
+
+    // Common fields to extract
+    if (entityData.title) summary.push({ label: 'Title', value: entityData.title })
+    if (entityData.name) summary.push({ label: 'Name', value: entityData.name })
+    if (entityData.firstName && entityData.lastName) {
+      summary.push({ label: 'Name', value: `${entityData.firstName} ${entityData.lastName}`.trim() })
+    } else if (entityData.firstName) summary.push({ label: 'First Name', value: entityData.firstName })
+    else if (entityData.lastName) summary.push({ label: 'Last Name', value: entityData.lastName })
+    if (entityData.email) summary.push({ label: 'Email', value: entityData.email })
+    if (entityData.id) summary.push({ label: 'ID', value: entityData.id.substring(0, 8) + '...' })
+
+    // Build entity URL
+    const entityUrl = buildEntityUrl(entityType, entityId)
+
+    return {
+      entityType: entityType.replace(/([A-Z])/g, ' $1').trim(),
+      entityId,
+      entityUrl,
+      fields: summary
+    }
+  }, [isDeleteOperation, data.arguments, buildEntityUrl])
+
   const fields = useMemo(() => {
     if (!schema || !schema.properties) return []
     return Object.entries(schema.properties)
@@ -1397,73 +1484,159 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
 
   return (
     <Card
-      className="gba:w-full gba:max-w-md gba:border-2 gba:shadow-xl gba:overflow-hidden"
+      className={`gba:w-full gba:max-w-md gba:border-2 gba:shadow-xl gba:overflow-hidden ${
+        isDeleteOperation ? 'gba:border-destructive/50' : ''
+      }`}
       data-testid="dynamic-form-display"
     >
-      <CardHeader className="gba:bg-gradient-to-r gba:from-muted/50 gba:to-muted/30 gba:border-b-2">
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <svg className="gba:h-5 gba:w-5 gba:text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-            />
-          </svg>
-          <CardTitle className="gba:bg-gradient-to-r gba:from-primary gba:to-info gba:bg-clip-text gba:text-transparent">
-            {formatFlowName(data.flow_name || '')}
-          </CardTitle>
+      <CardHeader
+        className={`gba:border-b-2 ${
+          isDeleteOperation
+            ? 'gba:bg-gradient-to-r gba:from-destructive-secondary/50 gba:to-destructive-secondary/30 gba:border-destructive/30'
+            : 'gba:bg-gradient-to-r gba:from-muted/50 gba:to-muted/30'
+        }`}
+      >
+        <div className="gba:flex gba:items-center gba:gap-2 gba:justify-between">
+          <div className="gba:flex gba:items-center gba:gap-2">
+            {isDeleteOperation ? (
+              <svg
+                className="gba:h-5 gba:w-5 gba:text-destructive"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                />
+              </svg>
+            ) : (
+              <svg className="gba:h-5 gba:w-5 gba:text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+            )}
+            <CardTitle
+              className={
+                isDeleteOperation
+                  ? 'gba:bg-gradient-to-r gba:from-destructive gba:to-destructive/80 gba:bg-clip-text gba:text-transparent'
+                  : 'gba:bg-gradient-to-r gba:from-primary gba:to-info gba:bg-clip-text gba:text-transparent'
+              }
+            >
+              {formatFlowName(data.flow_name || '')}
+            </CardTitle>
+          </div>
+          {operation && (
+            <span
+              className={`gba:text-xs gba:font-medium gba:px-2 gba:py-1 gba:rounded-md gba:capitalize ${
+                isDeleteOperation
+                  ? 'gba:bg-destructive-secondary gba:text-destructive'
+                  : isCreateOperation
+                    ? 'gba:bg-success-secondary gba:text-success'
+                    : isUpdateOperation
+                      ? 'gba:bg-info-secondary gba:text-info'
+                      : 'gba:bg-muted gba:text-muted-foreground'
+              }`}
+            >
+              {operation}
+            </span>
+          )}
         </div>
         <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">{data.module_name || ''}</p>
       </CardHeader>
       <CardContent className="gba:p-6">
         <form onSubmit={handleSubmit} className={isCompleted ? 'gba:opacity-60 gba:pointer-events-none' : ''}>
-          <div className="gba:space-y-4">
-            {/* PRIMARY fields first */}
-            {primaryFields.map(([fieldName, fieldSchema]) => {
-              if (fieldSchema == null || typeof fieldSchema !== 'object') {
-                console.warn('[EveryAI][DynamicFormDisplay] skipping non-object schema field', fieldName, fieldSchema)
-                return null
-              }
-
-              try {
-                return (
-                  <SchemaField
-                    key={fieldName}
-                    name={fieldName}
-                    path=""
-                    schema={fieldSchema}
-                    required={schema.required?.includes(fieldName) || false}
-                    disabled={isCompleted}
-                    value={formData[fieldName]}
-                    onChange={value => setFormData(prev => ({ ...prev, [fieldName]: value }))}
-                    formData={formData}
-                    onFieldValueChange={handleFieldValueChange}
-                    accessToken={accessToken}
-                  />
-                )
-              } catch (error) {
-                console.error('[EveryAI][DynamicFormDisplay] failed to render field', fieldName, error)
-                return (
-                  <div key={`field-error-${fieldName}`} className="gba:text-sm gba:text-destructive">
-                    Unable to render field "{fieldName}". Please contact support.
+          {isDeleteOperation && deleteSummary ? (
+            // Simplified delete confirmation UI
+            <div className="gba:space-y-4">
+              <div className="gba:p-4 gba:bg-destructive-secondary/20 gba:border gba:border-destructive/30 gba:rounded-lg">
+                <p className="gba:text-sm gba:font-semibold gba:text-destructive gba:mb-3">
+                  Are you sure you want to delete this {deleteSummary.entityType}?
+                </p>
+                <div className="gba:space-y-2">
+                  {deleteSummary.fields.map((field, idx) => (
+                    <div key={idx} className="gba:flex gba:gap-2">
+                      <span className="gba:text-sm gba:font-medium gba:text-muted-foreground">{field.label}:</span>
+                      <span className="gba:text-sm gba:text-foreground">{field.value}</span>
+                    </div>
+                  ))}
+                </div>
+                {deleteSummary.entityUrl && (
+                  <div className="gba:mt-4 gba:pt-3 gba:border-t gba:border-destructive/20">
+                    <button
+                      type="button"
+                      onClick={() => navigateTo(deleteSummary.entityUrl!)}
+                      className="gba:inline-flex gba:items-center gba:gap-2 gba:text-sm gba:text-primary hover:gba:text-primary/80 gba:underline gba:transition-colors"
+                    >
+                      <svg className="gba:h-4 gba:w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                        />
+                      </svg>
+                      <span>View original {deleteSummary.entityType}</span>
+                    </button>
                   </div>
-                )
-              }
-            })}
-            {/* SECONDARY fields in collapsible */}
-            {secondaryFields.length > 0 && (
-              <SecondaryCollapsible
-                fields={secondaryFields}
-                requiredFields={requiredFields}
-                isCompleted={isCompleted}
-                formData={formData}
-                onFieldValueChange={handleFieldValueChange}
-                onFieldChange={(fieldName, value) => setFormData(prev => ({ ...prev, [fieldName]: value }))}
-                accessToken={accessToken}
-              />
-            )}
-          </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            // Regular form with all fields
+            <div className="gba:space-y-4">
+              {/* PRIMARY fields first */}
+              {primaryFields.map(([fieldName, fieldSchema]) => {
+                if (fieldSchema == null || typeof fieldSchema !== 'object') {
+                  console.warn('[EveryAI][DynamicFormDisplay] skipping non-object schema field', fieldName, fieldSchema)
+                  return null
+                }
+
+                try {
+                  return (
+                    <SchemaField
+                      key={fieldName}
+                      name={fieldName}
+                      path=""
+                      schema={fieldSchema}
+                      required={schema.required?.includes(fieldName) || false}
+                      disabled={isCompleted}
+                      value={formData[fieldName]}
+                      onChange={value => setFormData(prev => ({ ...prev, [fieldName]: value }))}
+                      formData={formData}
+                      onFieldValueChange={handleFieldValueChange}
+                      accessToken={accessToken}
+                    />
+                  )
+                } catch (error) {
+                  console.error('[EveryAI][DynamicFormDisplay] failed to render field', fieldName, error)
+                  return (
+                    <div key={`field-error-${fieldName}`} className="gba:text-sm gba:text-destructive">
+                      Unable to render field "{fieldName}". Please contact support.
+                    </div>
+                  )
+                }
+              })}
+              {/* SECONDARY fields in collapsible */}
+              {secondaryFields.length > 0 && (
+                <SecondaryCollapsible
+                  fields={secondaryFields}
+                  requiredFields={requiredFields}
+                  isCompleted={isCompleted}
+                  formData={formData}
+                  onFieldValueChange={handleFieldValueChange}
+                  onFieldChange={(fieldName, value) => setFormData(prev => ({ ...prev, [fieldName]: value }))}
+                  accessToken={accessToken}
+                />
+              )}
+            </div>
+          )}
 
           {isFlowCompleted && (
             <div className="gba:mt-4 gba:p-4 gba:bg-gradient-to-r gba:from-success-secondary gba:to-success-secondary/50 gba:border-2 gba:border-success/30 gba:rounded-xl gba:shadow-lg">
@@ -1526,14 +1699,25 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
             <div className="gba:flex gba:justify-end gba:gap-3 gba:mt-6 gba:pt-4 gba:border-t-2 gba:border-border">
               <Button
                 type="submit"
-                className="gba:bg-gradient-to-r gba:from-success gba:to-success/80 hover:gba:shadow-lg gba:transition-all"
+                className={
+                  isDeleteOperation
+                    ? 'gba:bg-gradient-to-r gba:from-destructive gba:to-destructive/80 hover:gba:shadow-lg gba:transition-all'
+                    : 'gba:bg-gradient-to-r gba:from-success gba:to-success/80 hover:gba:shadow-lg gba:transition-all'
+                }
+                variant={isDeleteOperation ? 'destructive' : 'default'}
                 disabled={isLoading}
               >
                 {isLoading ? (
                   <span className="gba:flex gba:items-center gba:gap-2">
-                    <div className="gba:h-4 gba:w-4 gba:border-2 gba:border-success-foreground gba:border-t-transparent gba:rounded-full gba:animate-spin" />
-                    Submitting...
+                    <div
+                      className={`gba:h-4 gba:w-4 gba:border-2 gba:border-t-transparent gba:rounded-full gba:animate-spin ${
+                        isDeleteOperation ? 'gba:border-destructive-foreground' : 'gba:border-success-foreground'
+                      }`}
+                    />
+                    {isDeleteOperation ? 'Deleting...' : 'Submitting...'}
                   </span>
+                ) : isDeleteOperation ? (
+                  'Delete'
                 ) : (
                   'Submit'
                 )}
@@ -1541,7 +1725,7 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
               {onCancel && (
                 <Button
                   type="button"
-                  variant="destructive"
+                  variant="outline"
                   className="hover:gba:shadow-lg gba:transition-all"
                   onClick={handleCancel}
                   disabled={isLoading}
