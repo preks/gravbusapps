@@ -1,12 +1,19 @@
 'use client'
 
 import React from 'react'
-import { Button, Card, Alert, Icon } from '@newwork/nw-design-system'
-import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { Card, Alert, Icon, useTranslation } from '@newwork/nw-design-system'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useTimeTrackingData } from '../../employee-record/components/tabs/hooks/useTimeTrackingData'
-import { TimeEntriesTable } from '../../employee-record/components/tabs/components/TimeEntriesTable'
 import WidgetGroup, { WidgetItem } from '@/components/widget-group/WidgetGroup'
-import { FolderIcon, CurrencyDollarIcon } from '@phosphor-icons/react'
+import { FolderIcon, CurrencyDollarIcon, ClockIcon, SunIcon, CalculatorIcon } from '@phosphor-icons/react'
+import AbsenceCalendar from '../../employee-record/components/tabs/components/AbsenceCalendar'
+import type { AbsenceListCardAbsence } from '../../employee-record/queries/types'
+import dayjs, { Dayjs } from 'dayjs'
+import weekday from 'dayjs/plugin/weekday'
+import localeData from 'dayjs/plugin/localeData'
+import timeTrackingTranslations from '../_i18n'
+dayjs.extend(weekday)
+dayjs.extend(localeData)
 
 interface DailyLogProps {
   employeeId: string
@@ -15,14 +22,11 @@ interface DailyLogProps {
 }
 
 const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken }) => {
-  const locale = getCurrentActiveUserLocale()
+  const [currentDate, setCurrentDate] = React.useState<Dayjs>(dayjs())
+  const [selectedStartDate, setSelectedStartDate] = React.useState<any>(null)
+  const [selectedEndDate, setSelectedEndDate] = React.useState<any>(null)
   const {
-    currentMonth,
-    prevMonth,
-    nextMonth,
     entries,
-    pageSize,
-    setPageSize,
     error,
     monthlyRequiredUntilYesterdayMinutes,
     monthlyWorkedUntilYesterdayMinutes,
@@ -34,6 +38,60 @@ const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken }
     accessToken,
     workingHours: employee?.workingHours?.[0]
   })
+
+  const { t } = useTranslation(timeTrackingTranslations)
+
+  const calendarAbsences = React.useMemo<AbsenceListCardAbsence[]>(() => {
+    const parseMinutes = (text?: string): number => {
+      if (!text) return 0
+      let hours = 0
+      let minutes = 0
+      const tokens = String(text).trim().split(/\s+/)
+      for (const token of tokens) {
+        if (/^\d+h$/i.test(token)) {
+          hours = parseInt(token.slice(0, -1), 10) || 0
+        } else if (/^\d+m$/i.test(token)) {
+          minutes = parseInt(token.slice(0, -1), 10) || 0
+        }
+      }
+      return hours * 60 + minutes
+    }
+    const mapStatus = (s?: string): string => {
+      const t = String(s || '').toLowerCase()
+      if (t === 'approved') return 'APPROVED'
+      if (t === 'pending') return 'PENDING'
+      if (t === 'rejected') return 'REJECTED'
+      if (t === 'cancelled') return 'CANCELLED'
+      if (t === 'open') return 'PENDING'
+      return 'APPROVED'
+    }
+    const toKey = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+    return entries.map(e => {
+      const dayKey = toKey(new Date(e.attendanceDateISO))
+      const label = e.effectiveTime || e.recordedTime || '0h'
+      const status = mapStatus(e.status)
+      const item: AbsenceListCardAbsence = {
+        type: label,
+        typeId: 'TIME',
+        status,
+        originalStatus: status,
+        title: 'Work Log',
+        startDate: dayKey,
+        endDate: dayKey,
+        duration: label,
+        description: e.notes || '',
+        icon: null,
+        typeColor: '',
+        statusColor: '',
+        requestDate: dayKey,
+        plannedMinutes: parseMinutes(e.plannedTime),
+        effectiveMinutes: parseMinutes(e.effectiveTime)
+      }
+      return item
+    })
+  }, [entries])
 
   const fmt = (m: number) => {
     const hours = Math.floor(Math.abs(m) / 60)
@@ -81,7 +139,7 @@ const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken }
                 'Target up to yesterday'
               ),
               valueIsString: true,
-              prefix: 'calendar',
+              prefix: <Icon icon={ClockIcon} />,
               color: 'info'
             },
             {
@@ -96,7 +154,7 @@ const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken }
                 'Logged up to yesterday'
               ),
               valueIsString: true,
-              prefix: 'time',
+              prefix: <Icon icon={SunIcon} />,
               color: 'success'
             },
             {
@@ -111,7 +169,7 @@ const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken }
                 'Hours needed to reach target'
               ),
               valueIsString: true,
-              prefix: 'calendar',
+              prefix: <Icon icon={CalculatorIcon} />,
               color: 'warning'
             }
           ]
@@ -130,12 +188,8 @@ const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken }
           const secondaryWidgets: WidgetItem[] = [
             {
               key: 'daily-average',
-              title: getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.summary.daily_average', 'Daily Average'),
+              title: t('daily_average'),
               value: fmt1(dailyAverageWorkedMinutesUntilYesterday),
-              description: getTranslationFromI18nKeyAndLabel(
-                'lowcoder:time_tracking.summary.daily_average_desc',
-                'View My Projects'
-              ),
               valueIsString: true,
               prefix: <Icon icon={FolderIcon} size="md" />,
               color: 'success'
@@ -144,10 +198,6 @@ const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken }
               key: 'overtime',
               title: getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.summary.overtime', 'Overtime'),
               value: fmt1(overtimeMinutesUntilYesterday),
-              description: getTranslationFromI18nKeyAndLabel(
-                'lowcoder:time_tracking.summary.overtime_desc',
-                'View Project Dashboard'
-              ),
               valueIsString: true,
               prefix: <Icon icon={CurrencyDollarIcon} />,
               color: 'warning'
@@ -164,36 +214,48 @@ const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken }
         })()}
       </div>
 
+      {/* Month Calendar (reused AbsenceCalendar) based on table data */}
+      <Card className="gba:p-4 gba:mt-4" data-testid="time-tracking-calendar">
+        <AbsenceCalendar
+          absenceList={calendarAbsences}
+          loading={false}
+          error={null}
+          currentDate={currentDate}
+          setCurrentDate={setCurrentDate}
+          selectedStartDate={selectedStartDate}
+          setSelectedStartDate={setSelectedStartDate}
+          selectedEndDate={selectedEndDate}
+          setSelectedEndDate={setSelectedEndDate}
+          showToday={false}
+          showPrevNext={false}
+          enableSelection={false}
+          showFooter={false}
+          showStatusInTooltip={false}
+          showDurationInTooltip={false}
+          customLegend={
+            <div className="gba:flex gba:items-center gba:gap-6 gba:flex-wrap">
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-warning-secondary" />
+                <span className="gba:text-xs">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.legend.hours_needed', 'Incomplete')}
+                </span>
+              </div>
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-success" />
+                <span className="gba:text-xs">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.legend.hours_fulfilled', 'Complete')}
+                </span>
+              </div>
+            </div>
+          }
+        />
+      </Card>
+
       {error && (
         <Alert variant="destructive" className="gba:w-full gba:whitespace-normal gba:!inline-block gba:mb-4">
           {error}
         </Alert>
       )}
-
-      <Card className="gba:p-4">
-        <div className="gba:flex gba:items-center gba:justify-start gba:mb-3">
-          <div className="gba:flex gba:gap-2" data-testid="history-month-selector">
-            <Button variant="outline" onClick={prevMonth} data-testid="history-month-selector-prev">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.common.prev', 'Prev')}
-            </Button>
-            <div className="gba:self-center">
-              {currentMonth.toLocaleString(locale, { month: 'long', year: 'numeric' })}
-            </div>
-            <Button variant="outline" onClick={nextMonth} data-testid="history-month-selector-next">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.common.next', 'Next')}
-            </Button>
-          </div>
-        </div>
-
-        <TimeEntriesTable
-          entries={entries}
-          locale={locale}
-          pageSize={pageSize}
-          onPageSizeChange={setPageSize}
-          accessToken={accessToken}
-          employeeId={employeeId}
-        />
-      </Card>
     </div>
   )
 }
