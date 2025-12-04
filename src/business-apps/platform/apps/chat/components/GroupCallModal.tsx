@@ -6,6 +6,7 @@
  */
 
 import React, { useEffect, useRef, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   Dialog,
   DialogContent,
@@ -101,14 +102,19 @@ const VideoTile: React.FC<{
 }> = ({ participant, stream, isLocal = false, isMuted = false, isVideoOff = false, isHost = false }) => {
   const videoRef = useRef<HTMLVideoElement>(null)
 
+  // Check if video should be visible
+  const hasVideo = stream?.getVideoTracks().some(t => t.enabled) && !isVideoOff
+
+  // Set up stream and play video - runs when stream changes OR when hasVideo becomes true
   useEffect(() => {
     const videoElement = videoRef.current
-    if (!videoElement || !stream) return
+    if (!videoElement || !stream || !hasVideo) return
 
     console.debug(
-      `VideoTile ${participant.odName}: Setting stream with ${stream.getTracks().length} tracks, isLocal=${isLocal}`
+      `VideoTile ${participant.odName}: Setting stream with ${stream.getTracks().length} tracks, isLocal=${isLocal}, hasVideo=${hasVideo}`
     )
 
+    // Always set srcObject when this effect runs (including after video is toggled back on)
     videoElement.srcObject = stream
 
     // Handle autoplay - browsers may block autoplay with audio
@@ -134,9 +140,7 @@ const VideoTile: React.FC<{
     }
 
     playVideo()
-  }, [stream, participant.odName, isLocal])
-
-  const hasVideo = stream?.getVideoTracks().some(t => t.enabled) && !isVideoOff
+  }, [stream, participant.odName, isLocal, hasVideo])
 
   return (
     <div className="gba:relative gba:bg-muted gba:rounded-lg gba:overflow-hidden gba:aspect-video gba:flex gba:items-center gba:justify-center">
@@ -318,10 +322,11 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
   if (callState.status === 'idle') return null
 
   // Minimized view - floating PiP-style window
+  // Rendered as a portal to document.body so it persists even when chat component unmounts
   if (callState.isMinimized) {
     const hasRemoteVideo = firstRemoteParticipant?.stream?.getVideoTracks().some(t => t.enabled)
 
-    return (
+    const minimizedContent = (
       <div
         className="gba:fixed gba:bottom-12 gba:right-4 gba:z-50 gba:w-72 gba:bg-gray-900 gba:rounded-lg gba:shadow-2xl gba:overflow-hidden gba:border gba:border-gray-700"
         data-testid={`${prefixDataTestId}-minimized`}
@@ -417,6 +422,10 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
         </div>
       </div>
     )
+
+    // Render minimized view as portal to document.body so it persists
+    // even when switching tabs or closing chat
+    return createPortal(minimizedContent, document.body)
   }
 
   return (

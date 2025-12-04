@@ -186,9 +186,7 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = (
               <Button
                 size="icon"
                 onClick={onAccept}
-                className={`gba:w-16 gba:h-16 gba:rounded-full gba:shadow-lg ${
-                  isVideoCall ? 'gba:bg-primary gba:hover:bg-primary/90' : 'gba:bg-success gba:hover:bg-success/90'
-                }`}
+                className="gba:w-16 gba:h-16 gba:rounded-full gba:shadow-lg gba:bg-success gba:hover:bg-success/90"
                 data-testid={`${prefixDataTestId}-accept`}
               >
                 {isVideoCall ? (

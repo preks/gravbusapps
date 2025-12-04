@@ -10,6 +10,7 @@ import { GroupWebRTCClient, GroupCallParticipant, VideoQuality } from '../servic
 import { ChatWebSocketClient } from '../services/chatWebSocketClient'
 import { ChatApiClient } from '../services/chatApiClient'
 import { BackgroundProcessor } from '../services/backgroundProcessor'
+import { globalCallManager } from '../services/globalCallManager'
 import type { CallParticipant, CallType } from '../services/webrtcClient'
 
 export interface UseGroupCallOptions {
@@ -177,6 +178,68 @@ export const useGroupCall = ({
       callStateRef.current = newState
       return newState
     })
+  }, [])
+
+  // On mount, check if there's an active call in the global manager and restore it
+  useEffect(() => {
+    const storedData = globalCallManager.getCallData()
+    
+    // If there's an active call in the global manager, restore it
+    if (storedData.callState.status !== 'idle' && storedData.webrtcClient) {
+      console.debug('useGroupCall: Restoring call from global manager', storedData.callState)
+      
+      // Restore refs
+      webrtcRef.current = storedData.webrtcClient
+      
+      // Restore state - set isMinimized to false since Chat is handling it now
+      const restoredState = { ...storedData.callState, isMinimized: false }
+      setCallState(restoredState)
+      setLocalStream(storedData.localStream)
+      setRemoteStreams(new Map(storedData.remoteStreams))
+      setParticipants([...storedData.participants])
+      
+      // Update refs
+      callStateRef.current = restoredState
+      
+      // Clear the global manager since Chat is now handling the call
+      // This stops the vanilla DOM UI from showing
+      globalCallManager.clearCall()
+    }
+  }, []) // Only run on mount
+  
+  // Also subscribe to global call manager for expand events
+  useEffect(() => {
+    const unsubscribe = globalCallManager.subscribe(() => {
+      const storedData = globalCallManager.getCallData()
+      
+      // If expand was triggered (isMinimized changed to false) and we have an active call
+      if (
+        storedData.callState.status !== 'idle' && 
+        storedData.webrtcClient && 
+        !storedData.callState.isMinimized &&
+        callStateRef.current.status === 'idle' // Only if we don't already have a call
+      ) {
+        console.debug('useGroupCall: Expand triggered, restoring call')
+        
+        // Restore refs
+        webrtcRef.current = storedData.webrtcClient
+        
+        // Restore state
+        const restoredState = { ...storedData.callState, isMinimized: false }
+        setCallState(restoredState)
+        setLocalStream(storedData.localStream)
+        setRemoteStreams(new Map(storedData.remoteStreams))
+        setParticipants([...storedData.participants])
+        
+        // Update refs
+        callStateRef.current = restoredState
+        
+        // Clear the global manager
+        globalCallManager.clearCall()
+      }
+    })
+    
+    return unsubscribe
   }, [])
 
   // Fetch ICE servers from backend
@@ -916,9 +979,86 @@ export const useGroupCall = ({
     return () => clearInterval(interval)
   }, [callState.status, callState.startTime, updateCallState])
 
-  // Cleanup on unmount
+  // Listen for storage changes to detect when user joins call in another tab
+  // This allows us to dismiss the incoming call dialog in other tabs
+  useEffect(() => {
+    const handleStorageChange = (event: StorageEvent) => {
+      // Only handle changes to our active call key
+      if (event.key !== ACTIVE_CALL_KEY) return
+
+      // If there's now an active call and we have an incoming invite, dismiss it
+      if (event.newValue && incomingInvite && currentUserRef.current) {
+        try {
+          const data = JSON.parse(event.newValue)
+          // If the active call is for the same user and it's recent, dismiss the incoming invite
+          if (data.userId === currentUserRef.current.id && Date.now() - data.timestamp < 5000) {
+            console.debug('User joined call in another tab, dismissing incoming invite')
+            setIncomingInvite(null)
+          }
+        } catch {
+          // Ignore parse errors
+        }
+      }
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
+  }, [incomingInvite])
+
+  // Store call data in global manager when minimized (for persistence across unmounts)
+  // Clear it when maximized to prevent duplicate UIs
+  useEffect(() => {
+    if (callState.isMinimized && callState.status !== 'idle' && webrtcRef.current && wsClientRef.current) {
+      console.debug('useGroupCall: Storing call data in global manager')
+      globalCallManager.storeCall({
+        webrtcClient: webrtcRef.current,
+        wsClient: wsClientRef.current,
+        callState: callState,
+        localStream,
+        remoteStreams: new Map(remoteStreams), // Clone the Map
+        participants: [...participants], // Clone the array
+        currentUser: currentUserRef.current
+      })
+    } else if (!callState.isMinimized && callState.status !== 'idle' && globalCallManager.hasActiveCall()) {
+      // When maximizing, clear the global manager since React is handling the call now
+      console.debug('useGroupCall: Clearing global manager - call is maximized')
+      globalCallManager.clearCall()
+    }
+  }, [callState, localStream, remoteStreams, participants])
+
+  // Keep refs updated for cleanup check
+  const localStreamRef = useRef(localStream)
+  const remoteStreamsRef = useRef(remoteStreams)
+  const participantsRef = useRef(participants)
+  
+  useEffect(() => {
+    localStreamRef.current = localStream
+    remoteStreamsRef.current = remoteStreams
+    participantsRef.current = participants
+  }, [localStream, remoteStreams, participants])
+
+  // Cleanup on unmount - skip if call is minimized (let global manager handle it)
   useEffect(() => {
     return () => {
+      // If call is minimized, store final state and skip cleanup
+      if (callStateRef.current.isMinimized && callStateRef.current.status !== 'idle') {
+        console.debug('useGroupCall: Skipping cleanup - call is minimized and will persist')
+        
+        // Store final state before unmount
+        if (webrtcRef.current && wsClientRef.current) {
+          globalCallManager.storeCall({
+            webrtcClient: webrtcRef.current,
+            wsClient: wsClientRef.current,
+            callState: callStateRef.current,
+            localStream: localStreamRef.current,
+            remoteStreams: new Map(remoteStreamsRef.current),
+            participants: [...participantsRef.current],
+            currentUser: currentUserRef.current
+          })
+        }
+        return
+      }
+
       if (webrtcRef.current) {
         webrtcRef.current.destroy()
         webrtcRef.current = null

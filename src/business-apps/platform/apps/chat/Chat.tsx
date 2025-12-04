@@ -14,10 +14,15 @@ import { IncomingCallDialog } from './components/IncomingCallDialog'
 import { IncomingGroupCallDialog } from './components/IncomingGroupCallDialog'
 import { CallModal } from './components/CallModal'
 import { GroupCallModal } from './components/GroupCallModal'
+import { initGlobalMinimizedCallRenderer } from './components/GlobalMinimizedCall'
 import type { Conversation, User, MessageEntityReference } from './types'
 import type { CallParticipant } from './services/webrtcClient'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { env } from '@/common/env/EnvUtils'
+
+// Initialize global minimized call renderer on first load
+// This ensures the minimized call persists even when Chat unmounts
+initGlobalMinimizedCallRenderer()
 
 type ViewMode = 'full' | 'compact' | 'mobile'
 

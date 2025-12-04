@@ -14,6 +14,48 @@ import { WebRTCClient, CallType, CallParticipant, CallState, CallSignal } from '
 
 const RING_TIMEOUT = 30000 // 30 seconds ring timeout
 
+// LocalStorage key for tracking active calls across tabs (shared with useGroupCall)
+const ACTIVE_CALL_KEY = 'chat_active_call'
+
+// Helper to check if user is in a call in another tab
+const isInCallInAnotherTab = (currentUserId: string): boolean => {
+  try {
+    const stored = localStorage.getItem(ACTIVE_CALL_KEY)
+    if (!stored) return false
+    const data = JSON.parse(stored)
+    // Check if the call is still active (within last 5 seconds)
+    const isRecent = Date.now() - data.timestamp < 5000
+    return data.userId === currentUserId && isRecent
+  } catch {
+    return false
+  }
+}
+
+// Helper to set active call in localStorage
+const setActiveCallInStorage = (userId: string, callId: string) => {
+  try {
+    localStorage.setItem(
+      ACTIVE_CALL_KEY,
+      JSON.stringify({
+        userId,
+        roomId: callId,
+        timestamp: Date.now()
+      })
+    )
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+// Helper to clear active call from localStorage
+const clearActiveCallFromStorage = () => {
+  try {
+    localStorage.removeItem(ACTIVE_CALL_KEY)
+  } catch {
+    // Ignore storage errors
+  }
+}
+
 export interface UseCallOptions {
   wsClient: ChatWebSocketClient | null
   apiClient?: ChatApiClient | null
@@ -110,6 +152,9 @@ export const useCall = ({
         webrtcRef.current = null
       }
 
+      // Clear active call from localStorage for multi-tab detection
+      clearActiveCallFromStorage()
+
       setCallState(initialCallState)
       pendingSignalRef.current = null
 
@@ -177,8 +222,13 @@ export const useCall = ({
       console.debug('ICE state changed:', state)
       if (state === 'connected' || state === 'completed') {
         updateCallState({ status: 'connected', startTime: Date.now() })
+        // Mark active call in localStorage for multi-tab detection
+        if (currentUserRef.current && callStateRef.current.callId) {
+          setActiveCallInStorage(currentUserRef.current.id, callStateRef.current.callId)
+        }
       } else if (state === 'failed') {
         updateCallState({ status: 'failed', error: 'Connection failed' })
+        clearActiveCallFromStorage()
         // Auto-cleanup after failure
         setTimeout(() => cleanupCall(false), 3000)
       } else if (state === 'disconnected') {
@@ -415,6 +465,17 @@ export const useCall = ({
         return
       }
 
+      // Ignore if user is in a call in another tab
+      if (currentUserRef.current && isInCallInAnotherTab(currentUserRef.current.id)) {
+        console.debug('Ignoring call - user is in call in another tab')
+        wsClientRef.current?.sendBusy({
+          callId: signal.callId,
+          from: currentUserRef.current!,
+          to: signal.from
+        })
+        return
+      }
+
       // Store pending signal
       pendingSignalRef.current = signal
 
@@ -579,6 +640,34 @@ export const useCall = ({
     }
     // Using refs for most values to avoid effect re-runs during call flow
   }, [wsClient, updateCallState, clearRingTimeout, cleanupCall, onCallStarted])
+
+  // Listen for storage changes to detect when user accepts call in another tab
+  // This allows us to dismiss the incoming call dialog in other tabs
+  useEffect(() => {
+    const hasIncomingCall = callState.status === 'ringing' && callState.direction === 'incoming'
+
+    const handleStorageChange = (event: StorageEvent) => {
+      // Only handle changes to our active call key
+      if (event.key !== ACTIVE_CALL_KEY) return
+
+      // If there's now an active call and we have an incoming call, dismiss it
+      if (event.newValue && hasIncomingCall && currentUserRef.current) {
+        try {
+          const data = JSON.parse(event.newValue)
+          // If the active call is for the same user and it's recent, dismiss the incoming call
+          if (data.userId === currentUserRef.current.id && Date.now() - data.timestamp < 5000) {
+            console.debug('User accepted call in another tab, dismissing incoming call')
+            cleanupCall(false)
+          }
+        } catch {
+          // Ignore parse errors
+        }
+      }
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
+  }, [callState.status, callState.direction, cleanupCall])
 
   // Cleanup on unmount
   useEffect(() => {
