@@ -1,5 +1,7 @@
 import React, { useMemo, useEffect, useState, useCallback, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label, Combobox } from '@newwork/nw-design-system'
+import ReactQuill from 'react-quill'
+import 'react-quill/dist/quill.snow.css'
 import type { FlowProposalOutput, ConversationTurn } from '../types/models'
 import { useFormSubmission } from './FormSubmissionContext'
 import {
@@ -242,18 +244,20 @@ const SchemaField: React.FC<SchemaFieldProps & { accessToken: string }> = ({
 
         if (rawEnumOptions || rawOneOfOptions) {
           type SelectOption = { id: string; label: string; rawValue: unknown }
-          const options: SelectOption[] = (rawEnumOptions || rawOneOfOptions || []).map((option: unknown, index: number) => {
-            const rawValue = rawEnumOptions ? option : ((option as any)?.const ?? (option as any)?.value ?? option)
-            const id = String(toOptionId(rawValue ?? index))
-            const labelText = String(
-              rawEnumOptions ? toDisplayString(option) : ((option as any)?.title ?? toDisplayString(rawValue))
-            )
-            return {
-              id,
-              label: labelText,
-              rawValue
+          const options: SelectOption[] = (rawEnumOptions || rawOneOfOptions || []).map(
+            (option: unknown, index: number) => {
+              const rawValue = rawEnumOptions ? option : ((option as any)?.const ?? (option as any)?.value ?? option)
+              const id = String(toOptionId(rawValue ?? index))
+              const labelText = String(
+                rawEnumOptions ? toDisplayString(option) : ((option as any)?.title ?? toDisplayString(rawValue))
+              )
+              return {
+                id,
+                label: labelText,
+                rawValue
+              }
             }
-          })
+          )
 
           const selectedOptionId = String(
             options.find((opt: SelectOption) => deepEquals(opt.rawValue, value))?.id ??
@@ -318,6 +322,48 @@ const SchemaField: React.FC<SchemaFieldProps & { accessToken: string }> = ({
               }}
               disabled={disabled}
             />
+          )
+        }
+
+        // Markdown content type - use ReactQuill rich text editor
+        if (schema.contentMediaType === 'text/markdown') {
+          const quillModules = {
+            toolbar: [
+              [{ header: [1, 2, 3, false] }],
+              ['bold', 'italic', 'underline', 'strike'],
+              [{ list: 'ordered' }, { list: 'bullet' }],
+              [{ align: [] }],
+              ['link', 'image', 'video'],
+              ['clean']
+            ]
+          }
+
+          const quillFormats = [
+            'header',
+            'bold',
+            'italic',
+            'underline',
+            'strike',
+            'list',
+            'align',
+            'link',
+            'image',
+            'video'
+          ]
+
+          return (
+            <div className="gba:rounded-md gba:border gba:border-border gba:overflow-hidden [&_.ql-toolbar]:gba:border-b [&_.ql-toolbar]:gba:border-border [&_.ql-toolbar]:gba:bg-muted/30 [&_.ql-container]:gba:border-0 [&_.ql-editor]:gba:min-h-[150px] [&_.ql-editor]:gba:text-foreground [&_.ql-editor.ql-blank::before]:gba:text-muted-foreground">
+              <ReactQuill
+                id={controlId}
+                theme="snow"
+                value={String(typeof value === 'string' ? value : (value ?? ''))}
+                onChange={(content: string) => onChange(content)}
+                readOnly={disabled}
+                modules={quillModules}
+                formats={quillFormats}
+                placeholder={label}
+              />
+            </div>
           )
         }
 
@@ -450,18 +496,18 @@ const SearchableUuidField: React.FC<{
     entityType === 'employee' ? accessToken : '',
     { search: entityType === 'employee' ? debouncedSearch : '', limit: 50 }
   )
-  const { accounts, isLoading: accountLoading } = useAccountSearch(
-    entityType === 'account' ? accessToken : '',
-    { search: entityType === 'account' ? debouncedSearch : '', limit: 50 }
-  )
-  const { contacts, isLoading: contactLoading } = useContactSearch(
-    entityType === 'contact' ? accessToken : '',
-    { search: entityType === 'contact' ? debouncedSearch : '', limit: 50 }
-  )
-  const { leads, isLoading: leadLoading } = useLeadSearch(
-    entityType === 'lead' ? accessToken : '',
-    { search: entityType === 'lead' ? debouncedSearch : '', limit: 50 }
-  )
+  const { accounts, isLoading: accountLoading } = useAccountSearch(entityType === 'account' ? accessToken : '', {
+    search: entityType === 'account' ? debouncedSearch : '',
+    limit: 50
+  })
+  const { contacts, isLoading: contactLoading } = useContactSearch(entityType === 'contact' ? accessToken : '', {
+    search: entityType === 'contact' ? debouncedSearch : '',
+    limit: 50
+  })
+  const { leads, isLoading: leadLoading } = useLeadSearch(entityType === 'lead' ? accessToken : '', {
+    search: entityType === 'lead' ? debouncedSearch : '',
+    limit: 50
+  })
   const { opportunities, isLoading: opportunityLoading } = useOpportunitySearch(
     entityType === 'opportunity' ? accessToken : '',
     { search: entityType === 'opportunity' ? debouncedSearch : '', limit: 50 }
@@ -490,7 +536,10 @@ const SearchableUuidField: React.FC<{
         return {
           options: leads.map(l => ({
             value: l.id,
-            label: `${l.firstName ?? ''} ${l.lastName ?? ''}`.trim() + (l.companyName ? ` (${l.companyName})` : '') || l.email || l.id
+            label:
+              `${l.firstName ?? ''} ${l.lastName ?? ''}`.trim() + (l.companyName ? ` (${l.companyName})` : '') ||
+              l.email ||
+              l.id
           })),
           isLoading: leadLoading
         }
@@ -512,16 +561,33 @@ const SearchableUuidField: React.FC<{
           isLoading: employeeLoading
         }
     }
-  }, [entityType, employees, accounts, contacts, leads, opportunities, employeeLoading, accountLoading, contactLoading, leadLoading, opportunityLoading])
+  }, [
+    entityType,
+    employees,
+    accounts,
+    contacts,
+    leads,
+    opportunities,
+    employeeLoading,
+    accountLoading,
+    contactLoading,
+    leadLoading,
+    opportunityLoading
+  ])
 
   // Get placeholder text based on entity type
   const placeholderText = useMemo(() => {
     switch (entityType) {
-      case 'account': return 'Search accounts...'
-      case 'contact': return 'Search contacts...'
-      case 'lead': return 'Search leads...'
-      case 'opportunity': return 'Search opportunities...'
-      default: return 'Search employees...'
+      case 'account':
+        return 'Search accounts...'
+      case 'contact':
+        return 'Search contacts...'
+      case 'lead':
+        return 'Search leads...'
+      case 'opportunity':
+        return 'Search opportunities...'
+      default:
+        return 'Search employees...'
     }
   }, [entityType])
 
@@ -690,7 +756,14 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
         try {
           const parsed = JSON.parse(turn.text)
           if (parsed?.action === 'form_submission') {
-            console.log('[DynamicFormDisplay] Found form_submission at turn:', i, 'uuid:', parsed?.uuid, 'flow_name:', parsed?.flow_name)
+            console.log(
+              '[DynamicFormDisplay] Found form_submission at turn:',
+              i,
+              'uuid:',
+              parsed?.uuid,
+              'flow_name:',
+              parsed?.flow_name
+            )
             // Match by UUID, flow_name, or if this form has no UUID yet, match by flow_name
             const uuidMatch = parsed?.uuid && data.uuid && parsed.uuid === data.uuid
             const flowNameMatch = parsed?.flow_name && data.flow_name && parsed.flow_name === data.flow_name
@@ -1175,7 +1248,7 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
   // Store latest handlers in refs so they're always up-to-date without triggering re-registration
   const submitHandlerRef = useRef(() => {})
   const cancelHandlerRef = useRef(() => {})
-  const updateFieldRef = useRef((_field: string, _value: any) => {})
+  const updateFieldRef = useRef<(field: string, value: any) => void>(() => {})
 
   useEffect(() => {
     submitHandlerRef.current = () => {
@@ -1223,7 +1296,10 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
           })
         }
       } else {
-        console.log(`[Voice] Could not find field matching "${fieldName}". Available fields:`, fields.map(f => f[0]))
+        console.log(
+          `[Voice] Could not find field matching "${fieldName}". Available fields:`,
+          fields.map(f => f[0])
+        )
       }
     }
   }, [fields])
