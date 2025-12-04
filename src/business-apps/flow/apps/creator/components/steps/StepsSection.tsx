@@ -3,15 +3,17 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useFlowTemplateStore } from '../../hooks/useFlowTemplateStore'
 import { StepItem } from './StepItem'
 import { FlowPreview } from '../preview/FlowPreview'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 interface StepsSectionProps {
   accessToken?: string
+  context?: BusinessAppContextProps
 }
 
 /**
  * Steps section component for managing workflow steps
  */
-export const StepsSection: React.FC<StepsSectionProps> = ({ accessToken }) => {
+export const StepsSection: React.FC<StepsSectionProps> = ({ accessToken, context }) => {
   const { flowTemplate, addStep } = useFlowTemplateStore()
   const { steps } = flowTemplate
 
@@ -64,6 +66,7 @@ export const StepsSection: React.FC<StepsSectionProps> = ({ accessToken }) => {
                     step={step}
                     stepIndex={index}
                     accessToken={accessToken}
+                    context={context}
                     data-testid={`step-item-${index}`}
                   />
                 </div>

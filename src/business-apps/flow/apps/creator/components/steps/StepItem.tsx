@@ -6,6 +6,7 @@ import { Trash2, ChevronDown, ChevronUp } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useFlowTemplateStore } from '../../hooks/useFlowTemplateStore'
 import { FlowStepType } from '../../types/flowTemplate'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 import { BasicConfiguration } from './BasicConfiguration'
 import { AssignmentContent } from './AssignmentConfiguration'
@@ -18,6 +19,7 @@ interface StepItemProps {
   step: any
   stepIndex: number
   accessToken?: string
+  context?: BusinessAppContextProps
   'data-testid'?: string
 }
 
@@ -25,6 +27,7 @@ export const StepItem: React.FC<StepItemProps> = ({
   step,
   stepIndex,
   accessToken,
+  context,
   'data-testid': testId = 'step-item'
 }) => {
   const [isExpanded, setIsExpanded] = useState(stepIndex === 0) // First step always expanded
@@ -185,7 +188,13 @@ export const StepItem: React.FC<StepItemProps> = ({
                               ? `${normalizedStep.inputs.length}`
                               : undefined,
                           content: (
-                            <InputFieldsContent step={normalizedStep} testId={testId} onUpdateStep={handleUpdateStep} />
+                            <InputFieldsContent
+                              step={normalizedStep}
+                              stepIndex={stepIndex}
+                              context={context}
+                              testId={testId}
+                              onUpdateStep={handleUpdateStep}
+                            />
                           )
                         }
                       ]

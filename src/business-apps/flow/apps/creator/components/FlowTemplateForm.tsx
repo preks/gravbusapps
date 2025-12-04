@@ -9,9 +9,11 @@ import { InitStepSection } from './general-config/InitStepSection'
 import { StepsSection } from './steps/StepsSection'
 import { JsonPreviewSection } from './advanced/JsonPreviewSection'
 import { Tabs, TabsList, TabsTrigger, TabsContent, Card } from '@newwork/nw-design-system'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 interface FlowTemplateFormProps {
   accessToken: string
+  context?: BusinessAppContextProps
   'data-testid'?: string
   onSaved?: (template: any) => void
 }
@@ -21,6 +23,7 @@ interface FlowTemplateFormProps {
  */
 export const FlowTemplateForm: React.FC<FlowTemplateFormProps> = ({
   accessToken,
+  context,
   'data-testid': testId = 'flow-template-form',
   onSaved
 }) => {
@@ -109,7 +112,7 @@ export const FlowTemplateForm: React.FC<FlowTemplateFormProps> = ({
 
         <TabsContent value="steps" className="gba:space-y-6" data-testid="steps-content">
           <Card className="gba:p-6">
-            <StepsSection accessToken={accessToken} />
+            <StepsSection accessToken={accessToken} context={context} />
           </Card>
         </TabsContent>
 

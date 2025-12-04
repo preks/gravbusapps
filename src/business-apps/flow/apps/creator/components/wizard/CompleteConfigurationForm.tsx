@@ -9,16 +9,17 @@ import {
   Label,
   Alert,
   AlertDescription,
-  Badge,
   Button
 } from '@newwork/nw-design-system'
-import { Settings, Info } from 'lucide-react'
+import { Settings } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useWizardStore } from '../../hooks/useWizardStore'
 import { useFlowTemplateStore } from '../../hooks/useFlowTemplateStore'
 import { StepsSection } from '../steps/StepsSection'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 interface CompleteConfigurationFormProps {
+  context?: BusinessAppContextProps
   'data-testid'?: string
 }
 
@@ -26,10 +27,10 @@ interface CompleteConfigurationFormProps {
  * Single-step form combining template details, optional pattern selection, and step configuration
  */
 export const CompleteConfigurationForm: React.FC<CompleteConfigurationFormProps> = ({
+  context,
   'data-testid': testId = 'complete-configuration-form'
 }) => {
-  const { selectedPattern, configuration, selectPattern, skipPattern, updateConfiguration, isEditMode } =
-    useWizardStore()
+  const { selectedPattern, configuration, skipPattern, updateConfiguration } = useWizardStore()
 
   const { updateTitle, updateDescription, initializeTemplate, flowTemplate } = useFlowTemplateStore()
 
@@ -90,11 +91,6 @@ export const CompleteConfigurationForm: React.FC<CompleteConfigurationFormProps>
       version: 1, // Required field
       steps: []
     })
-  }
-
-  // Handle skipping pattern selection (custom workflow)
-  const handleSkipPattern = () => {
-    skipPattern()
   }
 
   // Handle form field changes
@@ -187,7 +183,7 @@ export const CompleteConfigurationForm: React.FC<CompleteConfigurationFormProps>
 
       {/* Steps Configuration */}
       <div data-testid={`${testId}-steps-section`}>
-        <StepsSection />
+        <StepsSection accessToken={context?.accessToken} context={context} />
       </div>
     </div>
   )

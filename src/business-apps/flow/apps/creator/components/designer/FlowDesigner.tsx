@@ -759,6 +759,7 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
                               steps: steps // Use live steps state, not initialTemplate.steps
                             } as any
                           }
+                          context={{ accessToken, userInfo }}
                           testId={`${testId}-form`}
                           onUpdateStep={updateStep}
                         />
