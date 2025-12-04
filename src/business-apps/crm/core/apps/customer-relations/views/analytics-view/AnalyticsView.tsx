@@ -34,6 +34,18 @@ export interface AnalyticsViewProps extends BusinessAppContextProps {
 
 type TimeFilter = 'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'
 
+// Helper function to get initial tab from URL
+const getInitialAnalyticsTab = (): AnalyticsTabKey => {
+  const urlParams = new URLSearchParams(globalThis.location.search)
+  const tabFromUrl = urlParams.get('analyticsTab')
+  const validTabs = ['overview', 'leads', 'accounts', 'opportunities', 'contacts']
+
+  if (tabFromUrl && validTabs.includes(tabFromUrl)) {
+    return tabFromUrl as AnalyticsTabKey
+  }
+  return 'overview'
+}
+
 export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'default', ...context }) => {
   const [leadsTimeFilter, setLeadsTimeFilter] = useState<TimeFilter>('quarter')
   const [oppTimeFilter, setOppTimeFilter] = useState<TimeFilter>('quarter')
@@ -64,20 +76,6 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
   useEffect(() => {
     setTopDealsCurrency(opportunitiesKpiCurrency)
   }, [opportunitiesKpiCurrency])
-
-  // Get initial analytics tab from URL
-  const getInitialAnalyticsTab = useCallback(() => {
-    const urlParams = new URLSearchParams(globalThis.location.search)
-    const tabFromUrl = urlParams.get('analyticsTab')
-
-    // Valid analytics tab values
-    if (tabFromUrl && ['overview', 'leads', 'accounts', 'opportunities', 'contacts'].includes(tabFromUrl)) {
-      return tabFromUrl as AnalyticsTabKey
-    }
-
-    // Default to overview
-    return 'overview' as AnalyticsTabKey
-  }, [])
 
   const [activeAnalyticsTab, setActiveAnalyticsTab] = useState<AnalyticsTabKey>(getInitialAnalyticsTab())
 

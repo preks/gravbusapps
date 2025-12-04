@@ -23,10 +23,6 @@ export const getDateRange = (filter: string, customStart?: Date, customEnd?: Dat
       startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7)
       label = 'Last 7 Days'
       break
-    case 'month':
-      startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30)
-      label = 'Last 30 Days'
-      break
     case 'quarter':
       startDate = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate())
       label = 'Last Quarter'
@@ -43,6 +39,7 @@ export const getDateRange = (filter: string, customStart?: Date, customEnd?: Dat
       endDate = customEnd
       label = 'Custom Range'
       break
+    case 'month':
     default:
       startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30)
       label = 'Last 30 Days'

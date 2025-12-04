@@ -43,16 +43,19 @@ export const usePipelines = (accessToken: string) => {
         }
       `
 
-      const response = await graphqlClient.request<{ Opportunity: Array<{ salesPipeline: any | null }> }>(query)
+      const response = await graphqlClient.request<{
+        Opportunity: Array<{ salesPipeline: { id: string; value?: string; code?: string } | null }>
+      }>(query)
 
-      // Map to Pipeline format
-      const uniquePipelines = response.Opportunity.filter(opp => opp.salesPipeline && opp.salesPipeline.id).map(
-        opp => ({
-          id: opp.salesPipeline.id,
-          name: opp.salesPipeline.value || opp.salesPipeline.code || opp.salesPipeline.id,
-          value: opp.salesPipeline.value || opp.salesPipeline.code || opp.salesPipeline.id
-        })
-      )
+      // Map to Pipeline format (filter ensures salesPipeline is not null)
+      const uniquePipelines = response.Opportunity.filter(opp => opp.salesPipeline?.id).map(opp => {
+        const pipeline = opp.salesPipeline!
+        return {
+          id: pipeline.id,
+          name: pipeline.value || pipeline.code || pipeline.id,
+          value: pipeline.value || pipeline.code || pipeline.id
+        }
+      })
 
       setPipelines(uniquePipelines)
     } catch (err) {

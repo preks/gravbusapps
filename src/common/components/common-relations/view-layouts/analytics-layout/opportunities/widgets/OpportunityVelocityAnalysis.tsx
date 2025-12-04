@@ -100,12 +100,12 @@ export const OpportunityVelocityAnalysis: React.FC<OpportunityVelocityAnalysisPr
               <span className="gba:text-sm gba:font-medium gba:text-purple-600">Velocity Trend</span>
             </div>
             <div className="gba:text-2xl gba:font-bold gba:text-purple-900">
-              {data.velocityTrend.length > 1
-                ? data.velocityTrend[data.velocityTrend.length - 1].opportunityCount >
-                  data.velocityTrend[data.velocityTrend.length - 2].opportunityCount
-                  ? '↗️'
-                  : '↘️'
-                : '→'}
+              {(() => {
+                if (data.velocityTrend.length <= 1) return '→'
+                const lastCount = data.velocityTrend[data.velocityTrend.length - 1].opportunityCount
+                const prevCount = data.velocityTrend[data.velocityTrend.length - 2].opportunityCount
+                return lastCount > prevCount ? '↗️' : '↘️'
+              })()}
             </div>
             <div className="gba:text-xs gba:text-purple-600 gba:mt-1">Monthly opportunity creation trend</div>
           </div>

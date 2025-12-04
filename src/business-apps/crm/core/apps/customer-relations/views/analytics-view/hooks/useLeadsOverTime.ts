@@ -65,27 +65,35 @@ export const useLeadsOverTime = (
           }))
         }
 
-        // Generate time periods based on the selected filter
-        const periods = generateTimePeriods(timeFilter)
-
-        // Build queries for each period and each status
-        const queries = periods.map((period, index) => {
-          // Create aggregate query for each status
-          const statusQueries = allStatusCodes
-            .map(status => {
-              const safeStatusCode = status.code.replace(/\W/g, '_') // Make safe for GraphQL alias
-              return `
+        // Helper function to build status query for a period
+        const buildStatusQuery = (
+          status: LeadStatusCatalogEntry,
+          periodIndex: number,
+          periodStart: string,
+          periodEnd: string
+        ): string => {
+          const safeStatusCode = status.code.replace(/\W/g, '_')
+          return `
           # Leads with status '${status.value}' in period
-          status_${safeStatusCode}_period${index}: LeadAggregate(
+          status_${safeStatusCode}_period${periodIndex}: LeadAggregate(
             where: {
               isDeleted: {_eq: false}
-              createdAt: {_gte: "${period.start}", _lt: "${period.end}"}
+              createdAt: {_gte: "${periodStart}", _lt: "${periodEnd}"}
               leadStatus: {code: {_eq: "${status.code}"}}
             }
           ) {
             aggregate { count }
           }`
-            })
+        }
+
+        // Helper function to build period query
+        const buildPeriodQuery = (
+          period: { start: string; end: string; label: string },
+          index: number,
+          statusCodes: LeadStatusCatalogEntry[]
+        ): string => {
+          const statusQueries = statusCodes
+            .map(status => buildStatusQuery(status, index, period.start, period.end))
             .join('\n')
 
           return `
@@ -100,7 +108,13 @@ export const useLeadsOverTime = (
           }
           ${statusQueries}
         `
-        })
+        }
+
+        // Generate time periods based on the selected filter
+        const periods = generateTimePeriods(timeFilter)
+
+        // Build queries for each period and each status
+        const queries = periods.map((period, index) => buildPeriodQuery(period, index, allStatusCodes))
 
         const query = `
           query GetLeadsOverTime {
@@ -110,47 +124,67 @@ export const useLeadsOverTime = (
 
         const result = await graphqlClient.request(query)
 
-        // Transform results to chart data
-        const trends = periods.map((period, index) => {
-          const leadsCreated = result[`createdPeriod${index}`]?.aggregate?.count || 0
+        // Helper function to check if status is converted
+        const isConvertedStatus = (status: LeadStatusCatalogEntry): boolean => {
+          const codeUpper = status.code?.toUpperCase() || ''
+          const valueUpper = status.value?.toUpperCase() || ''
+          return (
+            codeUpper.includes('CONVERTED') ||
+            codeUpper.includes('QUALIFIED') ||
+            valueUpper.includes('CONVERTED') ||
+            valueUpper.includes('QUALIFIED')
+          )
+        }
 
-          // Collect counts for all statuses dynamically
+        // Helper function to check if status is lost
+        const isLostStatus = (status: LeadStatusCatalogEntry): boolean => {
+          const codeUpper = status.code?.toUpperCase() || ''
+          const valueUpper = status.value?.toUpperCase() || ''
+          return (
+            codeUpper.includes('LOST') ||
+            codeUpper.includes('DEAD') ||
+            codeUpper.includes('REJECTED') ||
+            valueUpper.includes('LOST') ||
+            valueUpper.includes('DEAD') ||
+            valueUpper.includes('REJECTED')
+          )
+        }
+
+        // Helper function to process status counts for a period
+        const processStatusCounts = (
+          periodIndex: number,
+          statusCodes: LeadStatusCatalogEntry[]
+        ): {
+          statusCounts: { [key: string]: number }
+          leadsConverted: number
+          leadsLost: number
+        } => {
           const statusCounts: { [key: string]: number } = {}
           let leadsConverted = 0
           let leadsLost = 0
 
-          allStatusCodes.forEach(status => {
+          statusCodes.forEach(status => {
             const safeStatusCode = status.code.replace(/\W/g, '_')
-            const count = result[`status_${safeStatusCode}_period${index}`]?.aggregate?.count || 0
+            const count = result[`status_${safeStatusCode}_period${periodIndex}`]?.aggregate?.count || 0
 
-            // Store with readable key (status value)
             const statusKey = status.value.replace(/[\W_]/g, '')
             statusCounts[statusKey] = count
 
-            // Backward compatibility: identify converted and lost statuses
-            const codeUpper = status.code?.toUpperCase() || ''
-            const valueUpper = status.value?.toUpperCase() || ''
-
-            if (
-              codeUpper.includes('CONVERTED') ||
-              codeUpper.includes('QUALIFIED') ||
-              valueUpper.includes('CONVERTED') ||
-              valueUpper.includes('QUALIFIED')
-            ) {
+            if (isConvertedStatus(status)) {
               leadsConverted += count
             }
-
-            if (
-              codeUpper.includes('LOST') ||
-              codeUpper.includes('DEAD') ||
-              codeUpper.includes('REJECTED') ||
-              valueUpper.includes('LOST') ||
-              valueUpper.includes('DEAD') ||
-              valueUpper.includes('REJECTED')
-            ) {
+            if (isLostStatus(status)) {
               leadsLost += count
             }
           })
+
+          return { statusCounts, leadsConverted, leadsLost }
+        }
+
+        // Transform results to chart data
+        const trends = periods.map((period, index) => {
+          const leadsCreated = result[`createdPeriod${index}`]?.aggregate?.count || 0
+          const { statusCounts, leadsConverted, leadsLost } = processStatusCounts(index, allStatusCodes)
 
           return {
             date: period.start,

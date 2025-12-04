@@ -62,22 +62,22 @@ export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
   qualityData,
   moduleColor = 'default'
 }) => {
+  // Helper to calculate trend percentage
+  const calculateTrendPercent = (current: number, previous: number): number => {
+    if (previous > 0) {
+      return Math.abs(((current - previous) / previous) * 100)
+    }
+    return current > 0 ? 100 : 0
+  }
+
   const safeThisMonth = thisMonth || 0
   const safeLastMonth = lastMonth || 0
-  const newThisMonthTrendPercent =
-    safeLastMonth > 0 ? Math.abs(((safeThisMonth - safeLastMonth) / safeLastMonth) * 100) : safeThisMonth > 0 ? 100 : 0
+  const newThisMonthTrendPercent = calculateTrendPercent(safeThisMonth, safeLastMonth)
   const newThisMonthPositive = safeThisMonth >= safeLastMonth
 
   const safeAvg = avgPerAccount || 0
   const safeAvgLast = avgPerAccountLastMonth ?? undefined
-  const avgPerAccountTrendPercent =
-    safeAvgLast !== undefined
-      ? safeAvgLast > 0
-        ? Math.abs(((safeAvg - safeAvgLast) / safeAvgLast) * 100)
-        : safeAvg > 0
-          ? 100
-          : 0
-      : undefined
+  const avgPerAccountTrendPercent = safeAvgLast !== undefined ? calculateTrendPercent(safeAvg, safeAvgLast) : undefined
   const avgPerAccountPositive = safeAvgLast !== undefined ? safeAvg >= safeAvgLast : undefined
   const kpis = [
     {

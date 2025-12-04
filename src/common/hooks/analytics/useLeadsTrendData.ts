@@ -57,11 +57,6 @@ export const useLeadsTrendData = (
 
         let currentPeriodStart: string, previousPeriodStart: string, previousPeriodEnd: string
         switch (selectedTimeFilter) {
-          case 'month':
-            currentPeriodStart = currentMonthStart
-            previousPeriodStart = previousMonthStart
-            previousPeriodEnd = currentMonthStart
-            break
           case 'quarter': {
             const quarterStartMonth = Math.floor((currentMonth - 1) / 3) * 3 + 1
             currentPeriodStart = `${currentYear}-${pad2(quarterStartMonth)}-01T00:00:00Z`
@@ -77,6 +72,7 @@ export const useLeadsTrendData = (
             previousPeriodStart = `${currentYear - 1}-01-01T00:00:00Z`
             previousPeriodEnd = currentPeriodStart
             break
+          case 'month':
           default:
             currentPeriodStart = currentMonthStart
             previousPeriodStart = previousMonthStart

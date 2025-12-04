@@ -4,13 +4,9 @@
  *
  * Note: IRM uses 'InvestmentLead' as the entity name
  */
-import {
-  type LeadsTrendData,
-  type TimeFilter,
-  useLeadsTrendData as useSharedLeadsTrendData
-} from '@/common/hooks/analytics/useLeadsTrendData'
+import { useLeadsTrendData as useSharedLeadsTrendData } from '@/common/hooks/analytics/useLeadsTrendData'
 
-export type { LeadsTrendData, TimeFilter }
+export type { LeadsTrendData, TimeFilter } from '@/common/hooks/analytics/useLeadsTrendData'
 
 /**
  * Wrapper hook for IRM that uses 'InvestmentLead' entity

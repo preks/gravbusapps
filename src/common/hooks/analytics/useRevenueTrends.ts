@@ -152,7 +152,8 @@ function generateTimePeriods(timeFilter: TimeFilter) {
       break
 
     case 'sixMonths':
-      // Last 6 months
+    default:
+      // Last 6 months (default)
       for (let i = 5; i >= 0; i--) {
         const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1)
         const monthStart = date.toISOString()
@@ -204,24 +205,6 @@ function generateTimePeriods(timeFilter: TimeFilter) {
       }
       break
     }
-
-    default:
-      // Default to 6 months
-      for (let i = 5; i >= 0; i--) {
-        const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1)
-        const monthStart = date.toISOString()
-        const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 1).toISOString()
-        const monthName = date.toLocaleDateString('en-US', {
-          month: 'short',
-          year: 'numeric'
-        })
-
-        periods.push({
-          start: monthStart,
-          end: monthEnd,
-          label: monthName
-        })
-      }
   }
 
   return periods

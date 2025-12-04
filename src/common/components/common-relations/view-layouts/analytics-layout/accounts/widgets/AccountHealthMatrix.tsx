@@ -26,7 +26,8 @@ export interface AccountHealthMatrixProps {
   moduleColor?: string
 }
 
-export const AccountHealthMatrix: React.FC<AccountHealthMatrixProps> = ({ data, isLoading = false }) => {
+// Helper function to calculate health metrics
+const calculateHealthMetrics = (data: AccountHealthMatrixProps['data']) => {
   const opportunityRatio = data?.totalAccounts > 0 ? (data.accountsWithOpportunities / data.totalAccounts) * 100 : 0
   const avgOpportunitiesScore = data?.avgOpportunitiesPerAccount
     ? Math.min((data.avgOpportunitiesPerAccount / 5) * 100, 100)
@@ -34,13 +35,17 @@ export const AccountHealthMatrix: React.FC<AccountHealthMatrixProps> = ({ data, 
   const revenueScore =
     data?.topAccounts?.length > 0 ? Math.min((data.topAccounts.length / data.totalAccounts) * 100 * 10, 100) : 0
   const healthScore = Math.round((opportunityRatio + avgOpportunitiesScore + revenueScore) / 3)
+  return { opportunityRatio, avgOpportunitiesScore, revenueScore, healthScore }
+}
 
+// Helper function to calculate performance distribution
+const calculatePerformanceCategories = (data: AccountHealthMatrixProps['data']) => {
   const topAccountsCount = data?.topAccounts?.length || 0
   const highPerformingAccounts = data?.accountsWithOpportunities || 0
   const mediumPerformingAccounts = Math.max(0, (data?.totalAccounts || 0) - highPerformingAccounts - topAccountsCount)
   const lowPerformingAccounts = Math.max(0, (data?.totalAccounts || 0) - highPerformingAccounts)
 
-  const performanceCategories = [
+  return [
     { category: 'High Performers', count: topAccountsCount, color: '#10B981', description: 'Top revenue accounts' },
     {
       category: 'Good Performance',
@@ -61,10 +66,20 @@ export const AccountHealthMatrix: React.FC<AccountHealthMatrixProps> = ({ data, 
       description: 'No recent opportunities'
     }
   ].filter(cat => cat.count > 0)
+}
 
+// Helper function to calculate diversification score
+const calculateDiversificationScore = (data: AccountHealthMatrixProps['data']) => {
   const industryDiversification = data?.accountsByIndustry?.length || 0
   const sizeDiversification = data?.accountsBySize?.length || 0
   const diversificationScore = Math.min(((industryDiversification + sizeDiversification) / 10) * 100, 100)
+  return { industryDiversification, sizeDiversification, diversificationScore }
+}
+
+export const AccountHealthMatrix: React.FC<AccountHealthMatrixProps> = ({ data, isLoading = false }) => {
+  const { opportunityRatio, avgOpportunitiesScore, healthScore } = calculateHealthMetrics(data)
+  const performanceCategories = calculatePerformanceCategories(data)
+  const { industryDiversification, sizeDiversification, diversificationScore } = calculateDiversificationScore(data)
 
   return (
     <Card data-testid="account-health-matrix">
@@ -84,7 +99,7 @@ export const AccountHealthMatrix: React.FC<AccountHealthMatrixProps> = ({ data, 
           </div>
         ) : (
           <div className="gba:space-y-4">
-            <div className="gba:text-center gba:p-4 gba:bg-gradient-to-r gba:from-blue-50 gba:to-green-50 gba:rounded-lg">
+            <div className="gba:text-center gba:p-4 gba:bg-linear-to-r gba:from-blue-50 gba:to-green-50 gba:rounded-lg">
               <div className="gba:text-3xl gba:font-bold gba:text-green-600">{healthScore}%</div>
               <div className="gba:text-sm gba:text-gray-600">Overall Account Health</div>
               <div className="gba:text-xs gba:text-gray-500 gba:mt-1">
