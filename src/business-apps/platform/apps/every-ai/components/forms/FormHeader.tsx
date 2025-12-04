@@ -4,11 +4,10 @@ import { formatFlowName, extractOperation } from './utils/formSchemaUtils'
 
 interface FormHeaderProps {
   flowName: string
-  moduleName?: string
   isDeleteOperation: boolean
 }
 
-export const FormHeader: React.FC<FormHeaderProps> = ({ flowName, moduleName, isDeleteOperation }) => {
+export const FormHeader: React.FC<FormHeaderProps> = ({ flowName, isDeleteOperation }) => {
   const operation = extractOperation(flowName)
 
   // Get badge styling based on operation type
@@ -37,23 +36,24 @@ export const FormHeader: React.FC<FormHeaderProps> = ({ flowName, moduleName, is
   )
 
   return (
-    <CardHeader className="gba:border-b-2 gba:bg-gradient-to-r gba:from-muted/50 gba:to-muted/30">
-      <div className="gba:flex gba:items-center gba:gap-2 gba:justify-between">
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <svg className="gba:h-5 gba:w-5 gba:text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            {iconPath}
-          </svg>
-          <CardTitle className="gba:text-foreground">{formatFlowName(flowName)}</CardTitle>
+    <CardHeader className="gba:border-b-2 gba:p-0 gba:overflow-hidden">
+      <div className="gba:w-full gba:bg-muted/50 gba:shadow-sm gba:px-4 gba:py-3">
+        <div className="gba:flex gba:items-center gba:gap-2 gba:justify-between">
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <svg className="gba:h-4 gba:w-4 gba:text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {iconPath}
+            </svg>
+            <CardTitle className="gba:text-foreground gba:text-base">{formatFlowName(flowName)}</CardTitle>
+          </div>
+          {operation && (
+            <span
+              className={`gba:text-xs gba:font-medium gba:px-2 gba:py-1 gba:rounded-md gba:capitalize ${getBadgeClassName()}`}
+            >
+              {operation}
+            </span>
+          )}
         </div>
-        {operation && (
-          <span
-            className={`gba:text-xs gba:font-medium gba:px-2 gba:py-1 gba:rounded-md gba:capitalize ${getBadgeClassName()}`}
-          >
-            {operation}
-          </span>
-        )}
       </div>
-      {moduleName && <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">{moduleName}</p>}
     </CardHeader>
   )
 }

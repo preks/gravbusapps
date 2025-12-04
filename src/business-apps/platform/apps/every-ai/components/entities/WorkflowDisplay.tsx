@@ -1,6 +1,7 @@
 import React from 'react'
 import { EntityCard } from './EntityCard'
 import { env } from '@/common/env/EnvUtils'
+import { getOperationBadge } from './utils/displayUtils'
 
 interface WorkflowDisplayProps {
   workflowId: string
@@ -16,20 +17,7 @@ export const WorkflowDisplay: React.FC<WorkflowDisplayProps> = ({
   operation,
   flowProposal
 }) => {
-  const getOperationBadge = () => {
-    switch (operation) {
-      case 'create':
-        return { text: 'Created', variant: 'success' as const }
-      case 'update':
-        return { text: 'Updated', variant: 'default' as const }
-      case 'delete':
-        return { text: 'Deleted', variant: 'destructive' as const }
-      default:
-        return undefined
-    }
-  }
-
-  const operationBadge = getOperationBadge()
+  const operationBadge = getOperationBadge(operation)
 
   // Format the workflow name for display (e.g., "flow_onestep_workflow" -> "Flow Onestep Workflow")
   const formatWorkflowName = (id: string): string => {

@@ -793,12 +793,8 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
       className="gba:w-full gba:max-w-md gba:border-2 gba:shadow-xl gba:overflow-hidden"
       data-testid="dynamic-form-display"
     >
-      <FormHeader
-        flowName={data.flow_name || ''}
-        moduleName={data.module_name || ''}
-        isDeleteOperation={isDeleteOperation}
-      />
-      <CardContent className="gba:p-6">
+      <FormHeader flowName={data.flow_name || ''} isDeleteOperation={isDeleteOperation} />
+      <CardContent className="gba:p-4">
         <form onSubmit={handleSubmit} className={isCompleted ? 'gba:opacity-60 gba:pointer-events-none' : ''}>
           {isDeleteOperation && deleteSummary ? (
             // Simplified delete confirmation UI
