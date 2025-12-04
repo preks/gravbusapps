@@ -102,6 +102,23 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
     }
   }, [currentUser])
 
+  // Available participants for adding to a call (from the active conversation)
+  const availableParticipantsForCall = useMemo(() => {
+    if (!activeConversation?.participants) return []
+    return activeConversation.participants
+      .filter(p => p.user) // Only include participants with user data
+      .map(p => ({
+        id: p.user!.id,
+        odId: p.user!.id,
+        odName:
+          p.user!.displayName ||
+          `${p.user!.firstName || ''} ${p.user!.lastName || ''}`.trim() ||
+          p.user!.username ||
+          'Unknown',
+        avatarUrl: p.user!.avatarUrl
+      }))
+  }, [activeConversation?.participants])
+
   // 1:1 Call functionality
   const {
     callState,
@@ -145,7 +162,8 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
     toggleScreenShare: toggleGroupScreenShare,
     setVideoQuality: setGroupVideoQuality,
     toggleMinimize: toggleGroupMinimize,
-    toggleBackground: toggleGroupBackground
+    toggleBackground: toggleGroupBackground,
+    inviteToCall: inviteToGroupCall
   } = useGroupCall({
     wsClient: wsClient || null,
     apiClient: apiClient || null,
@@ -898,6 +916,8 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
           onToggleBackground={toggleGroupBackground}
           backgroundEnabled={groupCallState.backgroundEnabled}
           prefixDataTestId={`${prefixDataTestId}-group-call`}
+          availableParticipants={availableParticipantsForCall}
+          onInviteParticipant={participant => inviteToGroupCall([participant], activeConversation?.name)}
         />
       )}
     </div>

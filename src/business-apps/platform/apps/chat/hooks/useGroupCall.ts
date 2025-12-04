@@ -78,6 +78,7 @@ export interface UseGroupCallReturn {
   setVideoQuality: (quality: VideoQuality) => Promise<void>
   toggleMinimize: () => void
   toggleBackground: () => void
+  inviteToCall: (participants: CallParticipant[], conversationName?: string) => void
 }
 
 const initialCallState: GroupCallUIState = {
@@ -1030,6 +1031,55 @@ export const useGroupCall = ({
   // Check if current user is the host
   const isHost = currentUser?.id === callState.hostId
 
+  // Invite additional participants to an ongoing call
+  const inviteToCall = useCallback(
+    (newParticipants: CallParticipant[], conversationName?: string) => {
+      if (!currentUserRef.current || !wsClientRef.current || !callStateRef.current.roomId) {
+        console.error('Cannot invite: missing user, WebSocket client, or active call')
+        return
+      }
+
+      // Filter out participants already in the call
+      const currentParticipantIds = new Set(participants.map(p => p.id))
+      const participantsToInvite = newParticipants.filter(
+        p => p.id !== currentUserRef.current!.id && !currentParticipantIds.has(p.id)
+      )
+
+      if (participantsToInvite.length === 0) {
+        console.debug('No new participants to invite')
+        return
+      }
+
+      console.debug(
+        'Inviting',
+        participantsToInvite.length,
+        'new participants to call:',
+        participantsToInvite.map(p => p.odName)
+      )
+
+      const invitePayload = {
+        roomId: callStateRef.current.roomId,
+        callType: callStateRef.current.callType,
+        from: {
+          id: currentUserRef.current.id,
+          odId: currentUserRef.current.odId,
+          odName: currentUserRef.current.odName,
+          avatarUrl: currentUserRef.current.avatarUrl
+        },
+        participants: participantsToInvite.map(p => ({
+          id: p.id,
+          odId: p.odId,
+          odName: p.odName,
+          avatarUrl: p.avatarUrl
+        })),
+        conversationName
+      }
+
+      wsClientRef.current.inviteToGroupCall(invitePayload)
+    },
+    [participants]
+  )
+
   return {
     callState,
     isInCall: callState.status === 'connected' || callState.status === 'joining',
@@ -1049,6 +1099,7 @@ export const useGroupCall = ({
     toggleScreenShare,
     setVideoQuality,
     toggleMinimize,
-    toggleBackground
+    toggleBackground,
+    inviteToCall
   }
 }

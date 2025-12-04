@@ -39,10 +39,19 @@ import {
   SignalLow,
   Check,
   ImageIcon,
-  Crown
+  Crown,
+  UserPlus
 } from 'lucide-react'
 import type { GroupCallParticipant, VideoQuality } from '../services/groupWebrtcClient'
 import type { GroupCallUIState } from '../hooks/useGroupCall'
+import type { CallParticipant } from '../services/webrtcClient'
+
+interface AvailableParticipant {
+  id: string
+  odId: string
+  odName: string
+  avatarUrl?: string
+}
 
 interface GroupCallModalProps {
   callState: GroupCallUIState
@@ -58,6 +67,9 @@ interface GroupCallModalProps {
   onToggleBackground?: () => void
   backgroundEnabled?: boolean
   prefixDataTestId?: string
+  // For adding participants to the call
+  availableParticipants?: AvailableParticipant[]
+  onInviteParticipant?: (participant: CallParticipant) => void
 }
 
 // Format duration as MM:SS or HH:MM:SS
@@ -222,7 +234,9 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
   onToggleMinimize,
   onToggleBackground,
   backgroundEnabled = false,
-  prefixDataTestId = 'group-call'
+  prefixDataTestId = 'group-call',
+  availableParticipants = [],
+  onInviteParticipant
 }) => {
   const [isFullscreen, setIsFullscreen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -266,6 +280,12 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
   }, [participants, currentUserParticipant, localStream, remoteStreams])
 
   const gridLayout = getGridLayout(allParticipants.length)
+
+  // Participants from conversation who are not in the call yet
+  const participantsNotInCall = useMemo(() => {
+    const inCallIds = new Set(participants.map(p => p.id))
+    return availableParticipants.filter(p => !inCallIds.has(p.id))
+  }, [participants, availableParticipants])
 
   // Get first remote participant for minimized view
   const firstRemoteParticipant = useMemo(() => {
@@ -614,6 +634,50 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
           >
             <Monitor className="gba:h-6 gba:w-6" />
           </button>
+
+          {/* Add participant button */}
+          {onInviteParticipant && participantsNotInCall.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="gba:p-4 gba:rounded-full gba:bg-gray-700 hover:gba:bg-gray-600 gba:text-white gba:transition-all gba:relative"
+                  title="Add participant"
+                  data-testid={`${prefixDataTestId}-add-participant-btn`}
+                >
+                  <UserPlus className="gba:h-6 gba:w-6" />
+                  <span className="gba:absolute gba:-top-1 gba:-right-1 gba:bg-primary gba:text-white gba:text-xs gba:rounded-full gba:w-5 gba:h-5 gba:flex gba:items-center gba:justify-center">
+                    {participantsNotInCall.length}
+                  </span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="center" className="gba:w-64 gba:max-h-64 gba:overflow-y-auto">
+                <DropdownMenuLabel>Add to call</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {participantsNotInCall.map(participant => (
+                  <DropdownMenuItem
+                    key={participant.id}
+                    onClick={() =>
+                      onInviteParticipant({
+                        id: participant.id,
+                        odId: participant.odId,
+                        odName: participant.odName,
+                        avatarUrl: participant.avatarUrl
+                      })
+                    }
+                    className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer"
+                  >
+                    <Avatar className="gba:h-8 gba:w-8">
+                      {participant.avatarUrl ? (
+                        <AvatarImage src={participant.avatarUrl} alt={participant.odName} />
+                      ) : null}
+                      <AvatarFallback className="gba:text-xs">{getInitials(participant.odName)}</AvatarFallback>
+                    </Avatar>
+                    <span className="gba:truncate">{participant.odName}</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
 
           {/* End call button */}
           <button
