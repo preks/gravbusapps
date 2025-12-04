@@ -32,8 +32,8 @@ const OpportunityDeletePopup: React.FC<OpportunityDeletePopupProps> = ({ initial
         navigateTo('/platform/crm/customer-relations?view=opportunities')
       }
     }
-    window.addEventListener('com.newwork.process.processCompletion', handleProcessComplete)
-    return () => window.removeEventListener('com.newwork.process.processCompletion', handleProcessComplete)
+    globalThis.addEventListener('com.newwork.process.processCompletion', handleProcessComplete)
+    return () => globalThis.removeEventListener('com.newwork.process.processCompletion', handleProcessComplete)
   }, [])
 
   return (

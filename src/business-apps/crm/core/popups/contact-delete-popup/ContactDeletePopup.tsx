@@ -32,8 +32,8 @@ const ContactDeletePopup: React.FC<ContactDeletePopupProps> = ({ initialValues =
         navigateTo('/platform/crm/customer-relations?view=contacts')
       }
     }
-    window.addEventListener('com.newwork.process.processCompletion', handleProcessComplete)
-    return () => window.removeEventListener('com.newwork.process.processCompletion', handleProcessComplete)
+    globalThis.addEventListener('com.newwork.process.processCompletion', handleProcessComplete)
+    return () => globalThis.removeEventListener('com.newwork.process.processCompletion', handleProcessComplete)
   }, [])
 
   return (
