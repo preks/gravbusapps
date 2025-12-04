@@ -4,6 +4,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { Alert, AlertDescription, Badge, Spinner } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
+import { navigateTo } from '@/common/utils/navigationUtils'
 import type { Lead } from '@/common/data/relations/types/leadTypes'
 
 export interface LeadDeletePopupValues {
@@ -127,6 +128,14 @@ const LeadDeletePopup: React.FC<LeadDeletePopupProps> = ({
           'Are you sure you want to delete this lead?'
         )
 
+  const handleProcessCompletion = (detail: { resolution?: 'success' | 'failure' } | null) => {
+    if (detail?.resolution === 'success') {
+      const basePath =
+        domain === 'investments' ? '/platform/irm/investment-relations' : '/platform/crm/customer-relations'
+      navigateTo(`${basePath}?view=leads`)
+    }
+  }
+
   return (
     <AppActionForm
       processType="delete"
@@ -135,6 +144,7 @@ const LeadDeletePopup: React.FC<LeadDeletePopupProps> = ({
       validateForm={validateForm}
       submitButtonText={getTranslationFromI18nKeyAndLabel('common.delete', 'Delete')}
       submitButtonVariant="destructive"
+      onProcessCompletion={handleProcessCompletion}
       data-testid={formatDataTestId(prefixDataTestId, 'form')}
     >
       <div className="gba:space-y-4" data-testid={formatDataTestId(prefixDataTestId, 'container')}>

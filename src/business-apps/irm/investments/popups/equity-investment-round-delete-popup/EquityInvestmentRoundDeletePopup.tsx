@@ -4,7 +4,6 @@ import { AlertTriangle } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 const prefixDataTestId = 'EquityInvestmentRoundDeletePopup'
 
@@ -44,9 +43,6 @@ const EquityInvestmentRoundDeletePopup: React.FC<EquityInvestmentRoundDeletePopu
           if (onSuccess) {
             onSuccess({ deletedRoundId: equityInvestmentRoundId })
           }
-          // Redirect to investments list after successful deletion
-          const url = buildPlatformUrl('/platform/irm/investment-management', { view: 'investments' })
-          navigateTo(url)
         }
       } catch (err: any) {
         console.error('Error in process completion:', err)

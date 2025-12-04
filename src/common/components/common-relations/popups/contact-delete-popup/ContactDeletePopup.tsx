@@ -4,6 +4,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { Alert, AlertDescription, Badge, Spinner } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
+import { navigateTo } from '@/common/utils/navigationUtils'
 import type { Contact } from '@/common/data/relations/types/contactTypes'
 
 export interface ContactDeletePopupValues {
@@ -113,6 +114,14 @@ const ContactDeletePopup: React.FC<ContactDeletePopupProps> = ({
           'Are you sure you want to delete this contact?'
         )
 
+  const handleProcessCompletion = (detail: { resolution?: 'success' | 'failure' } | null) => {
+    if (detail?.resolution === 'success') {
+      const basePath =
+        domain === 'investments' ? '/platform/irm/investment-relations' : '/platform/crm/customer-relations'
+      navigateTo(`${basePath}?view=contacts`)
+    }
+  }
+
   return (
     <AppActionForm
       processType="delete"
@@ -121,6 +130,7 @@ const ContactDeletePopup: React.FC<ContactDeletePopupProps> = ({
       validateForm={validateForm}
       submitButtonText={getTranslationFromI18nKeyAndLabel('common.delete', 'Delete')}
       submitButtonVariant="destructive"
+      onProcessCompletion={handleProcessCompletion}
       data-testid={formatDataTestId(prefixDataTestId, 'form')}
     >
       <div className="gba:space-y-4" data-testid={formatDataTestId(prefixDataTestId, 'container')}>

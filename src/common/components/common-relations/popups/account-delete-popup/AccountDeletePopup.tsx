@@ -4,6 +4,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { Alert, AlertDescription, Badge, Spinner } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
+import { navigateTo } from '@/common/utils/navigationUtils'
 import type { Account } from '@/common/data/relations/types/accountTypes'
 
 export interface AccountDeletePopupValues {
@@ -113,6 +114,14 @@ const AccountDeletePopup: React.FC<AccountDeletePopupProps> = ({
           'Are you sure you want to delete this account?'
         )
 
+  const handleProcessCompletion = (detail: { resolution?: 'success' | 'failure' } | null) => {
+    if (detail?.resolution === 'success') {
+      const basePath =
+        domain === 'investments' ? '/platform/irm/investment-relations' : '/platform/crm/customer-relations'
+      navigateTo(`${basePath}?view=accounts`)
+    }
+  }
+
   return (
     <AppActionForm
       processType="delete"
@@ -121,6 +130,7 @@ const AccountDeletePopup: React.FC<AccountDeletePopupProps> = ({
       validateForm={validateForm}
       submitButtonText={getTranslationFromI18nKeyAndLabel('common.delete', 'Delete')}
       submitButtonVariant="destructive"
+      onProcessCompletion={handleProcessCompletion}
       data-testid={formatDataTestId(prefixDataTestId, 'form')}
     >
       <div className="gba:space-y-4" data-testid={formatDataTestId(prefixDataTestId, 'container')}>
