@@ -30,6 +30,7 @@ import CrmDocumentDisplay from './entities/CrmDocumentDisplay'
 import IrmNoteDisplay from './entities/IrmNoteDisplay'
 import IrmDocumentDisplay from './entities/IrmDocumentDisplay'
 import SalesActivityDisplay from './entities/SalesActivityDisplay'
+import WorkflowDisplay from './entities/WorkflowDisplay'
 import EntityLink, { markdownUrlTransform } from './links/EntityLink'
 import NavigationDisplay from './displays/NavigationDisplay'
 import { ReminderDisplay } from './displays/ReminderDisplay'
@@ -405,12 +406,7 @@ function renderEntity(item: EntityData, accessToken: string) {
     case 'sales_activity':
     case 'salesActivity':
       return (
-        <SalesActivityDisplay
-          key={item.id}
-          activityId={item.id}
-          accessToken={accessToken}
-          operation={item.operation}
-        />
+        <SalesActivityDisplay key={item.id} activityId={item.id} accessToken={accessToken} operation={item.operation} />
       )
     case 'blink':
     case 'quick_task':
@@ -439,6 +435,16 @@ function renderEntity(item: EntityData, accessToken: string) {
     case 'investment_document':
       return (
         <IrmDocumentDisplay key={item.id} documentId={item.id} accessToken={accessToken} operation={item.operation} />
+      )
+    case 'service_workflow':
+      return (
+        <WorkflowDisplay
+          key={item.id}
+          workflowId={item.id}
+          accessToken={accessToken}
+          operation={item.operation}
+          flowProposal={item.flow_proposal}
+        />
       )
     default: {
       // Fallback for any unhandled entity types (should never happen with current types)

@@ -7,7 +7,6 @@ import { formatCompactCurrency, extractCurrencyCode } from '@/common/utils/numbe
 import { useExitOpportunityMetrics } from '../hooks/useExitOpportunityMetrics'
 
 export interface ExitOpportunityStatisticsProps extends BusinessAppContextProps {
-  onRefresh?: () => void
   currencyCode?: string
 }
 
@@ -53,11 +52,11 @@ export const ExitOpportunityStatistics: React.FC<ExitOpportunityStatisticsProps>
       prefix: <TrendingUp className="gba:h-5 gba:w-5 gba:text-blue-600" />,
       color: '#1890ff',
       span: { xs: 24, sm: 12, md: 12, lg: 6 },
-      description: getTranslationFromI18nKeyAndLabel('active_exit_opportunities', 'Active exit opportunities'),
+      description: getTranslationFromI18nKeyAndLabel('active_opportunities', 'Active opportunities'),
       trend: {
         value: formatPercentageChange(metrics.countChange),
         positive: metrics.countChange >= 0,
-        description: getTranslationFromI18nKeyAndLabel('vs_last_30_days', 'vs last 30 days')
+        description: getTranslationFromI18nKeyAndLabel('vs_last_quarter', 'vs last quarter')
       }
     },
     {
@@ -68,11 +67,11 @@ export const ExitOpportunityStatistics: React.FC<ExitOpportunityStatisticsProps>
       prefix: <TrendingUp className="gba:h-5 gba:w-5 gba:text-green-600" />,
       color: '#52c41a',
       span: { xs: 24, sm: 12, md: 12, lg: 6 },
-      description: getTranslationFromI18nKeyAndLabel('estimated_opportunity_value', 'Estimated opportunity value'),
+      description: getTranslationFromI18nKeyAndLabel('estimated_value', 'Estimated value'),
       trend: {
         value: formatPercentageChange(metrics.totalValueChange),
         positive: metrics.totalValueChange >= 0,
-        description: getTranslationFromI18nKeyAndLabel('vs_last_30_days', 'vs last 30 days')
+        description: getTranslationFromI18nKeyAndLabel('vs_last_quarter', 'vs last quarter')
       }
     },
     {
@@ -83,11 +82,11 @@ export const ExitOpportunityStatistics: React.FC<ExitOpportunityStatisticsProps>
       prefix: <Target className="gba:h-5 gba:w-5 gba:text-purple-600" />,
       color: '#722ed1',
       span: { xs: 24, sm: 12, md: 12, lg: 6 },
-      description: getTranslationFromI18nKeyAndLabel('average_opportunity_size', 'Average opportunity size'),
+      description: getTranslationFromI18nKeyAndLabel('avg_size', 'Avg size'),
       trend: {
         value: formatPercentageChange(metrics.averageValueChange),
         positive: metrics.averageValueChange >= 0,
-        description: getTranslationFromI18nKeyAndLabel('vs_last_30_days', 'vs last 30 days')
+        description: getTranslationFromI18nKeyAndLabel('vs_last_quarter', 'vs last quarter')
       }
     },
     {
@@ -98,11 +97,11 @@ export const ExitOpportunityStatistics: React.FC<ExitOpportunityStatisticsProps>
       prefix: <CheckCircle className="gba:h-5 gba:w-5 gba:text-orange-600" />,
       color: '#fa8c16',
       span: { xs: 24, sm: 12, md: 12, lg: 6 },
-      description: getTranslationFromI18nKeyAndLabel('success_probability', 'Success probability'),
+      description: getTranslationFromI18nKeyAndLabel('win_probability', 'Win probability'),
       trend: {
         value: formatPercentageChange(metrics.winRateChange),
         positive: metrics.winRateChange >= 0,
-        description: getTranslationFromI18nKeyAndLabel('vs_last_30_days', 'vs last 30 days')
+        description: getTranslationFromI18nKeyAndLabel('vs_last_quarter', 'vs last quarter')
       }
     }
   ]
@@ -112,6 +111,7 @@ export const ExitOpportunityStatistics: React.FC<ExitOpportunityStatisticsProps>
       widgets={widgets}
       isLoading={isLoading}
       error={error ? new Error(error) : null}
+      onRetry={() => loadMetrics({ dealType: 'DIVESTMENT_DEAL', currencyCode: currencyCode || undefined })}
       skeletonCount={4}
       defaultSpan={{ xs: 24, sm: 12, md: 12, lg: 6 }}
       emptyText={getTranslationFromI18nKeyAndLabel('no_metrics_available', 'No metrics available')}

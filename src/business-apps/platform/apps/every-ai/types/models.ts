@@ -86,6 +86,7 @@ export type EntityData = {
     | 'reminder'
     | 'blink'
     | 'quick_task'
+    | 'service_workflow'
   id: string
   operation?: 'create' | 'update' | 'delete' | 'read'
   flow_proposal?: string

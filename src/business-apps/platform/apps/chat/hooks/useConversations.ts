@@ -22,7 +22,7 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
 
   // Use user management client to fetch real user data
   const { getUsersByIds } = useUserManagementClient(accessToken)
-  const { fetchAvatars } = useEmployeeAvatars(accessToken)
+  const { fetchAvatarsWithEmployeeIds } = useEmployeeAvatars(accessToken)
 
   // Helper function to enrich conversations with real user data and avatars
   // Only enriches user data for placeholder users (who haven't logged in yet)
@@ -51,22 +51,22 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
           })
         })
 
-        // Fetch avatars for ALL participants (parallel request)
-        const avatarMapPromise = fetchAvatars(Array.from(allParticipantIds))
+        // Fetch avatars and employeeIds for ALL participants (parallel request)
+        const employeeInfoMapPromise = fetchAvatarsWithEmployeeIds(Array.from(allParticipantIds))
 
         // Fetch real user data only for placeholder users (parallel request)
         const userDataMapPromise =
           placeholderUserIds.size > 0 ? getUsersByIds(Array.from(placeholderUserIds)) : Promise.resolve(new Map())
 
         // Wait for both requests to complete
-        const [avatarMap, userDataMap] = await Promise.all([avatarMapPromise, userDataMapPromise])
+        const [employeeInfoMap, userDataMap] = await Promise.all([employeeInfoMapPromise, userDataMapPromise])
 
-        // Enrich conversations with user data and avatars
+        // Enrich conversations with user data, avatars, and employeeIds
         const enrichedConversations = conversations.map(
           (conv: Conversation): Conversation => ({
             ...conv,
             participants: conv.participants?.map((p: ConversationParticipant) => {
-              const avatarUrl = avatarMap.get(p?.user?.id || '')
+              const employeeInfo = employeeInfoMap.get(p?.user?.id || '')
 
               // Enrich placeholder users with real data from user management
               if (p?.user?.email?.includes('@placeholder.local')) {
@@ -81,20 +81,22 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
                       lastName: realUserData.lastName,
                       email: realUserData.email,
                       username: realUserData.username,
-                      // Add avatar from Employee API
-                      avatarUrl: avatarUrl || p.user.avatarUrl
+                      // Add avatar and employeeId from Employee API
+                      avatarUrl: employeeInfo?.avatarUrl || p.user.avatarUrl,
+                      employeeId: employeeInfo?.employeeId || p.user.employeeId
                     }
                   }
                 }
               }
 
-              // For non-placeholder users, just update avatar
-              if (avatarUrl && p?.user) {
+              // For non-placeholder users, update avatar and employeeId
+              if (employeeInfo && p?.user) {
                 return {
                   ...p,
                   user: {
                     ...p.user,
-                    avatarUrl
+                    avatarUrl: employeeInfo.avatarUrl || p.user.avatarUrl,
+                    employeeId: employeeInfo.employeeId || p.user.employeeId
                   }
                 }
               }
@@ -110,7 +112,7 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
         return conversations
       }
     },
-    [getUsersByIds, fetchAvatars]
+    [getUsersByIds, fetchAvatarsWithEmployeeIds]
   )
 
   const loadConversations = useCallback(async () => {

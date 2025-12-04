@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, KeyboardEvent, useCallback } from 'react'
+import React, { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react'
 import { Button, Input } from '@newwork/nw-design-system'
 import { PaperPlaneTilt, Paperclip, At, X, File } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -41,6 +41,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const inputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const hadFocusRef = useRef<boolean>(false)
+  const shouldRestoreFocusRef = useRef<boolean>(false)
+  const focusTimeoutsRef = useRef<NodeJS.Timeout[]>([])
 
   const {
     entities,
@@ -84,10 +86,35 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     }, 2000)
   }
 
+  const focusInput = useCallback(() => {
+    if (inputRef.current) {
+      inputRef.current.focus({ preventScroll: true })
+      const cursorPosition = inputRef.current.value.length
+      inputRef.current.setSelectionRange(cursorPosition, cursorPosition)
+    }
+  }, [])
+
+  const scheduleFocusRestoration = useCallback(() => {
+    // Clear any pending focus attempts
+    focusTimeoutsRef.current.forEach(timeoutId => clearTimeout(timeoutId))
+    focusTimeoutsRef.current = []
+
+    const focusDelays = [0, 16, 40, 80, 150, 250, 400]
+    focusDelays.forEach(delay => {
+      const timeoutId = setTimeout(() => {
+        if (hadFocusRef.current || shouldRestoreFocusRef.current) {
+          focusInput()
+        }
+      }, delay)
+      focusTimeoutsRef.current.push(timeoutId)
+    })
+  }, [focusInput])
+
   const handleSend = () => {
     if ((value.trim() || attachments.length > 0) && !disabled) {
       // Mark that we want to keep focus
       hadFocusRef.current = true
+      shouldRestoreFocusRef.current = true
 
       onSend(
         value.trim(),
@@ -108,14 +135,11 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         clearTimeout(stopTypingTimerRef.current)
       }
 
-      // Keep focus on input for next message - use requestAnimationFrame for more reliable timing
-      requestAnimationFrame(() => {
-        inputRef.current?.focus()
-      })
+      scheduleFocusRestoration()
     }
   }
 
-  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     // If mention popover is open, handle navigation
     if (mentionState?.isActive && entities.length > 0) {
       if (e.key === 'ArrowDown') {
@@ -152,6 +176,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
 
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
+      e.stopPropagation()
       handleSend()
     }
   }
@@ -251,27 +276,55 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     hadFocusRef.current = true
   }, [])
 
-  const handleBlur = useCallback((e: React.FocusEvent) => {
-    // Only mark as lost focus if focus is leaving to something outside the input container
-    // This prevents losing focus when clicking buttons
-    const relatedTarget = e.relatedTarget as HTMLElement | null
-    const container = e.currentTarget.closest('[data-testid="message-input"]')
-    if (!container?.contains(relatedTarget)) {
-      hadFocusRef.current = false
-    }
-  }, [])
+  const handleBlur = useCallback(
+    (e: React.FocusEvent) => {
+      const relatedTarget = e.relatedTarget as HTMLElement | null
+      const container = e.currentTarget.closest('[data-testid="message-input"]')
+
+      if (!relatedTarget) {
+        // Focus left to body (platform steals it) - immediately plan to restore
+        shouldRestoreFocusRef.current = true
+        scheduleFocusRestoration()
+        return
+      }
+
+      if (!container?.contains(relatedTarget)) {
+        hadFocusRef.current = false
+      }
+    },
+    [scheduleFocusRestoration]
+  )
 
   // Restore focus after re-renders if we had focus
+  useLayoutEffect(() => {
+    if (shouldRestoreFocusRef.current && inputRef.current) {
+      focusInput()
+      shouldRestoreFocusRef.current = false
+    }
+  }, [value, focusInput])
+
   useEffect(() => {
     if (hadFocusRef.current && inputRef.current && document.activeElement !== inputRef.current) {
-      const timeoutId = setTimeout(() => {
-        if (hadFocusRef.current && inputRef.current) {
-          inputRef.current.focus()
+      // Use requestAnimationFrame to ensure DOM is ready
+      const rafId = requestAnimationFrame(() => {
+        if (hadFocusRef.current && inputRef.current && document.activeElement !== inputRef.current) {
+          focusInput()
         }
-      }, 0)
-      return () => clearTimeout(timeoutId)
+      })
+      return () => cancelAnimationFrame(rafId)
     }
-  })
+    return undefined
+  }, [focusInput])
+
+  const handleToolbarMouseDown = useCallback(
+    (event: React.MouseEvent) => {
+      event.preventDefault()
+      hadFocusRef.current = true
+      shouldRestoreFocusRef.current = true
+      scheduleFocusRestoration()
+    },
+    [scheduleFocusRestoration]
+  )
 
   // Cleanup timers and object URLs on unmount
   useEffect(() => {
@@ -282,6 +335,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       if (stopTypingTimerRef.current) {
         clearTimeout(stopTypingTimerRef.current)
       }
+      // Clear pending focus attempts
+      focusTimeoutsRef.current.forEach(timeoutId => clearTimeout(timeoutId))
       // Cleanup attachment previews
       attachments.forEach(a => {
         if (a.preview) URL.revokeObjectURL(a.preview)
@@ -354,6 +409,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             variant="ghost"
             size="icon"
             onClick={handleAttachClick}
+            onMouseDown={handleToolbarMouseDown}
             disabled={disabled}
             className={`gba:flex-shrink-0 gba:text-muted-foreground gba:hover:text-foreground ${
               compact ? 'gba:h-7 gba:w-7' : 'gba:h-8 gba:w-8'
@@ -370,6 +426,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             variant="ghost"
             size="icon"
             onClick={handleAtClick}
+            onMouseDown={handleToolbarMouseDown}
             disabled={disabled}
             className={`gba:flex-shrink-0 gba:text-muted-foreground gba:hover:text-foreground ${
               compact ? 'gba:h-7 gba:w-7' : 'gba:h-8 gba:w-8'
@@ -415,6 +472,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           onClick={handleSend}
           disabled={!hasContent || disabled}
           size="icon"
+          onMouseDown={handleToolbarMouseDown}
           className={`gba:flex-shrink-0 gba:rounded-full gba:transition-all ${
             compact ? 'gba:h-8 gba:w-8' : 'gba:h-9 gba:w-9'
           } ${

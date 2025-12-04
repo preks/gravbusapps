@@ -193,7 +193,7 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
     },
     {
       key: 'avg-sales-cycle',
-      title: 'Avg. Sales Cycle',
+      title: 'Avg. Opportunity Cycle',
       value: avgSalesCycle,
       suffix: ' days',
       prefix: <ClockCircleOutlined />,

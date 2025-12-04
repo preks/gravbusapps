@@ -138,11 +138,11 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
               color: 'var(--nw-color-primary-500)',
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
-              description: 'Current market valuation across all investments',
+              description: 'All investments',
               trend: {
                 value: calculateChange(kpis.totalPortfolioValue, previousKpis.totalPortfolioValue).value,
                 positive: calculateChange(kpis.totalPortfolioValue, previousKpis.totalPortfolioValue).positive,
-                description: 'vs 30 days ago'
+                description: 'vs last quarter'
               }
             },
             {
@@ -152,11 +152,11 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
               prefix: <BarChartOutlined />,
               color: 'var(--nw-color-success-500)',
               span: { xs: 24, sm: 12, lg: 6 },
-              description: 'Total number of investment positions',
+              description: 'Investment count',
               trend: {
                 value: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).value,
                 positive: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).positive,
-                description: 'vs 30 days ago'
+                description: 'vs last quarter'
               }
             },
             {
@@ -174,11 +174,11 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
               color: 'var(--nw-color-warning-500)',
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
-              description: 'Sum of all total invested amounts',
+              description: 'Total capital',
               trend: {
                 value: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).value,
                 positive: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).positive,
-                description: 'vs 30 days ago'
+                description: 'vs last quarter'
               }
             },
             {
@@ -188,11 +188,11 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
               prefix: <RiseOutlined />,
               color: 'var(--nw-color-purple-500)',
               span: { xs: 24, sm: 12, lg: 6 },
-              description: 'Currently active investment positions',
+              description: 'Active positions',
               trend: {
                 value: calculateChange(kpis.activeInvestments, previousKpis.activeInvestments).value,
                 positive: calculateChange(kpis.activeInvestments, previousKpis.activeInvestments).positive,
-                description: 'vs 30 days ago'
+                description: 'vs last quarter'
               }
             }
           ]}

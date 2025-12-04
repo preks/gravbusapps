@@ -62,7 +62,7 @@ export const GrantEmployeeBonusProvider: React.FC<ProviderProps> = ({
       // Fetch catalogs and employee bank account currency in parallel
       try {
         const catalogVariables = { activeUserLocale }
-        const bankAccountVariables = { employeeId }
+        const bankAccountVariables = { idEmployee: employeeId }
 
         const [catalogData, bankAccountData] = await Promise.all([
           graphqlClient.request<CatalogsDataResponse>(CATALOG_DATA_QUERY, catalogVariables),

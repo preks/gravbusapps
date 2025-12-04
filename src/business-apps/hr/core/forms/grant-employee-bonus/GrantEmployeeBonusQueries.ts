@@ -24,8 +24,15 @@ export const CATALOG_DATA_QUERY = `query fetchCatalogData($activeUserLocale: Str
 }
 `
 
-export const EMPLOYEE_BANK_ACCOUNT_CURRENCY_QUERY = `query fetchEmployeeBankAccountCurrency($employeeId: uuid!) {
-  EmployeeBankAccount(where: {employeeId: {_eq: $employeeId}}, limit: 1) {
+export const EMPLOYEE_BANK_ACCOUNT_CURRENCY_QUERY = `query fetchEmployeeBankAccountCurrency($idEmployee: uuid!) {
+  EmployeeBankAccount(
+    where: {
+      employeeId: { _eq: $idEmployee }
+      isDeleted: { _eq: false }
+    }
+    orderBy: [{ createdAt: DESC }]
+    limit: 1
+  ) {
     currencyRef
   }
 }
