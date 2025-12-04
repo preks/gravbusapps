@@ -1179,6 +1179,7 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
     accessToken: string
   }> = ({ fields, requiredFields, isCompleted, formData, onFieldValueChange, onFieldChange, accessToken }) => {
     const [open, setOpen] = useState(false)
+    const [isHovered, setIsHovered] = useState(false)
     const hiddenMissingCount = useMemo(() => {
       return fields.reduce((acc, [fname]) => {
         if (requiredFields?.includes(fname)) {
@@ -1194,38 +1195,66 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
     }, [hiddenMissingCount])
 
     if (fields.length === 0) return null
+
+    const buttonText = open ? 'Hide advanced fields' : 'Show advanced fields'
+
     return (
-      <details
-        open={open}
-        onToggle={e => setOpen((e.target as HTMLDetailsElement).open)}
-        className={isCompleted ? 'gba:opacity-60 gba:pointer-events-none' : ''}
-      >
-        <summary className="gba:cursor-pointer gba:text-sm gba:font-medium gba:select-none gba:list-none gba:mb-2">
-          Other fields
-          {hiddenMissingCount > 0 && (
-            <span className="gba:ml-2 gba:inline-flex gba:items-center gba:rounded-full gba:border gba:px-2 gba:py-0.5 gba:text-xs">
-              Missing: {hiddenMissingCount}
-            </span>
+      <div>
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          onMouseEnter={() => !isCompleted && setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+          disabled={isCompleted}
+          className="gba:inline-flex gba:items-center gba:gap-1 gba:text-sm gba:text-muted-foreground gba:transition-all gba:duration-200 gba:cursor-pointer disabled:gba:opacity-60 disabled:gba:cursor-not-allowed"
+        >
+          <span
+            className={`gba:text-xs gba:leading-none gba:transition-all gba:duration-200 ${
+              isHovered && !isCompleted ? 'gba:translate-x-px gba:text-foreground' : ''
+            }`}
+          >
+            {open ? '▾' : '▸'}
+          </span>
+          <span
+            className={`gba:transition-all gba:duration-200 ${
+              isHovered && !isCompleted ? 'gba:text-foreground gba:underline' : ''
+            }`}
+            style={
+              isHovered && !isCompleted
+                ? {
+                    textDecorationThickness: '1px',
+                    textUnderlineOffset: '2px',
+                    textDecorationColor: 'rgba(0, 0, 0, 0.6)'
+                  }
+                : undefined
+            }
+          >
+            {buttonText}
+          </span>
+          {hiddenMissingCount > 0 && !open && (
+            <span className="gba:ml-1 gba:text-xs">(Missing: {hiddenMissingCount})</span>
           )}
-        </summary>
-        <div className="gba:mt-3 gba:space-y-4">
-          {fields.map(([fieldName, fieldSchema]) => (
-            <SchemaField
-              key={`s-${fieldName}`}
-              name={fieldName}
-              path=""
-              schema={fieldSchema}
-              required={requiredFields.includes(fieldName)}
-              disabled={isCompleted}
-              value={formData[fieldName]}
-              onChange={value => onFieldChange(fieldName, value)}
-              formData={formData}
-              onFieldValueChange={onFieldValueChange}
-              accessToken={accessToken}
-            />
-          ))}
-        </div>
-      </details>
+        </button>
+        {open && (
+          <div className="gba:mt-3 gba:space-y-4">
+            {fields.map(([fieldName, fieldSchema]) => (
+              <SchemaField
+                key={`s-${fieldName}`}
+                name={fieldName}
+                path=""
+                schema={fieldSchema}
+                required={requiredFields.includes(fieldName)}
+                disabled={isCompleted}
+                value={formData[fieldName]}
+                onChange={value => onFieldChange(fieldName, value)}
+                formData={formData}
+                onFieldValueChange={onFieldValueChange}
+                accessToken={accessToken}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     )
   }
 
@@ -1248,7 +1277,7 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
   // Store latest handlers in refs so they're always up-to-date without triggering re-registration
   const submitHandlerRef = useRef(() => {})
   const cancelHandlerRef = useRef(() => {})
-  const updateFieldRef = useRef<(field: string, value: any) => void>(() => {})
+  const updateFieldRef = useRef<(fieldName: string, value: any) => void>(() => {})
 
   useEffect(() => {
     submitHandlerRef.current = () => {
