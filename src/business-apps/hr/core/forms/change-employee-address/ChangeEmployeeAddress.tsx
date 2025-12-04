@@ -33,7 +33,7 @@ interface AddressFormValues {
   employeeDocumentId?: string
 }
 
-const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo }) => {
+const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo, additionalData }) => {
   const [fileList, setFileList] = useState<any[]>([])
   const [addressLineCount, setAddressLineCount] = useState<number>(1)
   const [addressLinesError, setAddressLinesError] = useState<string | null>(null)
@@ -239,7 +239,10 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
           }
           handlePreSubmit={async values => {
             const employeeId =
-              userInfo?.employeeDetails?.employeeId || data?.address?.EmployeeAddress[0]?.employeeId || ''
+              (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.employeeId ||
+              userInfo?.employeeDetails?.employeeId ||
+              data?.address?.EmployeeAddress[0]?.employeeId ||
+              ''
             const uploadedEmployeeDocumentId = await uploadEmployeeDocumentIfAny(
               fileClient,
               accessToken,
@@ -250,7 +253,10 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
           }}
           onSubmit={async (values: AddressFormValues) => {
             const employeeId =
-              userInfo?.employeeDetails?.employeeId || data?.address?.EmployeeAddress[0]?.employeeId || ''
+              (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.employeeId ||
+              userInfo?.employeeDetails?.employeeId ||
+              data?.address?.EmployeeAddress[0]?.employeeId ||
+              ''
             // ensure 4 address lines
             const lines = ensureFourLines(values.addressLines)
             const addresses = (data?.address?.EmployeeAddress || []) as any[]
@@ -361,6 +367,7 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
                         setSelectedIdBeforeDelete(selId)
                         const selected = addresses.find((a: any) => String(a.id) === selId)
                         const employeeId =
+                          (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.employeeId ||
                           selected?.employeeId ||
                           userInfo?.employeeDetails?.employeeId ||
                           data?.address?.EmployeeAddress?.[0]?.employeeId ||

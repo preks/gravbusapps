@@ -31,7 +31,7 @@ interface BankAccountFormValues {
   comment?: string
 }
 
-const ChangeBankAccountContent: React.FC<BusinessAppContextProps> = ({ userInfo }) => {
+const ChangeBankAccountContent: React.FC<BusinessAppContextProps> = ({ userInfo, additionalData }) => {
   const { data } = useChangeBankAccount()
 
   const form = useForm<BankAccountFormValues>({
@@ -197,7 +197,11 @@ const ChangeBankAccountContent: React.FC<BusinessAppContextProps> = ({ userInfo 
             'Cancel'
           )}
           onSubmit={async (values: BankAccountFormValues) => {
-            const employeeId = userInfo?.employeeDetails?.employeeId || (data?.employee as any)?.Employee?.[0]?.id || ''
+            const employeeId =
+              (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.employeeId ||
+              userInfo?.employeeDetails?.employeeId ||
+              (data?.employee as any)?.Employee?.[0]?.id ||
+              ''
             const existing = (data?.employee?.EmployeeBankAccount || [])?.[0] || null
             const payload = buildBankAccountPayload({ values, existingAccount: existing, employeeId })
             return payload as any
