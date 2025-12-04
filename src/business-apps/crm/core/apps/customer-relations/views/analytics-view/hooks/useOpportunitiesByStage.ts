@@ -20,33 +20,82 @@ export const useOpportunitiesByStage = (accessToken: string, pipelineId?: string
         setIsLoading(true)
         setError(null)
 
-        // Build the pipeline filter using string interpolation like IRM version
+        // Step 1: Get distinct stages for the selected pipeline
         const pipelineFilter = pipelineId ? `salesPipeline: {id: {_eq: "${pipelineId}"}}` : ''
         const whereClause = pipelineFilter ? `isDeleted: {_eq: false}, ${pipelineFilter}` : `isDeleted: {_eq: false}`
 
-        const query = `
-          query GetOpportunitiesByStage {
-            opportunities: Opportunity(
+        const distinctQuery = `
+          query GetDistinctStages {
+            stages: Opportunity(
               where: { ${whereClause} }
+              distinctOn: [salesPipelineStageRef]
+              limit: 20
             ) {
-              id
               salesPipelineStage {
+                id
                 value
               }
-              estimatedAmount
             }
           }
         `
 
-        const result = await graphqlClient.request<any>(query)
-        const stageGroups = (result.opportunities || []).reduce((acc: Record<string, StageItem>, opp: any) => {
-          const stage = opp.salesPipelineStage?.value || 'Unknown'
-          if (!acc[stage]) acc[stage] = { stage, count: 0, value: 0 }
-          acc[stage].count += 1
-          acc[stage].value += opp.estimatedAmount || 0
-          return acc
-        }, {})
-        setData(Object.values(stageGroups))
+        const distinctResult = await graphqlClient.request<any>(distinctQuery)
+        const stages = distinctResult.stages || []
+
+        if (stages.length === 0) {
+          setData([])
+          return
+        }
+
+        // Step 2: Build dynamic aggregate queries for each stage
+        const aggregateQueries = stages
+          .map((stageObj: any, index: number) => {
+            const stageId = stageObj.salesPipelineStage?.id
+
+            if (!stageId) return null
+
+            return `
+              stage_${index}: OpportunityAggregate(
+                where: {
+                  isDeleted: {_eq: false}
+                  salesPipelineStageRef: {_eq: "${stageId}"}
+                  ${pipelineFilter}
+                }
+              ) {
+                aggregate {
+                  count
+                  sum {
+                    estimatedAmount
+                  }
+                }
+              }
+            `
+          })
+          .filter(Boolean)
+          .join('\n')
+
+        const aggregateQuery = `
+          query GetOpportunitiesByStageAggregates {
+            ${aggregateQueries}
+          }
+        `
+
+        const aggregateResult = await graphqlClient.request<any>(aggregateQuery)
+
+        // Step 3: Map results to StageItem format
+        const stageData: StageItem[] = stages.map((stageObj: any, index: number) => {
+          const stageName = stageObj.salesPipelineStage?.value || 'Unknown'
+          const aggregateKey = `stage_${index}`
+          const aggregate = aggregateResult[aggregateKey]?.aggregate
+
+          return {
+            stage: stageName,
+            count: aggregate?.count || 0,
+            value: aggregate?.sum?.estimatedAmount || 0
+          }
+        })
+
+        setData(stageData)
       } catch (e: any) {
         setError(e?.message || 'Failed to load stage data')
         setData([])

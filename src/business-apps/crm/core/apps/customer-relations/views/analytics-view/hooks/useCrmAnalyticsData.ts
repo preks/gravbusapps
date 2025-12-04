@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { CrmAnalyticsData, OverviewAnalytics, AccountsAnalytics, OpportunitiesAnalytics } from '../types/analyticsTypes'
+import { CrmAnalyticsData, OverviewAnalytics, AccountsAnalytics } from '../types/analyticsTypes'
 import {
   GET_OVERVIEW_ONLY_ANALYTICS,
   GET_ACCOUNTS_ANALYTICS,
@@ -14,8 +14,7 @@ export const useCrmAnalyticsData = (
   context: BusinessAppContextProps,
   activeTab: AnalyticsTab,
   kpiCurrency?: string,
-  accountsCurrency?: string,
-  opportunitiesCurrency?: string
+  accountsCurrency?: string
 ) => {
   const [data, setData] = useState<CrmAnalyticsData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -43,7 +42,7 @@ export const useCrmAnalyticsData = (
       }
 
       // Clear cache when currencies change
-      const currencyKey = `${kpiCurrency}-${accountsCurrency}-${opportunitiesCurrency}`
+      const currencyKey = `${kpiCurrency}-${accountsCurrency}`
       if (lastCurrencyKey.current && lastCurrencyKey.current !== currencyKey) {
         tabDataCache.current = {}
         fetchedTabs.current.clear()
@@ -88,13 +87,8 @@ export const useCrmAnalyticsData = (
             break
           }
 
-          case 'opportunities': {
-            const opportunitiesResponse = await graphqlClient.request(
-              GET_OPPORTUNITIES_ANALYTICS(opportunitiesCurrency || kpiCurrency)
-            )
-            tabData.opportunities = transformOpportunitiesData(opportunitiesResponse)
-            break
-          }
+          // Opportunities tab now uses useOpportunitiesStaticData hook directly in AnalyticsView.tsx
+          // No need to fetch via useCrmAnalyticsData
 
           // Contacts tab uses useContactsOverTime hook directly in AnalyticsView.tsx
           // No need to fetch via useCrmAnalyticsData
@@ -115,7 +109,7 @@ export const useCrmAnalyticsData = (
     }
 
     fetchTabData()
-  }, [activeTab, context.accessToken, graphqlClient, kpiCurrency, accountsCurrency, opportunitiesCurrency])
+  }, [activeTab, context.accessToken, graphqlClient, kpiCurrency, accountsCurrency])
 
   const refetch = useCallback(() => {
     // Clear cache and force refetch current tab
@@ -363,72 +357,7 @@ const transformAccountsData = (data: any, opportunitiesData: any): AccountsAnaly
   }
 }
 
-const transformOpportunitiesData = (data: any): OpportunitiesAnalytics => {
-  const opportunities = data.Opportunity || []
-  const totalOpportunities = data.OpportunityForOpportunitiesTab?.aggregate?.count || 0
-  const totalValue = opportunities.reduce((sum: number, opp: any) => sum + (opp.estimatedAmount || 0), 0)
-
-  // Group by stage
-  const stageGroups = groupByFieldWithValue(opportunities, 'salesPipelineStage', 'value', 'estimatedAmount')
-  const opportunitiesByStage = stageGroups.map(group => ({
-    stage: group.key || 'Unknown',
-    count: group.count,
-    value: group.totalValue,
-    percentage: totalOpportunities > 0 ? Math.round((group.count / totalOpportunities) * 100) : 0
-  }))
-
-  // Group by pipeline - include pipeline ID for filtering
-  const pipelineGroupsMap = opportunities.reduce((acc: any, opp: any) => {
-    const pipelineId = opp.salesPipeline?.id || 'unknown'
-    const pipelineName = opp.salesPipeline?.value || 'Unknown'
-    if (!acc[pipelineId]) {
-      acc[pipelineId] = { pipelineId, pipeline: pipelineName, count: 0, value: 0 }
-    }
-    acc[pipelineId].count += 1
-    acc[pipelineId].value += opp.estimatedAmount || 0
-    return acc
-  }, {})
-  const opportunitiesByPipeline = Object.values(pipelineGroupsMap).map((group: any) => ({
-    pipelineId: group.pipelineId,
-    pipeline: group.pipeline,
-    count: group.count,
-    value: group.value,
-    percentage: totalOpportunities > 0 ? Math.round((group.count / totalOpportunities) * 100) : 0
-  }))
-
-  // Create time series data
-  const opportunitiesOverTime = createTimeSeriesDataWithValue(opportunities, 'createdAt', 'estimatedAmount')
-
-  // Top deals
-  const topDeals = opportunities
-    .sort((a: any, b: any) => (b.estimatedAmount || 0) - (a.estimatedAmount || 0))
-    .slice(0, 10)
-    .map((opp: any) => ({
-      id: opp.id,
-      name: opp.name,
-      value: opp.estimatedAmount || 0,
-      stage: opp.salesPipelineStage?.value || 'Unknown',
-      winChance: opp.winningChance || 0,
-      owner:
-        opp.ownerEmployee?.displayName || `${opp.ownerEmployee?.firstName} ${opp.ownerEmployee?.lastName}` || 'Unknown',
-      currencyCode: opp.currency?.code || 'EUR'
-    }))
-
-  return {
-    totalOpportunities,
-    totalValue,
-    opportunitiesByStage,
-    opportunitiesByPipeline,
-    opportunitiesOverTime,
-    winRate: calculateWinRate(data),
-    winRateLastMonthOpportunities: calculateWinRateLastMonth(data),
-    avgDealSize: calculateAvgDealSize(data),
-    avgSalesCycle: calculateSalesCycleLength(data),
-    conversionRate: calculateConversionRate(data, data), // Using opportunities data for both leads and opportunities
-    pipelineVelocity: calculatePipelineVelocity(data),
-    topDeals
-  }
-}
+// transformOpportunitiesData removed - Opportunities tab now uses useOpportunitiesStaticData hook directly
 
 // transformContactsData removed - Contacts tab now uses useContactsOverTime hook directly
 
@@ -447,23 +376,7 @@ const groupByField = (items: any[], field: string, subField?: string) => {
   }))
 }
 
-const groupByFieldWithValue = (items: any[], field: string, subField: string, valueField: string) => {
-  const groups = items.reduce((acc, item) => {
-    const key = item[field]?.[subField] || 'Unknown'
-    if (!acc[key]) {
-      acc[key] = { count: 0, totalValue: 0 }
-    }
-    acc[key].count += 1
-    acc[key].totalValue += item[valueField] || 0
-    return acc
-  }, {})
-
-  return Object.entries(groups).map(([key, data]) => ({
-    key,
-    count: (data as any).count,
-    totalValue: (data as any).totalValue
-  }))
-}
+// groupByFieldWithValue removed - no longer used after removing transformOpportunitiesData
 
 const groupAccountsBySize = (accounts: any[]) => {
   const sizeRanges = [
@@ -565,92 +478,20 @@ const createAccountLifecycleTimeSeriesData = (accounts: any[]) => {
 
 // createLeadLifecycleTimeSeriesData removed - now using separate useLeadsOverTime hook with GraphQL aggregates
 
-const createTimeSeriesDataWithValue = (items: any[], dateField: string, valueField: string) => {
-  const groups = items.reduce((acc, item) => {
-    const date = new Date(item[dateField]).toISOString().split('T')[0]
-    if (!acc[date]) {
-      acc[date] = { count: 0, value: 0 }
-    }
-    acc[date].count += 1
-    acc[date].value += item[valueField] || 0
-    return acc
-  }, {})
-
-  return Object.entries(groups)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .slice(-30) // Last 30 days
-    .map(([date, data]) => ({
-      date,
-      count: (data as any).count,
-      value: (data as any).value
-    }))
-}
-
 // extractTopLeadOwners removed - now handled in useLeadsStaticData hook
 
 // extractTopContactOwners removed - no longer needed
 
-const calculateConversionRate = (leads: any, opportunities: any): number => {
-  const totalLeads = leads.LeadAggregate?.aggregate?.count || 0
-  const totalOpportunities = opportunities.OpportunityAggregate?.aggregate?.count || 0
-  return totalLeads > 0 ? Math.round((totalOpportunities / totalLeads) * 100) : 0
-}
+// createTimeSeriesDataWithValue removed - no longer used after removing transformOpportunitiesData
 
-const calculateWinRate = (opportunities: any): number => {
-  const total = opportunities.OpportunityAggregate?.aggregate?.count || 0
-  const won = opportunities.WonOpportunities?.aggregate?.count || 0
-  return total > 0 ? Math.round((won / total) * 100) : 0
-}
+// calculateConversionRate removed - no longer used after removing transformOpportunitiesData
 
-const calculateWinRateLastMonth = (opportunities: any): number => {
-  const total = opportunities.PreviousMonthOpportunities?.aggregate?.count || 0
-  const won = opportunities.PreviousMonthWonOpportunities?.aggregate?.count || 0
-  return total > 0 ? Math.round((won / total) * 100) : 0
-}
+// calculateWinRate removed - no longer used after removing transformOpportunitiesData
 
-const calculateAvgDealSize = (opportunities: any): number => {
-  const opportunitiesList = opportunities.OpportunityAggregate?.aggregate?.count || 0
-  if (opportunitiesList === 0) return 0
+// calculateWinRateLastMonth removed - no longer used after removing transformOpportunitiesData
 
-  const totalValue = opportunities.totalEstimatedAmount?.aggregate?.sum?.estimatedAmount || 0
-  if (totalValue === 0) return 0
-  return Math.round(totalValue / opportunitiesList)
-}
+// calculateAvgDealSize removed - no longer used after removing transformOpportunitiesData
 
-const calculateSalesCycleLength = (opportunities: any): number => {
-  const wonOpportunities = (opportunities.WonOpportunitiesAndWithCloseDate || []).filter(
-    (opp: any) => opp.opportunityStatus?.code === 'WON' && opp.closeDate
-  )
+// calculateSalesCycleLength removed - no longer used after removing transformOpportunitiesData
 
-  if (wonOpportunities.length === 0) return 0
-
-  const totalDays = wonOpportunities.reduce((sum: number, opp: any) => {
-    const created = new Date(opp.createdAt)
-    const closed = new Date(opp.closeDate)
-    const days = Math.ceil((closed.getTime() - created.getTime()) / (1000 * 60 * 60 * 24))
-    return sum + days
-  }, 0)
-
-  return Math.round(totalDays / wonOpportunities.length)
-}
-
-const calculatePipelineVelocity = (opportunities: any): number => {
-  const opportunitiesList = opportunities.Opportunity || []
-  if (opportunitiesList.length === 0) return 0
-
-  const totalDays = opportunitiesList.reduce((sum: number, opp: any) => {
-    const created = new Date(opp.createdAt)
-    const updated = new Date(opp.updatedAt)
-    const daysDiff = Math.ceil((updated.getTime() - created.getTime()) / (1000 * 60 * 60 * 24))
-
-    // Skip invalid dates
-    if (Number.isNaN(daysDiff)) {
-      return sum
-    }
-
-    // Use Math.max to ensure non-negative values
-    return sum + Math.max(0, daysDiff)
-  }, 0)
-
-  return Math.round(totalDays / opportunitiesList.length)
-}
+// calculatePipelineVelocity removed - no longer used after removing transformOpportunitiesData

@@ -140,24 +140,23 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
             trend: {
               value: calculatePercentChange(totalOpportunities, trendData.totalOpportunitiesLastMonth || 0),
               positive: totalOpportunities >= (trendData.totalOpportunitiesLastMonth || 0),
-              description: `${totalOpportunities} total vs ${trendData.totalOpportunitiesLastMonth || 0} last month`
+              description: 'vs previous period (30 days ago)'
             }
           }
         : {})
     },
     {
       key: 'total-value',
-      title: selectedPipelineId ? 'Pipeline Value (Filtered)' : 'Total Pipeline Value',
-      value: formatCurrencyCompact(totalValue, kpiCurrency, undefined, 1, true),
-      valueIsString: true,
+      title: 'Total Pipeline Value',
+      value: totalValue,
       prefix: <DollarCircleOutlined />,
-      description: selectedPipelineId ? 'Combined value in selected pipeline' : 'Combined value of all opportunities',
+      description: 'Combined value of all opportunities',
       ...(trendData && !trendLoading
         ? {
             trend: {
               value: calculatePercentChange(totalValue, trendData.previousPeriodPipelineValue || 0),
               positive: totalValue >= (trendData.previousPeriodPipelineValue || 0),
-              description: `${formatCurrencyCompact(totalValue, kpiCurrency, undefined, 1, true)} total vs ${formatCurrencyCompact(trendData.previousPeriodPipelineValue || 0, kpiCurrency, undefined, 1, true)} last month`
+              description: 'vs previous period (30 days ago)'
             }
           }
         : {})
@@ -174,7 +173,7 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
             trend: {
               value: `${Math.abs((trendData.actualWinRateThisMonth || winRate) - (trendData.actualWinRateLastMonth || 0)).toFixed(1)}%`,
               positive: (trendData.actualWinRateThisMonth || winRate) >= (trendData.actualWinRateLastMonth || 0),
-              description: `${(trendData.actualWinRateThisMonth || winRate).toFixed(1)}% this period vs ${(trendData.actualWinRateLastMonth || 0).toFixed(1)}% last month`
+              description: 'vs previous period (30 days ago)'
             }
           }
         : {})
@@ -182,14 +181,7 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
     {
       key: 'avg-deal-size',
       title: 'Avg. Deal Size',
-      value: formatCurrencyCompact(
-        trendData?.actualAvgDealSizeThisMonth || avgDealSize,
-        kpiCurrency,
-        undefined,
-        1,
-        true
-      ),
-      valueIsString: true,
+      value: trendData?.actualAvgDealSizeThisMonth || avgDealSize,
       prefix: <DollarCircleOutlined />,
       description: 'Average opportunity value',
       ...(trendData && !trendLoading
@@ -201,7 +193,7 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
               ),
               positive:
                 (trendData.actualAvgDealSizeThisMonth || avgDealSize) >= (trendData.actualAvgDealSizeLastMonth || 0),
-              description: `${formatCurrencyCompact(trendData.actualAvgDealSizeThisMonth || avgDealSize, kpiCurrency, undefined, 1, true)} this period vs ${formatCurrencyCompact(trendData.actualAvgDealSizeLastMonth || 0, kpiCurrency, undefined, 1, true)} last month`
+              description: 'vs previous period (30 days ago)'
             }
           }
         : {})
@@ -220,24 +212,23 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
                 trendData.previousPeriodOpportunities || 0
               ),
               positive: (trendData.currentPeriodOpportunities || 0) >= (trendData.previousPeriodOpportunities || 0),
-              description: `${trendData.currentPeriodOpportunities || 0} this period vs ${trendData.previousPeriodOpportunities || 0} previous`
+              description: 'vs previous period (30 days ago)'
             }
           }
         : {})
     },
     {
-      key: 'avg-sales-cycle',
-      title: 'Avg. Opportunity Cycle',
-      value: avgSalesCycle,
-      suffix: ' days',
-      prefix: <ClockCircleOutlined />,
-      description: 'Average time to close deals',
+      key: 'avg-opportunity-value',
+      title: 'Avg. Opportunity Value',
+      value: Math.round(avgSalesCycle),
+      prefix: <DollarCircleOutlined />,
+      description: 'Average value per opportunity',
       ...(trendData && !trendLoading
         ? {
             trend: {
               value: calculatePercentChange(avgSalesCycle, trendData.actualAvgSalesCycleLastMonth || 0),
-              positive: avgSalesCycle <= (trendData.actualAvgSalesCycleLastMonth || 0),
-              description: `${avgSalesCycle} days this period vs ${trendData.actualAvgSalesCycleLastMonth || 0} days last month`
+              positive: avgSalesCycle >= (trendData.actualAvgSalesCycleLastMonth || 0),
+              description: 'vs previous period (30 days ago)'
             }
           }
         : {})
@@ -255,7 +246,7 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
               value: `${Math.abs((trendData.actualConversionRateThisMonth || 0) - (trendData.actualConversionRateLastMonth || 0)).toFixed(1)}%`,
               positive:
                 (trendData.actualConversionRateThisMonth || 0) >= (trendData.actualConversionRateLastMonth || 0),
-              description: `${(trendData.actualConversionRateThisMonth || 0).toFixed(1)}% this period vs ${(trendData.actualConversionRateLastMonth || 0).toFixed(1)}% last month`
+              description: 'vs previous period (30 days ago)'
             }
           }
         : {})
@@ -275,7 +266,7 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
                 Number(trendData.actualPipelineVelocityLastMonth) || 0
               ),
               positive: (Number(_pipelineVelocity) || 0) <= (Number(trendData.actualPipelineVelocityLastMonth) || 0),
-              description: `${Number(_pipelineVelocity) || 0} days this period vs ${Number(trendData.actualPipelineVelocityLastMonth) || 0} days last month`
+              description: 'vs previous period (30 days ago)'
             }
           }
         : {})

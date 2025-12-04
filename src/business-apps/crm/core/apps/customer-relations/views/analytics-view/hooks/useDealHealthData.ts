@@ -20,12 +20,13 @@ export interface DealHealthData {
   matrixData: DealHealthItem[]
 }
 
-const calculateHealthScore = (opportunity: any): { score: number; riskFactors: string[] } => {
+const calculateHealthScore = (
+  opportunity: any,
+  daysInPipeline: number,
+  currentDate: Date
+): { score: number; riskFactors: string[] } => {
   let score = 100
   const riskFactors: string[] = []
-  const currentDate = new Date()
-  const createdDate = new Date(opportunity.createdAt)
-  const daysInPipeline = Math.floor((currentDate.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24))
   if (daysInPipeline > 365) {
     score -= 30
     riskFactors.push('Very old opportunity (>1 year)')
@@ -91,6 +92,8 @@ export const useDealHealthData = (accessToken: string) => {
     const fetchHealthData = async () => {
       try {
         setIsLoading(true)
+        const currentDate = new Date()
+
         const query = `
           query GetDealHealthData($where: OpportunityBoolExp, $orderBy: [OpportunityOrderBy!], $limit: Int) {
             opportunities: Opportunity(where: $where, orderBy: $orderBy, limit: $limit) {
@@ -109,14 +112,15 @@ export const useDealHealthData = (accessToken: string) => {
         const variables = {
           where: { isDeleted: { _eq: false }, closeDate: { _eq: null } },
           orderBy: [{ createdAt: 'DESC' as const }],
-          limit: 150
+          limit: 100 // Reduced from 150 to 100 for better performance
         }
         const result = await graphqlClient.request<any>(query, variables)
+
+        // Optimize: calculate currentDate once, reuse for all opportunities
         const processed = result.opportunities.map((opp: any) => {
-          const currentDate = new Date()
           const createdDate = new Date(opp.createdAt)
           const daysInPipeline = Math.floor((currentDate.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24))
-          const { score, riskFactors } = calculateHealthScore(opp)
+          const { score, riskFactors } = calculateHealthScore(opp, daysInPipeline, currentDate)
           const healthCategory = getHealthCategory(score)
           return {
             id: opp.id,

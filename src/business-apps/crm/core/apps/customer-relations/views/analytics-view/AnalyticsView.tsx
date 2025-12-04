@@ -7,7 +7,6 @@ import {
 } from '@/common/components/common-relations/view-layouts/analytics-layout/AnalyticsLayout'
 import { useAvailableCurrencies } from '@/common/data/common/hooks/useAvailableCurrencies'
 import { useOpportunitiesOverTime } from './hooks/useOpportunitiesOverTime'
-import { useOpportunityTrendData } from './hooks/useOpportunityTrendData'
 import { useOpportunitiesByStage } from './hooks/useOpportunitiesByStage'
 import { useContactsOverTime } from './hooks/useContactsOverTime'
 import { useContactsStaticData } from './hooks/useContactsStaticData'
@@ -26,6 +25,7 @@ import { useLeadsOverTime } from './hooks/useLeadsOverTime'
 import { useLeadsStaticData } from './hooks/useLeadsStaticData'
 import { useAccountsStaticData } from './hooks/useAccountsStaticData'
 import { useAccountsOverTime } from './hooks/useAccountsOverTime'
+import { useOpportunitiesStaticData } from './hooks/useOpportunitiesStaticData'
 import { useTopDeals } from './hooks/useTopDeals'
 
 export interface AnalyticsViewProps extends BusinessAppContextProps {
@@ -126,8 +126,10 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
 
   const availableCurrencies = currencyOptions as string[]
 
-  // Fetch available pipelines for filtering (only for Overview tab)
-  const { pipelines } = usePipelines(activeAnalyticsTab === 'overview' ? context.accessToken : '')
+  // Fetch available pipelines for filtering (for Overview and Opportunities tabs)
+  const { pipelines } = usePipelines(
+    activeAnalyticsTab === 'overview' || activeAnalyticsTab === 'opportunities' ? context.accessToken : ''
+  )
 
   // Contacts now uses same time filter types as Leads and Accounts
 
@@ -136,8 +138,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     context,
     activeAnalyticsTab, // Only fetch data for active tab
     kpiCurrency,
-    accountsCurrency,
-    opportunitiesKpiCurrency
+    accountsCurrency
   )
 
   // Only fetch data for active tab - conditional data fetching
@@ -196,6 +197,11 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
   // Accounts tab data (no additional hooks needed - data comes from useCrmAnalyticsData)
 
   // Opportunities tab data
+  // Static KPIs with 30-day trends
+  const { data: opportunitiesStaticData, isLoading: opportunitiesStaticLoading } = useOpportunitiesStaticData(
+    activeAnalyticsTab === 'opportunities' ? context.accessToken : '',
+    opportunitiesKpiCurrency
+  )
   const { data: oppVelocityData } = useOpportunityVelocityData(
     activeAnalyticsTab === 'opportunities' ? context.accessToken : ''
   )
@@ -204,12 +210,6 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     activeAnalyticsTab === 'opportunities' ? context.accessToken : '',
     oppTimeFilter,
     oppLifecyclePipelineId
-  )
-  const { trendData: oppTrendData } = useOpportunityTrendData(
-    activeAnalyticsTab === 'opportunities' ? context.accessToken : '',
-    'quarter',
-    undefined,
-    opportunitiesKpiCurrency
   )
   const { data: oppStageData } = useOpportunitiesByStage(
     activeAnalyticsTab === 'opportunities' ? context.accessToken : '',
@@ -405,23 +405,50 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
   // Prepare Opportunities Props - Always show tab
   const opportunitiesProps = {
     title: 'Opportunities Analytics',
-    totalOpportunities: data?.opportunities?.totalOpportunities || 0,
-    totalValue: data?.opportunities?.totalValue || 0,
-    winRate: data?.opportunities?.winRate || 0,
-    avgDealSize: data?.opportunities?.avgDealSize || 0,
-    avgSalesCycle: data?.opportunities?.avgSalesCycle || 0,
-    pipelineVelocity: data?.opportunities?.pipelineVelocity || 0,
-    trendData: oppTrendData || null,
-    trendLoading: false,
+    totalOpportunities: opportunitiesStaticData?.totalOpportunities || 0,
+    totalValue: opportunitiesStaticData?.totalValue || 0,
+    winRate: opportunitiesStaticData?.winRate || 0,
+    avgDealSize: opportunitiesStaticData?.avgDealSize || 0,
+    avgSalesCycle: opportunitiesStaticData?.avgOpportunityValue || 0,
+    pipelineVelocity: opportunitiesStaticData?.pipelineVelocity || 0,
+    trendData: opportunitiesStaticData
+      ? {
+          totalOpportunitiesLastMonth: opportunitiesStaticData.previous30DaysOpportunities,
+          previousPeriodPipelineValue: opportunitiesStaticData.previous30DaysTotalValue,
+          actualWinRateThisMonth:
+            opportunitiesStaticData.last30DaysWonOpportunities > 0
+              ? (opportunitiesStaticData.last30DaysWonOpportunities / opportunitiesStaticData.last30DaysOpportunities) *
+                100
+              : 0,
+          actualWinRateLastMonth:
+            opportunitiesStaticData.previous30DaysWonOpportunities > 0
+              ? (opportunitiesStaticData.previous30DaysWonOpportunities /
+                  opportunitiesStaticData.previous30DaysOpportunities) *
+                100
+              : 0,
+          actualAvgDealSizeThisMonth:
+            opportunitiesStaticData.last30DaysWonOpportunities > 0
+              ? opportunitiesStaticData.last30DaysTotalValue / opportunitiesStaticData.last30DaysWonOpportunities
+              : 0,
+          actualAvgDealSizeLastMonth:
+            opportunitiesStaticData.previous30DaysWonOpportunities > 0
+              ? opportunitiesStaticData.previous30DaysTotalValue /
+                opportunitiesStaticData.previous30DaysWonOpportunities
+              : 0,
+          actualAvgSalesCycleLastMonth: opportunitiesStaticData.previous30DaysAvgOpportunityValue,
+          currentPeriodOpportunities: opportunitiesStaticData.last30DaysOpportunities,
+          previousPeriodOpportunities: opportunitiesStaticData.previous30DaysOpportunities,
+          actualConversionRateThisMonth: opportunitiesStaticData.last30DaysConversionRate,
+          actualConversionRateLastMonth: opportunitiesStaticData.previous30DaysConversionRate
+        }
+      : null,
+    trendLoading: opportunitiesStaticLoading,
     lifecycleData: (oppLifecycleData || []).map(d => ({
       date: d.date,
       opportunitiesCreated: d.opportunitiesCreated,
       opportunitiesWon: d.opportunitiesWon
     })),
-    pipelines: (data?.opportunities?.opportunitiesByPipeline || []).map(p => ({
-      id: p.pipelineId,
-      name: p.pipeline
-    })),
+    pipelines: pipelines || [],
     selectedPipelineId: oppLifecyclePipelineId,
     onPipelineChange: (id: string) => setOppLifecyclePipelineId(id === 'all' ? undefined : id),
     selectedTimeFilter: oppTimeFilter,

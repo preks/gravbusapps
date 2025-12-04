@@ -29,7 +29,7 @@ export const useTopDeals = (accessToken: string, currencyCode?: string) => {
             Opportunity(
               where: { isDeleted: { _eq: false }${currencyFilter} }
               orderBy: { estimatedAmount: DESC }
-              limit: 10
+              limit: 5
             ) {
               id
               name

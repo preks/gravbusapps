@@ -51,11 +51,11 @@ export const OpportunityVelocityAnalysis: React.FC<OpportunityVelocityAnalysisPr
   moduleColor = 'default'
 }) => {
   const chartConfig = {
-    averageDays: {
-      label: 'Avg Days'
+    opportunityCount: {
+      label: 'Opportunities Created'
     },
     conversionRate: {
-      label: 'Conversion Rate (%)'
+      label: 'High Win Chance (%)'
     }
   } satisfies ChartConfig
 
@@ -81,7 +81,7 @@ export const OpportunityVelocityAnalysis: React.FC<OpportunityVelocityAnalysisPr
         <IconAvatar icon={TrendUpIcon} variant={moduleColor as any} size="md" iconWeight="regular" decorative={true} />
         <div>
           <CardTitle>Opportunity Velocity Analysis</CardTitle>
-          <CardDescription>Pipeline flow and opportunity progression</CardDescription>
+          <CardDescription>Pipeline flow and opportunity progression (Last 6 months)</CardDescription>
         </div>
       </CardHeader>
       <CardContent>
@@ -92,6 +92,7 @@ export const OpportunityVelocityAnalysis: React.FC<OpportunityVelocityAnalysisPr
               <span className="gba:text-sm gba:font-medium gba:text-blue-600">Avg. Pipeline Days</span>
             </div>
             <div className="gba:text-2xl gba:font-bold gba:text-blue-900">{data.averageDaysInPipeline}</div>
+            <div className="gba:text-xs gba:text-blue-600 gba:mt-1">Last 6 months</div>
           </div>
           <div className="gba:bg-purple-50 gba:p-4 gba:rounded-lg" data-testid="velocity-trend">
             <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
@@ -100,12 +101,13 @@ export const OpportunityVelocityAnalysis: React.FC<OpportunityVelocityAnalysisPr
             </div>
             <div className="gba:text-2xl gba:font-bold gba:text-purple-900">
               {data.velocityTrend.length > 1
-                ? data.velocityTrend[data.velocityTrend.length - 1].averageDays <
-                  data.velocityTrend[data.velocityTrend.length - 2].averageDays
+                ? data.velocityTrend[data.velocityTrend.length - 1].opportunityCount >
+                  data.velocityTrend[data.velocityTrend.length - 2].opportunityCount
                   ? '↗️'
                   : '↘️'
                 : '→'}
             </div>
+            <div className="gba:text-xs gba:text-purple-600 gba:mt-1">Monthly opportunity creation trend</div>
           </div>
         </div>
 
@@ -114,22 +116,9 @@ export const OpportunityVelocityAnalysis: React.FC<OpportunityVelocityAnalysisPr
             <LineChart data={data.velocityTrend}>
               <XAxis dataKey="month" />
               <YAxis />
-              <ChartTooltip
-                content={
-                  <ChartTooltipContent
-                    formatter={(value: number, name: string) => [
-                      name === 'averageDays' ? `${value} days` : name === 'conversionRate' ? `${value}%` : value,
-                      name === 'averageDays'
-                        ? 'Avg Days'
-                        : name === 'conversionRate'
-                          ? 'Conversion Rate'
-                          : 'Opportunities'
-                    ]}
-                  />
-                }
-              />
+              <ChartTooltip content={<ChartTooltipContent labelKey="month" />} />
               <ChartLegend content={<ChartLegendContent />} />
-              <Line type="monotone" dataKey="averageDays" stroke="var(--color-averageDays)" strokeWidth={3} />
+              <Line type="monotone" dataKey="opportunityCount" stroke="var(--color-opportunityCount)" strokeWidth={3} />
               <Line type="monotone" dataKey="conversionRate" stroke="var(--color-conversionRate)" strokeWidth={2} />
             </LineChart>
           </ChartContainer>
