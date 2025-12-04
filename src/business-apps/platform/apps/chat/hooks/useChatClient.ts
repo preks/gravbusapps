@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, startTransition } from 'react'
-import type { Conversation, Message, User, TypingIndicator } from '../types'
+import type { ActiveCall, Conversation, Message, User, TypingIndicator } from '../types'
 import { MessageType } from '../types'
 import { ChatApiClient } from '../services/chatApiClient'
 import { ChatWebSocketClient } from '../services/chatWebSocketClient'
@@ -21,11 +21,13 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
   const [error, setError] = useState<Error | null>(null)
   const [isOffline, setIsOffline] = useState(false)
+  const [activeCalls, setActiveCalls] = useState<Record<string, ActiveCall>>({})
 
   const apiClientRef = useRef<ChatApiClient | null>(null)
   const wsClientRef = useRef<ChatWebSocketClient | null>(null)
   const currentConversationIdRef = useRef<string | null>(null)
   const activeConversationIdRef = useRef<string | null>(null)
+  const activeCallsRef = useRef<Record<string, ActiveCall>>({})
 
   // Use state for API client to trigger re-renders in hooks
   const [apiClientState, setApiClientState] = useState<ChatApiClient | null>(null)
@@ -47,6 +49,10 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
   useEffect(() => {
     currentUserRef.current = currentUser
   }, [currentUser])
+
+  useEffect(() => {
+    activeCallsRef.current = activeCalls
+  }, [activeCalls])
 
   // Initialize API client
   useEffect(() => {
@@ -182,6 +188,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     if (!wsClientRef.current || !isConnected) {
       // Clear processed messages when disconnected
       processedMessageIdsRef.current.clear()
+      setActiveCalls({})
       return
     }
 
@@ -429,6 +436,12 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
         try {
           const conversation = await apiClientRef.current.getConversationById(data.conversationId)
 
+          // Preserve activeCall state from ref (API doesn't track this)
+          const currentActiveCall = activeCallsRef.current[data.conversationId]
+          if (currentActiveCall) {
+            conversation.activeCall = currentActiveCall
+          }
+
           // Enrich conversation with real user data before updating
           if (conversationsHookRef.current.enrichConversations) {
             const enriched = await conversationsHookRef.current.enrichConversations([conversation])
@@ -459,6 +472,34 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       }
     }
 
+    const handleConversationCallStarted = (data: ActiveCall) => {
+      setActiveCalls(prev => ({ ...prev, [data.conversationId]: data }))
+      conversationsHookRef.current?.updateConversation?.(data.conversationId, {
+        activeCall: data
+      } as Partial<Conversation>)
+    }
+
+    const handleConversationCallEnded = (data: { conversationId: string; roomId: string }) => {
+      setActiveCalls(prev => {
+        const { [data.conversationId]: _removed, ...rest } = prev
+        return rest
+      })
+      conversationsHookRef.current?.updateConversation?.(data.conversationId, {
+        activeCall: null
+      } as Partial<Conversation>)
+    }
+
+    const handleConversationActiveCalls = (calls: ActiveCall[]) => {
+      const map: Record<string, ActiveCall> = {}
+      calls.forEach(call => {
+        map[call.conversationId] = call
+        conversationsHookRef.current?.updateConversation?.(call.conversationId, {
+          activeCall: call
+        } as Partial<Conversation>)
+      })
+      setActiveCalls(map)
+    }
+
     // Register listeners
     wsClient.onNewMessage(handleNewMessage)
     wsClient.onMessageUpdated(handleMessageUpdated)
@@ -469,6 +510,13 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     wsClient.onConversationUpdated(handleConversationUpdated)
     wsClient.onConversationCreated(handleConversationCreated)
 
+    wsClient.onConversationCallStarted(handleConversationCallStarted)
+    wsClient.onConversationCallEnded(handleConversationCallEnded)
+    wsClient.onConversationActiveCalls(handleConversationActiveCalls)
+
+    // Request initial active calls snapshot
+    wsClient.requestActiveCalls()
+
     return () => {
       wsClient.off('new_message', handleNewMessage)
       wsClient.off('message:updated', handleMessageUpdated)
@@ -478,6 +526,9 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       wsClient.off('message:read', handleMessageRead)
       wsClient.off('conversation_updated', handleConversationUpdated)
       wsClient.off('conversation_created', handleConversationCreated)
+      wsClient.off('conversation:call-started', handleConversationCallStarted)
+      wsClient.off('conversation:call-ended', handleConversationCallEnded)
+      wsClient.off('conversation:active-calls', handleConversationActiveCalls)
     }
   }, [isConnected]) // Only re-register when connection changes, all other values accessed via refs
 
@@ -515,6 +566,12 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
               ) {
                 try {
                   const fullConversation = await apiClientRef.current.getConversationById(conversationIdToMarkRead)
+
+                  // Preserve activeCall from ref (API doesn't track this)
+                  const currentActiveCall = activeCallsRef.current[conversationIdToMarkRead]
+                  if (currentActiveCall) {
+                    fullConversation.activeCall = currentActiveCall
+                  }
 
                   // Double-check conversation is still active
                   if (conversationIdToMarkRead === currentConversationIdRef.current) {
@@ -757,6 +814,12 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
         try {
           const fullConversation = await apiClientRef.current.getConversationById(conversation.id)
 
+          // Preserve activeCall from existing conversation or activeCalls map
+          const existingActiveCall = conversation.activeCall || activeCalls[conversation.id]
+          if (existingActiveCall) {
+            fullConversation.activeCall = existingActiveCall
+          }
+
           // Enrich conversation before updating
           if (conversationsHook.enrichConversations) {
             const enriched = await conversationsHook.enrichConversations([fullConversation])
@@ -770,7 +833,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
         }
       }
     },
-    [conversationsHook]
+    [conversationsHook, activeCalls]
   )
 
   const closeConversation = useCallback(
@@ -843,6 +906,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     stopTyping: typingHook.stopTyping,
     // Clients (for advanced usage)
     apiClient: apiClientRef.current,
-    wsClient: wsClientRef.current
+    wsClient: wsClientRef.current,
+    activeCalls
   }
 }

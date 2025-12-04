@@ -22,7 +22,6 @@ export interface User {
   lastName?: string
   displayName?: string
   avatarUrl?: string
-  employeeId?: string
   isActive?: boolean
   isOnline?: boolean
   lastSeen?: Date | string
@@ -32,6 +31,15 @@ export interface User {
   language?: string
   createdAt: Date | string
   updatedAt: Date | string
+}
+
+export interface ActiveCall {
+  conversationId: string
+  roomId: string
+  callType: 'audio' | 'video'
+  startedBy: { id: string; odId: string; odName: string; avatarUrl?: string }
+  participantIds: string[]
+  startedAt: Date | string
 }
 
 export interface Conversation {
@@ -49,6 +57,7 @@ export interface Conversation {
   participants?: ConversationParticipant[]
   lastMessage?: Message
   unreadCount?: number
+  activeCall?: ActiveCall | null
 }
 
 export interface ConversationParticipant {

@@ -113,6 +113,7 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
   // Only show presence for direct messages (default to offline if no presence data)
   const showPresence = conversation.type === 'direct'
   const presenceStatus = otherUserPresence?.status || 'offline'
+  const hasActiveCall = conversation.type === 'group' && !!conversation.activeCall
 
   const handleRemoveClick = (e: React.MouseEvent) => {
     e.stopPropagation() // Prevent conversation selection
@@ -164,6 +165,11 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
             >
               {name}
             </span>
+            {hasActiveCall && (
+              <span className="gba:text-[10px] gba:text-success gba:uppercase">
+                {getTranslationFromI18nKeyAndLabel('chat.activeCallShort', 'In Call')}
+              </span>
+            )}
             {unreadCount > 0 && (
               <Badge
                 variant="default"

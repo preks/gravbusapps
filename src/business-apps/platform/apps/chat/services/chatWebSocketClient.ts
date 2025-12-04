@@ -1,5 +1,5 @@
 import { io, Socket } from 'socket.io-client'
-import type { Message, TypingIndicator, PresenceStatus } from '../types'
+import type { Message, TypingIndicator, PresenceStatus, ActiveCall } from '../types'
 import type { CallSignal, CallType, CallParticipant } from './webrtcClient'
 
 export type ChatEventHandler = (data: any) => void
@@ -205,6 +205,18 @@ export class ChatWebSocketClient {
     this.socket?.on('conversation_created', handler)
   }
 
+  onConversationCallStarted(handler: (data: ActiveCall) => void) {
+    this.socket?.on('conversation:call-started', handler)
+  }
+
+  onConversationCallEnded(handler: (data: { conversationId: string; roomId: string }) => void) {
+    this.socket?.on('conversation:call-ended', handler)
+  }
+
+  onConversationActiveCalls(handler: (data: ActiveCall[]) => void) {
+    this.socket?.on('conversation:active-calls', handler)
+  }
+
   // Emit events
   joinConversation(conversationId: string) {
     this.socket?.emit('join_conversation', { conversationId })
@@ -238,6 +250,11 @@ export class ChatWebSocketClient {
 
   sendTypingStop(conversationId: string) {
     this.socket?.emit('typing_stop', { conversationId })
+  }
+
+  requestActiveCalls() {
+    console.debug('Requesting active calls')
+    this.socket?.emit('conversation:get-active-calls')
   }
 
   // ==================== Call Signaling Events ====================
@@ -536,36 +553,6 @@ export class ChatWebSocketClient {
   notifyConversationCallEnded(signal: { conversationId: string; roomId: string }) {
     console.debug('Emitting conversation:call-ended', signal)
     this.socket?.emit('conversation:call-ended', signal)
-  }
-
-  /**
-   * Request active calls for conversations the user is part of
-   */
-  requestActiveCalls() {
-    console.debug('Requesting active calls')
-    this.socket?.emit('conversation:get-active-calls')
-  }
-
-  /**
-   * Listen for active call notifications in conversations
-   */
-  onConversationCallStarted(
-    handler: (signal: {
-      conversationId: string
-      roomId: string
-      callType: 'audio' | 'video'
-      startedBy: { id: string; odId: string; odName: string; avatarUrl?: string }
-      participantIds: string[]
-    }) => void
-  ) {
-    this.socket?.on('conversation:call-started', handler)
-  }
-
-  /**
-   * Listen for call ended notifications in conversations
-   */
-  onConversationCallEnded(handler: (signal: { conversationId: string; roomId: string }) => void) {
-    this.socket?.on('conversation:call-ended', handler)
   }
 
   /**

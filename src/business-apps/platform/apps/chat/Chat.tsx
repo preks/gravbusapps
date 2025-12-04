@@ -131,6 +131,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
     incomingInvite: incomingGroupCallInvite,
     activeConversationCalls,
     startCall: startGroupCall,
+    joinCall: joinGroupCall,
     acceptInvite: acceptGroupInvite,
     declineInvite: declineGroupInvite,
     leaveCall: leaveGroupCall,
@@ -217,27 +218,38 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
   }
 
   // Handler for group calls (from group conversations)
-  const handleGroupCall = (callType: 'audio' | 'video') => {
+  // isJoiningExisting: true when joining an existing active call (don't ring others)
+  const handleGroupCall = (callType: 'audio' | 'video', isJoiningExisting: boolean = false) => {
     if (!activeConversation || activeConversation.type !== 'group') return
     if (!currentUser) return
 
-    // Get all participants including current user
-    const callParticipants: CallParticipant[] =
-      activeConversation.participants
-        ?.filter(p => p.user)
-        .map(p => ({
-          id: p.user!.id,
-          odId: p.user!.id,
-          odName:
-            p.user!.displayName ||
-            `${p.user!.firstName || ''} ${p.user!.lastName || ''}`.trim() ||
-            p.user!.username ||
-            'Unknown',
-          avatarUrl: p.user!.avatarUrl
-        })) || []
+    // Check if there's already an active call in this conversation
+    const existingCall = activeConversationCalls.get(activeConversation.id)
+    const shouldJoinExisting = isJoiningExisting || !!existingCall
 
-    // Use conversation ID as the room ID, pass conversation name for the invite
-    startGroupCall(activeConversation.id, callType, callParticipants, activeConversation.name)
+    if (shouldJoinExisting) {
+      // Join the existing call without ringing everyone
+      console.debug('Joining existing group call in conversation:', activeConversation.id)
+      joinGroupCall(activeConversation.id, callType)
+    } else {
+      // Get all participants including current user
+      const callParticipants: CallParticipant[] =
+        activeConversation.participants
+          ?.filter(p => p.user)
+          .map(p => ({
+            id: p.user!.id,
+            odId: p.user!.id,
+            odName:
+              p.user!.displayName ||
+              `${p.user!.firstName || ''} ${p.user!.lastName || ''}`.trim() ||
+              p.user!.username ||
+              'Unknown',
+            avatarUrl: p.user!.avatarUrl
+          })) || []
+
+      // Use conversation ID as the room ID, pass conversation name for the invite
+      startGroupCall(activeConversation.id, callType, callParticipants, activeConversation.name)
+    }
   }
 
   // Initialize presence status from conversation participants' user data
@@ -697,7 +709,8 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
     // Handler to join an active call
     const handleJoinActiveCall = useCallback(() => {
       if (!activeCallInfo || !activeConversation) return
-      handleGroupCall(activeCallInfo.callType)
+      // Pass true to indicate we're joining an existing call (don't ring everyone)
+      handleGroupCall(activeCallInfo.callType, true)
     }, [activeCallInfo, activeConversation])
 
     return (
