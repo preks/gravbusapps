@@ -110,26 +110,39 @@ const OpportunityForm: React.FC<OpportunityFormProps> = ({ accessToken, userInfo
     return formData
   }
 
-  // Winning Chance field (CRM-specific)
+  // Winning Chance field (CRM-specific) - percentage field pattern from PercentageField.tsx
   const winningChanceField = (
     <FormField
       control={form.control}
       name="winningChance"
       render={({ field }) => (
         <FormItem>
-          <FormLabel>Winning Chance (%)</FormLabel>
+          <FormLabel>Winning Chance</FormLabel>
           <FormControl>
             <Input
               type="number"
               min={0}
               max={100}
               step={1}
-              placeholder="Enter winning chance (0-100)..."
+              placeholder="0"
+              endAddOn={<span className="gba:text-muted-foreground">%</span>}
               data-testid={formatDataTestId('customer-opportunity-form', 'winning-chance-input')}
               value={field.value ?? ''}
               onChange={e => {
                 const value = e.target.value
-                field.onChange(value === '' ? null : Number(value))
+                if (value === '') {
+                  field.onChange(null)
+                  return
+                }
+                const numValue = Number(value)
+                // Clamp value between 0 and 100
+                if (numValue < 0) {
+                  field.onChange(0)
+                } else if (numValue > 100) {
+                  field.onChange(100)
+                } else {
+                  field.onChange(numValue)
+                }
               }}
               onBlur={field.onBlur}
               name={field.name}
@@ -177,10 +190,10 @@ const OpportunityForm: React.FC<OpportunityFormProps> = ({ accessToken, userInfo
 
   // Combined CRM-specific custom fields
   const crmCustomFields = (
-    <>
+    <div className="gba:space-y-6">
       {winningChanceField}
       {salesCampaignSelect}
-    </>
+    </div>
   )
 
   const processType = opportunity?.id ? 'update' : 'create'

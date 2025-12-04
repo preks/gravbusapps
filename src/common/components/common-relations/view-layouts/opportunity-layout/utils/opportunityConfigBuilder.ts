@@ -66,9 +66,6 @@ export interface OpportunityConfigBuilderOptions<TOpportunity, TQueryVariables> 
 
   // Additional columns specific to this context (CRM or IRM)
   additionalColumns?: ColumnDef<TOpportunity>[]
-
-  // Header label for winning chance column (CRM: 'Winning Chance', IRM: 'Deal Probability')
-  winningChanceHeader?: string
 }
 
 export const createOpportunityConfig = <TOpportunity extends { id: string }, TQueryVariables>(
@@ -82,9 +79,7 @@ export const createOpportunityConfig = <TOpportunity extends { id: string }, TQu
     filterDataHook: options.filterDataHook,
 
     createColumns: (buildAccountUrl: (id: string) => string) => {
-      const baseColumns = createOpportunityColumns(buildAccountUrl, {
-        winningChanceHeader: options.winningChanceHeader
-      }) as ColumnDef<TOpportunity>[]
+      const baseColumns = createOpportunityColumns(buildAccountUrl) as ColumnDef<TOpportunity>[]
       // Merge additional columns if provided
       if (options.additionalColumns?.length) {
         return [...baseColumns, ...options.additionalColumns]
@@ -92,7 +87,7 @@ export const createOpportunityConfig = <TOpportunity extends { id: string }, TQu
       return baseColumns
     },
     createSortableColumns: (availableColumnIds?: string[]) =>
-      createOpportunitySortableColumns(options.viewDescriptors, availableColumnIds, options.winningChanceHeader),
+      createOpportunitySortableColumns(options.viewDescriptors, availableColumnIds),
 
     // Pass through additional columns for the view to use
     additionalColumns: options.additionalColumns,
@@ -261,8 +256,7 @@ export const createOpportunityConfig = <TOpportunity extends { id: string }, TQu
     rowActionsContextArray: options.rowActionsContextArray,
     buildRowActionsExternalContextData: options.buildRowActionsExternalContextData,
 
-    // Pass through additional columns and winning chance header
-    additionalColumns: options.additionalColumns,
-    winningChanceHeader: options.winningChanceHeader
+    // Pass through additional columns
+    additionalColumns: options.additionalColumns
   }
 }

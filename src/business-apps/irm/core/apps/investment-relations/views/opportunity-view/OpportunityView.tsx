@@ -97,10 +97,7 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
         rowActionsContextArray: [FlowContextName.investmentOpportunityEntity],
         buildRowActionsExternalContextData: (row: { original: InvestmentOpportunity }) => ({
           opportunityId: row.original.id
-        }),
-
-        // IRM-specific header for winning chance column
-        winningChanceHeader: 'Deal Probability'
+        })
       }),
     [context, fetchInvestmentOpportunities]
   )
