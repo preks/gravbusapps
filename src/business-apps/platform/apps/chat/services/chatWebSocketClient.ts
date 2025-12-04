@@ -376,6 +376,116 @@ export class ChatWebSocketClient {
     this.socket?.off('call:busy')
   }
 
+  // ==================== Group Call Signaling Events ====================
+
+  /**
+   * Join a group call room
+   */
+  joinGroupCall(signal: {
+    roomId: string
+    callType: 'audio' | 'video'
+    participant: { id: string; odId: string; odName: string; avatarUrl?: string }
+  }) {
+    console.debug('Emitting group-call:join', signal)
+    this.socket?.emit('group-call:join', signal)
+  }
+
+  /**
+   * Leave a group call room
+   */
+  leaveGroupCall(signal: { roomId: string; participantId: string }) {
+    console.debug('Emitting group-call:leave', signal)
+    this.socket?.emit('group-call:leave', signal)
+  }
+
+  /**
+   * Send offer to a specific participant in group call
+   */
+  sendGroupCallOffer(signal: {
+    roomId: string
+    fromParticipantId: string
+    toParticipantId: string
+    payload: RTCSessionDescriptionInit
+  }) {
+    console.debug('Emitting group-call:offer')
+    this.socket?.emit('group-call:offer', signal)
+  }
+
+  /**
+   * Send answer to a specific participant in group call
+   */
+  sendGroupCallAnswer(signal: {
+    roomId: string
+    fromParticipantId: string
+    toParticipantId: string
+    payload: RTCSessionDescriptionInit
+  }) {
+    console.debug('Emitting group-call:answer')
+    this.socket?.emit('group-call:answer', signal)
+  }
+
+  /**
+   * Send ICE candidate to a specific participant in group call
+   */
+  sendGroupCallIceCandidate(signal: {
+    roomId: string
+    fromParticipantId: string
+    toParticipantId: string
+    payload: RTCIceCandidateInit
+  }) {
+    console.debug('Emitting group-call:ice-candidate')
+    this.socket?.emit('group-call:ice-candidate', signal)
+  }
+
+  // Group call event listeners
+  onGroupCallParticipantJoined(
+    handler: (signal: {
+      roomId: string
+      participant: { id: string; odId: string; odName: string; avatarUrl?: string }
+      existingParticipants: Array<{ id: string; odId: string; odName: string; avatarUrl?: string }>
+    }) => void
+  ) {
+    this.socket?.on('group-call:participant-joined', handler)
+  }
+
+  onGroupCallParticipantLeft(handler: (signal: { roomId: string; participantId: string }) => void) {
+    this.socket?.on('group-call:participant-left', handler)
+  }
+
+  onGroupCallOffer(
+    handler: (signal: {
+      roomId: string
+      fromParticipantId: string
+      fromParticipant: { id: string; odId: string; odName: string; avatarUrl?: string }
+      payload: RTCSessionDescriptionInit
+    }) => void
+  ) {
+    this.socket?.on('group-call:offer', handler)
+  }
+
+  onGroupCallAnswer(
+    handler: (signal: { roomId: string; fromParticipantId: string; payload: RTCSessionDescriptionInit }) => void
+  ) {
+    this.socket?.on('group-call:answer', handler)
+  }
+
+  onGroupCallIceCandidate(
+    handler: (signal: { roomId: string; fromParticipantId: string; payload: RTCIceCandidateInit }) => void
+  ) {
+    this.socket?.on('group-call:ice-candidate', handler)
+  }
+
+  /**
+   * Remove all group call event listeners
+   */
+  removeGroupCallListeners() {
+    this.socket?.off('group-call:participant-joined')
+    this.socket?.off('group-call:participant-left')
+    this.socket?.off('group-call:offer')
+    this.socket?.off('group-call:answer')
+    this.socket?.off('group-call:ice-candidate')
+  }
+
   // Remove event listeners
   off(event: string, handler?: ChatEventHandler) {
     this.socket?.off(event, handler)

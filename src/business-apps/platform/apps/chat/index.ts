@@ -4,7 +4,7 @@ export { ChatWithCalendar as default } from './ChatWithCalendar'
 export { Calendar } from './calendar/Calendar'
 export * from './calendar/types'
 
-// Call components and types
+// Call components and types (1:1 calls)
 export { CallModal } from './components/CallModal'
 export { CallControls } from './components/CallControls'
 export { IncomingCallDialog } from './components/IncomingCallDialog'
@@ -17,3 +17,9 @@ export type {
   CallState,
   CallSignal
 } from './services/webrtcClient'
+
+// Group call components and types
+export { GroupCallModal } from './components/GroupCallModal'
+export { useGroupCall } from './hooks/useGroupCall'
+export type { GroupCallParticipant, GroupCallState } from './services/groupWebrtcClient'
+export type { GroupCallUIState, UseGroupCallReturn } from './hooks/useGroupCall'

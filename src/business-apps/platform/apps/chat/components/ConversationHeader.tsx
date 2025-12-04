@@ -319,8 +319,8 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
         </div>
 
         <div className="gba:flex gba:items-center gba:gap-1">
-          {/* Call Buttons - only for direct chats and when not already in a call */}
-          {isDirectChat && isCallEnabled && !isInCall && (
+          {/* Call Buttons - for both direct and group chats when not already in a call */}
+          {isCallEnabled && !isInCall && (
             <>
               {onAudioCall && (
                 <Button
@@ -329,7 +329,11 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
                   onClick={onAudioCall}
                   className="gba:h-8 gba:w-8 gba:flex-shrink-0 gba:text-muted-foreground hover:gba:text-success hover:gba:bg-success/10"
                   data-testid="conversation-audio-call-button"
-                  title={getTranslationFromI18nKeyAndLabel('chat.audioCall', 'Audio call')}
+                  title={
+                    isGroupChat
+                      ? getTranslationFromI18nKeyAndLabel('chat.groupAudioCall', 'Start group audio call')
+                      : getTranslationFromI18nKeyAndLabel('chat.audioCall', 'Audio call')
+                  }
                 >
                   <Phone className="gba:w-4 gba:h-4" />
                 </Button>
@@ -341,7 +345,11 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
                   onClick={onVideoCall}
                   className="gba:h-8 gba:w-8 gba:flex-shrink-0 gba:text-muted-foreground hover:gba:text-primary hover:gba:bg-primary/10"
                   data-testid="conversation-video-call-button"
-                  title={getTranslationFromI18nKeyAndLabel('chat.videoCall', 'Video call')}
+                  title={
+                    isGroupChat
+                      ? getTranslationFromI18nKeyAndLabel('chat.groupVideoCall', 'Start group video call')
+                      : getTranslationFromI18nKeyAndLabel('chat.videoCall', 'Video call')
+                  }
                 >
                   <Video className="gba:w-4 gba:h-4" />
                 </Button>
