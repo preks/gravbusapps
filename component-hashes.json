@@ -40,5 +40,6 @@
   "irm/core/records/opportunity-record": "ecc15bebd20460bf5bb1e752169d0651",
   "irm/investments/apps/investment-management": "070b01a6a838090229419d218606abc2",
   "irm/investments/records/investment-record": "9c8d88dfa16f8b71542eadcea52ccab5",
-  "platform/apps/chat": "816fd61f977927f3829bd6b8c63269b5"
+  "platform/apps/chat": "816fd61f977927f3829bd6b8c63269b5",
+  "platform/apps/every-ai": "40b8255a27b7bd394f8a1df37757d7bd"
 }
