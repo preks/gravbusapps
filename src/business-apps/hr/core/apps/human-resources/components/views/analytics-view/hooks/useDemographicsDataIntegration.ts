@@ -58,7 +58,11 @@ export const useDemographicsDataIntegration = (
   const queryClient = useQueryExecutionClient(context.accessToken, Services.EMPLOYEE)
 
   const calculateStatistics = useCallback(
-    (data: DemographicsData, totalEmployeesFromQuery: number): DemographicsStatistics => {
+    (
+      data: DemographicsData,
+      totalEmployeesFromQuery: number,
+      averageAgeFromQuery: number | null
+    ): DemographicsStatistics => {
       // Use the authoritative total employees count from the dedicated query
       const totalEmployees = totalEmployeesFromQuery
 
@@ -74,16 +78,23 @@ export const useDemographicsDataIntegration = (
               .category
           : null
 
-      // Calculate diversity metrics
-      const genderDiversity =
-        data.genderDistribution.length > 0 && totalEmployees > 0
-          ? ((totalEmployees - Math.max(...data.genderDistribution.map(g => g.value))) / totalEmployees) * 100
+      // Gender diversity: Simpson’s Diversity Index across all categories
+      // diversityPercent = (1 - sum(p_i^2)) * 100
+      const genderTotal = data.genderDistribution.reduce((s, g) => s + (Number(g.value) || 0), 0)
+      const simpson =
+        genderTotal > 0
+          ? 1 -
+            data.genderDistribution.reduce((acc, g) => {
+              const p = (Number(g.value) || 0) / genderTotal
+              return acc + p * p
+            }, 0)
           : 0
+      const genderDiversity = Math.round(simpson * 1000) / 10
 
       const nationalityDiversity = data.nationalityDistribution.length
 
-      // Mock average age calculation (could be enhanced with additional queries)
-      const averageAge = data.ageDistribution.length > 0 ? 35.5 : null // Mock value
+      // Average age from dataset query (authoritative)
+      const averageAge = averageAgeFromQuery
 
       return {
         totalEmployees,
@@ -104,10 +115,13 @@ export const useDemographicsDataIntegration = (
     setError(null)
 
     try {
-      // Execute all demographic queries in parallel, including the authoritative employee count
-      const [totalEmployeeData, genderData, ageData, nationalityData] = await Promise.all([
+      // Execute all demographic queries in parallel, including the authoritative employee count and average age
+      const [totalEmployeeData, averageAgeData, genderData, ageData, nationalityData] = await Promise.all([
         // Total employee count (Query 17) - authoritative source
         queryClient.executeQuery('totalEmployeeCount', QueryType.DATASET, {}),
+
+        // Average employee age (employeesAverageAge) - authoritative source
+        queryClient.executeQuery('employeesAverageAge', QueryType.DATASET, {}),
 
         // Gender distribution (Query 8)
         queryClient.executeQuery('genderDistribution', QueryType.DATASET, {}),
@@ -137,9 +151,12 @@ export const useDemographicsDataIntegration = (
 
       // Get the authoritative total employee count
       const totalEmployeesCount = totalEmployeeData.data.length > 0 ? totalEmployeeData.data[0].value : 0
+      // Get the authoritative average age (expects one row: { value, category })
+      const averageAgeValue =
+        averageAgeData.data && averageAgeData.data.length > 0 ? Number(averageAgeData.data[0].value) || null : null
 
       setDemographicsData(transformedData)
-      setStatistics(calculateStatistics(transformedData, totalEmployeesCount))
+      setStatistics(calculateStatistics(transformedData, totalEmployeesCount, averageAgeValue))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load demographics data')
     } finally {

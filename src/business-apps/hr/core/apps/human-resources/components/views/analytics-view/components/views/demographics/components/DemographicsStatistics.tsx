@@ -33,7 +33,7 @@ const DemographicsStatistics: React.FC<DemographicsStatisticsProps> = ({ statist
       id: 'average-age',
       title: t('hr-analytics-average-age'),
       value: statistics.averageAge
-        ? `${statistics.averageAge.toFixed(1)} ${t('hr-analytics-years')}`
+        ? `${Math.round(statistics.averageAge)} ${t('hr-analytics-years')}`
         : t('hr-analytics-not-available'),
       icon: <Icon icon={CalendarIcon} size="sm" decorative />,
       iconColor: 'var(--nw-chart-3)',
