@@ -1767,7 +1767,7 @@ async function main() {
         }
 
         execSync(`git add ${hashFileName}`, { cwd: projectRootDirForHashes })
-        execSync(`git commit -m "chore(ci): update prod component hashes to ${PUBLISH_VERSION} [skip ci]"`, {
+        execSync(`git commit -m "chore(ci): update prod component hashes [skip ci]"`, {
           cwd: projectRootDirForHashes
         })
 
@@ -1819,13 +1819,10 @@ async function main() {
                   abortRebaseIfNeeded()
                   execSync(`git add ${hashFileName}`, { cwd: projectRootDirForHashes, stdio: 'pipe' })
                   try {
-                    execSync(
-                      `git commit -m "chore(ci): update prod component hashes to ${PUBLISH_VERSION} [skip ci]"`,
-                      {
-                        cwd: projectRootDirForHashes,
-                        stdio: 'pipe'
-                      }
-                    )
+                    execSync(`git commit -m "chore(ci): update prod component hashes [skip ci]"`, {
+                      cwd: projectRootDirForHashes,
+                      stdio: 'pipe'
+                    })
                   } catch {
                     // Commit might fail if no changes
                   }
