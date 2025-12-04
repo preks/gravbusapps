@@ -65,7 +65,7 @@ export const ContactLifecycleChart: React.FC<ContactLifecycleChartProps> = ({
     []
   )
 
-  const chartData = data
+  const chartData = data || []
 
   const renderChartContent = () => {
     if (isLoading) {
@@ -82,7 +82,7 @@ export const ContactLifecycleChart: React.FC<ContactLifecycleChartProps> = ({
       )
     }
 
-    if (chartData.length === 0) {
+    if (!chartData || chartData.length === 0) {
       return (
         <div className="gba:text-center gba:p-8" data-testid="ContactLifecycleChart-empty-state">
           <ChartLineIcon className="gba:mx-auto gba:h-12 gba:w-12 gba:text-gray-400" />
