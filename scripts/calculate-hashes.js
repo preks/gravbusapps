@@ -382,7 +382,7 @@ async function main() {
       }
 
       execSync(`git add ${hashFileName}`, { cwd: projectRoot })
-      execSync(`git commit -m "chore(ci): update ${args.env} component hashes [skip ci]"`, {
+      execSync(`git commit -m "chore(ci): update ${args.env} component hashes (manual calculation) [skip ci]"`, {
         cwd: projectRoot
       })
 
@@ -435,10 +435,13 @@ async function main() {
                 // Re-commit our changes
                 execSync(`git add ${hashFileName}`, { cwd: projectRoot, stdio: 'pipe' })
                 try {
-                  execSync(`git commit -m "chore(ci): update ${args.env} component hashes [skip ci]"`, {
-                    cwd: projectRoot,
-                    stdio: 'pipe'
-                  })
+                  execSync(
+                    `git commit -m "chore(ci): update ${args.env} component hashes (manual calculation) [skip ci]"`,
+                    {
+                      cwd: projectRoot,
+                      stdio: 'pipe'
+                    }
+                  )
                 } catch {
                   // Commit might fail if no changes, that's ok
                 }
