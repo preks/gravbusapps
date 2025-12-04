@@ -1,8 +1,7 @@
-import React, { useEffect } from 'react'
+import React from 'react'
 import { LeadDeletePopup as CommonLeadDeletePopup } from '@/common/components/common-relations/popups/lead-delete-popup'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCustomerLead } from '@/common/data/customer/hooks/useCustomerLead'
-import { navigateTo } from '@/common/utils/navigationUtils'
 
 export interface LeadDeletePopupValues {
   leadId: string
@@ -25,16 +24,6 @@ const LeadDeletePopup: React.FC<LeadDeletePopupProps> = ({ initialValues = {}, .
     ''
 
   const { lead, loading, error } = useCustomerLead(props.accessToken || '', leadId)
-
-  useEffect(() => {
-    const handleProcessComplete = (e: Event) => {
-      if ((e as CustomEvent)?.detail?.resolution === 'success') {
-        navigateTo('/platform/crm/customer-relations?view=leads')
-      }
-    }
-    globalThis.addEventListener('com.newwork.process.processCompletion', handleProcessComplete)
-    return () => globalThis.removeEventListener('com.newwork.process.processCompletion', handleProcessComplete)
-  }, [])
 
   return (
     <CommonLeadDeletePopup
