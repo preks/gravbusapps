@@ -98,13 +98,13 @@ const TeamMomentumCard: React.FC<TeamMomentumCardProps> = ({ stats }) => {
 
   return (
     <Card
-      className={`gba:bg-gradient-to-br ${
+      className={`gba:h-full gba:bg-gradient-to-br ${
         isPositive
           ? 'gba:from-success/5 gba:to-success/10 gba:border-success/30'
           : 'gba:from-warning/5 gba:to-warning/10 gba:border-warning/30'
       }`}
     >
-      <CardContent className="gba:p-4">
+      <CardContent className="gba:p-4 gba:h-full gba:flex gba:flex-col">
         <div className="gba:flex gba:items-center gba:gap-3 gba:mb-4">
           <div
             className={`gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-lg ${
@@ -122,7 +122,7 @@ const TeamMomentumCard: React.FC<TeamMomentumCardProps> = ({ stats }) => {
             <p className="gba:text-xs gba:text-muted-foreground">Last 14 vs prev 14 days</p>
           </div>
         </div>
-        <div className="gba:space-y-2">
+        <div className="gba:space-y-2 gba:flex-1">
           <div className="gba:flex gba:justify-between gba:items-center">
             <span className="gba:text-sm gba:text-muted-foreground">Last 14 Days</span>
             <span className="gba:text-lg gba:font-bold">{stats?.last30Days || 0}</span>
@@ -149,8 +149,8 @@ interface EmployeeListCardProps {
 }
 
 const TopPerformersCard: React.FC<EmployeeListCardProps> = ({ employees, onEmployeeClick }) => (
-  <Card className="gba:bg-gradient-to-br gba:from-success/5 gba:to-success/10 gba:border-success/30">
-    <CardContent className="gba:p-4">
+  <Card className="gba:h-full gba:bg-gradient-to-br gba:from-success/5 gba:to-success/10 gba:border-success/30">
+    <CardContent className="gba:p-4 gba:h-full gba:flex gba:flex-col">
       <div className="gba:flex gba:items-center gba:gap-3 gba:mb-3">
         <div className="gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-lg gba:bg-success/10">
           <PiTrendUp className="gba:w-5 gba:h-5 gba:text-success" />
@@ -160,7 +160,7 @@ const TopPerformersCard: React.FC<EmployeeListCardProps> = ({ employees, onEmplo
           <p className="gba:text-xs gba:text-muted-foreground">Rising last 14 days</p>
         </div>
       </div>
-      <div className="gba:space-y-1">
+      <div className="gba:space-y-1 gba:flex-1">
         {employees.length === 0 ? (
           <p className="gba:text-sm gba:text-muted-foreground gba:py-4 gba:text-center">No standouts yet</p>
         ) : (
@@ -191,29 +191,18 @@ const NeedsAttentionCard: React.FC<NeedsAttentionCardProps> = ({ employees, onEm
   }
 
   return (
-    <Card className="gba:bg-gradient-to-br gba:from-warning/5 gba:to-warning/10 gba:border-warning/30">
-      <CardContent className="gba:p-4">
+    <Card className="gba:h-full gba:bg-gradient-to-br gba:from-warning/5 gba:to-warning/10 gba:border-warning/30">
+      <CardContent className="gba:p-4 gba:h-full gba:flex gba:flex-col">
         <div className="gba:flex gba:items-center gba:gap-3 gba:mb-3">
           <div className="gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-lg gba:bg-warning/10">
             <PiTrendDown className="gba:w-5 gba:h-5 gba:text-warning" />
           </div>
-          <div className="gba:flex-1">
+          <div>
             <h3 className="gba:font-semibold gba:text-foreground">Needs Attention</h3>
             <p className="gba:text-xs gba:text-muted-foreground">{getSubtitle()}</p>
           </div>
-          {hasMore && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onViewAll}
-              className="gba:text-xs gba:text-warning hover:gba:text-warning"
-            >
-              View all ({employees.length})
-              <PiCaretRight className="gba:w-4 gba:h-4 gba:ml-1" />
-            </Button>
-          )}
         </div>
-        <div className="gba:space-y-1">
+        <div className="gba:space-y-1 gba:flex-1">
           {employees.length === 0 ? (
             <div className="gba:flex gba:items-center gba:gap-2 gba:py-4 gba:justify-center">
               <PiCheckCircle className="gba:w-5 gba:h-5 gba:text-success" />
@@ -225,14 +214,25 @@ const NeedsAttentionCard: React.FC<NeedsAttentionCardProps> = ({ employees, onEm
               .map(emp => <EmployeeCard key={emp.employee.id} emp={emp} onClick={onEmployeeClick} />)
           )}
         </div>
+        {hasMore && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onViewAll}
+            className="gba:w-full gba:text-xs gba:text-warning hover:gba:text-warning hover:gba:bg-warning/10 gba:mt-auto gba:h-7"
+          >
+            View all ({employees.length})
+            <PiCaretRight className="gba:w-4 gba:h-4 gba:ml-1" />
+          </Button>
+        )}
       </CardContent>
     </Card>
   )
 }
 
 const OnLeaveCard: React.FC<EmployeeListCardProps> = ({ employees, onEmployeeClick }) => (
-  <Card className="gba:bg-gradient-to-br gba:from-info/5 gba:to-info/10 gba:border-info/30">
-    <CardContent className="gba:p-4">
+  <Card className="gba:h-full gba:bg-gradient-to-br gba:from-info/5 gba:to-info/10 gba:border-info/30">
+    <CardContent className="gba:p-4 gba:h-full gba:flex gba:flex-col">
       <div className="gba:flex gba:items-center gba:gap-3 gba:mb-3">
         <div className="gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-lg gba:bg-info/10">
           <PiAirplaneTilt className="gba:w-5 gba:h-5 gba:text-info" />
@@ -242,7 +242,7 @@ const OnLeaveCard: React.FC<EmployeeListCardProps> = ({ employees, onEmployeeCli
           <p className="gba:text-xs gba:text-muted-foreground">Away from work</p>
         </div>
       </div>
-      <div className="gba:space-y-1">
+      <div className="gba:space-y-1 gba:flex-1">
         {employees.length === 0 ? (
           <div className="gba:flex gba:items-center gba:gap-2 gba:py-4 gba:justify-center">
             <PiCalendarBlank className="gba:w-5 gba:h-5 gba:text-muted-foreground" />

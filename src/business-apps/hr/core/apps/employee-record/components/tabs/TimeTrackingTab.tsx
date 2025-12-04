@@ -64,6 +64,18 @@ const TimeTrackingTab: React.FC<TimeTrackingTabProps> = ({ employee, accessToken
             </div>
           </TabsTrigger> */}
         </TabsList>
+        {/* Title and subtitle under subtabs selector */}
+        <div className="gba:mb-2" data-testid="time-tracking-header">
+          <div className="gba:font-bold gba:text-2xl" data-testid="time-tracking-title">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.title', 'Time Tracking')}
+          </div>
+          <div className="gba:text-muted-foreground gba:text-lg">
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:time_tracking.subtitle',
+              'Manage attendance and monthly timesheet'
+            )}
+          </div>
+        </div>
         <TabsContent value="monthly-summary" data-testid="monthly-summary-content" className="gba:mt-4">
           <MonthlySummary
             employee={employee}

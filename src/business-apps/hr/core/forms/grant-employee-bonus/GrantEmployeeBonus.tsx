@@ -10,6 +10,7 @@ import type { GrantEmployeeBonusFormValues, CatalogEntry } from './types'
 import BonusDetailsGroup from './components/BonusDetailsGroup'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { extractEmployeeId } from './utils/employeeIdUtils'
+import { useTaskCancellation } from '../../hooks/useTaskCancellation'
 import translations from '../_i18n'
 
 const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ additionalData, userInfo }) => {
@@ -71,6 +72,9 @@ const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ addition
       employeeBonusTypeRef: findId(catalogs.bonusType, defaultValues.employeeBonusTypeRef)
     } as GrantEmployeeBonusFormValues
   }, [defaultValues, catalogs])
+
+  // Handle task cancellation when form closes without submission
+  const { markAsSubmitted, markAsCancelled } = useTaskCancellation('pse_abort')
 
   // Reset to normalized defaults whenever catalogs change
   useEffect(() => {
@@ -134,7 +138,14 @@ const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ addition
           cancelButtonText={t('action-cancel')}
           submitButtonText={t('action-submit')}
           isSubmitDisabled={!form.formState.isValid || isUnchangedNow}
+          // Shows cancel button - default cancelEventType="pse_abort" handles process abort
+          onCancel={() => {
+            markAsCancelled()
+          }}
           onSubmit={async (values: GrantEmployeeBonusFormValues) => {
+            // Mark as submitted to prevent abort on cleanup
+            markAsSubmitted()
+
             const payload = {
               // Manager context for Kogito flow
               employeeIdManager: managerEmployeeId,

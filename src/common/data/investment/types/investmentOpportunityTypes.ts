@@ -92,6 +92,7 @@ export const InvestmentOpportunityFields = {
   annualNetColdRent: 'annualNetColdRent',
   buildingYear: 'buildingYear',
   dealType: 'dealType',
+  divestment: 'divestment',
   divestmentId: 'divestmentId',
   forecastedProfitAmount: 'forecastedProfitAmount',
   initialInvestmentAmount: 'initialInvestmentAmount',
@@ -248,6 +249,7 @@ export const investmentOpportunityFormFields = {
   ...opportunityFormFields,
   // IRM-specific fields
   dealType: 'dealType',
+  divestment: 'divestment',
   divestmentId: 'divestment',
   investmentGroupRef: 'investmentGroupRef',
   investmentId: 'investment',
