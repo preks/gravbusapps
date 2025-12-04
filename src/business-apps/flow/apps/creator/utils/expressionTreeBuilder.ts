@@ -5,23 +5,15 @@
  */
 
 import { FlowTemplate, InputType, FlowStepType } from '../types/flowTemplate'
-import { TreeNode, FieldType, FieldSuggestion } from '../types/expressionTree'
-import {
-  Workflow,
-  Database,
-  FolderOpen,
-  Link as LinkIcon,
-  Calendar,
-  Hash,
-  Type as TypeIcon,
-  FileText
-} from 'lucide-react'
-import React from 'react'
+import { TreeNode } from '../types/expressionTree'
+import { CatalogMetadata } from '../types/catalogTypes'
+import { EntitySchema } from '../hooks/useEntitySchemas'
+import { buildEntitiesRootNode } from './entityTreeBuilder'
 
 /**
- * Map InputType to FieldType
+ * Map InputType to dataType
  */
-const mapInputTypeToFieldType = (inputType: InputType): FieldType => {
+const mapInputTypeToDataType = (inputType: InputType): TreeNode['dataType'] => {
   switch (inputType) {
     case InputType.TEXT:
     case InputType.TEXTAREA:
@@ -46,36 +38,103 @@ const mapInputTypeToFieldType = (inputType: InputType): FieldType => {
 }
 
 /**
- * Get icon for field type
+ * Get icon for data type
  */
-const getFieldTypeIcon = (fieldType: FieldType): React.ReactElement => {
-  switch (fieldType) {
+const getDataTypeIcon = (dataType: TreeNode['dataType']): string => {
+  switch (dataType) {
     case 'string':
-      return React.createElement(TypeIcon, { className: 'gba:h-3 gba:w-3' })
+      return 'text'
     case 'number':
-      return React.createElement(Hash, { className: 'gba:h-3 gba:w-3' })
+      return 'hash'
     case 'date':
     case 'datetime':
-      return React.createElement(Calendar, { className: 'gba:h-3 gba:w-3' })
+      return 'calendar'
     case 'boolean':
-      return React.createElement(FileText, { className: 'gba:h-3 gba:w-3' })
+      return 'toggle-left'
+    case 'object':
+      return 'folder'
+    case 'array':
+      return 'list'
     default:
-      return React.createElement(TypeIcon, { className: 'gba:h-3 gba:w-3' })
+      return 'text'
   }
 }
 
 /**
- * Build tree structure from template
- *
- * @param template - Flow template
- * @param currentStepIndex - Current step being edited (only show previous steps)
- * @returns Tree structure for navigation
+ * Build workflow node
  */
-export const buildExpressionTree = (template: FlowTemplate, currentStepIndex: number): TreeNode[] => {
-  const tree: TreeNode[] = []
+const buildWorkflowNode = (): TreeNode => ({
+  id: 'workflow',
+  label: 'Workflow',
+  type: 'workflow',
+  icon: 'git-branch',
+  path: ['$workflow'],
+  isExpanded: false,
+  children: [
+    {
+      id: 'workflow-initiator',
+      label: 'initiator',
+      type: 'field',
+      icon: 'user',
+      dataType: 'string',
+      path: ['$workflow', 'initiator'],
+      description: 'User who started the workflow'
+    },
+    {
+      id: 'workflow-name',
+      label: 'name',
+      type: 'field',
+      icon: 'text',
+      dataType: 'string',
+      path: ['$workflow', 'name'],
+      description: 'Workflow template name'
+    },
+    {
+      id: 'workflow-id',
+      label: 'workflowId',
+      type: 'field',
+      icon: 'hash',
+      dataType: 'string',
+      path: ['$workflow', 'workflowId'],
+      description: 'Unique workflow instance ID'
+    },
+    {
+      id: 'workflow-correlationId',
+      label: 'correlationId',
+      type: 'field',
+      icon: 'link',
+      dataType: 'string',
+      path: ['$workflow', 'correlationId'],
+      description: 'Correlation ID for tracking'
+    },
+    {
+      id: 'workflow-status',
+      label: 'status',
+      type: 'field',
+      icon: 'activity',
+      dataType: 'string',
+      path: ['$workflow', 'status'],
+      description: 'Workflow status (RUNNING, COMPLETED, FAILED)'
+    },
+    {
+      id: 'workflow-input',
+      label: 'input',
+      type: 'container',
+      icon: 'folder',
+      dataType: 'object',
+      path: ['$workflow', 'input'],
+      description: 'Workflow input data',
+      children: []
+    }
+  ]
+})
 
-  // Helper: map JSON Schema type to FieldType
-  const mapJsonTypeToFieldType = (t?: string): FieldType => {
+/**
+ * Build steps node from template
+ */
+const buildStepsNode = (template: FlowTemplate, currentStepIndex: number): TreeNode => {
+  // Helper: map JSON Schema type to dataType
+  const mapJsonTypeToDataType = (t?: string): TreeNode['dataType'] => {
     switch (t) {
       case 'string':
         return 'string'
@@ -99,305 +158,290 @@ export const buildExpressionTree = (template: FlowTemplate, currentStepIndex: nu
     const props = schema.properties || {}
     return Object.keys(props).map(key => {
       const def = props[key] || {}
-      const type = mapJsonTypeToFieldType(def.type)
+      const dataType = mapJsonTypeToDataType(def.type)
       return {
         id: `${idPrefix}${key}`,
         label: key,
-        path: [...basePath, key],
         type: 'field',
-        fieldType: type,
-        description: def.description
+        icon: getDataTypeIcon(dataType),
+        dataType: dataType,
+        path: [...basePath, key],
+        description: def.description,
+        isExpanded: false,
+        children: []
       } as TreeNode
     })
   }
 
-  // 1. Workflow node
-  tree.push({
-    id: 'workflow',
-    label: 'Workflow',
-    icon: React.createElement(Workflow, { className: 'gba:h-4 gba:w-4 gba:text-blue-600' }),
-    path: ['$workflow'],
-    type: 'category',
-    isExpandedByDefault: false,
-    children: [
-      {
-        id: 'workflow-initiator',
-        label: 'initiator',
-        path: ['$workflow', 'initiator'],
-        type: 'field',
-        fieldType: 'string',
-        description: 'User who started the workflow',
-        example: 'user-001'
-      },
-      {
-        id: 'workflow-name',
-        label: 'name',
-        path: ['$workflow', 'name'],
-        type: 'field',
-        fieldType: 'string',
-        description: 'Workflow template name',
-        example: 'Expense Approval'
-      },
-      {
-        id: 'workflow-id',
-        label: 'workflowId',
-        path: ['$workflow', 'workflowId'],
-        type: 'field',
-        fieldType: 'string',
-        description: 'Unique workflow instance ID',
-        example: 'wf-123456'
-      },
-      {
-        id: 'workflow-correlationId',
-        label: 'correlationId',
-        path: ['$workflow', 'correlationId'],
-        type: 'field',
-        fieldType: 'string',
-        description: 'Correlation ID for tracking',
-        example: 'corr-789'
-      },
-      {
-        id: 'workflow-status',
-        label: 'status',
-        path: ['$workflow', 'status'],
-        type: 'field',
-        fieldType: 'string',
-        description: 'Workflow status (RUNNING, COMPLETED, FAILED)',
-        example: 'RUNNING'
-      },
-      {
-        id: 'workflow-input',
-        label: 'input',
-        path: ['$workflow', 'input'],
-        type: 'object',
-        description: 'Workflow input data',
-        children: []
-      }
-    ]
-  })
-
-  // 2. Steps node - show all steps during template design
   const stepsNode: TreeNode = {
     id: 'steps',
     label: 'Steps',
-    icon: React.createElement(Database, { className: 'gba:h-4 gba:w-4 gba:text-green-600' }),
+    type: 'steps',
+    icon: 'layers',
     path: ['$steps'],
-    type: 'category',
-    isExpandedByDefault: true,
+    isExpanded: true,
     children: []
   }
 
   // Build tree from actual template steps
-  // Show all steps for template design (user can reference any step)
   for (let i = 0; i < template.steps.length; i++) {
     const step = template.steps[i]
     if (!step) continue
 
     const formFields: TreeNode[] = (step.form || []).map(field => {
-      // Show label with field name for clarity: "Field Label (fieldName)"
       const displayLabel = field.label && field.label !== field.name ? `${field.label} (${field.name})` : field.name
+      const dataType = mapInputTypeToDataType(field.type)
 
       return {
         id: `step_${i}_field_${field.name}`,
         label: displayLabel,
-        icon: getFieldTypeIcon(mapInputTypeToFieldType(field.type)),
-        path: ['$steps', `step_${i}`, 'formData', field.name],
         type: 'field',
-        fieldType: mapInputTypeToFieldType(field.type),
+        icon: getDataTypeIcon(dataType),
+        dataType: dataType,
+        path: ['$steps', `step_${i}`, 'formData', field.name],
         description: field.label || field.name,
-        example: field.name
+        isExpanded: false,
+        children: []
       }
     })
 
     const isFunctionLike =
       (step as any).type === FlowStepType.FUNCTION || (step as any).type === FlowStepType.AI_TASK_EXPERT
 
+    const stepChildren: TreeNode[] = []
+
+    if (!isFunctionLike) {
+      stepChildren.push({
+        id: `step_${i}_formData`,
+        label: 'formData',
+        type: 'container',
+        icon: 'folder',
+        dataType: 'object',
+        path: ['$steps', `step_${i}`, 'formData'],
+        isExpanded: i === currentStepIndex,
+        description: `Form fields from ${step.title || `Step ${i}`}`,
+        children: formFields
+      })
+    }
+
+    if (isFunctionLike) {
+      // Get schema for result data
+      let schema: any | undefined
+      if ((step as any).type === FlowStepType.FUNCTION) {
+        schema = (step as any).functionConfig?.outputSchema
+      } else {
+        schema = (step as any).agentConfig?.outputSchema
+      }
+
+      stepChildren.push({
+        id: `step_${i}_resultData`,
+        label: 'resultData',
+        type: 'container',
+        icon: 'folder',
+        dataType: 'object',
+        path: ['$steps', `step_${i}`, 'resultData'],
+        isExpanded: i === currentStepIndex,
+        description: 'Primary payload produced by the step',
+        children: schemaToNodes(schema, ['$steps', `step_${i}`, 'resultData'], `step_${i}_resultData_`)
+      })
+
+      stepChildren.push({
+        id: `step_${i}_success`,
+        label: 'success',
+        type: 'field',
+        icon: 'check-circle',
+        dataType: 'boolean',
+        path: ['$steps', `step_${i}`, 'success'],
+        description: 'Indicates whether the step succeeded',
+        isExpanded: false,
+        children: []
+      })
+
+      stepChildren.push({
+        id: `step_${i}_error`,
+        label: 'error',
+        type: 'field',
+        icon: 'alert-circle',
+        dataType: 'string',
+        path: ['$steps', `step_${i}`, 'error'],
+        description: 'Error message if any',
+        isExpanded: false,
+        children: []
+      })
+    }
+
+    stepChildren.push({
+      id: `step_${i}_status`,
+      label: 'status',
+      type: 'field',
+      icon: 'activity',
+      dataType: 'string',
+      path: ['$steps', `step_${i}`, 'status'],
+      description: 'Step status (PENDING, COMPLETED, etc.)',
+      isExpanded: false,
+      children: []
+    })
+
+    stepChildren.push({
+      id: `step_${i}_executedBy`,
+      label: 'executedBy',
+      type: 'field',
+      icon: 'user',
+      dataType: 'string',
+      path: ['$steps', `step_${i}`, 'executedBy'],
+      description: 'User who completed this step',
+      isExpanded: false,
+      children: []
+    })
+
+    stepChildren.push({
+      id: `step_${i}_timestamp`,
+      label: 'timestamp',
+      type: 'field',
+      icon: 'clock',
+      dataType: 'datetime',
+      path: ['$steps', `step_${i}`, 'timestamp'],
+      description: 'Step completion time',
+      isExpanded: false,
+      children: []
+    })
+
     const stepNode: TreeNode = {
       id: `step_${i}`,
       label: `Step ${i}: ${step.title || `Step ${i}`}${i === currentStepIndex ? ' (current)' : ''}`,
+      type: 'step',
+      icon: 'square',
       path: ['$steps', `step_${i}`],
-      type: 'object',
-      isExpandedByDefault: i === currentStepIndex, // Auto-expand current step
-      children: [
-        ...(!isFunctionLike
-          ? [
-              {
-                id: `step_${i}_formData`,
-                label: 'formData',
-                path: ['$steps', `step_${i}`, 'formData'],
-                type: 'object',
-                isExpandedByDefault: i === currentStepIndex, // Auto-expand current step's formData
-                description: `Form fields from ${step.title || `Step ${i}`}`,
-                children: formFields
-              } as TreeNode
-            ]
-          : []),
-        // Add normalized resultData/success/error at the same level as formData
-        ...(isFunctionLike
-          ? [
-              {
-                id: `step_${i}_resultData`,
-                label: 'resultData',
-                path: ['$steps', `step_${i}`, 'resultData'],
-                type: 'object',
-                isExpandedByDefault: i === currentStepIndex,
-                description: 'Primary payload produced by the step',
-                children: (() => {
-                  // Use stored schema to expand fields if available
-                  let schema: any | undefined
-                  if ((step as any).type === FlowStepType.FUNCTION) {
-                    schema = (step as any).functionConfig?.outputSchema
-                  } else {
-                    schema = (step as any).agentConfig?.outputSchema
-                  }
-                  return schemaToNodes(schema, ['$steps', `step_${i}`, 'resultData'], `step_${i}_resultData_`)
-                })()
-              } as TreeNode,
-              {
-                id: `step_${i}_success`,
-                label: 'success',
-                path: ['$steps', `step_${i}`, 'success'],
-                type: 'field',
-                fieldType: 'boolean',
-                description: 'Indicates whether the step succeeded'
-              } as TreeNode,
-              {
-                id: `step_${i}_error`,
-                label: 'error',
-                path: ['$steps', `step_${i}`, 'error'],
-                type: 'field',
-                fieldType: 'string',
-                description: 'Error message if any'
-              } as TreeNode
-            ]
-          : []),
-        {
-          id: `step_${i}_status`,
-          label: 'status',
-          path: ['$steps', `step_${i}`, 'status'],
-          type: 'field',
-          fieldType: 'string',
-          description: 'Step status (PENDING, COMPLETED, etc.)',
-          example: 'COMPLETED'
-        },
-        {
-          id: `step_${i}_executedBy`,
-          label: 'executedBy',
-          path: ['$steps', `step_${i}`, 'executedBy'],
-          type: 'field',
-          fieldType: 'string',
-          description: 'User who completed this step',
-          example: 'user-123'
-        },
-        {
-          id: `step_${i}_timestamp`,
-          label: 'timestamp',
-          path: ['$steps', `step_${i}`, 'timestamp'],
-          type: 'field',
-          fieldType: 'datetime',
-          description: 'Step completion time',
-          example: '2024-01-15T10:30:00Z'
-        }
-      ]
+      isExpanded: i === currentStepIndex,
+      metadata: {
+        stepIndex: i,
+        isCurrent: i === currentStepIndex
+      },
+      children: stepChildren
     }
 
     stepsNode.children!.push(stepNode)
   }
 
-  tree.push(stepsNode)
+  return stepsNode
+}
 
-  // 3. Catalogs node
-  tree.push({
+/**
+ * Build catalogs node from catalog metadata
+ */
+const buildCatalogsNode = (catalogs?: CatalogMetadata[]): TreeNode => {
+  const catalogsNode: TreeNode = {
     id: 'catalogs',
     label: 'Catalogs',
-    icon: React.createElement(FolderOpen, { className: 'gba:h-4 gba:w-4 gba:text-amber-600' }),
+    type: 'catalog',
+    icon: 'book-open',
     path: ['$catalog'],
-    type: 'category',
-    isExpandedByDefault: false,
-    children: [
+    isExpanded: false,
+    children: []
+  }
+
+  if (catalogs && catalogs.length > 0) {
+    // Build from dynamic catalog metadata
+    catalogsNode.children = catalogs.map(catalog => ({
+      id: `catalog-${catalog.catalogIdentifier}`,
+      label: catalog.catalogIdentifier,
+      type: 'catalog-container' as const,
+      icon: 'folder',
+      path: ['$catalog', catalog.catalogIdentifier],
+      description: catalog.displayName || catalog.catalogIdentifier,
+      isExpanded: false,
+      metadata: {
+        catalogId: catalog.catalogIdentifier,
+        version: catalog.version
+      },
+      children: [
+        {
+          id: `catalog-${catalog.catalogIdentifier}-browse`,
+          label: `🔍 Browse ${catalog.displayName || catalog.catalogIdentifier}`,
+          type: 'catalog-browser' as const,
+          icon: 'search',
+          description: `Search and browse ${catalog.displayName || catalog.catalogIdentifier} entries`,
+          isExpanded: false,
+          metadata: {
+            catalogId: catalog.catalogIdentifier,
+            version: catalog.version,
+            loadingState: 'idle' as const,
+            offset: 0,
+            hasMore: false
+          },
+          children: []
+        }
+      ]
+    }))
+  } else {
+    // Default static catalogs for backward compatibility
+    catalogsNode.children = [
       {
         id: 'catalog-asset-mgmt',
         label: 'asset-management',
+        type: 'catalog-container',
+        icon: 'folder',
         path: ['$catalog', 'asset-management'],
-        type: 'array',
         description: 'Asset catalog',
-        children: [
-          {
-            id: 'catalog-asset-item',
-            label: '[index or id]',
-            path: ['$catalog', 'asset-management', '[0]'],
-            type: 'object',
-            description: 'Access by index or ID',
-            children: [
-              {
-                id: 'catalog-asset-name',
-                label: 'name',
-                path: ['$catalog', 'asset-management', '[0]', 'name'],
-                type: 'field',
-                fieldType: 'string'
-              },
-              {
-                id: 'catalog-asset-serial',
-                label: 'serialNumber',
-                path: ['$catalog', 'asset-management', '[0]', 'serialNumber'],
-                type: 'field',
-                fieldType: 'string'
-              }
-            ]
-          }
-        ]
+        isExpanded: false,
+        children: []
       },
       {
         id: 'catalog-employees',
         label: 'employees',
+        type: 'catalog-container',
+        icon: 'folder',
         path: ['$catalog', 'employees'],
-        type: 'array',
-        description: 'Employee catalog'
+        description: 'Employee catalog',
+        isExpanded: false,
+        children: []
       },
       {
         id: 'catalog-departments',
         label: 'departments',
+        type: 'catalog-container',
+        icon: 'folder',
         path: ['$catalog', 'departments'],
-        type: 'array',
-        description: 'Department catalog'
+        description: 'Department catalog',
+        isExpanded: false,
+        children: []
       }
     ]
-  })
+  }
 
-  // 4. Entities node
-  tree.push({
-    id: 'entities',
-    label: 'Entities',
-    icon: React.createElement(LinkIcon, { className: 'gba:h-4 gba:w-4 gba:text-purple-600' }),
-    path: ['$entity'],
-    type: 'category',
-    isExpandedByDefault: false,
-    children: [
-      {
-        id: 'entity-ticket',
-        label: 'ticket',
-        path: ['$entity', 'ticket'],
-        type: 'object',
-        description: 'Ticket entity lookup'
-      },
-      {
-        id: 'entity-employee',
-        label: 'employee',
-        path: ['$entity', 'employee'],
-        type: 'object',
-        description: 'Employee entity lookup'
-      },
-      {
-        id: 'entity-asset',
-        label: 'asset',
-        path: ['$entity', 'asset'],
-        type: 'object',
-        description: 'Asset entity lookup'
-      }
-    ]
-  })
+  return catalogsNode
+}
 
-  return tree
+/**
+ * Build tree structure from template
+ *
+ * @param template - Flow template
+ * @param stepIndex - Current step being edited
+ * @param catalogs - Optional catalog metadata for dynamic catalog nodes
+ * @param entitySchemas - Optional entity schemas for dynamic entity nodes
+ * @returns Tree structure for navigation
+ */
+export const buildExpressionTree = (
+  template: FlowTemplate,
+  stepIndex: number,
+  catalogs?: CatalogMetadata[],
+  entitySchemas?: Record<string, EntitySchema> | null
+): TreeNode[] => {
+  const nodes: TreeNode[] = []
+
+  // Add workflow node
+  nodes.push(buildWorkflowNode())
+
+  // Add steps node
+  nodes.push(buildStepsNode(template, stepIndex))
+
+  // Add catalogs node
+  nodes.push(buildCatalogsNode(catalogs))
+
+  // Add entities node (dynamic from fetched schemas)
+  nodes.push(buildEntitiesRootNode(entitySchemas || null))
+
+  return nodes.filter(Boolean)
 }
 
 /**
@@ -430,6 +474,18 @@ export const pathToExpression = (path: string[]): string => {
 }
 
 /**
+ * Field suggestion type for expression building
+ */
+export interface FieldSuggestion {
+  name: string
+  label: string
+  expression: string
+  type: TreeNode['dataType']
+  stepIndex: number
+  stepTitle: string
+}
+
+/**
  * Extract field suggestions from previous steps
  */
 export const getFieldSuggestionsFromTemplate = (
@@ -449,7 +505,7 @@ export const getFieldSuggestionsFromTemplate = (
         name: field.name,
         label: field.label || field.name,
         expression: `{{$steps.step_${i}.formData.${field.name}}}`,
-        type: mapInputTypeToFieldType(field.type),
+        type: mapInputTypeToDataType(field.type),
         stepIndex: i,
         stepTitle: step.title || `Step ${i}`
       })
@@ -467,24 +523,24 @@ export const filterTreeNodes = (nodes: TreeNode[], searchTerm: string): TreeNode
 
   const term = searchTerm.toLowerCase()
 
-  return nodes
-    .map(node => {
-      // Check if current node matches
-      const matches = node.label.toLowerCase().includes(term) || node.description?.toLowerCase().includes(term)
+  const filtered: TreeNode[] = []
 
-      // Recursively filter children
-      const filteredChildren = node.children ? filterTreeNodes(node.children, searchTerm) : []
+  for (const node of nodes) {
+    // Check if current node matches
+    const matches = node.label.toLowerCase().includes(term) || node.description?.toLowerCase().includes(term)
 
-      // Include node if it matches or has matching children
-      if (matches || filteredChildren.length > 0) {
-        return {
-          ...node,
-          children: filteredChildren.length > 0 ? filteredChildren : node.children,
-          isExpandedByDefault: true // Auto-expand when filtering
-        }
-      }
+    // Recursively filter children
+    const filteredChildren = node.children ? filterTreeNodes(node.children, searchTerm) : []
 
-      return null
-    })
-    .filter((node): node is TreeNode => node !== null)
+    // Include node if it matches or has matching children
+    if (matches || filteredChildren.length > 0) {
+      filtered.push({
+        ...node,
+        children: filteredChildren.length > 0 ? filteredChildren : node.children,
+        isExpanded: true // Auto-expand when filtering
+      })
+    }
+  }
+
+  return filtered
 }

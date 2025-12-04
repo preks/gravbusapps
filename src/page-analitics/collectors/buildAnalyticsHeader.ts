@@ -21,6 +21,10 @@ import { buildAccountAnalytics } from './accountAnalyticsCollector'
 import { buildContactAnalytics } from './contactAnalyticsCollector'
 import { buildLeadAnalytics } from './leadAnalyticsCollector'
 import { buildOpportunityAnalytics } from './opportunityAnalyticsCollector'
+import { buildInvestmentLeadAnalytics } from './investmentLeadAnalyticsCollector'
+import { buildInvestmentOpportunityAnalytics } from './investmentOpportunityAnalyticsCollector'
+import { buildInvestmentAccountAnalytics } from './investmentAccountAnalyticsCollector'
+import { buildInvestmentContactAnalytics } from './investmentContactAnalyticsCollector'
 import {
   buildContactFromAccountOwner,
   buildContactFromOwner,
@@ -782,12 +786,20 @@ export async function buildAnalyticsHeader(params: {
     switch (entity.type) {
       case 'account':
         return await buildAccountAnalytics({ entity, graphqlClient })
+      case 'investment_account':
+        return await buildInvestmentAccountAnalytics({ entity, graphqlClient })
       case 'contact':
         return await buildContactAnalytics({ entity, graphqlClient })
+      case 'investment_contact':
+        return await buildInvestmentContactAnalytics({ entity, graphqlClient })
       case 'lead':
         return await buildLeadAnalytics({ entity, graphqlClient })
+      case 'investment_lead':
+        return await buildInvestmentLeadAnalytics({ entity, graphqlClient })
       case 'opportunity':
         return await buildOpportunityAnalytics({ entity, graphqlClient })
+      case 'investment_opportunity':
+        return await buildInvestmentOpportunityAnalytics({ entity, graphqlClient })
       case 'investment':
         return await buildInvestmentAnalytics({ entity, graphqlClient, currency })
       default:

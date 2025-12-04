@@ -6,6 +6,7 @@ import { ChatWebSocketClient } from '../services/chatWebSocketClient'
 import { useConversations } from './useConversations'
 import { useMessages } from './useMessages'
 import { useTypingIndicator } from './useTypingIndicator'
+import { usePresence } from './usePresence'
 
 interface UseChatClientOptions {
   accessToken: string
@@ -118,6 +119,13 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     }
   })
 
+  // Presence tracking hook
+  const presenceHook = usePresence({
+    wsClient: wsClientRef.current,
+    apiClient: apiClientRef.current,
+    isConnected
+  })
+
   // Keep hook refs up to date
   useEffect(() => {
     conversationsHookRef.current = conversationsHook
@@ -144,6 +152,12 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
           wsClientRef.current.joinConversation(activeConversationId)
           currentConversationIdRef.current = activeConversationId
         }
+
+        // Refresh conversations after WebSocket connects to get accurate unread counts
+        // This ensures the unreadCount reflects the latest lastReadAt from the backend
+        setTimeout(() => {
+          conversationsHookRef.current?.loadConversations?.()
+        }, 500)
       })
 
       socket.on('disconnect', () => {
@@ -808,6 +822,11 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     hasMoreMessages: messagesHook.hasMore,
     // Typing
     typingUsers: typingHook.typingUsers,
+    // Presence
+    presenceMap: presenceHook.presenceMap,
+    getUserPresence: presenceHook.getUserPresence,
+    isUserOnline: presenceHook.isUserOnline,
+    updatePresenceFromUser: presenceHook.updatePresenceFromUser,
     // Actions
     sendMessage,
     createDirectConversation,

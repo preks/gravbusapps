@@ -25,6 +25,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
   const [showCreateGroupModal, setShowCreateGroupModal] = useState(false)
   const [showGroupSettingsModal, setShowGroupSettingsModal] = useState(false)
   const urlContextProcessed = useRef(false)
+  const conversationIdFromUrlProcessed = useRef(false)
 
   let baseUrl = env('NEXT_PUBLIC_BASE_URL') || ''
   baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
@@ -55,6 +56,8 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
     messagesLoading,
     hasMoreMessages,
     typingUsers,
+    getUserPresence,
+    updatePresenceFromUser,
     sendMessage,
     createDirectConversation,
     createContextConversation,
@@ -70,27 +73,75 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
     apiClient
   } = chatClient
 
+  // Initialize presence status from conversation participants' user data
+  useEffect(() => {
+    if (!conversations || conversations.length === 0 || !updatePresenceFromUser) return
+
+    // Extract all users from conversations and update their presence
+    conversations.forEach(conv => {
+      conv.participants?.forEach(p => {
+        if (p.user && p.userId !== currentUser?.id && p.user.id !== currentUser?.id) {
+          // The API returns isOnline (boolean) and lastSeen on user object
+          const lastSeen = p.user.lastSeen || p.user.lastSeenAt
+
+          // If we have isOnline directly from API, use it
+          if (typeof p.user.isOnline === 'boolean') {
+            updatePresenceFromUser(p.user.id, lastSeen, p.user.isOnline)
+          } else {
+            // Fallback to calculating from lastSeen/lastSeenAt
+            updatePresenceFromUser(p.user.id, lastSeen, p.user.isActive)
+          }
+        }
+      })
+    })
+  }, [conversations, currentUser?.id, updatePresenceFromUser])
+
   const handleSendMessage = useCallback(
-    async (content: string, entityReferences?: MessageEntityReference[]) => {
+    async (content: string, entityReferences?: MessageEntityReference[], attachments?: any[]) => {
       if (!activeConversationId) return
 
       try {
-        // Build metadata with entity references if present
-        const metadata = entityReferences?.length ? { entityReferences } : undefined
+        // Build metadata with entity references and attachments if present
+        const metadata: Record<string, any> = {}
+        if (entityReferences?.length) {
+          metadata.entityReferences = entityReferences
+        }
 
-        await sendMessage(activeConversationId, content, metadata)
+        // Upload attachments to backend and get URLs
+        if (attachments?.length && apiClient) {
+          try {
+            const files = attachments.map(a => a.file)
+            const uploadedFiles = await apiClient.uploadFiles(activeConversationId, files)
+            metadata.attachments = uploadedFiles
+          } catch (uploadErr) {
+            console.error('Error uploading attachments:', uploadErr)
+            // Continue sending message without attachments if upload fails
+          }
+        }
+
+        await sendMessage(activeConversationId, content, Object.keys(metadata).length > 0 ? metadata : undefined)
       } catch (err) {
         console.error('Error sending message:', err)
       }
     },
-    [activeConversationId, sendMessage]
+    [activeConversationId, sendMessage, apiClient]
   )
 
   const handleCreateConversation = useCallback(
     async (user: User) => {
       try {
-        await createDirectConversation(user.id)
+        // Mark as processed to prevent URL restoration effect from re-triggering
+        conversationIdFromUrlProcessed.current = true
+
+        const conversation = await createDirectConversation(user.id)
         setShowConversationList(false)
+
+        // Persist conversation ID in URL for panel reopen persistence
+        if (conversation?.id) {
+          const url = new URL(window.location.href)
+          url.searchParams.set('conversationId', conversation.id)
+          window.history.replaceState({}, '', url.toString())
+        }
       } catch (err) {
         console.error('Error creating conversation:', err)
       }
@@ -100,8 +151,16 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
 
   const handleConversationSelect = useCallback(
     (conversation: Conversation) => {
+      // Mark as processed to prevent URL restoration effect from re-triggering
+      conversationIdFromUrlProcessed.current = true
+
       setActiveConversation(conversation)
       setShowConversationList(false)
+
+      // Persist conversation ID in URL for panel reopen persistence
+      const url = new URL(window.location.href)
+      url.searchParams.set('conversationId', conversation.id)
+      window.history.replaceState({}, '', url.toString())
     },
     [setActiveConversation]
   )
@@ -109,6 +168,11 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
   const handleBack = useCallback(() => {
     setShowConversationList(true)
     setActiveConversation(null)
+
+    // Clear conversation ID from URL when going back to list
+    const url = new URL(window.location.href)
+    url.searchParams.delete('conversationId')
+    window.history.replaceState({}, '', url.toString())
   }, [setActiveConversation])
 
   const handleCloseConversation = useCallback(() => {
@@ -119,6 +183,11 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
     if (viewMode !== 'full') {
       setShowConversationList(true)
     }
+
+    // Clear conversation ID from URL
+    const url = new URL(window.location.href)
+    url.searchParams.delete('conversationId')
+    window.history.replaceState({}, '', url.toString())
   }, [setActiveConversation, viewMode])
 
   const handleRemoveConversation = useCallback(async () => {
@@ -130,6 +199,11 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
       if (viewMode !== 'full') {
         setShowConversationList(true)
       }
+
+      // Clear conversation ID from URL
+      const url = new URL(window.location.href)
+      url.searchParams.delete('conversationId')
+      window.history.replaceState({}, '', url.toString())
     } catch (error) {
       console.error('Failed to remove conversation:', error)
     }
@@ -142,8 +216,18 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
   const handleCreateGroupSubmit = useCallback(
     async (name: string, participantIds: string[], description?: string) => {
       try {
-        await createGroupConversation(name, participantIds, description)
+        // Mark as processed to prevent URL restoration effect from re-triggering
+        conversationIdFromUrlProcessed.current = true
+
+        const conversation = await createGroupConversation(name, participantIds, description)
         setShowCreateGroupModal(false)
+
+        // Persist conversation ID in URL for panel reopen persistence
+        if (conversation?.id) {
+          const url = new URL(window.location.href)
+          url.searchParams.set('conversationId', conversation.id)
+          window.history.replaceState({}, '', url.toString())
+        }
       } catch (error) {
         console.error('Failed to create group:', error)
         throw error
@@ -193,6 +277,27 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
     return () => resizeObserver.disconnect()
   }, [])
 
+  // Restore active conversation from URL parameter (for panel reopen persistence)
+  useEffect(() => {
+    // Only process once when conversations are loaded, and only if no conversation is already active
+    if (conversationIdFromUrlProcessed.current || !conversations.length || activeConversationId) {
+      return
+    }
+
+    const urlParams = new URLSearchParams(window.location.search)
+    const conversationIdParam = urlParams.get('conversationId')
+
+    if (conversationIdParam) {
+      // Find the conversation in the loaded list
+      const conversation = conversations.find(c => c.id === conversationIdParam)
+      if (conversation) {
+        conversationIdFromUrlProcessed.current = true
+        setActiveConversation(conversation)
+        setShowConversationList(false)
+      }
+    }
+  }, [conversations, setActiveConversation, activeConversationId])
+
   // Handle URL parameters for context and AI agent conversations (only once)
   useEffect(() => {
     // Only process URL params once when user is connected
@@ -210,6 +315,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
     if ((aiAgentParam === 'true' || typeParam === 'ai-agent') && createAiAgentConversation) {
       // Mark as processed immediately to prevent duplicate calls
       urlContextProcessed.current = true
+      conversationIdFromUrlProcessed.current = true
 
       // Parse context if provided for AI agent
       let contextEntity: string | undefined
@@ -223,10 +329,17 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
       }
 
       createAiAgentConversation(contextEntity, contextEntityId)
-        .then(() => {
+        .then(conversation => {
           // Hide conversation list in compact/mobile modes after opening AI chat
           if (viewMode !== 'full') {
             setShowConversationList(false)
+          }
+
+          // Persist conversation ID in URL for panel reopen persistence
+          if (conversation?.id) {
+            const url = new URL(window.location.href)
+            url.searchParams.set('conversationId', conversation.id)
+            window.history.replaceState({}, '', url.toString())
           }
         })
         .catch(err => {
@@ -240,6 +353,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
       if (contextEntity && contextEntityId) {
         // Mark as processed immediately to prevent duplicate calls
         urlContextProcessed.current = true
+        conversationIdFromUrlProcessed.current = true
 
         // Parse users if provided
         const users = usersParam ? usersParam.split(',').filter(Boolean) : undefined
@@ -251,10 +365,17 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
           undefined, // Let backend generate default name
           users
         )
-          .then(() => {
+          .then(conversation => {
             // Hide conversation list in compact/mobile modes after opening context chat
             if (viewMode !== 'full') {
               setShowConversationList(false)
+            }
+
+            // Persist conversation ID in URL for panel reopen persistence
+            if (conversation?.id) {
+              const url = new URL(window.location.href)
+              url.searchParams.set('conversationId', conversation.id)
+              window.history.replaceState({}, '', url.toString())
             }
           })
           .catch(err => {
@@ -333,68 +454,87 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
       </div>
     ) : null
 
+  // Helper to get the other participant's user ID from a direct conversation
+  const getOtherParticipantUserId = (conversation: Conversation): string | null => {
+    if (conversation.type !== 'direct' || !conversation.participants) {
+      return null
+    }
+    const otherParticipant = conversation.participants.find(
+      p => p.userId !== currentUser?.id && p.user?.id !== currentUser?.id
+    )
+    return otherParticipant?.userId || otherParticipant?.user?.id || null
+  }
+
   // Chat view component (header + messages + input)
-  const ChatView = () => (
-    <div className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:min-h-0">
-      {activeConversation ? (
-        <>
-          <ConversationHeader
-            conversation={activeConversation}
-            onBack={isSingleViewMode ? handleBack : undefined}
-            onClose={handleCloseConversation}
-            onRemove={handleRemoveConversation}
-            onGroupSettings={handleShowGroupSettings}
-            showBackButton={isSingleViewMode}
-            currentUserId={currentUser?.id || null}
-            compact={viewMode === 'compact'}
-          />
-          <MessageList
-            messages={messages}
-            currentUserId={currentUser?.id || null}
-            isGroupChat={activeConversation.type === 'group'}
-            typingUsers={Object.values(typingUsers).flat()}
-            isLoading={messagesLoading}
-            hasMore={hasMoreMessages}
-            onLoadMore={loadMoreMessages}
-            conversationId={activeConversation.id}
-          />
-          <MessageInput
-            onSend={handleSendMessage}
-            onTypingStart={() => {
-              if (activeConversationId) startTyping(activeConversationId)
-            }}
-            onTypingStop={() => {
-              if (activeConversationId) stopTyping(activeConversationId)
-            }}
-            disabled={!isConnected}
-            compact={viewMode !== 'full'}
-            accessToken={accessToken}
-          />
-        </>
-      ) : (
-        <div className="gba:flex-1 gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-6 gba:text-center">
-          <div className="gba:w-16 gba:h-16 gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:mb-4">
-            <svg
-              className="gba:w-8 gba:h-8 gba:text-muted-foreground"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-              />
-            </svg>
+  const ChatView = () => {
+    // Get presence for the other user in direct conversations
+    const otherUserId = activeConversation ? getOtherParticipantUserId(activeConversation) : null
+    const otherUserPresence = otherUserId ? getUserPresence(otherUserId) : undefined
+
+    return (
+      <div className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:h-full gba:max-h-full gba:overflow-hidden">
+        {activeConversation ? (
+          <>
+            <ConversationHeader
+              conversation={activeConversation}
+              onBack={isSingleViewMode ? handleBack : undefined}
+              onClose={handleCloseConversation}
+              onRemove={handleRemoveConversation}
+              onGroupSettings={handleShowGroupSettings}
+              showBackButton={isSingleViewMode}
+              currentUserId={currentUser?.id || null}
+              compact={viewMode === 'compact'}
+              otherUserPresence={otherUserPresence}
+            />
+            <MessageList
+              messages={messages}
+              currentUserId={currentUser?.id || null}
+              isGroupChat={activeConversation.type === 'group'}
+              typingUsers={Object.values(typingUsers).flat()}
+              isLoading={messagesLoading}
+              hasMore={hasMoreMessages}
+              onLoadMore={loadMoreMessages}
+              conversationId={activeConversation.id}
+              accessToken={accessToken}
+            />
+            <MessageInput
+              onSend={handleSendMessage}
+              onTypingStart={() => {
+                if (activeConversationId) startTyping(activeConversationId)
+              }}
+              onTypingStop={() => {
+                if (activeConversationId) stopTyping(activeConversationId)
+              }}
+              disabled={!isConnected}
+              compact={viewMode !== 'full'}
+              accessToken={accessToken}
+            />
+          </>
+        ) : (
+          <div className="gba:flex-1 gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-6 gba:text-center">
+            <div className="gba:w-16 gba:h-16 gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:mb-4">
+              <svg
+                className="gba:w-8 gba:h-8 gba:text-muted-foreground"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                />
+              </svg>
+            </div>
+            <p className="gba:text-sm gba:text-muted-foreground gba:max-w-[200px]">
+              {getTranslationFromI18nKeyAndLabel('chat.selectConversation', 'Select a conversation to start chatting')}
+            </p>
           </div>
-          <p className="gba:text-sm gba:text-muted-foreground gba:max-w-[200px]">
-            {getTranslationFromI18nKeyAndLabel('chat.selectConversation', 'Select a conversation to start chatting')}
-          </p>
-        </div>
-      )}
-    </div>
-  )
+        )}
+      </div>
+    )
+  }
 
   return (
     <div
@@ -404,11 +544,11 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
     >
       <OfflineBanner />
 
-      <div className="gba:flex-1 gba:flex gba:flex-row gba:min-h-0 gba:overflow-hidden">
+      <div className="gba:flex-1 gba:flex gba:flex-row gba:min-h-0 gba:h-full gba:overflow-hidden">
         {/* Conversation List */}
         {showListView && (
           <div
-            className={`gba:flex gba:flex-col gba:border-r gba:border-border/50 gba:bg-muted/30 ${
+            className={`gba:flex gba:flex-col gba:h-full gba:border-r gba:border-border/50 gba:bg-muted/30 ${
               isSingleViewMode ? 'gba:w-full' : 'gba:w-72 gba:flex-shrink-0'
             }`}
           >
@@ -426,6 +566,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
               currentUserId={currentUser?.id || null}
               accessToken={accessToken}
               compact={viewMode === 'compact'}
+              getUserPresence={getUserPresence}
             />
           </div>
         )}

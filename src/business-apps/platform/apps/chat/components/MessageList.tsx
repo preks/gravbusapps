@@ -14,6 +14,7 @@ interface MessageListProps {
   hasMore?: boolean
   onLoadMore?: () => void
   conversationId: string
+  accessToken?: string
 }
 
 export const MessageList: React.FC<MessageListProps> = ({
@@ -24,7 +25,8 @@ export const MessageList: React.FC<MessageListProps> = ({
   isLoading = false,
   hasMore = false,
   onLoadMore,
-  conversationId
+  conversationId,
+  accessToken
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
@@ -41,76 +43,45 @@ export const MessageList: React.FC<MessageListProps> = ({
   const prevConversationIdRef = useRef<string | null>(null)
   const initialScrollConversationIdRef = useRef<string | null>(null)
 
-  // Keep track of previous messages to prevent flicker when switching conversations
-  const [displayMessages, setDisplayMessages] = useState<Message[]>(messages)
-  const [isTransitioning, setIsTransitioning] = useState(false)
+  // Track if this is the first load for a new conversation
+  const [isFirstLoad, setIsFirstLoad] = useState(true)
 
   // Filter typing users for this conversation
   const conversationTypingUsers = typingUsers.filter(t => t.conversationId === conversationId && t.isTyping)
 
-  // Scroll to bottom when messages change or conversation switches
+  // Scroll to bottom when messages load or new messages arrive
   useEffect(() => {
-    const shouldScroll = displayMessages.length > 0 && !isTransitioning && messagesEndRef.current
-
-    if (shouldScroll) {
+    // Only scroll if we have messages and the component is ready
+    if (messages.length > 0 && messagesEndRef.current) {
       // Use requestAnimationFrame to ensure DOM has fully updated
       requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          if (messagesEndRef.current) {
-            messagesEndRef.current.scrollIntoView({
-              behavior: 'auto',
-              block: 'end',
-              inline: 'nearest'
-            })
-          }
-        })
+        if (messagesEndRef.current) {
+          messagesEndRef.current.scrollIntoView({
+            behavior: 'auto',
+            block: 'end',
+            inline: 'nearest'
+          })
+        }
       })
 
       if (isInitialLoadRef.current) {
         isInitialLoadRef.current = false
       }
+
+      // Mark first load as complete once we have messages
+      if (isFirstLoad) {
+        setIsFirstLoad(false)
+      }
     }
 
-    prevMessagesLengthRef.current = displayMessages.length
-  }, [displayMessages, isTransitioning, conversationId])
+    prevMessagesLengthRef.current = messages.length
+  }, [messages, conversationId, isFirstLoad])
 
   useEffect(() => {
     if (conversationTypingUsers.length > 0 && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
     }
   }, [conversationTypingUsers.length])
-
-  // Update display messages smoothly to prevent flicker
-  useEffect(() => {
-    // If conversation changed, enter transition state briefly
-    if (prevConversationIdRef.current !== null && prevConversationIdRef.current !== conversationId) {
-      setIsTransitioning(true)
-      // Immediately update to new messages without waiting for loading to complete
-      // This prevents the loading spinner from showing
-      if (messages.length > 0) {
-        setDisplayMessages(messages)
-        // End transition quickly once messages are set
-        requestAnimationFrame(() => {
-          setIsTransitioning(false)
-        })
-      } else {
-        // No messages yet, keep old messages visible briefly
-        setTimeout(() => {
-          setDisplayMessages([])
-          setIsTransitioning(false)
-        }, 50)
-      }
-    } else {
-      // Same conversation - update messages normally
-      if (messages.length > 0) {
-        setDisplayMessages(messages)
-        setIsTransitioning(false)
-      } else if (!isLoading) {
-        setDisplayMessages([])
-        setIsTransitioning(false)
-      }
-    }
-  }, [messages, isLoading, conversationId])
 
   // Reset refs when conversation changes
   useEffect(() => {
@@ -126,12 +97,9 @@ export const MessageList: React.FC<MessageListProps> = ({
       prevLastMessageIdRef.current = null
       prevConversationIdRef.current = conversationId
       initialScrollConversationIdRef.current = null
+      setIsFirstLoad(true)
 
-      // Reset scroll position when conversation changes
-      const container = messagesContainerRef.current
-      if (container) {
-        container.scrollTop = 0
-      }
+      // Don't reset scroll position - let it naturally scroll to bottom when messages load
     }
   }, [conversationId])
 
@@ -180,6 +148,9 @@ export const MessageList: React.FC<MessageListProps> = ({
     lastScrollTopRef.current = currentTop
   }
 
+  // Show loading only on first load when there are no messages
+  const showLoading = isLoading && messages.length === 0 && isFirstLoad
+
   return (
     <div
       ref={messagesContainerRef}
@@ -187,14 +158,12 @@ export const MessageList: React.FC<MessageListProps> = ({
       className="gba:flex-1 gba:overflow-y-auto gba:min-h-0"
       data-testid="message-list"
     >
-      <div
-        className={`gba:min-h-full gba:flex gba:flex-col gba:px-3 gba:py-2 gba:transition-opacity gba:duration-150 ${isTransitioning ? 'gba:opacity-50' : 'gba:opacity-100'}`}
-      >
-        {isLoading && displayMessages.length === 0 ? (
+      <div className="gba:min-h-full gba:flex gba:flex-col gba:px-3 gba:py-2">
+        {showLoading ? (
           <div className="gba:flex-1 gba:flex gba:items-center gba:justify-center">
             <Spinner size="sm" />
           </div>
-        ) : displayMessages.length === 0 ? (
+        ) : messages.length === 0 && !isLoading ? (
           <div className="gba:flex-1 gba:flex gba:flex-col gba:items-center gba:justify-center gba:text-center gba:p-4">
             <div className="gba:w-12 gba:h-12 gba:rounded-full gba:bg-muted/50 gba:flex gba:items-center gba:justify-center gba:mb-3">
               <svg
@@ -215,7 +184,7 @@ export const MessageList: React.FC<MessageListProps> = ({
               {getTranslationFromI18nKeyAndLabel('chat.noMessages', 'No messages yet. Start the conversation!')}
             </p>
           </div>
-        ) : (
+        ) : messages.length > 0 ? (
           <div className="gba:mt-auto gba:space-y-0.5">
             {hasMore && (
               <div className="gba:flex gba:items-center gba:justify-center gba:py-2 gba:mb-2">
@@ -232,8 +201,14 @@ export const MessageList: React.FC<MessageListProps> = ({
               </div>
             )}
 
-            {displayMessages.map(message => (
-              <MessageItem key={message.id} message={message} currentUserId={currentUserId} isGroupChat={isGroupChat} />
+            {messages.map(message => (
+              <MessageItem
+                key={message.id}
+                message={message}
+                currentUserId={currentUserId}
+                isGroupChat={isGroupChat}
+                accessToken={accessToken}
+              />
             ))}
 
             {conversationTypingUsers.length > 0 && (
@@ -242,7 +217,7 @@ export const MessageList: React.FC<MessageListProps> = ({
 
             <div ref={messagesEndRef} />
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   )

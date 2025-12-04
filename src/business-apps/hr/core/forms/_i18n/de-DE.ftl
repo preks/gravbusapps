@@ -30,6 +30,25 @@ adjust-salary-frequency-hourly = Stündlich
 adjust-salary-current-salary = Aktuelles Gehalt
 adjust-salary-calculation-breakdown = Gehaltsanpassung Zusammenfassung
 
+# Assign Salary Mode (new employee without existing salary)
+assign-salary-title = Gehalt zuweisen
+assign-salary-type = Vergütungsart
+assign-salary-type-required = Vergütungsart ist erforderlich. Bitte wählen Sie eine Vergütungsart.
+assign-salary-type-yearly-monthly = Monatsgehalt
+assign-salary-type-hourly = Stundenlohn
+assign-salary-monthly-salary = Monatsbruttogehalt
+assign-salary-monthly-salary-required = Monatsbruttogehalt ist erforderlich. Bitte geben Sie das Monatsbruttogehalt ein.
+assign-salary-monthly-salary-positive = Das Monatsbruttogehalt muss größer als Null sein.
+assign-salary-hourly-salary = Stundenlohn
+assign-salary-hourly-salary-required = Stundenlohn ist erforderlich. Bitte geben Sie den Stundenlohn ein.
+assign-salary-hourly-salary-positive = Der Stundenlohn muss größer als Null sein.
+assign-salary-currency-required = Währung ist erforderlich. Bitte wählen Sie eine Währung.
+assign-salary-annual-equivalent = Jahresäquivalent
+assign-salary-expected-monthly-wage = Erwarteter Monatslohn
+assign-salary-expected-monthly-wage-description = Basierend auf den Arbeitszeiten des Mitarbeiters
+assign-salary-start-date = Startdatum
+assign-salary-start-date-required = Startdatum ist erforderlich. Bitte wählen Sie ein Startdatum.
+
 # Adjust Employee Salary Review Form
 adjust-salary-review-title = Gehaltsanpassungsprüfung für { $employeeName }
 adjust-salary-review-initiated-by = Initiiert von { $initiatorName }
@@ -46,6 +65,18 @@ adjust-salary-review-reject = Ablehnen
 adjust-salary-review-annual-gross-salary = Jahresbruttogehalt
 adjust-salary-review-monthly-gross-salary = Monatliches Bruttogehalt
 adjust-salary-review-hourly-gross-salary = Stündliches Bruttogehalt
+adjust-salary-review-increase-text = { $percentage }% Erhöhung
+
+# Assign Employee Salary Review Form (new employee without existing salary)
+assign-salary-review-title = Erstmalige Gehaltszuweisung prüfen für { $employeeName }
+assign-salary-review-salary-details = Gehaltsdetails
+assign-salary-review-assignment-details = Zuweisungsdetails
+assign-salary-review-annual-salary = Jahresbruttogehalt
+assign-salary-review-monthly-salary = Monatliches Bruttogehalt
+assign-salary-review-hourly-salary = Stündliches Bruttogehalt
+assign-salary-review-currency = Währung
+assign-salary-review-start-date = Startdatum
+assign-salary-review-notes = Notizen
 
 # Common Actions
 action-select-placeholder = Bitte auswählen
@@ -68,18 +99,43 @@ placeholder-enter = Bitte eingeben
 field-bonus-type = Bonusart
 field-amount = Betrag
 field-currency = Währung
-field-payment-date = Zahlungsdatum
+field-payment-month = Zahlungsmonat
 field-fiscal-year = Geschäftsjahr
-field-description = Beschreibung
 field-notes = Notizen
 
 # Validation Messages
 validation-bonus-type-required = Bonusart ist erforderlich. Bitte wählen Sie eine Bonusart aus.
 validation-amount-required = Betrag ist erforderlich. Bitte geben Sie den Bonusbetrag ein.
 validation-amount-positive = Der Betrag muss größer als Null sein.
-validation-currency-required = Währung ist erforderlich. Bitte wählen Sie eine Währung aus.
-validation-payment-date-required = Zahlungsdatum ist erforderlich. Bitte wählen Sie ein Zahlungsdatum aus.
-validation-payment-date-invalid = Bitte geben Sie ein gültiges Zahlungsdatum ein.
+validation-payment-month-required = Zahlungsmonat ist erforderlich. Bitte wählen Sie einen Zahlungsmonat aus.
+validation-payment-month-invalid = Bitte wählen Sie einen gültigen Zahlungsmonat aus.
 validation-fiscal-year-required = Geschäftsjahr ist erforderlich. Bitte geben Sie das Geschäftsjahr ein.
 validation-fiscal-year-range = Das Geschäftsjahr muss zwischen {$minYear} und {$maxYear} liegen.
 
+# Month Names
+month-january = Januar
+month-february = Februar
+month-march = März
+month-april = April
+month-may = Mai
+month-june = Juni
+month-july = Juli
+month-august = August
+month-september = September
+month-october = Oktober
+month-november = November
+month-december = Dezember
+
+# Grant Employee Bonus Review Form
+grant-bonus-review-title = Bonusprüfung für { $employeeName }
+grant-bonus-review-initiated-by = Initiiert von { $initiatorName }
+grant-bonus-review-bonus-details = Bonusdetails
+grant-bonus-review-bonus-type = Bonusart
+grant-bonus-review-amount = Betrag
+grant-bonus-review-payment-month = Zahlungsmonat
+grant-bonus-review-fiscal-year = Geschäftsjahr
+grant-bonus-review-additional-info = Zusätzliche Informationen
+grant-bonus-review-description = Beschreibung
+grant-bonus-review-notes = Notizen
+grant-bonus-review-acknowledge = Bestätigen
+grant-bonus-review-reject = Ablehnen

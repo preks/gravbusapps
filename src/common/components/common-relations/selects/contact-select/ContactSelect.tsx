@@ -464,7 +464,7 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
                 {/* Avatar */}
                 <Avatar className="gba:flex-shrink-0" size="sm">
                   {pictureThumbnail ? (
-                    <AvatarImage src={`data:image/jpeg;base64,${pictureThumbnail}`} alt={displayName} />
+                    <AvatarImage src={`data:image/gif;base64,${pictureThumbnail}`} alt={displayName} />
                   ) : (
                     <AvatarFallback className="gba:text-xs">{initials}</AvatarFallback>
                   )}

@@ -290,7 +290,7 @@ export const SalesMemberPerformance: React.FC<SalesMemberPerformanceProps> = ({
           headerData?.pictureThumbnail ? `data:image/jpeg;base64,${headerData.pictureThumbnail}` : undefined
         }
         headerImageAlt={headerData?.displayName || 'Employee'}
-        headerCategory={getTranslationFromI18nKeyAndLabel('crm.performance.salesMember', 'SALES MEMBER')}
+        headerCategory={getTranslationFromI18nKeyAndLabel('crm.performance.employeeOverview', 'EMPLOYEE OVERVIEW')}
         onBack={onBack}
         headerTitle={headerData?.displayName || 'Employee Performance'}
         headerMeta={headerMeta}

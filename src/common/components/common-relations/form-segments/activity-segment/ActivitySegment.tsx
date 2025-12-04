@@ -133,6 +133,20 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
   // Determine if new entity (for auto-select)
   const isNewEntity = !entityId
 
+  // Track if we've already initialized occurredAt to prevent re-setting
+  const hasInitializedDate = React.useRef(false)
+
+  // Auto-populate current date/time for new activities
+  React.useEffect(() => {
+    if (isNewEntity && !hasInitializedDate.current) {
+      const currentOccurredAt = form.getValues('occurredAt')
+      if (!currentOccurredAt) {
+        hasInitializedDate.current = true
+        form.setValue('occurredAt', new Date().toISOString())
+      }
+    }
+  }, [isNewEntity, form])
+
   // Prime entity search on mount if needed
   React.useEffect(() => {
     if (showEntitySelection && onEntitySearch && (!entities || entities.length === 0)) {

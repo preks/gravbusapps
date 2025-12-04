@@ -6,10 +6,13 @@ import { LocalizationProvider, useTranslation, Spinner } from '@newwork/nw-desig
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { AdjustEmployeeSalaryProvider, useAdjustEmployeeSalary } from './AdjustEmployeeSalaryContext'
 import { useForm } from 'react-hook-form'
-import type { AdjustEmployeeSalaryFormValues } from './types'
+import type { AdjustEmployeeSalaryFormValues, FormMode } from './types'
 import SalaryAdjustmentGroup from './components/SalaryAdjustmentGroup'
+import AssignSalaryGroup from './components/AssignSalaryGroup'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { calculateSalaryAdjustment } from './utils/calculateSalaryAdjustment'
+import { findActiveSalary } from './utils/findActiveSalary'
+import { useTaskCancellation } from '../../hooks/useTaskCancellation'
 import translations from '../_i18n'
 
 const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additionalData, userInfo }) => {
@@ -17,40 +20,96 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
   const { data, isLoading } = useAdjustEmployeeSalary()
 
   const employee = useMemo(() => data?.employee?.EmployeeByPk, [data])
-  const currentCompensation = useMemo(() => data?.compensation?.EmployeeWorkingCondition?.[0] || null, [data])
+  const currentCompensation = useMemo(() => findActiveSalary(data?.compensation?.AllEmployeeSalaries || []), [data])
   const salaryAdjustReasonEntries = useMemo(
     () => data?.catalogs?.salaryAdjustReason?.CatalogEntry || [],
     [data?.catalogs?.salaryAdjustReason]
   )
 
+  // Form mode, currencies, hire date, weekly hours, and bank account currency from context
+  const formMode: FormMode = useMemo(() => data?.formMode || 'adjust', [data?.formMode])
+  const currencies = useMemo(() => data?.currencies || [], [data?.currencies])
+  const bankAccountCurrency = useMemo(() => data?.bankAccountCurrency || null, [data?.bankAccountCurrency])
+  const weeklyHours = useMemo(() => data?.weeklyHours || null, [data?.weeklyHours])
+  // Hire date for assign mode - format from timestamp to YYYY-MM-DD for date input
+  const hireDate = useMemo(() => {
+    if (!data?.hireDate) return ''
+    try {
+      // If the date is already in YYYY-MM-DD format (with or without time), extract date part directly
+      // This avoids timezone conversion issues when the API returns dates without timezone indicator
+      const dateStr = String(data.hireDate)
+      if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+        return dateStr.substring(0, 10) // Extract YYYY-MM-DD directly
+      }
+
+      // Fallback: parse as Date and use LOCAL date components to avoid timezone shift
+      const date = new Date(data.hireDate)
+      if (Number.isNaN(date.getTime())) return ''
+      // Format as YYYY-MM-DD using local date components (avoids UTC conversion)
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      return `${year}-${month}-${day}`
+    } catch {
+      return ''
+    }
+  }, [data?.hireDate])
+
   const currentSalaryAnnual = useMemo(() => currentCompensation?.annualGrossSalary || 0, [currentCompensation])
   const currentSalaryMonthly = useMemo(() => currentCompensation?.monthlyGrossSalary ?? null, [currentCompensation])
   const currentSalaryHourly = useMemo(() => currentCompensation?.hourlyGrossSalary ?? null, [currentCompensation])
   const currentCurrency = useMemo(() => currentCompensation?.currency || null, [currentCompensation])
+  const currentCurrencyRef = useMemo(() => currentCompensation?.currencyRef || '', [currentCompensation])
 
   const locale = useMemo(() => getCurrentActiveUserLocale(), [])
 
-  // Calculate default frequency based on available salary data
+  // Calculate default frequency based on available salary data (for adjust mode)
+  // Default to 'annually' if employee has annual/monthly salary, only use 'hourly' if employee has hourly salary only
   const defaultFrequency = useMemo<'annually' | 'monthly' | 'hourly'>(() => {
-    if (currentSalaryHourly != null && currentSalaryHourly > 0) {
+    const hasAnnualOrMonthlySalary =
+      (currentSalaryAnnual != null && currentSalaryAnnual > 0) ||
+      (currentSalaryMonthly != null && currentSalaryMonthly > 0)
+    const hasHourlySalary = currentSalaryHourly != null && currentSalaryHourly > 0
+
+    // If employee has hourly salary but no annual/monthly, default to hourly
+    if (hasHourlySalary && !hasAnnualOrMonthlySalary) {
       return 'hourly'
-    } else if (currentSalaryMonthly != null && currentSalaryMonthly > 0) {
-      return 'monthly'
-    } else {
-      return 'annually'
     }
+    // Otherwise default to annually
+    return 'annually'
   }, [currentSalaryAnnual, currentSalaryMonthly, currentSalaryHourly])
+
+  // Default currency: use bank account currency if exists, otherwise EUR, otherwise first in list
+  const defaultCurrency = useMemo(() => {
+    // If bank account has currency, use it
+    if (bankAccountCurrency) {
+      return bankAccountCurrency
+    }
+    // Fallback to EUR if available
+    const eurCurrency = currencies.find(c => c.code === 'EUR')
+    return eurCurrency?.id || currencies[0]?.id || ''
+  }, [bankAccountCurrency, currencies])
+
+  // Currency is readonly if it comes from bank account
+  const isCurrencyReadonly = useMemo(() => !!bankAccountCurrency, [bankAccountCurrency])
 
   const defaultValues: AdjustEmployeeSalaryFormValues = useMemo(
     () => ({
+      // Adjust mode fields
       amountIncrease: null,
       percentageIncrease: null,
       adjustmentFrequency: defaultFrequency,
-      effectiveDate: '',
       reason: '',
+      // Assign mode fields
+      salaryType: 'yearlyMonthly',
+      monthlySalary: null,
+      hourlySalary: null,
+      currency: defaultCurrency,
+      // Shared fields - use hire date as default for assign mode
+      effectiveDate: formMode === 'assign' ? hireDate : '',
       notes: ''
     }),
-    [defaultFrequency]
+    [defaultFrequency, defaultCurrency, formMode, hireDate]
   )
 
   const form = useForm<AdjustEmployeeSalaryFormValues>({
@@ -67,6 +126,9 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
   // Track submission state reliably with a ref
   const isSubmittingRef = useRef(false)
 
+  // Handle task cancellation when form closes without submission
+  const { markAsSubmitted, markAsCancelled } = useTaskCancellation('pse_abort')
+
   // Reset to normalized defaults whenever catalogs change
   useEffect(() => {
     // Only reset if form is pristine (not yet touched by user) and not submitting
@@ -82,11 +144,18 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
   }, [normalizedDefaults])
 
   const normalizeForCompare = (v: AdjustEmployeeSalaryFormValues) => ({
-    amountIncrease: v.amountIncrease || null,
-    percentageIncrease: v.percentageIncrease || null,
+    // Adjust mode fields - use ?? for numbers to preserve 0 as a value
+    amountIncrease: v.amountIncrease ?? null,
+    percentageIncrease: v.percentageIncrease ?? null,
     adjustmentFrequency: v.adjustmentFrequency,
-    effectiveDate: v.effectiveDate || '',
     reason: v.reason || '',
+    // Assign mode fields - use ?? for numbers to preserve 0 as a value
+    salaryType: v.salaryType,
+    monthlySalary: v.monthlySalary ?? null,
+    hourlySalary: v.hourlySalary ?? null,
+    currency: v.currency || '',
+    // Shared fields
+    effectiveDate: v.effectiveDate || '',
     notes: v.notes || ''
   })
 
@@ -97,6 +166,11 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
   const effectiveDate = form.watch('effectiveDate')
   const reason = form.watch('reason')
   const notes = form.watch('notes')
+  // Assign mode watched fields
+  const salaryType = form.watch('salaryType')
+  const monthlySalary = form.watch('monthlySalary')
+  const hourlySalary = form.watch('hourlySalary')
+  const currency = form.watch('currency')
 
   const watchedValues = useMemo(
     () => ({
@@ -105,9 +179,24 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
       adjustmentFrequency,
       effectiveDate,
       reason,
-      notes
+      notes,
+      salaryType,
+      monthlySalary,
+      hourlySalary,
+      currency
     }),
-    [amountIncrease, percentageIncrease, adjustmentFrequency, effectiveDate, reason, notes]
+    [
+      amountIncrease,
+      percentageIncrease,
+      adjustmentFrequency,
+      effectiveDate,
+      reason,
+      notes,
+      salaryType,
+      monthlySalary,
+      hourlySalary,
+      currency
+    ]
   )
 
   const isUnchangedNow = useMemo(() => {
@@ -117,7 +206,20 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
     )
   }, [watchedValues])
 
-  const title = useMemo(() => t('adjust-salary-title'), [t])
+  // Dynamic title based on mode
+  const title = useMemo(
+    () => (formMode === 'assign' ? t('assign-salary-title') : t('adjust-salary-title')),
+    [t, formMode]
+  )
+
+  // Get currency code for formatting (from selected currency in assign mode, or current salary in adjust mode)
+  const selectedCurrencyCode = useMemo(() => {
+    if (formMode === 'assign' && currency) {
+      const selectedCurrency = currencies.find(c => c.id === currency)
+      return selectedCurrency?.code || 'EUR'
+    }
+    return (currentCurrency as any)?.code || 'EUR'
+  }, [formMode, currency, currencies, currentCurrency])
 
   // Extract employeeId with priority: externalContextData (from AppAction) > process payload > direct > employee data
   const externalContext = (additionalData as any)?.externalContextData || {}
@@ -165,10 +267,62 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
           cancelButtonText={t('action-cancel')}
           submitButtonText={t('action-submit')}
           isSubmitDisabled={!form.formState.isValid || isUnchangedNow}
+          // Shows cancel button - default cancelEventType="pse_abort" handles process abort
+          onCancel={() => {
+            markAsCancelled()
+          }}
           onSubmit={async (values: AdjustEmployeeSalaryFormValues) => {
             // Mark as submitting to prevent form resets during submission
             isSubmittingRef.current = true
+            markAsSubmitted()
             try {
+              // Format effective date
+              const formattedStartDate = values.effectiveDate
+                ? (() => {
+                    const date = new Date(values.effectiveDate)
+                    if (Number.isNaN(date.getTime())) {
+                      return null
+                    }
+                    return formatDateToISO(date)
+                  })()
+                : null
+
+              // === ASSIGN MODE ===
+              if (formMode === 'assign') {
+                const isHourly = values.salaryType === 'hourly'
+                // Calculate annual salary from monthly (monthly × 12)
+                let annualGrossSalary = null
+                if (!isHourly && values.monthlySalary !== null) {
+                  annualGrossSalary = values.monthlySalary * 12
+                }
+                const payload = {
+                  event: 'pse_submit',
+                  employeeId: employeeId,
+                  initiatorEmployeeId: userInfo?.employeeDetails?.employeeId || '',
+                  oldEmployeeSalary: null, // No old salary in assign mode
+                  employeeSalary: {
+                    employee: employeeId,
+                    annualGrossSalary: annualGrossSalary,
+                    monthlyGrossSalary: isHourly ? null : values.monthlySalary,
+                    hourlyGrossSalary: isHourly ? values.hourlySalary : null,
+                    currencyRef: values.currency || '',
+                    salaryAdjustReason: null, // No reason for assign mode
+                    startDate: formattedStartDate,
+                    notes: values.notes || '',
+                    stockOptions: false,
+                    endDate: null,
+                    requestStatus: null,
+                    requestDate: null,
+                    decisionDate: null,
+                    requestedPercent: null,
+                    requestedAmount: null,
+                    decisionEmployee: null
+                  }
+                }
+                return payload
+              }
+
+              // === ADJUST MODE ===
               // Calculate adjustment based on frequency
               const { newAnnualSalary, newMonthlySalary, newHourlySalary } = calculateSalaryAdjustment(
                 values,
@@ -193,7 +347,7 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
                   annualGrossSalary: currentSalaryAnnual,
                   monthlyGrossSalary: currentSalaryMonthly,
                   hourlyGrossSalary: currentSalaryHourly,
-                  currencyRef: currentCompensation?.currencyRef || '',
+                  currencyRef: currentCurrencyRef,
                   startDate: null,
                   endDate: null,
                   stockOptions: false,
@@ -211,17 +365,9 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
                   annualGrossSalary: finalAnnualGrossSalary,
                   monthlyGrossSalary: finalMonthlyGrossSalary,
                   hourlyGrossSalary: newHourlySalary,
-                  currencyRef: currentCompensation?.currencyRef || '',
+                  currencyRef: currentCurrencyRef,
                   salaryAdjustReason: values.reason || '',
-                  startDate: values.effectiveDate
-                    ? (() => {
-                        const date = new Date(values.effectiveDate)
-                        if (Number.isNaN(date.getTime())) {
-                          return null
-                        }
-                        return formatDateToISO(date)
-                      })()
-                    : null,
+                  startDate: formattedStartDate,
                   notes: values.notes || '',
                   stockOptions: false,
                   endDate: null,
@@ -240,19 +386,31 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
               isSubmittingRef.current = false
             }
           }}
-          data-testid="adjust-employee-salary"
+          data-testid={formMode === 'assign' ? 'assign-employee-salary' : 'adjust-employee-salary'}
         >
-          <div className="gba:flex-1 gba:space-y-4" data-testid="adjust-employee-salary-groups">
-            {/* Salary Adjustment Group */}
-            <SalaryAdjustmentGroup
-              control={form.control}
-              currentSalaryAnnual={currentSalaryAnnual}
-              currentSalaryMonthly={currentSalaryMonthly}
-              currentSalaryHourly={currentSalaryHourly}
-              currentCurrency={currentCurrency}
-              locale={locale}
-              salaryAdjustReasonEntries={salaryAdjustReasonEntries}
-            />
+          <div className="gba:flex-1 gba:space-y-4" data-testid={`${formMode}-employee-salary-groups`}>
+            {formMode === 'assign' ? (
+              /* Assign Salary Group - for new employees without salary */
+              <AssignSalaryGroup
+                control={form.control}
+                currencies={currencies}
+                currencyCode={selectedCurrencyCode}
+                locale={locale}
+                isCurrencyReadonly={isCurrencyReadonly}
+                weeklyHours={weeklyHours}
+              />
+            ) : (
+              /* Salary Adjustment Group - for existing employees */
+              <SalaryAdjustmentGroup
+                control={form.control}
+                currentSalaryAnnual={currentSalaryAnnual}
+                currentSalaryMonthly={currentSalaryMonthly}
+                currentSalaryHourly={currentSalaryHourly}
+                currentCurrency={currentCurrency}
+                locale={locale}
+                salaryAdjustReasonEntries={salaryAdjustReasonEntries}
+              />
+            )}
           </div>
         </AppActionForm>
       </div>

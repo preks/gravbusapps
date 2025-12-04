@@ -1,5 +1,7 @@
 import React, { useMemo, useEffect, useState, useCallback, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label, Combobox } from '@newwork/nw-design-system'
+import ReactQuill from 'react-quill'
+import 'react-quill/dist/quill.snow.css'
 import type { FlowProposalOutput, ConversationTurn } from '../types/models'
 import { useFormSubmission } from './FormSubmissionContext'
 import {
@@ -30,6 +32,8 @@ interface SchemaFieldProps {
   disabled?: boolean
   value: any
   onChange: (value: any) => void
+  formData: Record<string, any>
+  onFieldValueChange?: (path: string, value: any) => void
 }
 
 const sanitizeControlId = (value: string): string => value.replace(/[^a-zA-Z0-9-_:.]/g, '-').toLowerCase()
@@ -68,6 +72,8 @@ const SchemaField: React.FC<SchemaFieldProps & { accessToken: string }> = ({
   disabled,
   value,
   onChange,
+  formData,
+  onFieldValueChange,
   accessToken
 }) => {
   const fieldPath = path ? `${path}.${name}` : name
@@ -88,6 +94,94 @@ const SchemaField: React.FC<SchemaFieldProps & { accessToken: string }> = ({
   }
 
   const label = formatFieldName(name)
+
+  // ============================================================================
+  // CONDITIONAL DISPLAY LOGIC
+  // ============================================================================
+
+  const displayCondition = schema?.['x-display']
+
+  // Check if field should be displayed based on condition
+  const shouldShowField = useMemo(() => {
+    if (!displayCondition?.condition) {
+      return true
+    }
+
+    const { field, operator, value: conditionValue } = displayCondition.condition
+
+    // Build the actual field path for the dependent field
+    const dependentFieldPath = path ? `${path}.${field}` : field
+
+    // Get the dependent field value from formData
+    const getNestedValue = (obj: any, path: string): any => {
+      return path.split('.').reduce((current, key) => current?.[key], obj)
+    }
+
+    const fieldValue = getNestedValue(formData, dependentFieldPath)
+
+    // Handle array values (checkboxes, multi-select)
+    if (Array.isArray(fieldValue)) {
+      switch (operator) {
+        case 'equals':
+          // Check if array contains the condition value
+          return fieldValue.includes(conditionValue)
+        case 'notEquals':
+          // Check if array does not contain the condition value
+          return !fieldValue.includes(conditionValue)
+        case 'contains':
+          // Check if any array item contains the condition value
+          return fieldValue.some(v => String(v || '').includes(String(conditionValue || '')))
+        case 'notContains':
+          // Check if no array item contains the condition value
+          return !fieldValue.some(v => String(v || '').includes(String(conditionValue || '')))
+        default:
+          return fieldValue.includes(conditionValue)
+      }
+    }
+
+    // Evaluate condition based on operator for non-array values
+    switch (operator) {
+      case 'equals':
+        // Handle boolean vs string comparison
+        if (typeof fieldValue === 'boolean' && typeof conditionValue === 'string') {
+          return fieldValue === (conditionValue.toLowerCase() === 'yes' || conditionValue.toLowerCase() === 'true')
+        }
+        if (typeof conditionValue === 'boolean' && typeof fieldValue === 'string') {
+          return (fieldValue.toLowerCase() === 'yes' || fieldValue.toLowerCase() === 'true') === conditionValue
+        }
+        return fieldValue === conditionValue
+      case 'notEquals':
+        // Handle boolean vs string comparison
+        if (typeof fieldValue === 'boolean' && typeof conditionValue === 'string') {
+          return fieldValue !== (conditionValue.toLowerCase() === 'yes' || conditionValue.toLowerCase() === 'true')
+        }
+        if (typeof conditionValue === 'boolean' && typeof fieldValue === 'string') {
+          return (fieldValue.toLowerCase() === 'yes' || fieldValue.toLowerCase() === 'true') !== conditionValue
+        }
+        return fieldValue !== conditionValue
+      case 'contains':
+        return String(fieldValue || '').includes(String(conditionValue || ''))
+      case 'notContains':
+        return !String(fieldValue || '').includes(String(conditionValue || ''))
+      default:
+        return fieldValue === conditionValue
+    }
+  }, [displayCondition, formData, path, name])
+
+  // Clear field value when it becomes hidden
+  useEffect(() => {
+    if (!shouldShowField && fieldPath && onFieldValueChange) {
+      const currentValue = value
+      if (currentValue !== undefined && currentValue !== null && currentValue !== '') {
+        onFieldValueChange(fieldPath, '')
+      }
+    }
+  }, [shouldShowField, fieldPath, value, onFieldValueChange])
+
+  // Don't render if condition is not met
+  if (!shouldShowField) {
+    return null
+  }
 
   // Determine if field should be searchable UUID for people/entities
   const employeeTimeFields = ['substituteEmployee', 'approverId']
@@ -150,18 +244,20 @@ const SchemaField: React.FC<SchemaFieldProps & { accessToken: string }> = ({
 
         if (rawEnumOptions || rawOneOfOptions) {
           type SelectOption = { id: string; label: string; rawValue: unknown }
-          const options: SelectOption[] = (rawEnumOptions || rawOneOfOptions || []).map((option: unknown, index: number) => {
-            const rawValue = rawEnumOptions ? option : ((option as any)?.const ?? (option as any)?.value ?? option)
-            const id = String(toOptionId(rawValue ?? index))
-            const labelText = String(
-              rawEnumOptions ? toDisplayString(option) : ((option as any)?.title ?? toDisplayString(rawValue))
-            )
-            return {
-              id,
-              label: labelText,
-              rawValue
+          const options: SelectOption[] = (rawEnumOptions || rawOneOfOptions || []).map(
+            (option: unknown, index: number) => {
+              const rawValue = rawEnumOptions ? option : ((option as any)?.const ?? (option as any)?.value ?? option)
+              const id = String(toOptionId(rawValue ?? index))
+              const labelText = String(
+                rawEnumOptions ? toDisplayString(option) : ((option as any)?.title ?? toDisplayString(rawValue))
+              )
+              return {
+                id,
+                label: labelText,
+                rawValue
+              }
             }
-          })
+          )
 
           const selectedOptionId = String(
             options.find((opt: SelectOption) => deepEquals(opt.rawValue, value))?.id ??
@@ -226,6 +322,48 @@ const SchemaField: React.FC<SchemaFieldProps & { accessToken: string }> = ({
               }}
               disabled={disabled}
             />
+          )
+        }
+
+        // Markdown content type - use ReactQuill rich text editor
+        if (schema.contentMediaType === 'text/markdown') {
+          const quillModules = {
+            toolbar: [
+              [{ header: [1, 2, 3, false] }],
+              ['bold', 'italic', 'underline', 'strike'],
+              [{ list: 'ordered' }, { list: 'bullet' }],
+              [{ align: [] }],
+              ['link', 'image', 'video'],
+              ['clean']
+            ]
+          }
+
+          const quillFormats = [
+            'header',
+            'bold',
+            'italic',
+            'underline',
+            'strike',
+            'list',
+            'align',
+            'link',
+            'image',
+            'video'
+          ]
+
+          return (
+            <div className="gba:rounded-md gba:border gba:border-border gba:overflow-hidden [&_.ql-toolbar]:gba:border-b [&_.ql-toolbar]:gba:border-border [&_.ql-toolbar]:gba:bg-muted/30 [&_.ql-container]:gba:border-0 [&_.ql-editor]:gba:min-h-[150px] [&_.ql-editor]:gba:text-foreground [&_.ql-editor.ql-blank::before]:gba:text-muted-foreground">
+              <ReactQuill
+                id={controlId}
+                theme="snow"
+                value={String(typeof value === 'string' ? value : (value ?? ''))}
+                onChange={(content: string) => onChange(content)}
+                readOnly={disabled}
+                modules={quillModules}
+                formats={quillFormats}
+                placeholder={label}
+              />
+            </div>
           )
         }
 
@@ -302,6 +440,8 @@ const SchemaField: React.FC<SchemaFieldProps & { accessToken: string }> = ({
                 disabled={disabled}
                 value={value?.[propName]}
                 onChange={newValue => onChange({ ...value, [propName]: newValue })}
+                formData={formData}
+                onFieldValueChange={onFieldValueChange}
                 accessToken={accessToken}
               />
             ))}
@@ -356,18 +496,18 @@ const SearchableUuidField: React.FC<{
     entityType === 'employee' ? accessToken : '',
     { search: entityType === 'employee' ? debouncedSearch : '', limit: 50 }
   )
-  const { accounts, isLoading: accountLoading } = useAccountSearch(
-    entityType === 'account' ? accessToken : '',
-    { search: entityType === 'account' ? debouncedSearch : '', limit: 50 }
-  )
-  const { contacts, isLoading: contactLoading } = useContactSearch(
-    entityType === 'contact' ? accessToken : '',
-    { search: entityType === 'contact' ? debouncedSearch : '', limit: 50 }
-  )
-  const { leads, isLoading: leadLoading } = useLeadSearch(
-    entityType === 'lead' ? accessToken : '',
-    { search: entityType === 'lead' ? debouncedSearch : '', limit: 50 }
-  )
+  const { accounts, isLoading: accountLoading } = useAccountSearch(entityType === 'account' ? accessToken : '', {
+    search: entityType === 'account' ? debouncedSearch : '',
+    limit: 50
+  })
+  const { contacts, isLoading: contactLoading } = useContactSearch(entityType === 'contact' ? accessToken : '', {
+    search: entityType === 'contact' ? debouncedSearch : '',
+    limit: 50
+  })
+  const { leads, isLoading: leadLoading } = useLeadSearch(entityType === 'lead' ? accessToken : '', {
+    search: entityType === 'lead' ? debouncedSearch : '',
+    limit: 50
+  })
   const { opportunities, isLoading: opportunityLoading } = useOpportunitySearch(
     entityType === 'opportunity' ? accessToken : '',
     { search: entityType === 'opportunity' ? debouncedSearch : '', limit: 50 }
@@ -396,7 +536,10 @@ const SearchableUuidField: React.FC<{
         return {
           options: leads.map(l => ({
             value: l.id,
-            label: `${l.firstName ?? ''} ${l.lastName ?? ''}`.trim() + (l.companyName ? ` (${l.companyName})` : '') || l.email || l.id
+            label:
+              `${l.firstName ?? ''} ${l.lastName ?? ''}`.trim() + (l.companyName ? ` (${l.companyName})` : '') ||
+              l.email ||
+              l.id
           })),
           isLoading: leadLoading
         }
@@ -418,16 +561,33 @@ const SearchableUuidField: React.FC<{
           isLoading: employeeLoading
         }
     }
-  }, [entityType, employees, accounts, contacts, leads, opportunities, employeeLoading, accountLoading, contactLoading, leadLoading, opportunityLoading])
+  }, [
+    entityType,
+    employees,
+    accounts,
+    contacts,
+    leads,
+    opportunities,
+    employeeLoading,
+    accountLoading,
+    contactLoading,
+    leadLoading,
+    opportunityLoading
+  ])
 
   // Get placeholder text based on entity type
   const placeholderText = useMemo(() => {
     switch (entityType) {
-      case 'account': return 'Search accounts...'
-      case 'contact': return 'Search contacts...'
-      case 'lead': return 'Search leads...'
-      case 'opportunity': return 'Search opportunities...'
-      default: return 'Search employees...'
+      case 'account':
+        return 'Search accounts...'
+      case 'contact':
+        return 'Search contacts...'
+      case 'lead':
+        return 'Search leads...'
+      case 'opportunity':
+        return 'Search opportunities...'
+      default:
+        return 'Search employees...'
     }
   }, [entityType])
 
@@ -497,6 +657,28 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
   useEffect(() => {
     formDataRef.current = formData
   }, [formData])
+
+  // Handler for clearing hidden field values
+  const handleFieldValueChange = useCallback((path: string, value: any) => {
+    setFormData(prev => {
+      const newData = { ...prev }
+      const pathParts = path.split('.')
+
+      // Navigate to the parent object
+      let current: any = newData
+      for (let i = 0; i < pathParts.length - 1; i++) {
+        if (!current[pathParts[i]]) {
+          current[pathParts[i]] = {}
+        }
+        current = current[pathParts[i]]
+      }
+
+      // Set the value
+      current[pathParts[pathParts.length - 1]] = value
+
+      return newData
+    })
+  }, [])
 
   useEffect(() => {
     setUiState(currentFormState)
@@ -574,7 +756,14 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
         try {
           const parsed = JSON.parse(turn.text)
           if (parsed?.action === 'form_submission') {
-            console.log('[DynamicFormDisplay] Found form_submission at turn:', i, 'uuid:', parsed?.uuid, 'flow_name:', parsed?.flow_name)
+            console.log(
+              '[DynamicFormDisplay] Found form_submission at turn:',
+              i,
+              'uuid:',
+              parsed?.uuid,
+              'flow_name:',
+              parsed?.flow_name
+            )
             // Match by UUID, flow_name, or if this form has no UUID yet, match by flow_name
             const uuidMatch = parsed?.uuid && data.uuid && parsed.uuid === data.uuid
             const flowNameMatch = parsed?.flow_name && data.flow_name && parsed.flow_name === data.flow_name
@@ -984,7 +1173,11 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
     fields: [string, any][]
     requiredFields: string[]
     isCompleted: boolean
-  }> = ({ fields, requiredFields, isCompleted }) => {
+    formData: Record<string, any>
+    onFieldValueChange: (path: string, value: any) => void
+    onFieldChange: (fieldName: string, value: any) => void
+    accessToken: string
+  }> = ({ fields, requiredFields, isCompleted, formData, onFieldValueChange, onFieldChange, accessToken }) => {
     const [open, setOpen] = useState(false)
     const hiddenMissingCount = useMemo(() => {
       return fields.reduce((acc, [fname]) => {
@@ -1025,7 +1218,9 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
               required={requiredFields.includes(fieldName)}
               disabled={isCompleted}
               value={formData[fieldName]}
-              onChange={value => setFormData(prev => ({ ...prev, [fieldName]: value }))}
+              onChange={value => onFieldChange(fieldName, value)}
+              formData={formData}
+              onFieldValueChange={onFieldValueChange}
               accessToken={accessToken}
             />
           ))}
@@ -1053,7 +1248,7 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
   // Store latest handlers in refs so they're always up-to-date without triggering re-registration
   const submitHandlerRef = useRef(() => {})
   const cancelHandlerRef = useRef(() => {})
-  const updateFieldRef = useRef((_field: string, _value: any) => {})
+  const updateFieldRef = useRef<(field: string, value: any) => void>(() => {})
 
   useEffect(() => {
     submitHandlerRef.current = () => {
@@ -1101,7 +1296,10 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
           })
         }
       } else {
-        console.log(`[Voice] Could not find field matching "${fieldName}". Available fields:`, fields.map(f => f[0]))
+        console.log(
+          `[Voice] Could not find field matching "${fieldName}". Available fields:`,
+          fields.map(f => f[0])
+        )
       }
     }
   }, [fields])
@@ -1210,6 +1408,8 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
                     disabled={isCompleted}
                     value={formData[fieldName]}
                     onChange={value => setFormData(prev => ({ ...prev, [fieldName]: value }))}
+                    formData={formData}
+                    onFieldValueChange={handleFieldValueChange}
                     accessToken={accessToken}
                   />
                 )
@@ -1228,6 +1428,10 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
                 fields={secondaryFields}
                 requiredFields={requiredFields}
                 isCompleted={isCompleted}
+                formData={formData}
+                onFieldValueChange={handleFieldValueChange}
+                onFieldChange={(fieldName, value) => setFormData(prev => ({ ...prev, [fieldName]: value }))}
+                accessToken={accessToken}
               />
             )}
           </div>

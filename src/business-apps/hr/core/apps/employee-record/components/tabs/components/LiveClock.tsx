@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { formatDate } from '@/common/utils/windowUtils'
+import { formatDate, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
 interface LiveClockProps {
   className?: string
@@ -20,8 +20,16 @@ export const LiveClock: React.FC<LiveClockProps> = ({ className }) => {
       // If the formatter returns an ISO-like string (fallback), compose a human-friendly text locally
       const isIsoLike = (v: string) => v.includes('T') || /^\d{4}-\d{2}-\d{2}/.test(v)
 
+      const locale = getCurrentActiveUserLocale() || navigator.language || 'en-US'
+      const use12h = String(locale).toLowerCase().startsWith('en')
+
       const humanTime = isIsoLike(formattedTime)
-        ? now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
+        ? now.toLocaleTimeString(undefined, {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: use12h
+          })
         : formattedTime
 
       const humanDate = isIsoLike(formattedDate)

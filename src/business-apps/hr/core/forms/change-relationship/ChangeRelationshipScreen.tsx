@@ -49,7 +49,8 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
 
   const fileClient = useFileClient({ accessToken, userInfo })
 
-  const employeeId = userInfo?.employeeDetails?.employeeId
+  const employeeId =
+    (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.employeeId || userInfo?.employeeDetails?.employeeId
 
   const initialPayload = useMemo(() => (additionalData as any) || {}, [additionalData])
   const [successOpen, setSuccessOpen] = useState(false)

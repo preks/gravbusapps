@@ -8,9 +8,10 @@ if [[ -n "$SCREEN_LIST_FILE" && -f "$SCREEN_LIST_FILE" ]]; then
   echo "Using manually specified screens from: $SCREEN_LIST_FILE"
   SCREENS_FILE="$SCREEN_LIST_FILE"
 else
-  echo "Using change detection to find screens to publish"
-  # First, detect which .tsx files have changed
+  echo "Using smart change detection (direct + dependency analysis)"
+  # Detect changed screens (includes smart dependency analysis)
   bash scripts/detect-changed-screens.sh
+  
   SCREENS_FILE="changed-tsx.txt"
 fi
 
@@ -72,4 +73,9 @@ if [[ ${#FAILED_SCREENS[@]} -gt 0 ]]; then
   exit 1
 else
   echo "All existing screens published successfully."
+  
+  # Update component hashes after successful publish
+  echo ""
+  echo "Updating component hashes..."
+  node scripts/update-dev-hashes.js || echo "⚠️  Hash update failed (non-critical)"
 fi
