@@ -17,7 +17,7 @@ import { useCustomerContact } from '@/common/data/customer/hooks/useCustomerCont
 import { useCustomerActivities } from '@/common/data/customer/hooks/useCustomerActivities'
 import { useCustomerTasks } from '@/common/data/customer/hooks/useCustomerTasks'
 import { useCustomerNotes } from '@/common/data/customer/hooks/useCustomerNotes'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { HomeView } from './views/home-view/HomeView'
 import { OpportunityView } from './views/opportunity-view/OpportunityView'
@@ -259,22 +259,33 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
     return null
   }, [contactId])
 
+  // Calculate fullName early for use in headerActionButton
+  const fullName =
+    `${contactData?.firstName || ''} ${contactData?.lastName || ''}`.trim() ||
+    getTranslationFromI18nKeyAndLabel('crm.common.unnamedContact', 'Unnamed Contact')
+
   const headerActionButton = useMemo(
     () => (
-      <AppActionButton
+      <AppAction
         data-testid="customer-contact-record-action-button"
-        size="icon"
-        contextsArray={[FlowContextName.customerContactEntity]}
-        externalContextData={{
-          contactId: contactId
+        variant="header"
+        contexts={[
+          {
+            context: FlowContextName.customerContactEntity,
+            contextData: { contactId }
+          }
+        ]}
+        shareContext={{
+          entityType: 'contact',
+          entityId: contactId,
+          entityName: fullName,
+          entityUrl: `/platform/crm/contact-record?contactId=${contactId}`
         }}
         prefixDataTestId="customer-contact-record-action"
         accessToken={props.accessToken}
-        emptyStateBehavior="hide"
-        deferMainContextRequestsUntilClick={false}
       />
     ),
-    [contactId, props.accessToken]
+    [contactId, fullName, props.accessToken]
   )
 
   // Action props for sections - must be defined before subViews
@@ -432,10 +443,6 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
       .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
       .join(' ')
   }
-
-  const fullName =
-    `${contactData?.firstName || ''} ${contactData?.lastName || ''}`.trim() ||
-    getTranslationFromI18nKeyAndLabel('crm.common.unnamedContact', 'Unnamed Contact')
 
   const contactType = contactData?.contactType || contactData?.type
   const contactTypeDisplay = getContactTypeDisplayValue(contactType)

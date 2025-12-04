@@ -1,5 +1,7 @@
 import React, { useMemo, useEffect, useState, useCallback, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label, Combobox } from '@newwork/nw-design-system'
+import ReactQuill from 'react-quill'
+import 'react-quill/dist/quill.snow.css'
 import type { FlowProposalOutput, ConversationTurn } from '../types/models'
 import { useFormSubmission } from './FormSubmissionContext'
 import {
@@ -320,6 +322,48 @@ const SchemaField: React.FC<SchemaFieldProps & { accessToken: string }> = ({
               }}
               disabled={disabled}
             />
+          )
+        }
+
+        // Markdown content type - use ReactQuill rich text editor
+        if (schema.contentMediaType === 'text/markdown') {
+          const quillModules = {
+            toolbar: [
+              [{ header: [1, 2, 3, false] }],
+              ['bold', 'italic', 'underline', 'strike'],
+              [{ list: 'ordered' }, { list: 'bullet' }],
+              [{ align: [] }],
+              ['link', 'image', 'video'],
+              ['clean']
+            ]
+          }
+
+          const quillFormats = [
+            'header',
+            'bold',
+            'italic',
+            'underline',
+            'strike',
+            'list',
+            'align',
+            'link',
+            'image',
+            'video'
+          ]
+
+          return (
+            <div className="gba:rounded-md gba:border gba:border-border gba:overflow-hidden [&_.ql-toolbar]:gba:border-b [&_.ql-toolbar]:gba:border-border [&_.ql-toolbar]:gba:bg-muted/30 [&_.ql-container]:gba:border-0 [&_.ql-editor]:gba:min-h-[150px] [&_.ql-editor]:gba:text-foreground [&_.ql-editor.ql-blank::before]:gba:text-muted-foreground">
+              <ReactQuill
+                id={controlId}
+                theme="snow"
+                value={String(typeof value === 'string' ? value : (value ?? ''))}
+                onChange={(content: string) => onChange(content)}
+                readOnly={disabled}
+                modules={quillModules}
+                formats={quillFormats}
+                placeholder={label}
+              />
+            </div>
           )
         }
 

@@ -90,12 +90,29 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
   useEffect(() => {
     currentSearchTermRef.current = searchTerm
   }, [searchTerm])
-  const [isWizardOpen, setIsWizardOpen] = useState(false)
-  const [showDesigner, setShowDesigner] = useState(false)
-  const [selectedTemplate, setSelectedTemplate] = useState<FlowTemplate | null>(null)
-  const [previewTemplate, setPreviewTemplate] = useState<FlowTemplate | null>(null)
 
-  // AI Creation state
+  // Helper functions for URL-based state (must be defined before useState calls that use them)
+  // Get template ID from URL query parameters
+  const getTemplateIdFromUrl = (): string | null => {
+    if (typeof window === 'undefined') return null
+    const urlParams = new URLSearchParams(window.location.search)
+    return urlParams.get('templateId')
+  }
+
+  // Update URL with template ID (for deep linking)
+  const updateUrlWithTemplateId = (templateId: string | null) => {
+    if (typeof window === 'undefined') return
+    const urlParams = new URLSearchParams(window.location.search)
+
+    if (templateId) {
+      urlParams.set('templateId', templateId)
+    } else {
+      urlParams.delete('templateId')
+    }
+
+    const newUrl = `${window.location.pathname}?${urlParams.toString()}${window.location.hash}`
+    window.history.replaceState({}, '', newUrl)
+  }
 
   // Initialize activeTab from URL hash on mount
   const getInitialTab = (): 'create' | 'manage' => {
@@ -104,10 +121,27 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
       if (hash === 'create' || hash === 'manage') {
         return hash
       }
+      // If there's a templateId in URL, default to manage tab
+      const templateId = getTemplateIdFromUrl()
+      if (templateId) {
+        return 'manage'
+      }
     }
     return 'create'
   }
 
+  // Check if designer should be initially open (from URL)
+  const getInitialShowDesigner = (): boolean => {
+    if (typeof window === 'undefined') return false
+    return !!getTemplateIdFromUrl()
+  }
+
+  // State declarations (after helper functions are defined)
+  const [isWizardOpen, setIsWizardOpen] = useState(false)
+  const [showDesigner, setShowDesigner] = useState(getInitialShowDesigner)
+  const [selectedTemplate, setSelectedTemplate] = useState<FlowTemplate | null>(null)
+  const [previewTemplate, setPreviewTemplate] = useState<FlowTemplate | null>(null)
+  const [isLoadingTemplateFromUrl, setIsLoadingTemplateFromUrl] = useState(getInitialShowDesigner)
   const [activeTab, setActiveTab] = useState<'create' | 'manage'>(getInitialTab)
   const { resetTemplate } = useFlowTemplateStore()
 
@@ -1297,6 +1331,63 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
     }
   }, [accessToken])
 
+  // Load template from URL on mount (for deep linking)
+  useEffect(() => {
+    const loadTemplateFromUrl = async () => {
+      const templateId = getTemplateIdFromUrl()
+      if (templateId && accessToken) {
+        console.log('FlowCreator: Loading template from URL:', templateId)
+        try {
+          const template = await flowTemplateClient.getTemplate(templateId)
+          setSelectedTemplate(template)
+          setShowDesigner(true)
+          setActiveTab('manage')
+        } catch (error) {
+          console.error('Failed to load template from URL:', error)
+          // Clear invalid templateId from URL
+          updateUrlWithTemplateId(null)
+          setShowDesigner(false)
+        } finally {
+          setIsLoadingTemplateFromUrl(false)
+        }
+      } else {
+        setIsLoadingTemplateFromUrl(false)
+      }
+    }
+
+    loadTemplateFromUrl()
+  }, [accessToken, flowTemplateClient])
+
+  // Handle browser back/forward navigation for templateId
+  useEffect(() => {
+    const handlePopState = () => {
+      const templateId = getTemplateIdFromUrl()
+      if (templateId) {
+        // Template ID in URL - show designer
+        flowTemplateClient
+          .getTemplate(templateId)
+          .then(template => {
+            setSelectedTemplate(template)
+            setShowDesigner(true)
+            setActiveTab('manage')
+          })
+          .catch(() => {
+            // Invalid template - clear URL and go to list
+            updateUrlWithTemplateId(null)
+            setShowDesigner(false)
+            setSelectedTemplate(null)
+          })
+      } else {
+        // No template ID - close designer
+        setShowDesigner(false)
+        setSelectedTemplate(null)
+      }
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [flowTemplateClient])
+
   // Save template (create or update) - implements template ID immutability
   const saveTemplate = async (template: FlowTemplate) => {
     try {
@@ -1316,6 +1407,8 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
       // Close the designer after successful save
       setShowDesigner(false)
       setSelectedTemplate(null)
+      // Clear templateId from URL
+      updateUrlWithTemplateId(null)
     } catch (err) {
       console.error('Error saving template:', err)
       throw err
@@ -1346,6 +1439,8 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
       if (template.id) {
         const fullTemplate = await flowTemplateClient.getTemplate(template.id)
         setSelectedTemplate(fullTemplate)
+        // Update URL with template ID for deep linking
+        updateUrlWithTemplateId(template.id)
       } else {
         setSelectedTemplate(template)
       }
@@ -1358,6 +1453,10 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
       setSelectedTemplate(template)
       setShowDesigner(true)
       setActiveTab('manage') // Stay in manage tab context
+      // Still update URL if template has ID
+      if (template.id) {
+        updateUrlWithTemplateId(template.id)
+      }
     }
   }
 
@@ -1478,7 +1577,15 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
       <div className="gba:min-h-screen gba:bg-background" data-testid={testId}>
         {/* Main Content */}
         <div className="gba:w-full gba:max-w-none">
-          {showDesigner ? (
+          {isLoadingTemplateFromUrl ? (
+            <div
+              className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:min-h-[400px]"
+              data-testid={`${testId}-loading-from-url`}
+            >
+              <Spinner size="lg" />
+              <span className="gba:mt-4 gba:text-muted-foreground">Loading template...</span>
+            </div>
+          ) : showDesigner ? (
             <div className="gba:w-full gba:max-w-7xl gba:mx-auto gba:px-4 gba:sm:px-6 gba:lg:px-8 gba:py-8">
               {/* Designer Header */}
               <div className="gba:flex gba:items-center gba:justify-between gba:mb-6 gba:pb-6 gba:border-b gba:border-border">
@@ -1489,6 +1596,7 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
                     onClick={() => {
                       setShowDesigner(false)
                       setSelectedTemplate(null)
+                      updateUrlWithTemplateId(null)
                     }}
                     data-testid={`${testId}-designer-back`}
                   >
@@ -1518,6 +1626,7 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
                     onCancel={() => {
                       setShowDesigner(false)
                       setSelectedTemplate(null)
+                      updateUrlWithTemplateId(null)
                     }}
                     data-testid={`${testId}-designer`}
                   />
@@ -1958,6 +2067,7 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
             await saveTemplate(template.template)
             setIsWizardOpen(false)
           }}
+          context={{ accessToken, userInfo }}
           data-testid={`${testId}-wizard-dialog`}
         />
       </div>

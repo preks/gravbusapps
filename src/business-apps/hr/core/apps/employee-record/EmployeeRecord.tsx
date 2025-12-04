@@ -96,10 +96,8 @@ const NotFoundUI = () => (
 
 export const EmployeeRecord: React.FC<BusinessAppContextProps> = props => {
   const urlParams = getUrlParams()
-
   const urlEmployeeId = urlParams.employeeId
   const currentUserEmployeeId = props.userInfo?.employeeDetails?.employeeId || ''
-
   const employeeIdToShow = urlEmployeeId || currentUserEmployeeId
 
   const updateUrlWithSubView = (targetTab: string, subView: string) => {
@@ -251,7 +249,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       <div className="gba:employee-profile gba:w-full gba:h-full">
         <ScreenBody className="gba:h-full gba:w-full">
           <ProfileLayout
-            headerContent={<ProfileHeader accessToken={accessToken} employee={employee} isSelfView={isSelfView} />}
+            headerContent={<ProfileHeader accessToken={accessToken} employee={employee} />}
             contentHeader={tabNavigation}
             contentContainer={getTabContent()}
             headerPlacement="left"

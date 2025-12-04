@@ -38,10 +38,12 @@ export const useAbsenceFilters = ({ accessToken, employeeId }: UseAbsenceFilters
   const [search, setSearch] = useState('')
   const [selectedFilters, setSelectedFilters] = useState<string[]>([])
 
+  // Default filter: Show absences for the current year or later
+  // From current year January 1st to next year December 31st
   const defaultStartOfYear = dayjs().startOf('year').format('YYYY-MM-DD')
-  const defaultEndOfYear = dayjs().endOf('year').format('YYYY-MM-DD')
+  const defaultEndOfNextYear = dayjs().add(1, 'year').endOf('year').format('YYYY-MM-DD')
   const [startDate, setStartDate] = useState<string | undefined>(defaultStartOfYear)
-  const [endDate, setEndDate] = useState<string | undefined>(defaultEndOfYear)
+  const [endDate, setEndDate] = useState<string | undefined>(defaultEndOfNextYear)
   const [creationStartDate, setCreationStartDate] = useState<string | undefined>(undefined)
   const [creationEndDate, setCreationEndDate] = useState<string | undefined>(undefined)
 

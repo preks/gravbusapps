@@ -12,7 +12,7 @@ export const getCatalogValue = (catalogEntry: any): string => {
     const currentLocale = getCurrentActiveUserLocale().toLowerCase()
     if (Array.isArray(catalogEntry.translations)) {
       const translation = catalogEntry.translations.find((t: any) => t?.localeCode?.toLowerCase() === currentLocale)
-      if (translation && translation.value) return translation.value
+      if (translation?.value) return translation.value
     }
     return catalogEntry.value || ''
   } catch {

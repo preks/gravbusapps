@@ -107,7 +107,9 @@ export const useRelationshipTypes = (context: BusinessAppContextProps) => {
     try {
       setLoading(true)
       setError(null)
-      const employeeId = context.userInfo?.employeeDetails?.employeeId
+      const employeeId =
+        (context as any)?.additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId ||
+        context.userInfo?.employeeDetails?.employeeId
       if (!employeeId) {
         setOptions([])
         setRelationships([])
@@ -134,7 +136,11 @@ export const useRelationshipTypes = (context: BusinessAppContextProps) => {
     } finally {
       setLoading(false)
     }
-  }, [context.userInfo?.employeeDetails?.employeeId, graphqlClient])
+  }, [
+    context.userInfo?.employeeDetails?.employeeId,
+    (context as any)?.additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId,
+    graphqlClient
+  ])
 
   useEffect(() => {
     if (context.accessToken) fetchOptions()

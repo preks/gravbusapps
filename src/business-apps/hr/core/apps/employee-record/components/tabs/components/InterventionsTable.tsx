@@ -40,6 +40,21 @@ export const InterventionsTable: React.FC<InterventionsTableProps> = ({ employee
   const headerRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
 
+  // Show only entries up to "today" (hide future dates within the month)
+  const visibleItems = React.useMemo(() => {
+    const now = new Date()
+    // Normalize to the start of day; exclude today's items
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
+    return items.filter(item => {
+      try {
+        const d = new Date(item.date)
+        return d.getTime() < todayStart.getTime()
+      } catch {
+        return true
+      }
+    })
+  }, [items])
+
   const toggleExpanded = () => {
     setIsExpanded(prev => {
       const next = !prev
@@ -164,17 +179,19 @@ export const InterventionsTable: React.FC<InterventionsTableProps> = ({ employee
           )}
 
           <div className="gba:w-full" data-testid="time-interventions-list" ref={listRef}>
-            {isLoading ? (
+            {isLoading && (
               <div className="gba:py-3">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:common.loading', 'Loading...')}
               </div>
-            ) : items.length === 0 ? (
+            )}
+            {!isLoading && visibleItems.length === 0 && (
               <div className="gba:py-3">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.interventions.empty', 'No issues found')}
               </div>
-            ) : (
+            )}
+            {!isLoading && visibleItems.length > 0 && (
               <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:lg:grid-cols-3 gba:gap-3">
-                {items.map(item => {
+                {visibleItems.map(item => {
                   const IconCmp = getReasonIcon(item.reason)
                   // Prefer platform formatter; if it returns ISO, fall back to local-only date
                   let dateText = String(formatDate(item.date, 'date.short') || '')
@@ -218,7 +235,9 @@ export const InterventionsTable: React.FC<InterventionsTableProps> = ({ employee
                                 'Worked'
                               )}{' '}
                               {formatHm(item.workedMinutes)}
-                              {deficit > 0 ? ` • -${formatHm(deficit)}` : ''}
+                              {deficit > 0
+                                ? ` • ${getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.interventions.ballance', 'Balance')} -${formatHm(deficit)}`
+                                : ''}
                             </div>
                           </div>
                         </div>
