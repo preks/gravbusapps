@@ -77,6 +77,9 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
   const [monthlyRequiredMinutes, setMonthlyRequiredMinutes] = useState(0)
   const [monthlyRequiredUntilYesterdayMinutes, setMonthlyRequiredUntilYesterdayMinutes] = useState(0)
   const [monthlyWorkedUntilYesterdayMinutes, setMonthlyWorkedUntilYesterdayMinutes] = useState(0)
+  const [workedDaysUntilYesterdayCount, setWorkedDaysUntilYesterdayCount] = useState(0)
+  const [dailyAverageWorkedMinutesUntilYesterday, setDailyAverageWorkedMinutesUntilYesterday] = useState(0)
+  const [overtimeMinutesUntilYesterday, setOvertimeMinutesUntilYesterday] = useState(0)
   // today's totals
   const [todaysWorkedMinutes, setTodaysWorkedMinutes] = useState(0)
   const [todaysProjectMinutes, setTodaysProjectMinutes] = useState(0)
@@ -329,16 +332,25 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     const untilDay = `${todayLocal.getFullYear()}-${String(todayLocal.getMonth() + 1).padStart(2, '0')}-${String(
       todayLocal.getDate()
     ).padStart(2, '0')}`
-    const workedUntilYesterday = allRows.reduce((acc: number, r: any) => {
-      const rowDay = String(r.attendanceDate) // format YYYY-MM-DD
-      if (rowDay < untilDay) {
+    let workedUntilYesterday = 0
+    let workedDaysCount = 0
+    for (const r of allRows) {
+      const rowDay = String(r.attendanceDate)
+      console.log('rowDay', rowDay)
+      if (rowDay <= untilDay) {
         const effective = parseDurationToMinutes(r?.effectiveTime ? String(r.effectiveTime) : undefined)
-        // Only count effective time; ignore recorded time entirely
-        return acc + Math.max(0, effective)
+        console.log('r', effective)
+        const eff = Math.max(0, effective)
+        workedUntilYesterday += eff
+        if (eff > 0) workedDaysCount += 1
       }
-      return acc
-    }, 0)
+    }
     setMonthlyWorkedUntilYesterdayMinutes(workedUntilYesterday)
+    setWorkedDaysUntilYesterdayCount(workedDaysCount)
+    setDailyAverageWorkedMinutesUntilYesterday(
+      workedDaysCount > 0 ? Math.round(workedUntilYesterday / workedDaysCount) : 0
+    )
+    setOvertimeMinutesUntilYesterday(Math.max(0, workedUntilYesterday - (monthRequiredUntilYesterday || 0)))
 
     // planned minutes for today from working hours
     try {
@@ -589,6 +601,9 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     monthlyRequiredMinutes,
     monthlyRequiredUntilYesterdayMinutes,
     monthlyWorkedUntilYesterdayMinutes,
+    workedDaysUntilYesterdayCount,
+    dailyAverageWorkedMinutesUntilYesterday,
+    overtimeMinutesUntilYesterday,
     todaysWorkedMinutes,
     todaysProjectMinutes,
     todaysPlannedMinutes,
