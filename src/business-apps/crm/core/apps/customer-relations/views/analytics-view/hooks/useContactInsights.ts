@@ -87,7 +87,7 @@ export const useContactInsights = (accessToken: string) => {
           .map((item: any, index: number) => {
             const typeValue = item.contactType
             // Escape quotes in case type value contains them
-            const escapedType = typeValue.replace(/"/g, '\\"')
+            const escapedType = typeValue.replace(/"/g, String.raw`\"`)
             return `
               type_${index}: ContactAggregate(
                 where: {

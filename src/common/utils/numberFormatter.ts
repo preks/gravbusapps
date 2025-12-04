@@ -108,7 +108,9 @@ export const formatPercentage = (value: number | null | undefined, decimals: num
  * @param currencyRef - Currency reference string or object with id/value
  * @returns Currency code or default
  */
-export const extractCurrencyCode = (currencyRef: string | null | undefined | any): string => {
+export const extractCurrencyCode = (
+  currencyRef: string | null | undefined | { id?: string; value?: string; code?: string }
+): string => {
   if (!currencyRef) return 'EUR'
 
   // Handle object with id or value property (GraphQL catalog entry)

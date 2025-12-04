@@ -224,7 +224,7 @@ const transformLeadsData = (data: any): LeadsAnalytics => {
     leadsByCompanySize,
     leadsOverTime,
     conversionRate: conversionRate,
-    avgTimeToConversion: 0, // TODO: Calculate - requires convertedAt field on InvestmentLead entity
+    avgTimeToConversion: 0, // Not available - requires convertedAt field on InvestmentLead entity
     topOwners: extractTopLeadOwners(leads)
   }
 }

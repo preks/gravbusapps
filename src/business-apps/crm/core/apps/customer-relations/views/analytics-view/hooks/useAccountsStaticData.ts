@@ -99,17 +99,17 @@ export const useAccountsStaticData = (accessToken: string) => {
           months.push({ start: monthStart, end: monthEnd, label: monthLabel })
 
           // Accounts created in this month
-          monthlyGrowthQueries.push(`
+          monthlyGrowthQueries.push(
+            `
             month_${i}_created: AccountAggregate(
               where: {
                 isDeleted: {_eq: false}
                 createdAt: {_gte: "${monthStart}", _lt: "${monthEnd}"}
               }
             ) { aggregate { count } }
-          `)
-
-          // Accounts with opportunities (cumulative up to end of month)
-          monthlyGrowthQueries.push(`
+          `,
+            // Accounts with opportunities (cumulative up to end of month)
+            `
             month_${i}_withOpportunities: AccountAggregate(
               where: {
                 isDeleted: {_eq: false}
@@ -117,7 +117,8 @@ export const useAccountsStaticData = (accessToken: string) => {
                 opportunity: {id: {_isNull: false}}
               }
             ) { aggregate { count } }
-          `)
+          `
+          )
 
           // Active accounts (with opportunities updated in last 90 days from month end)
           const activeThreshold = new Date(monthDate)
