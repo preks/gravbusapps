@@ -380,8 +380,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
       ? {
           currentMonthAccounts: accountsStaticData.last30DaysAccounts,
           previousMonthAccounts: accountsStaticData.previous30DaysAccounts,
-          currentMonthOpportunities: 0, // TODO: Add if needed
-          previousMonthOpportunities: 0, // TODO: Add if needed
+          currentMonthOpportunities: 0, // Not tracked at account level
+          previousMonthOpportunities: 0, // Not tracked at account level
           currentMonthAccountsWithOpportunities: accountsStaticData.last30DaysAccountsWithOpportunities,
           previousMonthAccountsWithOpportunities: accountsStaticData.previous30DaysAccountsWithOpportunities
         }
