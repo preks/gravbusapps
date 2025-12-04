@@ -43,8 +43,8 @@ export const WorkflowDisplay: React.FC<WorkflowDisplayProps> = ({
   }
 
   const icon = (
-    <div className="gba:h-12 gba:w-12 gba:rounded-full gba:bg-gradient-to-br gba:from-primary/20 gba:to-info/20 gba:flex gba:items-center gba:justify-center">
-      <svg className="gba:h-6 gba:w-6 gba:text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div className="gba:h-12 gba:w-12 gba:rounded-full gba:bg-gradient-to-br gba:from-ai/20 gba:to-ai-secondary/20 gba:flex gba:items-center gba:justify-center">
+      <svg className="gba:h-6 gba:w-6 gba:text-ai" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
           strokeLinecap="round"
           strokeLinejoin="round"

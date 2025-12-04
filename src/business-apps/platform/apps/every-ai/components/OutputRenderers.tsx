@@ -100,12 +100,12 @@ class FlowProposalBoundary extends React.Component<FlowProposalBoundaryProps, Fl
     if (hasError) {
       return (
         <Card
-          className="gba:border-2 gba:border-warning/40 gba:bg-warning-secondary/40 gba:shadow-lg"
+          className="gba:border-2 gba:border-ai/40 gba:bg-ai-secondary/40 gba:shadow-lg"
           data-testid="flow-proposal-fallback"
         >
           <CardHeader>
             <div className="gba:flex gba:items-center gba:gap-2">
-              <svg className="gba:h-5 gba:w-5 gba:text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="gba:h-5 gba:w-5 gba:text-ai" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -113,7 +113,7 @@ class FlowProposalBoundary extends React.Component<FlowProposalBoundaryProps, Fl
                   d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                 />
               </svg>
-              <CardTitle className="gba:text-warning">Form temporarily unavailable</CardTitle>
+              <CardTitle className="gba:text-ai">Form temporarily unavailable</CardTitle>
             </div>
           </CardHeader>
           <CardContent className="gba:space-y-4">
@@ -154,13 +154,13 @@ export const LoadingDisplay: React.FC = () => {
       data-testid="loading-display"
     >
       <div className="gba:flex gba:items-center gba:gap-2">
-        <div className="gba:h-2.5 gba:w-2.5 gba:rounded-full gba:bg-gradient-to-br gba:from-primary gba:to-info gba:animate-pulse gba:shadow-lg" />
+        <div className="gba:h-2.5 gba:w-2.5 gba:rounded-full gba:bg-gradient-to-br gba:from-ai gba:to-ai-secondary gba:animate-pulse gba:shadow-lg" />
         <div
-          className="gba:h-2.5 gba:w-2.5 gba:rounded-full gba:bg-gradient-to-br gba:from-info gba:to-success gba:animate-pulse gba:shadow-lg"
+          className="gba:h-2.5 gba:w-2.5 gba:rounded-full gba:bg-gradient-to-br gba:from-ai-secondary gba:to-success gba:animate-pulse gba:shadow-lg"
           style={{ animationDelay: '0.2s' }}
         />
         <div
-          className="gba:h-2.5 gba:w-2.5 gba:rounded-full gba:bg-gradient-to-br gba:from-success gba:to-primary gba:animate-pulse gba:shadow-lg"
+          className="gba:h-2.5 gba:w-2.5 gba:rounded-full gba:bg-gradient-to-br gba:from-success gba:to-ai gba:animate-pulse gba:shadow-lg"
           style={{ animationDelay: '0.4s' }}
         />
       </div>
@@ -218,9 +218,9 @@ export const ToolOutput: React.FC<{ name: string; reason?: string }> = ({ name, 
       className="gba:flex gba:items-center gba:gap-3 gba:px-4 gba:py-2.5 gba:bg-gradient-to-r gba:from-muted/50 gba:to-muted/30 gba:rounded-xl gba:text-sm gba:border gba:border-border/50"
       data-testid="tool-output"
     >
-      <div className="gba:h-6 gba:w-6 gba:rounded-full gba:bg-gradient-to-br gba:from-primary gba:to-info gba:flex gba:items-center gba:justify-center gba:shadow-md">
+      <div className="gba:h-6 gba:w-6 gba:rounded-full gba:bg-gradient-to-br gba:from-ai gba:to-ai-secondary gba:flex gba:items-center gba:justify-center gba:shadow-md">
         <svg
-          className="gba:h-3.5 gba:w-3.5 gba:text-primary-foreground"
+          className="gba:h-3.5 gba:w-3.5 gba:text-ai-foreground"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -276,7 +276,7 @@ export const TableDisplay: React.FC<{ data: TableData }> = ({ data }) => {
     <Card className="gba:border-2 gba:shadow-lg gba:overflow-hidden" data-testid="table-display">
       {data.title && (
         <CardHeader className="gba:bg-gradient-to-r gba:from-muted/50 gba:to-muted/30 gba:border-b-2">
-          <CardTitle className="gba:text-lg gba:font-bold gba:bg-gradient-to-r gba:from-primary gba:to-info gba:bg-clip-text gba:text-transparent">
+          <CardTitle className="gba:text-lg gba:font-bold gba:bg-gradient-to-r gba:from-ai gba:to-ai-secondary gba:bg-clip-text gba:text-transparent">
             {data.title}
           </CardTitle>
           {data.description && <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">{data.description}</p>}
@@ -321,7 +321,7 @@ export const BarGraphDisplay: React.FC<{ data: BarGraphData }> = ({ data }) => {
     <Card className="gba:border-2 gba:shadow-lg gba:overflow-hidden" data-testid="bar-graph-display">
       {data.title && (
         <CardHeader className="gba:bg-gradient-to-r gba:from-muted/50 gba:to-muted/30 gba:border-b-2">
-          <CardTitle className="gba:text-lg gba:font-bold gba:bg-gradient-to-r gba:from-primary gba:to-info gba:bg-clip-text gba:text-transparent">
+          <CardTitle className="gba:text-lg gba:font-bold gba:bg-gradient-to-r gba:from-ai gba:to-ai-secondary gba:bg-clip-text gba:text-transparent">
             {data.title}
           </CardTitle>
           {data.description && <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">{data.description}</p>}
@@ -342,10 +342,10 @@ export const BarGraphDisplay: React.FC<{ data: BarGraphData }> = ({ data }) => {
                     </span>
                     <div className="gba:flex-1 gba:h-8 gba:bg-muted gba:rounded-lg gba:overflow-hidden gba:relative">
                       <div
-                        className="gba:h-full gba:bg-gradient-to-r gba:from-primary gba:to-info gba:rounded-lg gba:flex gba:items-center gba:justify-end gba:pr-3 gba:transition-all gba:shadow-md group-hover:gba:shadow-lg"
+                        className="gba:h-full gba:bg-gradient-to-r gba:from-ai gba:to-ai-secondary gba:rounded-lg gba:flex gba:items-center gba:justify-end gba:pr-3 gba:transition-all gba:shadow-md group-hover:gba:shadow-lg"
                         style={{ width: `${percentage}%` }}
                       >
-                        <span className="gba:text-xs gba:text-primary-foreground gba:font-bold">{point.y}</span>
+                        <span className="gba:text-xs gba:text-ai-foreground gba:font-bold">{point.y}</span>
                       </div>
                     </div>
                   </div>
@@ -593,7 +593,7 @@ export const FileDisplay: React.FC<{ data: { filename: string; mimeType: string;
             <a
               href={`data:${data.mimeType};base64,${data.content}`}
               download={data.filename}
-              className="gba:inline-flex gba:items-center gba:gap-2 gba:px-4 gba:py-2 gba:rounded-xl gba:bg-gradient-to-r gba:from-primary gba:to-info gba:text-primary-foreground gba:font-semibold gba:shadow-md hover:gba:shadow-lg gba:transition-all gba:text-sm"
+              className="gba:inline-flex gba:items-center gba:gap-2 gba:px-4 gba:py-2 gba:rounded-xl gba:bg-gradient-to-r gba:from-ai gba:to-ai-secondary gba:text-ai-foreground gba:font-semibold gba:shadow-md hover:gba:shadow-lg gba:transition-all gba:text-sm"
             >
               <svg className="gba:h-5 gba:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path

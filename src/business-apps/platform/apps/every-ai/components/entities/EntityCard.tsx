@@ -60,7 +60,7 @@ export const EntityCard: React.FC<EntityCardProps> = ({
       onClick={onClick}
     >
       {/* Subtle gradient overlay on hover */}
-      <div className="gba:absolute gba:inset-0 gba:bg-gradient-to-br gba:from-primary/5 gba:to-info/5 gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity gba:pointer-events-none" />
+      <div className="gba:absolute gba:inset-0 gba:bg-gradient-to-br gba:from-ai/5 gba:to-ai-secondary/5 gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity gba:pointer-events-none" />
 
       <CardContent className="gba:p-5 gba:relative">
         <div className="gba:flex gba:items-start gba:gap-4">

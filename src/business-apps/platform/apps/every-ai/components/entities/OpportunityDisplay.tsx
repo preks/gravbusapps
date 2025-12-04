@@ -100,8 +100,8 @@ export const OpportunityDisplay: React.FC<OpportunityDisplayProps> = ({ opportun
   }
 
   const icon = (
-    <div className="gba:h-12 gba:w-12 gba:rounded-full gba:bg-warning-secondary gba:flex gba:items-center gba:justify-center">
-      <svg className="gba:h-6 gba:w-6 gba:text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div className="gba:h-12 gba:w-12 gba:rounded-full gba:bg-ai-secondary gba:flex gba:items-center gba:justify-center">
+      <svg className="gba:h-6 gba:w-6 gba:text-ai" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
           strokeLinecap="round"
           strokeLinejoin="round"

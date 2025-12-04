@@ -1526,7 +1526,7 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
               className={
                 isDeleteOperation
                   ? 'gba:bg-gradient-to-r gba:from-destructive gba:to-destructive/80 gba:bg-clip-text gba:text-transparent'
-                  : 'gba:bg-gradient-to-r gba:from-primary gba:to-info gba:bg-clip-text gba:text-transparent'
+                  : 'gba:text-foreground'
               }
             >
               {formatFlowName(data.flow_name || '')}
