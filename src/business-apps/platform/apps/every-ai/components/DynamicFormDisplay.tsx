@@ -790,9 +790,7 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
 
   return (
     <Card
-      className={`gba:w-full gba:max-w-md gba:border-2 gba:shadow-xl gba:overflow-hidden ${
-        isDeleteOperation ? 'gba:border-destructive/50' : ''
-      }`}
+      className="gba:w-full gba:max-w-md gba:border-2 gba:shadow-xl gba:overflow-hidden"
       data-testid="dynamic-form-display"
     >
       <FormHeader

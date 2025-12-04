@@ -14,17 +14,11 @@ export const FormHeader: React.FC<FormHeaderProps> = ({ flowName, moduleName, is
   const isUpdateOperation = operation === 'Update'
 
   return (
-    <CardHeader
-      className={`gba:border-b-2 ${
-        isDeleteOperation
-          ? 'gba:bg-gradient-to-r gba:from-destructive-secondary/50 gba:to-destructive-secondary/30 gba:border-destructive/30'
-          : 'gba:bg-gradient-to-r gba:from-muted/50 gba:to-muted/30'
-      }`}
-    >
+    <CardHeader className="gba:border-b-2 gba:bg-gradient-to-r gba:from-muted/50 gba:to-muted/30">
       <div className="gba:flex gba:items-center gba:gap-2 gba:justify-between">
         <div className="gba:flex gba:items-center gba:gap-2">
           {isDeleteOperation ? (
-            <svg className="gba:h-5 gba:w-5 gba:text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="gba:h-5 gba:w-5 gba:text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -42,15 +36,7 @@ export const FormHeader: React.FC<FormHeaderProps> = ({ flowName, moduleName, is
               />
             </svg>
           )}
-          <CardTitle
-            className={
-              isDeleteOperation
-                ? 'gba:bg-gradient-to-r gba:from-destructive gba:to-destructive/80 gba:bg-clip-text gba:text-transparent'
-                : 'gba:text-foreground'
-            }
-          >
-            {formatFlowName(flowName)}
-          </CardTitle>
+          <CardTitle className="gba:text-foreground">{formatFlowName(flowName)}</CardTitle>
         </div>
         {operation && (
           <span
