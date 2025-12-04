@@ -116,7 +116,8 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, a
     const raw = String(clockInSince)
     if (raw.includes('T')) {
       try {
-        const locale = (typeof window !== 'undefined' && (window as any)?.lowcoder?.i18n?.selectedLocale) || 'en-US'
+        const locale =
+          (typeof globalThis !== 'undefined' && (globalThis as any)?.lowcoder?.i18n?.selectedLocale) || 'en-US'
         const use12h = String(locale).toLowerCase().startsWith('en')
         return new Date(raw).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: use12h })
       } catch {

@@ -52,6 +52,7 @@ import {
   useGetInvestmentNotesByOpportunityId,
   useGetInvestmentTasksByOpportunityId
 } from '@/common/data/investment/hooks/useInvestmentOpportunities'
+import { useInvestment } from '@/common/data/investment/hooks/useInvestment.new'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { startProcess } from '@/common/utils/start-process'
 import { OpportunityStatusUpdatePopup } from '@/business-apps/irm/core/popups/status-update-popup'
@@ -64,17 +65,10 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 interface OpportunityRecordContentProps extends BusinessAppContextProps {
   opportunityId: string
-  onBack: () => void
-  getBackButtonText: () => string
   fromEntity?: string | null
 }
 
-const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
-  opportunityId,
-  onBack,
-  getBackButtonText,
-  ...props
-}) => {
+const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({ opportunityId, ...props }) => {
   const ALLOWED_TABS = ['overview', 'documents'] as const
   type TabKey = (typeof ALLOWED_TABS)[number]
   const [activeTab, setActiveTab] = useState('overview')
@@ -120,6 +114,36 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
   const [catalogStageConditions, setCatalogStageConditions] = useState<any[]>([])
   const [loadingStages, setLoadingStages] = useState(false)
   const [stagesError, setStagesError] = useState<string | null>(null)
+
+  // Divestment investment data (fetched separately for DIVESTMENT_DEAL using declarative hook)
+  const divestmentId = opportunityData?.dealType === 'DIVESTMENT_DEAL' ? opportunityData?.divestmentId : undefined
+  const { investment: divestmentInvestment, loading: divestmentLoading } = useInvestment(
+    props.accessToken,
+    divestmentId
+  )
+
+  // Back navigation based on deal type
+  const handleDealTypeBack = useCallback(async () => {
+    if (opportunityData?.dealType === 'DIVESTMENT_DEAL') {
+      // Divestment deals → back to exit opportunities
+      navigateTo(
+        buildPlatformUrl('/platform/irm/investment-management', {
+          view: 'divestments',
+          tab: 'exit-opportunities'
+        })
+      )
+    } else {
+      // Investment deals (and others) → back to investment relations
+      navigateTo(buildPlatformUrl('/platform/irm/investment-relations', { view: 'opportunities' }))
+    }
+  }, [opportunityData?.dealType])
+
+  const getDealTypeBackButtonText = useCallback(() => {
+    if (opportunityData?.dealType === 'DIVESTMENT_DEAL') {
+      return 'Back to Exit Opportunities'
+    }
+    return 'Back to Investment Relations'
+  }, [opportunityData?.dealType])
 
   // Helper function to extract IRM stage conditions (reduces cognitive complexity)
   const extractIrmStageConditions = useCallback(
@@ -833,12 +857,12 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
             {error || getTranslationFromI18nKeyAndLabel('crm.opportunity.notFound', 'Investment Opportunity not found')}
           </p>
           <Button
-            onClick={onBack}
+            onClick={handleDealTypeBack}
             style={{ marginTop: 'var(--nw-spacing-md)' }}
             variant="default"
             data-testid="opportunity-error-back-button"
           >
-            {getTranslationFromI18nKeyAndLabel('crm.opportunity.back', getBackButtonText())}
+            {getTranslationFromI18nKeyAndLabel('crm.opportunity.back', getDealTypeBackButtonText())}
           </Button>
         </div>
       </div>
@@ -935,19 +959,40 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                 {
                   id: 'investment-section',
                   component: InvestmentSection,
-                  props: {
-                    ...props,
-                    investment: buildInvestmentFromOpportunity(opportunityData) || undefined,
-                    investments: opportunityData
-                      ? [buildInvestmentFromOpportunity(opportunityData)].filter(
-                          (inv): inv is NonNullable<typeof inv> => inv !== null
-                        )
-                      : undefined,
-                    fields: investmentFields,
-                    recordUrl: undefined, // No navigation - investment data is part of opportunity, not a separate entity
-                    isLoading: loading,
-                    error: error
-                  }
+                  props:
+                    opportunityData?.dealType === 'DIVESTMENT_DEAL'
+                      ? {
+                          // DIVESTMENT_DEAL: Use full investment entity fetched separately
+                          // No fields prop - let InvestmentSection fetch from catalog (record: true)
+                          ...props,
+                          investment: divestmentInvestment || undefined,
+                          investments: divestmentInvestment ? [divestmentInvestment] : undefined,
+                          // recordUrl not needed - InvestmentSection auto-generates for real entities
+                          isLoading: loading || divestmentLoading,
+                          error: error,
+                          actionButtonProps: divestmentInvestment?.id
+                            ? {
+                                contextsArray: [FlowContextName.investmentEntity],
+                                externalContextData: { investmentId: divestmentInvestment.id },
+                                prefixDataTestId: 'opportunity-divestment-investment'
+                              }
+                            : undefined
+                        }
+                      : {
+                          // INVESTMENT_DEAL (and others): Keep existing behavior
+                          // Use synthetic investment built from opportunity + parent-provided fields
+                          ...props,
+                          investment: buildInvestmentFromOpportunity(opportunityData) || undefined,
+                          investments: opportunityData
+                            ? [buildInvestmentFromOpportunity(opportunityData)].filter(
+                                (inv): inv is NonNullable<typeof inv> => inv !== null
+                              )
+                            : undefined,
+                          fields: investmentFields,
+                          recordUrl: undefined, // No navigation - investment data is part of opportunity
+                          isLoading: loading,
+                          error: error
+                        }
                 }
               ]}
               data-testid="opportunity-investment-section-wrapper"
@@ -1141,7 +1186,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
         headerOrientation="horizontal"
         headerIcon={LightbulbIcon}
         headerCategory="OPPORTUNITY"
-        onBack={onBack}
+        onBack={handleDealTypeBack}
         headerTitle={
           <div className="gba:flex gba:items-center gba:gap-2">
             <span>{opportunityData?.name || ''}</span>
@@ -1193,22 +1238,6 @@ const OpportunityRecord: React.FC<InvestmentOpportunityRecordProps> = ({
     return new URLSearchParams(window.location.search).get('opportunityId') || undefined
   }, [propOpportunityId])
 
-  const fromEntity = useMemo(() => {
-    if (typeof window === 'undefined') return undefined
-    return new URLSearchParams(window.location.search).get('fromEntity') || undefined
-  }, [])
-
-  const handleBack = async () => {
-    // Always navigate to investment relations
-    const { buildPlatformUrl } = await import('@/common/utils/navigationUtils')
-    navigateTo(buildPlatformUrl('/platform/irm/investment-relations', { view: 'opportunities' }))
-  }
-
-  const getBackButtonText = () => {
-    // Always return investment relations text
-    return 'Back to Investment Relations'
-  }
-
   if (!opportunityId) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
@@ -1216,7 +1245,13 @@ const OpportunityRecord: React.FC<InvestmentOpportunityRecordProps> = ({
           <p className="gba:text-lg" style={{ color: 'var(--nw-color-danger-500)' }}>
             Opportunity ID is required
           </p>
-          <Button onClick={handleBack} className="gba:mt-4" variant="default">
+          <Button
+            onClick={() =>
+              navigateTo(buildPlatformUrl('/platform/irm/investment-relations', { view: 'opportunities' }))
+            }
+            className="gba:mt-4"
+            variant="default"
+          >
             Back to Investment Opportunities
           </Button>
         </div>
@@ -1224,15 +1259,7 @@ const OpportunityRecord: React.FC<InvestmentOpportunityRecordProps> = ({
     )
   }
 
-  return (
-    <InvestmentOpportunityRecordContent
-      opportunityId={opportunityId}
-      onBack={handleBack}
-      getBackButtonText={getBackButtonText}
-      fromEntity={fromEntity}
-      {...props}
-    />
-  )
+  return <InvestmentOpportunityRecordContent opportunityId={opportunityId} {...props} />
 }
 
 export { OpportunityRecord, InvestmentOpportunityRecordContent }

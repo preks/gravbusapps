@@ -347,12 +347,21 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     } catch {
       setTodaysPlannedMinutes(0)
     }
-  }, [graphqlClient, employeeId, currentMonth, page, pageSize, locale])
+  }, [graphqlClient, employeeId, currentMonth, page, pageSize, locale, workingHours])
 
   useEffect(() => {
     loadFromGraphql().catch(() => setError('Failed to load time entries'))
   }, [loadFromGraphql])
 
+  // Ensure planned minutes for today are recalculated when workingHours arrive later
+  useEffect(() => {
+    try {
+      const todayIso = new Date().toISOString()
+      setTodaysPlannedMinutes(getPlannedMinutesForDate(todayIso))
+    } catch {
+      // ignore
+    }
+  }, [workingHours])
   const clockIn = useCallback(async () => {
     setError(null)
     setIsSubmitting(true)

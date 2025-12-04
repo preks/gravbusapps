@@ -32,18 +32,20 @@ adjust-salary-calculation-breakdown = Gehaltsanpassung Zusammenfassung
 
 # Assign Salary Mode (new employee without existing salary)
 assign-salary-title = Gehalt zuweisen
-assign-salary-type = Gehaltstyp
-assign-salary-type-required = Gehaltstyp ist erforderlich. Bitte wählen Sie einen Gehaltstyp.
-assign-salary-type-yearly-monthly = Jährlich / Monatlich
-assign-salary-type-hourly = Stündlich
-assign-salary-annual-salary = Jahresbruttogehalt
-assign-salary-annual-salary-required = Jahresbruttogehalt ist erforderlich. Bitte geben Sie das Jahresbruttogehalt ein.
-assign-salary-annual-salary-positive = Das Jahresbruttogehalt muss größer als Null sein.
+assign-salary-type = Vergütungsart
+assign-salary-type-required = Vergütungsart ist erforderlich. Bitte wählen Sie eine Vergütungsart.
+assign-salary-type-yearly-monthly = Monatsgehalt
+assign-salary-type-hourly = Stundenlohn
+assign-salary-monthly-salary = Monatsbruttogehalt
+assign-salary-monthly-salary-required = Monatsbruttogehalt ist erforderlich. Bitte geben Sie das Monatsbruttogehalt ein.
+assign-salary-monthly-salary-positive = Das Monatsbruttogehalt muss größer als Null sein.
 assign-salary-hourly-salary = Stundenlohn
 assign-salary-hourly-salary-required = Stundenlohn ist erforderlich. Bitte geben Sie den Stundenlohn ein.
 assign-salary-hourly-salary-positive = Der Stundenlohn muss größer als Null sein.
 assign-salary-currency-required = Währung ist erforderlich. Bitte wählen Sie eine Währung.
-assign-salary-monthly-equivalent = Monatliches Äquivalent
+assign-salary-annual-equivalent = Jahresäquivalent
+assign-salary-expected-monthly-wage = Erwarteter Monatslohn
+assign-salary-expected-monthly-wage-description = Basierend auf den Arbeitszeiten des Mitarbeiters
 assign-salary-start-date = Startdatum
 assign-salary-start-date-required = Startdatum ist erforderlich. Bitte wählen Sie ein Startdatum.
 
