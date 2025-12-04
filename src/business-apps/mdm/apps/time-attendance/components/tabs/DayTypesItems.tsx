@@ -1,17 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react'
-import {
-  DataTable,
-  Button,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-  DialogClose
-} from '@newwork/nw-design-system'
+import { DataTable, Button } from '@newwork/nw-design-system'
 import { ColumnDef } from '@tanstack/react-table'
-import { GearIcon, MagnifyingGlassIcon, PencilSimpleLineIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react'
+import { GearIcon, MagnifyingGlassIcon, PencilSimpleLineIcon, TrashIcon } from '@phosphor-icons/react'
 import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import DayTypeForm from '@/business-apps/mdm/forms/time-attendance/DayTypeForm'
@@ -20,6 +10,7 @@ import { SimpleDayType } from '../../types/day-types'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { DeleteDialog } from '../DeleteDialog'
 
 interface DayTypesItemsProps {
   dayTypes: SimpleDayType[]
@@ -279,40 +270,20 @@ export const DayTypesItems: React.FC<DayTypesItemsProps> = ({
         data-testid={formatDataTestId(prefixDataTestId, 'day-types-items-table')}
       />
 
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="gba:flex gba:items-center gba:gap-2">
-              <WarningIcon className="gba:text-destructive" />
-              {getTranslationFromI18nKeyAndLabel(
-                'master-data:hr.time_attendance.day_types.actions.delete_title',
-                'Delete Day Type'
-              )}
-            </DialogTitle>
-            <DialogDescription>
-              {getTranslationFromI18nKeyAndLabel(
-                'master-data:hr.time_attendance.day_types.actions.delete_message',
-                'Are you sure you want to delete this day type?'
-              )}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline">
-                {getTranslationFromI18nKeyAndLabel('master-data:forms.common.buttons.cancel', 'Cancel')}
-              </Button>
-            </DialogClose>
-            <Button variant="destructive" onClick={() => handleDeleteDayType(selectedDayType)}>
-              {isDeleting
-                ? getTranslationFromI18nKeyAndLabel(
-                    'master-data:hr.time_attendance.day_types.actions.deleting',
-                    'Deleting...'
-                  )
-                : getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_table.delete', 'Delete')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DeleteDialog
+        isOpen={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        onConfirm={() => handleDeleteDayType(selectedDayType)}
+        isDeleting={isDeleting}
+        titleKey={getTranslationFromI18nKeyAndLabel(
+          'master-data:hr.time_attendance.day_types.actions.delete_title',
+          'Delete Day Type'
+        )}
+        description={getTranslationFromI18nKeyAndLabel(
+          'master-data:hr.time_attendance.day_types.actions.delete_message',
+          'Are you sure you want to delete this day type?'
+        )}
+      />
     </div>
   )
 }

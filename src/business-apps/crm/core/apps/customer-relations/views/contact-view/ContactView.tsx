@@ -116,7 +116,10 @@ export const ContactView: React.FC<ContactViewProps> = context => {
   const config: ContactViewConfig<Contact, CustomerContactQueryVariables> = useMemo(
     () => ({
       fetchContacts: fetchCustomerContacts,
-      createColumns: () => commonContactColumns(),
+      createColumns: () =>
+        commonContactColumns({
+          buildAccountRecordUrl: accountId => buildPlatformUrl('/platform/crm/account-record', { accountId })
+        }),
       descriptors: CUSTOMER_CONTACT_DESCRIPTORS,
       entityName: 'Contact',
       columnLabels: {

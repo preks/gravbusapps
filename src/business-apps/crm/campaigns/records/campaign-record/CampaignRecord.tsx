@@ -25,30 +25,17 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
   ...props
 }) => {
   // Extract campaignId from props or URL parameters (needed for dynamic loader)
-  const campaignId = propCampaignId || new URLSearchParams(globalThis.location.search).get('campaignId')
+  const campaignId = propCampaignId || new URLSearchParams(globalThis.location.search).get('campaignId') || ''
 
-  // Extract source from URL parameters for back navigation
-  const source = useMemo(() => {
-    return new URLSearchParams(globalThis.location.search).get('source')
-  }, [])
-
-  // Handle back navigation based on source
+  // Handle back navigation - always go to customer relations campaigns view
   const handleBackNavigation = useCallback(() => {
     if (onBack) {
       onBack()
     } else {
-      // Navigate back based on source parameter
-      switch (source) {
-        case 'campaign-management':
-          navigateTo(buildPlatformUrl('/platform/crm/campaign-management', {}))
-          break
-        case 'customer-relations':
-        default:
-          navigateTo(buildPlatformUrl('/platform/crm/customer-relations', { view: 'campaigns' }))
-          break
-      }
+      // Always navigate to customer relations campaigns view
+      navigateTo(buildPlatformUrl('/platform/crm/customer-relations', { view: 'campaigns' }))
     }
-  }, [onBack, source])
+  }, [onBack])
 
   const [activeTab, setActiveTab] = useState(initialActiveTab)
 
@@ -185,14 +172,17 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
               contextData: { campaignId }
             }
           ]}
+          shareContext={{
+            entityType: 'campaign',
+            entityId: campaignId,
+            entityName: campaign?.name || 'Campaign',
+            entityUrl: `/platform/crm/campaign-record?campaignId=${campaignId}`
+          }}
           prefixDataTestId="campaign-record-action"
           accessToken={props.accessToken}
-          emptyState="enable"
-          lazyLoad
-          onClick={e => e.stopPropagation()}
         />
       ) : null,
-    [props.accessToken, campaignId]
+    [props.accessToken, campaignId, campaign?.name]
   )
 
   const subViewsConfig = useMemo(

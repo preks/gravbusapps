@@ -427,4 +427,6 @@ hr-pagination-prev-page-sr = Mergi la pagina anterioară
 hr-pagination-next-page-sr = Mergi la pagina următoare
 hr-pagination-last-page-sr = Mergi la ultima pagină
 
+#Picture
+employee-edit-picture = EDITEAZA POZA
 

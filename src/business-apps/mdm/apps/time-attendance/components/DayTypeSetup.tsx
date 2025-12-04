@@ -1,21 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react'
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Button,
-  DataTable,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-  DialogClose
-} from '@newwork/nw-design-system'
+import { Card, CardContent, CardHeader, CardTitle, Button, DataTable } from '@newwork/nw-design-system'
 import { ColumnDef, SortingState } from '@tanstack/react-table'
-import { PlusIcon, PencilSimpleLineIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react'
+import { PlusIcon, PencilSimpleLineIcon, TrashIcon } from '@phosphor-icons/react'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useDayTypeVersionDetailsData } from '../hooks/useDayTypeVersionDetailsData'
 import DayTypeDetailsForm, { APPLIED_DAYS_OPTIONS } from '@/business-apps/mdm/forms/time-attendance/DayTypeDetailsForm'
@@ -23,6 +9,7 @@ import { FieldTypeOption, TransformedDayTypeVersionDetail } from '../types/day-t
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { DeleteDialog } from './DeleteDialog'
 
 export interface DayTypeSetupProps {
   dayTypeVersionId: string | null
@@ -316,40 +303,20 @@ export const DayTypeSetup: React.FC<DayTypeSetupProps> = ({
         })()}
       </CardContent>
 
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="gba:flex gba:items-center gba:gap-2">
-              <WarningIcon className="gba:text-destructive" />
-              {getTranslationFromI18nKeyAndLabel(
-                'master-data:hr.time_attendance.day_type_versions.actions.delete_day_type_detail',
-                'Delete Day Type Detail'
-              )}
-            </DialogTitle>
-            <DialogDescription>
-              {getTranslationFromI18nKeyAndLabel(
-                'master-data:hr.time_attendance.day_type_versions.actions.delete_day_type_detail_message',
-                'Are you sure you want to delete this day type detail?'
-              )}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline">
-                {getTranslationFromI18nKeyAndLabel('master-data:forms.common.buttons.cancel', 'Cancel')}
-              </Button>
-            </DialogClose>
-            <Button variant="destructive" onClick={() => handleDeleteDayTypeDetail(selectedDayTypeDetail)}>
-              {isDeleting
-                ? getTranslationFromI18nKeyAndLabel(
-                    'master-data:hr.time_attendance.time_types.actions.deleting',
-                    'Deleting...'
-                  )
-                : getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_table.delete', 'Delete')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DeleteDialog
+        isOpen={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        onConfirm={() => handleDeleteDayTypeDetail(selectedDayTypeDetail)}
+        isDeleting={isDeleting}
+        titleKey={getTranslationFromI18nKeyAndLabel(
+          'master-data:hr.time_attendance.day_type_versions.actions.delete_day_type_detail',
+          'Delete Day Type Detail'
+        )}
+        description={getTranslationFromI18nKeyAndLabel(
+          'master-data:hr.time_attendance.day_type_versions.actions.delete_day_type_detail_message',
+          'Are you sure you want to delete this day type detail?'
+        )}
+      />
     </Card>
   )
 }

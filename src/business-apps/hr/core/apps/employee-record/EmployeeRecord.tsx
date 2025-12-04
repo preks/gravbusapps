@@ -96,10 +96,8 @@ const NotFoundUI = () => (
 
 export const EmployeeRecord: React.FC<BusinessAppContextProps> = props => {
   const urlParams = getUrlParams()
-
   const urlEmployeeId = urlParams.employeeId
   const currentUserEmployeeId = props.userInfo?.employeeDetails?.employeeId || ''
-
   const employeeIdToShow = urlEmployeeId || currentUserEmployeeId
 
   const updateUrlWithSubView = (targetTab: string, subView: string) => {
@@ -189,7 +187,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   const activeStructureId = getCurrentActiveStructureId()
   const devFeatureFlag = useFeature(Feature.Dev.Enabled.Key)
   const changeLogFeatureFlag = useFeature('dev.employee-record.changelog.enabled')
-  const previewFeatureFlag = useFeature('preview.enabled')
+  const servicesFeatureFlag = useFeature('services.enabled')
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -251,7 +249,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       <div className="gba:employee-profile gba:w-full gba:h-full">
         <ScreenBody className="gba:h-full gba:w-full">
           <ProfileLayout
-            headerContent={<ProfileHeader accessToken={accessToken} employee={employee} isSelfView={isSelfView} />}
+            headerContent={<ProfileHeader accessToken={accessToken} employee={employee} />}
             contentHeader={tabNavigation}
             contentContainer={getTabContent()}
             headerPlacement="left"
@@ -352,51 +350,6 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
           />
         )
       },
-      ...(devFeatureFlag
-        ? [
-            {
-              key: TAB_KEYS.timeTracking,
-              label: (
-                <div className="gba:flex gba:items-center gba:gap-2">
-                  <PiClockCounterClockwise className="gba:text-xl gba:inline-block gba:align-middle" />
-                  <span className="gba:inline-block gba:align-middle">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.title', 'Time Tracking')}
-                  </span>
-                </div>
-              ),
-              children: (
-                <TimeTrackingTab
-                  employee={employee}
-                  accessToken={accessToken}
-                  employeeId={employeeIdToShow}
-                  userInfo={userInfo}
-                  isSelfView={isSelfView}
-                />
-              )
-            }
-          ]
-        : []),
-      {
-        key: TAB_KEYS.absences,
-        label: (
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <PiCalendar className="gba:text-xl gba:inline-block gba:align-middle" />
-            <span className="gba:inline-block gba:align-middle">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.title', 'Absences')}
-            </span>
-          </div>
-        ),
-        children: (
-          <AbsencesTab
-            employee={employee}
-            employeeAbsenceEntitlement={absenceEntitlements ?? []}
-            accessToken={accessToken}
-            employeeId={employeeIdToShow}
-            userInfo={userInfo}
-            isSelfView={isSelfView}
-          />
-        )
-      },
       {
         key: TAB_KEYS.hrAdmin,
         label: (
@@ -470,7 +423,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
                   <PiCurrencyEur className="gba:text-xl gba:inline-block gba:align-middle" />
                   <span className="gba:inline-block gba:align-middle">
                     {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:employee_profile.employee_tabs.compensation',
+                      'lowcoder:human_resources_page.analytics_section.compensation_tab_label',
                       'Compensation'
                     )}
                   </span>
@@ -488,14 +441,63 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
                   additionalData={additionalData}
                 />
               )
-            },
+            }
+          ]
+        : []),
+      ...(devFeatureFlag
+        ? [
+            {
+              key: TAB_KEYS.timeTracking,
+              label: (
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <PiClockCounterClockwise className="gba:text-xl gba:inline-block gba:align-middle" />
+                  <span className="gba:inline-block gba:align-middle">
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.title', 'Time Tracking')}
+                  </span>
+                </div>
+              ),
+              children: (
+                <TimeTrackingTab
+                  employee={employee}
+                  accessToken={accessToken}
+                  employeeId={employeeIdToShow}
+                  userInfo={userInfo}
+                  isSelfView={isSelfView}
+                />
+              )
+            }
+          ]
+        : []),
+      {
+        key: TAB_KEYS.absences,
+        label: (
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <PiCalendar className="gba:text-xl gba:inline-block gba:align-middle" />
+            <span className="gba:inline-block gba:align-middle">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.title', 'Absences')}
+            </span>
+          </div>
+        ),
+        children: (
+          <AbsencesTab
+            employee={employee}
+            employeeAbsenceEntitlement={absenceEntitlements ?? []}
+            accessToken={accessToken}
+            employeeId={employeeIdToShow}
+            userInfo={userInfo}
+            isSelfView={isSelfView}
+          />
+        )
+      },
+      ...(devFeatureFlag
+        ? [
             {
               key: TAB_KEYS.assets,
               label: (
                 <div className="gba:flex gba:items-center gba:gap-2">
                   <PiPackage className="gba:text-xl gba:inline-block gba:align-middle" />
                   <span className="gba:inline-block gba:align-middle">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.assets', 'Assets')}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.assets_tab', 'Assets')}
                   </span>
                 </div>
               ),
@@ -510,7 +512,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
             }
           ]
         : []),
-      ...(previewFeatureFlag
+      ...(servicesFeatureFlag
         ? [
             {
               key: TAB_KEYS.serviceRequests,

@@ -25,7 +25,7 @@ interface HrAdminTabProps extends BusinessAppContextProps {
   employeeRecordHrBackoffice: ScopePermissionCheckResult
 }
 
-const HR_ADMIN_SUBVIEW_VALUES = ['details', 'employment', 'changeLog', 'documents', 'hrNotes'] as const
+const HR_ADMIN_SUBVIEW_VALUES = ['details', 'employment', 'documents', 'changeLog', 'hrNotes'] as const
 type HrAdminSubView = (typeof HR_ADMIN_SUBVIEW_VALUES)[number]
 
 const getInitialHrAdminSubView = (): HrAdminSubView => {
@@ -79,38 +79,30 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
   const hasDetailsPermission =
     permissionsLoading || employeeGrowthPermission.loading || employeeRecordAllHrBackoffice.loading
       ? false
-      : isSelfView ||
-        hasManagerEmployeeGrowthPermission ||
-        (employeeRecordAllHrBackoffice?.hasPermission === true && !employeeGrowthPermission.hasPermission)
+      : isSelfView || hasManagerEmployeeGrowthPermission || employeeRecordAllHrBackoffice?.hasPermission === true
 
   const hasEmploymentPermission =
     permissionsLoading || employeeGrowthPermission.loading || employeeRecordAllHrBackoffice.loading
       ? false
-      : isSelfView ||
-        hasManagerEmployeeGrowthPermission ||
-        (employeeRecordAllHrBackoffice?.hasPermission === true && !employeeGrowthPermission.hasPermission)
+      : isSelfView || hasManagerEmployeeGrowthPermission || employeeRecordAllHrBackoffice?.hasPermission === true
 
   const hasDocumentsPermission =
     permissionsLoading || employeeGrowthPermission.loading || employeeRecordAllHrBackoffice.loading
       ? false
-      : isSelfView ||
-        hasManagerEmployeeGrowthPermission ||
-        (employeeRecordAllHrBackoffice?.hasPermission === true && !employeeGrowthPermission.hasPermission)
+      : isSelfView || hasManagerEmployeeGrowthPermission || employeeRecordAllHrBackoffice?.hasPermission === true
 
   const hasChangeLogPermission =
     permissionsLoading || employeeGrowthPermission.loading || employeeRecordAllHrBackoffice.loading
       ? false
       : isSelfView ||
         (changeLogTabFeatureFlag &&
-          (hasManagerEmployeeGrowthPermission ||
-            (employeeRecordAllHrBackoffice?.hasPermission === true && !employeeGrowthPermission.hasPermission)))
+          (hasManagerEmployeeGrowthPermission || employeeRecordAllHrBackoffice?.hasPermission === true))
 
   const shouldShowHrNotes =
     !isSelfView &&
     hasHrNotesAccess &&
     !scopePermissionLoading &&
-    (hasManagerEmployeeGrowthPermission ||
-      (employeeRecordAllHrBackoffice?.hasPermission === true && !employeeGrowthPermission.hasPermission))
+    (hasManagerEmployeeGrowthPermission || employeeRecordAllHrBackoffice?.hasPermission === true)
 
   useEffect(() => {
     if (activeSubView === 'hrNotes' && !shouldShowHrNotes) {
@@ -221,18 +213,6 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
               </div>
             </TabsTrigger>
           )}
-          {(changeLogTabFeatureFlag ||
-            (!permissionsLoading &&
-              !employeeGrowthPermission.loading &&
-              !employeeRecordAllHrBackoffice.loading &&
-              hasChangeLogPermission)) && (
-            <TabsTrigger value="changeLog" data-testid="hr-admin-changelog-subtab" className="gba:flex-1">
-              <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
-                <PiClockCounterClockwise />
-                <span>{getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.title', 'Change Log')}</span>
-              </div>
-            </TabsTrigger>
-          )}
           {(permissionsLoading ||
             employeeGrowthPermission.loading ||
             employeeRecordAllHrBackoffice.loading ||
@@ -243,6 +223,18 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
                 <span>
                   {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.employee_tabs.documents', 'Documents')}
                 </span>
+              </div>
+            </TabsTrigger>
+          )}
+          {(changeLogTabFeatureFlag ||
+            (!permissionsLoading &&
+              !employeeGrowthPermission.loading &&
+              !employeeRecordAllHrBackoffice.loading &&
+              hasChangeLogPermission)) && (
+            <TabsTrigger value="changeLog" data-testid="hr-admin-changelog-subtab" className="gba:flex-1">
+              <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
+                <PiClockCounterClockwise />
+                <span>{getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.title', 'Change Log')}</span>
               </div>
             </TabsTrigger>
           )}
@@ -297,19 +289,6 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
           </TabsContent>
         )}
 
-        {(changeLogTabFeatureFlag || (!permissionsLoading && hasChangeLogPermission)) && (
-          <TabsContent value="changeLog" data-testid="hr-admin-changelog-content" className="gba:mt-4">
-            <ChangeLogTab
-              employeeId={employeeId}
-              employeeName={employee?.displayName || 'Employee'}
-              userRole={'employee'}
-              accessToken={accessToken}
-              userInfo={userInfo}
-              additionalData={additionalData}
-            />
-          </TabsContent>
-        )}
-
         {(permissionsLoading ||
           employeeGrowthPermission.loading ||
           employeeRecordAllHrBackoffice.loading ||
@@ -322,6 +301,19 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
             ) : (
               <DocumentsTab employee={employee} accessToken={accessToken} employeeId={employeeId} userInfo={userInfo} />
             )}
+          </TabsContent>
+        )}
+
+        {(changeLogTabFeatureFlag || (!permissionsLoading && hasChangeLogPermission)) && (
+          <TabsContent value="changeLog" data-testid="hr-admin-changelog-content" className="gba:mt-4">
+            <ChangeLogTab
+              employeeId={employeeId}
+              employeeName={employee?.displayName || 'Employee'}
+              userRole={'employee'}
+              accessToken={accessToken}
+              userInfo={userInfo}
+              additionalData={additionalData}
+            />
           </TabsContent>
         )}
 

@@ -111,7 +111,9 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
         hireDate: startDate || undefined,
         probationEnd: probationEndDate || undefined,
         exitDate: endDate || undefined,
-        employeeId: context.userInfo?.employeeDetails?.employeeId,
+        employeeId:
+          (context as any)?.additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId ||
+          context.userInfo?.employeeDetails?.employeeId,
         contractStatus: 'ACTIVE'
       }
     }

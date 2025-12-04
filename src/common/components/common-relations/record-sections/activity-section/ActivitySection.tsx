@@ -17,6 +17,7 @@ import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { buildFileUrl, getFileIcon } from '@/common/utils/fileUtils'
 import { FileInfo } from '@/common/types/FileTypes'
 import type { Activity } from '@/common/data/relations/types/activityTypes'
+import EmptyState from '@/components/empty-state/EmptyState'
 
 export type ActivityDocument = {
   id: string
@@ -160,9 +161,7 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
           </div>
         </Alert>
       ) : processedActivities.length === 0 ? (
-        <div className="gba:text-center gba:py-8 gba:text-muted-foreground">
-          No activities yet. Create your first activity.
-        </div>
+        <EmptyState title="No Activities" description="No activities yet. Create your first activity." />
       ) : (
         <TimelineLayout
           items={processedActivities.map((activity: any) => {

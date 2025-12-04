@@ -1,3 +1,5 @@
 export { useTimeTypesData } from './useTimeTypesData'
+export { useVersionOverlapCheck } from './useVersionOverlapCheck'
 
-export type { TransformedTimeType, UseTimeTypesDataReturn, TimeTypeResponse } from './useTimeTypesData'
+export type { UseTimeTypesDataReturn } from './useTimeTypesData'
+export type { UseVersionOverlapCheckReturn, OverlapCheckConfig, VersionWithDates } from './useVersionOverlapCheck'

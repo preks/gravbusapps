@@ -76,7 +76,9 @@ export const useCommunicationLookups = (context: BusinessAppContextProps) => {
   const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
-    const employeeId = context.userInfo?.employeeDetails?.employeeId
+    const employeeId =
+      (context as any)?.additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId ||
+      context.userInfo?.employeeDetails?.employeeId
     const locale = getCurrentActiveUserLocale()
     if (!employeeId) return
     setLoading(true)
@@ -104,7 +106,12 @@ export const useCommunicationLookups = (context: BusinessAppContextProps) => {
     } finally {
       setLoading(false)
     }
-  }, [context.accessToken, context.userInfo?.employeeDetails?.employeeId, graphqlClient])
+  }, [
+    context.accessToken,
+    context.userInfo?.employeeDetails?.employeeId,
+    (context as any)?.additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId,
+    graphqlClient
+  ])
 
   useEffect(() => {
     load()

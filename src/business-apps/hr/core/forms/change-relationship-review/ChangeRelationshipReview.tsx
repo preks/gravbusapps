@@ -1,260 +1,651 @@
-import React, { useEffect, useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import React, { useState, useMemo } from 'react'
 import {
-  getTranslationFromI18nKeyAndLabel,
-  getCatalogValue,
-  getCurrentActiveUserLocale,
-  formatDate
-} from '@/common/utils/windowUtils'
-import { AppActionForm } from '@/components/app-action-form/AppActionForm'
-import FormHeader from '../components/FormHeader'
-import ReviewRows from '../components/ReviewRows'
-import flowIconUrl from '@/assets/icons/flowSmall.svg'
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { GET_EMPLOYEE_NAME, GET_RELATIONSHIP_REVIEW_AUX } from './ChangeRelationshipReviewQueries'
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Badge,
+  Separator,
+  Label,
+  Spinner,
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent
+} from '@newwork/nw-design-system'
+import {
+  Users,
+  CheckCircle,
+  ArrowRight,
+  User,
+  Phone,
+  Mail,
+  Calendar,
+  FileText,
+  Shield,
+  ChevronDown
+} from 'lucide-react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
+import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/components/TaskDetailHeader'
+import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
+import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
+import { useRelationshipReviewData } from './hooks/useRelationshipReviewData'
 
-export const ChangeRelationshipReview: React.FC<BusinessAppContextProps> = ({
+/**
+ * Extended interface for additionalData with form-specific properties
+ */
+interface ExtendedAdditionalData {
+  [k: string]: unknown
+  psi_taskCompletedAt?: string
+  psi_taskPayload?: {
+    [k: string]: unknown
+  }
+  psi_processMetadata?: {
+    [k: string]: unknown
+  }
+  psi_taskStatus?: string
+}
+
+interface ChangeRelationshipReviewProps extends BusinessAppContextProps {
+  onClose?: () => void
+}
+
+interface EmployeeRelationshipData {
+  firstName?: string | null
+  lastName?: string | null
+  phoneNumber?: string | null
+  email?: string | null
+  notes?: string | null
+  typeRef?: string | null
+  birthDate?: string | null
+  emergencyContact?: boolean | null
+  relationshipDocument?: string | null
+}
+
+const ChangeRelationshipReviewContent: React.FC<ChangeRelationshipReviewProps> = ({
   accessToken,
+  additionalData,
   userInfo,
-  additionalData
+  onClose
 }) => {
-  const form = useForm({
-    defaultValues: {},
-    mode: 'onChange'
-  })
+  // Cast additionalData to extended interface for proper typing
+  const extendedAdditionalData = additionalData as ExtendedAdditionalData | undefined
 
-  const graphqlClient = useGraphQLClient(accessToken as any)
-  const [employeeName, setEmployeeName] = useState<string>('')
-  const [catalogMap, setCatalogMap] = useState<Record<string, any>>({})
-  const [docNameMap, setDocNameMap] = useState<Record<string, string>>({})
+  const [isAcknowledging, setIsAcknowledging] = useState(false)
+  const [isUnchangedExpanded, setIsUnchangedExpanded] = useState(false)
 
-  const employeeIdFromPayload: string | undefined =
-    (additionalData as any)?.psi_taskPayload?.employeeRelationship?.employeeId || userInfo?.employeeDetails?.employeeId
+  // Extract task metadata
+  const taskPayload = additionalData?.psi_taskPayload || {}
+  const processMetadata = additionalData?.psi_processMetadata || {}
+  const taskStatus = additionalData?.psi_taskStatus || processMetadata?.status || 'IN_PROGRESS'
+  const taskCompletedAt = processMetadata?.completedAt || extendedAdditionalData?.psi_taskCompletedAt
+  const isTaskCompleted = taskStatus === 'COMPLETED' || !!taskCompletedAt
+  const taskTitle = processMetadata?.referenceTaskName || processMetadata?.nodeName || 'Review Relationship Change'
+  const taskSource: 'kogito' | 'cflow' = processMetadata?.source || (processMetadata?.endpoint ? 'kogito' : 'kogito')
+  const creatorName = taskPayload?.creatorName as string | undefined
 
-  useEffect(() => {
-    const fetchName = async () => {
-      try {
-        if (!accessToken || !employeeIdFromPayload) return
-        const result = await graphqlClient.request<{ employee: { firstName: string; lastName: string } }>(
-          GET_EMPLOYEE_NAME,
-          { employeeId: employeeIdFromPayload }
-        )
-        const emp = result?.employee
-        if (emp) {
-          setEmployeeName(`${emp.firstName || ''} ${emp.lastName || ''}`.trim())
-        }
-      } catch {
-        // ignore
-      }
-    }
-    fetchName()
-  }, [accessToken, employeeIdFromPayload, graphqlClient])
+  // Extract relationship data from payload
+  const newRelationship: EmployeeRelationshipData = taskPayload?.employeeRelationship || {}
+  const oldRelationship: EmployeeRelationshipData = taskPayload?.oldEmployeeRelationship || {}
+  const employeeIdFromPayload: string | undefined = taskPayload?.employeeId || userInfo?.employeeDetails?.employeeId
 
-  const payload = (additionalData as any)?.psi_taskPayload || {}
-  const newRel = payload?.employeeRelationship || {}
-  const oldRel = payload?.oldEmployeeRelationship || {}
-
-  // Combined fetch for relationship type (catalog) and documents
-  useEffect(() => {
-    const fetchAux = async () => {
-      try {
-        if (!accessToken) return
-        const typeIds = Array.from(
-          new Set([newRel?.typeRef, oldRel?.typeRef].filter(Boolean).map((s: any) => String(s)))
-        )
-        const oldDocId = String((oldRel as any)?.relationshipDocument || '').trim()
-        const newDocId = String((newRel as any)?.relationshipDocument || '').trim()
-        if (!typeIds.length && !oldDocId && !newDocId) return
-        const result = await graphqlClient.request<any>(GET_RELATIONSHIP_REVIEW_AUX, {
-          ids: typeIds,
-          activeUserLocale: getCurrentActiveUserLocale(),
-          oldDocId: oldDocId || null,
-          newDocId: newDocId || null
-        })
-        const cmap: Record<string, any> = {}
-        for (const e of result?.entries || []) {
-          cmap[String(e.id)] = e
-        }
-        setCatalogMap(cmap)
-        const dmap: Record<string, string> = {}
-        const docOldEntry = Array.isArray(result?.docOld) ? result.docOld[0] : result?.docOld
-        const docNewEntry = Array.isArray(result?.docNew) ? result.docNew[0] : result?.docNew
-        if (docOldEntry?.id) dmap[docOldEntry.id] = docOldEntry.name || ''
-        if (docNewEntry?.id) dmap[docNewEntry.id] = docNewEntry.name || ''
-        if (Object.keys(dmap).length) setDocNameMap(prev => ({ ...prev, ...dmap }))
-      } catch {
-        // ignore
-      }
-    }
-    fetchAux()
-  }, [
+  // Fetch employee and catalog data
+  const { employeeData, catalogMap, loading, error, refetch } = useRelationshipReviewData({
     accessToken,
-    graphqlClient,
-    newRel?.typeRef,
-    oldRel?.typeRef,
-    oldRel?.relationshipDocument,
-    newRel?.relationshipDocument
-  ])
-
-  const rows: {
-    key: string
-    label?: string
-    oldLabel?: string
-    newLabel?: string
-    oldValue: string
-    newValue: string
-  }[] = []
-
-  const dash = (v?: string) => (String(v || '').trim() === '' ? '' : String(v || ''))
-  const refCode = (ref?: string) => (typeof ref === 'string' ? ref.split(':').pop() || '' : '')
-
-  // Relationship Type
-  {
-    const oldTypeDisplay =
-      getCatalogValue(catalogMap[String(oldRel.typeRef)]) || dash(oldRel.typeLabel) || refCode(oldRel.typeRef)
-    const newTypeDisplay =
-      getCatalogValue(catalogMap[String(newRel.typeRef)]) || dash(newRel.typeLabel) || refCode(newRel.typeRef)
-    rows.push({
-      key: 'typeRef',
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.type', 'Relationship Type'),
-      oldValue: dash(oldTypeDisplay),
-      newValue: dash(newTypeDisplay)
-    })
-  }
-
-  // First Name
-  rows.push({
-    key: 'firstName',
-    label: getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.first_name', 'First Name'),
-    oldValue: dash(oldRel.firstName),
-    newValue: dash(newRel.firstName)
+    employeeId: employeeIdFromPayload,
+    newRelationship,
+    oldRelationship
   })
 
-  // Last Name
-  rows.push({
-    key: 'lastName',
-    label: getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.last_name', 'Last Name'),
-    oldValue: dash(oldRel.lastName),
-    newValue: dash(newRel.lastName)
-  })
+  // Detect if we're in every-box context
+  const isEveryBoxContext = !!onClose
 
-  // Birth Date (display as raw ISO or preformatted if provided by payload)
-  rows.push({
-    key: 'birthDate',
-    label: getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.birth_date', 'Birth Date'),
-    oldValue: formatDate(dash(oldRel.birthDate), 'date.short') || '-',
-    newValue: formatDate(dash(newRel.birthDate), 'date.short') || '-'
-  })
-
-  // Phone Number
-  rows.push({
-    key: 'phoneNumber',
-    label: getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.phone_number', 'Phone Number'),
-    oldValue: dash(oldRel.phoneNumber),
-    newValue: dash(newRel.phoneNumber)
-  })
-
-  // Emergency Contact (boolean)
-  {
-    const computeBoolDisplay = (obj: any): string => {
-      if (Object.prototype.hasOwnProperty.call(obj, 'emergencyContact')) {
-        return String(Boolean(obj.emergencyContact))
-      }
-      if (Object.prototype.hasOwnProperty.call(obj, 'isEmergencyContact')) {
-        return String(Boolean(obj.isEmergencyContact))
-      }
-      return '' // will render as '-'
-    }
-    rows.push({
-      key: 'emergencyContact',
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.emergency_contact', 'Emergency Contact'),
-      oldValue: computeBoolDisplay(oldRel),
-      newValue: computeBoolDisplay(newRel)
-    })
-  }
-
-  // Comment / Notes if present
-  const oldNotes = String(oldRel?.notes || '').trim()
-  const newNotes = String(newRel?.notes || '').trim()
-  if (oldNotes !== '' || newNotes !== '') {
-    rows.push({
-      key: 'notes',
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:initiate_expense_plan.create_expense_plan.comment_text_area',
-        'Comment'
-      ),
-      oldValue: oldNotes,
-      newValue: newNotes
-    })
-  }
-
-  // Attachment – show raw relationshipDocument string when present on either side
-  const oldDoc = String((oldRel as any)?.relationshipDocument ?? '').trim()
-  const newDoc = String((newRel as any)?.relationshipDocument ?? '').trim()
-  if (oldDoc !== '' || newDoc !== '') {
-    const oldDisplay =
-      docNameMap[oldDoc] ||
-      (oldDoc ? getTranslationFromI18nKeyAndLabel('lowcoder:review_forms.old_attachment_text', 'Old Attachment') : '')
-    const newDisplay =
-      docNameMap[newDoc] ||
-      (newDoc ? getTranslationFromI18nKeyAndLabel('lowcoder:review_forms.new_attachment_text', 'New Attachment') : '')
-    rows.push({
-      key: 'relationshipDocument',
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:review_forms.attachment_text', 'Attachment'),
-      oldValue: oldDisplay,
-      newValue: newDisplay
-    })
-  }
-
-  const titleText = getTranslationFromI18nKeyAndLabel(
-    'lowcoder:review_forms.employee_relationship_change_title',
-    `Employee Relationship Change for ${employeeName ? employeeName : ''}`,
-    { employeeName: employeeName ? employeeName : '', interpolation: { escapeValue: false } }
+  // Helper: check if old relationship exists
+  const hasOldRelationship = Boolean(
+    oldRelationship?.firstName || oldRelationship?.lastName || oldRelationship?.phoneNumber || oldRelationship?.typeRef
   )
 
-  return (
-    <div
-      className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-[100%] gba:max-w-[1200px]"
-      data-testid="change-relationship-review-form-container"
-    >
-      <FormHeader title={titleText} flowIconUrl={flowIconUrl} className="gba:px-6" />
+  const changeMode = hasOldRelationship ? 'UPDATE' : 'INSERT'
+  const isInsertMode = changeMode === 'INSERT'
 
+  // Count total changes - MUST BE BEFORE CONDITIONAL RETURNS
+  const changesCount = useMemo(() => {
+    if (!hasOldRelationship) return 0
+
+    const fields: (keyof EmployeeRelationshipData)[] = [
+      'firstName',
+      'lastName',
+      'phoneNumber',
+      'email',
+      'notes',
+      'typeRef',
+      'birthDate',
+      'emergencyContact'
+    ]
+
+    const compareField = (newVal: any, oldVal: any): boolean => {
+      const format = (v: any) => String(v || 'N/A')
+      return format(newVal) !== format(oldVal)
+    }
+
+    return fields.reduce((count, field) => {
+      return compareField(newRelationship[field], oldRelationship[field]) ? count + 1 : count
+    }, 0)
+  }, [newRelationship, oldRelationship, hasOldRelationship])
+
+  const handleClose = () => {
+    if (onClose) {
+      onClose()
+    } else {
+      dispatchProcessContinueEvent('pse_abort', {
+        event: 'pse_abort'
+      })
+    }
+  }
+
+  const handleAcknowledge = async () => {
+    setIsAcknowledging(true)
+    try {
+      dispatchProcessContinueEvent('pse_submit', {
+        acknowledge: 'acknowledged'
+      })
+    } catch (err) {
+      console.error('Error acknowledging relationship change:', err)
+    } finally {
+      setIsAcknowledging(false)
+    }
+  }
+
+  if (loading) {
+    return (
       <div
-        className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='change-relationship-review']]:!pt-0 gba:[&_[data-testid='change-relationship-review-form']]:!max-w-none"
-        data-testid="change-relationship-review-form-content"
+        className="gba:flex gba:justify-center gba:items-center gba:min-h-[400px]"
+        data-testid="change-relationship-review-loading"
       >
-        <AppActionForm
-          processType="update"
-          form={form as any}
-          showCancelButton={false}
-          formData={{}}
-          submitEventType="pse_submit"
-          submitButtonText={getTranslationFromI18nKeyAndLabel(
-            'lowcoder:review_forms.acknowledge_button',
-            'Acknowledge'
-          )}
-          cancelButtonText={getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.btn_cancel', 'Cancel')}
-          submitButtonTestId="change-relationship-review-confirm-button"
-          cancelButtonTestId="change-relationship-review-cancel-button"
-          onSubmit={async () => {
-            return { acknowledge: 'acknowledged' }
-          }}
-          onCancel={() => {}}
-          data-testid="change-relationship-review"
-        >
-          <ReviewRows
-            rows={rows}
-            dataTestIdPrefix="change-relationship-review-row"
-            oldDataText={getTranslationFromI18nKeyAndLabel('lowcoder:review_forms.old_data_text', 'Old Data')}
-            currentDataText={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:review_forms.current_data_text',
-              'Current Data'
-            )}
-            mode="diff"
-          />
-        </AppActionForm>
+        <Spinner size="lg" />
       </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <Alert variant="destructive" data-testid="change-relationship-review-error">
+        <AlertTitle>Error Loading Relationship Data</AlertTitle>
+        <AlertDescription>
+          {error}
+          <button
+            onClick={refetch}
+            className="gba:mt-2 gba:px-3 gba:py-1 gba:bg-destructive gba:text-destructive-foreground gba:rounded gba:text-sm"
+          >
+            Retry
+          </button>
+        </AlertDescription>
+      </Alert>
+    )
+  }
+
+  // Helper functions
+  const getCatalogValue = (ref?: string | null): string => {
+    if (!ref) return 'N/A'
+    const entry = catalogMap[ref]
+    if (!entry) return ref.split(':').pop() || ref
+
+    // Use translation if available, otherwise use default value
+    return entry.translations?.[0]?.value || entry.value || entry.code || ref
+  }
+
+  const formatDate = (dateStr?: string | null): string => {
+    if (!dateStr) return 'N/A'
+    try {
+      const date = new Date(dateStr)
+      return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+    } catch {
+      return dateStr
+    }
+  }
+
+  // Field comparison
+  interface FieldComparison {
+    changed: boolean
+    oldValue: string
+    newValue: string
+  }
+
+  const compareField = (newVal: any, oldVal: any, formatter?: (val: any) => string): FieldComparison => {
+    const format = formatter || ((v: any) => String(v || 'N/A'))
+    const newFormatted = format(newVal)
+    const oldFormatted = format(oldVal)
+
+    return {
+      changed: newFormatted !== oldFormatted,
+      oldValue: oldFormatted,
+      newValue: newFormatted
+    }
+  }
+
+  const displayName = employeeData
+    ? `${employeeData.firstName || ''} ${employeeData.lastName || ''}`.trim() || 'Employee'
+    : 'Employee'
+
+  const relationshipName =
+    `${newRelationship.firstName || ''} ${newRelationship.lastName || ''}`.trim() || 'Relationship'
+
+  // Render comparison field - Show changed fields OR all fields with values in insert mode
+  const renderComparisonField = (label: string, comparison: FieldComparison, icon?: React.ReactNode) => {
+    const isNewRelationship = !hasOldRelationship || isInsertMode
+
+    // For insert mode: show all fields that have a value
+    // For update mode: only show changed fields
+    if (isNewRelationship) {
+      // Skip empty values in insert mode
+      if (!comparison.newValue || comparison.newValue === 'N/A') return null
+    } else {
+      // Only show changed fields in update mode
+      if (!comparison.changed) return null
+    }
+
+    // Display "Not set" if old value was empty/null/N/A
+    const displayOldValue = comparison.oldValue === 'N/A' || !comparison.oldValue ? 'Not set' : comparison.oldValue
+
+    return (
+      <div className="gba:space-y-2">
+        <Label className="gba:text-muted-foreground gba:flex gba:items-center gba:gap-2">
+          {icon}
+          {label}
+          <Badge variant={isNewRelationship ? 'success' : 'warning'} className="gba:ml-2">
+            {isNewRelationship ? 'New' : 'Changed'}
+          </Badge>
+        </Label>
+
+        {/* Always show old → new for changed fields */}
+        <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
+          {!isNewRelationship && (
+            <>
+              <div className="gba:px-3 gba:py-2 gba:bg-destructive/10 gba:text-destructive gba:rounded gba:text-sm gba:line-through">
+                {displayOldValue}
+              </div>
+              <ArrowRight className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+            </>
+          )}
+          <div className="gba:px-3 gba:py-2 gba:bg-success/10 gba:text-success gba:rounded gba:text-sm gba:font-medium">
+            {comparison.newValue}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Render unchanged field - Show current value for unchanged fields
+  const renderUnchangedField = (label: string, value: string, icon?: React.ReactNode) => {
+    // Skip empty values
+    if (!value || value === 'N/A') return null
+
+    return (
+      <div className="gba:space-y-2">
+        <Label className="gba:text-muted-foreground gba:flex gba:items-center gba:gap-2">
+          {icon}
+          {label}
+        </Label>
+        <div className="gba:px-3 gba:py-2 gba:bg-muted gba:rounded gba:text-sm">{value}</div>
+      </div>
+    )
+  }
+
+  return (
+    <TaskFormLayout
+      data-testid="change-relationship-review-container"
+      header={
+        <TaskDetailHeader
+          title={taskTitle}
+          status={taskStatus}
+          source={taskSource}
+          showEmployeeInfo={true}
+          employeeData={
+            employeeData
+              ? {
+                  displayName,
+                  firstName: employeeData.firstName,
+                  lastName: employeeData.lastName,
+                  avatarUrl: employeeData.pictureThumbnail
+                    ? `data:image/jpeg;base64,${employeeData.pictureThumbnail}`
+                    : undefined,
+                  position: employeeData.employeePosition?.jobPosition?.name
+                }
+              : undefined
+          }
+          isLoadingEmployee={loading}
+          creatorName={creatorName}
+          onClose={isEveryBoxContext ? handleClose : undefined}
+          customBadges={
+            <Badge variant={isInsertMode ? 'success' : 'info'} data-testid="relationship-change-mode-badge">
+              {isInsertMode ? 'New Relationship' : 'Relationship Update'}
+            </Badge>
+          }
+        />
+      }
+      footer={
+        !isTaskCompleted ? (
+          <TaskDetailFooter
+            data-testid="change-relationship-review-actions"
+            actions={[
+              {
+                label: 'Acknowledge',
+                onClick: handleAcknowledge,
+                variant: 'default' as const,
+                disabled: isAcknowledging,
+                loading: isAcknowledging,
+                icon: CheckCircle,
+                className: 'gba:bg-success gba:text-success-foreground hover:gba:bg-success/90',
+                testId: 'acknowledge-button'
+              }
+            ]}
+          />
+        ) : undefined
+      }
+      contentClassName="gba:space-y-4"
+    >
+      {/* Change Mode Alert */}
+      <Alert variant="default">
+        <FileText className="gba:h-4 gba:w-4" />
+        <AlertDescription>
+          {isInsertMode
+            ? `This is a new relationship being added for ${relationshipName}.`
+            : hasOldRelationship && changesCount > 0
+              ? `This is an update with ${changesCount} ${changesCount === 1 ? 'change' : 'changes'} to the existing relationship. Changed fields are highlighted below.`
+              : 'This is an update to an existing relationship.'}
+        </AlertDescription>
+      </Alert>
+
+      {/* Relationship Comparison Card */}
+      <Card>
+        <CardHeader>
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-lg">
+              <Users className="gba:h-5 gba:w-5" />
+              {isInsertMode ? 'New Relationship Details' : 'Relationship Changes'}
+            </CardTitle>
+            {hasOldRelationship && changesCount > 0 && (
+              <Badge variant="warning">
+                {changesCount} {changesCount === 1 ? 'Change' : 'Changes'}
+              </Badge>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="gba:space-y-4">
+          {/* Personal Information */}
+          <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
+            {renderComparisonField(
+              'First Name',
+              compareField(newRelationship.firstName, oldRelationship.firstName),
+              <User className="gba:h-4 gba:w-4" />
+            )}
+            {renderComparisonField(
+              'Last Name',
+              compareField(newRelationship.lastName, oldRelationship.lastName),
+              <User className="gba:h-4 gba:w-4" />
+            )}
+          </div>
+
+          <Separator />
+
+          {/* Contact Information */}
+          <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
+            {renderComparisonField(
+              'Phone Number',
+              compareField(newRelationship.phoneNumber, oldRelationship.phoneNumber),
+              <Phone className="gba:h-4 gba:w-4" />
+            )}
+            {renderComparisonField(
+              'Email',
+              compareField(newRelationship.email, oldRelationship.email),
+              <Mail className="gba:h-4 gba:w-4" />
+            )}
+          </div>
+
+          <Separator />
+
+          {/* Relationship Details */}
+          <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
+            {renderComparisonField(
+              'Relationship Type',
+              compareField(newRelationship.typeRef, oldRelationship.typeRef, getCatalogValue),
+              <Users className="gba:h-4 gba:w-4" />
+            )}
+            {renderComparisonField(
+              'Birth Date',
+              compareField(newRelationship.birthDate, oldRelationship.birthDate, formatDate),
+              <Calendar className="gba:h-4 gba:w-4" />
+            )}
+          </div>
+
+          <Separator />
+
+          {/* Emergency Contact */}
+          {renderComparisonField(
+            'Emergency Contact',
+            compareField(
+              String(newRelationship.emergencyContact || false),
+              String(oldRelationship.emergencyContact || false)
+            ),
+            <Shield className="gba:h-4 gba:w-4" />
+          )}
+
+          {/* Notes - only show if present */}
+          {(newRelationship.notes || oldRelationship.notes) && (
+            <>
+              <Separator />
+              {renderComparisonField('Notes', compareField(newRelationship.notes, oldRelationship.notes))}
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Unchanged Fields - Collapsible Section */}
+      {!isInsertMode && hasOldRelationship && (
+        <Card>
+          <Collapsible open={isUnchangedExpanded} onOpenChange={setIsUnchangedExpanded}>
+            <CollapsibleTrigger asChild>
+              <CardHeader className="gba:cursor-pointer hover:gba:bg-muted/50 gba:transition-colors">
+                <div className="gba:flex gba:items-center gba:justify-between">
+                  <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-lg">
+                    <Users className="gba:h-5 gba:w-5" />
+                    All Other Fields
+                    <Badge variant="secondary" className="gba:ml-2">
+                      Unchanged
+                    </Badge>
+                  </CardTitle>
+                  <ChevronDown
+                    className={`gba:h-5 gba:w-5 gba:transition-transform ${
+                      isUnchangedExpanded ? 'gba:rotate-180' : ''
+                    }`}
+                  />
+                </div>
+              </CardHeader>
+            </CollapsibleTrigger>
+
+            <CollapsibleContent>
+              <CardContent className="gba:space-y-4 gba:pt-0">
+                {/* Personal Information */}
+                <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
+                  {(() => {
+                    const comparison = compareField(newRelationship.firstName, oldRelationship.firstName)
+                    return (
+                      !comparison.changed &&
+                      renderUnchangedField('First Name', comparison.newValue, <User className="gba:h-4 gba:w-4" />)
+                    )
+                  })()}
+
+                  {(() => {
+                    const comparison = compareField(newRelationship.lastName, oldRelationship.lastName)
+                    return (
+                      !comparison.changed &&
+                      renderUnchangedField('Last Name', comparison.newValue, <User className="gba:h-4 gba:w-4" />)
+                    )
+                  })()}
+                </div>
+
+                <Separator />
+
+                {/* Contact Information */}
+                <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
+                  {(() => {
+                    const comparison = compareField(newRelationship.phoneNumber, oldRelationship.phoneNumber)
+                    return (
+                      !comparison.changed &&
+                      renderUnchangedField('Phone Number', comparison.newValue, <Phone className="gba:h-4 gba:w-4" />)
+                    )
+                  })()}
+
+                  {(() => {
+                    const comparison = compareField(newRelationship.email, oldRelationship.email)
+                    return (
+                      !comparison.changed &&
+                      renderUnchangedField('Email', comparison.newValue, <Mail className="gba:h-4 gba:w-4" />)
+                    )
+                  })()}
+                </div>
+
+                <Separator />
+
+                {/* Relationship Details */}
+                <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
+                  {(() => {
+                    const comparison = compareField(newRelationship.typeRef, oldRelationship.typeRef, getCatalogValue)
+                    return (
+                      !comparison.changed &&
+                      renderUnchangedField(
+                        'Relationship Type',
+                        comparison.newValue,
+                        <Users className="gba:h-4 gba:w-4" />
+                      )
+                    )
+                  })()}
+
+                  {(() => {
+                    const comparison = compareField(newRelationship.birthDate, oldRelationship.birthDate, formatDate)
+                    return (
+                      !comparison.changed &&
+                      renderUnchangedField('Birth Date', comparison.newValue, <Calendar className="gba:h-4 gba:w-4" />)
+                    )
+                  })()}
+                </div>
+
+                <Separator />
+
+                {/* Emergency Contact */}
+                {(() => {
+                  const comparison = compareField(
+                    String(newRelationship.emergencyContact || false),
+                    String(oldRelationship.emergencyContact || false)
+                  )
+                  return (
+                    !comparison.changed &&
+                    renderUnchangedField(
+                      'Emergency Contact',
+                      comparison.newValue,
+                      <Shield className="gba:h-4 gba:w-4" />
+                    )
+                  )
+                })()}
+
+                {/* Notes */}
+                {(newRelationship.notes || oldRelationship.notes) &&
+                  (() => {
+                    const comparison = compareField(newRelationship.notes, oldRelationship.notes)
+                    if (!comparison.changed) {
+                      return (
+                        <>
+                          <Separator />
+                          {renderUnchangedField('Notes', comparison.newValue)}
+                        </>
+                      )
+                    }
+                    return null
+                  })()}
+              </CardContent>
+            </CollapsibleContent>
+          </Collapsible>
+        </Card>
+      )}
+
+      {/* Not Set Fields - Collapsible Section for Insert Mode */}
+      {isInsertMode && (
+        <Card>
+          <Collapsible open={isUnchangedExpanded} onOpenChange={setIsUnchangedExpanded}>
+            <CollapsibleTrigger asChild>
+              <CardHeader className="gba:cursor-pointer hover:gba:bg-muted/50 gba:transition-colors">
+                <div className="gba:flex gba:items-center gba:justify-between">
+                  <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-lg">
+                    <Users className="gba:h-5 gba:w-5" />
+                    All Other Fields
+                    <Badge variant="secondary" className="gba:ml-2">
+                      Not Set
+                    </Badge>
+                  </CardTitle>
+                  <ChevronDown
+                    className={`gba:h-5 gba:w-5 gba:transition-transform ${
+                      isUnchangedExpanded ? 'gba:rotate-180' : ''
+                    }`}
+                  />
+                </div>
+              </CardHeader>
+            </CollapsibleTrigger>
+
+            <CollapsibleContent>
+              <CardContent className="gba:space-y-4 gba:pt-0">
+                {/* Contact Information - show if not set */}
+                <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
+                  {(!newRelationship.phoneNumber || newRelationship.phoneNumber === 'N/A') &&
+                    renderUnchangedField('Phone Number', 'Not set', <Phone className="gba:h-4 gba:w-4" />)}
+
+                  {(!newRelationship.email || newRelationship.email === 'N/A') &&
+                    renderUnchangedField('Email', 'Not set', <Mail className="gba:h-4 gba:w-4" />)}
+                </div>
+
+                <Separator />
+
+                {/* Emergency Contact - show if not set */}
+                {!newRelationship.emergencyContact &&
+                  renderUnchangedField('Emergency Contact', 'Not set', <Shield className="gba:h-4 gba:w-4" />)}
+
+                {/* Notes - show if not set */}
+                {!newRelationship.notes && (
+                  <>
+                    <Separator />
+                    {renderUnchangedField('Notes', 'Not set')}
+                  </>
+                )}
+              </CardContent>
+            </CollapsibleContent>
+          </Collapsible>
+        </Card>
+      )}
+    </TaskFormLayout>
+  )
+}
+
+const ChangeRelationshipReview: React.FC<ChangeRelationshipReviewProps> = props => {
+  const { accessToken, additionalData, userInfo, onClose } = props
+
+  // Fallback additional data for testing
+  const fallbackAdditionalData = additionalData || {
+    psi_taskPayload: {
+      employeeRelationship: {},
+      oldEmployeeRelationship: {}
+    }
+  }
+
+  return (
+    <div className="gba:h-full" data-testid="change-relationship-review-wrapper">
+      <ChangeRelationshipReviewContent
+        accessToken={accessToken}
+        additionalData={fallbackAdditionalData}
+        userInfo={userInfo}
+        onClose={onClose}
+      />
     </div>
   )
 }
