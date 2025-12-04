@@ -6,12 +6,28 @@ import { useCalendar } from './hooks/useCalendar'
 import { useEmployeeAvatars } from '../hooks/useEmployeeAvatars'
 import { CalendarHeader, DayView, WeekView, MonthView, CreateMeetingModal, MeetingDetailModal } from './components'
 import type { CalendarEvent, Meeting, CreateMeetingData, InvitationStatus } from './types'
+import type { CallParticipant } from '../services/webrtcClient'
 
 interface CalendarProps extends BusinessAppContextProps {
   prefixDataTestId?: string
+  // Optional callback when user wants to join a meeting call
+  // Parent component can use this to initiate a WebRTC call
+  onJoinMeetingCall?: (meeting: {
+    id: string
+    title: string
+    participants: CallParticipant[]
+    meetingLink?: string
+  }) => void
+  // Optional callback to open chat for a conversation
+  onOpenChat?: (conversationId: string) => void
 }
 
-export const Calendar: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId = 'calendar' }) => {
+export const Calendar: React.FC<CalendarProps> = ({
+  accessToken,
+  prefixDataTestId = 'calendar',
+  onJoinMeetingCall,
+  onOpenChat
+}) => {
   // Build API URL
   let baseUrl = env('NEXT_PUBLIC_BASE_URL') || ''
   baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
@@ -244,6 +260,58 @@ export const Calendar: React.FC<CalendarProps> = ({ accessToken, prefixDataTestI
     setIsDetailModalOpen(false)
   }, [selectedEvent, cancelMeeting])
 
+  // Handle starting a meeting call
+  const handleStartCall = useCallback(() => {
+    if (!enrichedSelectedEvent || !onJoinMeetingCall) return
+
+    // Convert participants to CallParticipant format
+    const callParticipants: CallParticipant[] = []
+
+    // Add all accepted participants (excluding current user - parent will handle that)
+    if (enrichedSelectedEvent.participants) {
+      enrichedSelectedEvent.participants.forEach(p => {
+        if (p.status === 'accepted' || p.isOrganizer) {
+          callParticipants.push({
+            id: p.id,
+            odId: p.id,
+            odName: p.displayName || `${p.firstName || ''} ${p.lastName || ''}`.trim() || p.email || 'Unknown',
+            avatarUrl: p.avatarUrl
+          })
+        }
+      })
+    }
+
+    // Also add organizer if not already included
+    if (enrichedSelectedEvent.organizer && !callParticipants.find(p => p.id === enrichedSelectedEvent.organizer.id)) {
+      callParticipants.push({
+        id: enrichedSelectedEvent.organizer.id,
+        odId: enrichedSelectedEvent.organizer.id,
+        odName:
+          enrichedSelectedEvent.organizer.displayName ||
+          `${enrichedSelectedEvent.organizer.firstName || ''} ${enrichedSelectedEvent.organizer.lastName || ''}`.trim() ||
+          enrichedSelectedEvent.organizer.email ||
+          'Unknown',
+        avatarUrl: enrichedSelectedEvent.organizer.avatarUrl
+      })
+    }
+
+    onJoinMeetingCall({
+      id: enrichedSelectedEvent.id,
+      title: enrichedSelectedEvent.title,
+      participants: callParticipants,
+      meetingLink: enrichedSelectedEvent.meetingLink
+    })
+
+    setIsDetailModalOpen(false)
+  }, [enrichedSelectedEvent, onJoinMeetingCall])
+
+  // Handle opening chat for conversation
+  const handleOpenChat = useCallback(() => {
+    if (!enrichedSelectedEvent?.conversationId || !onOpenChat) return
+    onOpenChat(enrichedSelectedEvent.conversationId)
+    setIsDetailModalOpen(false)
+  }, [enrichedSelectedEvent, onOpenChat])
+
   // Handle create button click
   const handleCreateButtonClick = useCallback(() => {
     setEditingMeeting(null)
@@ -388,6 +456,8 @@ export const Calendar: React.FC<CalendarProps> = ({ accessToken, prefixDataTestI
         onRespond={handleRespondToInvitation}
         onEdit={enrichedSelectedEvent?.isOrganizer ? handleEditMeeting : undefined}
         onDelete={enrichedSelectedEvent?.isOrganizer ? handleDeleteMeeting : undefined}
+        onStartCall={enrichedSelectedEvent?.meetingLink && onJoinMeetingCall ? handleStartCall : undefined}
+        onOpenChat={enrichedSelectedEvent?.conversationId && onOpenChat ? handleOpenChat : undefined}
       />
     </div>
   )
