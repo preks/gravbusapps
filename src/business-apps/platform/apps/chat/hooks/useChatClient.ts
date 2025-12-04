@@ -473,6 +473,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     }
 
     const handleConversationCallStarted = (data: ActiveCall) => {
+      console.debug('Received conversation:call-started:', data)
       setActiveCalls(prev => ({ ...prev, [data.conversationId]: data }))
       conversationsHookRef.current?.updateConversation?.(data.conversationId, {
         activeCall: data
@@ -490,9 +491,11 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     }
 
     const handleConversationActiveCalls = (calls: ActiveCall[]) => {
+      console.debug('Received active calls:', calls.length, 'calls', calls)
       const map: Record<string, ActiveCall> = {}
       calls.forEach(call => {
         map[call.conversationId] = call
+        console.debug('Updating conversation with activeCall:', call.conversationId, call)
         conversationsHookRef.current?.updateConversation?.(call.conversationId, {
           activeCall: call
         } as Partial<Conversation>)

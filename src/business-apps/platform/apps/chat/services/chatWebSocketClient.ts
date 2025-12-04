@@ -542,6 +542,7 @@ export class ChatWebSocketClient {
     callType: 'audio' | 'video'
     startedBy: { id: string; odId: string; odName: string; avatarUrl?: string }
     participantIds: string[]
+    startedAt: string
   }) {
     console.debug('Emitting conversation:call-started', signal)
     this.socket?.emit('conversation:call-started', signal)

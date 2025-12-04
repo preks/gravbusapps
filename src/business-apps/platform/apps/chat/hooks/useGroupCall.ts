@@ -457,7 +457,8 @@ export const useGroupCall = ({
             odName: currentUserRef.current.odName,
             avatarUrl: currentUserRef.current.avatarUrl
           },
-          participantIds: [currentUserRef.current.id]
+          participantIds: [currentUserRef.current.id],
+          startedAt: new Date().toISOString()
         })
 
         // Update participants list
