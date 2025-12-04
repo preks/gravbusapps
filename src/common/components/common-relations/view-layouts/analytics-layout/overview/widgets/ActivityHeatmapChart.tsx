@@ -14,6 +14,13 @@ export interface ActivityHeatmapChartProps {
   moduleColor?: string
 }
 
+const formatHourLabel = (hour: number): string => {
+  if (hour === 0) return '12AM'
+  if (hour < 12) return `${hour}AM`
+  if (hour === 12) return '12PM'
+  return `${hour - 12}PM`
+}
+
 export const ActivityHeatmapChart: React.FC<ActivityHeatmapChartProps> = ({
   data,
   isLoading,
@@ -95,7 +102,7 @@ export const ActivityHeatmapChart: React.FC<ActivityHeatmapChartProps> = ({
                     className="gba:text-xs gba:text-gray-500 gba:text-center gba:w-4 gba:whitespace-nowrap"
                     style={{ fontSize: '11px' }}
                   >
-                    {hour === 0 ? '12AM' : hour < 12 ? `${hour}AM` : hour === 12 ? '12PM' : `${hour - 12}PM`}
+                    {formatHourLabel(hour)}
                   </div>
                 ))}
               </div>

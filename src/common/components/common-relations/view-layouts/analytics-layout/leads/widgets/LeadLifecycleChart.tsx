@@ -91,6 +91,81 @@ export const LeadLifecycleChart: React.FC<LeadLifecycleChartProps> = ({
   // Just display the data passed in - filtering happens at parent level
   const chartData = data
 
+  const renderChartContent = () => {
+    if (isLoading) {
+      return (
+        <div
+          className="gba:flex gba:items-center gba:justify-center gba:h-[400px]"
+          data-testid="LeadLifecycleChart-loading"
+        >
+          <div className="gba:text-center">
+            <div className="gba:animate-spin gba:rounded-full gba:h-12 gba:w-12 gba:border-b-2 gba:border-primary gba:mx-auto" />
+            <p className="gba:mt-4 gba:text-sm gba:text-muted-foreground">Loading chart data...</p>
+          </div>
+        </div>
+      )
+    }
+
+    if (chartData.length === 0) {
+      return (
+        <div className="gba:text-center gba:p-8" data-testid="LeadLifecycleChart-empty-state">
+          <ChartLineIcon className="gba:mx-auto gba:h-12 gba:w-12 gba:text-gray-400" />
+          <h3 className="gba:mt-2 gba:text-sm gba:font-medium gba:text-gray-900">No data available</h3>
+          <p className="gba:mt-1 gba:text-sm gba:text-gray-500">
+            No lead lifecycle data found for the selected time period.
+          </p>
+        </div>
+      )
+    }
+
+    return (
+      <ChartContainer config={chartConfig} className="gba:h-[320px] gba:w-full" data-testid="LeadLifecycleChart-chart">
+        <AreaChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+          <XAxis dataKey="date" tick={{ fontSize: 12 }} tickFormatter={formatXAxisLabel} />
+          <YAxis tick={{ fontSize: 12 }} />
+          <ChartTooltip content={<ChartTooltipContent labelKey="date" />} />
+          <ChartLegend content={<ChartLegendContent />} />
+          {visibleLines.leadsCreated && (
+            <Area
+              type="monotone"
+              dataKey="leadsCreated"
+              name="leadsCreated"
+              stroke={`var(--color-leadsCreated)`}
+              fill={`var(--color-leadsCreated)`}
+              fillOpacity={0.12}
+              strokeWidth={2}
+              dot={false}
+            />
+          )}
+          {visibleLines.leadsConverted && (
+            <Area
+              type="monotone"
+              dataKey="leadsConverted"
+              name="leadsConverted"
+              stroke={`var(--color-leadsConverted)`}
+              fill={`var(--color-leadsConverted)`}
+              fillOpacity={0.12}
+              strokeWidth={2}
+              dot={false}
+            />
+          )}
+          {visibleLines.leadsLost && (
+            <Area
+              type="monotone"
+              dataKey="leadsLost"
+              name="leadsLost"
+              stroke={`var(--color-leadsLost)`}
+              fill={`var(--color-leadsLost)`}
+              fillOpacity={0.12}
+              strokeWidth={2}
+              dot={false}
+            />
+          )}
+        </AreaChart>
+      </ChartContainer>
+    )
+  }
+
   return (
     <Card data-testid="LeadLifecycleChart-container">
       <CardHeader>
@@ -141,76 +216,7 @@ export const LeadLifecycleChart: React.FC<LeadLifecycleChartProps> = ({
           </div>
         </div>
       </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <div
-            className="gba:flex gba:items-center gba:justify-center gba:h-[400px]"
-            data-testid="LeadLifecycleChart-loading"
-          >
-            <div className="gba:text-center">
-              <div className="gba:animate-spin gba:rounded-full gba:h-12 gba:w-12 gba:border-b-2 gba:border-primary gba:mx-auto" />
-              <p className="gba:mt-4 gba:text-sm gba:text-muted-foreground">Loading chart data...</p>
-            </div>
-          </div>
-        ) : chartData.length === 0 ? (
-          <div className="gba:text-center gba:p-8" data-testid="LeadLifecycleChart-empty-state">
-            <ChartLineIcon className="gba:mx-auto gba:h-12 gba:w-12 gba:text-gray-400" />
-            <h3 className="gba:mt-2 gba:text-sm gba:font-medium gba:text-gray-900">No data available</h3>
-            <p className="gba:mt-1 gba:text-sm gba:text-gray-500">
-              No lead lifecycle data found for the selected time period.
-            </p>
-          </div>
-        ) : (
-          <ChartContainer
-            config={chartConfig}
-            className="gba:h-[320px] gba:w-full"
-            data-testid="LeadLifecycleChart-chart"
-          >
-            <AreaChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-              <XAxis dataKey="date" tick={{ fontSize: 12 }} tickFormatter={formatXAxisLabel} />
-              <YAxis tick={{ fontSize: 12 }} />
-              <ChartTooltip content={<ChartTooltipContent labelKey="date" />} />
-              <ChartLegend content={<ChartLegendContent />} />
-              {visibleLines.leadsCreated && (
-                <Area
-                  type="monotone"
-                  dataKey="leadsCreated"
-                  name="leadsCreated"
-                  stroke={`var(--color-leadsCreated)`}
-                  fill={`var(--color-leadsCreated)`}
-                  fillOpacity={0.12}
-                  strokeWidth={2}
-                  dot={false}
-                />
-              )}
-              {visibleLines.leadsConverted && (
-                <Area
-                  type="monotone"
-                  dataKey="leadsConverted"
-                  name="leadsConverted"
-                  stroke={`var(--color-leadsConverted)`}
-                  fill={`var(--color-leadsConverted)`}
-                  fillOpacity={0.12}
-                  strokeWidth={2}
-                  dot={false}
-                />
-              )}
-              {visibleLines.leadsLost && (
-                <Area
-                  type="monotone"
-                  dataKey="leadsLost"
-                  name="leadsLost"
-                  stroke={`var(--color-leadsLost)`}
-                  fill={`var(--color-leadsLost)`}
-                  fillOpacity={0.12}
-                  strokeWidth={2}
-                  dot={false}
-                />
-              )}
-            </AreaChart>
-          </ChartContainer>
-        )}
-      </CardContent>
+      <CardContent>{renderChartContent()}</CardContent>
     </Card>
   )
 }

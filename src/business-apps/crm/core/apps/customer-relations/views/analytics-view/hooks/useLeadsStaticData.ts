@@ -148,7 +148,7 @@ export const useLeadsStaticData = (accessToken: string) => {
         // Build comprehensive GraphQL query
         const sourceAggregates = allSources
           .map(source => {
-            const safeCode = source.code.replace(/[^a-zA-Z0-9_]/g, '_')
+            const safeCode = source.code.replace(/\W/g, '_')
             return `
             source_${safeCode}_total: LeadAggregate(
               where: {isDeleted: {_eq: false}, leadSource: {code: {_eq: "${source.code}"}}}
@@ -162,7 +162,7 @@ export const useLeadsStaticData = (accessToken: string) => {
 
         const ratingAggregates = allRatings
           .map(rating => {
-            const safeCode = rating.code.replace(/[^a-zA-Z0-9_]/g, '_')
+            const safeCode = rating.code.replace(/\W/g, '_')
             return `
             rating_${safeCode}_total: LeadAggregate(
               where: {isDeleted: {_eq: false}, leadRating: {code: {_eq: "${rating.code}"}}}
@@ -173,7 +173,7 @@ export const useLeadsStaticData = (accessToken: string) => {
 
         const statusAggregates = allStatuses
           .map(status => {
-            const safeCode = status.code.replace(/[^a-zA-Z0-9_]/g, '_')
+            const safeCode = status.code.replace(/\W/g, '_')
             return `
             status_${safeCode}_total: LeadAggregate(
               where: {isDeleted: {_eq: false}, leadStatus: {code: {_eq: "${status.code}"}}}
@@ -355,7 +355,7 @@ export const useLeadsStaticData = (accessToken: string) => {
         // Process source data
         const leadsBySource: LeadSourceData[] = allSources
           .map(source => {
-            const safeCode = source.code.replace(/[^a-zA-Z0-9_]/g, '_')
+            const safeCode = source.code.replace(/\W/g, '_')
             const count = result[`source_${safeCode}_total`]?.aggregate?.count || 0
             const convertedCount = result[`source_${safeCode}_converted`]?.aggregate?.count || 0
             const percentage = totalLeads > 0 ? Math.round((count / totalLeads) * 100) : 0
@@ -376,7 +376,7 @@ export const useLeadsStaticData = (accessToken: string) => {
         // Process rating data
         const leadsByRating: LeadRatingData[] = allRatings
           .map(rating => {
-            const safeCode = rating.code.replace(/[^a-zA-Z0-9_]/g, '_')
+            const safeCode = rating.code.replace(/\W/g, '_')
             const count = result[`rating_${safeCode}_total`]?.aggregate?.count || 0
             const percentage = totalLeads > 0 ? Math.round((count / totalLeads) * 100) : 0
 
@@ -393,7 +393,7 @@ export const useLeadsStaticData = (accessToken: string) => {
         // Process status data
         const leadsByStatus: LeadStatusData[] = allStatuses
           .map(status => {
-            const safeCode = status.code.replace(/[^a-zA-Z0-9_]/g, '_')
+            const safeCode = status.code.replace(/\W/g, '_')
             const count = result[`status_${safeCode}_total`]?.aggregate?.count || 0
             const percentage = totalLeads > 0 ? Math.round((count / totalLeads) * 100) : 0
 

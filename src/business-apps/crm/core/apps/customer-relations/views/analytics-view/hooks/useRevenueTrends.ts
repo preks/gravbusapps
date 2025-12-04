@@ -179,7 +179,7 @@ function generateTimePeriods(timeFilter: TimeFilter) {
       }
       break
 
-    case 'historical':
+    case 'historical': {
       // Last 5 years (yearly)
       const currentYear = currentDate.getFullYear()
       for (let i = 4; i >= 0; i--) {
@@ -193,6 +193,7 @@ function generateTimePeriods(timeFilter: TimeFilter) {
         })
       }
       break
+    }
 
     default:
       // Default to 6 months

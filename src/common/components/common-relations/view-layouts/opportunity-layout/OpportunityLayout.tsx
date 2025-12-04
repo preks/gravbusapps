@@ -371,12 +371,9 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
       : { min: 0, max: 1000000 }
 
   // Fetch available currencies efficiently using distinctOn
-  // Map contextType to entity type for currency fetching
-  const currencyEntity = config.contextType === 'customer' ? 'Opportunity' : 'InvestmentOpportunity'
-
   const { currencies: currencyOptions } = useAvailableCurrencies(context, {
     filters: {
-      entity: 'InvestmentOpportunity',
+      entity: config.contextType === 'customer' ? 'Opportunity' : 'InvestmentOpportunity',
       ...(config.boardConfig && 'dealType' in config.boardConfig
         ? { dealType: (config.boardConfig as any).dealType }
         : {})

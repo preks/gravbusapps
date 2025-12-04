@@ -32,22 +32,14 @@ export interface AnalyticsViewProps extends BusinessAppContextProps {
   moduleColor?: string
 }
 
+type TimeFilter = 'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'
+
 export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'default', ...context }) => {
-  const [leadsTimeFilter, setLeadsTimeFilter] = useState<'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'>(
-    'quarter'
-  )
-  const [oppTimeFilter, setOppTimeFilter] = useState<'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'>(
-    'quarter'
-  )
-  const [contactsTimeFilter, setContactsTimeFilter] = useState<
-    'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'
-  >('quarter')
-  const [accountsTimeFilter, setAccountsTimeFilter] = useState<
-    'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'
-  >('quarter')
-  const [revenueTimeFilter, setRevenueTimeFilter] = useState<'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'>(
-    'sixMonths'
-  )
+  const [leadsTimeFilter, setLeadsTimeFilter] = useState<TimeFilter>('quarter')
+  const [oppTimeFilter, setOppTimeFilter] = useState<TimeFilter>('quarter')
+  const [contactsTimeFilter, setContactsTimeFilter] = useState<TimeFilter>('quarter')
+  const [accountsTimeFilter, setAccountsTimeFilter] = useState<TimeFilter>('quarter')
+  const [revenueTimeFilter, setRevenueTimeFilter] = useState<TimeFilter>('sixMonths')
   // Separate pipeline filters for different charts to avoid cross-triggering queries
   const [revenuePipelineId, setRevenuePipelineId] = useState<string | undefined>(undefined)
   const [healthPipelineId, setHealthPipelineId] = useState<string | undefined>(undefined)
@@ -190,14 +182,14 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
   // Accounts lifecycle chart data - dynamic time filter
   const { accountsOverTime: accountsLifecycleData, isLoading: accountsLifecycleLoading } = useAccountsOverTime(
     activeAnalyticsTab === 'accounts' ? context.accessToken : '',
-    accountsTimeFilter as 'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'
+    accountsTimeFilter
   )
 
   // Lifecycle chart data uses dynamic time filter selected by user
   // Pass statusCatalogCodes from leadsStaticData to avoid duplicate catalog fetch
   const { leadsOverTime: leadsLifecycleData, isLoading: leadsLifecycleLoading } = useLeadsOverTime(
     activeAnalyticsTab === 'leads' ? context.accessToken : '',
-    leadsTimeFilter as 'month' | 'quarter' | 'sixMonths' | 'year' | 'historical',
+    leadsTimeFilter,
     leadsStaticData?.statusCatalogCodes
   )
 

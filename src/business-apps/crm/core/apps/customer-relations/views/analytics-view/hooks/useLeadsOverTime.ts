@@ -73,7 +73,7 @@ export const useLeadsOverTime = (
           // Create aggregate query for each status
           const statusQueries = allStatusCodes
             .map(status => {
-              const safeStatusCode = status.code.replace(/[^a-zA-Z0-9_]/g, '_') // Make safe for GraphQL alias
+              const safeStatusCode = status.code.replace(/\W/g, '_') // Make safe for GraphQL alias
               return `
           # Leads with status '${status.value}' in period
           status_${safeStatusCode}_period${index}: LeadAggregate(
@@ -120,11 +120,11 @@ export const useLeadsOverTime = (
           let leadsLost = 0
 
           allStatusCodes.forEach(status => {
-            const safeStatusCode = status.code.replace(/[^a-zA-Z0-9_]/g, '_')
+            const safeStatusCode = status.code.replace(/\W/g, '_')
             const count = result[`status_${safeStatusCode}_period${index}`]?.aggregate?.count || 0
 
             // Store with readable key (status value)
-            const statusKey = status.value.replace(/[^a-zA-Z0-9]/g, '')
+            const statusKey = status.value.replace(/[\W_]/g, '')
             statusCounts[statusKey] = count
 
             // Backward compatibility: identify converted and lost statuses
