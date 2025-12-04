@@ -574,7 +574,9 @@ export class ChatWebSocketClient {
   }
 
   /**
-   * Remove all group call event listeners
+   * Remove group call event listeners
+   * NOTE: Does NOT remove conversation:call-started, conversation:call-ended, conversation:active-calls
+   * because those may be managed by other hooks (like useChatClient) or need specific cleanup
    */
   removeGroupCallListeners() {
     this.socket?.off('group-call:invite')
@@ -584,9 +586,8 @@ export class ChatWebSocketClient {
     this.socket?.off('group-call:answer')
     this.socket?.off('group-call:ice-candidate')
     this.socket?.off('group-call:kicked')
-    this.socket?.off('conversation:call-started')
-    this.socket?.off('conversation:call-ended')
-    this.socket?.off('conversation:active-calls')
+    // conversation:* listeners should be removed individually using off(event, handler)
+    // or by the component that registered them
   }
 
   // Remove event listeners

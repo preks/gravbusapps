@@ -183,62 +183,62 @@ export const useGroupCall = ({
   // On mount, check if there's an active call in the global manager and restore it
   useEffect(() => {
     const storedData = globalCallManager.getCallData()
-    
+
     // If there's an active call in the global manager, restore it
     if (storedData.callState.status !== 'idle' && storedData.webrtcClient) {
       console.debug('useGroupCall: Restoring call from global manager', storedData.callState)
-      
+
       // Restore refs
       webrtcRef.current = storedData.webrtcClient
-      
+
       // Restore state - set isMinimized to false since Chat is handling it now
       const restoredState = { ...storedData.callState, isMinimized: false }
       setCallState(restoredState)
       setLocalStream(storedData.localStream)
       setRemoteStreams(new Map(storedData.remoteStreams))
       setParticipants([...storedData.participants])
-      
+
       // Update refs
       callStateRef.current = restoredState
-      
+
       // Clear the global manager since Chat is now handling the call
       // This stops the vanilla DOM UI from showing
       globalCallManager.clearCall()
     }
   }, []) // Only run on mount
-  
+
   // Also subscribe to global call manager for expand events
   useEffect(() => {
     const unsubscribe = globalCallManager.subscribe(() => {
       const storedData = globalCallManager.getCallData()
-      
+
       // If expand was triggered (isMinimized changed to false) and we have an active call
       if (
-        storedData.callState.status !== 'idle' && 
-        storedData.webrtcClient && 
+        storedData.callState.status !== 'idle' &&
+        storedData.webrtcClient &&
         !storedData.callState.isMinimized &&
         callStateRef.current.status === 'idle' // Only if we don't already have a call
       ) {
         console.debug('useGroupCall: Expand triggered, restoring call')
-        
+
         // Restore refs
         webrtcRef.current = storedData.webrtcClient
-        
+
         // Restore state
         const restoredState = { ...storedData.callState, isMinimized: false }
         setCallState(restoredState)
         setLocalStream(storedData.localStream)
         setRemoteStreams(new Map(storedData.remoteStreams))
         setParticipants([...storedData.participants])
-        
+
         // Update refs
         callStateRef.current = restoredState
-        
+
         // Clear the global manager
         globalCallManager.clearCall()
       }
     })
-    
+
     return unsubscribe
   }, [])
 
@@ -906,55 +906,10 @@ export const useGroupCall = ({
       }
     })
 
-    // Handle conversation-wide call started notification (for users not in the call)
-    wsClient.onConversationCallStarted(signal => {
-      console.debug('Conversation call started:', signal)
-
-      // Update active calls for the conversation
-      setActiveConversationCalls(prev => {
-        const updated = new Map(prev)
-        updated.set(signal.conversationId, {
-          roomId: signal.roomId,
-          callType: signal.callType,
-          participantIds: signal.participantIds,
-          startedBy: signal.startedBy.id
-        })
-        return updated
-      })
-    })
-
-    // Handle conversation-wide call ended notification
-    wsClient.onConversationCallEnded(signal => {
-      console.debug('Conversation call ended:', signal)
-
-      // Remove the call from active calls
-      setActiveConversationCalls(prev => {
-        const updated = new Map(prev)
-        updated.delete(signal.conversationId)
-        return updated
-      })
-    })
-
-    // Handle active calls response (received on connect or request)
-    wsClient.onActiveCalls(calls => {
-      console.debug('Received active calls:', calls)
-
-      setActiveConversationCalls(prev => {
-        const updated = new Map(prev)
-        calls.forEach(call => {
-          updated.set(call.conversationId, {
-            roomId: call.roomId,
-            callType: call.callType,
-            participantIds: call.participantIds,
-            startedBy: call.startedBy.id
-          })
-        })
-        return updated
-      })
-    })
-
     // Request active calls when WebSocket connects
-    wsClient.requestActiveCalls()
+    // NOTE: conversation:call-started, conversation:call-ended, and conversation:active-calls
+    // are handled by useChatClient which properly waits for connection.
+    // useChatClient updates conversation.activeCall which ConversationItem uses.
 
     return () => {
       wsClient.removeGroupCallListeners()
@@ -1031,7 +986,7 @@ export const useGroupCall = ({
   const localStreamRef = useRef(localStream)
   const remoteStreamsRef = useRef(remoteStreams)
   const participantsRef = useRef(participants)
-  
+
   useEffect(() => {
     localStreamRef.current = localStream
     remoteStreamsRef.current = remoteStreams
@@ -1044,7 +999,7 @@ export const useGroupCall = ({
       // If call is minimized, store final state and skip cleanup
       if (callStateRef.current.isMinimized && callStateRef.current.status !== 'idle') {
         console.debug('useGroupCall: Skipping cleanup - call is minimized and will persist')
-        
+
         // Store final state before unmount
         if (webrtcRef.current && wsClientRef.current) {
           globalCallManager.storeCall({

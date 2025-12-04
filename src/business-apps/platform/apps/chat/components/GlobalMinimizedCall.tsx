@@ -47,6 +47,7 @@ interface MinimizedCallUIProps {
 
 const MinimizedCallUI: React.FC<MinimizedCallUIProps> = ({
   callState,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   localStream,
   remoteStreams,
   participants,
@@ -131,13 +132,13 @@ const MinimizedCallUI: React.FC<MinimizedCallUIProps> = ({
             )}
           </div>
         )}
-        
+
         {/* Participant count overlay */}
         <div className="gba:absolute gba:top-2 gba:left-2 gba:flex gba:items-center gba:gap-1 gba:bg-black/60 gba:px-2 gba:py-1 gba:rounded-full">
           <Users className="gba:h-3 gba:w-3 gba:text-white" />
           <span className="gba:text-white gba:text-xs">{participants.length}</span>
         </div>
-        
+
         {/* Duration */}
         <div className="gba:absolute gba:top-2 gba:right-2 gba:bg-black/60 gba:px-2 gba:py-1 gba:rounded-full">
           <span className="gba:text-white gba:text-xs gba:font-mono">{formatDuration(callState.duration)}</span>
@@ -208,7 +209,14 @@ export const GlobalMinimizedCall: React.FC = () => {
   useEffect(() => {
     const handleUpdate = () => {
       const newData = globalCallManager.getCallData()
-      console.debug('GlobalMinimizedCall: Received update, status:', newData.callState.status, 'isMinimized:', newData.callState.isMinimized, 'hasWebRTC:', !!newData.webrtcClient)
+      console.debug(
+        'GlobalMinimizedCall: Received update, status:',
+        newData.callState.status,
+        'isMinimized:',
+        newData.callState.isMinimized,
+        'hasWebRTC:',
+        !!newData.webrtcClient
+      )
       setCallData(newData)
       forceUpdate({})
     }
@@ -227,7 +235,7 @@ export const GlobalMinimizedCall: React.FC = () => {
       // Look for the GroupCallModal's minimized view (rendered as portal by Chat component)
       const chatMinimizedElement = document.querySelector('[data-testid="group-call-minimized"]')
       const isMounted = !!chatMinimizedElement
-      
+
       if (isMounted !== isChatMinimizedMounted) {
         console.debug('GlobalMinimizedCall: Chat minimized view mounted changed:', isMounted)
         setIsChatMinimizedMounted(isMounted)
@@ -250,18 +258,21 @@ export const GlobalMinimizedCall: React.FC = () => {
     }
   }, [isChatMinimizedMounted])
 
-  const shouldRender = 
+  const shouldRender =
     callData.callState.status !== 'idle' &&
     callData.callState.isMinimized &&
     callData.webrtcClient &&
     !isChatMinimizedMounted
 
-  console.debug('GlobalMinimizedCall: shouldRender:', shouldRender, {
-    status: callData.callState.status,
-    isMinimized: callData.callState.isMinimized,
-    hasWebRTC: !!callData.webrtcClient,
-    isChatMinimizedMounted
-  })
+  // Only log when there's an active call to reduce noise
+  if (callData.callState.status !== 'idle') {
+    console.debug('GlobalMinimizedCall: shouldRender:', shouldRender, {
+      status: callData.callState.status,
+      isMinimized: callData.callState.isMinimized,
+      hasWebRTC: !!callData.webrtcClient,
+      isChatMinimizedMounted
+    })
+  }
 
   // Don't render if:
   // - No active call
@@ -289,12 +300,12 @@ export const GlobalMinimizedCall: React.FC = () => {
     // Navigate back to chat to expand
     // This will re-mount the Chat component which will pick up the call state
     globalCallManager.updateCallState({ isMinimized: false })
-    
+
     // Try to navigate to chat
     const url = new URL(window.location.href)
     url.searchParams.set('view', 'chat')
     window.history.pushState({}, '', url.toString())
-    
+
     // Trigger a reload or navigation event
     window.dispatchEvent(new Event('popstate'))
   }
@@ -339,13 +350,13 @@ export function initGlobalMinimizedCallRenderer() {
   // Create container
   const containerId = 'global-minimized-call-container'
   let container = document.getElementById(containerId)
-  
+
   if (!container) {
     container = document.createElement('div')
     container.id = containerId
     document.body.appendChild(container)
   }
-  
+
   window.__GLOBAL_CALL_UI_CONTAINER__ = container
 
   // Track state to prevent unnecessary updates
@@ -368,36 +379,36 @@ export function initGlobalMinimizedCallRenderer() {
     try {
       const manager = globalCallManager
       const callData = manager.getCallData()
-      
+
       // Check if Chat's minimized view (GroupCallModal) is handling the UI
       // GroupCallModal uses data-testid="{prefix}-minimized" which is "chat-group-call-minimized"
       const chatMinimizedElement = document.querySelector('[data-testid$="-group-call-minimized"]')
-      
-      const shouldShow = 
+
+      const shouldShow =
         callData.callState.status !== 'idle' &&
         callData.callState.isMinimized &&
         callData.webrtcClient &&
         !chatMinimizedElement
 
-      // Only log when state changes
-      if (shouldShow !== lastShouldShow) {
-        console.debug('GlobalMinimizedCall updateUI:', { 
-          shouldShow, 
+      // Only log when shouldShow actually changes (not on every poll)
+      if (shouldShow !== lastShouldShow && lastShouldShow !== null) {
+        console.debug('GlobalMinimizedCall updateUI:', {
+          shouldShow,
           status: callData.callState.status,
           isMinimized: callData.callState.isMinimized,
           hasWebRTC: !!callData.webrtcClient,
           chatHandling: !!chatMinimizedElement
         })
-        lastShouldShow = shouldShow
       }
+      lastShouldShow = shouldShow
 
       if (!shouldShow) {
         if (container!.innerHTML !== '') {
           container!.innerHTML = ''
           console.debug('GlobalMinimizedCall: Cleared UI, shouldShow is false')
+          // Only reset tracking when UI was actually cleared
+          resetTracking()
         }
-        // Reset tracking when call ends
-        resetTracking()
         isUpdating = false
         return
       }
@@ -405,7 +416,7 @@ export function initGlobalMinimizedCallRenderer() {
       // Only update duration display, not entire UI, for duration changes
       const currentDuration = callData.callState.duration || 0
       const existingUI = document.getElementById('global-minimized-call-ui')
-      
+
       if (existingUI && lastDuration !== currentDuration) {
         // Just update the duration text
         const durationEl = existingUI.querySelector('[data-duration]')
@@ -430,8 +441,13 @@ export function initGlobalMinimizedCallRenderer() {
       const remoteStreams = callData.remoteStreams || new Map()
       const firstRemote = participants.find((p: any) => remoteStreams.has(p.id))
       const participantName = firstRemote?.odName || 'Group Call'
-      const participantInitials = participantName.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()
-      
+      const participantInitials = participantName
+        .split(' ')
+        .map((n: string) => n[0])
+        .join('')
+        .substring(0, 2)
+        .toUpperCase()
+
       // Format duration
       const duration = callData.callState.duration || 0
       const mins = Math.floor(duration / 60)
@@ -534,9 +550,10 @@ export function initGlobalMinimizedCallRenderer() {
               justify-content: center;
             " title="${callData.callState.isMuted ? 'Unmute' : 'Mute'}">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                ${callData.callState.isMuted 
-                  ? '<line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>'
-                  : '<path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>'
+                ${
+                  callData.callState.isMuted
+                    ? '<line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>'
+                    : '<path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>'
                 }
               </svg>
             </button>
@@ -553,9 +570,10 @@ export function initGlobalMinimizedCallRenderer() {
               justify-content: center;
             " title="${callData.callState.isVideoEnabled ? 'Turn off camera' : 'Turn on camera'}">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                ${!callData.callState.isVideoEnabled
-                  ? '<path d="M16.5 2.25H2.625c-.621 0-1.125.504-1.125 1.125v13.5c0 .621.504 1.125 1.125 1.125h13.5c.621 0 1.125-.504 1.125-1.125V3.375c0-.621-.504-1.125-1.125-1.125z"/><path d="M22.5 7.5l-4.5 4.5 4.5 4.5V7.5z"/><line x1="1" y1="1" x2="23" y2="23"/>'
-                  : '<path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>'
+                ${
+                  !callData.callState.isVideoEnabled
+                    ? '<path d="M16.5 2.25H2.625c-.621 0-1.125.504-1.125 1.125v13.5c0 .621.504 1.125 1.125 1.125h13.5c.621 0 1.125-.504 1.125-1.125V3.375c0-.621-.504-1.125-1.125-1.125z"/><path d="M22.5 7.5l-4.5 4.5 4.5 4.5V7.5z"/><line x1="1" y1="1" x2="23" y2="23"/>'
+                    : '<path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>'
                 }
               </svg>
             </button>
@@ -620,14 +638,14 @@ export function initGlobalMinimizedCallRenderer() {
 
       expandBtn?.addEventListener('click', () => {
         console.debug('GlobalMinimizedCall: Expand clicked, clearing UI immediately')
-        
+
         // Immediately clear the vanilla DOM UI before navigation
         container!.innerHTML = ''
         resetTracking()
-        
+
         // Update state (but don't clear the call since we're restoring in React)
         manager.updateCallState({ isMinimized: false })
-        
+
         // Navigate to chat
         const url = new URL(window.location.href)
         url.searchParams.set('view', 'chat')

@@ -115,6 +115,30 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
   const presenceStatus = otherUserPresence?.status || 'offline'
   const hasActiveCall = conversation.type === 'group' && !!conversation.activeCall
 
+  // Get names of participants currently in the call
+  const getParticipantsInCall = (): string[] => {
+    if (!hasActiveCall || !conversation.activeCall?.participantIds || !conversation.participants) {
+      return []
+    }
+
+    const participantIds = conversation.activeCall.participantIds
+    return conversation.participants
+      .filter(p => {
+        const odId = p.userId || p.user?.id
+        return odId && participantIds.includes(odId)
+      })
+      .map(p => {
+        const user = p.user
+        if (!user) return 'Unknown'
+        const firstName = user.firstName || ''
+        const lastName = user.lastName || ''
+        const fullName = `${firstName} ${lastName}`.trim()
+        return fullName || user.displayName || user.username || 'Unknown'
+      })
+  }
+
+  const participantsInCall = hasActiveCall ? getParticipantsInCall() : []
+
   const handleRemoveClick = (e: React.MouseEvent) => {
     e.stopPropagation() // Prevent conversation selection
     setShowRemoveDialog(true)
@@ -180,11 +204,15 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
               </Badge>
             )}
           </div>
-          {conversation.lastMessage && !compact && (
+          {hasActiveCall && participantsInCall.length > 0 && !compact ? (
+            <p className="gba:text-xs gba:text-success gba:truncate gba:max-w-[180px]">
+              {participantsInCall.join(', ')}
+            </p>
+          ) : conversation.lastMessage && !compact ? (
             <p className="gba:text-xs gba:text-muted-foreground gba:truncate gba:max-w-[180px]">
               {conversation.lastMessage.content}
             </p>
-          )}
+          ) : null}
         </div>
 
         <div className="gba:flex gba:items-center">

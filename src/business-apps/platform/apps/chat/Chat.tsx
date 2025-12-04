@@ -83,7 +83,8 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
     startTyping,
     stopTyping,
     apiClient,
-    wsClient
+    wsClient,
+    activeCalls
   } = chatClient
 
   // Convert current user to CallParticipant format
@@ -134,7 +135,6 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
     remoteStreams: groupRemoteStreams,
     participants: groupParticipants,
     incomingInvite: incomingGroupCallInvite,
-    activeConversationCalls,
     startCall: startGroupCall,
     joinCall: joinGroupCall,
     acceptInvite: acceptGroupInvite,
@@ -229,7 +229,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
     if (!currentUser) return
 
     // Check if there's already an active call in this conversation
-    const existingCall = activeConversationCalls.get(activeConversation.id)
+    const existingCall = activeCalls[activeConversation.id]
     const shouldJoinExisting = isJoiningExisting || !!existingCall
 
     if (shouldJoinExisting) {
@@ -660,11 +660,11 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
       if (!activeConversation || activeConversation.type !== 'group') return null
 
       console.debug('Checking active call for conversation:', activeConversation.id)
-      console.debug('Active conversation calls map size:', activeConversationCalls.size)
-      console.debug('Active conversation calls:', Array.from(activeConversationCalls.entries()))
+      console.debug('Active calls count:', Object.keys(activeCalls).length)
+      console.debug('Active calls:', activeCalls)
 
       // Check if we know about an active call in this conversation
-      const activeCall = activeConversationCalls.get(activeConversation.id)
+      const activeCall = activeCalls[activeConversation.id]
       console.debug('Found active call for this conversation:', activeCall)
 
       if (activeCall) {
@@ -704,7 +704,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
       return null
     }, [
       activeConversation,
-      activeConversationCalls,
+      activeCalls,
       groupCallState.status,
       groupCallState.roomId,
       groupCallState.callType,
