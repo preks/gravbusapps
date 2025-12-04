@@ -118,7 +118,10 @@ const ContactDeletePopup: React.FC<ContactDeletePopupProps> = ({
     if (detail?.resolution === 'success') {
       const basePath =
         domain === 'investments' ? '/platform/irm/investment-relations' : '/platform/crm/customer-relations'
-      navigateTo(`${basePath}?view=contacts`)
+      // Small delay to ensure the popup closes properly before navigation
+      setTimeout(() => {
+        navigateTo(`${basePath}?view=contacts`)
+      }, 100)
     }
   }
 

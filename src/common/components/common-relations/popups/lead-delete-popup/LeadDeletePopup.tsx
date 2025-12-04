@@ -132,7 +132,10 @@ const LeadDeletePopup: React.FC<LeadDeletePopupProps> = ({
     if (detail?.resolution === 'success') {
       const basePath =
         domain === 'investments' ? '/platform/irm/investment-relations' : '/platform/crm/customer-relations'
-      navigateTo(`${basePath}?view=leads`)
+      // Small delay to ensure the popup closes properly before navigation
+      setTimeout(() => {
+        navigateTo(`${basePath}?view=leads`)
+      }, 100)
     }
   }
 

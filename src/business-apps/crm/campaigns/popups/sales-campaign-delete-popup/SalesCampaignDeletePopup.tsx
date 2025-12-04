@@ -152,7 +152,11 @@ const SalesCampaignDeletePopup: React.FC<SalesCampaignDeletePopupProps> = ({ ini
 
   const handleProcessCompletion = (detail: { resolution?: 'success' | 'failure' } | null) => {
     if (detail?.resolution === 'success') {
-      navigateTo('/platform/crm/campaign-management?view=campaigns')
+      // Small delay to ensure the popup closes properly before navigation
+      setTimeout(() => {
+        // Navigate to customer-relations with campaigns tab to preserve the navbar
+        navigateTo('/platform/crm/customer-relations?view=campaigns')
+      }, 100)
     }
   }
 

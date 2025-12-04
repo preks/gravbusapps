@@ -121,7 +121,10 @@ const OpportunityDeletePopup: React.FC<OpportunityDeletePopupProps> = ({
     if (detail?.resolution === 'success') {
       const basePath =
         domain === 'investments' ? '/platform/irm/investment-relations' : '/platform/crm/customer-relations'
-      navigateTo(`${basePath}?view=opportunities`)
+      // Small delay to ensure the popup closes properly before navigation
+      setTimeout(() => {
+        navigateTo(`${basePath}?view=opportunities`)
+      }, 100)
     }
   }
 

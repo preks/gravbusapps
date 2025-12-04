@@ -118,7 +118,10 @@ const AccountDeletePopup: React.FC<AccountDeletePopupProps> = ({
     if (detail?.resolution === 'success') {
       const basePath =
         domain === 'investments' ? '/platform/irm/investment-relations' : '/platform/crm/customer-relations'
-      navigateTo(`${basePath}?view=accounts`)
+      // Small delay to ensure the popup closes properly before navigation
+      setTimeout(() => {
+        navigateTo(`${basePath}?view=accounts`)
+      }, 100)
     }
   }
 
