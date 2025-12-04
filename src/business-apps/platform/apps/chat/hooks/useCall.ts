@@ -94,14 +94,15 @@ export const useCall = ({
     }
   }, [])
 
-  // Cleanup call resources
+  // Cleanup call resources - use refs to avoid dependency on changing state
   const cleanupCall = useCallback(
     (reportDuration = true) => {
       clearRingTimeout()
 
-      const callId = callState.callId
-      const startTime = callState.startTime
-      const remoteParticipant = callState.remoteParticipant
+      // Use ref to get latest values without triggering effect re-runs
+      const callId = callStateRef.current.callId
+      const startTime = callStateRef.current.startTime
+      const remoteParticipant = callStateRef.current.remoteParticipant
 
       if (webrtcRef.current) {
         webrtcRef.current.endCall()
@@ -118,7 +119,7 @@ export const useCall = ({
         onCallEnded?.(callId, duration)
       }
     },
-    [callState.callId, callState.startTime, callState.remoteParticipant, clearRingTimeout, onCallEnded]
+    [clearRingTimeout, onCallEnded]
   )
 
   // Fetch ICE servers from backend (with caching)
@@ -406,9 +407,9 @@ export const useCall = ({
 
       // Ignore if already in a call (use ref to get latest status)
       if (callStateRef.current.status !== 'idle') {
-        wsClient.sendBusy({
+        wsClientRef.current?.sendBusy({
           callId: signal.callId,
-          from: currentUser,
+          from: currentUserRef.current!,
           to: signal.from
         })
         return
@@ -423,7 +424,7 @@ export const useCall = ({
         status: 'ringing',
         direction: 'incoming',
         type: signal.callType,
-        localParticipant: currentUser,
+        localParticipant: currentUserRef.current,
         remoteParticipant: signal.from
       })
 
@@ -444,19 +445,23 @@ export const useCall = ({
       updateCallState({ status: 'connecting' })
 
       try {
-        if (webrtcRef.current) {
-          // Create and send offer
-          const offer = await webrtcRef.current.createOffer()
-          wsClient.sendCallOffer({
-            callId: signal.callId,
-            callType: callStateRef.current.type,
-            from: currentUser,
-            to: signal.from,
-            payload: offer
-          })
-
-          onCallStarted?.(signal.callId, signal.from)
+        if (!webrtcRef.current) {
+          console.error('WebRTC client not initialized when receiving call:accept')
+          updateCallState({ status: 'failed', error: 'WebRTC not ready' })
+          return
         }
+
+        // Create and send offer
+        const offer = await webrtcRef.current.createOffer()
+        wsClientRef.current?.sendCallOffer({
+          callId: signal.callId,
+          callType: callStateRef.current.type,
+          from: currentUserRef.current!,
+          to: signal.from,
+          payload: offer
+        })
+
+        onCallStarted?.(signal.callId, signal.from)
       } catch (error) {
         console.error('Failed to create offer:', error)
         updateCallState({ status: 'failed', error: 'Failed to connect' })
@@ -491,16 +496,20 @@ export const useCall = ({
       if (callStateRef.current.callId !== signal.callId || !signal.payload) return
 
       try {
-        if (webrtcRef.current) {
-          const answer = await webrtcRef.current.handleOffer(signal.payload as RTCSessionDescriptionInit)
-          wsClient.sendCallAnswer({
-            callId: signal.callId,
-            callType: callStateRef.current.type,
-            from: currentUser,
-            to: signal.from,
-            payload: answer
-          })
+        if (!webrtcRef.current) {
+          console.error('WebRTC client not initialized when receiving call:offer')
+          updateCallState({ status: 'failed', error: 'WebRTC not ready' })
+          return
         }
+
+        const answer = await webrtcRef.current.handleOffer(signal.payload as RTCSessionDescriptionInit)
+        wsClientRef.current?.sendCallAnswer({
+          callId: signal.callId,
+          callType: callStateRef.current.type,
+          from: currentUserRef.current!,
+          to: signal.from,
+          payload: answer
+        })
       } catch (error) {
         console.error('Failed to handle offer:', error)
         updateCallState({ status: 'failed', error: 'Failed to connect' })
@@ -515,9 +524,13 @@ export const useCall = ({
       if (callStateRef.current.callId !== signal.callId || !signal.payload) return
 
       try {
-        if (webrtcRef.current) {
-          await webrtcRef.current.handleAnswer(signal.payload as RTCSessionDescriptionInit)
+        if (!webrtcRef.current) {
+          console.error('WebRTC client not initialized when receiving call:answer')
+          updateCallState({ status: 'failed', error: 'WebRTC not ready' })
+          return
         }
+
+        await webrtcRef.current.handleAnswer(signal.payload as RTCSessionDescriptionInit)
       } catch (error) {
         console.error('Failed to handle answer:', error)
         updateCallState({ status: 'failed', error: 'Failed to connect' })
@@ -530,9 +543,12 @@ export const useCall = ({
       if (callStateRef.current.callId !== signal.callId || !signal.payload) return
 
       try {
-        if (webrtcRef.current) {
-          await webrtcRef.current.addIceCandidate(signal.payload as RTCIceCandidateInit)
+        if (!webrtcRef.current) {
+          console.warn('WebRTC client not ready for ICE candidate, ignoring')
+          return
         }
+
+        await webrtcRef.current.addIceCandidate(signal.payload as RTCIceCandidateInit)
       } catch (error) {
         console.error('Failed to add ICE candidate:', error)
       }
@@ -561,7 +577,8 @@ export const useCall = ({
     return () => {
       wsClient.removeCallListeners()
     }
-  }, [wsClient, currentUser, updateCallState, clearRingTimeout, cleanupCall, onCallStarted])
+    // Using refs for most values to avoid effect re-runs during call flow
+  }, [wsClient, updateCallState, clearRingTimeout, cleanupCall, onCallStarted])
 
   // Cleanup on unmount
   useEffect(() => {

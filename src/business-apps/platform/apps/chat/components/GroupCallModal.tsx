@@ -5,10 +5,42 @@
  * Supports up to 4-5 participants comfortably.
  */
 
-import React, { useEffect, useRef, useMemo } from 'react'
-import { Dialog, DialogContent, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
-import { Mic, MicOff, Video, VideoOff, PhoneOff, Monitor, Users, Maximize2, Minimize2 } from 'lucide-react'
-import type { GroupCallParticipant } from '../services/groupWebrtcClient'
+import React, { useEffect, useRef, useMemo, useState } from 'react'
+import {
+  Dialog,
+  DialogContent,
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel
+} from '@newwork/nw-design-system'
+import {
+  Mic,
+  MicOff,
+  Video,
+  VideoOff,
+  PhoneOff,
+  Monitor,
+  Users,
+  Maximize2,
+  Minimize2,
+  Expand,
+  Shrink,
+  Settings,
+  Signal,
+  SignalHigh,
+  SignalMedium,
+  SignalLow,
+  Check,
+  ImageIcon,
+  Crown
+} from 'lucide-react'
+import type { GroupCallParticipant, VideoQuality } from '../services/groupWebrtcClient'
 import type { GroupCallUIState } from '../hooks/useGroupCall'
 
 interface GroupCallModalProps {
@@ -20,6 +52,10 @@ interface GroupCallModalProps {
   onToggleMute: () => void
   onToggleVideo: () => void
   onToggleScreenShare: () => void
+  onSetVideoQuality?: (quality: VideoQuality) => void
+  onToggleMinimize?: () => void
+  onToggleBackground?: () => void
+  backgroundEnabled?: boolean
   prefixDataTestId?: string
 }
 
@@ -61,30 +97,62 @@ const VideoTile: React.FC<{
   isLocal?: boolean
   isMuted?: boolean
   isVideoOff?: boolean
-}> = ({ participant, stream, isLocal = false, isMuted = false, isVideoOff = false }) => {
+  isHost?: boolean
+}> = ({ participant, stream, isLocal = false, isMuted = false, isVideoOff = false, isHost = false }) => {
   const videoRef = useRef<HTMLVideoElement>(null)
 
   useEffect(() => {
-    if (videoRef.current && stream) {
-      videoRef.current.srcObject = stream
+    const videoElement = videoRef.current
+    if (!videoElement || !stream) return
+
+    console.debug(
+      `VideoTile ${participant.odName}: Setting stream with ${stream.getTracks().length} tracks, isLocal=${isLocal}`
+    )
+
+    videoElement.srcObject = stream
+
+    // Handle autoplay - browsers may block autoplay with audio
+    const playVideo = async () => {
+      try {
+        await videoElement.play()
+        console.debug(`VideoTile ${participant.odName}: Video playing successfully`)
+      } catch (err) {
+        console.warn(`VideoTile ${participant.odName}: Autoplay failed, trying muted:`, err)
+        // If autoplay fails, try muted first then unmute
+        videoElement.muted = true
+        try {
+          await videoElement.play()
+          // For remote streams, unmute after play starts (user has interacted)
+          if (!isLocal) {
+            videoElement.muted = false
+          }
+          console.debug(`VideoTile ${participant.odName}: Video playing after mute workaround`)
+        } catch (err2) {
+          console.error(`VideoTile ${participant.odName}: Failed to play video:`, err2)
+        }
+      }
     }
-  }, [stream])
+
+    playVideo()
+  }, [stream, participant.odName, isLocal])
 
   const hasVideo = stream?.getVideoTracks().some(t => t.enabled) && !isVideoOff
 
   return (
     <div className="gba:relative gba:bg-muted gba:rounded-lg gba:overflow-hidden gba:aspect-video gba:flex gba:items-center gba:justify-center">
       {hasVideo ? (
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted={isLocal}
-          className={`gba:w-full gba:h-full gba:object-cover ${isLocal ? 'gba:-scale-x-100' : ''}`}
-        />
+        <div className="gba:relative gba:w-full gba:h-full">
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted={isLocal}
+            className={`gba:w-full gba:h-full gba:object-cover ${isLocal ? 'gba:-scale-x-100' : ''}`}
+          />
+        </div>
       ) : (
         <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-2">
-          <Avatar className="gba:h-20 gba:w-20 gba:border-2 gba:border-background">
+          <Avatar className="gba:h-20 gba:w-20 gba:border-2 gba:border-background gba:shadow-lg">
             {participant.avatarUrl && <AvatarImage src={participant.avatarUrl} alt={participant.odName} />}
             <AvatarFallback className="gba:text-2xl gba:bg-primary/20">
               {getInitials(participant.odName)}
@@ -96,6 +164,7 @@ const VideoTile: React.FC<{
       {/* Participant name overlay */}
       <div className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:bg-gradient-to-t gba:from-black/60 gba:to-transparent gba:p-2">
         <div className="gba:flex gba:items-center gba:gap-2">
+          {isHost && <Crown className="gba:h-3 gba:w-3 gba:text-yellow-400" title="Host" />}
           <span className="gba:text-white gba:text-sm gba:font-medium gba:truncate">
             {participant.odName}
             {isLocal && ' (You)'}
@@ -116,6 +185,26 @@ const VideoTile: React.FC<{
   )
 }
 
+// Quality icons and labels
+const QualityIcon: React.FC<{ quality: VideoQuality; className?: string }> = ({ quality, className }) => {
+  switch (quality) {
+    case 'high':
+      return <SignalHigh className={className} />
+    case 'medium':
+      return <SignalMedium className={className} />
+    case 'low':
+      return <SignalLow className={className} />
+    default:
+      return <Signal className={className} />
+  }
+}
+
+const qualityLabels: Record<VideoQuality, { label: string; description: string }> = {
+  high: { label: 'High Quality', description: '720p, 30fps - Best for fast connections' },
+  medium: { label: 'Medium Quality', description: '480p, 24fps - Balanced' },
+  low: { label: 'Low Quality', description: '240p, 15fps - For slow connections' }
+}
+
 export const GroupCallModal: React.FC<GroupCallModalProps> = ({
   callState,
   localStream,
@@ -125,10 +214,16 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
   onToggleMute,
   onToggleVideo,
   onToggleScreenShare,
+  onSetVideoQuality,
+  onToggleMinimize,
+  onToggleBackground,
+  backgroundEnabled = false,
   prefixDataTestId = 'group-call'
 }) => {
-  const [isFullscreen, setIsFullscreen] = React.useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const pipVideoRef = useRef<HTMLVideoElement>(null)
+  const pipAudioRefs = useRef<Map<string, HTMLAudioElement>>(new Map())
 
   // Get current user from participants (the one with local stream)
   const currentUserParticipant = useMemo(() => {
@@ -168,37 +263,175 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
 
   const gridLayout = getGridLayout(allParticipants.length)
 
-  // Toggle fullscreen
-  const toggleFullscreen = () => {
-    if (!containerRef.current) return
+  // Get first remote participant for minimized view
+  const firstRemoteParticipant = useMemo(() => {
+    const remote = allParticipants.find(p => !p.isLocal && p.stream)
+    return remote || allParticipants.find(p => !p.isLocal) || null
+  }, [allParticipants])
 
-    if (!document.fullscreenElement) {
-      containerRef.current.requestFullscreen()
-      setIsFullscreen(true)
-    } else {
-      document.exitFullscreen()
-      setIsFullscreen(false)
-    }
+  // Toggle fullscreen - use internal state for reliable behavior
+  const toggleFullscreen = () => {
+    setIsFullscreen(prev => !prev)
   }
 
-  // Listen for fullscreen changes
+  // Set remote stream on PiP video when minimized (show person speaking, not self)
   useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement)
+    if (callState.isMinimized && pipVideoRef.current && firstRemoteParticipant?.stream) {
+      pipVideoRef.current.srcObject = firstRemoteParticipant.stream
+      pipVideoRef.current.play().catch(err => console.debug('PiP video play error:', err))
+    }
+  }, [callState.isMinimized, firstRemoteParticipant])
+
+  // Play all remote audio streams when minimized (so user can hear others)
+  useEffect(() => {
+    if (!callState.isMinimized) {
+      // Clean up audio elements when not minimized
+      pipAudioRefs.current.forEach(audio => {
+        audio.pause()
+        audio.srcObject = null
+      })
+      pipAudioRefs.current.clear()
+      return
     }
 
-    document.addEventListener('fullscreenchange', handleFullscreenChange)
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
-  }, [])
+    // Create audio elements for each remote stream
+    remoteStreams.forEach((stream, participantId) => {
+      if (!pipAudioRefs.current.has(participantId)) {
+        const audio = document.createElement('audio')
+        audio.autoplay = true
+        audio.srcObject = stream
+        audio.play().catch(err => console.debug('Audio play error:', err))
+        pipAudioRefs.current.set(participantId, audio)
+      }
+    })
+
+    // Clean up removed streams
+    pipAudioRefs.current.forEach((audio, participantId) => {
+      if (!remoteStreams.has(participantId)) {
+        audio.pause()
+        audio.srcObject = null
+        pipAudioRefs.current.delete(participantId)
+      }
+    })
+  }, [callState.isMinimized, remoteStreams])
 
   if (callState.status === 'idle') return null
+
+  // Minimized view - floating PiP-style window
+  if (callState.isMinimized) {
+    const hasRemoteVideo = firstRemoteParticipant?.stream?.getVideoTracks().some(t => t.enabled)
+
+    return (
+      <div
+        className="gba:fixed gba:bottom-12 gba:right-4 gba:z-50 gba:w-72 gba:bg-gray-900 gba:rounded-lg gba:shadow-2xl gba:overflow-hidden gba:border gba:border-gray-700"
+        data-testid={`${prefixDataTestId}-minimized`}
+      >
+        {/* Mini video preview - shows remote participant */}
+        <div className="gba:relative gba:aspect-video gba:bg-gray-800">
+          {hasRemoteVideo ? (
+            <video ref={pipVideoRef} autoPlay playsInline muted className="gba:w-full gba:h-full gba:object-cover" />
+          ) : (
+            <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:gap-2">
+              {firstRemoteParticipant ? (
+                <>
+                  <Avatar className="gba:h-12 gba:w-12">
+                    {firstRemoteParticipant.participant.avatarUrl && (
+                      <AvatarImage src={firstRemoteParticipant.participant.avatarUrl} />
+                    )}
+                    <AvatarFallback className="gba:bg-primary/20">
+                      {getInitials(firstRemoteParticipant.participant.odName)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="gba:text-white gba:text-xs">{firstRemoteParticipant.participant.odName}</span>
+                </>
+              ) : (
+                <span className="gba:text-gray-400 gba:text-xs">Waiting for participants...</span>
+              )}
+            </div>
+          )}
+          {/* Participant name overlay */}
+          {firstRemoteParticipant && hasRemoteVideo && (
+            <div className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:bg-gradient-to-t gba:from-black/60 gba:to-transparent gba:p-2">
+              <span className="gba:text-white gba:text-xs gba:truncate">
+                {firstRemoteParticipant.participant.odName}
+              </span>
+            </div>
+          )}
+          {/* Participant count overlay */}
+          <div className="gba:absolute gba:top-2 gba:left-2 gba:flex gba:items-center gba:gap-1 gba:bg-black/60 gba:px-2 gba:py-1 gba:rounded-full">
+            <Users className="gba:h-3 gba:w-3 gba:text-white" />
+            <span className="gba:text-white gba:text-xs">{participants.length}</span>
+          </div>
+          {/* Duration */}
+          <div className="gba:absolute gba:top-2 gba:right-2 gba:bg-black/60 gba:px-2 gba:py-1 gba:rounded-full">
+            <span className="gba:text-white gba:text-xs gba:font-mono">{formatDuration(callState.duration)}</span>
+          </div>
+        </div>
+
+        {/* Mini controls */}
+        <div className="gba:flex gba:items-center gba:justify-between gba:p-2 gba:bg-gray-800">
+          <div className="gba:flex gba:items-center gba:gap-1">
+            <button
+              onClick={onToggleMute}
+              className={`gba:p-2 gba:rounded-full gba:transition-all ${
+                callState.isMuted
+                  ? 'gba:bg-red-500 gba:text-white'
+                  : 'gba:bg-gray-700 gba:text-white hover:gba:bg-gray-600'
+              }`}
+              title={callState.isMuted ? 'Unmute' : 'Mute'}
+            >
+              {callState.isMuted ? <MicOff className="gba:h-4 gba:w-4" /> : <Mic className="gba:h-4 gba:w-4" />}
+            </button>
+            <button
+              onClick={onToggleVideo}
+              className={`gba:p-2 gba:rounded-full gba:transition-all ${
+                !callState.isVideoEnabled
+                  ? 'gba:bg-red-500 gba:text-white'
+                  : 'gba:bg-gray-700 gba:text-white hover:gba:bg-gray-600'
+              }`}
+              title={callState.isVideoEnabled ? 'Turn off camera' : 'Turn on camera'}
+            >
+              {callState.isVideoEnabled ? (
+                <Video className="gba:h-4 gba:w-4" />
+              ) : (
+                <VideoOff className="gba:h-4 gba:w-4" />
+              )}
+            </button>
+          </div>
+          <div className="gba:flex gba:items-center gba:gap-1">
+            <button
+              onClick={onToggleMinimize}
+              className="gba:p-2 gba:rounded-full gba:bg-gray-700 gba:text-white hover:gba:bg-gray-600 gba:transition-all"
+              title="Expand call"
+            >
+              <Maximize2 className="gba:h-4 gba:w-4" />
+            </button>
+            <button
+              onClick={onEndCall}
+              className="gba:p-2 gba:rounded-full gba:bg-red-500 gba:text-white hover:gba:bg-red-600 gba:transition-all"
+              title="Leave call"
+            >
+              <PhoneOff className="gba:h-4 gba:w-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <Dialog open={true} onOpenChange={() => {}}>
       <DialogContent
         ref={containerRef}
-        className="gba:max-w-5xl gba:w-[95vw] gba:h-[85vh] gba:p-0 gba:bg-gray-900 gba:border-none gba:overflow-hidden gba:flex gba:flex-col"
+        className={`gba:p-0 gba:bg-gray-900 gba:border-none gba:overflow-hidden gba:flex gba:flex-col [&>button]:gba:hidden ${
+          isFullscreen
+            ? 'gba:fixed gba:inset-0 gba:max-w-none gba:w-screen gba:h-screen gba:rounded-none gba:translate-x-0 gba:translate-y-0'
+            : 'gba:max-w-5xl gba:w-[95vw] gba:h-[85vh]'
+        }`}
         data-testid={prefixDataTestId}
+        onPointerDownOutside={e => e.preventDefault()}
+        onEscapeKeyDown={e => e.preventDefault()}
+        onOpenAutoFocus={e => e.preventDefault()}
       >
         {/* Header */}
         <div className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:bg-gray-800/50">
@@ -208,21 +441,89 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
             <span className="gba:text-gray-400 gba:text-sm">
               {participants.length} participant{participants.length !== 1 ? 's' : ''}
             </span>
+            {/* Quality indicator */}
+            <div className="gba:flex gba:items-center gba:gap-1 gba:text-gray-400 gba:text-xs">
+              <QualityIcon quality={callState.videoQuality} className="gba:h-3 gba:w-3" />
+              <span className="gba:capitalize">{callState.videoQuality}</span>
+            </div>
           </div>
 
-          <div className="gba:flex gba:items-center gba:gap-3">
+          <div className="gba:flex gba:items-center gba:gap-2">
             {callState.status === 'connected' && (
               <span className="gba:text-white gba:font-mono gba:text-sm">{formatDuration(callState.duration)}</span>
             )}
             {callState.status === 'joining' && (
               <span className="gba:text-yellow-400 gba:text-sm gba:animate-pulse">Connecting...</span>
             )}
+
+            {/* Settings dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="gba:p-2 gba:rounded-lg gba:text-gray-400 hover:gba:text-white hover:gba:bg-gray-700 gba:transition-colors"
+                  title="Settings"
+                >
+                  <Settings className="gba:h-4 gba:w-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="gba:w-64">
+                <DropdownMenuLabel>Video Quality</DropdownMenuLabel>
+                {(['high', 'medium', 'low'] as VideoQuality[]).map(quality => (
+                  <DropdownMenuItem
+                    key={quality}
+                    onClick={() => onSetVideoQuality?.(quality)}
+                    className="gba:flex gba:items-center gba:justify-between gba:cursor-pointer"
+                  >
+                    <div className="gba:flex gba:flex-col">
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <QualityIcon quality={quality} className="gba:h-4 gba:w-4" />
+                        <span>{qualityLabels[quality].label}</span>
+                      </div>
+                      <span className="gba:text-xs gba:text-muted-foreground gba:ml-6">
+                        {qualityLabels[quality].description}
+                      </span>
+                    </div>
+                    {callState.videoQuality === quality && <Check className="gba:h-4 gba:w-4 gba:text-primary" />}
+                  </DropdownMenuItem>
+                ))}
+
+                <DropdownMenuSeparator />
+
+                <DropdownMenuLabel>Background</DropdownMenuLabel>
+                <DropdownMenuItem
+                  onClick={() => onToggleBackground?.()}
+                  className="gba:flex gba:items-center gba:justify-between gba:cursor-pointer"
+                >
+                  <div className="gba:flex gba:flex-col">
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <ImageIcon className="gba:h-4 gba:w-4" />
+                      <span>Branded Background</span>
+                    </div>
+                    <span className="gba:text-xs gba:text-muted-foreground gba:ml-6">Shows NEWWORK branding</span>
+                  </div>
+                  {backgroundEnabled && <Check className="gba:h-4 gba:w-4 gba:text-primary" />}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Minimize button */}
+            {onToggleMinimize && (
+              <button
+                onClick={onToggleMinimize}
+                className="gba:p-2 gba:rounded-lg gba:text-gray-400 hover:gba:text-white hover:gba:bg-gray-700 gba:transition-colors"
+                title="Minimize call"
+              >
+                <Minimize2 className="gba:h-4 gba:w-4" />
+              </button>
+            )}
+
+            {/* Fullscreen button */}
             <button
               onClick={toggleFullscreen}
               className="gba:p-2 gba:rounded-lg gba:text-gray-400 hover:gba:text-white hover:gba:bg-gray-700 gba:transition-colors"
               title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
             >
-              {isFullscreen ? <Minimize2 className="gba:h-4 gba:w-4" /> : <Maximize2 className="gba:h-4 gba:w-4" />}
+              {isFullscreen ? <Shrink className="gba:h-4 gba:w-4" /> : <Expand className="gba:h-4 gba:w-4" />}
             </button>
           </div>
         </div>
@@ -244,6 +545,7 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
                 isLocal={isLocal}
                 isMuted={isLocal ? callState.isMuted : false}
                 isVideoOff={isLocal ? !callState.isVideoEnabled : false}
+                isHost={participant.id === callState.hostId}
               />
             ))}
 

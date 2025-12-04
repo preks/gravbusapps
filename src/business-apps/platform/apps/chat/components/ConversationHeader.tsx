@@ -17,11 +17,18 @@ import {
   DialogTitle
 } from '@newwork/nw-design-system'
 import { ArrowLeft, DotsThreeVertical, SignOut, X, Info, Users } from '@phosphor-icons/react'
-import { UserIcon, Phone, Video } from 'lucide-react'
+import { UserIcon, Phone, Video, PhoneCall } from 'lucide-react'
 import type { Conversation } from '../types'
 import type { UserPresence } from '../hooks/usePresence'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo } from '@/common/utils/navigationUtils'
+
+export interface ActiveCallInfo {
+  roomId: string
+  callType: 'audio' | 'video'
+  participantCount: number
+  participantNames: string[]
+}
 
 interface ConversationHeaderProps {
   conversation: Conversation
@@ -31,12 +38,14 @@ interface ConversationHeaderProps {
   onGroupSettings?: () => void
   onAudioCall?: () => void
   onVideoCall?: () => void
+  onJoinCall?: () => void
   showBackButton?: boolean
   currentUserId?: string | null
   compact?: boolean
   otherUserPresence?: UserPresence
   isCallEnabled?: boolean
   isInCall?: boolean
+  activeCall?: ActiveCallInfo | null
 }
 
 const getOtherParticipant = (conversation: Conversation, currentUserId?: string | null) => {
@@ -211,12 +220,14 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
   onGroupSettings,
   onAudioCall,
   onVideoCall,
+  onJoinCall,
   showBackButton = false,
   currentUserId = null,
   compact = false,
   otherUserPresence,
   isCallEnabled = true,
-  isInCall = false
+  isInCall = false,
+  activeCall = null
 }) => {
   const name = getConversationName(conversation, currentUserId)
   const avatarUrl = getConversationAvatarUrl(conversation, currentUserId)
@@ -402,6 +413,47 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
           )}
         </div>
       </div>
+
+      {/* Active Call Banner */}
+      {activeCall && (
+        <div
+          className={`gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-2 gba:border-b ${
+            isInCall ? 'gba:bg-primary/10 gba:border-primary/20' : 'gba:bg-success/10 gba:border-success/20'
+          }`}
+        >
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <div className="gba:relative gba:flex gba:items-center gba:justify-center">
+              <PhoneCall
+                className={`gba:w-4 gba:h-4 gba:animate-pulse ${isInCall ? 'gba:text-primary' : 'gba:text-success'}`}
+              />
+            </div>
+            <div className="gba:flex gba:flex-col">
+              <span className={`gba:text-sm gba:font-medium ${isInCall ? 'gba:text-primary' : 'gba:text-success'}`}>
+                {isInCall
+                  ? getTranslationFromI18nKeyAndLabel('chat.youAreInCall', 'You are in this call')
+                  : getTranslationFromI18nKeyAndLabel('chat.callInProgress', 'Call in progress')}
+              </span>
+              <span className="gba:text-xs gba:text-muted-foreground">
+                {activeCall.participantCount === 1
+                  ? activeCall.participantNames[0]
+                  : `${activeCall.participantNames.slice(0, 2).join(', ')}${activeCall.participantCount > 2 ? ` +${activeCall.participantCount - 2}` : ''}`}
+              </span>
+            </div>
+          </div>
+          {!isInCall && (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={onJoinCall}
+              className="gba:bg-success hover:gba:bg-success/90 gba:text-white"
+              data-testid="conversation-join-call-button"
+            >
+              <PhoneCall className="gba:w-4 gba:h-4 gba:mr-1" />
+              {getTranslationFromI18nKeyAndLabel('chat.joinCall', 'Join')}
+            </Button>
+          )}
+        </div>
+      )}
 
       <Dialog open={showRemoveDialog} onOpenChange={setShowRemoveDialog}>
         <DialogContent>

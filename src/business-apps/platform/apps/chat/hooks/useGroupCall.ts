@@ -6,9 +6,10 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { GroupWebRTCClient, GroupCallParticipant } from '../services/groupWebrtcClient'
+import { GroupWebRTCClient, GroupCallParticipant, VideoQuality } from '../services/groupWebrtcClient'
 import { ChatWebSocketClient } from '../services/chatWebSocketClient'
 import { ChatApiClient } from '../services/chatApiClient'
+import { BackgroundProcessor } from '../services/backgroundProcessor'
 import type { CallParticipant, CallType } from '../services/webrtcClient'
 
 export interface UseGroupCallOptions {
@@ -21,29 +22,61 @@ export interface UseGroupCallOptions {
   onParticipantLeft?: (participantId: string) => void
 }
 
+export interface GroupCallInvite {
+  roomId: string
+  callType: CallType
+  from: { id: string; odId: string; odName: string; avatarUrl?: string }
+  conversationName?: string
+}
+
 export interface GroupCallUIState {
   roomId: string | null
   callType: CallType
   status: 'idle' | 'joining' | 'connected' | 'reconnecting' | 'ended'
   participants: GroupCallParticipant[]
+  hostId: string | null // ID of the user who started the call
   isMuted: boolean
   isVideoEnabled: boolean
   isScreenSharing: boolean
+  isMinimized: boolean
+  videoQuality: VideoQuality
+  backgroundEnabled: boolean
   startTime: number | null
   duration: number
+}
+
+export interface ActiveConversationCall {
+  roomId: string
+  callType: CallType
+  participantIds: string[]
+  startedBy: string
 }
 
 export interface UseGroupCallReturn {
   callState: GroupCallUIState
   isInCall: boolean
+  isHost: boolean
   localStream: MediaStream | null
   remoteStreams: Map<string, MediaStream>
   participants: GroupCallParticipant[]
+  incomingInvite: GroupCallInvite | null
+  activeConversationCalls: Map<string, ActiveConversationCall> // roomId -> call info
+  startCall: (
+    roomId: string,
+    callType: CallType,
+    participants: CallParticipant[],
+    conversationName?: string
+  ) => Promise<void>
   joinCall: (roomId: string, callType: CallType, initialParticipants?: CallParticipant[]) => Promise<void>
+  acceptInvite: () => Promise<void>
+  declineInvite: () => void
   leaveCall: () => void
   toggleMute: () => boolean
   toggleVideo: () => boolean
   toggleScreenShare: () => Promise<boolean>
+  setVideoQuality: (quality: VideoQuality) => Promise<void>
+  toggleMinimize: () => void
+  toggleBackground: () => void
 }
 
 const initialCallState: GroupCallUIState = {
@@ -51,11 +84,57 @@ const initialCallState: GroupCallUIState = {
   callType: 'video',
   status: 'idle',
   participants: [],
+  hostId: null,
   isMuted: false,
   isVideoEnabled: true,
   isScreenSharing: false,
+  isMinimized: false,
+  videoQuality: 'low',
+  backgroundEnabled: false,
   startTime: null,
   duration: 0
+}
+
+// LocalStorage key for tracking active calls across tabs
+const ACTIVE_CALL_KEY = 'chat_active_call'
+
+// Helper to check if user is in a call in another tab
+const isInCallInAnotherTab = (currentUserId: string): boolean => {
+  try {
+    const stored = localStorage.getItem(ACTIVE_CALL_KEY)
+    if (!stored) return false
+    const data = JSON.parse(stored)
+    // Check if the call is still active (within last 5 seconds)
+    const isRecent = Date.now() - data.timestamp < 5000
+    return data.userId === currentUserId && isRecent
+  } catch {
+    return false
+  }
+}
+
+// Helper to set active call in localStorage
+const setActiveCallInStorage = (userId: string, roomId: string) => {
+  try {
+    localStorage.setItem(
+      ACTIVE_CALL_KEY,
+      JSON.stringify({
+        userId,
+        roomId,
+        timestamp: Date.now()
+      })
+    )
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+// Helper to clear active call from localStorage
+const clearActiveCallFromStorage = () => {
+  try {
+    localStorage.removeItem(ACTIVE_CALL_KEY)
+  } catch {
+    // Ignore storage errors
+  }
 }
 
 export const useGroupCall = ({
@@ -72,6 +151,8 @@ export const useGroupCall = ({
   const [localStream, setLocalStream] = useState<MediaStream | null>(null)
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map())
   const [participants, setParticipants] = useState<GroupCallParticipant[]>([])
+  const [incomingInvite, setIncomingInvite] = useState<GroupCallInvite | null>(null)
+  const [activeConversationCalls, setActiveConversationCalls] = useState<Map<string, ActiveConversationCall>>(new Map())
 
   // Refs to avoid stale closures
   const webrtcRef = useRef<GroupWebRTCClient | null>(null)
@@ -80,6 +161,8 @@ export const useGroupCall = ({
   const callStateRef = useRef<GroupCallUIState>(initialCallState)
   const iceServersRef = useRef<RTCIceServer[] | null>(null)
   const apiClientRef = useRef<ChatApiClient | null>(null)
+  const backgroundProcessorRef = useRef<BackgroundProcessor | null>(null)
+  const originalLocalStreamRef = useRef<MediaStream | null>(null)
 
   // Keep refs in sync
   wsClientRef.current = wsClient
@@ -138,10 +221,17 @@ export const useGroupCall = ({
     })
 
     webrtc.on('participant-stream', event => {
+      console.debug(
+        'participant-stream event received:',
+        event.participantId,
+        'tracks:',
+        event.stream?.getTracks().length
+      )
       if (event.participantId && event.stream) {
         setRemoteStreams(prev => {
           const updated = new Map(prev)
           updated.set(event.participantId!, event.stream!)
+          console.debug('Updated remoteStreams, now has', updated.size, 'streams')
           return updated
         })
       }
@@ -174,11 +264,153 @@ export const useGroupCall = ({
       console.error('Group WebRTC error:', event.error)
     })
 
+    // Handle ICE candidates - send them via WebSocket
+    webrtc.on('ice-candidate', event => {
+      if (
+        event.participantId &&
+        event.candidate &&
+        wsClientRef.current &&
+        currentUserRef.current &&
+        callStateRef.current.roomId
+      ) {
+        console.debug('Sending ICE candidate to:', event.participantId)
+        wsClientRef.current.sendGroupCallIceCandidate({
+          roomId: callStateRef.current.roomId,
+          fromParticipantId: currentUserRef.current.id,
+          toParticipantId: event.participantId,
+          payload: event.candidate
+        })
+      }
+    })
+
     webrtcRef.current = webrtc
     return webrtc
   }, [fetchIceServers, onParticipantJoined, onParticipantLeft])
 
-  // Join a group call
+  // Start a group call and invite participants
+  const startCall = useCallback(
+    async (roomId: string, callType: CallType, participants: CallParticipant[], conversationName?: string) => {
+      if (!currentUserRef.current || !wsClientRef.current) {
+        console.error('Cannot start call: missing user or WebSocket client')
+        return
+      }
+
+      try {
+        updateCallState({
+          status: 'joining',
+          roomId,
+          callType,
+          hostId: currentUserRef.current.id // The person starting the call is the host
+        })
+
+        // Initialize WebRTC
+        const webrtc = await initializeWebRTC()
+
+        // Initialize local stream
+        await webrtc.initializeLocalStream(callType, 'low')
+        setLocalStream(webrtc.getLocalStream())
+
+        // Join the room
+        await webrtc.joinRoom(roomId, callType, currentUserRef.current)
+
+        // Notify server that we're joining
+        wsClientRef.current.joinGroupCall({
+          roomId,
+          callType,
+          participant: {
+            id: currentUserRef.current.id,
+            odId: currentUserRef.current.odId,
+            odName: currentUserRef.current.odName,
+            avatarUrl: currentUserRef.current.avatarUrl
+          }
+        })
+
+        // Send invites to all participants
+        const otherParticipants = participants.filter(p => p.id !== currentUserRef.current!.id)
+        console.debug(
+          'Sending group call invites to',
+          otherParticipants.length,
+          'participants:',
+          otherParticipants.map(p => p.odName)
+        )
+
+        if (otherParticipants.length > 0) {
+          const invitePayload = {
+            roomId,
+            callType,
+            from: {
+              id: currentUserRef.current.id,
+              odId: currentUserRef.current.odId,
+              odName: currentUserRef.current.odName,
+              avatarUrl: currentUserRef.current.avatarUrl
+            },
+            participants: otherParticipants.map(p => ({
+              id: p.id,
+              odId: p.odId,
+              odName: p.odName,
+              avatarUrl: p.avatarUrl
+            })),
+            conversationName
+          }
+          console.debug('Invite payload:', invitePayload)
+          wsClientRef.current.inviteToGroupCall(invitePayload)
+        } else {
+          console.warn('No other participants to invite!')
+        }
+
+        updateCallState({
+          status: 'connected',
+          startTime: Date.now(),
+          isMuted: false,
+          isVideoEnabled: callType === 'video',
+          isScreenSharing: false
+        })
+
+        // Mark this tab as having an active call
+        if (currentUserRef.current) {
+          setActiveCallInStorage(currentUserRef.current.id, roomId)
+        }
+
+        // Track this call as active for the conversation
+        setActiveConversationCalls(prev => {
+          const updated = new Map(prev)
+          updated.set(roomId, {
+            roomId,
+            callType,
+            participantIds: [currentUserRef.current!.id],
+            startedBy: currentUserRef.current!.id
+          })
+          return updated
+        })
+
+        // Notify ALL conversation members about the active call
+        wsClientRef.current.notifyConversationCallStarted({
+          conversationId: roomId,
+          roomId,
+          callType,
+          startedBy: {
+            id: currentUserRef.current.id,
+            odId: currentUserRef.current.odId,
+            odName: currentUserRef.current.odName,
+            avatarUrl: currentUserRef.current.avatarUrl
+          },
+          participantIds: [currentUserRef.current.id]
+        })
+
+        // Update participants list
+        setParticipants(Array.from(webrtc.getParticipants().values()))
+
+        onCallStarted?.(roomId, participants)
+      } catch (error) {
+        console.error('Failed to start group call:', error)
+        updateCallState({ status: 'idle', roomId: null })
+        clearActiveCallFromStorage()
+      }
+    },
+    [initializeWebRTC, updateCallState, onCallStarted]
+  )
+
+  // Join a group call (when accepting an invite or joining an ongoing call)
   const joinCall = useCallback(
     async (roomId: string, callType: CallType, initialParticipants?: CallParticipant[]) => {
       if (!currentUserRef.current || !wsClientRef.current) {
@@ -197,7 +429,7 @@ export const useGroupCall = ({
         const webrtc = await initializeWebRTC()
 
         // Initialize local stream
-        await webrtc.initializeLocalStream(callType)
+        await webrtc.initializeLocalStream(callType, 'low')
         setLocalStream(webrtc.getLocalStream())
 
         // Join the room
@@ -215,32 +447,38 @@ export const useGroupCall = ({
           }
         })
 
-        // If we have initial participants, send offers to them
-        if (initialParticipants && initialParticipants.length > 0) {
-          for (const participant of initialParticipants) {
-            if (participant.id !== currentUserRef.current.id) {
-              try {
-                const offer = await webrtc.addParticipant(participant)
-
-                wsClientRef.current.sendGroupCallOffer({
-                  roomId,
-                  fromParticipantId: currentUserRef.current.id,
-                  toParticipantId: participant.id,
-                  payload: offer
-                })
-              } catch (err) {
-                console.error('Failed to send offer to participant:', participant.id, err)
-              }
-            }
-          }
-        }
-
         updateCallState({
           status: 'connected',
           startTime: Date.now(),
           isMuted: false,
           isVideoEnabled: callType === 'video',
           isScreenSharing: false
+        })
+
+        // Mark this tab as having an active call
+        if (currentUserRef.current) {
+          setActiveCallInStorage(currentUserRef.current.id, roomId)
+        }
+
+        // Track this call as active for the conversation
+        setActiveConversationCalls(prev => {
+          const updated = new Map(prev)
+          const existing = updated.get(roomId)
+          if (existing) {
+            const newParticipants = [...existing.participantIds]
+            if (!newParticipants.includes(currentUserRef.current!.id)) {
+              newParticipants.push(currentUserRef.current!.id)
+            }
+            updated.set(roomId, { ...existing, participantIds: newParticipants })
+          } else {
+            updated.set(roomId, {
+              roomId,
+              callType,
+              participantIds: [currentUserRef.current!.id],
+              startedBy: currentUserRef.current!.id
+            })
+          }
+          return updated
         })
 
         // Update participants list
@@ -250,10 +488,26 @@ export const useGroupCall = ({
       } catch (error) {
         console.error('Failed to join group call:', error)
         updateCallState({ status: 'idle', roomId: null })
+        clearActiveCallFromStorage()
       }
     },
     [initializeWebRTC, updateCallState, onCallStarted]
   )
+
+  // Accept incoming group call invite
+  const acceptInvite = useCallback(async () => {
+    if (!incomingInvite) return
+
+    const { roomId, callType } = incomingInvite
+    setIncomingInvite(null)
+
+    await joinCall(roomId, callType)
+  }, [incomingInvite, joinCall])
+
+  // Decline incoming group call invite
+  const declineInvite = useCallback(() => {
+    setIncomingInvite(null)
+  }, [])
 
   // Leave the call
   const leaveCall = useCallback(() => {
@@ -273,6 +527,33 @@ export const useGroupCall = ({
     // Clean up WebRTC
     webrtcRef.current.leaveRoom()
     webrtcRef.current = null
+
+    // Clean up background processor
+    if (backgroundProcessorRef.current) {
+      backgroundProcessorRef.current.destroy()
+      backgroundProcessorRef.current = null
+    }
+    originalLocalStreamRef.current = null
+
+    // Clear active call from storage
+    clearActiveCallFromStorage()
+
+    // Remove ourselves from active conversation calls
+    if (roomId && currentUserRef.current) {
+      setActiveConversationCalls(prev => {
+        const updated = new Map(prev)
+        const existing = updated.get(roomId)
+        if (existing) {
+          const newParticipants = existing.participantIds.filter(id => id !== currentUserRef.current!.id)
+          if (newParticipants.length === 0) {
+            updated.delete(roomId)
+          } else {
+            updated.set(roomId, { ...existing, participantIds: newParticipants })
+          }
+        }
+        return updated
+      })
+    }
 
     // Reset state
     setLocalStream(null)
@@ -310,12 +591,155 @@ export const useGroupCall = ({
     return isScreenSharing
   }, [updateCallState])
 
+  // Set video quality
+  const setVideoQuality = useCallback(
+    async (quality: VideoQuality): Promise<void> => {
+      if (!webrtcRef.current) return
+
+      await webrtcRef.current.setVideoQuality(quality)
+      updateCallState({ videoQuality: quality })
+    },
+    [updateCallState]
+  )
+
+  // Toggle minimize
+  const toggleMinimize = useCallback(() => {
+    updateCallState({ isMinimized: !callStateRef.current.isMinimized })
+  }, [updateCallState])
+
+  // Toggle background with real ML processing
+  const toggleBackground = useCallback(async () => {
+    const newBackgroundEnabled = !callStateRef.current.backgroundEnabled
+
+    if (newBackgroundEnabled) {
+      // Enable background processing
+      try {
+        // Store original stream if not already stored
+        if (!originalLocalStreamRef.current && localStream) {
+          originalLocalStreamRef.current = localStream
+        }
+
+        if (!backgroundProcessorRef.current) {
+          backgroundProcessorRef.current = new BackgroundProcessor()
+        }
+
+        const streamToProcess = originalLocalStreamRef.current || localStream
+        if (streamToProcess) {
+          console.debug('Starting background processing')
+          const processedStream = await backgroundProcessorRef.current.startProcessing(streamToProcess)
+          setLocalStream(processedStream)
+
+          // Update the WebRTC client with the processed stream
+          if (webrtcRef.current) {
+            // Replace the local stream in peer connections
+            const videoTrack = processedStream.getVideoTracks()[0]
+            if (videoTrack) {
+              webrtcRef.current.replaceVideoTrack(videoTrack)
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Failed to enable background processing:', error)
+        updateCallState({ backgroundEnabled: false })
+        return
+      }
+    } else {
+      // Disable background processing
+      if (backgroundProcessorRef.current) {
+        backgroundProcessorRef.current.stopProcessing()
+      }
+
+      // Restore original stream
+      if (originalLocalStreamRef.current) {
+        setLocalStream(originalLocalStreamRef.current)
+
+        // Update the WebRTC client with the original stream
+        if (webrtcRef.current) {
+          const videoTrack = originalLocalStreamRef.current.getVideoTracks()[0]
+          if (videoTrack) {
+            webrtcRef.current.replaceVideoTrack(videoTrack)
+          }
+        }
+      }
+    }
+
+    updateCallState({ backgroundEnabled: newBackgroundEnabled })
+  }, [localStream, updateCallState])
+
   // Set up WebSocket event listeners
   useEffect(() => {
     if (!wsClient) return
 
+    console.debug('Setting up group call WebSocket listeners')
+
+    // Handle incoming group call invite
+    wsClient.onGroupCallInvite(signal => {
+      console.debug('RAW group-call:invite received:', signal)
+
+      // Always track this as an active call for the conversation
+      console.debug('Tracking active call for room:', signal.roomId, 'from:', signal.from.odName)
+      setActiveConversationCalls(prev => {
+        const updated = new Map(prev)
+        updated.set(signal.roomId, {
+          roomId: signal.roomId,
+          callType: signal.callType,
+          participantIds: [signal.from.id],
+          startedBy: signal.from.id
+        })
+        console.debug('Updated activeConversationCalls, new size:', updated.size)
+        return updated
+      })
+
+      // Ignore if already in a call
+      if (callStateRef.current.status !== 'idle') {
+        console.debug('Ignoring group call invite - already in call')
+        return
+      }
+
+      // Ignore if this is our own invite
+      if (signal.from.id === currentUserRef.current?.id) {
+        console.debug('Ignoring group call invite - from self')
+        return
+      }
+
+      // Ignore if user is in a call in another tab
+      if (currentUserRef.current && isInCallInAnotherTab(currentUserRef.current.id)) {
+        console.debug('Ignoring group call invite - user is in call in another tab')
+        return
+      }
+
+      console.debug('Processing group call invite from:', signal.from.odName, 'room:', signal.roomId)
+      setIncomingInvite({
+        roomId: signal.roomId,
+        callType: signal.callType,
+        from: signal.from,
+        conversationName: signal.conversationName
+      })
+    })
+
     // Handle new participant joining
     wsClient.onGroupCallParticipantJoined(async signal => {
+      // Track this participant in active calls
+      setActiveConversationCalls(prev => {
+        const updated = new Map(prev)
+        const existing = updated.get(signal.roomId)
+        if (existing) {
+          const newParticipants = [...existing.participantIds]
+          if (!newParticipants.includes(signal.participant.id)) {
+            newParticipants.push(signal.participant.id)
+          }
+          updated.set(signal.roomId, { ...existing, participantIds: newParticipants })
+        } else {
+          updated.set(signal.roomId, {
+            roomId: signal.roomId,
+            callType: 'video',
+            participantIds: [signal.participant.id],
+            startedBy: signal.participant.id
+          })
+        }
+        return updated
+      })
+
       if (!webrtcRef.current || !currentUserRef.current) return
       if (signal.roomId !== callStateRef.current.roomId) return
       if (signal.participant.id === currentUserRef.current.id) return
@@ -344,6 +768,22 @@ export const useGroupCall = ({
 
     // Handle participant leaving
     wsClient.onGroupCallParticipantLeft(signal => {
+      // Update active calls tracking
+      setActiveConversationCalls(prev => {
+        const updated = new Map(prev)
+        const existing = updated.get(signal.roomId)
+        if (existing) {
+          const newParticipants = existing.participantIds.filter(id => id !== signal.participantId)
+          if (newParticipants.length === 0) {
+            // No more participants, call has ended
+            updated.delete(signal.roomId)
+          } else {
+            updated.set(signal.roomId, { ...existing, participantIds: newParticipants })
+          }
+        }
+        return updated
+      })
+
       if (!webrtcRef.current) return
       if (signal.roomId !== callStateRef.current.roomId) return
 
@@ -402,19 +842,75 @@ export const useGroupCall = ({
       }
     })
 
+    // Handle conversation-wide call started notification (for users not in the call)
+    wsClient.onConversationCallStarted(signal => {
+      console.debug('Conversation call started:', signal)
+
+      // Update active calls for the conversation
+      setActiveConversationCalls(prev => {
+        const updated = new Map(prev)
+        updated.set(signal.conversationId, {
+          roomId: signal.roomId,
+          callType: signal.callType,
+          participantIds: signal.participantIds,
+          startedBy: signal.startedBy.id
+        })
+        return updated
+      })
+    })
+
+    // Handle conversation-wide call ended notification
+    wsClient.onConversationCallEnded(signal => {
+      console.debug('Conversation call ended:', signal)
+
+      // Remove the call from active calls
+      setActiveConversationCalls(prev => {
+        const updated = new Map(prev)
+        updated.delete(signal.conversationId)
+        return updated
+      })
+    })
+
+    // Handle active calls response (received on connect or request)
+    wsClient.onActiveCalls(calls => {
+      console.debug('Received active calls:', calls)
+
+      setActiveConversationCalls(prev => {
+        const updated = new Map(prev)
+        calls.forEach(call => {
+          updated.set(call.conversationId, {
+            roomId: call.roomId,
+            callType: call.callType,
+            participantIds: call.participantIds,
+            startedBy: call.startedBy.id
+          })
+        })
+        return updated
+      })
+    })
+
+    // Request active calls when WebSocket connects
+    wsClient.requestActiveCalls()
+
     return () => {
       wsClient.removeGroupCallListeners()
     }
   }, [wsClient])
 
-  // Update duration periodically
+  // Update duration periodically and keep localStorage heartbeat for multi-tab detection
   useEffect(() => {
     if (callState.status !== 'connected' || !callState.startTime) return
 
     const interval = setInterval(() => {
+      // Update duration
       updateCallState({
         duration: Math.floor((Date.now() - callState.startTime!) / 1000)
       })
+
+      // Heartbeat: Keep localStorage updated so other tabs know we're still in a call
+      if (currentUserRef.current && callStateRef.current.roomId) {
+        setActiveCallInStorage(currentUserRef.current.id, callStateRef.current.roomId)
+      }
     }, 1000)
 
     return () => clearInterval(interval)
@@ -427,19 +923,36 @@ export const useGroupCall = ({
         webrtcRef.current.destroy()
         webrtcRef.current = null
       }
+      if (backgroundProcessorRef.current) {
+        backgroundProcessorRef.current.destroy()
+        backgroundProcessorRef.current = null
+      }
+      originalLocalStreamRef.current = null
     }
   }, [])
+
+  // Check if current user is the host
+  const isHost = currentUser?.id === callState.hostId
 
   return {
     callState,
     isInCall: callState.status === 'connected' || callState.status === 'joining',
+    isHost,
     localStream,
     remoteStreams,
     participants,
+    incomingInvite,
+    activeConversationCalls,
+    startCall,
     joinCall,
+    acceptInvite,
+    declineInvite,
     leaveCall,
     toggleMute,
     toggleVideo,
-    toggleScreenShare
+    toggleScreenShare,
+    setVideoQuality,
+    toggleMinimize,
+    toggleBackground
   }
 }

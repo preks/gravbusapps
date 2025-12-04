@@ -20,6 +20,13 @@ export type {
 
 // Group call components and types
 export { GroupCallModal } from './components/GroupCallModal'
+export { IncomingGroupCallDialog } from './components/IncomingGroupCallDialog'
 export { useGroupCall } from './hooks/useGroupCall'
-export type { GroupCallParticipant, GroupCallState } from './services/groupWebrtcClient'
-export type { GroupCallUIState, UseGroupCallReturn } from './hooks/useGroupCall'
+export type {
+  GroupCallParticipant,
+  GroupCallState,
+  VideoQuality,
+  VideoQualitySettings
+} from './services/groupWebrtcClient'
+export { VIDEO_QUALITY_PRESETS } from './services/groupWebrtcClient'
+export type { GroupCallUIState, GroupCallInvite, UseGroupCallReturn } from './hooks/useGroupCall'

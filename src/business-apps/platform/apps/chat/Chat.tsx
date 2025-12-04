@@ -5,12 +5,13 @@ import { useChatClient } from './hooks/useChatClient'
 import { useCall } from './hooks/useCall'
 import { useGroupCall } from './hooks/useGroupCall'
 import { ConversationList } from './components/ConversationList'
-import { ConversationHeader } from './components/ConversationHeader'
+import { ConversationHeader, type ActiveCallInfo } from './components/ConversationHeader'
 import { MessageList } from './components/MessageList'
 import { MessageInput } from './components/MessageInput'
 import { CreateGroupModal } from './components/CreateGroupModal'
 import { GroupSettingsModal } from './components/GroupSettingsModal'
 import { IncomingCallDialog } from './components/IncomingCallDialog'
+import { IncomingGroupCallDialog } from './components/IncomingGroupCallDialog'
 import { CallModal } from './components/CallModal'
 import { GroupCallModal } from './components/GroupCallModal'
 import type { Conversation, User, MessageEntityReference } from './types'
@@ -127,11 +128,18 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
     localStream: groupLocalStream,
     remoteStreams: groupRemoteStreams,
     participants: groupParticipants,
-    joinCall: joinGroupCall,
+    incomingInvite: incomingGroupCallInvite,
+    activeConversationCalls,
+    startCall: startGroupCall,
+    acceptInvite: acceptGroupInvite,
+    declineInvite: declineGroupInvite,
     leaveCall: leaveGroupCall,
     toggleMute: toggleGroupMute,
     toggleVideo: toggleGroupVideo,
-    toggleScreenShare: toggleGroupScreenShare
+    toggleScreenShare: toggleGroupScreenShare,
+    setVideoQuality: setGroupVideoQuality,
+    toggleMinimize: toggleGroupMinimize,
+    toggleBackground: toggleGroupBackground
   } = useGroupCall({
     wsClient: wsClient || null,
     apiClient: apiClient || null,
@@ -153,25 +161,32 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
   // Combined in-call state
   const isInAnyCall = isInCall || isInGroupCall
 
-  // Call handlers for direct (1:1) conversations
+  // Call handlers for both direct (1:1) and group conversations
   const handleAudioCall = () => {
-    if (!activeConversation || activeConversation.type !== 'direct') return
-    const otherParticipant = activeConversation.participants?.find(
-      p => p.userId !== currentUser?.id && p.user?.id !== currentUser?.id
-    )
-    if (!otherParticipant?.user) return
-    const user = otherParticipant.user
-    initiateCall(
-      {
-        id: user.id,
-        odId: user.id,
-        odName:
-          user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || 'Unknown',
-        avatarUrl: user.avatarUrl
-      },
-      'audio',
-      activeConversation.id
-    )
+    if (!activeConversation) return
+
+    // For direct conversations, use 1:1 call
+    if (activeConversation.type === 'direct') {
+      const otherParticipant = activeConversation.participants?.find(
+        p => p.userId !== currentUser?.id && p.user?.id !== currentUser?.id
+      )
+      if (!otherParticipant?.user) return
+      const user = otherParticipant.user
+      initiateCall(
+        {
+          id: user.id,
+          odId: user.id,
+          odName:
+            user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || 'Unknown',
+          avatarUrl: user.avatarUrl
+        },
+        'audio',
+        activeConversation.id
+      )
+    } else if (activeConversation.type === 'group') {
+      // For group conversations, use group call
+      handleGroupCall('audio')
+    }
   }
 
   const handleVideoCall = () => {
@@ -206,10 +221,10 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
     if (!activeConversation || activeConversation.type !== 'group') return
     if (!currentUser) return
 
-    // Get all participants except current user
+    // Get all participants including current user
     const callParticipants: CallParticipant[] =
       activeConversation.participants
-        ?.filter(p => p.userId !== currentUser.id && p.user?.id !== currentUser.id && p.user)
+        ?.filter(p => p.user)
         .map(p => ({
           id: p.user!.id,
           odId: p.user!.id,
@@ -221,8 +236,8 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
           avatarUrl: p.user!.avatarUrl
         })) || []
 
-    // Use conversation ID as the room ID
-    joinGroupCall(activeConversation.id, callType, callParticipants)
+    // Use conversation ID as the room ID, pass conversation name for the invite
+    startGroupCall(activeConversation.id, callType, callParticipants, activeConversation.name)
   }
 
   // Initialize presence status from conversation participants' user data
@@ -623,6 +638,68 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
     const otherUserId = activeConversation ? getOtherParticipantUserId(activeConversation) : null
     const otherUserPresence = otherUserId ? getUserPresence(otherUserId) : undefined
 
+    // Check if there's an active call in this conversation (for group chats)
+    const activeCallInfo: ActiveCallInfo | null = useMemo(() => {
+      if (!activeConversation || activeConversation.type !== 'group') return null
+
+      console.debug('Checking active call for conversation:', activeConversation.id)
+      console.debug('Active conversation calls map size:', activeConversationCalls.size)
+      console.debug('Active conversation calls:', Array.from(activeConversationCalls.entries()))
+
+      // Check if we know about an active call in this conversation
+      const activeCall = activeConversationCalls.get(activeConversation.id)
+      console.debug('Found active call for this conversation:', activeCall)
+
+      if (activeCall) {
+        // Get participant names from conversation participants
+        const participantNames =
+          activeConversation.participants
+            ?.filter(p => activeCall.participantIds.includes(p.userId || p.user?.id || ''))
+            .map(p => {
+              const user = p.user
+              return user?.displayName || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Unknown'
+            }) || []
+
+        const result = {
+          roomId: activeCall.roomId,
+          callType: activeCall.callType,
+          participantCount: activeCall.participantIds.length,
+          participantNames:
+            participantNames.length > 0 ? participantNames : [`${activeCall.participantIds.length} participant(s)`]
+        }
+        console.debug('Returning activeCallInfo:', result)
+        return result
+      }
+
+      // Fallback: If we're in a group call and the roomId matches the conversation
+      if (groupCallState.status !== 'idle' && groupCallState.roomId === activeConversation.id) {
+        const result = {
+          roomId: groupCallState.roomId,
+          callType: groupCallState.callType,
+          participantCount: groupParticipants.length,
+          participantNames: groupParticipants.map(p => p.odName)
+        }
+        console.debug('Returning activeCallInfo from current call state:', result)
+        return result
+      }
+
+      console.debug('No active call found for this conversation')
+      return null
+    }, [
+      activeConversation,
+      activeConversationCalls,
+      groupCallState.status,
+      groupCallState.roomId,
+      groupCallState.callType,
+      groupParticipants
+    ])
+
+    // Handler to join an active call
+    const handleJoinActiveCall = useCallback(() => {
+      if (!activeCallInfo || !activeConversation) return
+      handleGroupCall(activeCallInfo.callType)
+    }, [activeCallInfo, activeConversation])
+
     return (
       <div className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:h-full gba:max-h-full gba:overflow-hidden">
         {activeConversation ? (
@@ -635,12 +712,14 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
               onGroupSettings={handleShowGroupSettings}
               onAudioCall={handleAudioCall}
               onVideoCall={handleVideoCall}
+              onJoinCall={handleJoinActiveCall}
               showBackButton={isSingleViewMode}
               currentUserId={currentUser?.id || null}
               compact={viewMode === 'compact'}
               otherUserPresence={otherUserPresence}
               isCallEnabled={isConnected}
               isInCall={isInAnyCall}
+              activeCall={activeCallInfo}
             />
             <MessageList
               messages={messages}
@@ -775,6 +854,16 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
         />
       )}
 
+      {/* Incoming Group Call Dialog */}
+      {incomingGroupCallInvite && (
+        <IncomingGroupCallDialog
+          invite={incomingGroupCallInvite}
+          onAccept={acceptGroupInvite}
+          onDecline={declineGroupInvite}
+          prefixDataTestId={`${prefixDataTestId}-incoming-group-call`}
+        />
+      )}
+
       {/* Group Call Modal */}
       {groupCallState.status !== 'idle' && (
         <GroupCallModal
@@ -786,6 +875,10 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
           onToggleMute={toggleGroupMute}
           onToggleVideo={toggleGroupVideo}
           onToggleScreenShare={toggleGroupScreenShare}
+          onSetVideoQuality={setGroupVideoQuality}
+          onToggleMinimize={toggleGroupMinimize}
+          onToggleBackground={toggleGroupBackground}
+          backgroundEnabled={groupCallState.backgroundEnabled}
           prefixDataTestId={`${prefixDataTestId}-group-call`}
         />
       )}

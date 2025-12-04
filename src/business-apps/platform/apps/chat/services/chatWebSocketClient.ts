@@ -379,6 +379,20 @@ export class ChatWebSocketClient {
   // ==================== Group Call Signaling Events ====================
 
   /**
+   * Invite participants to a group call
+   */
+  inviteToGroupCall(signal: {
+    roomId: string
+    callType: 'audio' | 'video'
+    from: { id: string; odId: string; odName: string; avatarUrl?: string }
+    participants: Array<{ id: string; odId: string; odName: string; avatarUrl?: string }>
+    conversationName?: string
+  }) {
+    console.debug('Emitting group-call:invite', signal)
+    this.socket?.emit('group-call:invite', signal)
+  }
+
+  /**
    * Join a group call room
    */
   joinGroupCall(signal: {
@@ -438,6 +452,17 @@ export class ChatWebSocketClient {
   }
 
   // Group call event listeners
+  onGroupCallInvite(
+    handler: (signal: {
+      roomId: string
+      callType: 'audio' | 'video'
+      from: { id: string; odId: string; odName: string; avatarUrl?: string }
+      conversationName?: string
+    }) => void
+  ) {
+    this.socket?.on('group-call:invite', handler)
+  }
+
   onGroupCallParticipantJoined(
     handler: (signal: {
       roomId: string
@@ -476,14 +501,104 @@ export class ChatWebSocketClient {
   }
 
   /**
+   * Kick a participant from a group call (host only)
+   */
+  kickGroupCallParticipant(signal: { roomId: string; hostId: string; participantId: string }) {
+    console.debug('Emitting group-call:kick', signal)
+    this.socket?.emit('group-call:kick', signal)
+  }
+
+  /**
+   * Listen for being kicked from a call
+   */
+  onGroupCallKicked(handler: (signal: { roomId: string; kickedBy: string; reason?: string }) => void) {
+    this.socket?.on('group-call:kicked', handler)
+  }
+
+  /**
+   * Notify all conversation members about an active call
+   * This broadcasts to everyone in the conversation, not just call participants
+   */
+  notifyConversationCallStarted(signal: {
+    conversationId: string
+    roomId: string
+    callType: 'audio' | 'video'
+    startedBy: { id: string; odId: string; odName: string; avatarUrl?: string }
+    participantIds: string[]
+  }) {
+    console.debug('Emitting conversation:call-started', signal)
+    this.socket?.emit('conversation:call-started', signal)
+  }
+
+  /**
+   * Notify all conversation members that a call has ended
+   */
+  notifyConversationCallEnded(signal: { conversationId: string; roomId: string }) {
+    console.debug('Emitting conversation:call-ended', signal)
+    this.socket?.emit('conversation:call-ended', signal)
+  }
+
+  /**
+   * Request active calls for conversations the user is part of
+   */
+  requestActiveCalls() {
+    console.debug('Requesting active calls')
+    this.socket?.emit('conversation:get-active-calls')
+  }
+
+  /**
+   * Listen for active call notifications in conversations
+   */
+  onConversationCallStarted(
+    handler: (signal: {
+      conversationId: string
+      roomId: string
+      callType: 'audio' | 'video'
+      startedBy: { id: string; odId: string; odName: string; avatarUrl?: string }
+      participantIds: string[]
+    }) => void
+  ) {
+    this.socket?.on('conversation:call-started', handler)
+  }
+
+  /**
+   * Listen for call ended notifications in conversations
+   */
+  onConversationCallEnded(handler: (signal: { conversationId: string; roomId: string }) => void) {
+    this.socket?.on('conversation:call-ended', handler)
+  }
+
+  /**
+   * Listen for active calls response (sent after requesting)
+   */
+  onActiveCalls(
+    handler: (
+      calls: Array<{
+        conversationId: string
+        roomId: string
+        callType: 'audio' | 'video'
+        startedBy: { id: string; odId: string; odName: string; avatarUrl?: string }
+        participantIds: string[]
+      }>
+    ) => void
+  ) {
+    this.socket?.on('conversation:active-calls', handler)
+  }
+
+  /**
    * Remove all group call event listeners
    */
   removeGroupCallListeners() {
+    this.socket?.off('group-call:invite')
     this.socket?.off('group-call:participant-joined')
     this.socket?.off('group-call:participant-left')
     this.socket?.off('group-call:offer')
     this.socket?.off('group-call:answer')
     this.socket?.off('group-call:ice-candidate')
+    this.socket?.off('group-call:kicked')
+    this.socket?.off('conversation:call-started')
+    this.socket?.off('conversation:call-ended')
+    this.socket?.off('conversation:active-calls')
   }
 
   // Remove event listeners

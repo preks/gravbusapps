@@ -10,6 +10,21 @@
 
 import type { CallParticipant, CallType } from './webrtcClient'
 
+export type VideoQuality = 'high' | 'medium' | 'low'
+
+export interface VideoQualitySettings {
+  width: number
+  height: number
+  frameRate: number
+  bitrate: number
+}
+
+export const VIDEO_QUALITY_PRESETS: Record<VideoQuality, VideoQualitySettings> = {
+  high: { width: 1280, height: 720, frameRate: 30, bitrate: 2500000 },
+  medium: { width: 640, height: 480, frameRate: 24, bitrate: 1000000 },
+  low: { width: 320, height: 240, frameRate: 15, bitrate: 500000 }
+}
+
 export interface GroupCallParticipant extends CallParticipant {
   peerConnection?: RTCPeerConnection
   stream?: MediaStream
@@ -33,6 +48,7 @@ export type GroupCallEventType =
   | 'participant-left'
   | 'participant-stream'
   | 'participant-connection-state'
+  | 'ice-candidate'
   | 'local-stream'
   | 'error'
   | 'state-change'
@@ -43,6 +59,7 @@ export interface GroupCallEvent {
   participant?: GroupCallParticipant
   stream?: MediaStream
   state?: RTCPeerConnectionState
+  candidate?: RTCIceCandidateInit
   error?: Error
   callState?: GroupCallState
 }
@@ -71,6 +88,7 @@ export class GroupWebRTCClient {
   private isScreenSharing: boolean = false
   private startTime: number | null = null
   private isDestroyed: boolean = false
+  private videoQuality: VideoQuality = 'high'
 
   constructor(iceServers?: RTCIceServer[]) {
     this.iceServers = iceServers || DEFAULT_ICE_SERVERS
@@ -133,8 +151,10 @@ export class GroupWebRTCClient {
   /**
    * Initialize local media stream
    */
-  async initializeLocalStream(callType: CallType): Promise<MediaStream> {
+  async initializeLocalStream(callType: CallType, quality: VideoQuality = 'low'): Promise<MediaStream> {
     this.callType = callType
+    this.videoQuality = quality
+    const settings = VIDEO_QUALITY_PRESETS[quality]
 
     const constraints: MediaStreamConstraints = {
       audio: {
@@ -145,9 +165,9 @@ export class GroupWebRTCClient {
       video:
         callType === 'video'
           ? {
-              width: { ideal: 1280, max: 1920 },
-              height: { ideal: 720, max: 1080 },
-              frameRate: { ideal: 30, max: 60 }
+              width: { ideal: settings.width },
+              height: { ideal: settings.height },
+              frameRate: { ideal: settings.frameRate }
             }
           : false
     }
@@ -215,14 +235,13 @@ export class GroupWebRTCClient {
     // Handle ICE candidates
     pc.onicecandidate = event => {
       if (event.candidate) {
+        console.debug(`ICE candidate generated for ${participantId}`)
+        // Emit ICE candidate event for the parent to send via signaling
         this.emit({
-          type: 'participant-connection-state',
+          type: 'ice-candidate',
           participantId,
-          state: pc.connectionState
+          candidate: event.candidate.toJSON()
         })
-        // The parent component should send this candidate via signaling
-        // We emit an event that can be listened to
-        ;(pc as any)._pendingCandidate = event.candidate
       }
     }
 
@@ -249,24 +268,35 @@ export class GroupWebRTCClient {
 
     // Handle incoming tracks (remote streams)
     pc.ontrack = event => {
-      console.debug(`Received track from ${participantId}:`, event.track.kind)
+      console.debug(`Received track from ${participantId}:`, event.track.kind, 'streams:', event.streams.length)
 
-      const stream = event.streams[0]
-      if (stream) {
-        this.remoteStreams.set(participantId, stream)
+      let stream = event.streams[0]
 
-        const participant = this.participants.get(participantId)
-        if (participant) {
-          participant.stream = stream
-          this.participants.set(participantId, participant)
-        }
-
-        this.emit({
-          type: 'participant-stream',
-          participantId,
-          stream
-        })
+      // If no stream is associated, create one and add the track
+      if (!stream) {
+        console.debug(`No stream associated with track, creating new MediaStream for ${participantId}`)
+        stream = this.remoteStreams.get(participantId) || new MediaStream()
+        stream.addTrack(event.track)
       }
+
+      this.remoteStreams.set(participantId, stream)
+      console.debug(
+        `Remote stream for ${participantId} now has ${stream.getTracks().length} tracks:`,
+        stream.getTracks().map(t => t.kind)
+      )
+
+      const participant = this.participants.get(participantId)
+      if (participant) {
+        participant.stream = stream
+        this.participants.set(participantId, participant)
+      }
+
+      this.emit({
+        type: 'participant-stream',
+        participantId,
+        stream
+      })
+      console.debug(`Emitted participant-stream event for ${participantId}`)
     }
 
     this.peerConnections.set(participantId, pc)
@@ -499,6 +529,81 @@ export class GroupWebRTCClient {
     })
 
     return this.isVideoEnabled
+  }
+
+  /**
+   * Replace the video track in all peer connections (used for background processing)
+   */
+  replaceVideoTrack(newTrack: MediaStreamTrack): void {
+    console.debug('Replacing video track in all peer connections')
+
+    this.peerConnections.forEach(async (pc, participantId) => {
+      const senders = pc.getSenders()
+      for (const sender of senders) {
+        if (sender.track?.kind === 'video') {
+          try {
+            await sender.replaceTrack(newTrack)
+            console.debug(`Replaced video track for participant ${participantId}`)
+          } catch (err) {
+            console.error(`Failed to replace video track for participant ${participantId}:`, err)
+          }
+        }
+      }
+    })
+  }
+
+  /**
+   * Get current video quality
+   */
+  getVideoQuality(): VideoQuality {
+    return this.videoQuality
+  }
+
+  /**
+   * Set video quality and apply to all connections
+   */
+  async setVideoQuality(quality: VideoQuality): Promise<void> {
+    this.videoQuality = quality
+    const settings = VIDEO_QUALITY_PRESETS[quality]
+    console.debug('Setting video quality to:', quality, settings)
+
+    // Apply constraints to local stream
+    if (this.localStream) {
+      const videoTrack = this.localStream.getVideoTracks()[0]
+      if (videoTrack) {
+        try {
+          await videoTrack.applyConstraints({
+            width: { ideal: settings.width },
+            height: { ideal: settings.height },
+            frameRate: { ideal: settings.frameRate }
+          })
+        } catch (err) {
+          console.warn('Failed to apply video constraints:', err)
+        }
+      }
+    }
+
+    // Apply bitrate to all peer connections
+    this.peerConnections.forEach(async pc => {
+      const senders = pc.getSenders()
+      for (const sender of senders) {
+        if (sender.track?.kind === 'video') {
+          const params = sender.getParameters()
+          if (!params.encodings) {
+            params.encodings = [{}]
+          }
+          params.encodings.forEach(encoding => {
+            encoding.maxBitrate = settings.bitrate
+            encoding.maxFramerate = settings.frameRate
+          })
+          try {
+            await sender.setParameters(params)
+          } catch (err) {
+            console.warn('Failed to set sender parameters:', err)
+          }
+        }
+      }
+    })
   }
 
   /**
