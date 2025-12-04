@@ -4,7 +4,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { Alert, AlertDescription, Badge, Spinner } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
-import { navigateTo } from '@/common/utils/navigationUtils'
+import { createRedirectAfterDelete } from '../utils/redirectAfterDelete'
 import type { Lead } from '@/common/data/relations/types/leadTypes'
 
 export interface LeadDeletePopupValues {
@@ -128,17 +128,6 @@ const LeadDeletePopup: React.FC<LeadDeletePopupProps> = ({
           'Are you sure you want to delete this lead?'
         )
 
-  const handleProcessCompletion = (detail: { resolution?: 'success' | 'failure' } | null) => {
-    if (detail?.resolution === 'success') {
-      const basePath =
-        domain === 'investments' ? '/platform/irm/investment-relations' : '/platform/crm/customer-relations'
-      // Small delay to ensure the popup closes properly before navigation
-      setTimeout(() => {
-        navigateTo(`${basePath}?view=leads`)
-      }, 100)
-    }
-  }
-
   return (
     <AppActionForm
       processType="delete"
@@ -147,7 +136,7 @@ const LeadDeletePopup: React.FC<LeadDeletePopupProps> = ({
       validateForm={validateForm}
       submitButtonText={getTranslationFromI18nKeyAndLabel('common.delete', 'Delete')}
       submitButtonVariant="destructive"
-      onProcessCompletion={handleProcessCompletion}
+      onProcessCompletion={createRedirectAfterDelete(domain, 'leads')}
       data-testid={formatDataTestId(prefixDataTestId, 'form')}
     >
       <div className="gba:space-y-4" data-testid={formatDataTestId(prefixDataTestId, 'container')}>
