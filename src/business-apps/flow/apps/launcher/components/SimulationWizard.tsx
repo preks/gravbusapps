@@ -11,16 +11,18 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
-  DialogTitle,
-  Separator
+  DialogTitle
 } from '@newwork/nw-design-system'
-import { Play, SkipForward, SkipBack, Eye, User, PlayCircle, CheckCircle, Settings, Workflow } from 'lucide-react'
+import { SkipForward, SkipBack, Eye, User, PlayCircle } from 'lucide-react'
 import { FlowVisualization } from './FlowVisualization'
 import { AssignmentTargetCounter } from './AssignmentTargetCounter'
 import { StepSimulationForm } from './StepSimulationForm'
 import { SimulationPreview } from './SimulationPreview'
 import { FlowTemplate, ExecutionAssignment } from '../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { AssignmentSelector } from '@/components/assignment-selector'
+import { TaskAssignment } from '@/common/network/flows/FlowTemplateClient'
+import { OrgDirectoryClient } from '@/common/network/org-directory/OrgDirectoryClient'
 
 interface SimulationData {
   stepIndex: number
@@ -55,15 +57,46 @@ export const SimulationWizard: React.FC<SimulationWizardProps> = ({
   const [userPerspective, setUserPerspective] = useState<string>('current-user')
   const [showPreview, setShowPreview] = useState(false)
   const [isExecuting, setIsExecuting] = useState(false)
+  const [stepAssignments, setStepAssignments] = useState<{ [stepIndex: number]: TaskAssignment }>({})
+  const [showAssignmentConfig, setShowAssignmentConfig] = useState(false)
 
-  // Available users for perspective simulation (mock data)
-  const availableUsers = [
-    { id: 'current-user', name: userInfo?.userName || 'Current User', role: 'Initiator' },
-    { id: 'user1', name: 'John Smith', role: 'Senior Developer' },
-    { id: 'user2', name: 'Sarah Johnson', role: 'Engineering Manager' },
-    { id: 'user3', name: 'Mike Chen', role: 'QA Lead' },
-    { id: 'user4', name: 'Emma Wilson', role: 'Product Manager' }
-  ]
+  // Available users for perspective simulation (real org directory + current user)
+  const [availableUsers, setAvailableUsers] = useState<Array<{ id: string; name: string; role: string }>>([
+    { id: 'current-user', name: userInfo?.userName || 'Current User', role: 'Initiator' }
+  ])
+
+  useEffect(() => {
+    let isCancelled = false
+    const loadUsers = async () => {
+      try {
+        const client = new OrgDirectoryClient(accessToken)
+        const basics = await client.searchUsersBasic({ limit: 20, offset: 0 })
+        if (isCancelled) return
+        const mapped = basics.map(u => ({ id: u.id, name: u.name || u.email || u.id, role: 'Employee' }))
+        setAvailableUsers(prev => {
+          // keep current user at the top, append unique others
+          const seen = new Set(prev.map(p => p.id))
+          const merged = [...prev]
+          mapped.forEach(m => {
+            if (!seen.has(m.id)) {
+              merged.push(m)
+              seen.add(m.id)
+            }
+          })
+          return merged
+        })
+      } catch (e) {
+        // Silent failover: keep current user only
+        console.warn('SimulationWizard: failed to load org users for perspective', e)
+      }
+    }
+    if (accessToken) {
+      loadUsers()
+    }
+    return () => {
+      isCancelled = true
+    }
+  }, [accessToken])
 
   // Initialize execution assignments for steps that need them
   useEffect(() => {
@@ -110,9 +143,7 @@ export const SimulationWizard: React.FC<SimulationWizardProps> = ({
     }
   }
 
-  const handlePreview = () => {
-    setShowPreview(true)
-  }
+  // handlePreview removed (not used)
 
   const handleExecute = async () => {
     try {
@@ -166,89 +197,33 @@ export const SimulationWizard: React.FC<SimulationWizardProps> = ({
 
   return (
     <div
-      className="gba:min-h-full gba:w-full gba:flex gba:flex-col"
-      style={{
-        gap: 'var(--spacing-lg)',
-        padding: 'var(--spacing-lg)',
-        backgroundColor: 'var(--color-surface-secondary)'
-      }}
+      className="gba:min-h-full gba:w-full gba:flex gba:flex-col gba:gap-6 gba:p-6 gba:bg-muted"
       data-testid={testId}
     >
       {/* Main Content */}
-      <div className="gba:flex-1 gba:flex gba:flex-col gba:overflow-auto" style={{ gap: 'var(--spacing-lg)' }}>
+      <div className="gba:flex-1 gba:flex gba:flex-col gba:overflow-auto gba:gap-6">
         {/* Header */}
-        <div style={{ marginBottom: 'var(--spacing-lg)' }}>
-          <div
-            className="gba:flex gba:items-center"
-            style={{
-              gap: 'var(--spacing-xl)',
-              marginBottom: 'var(--spacing-lg)'
-            }}
-          >
-            <div
-              className="gba:bg-gradient-to-r gba:from-green-600 gba:to-blue-600 gba:rounded-xl"
-              style={{
-                padding: 'var(--spacing-lg)',
-                boxShadow: 'var(--shadow-lg)'
-              }}
-            >
-              <PlayCircle
-                className="gba:text-white"
-                style={{
-                  height: '2rem',
-                  width: '2rem'
-                }}
-              />
+        <div className="gba:mb-2">
+          <div className="gba:flex gba:items-center gba:gap-6 gba:mb-6">
+            <div className="gba:p-4 gba:bg-gradient-to-br gba:from-primary gba:to-primary/80 gba:rounded-xl gba:shadow-lg">
+              <PlayCircle className="gba:h-8 gba:w-8 gba:text-primary-foreground" />
             </div>
             <div>
-              <h1
-                style={{
-                  fontSize: '2rem',
-                  fontWeight: '700',
-                  lineHeight: '2.25rem',
-                  marginBottom: 'var(--spacing-xs)',
-                  color: 'var(--color-text-primary)'
-                }}
-              >
-                {template.name}
-              </h1>
-              <p
-                style={{
-                  fontSize: '1.125rem',
-                  lineHeight: '1.75rem',
-                  color: 'var(--color-text-secondary)'
-                }}
-              >
-                {template.description}
-              </p>
+              <h1 className="gba:text-3xl gba:font-bold gba:mb-1 gba:text-foreground">{template.name}</h1>
+              <p className="gba:text-lg gba:text-muted-foreground">{template.description}</p>
             </div>
           </div>
 
           {/* Controls Card */}
-          <Card
-            style={{
-              boxShadow: 'var(--shadow-sm)',
-              border: `1px solid var(--color-border-default)`,
-              backgroundColor: 'var(--color-surface-primary)'
-            }}
-          >
-            <div style={{ padding: 'var(--spacing-xl)' }}>
-              <div
-                className="gba:flex gba:items-center gba:justify-between"
-                style={{ marginBottom: 'var(--spacing-xl)' }}
-              >
-                <div className="gba:flex gba:items-center" style={{ gap: 'var(--spacing-2xl)' }}>
-                  {/* User Perspective Selector - Always shown since we're always in simulation mode */}
-                  <div className="gba:flex gba:items-center" style={{ gap: 'var(--spacing-sm)' }}>
-                    <User
-                      style={{
-                        width: '1rem',
-                        height: '1rem',
-                        color: 'var(--color-success-500)'
-                      }}
-                    />
+          <Card className="gba:shadow-sm gba:border gba:bg-card">
+            <div className="gba:p-6">
+              <div className="gba:flex gba:items-center gba:justify-between gba:mb-6">
+                <div className="gba:flex gba:items-center gba:gap-8">
+                  {/* User Perspective Selector */}
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <User className="gba:w-4 gba:h-4 gba:text-success" />
                     <Select value={userPerspective} onValueChange={setUserPerspective}>
-                      <SelectTrigger style={{ width: '12rem' }}>
+                      <SelectTrigger className="gba:w-48">
                         <SelectValue placeholder="Select user perspective" />
                       </SelectTrigger>
                       <SelectContent>
@@ -263,39 +238,14 @@ export const SimulationWizard: React.FC<SimulationWizardProps> = ({
                 </div>
 
                 {/* Progress Indicator */}
-                <div className="gba:flex gba:items-center" style={{ gap: 'var(--spacing-sm)' }}>
-                  <Badge
-                    variant="outline"
-                    style={{
-                      backgroundColor: 'var(--color-success-50)',
-                      color: 'var(--color-success-700)',
-                      borderColor: 'var(--color-success-300)'
-                    }}
-                  >
-                    Simulation Mode
-                  </Badge>
-                  <Badge
-                    variant="outline"
-                    style={{
-                      backgroundColor: 'var(--color-primary-50)',
-                      color: 'var(--color-primary-700)',
-                      borderColor: 'var(--color-primary-300)'
-                    }}
-                  >
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <Badge variant="success">Simulation Mode</Badge>
+                  <Badge variant="default">
                     Step {currentStep + 1} of {template.steps.length}
                   </Badge>
 
                   {hasSimulationData && (
-                    <Badge
-                      variant="outline"
-                      style={{
-                        backgroundColor: 'var(--color-info-50)',
-                        color: 'var(--color-info-700)',
-                        borderColor: 'var(--color-info-300)'
-                      }}
-                    >
-                      {Object.keys(simulationData).length} steps simulated
-                    </Badge>
+                    <Badge variant="info">{Object.keys(simulationData).length} steps simulated</Badge>
                   )}
                 </div>
               </div>
@@ -304,32 +254,14 @@ export const SimulationWizard: React.FC<SimulationWizardProps> = ({
         </div>
 
         {/* Step Configuration Content */}
-        <div className="gba:flex-1 gba:grid gba:grid-cols-1 gba:lg:grid-cols-2" style={{ gap: 'var(--spacing-lg)' }}>
+        <div className="gba:flex-1 gba:grid gba:grid-cols-1 gba:lg:grid-cols-2 gba:gap-6">
           {/* Left Column - Step Configuration */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)' }}>
+          <div className="gba:flex gba:flex-col gba:gap-6">
             {/* Current Step */}
             {currentStepData && (
-              <Card
-                className="gba:transition-all gba:duration-200"
-                style={{
-                  boxShadow: 'var(--shadow-sm)',
-                  border: `1px solid var(--color-border-default)`,
-                  backgroundColor: 'var(--color-surface-primary)',
-                  '--hover-shadow': 'var(--shadow-md)'
-                }}
-                onMouseEnter={e => (e.currentTarget.style.boxShadow = 'var(--shadow-md)')}
-                onMouseLeave={e => (e.currentTarget.style.boxShadow = 'var(--shadow-sm)')}
-              >
-                <div style={{ padding: 'var(--spacing-lg)' }}>
-                  <h3
-                    style={{
-                      fontSize: '1.125rem',
-                      fontWeight: '600',
-                      lineHeight: '1.75rem',
-                      color: 'var(--color-text-primary)',
-                      marginBottom: 'var(--spacing-lg)'
-                    }}
-                  >
+              <Card className="gba:transition-all gba:duration-200 gba:shadow-sm gba:border gba:bg-card hover:gba:shadow-md">
+                <div className="gba:p-6">
+                  <h3 className="gba:text-lg gba:font-semibold gba:mb-6 gba:text-foreground">
                     {currentStepData.title}
                   </h3>
 
@@ -347,52 +279,71 @@ export const SimulationWizard: React.FC<SimulationWizardProps> = ({
           </div>
 
           {/* Right Column - Assignment Information */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)' }}>
-            <Card
-              className="gba:transition-all gba:duration-200"
-              style={{
-                boxShadow: 'var(--shadow-sm)',
-                border: `1px solid var(--color-border-default)`,
-                backgroundColor: 'var(--color-surface-primary)'
-              }}
-              onMouseEnter={e => (e.currentTarget.style.boxShadow = 'var(--shadow-md)')}
-              onMouseLeave={e => (e.currentTarget.style.boxShadow = 'var(--shadow-sm)')}
-            >
-              <div style={{ padding: 'var(--spacing-lg)' }}>
-                <AssignmentTargetCounter
-                  template={template}
-                  assignments={executionAssignments}
-                  accessToken={accessToken}
-                  onTargetCountsChange={setAssignmentCounts}
-                  data-testid={`${testId}-assignment-counter`}
-                />
+          <div className="gba:flex gba:flex-col gba:gap-6">
+            <Card className="gba:transition-all gba:duration-200 gba:shadow-sm gba:border gba:bg-card hover:gba:shadow-md">
+              <div className="gba:p-6">
+                <div className="gba:flex gba:items-center gba:justify-between gba:mb-6">
+                  <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">Assignment Configuration</h3>
+                  {currentStepData?.assignment && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAssignmentConfig(!showAssignmentConfig)}
+                      data-testid={`${testId}-toggle-assignment-config`}
+                    >
+                      {showAssignmentConfig ? 'Show Summary' : 'Configure'}
+                    </Button>
+                  )}
+                </div>
+
+                {showAssignmentConfig && currentStepData?.assignment ? (
+                  <div className="gba:mt-4">
+                    <AssignmentSelector
+                      value={stepAssignments[currentStep]}
+                      onChange={assignment => {
+                        setStepAssignments(prev => ({
+                          ...prev,
+                          [currentStep]: assignment
+                        }))
+
+                        // Update execution assignments
+                        const updatedAssignments = [...executionAssignments]
+                        const assignmentIndex = updatedAssignments.findIndex(a => a.stepIndex === currentStep)
+
+                        if (assignmentIndex >= 0) {
+                          // Extract user IDs from assignment targets
+                          const users = assignment.targets?.users || []
+                          updatedAssignments[assignmentIndex] = {
+                            ...updatedAssignments[assignmentIndex],
+                            assignedUsers: users
+                          }
+                          setExecutionAssignments(updatedAssignments)
+                        }
+                      }}
+                      assignmentMode={currentStepData.assignment.assignmentMode}
+                      accessToken={accessToken}
+                      userInfo={userInfo}
+                      data-testid={`${testId}-assignment-selector`}
+                    />
+                  </div>
+                ) : (
+                  <AssignmentTargetCounter
+                    template={template}
+                    assignments={executionAssignments}
+                    accessToken={accessToken}
+                    stepAssignments={stepAssignments}
+                    onTargetCountsChange={setAssignmentCounts}
+                    data-testid={`${testId}-assignment-counter`}
+                  />
+                )}
               </div>
             </Card>
 
             {/* Flow Preview */}
-            <Card
-              className="gba:transition-all gba:duration-200"
-              style={{
-                boxShadow: 'var(--shadow-sm)',
-                border: `1px solid var(--color-border-default)`,
-                backgroundColor: 'var(--color-surface-primary)'
-              }}
-              onMouseEnter={e => (e.currentTarget.style.boxShadow = 'var(--shadow-md)')}
-              onMouseLeave={e => (e.currentTarget.style.boxShadow = 'var(--shadow-sm)')}
-            >
-              <div style={{ padding: 'var(--spacing-lg)' }}>
-                <h3
-                  style={{
-                    fontSize: '1.125rem',
-                    fontWeight: '600',
-                    lineHeight: '1.75rem',
-                    color: 'var(--color-text-primary)',
-                    marginBottom: 'var(--spacing-lg)'
-                  }}
-                >
-                  Flow Preview
-                </h3>
-                <div style={{ height: '16rem' }}>
+            <Card className="gba:transition-all gba:duration-200 gba:shadow-sm gba:border gba:bg-card hover:gba:shadow-md">
+              <div className="gba:p-6">
+                <h3 className="gba:text-lg gba:font-semibold gba:mb-6 gba:text-foreground">Flow Preview</h3>
+                <div className="gba:h-64">
                   <FlowVisualization
                     template={template}
                     currentStep={currentStep}
@@ -407,20 +358,14 @@ export const SimulationWizard: React.FC<SimulationWizardProps> = ({
         </div>
 
         {/* Navigation Footer */}
-        <Card
-          style={{
-            boxShadow: 'var(--shadow-sm)',
-            border: `1px solid var(--color-border-default)`,
-            backgroundColor: 'var(--color-surface-primary)'
-          }}
-        >
-          <div style={{ padding: 'var(--spacing-xl)' }}>
+        <Card className="gba:shadow-sm gba:border gba:bg-card">
+          <div className="gba:p-6">
             <div className="gba:flex gba:justify-between gba:items-center">
               <Button variant="outline" onClick={onCancel} data-testid={`${testId}-cancel-button`}>
                 {getTranslationFromI18nKeyAndLabel('flow.execution.cancel', 'Cancel')}
               </Button>
 
-              <div className="gba:flex" style={{ gap: 'var(--spacing-md)' }}>
+              <div className="gba:flex gba:gap-4">
                 <Button
                   variant="outline"
                   onClick={handlePrevious}
@@ -446,16 +391,8 @@ export const SimulationWizard: React.FC<SimulationWizardProps> = ({
                   <Button
                     variant="default"
                     onClick={handleExecute}
-                    disabled={!canExecute}
+                    disabled={!canExecute || isExecuting}
                     className="gba:gap-2"
-                    style={{
-                      backgroundColor: isExecuting
-                        ? 'var(--color-primary-400)'
-                        : canExecute
-                          ? 'var(--color-primary-500)'
-                          : 'var(--color-surface-disabled)',
-                      color: canExecute ? 'var(--color-on-primary)' : 'var(--color-text-disabled)'
-                    }}
                     data-testid={`${testId}-execute-button`}
                   >
                     <PlayCircle className="gba:w-4 gba:h-4" />
