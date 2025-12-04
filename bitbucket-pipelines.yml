@@ -324,3 +324,6 @@ pipelines:
               fi
               echo "Running: node scripts/calculate-hashes.js $ARGS"
               node scripts/calculate-hashes.js $ARGS
+          artifacts:
+            - component-hashes.json
+            - component-hashes-prod.json
