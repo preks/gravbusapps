@@ -1,10 +1,9 @@
 import { useState, useCallback, useMemo } from 'react'
-import { Card, CardContent, DataDisplay, Badge } from '@newwork/nw-design-system'
+import { Card, CardContent, DataDisplay } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { OpportunityListLayout } from '@/common/components/common-relations/view-layouts/opportunity-layout'
 import { createOpportunityColumns } from '@/common/components/common-relations/view-layouts/opportunity-layout/config/opportunityColumns'
-import { getWinningChanceBadgeVariant } from '@/common/utils/badgeUtils'
 import type { GenericOpportunity, OpportunitySectionProps } from './types'
 
 export const OpportunitySection = <T extends GenericOpportunity = GenericOpportunity>({
@@ -130,38 +129,12 @@ export const OpportunitySection = <T extends GenericOpportunity = GenericOpportu
     return sortedOpportunities.slice(start, end)
   }, [sortedOpportunities, pagination])
 
-  // Winning Chance column definition
-  const winningChanceColumn: ColumnDef<T> = useMemo(
-    () => ({
-      id: 'winningChance',
-      accessorKey: 'winningChance',
-      header: winningChanceLabel,
-      size: 120,
-      minSize: 100,
-      maxSize: 150,
-      cell: ({ row }) => {
-        const winningChance = (row.original as GenericOpportunity).winningChance
-        if (winningChance === undefined || winningChance === null) {
-          return <span className="gba:text-sm gba:text-muted-foreground">Not set</span>
-        }
-        return (
-          <Badge
-            variant={getWinningChanceBadgeVariant(winningChance)}
-            data-testid={`opportunity-winning-chance-${row.original.id}`}
-          >
-            {winningChance}%
-          </Badge>
-        )
-      }
-    }),
-    [winningChanceLabel]
-  )
-
-  // Use central columns + winningChance column
+  // Use central columns with context-specific winning chance header
   const columns = useMemo(() => {
-    const baseColumns = createOpportunityColumns(accountUrlBuilder || (() => ''))
-    return [...baseColumns, winningChanceColumn] as ColumnDef<T>[]
-  }, [accountUrlBuilder, winningChanceColumn])
+    return createOpportunityColumns(accountUrlBuilder || (() => ''), {
+      winningChanceHeader: winningChanceLabel
+    }) as ColumnDef<T>[]
+  }, [accountUrlBuilder, winningChanceLabel])
 
   const availableColumns = useMemo(
     () => [

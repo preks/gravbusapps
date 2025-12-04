@@ -5,7 +5,7 @@ import { navigateTo } from '@/common/utils/navigationUtils'
 import { deriveSortableColumns } from '@/common/network/graphql/descriptorUtils'
 import { createOpportunityDescriptors, OpportunityFields } from '@/common/data/relations/types/opportunityTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
-import { getOpportunityForecastBadgeVariant } from '@/common/utils/badgeUtils'
+import { getOpportunityForecastBadgeVariant, getWinningChanceBadgeVariant } from '@/common/utils/badgeUtils'
 
 // Generic opportunity interface that both Investment and Customer opportunities implement
 export interface GenericOpportunityForColumns {
@@ -13,6 +13,7 @@ export interface GenericOpportunityForColumns {
   name: string
   estimatedAmount?: number | null
   currency?: { code?: string } | null
+  winningChance?: number | null
   opportunityPipeline?: { id: string; code?: string; value?: string } | null
   opportunityPipelineLabel?: string
   salesPipeline?: { id: string; code?: string; value?: string } | null
@@ -34,6 +35,14 @@ export interface GenericOpportunityForColumns {
     pictureThumbnail?: string | null
   } | null
   createdAt?: string | null
+}
+
+/**
+ * Options for customizing opportunity columns
+ */
+export interface OpportunityColumnOptions {
+  /** Header label for winning chance column (default: 'Win Probability') */
+  winningChanceHeader?: string
 }
 
 // Helper function to get owner display name
@@ -164,8 +173,11 @@ export const formatDate = (dateString: string): string => {
 }
 
 export function createOpportunityColumns<T extends GenericOpportunityForColumns>(
-  buildAccountUrl: (accountId: string) => string
+  buildAccountUrl: (accountId: string) => string,
+  options?: OpportunityColumnOptions
 ): ColumnDef<T>[] {
+  const winningChanceHeader = options?.winningChanceHeader || 'Win Probability'
+
   return [
     {
       id: 'opportunity',
@@ -211,6 +223,28 @@ export function createOpportunityColumns<T extends GenericOpportunityForColumns>
           >
             {formattedValue}
           </div>
+        )
+      }
+    },
+    {
+      id: 'winningChance',
+      accessorKey: 'winningChance',
+      header: winningChanceHeader,
+      size: 130,
+      minSize: 100,
+      maxSize: 160,
+      cell: ({ row }) => {
+        const winningChance = row.original.winningChance
+        if (winningChance === undefined || winningChance === null) {
+          return <span className="gba:text-sm gba:text-muted-foreground">Not set</span>
+        }
+        return (
+          <Badge
+            variant={getWinningChanceBadgeVariant(winningChance)}
+            data-testid={`opportunity-winning-chance-${row.original.id}`}
+          >
+            {winningChance}%
+          </Badge>
         )
       }
     },
@@ -470,7 +504,7 @@ export function createOpportunityColumns<T extends GenericOpportunityForColumns>
  * Views should pass their specific descriptors (e.g., CUSTOMER_OPPORTUNITY_DESCRIPTORS or INVESTMENT_OPPORTUNITY_DESCRIPTORS)
  * which extend createOpportunityDescriptors(OpportunityFields) with domain-specific overrides
  */
-const OPPORTUNITY_COLUMN_LABELS: Record<string, string> = {
+const BASE_OPPORTUNITY_COLUMN_LABELS: Record<string, string> = {
   opportunity: 'Opportunity',
   amount: 'Amount',
   opportunityPipeline: 'Pipeline',
@@ -488,14 +522,24 @@ const OPPORTUNITY_COLUMN_LABELS: Record<string, string> = {
  * Create sortable columns from descriptors
  * @param viewDescriptors - Optional view-specific descriptors (e.g., CUSTOMER_OPPORTUNITY_DESCRIPTORS) that override common descriptors
  * @param availableColumnIds - Optional array of column IDs that are actually in the table. If provided, only descriptors with keys matching these IDs will be included.
+ * @param winningChanceHeader - Optional header label for winning chance column (default: 'Win Probability')
  * @returns Array of sortable column definitions
  */
-export const createOpportunitySortableColumns = (viewDescriptors?: Descriptor[], availableColumnIds?: string[]) => {
+export const createOpportunitySortableColumns = (
+  viewDescriptors?: Descriptor[],
+  availableColumnIds?: string[],
+  winningChanceHeader?: string
+) => {
+  const columnLabels = {
+    ...BASE_OPPORTUNITY_COLUMN_LABELS,
+    winningChance: winningChanceHeader || 'Win Probability'
+  }
+
   return deriveSortableColumns(
     viewDescriptors
       ? [createOpportunityDescriptors(OpportunityFields), viewDescriptors]
       : createOpportunityDescriptors(OpportunityFields),
-    OPPORTUNITY_COLUMN_LABELS,
+    columnLabels,
     availableColumnIds
   )
 }

@@ -51,6 +51,25 @@ const updateFilterOptions = (
   }
 }
 
+// Helper: Update filter group and filter labels
+const updateFilterLabels = (
+  filterConfig: FilterConfiguration,
+  groupId: string,
+  filterId: string,
+  groupLabel: string,
+  filterLabel: string
+) => {
+  const group = filterConfig.groups.find(g => g.id === groupId)
+  if (!group) return
+
+  group.label = groupLabel
+
+  const filter = group.filters.find(f => f.id === filterId)
+  if (filter) {
+    filter.label = filterLabel
+  }
+}
+
 // Helper: Determine opportunity filter from board filters
 const determineOpportunityFilter = (
   boardFilters: Record<string, any>,
@@ -145,6 +164,9 @@ export interface OpportunityViewConfig<TOpportunity extends { id: string }, TQue
 
   // Additional columns specific to this context (CRM or IRM)
   additionalColumns?: ColumnDef<TOpportunity>[]
+
+  // Header label for winning chance column (CRM: 'Winning Chance', IRM: 'Deal Probability')
+  winningChanceHeader?: string
 }
 
 export type OpportunityTabKey = 'list' | 'board'
@@ -458,8 +480,29 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
 
     updateAmountRangeFilter(filterConfig, amountRange)
 
+    // Update winning chance filter labels based on context
+    if (config.winningChanceHeader) {
+      updateFilterLabels(
+        filterConfig,
+        'winning-chance-group',
+        'winningChanceRanges',
+        config.winningChanceHeader,
+        `${config.winningChanceHeader} (%)`
+      )
+    }
+
     return filterConfig
-  }, [owners, stages, pipelines, accounts, statuses, forecasts, amountRange, config.baseFilterConfig])
+  }, [
+    owners,
+    stages,
+    pipelines,
+    accounts,
+    statuses,
+    forecasts,
+    amountRange,
+    config.baseFilterConfig,
+    config.winningChanceHeader
+  ])
 
   // List Query Variables
   const listQueryVariables = useMemo(() => {
