@@ -106,14 +106,16 @@ export function calculateHourlyIncreaseSummary(
   const hourlyIncrease = newHourly - oldHourly
   const percentage = oldHourly > 0 ? ((hourlyIncrease / oldHourly) * 100).toFixed(1) : '0.0'
 
+  const hourlySuffix = t('adjust-salary-review-hourly-suffix', { defaultValue: '/hr' })
+
   if (hourlyIncrease > 0) {
     const increaseText = t('adjust-salary-review-increase-text', {
       percentage,
       defaultValue: `${percentage}% increase`
     })
-    return `+${formatCurrencyString(hourlyIncrease, { currency: currencyCode, locale })}/hr (${increaseText})`
+    return `+${formatCurrencyString(hourlyIncrease, { currency: currencyCode, locale })}${hourlySuffix} (${increaseText})`
   }
-  return formatCurrencyString(hourlyIncrease, { currency: currencyCode, locale }) + '/hr'
+  return formatCurrencyString(hourlyIncrease, { currency: currencyCode, locale }) + hourlySuffix
 }
 
 /**
