@@ -291,11 +291,10 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
               if (formMode === 'assign') {
                 const isHourly = values.salaryType === 'hourly'
                 // Calculate annual salary from monthly (monthly × 12)
-                const annualGrossSalary = isHourly
-                  ? null
-                  : values.monthlySalary !== null
-                    ? values.monthlySalary * 12
-                    : null
+                let annualGrossSalary = null
+                if (!isHourly && values.monthlySalary !== null) {
+                  annualGrossSalary = values.monthlySalary * 12
+                }
                 const payload = {
                   event: 'pse_submit',
                   employeeId: employeeId,
