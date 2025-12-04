@@ -224,7 +224,7 @@ const createRowActions =
       contexts={[
         {
           context: FlowContextName.investmentEntity,
-          contextData: { investmentId: row.original.id }
+          contextData: { investmentId: row.original.id, dealType: 'DIVESTMENT_DEAL' }
         }
       ]}
       prefixDataTestId="planned-exit-investment-update"
