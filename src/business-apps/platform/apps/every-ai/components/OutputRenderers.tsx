@@ -477,6 +477,20 @@ function renderEntity(item: EntityData, accessToken: string) {
 
 // Scatter Graph Display
 export const ScatterGraphDisplay: React.FC<{ data: ScatterGraphData }> = ({ data }) => {
+  // Helper to resolve CSS variables for SVG (client-side only)
+  const resolveCssVar = (cssVar: string, fallback: string): string => {
+    if (!cssVar.startsWith('var(')) return cssVar
+    if (typeof window === 'undefined' || typeof document === 'undefined') return fallback
+
+    const varName = cssVar.substring(4, cssVar.length - 1).trim()
+    const resolved = window.getComputedStyle(document.documentElement).getPropertyValue(varName).trim()
+    return resolved || fallback
+  }
+
+  // Resolve design token colors for SVG
+  const gridColor = resolveCssVar('var(--nw-muted)', '#e5e7eb')
+  const axisColor = resolveCssVar('var(--nw-foreground)', '#374151')
+
   // Calculate bounds for all series
   const allPoints = data.series.flatMap(series => series.data)
   const xValues = allPoints.map(p => p.x)
@@ -556,7 +570,7 @@ export const ScatterGraphDisplay: React.FC<{ data: ScatterGraphData }> = ({ data
                   y1={padding.top}
                   x2={x}
                   y2={padding.top + plotHeight}
-                  stroke="hsl(var(--border))"
+                  stroke={gridColor}
                   strokeWidth="1"
                 />
               )
@@ -572,7 +586,7 @@ export const ScatterGraphDisplay: React.FC<{ data: ScatterGraphData }> = ({ data
                   y1={y}
                   x2={padding.left + plotWidth}
                   y2={y}
-                  stroke="hsl(var(--border))"
+                  stroke={gridColor}
                   strokeWidth="1"
                 />
               )
@@ -584,7 +598,7 @@ export const ScatterGraphDisplay: React.FC<{ data: ScatterGraphData }> = ({ data
               y1={padding.top + plotHeight}
               x2={padding.left + plotWidth}
               y2={padding.top + plotHeight}
-              stroke="hsl(var(--foreground))"
+              stroke={axisColor}
               strokeWidth="2"
             />
 
@@ -594,7 +608,7 @@ export const ScatterGraphDisplay: React.FC<{ data: ScatterGraphData }> = ({ data
               y1={padding.top}
               x2={padding.left}
               y2={padding.top + plotHeight}
-              stroke="hsl(var(--foreground))"
+              stroke={axisColor}
               strokeWidth="2"
             />
 
@@ -609,7 +623,7 @@ export const ScatterGraphDisplay: React.FC<{ data: ScatterGraphData }> = ({ data
                     y1={padding.top + plotHeight}
                     x2={x}
                     y2={padding.top + plotHeight + 5}
-                    stroke="hsl(var(--foreground))"
+                    stroke={axisColor}
                     strokeWidth="2"
                   />
                   <text
@@ -631,14 +645,7 @@ export const ScatterGraphDisplay: React.FC<{ data: ScatterGraphData }> = ({ data
               const y = scaleY(yValue)
               return (
                 <g key={`y-tick-${i}`}>
-                  <line
-                    x1={padding.left}
-                    y1={y}
-                    x2={padding.left - 5}
-                    y2={y}
-                    stroke="hsl(var(--foreground))"
-                    strokeWidth="2"
-                  />
+                  <line x1={padding.left} y1={y} x2={padding.left - 5} y2={y} stroke={axisColor} strokeWidth="2" />
                   <text
                     x={padding.left - 10}
                     y={y + 4}
