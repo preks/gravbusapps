@@ -29,8 +29,6 @@ export const OpportunityQuickFilters: React.FC<OpportunityQuickFiltersProps> = (
     if (filter === 'qualified') {
       // Filter for WON status
       statusIds = statuses.filter(s => s.code?.toUpperCase() === 'WON').map(s => s.id)
-      // If no WON statuses found, set empty array to show no results
-      if (statusIds.length === 0) statusIds = []
     } else if (filter === 'unqualified') {
       // Filter for OPEN or LOST statuses
       statusIds = statuses
@@ -39,8 +37,6 @@ export const OpportunityQuickFilters: React.FC<OpportunityQuickFiltersProps> = (
           return code === 'OPEN' || code === 'LOST'
         })
         .map(s => s.id)
-      // If no matching statuses found, set empty array to show no results
-      if (statusIds.length === 0) statusIds = []
     } else {
       // 'all' filter - no status filter
       statusIds = undefined
