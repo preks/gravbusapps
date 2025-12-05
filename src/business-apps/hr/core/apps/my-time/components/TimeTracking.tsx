@@ -18,7 +18,9 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useTimeTrackingData } from '@/business-apps/hr/core/apps/employee-record/components/tabs/hooks/useTimeTrackingData'
 import {
   ClockIcon,
-  MapPinIcon
+  MapPinIcon,
+  SignIn,
+  SignOut
   // other icons reserved for future
 } from '@phosphor-icons/react'
 import { InterventionsTable } from '@/business-apps/hr/core/apps/employee-record/components/tabs/components/InterventionsTable'
@@ -59,8 +61,7 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({ employee, employeeId, acces
     return `${h}:${String(m).padStart(2, '0')}`
   }
 
-  const employeeName =
-    employee?.displayName || getTranslationFromI18nKeyAndLabel('lowcoder:common.employee', 'Employee')
+  const employeeName = employee?.firstName || getTranslationFromI18nKeyAndLabel('lowcoder:common.employee', 'Employee')
 
   // Secondary helper message for hero card (avoid nested ternary)
   const isClockedOutWithWork = !isClockedIn && todayRecordedMinutes > 0
@@ -189,7 +190,10 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({ employee, employeeId, acces
                   onClick={clockOut}
                   data-testid="timeclock-hero-clock-out-button"
                 >
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.actions.clock_out', 'Clock Out')}
+                  <span className="gba:inline-flex gba:items-center gba:gap-2">
+                    <Icon icon={SignOut} />
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.actions.clock_out', 'Clock Out')}
+                  </span>
                 </Button>
               ) : (
                 <Button
@@ -199,7 +203,10 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({ employee, employeeId, acces
                   onClick={clockIn}
                   data-testid="timeclock-hero-clock-in-button"
                 >
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.actions.clock_in', 'Clock In')}
+                  <span className="gba:inline-flex gba:items-center gba:gap-2">
+                    <Icon icon={SignIn} />
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.actions.clock_in', 'Clock In')}
+                  </span>
                 </Button>
               )}
             </div>
