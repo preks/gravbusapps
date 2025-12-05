@@ -14,26 +14,28 @@ export const LiveClock: React.FC<LiveClockProps> = ({ className }) => {
   useEffect(() => {
     const formatter = () => {
       const now = new Date()
-      const formattedTime = String(formatDate(now, 'time.short') || '')
-      const formattedDate = String(formatDate(now, 'date.long') || '')
-
-      // If the formatter returns an ISO-like string (fallback), compose a human-friendly text locally
-      const isIsoLike = (v: string) => v.includes('T') || /^\d{4}-\d{2}-\d{2}/.test(v)
-
       const locale = getCurrentActiveUserLocale() || navigator.language || 'en-US'
       const use12h = String(locale).toLowerCase().startsWith('en')
 
+      // Prefer our formatter when available, otherwise fall back to locale-based rendering
+      const formattedTime = String(formatDate(now, 'time.short') || '')
+      const isIsoLike = (v: string) => v.includes('T') || /^\d{4}-\d{2}-\d{2}/.test(v)
+
       const humanTime = isIsoLike(formattedTime)
-        ? now.toLocaleTimeString(undefined, {
+        ? now.toLocaleTimeString(locale, {
             hour: '2-digit',
             minute: '2-digit',
             hour12: use12h
           })
         : formattedTime
 
-      const humanDate = isIsoLike(formattedDate)
-        ? now.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: '2-digit' })
-        : formattedDate
+      // Always render date as long, localized text (Friday, December 05, 2025)
+      const humanDate = now.toLocaleDateString(locale, {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: '2-digit'
+      })
 
       setTime(humanTime)
       setDate(humanDate)

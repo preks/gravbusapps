@@ -49,7 +49,7 @@ export const useHiresPerYear = (accessToken: string) => {
 
       const currentYear = dayjs().year()
       const s0 = formatDate(new Date(currentYear, 0, 1, 0, 0, 0, 0), 'fullDateTime.ISO') as string
-      const e0 = formatDate(new Date(currentYear, 11, 31, 23, 59, 59, 999), 'fullDateTime.ISO') as string
+      const e0 = formatDate(new Date(), 'fullDateTime.ISO') as string
       const s1 = formatDate(new Date(currentYear - 1, 0, 1, 0, 0, 0, 0), 'fullDateTime.ISO') as string
       const e1 = formatDate(new Date(currentYear - 1, 11, 31, 23, 59, 59, 999), 'fullDateTime.ISO') as string
       const s2 = formatDate(new Date(currentYear - 2, 0, 1, 0, 0, 0, 0), 'fullDateTime.ISO') as string

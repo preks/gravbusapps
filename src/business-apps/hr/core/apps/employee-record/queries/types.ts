@@ -17,6 +17,9 @@ export interface AbsenceListCardAbsence {
   typeColor: string
   statusColor: string
   requestDate: string
+  // Optional fields used by consumers (e.g., DailyLog calendar)
+  plannedMinutes?: number
+  effectiveMinutes?: number
 }
 
 export interface Entitlement {
@@ -51,6 +54,13 @@ export interface CalendarProps {
   setSelectedStartDate: (date: any) => void
   selectedEndDate: any
   setSelectedEndDate: (date: any) => void
+  showToday?: boolean
+  showPrevNext?: boolean
+  enableSelection?: boolean
+  showFooter?: boolean
+  showStatusInTooltip?: boolean
+  showDurationInTooltip?: boolean
+  customLegend?: React.ReactNode
 }
 
 export interface AbsenceListProps {
