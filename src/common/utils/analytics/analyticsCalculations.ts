@@ -120,8 +120,7 @@ export const getHealthCategory = (score: number): 'excellent' | 'healthy' | 'war
  * Extract currency code from various formats
  */
 export const extractCurrencyFromRef = (currencyRef: string | null | undefined): string => {
-  if (!currencyRef) return 'EUR'
-  if (typeof currencyRef === 'string') {
+  if (currencyRef && typeof currencyRef === 'string') {
     return currencyRef.split(':').pop() || 'EUR'
   }
   return 'EUR'

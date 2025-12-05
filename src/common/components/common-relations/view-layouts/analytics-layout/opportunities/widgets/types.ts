@@ -8,10 +8,15 @@ export interface StageItem {
   value: number
 }
 
+export interface Pipeline {
+  id: string
+  name: string
+}
+
 export interface OpportunitiesStageChartProps {
   data: StageItem[]
   moduleColor?: string
-  pipelines?: Array<{ id: string; name: string }>
+  pipelines?: Pipeline[]
   selectedPipelineId?: string
   onPipelineChange?: (pipelineId: string | undefined) => void
 }

@@ -9,16 +9,12 @@ import {
   ChartConfig,
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
+  ChartTooltipContent
 } from '@newwork/nw-design-system'
 import { BarChart, Bar, XAxis, YAxis } from 'recharts'
 import { ChartBarIcon } from '@phosphor-icons/react'
 import { OpportunitiesStageChartProps } from './types'
+import { PipelineSelector } from './PipelineSelector'
 
 export const OpportunitiesByStageBar: React.FC<OpportunitiesStageChartProps> = ({
   data,
@@ -27,13 +23,6 @@ export const OpportunitiesByStageBar: React.FC<OpportunitiesStageChartProps> = (
   selectedPipelineId,
   onPipelineChange
 }) => {
-  // Use first pipeline as default if no selection
-  const effectivePipelineId = selectedPipelineId || (pipelines.length > 0 ? pipelines[0].id : undefined)
-
-  const handlePipelineChange = (value: string) => {
-    onPipelineChange?.(value)
-  }
-
   // Format large numbers for Y-axis
   const formatYAxis = (value: number): string => {
     if (value >= 1000000) {
@@ -71,22 +60,12 @@ export const OpportunitiesByStageBar: React.FC<OpportunitiesStageChartProps> = (
               <CardDescription>Stage progression analysis</CardDescription>
             </div>
           </div>
-          {pipelines.length > 0 && onPipelineChange && (
-            <div className="gba:min-w-48">
-              <Select value={effectivePipelineId} onValueChange={handlePipelineChange}>
-                <SelectTrigger data-testid="opportunities-stage-pipeline-selector">
-                  <SelectValue placeholder="Select pipeline" />
-                </SelectTrigger>
-                <SelectContent>
-                  {pipelines.map(pipeline => (
-                    <SelectItem key={pipeline.id} value={pipeline.id}>
-                      {pipeline.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+          <PipelineSelector
+            pipelines={pipelines}
+            selectedPipelineId={selectedPipelineId}
+            onPipelineChange={onPipelineChange}
+            dataTestId="opportunities-stage-pipeline-selector"
+          />
         </div>
       </CardHeader>
       <CardContent>
