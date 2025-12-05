@@ -25,7 +25,8 @@ const CustomerOpportunityStatistics: React.FC<{
       statistics={{
         recentOpportunities: opportunityStatistics.trendData.recentOpportunities,
         totalOpportunities: opportunityStatistics.trendData.totalOpportunities,
-        winRate: opportunityStatistics.trendData.winRate,
+        // CRM still uses winRate from hook - mapping to opportunitiesThisQuarter for shared layout compatibility
+        opportunitiesThisQuarter: opportunityStatistics.trendData.winRate,
         opportunitiesThisYear: opportunityStatistics.trendData.opportunitiesThisYear,
         isLoading: opportunityStatistics.isLoading,
         error: opportunityStatistics.error,
