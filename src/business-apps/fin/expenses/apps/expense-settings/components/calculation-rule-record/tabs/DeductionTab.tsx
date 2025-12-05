@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { useForm } from 'react-hook-form'
 import {
   Button,
   Badge,
@@ -20,7 +21,6 @@ import {
   DialogTitle,
   DialogFooter,
   Input,
-  Label,
   Spinner,
   Toaster,
   Select,
@@ -28,12 +28,18 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Switch as NWSwitch,
+  Checkbox,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
   DateInput
 } from '@newwork/nw-design-system'
 import {
@@ -105,17 +111,30 @@ const DeductionTab: React.FC<DeductionTabProps> = ({ ruleId, accessToken, active
   const [error, setError] = useState<string | null>(null)
   const [isModalVisible, setIsModalVisible] = useState(false)
   const [editingItem, setEditingItem] = useState<ExpenseRuleDeduction | null>(null)
-  const [formData, setFormData] = useState<DeductionFormData>({
-    expenseRuleId: ruleId,
-    deductBreakfast: false,
-    deductLunch: false,
-    deductDinner: false,
-    taxBreakfast: false,
-    taxLunch: false,
-    taxDinner: false,
-    deductionOrder: 1,
-    overnightAllowance: false,
-    activeFrom: activeFrom
+
+  // Extract date portion to avoid timezone issues (YYYY-MM-DD format)
+  const formatDateForInput = (dateStr?: string) => {
+    if (!dateStr) return undefined
+    // If already in YYYY-MM-DD format, return as is
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr
+    // Otherwise extract date portion using dayjs to handle ISO strings correctly
+    return dayjs(dateStr).format('YYYY-MM-DD')
+  }
+
+  const form = useForm<DeductionFormData>({
+    defaultValues: {
+      expenseRuleId: ruleId,
+      deductBreakfast: false,
+      deductLunch: false,
+      deductDinner: false,
+      taxBreakfast: false,
+      taxLunch: false,
+      taxDinner: false,
+      deductionOrder: 1,
+      overnightAllowance: false,
+      activeFrom: formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
+      activeTo: formatDateForInput(activeTo) || '9999-12-31'
+    }
   })
 
   // Delete confirmation dialog state
@@ -220,20 +239,20 @@ const DeductionTab: React.FC<DeductionTabProps> = ({ ruleId, accessToken, active
     setCurrentUsageInfo(null)
 
     // Determine validity period based on existing entries
-    let validFromValue = activeFrom
+    let validFromValue = formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD')
     let validToValue: string | undefined = undefined
 
     if (deductions.length > 0) {
       // Use the same validity period as the first existing entry
       const existingEntry = deductions[0]
-      validFromValue = existingEntry.activeFrom
-      validToValue = existingEntry.activeTo
+      validFromValue = formatDateForInput(existingEntry.activeFrom) || validFromValue
+      validToValue = formatDateForInput(existingEntry.activeTo)
     } else {
       // No existing entries - set validTo to December 31, 9999 (or rule's activeTo if set)
-      validToValue = activeTo || '9999-12-31'
+      validToValue = formatDateForInput(activeTo) || '9999-12-31'
     }
 
-    setFormData({
+    form.reset({
       expenseRuleId: ruleId,
       deductionOrder: deductions.length + 1,
       activeFrom: validFromValue,
@@ -254,12 +273,12 @@ const DeductionTab: React.FC<DeductionTabProps> = ({ ruleId, accessToken, active
     setIsCheckingUsage(true)
 
     try {
-      const usageInfo = await checkDeductionUsage(record.id)
+      const usageInfo = await checkDeductionUsage()
       setCurrentUsageInfo(usageInfo)
       setIsRestrictedEdit(usageInfo.isUsed)
 
       setEditingItem(record)
-      setFormData({
+      form.reset({
         id: record.id,
         expenseRuleId: ruleId,
         deductBreakfast: record.deductBreakfast,
@@ -271,8 +290,9 @@ const DeductionTab: React.FC<DeductionTabProps> = ({ ruleId, accessToken, active
         deductionDay: record.deductionDay,
         deductionOrder: record.deductionOrder,
         overnightAllowance: record.overnightAllowance,
-        activeFrom: record.activeFrom,
-        activeTo: record.activeTo,
+        activeFrom:
+          formatDateForInput(record.activeFrom) || formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
+        activeTo: formatDateForInput(record.activeTo),
         version: record.version
       })
 
@@ -314,24 +334,74 @@ const DeductionTab: React.FC<DeductionTabProps> = ({ ruleId, accessToken, active
     try {
       setIsSaving(true)
 
+      const formValues = form.getValues()
+
+      // Date validation
+      const ruleFrom = dayjs(activeFrom)
+      const ruleTo = activeTo ? dayjs(activeTo) : null
+      const entryFrom = dayjs(formValues.activeFrom)
+      const entryTo = formValues.activeTo ? dayjs(formValues.activeTo) : null
+
+      // Valid From cannot be before rule's Valid From
+      if (entryFrom.isBefore(ruleFrom, 'day')) {
+        form.setError('activeFrom', {
+          type: 'manual',
+          message: `Valid From cannot be before the rule's Valid From (${ruleFrom.format('DD.MM.YYYY')})`
+        })
+        setIsSaving(false)
+        return
+      }
+
+      // Valid From cannot be after rule's Valid To
+      if (ruleTo && entryFrom.isAfter(ruleTo, 'day')) {
+        form.setError('activeFrom', {
+          type: 'manual',
+          message: `Valid From cannot be after the rule's Valid To (${ruleTo.format('DD.MM.YYYY')})`
+        })
+        setIsSaving(false)
+        return
+      }
+
+      // Valid To cannot be after rule's Valid To
+      if (ruleTo && entryTo && entryTo.isAfter(ruleTo, 'day')) {
+        form.setError('activeTo', {
+          type: 'manual',
+          message: `Valid To cannot be after the rule's Valid To (${ruleTo.format('DD.MM.YYYY')})`
+        })
+        setIsSaving(false)
+        return
+      }
+
+      // Valid To cannot be before Valid From
+      if (entryTo && entryFrom.isAfter(entryTo, 'day')) {
+        form.setError('activeTo', {
+          type: 'manual',
+          message: `Valid To cannot be before Valid From`
+        })
+        setIsSaving(false)
+        return
+      }
+
       const saveData: any = {
         ...(editingItem && { id: editingItem.id, version: editingItem.version }),
         expenseRuleId: ruleId,
-        activeTo: formData.activeTo
+        // Convert to ISO format for API
+        activeTo: formValues.activeTo ? dayjs(formValues.activeTo).endOf('day').toISOString() : null
       }
 
       // Only include other fields if not in restricted edit mode
       if (!isRestrictedEdit) {
-        saveData.deductBreakfast = formData.deductBreakfast
-        saveData.deductLunch = formData.deductLunch
-        saveData.deductDinner = formData.deductDinner
-        saveData.taxBreakfast = formData.taxBreakfast
-        saveData.taxLunch = formData.taxLunch
-        saveData.taxDinner = formData.taxDinner
-        saveData.deductionDay = formData.deductionDay
-        saveData.deductionOrder = formData.deductionOrder
-        saveData.overnightAllowance = formData.overnightAllowance
-        saveData.activeFrom = formData.activeFrom
+        saveData.deductBreakfast = formValues.deductBreakfast
+        saveData.deductLunch = formValues.deductLunch
+        saveData.deductDinner = formValues.deductDinner
+        saveData.taxBreakfast = formValues.taxBreakfast
+        saveData.taxLunch = formValues.taxLunch
+        saveData.taxDinner = formValues.taxDinner
+        saveData.deductionDay = formValues.deductionDay
+        saveData.deductionOrder = formValues.deductionOrder
+        saveData.overnightAllowance = formValues.overnightAllowance
+        // Convert to ISO format for API
+        saveData.activeFrom = formValues.activeFrom ? dayjs(formValues.activeFrom).startOf('day').toISOString() : null
       }
 
       await expenseSettingsClient.saveExpenseRuleDeduction(saveData)
@@ -625,227 +695,301 @@ const DeductionTab: React.FC<DeductionTabProps> = ({ ruleId, accessToken, active
 
           {/* Restricted edit warning */}
           {isRestrictedEdit && currentUsageInfo && (
-            <Alert variant="warning" className="gba:mb-4" data-testid="deduction-restricted-alert">
-              <PiWarning className="gba:h-4 gba:w-4" />
+            <Alert
+              className="gba:mb-4 gba:border-warning gba:bg-warning-secondary"
+              data-testid="deduction-restricted-alert"
+            >
+              <PiWarning className="gba:h-4 gba:w-4 gba:text-warning" />
               <AlertDescription>{currentUsageInfo.message}</AlertDescription>
             </Alert>
           )}
 
-          <div data-testid="deduction-form" className="gba:space-y-6">
-            {/* Order Field */}
-            <div className="gba:space-y-2" data-testid="deduction-order-field">
-              <Label htmlFor="deductionOrder" data-testid="deduction-order-label">
-                Order *
-              </Label>
-              <Input
-                id="deductionOrder"
-                type="number"
-                min={1}
-                value={formData.deductionOrder}
-                onChange={e => setFormData({ ...formData, deductionOrder: parseInt(e.target.value) || 1 })}
-                disabled={isRestrictedEdit}
-                data-testid="deduction-order-input"
+          <Form {...form}>
+            <div data-testid="deduction-form" className="gba:space-y-6">
+              {/* Order Field */}
+              <FormField
+                control={form.control}
+                name="deductionOrder"
+                rules={{ required: 'Order is required', min: { value: 1, message: 'Must be at least 1' } }}
+                render={({ field }) => (
+                  <FormItem data-testid="deduction-order-field">
+                    <FormLabel data-testid="deduction-order-label">Order *</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={field.value}
+                        onChange={e => field.onChange(parseInt(e.target.value) || 1)}
+                        disabled={isRestrictedEdit}
+                        data-testid="deduction-order-input"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
 
-            {/* Meal Deductions & Tax Settings */}
-            <Card data-testid="meal-settings-card">
-              <CardHeader>
-                <CardTitle className="gba:text-base">Meal Deductions & Tax Settings</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="gba:grid gba:grid-cols-3 gba:gap-4">
-                  {/* Breakfast */}
-                  <Card data-testid="breakfast-card">
-                    <CardHeader>
-                      <CardTitle className="gba:text-sm gba:flex gba:items-center">
-                        <PiCoffee className="gba:mr-2" />
-                        Breakfast
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="gba:space-y-4">
-                      <div
-                        className="gba:flex gba:items-center gba:justify-between"
-                        data-testid="breakfast-deduct-field"
-                      >
-                        <Label htmlFor="deductBreakfast" data-testid="breakfast-deduct-label">
-                          Deduct
-                        </Label>
-                        <NWSwitch
-                          id="deductBreakfast"
-                          checked={formData.deductBreakfast}
-                          onCheckedChange={checked => setFormData({ ...formData, deductBreakfast: checked })}
-                          disabled={isRestrictedEdit}
-                          data-testid="breakfast-deduct-switch"
+              {/* Meal Deductions & Tax Settings */}
+              <Card data-testid="meal-settings-card">
+                <CardHeader>
+                  <CardTitle className="gba:text-base">Meal Deductions & Tax Settings</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="gba:grid gba:grid-cols-3 gba:gap-4">
+                    {/* Breakfast */}
+                    <Card data-testid="breakfast-card">
+                      <CardHeader>
+                        <CardTitle className="gba:text-sm gba:flex gba:items-center">
+                          <PiCoffee className="gba:mr-2" />
+                          Breakfast
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="gba:space-y-4">
+                        <FormField
+                          control={form.control}
+                          name="deductBreakfast"
+                          render={({ field }) => (
+                            <FormItem
+                              className="gba:flex gba:items-center gba:justify-between"
+                              data-testid="breakfast-deduct-field"
+                            >
+                              <FormLabel data-testid="breakfast-deduct-label">Deduct</FormLabel>
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                  disabled={isRestrictedEdit}
+                                  data-testid="breakfast-deduct-checkbox"
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
                         />
-                      </div>
-                      <div className="gba:flex gba:items-center gba:justify-between" data-testid="breakfast-tax-field">
-                        <Label htmlFor="taxBreakfast" data-testid="breakfast-tax-label">
-                          Tax
-                        </Label>
-                        <NWSwitch
-                          id="taxBreakfast"
-                          checked={formData.taxBreakfast}
-                          onCheckedChange={checked => setFormData({ ...formData, taxBreakfast: checked })}
-                          disabled={isRestrictedEdit}
-                          data-testid="breakfast-tax-switch"
+                        <FormField
+                          control={form.control}
+                          name="taxBreakfast"
+                          render={({ field }) => (
+                            <FormItem
+                              className="gba:flex gba:items-center gba:justify-between"
+                              data-testid="breakfast-tax-field"
+                            >
+                              <FormLabel data-testid="breakfast-tax-label">Tax</FormLabel>
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                  disabled={isRestrictedEdit}
+                                  data-testid="breakfast-tax-checkbox"
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
                         />
-                      </div>
-                    </CardContent>
-                  </Card>
+                      </CardContent>
+                    </Card>
 
-                  {/* Lunch */}
-                  <Card data-testid="lunch-card">
-                    <CardHeader>
-                      <CardTitle className="gba:text-sm gba:flex gba:items-center">
-                        <PiBowlFood className="gba:mr-2" />
-                        Lunch
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="gba:space-y-4">
-                      <div className="gba:flex gba:items-center gba:justify-between" data-testid="lunch-deduct-field">
-                        <Label htmlFor="deductLunch" data-testid="lunch-deduct-label">
-                          Deduct
-                        </Label>
-                        <NWSwitch
-                          id="deductLunch"
-                          checked={formData.deductLunch}
-                          onCheckedChange={checked => setFormData({ ...formData, deductLunch: checked })}
-                          disabled={isRestrictedEdit}
-                          data-testid="lunch-deduct-switch"
+                    {/* Lunch */}
+                    <Card data-testid="lunch-card">
+                      <CardHeader>
+                        <CardTitle className="gba:text-sm gba:flex gba:items-center">
+                          <PiBowlFood className="gba:mr-2" />
+                          Lunch
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="gba:space-y-4">
+                        <FormField
+                          control={form.control}
+                          name="deductLunch"
+                          render={({ field }) => (
+                            <FormItem
+                              className="gba:flex gba:items-center gba:justify-between"
+                              data-testid="lunch-deduct-field"
+                            >
+                              <FormLabel data-testid="lunch-deduct-label">Deduct</FormLabel>
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                  disabled={isRestrictedEdit}
+                                  data-testid="lunch-deduct-checkbox"
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
                         />
-                      </div>
-                      <div className="gba:flex gba:items-center gba:justify-between" data-testid="lunch-tax-field">
-                        <Label htmlFor="taxLunch" data-testid="lunch-tax-label">
-                          Tax
-                        </Label>
-                        <NWSwitch
-                          id="taxLunch"
-                          checked={formData.taxLunch}
-                          onCheckedChange={checked => setFormData({ ...formData, taxLunch: checked })}
-                          disabled={isRestrictedEdit}
-                          data-testid="lunch-tax-switch"
+                        <FormField
+                          control={form.control}
+                          name="taxLunch"
+                          render={({ field }) => (
+                            <FormItem
+                              className="gba:flex gba:items-center gba:justify-between"
+                              data-testid="lunch-tax-field"
+                            >
+                              <FormLabel data-testid="lunch-tax-label">Tax</FormLabel>
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                  disabled={isRestrictedEdit}
+                                  data-testid="lunch-tax-checkbox"
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
                         />
-                      </div>
-                    </CardContent>
-                  </Card>
+                      </CardContent>
+                    </Card>
 
-                  {/* Dinner */}
-                  <Card data-testid="dinner-card">
-                    <CardHeader>
-                      <CardTitle className="gba:text-sm gba:flex gba:items-center">
-                        <PiMoon className="gba:mr-2" />
-                        Dinner
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="gba:space-y-4">
-                      <div className="gba:flex gba:items-center gba:justify-between" data-testid="dinner-deduct-field">
-                        <Label htmlFor="deductDinner" data-testid="dinner-deduct-label">
-                          Deduct
-                        </Label>
-                        <NWSwitch
-                          id="deductDinner"
-                          checked={formData.deductDinner}
-                          onCheckedChange={checked => setFormData({ ...formData, deductDinner: checked })}
-                          disabled={isRestrictedEdit}
-                          data-testid="dinner-deduct-switch"
+                    {/* Dinner */}
+                    <Card data-testid="dinner-card">
+                      <CardHeader>
+                        <CardTitle className="gba:text-sm gba:flex gba:items-center">
+                          <PiMoon className="gba:mr-2" />
+                          Dinner
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="gba:space-y-4">
+                        <FormField
+                          control={form.control}
+                          name="deductDinner"
+                          render={({ field }) => (
+                            <FormItem
+                              className="gba:flex gba:items-center gba:justify-between"
+                              data-testid="dinner-deduct-field"
+                            >
+                              <FormLabel data-testid="dinner-deduct-label">Deduct</FormLabel>
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                  disabled={isRestrictedEdit}
+                                  data-testid="dinner-deduct-checkbox"
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
                         />
-                      </div>
-                      <div className="gba:flex gba:items-center gba:justify-between" data-testid="dinner-tax-field">
-                        <Label htmlFor="taxDinner" data-testid="dinner-tax-label">
-                          Tax
-                        </Label>
-                        <NWSwitch
-                          id="taxDinner"
-                          checked={formData.taxDinner}
-                          onCheckedChange={checked => setFormData({ ...formData, taxDinner: checked })}
-                          disabled={isRestrictedEdit}
-                          data-testid="dinner-tax-switch"
+                        <FormField
+                          control={form.control}
+                          name="taxDinner"
+                          render={({ field }) => (
+                            <FormItem
+                              className="gba:flex gba:items-center gba:justify-between"
+                              data-testid="dinner-tax-field"
+                            >
+                              <FormLabel data-testid="dinner-tax-label">Tax</FormLabel>
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                  disabled={isRestrictedEdit}
+                                  data-testid="dinner-tax-checkbox"
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
                         />
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              </CardContent>
-            </Card>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </CardContent>
+              </Card>
 
-            {/* Deduction Day Type and Overnight Allowance */}
-            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-              <div className="gba:space-y-2" data-testid="deduction-day-field">
-                <Label htmlFor="deductionDay" data-testid="deduction-day-label">
-                  Deduction Day Type
-                </Label>
-                <Select
-                  value={formData.deductionDay}
-                  onValueChange={value => setFormData({ ...formData, deductionDay: value })}
-                  disabled={isRestrictedEdit}
-                >
-                  <SelectTrigger id="deductionDay" data-testid="deduction-day-select">
-                    <SelectValue placeholder="Select deduction day type" />
-                  </SelectTrigger>
-                  <SelectContent data-testid="deduction-day-options">
-                    {deductionDayOptions.map(option => (
-                      <SelectItem
-                        key={option.value}
-                        value={option.value}
-                        data-testid={`deduction-day-option-${option.value}`}
-                      >
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              {/* Deduction Day Type and Overnight Allowance */}
+              <div className="gba:space-y-4">
+                <FormField
+                  control={form.control}
+                  name="deductionDay"
+                  render={({ field }) => (
+                    <FormItem data-testid="deduction-day-field">
+                      <FormLabel data-testid="deduction-day-label">Deduction Day Type</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange} disabled={isRestrictedEdit}>
+                        <FormControl>
+                          <SelectTrigger data-testid="deduction-day-select">
+                            <SelectValue placeholder="Select deduction day type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent data-testid="deduction-day-options">
+                          {deductionDayOptions.map(option => (
+                            <SelectItem
+                              key={option.value}
+                              value={option.value}
+                              data-testid={`deduction-day-option-${option.value}`}
+                            >
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="overnightAllowance"
+                  render={({ field }) => (
+                    <FormItem
+                      className="gba:flex gba:items-center gba:justify-between"
+                      data-testid="overnight-allowance-field"
+                    >
+                      <FormLabel data-testid="overnight-allowance-label">Overnight Allowance</FormLabel>
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          disabled={isRestrictedEdit}
+                          data-testid="overnight-allowance-checkbox"
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
               </div>
 
-              <div
-                className="gba:space-y-2 gba:flex gba:items-center gba:justify-between"
-                data-testid="overnight-allowance-field"
-              >
-                <Label htmlFor="overnightAllowance" data-testid="overnight-allowance-label">
-                  Overnight Allowance
-                </Label>
-                <NWSwitch
-                  id="overnightAllowance"
-                  checked={formData.overnightAllowance}
-                  onCheckedChange={checked => setFormData({ ...formData, overnightAllowance: checked })}
-                  disabled={isRestrictedEdit}
-                  data-testid="overnight-allowance-switch"
+              {/* Validity Period */}
+              <div className="gba:space-y-4">
+                <FormField
+                  control={form.control}
+                  name="activeFrom"
+                  rules={{ required: 'Valid From is required' }}
+                  render={({ field }) => (
+                    <FormItem data-testid="active-from-field">
+                      <FormLabel data-testid="active-from-label">Valid From *</FormLabel>
+                      <FormControl>
+                        <DateInput
+                          value={field.value || ''}
+                          onChange={date => field.onChange(date)}
+                          disabled={isRestrictedEdit}
+                          data-testid="active-from-input"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="activeTo"
+                  render={({ field }) => (
+                    <FormItem data-testid="active-to-field">
+                      <FormLabel data-testid="active-to-label">Valid To</FormLabel>
+                      <FormControl>
+                        <DateInput
+                          value={field.value || ''}
+                          onChange={date => field.onChange(date)}
+                          data-testid="active-to-input"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
               </div>
             </div>
-
-            {/* Validity Period */}
-            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-              <div className="gba:space-y-2" data-testid="active-from-field">
-                <Label htmlFor="activeFrom" data-testid="active-from-label">
-                  Valid From *
-                </Label>
-                <DateInput
-                  value={formData.activeFrom ? dayjs(formData.activeFrom).format('YYYY-MM-DD') : ''}
-                  onChange={value => setFormData({ ...formData, activeFrom: value || '' })}
-                  disabled={isRestrictedEdit}
-                  placeholder="Select date..."
-                  outputFormat="iso"
-                  captionLayout="dropdown"
-                  data-testid="active-from-input"
-                />
-              </div>
-
-              <div className="gba:space-y-2" data-testid="active-to-field">
-                <Label htmlFor="activeTo" data-testid="active-to-label">
-                  Valid To
-                </Label>
-                <DateInput
-                  value={formData.activeTo ? dayjs(formData.activeTo).format('YYYY-MM-DD') : ''}
-                  onChange={value => setFormData({ ...formData, activeTo: value || undefined })}
-                  placeholder="Select date..."
-                  outputFormat="iso"
-                  captionLayout="dropdown"
-                  data-testid="active-to-input"
-                />
-              </div>
-            </div>
-          </div>
+          </Form>
 
           <DialogFooter data-testid="deduction-modal-footer">
             <Button

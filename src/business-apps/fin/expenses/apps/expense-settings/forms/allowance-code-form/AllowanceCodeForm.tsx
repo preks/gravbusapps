@@ -3,10 +3,11 @@ import { useForm } from 'react-hook-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useFeature } from '@/common/hooks/useFeature'
 import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
   Button,
   Input,
   Alert,
@@ -23,7 +24,7 @@ import {
   FormControl,
   FormMessage
 } from '@newwork/nw-design-system'
-import { PiFloppyDisk, PiX, PiWarning } from 'react-icons/pi'
+import { PiWarning } from 'react-icons/pi'
 import {
   TravelLocation,
   AllowanceType,
@@ -45,18 +46,20 @@ export interface AllowanceCodeFormData {
 }
 
 interface AllowanceCodeFormProps extends BusinessAppContextProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
   initialData?: ExpenseRuleAllowanceCode
   isEditing?: boolean
   onSave: (data: AllowanceCodeFormData) => Promise<void>
-  onCancel: () => void
   loading?: boolean
 }
 
 const AllowanceCodeForm: React.FC<AllowanceCodeFormProps> = ({
+  open,
+  onOpenChange,
   initialData,
   isEditing = false,
   onSave,
-  onCancel,
   loading = false,
   accessToken
 }) => {
@@ -174,7 +177,7 @@ const AllowanceCodeForm: React.FC<AllowanceCodeFormProps> = ({
     }
   }
 
-  const handleCancel = () => {
+  const handleClose = () => {
     form.reset({
       code: '',
       amount: 0,
@@ -182,27 +185,28 @@ const AllowanceCodeForm: React.FC<AllowanceCodeFormProps> = ({
       travelLocation: TravelLocation.BOTH
     })
     setError(null)
-    onCancel()
+    onOpenChange(false)
   }
 
   return (
-    <div data-testid="allowance-code-form-container" className="gba:space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>{isEditing ? 'Edit Allowance Code' : 'Create New Allowance Code'}</CardTitle>
-        </CardHeader>
-        <CardContent className="gba:space-y-6">
-          {error && (
-            <Alert variant="destructive" data-testid="allowance-code-form-error">
-              <PiWarning className="gba:h-4 gba:w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="gba:max-w-2xl" data-testid="allowance-code-form-dialog">
+        <DialogHeader>
+          <DialogTitle>{isEditing ? 'Edit Allowance Code' : 'Create New Allowance Code'}</DialogTitle>
+        </DialogHeader>
 
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleSubmit)} data-testid="allowance-code-form">
+        {error && (
+          <Alert variant="destructive" data-testid="allowance-code-form-error">
+            <PiWarning className="gba:h-4 gba:w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleSubmit)} data-testid="allowance-code-form">
+            <div className="gba:space-y-6">
               {/* Code, Amount, and Order */}
-              <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4 gba:mb-6">
+              <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4">
                 <FormField
                   control={form.control}
                   name="code"
@@ -281,7 +285,7 @@ const AllowanceCodeForm: React.FC<AllowanceCodeFormProps> = ({
               </div>
 
               {/* Travel Location and Allowance Type */}
-              <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4 gba:mb-6">
+              <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4">
                 <FormField
                   control={form.control}
                   name="travelLocation"
@@ -344,7 +348,7 @@ const AllowanceCodeForm: React.FC<AllowanceCodeFormProps> = ({
                 control={form.control}
                 name="calculation"
                 render={({ field }) => (
-                  <FormItem className="gba:mb-6">
+                  <FormItem>
                     <FormLabel>Calculation Formula</FormLabel>
                     <FormControl>
                       <Input
@@ -358,34 +362,25 @@ const AllowanceCodeForm: React.FC<AllowanceCodeFormProps> = ({
                   </FormItem>
                 )}
               />
+            </div>
 
-              {/* Action Buttons */}
-              <div className="gba:flex gba:gap-4 gba:mt-6">
-                <Button
-                  type="submit"
-                  disabled={isSubmitting || loading}
-                  data-testid="allowance-code-form-save-button"
-                  className="gba:flex gba:items-center gba:gap-2"
-                >
-                  <PiFloppyDisk className="gba:h-4 gba:w-4" />
-                  {isEditing ? 'Update Allowance Code' : 'Create Allowance Code'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleCancel}
-                  data-testid="allowance-code-form-cancel-button"
-                  className="gba:flex gba:items-center gba:gap-2"
-                >
-                  <PiX className="gba:h-4 gba:w-4" />
-                  Cancel
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
-    </div>
+            <DialogFooter className="gba:mt-6">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleClose}
+                data-testid="allowance-code-form-cancel-button"
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSubmitting || loading} data-testid="allowance-code-form-save-button">
+                {isEditing ? 'Update' : 'Create'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
   )
 }
 

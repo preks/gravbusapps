@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import { useForm } from 'react-hook-form'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
   Button,
   Badge,
@@ -18,33 +17,19 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  Input,
   Spinner,
   Toaster,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
-  Textarea,
   Tooltip,
   TooltipContent,
   TooltipProvider,
-  TooltipTrigger,
-  DateInput,
-  Form,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
-  Checkbox
+  TooltipTrigger
 } from '@newwork/nw-design-system'
+import { GeneralExpenseForm, GeneralExpenseFormData, UsageInfo } from '../../../forms/general-expense-form'
 import {
   PiPlus,
   PiCalendar,
@@ -53,7 +38,6 @@ import {
   PiDotsThreeVertical,
   PiPencil,
   PiTrash,
-  PiWarning,
   PiInfo
 } from 'react-icons/pi'
 import { toast } from 'sonner'
@@ -65,7 +49,6 @@ import localeData from 'dayjs/plugin/localeData'
 dayjs.extend(weekday)
 dayjs.extend(localeData)
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { ExpenseRuleGeneralExpense, ExpenseGroupWithTranslations } from '../../../types/ExpenseRuleTypes'
 import { expenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
 
@@ -76,71 +59,19 @@ interface GeneralExpensesTabProps {
   activeTo?: string
 }
 
-interface GeneralExpenseFormData {
-  id?: string
-  expenseRuleId: string
-  code: string
-  name: string
-  reimbursable: boolean
-  taxCodeRef?: string
-  taxValue?: number
-  activeFrom: string
-  activeTo?: string
-  expenseGroupRef?: string
-  version?: number
-  additionalProperties?: Record<string, unknown>
-}
-
 // Extended type for expense with additionalProperties
 interface GeneralExpenseWithAdditional extends ExpenseRuleGeneralExpense {
   additionalProperties?: Record<string, unknown>
 }
 
-// Usage check result
-interface UsageInfo {
-  isUsed: boolean
-  usedIn: {
-    planItems?: number
-    items?: number
-    positions?: number
-  }
-  message: string
-}
-
-interface TaxCodeOption {
-  id: string
-  value: string
-  code: string
-}
-
-interface ExpenseGroupOption {
-  id: string
-  value: string
-  code: string
-  translations?: { localeCode: string; value: string }[]
-}
-
 const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessToken, activeFrom, activeTo }) => {
   const graphqlClient = useGraphQLClient(accessToken)
-  const catalogClient = useCatalogManagerClient(accessToken)
 
   const [generalExpenses, setGeneralExpenses] = useState<GeneralExpenseWithAdditional[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isModalVisible, setIsModalVisible] = useState(false)
-  const [editingItem, setEditingItem] = useState<ExpenseRuleGeneralExpense | null>(null)
-
-  // Form using react-hook-form
-  const form = useForm<GeneralExpenseFormData>({
-    defaultValues: {
-      expenseRuleId: ruleId,
-      code: '',
-      name: '',
-      reimbursable: true,
-      activeFrom: activeFrom
-    }
-  })
+  const [editingItem, setEditingItem] = useState<GeneralExpenseWithAdditional | null>(null)
 
   // Delete confirmation dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -155,62 +86,8 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
   // Pre-loaded usage status for all expenses (expense id -> isUsed)
   const [expenseUsageMap, setExpenseUsageMap] = useState<Record<string, boolean>>({})
 
-  // Additional properties edit state (as JSON string for textarea)
-  const [additionalPropertiesJson, setAdditionalPropertiesJson] = useState<string>('')
-
-  // TaxCode catalog state
-  const [taxCodes, setTaxCodes] = useState<TaxCodeOption[]>([])
-  const [catalogsLoading, setCatalogsLoading] = useState(true)
-
-  // ExpenseGroup catalog state
-  const [expenseGroups, setExpenseGroups] = useState<ExpenseGroupOption[]>([])
-
   // Set up client
   expenseSettingsClient.setAccessToken(accessToken)
-
-  // ✅ NEW: Load TaxCode catalog
-  const loadTaxCodes = useCallback(async () => {
-    setCatalogsLoading(true)
-    try {
-      const response = await catalogClient.getCatalogEntriesList(
-        { catalogIdentifier: 'TaxCode', version: 'v1' },
-        { limit: 100, offset: 0, returnTotalRecords: true }
-      )
-
-      setTaxCodes(
-        response.data.map((item: any) => ({
-          id: item.id,
-          value: item.value,
-          code: item.code
-        }))
-      )
-    } catch (error) {
-      console.error('Error loading TaxCode catalog:', error)
-    } finally {
-      setCatalogsLoading(false)
-    }
-  }, [catalogClient])
-
-  // Load ExpenseGroup catalog
-  const loadExpenseGroups = useCallback(async () => {
-    try {
-      const response = await catalogClient.getCatalogEntriesList(
-        { catalogIdentifier: 'ExpenseGroup', version: 'v1' },
-        { limit: 100, offset: 0, returnTotalRecords: true }
-      )
-
-      setExpenseGroups(
-        response.data.map((item: any) => ({
-          id: item.id,
-          value: item.value,
-          code: item.code,
-          translations: item.translations
-        }))
-      )
-    } catch (error) {
-      console.error('Error loading ExpenseGroup catalog:', error)
-    }
-  }, [catalogClient])
 
   const fetchGeneralExpenses = useCallback(async () => {
     setIsLoading(true)
@@ -319,10 +196,8 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
   useEffect(() => {
     if (ruleId && accessToken) {
       fetchGeneralExpenses()
-      loadTaxCodes()
-      loadExpenseGroups()
     }
-  }, [ruleId, accessToken, fetchGeneralExpenses, loadTaxCodes, loadExpenseGroups])
+  }, [ruleId, accessToken, fetchGeneralExpenses])
 
   // Check if a general expense is used in ExpensePlanItem, ExpenseItem, or ExpensePosition
   const checkGeneralExpenseUsage = useCallback(
@@ -399,31 +274,6 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
     setEditingItem(null)
     setIsRestrictedEdit(false)
     setCurrentUsageInfo(null)
-
-    // Determine validity period based on existing entries
-    let validFromValue = activeFrom
-    let validToValue: string | undefined = undefined
-
-    if (generalExpenses.length > 0) {
-      // Use the same validity period as the first existing entry
-      const existingEntry = generalExpenses[0]
-      validFromValue = existingEntry.activeFrom
-      validToValue = existingEntry.activeTo
-    } else {
-      // No existing entries - set validTo to December 31, 9999 (or rule's activeTo if set)
-      validToValue = activeTo || '9999-12-31'
-    }
-
-    form.reset({
-      expenseRuleId: ruleId,
-      code: '',
-      name: '',
-      reimbursable: true,
-      taxValue: 0,
-      activeFrom: validFromValue,
-      activeTo: validToValue
-    })
-    setAdditionalPropertiesJson('')
     setIsModalVisible(true)
   }
 
@@ -435,25 +285,7 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
       const usageInfo = await checkGeneralExpenseUsage(record.id)
       setCurrentUsageInfo(usageInfo)
       setIsRestrictedEdit(usageInfo.isUsed)
-
       setEditingItem(record)
-      form.reset({
-        id: record.id,
-        expenseRuleId: ruleId,
-        code: record.code,
-        name: record.name,
-        reimbursable: record.reimbursable,
-        taxCodeRef: record.taxCodeRef,
-        taxValue: record.taxValue,
-        activeFrom: record.activeFrom,
-        activeTo: record.activeTo,
-        expenseGroupRef: record.expenseGroup?.id,
-        version: record.version,
-        additionalProperties: record.additionalProperties
-      })
-      setAdditionalPropertiesJson(
-        record.additionalProperties ? JSON.stringify(record.additionalProperties, null, 2) : ''
-      )
       setIsModalVisible(true)
     } catch {
       toast.error('Failed to check usage status')
@@ -487,62 +319,16 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
     }
   }
 
-  const handleSave = async () => {
+  // Handle save from the form component
+  const handleFormSave = async (
+    formData: GeneralExpenseFormData & { additionalProperties?: Record<string, unknown> }
+  ) => {
     try {
-      setIsSaving(true)
-
-      const formData = form.getValues()
-
-      // Validate that expense validity period is within rule's validity period
-      const expenseFrom = dayjs(formData.activeFrom)
-      const expenseTo = formData.activeTo ? dayjs(formData.activeTo) : null
-      const ruleFrom = dayjs(activeFrom)
-      const ruleTo = activeTo ? dayjs(activeTo) : null
-
-      // Check: Expense's activeFrom must be >= Rule's activeFrom
-      if (expenseFrom.isBefore(ruleFrom)) {
-        toast.error(
-          `Expense "Valid From" (${expenseFrom.format('DD.MM.YYYY')}) cannot be before the rule's "Valid From" (${ruleFrom.format('DD.MM.YYYY')})`
-        )
-        setIsSaving(false)
-        return
-      }
-
-      // Check: Expense's activeTo must be <= Rule's activeTo (if rule has an end date)
-      if (ruleTo && expenseTo && expenseTo.isAfter(ruleTo)) {
-        toast.error(
-          `Expense "Valid To" (${expenseTo.format('DD.MM.YYYY')}) cannot be after the rule's "Valid To" (${ruleTo.format('DD.MM.YYYY')})`
-        )
-        setIsSaving(false)
-        return
-      }
-
-      // Check: Expense's activeFrom must be <= Rule's activeTo (if rule has an end date)
-      if (ruleTo && expenseFrom.isAfter(ruleTo)) {
-        toast.error(
-          `Expense "Valid From" (${expenseFrom.format('DD.MM.YYYY')}) cannot be after the rule's "Valid To" (${ruleTo.format('DD.MM.YYYY')})`
-        )
-        setIsSaving(false)
-        return
-      }
-
-      // Parse additionalProperties from JSON string
-      let parsedAdditionalProperties: Record<string, unknown> | undefined
-      if (additionalPropertiesJson.trim()) {
-        try {
-          parsedAdditionalProperties = JSON.parse(additionalPropertiesJson)
-        } catch {
-          toast.error('Invalid JSON in Additional Info field')
-          setIsSaving(false)
-          return
-        }
-      }
-
       const saveData: any = {
         ...(editingItem && { id: editingItem.id, version: editingItem.version }),
         expenseRuleId: ruleId,
-        activeTo: formData.activeTo,
-        additionalProperties: parsedAdditionalProperties
+        activeTo: formData.activeTo ? dayjs(formData.activeTo).endOf('day').toISOString() : null,
+        additionalProperties: formData.additionalProperties
       }
 
       // Only include other fields if not in restricted edit mode
@@ -552,7 +338,7 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
         saveData.reimbursable = formData.reimbursable
         saveData.taxCodeRef = formData.taxCodeRef
         saveData.taxValue = formData.taxValue
-        saveData.activeFrom = formData.activeFrom
+        saveData.activeFrom = formData.activeFrom ? dayjs(formData.activeFrom).startOf('day').toISOString() : null
         saveData.expenseGroupRef = formData.expenseGroupRef
       }
 
@@ -562,12 +348,12 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
       setIsModalVisible(false)
       setIsRestrictedEdit(false)
       setCurrentUsageInfo(null)
+      setEditingItem(null)
       await fetchGeneralExpenses()
     } catch (err) {
       toast.error(`Failed to ${editingItem ? 'update' : 'create'} general expense rule`)
       console.error('Save error:', err)
-    } finally {
-      setIsSaving(false)
+      throw err // Re-throw so the form knows the save failed
     }
   }
 
@@ -581,21 +367,6 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
   }
 
   // Get localized label for expense group
-  const getExpenseGroupLabel = useCallback((group: ExpenseGroupOption): string => {
-    const currentLocale = 'en-US' // Could use getCurrentActiveUserLocale()
-    const translation = group.translations?.find(t => t.localeCode === currentLocale)
-    return translation?.value || group.value || group.code
-  }, [])
-
-  // Map expense groups from catalog to select options
-  const expenseGroupOptions = useMemo(
-    () =>
-      expenseGroups.map(group => ({
-        value: group.id,
-        label: getExpenseGroupLabel(group)
-      })),
-    [expenseGroups, getExpenseGroupLabel]
-  )
 
   const formatReimbursable = (reimbursable: boolean): React.ReactNode => {
     if (reimbursable === true) {
@@ -624,13 +395,7 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
   const formatTaxCode = (taxCodeRef?: string): string => {
     if (!taxCodeRef) return 'Not set'
 
-    // Find the tax code in the loaded catalog
-    const taxCode = taxCodes.find(tc => tc.id === taxCodeRef)
-    if (taxCode) {
-      return taxCode.code
-    }
-
-    // Fallback: Extract the actual tax code from the reference
+    // Extract the actual tax code from the reference
     // "TaxCode:v1:V00" -> "V00"
     const parts = taxCodeRef.split(':')
     return parts.length >= 3 ? parts[2] : taxCodeRef
@@ -716,12 +481,6 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
       {/* Table */}
       <Card data-testid="general-expenses-card">
         <CardContent className="gba:p-0">
-          {isSaving && (
-            <div className="gba:absolute gba:inset-0 gba:bg-background/50 gba:flex gba:items-center gba:justify-center gba:z-10">
-              <Spinner className="gba:w-6 gba:h-6" />
-            </div>
-          )}
-
           <Table data-testid="general-expenses-table">
             <TableHeader data-testid="general-expenses-table-header">
               <TableRow data-testid="general-expenses-table-header-row">
@@ -901,274 +660,49 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
         </CardContent>
       </Card>
 
-      {/* Add/Edit Dialog */}
-      <Dialog
+      {/* Add/Edit Form */}
+      <GeneralExpenseForm
         open={isModalVisible}
         onOpenChange={open => {
           setIsModalVisible(open)
           if (!open) {
             setIsRestrictedEdit(false)
             setCurrentUsageInfo(null)
+            setEditingItem(null)
           }
         }}
-      >
-        <DialogContent className="gba:max-w-2xl" data-testid="general-expense-modal">
-          <DialogHeader data-testid="general-expense-modal-header">
-            <DialogTitle data-testid="general-expense-modal-title">
-              {editingItem ? 'Edit' : 'Add'} General Expense Rule
-            </DialogTitle>
-          </DialogHeader>
-
-          {/* Restricted edit warning */}
-          {isRestrictedEdit && currentUsageInfo && (
-            <Alert variant="warning" className="gba:mb-4" data-testid="general-expense-restricted-alert">
-              <PiWarning className="gba:h-4 gba:w-4" />
-              <AlertDescription>{currentUsageInfo.message}</AlertDescription>
-            </Alert>
-          )}
-
-          <Form {...form}>
-            <div className="gba:space-y-4" data-testid="general-expense-form">
-              <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-                <FormField
-                  control={form.control}
-                  name="code"
-                  render={({ field }) => (
-                    <FormItem data-testid="general-expense-code-field">
-                      <FormLabel data-testid="general-expense-code-label">Code *</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          placeholder="Enter expense code"
-                          disabled={isRestrictedEdit}
-                          data-testid="general-expense-code-input"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem data-testid="general-expense-name-field">
-                      <FormLabel data-testid="general-expense-name-label">Name *</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          placeholder="Enter expense name"
-                          disabled={isRestrictedEdit}
-                          data-testid="general-expense-name-input"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-                <FormField
-                  control={form.control}
-                  name="reimbursable"
-                  render={({ field }) => (
-                    <FormItem
-                      className="gba:flex gba:flex-row gba:items-center gba:gap-3 gba:space-y-0"
-                      data-testid="general-expense-reimbursable-field"
-                    >
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                          disabled={isRestrictedEdit}
-                          data-testid="general-expense-reimbursable-checkbox"
-                          className="gba:border-foreground/50 gba:disabled:opacity-100 gba:disabled:border-muted-foreground"
-                        />
-                      </FormControl>
-                      <FormLabel
-                        className={`gba:font-normal ${isRestrictedEdit ? 'gba:text-muted-foreground' : ''}`}
-                        data-testid="general-expense-reimbursable-label"
-                      >
-                        Reimbursable
-                      </FormLabel>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="taxCodeRef"
-                  render={({ field }) => (
-                    <FormItem data-testid="general-expense-tax-code-field">
-                      <FormLabel data-testid="general-expense-tax-code-label">Tax Code</FormLabel>
-                      <Select
-                        value={field.value}
-                        onValueChange={field.onChange}
-                        disabled={catalogsLoading || isRestrictedEdit}
-                      >
-                        <FormControl>
-                          <SelectTrigger data-testid="general-expense-tax-code-select">
-                            <SelectValue placeholder="Select tax code" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent data-testid="general-expense-tax-code-options">
-                          {taxCodes.map(taxCode => (
-                            <SelectItem
-                              key={taxCode.id}
-                              value={taxCode.id}
-                              data-testid={`general-expense-tax-code-option-${taxCode.id}`}
-                            >
-                              {taxCode.code} - {taxCode.value}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-                <FormField
-                  control={form.control}
-                  name="taxValue"
-                  render={({ field }) => (
-                    <FormItem data-testid="general-expense-tax-value-field">
-                      <FormLabel data-testid="general-expense-tax-value-label">Tax Value (%)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          min={0}
-                          max={100}
-                          step={0.01}
-                          value={field.value ?? ''}
-                          onChange={e => field.onChange(parseFloat(e.target.value) || undefined)}
-                          placeholder="0.00"
-                          disabled={isRestrictedEdit}
-                          data-testid="general-expense-tax-value-input"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="expenseGroupRef"
-                  render={({ field }) => (
-                    <FormItem data-testid="general-expense-group-field">
-                      <FormLabel data-testid="general-expense-group-label">Expense Group</FormLabel>
-                      <Select value={field.value} onValueChange={field.onChange} disabled={isRestrictedEdit}>
-                        <FormControl>
-                          <SelectTrigger data-testid="general-expense-group-select">
-                            <SelectValue placeholder="Select expense group" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent data-testid="general-expense-group-options">
-                          {expenseGroupOptions.map(option => (
-                            <SelectItem
-                              key={option.value}
-                              value={option.value}
-                              data-testid={`general-expense-group-option-${option.value}`}
-                            >
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-                <FormField
-                  control={form.control}
-                  name="activeFrom"
-                  render={({ field }) => (
-                    <FormItem data-testid="general-expense-active-from-field">
-                      <FormLabel data-testid="general-expense-active-from-label">Valid From *</FormLabel>
-                      <FormControl>
-                        <DateInput
-                          value={field.value ? dayjs(field.value).format('YYYY-MM-DD') : ''}
-                          onChange={value => field.onChange(value || '')}
-                          disabled={isRestrictedEdit}
-                          placeholder="Select date..."
-                          outputFormat="iso"
-                          captionLayout="dropdown"
-                          data-testid="general-expense-active-from-input"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="activeTo"
-                  render={({ field }) => (
-                    <FormItem data-testid="general-expense-active-to-field">
-                      <FormLabel data-testid="general-expense-active-to-label">Valid To</FormLabel>
-                      <FormControl>
-                        <DateInput
-                          value={field.value ? dayjs(field.value).format('YYYY-MM-DD') : ''}
-                          onChange={value => field.onChange(value || undefined)}
-                          placeholder="Select date..."
-                          outputFormat="iso"
-                          captionLayout="dropdown"
-                          data-testid="general-expense-active-to-input"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              {/* Additional Properties (JSON) */}
-              <FormItem data-testid="general-expense-additional-field">
-                <FormLabel data-testid="general-expense-additional-label">Additional Info (JSON)</FormLabel>
-                <FormControl>
-                  <Textarea
-                    value={additionalPropertiesJson}
-                    onChange={e => setAdditionalPropertiesJson(e.target.value)}
-                    placeholder='{"postingDetails": {"text": "", "account": "", "accountDetail": ""}}'
-                    className="gba:font-mono gba:text-sm gba:min-h-[100px]"
-                    data-testid="general-expense-additional-textarea"
-                  />
-                </FormControl>
-                <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-                  Enter valid JSON for posting details and other additional data
-                </p>
-              </FormItem>
-            </div>
-          </Form>
-
-          <DialogFooter data-testid="general-expense-modal-footer">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsModalVisible(false)
-                setIsRestrictedEdit(false)
-                setCurrentUsageInfo(null)
-              }}
-              disabled={isSaving}
-              data-testid="general-expense-modal-cancel-button"
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleSave} disabled={isSaving} data-testid="general-expense-modal-save-button">
-              {isSaving ? 'Saving...' : editingItem ? 'Update' : 'Create'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        accessToken={accessToken}
+        ruleId={ruleId}
+        ruleActiveFrom={activeFrom}
+        ruleActiveTo={activeTo}
+        editingItem={
+          editingItem
+            ? {
+                id: editingItem.id,
+                expenseRuleId: ruleId,
+                code: editingItem.code,
+                name: editingItem.name,
+                reimbursable: editingItem.reimbursable,
+                taxCodeRef: editingItem.taxCodeRef,
+                taxValue: editingItem.taxValue,
+                activeFrom: editingItem.activeFrom,
+                activeTo: editingItem.activeTo,
+                expenseGroupRef: editingItem.expenseGroup?.id,
+                version: editingItem.version,
+                additionalProperties: editingItem.additionalProperties
+              }
+            : null
+        }
+        usageInfo={currentUsageInfo}
+        isRestrictedEdit={isRestrictedEdit}
+        onSave={handleFormSave}
+        onCancel={() => {
+          setIsModalVisible(false)
+          setIsRestrictedEdit(false)
+          setCurrentUsageInfo(null)
+          setEditingItem(null)
+        }}
+      />
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

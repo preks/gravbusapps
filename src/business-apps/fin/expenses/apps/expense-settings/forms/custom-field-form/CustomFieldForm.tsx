@@ -1,15 +1,34 @@
 import React, { useState, useEffect } from 'react'
+import { useForm } from 'react-hook-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useFeature } from '@/common/hooks/useFeature'
-import { Form, Input, Select, InputNumber, Button, Space, Alert, Typography, Card, Row, Col } from 'antd'
-import { PiFloppyDisk, PiX, PiWarning } from 'react-icons/pi'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  Button,
+  Input,
+  Textarea,
+  Alert,
+  AlertDescription,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage
+} from '@newwork/nw-design-system'
+import { PiWarning } from 'react-icons/pi'
 import { RuleSource, getRuleSourceOptions } from '../../types/ExpenseEnums'
 import { ExpenseRuleCustomField } from '../../types/ExpenseRuleTypes'
 import { useGetExpenseRuleOtherInfoById } from '../../queries/ExpenseRuleQueries'
-
-const { Title } = Typography
-const { TextArea } = Input
-const { Option } = Select
 
 export interface CustomFieldFormData {
   id?: string
@@ -21,35 +40,47 @@ export interface CustomFieldFormData {
 }
 
 interface CustomFieldFormProps extends BusinessAppContextProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
   initialData?: ExpenseRuleCustomField
   isEditing?: boolean
   onSave: (data: CustomFieldFormData) => Promise<void>
-  onCancel: () => void
   loading?: boolean
 }
 
 const CustomFieldForm: React.FC<CustomFieldFormProps> = ({
+  open,
+  onOpenChange,
   initialData,
   isEditing = false,
   onSave,
-  onCancel,
   loading = false,
   accessToken
 }) => {
   // Feature flag check
   const isDevEnabled = useFeature('dev.enabled')
 
-  const [form] = Form.useForm()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // ✅ NEW: Hook for fetching fresh custom field data
-  const { fetchExpenseRuleOtherInfoById } = useGetExpenseRuleOtherInfoById({ accessToken } as BusinessAppContextProps)
+  // React Hook Form setup
+  const form = useForm<CustomFieldFormData>({
+    defaultValues: {
+      fieldName: '',
+      fieldValue: '',
+      fieldType: 'TEXT',
+      fieldOrder: 1,
+      ruleSource: RuleSource.GENERAL_EXPENSE_RULE
+    }
+  })
 
   // Feature flag guard
   if (isDevEnabled === false) {
     return null
   }
+
+  // Hook for fetching fresh custom field data
+  const { fetchExpenseRuleOtherInfoById } = useGetExpenseRuleOtherInfoById({ accessToken } as BusinessAppContextProps)
 
   // Field type options
   const fieldTypeOptions = [
@@ -61,32 +92,29 @@ const CustomFieldForm: React.FC<CustomFieldFormProps> = ({
     { value: 'PERCENTAGE', label: 'Percentage' }
   ]
 
-  // ✅ FIXED: Load fresh data when editing, use initial data when creating
+  // Load fresh data when editing, use initial data when creating
   useEffect(() => {
     const loadData = async () => {
       if (isEditing && initialData?.id) {
-        // ✅ NEW: For editing, fetch fresh data from the server
         try {
           const freshData = await fetchExpenseRuleOtherInfoById(initialData.id)
           if (freshData) {
-            form.setFieldsValue({
+            form.reset({
               fieldName: freshData.source || 'Custom Field',
               fieldValue: freshData.infoValue,
-              fieldType: 'TEXT', // Default value - map from freshData if available
+              fieldType: 'TEXT',
               ruleSource: freshData.source || RuleSource.GENERAL_EXPENSE_RULE,
-              fieldOrder: 1 // Default value - map from freshData if available
+              fieldOrder: 1
             })
             return
           }
-        } catch (error) {
-          console.error('Failed to load fresh custom field data:', error)
-          // Continue with fallback to initial data
+        } catch (err) {
+          console.error('Failed to load fresh custom field data:', err)
         }
       }
 
-      // ✅ Fallback: Use initial data (for creating or if fresh fetch failed)
       if (initialData) {
-        form.setFieldsValue({
+        form.reset({
           fieldName: initialData.fieldName,
           fieldValue: initialData.fieldValue,
           fieldType: initialData.fieldType,
@@ -94,8 +122,9 @@ const CustomFieldForm: React.FC<CustomFieldFormProps> = ({
           fieldOrder: initialData.fieldOrder
         })
       } else {
-        // Set defaults for new custom field
-        form.setFieldsValue({
+        form.reset({
+          fieldName: '',
+          fieldValue: '',
           fieldType: 'TEXT',
           fieldOrder: 1,
           ruleSource: RuleSource.GENERAL_EXPENSE_RULE
@@ -103,20 +132,23 @@ const CustomFieldForm: React.FC<CustomFieldFormProps> = ({
       }
     }
 
-    loadData()
-  }, [initialData?.id, isEditing, form, fetchExpenseRuleOtherInfoById])
+    if (open) {
+      loadData()
+    }
+  }, [initialData?.id, isEditing, open, form, fetchExpenseRuleOtherInfoById])
 
-  const handleSubmit = async (values: any) => {
+  const handleSubmit = async (data: CustomFieldFormData) => {
     setIsSubmitting(true)
     setError(null)
 
     try {
       const formData: CustomFieldFormData = {
-        ...values,
+        ...data,
         id: initialData?.id
       }
 
       await onSave(formData)
+      onOpenChange(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save custom field')
     } finally {
@@ -124,130 +156,183 @@ const CustomFieldForm: React.FC<CustomFieldFormProps> = ({
     }
   }
 
-  const handleCancel = () => {
-    form.resetFields()
-    onCancel()
+  const handleClose = () => {
+    form.reset({
+      fieldName: '',
+      fieldValue: '',
+      fieldType: 'TEXT',
+      fieldOrder: 1,
+      ruleSource: RuleSource.GENERAL_EXPENSE_RULE
+    })
+    setError(null)
+    onOpenChange(false)
   }
 
   return (
-    <div data-testid="custom-field-form-container">
-      <Card>
-        <Title level={4} style={{ margin: 0, marginBottom: 16 }}>
-          {isEditing ? 'Edit Custom Field' : 'Create New Custom Field'}
-        </Title>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="gba:max-w-2xl" data-testid="custom-field-form-dialog">
+        <DialogHeader>
+          <DialogTitle>{isEditing ? 'Edit Custom Field' : 'Create New Custom Field'}</DialogTitle>
+        </DialogHeader>
 
         {error && (
-          <Alert
-            message="Error"
-            description={error}
-            type="error"
-            showIcon
-            icon={<PiWarning />}
-            style={{ marginBottom: 16 }}
-            data-testid="custom-field-form-error"
-          />
+          <Alert variant="destructive" data-testid="custom-field-form-error">
+            <PiWarning className="gba:h-4 gba:w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
         )}
 
-        <Form form={form} layout="vertical" onFinish={handleSubmit} data-testid="custom-field-form">
-          <Row gutter={16}>
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="fieldName"
-                label="Field Name"
-                rules={[
-                  { required: true, message: 'Field name is required' },
-                  { max: 100, message: 'Field name cannot exceed 100 characters' }
-                ]}
-              >
-                <Input placeholder="Enter field name (e.g., Max Amount)" data-testid="custom-field-form-name-input" />
-              </Form.Item>
-            </Col>
-
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="fieldType"
-                label="Field Type"
-                rules={[{ required: true, message: 'Field type is required' }]}
-              >
-                <Select placeholder="Select field type" data-testid="custom-field-form-type-select">
-                  {fieldTypeOptions.map(option => (
-                    <Option key={option.value} value={option.value}>
-                      {option.label}
-                    </Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="ruleSource"
-                label="Rule Source"
-                rules={[{ required: true, message: 'Rule source is required' }]}
-              >
-                <Select placeholder="Select rule source" data-testid="custom-field-form-rule-source-select">
-                  {getRuleSourceOptions().map(option => (
-                    <Option key={option.value} value={option.value}>
-                      {option.label}
-                    </Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
-
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="fieldOrder"
-                label="Display Order"
-                rules={[{ required: true, message: 'Display order is required' }]}
-              >
-                <InputNumber
-                  min={1}
-                  placeholder="Enter order"
-                  style={{ width: '100%' }}
-                  data-testid="custom-field-form-order-input"
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleSubmit)} data-testid="custom-field-form">
+            <div className="gba:space-y-4">
+              <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4">
+                <FormField
+                  control={form.control}
+                  name="fieldName"
+                  rules={{
+                    required: 'Field name is required',
+                    maxLength: { value: 100, message: 'Field name cannot exceed 100 characters' }
+                  }}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Field Name <span className="gba:text-destructive">*</span>
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          placeholder="Enter field name (e.g., Max Amount)"
+                          data-testid="custom-field-form-name-input"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </Form.Item>
-            </Col>
-          </Row>
 
-          <Row gutter={16}>
-            <Col xs={24}>
-              <Form.Item
+                <FormField
+                  control={form.control}
+                  name="fieldType"
+                  rules={{ required: 'Field type is required' }}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Field Type <span className="gba:text-destructive">*</span>
+                      </FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger data-testid="custom-field-form-type-select">
+                            <SelectValue placeholder="Select field type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {fieldTypeOptions.map(option => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4">
+                <FormField
+                  control={form.control}
+                  name="ruleSource"
+                  rules={{ required: 'Rule source is required' }}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Rule Source <span className="gba:text-destructive">*</span>
+                      </FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger data-testid="custom-field-form-rule-source-select">
+                            <SelectValue placeholder="Select rule source" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {getRuleSourceOptions().map(option => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="fieldOrder"
+                  rules={{ required: 'Display order is required' }}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Display Order <span className="gba:text-destructive">*</span>
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min={1}
+                          {...field}
+                          onChange={e => field.onChange(parseInt(e.target.value) || 1)}
+                          placeholder="Enter order"
+                          data-testid="custom-field-form-order-input"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
                 name="fieldValue"
-                label="Field Value"
-                rules={[{ required: true, message: 'Field value is required' }]}
-              >
-                <TextArea
-                  rows={3}
-                  placeholder="Enter field value or configuration"
-                  data-testid="custom-field-form-value-input"
-                />
-              </Form.Item>
-            </Col>
-          </Row>
+                rules={{ required: 'Field value is required' }}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      Field Value <span className="gba:text-destructive">*</span>
+                    </FormLabel>
+                    <FormControl>
+                      <Textarea
+                        {...field}
+                        rows={3}
+                        placeholder="Enter field value or configuration"
+                        data-testid="custom-field-form-value-input"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
-          <Form.Item style={{ marginTop: 24, marginBottom: 0 }}>
-            <Space>
+            <DialogFooter className="gba:mt-6">
               <Button
-                type="primary"
-                htmlType="submit"
-                loading={isSubmitting || loading}
-                icon={<PiFloppyDisk />}
-                data-testid="custom-field-form-save-button"
+                type="button"
+                variant="outline"
+                onClick={handleClose}
+                data-testid="custom-field-form-cancel-button"
               >
-                {isEditing ? 'Update Custom Field' : 'Create Custom Field'}
-              </Button>
-              <Button onClick={handleCancel} icon={<PiX />} data-testid="custom-field-form-cancel-button">
                 Cancel
               </Button>
-            </Space>
-          </Form.Item>
+              <Button type="submit" disabled={isSubmitting || loading} data-testid="custom-field-form-save-button">
+                {isEditing ? 'Update' : 'Create'}
+              </Button>
+            </DialogFooter>
+          </form>
         </Form>
-      </Card>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 

@@ -39,6 +39,44 @@ export const GET_CALCULATION_TYPES = (): string => {
   `
 }
 
+// Pre-fetch all catalogs needed for the form
+export const GET_FORM_CATALOGS = (): string => {
+  return `
+  query getFormCatalogs($activeUserLocale: String!) {
+    CalculationTypes: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "ExpenseCalculationType"}}}, orderBy: {value: ASC}) {
+      code
+      value
+      id
+      translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+        localeCode
+        value
+      }
+      catalog { defaultLocale }
+    }
+    Currencies: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "Currency"}}}, orderBy: {value: ASC}) {
+      code
+      value
+      id
+      translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+        localeCode
+        value
+      }
+      catalog { defaultLocale }
+    }
+    Countries: CatalogEntry(where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "Country" } } }, orderBy: { value: ASC }) {
+      code
+      id
+      value
+      translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+        localeCode
+        value
+      }
+      catalog { defaultLocale }
+    }
+  }
+  `
+}
+
 export const GET_EXPENSE_RULE_FLAGS = `
 query getRuleFlags($id: uuid!) {
   ExpenseRuleFlag(where: { expenseRuleId: { _eq: $id }, isDeleted: { _eq: false } }) {
@@ -153,5 +191,42 @@ export const useExpenseCalculationRulesQueries = (context: BusinessAppContextPro
     [client]
   )
 
-  return { fetchCalculationTypes, fetchExpenseRules }
+  const fetchFormCatalogs = useCallback(async () => {
+    const query = GET_FORM_CATALOGS()
+    const result = await client.request<{
+      CalculationTypes: any[]
+      Currencies: any[]
+      Countries: any[]
+    }>(query, {
+      activeUserLocale: getCurrentActiveUserLocale()
+    })
+
+    // Transform to simpler format for the form
+    const getDisplayName = (entry: any) => {
+      const translation = entry.translations?.[0]?.value
+      if (translation) return translation
+      if (entry.catalog?.defaultLocale === getCurrentActiveUserLocale()) return entry.value
+      return entry.value || entry.code
+    }
+
+    return {
+      calculationTypes: (result.CalculationTypes || []).map((c: any) => ({
+        id: c.id,
+        code: c.code,
+        name: getDisplayName(c)
+      })),
+      currencies: (result.Currencies || []).map((c: any) => ({
+        id: c.id,
+        code: c.code,
+        name: getDisplayName(c)
+      })),
+      countries: (result.Countries || []).map((c: any) => ({
+        id: c.id,
+        code: c.code,
+        name: getDisplayName(c)
+      }))
+    }
+  }, [client])
+
+  return { fetchCalculationTypes, fetchExpenseRules, fetchFormCatalogs }
 }

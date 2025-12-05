@@ -24,7 +24,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator
 } from '@newwork/nw-design-system'
-import { PiDotsThreeVertical, PiPencil, PiTrash } from 'react-icons/pi'
+import { PiDotsThreeVertical, PiPencil, PiTrash, PiPlus } from 'react-icons/pi'
 import { useExpenseCalculationRules } from './hooks/useExpenseCalculationRules'
 import {
   Pagination,
@@ -49,8 +49,6 @@ import {
   CaretLeftIcon,
   CaretRightIcon
 } from '@phosphor-icons/react'
-import { EXPENSE_CALCULATION_RULES_FLOW_ACTIONS } from './constants/flowActions'
-import FlowActionsButton from './components/FlowActionsButton'
 import CreateRuleDialog from './components/CreateRuleDialog'
 import DeleteRuleDialog from './components/DeleteRuleDialog'
 import { GET_EXPENSE_RULE_FLAGS, getExpensesWithRulePk } from './queries/ExpenseCalculationRules.queries'
@@ -69,6 +67,7 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = ({ onRul
     isLoading,
     error,
     calculationTypes,
+    formCatalogs,
     reload,
     setPage,
     setPageSize,
@@ -294,14 +293,10 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = ({ onRul
     setFilter: () => {},
     filterLabelMap: {},
     actions: (
-      <FlowActionsButton
-        actions={EXPENSE_CALCULATION_RULES_FLOW_ACTIONS}
-        onAction={action => {
-          if (action.modalKey === 'openCalculationRuleModal') openCalculationRuleModal()
-          if (action.link) window.location.href = action.link
-        }}
-        dataTestId={PREFIX}
-      />
+      <Button onClick={openCalculationRuleModal} data-testid={`${PREFIX}-create-button`}>
+        <PiPlus className="gba:mr-2 gba:h-4 gba:w-4" />
+        {getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.flow_button', 'Create Calculation Rule')}
+      </Button>
     )
   } as any
   return (
@@ -655,6 +650,7 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = ({ onRul
               }}
               accessToken={props.accessToken}
               additionalData={{ nvi_navigationPayload: selectedRow ? { ...selectedRow } : {} }}
+              formCatalogs={formCatalogs}
               onCreated={reload}
             />
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { useForm } from 'react-hook-form'
 import {
   Button,
   Badge,
@@ -18,7 +19,6 @@ import {
   DialogTitle,
   DialogFooter,
   Input,
-  Label,
   Spinner,
   Toaster,
   Select,
@@ -26,6 +26,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Checkbox,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -35,6 +36,12 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
   DateInput
 } from '@newwork/nw-design-system'
 import {
@@ -110,12 +117,25 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
   const [catalogsLoading, setCatalogsLoading] = useState(true)
   const [editingItem, setEditingItem] = useState<EnhancedExpenseRuleMileage | null>(null)
   const [isSaving, setIsSaving] = useState(false)
-  const [formData, setFormData] = useState<MileageRuleFormData>({
-    expenseRuleId: ruleId,
-    code: '',
-    name: '',
-    reimbursable: true,
-    activeFrom: activeFrom
+
+  // Extract date portion to avoid timezone issues (YYYY-MM-DD format)
+  const formatDateForInput = (dateStr?: string) => {
+    if (!dateStr) return undefined
+    // If already in YYYY-MM-DD format, return as is
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr
+    // Otherwise extract date portion using dayjs to handle ISO strings correctly
+    return dayjs(dateStr).format('YYYY-MM-DD')
+  }
+
+  const form = useForm<MileageRuleFormData>({
+    defaultValues: {
+      expenseRuleId: ruleId,
+      code: '',
+      name: '',
+      reimbursable: true,
+      activeFrom: formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
+      activeTo: formatDateForInput(activeTo) || '9999-12-31'
+    }
   })
 
   // Pre-loaded usage status for all mileage rules (id -> isUsed)
@@ -288,20 +308,20 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
     setIsRestrictedEdit(false)
 
     // Determine validity period based on existing entries
-    let validFromValue = activeFrom
+    let validFromValue = formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD')
     let validToValue: string | undefined = undefined
 
     if (mileageRules.length > 0) {
       // Use the same validity period as the first existing entry
       const existingEntry = mileageRules[0]
-      validFromValue = existingEntry.activeFrom
-      validToValue = existingEntry.activeTo
+      validFromValue = formatDateForInput(existingEntry.activeFrom) || validFromValue
+      validToValue = formatDateForInput(existingEntry.activeTo)
     } else {
       // No existing entries - set validTo to December 31, 9999 (or rule's activeTo if set)
-      validToValue = activeTo || '9999-12-31'
+      validToValue = formatDateForInput(activeTo) || '9999-12-31'
     }
 
-    setFormData({
+    form.reset({
       expenseRuleId: ruleId,
       code: '',
       name: '',
@@ -327,7 +347,7 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
       // Fetch fresh data for this specific item
       const freshData = await fetchMileageRuleById(record.id)
 
-      setFormData({
+      form.reset({
         id: freshData.id,
         expenseRuleId: ruleId,
         code: freshData.code,
@@ -336,8 +356,9 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
         taxCodeRef: freshData.taxCodeRef,
         taxValue: freshData.taxValue,
         unitPrice: freshData.unitPrice,
-        activeFrom: freshData.activeFrom,
-        activeTo: freshData.activeTo,
+        activeFrom:
+          formatDateForInput(freshData.activeFrom) || formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
+        activeTo: formatDateForInput(freshData.activeTo),
         wageCode: freshData.wageCode,
         expenseGroupRef: freshData.expenseGroup?.id,
         measurementUnitRef: freshData.measurementUnit?.id,
@@ -380,25 +401,75 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
     try {
       setIsSaving(true)
 
+      const formValues = form.getValues()
+
+      // Date validation
+      const ruleFrom = dayjs(activeFrom)
+      const ruleTo = activeTo ? dayjs(activeTo) : null
+      const entryFrom = dayjs(formValues.activeFrom)
+      const entryTo = formValues.activeTo ? dayjs(formValues.activeTo) : null
+
+      // Valid From cannot be before rule's Valid From
+      if (entryFrom.isBefore(ruleFrom, 'day')) {
+        form.setError('activeFrom', {
+          type: 'manual',
+          message: `Valid From cannot be before the rule's Valid From (${ruleFrom.format('DD.MM.YYYY')})`
+        })
+        setIsSaving(false)
+        return
+      }
+
+      // Valid From cannot be after rule's Valid To
+      if (ruleTo && entryFrom.isAfter(ruleTo, 'day')) {
+        form.setError('activeFrom', {
+          type: 'manual',
+          message: `Valid From cannot be after the rule's Valid To (${ruleTo.format('DD.MM.YYYY')})`
+        })
+        setIsSaving(false)
+        return
+      }
+
+      // Valid To cannot be after rule's Valid To
+      if (ruleTo && entryTo && entryTo.isAfter(ruleTo, 'day')) {
+        form.setError('activeTo', {
+          type: 'manual',
+          message: `Valid To cannot be after the rule's Valid To (${ruleTo.format('DD.MM.YYYY')})`
+        })
+        setIsSaving(false)
+        return
+      }
+
+      // Valid To cannot be before Valid From
+      if (entryTo && entryFrom.isAfter(entryTo, 'day')) {
+        form.setError('activeTo', {
+          type: 'manual',
+          message: `Valid To cannot be before Valid From`
+        })
+        setIsSaving(false)
+        return
+      }
+
       const saveData: any = {
         ...(editingItem && { id: editingItem.id, version: editingItem.version }),
         expenseRuleId: ruleId,
-        activeTo: formData.activeTo || null
+        // Convert to ISO format for API (java.time.Instant)
+        activeTo: formValues.activeTo ? dayjs(formValues.activeTo).endOf('day').toISOString() : null
       }
 
       // Only include other fields if not in restricted edit mode
       if (!isRestrictedEdit) {
-        saveData.code = formData.code
-        saveData.name = formData.name
-        saveData.reimbursable = formData.reimbursable
-        saveData.taxCodeRef = formData.taxCodeRef
-        saveData.taxValue = formData.taxValue
-        saveData.unitPrice = formData.unitPrice
-        saveData.activeFrom = formData.activeFrom
-        saveData.wageCode = formData.wageCode
-        saveData.expenseGroupRef = formData.expenseGroupRef
-        saveData.measurementUnitRef = formData.measurementUnitRef
-        saveData.mileageRuleId = formData.mileageRuleId
+        saveData.code = formValues.code
+        saveData.name = formValues.name
+        saveData.reimbursable = formValues.reimbursable
+        saveData.taxCodeRef = formValues.taxCodeRef
+        saveData.taxValue = formValues.taxValue
+        saveData.unitPrice = formValues.unitPrice
+        // Convert to ISO format for API (java.time.Instant)
+        saveData.activeFrom = formValues.activeFrom ? dayjs(formValues.activeFrom).startOf('day').toISOString() : null
+        saveData.wageCode = formValues.wageCode
+        saveData.expenseGroupRef = formValues.expenseGroupRef
+        saveData.measurementUnitRef = formValues.measurementUnitRef
+        saveData.mileageRuleId = formValues.mileageRuleId
       }
 
       await expenseSettingsClient.saveExpenseRuleMileage(saveData)
@@ -768,224 +839,287 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
 
           {/* Restricted edit warning */}
           {isRestrictedEdit && (
-            <Alert variant="warning" className="gba:mb-4" data-testid="mileage-rule-restricted-alert">
-              <PiWarning className="gba:h-4 gba:w-4" />
+            <Alert
+              className="gba:mb-4 gba:border-warning gba:bg-warning-secondary"
+              data-testid="mileage-rule-restricted-alert"
+            >
+              <PiWarning className="gba:h-4 gba:w-4 gba:text-warning" />
               <AlertDescription>
                 This mileage rule is used in expense items. Only &quot;Valid To&quot; can be edited.
               </AlertDescription>
             </Alert>
           )}
 
-          <div className="gba:space-y-4" data-testid="mileage-rule-form">
-            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-              <div data-testid="mileage-rule-code-field">
-                <Label htmlFor="code" data-testid="mileage-rule-code-label">
-                  Code *
-                </Label>
-                <Input
-                  id="code"
-                  value={formData.code}
-                  onChange={e => setFormData({ ...formData, code: e.target.value })}
-                  placeholder="Enter mileage code"
-                  disabled={isRestrictedEdit}
-                  data-testid="mileage-rule-code-input"
+          <Form {...form}>
+            <div className="gba:space-y-4" data-testid="mileage-rule-form">
+              <div className="gba:space-y-4">
+                <FormField
+                  control={form.control}
+                  name="code"
+                  rules={{ required: 'Code is required' }}
+                  render={({ field }) => (
+                    <FormItem data-testid="mileage-rule-code-field">
+                      <FormLabel data-testid="mileage-rule-code-label">Code *</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          placeholder="Enter mileage code"
+                          disabled={isRestrictedEdit}
+                          data-testid="mileage-rule-code-input"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="name"
+                  rules={{ required: 'Name is required' }}
+                  render={({ field }) => (
+                    <FormItem data-testid="mileage-rule-name-field">
+                      <FormLabel data-testid="mileage-rule-name-label">Name *</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          placeholder="Enter mileage name"
+                          disabled={isRestrictedEdit}
+                          data-testid="mileage-rule-name-input"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
               </div>
 
-              <div data-testid="mileage-rule-name-field">
-                <Label htmlFor="name" data-testid="mileage-rule-name-label">
-                  Name *
-                </Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={e => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Enter mileage name"
-                  disabled={isRestrictedEdit}
-                  data-testid="mileage-rule-name-input"
+              <div className="gba:grid gba:grid-cols-3 gba:gap-4">
+                <FormField
+                  control={form.control}
+                  name="reimbursable"
+                  render={({ field }) => (
+                    <FormItem
+                      className="gba:flex gba:items-center gba:gap-2"
+                      data-testid="mileage-rule-reimbursable-field"
+                    >
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          disabled={isRestrictedEdit}
+                          data-testid="mileage-rule-reimbursable-checkbox"
+                        />
+                      </FormControl>
+                      <FormLabel data-testid="mileage-rule-reimbursable-label">Reimbursable</FormLabel>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="unitPrice"
+                  render={({ field }) => (
+                    <FormItem data-testid="mileage-rule-unit-price-field">
+                      <FormLabel data-testid="mileage-rule-unit-price-label">Unit Price</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min={0}
+                          step={0.01}
+                          value={field.value || ''}
+                          onChange={e => field.onChange(parseFloat(e.target.value) || undefined)}
+                          placeholder="0.00"
+                          disabled={isRestrictedEdit}
+                          data-testid="mileage-rule-unit-price-input"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="measurementUnitRef"
+                  render={({ field }) => (
+                    <FormItem data-testid="mileage-rule-measurement-unit-field">
+                      <FormLabel data-testid="mileage-rule-measurement-unit-label">Measurement Unit</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange} disabled={isRestrictedEdit}>
+                        <FormControl>
+                          <SelectTrigger data-testid="mileage-rule-measurement-unit-select">
+                            <SelectValue placeholder="Select unit" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent data-testid="mileage-rule-measurement-unit-options">
+                          {measurementUnitOptions.map(option => (
+                            <SelectItem
+                              key={option.value}
+                              value={option.value}
+                              data-testid={`mileage-rule-measurement-unit-option-${option.value}`}
+                            >
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
               </div>
-            </div>
 
-            <div className="gba:grid gba:grid-cols-3 gba:gap-4">
-              <div className="gba:flex gba:items-center gba:gap-2" data-testid="mileage-rule-reimbursable-field">
-                <input
-                  type="checkbox"
-                  id="reimbursable"
-                  checked={formData.reimbursable}
-                  onChange={e => setFormData({ ...formData, reimbursable: e.target.checked })}
-                  className="gba:h-4 gba:w-4"
-                  disabled={isRestrictedEdit}
-                  data-testid="mileage-rule-reimbursable-checkbox"
-                />
-                <Label htmlFor="reimbursable" data-testid="mileage-rule-reimbursable-label">
-                  Reimbursable
-                </Label>
-              </div>
-
-              <div data-testid="mileage-rule-unit-price-field">
-                <Label htmlFor="unitPrice" data-testid="mileage-rule-unit-price-label">
-                  Unit Price
-                </Label>
-                <Input
-                  id="unitPrice"
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  value={formData.unitPrice || ''}
-                  onChange={e => setFormData({ ...formData, unitPrice: parseFloat(e.target.value) || undefined })}
-                  placeholder="0.00"
-                  disabled={isRestrictedEdit}
-                  data-testid="mileage-rule-unit-price-input"
-                />
-              </div>
-
-              <div data-testid="mileage-rule-measurement-unit-field">
-                <Label htmlFor="measurementUnitRef" data-testid="mileage-rule-measurement-unit-label">
-                  Measurement Unit
-                </Label>
-                <Select
-                  value={formData.measurementUnitRef}
-                  onValueChange={value => setFormData({ ...formData, measurementUnitRef: value })}
-                  disabled={isRestrictedEdit}
-                >
-                  <SelectTrigger id="measurementUnitRef" data-testid="mileage-rule-measurement-unit-select">
-                    <SelectValue placeholder="Select unit" />
-                  </SelectTrigger>
-                  <SelectContent data-testid="mileage-rule-measurement-unit-options">
-                    {measurementUnitOptions.map(option => (
-                      <SelectItem
-                        key={option.value}
-                        value={option.value}
-                        data-testid={`mileage-rule-measurement-unit-option-${option.value}`}
+              <div className="gba:space-y-4">
+                <FormField
+                  control={form.control}
+                  name="taxCodeRef"
+                  render={({ field }) => (
+                    <FormItem data-testid="mileage-rule-tax-code-field">
+                      <FormLabel data-testid="mileage-rule-tax-code-label">Tax Code</FormLabel>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        disabled={catalogsLoading || isRestrictedEdit}
                       >
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-              <div data-testid="mileage-rule-tax-code-field">
-                <Label htmlFor="taxCodeRef" data-testid="mileage-rule-tax-code-label">
-                  Tax Code
-                </Label>
-                <Select
-                  value={formData.taxCodeRef}
-                  onValueChange={value => setFormData({ ...formData, taxCodeRef: value })}
-                  disabled={catalogsLoading || isRestrictedEdit}
-                >
-                  <SelectTrigger id="taxCodeRef" data-testid="mileage-rule-tax-code-select">
-                    <SelectValue placeholder="Select tax code" />
-                  </SelectTrigger>
-                  <SelectContent data-testid="mileage-rule-tax-code-options">
-                    {taxCodes.map(taxCode => (
-                      <SelectItem
-                        key={taxCode.id}
-                        value={taxCode.id}
-                        data-testid={`mileage-rule-tax-code-option-${taxCode.id}`}
-                      >
-                        {taxCode.code} - {taxCode.value}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div data-testid="mileage-rule-tax-value-field">
-                <Label htmlFor="taxValue" data-testid="mileage-rule-tax-value-label">
-                  Tax Value (%)
-                </Label>
-                <Input
-                  id="taxValue"
-                  type="number"
-                  min={0}
-                  max={100}
-                  step={0.01}
-                  value={formData.taxValue || ''}
-                  onChange={e => setFormData({ ...formData, taxValue: parseFloat(e.target.value) || undefined })}
-                  placeholder="0.00"
-                  disabled={isRestrictedEdit}
-                  data-testid="mileage-rule-tax-value-input"
+                        <FormControl>
+                          <SelectTrigger data-testid="mileage-rule-tax-code-select">
+                            <SelectValue placeholder="Select tax code" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent data-testid="mileage-rule-tax-code-options">
+                          {taxCodes.map(taxCode => (
+                            <SelectItem
+                              key={taxCode.id}
+                              value={taxCode.id}
+                              data-testid={`mileage-rule-tax-code-option-${taxCode.id}`}
+                            >
+                              {taxCode.code} - {taxCode.value}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
-            </div>
 
-            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-              <div data-testid="mileage-rule-expense-group-field">
-                <Label htmlFor="expenseGroupRef" data-testid="mileage-rule-expense-group-label">
-                  Expense Group
-                </Label>
-                <Select
-                  value={formData.expenseGroupRef}
-                  onValueChange={value => setFormData({ ...formData, expenseGroupRef: value })}
-                  disabled={isRestrictedEdit}
-                >
-                  <SelectTrigger id="expenseGroupRef" data-testid="mileage-rule-expense-group-select">
-                    <SelectValue placeholder="Select expense group" />
-                  </SelectTrigger>
-                  <SelectContent data-testid="mileage-rule-expense-group-options">
-                    {expenseGroupOptions.map(option => (
-                      <SelectItem
-                        key={option.value}
-                        value={option.value}
-                        data-testid={`mileage-rule-expense-group-option-${option.value}`}
-                      >
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div data-testid="mileage-rule-wage-code-field">
-                <Label htmlFor="wageCode" data-testid="mileage-rule-wage-code-label">
-                  Wage Code
-                </Label>
-                <Input
-                  id="wageCode"
-                  value={formData.wageCode || ''}
-                  onChange={e => setFormData({ ...formData, wageCode: e.target.value })}
-                  placeholder="Enter wage code (optional)"
-                  disabled={isRestrictedEdit}
-                  data-testid="mileage-rule-wage-code-input"
-                />
-              </div>
-            </div>
-
-            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-              <div data-testid="mileage-rule-active-from-field">
-                <Label htmlFor="activeFrom" data-testid="mileage-rule-active-from-label">
-                  Valid From *
-                </Label>
-                <DateInput
-                  value={formData.activeFrom ? dayjs(formData.activeFrom).format('YYYY-MM-DD') : ''}
-                  onChange={value => setFormData({ ...formData, activeFrom: value || '' })}
-                  disabled={isRestrictedEdit}
-                  placeholder="Select date..."
-                  outputFormat="iso"
-                  captionLayout="dropdown"
-                  data-testid="mileage-rule-active-from-input"
+                <FormField
+                  control={form.control}
+                  name="taxValue"
+                  render={({ field }) => (
+                    <FormItem data-testid="mileage-rule-tax-value-field">
+                      <FormLabel data-testid="mileage-rule-tax-value-label">Tax Value (%)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={100}
+                          step={0.01}
+                          value={field.value || ''}
+                          onChange={e => field.onChange(parseFloat(e.target.value) || undefined)}
+                          placeholder="0.00"
+                          disabled={isRestrictedEdit}
+                          data-testid="mileage-rule-tax-value-input"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
               </div>
 
-              <div data-testid="mileage-rule-active-to-field">
-                <Label htmlFor="activeTo" data-testid="mileage-rule-active-to-label">
-                  Valid To
-                </Label>
-                <DateInput
-                  value={formData.activeTo ? dayjs(formData.activeTo).format('YYYY-MM-DD') : ''}
-                  onChange={value => setFormData({ ...formData, activeTo: value || undefined })}
-                  placeholder="Select date..."
-                  outputFormat="iso"
-                  captionLayout="dropdown"
-                  data-testid="mileage-rule-active-to-input"
+              <div className="gba:space-y-4">
+                <FormField
+                  control={form.control}
+                  name="expenseGroupRef"
+                  render={({ field }) => (
+                    <FormItem data-testid="mileage-rule-expense-group-field">
+                      <FormLabel data-testid="mileage-rule-expense-group-label">Expense Group</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange} disabled={isRestrictedEdit}>
+                        <FormControl>
+                          <SelectTrigger data-testid="mileage-rule-expense-group-select">
+                            <SelectValue placeholder="Select expense group" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent data-testid="mileage-rule-expense-group-options">
+                          {expenseGroupOptions.map(option => (
+                            <SelectItem
+                              key={option.value}
+                              value={option.value}
+                              data-testid={`mileage-rule-expense-group-option-${option.value}`}
+                            >
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="wageCode"
+                  render={({ field }) => (
+                    <FormItem data-testid="mileage-rule-wage-code-field">
+                      <FormLabel data-testid="mileage-rule-wage-code-label">Wage Code</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          value={field.value || ''}
+                          placeholder="Enter wage code (optional)"
+                          disabled={isRestrictedEdit}
+                          data-testid="mileage-rule-wage-code-input"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="gba:space-y-4">
+                <FormField
+                  control={form.control}
+                  name="activeFrom"
+                  rules={{ required: 'Valid From is required' }}
+                  render={({ field }) => (
+                    <FormItem data-testid="mileage-rule-active-from-field">
+                      <FormLabel data-testid="mileage-rule-active-from-label">Valid From *</FormLabel>
+                      <FormControl>
+                        <DateInput
+                          value={field.value || ''}
+                          onChange={date => field.onChange(date)}
+                          disabled={isRestrictedEdit}
+                          data-testid="mileage-rule-active-from-input"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="activeTo"
+                  render={({ field }) => (
+                    <FormItem data-testid="mileage-rule-active-to-field">
+                      <FormLabel data-testid="mileage-rule-active-to-label">Valid To</FormLabel>
+                      <FormControl>
+                        <DateInput
+                          value={field.value || ''}
+                          onChange={date => field.onChange(date)}
+                          data-testid="mileage-rule-active-to-input"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
               </div>
             </div>
-          </div>
+          </Form>
 
           <DialogFooter data-testid="mileage-rule-modal-footer">
             <Button

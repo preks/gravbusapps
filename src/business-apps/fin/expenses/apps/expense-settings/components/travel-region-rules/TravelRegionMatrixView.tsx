@@ -21,7 +21,8 @@ import {
   SelectValue,
   Toaster,
   Checkbox,
-  Label
+  Label,
+  DateInput
 } from '@newwork/nw-design-system'
 import { toast } from 'sonner'
 import { PiArrowLeft, PiPlus, PiMapPin, PiFloppyDisk, PiDotsSixVertical } from 'react-icons/pi'
@@ -1580,11 +1581,10 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                           <label className="gba:text-xs gba:text-muted-foreground gba:block gba:mb-1">
                                             From:
                                           </label>
-                                          <Input
-                                            type="date"
+                                          <DateInput
                                             value={cell.activeFrom ? dayjs(cell.activeFrom).format('YYYY-MM-DD') : ''}
-                                            onChange={e => {
-                                              const dateValue = e.target.value ? `${e.target.value}T00:00:00+00:00` : ''
+                                            onChange={date => {
+                                              const dateValue = date ? `${date}T00:00:00+00:00` : ''
                                               setEditableCells(prev =>
                                                 prev.map(c =>
                                                   c.id === cell.id || c.validityPeriodId === cell.validityPeriodId
@@ -1593,8 +1593,6 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                                 )
                                               )
                                             }}
-                                            onClick={e => e.stopPropagation()}
-                                            className="gba:w-full gba:h-7 gba:text-xs"
                                             disabled={isUsedInTransactions && !cell.isNew}
                                             data-testid={`${prefixDataTestId}-cell-active-from-${rule.id}-${region.id}`}
                                           />
@@ -1605,13 +1603,10 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                           <label className="gba:text-xs gba:text-muted-foreground gba:block gba:mb-1">
                                             To:
                                           </label>
-                                          <Input
-                                            type="date"
+                                          <DateInput
                                             value={cell.activeTo ? dayjs(cell.activeTo).format('YYYY-MM-DD') : ''}
-                                            onChange={e => {
-                                              const dateValue = e.target.value
-                                                ? `${e.target.value}T00:00:00+00:00`
-                                                : undefined
+                                            onChange={date => {
+                                              const dateValue = date ? `${date}T00:00:00+00:00` : undefined
                                               setEditableCells(prev =>
                                                 prev.map(c =>
                                                   c.id === cell.id || c.validityPeriodId === cell.validityPeriodId
@@ -1620,8 +1615,6 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                                 )
                                               )
                                             }}
-                                            onClick={e => e.stopPropagation()}
-                                            className="gba:w-full gba:h-7 gba:text-xs"
                                             data-testid={`${prefixDataTestId}-cell-active-to-${rule.id}-${region.id}`}
                                           />
                                         </div>

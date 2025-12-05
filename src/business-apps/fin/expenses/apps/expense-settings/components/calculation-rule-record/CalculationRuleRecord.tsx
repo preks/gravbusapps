@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+import { env } from '@/common/env/EnvUtils'
 import {
   Button,
   Input,
@@ -19,7 +21,8 @@ import {
   TabsTrigger,
   Card,
   CardContent,
-  Switch as NWSwitch
+  Switch as NWSwitch,
+  DateInput
 } from '@newwork/nw-design-system'
 import { toast, Toaster } from 'sonner'
 import { useGetExpenseRuleById } from '../../queries/ExpenseRuleQueries'
@@ -211,6 +214,9 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
 
   // Catalog client for loading calculation types and currencies
   const catalogClient = useCatalogManagerClient(accessToken)
+
+  // REST client for saving expense rules
+  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
 
   const loadRuleDetails = useCallback(async () => {
     setIsLoading(true)
@@ -413,23 +419,69 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
     try {
       setIsSaving(true)
 
-      // TODO: Implement actual save logic with GraphQL mutations
-      // const saveData = {
-      //   expenseRule: {
-      //     id: ruleDetails?.id,
-      //     version: ruleDetails?.version,
-      //     ...formData
-      //   },
-      //   changeMode: 'UPDATE'
-      // };
+      // Build the expense rule payload
+      const expenseRulePayload = {
+        expenseRule: {
+          id: ruleDetails?.id,
+          version: ruleDetails?.version,
+          code: formData.code,
+          name: formData.name,
+          standard: formData.standard,
+          activeFrom: formData.activeFrom ? dayjs(formData.activeFrom).startOf('day').toISOString() : null,
+          activeTo: formData.activeTo ? dayjs(formData.activeTo).endOf('day').toISOString() : null,
+          calculationTypeRef: formData.calculationTypeRef || null,
+          currencyRef: formData.currencyRef || null,
+          countryRef: formData.countryRef || null,
+          advancePaymentCode: formData.advancePaymentCode || null,
+          taxesCode: formData.taxesCode || null,
+          nonpayableCode: formData.nonpayableCode || null,
+          useLastCountry: formData.useLastCountry,
+          deductionLimit: formData.deductionLimit,
+          useSingleCurrency: formData.useSingleCurrency
+        },
+        changeMode: 'UPDATE'
+      }
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      // Save expense rule
+      await restClient.post('/employee-expense/saveExpenseRule', expenseRulePayload, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          Accept: 'application/json',
+          'Content-Type': 'application/json'
+        }
+      })
+
+      // Handle Austrian/Romanian flags if changed
+      const isAustrianAbroad = !!formData.austrianAbroad
+      const isRomanianCalculation = !!formData.romanianCalculation
+
+      if (isAustrianAbroad || isRomanianCalculation) {
+        const flagCode = isRomanianCalculation ? 'romanianCalculation' : 'austrianAbroad'
+        const flagName = isRomanianCalculation ? 'Romanian Calculation' : 'Austrian Abroad'
+
+        const flagPayload = {
+          expenseRuleFlag: {
+            expenseRuleId: ruleDetails?.id,
+            code: flagCode,
+            name: flagName,
+            value: 'true'
+          },
+          changeMode: 'INSERT'
+        }
+
+        await restClient.post('/employee-expense/saveExpenseRuleFlag', flagPayload, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            Accept: 'application/json',
+            'Content-Type': 'application/json'
+          }
+        })
+      }
 
       toast.success('Rule saved successfully')
       setHasChanges(false)
 
-      // Reload data
+      // Reload data to get updated version
       await loadRuleDetails()
     } catch (err) {
       toast.error('Failed to save rule')
@@ -580,13 +632,10 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
                         <PiCalendar className="gba:h-4 gba:w-4" />
                         Valid From *
                       </Label>
-                      <Input
-                        id="activeFrom"
-                        type="date"
+                      <DateInput
                         data-testid="rule-active-from-picker"
                         value={formData.activeFrom}
-                        onChange={e => setFormData({ ...formData, activeFrom: e.target.value })}
-                        required
+                        onChange={date => setFormData({ ...formData, activeFrom: date || '' })}
                       />
                     </div>
                     <div>
@@ -594,12 +643,10 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
                         <PiCalendar className="gba:h-4 gba:w-4" />
                         Valid To
                       </Label>
-                      <Input
-                        id="activeTo"
-                        type="date"
+                      <DateInput
                         data-testid="rule-active-to-picker"
                         value={formData.activeTo}
-                        onChange={e => setFormData({ ...formData, activeTo: e.target.value })}
+                        onChange={date => setFormData({ ...formData, activeTo: date || '' })}
                       />
                     </div>
                     <div>

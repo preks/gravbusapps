@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { useForm } from 'react-hook-form'
 import {
   Button,
   Badge,
@@ -20,7 +21,6 @@ import {
   DialogTitle,
   DialogFooter,
   Input,
-  Label,
   Spinner,
   Toaster,
   Switch as NWSwitch,
@@ -29,6 +29,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
   DateInput
 } from '@newwork/nw-design-system'
 import {
@@ -107,18 +113,31 @@ interface UsageInfo {
 const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessToken, activeFrom, activeTo }) => {
   const graphqlClient = useGraphQLClient(accessToken)
 
+  // Extract date portion to avoid timezone issues (YYYY-MM-DD format)
+  const formatDateForInput = (dateStr?: string) => {
+    if (!dateStr) return undefined
+    // If already in YYYY-MM-DD format, return as is
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr
+    // Otherwise extract date portion using dayjs to handle ISO strings correctly
+    return dayjs(dateStr).format('YYYY-MM-DD')
+  }
+
   const [allowancePeriods, setAllowancePeriods] = useState<AllowancePeriod[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isModalVisible, setIsModalVisible] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [editingItem, setEditingItem] = useState<AllowancePeriod | null>(null)
-  const [formData, setFormData] = useState<AllowancePeriodFormData>({
-    code: '',
-    name: '',
-    minHours: 0,
-    midnightRule: false,
-    validFrom: activeFrom
+
+  const form = useForm<AllowancePeriodFormData>({
+    defaultValues: {
+      code: '',
+      name: '',
+      minHours: 0,
+      midnightRule: false,
+      validFrom: formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
+      validTo: formatDateForInput(activeTo) || '9999-12-31'
+    }
   })
 
   // Delete confirmation dialog state
@@ -304,20 +323,20 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
     setCurrentUsageInfo(null)
 
     // Determine validity period based on existing entries
-    let validFromValue = activeFrom
+    let validFromValue = formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD')
     let validToValue: string | undefined = undefined
 
     if (allowancePeriods.length > 0) {
       // Use the same validity period as the first existing entry
       const existingEntry = allowancePeriods[0]
-      validFromValue = existingEntry.validFrom
-      validToValue = existingEntry.validTo
+      validFromValue = formatDateForInput(existingEntry.validFrom) || validFromValue
+      validToValue = formatDateForInput(existingEntry.validTo)
     } else {
       // No existing entries - set validTo to December 31, 9999 (or rule's activeTo if set)
-      validToValue = activeTo || '9999-12-31'
+      validToValue = formatDateForInput(activeTo) || '9999-12-31'
     }
 
-    setFormData({
+    form.reset({
       code: '',
       name: '',
       minHours: 0,
@@ -338,7 +357,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
     setCurrentUsageInfo(usageInfo)
     setIsRestrictedEdit(usageInfo.isUsed)
 
-    setFormData({
+    form.reset({
       id: record.id,
       code: record.code,
       name: record.name,
@@ -349,8 +368,8 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
       overnightAccommodation: record.overnightAccommodation,
       startAfter: record.startAfter,
       returnBefore: record.returnBefore,
-      validFrom: record.validFrom,
-      validTo: record.validTo,
+      validFrom: formatDateForInput(record.validFrom) || formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
+      validTo: formatDateForInput(record.validTo),
       order: record.order,
       version: record.version
     })
@@ -393,8 +412,62 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
   }
 
   const handleSave = async () => {
+    // Trigger form validation
+    const isValid = await form.trigger()
+    if (!isValid) {
+      return
+    }
+
+    const formData = form.getValues()
+
     try {
       setIsSaving(true)
+
+      // Date validation
+      const ruleFrom = dayjs(activeFrom)
+      const ruleTo = activeTo ? dayjs(activeTo) : null
+      const entryFrom = dayjs(formData.validFrom)
+      const entryTo = formData.validTo ? dayjs(formData.validTo) : null
+
+      // Valid From cannot be before rule's Valid From
+      if (entryFrom.isBefore(ruleFrom, 'day')) {
+        form.setError('validFrom', {
+          type: 'manual',
+          message: `Valid From cannot be before the rule's Valid From (${ruleFrom.format('DD.MM.YYYY')})`
+        })
+        setIsSaving(false)
+        return
+      }
+
+      // Valid From cannot be after rule's Valid To
+      if (ruleTo && entryFrom.isAfter(ruleTo, 'day')) {
+        form.setError('validFrom', {
+          type: 'manual',
+          message: `Valid From cannot be after the rule's Valid To (${ruleTo.format('DD.MM.YYYY')})`
+        })
+        setIsSaving(false)
+        return
+      }
+
+      // Valid To cannot be after rule's Valid To
+      if (ruleTo && entryTo && entryTo.isAfter(ruleTo, 'day')) {
+        form.setError('validTo', {
+          type: 'manual',
+          message: `Valid To cannot be after the rule's Valid To (${ruleTo.format('DD.MM.YYYY')})`
+        })
+        setIsSaving(false)
+        return
+      }
+
+      // Valid To cannot be before Valid From
+      if (entryTo && entryFrom.isAfter(entryTo, 'day')) {
+        form.setError('validTo', {
+          type: 'manual',
+          message: `Valid To cannot be before Valid From`
+        })
+        setIsSaving(false)
+        return
+      }
 
       // If restricted edit, only update validTo
       if (isRestrictedEdit && editingItem) {
@@ -404,8 +477,8 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
           expenseRuleId: ruleId,
           code: editingItem.code,
           name: editingItem.name,
-          activeFrom: editingItem.validFrom,
-          activeTo: formData.validTo,
+          activeFrom: editingItem.validFrom ? dayjs(editingItem.validFrom).startOf('day').toISOString() : null,
+          activeTo: formData.validTo ? dayjs(formData.validTo).endOf('day').toISOString() : null,
           fromTime: editingItem.fromTime,
           toTime: editingItem.toTime,
           minHours: editingItem.minHours,
@@ -418,7 +491,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
           ...(editingItem && { id: editingItem.id, version: editingItem.version }),
           expenseRuleId: ruleId,
           businessKey: undefined,
-          activeTo: formData.validTo,
+          activeTo: formData.validTo ? dayjs(formData.validTo).endOf('day').toISOString() : null,
           additionalProperties: undefined,
           code: formData.code,
           name: formData.name,
@@ -429,7 +502,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
           midnightRule: formData.midnightRule,
           startAfter: formData.startAfter,
           returnBefore: formData.returnBefore,
-          activeFrom: formData.validFrom,
+          activeFrom: formData.validFrom ? dayjs(formData.validFrom).startOf('day').toISOString() : null,
           periodOrder: formData.order
         })
       }
@@ -494,9 +567,9 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                 {allowancePeriods.length} periods
               </Badge>
             </div>
-            <Button onClick={handleAdd} data-testid="add-allowance-period-button">
+            <Button onClick={handleAdd} data-testid="create-allowance-period-button">
               <PiPlus className="gba:mr-2" />
-              Add Allowance Period
+              Create Allowance Period
             </Button>
           </div>
         </CardHeader>
@@ -841,225 +914,300 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
             </DialogTitle>
           </DialogHeader>
 
-          <div data-testid="allowance-period-form" className="gba:space-y-4">
-            {isRestrictedEdit && currentUsageInfo && (
-              <Alert variant="warning" data-testid="allowance-period-restricted-alert">
-                <PiWarning className="gba:h-4 gba:w-4" />
-                <AlertDescription>{currentUsageInfo.message}</AlertDescription>
-              </Alert>
-            )}
+          <Form {...form}>
+            <div data-testid="allowance-period-form" className="gba:space-y-4">
+              {isRestrictedEdit && currentUsageInfo && (
+                <Alert
+                  className="gba:bg-warning-secondary gba:text-warning-secondary-foreground gba:border-warning"
+                  data-testid="allowance-period-restricted-alert"
+                >
+                  <PiWarning className="gba:h-4 gba:w-4" />
+                  <AlertDescription>{currentUsageInfo.message}</AlertDescription>
+                </Alert>
+              )}
 
-            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-              {/* Code */}
-              <div className="gba:space-y-2" data-testid="allowance-period-code-field">
-                <Label htmlFor="code" data-testid="allowance-period-code-label">
-                  Allowance Period Code *
-                </Label>
-                <Input
-                  id="code"
-                  placeholder="e.g., FULL, 12, 24"
-                  value={formData.code}
-                  onChange={e => setFormData({ ...formData, code: e.target.value })}
-                  disabled={isRestrictedEdit}
-                  data-testid="allowance-period-code-input"
+              <div className="gba:space-y-4">
+                {/* Code */}
+                <FormField
+                  control={form.control}
+                  name="code"
+                  rules={{ required: 'Allowance Period Code is required' }}
+                  render={({ field }) => (
+                    <FormItem data-testid="allowance-period-code-field">
+                      <FormLabel data-testid="allowance-period-code-label">Allowance Period Code *</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          placeholder="e.g., FULL, 12, 24"
+                          disabled={isRestrictedEdit}
+                          data-testid="allowance-period-code-input"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Name */}
+                <FormField
+                  control={form.control}
+                  name="name"
+                  rules={{ required: 'Name is required' }}
+                  render={({ field }) => (
+                    <FormItem data-testid="allowance-period-name-field">
+                      <FormLabel data-testid="allowance-period-name-label">Name *</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          placeholder="e.g., Full Day, 12 hours"
+                          disabled={isRestrictedEdit}
+                          data-testid="allowance-period-name-input"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Minimum Hours */}
+                <FormField
+                  control={form.control}
+                  name="minHours"
+                  rules={{
+                    required: 'Minimum Hours is required',
+                    min: { value: 0, message: 'Must be at least 0' },
+                    max: { value: 24, message: 'Must be at most 24' }
+                  }}
+                  render={({ field }) => (
+                    <FormItem data-testid="allowance-period-min-hours-field">
+                      <FormLabel data-testid="allowance-period-min-hours-label">Minimum Hours *</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min="0"
+                          max="24"
+                          placeholder="24"
+                          value={field.value}
+                          onChange={e => field.onChange(Number(e.target.value))}
+                          disabled={isRestrictedEdit}
+                          data-testid="allowance-period-min-hours-input"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Order */}
+                <FormField
+                  control={form.control}
+                  name="order"
+                  render={({ field }) => (
+                    <FormItem data-testid="allowance-period-order-field">
+                      <FormLabel data-testid="allowance-period-order-label">Order</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min="1"
+                          placeholder="1"
+                          value={field.value || ''}
+                          onChange={e => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
+                          disabled={isRestrictedEdit}
+                          data-testid="allowance-period-order-input"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Time From */}
+                <FormField
+                  control={form.control}
+                  name="fromTime"
+                  render={({ field }) => (
+                    <FormItem data-testid="allowance-period-from-time-field">
+                      <FormLabel data-testid="allowance-period-from-time-label">Time From</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="time"
+                          value={field.value || ''}
+                          onChange={e => field.onChange(e.target.value || undefined)}
+                          disabled={isRestrictedEdit}
+                          data-testid="allowance-period-from-time-input"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Time To */}
+                <FormField
+                  control={form.control}
+                  name="toTime"
+                  render={({ field }) => (
+                    <FormItem data-testid="allowance-period-to-time-field">
+                      <FormLabel data-testid="allowance-period-to-time-label">Time To</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="time"
+                          value={field.value || ''}
+                          onChange={e => field.onChange(e.target.value || undefined)}
+                          disabled={isRestrictedEdit}
+                          data-testid="allowance-period-to-time-input"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Start After */}
+                <FormField
+                  control={form.control}
+                  name="startAfter"
+                  render={({ field }) => (
+                    <FormItem data-testid="allowance-period-start-after-field">
+                      <FormLabel data-testid="allowance-period-start-after-label">Start After</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="time"
+                          value={field.value || ''}
+                          onChange={e => field.onChange(e.target.value || undefined)}
+                          disabled={isRestrictedEdit}
+                          data-testid="allowance-period-start-after-input"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Return Before */}
+                <FormField
+                  control={form.control}
+                  name="returnBefore"
+                  render={({ field }) => (
+                    <FormItem data-testid="allowance-period-return-before-field">
+                      <FormLabel data-testid="allowance-period-return-before-label">Return Before</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="time"
+                          value={field.value || ''}
+                          onChange={e => field.onChange(e.target.value || undefined)}
+                          disabled={isRestrictedEdit}
+                          data-testid="allowance-period-return-before-input"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Valid From */}
+                <FormField
+                  control={form.control}
+                  name="validFrom"
+                  rules={{ required: 'Valid From is required' }}
+                  render={({ field }) => (
+                    <FormItem data-testid="allowance-period-valid-from-field">
+                      <FormLabel data-testid="allowance-period-valid-from-label">Valid From *</FormLabel>
+                      <FormControl>
+                        <DateInput
+                          value={field.value || ''}
+                          onChange={date => field.onChange(date)}
+                          disabled={isRestrictedEdit}
+                          data-testid="allowance-period-valid-from-input"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Valid To */}
+                <FormField
+                  control={form.control}
+                  name="validTo"
+                  render={({ field }) => (
+                    <FormItem data-testid="allowance-period-valid-to-field">
+                      <FormLabel data-testid="allowance-period-valid-to-label">Valid To</FormLabel>
+                      <FormControl>
+                        <DateInput
+                          value={field.value || ''}
+                          onChange={date => field.onChange(date)}
+                          data-testid="allowance-period-valid-to-input"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
               </div>
 
-              {/* Name */}
-              <div className="gba:space-y-2" data-testid="allowance-period-name-field">
-                <Label htmlFor="name" data-testid="allowance-period-name-label">
-                  Name *
-                </Label>
-                <Input
-                  id="name"
-                  placeholder="e.g., Full Day, 12 hours"
-                  value={formData.name}
-                  onChange={e => setFormData({ ...formData, name: e.target.value })}
-                  disabled={isRestrictedEdit}
-                  data-testid="allowance-period-name-input"
+              {/* Switches */}
+              <div className="gba:space-y-4">
+                <FormField
+                  control={form.control}
+                  name="midnightRule"
+                  render={({ field }) => (
+                    <FormItem
+                      className="gba:flex gba:items-center gba:justify-between"
+                      data-testid="allowance-period-midnight-rule-field"
+                    >
+                      <FormLabel data-testid="allowance-period-midnight-rule-label">Midnight Rule</FormLabel>
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <span
+                          className="gba:text-sm gba:text-muted-foreground"
+                          data-testid="allowance-period-midnight-rule-status"
+                        >
+                          {field.value ? 'Yes' : 'No'}
+                        </span>
+                        <FormControl>
+                          <NWSwitch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            disabled={isRestrictedEdit}
+                            data-testid="allowance-period-midnight-rule-switch"
+                          />
+                        </FormControl>
+                      </div>
+                    </FormItem>
+                  )}
                 />
-              </div>
 
-              {/* Minimum Hours */}
-              <div className="gba:space-y-2" data-testid="allowance-period-min-hours-field">
-                <Label htmlFor="minHours" data-testid="allowance-period-min-hours-label">
-                  Minimum Hours *
-                </Label>
-                <Input
-                  id="minHours"
-                  type="number"
-                  min="0"
-                  max="24"
-                  placeholder="24"
-                  value={formData.minHours}
-                  onChange={e => setFormData({ ...formData, minHours: Number(e.target.value) })}
-                  disabled={isRestrictedEdit}
-                  data-testid="allowance-period-min-hours-input"
-                />
-              </div>
-
-              {/* Order */}
-              <div className="gba:space-y-2" data-testid="allowance-period-order-field">
-                <Label htmlFor="order" data-testid="allowance-period-order-label">
-                  Order
-                </Label>
-                <Input
-                  id="order"
-                  type="number"
-                  min="1"
-                  placeholder="1"
-                  value={formData.order || ''}
-                  onChange={e =>
-                    setFormData({ ...formData, order: e.target.value ? Number(e.target.value) : undefined })
-                  }
-                  disabled={isRestrictedEdit}
-                  data-testid="allowance-period-order-input"
-                />
-              </div>
-
-              {/* Time From */}
-              <div className="gba:space-y-2" data-testid="allowance-period-from-time-field">
-                <Label htmlFor="fromTime" data-testid="allowance-period-from-time-label">
-                  Time From
-                </Label>
-                <Input
-                  id="fromTime"
-                  type="time"
-                  value={formData.fromTime || ''}
-                  onChange={e => setFormData({ ...formData, fromTime: e.target.value || undefined })}
-                  disabled={isRestrictedEdit}
-                  data-testid="allowance-period-from-time-input"
-                />
-              </div>
-
-              {/* Time To */}
-              <div className="gba:space-y-2" data-testid="allowance-period-to-time-field">
-                <Label htmlFor="toTime" data-testid="allowance-period-to-time-label">
-                  Time To
-                </Label>
-                <Input
-                  id="toTime"
-                  type="time"
-                  value={formData.toTime || ''}
-                  onChange={e => setFormData({ ...formData, toTime: e.target.value || undefined })}
-                  disabled={isRestrictedEdit}
-                  data-testid="allowance-period-to-time-input"
-                />
-              </div>
-
-              {/* Start After */}
-              <div className="gba:space-y-2" data-testid="allowance-period-start-after-field">
-                <Label htmlFor="startAfter" data-testid="allowance-period-start-after-label">
-                  Start After
-                </Label>
-                <Input
-                  id="startAfter"
-                  type="time"
-                  value={formData.startAfter || ''}
-                  onChange={e => setFormData({ ...formData, startAfter: e.target.value || undefined })}
-                  disabled={isRestrictedEdit}
-                  data-testid="allowance-period-start-after-input"
-                />
-              </div>
-
-              {/* Return Before */}
-              <div className="gba:space-y-2" data-testid="allowance-period-return-before-field">
-                <Label htmlFor="returnBefore" data-testid="allowance-period-return-before-label">
-                  Return Before
-                </Label>
-                <Input
-                  id="returnBefore"
-                  type="time"
-                  value={formData.returnBefore || ''}
-                  onChange={e => setFormData({ ...formData, returnBefore: e.target.value || undefined })}
-                  disabled={isRestrictedEdit}
-                  data-testid="allowance-period-return-before-input"
-                />
-              </div>
-
-              {/* Valid From */}
-              <div className="gba:space-y-2" data-testid="allowance-period-valid-from-field">
-                <Label htmlFor="validFrom" data-testid="allowance-period-valid-from-label">
-                  Valid From *
-                </Label>
-                <DateInput
-                  value={formData.validFrom ? dayjs(formData.validFrom).format('YYYY-MM-DD') : ''}
-                  onChange={value => setFormData({ ...formData, validFrom: value || '' })}
-                  disabled={isRestrictedEdit}
-                  placeholder="Select date..."
-                  outputFormat="iso"
-                  captionLayout="dropdown"
-                  data-testid="allowance-period-valid-from-input"
-                />
-              </div>
-
-              {/* Valid To */}
-              <div className="gba:space-y-2" data-testid="allowance-period-valid-to-field">
-                <Label htmlFor="validTo" data-testid="allowance-period-valid-to-label">
-                  Valid To
-                </Label>
-                <DateInput
-                  value={formData.validTo ? dayjs(formData.validTo).format('YYYY-MM-DD') : ''}
-                  onChange={value => setFormData({ ...formData, validTo: value || undefined })}
-                  placeholder="Select date..."
-                  outputFormat="iso"
-                  captionLayout="dropdown"
-                  data-testid="allowance-period-valid-to-input"
+                <FormField
+                  control={form.control}
+                  name="overnightAccommodation"
+                  render={({ field }) => (
+                    <FormItem
+                      className="gba:flex gba:items-center gba:justify-between"
+                      data-testid="allowance-period-overnight-field"
+                    >
+                      <FormLabel data-testid="allowance-period-overnight-label">Overnight Accommodation</FormLabel>
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <span
+                          className="gba:text-sm gba:text-muted-foreground"
+                          data-testid="allowance-period-overnight-status"
+                        >
+                          {field.value ? 'Yes' : 'No'}
+                        </span>
+                        <FormControl>
+                          <NWSwitch
+                            checked={field.value || false}
+                            onCheckedChange={field.onChange}
+                            disabled={isRestrictedEdit}
+                            data-testid="allowance-period-overnight-switch"
+                          />
+                        </FormControl>
+                      </div>
+                    </FormItem>
+                  )}
                 />
               </div>
             </div>
-
-            {/* Switches */}
-            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-              <div
-                className="gba:flex gba:items-center gba:justify-between"
-                data-testid="allowance-period-midnight-rule-field"
-              >
-                <Label htmlFor="midnightRule" data-testid="allowance-period-midnight-rule-label">
-                  Midnight Rule
-                </Label>
-                <div className="gba:flex gba:items-center gba:gap-2">
-                  <span
-                    className="gba:text-sm gba:text-muted-foreground"
-                    data-testid="allowance-period-midnight-rule-status"
-                  >
-                    {formData.midnightRule ? 'Yes' : 'No'}
-                  </span>
-                  <NWSwitch
-                    id="midnightRule"
-                    checked={formData.midnightRule}
-                    onCheckedChange={checked => setFormData({ ...formData, midnightRule: checked })}
-                    disabled={isRestrictedEdit}
-                    data-testid="allowance-period-midnight-rule-switch"
-                  />
-                </div>
-              </div>
-
-              <div
-                className="gba:flex gba:items-center gba:justify-between"
-                data-testid="allowance-period-overnight-field"
-              >
-                <Label htmlFor="overnightAccommodation" data-testid="allowance-period-overnight-label">
-                  Overnight Accommodation
-                </Label>
-                <div className="gba:flex gba:items-center gba:gap-2">
-                  <span
-                    className="gba:text-sm gba:text-muted-foreground"
-                    data-testid="allowance-period-overnight-status"
-                  >
-                    {formData.overnightAccommodation ? 'Yes' : 'No'}
-                  </span>
-                  <NWSwitch
-                    id="overnightAccommodation"
-                    checked={formData.overnightAccommodation || false}
-                    onCheckedChange={checked => setFormData({ ...formData, overnightAccommodation: checked })}
-                    disabled={isRestrictedEdit}
-                    data-testid="allowance-period-overnight-switch"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
+          </Form>
 
           <DialogFooter data-testid="allowance-period-modal-footer">
             <Button

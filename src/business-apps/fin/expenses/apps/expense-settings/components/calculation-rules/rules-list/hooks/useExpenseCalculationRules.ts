@@ -21,12 +21,25 @@ export interface ExpenseRuleListItem {
   currency?: any
 }
 
+export interface CatalogOption {
+  id: string
+  code: string
+  name: string
+}
+
+export interface FormCatalogs {
+  calculationTypes: CatalogOption[]
+  currencies: CatalogOption[]
+  countries: CatalogOption[]
+}
+
 export interface UseExpenseCalculationRulesResult {
   items: ExpenseRuleListItem[]
   totalCount: number
   isLoading: boolean
   error: string | null
   calculationTypes: CalculationTypeOption[]
+  formCatalogs: FormCatalogs
   reload: () => void
   setPage: (page: number) => void
   setPageSize: (size: number) => void
@@ -49,7 +62,7 @@ export interface UseExpenseCalculationRulesResult {
 }
 
 export const useExpenseCalculationRules = (context: BusinessAppContextProps): UseExpenseCalculationRulesResult => {
-  const { fetchCalculationTypes, fetchExpenseRules } = useExpenseCalculationRulesQueries(context)
+  const { fetchCalculationTypes, fetchExpenseRules, fetchFormCatalogs } = useExpenseCalculationRulesQueries(context)
 
   const [items, setItems] = useState<ExpenseRuleListItem[]>([])
   const [totalCount, setTotalCount] = useState<number>(0)
@@ -68,6 +81,11 @@ export const useExpenseCalculationRules = (context: BusinessAppContextProps): Us
   const [selectedCurrencyCodes, setSelectedCurrencyCodes] = useState<string[]>([])
 
   const [calculationTypes, setCalculationTypes] = useState<CalculationTypeOption[]>([])
+  const [formCatalogs, setFormCatalogs] = useState<FormCatalogs>({
+    calculationTypes: [],
+    currencies: [],
+    countries: []
+  })
   const [refreshTick, setRefreshTick] = useState<number>(0)
   const [debouncedSearch, setDebouncedSearch] = useState<string>('')
 
@@ -136,6 +154,26 @@ export const useExpenseCalculationRules = (context: BusinessAppContextProps): Us
       } catch {
       } finally {
         if (!cancelled) typesLoadedRef.current = true
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [context.accessToken])
+
+  // Pre-load form catalogs ONCE (for instant form population)
+  const catalogsLoadedRef = useRef(false)
+  useEffect(() => {
+    if (!context.accessToken || catalogsLoadedRef.current) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const catalogs = await fetchFormCatalogs()
+        if (!cancelled) setFormCatalogs(catalogs)
+      } catch {
+        // Silently fail - form will fetch its own catalogs if needed
+      } finally {
+        if (!cancelled) catalogsLoadedRef.current = true
       }
     })()
     return () => {
@@ -249,6 +287,7 @@ export const useExpenseCalculationRules = (context: BusinessAppContextProps): Us
     isLoading,
     error,
     calculationTypes,
+    formCatalogs,
     reload: () => {
       setRefreshTick(t => t + 1)
     },

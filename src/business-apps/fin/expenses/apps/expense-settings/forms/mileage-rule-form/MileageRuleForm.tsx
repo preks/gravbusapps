@@ -23,13 +23,13 @@ import {
   Alert,
   AlertDescription,
   Spinner,
-  DateInput,
   Form,
   FormField,
   FormItem,
   FormLabel,
   FormControl,
-  FormMessage
+  FormMessage,
+  DateInput
 } from '@newwork/nw-design-system'
 import { PiPlus, PiTrash, PiWarning, PiDotsSixVertical } from 'react-icons/pi'
 import { getMileageRulePeriodOptions } from '../../types/ExpenseEnums'
@@ -737,10 +737,10 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
                     <FormLabel>Active From *</FormLabel>
                     <FormControl>
                       <DateInput
-                        value={field.value}
-                        onChange={value => {
-                          field.onChange(value)
-                          setFormData(prev => ({ ...prev, activeFrom: value }))
+                        value={field.value || ''}
+                        onChange={date => {
+                          field.onChange(date)
+                          setFormData(prev => ({ ...prev, activeFrom: date || '' }))
                         }}
                         data-testid="mileage-rule-form-active-from"
                       />
@@ -757,10 +757,10 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
                     <FormLabel>Active To</FormLabel>
                     <FormControl>
                       <DateInput
-                        value={field.value}
-                        onChange={value => {
-                          field.onChange(value)
-                          setFormData(prev => ({ ...prev, activeTo: value }))
+                        value={field.value || ''}
+                        onChange={date => {
+                          field.onChange(date)
+                          setFormData(prev => ({ ...prev, activeTo: date || '' }))
                         }}
                         data-testid="mileage-rule-form-active-to"
                       />
@@ -892,15 +892,15 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
                             </TableCell>
                             <TableCell>
                               <DateInput
-                                value={detail.activeFrom}
-                                onChange={value => updateDetail(index, 'activeFrom', value)}
+                                value={detail.activeFrom || ''}
+                                onChange={date => updateDetail(index, 'activeFrom', date || '')}
                                 data-testid={`mileage-rule-form-detail-active-from-${stableId}`}
                               />
                             </TableCell>
                             <TableCell>
                               <DateInput
-                                value={detail.activeTo}
-                                onChange={value => updateDetail(index, 'activeTo', value)}
+                                value={detail.activeTo || ''}
+                                onChange={date => updateDetail(index, 'activeTo', date || '')}
                                 data-testid={`mileage-rule-form-detail-active-to-${stableId}`}
                               />
                             </TableCell>

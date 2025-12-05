@@ -9,13 +9,13 @@ import {
   Input,
   Alert,
   AlertDescription,
-  DateInput,
   Form,
   FormField,
   FormItem,
   FormLabel,
   FormControl,
-  FormMessage
+  FormMessage,
+  DateInput
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -259,8 +259,8 @@ const AllowanceRegionRuleForm: React.FC<AllowanceRegionRuleFormProps> = ({
                       </FormLabel>
                       <FormControl>
                         <DateInput
-                          value={field.value}
-                          onChange={field.onChange}
+                          value={field.value || ''}
+                          onChange={date => field.onChange(date)}
                           data-testid={`${prefixDataTestId}-active-from-input`}
                           disabled={isSubmitting}
                         />
@@ -281,7 +281,7 @@ const AllowanceRegionRuleForm: React.FC<AllowanceRegionRuleFormProps> = ({
                       <FormControl>
                         <DateInput
                           value={field.value || ''}
-                          onChange={field.onChange}
+                          onChange={date => field.onChange(date)}
                           data-testid={`${prefixDataTestId}-active-to-input`}
                           disabled={isSubmitting}
                         />

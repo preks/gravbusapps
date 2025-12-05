@@ -9,7 +9,8 @@ import {
   SelectValue,
   Label,
   Spinner,
-  Checkbox
+  Checkbox,
+  DateInput
 } from '@newwork/nw-design-system'
 import { PiPlus, PiTrash } from 'react-icons/pi'
 import { SmartColumnGroup, CatalogOption } from '../types'
@@ -174,33 +175,23 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
             <Label className="gba:text-xs gba:font-medium">
               Valid From <span className="gba:text-destructive gba:ml-1">*</span>
             </Label>
-            <Input
-              type="date"
+            <DateInput
               value={group.validFrom}
-              onChange={e => onUpdateField('activeFrom', e.target.value)}
+              onChange={date => onUpdateField('activeFrom', date || '')}
               data-testid={`travel-region-rule-group-valid-from-${groupIndex}`}
-              className="gba:h-8 gba:text-sm"
-              min="1900-01-01"
-              max="2099-12-31"
               disabled={isEditRestricted}
             />
           </div>
           <div className="gba:space-y-1">
             <Label className="gba:text-xs gba:font-medium">Valid To</Label>
-            <Input
-              type="date"
+            <DateInput
               value={group.validTo || ''}
-              onChange={e => onUpdateField('activeTo', e.target.value || undefined)}
+              onChange={date => onUpdateField('activeTo', date || undefined)}
               data-testid={`travel-region-rule-group-valid-to-${groupIndex}`}
-              placeholder="Leave empty for unlimited"
-              className="gba:h-8 gba:text-sm"
-              min="1900-01-01"
               max="2099-12-31"
             />
             {isEditRestricted && (
-              <p className="gba:text-xs gba:text-muted-foreground">
-                Only "Valid To" can be modified.
-              </p>
+              <p className="gba:text-xs gba:text-muted-foreground">Only "Valid To" can be modified.</p>
             )}
           </div>
         </div>

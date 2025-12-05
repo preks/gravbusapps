@@ -1,17 +1,17 @@
-import React from 'react';
-import { Card, CardHeader, CardTitle, CardContent, Input, Label } from '@newwork/nw-design-system';
-import { TravelRegionRuleFormData } from '../types';
+import React from 'react'
+import { Card, CardHeader, CardTitle, CardContent, Input, Label, DateInput } from '@newwork/nw-design-system'
+import { TravelRegionRuleFormData } from '../types'
 
 interface BasicInformationSectionProps {
-  formData: TravelRegionRuleFormData;
-  onUpdate: (updates: Partial<TravelRegionRuleFormData>) => void;
-  isUsedInTransactions?: boolean;
+  formData: TravelRegionRuleFormData
+  onUpdate: (updates: Partial<TravelRegionRuleFormData>) => void
+  isUsedInTransactions?: boolean
 }
 
 export const BasicInformationSection: React.FC<BasicInformationSectionProps> = ({
   formData,
   onUpdate,
-  isUsedInTransactions = false,
+  isUsedInTransactions = false
 }) => {
   return (
     <Card>
@@ -27,7 +27,7 @@ export const BasicInformationSection: React.FC<BasicInformationSectionProps> = (
             <Input
               id="rule-code"
               value={formData.code}
-              onChange={(e) => onUpdate({ code: e.target.value })}
+              onChange={e => onUpdate({ code: e.target.value })}
               placeholder="Enter rule code"
               disabled={isUsedInTransactions}
             />
@@ -39,34 +39,26 @@ export const BasicInformationSection: React.FC<BasicInformationSectionProps> = (
             <Input
               id="rule-name"
               value={formData.name}
-              onChange={(e) => onUpdate({ name: e.target.value })}
+              onChange={e => onUpdate({ name: e.target.value })}
               placeholder="Enter rule name"
               disabled={isUsedInTransactions}
             />
           </div>
           <div className="gba:space-y-2">
             <Label htmlFor="active-from">Active From</Label>
-            <Input
-              id="active-from"
-              type="date"
+            <DateInput
               value={formData.activeFrom || ''}
-              onChange={(e) => onUpdate({ activeFrom: e.target.value })}
+              onChange={date => onUpdate({ activeFrom: date || '' })}
               data-testid="travel-region-rule-form-active-from"
-              min="1900-01-01"
-              max="2099-12-31"
               disabled={isUsedInTransactions}
             />
           </div>
           <div className="gba:space-y-2">
             <Label htmlFor="active-to">Active To</Label>
-            <Input
-              id="active-to"
-              type="date"
+            <DateInput
               value={formData.activeTo || ''}
-              onChange={(e) => onUpdate({ activeTo: e.target.value })}
+              onChange={date => onUpdate({ activeTo: date || '' })}
               data-testid="travel-region-rule-form-active-to"
-              min="1900-01-01"
-              max="2099-12-31"
             />
             {isUsedInTransactions && (
               <p className="gba:text-xs gba:text-muted-foreground">
@@ -77,7 +69,5 @@ export const BasicInformationSection: React.FC<BasicInformationSectionProps> = (
         </div>
       </CardContent>
     </Card>
-  );
-};
-
-
+  )
+}

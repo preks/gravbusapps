@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { useForm } from 'react-hook-form'
 import {
   Button,
   Badge,
@@ -19,7 +20,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  Label,
   Spinner,
   Toaster,
   Select,
@@ -33,6 +33,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
   DateInput
 } from '@newwork/nw-design-system'
 import {
@@ -137,12 +143,24 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
   const [availableAllowanceCodes, setAvailableAllowanceCodes] = useState<RelatedOption[]>([])
   const [availableCostCenters, setAvailableCostCenters] = useState<CostCenterOption[]>([])
 
-  const [formData, setFormData] = useState<OtherCalculationFormData>({
-    source: '',
-    relatedId: undefined,
-    costCenterId: undefined,
-    reimbursablePercent: undefined,
-    validFrom: activeFrom
+  // Extract date portion to avoid timezone issues (YYYY-MM-DD format)
+  const formatDateForInput = (dateStr?: string) => {
+    if (!dateStr) return undefined
+    // If already in YYYY-MM-DD format, return as is
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr
+    // Otherwise extract date portion using dayjs to handle ISO strings correctly
+    return dayjs(dateStr).format('YYYY-MM-DD')
+  }
+
+  const form = useForm<OtherCalculationFormData>({
+    defaultValues: {
+      source: '',
+      relatedId: undefined,
+      costCenterId: undefined,
+      reimbursablePercent: undefined,
+      validFrom: formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
+      validTo: formatDateForInput(activeTo) || '9999-12-31'
+    }
   })
 
   // Delete confirmation dialog state
@@ -340,7 +358,8 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
 
   // Check if a calculation is used
   // Note: OtherCalc doesn't have direct references in ExpensePosition
-  const checkCalcUsage = useCallback(async (): Promise<UsageInfo> => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const checkCalcUsage = useCallback(async (id: string): Promise<UsageInfo> => {
     // Since there's no direct link to track usage, return not used
     return { isUsed: false, usedIn: {}, message: '' }
   }, [])
@@ -364,9 +383,10 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
   ]
 
   const getRelatedOptions = (): RelatedOption[] => {
-    if (formData.source === 'GENERAL_EXPENSE_RULE') return availableExpenses
-    if (formData.source === 'MILEAGE_RULE') return availableMileage
-    if (formData.source === 'ALLOWANCE_RULE') return availableAllowanceCodes
+    const source = form.watch('source')
+    if (source === 'GENERAL_EXPENSE_RULE') return availableExpenses
+    if (source === 'MILEAGE_RULE') return availableMileage
+    if (source === 'ALLOWANCE_RULE') return availableAllowanceCodes
     return []
   }
 
@@ -376,20 +396,20 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
     setCurrentUsageInfo(null)
 
     // Determine validity period based on existing entries
-    let validFromValue = activeFrom
+    let validFromValue = formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD')
     let validToValue: string | undefined = undefined
 
     if (otherCalculations.length > 0) {
       // Use the same validity period as the first existing entry
       const existingEntry = otherCalculations[0]
-      validFromValue = existingEntry.validFrom
-      validToValue = existingEntry.validTo
+      validFromValue = formatDateForInput(existingEntry.validFrom) || validFromValue
+      validToValue = formatDateForInput(existingEntry.validTo)
     } else {
       // No existing entries - set validTo to December 31, 9999 (or rule's activeTo if set)
-      validToValue = activeTo || '9999-12-31'
+      validToValue = formatDateForInput(activeTo) || '9999-12-31'
     }
 
-    setFormData({
+    form.reset({
       source: '',
       relatedId: undefined,
       costCenterId: undefined,
@@ -410,14 +430,15 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
       setIsRestrictedEdit(usageInfo.isUsed)
 
       setEditingItem(record)
-      setFormData({
+      form.reset({
         id: record.id,
         source: record.source,
         relatedId: record.relatedId,
         costCenterId: record.costCenter?.id,
         reimbursablePercent: record.reimbursablePercent,
-        validFrom: record.validFrom,
-        validTo: record.validTo,
+        validFrom:
+          formatDateForInput(record.validFrom) || formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
+        validTo: formatDateForInput(record.validTo),
         version: record.version
       })
       setIsModalVisible(true)
@@ -457,22 +478,72 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
     try {
       setIsSaving(true)
 
+      const formValues = form.getValues()
+
+      // Date validation
+      const ruleFrom = dayjs(activeFrom)
+      const ruleTo = activeTo ? dayjs(activeTo) : null
+      const entryFrom = dayjs(formValues.validFrom)
+      const entryTo = formValues.validTo ? dayjs(formValues.validTo) : null
+
+      // Valid From cannot be before rule's Valid From
+      if (entryFrom.isBefore(ruleFrom, 'day')) {
+        form.setError('validFrom', {
+          type: 'manual',
+          message: `Valid From cannot be before the rule's Valid From (${ruleFrom.format('DD.MM.YYYY')})`
+        })
+        setIsSaving(false)
+        return
+      }
+
+      // Valid From cannot be after rule's Valid To
+      if (ruleTo && entryFrom.isAfter(ruleTo, 'day')) {
+        form.setError('validFrom', {
+          type: 'manual',
+          message: `Valid From cannot be after the rule's Valid To (${ruleTo.format('DD.MM.YYYY')})`
+        })
+        setIsSaving(false)
+        return
+      }
+
+      // Valid To cannot be after rule's Valid To
+      if (ruleTo && entryTo && entryTo.isAfter(ruleTo, 'day')) {
+        form.setError('validTo', {
+          type: 'manual',
+          message: `Valid To cannot be after the rule's Valid To (${ruleTo.format('DD.MM.YYYY')})`
+        })
+        setIsSaving(false)
+        return
+      }
+
+      // Valid To cannot be before Valid From
+      if (entryTo && entryFrom.isAfter(entryTo, 'day')) {
+        form.setError('validTo', {
+          type: 'manual',
+          message: `Valid To cannot be before Valid From`
+        })
+        setIsSaving(false)
+        return
+      }
+
       const payload: any = {
         ...(editingItem && { id: editingItem.id, version: editingItem.version }),
         expenseRuleId: ruleId,
-        activeTo: formData.validTo || null
+        // Convert to ISO format for API
+        activeTo: formValues.validTo ? dayjs(formValues.validTo).endOf('day').toISOString() : null
       }
 
       // Only include other fields if not in restricted edit mode
       if (!isRestrictedEdit) {
-        payload.activeFrom = formData.validFrom
-        payload.costCenterId = formData.costCenterId || null
-        payload.source = formData.source || null
-        payload.reimbursablePercent = formData.reimbursablePercent || null
+        // Convert to ISO format for API
+        payload.activeFrom = formValues.validFrom ? dayjs(formValues.validFrom).startOf('day').toISOString() : null
+        payload.costCenterId = formValues.costCenterId || null
+        payload.source = formValues.source || null
+        payload.reimbursablePercent = formValues.reimbursablePercent || null
         // Set the related ID based on source (using backend enum values)
-        payload.expenseRuleGeneralExpenseId = formData.source === 'GENERAL_EXPENSE_RULE' ? formData.relatedId : null
-        payload.expenseRuleMileageId = formData.source === 'MILEAGE_RULE' ? formData.relatedId : null
-        payload.expenseRuleAllowanceCodeId = formData.source === 'ALLOWANCE_RULE' ? formData.relatedId : null
+        payload.expenseRuleGeneralExpenseId = formValues.source === 'GENERAL_EXPENSE_RULE' ? formValues.relatedId : null
+        payload.expenseRuleMileageId = formValues.source === 'MILEAGE_RULE' ? formValues.relatedId : null
+        payload.expenseRuleAllowanceCodeId = formValues.source === 'ALLOWANCE_RULE' ? formValues.relatedId : null
       }
 
       await expenseSettingsClient.saveExpenseRuleOtherCalc(payload)
@@ -688,163 +759,207 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
 
           {/* Restricted edit warning */}
           {isRestrictedEdit && currentUsageInfo && (
-            <Alert variant="warning" className="gba:mb-4" data-testid="other-calculation-restricted-alert">
-              <PiWarning className="gba:h-4 gba:w-4" />
+            <Alert
+              className="gba:mb-4 gba:border-warning gba:bg-warning-secondary"
+              data-testid="other-calculation-restricted-alert"
+            >
+              <PiWarning className="gba:h-4 gba:w-4 gba:text-warning" />
               <AlertDescription>{currentUsageInfo.message}</AlertDescription>
             </Alert>
           )}
 
-          <div className="gba:space-y-4 gba:py-4" data-testid="other-calculation-form">
-            {/* Source (Expense/Mileage/Allowance) */}
-            <div className="gba:space-y-2">
-              <Label htmlFor="source">Source *</Label>
-              <Select
-                value={formData.source || 'none'}
-                onValueChange={value =>
-                  setFormData({
-                    ...formData,
-                    source: value === 'none' ? '' : (value as SourceEnum),
-                    relatedId: undefined // Reset selection when source changes
-                  })
-                }
-                disabled={isRestrictedEdit}
-              >
-                <SelectTrigger id="source" data-testid="other-calculation-source-select">
-                  <SelectValue placeholder="Select source" />
-                </SelectTrigger>
-                <SelectContent>
-                  {sourceOptions.map(opt => (
-                    <SelectItem key={opt.value || 'none'} value={opt.value || 'none'}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="gba:text-xs gba:text-muted-foreground">
-                Select whether this applies to an Expense, Mileage, or Allowance Code
-              </p>
-            </div>
-
-            {/* Linked Item (conditional) */}
-            {formData.source && (
-              <div className="gba:space-y-2">
-                <Label htmlFor="relatedId">
-                  {formData.source === 'GENERAL_EXPENSE_RULE'
-                    ? 'Expense'
-                    : formData.source === 'MILEAGE_RULE'
-                      ? 'Mileage'
-                      : 'Allowance Code'}{' '}
-                  *
-                </Label>
-                <Select
-                  value={formData.relatedId || ''}
-                  onValueChange={value => setFormData({ ...formData, relatedId: value })}
-                  disabled={isRestrictedEdit}
-                >
-                  <SelectTrigger id="relatedId" data-testid="other-calculation-linked-select">
-                    <SelectValue
-                      placeholder={`Select ${SOURCE_DISPLAY_MAP[formData.source]?.toLowerCase() || 'item'}`}
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {getRelatedOptions().map(option => (
-                      <SelectItem key={option.id} value={option.id}>
-                        {option.code} - {option.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {getRelatedOptions().length === 0 && (
-                  <p className="gba:text-xs gba:text-warning-foreground">
-                    No{' '}
-                    {formData.source === 'GENERAL_EXPENSE_RULE'
-                      ? 'expenses'
-                      : formData.source === 'MILEAGE_RULE'
-                        ? 'mileage rules'
-                        : 'allowance codes'}{' '}
-                    available for this rule
-                  </p>
+          <Form {...form}>
+            <div className="gba:space-y-4 gba:py-4" data-testid="other-calculation-form">
+              {/* Source (Expense/Mileage/Allowance) */}
+              <FormField
+                control={form.control}
+                name="source"
+                rules={{ required: 'Source is required' }}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Source *</FormLabel>
+                    <Select
+                      value={field.value || 'none'}
+                      onValueChange={value => {
+                        field.onChange(value === 'none' ? '' : value)
+                        form.setValue('relatedId', undefined) // Reset selection when source changes
+                      }}
+                      disabled={isRestrictedEdit}
+                    >
+                      <FormControl>
+                        <SelectTrigger data-testid="other-calculation-source-select">
+                          <SelectValue placeholder="Select source" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {sourceOptions.map(opt => (
+                          <SelectItem key={opt.value || 'none'} value={opt.value || 'none'}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="gba:text-xs gba:text-muted-foreground">
+                      Select whether this applies to an Expense, Mileage, or Allowance Code
+                    </p>
+                    <FormMessage />
+                  </FormItem>
                 )}
-              </div>
-            )}
-
-            {/* Cost Center */}
-            <div className="gba:space-y-2">
-              <Label htmlFor="costCenterId">Cost Center</Label>
-              <Select
-                value={formData.costCenterId || 'none'}
-                onValueChange={value =>
-                  setFormData({ ...formData, costCenterId: value === 'none' ? undefined : value })
-                }
-                disabled={isRestrictedEdit}
-              >
-                <SelectTrigger id="costCenterId" data-testid="other-calculation-cost-center-select">
-                  <SelectValue placeholder="Select cost center (optional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No cost center</SelectItem>
-                  {availableCostCenters.map(cc => (
-                    <SelectItem key={cc.id} value={cc.id}>
-                      {cc.code} - {cc.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {availableCostCenters.length === 0 && (
-                <p className="gba:text-xs gba:text-muted-foreground">No cost centers available in the system</p>
-              )}
-            </div>
-
-            {/* Reimbursable Percent */}
-            <div className="gba:space-y-2">
-              <Label htmlFor="reimbursablePercent">Reimbursable Percent</Label>
-              <Input
-                id="reimbursablePercent"
-                type="number"
-                min="0"
-                max="100"
-                step="0.01"
-                placeholder="Enter percentage (0-100)"
-                value={formData.reimbursablePercent ?? ''}
-                onChange={e =>
-                  setFormData({
-                    ...formData,
-                    reimbursablePercent: e.target.value ? parseFloat(e.target.value) : undefined
-                  })
-                }
-                disabled={isRestrictedEdit}
-                data-testid="other-calculation-reimbursable-percent-input"
               />
-            </div>
 
-            {/* Validity Period */}
-            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-              <div className="gba:space-y-2">
-                <Label htmlFor="validFrom">Valid From *</Label>
-                <DateInput
-                  value={formData.validFrom ? dayjs(formData.validFrom).format('YYYY-MM-DD') : ''}
-                  onChange={value => setFormData({ ...formData, validFrom: value || '' })}
-                  disabled={isRestrictedEdit}
-                  placeholder="Select date..."
-                  outputFormat="iso"
-                  captionLayout="dropdown"
-                  data-testid="other-calculation-valid-from-input"
+              {/* Linked Item (conditional) */}
+              {form.watch('source') && (
+                <FormField
+                  control={form.control}
+                  name="relatedId"
+                  rules={{ required: 'Related item is required' }}
+                  render={({ field }) => {
+                    const source = form.watch('source')
+                    return (
+                      <FormItem>
+                        <FormLabel>
+                          {source === 'GENERAL_EXPENSE_RULE'
+                            ? 'Expense'
+                            : source === 'MILEAGE_RULE'
+                              ? 'Mileage'
+                              : 'Allowance Code'}{' '}
+                          *
+                        </FormLabel>
+                        <Select value={field.value || ''} onValueChange={field.onChange} disabled={isRestrictedEdit}>
+                          <FormControl>
+                            <SelectTrigger data-testid="other-calculation-linked-select">
+                              <SelectValue
+                                placeholder={`Select ${SOURCE_DISPLAY_MAP[source]?.toLowerCase() || 'item'}`}
+                              />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {getRelatedOptions().map(option => (
+                              <SelectItem key={option.id} value={option.id}>
+                                {option.code} - {option.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {getRelatedOptions().length === 0 && (
+                          <p className="gba:text-xs gba:text-warning-foreground">
+                            No{' '}
+                            {source === 'GENERAL_EXPENSE_RULE'
+                              ? 'expenses'
+                              : source === 'MILEAGE_RULE'
+                                ? 'mileage rules'
+                                : 'allowance codes'}{' '}
+                            available for this rule
+                          </p>
+                        )}
+                        <FormMessage />
+                      </FormItem>
+                    )
+                  }}
+                />
+              )}
+
+              {/* Cost Center */}
+              <FormField
+                control={form.control}
+                name="costCenterId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cost Center</FormLabel>
+                    <Select
+                      value={field.value || 'none'}
+                      onValueChange={value => field.onChange(value === 'none' ? undefined : value)}
+                      disabled={isRestrictedEdit}
+                    >
+                      <FormControl>
+                        <SelectTrigger data-testid="other-calculation-cost-center-select">
+                          <SelectValue placeholder="Select cost center (optional)" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="none">No cost center</SelectItem>
+                        {availableCostCenters.map(cc => (
+                          <SelectItem key={cc.id} value={cc.id}>
+                            {cc.code} - {cc.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {availableCostCenters.length === 0 && (
+                      <p className="gba:text-xs gba:text-muted-foreground">No cost centers available in the system</p>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Reimbursable Percent */}
+              <FormField
+                control={form.control}
+                name="reimbursablePercent"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Reimbursable Percent</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        placeholder="Enter percentage (0-100)"
+                        value={field.value ?? ''}
+                        onChange={e => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                        disabled={isRestrictedEdit}
+                        data-testid="other-calculation-reimbursable-percent-input"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Validity Period */}
+              <div className="gba:space-y-4">
+                <FormField
+                  control={form.control}
+                  name="validFrom"
+                  rules={{ required: 'Valid From is required' }}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Valid From *</FormLabel>
+                      <FormControl>
+                        <DateInput
+                          value={field.value || ''}
+                          onChange={date => field.onChange(date)}
+                          disabled={isRestrictedEdit}
+                          data-testid="other-calculation-valid-from-input"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="validTo"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Valid To</FormLabel>
+                      <FormControl>
+                        <DateInput
+                          value={field.value || ''}
+                          onChange={date => field.onChange(date)}
+                          data-testid="other-calculation-valid-to-input"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
               </div>
-
-              <div className="gba:space-y-2">
-                <Label htmlFor="validTo">Valid To</Label>
-                <DateInput
-                  value={formData.validTo ? dayjs(formData.validTo).format('YYYY-MM-DD') : ''}
-                  onChange={value => setFormData({ ...formData, validTo: value || undefined })}
-                  placeholder="Select date..."
-                  outputFormat="iso"
-                  captionLayout="dropdown"
-                  data-testid="other-calculation-valid-to-input"
-                />
-              </div>
             </div>
-          </div>
+          </Form>
 
           <DialogFooter>
             <Button

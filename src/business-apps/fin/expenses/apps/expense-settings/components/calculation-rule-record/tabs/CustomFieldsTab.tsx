@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { useForm } from 'react-hook-form'
 import {
   Button,
   Badge,
@@ -20,7 +21,6 @@ import {
   DialogTitle,
   DialogFooter,
   Input,
-  Label,
   Spinner,
   Toaster,
   Select,
@@ -28,12 +28,18 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Switch as NWSwitch,
+  Checkbox,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
   DateInput
 } from '@newwork/nw-design-system'
 import { PiPlus, PiPencil, PiCalendar, PiCode, PiDotsThreeVertical, PiTrash, PiWarning } from 'react-icons/pi'
@@ -111,11 +117,23 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
   const [availableExpenses, setAvailableExpenses] = useState<RelatedOption[]>([])
   const [availableMileage, setAvailableMileage] = useState<RelatedOption[]>([])
 
-  const [formData, setFormData] = useState<CustomFieldFormData>({
-    source: 'Expense',
-    infoValue: '',
-    mandatory: false,
-    validFrom: activeFrom
+  // Extract date portion to avoid timezone issues (YYYY-MM-DD format)
+  const formatDateForInput = (dateStr?: string) => {
+    if (!dateStr) return undefined
+    // If already in YYYY-MM-DD format, return as is
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr
+    // Otherwise extract date portion using dayjs to handle ISO strings correctly
+    return dayjs(dateStr).format('YYYY-MM-DD')
+  }
+
+  const form = useForm<CustomFieldFormData>({
+    defaultValues: {
+      source: 'Expense',
+      infoValue: '',
+      mandatory: false,
+      validFrom: formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
+      validTo: formatDateForInput(activeTo) || '9999-12-31'
+    }
   })
 
   // Delete confirmation dialog state
@@ -297,20 +315,20 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
     setCurrentUsageInfo(null)
 
     // Determine validity period based on existing entries
-    let validFromValue = activeFrom
+    let validFromValue = formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD')
     let validToValue: string | undefined = undefined
 
     if (customFields.length > 0) {
       // Use the same validity period as the first existing entry
       const existingEntry = customFields[0]
-      validFromValue = existingEntry.validFrom
-      validToValue = existingEntry.validTo
+      validFromValue = formatDateForInput(existingEntry.validFrom) || validFromValue
+      validToValue = formatDateForInput(existingEntry.validTo)
     } else {
       // No existing entries - set validTo to December 31, 9999 (or rule's activeTo if set)
-      validToValue = activeTo || '9999-12-31'
+      validToValue = formatDateForInput(activeTo) || '9999-12-31'
     }
 
-    setFormData({
+    form.reset({
       source: 'Expense',
       infoValue: '',
       mandatory: false,
@@ -329,13 +347,13 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
     setCurrentUsageInfo(usageInfo)
     setIsRestrictedEdit(usageInfo.isUsed)
 
-    setFormData({
+    form.reset({
       id: record.id,
       source: record.source,
       infoValue: record.infoValue,
       mandatory: record.mandatory,
-      validFrom: record.validFrom,
-      validTo: record.validTo,
+      validFrom: formatDateForInput(record.validFrom) || formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
+      validTo: formatDateForInput(record.validTo),
       version: record.version,
       relatedId: record.relatedId
     })
@@ -381,6 +399,54 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
     try {
       setIsSaving(true)
 
+      const formValues = form.getValues()
+
+      // Date validation
+      const ruleFrom = dayjs(activeFrom)
+      const ruleTo = activeTo ? dayjs(activeTo) : null
+      const entryFrom = dayjs(formValues.validFrom)
+      const entryTo = formValues.validTo ? dayjs(formValues.validTo) : null
+
+      // Valid From cannot be before rule's Valid From
+      if (entryFrom.isBefore(ruleFrom, 'day')) {
+        form.setError('validFrom', {
+          type: 'manual',
+          message: `Valid From cannot be before the rule's Valid From (${ruleFrom.format('DD.MM.YYYY')})`
+        })
+        setIsSaving(false)
+        return
+      }
+
+      // Valid From cannot be after rule's Valid To
+      if (ruleTo && entryFrom.isAfter(ruleTo, 'day')) {
+        form.setError('validFrom', {
+          type: 'manual',
+          message: `Valid From cannot be after the rule's Valid To (${ruleTo.format('DD.MM.YYYY')})`
+        })
+        setIsSaving(false)
+        return
+      }
+
+      // Valid To cannot be after rule's Valid To
+      if (ruleTo && entryTo && entryTo.isAfter(ruleTo, 'day')) {
+        form.setError('validTo', {
+          type: 'manual',
+          message: `Valid To cannot be after the rule's Valid To (${ruleTo.format('DD.MM.YYYY')})`
+        })
+        setIsSaving(false)
+        return
+      }
+
+      // Valid To cannot be before Valid From
+      if (entryTo && entryFrom.isAfter(entryTo, 'day')) {
+        form.setError('validTo', {
+          type: 'manual',
+          message: `Valid To cannot be before Valid From`
+        })
+        setIsSaving(false)
+        return
+      }
+
       // If restricted edit, only update validTo and infoValue
       if (isRestrictedEdit && editingItem) {
         await expenseSettingsClient.saveExpenseRuleOtherInfo({
@@ -388,10 +454,10 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
           version: editingItem.version,
           expenseRuleId: ruleId,
           source: editingItem.source,
-          infoValue: formData.infoValue,
+          infoValue: formValues.infoValue,
           mandatory: editingItem.mandatory,
-          activeFrom: editingItem.validFrom,
-          activeTo: formData.validTo || null,
+          activeFrom: editingItem.validFrom ? dayjs(editingItem.validFrom).startOf('day').toISOString() : null,
+          activeTo: formValues.validTo ? dayjs(formValues.validTo).endOf('day').toISOString() : null,
           expenseRuleMileageId: editingItem.source === 'Mileage' ? editingItem.relatedId : null,
           expenseRuleGeneralExpenseId: editingItem.source === 'Expense' ? editingItem.relatedId : null
         })
@@ -401,15 +467,15 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
           ...(editingItem && { id: editingItem.id, version: editingItem.version }),
           expenseRuleId: ruleId,
           businessKey: undefined,
-          activeTo: formData.validTo || null,
+          activeTo: formValues.validTo ? dayjs(formValues.validTo).endOf('day').toISOString() : null,
           additionalProperties: undefined,
-          source: formData.source,
-          infoValue: formData.infoValue,
-          mandatory: formData.mandatory,
-          activeFrom: formData.validFrom,
+          source: formValues.source,
+          infoValue: formValues.infoValue,
+          mandatory: formValues.mandatory,
+          activeFrom: formValues.validFrom ? dayjs(formValues.validFrom).startOf('day').toISOString() : null,
           // Set the related ID based on source
-          expenseRuleMileageId: formData.source === 'Mileage' ? formData.relatedId : null,
-          expenseRuleGeneralExpenseId: formData.source === 'Expense' ? formData.relatedId : null
+          expenseRuleMileageId: formValues.source === 'Mileage' ? formValues.relatedId : null,
+          expenseRuleGeneralExpenseId: formValues.source === 'Expense' ? formValues.relatedId : null
         }
         await expenseSettingsClient.saveExpenseRuleOtherInfo(payload)
       }
@@ -427,8 +493,9 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
 
   // Get the options for the linked item dropdown based on source
   const getRelatedOptions = (): RelatedOption[] => {
-    if (formData.source === 'Expense') return availableExpenses
-    if (formData.source === 'Mileage') return availableMileage
+    const source = form.watch('source')
+    if (source === 'Expense') return availableExpenses
+    if (source === 'Mileage') return availableMileage
     return []
   }
 
@@ -672,151 +739,196 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
             </DialogTitle>
           </DialogHeader>
 
-          <div data-testid="custom-field-form" className="gba:space-y-4">
-            {isRestrictedEdit && currentUsageInfo && (
-              <Alert variant="warning" data-testid="custom-field-restricted-alert">
-                <PiWarning className="gba:h-4 gba:w-4" />
-                <AlertDescription>{currentUsageInfo.message}</AlertDescription>
-              </Alert>
-            )}
-
-            {/* Source (Expense/Mileage) */}
-            <div className="gba:space-y-2" data-testid="custom-field-source-field">
-              <Label htmlFor="source" data-testid="custom-field-source-label">
-                Source *
-              </Label>
-              <Select
-                value={formData.source}
-                onValueChange={value =>
-                  setFormData({
-                    ...formData,
-                    source: value as 'Expense' | 'Mileage',
-                    relatedId: undefined // Reset selection when source changes
-                  })
-                }
-                disabled={isRestrictedEdit}
-              >
-                <SelectTrigger id="source" data-testid="custom-field-source-select">
-                  <SelectValue placeholder="Select source" />
-                </SelectTrigger>
-                <SelectContent data-testid="custom-field-source-options">
-                  {sourceOptions.map(option => (
-                    <SelectItem
-                      key={option.value}
-                      value={option.value}
-                      data-testid={`custom-field-source-option-${option.value}`}
-                    >
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="gba:text-xs gba:text-muted-foreground" data-testid="custom-field-source-hint">
-                Select whether this custom field applies to Expense or Mileage items
-              </p>
-            </div>
-
-            {/* Linked Expense/Mileage */}
-            <div className="gba:space-y-2" data-testid="custom-field-linked-field">
-              <Label htmlFor="relatedId" data-testid="custom-field-linked-label">
-                Linked {formData.source}
-              </Label>
-              <Select
-                value={formData.relatedId || 'none'}
-                onValueChange={value => setFormData({ ...formData, relatedId: value === 'none' ? undefined : value })}
-                disabled={isRestrictedEdit}
-              >
-                <SelectTrigger id="relatedId" data-testid="custom-field-linked-select">
-                  <SelectValue placeholder={`Select ${formData.source.toLowerCase()} (optional)`} />
-                </SelectTrigger>
-                <SelectContent data-testid="custom-field-linked-options">
-                  <SelectItem value="none">Not linked to specific item</SelectItem>
-                  {getRelatedOptions().map(option => (
-                    <SelectItem
-                      key={option.id}
-                      value={option.id}
-                      data-testid={`custom-field-linked-option-${option.id}`}
-                    >
-                      {option.code} - {option.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {getRelatedOptions().length === 0 && (
-                <p className="gba:text-xs gba:text-warning-foreground" data-testid="custom-field-linked-empty">
-                  No {formData.source === 'Expense' ? 'expenses' : 'mileage rules'} available for this rule
-                </p>
+          <Form {...form}>
+            <div data-testid="custom-field-form" className="gba:space-y-4">
+              {isRestrictedEdit && currentUsageInfo && (
+                <Alert
+                  className="gba:border-warning gba:bg-warning-secondary"
+                  data-testid="custom-field-restricted-alert"
+                >
+                  <PiWarning className="gba:h-4 gba:w-4 gba:text-warning" />
+                  <AlertDescription>{currentUsageInfo.message}</AlertDescription>
+                </Alert>
               )}
-            </div>
 
-            {/* Info Value - allowed to edit even in restricted mode */}
-            <div className="gba:space-y-2" data-testid="custom-field-info-value-field">
-              <Label htmlFor="infoValue" data-testid="custom-field-info-value-label">
-                Info Value *
-              </Label>
-              <Input
-                id="infoValue"
-                placeholder="e.g., License Plate, Project Code, Cost Center"
-                value={formData.infoValue}
-                onChange={e => setFormData({ ...formData, infoValue: e.target.value })}
-                data-testid="custom-field-info-value-input"
+              {/* Source (Expense/Mileage) */}
+              <FormField
+                control={form.control}
+                name="source"
+                rules={{ required: 'Source is required' }}
+                render={({ field }) => (
+                  <FormItem data-testid="custom-field-source-field">
+                    <FormLabel data-testid="custom-field-source-label">Source *</FormLabel>
+                    <Select
+                      value={field.value}
+                      onValueChange={value => {
+                        field.onChange(value)
+                        form.setValue('relatedId', undefined) // Reset selection when source changes
+                      }}
+                      disabled={isRestrictedEdit}
+                    >
+                      <FormControl>
+                        <SelectTrigger data-testid="custom-field-source-select">
+                          <SelectValue placeholder="Select source" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent data-testid="custom-field-source-options">
+                        {sourceOptions.map(option => (
+                          <SelectItem
+                            key={option.value}
+                            value={option.value}
+                            data-testid={`custom-field-source-option-${option.value}`}
+                          >
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="gba:text-xs gba:text-muted-foreground" data-testid="custom-field-source-hint">
+                      Select whether this custom field applies to Expense or Mileage items
+                    </p>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-              <p className="gba:text-xs gba:text-muted-foreground" data-testid="custom-field-info-value-hint">
-                The custom field value or label that will appear on the item screen
-              </p>
-            </div>
 
-            {/* Mandatory */}
-            <div className="gba:flex gba:items-center gba:justify-between" data-testid="custom-field-mandatory-field">
-              <Label htmlFor="mandatory" data-testid="custom-field-mandatory-label">
-                Mandatory
-              </Label>
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <span className="gba:text-sm gba:text-muted-foreground" data-testid="custom-field-mandatory-status">
-                  {formData.mandatory ? 'Required' : 'Optional'}
-                </span>
-                <NWSwitch
-                  id="mandatory"
-                  checked={formData.mandatory}
-                  onCheckedChange={checked => setFormData({ ...formData, mandatory: checked })}
-                  disabled={isRestrictedEdit}
-                  data-testid="custom-field-mandatory-switch"
+              {/* Linked Expense/Mileage */}
+              <FormField
+                control={form.control}
+                name="relatedId"
+                render={({ field }) => (
+                  <FormItem data-testid="custom-field-linked-field">
+                    <FormLabel data-testid="custom-field-linked-label">Linked {form.watch('source')}</FormLabel>
+                    <Select
+                      value={field.value || 'none'}
+                      onValueChange={value => field.onChange(value === 'none' ? undefined : value)}
+                      disabled={isRestrictedEdit}
+                    >
+                      <FormControl>
+                        <SelectTrigger data-testid="custom-field-linked-select">
+                          <SelectValue
+                            placeholder={`Select ${form.watch('source')?.toLowerCase() || 'item'} (optional)`}
+                          />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent data-testid="custom-field-linked-options">
+                        <SelectItem value="none">Not linked to specific item</SelectItem>
+                        {getRelatedOptions().map(option => (
+                          <SelectItem
+                            key={option.id}
+                            value={option.id}
+                            data-testid={`custom-field-linked-option-${option.id}`}
+                          >
+                            {option.code} - {option.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {getRelatedOptions().length === 0 && (
+                      <p className="gba:text-xs gba:text-warning-foreground" data-testid="custom-field-linked-empty">
+                        No {form.watch('source') === 'Expense' ? 'expenses' : 'mileage rules'} available for this rule
+                      </p>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Info Value - allowed to edit even in restricted mode */}
+              <FormField
+                control={form.control}
+                name="infoValue"
+                rules={{ required: 'Info Value is required' }}
+                render={({ field }) => (
+                  <FormItem data-testid="custom-field-info-value-field">
+                    <FormLabel data-testid="custom-field-info-value-label">Info Value *</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        placeholder="e.g., License Plate, Project Code, Cost Center"
+                        data-testid="custom-field-info-value-input"
+                      />
+                    </FormControl>
+                    <p className="gba:text-xs gba:text-muted-foreground" data-testid="custom-field-info-value-hint">
+                      The custom field value or label that will appear on the item screen
+                    </p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Mandatory */}
+              <FormField
+                control={form.control}
+                name="mandatory"
+                render={({ field }) => (
+                  <FormItem
+                    className="gba:flex gba:items-center gba:justify-between"
+                    data-testid="custom-field-mandatory-field"
+                  >
+                    <FormLabel data-testid="custom-field-mandatory-label">Mandatory</FormLabel>
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <span
+                        className="gba:text-sm gba:text-muted-foreground"
+                        data-testid="custom-field-mandatory-status"
+                      >
+                        {field.value ? 'Required' : 'Optional'}
+                      </span>
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          disabled={isRestrictedEdit}
+                          data-testid="custom-field-mandatory-checkbox"
+                        />
+                      </FormControl>
+                    </div>
+                  </FormItem>
+                )}
+              />
+
+              {/* Validity Period */}
+              <div className="gba:space-y-4">
+                <FormField
+                  control={form.control}
+                  name="validFrom"
+                  rules={{ required: 'Valid From is required' }}
+                  render={({ field }) => (
+                    <FormItem data-testid="custom-field-valid-from-field">
+                      <FormLabel data-testid="custom-field-valid-from-label">Valid From *</FormLabel>
+                      <FormControl>
+                        <DateInput
+                          value={field.value || ''}
+                          onChange={date => field.onChange(date)}
+                          disabled={isRestrictedEdit}
+                          data-testid="custom-field-valid-from-input"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="validTo"
+                  render={({ field }) => (
+                    <FormItem data-testid="custom-field-valid-to-field">
+                      <FormLabel data-testid="custom-field-valid-to-label">Valid To</FormLabel>
+                      <FormControl>
+                        <DateInput
+                          value={field.value || ''}
+                          onChange={date => field.onChange(date)}
+                          data-testid="custom-field-valid-to-input"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
               </div>
             </div>
-
-            {/* Validity Period */}
-            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-              <div className="gba:space-y-2" data-testid="custom-field-valid-from-field">
-                <Label htmlFor="validFrom" data-testid="custom-field-valid-from-label">
-                  Valid From *
-                </Label>
-                <DateInput
-                  value={formData.validFrom ? dayjs(formData.validFrom).format('YYYY-MM-DD') : ''}
-                  onChange={value => setFormData({ ...formData, validFrom: value || '' })}
-                  disabled={isRestrictedEdit}
-                  placeholder="Select date..."
-                  outputFormat="iso"
-                  captionLayout="dropdown"
-                  data-testid="custom-field-valid-from-input"
-                />
-              </div>
-
-              <div className="gba:space-y-2" data-testid="custom-field-valid-to-field">
-                <Label htmlFor="validTo" data-testid="custom-field-valid-to-label">
-                  Valid To
-                </Label>
-                <DateInput
-                  value={formData.validTo ? dayjs(formData.validTo).format('YYYY-MM-DD') : ''}
-                  onChange={value => setFormData({ ...formData, validTo: value || undefined })}
-                  placeholder="Select date..."
-                  outputFormat="iso"
-                  captionLayout="dropdown"
-                  data-testid="custom-field-valid-to-input"
-                />
-              </div>
-            </div>
-          </div>
+          </Form>
 
           <DialogFooter data-testid="custom-field-modal-footer">
             <Button
