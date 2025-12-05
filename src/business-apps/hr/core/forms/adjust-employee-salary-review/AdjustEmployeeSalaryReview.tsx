@@ -28,11 +28,12 @@ export const AdjustEmployeeSalaryReview: React.FC<BusinessAppContextProps> = ({
   })
 
   // Use custom hook for all data fetching
-  const { employeeName, initiatorName, salaryAdjustReasonEntries, locale, payload, reviewMode } = useReviewFormData({
-    accessToken,
-    additionalData,
-    employeeId: userInfo?.employeeDetails?.employeeId
-  })
+  const { employeeName, initiatorName, salaryAdjustReasonEntries, locale, payload, reviewMode, employee } =
+    useReviewFormData({
+      accessToken,
+      additionalData,
+      employeeId: userInfo?.employeeDetails?.employeeId
+    })
 
   const newSalaryData = payload?.employeeSalary || {}
   const oldCompensation = payload?.oldEmployeeSalary
@@ -112,7 +113,7 @@ export const AdjustEmployeeSalaryReview: React.FC<BusinessAppContextProps> = ({
       className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-full gba:max-w-[1200px]"
       data-testid="review-employee-salary-change-form-container"
     >
-      <FormHeader title={titleText} flowIconUrl={flowIconUrl} className="gba:px-6" />
+      <FormHeader title={titleText} flowIconUrl={flowIconUrl} employee={employee} />
 
       {/* Initiator subtitle */}
       {initiatorText && (
@@ -125,7 +126,7 @@ export const AdjustEmployeeSalaryReview: React.FC<BusinessAppContextProps> = ({
       )}
 
       <div
-        className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='review-employee-salary-change']]:pt-0! gba:**:data-[testid='review-employee-salary-change-form']:max-w-none!"
+        className="gba:flex gba:flex-col gba:[&>div[data-testid='review-employee-salary-change']]:pt-0! gba:**:data-[testid='review-employee-salary-change-form']:max-w-none!"
         data-testid="review-employee-salary-change-form-content"
       >
         <AppActionForm

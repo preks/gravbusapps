@@ -34,6 +34,9 @@ interface BankAccountFormValues {
 const ChangeBankAccountContent: React.FC<BusinessAppContextProps> = ({ userInfo, additionalData }) => {
   const { data } = useChangeBankAccount()
 
+  const employee = useMemo(() => (data?.employee as any)?.Employee?.[0], [data])
+  const employeePosition = useMemo(() => (data?.employee as any)?.EmployeePosition?.[0], [data])
+
   const form = useForm<BankAccountFormValues>({
     defaultValues: {
       countryId: null,
@@ -176,10 +179,23 @@ const ChangeBankAccountContent: React.FC<BusinessAppContextProps> = ({ userInfo,
       className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-[100%] gba:max-w-[800px]"
       data-testid="change-bank-account-form-container"
     >
-      <FormHeader title={title} flowIconUrl={flowIconUrl} className="gba:px-6" />
+      <FormHeader
+        title={title}
+        flowIconUrl={flowIconUrl}
+        employee={
+          employee
+            ? {
+                firstName: employee.firstName,
+                lastName: employee.lastName,
+                pictureThumbnail: employee.pictureThumbnail,
+                jobTitle: employeePosition?.jobPosition?.name
+              }
+            : undefined
+        }
+      />
 
       <div
-        className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='change-bank-account']]:!pt-0"
+        className="gba:flex gba:flex-col gba:[&>div[data-testid='change-bank-account']]:!pt-0"
         data-testid="change-bank-account-form-content"
       >
         <AppActionForm
