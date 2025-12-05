@@ -1,9 +1,29 @@
-import React, { useEffect, useRef, useState } from 'react'
-import { Dialog, DialogContent, Avatar, AvatarImage, AvatarFallback, IconAvatar } from '@newwork/nw-design-system'
-import { UserIcon, Maximize2, Minimize2 } from 'lucide-react'
+import React, { useEffect, useRef, useState, useMemo } from 'react'
+import {
+  Dialog,
+  DialogContent,
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+  IconAvatar,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel
+} from '@newwork/nw-design-system'
+import { UserIcon, Maximize2, Minimize2, UserPlus, Expand, Shrink, Monitor } from 'lucide-react'
 import { CallControls } from './CallControls'
 import type { CallState, CallParticipant } from '../services/webrtcClient'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+
+interface AvailableParticipant {
+  id: string
+  odId: string
+  odName: string
+  avatarUrl?: string
+}
 
 interface CallModalProps {
   callState: CallState
@@ -14,6 +34,9 @@ interface CallModalProps {
   onToggleVideo: () => void
   onToggleScreenShare: () => void
   prefixDataTestId?: string
+  // For adding participants (upgrading to group call)
+  availableParticipants?: AvailableParticipant[]
+  onAddParticipant?: (participant: CallParticipant) => void
 }
 
 const getInitials = (name: string): string => {
@@ -76,6 +99,27 @@ const CallStatusIndicator: React.FC<{ status: CallState['status']; error?: strin
   )
 }
 
+// Check if a stream is a screen share (not a camera)
+const isScreenShareStream = (stream: MediaStream | null): boolean => {
+  if (!stream) return false
+  const videoTrack = stream.getVideoTracks()[0]
+  if (!videoTrack) return false
+
+  // Check track label for screen share indicators
+  const label = videoTrack.label.toLowerCase()
+  if (label.includes('screen') || label.includes('window') || label.includes('tab') || label.includes('display')) {
+    return true
+  }
+
+  // Check track settings for displaySurface (Chrome)
+  const settings = videoTrack.getSettings?.()
+  if (settings && 'displaySurface' in settings) {
+    return true
+  }
+
+  return false
+}
+
 export const CallModal: React.FC<CallModalProps> = ({
   callState,
   localStream,
@@ -84,18 +128,35 @@ export const CallModal: React.FC<CallModalProps> = ({
   onToggleMute,
   onToggleVideo,
   onToggleScreenShare,
-  prefixDataTestId = 'call-modal'
+  prefixDataTestId = 'call-modal',
+  availableParticipants = [],
+  onAddParticipant
 }) => {
   const localVideoRef = useRef<HTMLVideoElement>(null)
   const remoteVideoRef = useRef<HTMLVideoElement>(null)
+  const expandedVideoRef = useRef<HTMLVideoElement>(null)
   const [duration, setDuration] = useState('00:00')
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [localVideoMinimized, setLocalVideoMinimized] = useState(false)
+  const [expandedStream, setExpandedStream] = useState<{ stream: MediaStream; name: string } | null>(null)
 
   const isVideoCall = callState.type === 'video'
   const isConnected = callState.status === 'connected'
   const remoteParticipant = callState.remoteParticipant
   const participantName = getParticipantName(remoteParticipant)
+
+  // Check if remote stream is a screen share
+  const isRemoteScreenShare = isScreenShareStream(remoteStream)
+
+  // Participants available to add (not already in the call)
+  const participantsNotInCall = useMemo(() => {
+    const inCallIds = new Set<string>()
+    // Add remote participant to exclusion list
+    if (remoteParticipant?.id) {
+      inCallIds.add(remoteParticipant.id)
+    }
+    return availableParticipants.filter(p => !inCallIds.has(p.id))
+  }, [availableParticipants, remoteParticipant])
 
   // Attach local stream to video element
   useEffect(() => {
@@ -110,6 +171,14 @@ export const CallModal: React.FC<CallModalProps> = ({
       remoteVideoRef.current.srcObject = remoteStream
     }
   }, [remoteStream])
+
+  // Set expanded video stream
+  useEffect(() => {
+    if (expandedStream && expandedVideoRef.current) {
+      expandedVideoRef.current.srcObject = expandedStream.stream
+      expandedVideoRef.current.play().catch(err => console.debug('Expanded video play error:', err))
+    }
+  }, [expandedStream])
 
   // Update call duration timer
   useEffect(() => {
@@ -146,6 +215,7 @@ export const CallModal: React.FC<CallModalProps> = ({
             : 'gba:w-[90vw] gba:max-w-xl gba:aspect-[4/3]'
         }`}
         data-testid={prefixDataTestId}
+        showCloseButton={false}
         // Prevent closing by clicking outside or pressing escape during call
         onPointerDownOutside={e => e.preventDefault()}
         onEscapeKeyDown={e => e.preventDefault()}
@@ -157,14 +227,32 @@ export const CallModal: React.FC<CallModalProps> = ({
           {/* Main Video Area */}
           <div className="gba:flex-1 gba:relative gba:bg-gray-900">
             {isVideoCall && remoteStream ? (
-              // Remote video (full size)
-              <video
-                ref={remoteVideoRef}
-                autoPlay
-                playsInline
-                className="gba:w-full gba:h-full gba:object-cover"
-                data-testid={`${prefixDataTestId}-remote-video`}
-              />
+              // Remote video (full size) - clickable to expand
+              <div
+                className="gba:w-full gba:h-full gba:cursor-pointer gba:group"
+                onClick={() => setExpandedStream({ stream: remoteStream, name: participantName })}
+              >
+                <video
+                  ref={remoteVideoRef}
+                  autoPlay
+                  playsInline
+                  className={`gba:w-full gba:h-full ${isRemoteScreenShare ? 'gba:object-contain gba:bg-black' : 'gba:object-cover'}`}
+                  data-testid={`${prefixDataTestId}-remote-video`}
+                />
+                {/* Expand indicator on hover */}
+                <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:bg-black/0 group-hover:gba:bg-black/20 gba:transition-colors gba:pointer-events-none">
+                  <div className="gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity gba:bg-black/60 gba:rounded-full gba:p-3">
+                    <Expand className="gba:h-6 gba:w-6 gba:text-white" />
+                  </div>
+                </div>
+                {/* Screen share badge */}
+                {isRemoteScreenShare && (
+                  <div className="gba:absolute gba:top-2 gba:left-2 gba:bg-primary gba:text-white gba:text-xs gba:px-2 gba:py-1 gba:rounded-full gba:flex gba:items-center gba:gap-1">
+                    <Monitor className="gba:h-3 gba:w-3" />
+                    <span>Screen</span>
+                  </div>
+                )}
+              </div>
             ) : (
               // Audio call or no video - show avatar
               <div className="gba:w-full gba:h-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-4">
@@ -230,18 +318,108 @@ export const CallModal: React.FC<CallModalProps> = ({
           </div>
 
           {/* Call Controls */}
-          <CallControls
-            isMuted={callState.isMuted}
-            isVideoOff={callState.isVideoOff}
-            isScreenSharing={callState.isScreenSharing}
-            isVideoCall={isVideoCall}
-            onToggleMute={onToggleMute}
-            onToggleVideo={onToggleVideo}
-            onToggleScreenShare={onToggleScreenShare}
-            onEndCall={onEndCall}
-            prefixDataTestId={`${prefixDataTestId}-controls`}
-          />
+          <div className="gba:relative">
+            <CallControls
+              isMuted={callState.isMuted}
+              isVideoOff={callState.isVideoOff}
+              isScreenSharing={callState.isScreenSharing}
+              isVideoCall={isVideoCall}
+              onToggleMute={onToggleMute}
+              onToggleVideo={onToggleVideo}
+              onToggleScreenShare={onToggleScreenShare}
+              onEndCall={onEndCall}
+              prefixDataTestId={`${prefixDataTestId}-controls`}
+            />
+
+            {/* Add participant button - positioned in the controls bar */}
+            {onAddParticipant && participantsNotInCall.length > 0 && isConnected && (
+              <div className="gba:absolute gba:bottom-4 gba:right-6">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      className="gba:p-3 gba:rounded-full gba:bg-gray-700 hover:gba:bg-gray-600 gba:text-white gba:transition-all gba:relative"
+                      title="Add participant"
+                      data-testid={`${prefixDataTestId}-add-participant-btn`}
+                    >
+                      <UserPlus className="gba:w-5 gba:h-5" />
+                      <span className="gba:absolute gba:-top-1 gba:-right-1 gba:bg-primary gba:text-white gba:text-xs gba:rounded-full gba:w-5 gba:h-5 gba:flex gba:items-center gba:justify-center">
+                        {participantsNotInCall.length}
+                      </span>
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="gba:w-64 gba:max-h-64 gba:overflow-y-auto">
+                    <DropdownMenuLabel>Add to call</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {participantsNotInCall.map(participant => (
+                      <DropdownMenuItem
+                        key={participant.id}
+                        onClick={() =>
+                          onAddParticipant({
+                            id: participant.id,
+                            odId: participant.odId,
+                            odName: participant.odName,
+                            avatarUrl: participant.avatarUrl
+                          })
+                        }
+                        className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer"
+                      >
+                        <Avatar className="gba:h-8 gba:w-8">
+                          {participant.avatarUrl ? (
+                            <AvatarImage src={participant.avatarUrl} alt={participant.odName} />
+                          ) : null}
+                          <AvatarFallback className="gba:text-xs">{getInitials(participant.odName)}</AvatarFallback>
+                        </Avatar>
+                        <span className="gba:truncate">{participant.odName}</span>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* Expanded stream overlay */}
+        {expandedStream && (
+          <div
+            className="gba:fixed gba:inset-0 gba:z-50 gba:bg-black gba:flex gba:items-center gba:justify-center gba:cursor-pointer"
+            onClick={() => setExpandedStream(null)}
+          >
+            {/* Close button */}
+            <button
+              className="gba:absolute gba:top-4 gba:right-4 gba:p-3 gba:rounded-full gba:bg-white/10 hover:gba:bg-white/20 gba:text-white gba:transition-colors gba:z-10"
+              onClick={e => {
+                e.stopPropagation()
+                setExpandedStream(null)
+              }}
+              title="Close"
+            >
+              <Shrink className="gba:h-6 gba:w-6" />
+            </button>
+
+            {/* Participant/stream name */}
+            <div className="gba:absolute gba:top-4 gba:left-4 gba:bg-black/60 gba:text-white gba:px-4 gba:py-2 gba:rounded-lg gba:flex gba:items-center gba:gap-2">
+              {isScreenShareStream(expandedStream.stream) && <Monitor className="gba:h-4 gba:w-4" />}
+              <span>
+                {expandedStream.name}
+                {isScreenShareStream(expandedStream.stream) ? "'s screen" : ''}
+              </span>
+            </div>
+
+            {/* Video element - object-contain to preserve aspect ratio */}
+            <video
+              ref={expandedVideoRef}
+              autoPlay
+              playsInline
+              className="gba:max-w-full gba:max-h-full gba:object-contain"
+            />
+
+            {/* Click hint */}
+            <div className="gba:absolute gba:bottom-4 gba:left-1/2 gba:-translate-x-1/2 gba:text-white/60 gba:text-sm">
+              Click anywhere to close
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   )

@@ -275,6 +275,30 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
     }
   }
 
+  // Handler for adding a participant to a 1:1 call (upgrades to group call)
+  const handleUpgradeToGroupCall = (newParticipant: CallParticipant) => {
+    if (!activeConversation || !currentUserAsParticipant || !callState.remoteParticipant) return
+
+    // Build participant list: current user + current remote + new participant
+    const callParticipants: CallParticipant[] = [currentUserAsParticipant, callState.remoteParticipant, newParticipant]
+
+    // End the current 1:1 call first
+    endCall()
+
+    // Small delay to ensure clean transition
+    setTimeout(() => {
+      // Generate a new room ID for the group call (use conversation ID or create new)
+      const roomId = activeConversation.id
+      const callType = callState.type || 'video'
+
+      console.debug(
+        'Upgrading 1:1 call to group call with participants:',
+        callParticipants.map(p => p.odName)
+      )
+      startGroupCall(roomId, callType, callParticipants, activeConversation.name)
+    }, 100)
+  }
+
   // Initialize presence status from conversation participants' user data
   useEffect(() => {
     if (!conversations || conversations.length === 0 || !updatePresenceFromUser) return
@@ -887,6 +911,8 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
           onToggleVideo={toggleVideo}
           onToggleScreenShare={toggleScreenShare}
           prefixDataTestId={`${prefixDataTestId}-call`}
+          availableParticipants={availableParticipantsForCall}
+          onAddParticipant={handleUpgradeToGroupCall}
         />
       )}
 

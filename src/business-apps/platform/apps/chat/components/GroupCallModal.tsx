@@ -103,6 +103,27 @@ const getGridLayout = (count: number): { cols: number; rows: number } => {
   return { cols: 3, rows: 3 } // Max 9 in grid
 }
 
+// Check if a stream is a screen share (not a camera)
+const isScreenShareStream = (stream: MediaStream | null): boolean => {
+  if (!stream) return false
+  const videoTrack = stream.getVideoTracks()[0]
+  if (!videoTrack) return false
+
+  // Check track label for screen share indicators
+  const label = videoTrack.label.toLowerCase()
+  if (label.includes('screen') || label.includes('window') || label.includes('tab') || label.includes('display')) {
+    return true
+  }
+
+  // Check track settings for displaySurface (Chrome)
+  const settings = videoTrack.getSettings?.()
+  if (settings && 'displaySurface' in settings) {
+    return true
+  }
+
+  return false
+}
+
 // Video tile component for each participant
 const VideoTile: React.FC<{
   participant: GroupCallParticipant
@@ -111,7 +132,18 @@ const VideoTile: React.FC<{
   isMuted?: boolean
   isVideoOff?: boolean
   isHost?: boolean
-}> = ({ participant, stream, isLocal = false, isMuted = false, isVideoOff = false, isHost = false }) => {
+  onExpand?: () => void
+  isScreenShare?: boolean
+}> = ({
+  participant,
+  stream,
+  isLocal = false,
+  isMuted = false,
+  isVideoOff = false,
+  isHost = false,
+  onExpand,
+  isScreenShare = false
+}) => {
   const videoRef = useRef<HTMLVideoElement>(null)
 
   // Check if video should be visible
@@ -154,8 +186,13 @@ const VideoTile: React.FC<{
     playVideo()
   }, [stream, participant.odName, isLocal, hasVideo])
 
+  const canExpand = hasVideo && onExpand
+
   return (
-    <div className="gba:relative gba:bg-muted gba:rounded-lg gba:overflow-hidden gba:aspect-video gba:flex gba:items-center gba:justify-center">
+    <div
+      className={`gba:relative gba:bg-muted gba:rounded-lg gba:overflow-hidden gba:aspect-video gba:flex gba:items-center gba:justify-center ${canExpand ? 'gba:cursor-pointer gba:group' : ''}`}
+      onClick={canExpand ? onExpand : undefined}
+    >
       {hasVideo ? (
         <div className="gba:relative gba:w-full gba:h-full">
           <video
@@ -163,8 +200,23 @@ const VideoTile: React.FC<{
             autoPlay
             playsInline
             muted={isLocal}
-            className={`gba:w-full gba:h-full gba:object-cover ${isLocal ? 'gba:-scale-x-100' : ''}`}
+            className={`gba:w-full gba:h-full ${isScreenShare ? 'gba:object-contain gba:bg-black' : 'gba:object-cover'} ${isLocal && !isScreenShare ? 'gba:-scale-x-100' : ''}`}
           />
+          {/* Expand indicator for screen shares */}
+          {canExpand && (
+            <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:bg-black/0 group-hover:gba:bg-black/30 gba:transition-colors">
+              <div className="gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity gba:bg-black/60 gba:rounded-full gba:p-3">
+                <Expand className="gba:h-6 gba:w-6 gba:text-white" />
+              </div>
+            </div>
+          )}
+          {/* Screen share badge */}
+          {isScreenShare && (
+            <div className="gba:absolute gba:top-2 gba:left-2 gba:bg-primary gba:text-white gba:text-xs gba:px-2 gba:py-1 gba:rounded-full gba:flex gba:items-center gba:gap-1">
+              <Monitor className="gba:h-3 gba:w-3" />
+              <span>Screen</span>
+            </div>
+          )}
         </div>
       ) : (
         <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-2">
@@ -239,7 +291,9 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
   onInviteParticipant
 }) => {
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [expandedStream, setExpandedStream] = useState<{ stream: MediaStream; participantName: string } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const expandedVideoRef = useRef<HTMLVideoElement>(null)
   const pipVideoRef = useRef<HTMLVideoElement>(null)
   const pipAudioRefs = useRef<Map<string, HTMLAudioElement>>(new Map())
 
@@ -305,6 +359,14 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
       pipVideoRef.current.play().catch(err => console.debug('PiP video play error:', err))
     }
   }, [callState.isMinimized, firstRemoteParticipant])
+
+  // Set expanded video stream
+  useEffect(() => {
+    if (expandedStream && expandedVideoRef.current) {
+      expandedVideoRef.current.srcObject = expandedStream.stream
+      expandedVideoRef.current.play().catch(err => console.debug('Expanded video play error:', err))
+    }
+  }, [expandedStream])
 
   // Play all remote audio streams when minimized (so user can hear others)
   useEffect(() => {
@@ -452,12 +514,13 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
     <Dialog open={true} onOpenChange={() => {}}>
       <DialogContent
         ref={containerRef}
-        className={`gba:p-0 gba:bg-gray-900 gba:border-none gba:overflow-hidden gba:flex gba:flex-col [&>button]:gba:hidden ${
+        className={`gba:p-0 gba:bg-gray-900 gba:border-none gba:overflow-hidden gba:flex gba:flex-col ${
           isFullscreen
             ? 'gba:fixed gba:inset-0 gba:max-w-none gba:w-screen gba:h-screen gba:rounded-none gba:translate-x-0 gba:translate-y-0'
             : 'gba:max-w-5xl gba:w-[95vw] gba:h-[85vh]'
         }`}
         data-testid={prefixDataTestId}
+        showCloseButton={false}
         onPointerDownOutside={e => e.preventDefault()}
         onEscapeKeyDown={e => e.preventDefault()}
         onOpenAutoFocus={e => e.preventDefault()}
@@ -566,17 +629,24 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
               gridTemplateRows: `repeat(${gridLayout.rows}, 1fr)`
             }}
           >
-            {allParticipants.map(({ participant, stream, isLocal }) => (
-              <VideoTile
-                key={participant.id}
-                participant={participant}
-                stream={stream}
-                isLocal={isLocal}
-                isMuted={isLocal ? callState.isMuted : false}
-                isVideoOff={isLocal ? !callState.isVideoEnabled : false}
-                isHost={participant.id === callState.hostId}
-              />
-            ))}
+            {allParticipants.map(({ participant, stream, isLocal }) => {
+              const isScreenShare = isScreenShareStream(stream)
+              return (
+                <VideoTile
+                  key={participant.id}
+                  participant={participant}
+                  stream={stream}
+                  isLocal={isLocal}
+                  isMuted={isLocal ? callState.isMuted : false}
+                  isVideoOff={isLocal ? !callState.isVideoEnabled : false}
+                  isHost={participant.id === callState.hostId}
+                  isScreenShare={isScreenShare}
+                  onExpand={
+                    stream ? () => setExpandedStream({ stream, participantName: participant.odName }) : undefined
+                  }
+                />
+              )
+            })}
 
             {/* Empty slots placeholder */}
             {allParticipants.length === 0 && (
@@ -689,6 +759,45 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
             <PhoneOff className="gba:h-6 gba:w-6" />
           </button>
         </div>
+
+        {/* Expanded stream overlay */}
+        {expandedStream && (
+          <div
+            className="gba:fixed gba:inset-0 gba:z-50 gba:bg-black gba:flex gba:items-center gba:justify-center gba:cursor-pointer"
+            onClick={() => setExpandedStream(null)}
+          >
+            {/* Close button */}
+            <button
+              className="gba:absolute gba:top-4 gba:right-4 gba:p-3 gba:rounded-full gba:bg-white/10 hover:gba:bg-white/20 gba:text-white gba:transition-colors gba:z-10"
+              onClick={e => {
+                e.stopPropagation()
+                setExpandedStream(null)
+              }}
+              title="Close"
+            >
+              <Shrink className="gba:h-6 gba:w-6" />
+            </button>
+
+            {/* Participant name */}
+            <div className="gba:absolute gba:top-4 gba:left-4 gba:bg-black/60 gba:text-white gba:px-4 gba:py-2 gba:rounded-lg gba:flex gba:items-center gba:gap-2">
+              <Monitor className="gba:h-4 gba:w-4" />
+              <span>{expandedStream.participantName}'s screen</span>
+            </div>
+
+            {/* Video element - object-contain to preserve aspect ratio */}
+            <video
+              ref={expandedVideoRef}
+              autoPlay
+              playsInline
+              className="gba:max-w-full gba:max-h-full gba:object-contain"
+            />
+
+            {/* Click hint */}
+            <div className="gba:absolute gba:bottom-4 gba:left-1/2 gba:-translate-x-1/2 gba:text-white/60 gba:text-sm">
+              Click anywhere to close
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   )

@@ -19,6 +19,7 @@ import { UserIcon, Phone, Video, PhoneCall } from 'lucide-react'
 import type { Conversation } from '../types'
 import type { UserPresence } from '../hooks/usePresence'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { navigateTo } from '@/common/utils/navigationUtils'
 
 export interface ActiveCallInfo {
   roomId: string
@@ -143,6 +144,15 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
   const [showRemoveDialog, setShowRemoveDialog] = useState(false)
   const isGroupChat = conversation.type === 'group'
   const isDirectChat = conversation.type === 'direct'
+  const otherParticipant = isDirectChat ? getOtherParticipant(conversation, currentUserId) : null
+  // Use employeeId for navigation, not keycloak id
+  const otherEmployeeId = (otherParticipant?.user as any)?.employeeId
+
+  const handleAvatarClick = () => {
+    if (isDirectChat && otherEmployeeId) {
+      navigateTo(`/platform/employee-record?employeeId=${otherEmployeeId}`)
+    }
+  }
   const presenceStatus = otherUserPresence?.status || 'offline'
   const presenceStatusText = isDirectChat ? getPresenceStatusText(otherUserPresence) : null
   // Check for active call from prop (for group chats from useGroupCall) or conversation object
@@ -179,7 +189,15 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
           </Button>
         )}
 
-        <div className="gba:relative gba:flex-shrink-0">
+        <div
+          className={`gba:relative gba:flex-shrink-0 ${isDirectChat && otherEmployeeId ? 'gba:cursor-pointer hover:gba:opacity-80 gba:transition-opacity' : ''}`}
+          onClick={isDirectChat && otherEmployeeId ? handleAvatarClick : undefined}
+          title={
+            isDirectChat && otherEmployeeId
+              ? getTranslationFromI18nKeyAndLabel('chat.viewProfile', 'View profile')
+              : undefined
+          }
+        >
           {avatarUrl ? (
             <Avatar className={avatarSize}>
               <img src={avatarUrl} alt={name} className="gba:w-full gba:h-full gba:object-cover gba:rounded-full" />
