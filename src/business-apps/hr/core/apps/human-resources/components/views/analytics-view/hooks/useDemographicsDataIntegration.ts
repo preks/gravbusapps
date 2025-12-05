@@ -22,7 +22,8 @@ export interface DemographicsStatistics {
   averageAge: number | null
   mostCommonGender: string | null
   mostCommonNationality: string | null
-  genderDiversity: number // percentage of non-majority gender
+  genderDiversity: number // retained for compatibility; not used in UI
+  genderRatio: string | null // formatted as "femaleCount:maleCount"
   nationalityDiversity: number // number of different nationalities
 }
 
@@ -49,6 +50,7 @@ export const useDemographicsDataIntegration = (
     mostCommonGender: null,
     mostCommonNationality: null,
     genderDiversity: 0,
+    genderRatio: null,
     nationalityDiversity: 0
   })
 
@@ -78,18 +80,18 @@ export const useDemographicsDataIntegration = (
               .category
           : null
 
-      // Gender diversity: Simpson’s Diversity Index across all categories
-      // diversityPercent = (1 - sum(p_i^2)) * 100
-      const genderTotal = data.genderDistribution.reduce((s, g) => s + (Number(g.value) || 0), 0)
-      const simpson =
-        genderTotal > 0
-          ? 1 -
-            data.genderDistribution.reduce((acc, g) => {
-              const p = (Number(g.value) || 0) / genderTotal
-              return acc + p * p
-            }, 0)
-          : 0
-      const genderDiversity = Math.round(simpson * 1000) / 10
+      // Female:Male ratio based on categories containing 'female' or 'male'
+      const femaleCount = data.genderDistribution.reduce((sum, item) => {
+        return sum + (/female/i.test(item.category) ? Number(item.value) || 0 : 0)
+      }, 0)
+      const maleCount = data.genderDistribution.reduce((sum, item) => {
+        return sum + (/male/i.test(item.category) ? Number(item.value) || 0 : 0)
+      }, 0)
+      const genderRatio = femaleCount === 0 && maleCount === 0 ? null : `${femaleCount}:${maleCount}`
+      // Minority share (simpler than Simpson's): percentage of the smaller group among female/male
+      const binaryTotal = femaleCount + maleCount
+      const genderDiversity =
+        binaryTotal > 0 ? Math.round((Math.min(femaleCount, maleCount) / binaryTotal) * 1000) / 10 : 0
 
       const nationalityDiversity = data.nationalityDistribution.length
 
@@ -102,6 +104,7 @@ export const useDemographicsDataIntegration = (
         mostCommonGender,
         mostCommonNationality,
         genderDiversity,
+        genderRatio,
         nationalityDiversity
       }
     },

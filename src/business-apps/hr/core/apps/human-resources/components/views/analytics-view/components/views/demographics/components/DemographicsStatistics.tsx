@@ -16,7 +16,7 @@ const DemographicsStatistics: React.FC<DemographicsStatisticsProps> = ({ statist
     {
       id: 'gender-diversity',
       title: t('hr-analytics-gender-diversity'),
-      value: `${statistics.genderDiversity.toFixed(1)}%`,
+      value: statistics.genderRatio || t('hr-analytics-not-available'),
       icon: <Icon icon={UsersIcon} size="sm" decorative />,
       iconColor: 'var(--nw-chart-1)',
       footer: t('hr-analytics-gender-distribution-balance')

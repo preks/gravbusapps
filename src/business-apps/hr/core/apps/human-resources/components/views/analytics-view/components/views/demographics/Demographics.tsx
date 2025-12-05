@@ -11,9 +11,11 @@ import { useEmployeeCount } from '../../../hooks/useEmployeeCount'
 const Demographics: React.FC<BusinessAppContextProps> = context => {
   const { demographicsData, statistics, isLoading, error, refetch } = useDemographicsDataIntegration(context)
   const { t } = useTranslation(hrTranslations)
-  const { count: dashboardEmployeeCount, loading: employeeCountLoading } = useEmployeeCount(context.accessToken)
+  const { count: dashboardEmployeeCount } = useEmployeeCount(context.accessToken)
 
   const prefixDataTestId = 'Demographics'
+  // Prefer dashboardEmployeeCount; fall back to demographics total if undefined
+  const displayEmployeeCount = dashboardEmployeeCount ?? statistics.totalEmployees
 
   if (error) {
     return (
@@ -66,8 +68,7 @@ const Demographics: React.FC<BusinessAppContextProps> = context => {
           </h2>
           <div className="gba:bg-primary-foreground gba:px-3 gba:py-1 gba:rounded-full gba:border gba:border-border">
             <span className="gba:font-semibold gba:text-info">
-              {(employeeCountLoading ? statistics.totalEmployees : dashboardEmployeeCount) ?? statistics.totalEmployees}{' '}
-              {t('hr-analytics-employees')}
+              {displayEmployeeCount} {t('hr-analytics-employees')}
             </span>
           </div>
         </div>
