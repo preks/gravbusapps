@@ -336,7 +336,6 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     const daysWithEntries = new Set<string>()
     for (const r of allRows) {
       const rowDay = String(r.attendanceDate)
-      console.log('rowDay', rowDay)
       // Exclude today from daily average; consider strictly earlier days
       if (rowDay < untilDay) {
         const effective = parseDurationToMinutes(r?.effectiveTime ? String(r.effectiveTime) : undefined)

@@ -46,12 +46,6 @@ const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken }
     workingHours: employee?.workingHours?.[0]
   })
 
-  console.log('monthlyRequiredMinutes', monthlyRequiredMinutes)
-  console.log('monthlyRequiredUntilYesterdayMinutes', monthlyRequiredUntilYesterdayMinutes)
-  console.log('monthlyWorkedUntilYesterdayMinutes', monthlyWorkedUntilYesterdayMinutes)
-  console.log('dailyAverageWorkedMinutesUntilYesterday', dailyAverageWorkedMinutesUntilYesterday)
-  console.log('overtimeMinutesUntilYesterday', overtimeMinutesUntilYesterday)
-
   const { t } = useTranslation(timeTrackingTranslations)
 
   const calendarAbsences = React.useMemo<AbsenceListCardAbsence[]>(() => {
@@ -113,13 +107,6 @@ const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken }
     const minutes = abs % 60
     return minutes === 0 ? `${sign}${hours}h` : `${sign}${hours}h ${minutes}m`
   }
-  const fmt1 = (m: number) => {
-    const sign = m < 0 ? '-' : ''
-    const abs = Math.abs(Math.round(m))
-    const hours = Math.floor(abs / 60)
-    const minutes = abs % 60
-    return minutes === 0 ? `${sign}${hours}h` : `${sign}${hours}h ${minutes}m`
-  }
 
   return (
     <div data-testid="time-tracking-history-container">
@@ -139,7 +126,7 @@ const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken }
                       'Required this month'
                     )}
                   </div>
-                  <ItemMedia variant="icon" icon={CalendarBlankIcon} iconVariant="info" />
+                  <ItemMedia variant="icon" icon={CalendarBlankIcon} iconVariant="decorative" />
                 </div>
                 <div className="gba:text-4xl gba:font-bold">{fmt(monthlyRequiredMinutes)}</div>
                 <div className="gba:mt-1 gba:text-sm gba:text-muted-foreground">
@@ -158,7 +145,7 @@ const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken }
                       'Required until today'
                     )}
                   </div>
-                  <ItemMedia variant="icon" icon={ClockIcon} iconVariant="pending" />
+                  <ItemMedia variant="icon" icon={ClockIcon} iconVariant="decorative" />
                 </div>
                 <div className="gba:text-4xl gba:font-bold">{fmt(monthlyRequiredUntilYesterdayMinutes)}</div>
                 <div className="gba:mt-1 gba:text-sm gba:text-muted-foreground">
@@ -177,7 +164,7 @@ const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken }
                       'Worked until today'
                     )}
                   </div>
-                  <ItemMedia variant="icon" icon={SunIcon} iconVariant="success" />
+                  <ItemMedia variant="icon" icon={SunIcon} iconVariant="decorative" />
                 </div>
                 <div className="gba:text-4xl gba:font-bold">{fmt(monthlyWorkedUntilYesterdayMinutes)}</div>
                 <div className="gba:mt-1 gba:text-sm gba:text-muted-foreground">
@@ -196,7 +183,7 @@ const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken }
                       'Missing vs required'
                     )}
                   </div>
-                  <ItemMedia variant="icon" icon={CalculatorIcon} iconVariant="warning" />
+                  <ItemMedia variant="icon" icon={CalculatorIcon} iconVariant="decorative" />
                 </div>
                 <div className="gba:text-4xl gba:font-bold">{fmt(missingMinutes)}</div>
                 <div className="gba:mt-1 gba:text-sm gba:text-muted-foreground">
@@ -219,9 +206,9 @@ const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken }
               <Card className="gba:p-6 gba:gap-0">
                 <div className="gba:flex gba:items-start gba:justify-between">
                   <div className="gba:text-base gba:font-semibold">{t('daily_average')}</div>
-                  <ItemMedia variant="icon" icon={FolderIcon} iconVariant="success" />
+                  <ItemMedia variant="icon" icon={FolderIcon} iconVariant="decorative" />
                 </div>
-                <div className="gba:text-4xl gba:font-bold">{fmt1(dailyAverageWorkedMinutesUntilYesterday)}</div>
+                <div className="gba:text-4xl gba:font-bold">{fmt(dailyAverageWorkedMinutesUntilYesterday)}</div>
               </Card>
 
               <Card className="gba:p-6 gba:gap-0">
@@ -229,9 +216,9 @@ const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken }
                   <div className="gba:text-base gba:font-semibold">
                     {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.summary.overtime', 'Overtime')}
                   </div>
-                  <ItemMedia variant="icon" icon={CurrencyDollarIcon} iconVariant="warning" />
+                  <ItemMedia variant="icon" icon={CurrencyDollarIcon} iconVariant="decorative" />
                 </div>
-                <div className="gba:text-4xl gba:font-bold">{fmt1(overtimeMinutesUntilYesterday)}</div>
+                <div className="gba:text-4xl gba:font-bold">{fmt(overtimeMinutesUntilYesterday)}</div>
               </Card>
             </div>
           )
