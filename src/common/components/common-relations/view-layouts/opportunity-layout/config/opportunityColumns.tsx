@@ -89,6 +89,7 @@ export const getStatusColor = (
     case 'LOST':
     case 'CLOSED_LOST':
     case 'FAILED':
+    case 'REJECTED':
       return 'destructive'
     case 'ON_HOLD':
     case 'PAUSED':
