@@ -141,7 +141,7 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
   const watchedFolder = form.watch('folder')
 
   // For IRM (investments), use the Investment-specific catalogs
-  const { documentGroups, filteredDocumentTypes } = useDocumentCatalogs(
+  const { documentGroups, filteredDocumentTypes, documentTypes } = useDocumentCatalogs(
     props.accessToken || '',
     watchedDocumentGroupRef || '',
     { groupCatalogIdentifier: 'InvestmentDocumentGroup', typeCatalogIdentifier: 'InvestmentDocumentType' }
@@ -198,7 +198,7 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
       }
     }
     if (aiSuggestion.type) {
-      const t0 = filteredDocumentTypes.find(
+      const t0 = documentTypes.find(
         x => (x?.value || '').toString().trim().toLowerCase() === aiSuggestion.type!.toString().trim().toLowerCase()
       )
       if (t0?.id) {
@@ -216,7 +216,7 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
   const handleDocumentGroupChange = React.useCallback(
     (value: string) => {
       form.setValue('documentGroupRef', value)
-      form.setValue('documentTypeRef', '')
+      // form.setValue('documentTypeRef', '')
     },
     [form]
   )

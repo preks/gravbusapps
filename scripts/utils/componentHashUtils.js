@@ -98,13 +98,24 @@ export function compareScreenHashes(screenPath, devHashes, prodHashes) {
  */
 export function configureGit(projectRootDir, execSyncFn) {
   try {
-    execSyncFn('git config user.email "ci@newwork.com"', { cwd: projectRootDir })
-    execSyncFn('git config user.name "Bitbucket Pipeline"', { cwd: projectRootDir })
+    // 1) Configure Git identity (these do NOT need to be secret; it's just who is performing the commit)
+    execSyncFn('git config user.name "CI Hash Update Bot"', { cwd: projectRootDir })
+    execSyncFn('git config user.email "ci-bot@newwork.com"', { cwd: projectRootDir })
 
-    // Configure git to not fail on detached HEAD
+    // 2) Reconfigure 'origin' URL with credentials
+    const pipelineBot = process.env.PIPELINE_BOT
+    const pipelineAppSecret = process.env.PIPELINE_APP_SECRET
+    const bitbucketRepoOwner = process.env.BITBUCKET_REPO_OWNER
+    const bitbucketRepoSlug = process.env.BITBUCKET_REPO_SLUG
+    execSyncFn(
+      `git remote set-url origin "https://${pipelineBot}:${pipelineAppSecret}@bitbucket.org/${bitbucketRepoOwner}/${bitbucketRepoSlug}.git"`,
+      { cwd: projectRootDir }
+    )
+
+    // 3) Configure git to not fail on detached HEAD
     execSyncFn('git config advice.detachedHead false', { cwd: projectRootDir })
 
-    // Checkout current branch if detached
+    // 4) Checkout current branch if detached
     const currentBranch = process.env.BITBUCKET_BRANCH
     if (currentBranch) {
       try {

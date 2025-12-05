@@ -86,6 +86,7 @@ export type EntityData = {
     | 'reminder'
     | 'blink'
     | 'quick_task'
+    | 'service_workflow'
   id: string
   operation?: 'create' | 'update' | 'delete' | 'read'
   flow_proposal?: string
@@ -178,6 +179,7 @@ export type FlowProposalOutput = {
   flow_name: string
   module_name: string
   uuid: string
+  operation?: 'create' | 'update' | 'delete'
   arguments: {
     flow?: Record<string, any>
     task?: Record<string, any>

@@ -42,10 +42,7 @@ const SalaryTypeSelector: React.FC<SalaryTypeSelectorProps> = ({ control }) => {
             onValueChange={(value: SalaryType) => field.onChange(value)}
           >
             <FormControl>
-              <SelectTrigger
-                className="gba:block gba:w-full! gba:min-w-0 gba:max-w-none!"
-                data-testid="assign-employee-salary-type-select"
-              >
+              <SelectTrigger className="gba:w-full" data-testid="assign-employee-salary-type-select">
                 <SelectValue placeholder={placeholderSelect} />
               </SelectTrigger>
             </FormControl>
