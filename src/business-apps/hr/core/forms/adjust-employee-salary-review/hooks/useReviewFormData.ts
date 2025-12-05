@@ -23,6 +23,12 @@ interface UseReviewFormDataResult {
   payload: SalaryChangePayload
   reviewMode: ReviewMode
   employeeIdFromPayload: string | undefined
+  employee?: {
+    firstName?: string
+    lastName?: string
+    pictureThumbnail?: string
+    jobTitle?: string
+  }
 }
 
 interface EmployeeNameResponse {
@@ -47,6 +53,15 @@ export function useReviewFormData({
   const [employeeName, setEmployeeName] = useState<string>('')
   const [initiatorName, setInitiatorName] = useState<string>('')
   const [salaryAdjustReasonEntries, setSalaryAdjustReasonEntries] = useState<SalaryAdjustReasonEntry[]>([])
+  const [employee, setEmployee] = useState<
+    | {
+        firstName?: string
+        lastName?: string
+        pictureThumbnail?: string
+        jobTitle?: string
+      }
+    | undefined
+  >(undefined)
 
   const locale = useMemo(() => getCurrentActiveUserLocale(), [])
 
@@ -78,12 +93,22 @@ export function useReviewFormData({
       query: string,
       variables: Record<string, string>,
       resultKey: keyof T,
-      setter: (name: string) => void
+      setter: (name: string) => void,
+      isEmployee: boolean = false
     ) => {
       if (!accessToken || !id) return
       try {
-        const result = await graphqlClient.request<T>(query, variables)
+        const result = await graphqlClient.request<any>(query, variables)
         setter(formatFullName(result?.[resultKey]))
+        if (isEmployee && resultKey === 'employee') {
+          const emp = result?.employee
+          setEmployee({
+            firstName: emp?.firstName,
+            lastName: emp?.lastName,
+            pictureThumbnail: emp?.pictureThumbnail,
+            jobTitle: result?.EmployeePosition?.[0]?.jobPosition?.name
+          })
+        }
       } catch {
         // ignore
       }
@@ -98,7 +123,8 @@ export function useReviewFormData({
       GET_EMPLOYEE_NAME,
       { employeeId: employeeIdFromPayload! },
       'employee',
-      setEmployeeName
+      setEmployeeName,
+      true
     )
   }, [employeeIdFromPayload, fetchEmployeeName])
 
@@ -136,6 +162,7 @@ export function useReviewFormData({
     locale,
     payload,
     reviewMode,
-    employeeIdFromPayload
+    employeeIdFromPayload,
+    employee
   }
 }

@@ -1,4 +1,15 @@
 export const GET_EMPLOYEE_ADDRESS = `query fetchEmployeeAddress($id: uuid){
+  Employee(where: {id: {_eq: $id}}) {
+    id
+    firstName
+    lastName
+    pictureThumbnail
+  }
+  EmployeePosition(where: {employeeId: {_eq: $id}}) {
+    jobPosition {
+      name
+    }
+  }
 EmployeeAddress(where: {employeeId: {_eq: $id}, isDeleted: {_eq: false}}, orderBy: {type: ASC}) {
     id
     type

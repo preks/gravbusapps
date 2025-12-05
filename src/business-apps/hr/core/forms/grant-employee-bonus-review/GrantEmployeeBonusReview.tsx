@@ -20,7 +20,7 @@ export const GrantEmployeeBonusReview: React.FC<BusinessAppContextProps> = ({
     mode: 'onChange'
   })
 
-  const { employeeName, initiatorName, displayItems, bonusDetails } = useBonusReviewData({
+  const { employeeName, initiatorName, displayItems, bonusDetails, employee } = useBonusReviewData({
     accessToken,
     additionalData,
     userInfo,
@@ -46,7 +46,7 @@ export const GrantEmployeeBonusReview: React.FC<BusinessAppContextProps> = ({
       className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-full gba:max-w-[1200px]"
       data-testid="review-employee-bonus-grant-form-container"
     >
-      <FormHeader title={titleText} flowIconUrl={flowIconUrl} className="gba:px-6" />
+      <FormHeader title={titleText} flowIconUrl={flowIconUrl} employee={employee} />
 
       {/* Initiator subtitle */}
       {initiatorText && (
@@ -59,7 +59,7 @@ export const GrantEmployeeBonusReview: React.FC<BusinessAppContextProps> = ({
       )}
 
       <div
-        className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='review-employee-bonus-grant']]:pt-0! gba:**:data-[testid='review-employee-bonus-grant-form']:max-w-none!"
+        className="gba:flex gba:flex-col gba:[&>div[data-testid='review-employee-bonus-grant']]:pt-0! gba:**:data-[testid='review-employee-bonus-grant-form']:max-w-none!"
         data-testid="review-employee-bonus-grant-form-content"
       >
         <AppActionForm
