@@ -42,8 +42,6 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
     }
   }
 
-  console.log('entries', entries)
-
   return (
     <div data-testid="time-tracking-table">
       <Table>

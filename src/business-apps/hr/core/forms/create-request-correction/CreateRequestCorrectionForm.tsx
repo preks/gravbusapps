@@ -49,8 +49,6 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
     return { attendanceDateISO, startTimeISO, endTimeISO, notes }
   }, [additionalData])
 
-  console.log('additionalData', additionalData)
-
   // Helper: format ISO time to HH:MM for DateInput type="time"
   const formatIsoToHHMM = (iso?: string) => {
     if (!iso) return ''
@@ -159,11 +157,6 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
 
       const payloadObject = additionalData?.psi_taskPayload?.psi_initialParameters
 
-      console.log('attendanceDateISO', attendanceDateISO)
-      console.log('nowIso', nowIso)
-      console.log('startTimeISO', startTimeISO)
-      console.log('endTimeISO', endTimeISO)
-
       const payload = {
         changeMode: 'INSERT',
         employeeid: requestEmployeeId,
@@ -183,19 +176,6 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
           effectiveTime: payloadObject?.effectiveTime,
           plannedTime: payloadObject?.plannedTime,
           differenceTime: payloadObject?.differenceTime
-          // "requestDate": "2025-12-05T10:37:44.475Z",
-          // "decisionDate": "2025-12-05T10:37:44.475Z",
-          // "startTime": "2025-12-05T10:37:44.475Z",
-          // "endTime": "2025-12-05T10:37:44.475Z",
-          // "recordedTime": "string",
-          // "breakTime": "string",
-          // "effectiveTime": "string",
-          // "plannedTime": "string",
-          // "differenceTime": "string",
-          // "status": "UNKNOWN_CORRECTION_REQUEST_STATUS",
-          // "correctionDescription": "string",
-          // "employee": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-          // "employeeAttendance": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
         }
       }
 
