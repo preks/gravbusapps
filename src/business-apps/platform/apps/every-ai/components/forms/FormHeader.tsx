@@ -5,10 +5,19 @@ import { formatFlowName, extractOperation } from './utils/formSchemaUtils'
 interface FormHeaderProps {
   flowName: string
   isDeleteOperation: boolean
+  operation?: 'create' | 'update' | 'delete'
 }
 
-export const FormHeader: React.FC<FormHeaderProps> = ({ flowName, isDeleteOperation }) => {
-  const operation = extractOperation(flowName)
+export const FormHeader: React.FC<FormHeaderProps> = ({ flowName, isDeleteOperation, operation: operationProp }) => {
+  // Use provided operation or extract from flow name as fallback
+  const extractedOperation = extractOperation(flowName)
+  const operation = operationProp
+    ? operationProp === 'delete'
+      ? 'Delete'
+      : operationProp === 'update'
+        ? 'Update'
+        : 'Create'
+    : extractedOperation
 
   // Get badge styling based on operation type
   const getBadgeClassName = () => {

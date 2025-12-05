@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import {
   Button,
   Textarea,
@@ -10,16 +10,16 @@ import {
   DropdownMenuTrigger,
   Alert,
   AlertDescription,
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
   Switch
 } from '@newwork/nw-design-system'
 import { DownOutlined } from '@ant-design/icons'
 import { useFeedbackForm } from '../context/FeedbackFormContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import EmployeeSearchableSelect from '../../../../../crm/core/forms/lead-form/components/EmployeeSearchableSelect'
+import { EmployeeSelect } from '@/components/employee-select'
+import FormHeader from '../../components/FormHeader'
+import flowIconUrl from '@/assets/icons/flowSmall.svg'
+import type { Employee } from '@/common/data/employee/types/employeeBaseTypes'
 
 const prefixDataTestId = 'FeedbackForm'
 
@@ -84,12 +84,21 @@ const FeedbackFormComponent: React.FC = () => {
   // Check if form is valid
   const isFormValid = formValues.feedbackText.trim().length > 0 && formValues.employeeId
 
-  // Get selected employee details - prioritize pre-selected employee
-  const selectedEmployee = formValues.employeeId
-    ? preSelectedEmployee?.id === formValues.employeeId
-      ? preSelectedEmployee
-      : getEmployeeById(formValues.employeeId)
-    : null
+  // Parse employee name for FormHeader (firstName lastName)
+  const employeeForHeader = useMemo(() => {
+    if (!preSelectedEmployee || isPreSelectedEmployeeCurrentUser || preSelectedEmployeeLoading) {
+      return null
+    }
+    const nameParts = (preSelectedEmployee.name || '').trim().split(' ')
+    const firstName = nameParts[0] || ''
+    const lastName = nameParts.slice(1).join(' ') || ''
+    return {
+      firstName,
+      lastName,
+      pictureThumbnail: preSelectedEmployee.pictureThumbnail,
+      jobTitle: preSelectedEmployee.jobTitle
+    }
+  }, [preSelectedEmployee, isPreSelectedEmployeeCurrentUser, preSelectedEmployeeLoading])
 
   // Defer rendering the form for requested-feedback flow until the preselected employee is applied to form state,
   // so no UI (including Cancel) flashes before we know the final state.
@@ -97,117 +106,79 @@ const FeedbackFormComponent: React.FC = () => {
     return null
   }
 
+  const title = getTranslationFromI18nKeyAndLabel('lowcoder:feedback_give_form.title', 'Give Feedback')
+
   return (
     <div
       className="gba:flex gba:items-center gba:justify-center gba:w-full gba:h-full"
       data-testid={formatDataTestId(prefixDataTestId, 'Container')}
     >
       <div className="gba:bg-white gba:max-w-md gba:w-full gba:max-h-[90vh] gba:overflow-hidden">
-        {/* Modal Header */}
-        <div className="gba:flex gba:items-center gba:justify-between gba:p-4">
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_give_form.title', 'Give Feedback')}
-            </h2>
-          </div>
-        </div>
+        <FormHeader title={title} flowIconUrl={flowIconUrl} employee={employeeForHeader} />
 
         {/* Modal Content */}
-        <div className="gba:p-4 gba:space-y-4 gba:overflow-y-auto gba:max-h-[calc(90vh-140px)]">
-          {/* Employee Selection Section */}
-          <div className="gba:space-y-2">
-            {/* Show loading state for pre-selected employee */}
-            {hasPreSelectedEmployee && preSelectedEmployeeLoading && (
-              <div className="gba:flex gba:items-center gba:gap-3 gba:p-3 gba:bg-muted gba:rounded-lg">
-                <Spinner size="sm" />
-                <span className="gba:text-sm gba:text-muted-foreground">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:feedback_give_form.employee.loading',
-                    'Loading employee details...'
-                  )}
-                </span>
-              </div>
-            )}
-
-            {/* Show error state for pre-selected employee */}
-            {hasPreSelectedEmployee && preSelectedEmployeeError && (
-              <Alert variant="destructive" data-testid={formatDataTestId(prefixDataTestId, 'EmployeeErrorAlert')}>
-                <AlertDescription>{preSelectedEmployeeError}</AlertDescription>
-              </Alert>
-            )}
-
-            {/* Show selected employee or dropdown */}
-            {selectedEmployee && !preSelectedEmployeeLoading && !isPreSelectedEmployeeCurrentUser ? (
-              <div className="gba:flex gba:items-center gba:gap-3 gba:p-3 gba:bg-muted gba:rounded-lg">
-                <Avatar className="gba:w-10 gba:h-10">
-                  {selectedEmployee.pictureThumbnail && (
-                    <AvatarImage
-                      src={`data:image/gif;base64,${selectedEmployee.pictureThumbnail}`}
-                      alt={selectedEmployee.name}
-                    />
-                  )}
-                  <AvatarFallback className="gba:bg-muted">
-                    {selectedEmployee.name !== '-'
-                      ? selectedEmployee.name
-                          .split(' ')
-                          .map(n => n[0])
-                          .join('')
-                          .toUpperCase()
-                      : 'U'}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="gba:flex-1">
-                  <div className="gba:font-medium gba:text-foreground">{selectedEmployee.name}</div>
-                  {selectedEmployee.jobTitle && (
-                    <div className="gba:text-sm gba:text-muted-foreground">{selectedEmployee.jobTitle}</div>
-                  )}
-                </div>
-                {!hasPreSelectedEmployee && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setFormValues({ employeeId: undefined, employeeName: undefined })}
-                    className="gba:text-muted-foreground hover:gba:text-foreground"
-                  >
-                    Change
-                  </Button>
+        <div className="gba:px-6 gba:py-6 gba:space-y-4 gba:overflow-y-auto gba:max-h-[calc(90vh-200px)]">
+          {/* Show loading state for pre-selected employee */}
+          {hasPreSelectedEmployee && preSelectedEmployeeLoading && (
+            <div className="gba:flex gba:items-center gba:gap-3 gba:p-3 gba:bg-muted gba:rounded-lg">
+              <Spinner size="sm" />
+              <span className="gba:text-sm gba:text-muted-foreground">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:feedback_give_form.employee.loading',
+                  'Loading employee details...'
                 )}
-              </div>
-            ) : (!hasPreSelectedEmployee || isPreSelectedEmployeeCurrentUser) && !preSelectedEmployeeLoading ? (
-              <EmployeeSearchableSelect
-                label={getTranslationFromI18nKeyAndLabel('lowcoder:feedback_give_form.employee.label', 'Employee')}
-                name="employee-select"
-                value={formValues.employeeId}
+              </span>
+            </div>
+          )}
+
+          {/* Show error state for pre-selected employee */}
+          {hasPreSelectedEmployee && preSelectedEmployeeError && (
+            <Alert variant="destructive" data-testid={formatDataTestId(prefixDataTestId, 'EmployeeErrorAlert')}>
+              <AlertDescription>{preSelectedEmployeeError}</AlertDescription>
+            </Alert>
+          )}
+
+          {/* Employee Selection Section - only show if not pre-selected or is current user */}
+          {(!hasPreSelectedEmployee || isPreSelectedEmployeeCurrentUser) && !preSelectedEmployeeLoading && (
+            <div className="gba:space-y-2">
+              <Label htmlFor="employee-select" className="gba:text-sm gba:font-medium">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_give_form.employee.label', 'Employee')} *
+              </Label>
+              <EmployeeSelect
+                value={formValues.employeeId || null}
+                onValueChange={value => {
+                  if (value) {
+                    handleEmployeeChange(value)
+                  } else {
+                    setFormValues({ employeeId: undefined, employeeName: undefined })
+                  }
+                }}
                 placeholder={getTranslationFromI18nKeyAndLabel(
                   'lowcoder:feedback_give_form.employee.placeholder',
                   'Select an employee...'
                 )}
-                options={employees.map(emp => ({
-                  id: emp.id,
-                  value: emp.id,
-                  name: emp.name,
-                  label: emp.name,
-                  jobTitle: emp.jobTitle,
-                  department: emp.department,
-                  pictureThumbnail: emp.pictureThumbnail,
-                  userId: emp.userId,
-                  extraInfo: {
-                    jobPosition: emp.jobTitle,
-                    organizationalUnit: emp.department,
+                employees={
+                  employees.map(emp => ({
+                    id: emp.id,
+                    displayName: emp.name,
+                    firstName: emp.name.split(' ')[0] || '',
+                    lastName: emp.name.split(' ').slice(1).join(' ') || '',
                     pictureThumbnail: emp.pictureThumbnail,
-                    userId: emp.userId
-                  }
-                }))}
+                    userId: emp.userId,
+                    employeePosition: {
+                      jobPosition: emp.jobTitle ? { name: emp.jobTitle } : undefined,
+                      organizationalUnit: emp.department ? { name: emp.department } : undefined
+                    }
+                  })) as Employee[]
+                }
                 loading={employeesLoading}
                 onSearch={searchEmployees}
-                onChange={handleEmployeeChange}
                 data-testid={formatDataTestId(prefixDataTestId, 'EmployeeSelect')}
-                error={employeesError}
-                required={true}
                 className="gba:w-full"
               />
-            ) : null}
-          </div>
+              {employeesError && <div className="gba:text-sm gba:text-destructive">{employeesError}</div>}
+            </div>
+          )}
 
           {/* Public switch */}
           <div className="gba:flex gba:items-center gba:justify-between">
@@ -298,7 +269,7 @@ const FeedbackFormComponent: React.FC = () => {
         </div>
 
         {/* Action Buttons - Fixed at bottom */}
-        <div className="gba:p-4 gba:border-t gba:border-border gba:flex gba:gap-2 gba:justify-end">
+        <div className="gba:px-6 gba:py-4 gba:border-t gba:border-border gba:flex gba:gap-2 gba:justify-end">
           {!isRequestedFeedbackFlow && (
             <Button
               variant="secondary"

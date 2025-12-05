@@ -128,7 +128,7 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
   }, [form.formState, selectedFile])
 
   // GraphQL lookups -> directly populate dropdowns
-  const { groups, types } = useUploadDocumentLookups(context)
+  const { groups, types, employee } = useUploadDocumentLookups(context)
   const selectedGroupId = form.watch('documentGroupId')
   const filteredTypes = useMemo(
     () => (types || []).filter(t => !selectedGroupId || t.parentEntryId === selectedGroupId),
@@ -144,7 +144,22 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
       className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-[100%] gba:max-w-[800px] gba:gap-4 gba:[&>div[data-testid='upload-document-form']]:!p-0 gba:[&>div[data-testid='upload-document-form']>form]:!max-w-full gba:[&>div[data-testid='upload-document-form']>form]:!w-full"
       data-testid={formatDataTestId(dataTestId, 'Container')}
     >
-      <FormHeader title={title} flowIconUrl={flowIconUrl} />
+      <FormHeader
+        title={title}
+        flowIconUrl={flowIconUrl}
+        employee={
+          employee
+            ? {
+                firstName: employee.firstName,
+                lastName: employee.lastName,
+                pictureThumbnail: employee.pictureThumbnail,
+                jobTitle: Array.isArray(employee.employeePosition)
+                  ? employee.employeePosition?.[0]?.jobPosition?.name
+                  : (employee.employeePosition as any)?.jobPosition?.name
+              }
+            : undefined
+        }
+      />
 
       <AppActionForm
         processType="create"
