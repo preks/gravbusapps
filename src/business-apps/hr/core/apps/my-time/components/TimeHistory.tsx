@@ -12,7 +12,6 @@ import { PencilIcon } from '@phosphor-icons/react'
 interface TimeHistoryProps {
   employeeId: string
   accessToken: string
-  employee: any
 }
 
 const TimeHistory: React.FC<TimeHistoryProps> = ({ employeeId, accessToken }) => {

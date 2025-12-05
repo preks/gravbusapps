@@ -53,7 +53,7 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
   const formatIsoToHHMM = (iso?: string) => {
     if (!iso) return ''
     const d = new Date(iso)
-    if (isNaN(d.getTime())) return ''
+    if (Number.isNaN(d.getTime())) return ''
     const hh = String(d.getHours()).padStart(2, '0')
     const mm = String(d.getMinutes()).padStart(2, '0')
     return `${hh}:${mm}`
@@ -88,7 +88,7 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
       let year: number, monthIndex: number, day: number
       if (input.includes('T')) {
         const d = new Date(input)
-        if (isNaN(d.getTime())) return ''
+        if (Number.isNaN(d.getTime())) return ''
         // Use local calendar parts to preserve the chosen calendar date
         year = d.getFullYear()
         monthIndex = d.getMonth()
@@ -111,7 +111,7 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
   const combineDateAndTime = (baseDateIso: string, hhmm: string): string => {
     if (!baseDateIso || !hhmm) return ''
     const base = new Date(baseDateIso)
-    if (isNaN(base.getTime())) return ''
+    if (Number.isNaN(base.getTime())) return ''
     const [hh, mm] = hhmm.split(':').map(v => parseInt(v, 10))
     if (isNaN(hh) || isNaN(mm)) return ''
     const utc = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate(), hh, mm, 0, 0))
@@ -123,7 +123,7 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
     if (!isoOrDate) return ''
     try {
       const d = new Date(isoOrDate)
-      if (!isNaN(d.getTime())) {
+      if (!Number.isNaN(d.getTime())) {
         const y = d.getUTCFullYear()
         const m = String(d.getUTCMonth() + 1).padStart(2, '0')
         const day = String(d.getUTCDate()).padStart(2, '0')
