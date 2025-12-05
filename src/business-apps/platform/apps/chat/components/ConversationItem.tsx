@@ -13,7 +13,7 @@ import {
 } from '@newwork/nw-design-system'
 import type { Conversation } from '../types'
 import type { UserPresence } from '../hooks/usePresence'
-import { UserIcon } from 'lucide-react'
+import { UserIcon, UsersIcon } from 'lucide-react'
 import { SignOut } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
@@ -172,11 +172,16 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
         }}
       >
         <div className="gba:relative gba:flex-shrink-0">
-          {avatarUrl ? (
+          {conversation.type === 'group' ? (
+            // Group chat: always show group icon
+            <IconAvatar className={avatarSize} label={name} icon={UsersIcon} />
+          ) : avatarUrl ? (
+            // Direct chat with avatar
             <Avatar className={`${avatarSize} gba:ring-2 gba:ring-background`}>
               <img src={avatarUrl} alt={name} className="gba:w-full gba:h-full gba:object-cover gba:rounded-full" />
             </Avatar>
           ) : (
+            // Direct chat without avatar
             <IconAvatar className={avatarSize} label={name} icon={UserIcon} />
           )}
           {showPresence && <PresenceIndicator status={presenceStatus} />}

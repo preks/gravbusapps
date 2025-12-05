@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react'
 import { OrgDirectoryClient, OrgUserBasic } from '@/common/network/org-directory/OrgDirectoryClient'
 
-export type DimensionType = 'organization_unit' | 'matrix_team' | 'location'
+export type DimensionType = 'organization_unit' | 'matrix_team' | 'location' | 'legal_entity' | 'capability'
 
 export interface DimensionOption {
   id: string
@@ -18,6 +18,8 @@ export interface UseOrganizationalDimensionsResult {
   organizationalUnits: DimensionOption[]
   matrixTeams: DimensionOption[]
   locations: DimensionOption[]
+  legalEntities: DimensionOption[]
+  capabilities: DimensionOption[]
 
   // Loading states
   isLoadingDimensions: boolean
@@ -36,20 +38,22 @@ export interface UseOrganizationalDimensionsResult {
 }
 
 /**
- * Hook to fetch organizational dimensions (org units, matrix teams, locations)
+ * Hook to fetch organizational dimensions (org units, matrix teams, locations, legal entities, capabilities)
  * and their members for group chat creation
  */
 export const useOrganizationalDimensions = (accessToken: string): UseOrganizationalDimensionsResult => {
   const [organizationalUnits, setOrganizationalUnits] = useState<DimensionOption[]>([])
   const [matrixTeams, setMatrixTeams] = useState<DimensionOption[]>([])
   const [locations, setLocations] = useState<DimensionOption[]>([])
+  const [legalEntities, setLegalEntities] = useState<DimensionOption[]>([])
+  const [capabilities, setCapabilities] = useState<DimensionOption[]>([])
   const [selectedMembers, setSelectedMembers] = useState<OrgUserBasic[]>([])
   const [isLoadingDimensions, setIsLoadingDimensions] = useState(false)
   const [isLoadingMembers, setIsLoadingMembers] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   /**
-   * Load all dimension options (org units, matrix teams, locations)
+   * Load all dimension options (org units, matrix teams, locations, legal entities, capabilities)
    */
   const loadDimensions = useCallback(async () => {
     if (!accessToken) {
@@ -64,10 +68,12 @@ export const useOrganizationalDimensions = (accessToken: string): UseOrganizatio
       const client = new OrgDirectoryClient(accessToken)
 
       // Fetch all dimensions in parallel
-      const [units, teams, locs] = await Promise.all([
+      const [units, teams, locs, companies, caps] = await Promise.all([
         client.getOrganizationalUnits(),
         client.getMatrixTeams(),
-        client.getSiteLocations()
+        client.getSiteLocations(),
+        client.getCompanies(),
+        client.getCapabilities()
       ])
 
       // Sort by name
@@ -76,6 +82,8 @@ export const useOrganizationalDimensions = (accessToken: string): UseOrganizatio
       setOrganizationalUnits(units.sort(sortByName))
       setMatrixTeams(teams.sort(sortByName))
       setLocations(locs.sort(sortByName))
+      setLegalEntities(companies.sort(sortByName))
+      setCapabilities(caps.sort(sortByName))
     } catch (err) {
       console.error('Error loading organizational dimensions:', err)
       setError(err instanceof Error ? err.message : 'Failed to load organizational dimensions')
@@ -110,6 +118,12 @@ export const useOrganizationalDimensions = (accessToken: string): UseOrganizatio
           case 'location':
             members = await client.getUsersBySiteLocation(dimensionId)
             break
+          case 'legal_entity':
+            members = await client.getUsersByCompany(dimensionId)
+            break
+          case 'capability':
+            members = await client.getUsersByCapability(dimensionId)
+            break
         }
 
         // Sort by name
@@ -138,6 +152,8 @@ export const useOrganizationalDimensions = (accessToken: string): UseOrganizatio
     organizationalUnits,
     matrixTeams,
     locations,
+    legalEntities,
+    capabilities,
     isLoadingDimensions,
     isLoadingMembers,
     error,

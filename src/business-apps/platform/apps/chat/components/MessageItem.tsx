@@ -8,7 +8,7 @@ import {
   TooltipTrigger,
   TooltipProvider
 } from '@newwork/nw-design-system'
-import type { Message } from '../types'
+import type { Message, ConversationParticipant } from '../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { formatTime, formatFullTimestamp, getStatusIcon } from './utils/messageUtils'
@@ -31,11 +31,29 @@ interface MessageItemProps {
   currentUserId: string | null
   isGroupChat: boolean
   accessToken?: string
+  participants?: ConversationParticipant[]
 }
 
-export const MessageItem: React.FC<MessageItemProps> = ({ message, currentUserId, isGroupChat, accessToken }) => {
+export const MessageItem: React.FC<MessageItemProps> = ({
+  message,
+  currentUserId,
+  isGroupChat,
+  accessToken,
+  participants
+}) => {
   const isOwnMessage = message.senderId === currentUserId
   const sender = message.sender
+
+  // Look up avatar and employeeId from conversation participants if not in sender
+  const participantData = useMemo(() => {
+    if (!participants) return null
+    const participant = participants.find(p => p.userId === message.senderId)
+    return participant?.user
+  }, [participants, message.senderId])
+
+  // Use sender data first, then fall back to participant data for avatar and employeeId
+  const avatarUrl = sender?.avatarUrl || participantData?.avatarUrl
+  const employeeId = sender?.employeeId || participantData?.employeeId
   const attachments: MessageAttachment[] = useMemo(() => message.metadata?.attachments || [], [message.metadata])
 
   const [preview, setPreview] = useState<{ open: boolean; att: MessageAttachment | null }>({
@@ -93,20 +111,24 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, currentUserId
         {/* Avatar for other users in group chat */}
         {!isOwnMessage && isGroupChat && (
           <Avatar
-            className={`gba:w-7 gba:h-7 gba:flex-shrink-0 gba:mt-0.5 ${sender?.employeeId ? 'gba:cursor-pointer hover:gba:ring-2 hover:gba:ring-primary gba:transition-all' : ''}`}
+            className={`gba:w-7 gba:h-7 gba:flex-shrink-0 gba:mt-0.5 ${employeeId ? 'gba:cursor-pointer hover:gba:ring-2 hover:gba:ring-primary gba:transition-all' : ''}`}
             onClick={() => {
-              if (sender?.employeeId) {
-                navigateTo(`/platform/employee-record?employeeId=${sender.employeeId}`)
+              if (employeeId) {
+                navigateTo(`/platform/employee-record?employeeId=${employeeId}`)
               }
             }}
-            title={sender?.employeeId ? 'View profile' : undefined}
+            title={employeeId ? 'View profile' : undefined}
           >
-            {sender?.avatarUrl && <AvatarImage src={sender.avatarUrl} alt={sender?.firstName || 'User'} />}
+            {avatarUrl && (
+              <AvatarImage src={avatarUrl} alt={sender?.firstName || participantData?.firstName || 'User'} />
+            )}
             <AvatarFallback className="gba:text-xs">
               {getInitials(
                 sender?.displayName ||
-                  `${sender?.firstName || ''} ${sender?.lastName || ''}`.trim() ||
+                  participantData?.displayName ||
+                  `${sender?.firstName || participantData?.firstName || ''} ${sender?.lastName || participantData?.lastName || ''}`.trim() ||
                   sender?.username ||
+                  participantData?.username ||
                   getTranslationFromI18nKeyAndLabel('chat.user', 'User')
               )}
             </AvatarFallback>
@@ -122,16 +144,16 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, currentUserId
           }`}
         >
           {/* Sender name in group chat */}
-          {!isOwnMessage && isGroupChat && sender && (
+          {!isOwnMessage && isGroupChat && (sender || participantData) && (
             <div
-              className={`gba:text-[11px] gba:font-medium gba:mb-0.5 gba:text-primary ${sender.employeeId ? 'gba:cursor-pointer hover:gba:underline' : ''}`}
+              className={`gba:text-[11px] gba:font-medium gba:mb-0.5 gba:text-primary ${employeeId ? 'gba:cursor-pointer hover:gba:underline' : ''}`}
               onClick={() => {
-                if (sender.employeeId) {
-                  navigateTo(`/platform/employee-record?employeeId=${sender.employeeId}`)
+                if (employeeId) {
+                  navigateTo(`/platform/employee-record?employeeId=${employeeId}`)
                 }
               }}
             >
-              {sender.firstName} {sender.lastName}
+              {sender?.firstName || participantData?.firstName} {sender?.lastName || participantData?.lastName}
             </div>
           )}
 

@@ -36,6 +36,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
   const [viewMode, setViewMode] = useState<ViewMode>('full')
   const [showCreateGroupModal, setShowCreateGroupModal] = useState(false)
   const [showGroupSettingsModal, setShowGroupSettingsModal] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const urlContextProcessed = useRef(false)
   const conversationIdFromUrlProcessed = useRef(false)
 
@@ -423,6 +424,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
     if (!activeConversation) return
 
     try {
+      setErrorMessage(null)
       await closeConversation(activeConversation.id)
       // Navigate back to conversation list if in compact/mobile mode
       if (viewMode !== 'full') {
@@ -433,8 +435,25 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
       const url = new URL(window.location.href)
       url.searchParams.delete('conversationId')
       window.history.replaceState({}, '', url.toString())
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to remove conversation:', error)
+
+      // Check for "last owner" error
+      const errorMsg = error?.response?.data?.message || error?.message || ''
+      if (errorMsg.toLowerCase().includes('last owner')) {
+        setErrorMessage(
+          getTranslationFromI18nKeyAndLabel(
+            'chat.cannotLeaveAsLastOwner',
+            'You are the only owner of this group. Please transfer ownership to another member or delete the group from Group Settings.'
+          )
+        )
+        // Open group settings to let user manage the group
+        setShowGroupSettingsModal(true)
+      } else {
+        setErrorMessage(
+          getTranslationFromI18nKeyAndLabel('chat.failedToLeave', 'Failed to leave the conversation. Please try again.')
+        )
+      }
     }
   }, [activeConversation, closeConversation, viewMode])
 
@@ -794,6 +813,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
               onLoadMore={loadMoreMessages}
               conversationId={activeConversation.id}
               accessToken={accessToken}
+              participants={activeConversation.participants}
             />
             <MessageInput
               onSend={handleSendMessage}
@@ -842,6 +862,22 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
     >
       <OfflineBanner />
 
+      {/* Error Message Alert */}
+      {errorMessage && (
+        <Alert variant="destructive" className="gba:mx-2 gba:mt-2 gba:mb-0">
+          <AlertDescription className="gba:flex gba:items-center gba:justify-between gba:gap-2">
+            <span>{errorMessage}</span>
+            <button
+              onClick={() => setErrorMessage(null)}
+              className="gba:text-destructive-foreground gba:hover:opacity-70 gba:text-lg gba:font-bold gba:px-2"
+              aria-label="Dismiss"
+            >
+              ×
+            </button>
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="gba:flex-1 gba:flex gba:flex-row gba:min-h-0 gba:h-full gba:overflow-hidden">
         {/* Conversation List */}
         {showListView && (
@@ -854,7 +890,36 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
               conversations={conversations}
               activeConversationId={activeConversationId}
               onConversationSelect={handleConversationSelect}
-              onRemoveConversation={conversationId => closeConversation(conversationId)}
+              onRemoveConversation={async conversationId => {
+                try {
+                  setErrorMessage(null)
+                  await closeConversation(conversationId)
+                } catch (error: any) {
+                  console.error('Failed to remove conversation:', error)
+                  const errorMsg = error?.response?.data?.message || error?.message || ''
+                  if (errorMsg.toLowerCase().includes('last owner')) {
+                    setErrorMessage(
+                      getTranslationFromI18nKeyAndLabel(
+                        'chat.cannotLeaveAsLastOwner',
+                        'You are the only owner of this group. Please transfer ownership to another member or delete the group from Group Settings.'
+                      )
+                    )
+                    // Select the conversation and open group settings
+                    const conv = conversations.find(c => c.id === conversationId)
+                    if (conv) {
+                      handleConversationSelect(conv)
+                      setShowGroupSettingsModal(true)
+                    }
+                  } else {
+                    setErrorMessage(
+                      getTranslationFromI18nKeyAndLabel(
+                        'chat.failedToLeave',
+                        'Failed to leave the conversation. Please try again.'
+                      )
+                    )
+                  }
+                }
+              }}
               onCreateConversation={handleCreateConversation}
               onCreateGroup={handleCreateGroup}
               isLoading={conversationsLoading}
