@@ -349,6 +349,11 @@ export const EQUITY_INVESTMENT = `
         currency {
             ${CATALOG_ENTRY}
         }
+        investmentOpportunityId
+        investmentOpportunity {
+            id
+            name
+        }
         additionalProperties
         ${AUDIT_FIELDS}
     }
