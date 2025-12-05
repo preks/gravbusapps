@@ -45,32 +45,38 @@ export const useInvestmentAiAutofill = (accessToken: string | undefined) => {
       try {
         const formData = new FormData()
         formData.append('file', params.file)
-        formData.append('llm_model', 'gpt-4.1')
-        formData.append('investment_group_ref', params.investmentGroupRef)
+
+        // Backend now expects all contextual data in a single JSON field `meta_json`.
+        // This keeps the FastAPI signature simple and mirrors the InvestmentAutofillMeta model.
+        const metaPayload: Record<string, unknown> = {
+          investment_group_ref: params.investmentGroupRef
+        }
 
         if (params.investmentTypeRef) {
-          formData.append('investment_type_ref', params.investmentTypeRef)
+          metaPayload.investment_type_ref = params.investmentTypeRef
         }
 
         if (params.investmentLiquidFundTypeRef) {
-          formData.append('investment_liquid_fund_type_ref', params.investmentLiquidFundTypeRef)
+          metaPayload.investment_liquid_fund_type_ref = params.investmentLiquidFundTypeRef
         }
 
         if (params.investmentOwnerEmployeeId) {
-          formData.append('investment_owner_employee_id', params.investmentOwnerEmployeeId)
+          metaPayload.investment_owner_employee_id = params.investmentOwnerEmployeeId
         }
 
         if (params.investmentName) {
-          formData.append('investment_name', params.investmentName)
+          metaPayload.investment_name = params.investmentName
         }
 
         if (params.investmentCurrencyRef) {
-          formData.append('investment_currency_ref', params.investmentCurrencyRef)
+          metaPayload.investment_currency_ref = params.investmentCurrencyRef
         }
 
         if (params.investmentAccountId) {
-          formData.append('investment_account_id', params.investmentAccountId)
+          metaPayload.investment_account_id = params.investmentAccountId
         }
+
+        formData.append('meta_json', JSON.stringify(metaPayload))
 
         const isLocalDev = typeof window !== 'undefined' && window.location.hostname === 'localhost'
         const baseUrl = isLocalDev ? 'http://localhost:8000' : FLOWBOT_BASE_URL
@@ -90,12 +96,6 @@ export const useInvestmentAiAutofill = (accessToken: string | undefined) => {
         }
 
         const data = (await res.json()) as InvestmentAiAutofillResponse
-
-        // Log once for debugging; can be removed later
-        if (isLocalDev) {
-          console.log('[InvestmentAiAutofill] Response:', data)
-        }
-
         return data
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Unknown error'
