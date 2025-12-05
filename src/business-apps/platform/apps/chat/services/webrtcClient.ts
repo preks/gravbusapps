@@ -43,11 +43,34 @@ export interface CallSignal {
   conversationId?: string
 }
 
-// STUN/TURN server configuration
+// STUN/TURN server configuration with public TURN fallback
+// TURN servers are essential for users behind symmetric NATs or restrictive firewalls
 const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
+  // Google STUN servers
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
-  { urls: 'stun:stun2.l.google.com:19302' }
+  { urls: 'stun:stun2.l.google.com:19302' },
+  // Open Relay TURN servers (free, public)
+  {
+    urls: 'turn:openrelay.metered.ca:80',
+    username: 'openrelayproject',
+    credential: 'openrelayproject'
+  },
+  {
+    urls: 'turn:openrelay.metered.ca:443',
+    username: 'openrelayproject',
+    credential: 'openrelayproject'
+  },
+  {
+    urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+    username: 'openrelayproject',
+    credential: 'openrelayproject'
+  },
+  {
+    urls: 'turns:openrelay.metered.ca:443',
+    username: 'openrelayproject',
+    credential: 'openrelayproject'
+  }
 ]
 
 export type WebRTCEventType =

@@ -163,7 +163,10 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
     setVideoQuality: setGroupVideoQuality,
     toggleMinimize: toggleGroupMinimize,
     toggleBackground: toggleGroupBackground,
-    inviteToCall: inviteToGroupCall
+    inviteToCall: inviteToGroupCall,
+    reconnectParticipant: reconnectGroupParticipant,
+    getConnectionDiagnostics: getGroupConnectionDiagnostics,
+    pendingInvites: groupPendingInvites
   } = useGroupCall({
     wsClient: wsClient || null,
     apiClient: apiClient || null,
@@ -913,6 +916,8 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
           prefixDataTestId={`${prefixDataTestId}-call`}
           availableParticipants={availableParticipantsForCall}
           onAddParticipant={handleUpgradeToGroupCall}
+          accessToken={accessToken}
+          currentUserId={currentUser?.id || null}
         />
       )}
 
@@ -933,6 +938,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
           localStream={groupLocalStream}
           remoteStreams={groupRemoteStreams}
           participants={groupParticipants}
+          pendingInvites={groupPendingInvites}
           onEndCall={leaveGroupCall}
           onToggleMute={toggleGroupMute}
           onToggleVideo={toggleGroupVideo}
@@ -944,6 +950,10 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
           prefixDataTestId={`${prefixDataTestId}-group-call`}
           availableParticipants={availableParticipantsForCall}
           onInviteParticipant={participant => inviteToGroupCall([participant], activeConversation?.name)}
+          onReconnectParticipant={reconnectGroupParticipant}
+          getConnectionDiagnostics={getGroupConnectionDiagnostics}
+          accessToken={accessToken}
+          currentUserId={currentUser?.id || null}
         />
       )}
     </div>

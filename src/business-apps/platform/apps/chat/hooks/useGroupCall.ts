@@ -53,6 +53,14 @@ export interface ActiveConversationCall {
   startedBy: string
 }
 
+export interface PendingInvite {
+  id: string
+  odId: string
+  odName: string
+  avatarUrl?: string
+  invitedAt: number
+}
+
 export interface UseGroupCallReturn {
   callState: GroupCallUIState
   isInCall: boolean
@@ -60,6 +68,7 @@ export interface UseGroupCallReturn {
   localStream: MediaStream | null
   remoteStreams: Map<string, MediaStream>
   participants: GroupCallParticipant[]
+  pendingInvites: Map<string, PendingInvite> // Participants who have been invited but haven't joined yet
   incomingInvite: GroupCallInvite | null
   activeConversationCalls: Map<string, ActiveConversationCall> // roomId -> call info
   startCall: (
@@ -79,6 +88,55 @@ export interface UseGroupCallReturn {
   toggleMinimize: () => void
   toggleBackground: () => void
   inviteToCall: (participants: CallParticipant[], conversationName?: string) => void
+  reconnectParticipant: (participantId: string) => Promise<void>
+  // Debugging
+  getConnectionDiagnostics: () => Map<string, any>
+}
+
+// LocalStorage keys for user preferences
+const PREF_VIDEO_QUALITY_KEY = 'chat_call_video_quality'
+const PREF_BACKGROUND_ENABLED_KEY = 'chat_call_background_enabled'
+
+// Helper to get saved video quality preference
+const getSavedVideoQuality = (): VideoQuality => {
+  try {
+    const saved = localStorage.getItem(PREF_VIDEO_QUALITY_KEY)
+    if (saved && ['high', 'medium', 'low'].includes(saved)) {
+      return saved as VideoQuality
+    }
+  } catch {
+    // Ignore storage errors
+  }
+  return 'low' // Default
+}
+
+// Helper to get saved background preference
+const getSavedBackgroundEnabled = (): boolean => {
+  try {
+    const saved = localStorage.getItem(PREF_BACKGROUND_ENABLED_KEY)
+    return saved === 'true'
+  } catch {
+    // Ignore storage errors
+  }
+  return false // Default
+}
+
+// Helper to save video quality preference
+const saveVideoQualityPreference = (quality: VideoQuality) => {
+  try {
+    localStorage.setItem(PREF_VIDEO_QUALITY_KEY, quality)
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+// Helper to save background preference
+const saveBackgroundPreference = (enabled: boolean) => {
+  try {
+    localStorage.setItem(PREF_BACKGROUND_ENABLED_KEY, enabled.toString())
+  } catch {
+    // Ignore storage errors
+  }
 }
 
 const initialCallState: GroupCallUIState = {
@@ -91,8 +149,8 @@ const initialCallState: GroupCallUIState = {
   isVideoEnabled: true,
   isScreenSharing: false,
   isMinimized: false,
-  videoQuality: 'low',
-  backgroundEnabled: false,
+  videoQuality: getSavedVideoQuality(),
+  backgroundEnabled: getSavedBackgroundEnabled(),
   startTime: null,
   duration: 0
 }
@@ -153,8 +211,34 @@ export const useGroupCall = ({
   const [localStream, setLocalStream] = useState<MediaStream | null>(null)
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map())
   const [participants, setParticipants] = useState<GroupCallParticipant[]>([])
+  const [pendingInvites, setPendingInvites] = useState<Map<string, PendingInvite>>(new Map())
   const [incomingInvite, setIncomingInvite] = useState<GroupCallInvite | null>(null)
   const [activeConversationCalls, setActiveConversationCalls] = useState<Map<string, ActiveConversationCall>>(new Map())
+
+  // Auto-expire pending invites after 60 seconds
+  useEffect(() => {
+    if (pendingInvites.size === 0) return
+
+    const INVITE_TIMEOUT_MS = 60000 // 60 seconds
+
+    const interval = setInterval(() => {
+      const now = Date.now()
+      setPendingInvites(prev => {
+        const updated = new Map(prev)
+        let removed = false
+        prev.forEach((invite, id) => {
+          if (now - invite.invitedAt > INVITE_TIMEOUT_MS) {
+            updated.delete(id)
+            removed = true
+            console.log(`[useGroupCall] ⏰ Pending invite expired for ${invite.odName}`)
+          }
+        })
+        return removed ? updated : prev
+      })
+    }, 5000) // Check every 5 seconds
+
+    return () => clearInterval(interval)
+  }, [pendingInvites.size])
 
   // Refs to avoid stale closures
   const webrtcRef = useRef<GroupWebRTCClient | null>(null)
@@ -243,29 +327,106 @@ export const useGroupCall = ({
     return unsubscribe
   }, [])
 
+  // Fallback TURN servers for when backend doesn't provide them
+  const FALLBACK_TURN_SERVERS: RTCIceServer[] = [
+    {
+      urls: 'turn:openrelay.metered.ca:80',
+      username: 'openrelayproject',
+      credential: 'openrelayproject'
+    },
+    {
+      urls: 'turn:openrelay.metered.ca:443',
+      username: 'openrelayproject',
+      credential: 'openrelayproject'
+    },
+    {
+      urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+      username: 'openrelayproject',
+      credential: 'openrelayproject'
+    }
+  ]
+
+  // Helper to check if server list has TURN
+  const hasTurnServers = (servers: RTCIceServer[]): boolean => {
+    return servers.some(
+      s =>
+        (typeof s.urls === 'string' && (s.urls.startsWith('turn:') || s.urls.startsWith('turns:'))) ||
+        (Array.isArray(s.urls) && s.urls.some(u => u.startsWith('turn:') || u.startsWith('turns:')))
+    )
+  }
+
   // Fetch ICE servers from backend
   const fetchIceServers = useCallback(async (): Promise<RTCIceServer[]> => {
-    if (iceServersRef.current) {
+    // Only use cache if it has TURN servers
+    if (iceServersRef.current && hasTurnServers(iceServersRef.current)) {
+      console.log('[useGroupCall] ✅ Using cached ICE servers with TURN')
       return iceServersRef.current
     }
 
+    // Clear stale cache without TURN
+    if (iceServersRef.current) {
+      console.log('[useGroupCall] 🔄 Cached servers have no TURN, refreshing...')
+      iceServersRef.current = null
+    }
+
+    let backendServers: RTCIceServer[] = []
+
     if (apiClientRef.current) {
       try {
+        console.log('[useGroupCall] 📡 Fetching ICE servers from backend...')
         const response = await apiClientRef.current.getIceServers()
-        const iceServers = response.iceServers.map(server => ({
+        backendServers = response.iceServers.map(server => ({
           urls: server.urls,
           username: server.username,
           credential: server.credential
         }))
-        iceServersRef.current = iceServers
-        console.debug('Fetched ICE servers for group call:', iceServers.length, 'servers')
-        return iceServers
+        console.log('[useGroupCall] Backend returned:', backendServers.length, 'servers')
       } catch (error) {
-        console.warn('Failed to fetch ICE servers, using defaults:', error)
+        console.error('[useGroupCall] ❌ Failed to fetch ICE servers from backend:', error)
       }
+    } else {
+      console.warn('[useGroupCall] No API client available for ICE servers')
     }
 
-    return []
+    // Check if backend provided TURN servers
+    const hasTurnFromBackend = hasTurnServers(backendServers)
+
+    // ALWAYS add fallback TURN servers if backend doesn't have any
+    let finalServers: RTCIceServer[]
+    if (!hasTurnFromBackend) {
+      console.log('[useGroupCall] ⚠️ Backend has NO TURN servers! Adding fallback TURN relay...')
+      finalServers = [...backendServers, ...FALLBACK_TURN_SERVERS]
+    } else {
+      console.log('[useGroupCall] ✅ Backend provided TURN servers')
+      finalServers = backendServers
+    }
+
+    // Log final configuration
+    const hasStun = finalServers.some(
+      s =>
+        (typeof s.urls === 'string' && s.urls.startsWith('stun:')) ||
+        (Array.isArray(s.urls) && s.urls.some(u => u.startsWith('stun:')))
+    )
+    const hasTurn = hasTurnServers(finalServers)
+
+    console.log('[useGroupCall] 🌐 Final ICE servers configuration:', {
+      serverCount: finalServers.length,
+      hasStun,
+      hasTurn,
+      fromBackend: backendServers.length,
+      fallbackAdded: !hasTurnFromBackend,
+      servers: finalServers.map(s => ({
+        urls: s.urls,
+        hasCredentials: !!(s.username && s.credential)
+      }))
+    })
+
+    if (!hasTurn) {
+      console.error('[useGroupCall] ❌ CRITICAL: No TURN servers! Some users WILL NOT be able to connect!')
+    }
+
+    iceServersRef.current = finalServers
+    return finalServers
   }, [])
 
   // Initialize WebRTC client
@@ -307,6 +468,15 @@ export const useGroupCall = ({
           const exists = prev.find(p => p.id === event.participant!.id)
           if (exists) return prev
           return [...prev, event.participant!]
+        })
+        // Remove from pending invites when they join
+        setPendingInvites(prev => {
+          if (prev.has(event.participant!.id)) {
+            const updated = new Map(prev)
+            updated.delete(event.participant!.id)
+            return updated
+          }
+          return prev
         })
         onParticipantJoined?.(event.participant)
       }
@@ -370,8 +540,9 @@ export const useGroupCall = ({
         // Initialize WebRTC
         const webrtc = await initializeWebRTC()
 
-        // Initialize local stream
-        await webrtc.initializeLocalStream(callType, 'low')
+        // Initialize local stream with saved quality preference
+        const savedQuality = getSavedVideoQuality()
+        await webrtc.initializeLocalStream(callType, savedQuality)
         setLocalStream(webrtc.getLocalStream())
 
         // Join the room
@@ -399,6 +570,22 @@ export const useGroupCall = ({
         )
 
         if (otherParticipants.length > 0) {
+          // Add to pending invites for visual feedback
+          const now = Date.now()
+          setPendingInvites(prev => {
+            const updated = new Map(prev)
+            for (const p of otherParticipants) {
+              updated.set(p.id, {
+                id: p.id,
+                odId: p.odId,
+                odName: p.odName,
+                avatarUrl: p.avatarUrl,
+                invitedAt: now
+              })
+            }
+            return updated
+          })
+
           const invitePayload = {
             roomId,
             callType,
@@ -422,12 +609,16 @@ export const useGroupCall = ({
           console.warn('No other participants to invite!')
         }
 
+        // Set connected state with saved preferences
+        const savedBackgroundPref = getSavedBackgroundEnabled()
         updateCallState({
           status: 'connected',
           startTime: Date.now(),
           isMuted: false,
           isVideoEnabled: callType === 'video',
-          isScreenSharing: false
+          isScreenSharing: false,
+          videoQuality: savedQuality,
+          backgroundEnabled: false // Will be enabled below if needed
         })
 
         // Mark this tab as having an active call
@@ -466,6 +657,33 @@ export const useGroupCall = ({
         setParticipants(Array.from(webrtc.getParticipants().values()))
 
         onCallStarted?.(roomId, participants)
+
+        // Apply saved background preference if enabled (do this after call is fully connected)
+        if (savedBackgroundPref && callType === 'video') {
+          console.debug('[useGroupCall] Applying saved background preference')
+          // Use setTimeout to ensure state is settled before applying background
+          setTimeout(async () => {
+            try {
+              const stream = webrtc.getLocalStream()
+              if (stream && !backgroundProcessorRef.current) {
+                backgroundProcessorRef.current = new BackgroundProcessor()
+              }
+              if (stream && backgroundProcessorRef.current) {
+                originalLocalStreamRef.current = stream
+                const processedStream = await backgroundProcessorRef.current.startProcessing(stream)
+                setLocalStream(processedStream)
+                // Replace video track in peer connections
+                const videoTrack = processedStream.getVideoTracks()[0]
+                if (videoTrack && webrtcRef.current) {
+                  webrtcRef.current.replaceVideoTrack(videoTrack)
+                }
+                updateCallState({ backgroundEnabled: true })
+              }
+            } catch (err) {
+              console.error('[useGroupCall] Failed to apply saved background:', err)
+            }
+          }, 500)
+        }
       } catch (error) {
         console.error('Failed to start group call:', error)
         updateCallState({ status: 'idle', roomId: null })
@@ -483,6 +701,10 @@ export const useGroupCall = ({
         return
       }
 
+      // Clear any pending invites since we're joining an existing call
+      // (people who were "invited" are already in the call)
+      setPendingInvites(new Map())
+
       try {
         updateCallState({
           status: 'joining',
@@ -493,8 +715,9 @@ export const useGroupCall = ({
         // Initialize WebRTC
         const webrtc = await initializeWebRTC()
 
-        // Initialize local stream
-        await webrtc.initializeLocalStream(callType, 'low')
+        // Initialize local stream with saved quality preference
+        const savedQuality = getSavedVideoQuality()
+        await webrtc.initializeLocalStream(callType, savedQuality)
         setLocalStream(webrtc.getLocalStream())
 
         // Join the room
@@ -512,12 +735,16 @@ export const useGroupCall = ({
           }
         })
 
+        // Set connected state with saved preferences
+        const savedBackgroundPref = getSavedBackgroundEnabled()
         updateCallState({
           status: 'connected',
           startTime: Date.now(),
           isMuted: false,
           isVideoEnabled: callType === 'video',
-          isScreenSharing: false
+          isScreenSharing: false,
+          videoQuality: savedQuality,
+          backgroundEnabled: false // Will be enabled below if needed
         })
 
         // Mark this tab as having an active call
@@ -550,6 +777,31 @@ export const useGroupCall = ({
         setParticipants(Array.from(webrtc.getParticipants().values()))
 
         onCallStarted?.(roomId, initialParticipants || [])
+
+        // Apply saved background preference if enabled (do this after call is fully connected)
+        if (savedBackgroundPref && callType === 'video') {
+          console.debug('[useGroupCall] Applying saved background preference on join')
+          setTimeout(async () => {
+            try {
+              const stream = webrtc.getLocalStream()
+              if (stream && !backgroundProcessorRef.current) {
+                backgroundProcessorRef.current = new BackgroundProcessor()
+              }
+              if (stream && backgroundProcessorRef.current) {
+                originalLocalStreamRef.current = stream
+                const processedStream = await backgroundProcessorRef.current.startProcessing(stream)
+                setLocalStream(processedStream)
+                const videoTrack = processedStream.getVideoTracks()[0]
+                if (videoTrack && webrtcRef.current) {
+                  webrtcRef.current.replaceVideoTrack(videoTrack)
+                }
+                updateCallState({ backgroundEnabled: true })
+              }
+            } catch (err) {
+              console.error('[useGroupCall] Failed to apply saved background on join:', err)
+            }
+          }, 500)
+        }
       } catch (error) {
         console.error('Failed to join group call:', error)
         updateCallState({ status: 'idle', roomId: null })
@@ -624,6 +876,7 @@ export const useGroupCall = ({
     setLocalStream(null)
     setRemoteStreams(new Map())
     setParticipants([])
+    setPendingInvites(new Map())
     updateCallState(initialCallState)
 
     onCallEnded?.(roomId || '', duration)
@@ -663,6 +916,9 @@ export const useGroupCall = ({
 
       await webrtcRef.current.setVideoQuality(quality)
       updateCallState({ videoQuality: quality })
+
+      // Save preference for next call
+      saveVideoQualityPreference(quality)
     },
     [updateCallState]
   )
@@ -729,6 +985,9 @@ export const useGroupCall = ({
     }
 
     updateCallState({ backgroundEnabled: newBackgroundEnabled })
+
+    // Save preference for next call
+    saveBackgroundPreference(newBackgroundEnabled)
   }, [localStream, updateCallState])
 
   // Set up WebSocket event listeners
@@ -1031,6 +1290,14 @@ export const useGroupCall = ({
   // Check if current user is the host
   const isHost = currentUser?.id === callState.hostId
 
+  // Get connection diagnostics for debugging
+  const getConnectionDiagnostics = useCallback((): Map<string, any> => {
+    if (!webrtcRef.current) {
+      return new Map()
+    }
+    return webrtcRef.current.getConnectionDiagnostics()
+  }, [])
+
   // Invite additional participants to an ongoing call
   const inviteToCall = useCallback(
     (newParticipants: CallParticipant[], conversationName?: string) => {
@@ -1039,7 +1306,7 @@ export const useGroupCall = ({
         return
       }
 
-      // Filter out participants already in the call
+      // Filter out participants already in the call or already pending
       const currentParticipantIds = new Set(participants.map(p => p.id))
       const participantsToInvite = newParticipants.filter(
         p => p.id !== currentUserRef.current!.id && !currentParticipantIds.has(p.id)
@@ -1056,6 +1323,22 @@ export const useGroupCall = ({
         'new participants to call:',
         participantsToInvite.map(p => p.odName)
       )
+
+      // Add to pending invites
+      const now = Date.now()
+      setPendingInvites(prev => {
+        const updated = new Map(prev)
+        for (const p of participantsToInvite) {
+          updated.set(p.id, {
+            id: p.id,
+            odId: p.odId,
+            odName: p.odName,
+            avatarUrl: p.avatarUrl,
+            invitedAt: now
+          })
+        }
+        return updated
+      })
 
       const invitePayload = {
         roomId: callStateRef.current.roomId,
@@ -1080,6 +1363,46 @@ export const useGroupCall = ({
     [participants]
   )
 
+  // Reconnect to a participant whose connection failed
+  const reconnectParticipant = useCallback(
+    async (participantId: string): Promise<void> => {
+      if (!webrtcRef.current || !wsClientRef.current || !currentUserRef.current || !callStateRef.current.roomId) {
+        console.error('Cannot reconnect: missing WebRTC client, WebSocket client, or active call')
+        return
+      }
+
+      const participant = participants.find(p => p.id === participantId)
+      if (!participant) {
+        console.error('Cannot reconnect: participant not found')
+        return
+      }
+
+      console.log(`[useGroupCall] 🔄 Attempting to reconnect to ${participant.odName}...`)
+
+      try {
+        // Get a new offer with ICE restart from the WebRTC client
+        const offer = await webrtcRef.current.reconnectParticipant(participantId)
+        if (!offer) {
+          console.error('Failed to create reconnect offer')
+          return
+        }
+
+        // Send the offer via WebSocket signaling
+        wsClientRef.current.sendGroupCallOffer({
+          roomId: callStateRef.current.roomId,
+          fromParticipantId: currentUserRef.current.id,
+          toParticipantId: participantId,
+          payload: offer
+        })
+
+        console.log(`[useGroupCall] ✅ Reconnect offer sent to ${participant.odName}`)
+      } catch (error) {
+        console.error(`[useGroupCall] ❌ Failed to reconnect to ${participantId}:`, error)
+      }
+    },
+    [participants]
+  )
+
   return {
     callState,
     isInCall: callState.status === 'connected' || callState.status === 'joining',
@@ -1087,6 +1410,7 @@ export const useGroupCall = ({
     localStream,
     remoteStreams,
     participants,
+    pendingInvites,
     incomingInvite,
     activeConversationCalls,
     startCall,
@@ -1100,6 +1424,8 @@ export const useGroupCall = ({
     setVideoQuality,
     toggleMinimize,
     toggleBackground,
-    inviteToCall
+    inviteToCall,
+    reconnectParticipant,
+    getConnectionDiagnostics
   }
 }

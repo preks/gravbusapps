@@ -40,11 +40,14 @@ import {
   Check,
   ImageIcon,
   Crown,
-  UserPlus
+  RefreshCw,
+  AlertTriangle
 } from 'lucide-react'
 import type { GroupCallParticipant, VideoQuality } from '../services/groupWebrtcClient'
-import type { GroupCallUIState } from '../hooks/useGroupCall'
+import type { GroupCallUIState, PendingInvite } from '../hooks/useGroupCall'
 import type { CallParticipant } from '../services/webrtcClient'
+import { AddParticipantDropdown } from './AddParticipantDropdown'
+import { Phone } from 'lucide-react'
 
 interface AvailableParticipant {
   id: string
@@ -58,6 +61,7 @@ interface GroupCallModalProps {
   localStream: MediaStream | null
   remoteStreams: Map<string, MediaStream>
   participants: GroupCallParticipant[]
+  pendingInvites?: Map<string, PendingInvite>
   onEndCall: () => void
   onToggleMute: () => void
   onToggleVideo: () => void
@@ -70,6 +74,13 @@ interface GroupCallModalProps {
   // For adding participants to the call
   availableParticipants?: AvailableParticipant[]
   onInviteParticipant?: (participant: CallParticipant) => void
+  // For reconnecting failed connections
+  onReconnectParticipant?: (participantId: string) => Promise<void>
+  // Debugging
+  getConnectionDiagnostics?: () => Map<string, any>
+  // For user search when adding participants
+  accessToken?: string
+  currentUserId?: string | null
 }
 
 // Format duration as MM:SS or HH:MM:SS
@@ -134,6 +145,8 @@ const VideoTile: React.FC<{
   isHost?: boolean
   onExpand?: () => void
   isScreenShare?: boolean
+  onReconnect?: () => void
+  isReconnecting?: boolean
 }> = ({
   participant,
   stream,
@@ -142,7 +155,9 @@ const VideoTile: React.FC<{
   isVideoOff = false,
   isHost = false,
   onExpand,
-  isScreenShare = false
+  isScreenShare = false,
+  onReconnect,
+  isReconnecting = false
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null)
 
@@ -243,10 +258,33 @@ const VideoTile: React.FC<{
 
       {/* Connection status indicator */}
       {!isLocal && participant.connectionState && participant.connectionState !== 'connected' && (
-        <div className="gba:absolute gba:top-2 gba:right-2">
-          <span className="gba:px-2 gba:py-1 gba:text-xs gba:bg-yellow-500/80 gba:text-white gba:rounded-full">
-            {participant.connectionState === 'connecting' ? 'Connecting...' : participant.connectionState}
-          </span>
+        <div className="gba:absolute gba:top-2 gba:right-2 gba:flex gba:items-center gba:gap-2">
+          {participant.connectionState === 'failed' || participant.connectionState === 'disconnected' ? (
+            <>
+              <span className="gba:px-2 gba:py-1 gba:text-xs gba:bg-red-500/90 gba:text-white gba:rounded-full gba:flex gba:items-center gba:gap-1">
+                <AlertTriangle className="gba:h-3 gba:w-3" />
+                {participant.connectionState === 'failed' ? 'Failed' : 'Disconnected'}
+              </span>
+              {onReconnect && (
+                <button
+                  onClick={e => {
+                    e.stopPropagation()
+                    onReconnect()
+                  }}
+                  disabled={isReconnecting}
+                  className="gba:px-2 gba:py-1 gba:text-xs gba:bg-primary gba:text-white gba:rounded-full gba:flex gba:items-center gba:gap-1 hover:gba:bg-primary/80 gba:transition-colors disabled:gba:opacity-50"
+                  title="Retry connection"
+                >
+                  <RefreshCw className={`gba:h-3 gba:w-3 ${isReconnecting ? 'gba:animate-spin' : ''}`} />
+                  {isReconnecting ? 'Retrying...' : 'Reconnect'}
+                </button>
+              )}
+            </>
+          ) : (
+            <span className="gba:px-2 gba:py-1 gba:text-xs gba:bg-yellow-500/80 gba:text-white gba:rounded-full">
+              {participant.connectionState === 'connecting' ? 'Connecting...' : participant.connectionState}
+            </span>
+          )}
         </div>
       )}
     </div>
@@ -278,6 +316,7 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
   localStream,
   remoteStreams,
   participants,
+  pendingInvites = new Map(),
   onEndCall,
   onToggleMute,
   onToggleVideo,
@@ -288,14 +327,35 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
   backgroundEnabled = false,
   prefixDataTestId = 'group-call',
   availableParticipants = [],
-  onInviteParticipant
+  onInviteParticipant,
+  onReconnectParticipant,
+  getConnectionDiagnostics,
+  accessToken,
+  currentUserId
 }) => {
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [expandedStream, setExpandedStream] = useState<{ stream: MediaStream; participantName: string } | null>(null)
+  const [showDebugPanel, setShowDebugPanel] = useState(false)
+  const [diagnostics, setDiagnostics] = useState<Map<string, any>>(new Map())
+  const [reconnectingIds, setReconnectingIds] = useState<Set<string>>(new Set())
   const containerRef = useRef<HTMLDivElement>(null)
   const expandedVideoRef = useRef<HTMLVideoElement>(null)
   const pipVideoRef = useRef<HTMLVideoElement>(null)
   const pipAudioRefs = useRef<Map<string, HTMLAudioElement>>(new Map())
+
+  // Update diagnostics periodically when debug panel is open
+  useEffect(() => {
+    if (!showDebugPanel || !getConnectionDiagnostics) return
+
+    const updateDiagnostics = () => {
+      setDiagnostics(getConnectionDiagnostics())
+    }
+
+    updateDiagnostics()
+    const interval = setInterval(updateDiagnostics, 2000)
+
+    return () => clearInterval(interval)
+  }, [showDebugPanel, getConnectionDiagnostics])
 
   // Get current user from participants (the one with local stream)
   const currentUserParticipant = useMemo(() => {
@@ -333,7 +393,7 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
     return result
   }, [participants, currentUserParticipant, localStream, remoteStreams])
 
-  const gridLayout = getGridLayout(allParticipants.length)
+  const gridLayout = getGridLayout(allParticipants.length + pendingInvites.size)
 
   // Participants from conversation who are not in the call yet
   const participantsNotInCall = useMemo(() => {
@@ -595,6 +655,28 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
                   </div>
                   {backgroundEnabled && <Check className="gba:h-4 gba:w-4 gba:text-primary" />}
                 </DropdownMenuItem>
+
+                {getConnectionDiagnostics && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel>Diagnostics</DropdownMenuLabel>
+                    <DropdownMenuItem
+                      onClick={() => setShowDebugPanel(!showDebugPanel)}
+                      className="gba:flex gba:items-center gba:justify-between gba:cursor-pointer"
+                    >
+                      <div className="gba:flex gba:flex-col">
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <Signal className="gba:h-4 gba:w-4" />
+                          <span>Connection Debug</span>
+                        </div>
+                        <span className="gba:text-xs gba:text-muted-foreground gba:ml-6">
+                          Show connection diagnostics
+                        </span>
+                      </div>
+                      {showDebugPanel && <Check className="gba:h-4 gba:w-4 gba:text-primary" />}
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
 
@@ -631,6 +713,10 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
           >
             {allParticipants.map(({ participant, stream, isLocal }) => {
               const isScreenShare = isScreenShareStream(stream)
+              const isReconnecting = reconnectingIds.has(participant.id)
+              const needsReconnect =
+                !isLocal && (participant.connectionState === 'failed' || participant.connectionState === 'disconnected')
+
               return (
                 <VideoTile
                   key={participant.id}
@@ -641,15 +727,76 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
                   isVideoOff={isLocal ? !callState.isVideoEnabled : false}
                   isHost={participant.id === callState.hostId}
                   isScreenShare={isScreenShare}
+                  isReconnecting={isReconnecting}
                   onExpand={
                     stream ? () => setExpandedStream({ stream, participantName: participant.odName }) : undefined
+                  }
+                  onReconnect={
+                    needsReconnect && onReconnectParticipant
+                      ? async () => {
+                          setReconnectingIds(prev => new Set(prev).add(participant.id))
+                          try {
+                            await onReconnectParticipant(participant.id)
+                          } finally {
+                            // Clear reconnecting state after 10 seconds max
+                            setTimeout(() => {
+                              setReconnectingIds(prev => {
+                                const next = new Set(prev)
+                                next.delete(participant.id)
+                                return next
+                              })
+                            }, 10000)
+                          }
+                        }
+                      : undefined
                   }
                 />
               )
             })}
 
+            {/* Pending invites - show "Calling..." tiles */}
+            {Array.from(pendingInvites.values()).map(invite => (
+              <div
+                key={`pending-${invite.id}`}
+                className="gba:relative gba:w-full gba:h-full gba:bg-gray-800 gba:rounded-lg gba:overflow-hidden gba:flex gba:items-center gba:justify-center gba:min-h-[120px]"
+              >
+                {/* Animated ring effect */}
+                <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center">
+                  <div
+                    className="gba:absolute gba:w-24 gba:h-24 gba:rounded-full gba:border-2 gba:border-primary/40 gba:animate-ping"
+                    style={{ animationDuration: '1.5s' }}
+                  />
+                  <div
+                    className="gba:absolute gba:w-20 gba:h-20 gba:rounded-full gba:border-2 gba:border-primary/60 gba:animate-ping"
+                    style={{ animationDuration: '1.5s', animationDelay: '0.3s' }}
+                  />
+                </div>
+
+                {/* Avatar */}
+                <div className="gba:relative gba:z-10 gba:flex gba:flex-col gba:items-center gba:gap-2">
+                  <Avatar className="gba:h-16 gba:w-16 gba:ring-2 gba:ring-primary/50">
+                    {invite.avatarUrl ? <AvatarImage src={invite.avatarUrl} alt={invite.odName} /> : null}
+                    <AvatarFallback className="gba:bg-gray-700 gba:text-white gba:text-lg">
+                      {getInitials(invite.odName)}
+                    </AvatarFallback>
+                  </Avatar>
+
+                  {/* Name and status */}
+                  <div className="gba:text-center">
+                    <span className="gba:text-white gba:text-sm gba:font-medium gba:block gba:truncate gba:max-w-[120px]">
+                      {invite.odName}
+                    </span>
+                    <div className="gba:flex gba:items-center gba:justify-center gba:gap-1 gba:mt-1">
+                      <Phone className="gba:h-3 gba:w-3 gba:text-primary gba:animate-pulse" />
+                      <span className="gba:text-primary gba:text-xs gba:animate-pulse">Calling...</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+
             {/* Empty slots placeholder */}
-            {allParticipants.length === 0 && (
+            {allParticipants.length === 0 && pendingInvites.size === 0 && (
               <div className="gba:flex gba:items-center gba:justify-center gba:text-gray-500">
                 <span>Waiting for participants...</span>
               </div>
@@ -706,47 +853,15 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
           </button>
 
           {/* Add participant button */}
-          {onInviteParticipant && participantsNotInCall.length > 0 && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  className="gba:p-4 gba:rounded-full gba:bg-gray-700 hover:gba:bg-gray-600 gba:text-white gba:transition-all gba:relative"
-                  title="Add participant"
-                  data-testid={`${prefixDataTestId}-add-participant-btn`}
-                >
-                  <UserPlus className="gba:h-6 gba:w-6" />
-                  <span className="gba:absolute gba:-top-1 gba:-right-1 gba:bg-primary gba:text-white gba:text-xs gba:rounded-full gba:w-5 gba:h-5 gba:flex gba:items-center gba:justify-center">
-                    {participantsNotInCall.length}
-                  </span>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="center" className="gba:w-64 gba:max-h-64 gba:overflow-y-auto">
-                <DropdownMenuLabel>Add to call</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {participantsNotInCall.map(participant => (
-                  <DropdownMenuItem
-                    key={participant.id}
-                    onClick={() =>
-                      onInviteParticipant({
-                        id: participant.id,
-                        odId: participant.odId,
-                        odName: participant.odName,
-                        avatarUrl: participant.avatarUrl
-                      })
-                    }
-                    className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer"
-                  >
-                    <Avatar className="gba:h-8 gba:w-8">
-                      {participant.avatarUrl ? (
-                        <AvatarImage src={participant.avatarUrl} alt={participant.odName} />
-                      ) : null}
-                      <AvatarFallback className="gba:text-xs">{getInitials(participant.odName)}</AvatarFallback>
-                    </Avatar>
-                    <span className="gba:truncate">{participant.odName}</span>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+          {onInviteParticipant && accessToken && (
+            <AddParticipantDropdown
+              accessToken={accessToken}
+              currentUserId={currentUserId || null}
+              participantsInCall={participants}
+              conversationParticipants={participantsNotInCall}
+              onAddParticipant={onInviteParticipant}
+              prefixDataTestId={`${prefixDataTestId}-add-participant`}
+            />
           )}
 
           {/* End call button */}
@@ -795,6 +910,85 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
             {/* Click hint */}
             <div className="gba:absolute gba:bottom-4 gba:left-1/2 gba:-translate-x-1/2 gba:text-white/60 gba:text-sm">
               Click anywhere to close
+            </div>
+          </div>
+        )}
+
+        {/* Connection Debug Panel */}
+        {showDebugPanel && (
+          <div className="gba:absolute gba:top-12 gba:left-4 gba:bg-black/90 gba:text-white gba:p-4 gba:rounded-lg gba:text-xs gba:font-mono gba:max-w-md gba:max-h-[60vh] gba:overflow-auto gba:z-40">
+            <div className="gba:flex gba:justify-between gba:items-center gba:mb-3">
+              <span className="gba:font-bold gba:text-sm">🔧 Connection Diagnostics</span>
+              <button onClick={() => setShowDebugPanel(false)} className="gba:text-gray-400 hover:gba:text-white">
+                ✕
+              </button>
+            </div>
+
+            <div className="gba:mb-3">
+              <div className="gba:text-gray-400 gba:mb-1">Room: {callState.roomId}</div>
+              <div className="gba:text-gray-400">Participants: {participants.length}</div>
+            </div>
+
+            {diagnostics.size === 0 ? (
+              <div className="gba:text-gray-400">No peer connections yet</div>
+            ) : (
+              Array.from(diagnostics.entries()).map(([participantId, data]) => {
+                const participant = participants.find(p => p.id === participantId)
+                const isConnected = data.connectionState === 'connected'
+                const isFailed = data.connectionState === 'failed' || data.iceConnectionState === 'failed'
+
+                return (
+                  <div key={participantId} className="gba:mb-4 gba:border gba:border-gray-700 gba:rounded gba:p-2">
+                    <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+                      <span
+                        className={`gba:w-2 gba:h-2 gba:rounded-full ${
+                          isConnected ? 'gba:bg-green-500' : isFailed ? 'gba:bg-red-500' : 'gba:bg-yellow-500'
+                        }`}
+                      />
+                      <span className="gba:font-bold">{participant?.odName || participantId.substring(0, 8)}</span>
+                    </div>
+
+                    <div className="gba:grid gba:grid-cols-2 gba:gap-x-4 gba:gap-y-1">
+                      <span className="gba:text-gray-400">Connection:</span>
+                      <span
+                        className={
+                          isFailed ? 'gba:text-red-400' : isConnected ? 'gba:text-green-400' : 'gba:text-yellow-400'
+                        }
+                      >
+                        {data.connectionState}
+                      </span>
+
+                      <span className="gba:text-gray-400">ICE:</span>
+                      <span className={data.iceConnectionState === 'failed' ? 'gba:text-red-400' : ''}>
+                        {data.iceConnectionState}
+                      </span>
+
+                      <span className="gba:text-gray-400">ICE Gathering:</span>
+                      <span>{data.iceGatheringState}</span>
+
+                      <span className="gba:text-gray-400">Candidates Sent:</span>
+                      <span>{data.iceCandidatesSent || 0}</span>
+
+                      <span className="gba:text-gray-400">Candidates Recv:</span>
+                      <span>{data.iceCandidatesReceived || 0}</span>
+
+                      <span className="gba:text-gray-400">Candidate Types:</span>
+                      <span className="gba:text-[10px]">{(data.iceCandidateTypes || []).join(', ') || 'none'}</span>
+                    </div>
+
+                    {data.lastError && (
+                      <div className="gba:mt-2 gba:text-red-400 gba:text-[10px]">⚠️ {data.lastError}</div>
+                    )}
+                  </div>
+                )
+              })
+            )}
+
+            <div className="gba:mt-3 gba:pt-3 gba:border-t gba:border-gray-700 gba:text-gray-400 gba:text-[10px]">
+              <div>💡 If connection fails:</div>
+              <div>• Check if TURN server is configured</div>
+              <div>• User may be behind strict firewall/NAT</div>
+              <div>• Check console for detailed logs</div>
             </div>
           </div>
         )}

@@ -66,11 +66,54 @@ export interface GroupCallEvent {
 
 export type GroupCallEventHandler = (event: GroupCallEvent) => void
 
-// Default ICE servers (STUN only - TURN should be fetched from backend)
+// Default ICE servers with STUN and public TURN fallback
+// TURN servers are essential for users behind symmetric NATs or restrictive firewalls
 const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
+  // Google STUN servers
   { urls: 'stun:stun.l.google.com:19302' },
-  { urls: 'stun:stun1.l.google.com:19302' }
+  { urls: 'stun:stun1.l.google.com:19302' },
+  { urls: 'stun:stun2.l.google.com:19302' },
+  // Open Relay TURN servers (free, public)
+  // These provide relay capability for users who can't connect peer-to-peer
+  {
+    urls: 'turn:openrelay.metered.ca:80',
+    username: 'openrelayproject',
+    credential: 'openrelayproject'
+  },
+  {
+    urls: 'turn:openrelay.metered.ca:443',
+    username: 'openrelayproject',
+    credential: 'openrelayproject'
+  },
+  {
+    urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+    username: 'openrelayproject',
+    credential: 'openrelayproject'
+  },
+  // Additional TURN servers for redundancy
+  {
+    urls: 'turns:openrelay.metered.ca:443',
+    username: 'openrelayproject',
+    credential: 'openrelayproject'
+  }
 ]
+
+// Debug logging helper for WebRTC diagnostics
+const logWebRTCDebug = (context: string, data: any) => {
+  console.debug(`[GroupWebRTC:${context}]`, data)
+}
+
+// Log ICE candidate type for debugging
+const getIceCandidateInfo = (candidate: RTCIceCandidate | RTCIceCandidateInit): string => {
+  const candidateStr = typeof candidate === 'string' ? candidate : (candidate as any).candidate
+  if (!candidateStr) return 'null'
+
+  if (candidateStr.includes('typ relay')) return 'TURN (relay)'
+  if (candidateStr.includes('typ srflx')) return 'STUN (srflx)'
+  if (candidateStr.includes('typ prflx')) return 'Peer Reflexive (prflx)'
+  if (candidateStr.includes('typ host')) return 'Host'
+  return 'Unknown'
+}
 
 export class GroupWebRTCClient {
   private roomId: string | null = null
@@ -89,9 +132,64 @@ export class GroupWebRTCClient {
   private startTime: number | null = null
   private isDestroyed: boolean = false
   private videoQuality: VideoQuality = 'high'
+  // Track ICE candidates per participant for debugging
+  private iceCandidateStats: Map<string, { sent: number; received: number; types: string[] }> = new Map()
+  // Track connection diagnostics
+  private connectionDiagnostics: Map<
+    string,
+    { iceGatheringState: string; iceConnectionState: string; connectionState: string; lastError?: string }
+  > = new Map()
+  // Track participants who have failed - use TURN relay for them automatically
+  private failedParticipants: Set<string> = new Set()
 
   constructor(iceServers?: RTCIceServer[]) {
     this.iceServers = iceServers || DEFAULT_ICE_SERVERS
+
+    // Log ICE server configuration for debugging
+    const hasTurn = iceServers?.some(
+      s =>
+        (typeof s.urls === 'string' && s.urls.startsWith('turn:')) ||
+        (Array.isArray(s.urls) && s.urls.some(u => u.startsWith('turn:')))
+    )
+    logWebRTCDebug('constructor', {
+      iceServerCount: this.iceServers.length,
+      hasTurnServer: hasTurn,
+      servers: this.iceServers.map(s => ({
+        urls: s.urls,
+        hasCredentials: !!(s.username && s.credential)
+      }))
+    })
+
+    if (!hasTurn) {
+      console.warn(
+        '[GroupWebRTC] ⚠️ No TURN servers configured! Users behind restrictive NATs may not be able to connect.'
+      )
+    }
+  }
+
+  /**
+   * Get connection diagnostics for debugging
+   */
+  getConnectionDiagnostics(): Map<string, any> {
+    const diagnostics = new Map<string, any>()
+
+    this.peerConnections.forEach((pc, participantId) => {
+      const stats = this.iceCandidateStats.get(participantId) || { sent: 0, received: 0, types: [] }
+      diagnostics.set(participantId, {
+        iceGatheringState: pc.iceGatheringState,
+        iceConnectionState: pc.iceConnectionState,
+        connectionState: pc.connectionState,
+        signalingState: pc.signalingState,
+        iceCandidatesSent: stats.sent,
+        iceCandidatesReceived: stats.received,
+        iceCandidateTypes: stats.types,
+        hasRemoteDescription: !!pc.remoteDescription,
+        hasLocalDescription: !!pc.localDescription,
+        ...this.connectionDiagnostics.get(participantId)
+      })
+    })
+
+    return diagnostics
   }
 
   /**
@@ -216,12 +314,51 @@ export class GroupWebRTCClient {
 
   /**
    * Create a peer connection for a specific participant
+   * @param participantId - ID of the remote participant
+   * @param forceRelay - If true, forces TURN relay only (no direct P2P). Use for users who fail with STUN.
    */
-  private createPeerConnection(participantId: string): RTCPeerConnection {
+  private createPeerConnection(participantId: string, forceRelay: boolean = false): RTCPeerConnection {
+    const iceTransportPolicy = forceRelay ? 'relay' : 'all'
+
     const config: RTCConfiguration = {
       iceServers: this.iceServers,
-      iceCandidatePoolSize: 10
+      iceCandidatePoolSize: 10,
+      // Force relay mode for users who can't connect with STUN (symmetric NAT, restrictive firewall)
+      iceTransportPolicy
     }
+
+    // Always log the transport policy
+    console.log(`[GroupWebRTC] 🔌 Creating peer connection for ${participantId}:`, {
+      forceRelay,
+      iceTransportPolicy,
+      iceServerCount: this.iceServers.length,
+      turnServers: this.iceServers.filter(
+        s =>
+          (typeof s.urls === 'string' && s.urls.startsWith('turn:')) ||
+          (Array.isArray(s.urls) && s.urls.some(u => u.startsWith('turn:')))
+      ).length
+    })
+
+    if (forceRelay) {
+      console.log(
+        `[GroupWebRTC] 🔄 FORCING TURN RELAY for ${participantId} - direct P2P DISABLED, only relay candidates allowed`
+      )
+    }
+
+    logWebRTCDebug('createPeerConnection', {
+      participantId,
+      iceServerCount: this.iceServers.length,
+      forceRelay,
+      iceTransportPolicy
+    })
+
+    // Initialize ICE stats for this participant
+    this.iceCandidateStats.set(participantId, { sent: 0, received: 0, types: [] })
+    this.connectionDiagnostics.set(participantId, {
+      iceGatheringState: 'new',
+      iceConnectionState: 'new',
+      connectionState: 'new'
+    })
 
     const pc = new RTCPeerConnection(config)
 
@@ -230,24 +367,103 @@ export class GroupWebRTCClient {
       this.localStream.getTracks().forEach(track => {
         pc.addTrack(track, this.localStream!)
       })
+      logWebRTCDebug('addTracks', {
+        participantId,
+        trackCount: this.localStream.getTracks().length,
+        tracks: this.localStream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled }))
+      })
     }
 
     // Handle ICE candidates
     pc.onicecandidate = event => {
       if (event.candidate) {
-        console.debug(`ICE candidate generated for ${participantId}`)
+        const candidateType = getIceCandidateInfo(event.candidate)
+        const stats = this.iceCandidateStats.get(participantId)!
+        stats.sent++
+        if (!stats.types.includes(candidateType)) {
+          stats.types.push(candidateType)
+        }
+
+        logWebRTCDebug('iceCandidate:local', {
+          participantId,
+          type: candidateType,
+          totalSent: stats.sent,
+          candidate: event.candidate.candidate?.substring(0, 80) + '...'
+        })
+
         // Emit ICE candidate event for the parent to send via signaling
         this.emit({
           type: 'ice-candidate',
           participantId,
           candidate: event.candidate.toJSON()
         })
+      } else {
+        // Null candidate means ICE gathering is complete
+        logWebRTCDebug('iceGathering:complete', {
+          participantId,
+          stats: this.iceCandidateStats.get(participantId)
+        })
+      }
+    }
+
+    // Handle ICE gathering state changes
+    pc.onicegatheringstatechange = () => {
+      const diag = this.connectionDiagnostics.get(participantId)!
+      diag.iceGatheringState = pc.iceGatheringState
+
+      logWebRTCDebug('iceGatheringState', {
+        participantId,
+        state: pc.iceGatheringState
+      })
+    }
+
+    // Handle ICE connection state changes (more granular than connectionState)
+    pc.oniceconnectionstatechange = () => {
+      const diag = this.connectionDiagnostics.get(participantId)!
+      diag.iceConnectionState = pc.iceConnectionState
+
+      logWebRTCDebug('iceConnectionState', {
+        participantId,
+        state: pc.iceConnectionState,
+        iceCandidateStats: this.iceCandidateStats.get(participantId)
+      })
+
+      if (pc.iceConnectionState === 'failed') {
+        const stats = this.iceCandidateStats.get(participantId)
+        console.error(`[GroupWebRTC] ❌ ICE connection FAILED for ${participantId}`, {
+          iceCandidatesSent: stats?.sent,
+          iceCandidatesReceived: stats?.received,
+          candidateTypes: stats?.types,
+          hasTurnServer: this.iceServers.some(
+            s =>
+              (typeof s.urls === 'string' && s.urls.startsWith('turn:')) ||
+              (Array.isArray(s.urls) && s.urls.some(u => u.startsWith('turn:')))
+          )
+        })
+        diag.lastError = 'ICE connection failed - check NAT/firewall or TURN server'
+      }
+
+      if (pc.iceConnectionState === 'disconnected') {
+        console.warn(`[GroupWebRTC] ⚠️ ICE connection disconnected for ${participantId} - may reconnect`)
+      }
+
+      if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+        logWebRTCDebug('iceConnection:success', {
+          participantId,
+          stats: this.iceCandidateStats.get(participantId)
+        })
       }
     }
 
     // Handle connection state changes
     pc.onconnectionstatechange = () => {
-      console.debug(`Connection state for ${participantId}:`, pc.connectionState)
+      const diag = this.connectionDiagnostics.get(participantId)!
+      diag.connectionState = pc.connectionState
+
+      logWebRTCDebug('connectionState', {
+        participantId,
+        state: pc.connectionState
+      })
 
       const participant = this.participants.get(participantId)
       if (participant) {
@@ -261,29 +477,48 @@ export class GroupWebRTCClient {
         state: pc.connectionState
       })
 
-      if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
-        console.warn(`Connection to ${participantId} ${pc.connectionState}`)
+      if (pc.connectionState === 'failed') {
+        console.error(`[GroupWebRTC] ❌ Connection FAILED to ${participantId}`)
+        diag.lastError = 'Peer connection failed'
+        // Track this participant as failed - next reconnect will use TURN relay
+        this.failedParticipants.add(participantId)
+        console.log(`[GroupWebRTC] 📝 Added ${participantId} to failed list - will use TURN relay on reconnect`)
+      } else if (pc.connectionState === 'disconnected') {
+        console.warn(`[GroupWebRTC] ⚠️ Connection to ${participantId} disconnected`)
+      } else if (pc.connectionState === 'connected') {
+        console.log(`[GroupWebRTC] ✅ Connected to ${participantId}`)
+        // Remove from failed list if previously failed but now connected
+        if (this.failedParticipants.has(participantId)) {
+          this.failedParticipants.delete(participantId)
+          console.log(`[GroupWebRTC] ✅ Removed ${participantId} from failed list - connection successful`)
+        }
       }
     }
 
     // Handle incoming tracks (remote streams)
     pc.ontrack = event => {
-      console.debug(`Received track from ${participantId}:`, event.track.kind, 'streams:', event.streams.length)
+      logWebRTCDebug('track:received', {
+        participantId,
+        kind: event.track.kind,
+        streamCount: event.streams.length,
+        trackId: event.track.id
+      })
 
       let stream = event.streams[0]
 
       // If no stream is associated, create one and add the track
       if (!stream) {
-        console.debug(`No stream associated with track, creating new MediaStream for ${participantId}`)
+        logWebRTCDebug('track:noStream', { participantId, message: 'Creating new MediaStream' })
         stream = this.remoteStreams.get(participantId) || new MediaStream()
         stream.addTrack(event.track)
       }
 
       this.remoteStreams.set(participantId, stream)
-      console.debug(
-        `Remote stream for ${participantId} now has ${stream.getTracks().length} tracks:`,
-        stream.getTracks().map(t => t.kind)
-      )
+      logWebRTCDebug('stream:updated', {
+        participantId,
+        trackCount: stream.getTracks().length,
+        tracks: stream.getTracks().map(t => t.kind)
+      })
 
       const participant = this.participants.get(participantId)
       if (participant) {
@@ -296,7 +531,6 @@ export class GroupWebRTCClient {
         participantId,
         stream
       })
-      console.debug(`Emitted participant-stream event for ${participantId}`)
     }
 
     this.peerConnections.set(participantId, pc)
@@ -315,8 +549,14 @@ export class GroupWebRTCClient {
       connectionState: 'new'
     })
 
-    // Create peer connection
-    const pc = this.createPeerConnection(participant.id)
+    // Check if this participant previously failed - use relay mode if so
+    const forceRelay = this.failedParticipants.has(participant.id)
+    if (forceRelay) {
+      console.log(`[GroupWebRTC] 🔄 ${participant.odName} previously failed - using TURN relay`)
+    }
+
+    // Create peer connection (with relay mode if previously failed)
+    const pc = this.createPeerConnection(participant.id, forceRelay)
 
     // Create and set local description (offer)
     const offer = await pc.createOffer({
@@ -350,10 +590,16 @@ export class GroupWebRTCClient {
       connectionState: 'connecting'
     })
 
-    // Create peer connection if it doesn't exist
+    // Check if this participant previously failed - use relay mode if so
+    const forceRelay = this.failedParticipants.has(participantId)
+    if (forceRelay) {
+      console.log(`[GroupWebRTC] 🔄 ${participant.odName} previously failed - using TURN relay`)
+    }
+
+    // Create peer connection if it doesn't exist (with relay mode if previously failed)
     let pc = this.peerConnections.get(participantId)
     if (!pc) {
-      pc = this.createPeerConnection(participantId)
+      pc = this.createPeerConnection(participantId, forceRelay)
     }
 
     // Set remote description
@@ -417,6 +663,25 @@ export class GroupWebRTCClient {
    * Handle incoming ICE candidate from a participant
    */
   async handleIceCandidate(participantId: string, candidate: RTCIceCandidateInit): Promise<void> {
+    const candidateType = getIceCandidateInfo(candidate)
+
+    // Track received candidates
+    let stats = this.iceCandidateStats.get(participantId)
+    if (!stats) {
+      stats = { sent: 0, received: 0, types: [] }
+      this.iceCandidateStats.set(participantId, stats)
+    }
+    stats.received++
+    if (!stats.types.includes(candidateType + ' (remote)')) {
+      stats.types.push(candidateType + ' (remote)')
+    }
+
+    logWebRTCDebug('iceCandidate:remote', {
+      participantId,
+      type: candidateType,
+      totalReceived: stats.received
+    })
+
     const pc = this.peerConnections.get(participantId)
 
     if (!pc || !pc.remoteDescription) {
@@ -425,13 +690,23 @@ export class GroupWebRTCClient {
         this.pendingIceCandidates.set(participantId, [])
       }
       this.pendingIceCandidates.get(participantId)!.push(candidate)
+      logWebRTCDebug('iceCandidate:queued', {
+        participantId,
+        reason: !pc ? 'no peer connection' : 'no remote description',
+        queueLength: this.pendingIceCandidates.get(participantId)!.length
+      })
       return
     }
 
     try {
       await pc.addIceCandidate(new RTCIceCandidate(candidate))
+      logWebRTCDebug('iceCandidate:added', { participantId, type: candidateType })
     } catch (err) {
-      console.warn('Failed to add ICE candidate:', err)
+      console.warn(`[GroupWebRTC] Failed to add ICE candidate for ${participantId}:`, err)
+      const diag = this.connectionDiagnostics.get(participantId)
+      if (diag) {
+        diag.lastError = `Failed to add ICE candidate: ${err}`
+      }
     }
   }
 
@@ -703,6 +978,93 @@ export class GroupWebRTCClient {
       type: 'state-change',
       callState: this.getState()
     })
+  }
+
+  /**
+   * Reconnect to a specific participant whose connection failed
+   * Forces TURN relay mode since the previous direct connection failed
+   * Returns the new offer that needs to be sent via signaling
+   */
+  async reconnectParticipant(participantId: string): Promise<RTCSessionDescriptionInit | null> {
+    const participant = this.participants.get(participantId)
+    if (!participant) {
+      console.warn(`[GroupWebRTC] Cannot reconnect: participant ${participantId} not found`)
+      return null
+    }
+
+    console.log(`[GroupWebRTC] 🔄 Attempting to reconnect to ${participant.odName} using TURN RELAY...`)
+
+    // Close existing peer connection if it exists
+    const existingPc = this.peerConnections.get(participantId)
+    if (existingPc) {
+      existingPc.close()
+      this.peerConnections.delete(participantId)
+    }
+
+    // Clear old state
+    this.remoteStreams.delete(participantId)
+    this.pendingIceCandidates.delete(participantId)
+    this.iceCandidateStats.delete(participantId)
+    this.connectionDiagnostics.delete(participantId)
+
+    // Update participant state
+    participant.connectionState = 'connecting'
+    this.participants.set(participantId, participant)
+
+    // Emit state change
+    this.emit({
+      type: 'participant-connection-state',
+      participantId,
+      state: 'connecting'
+    })
+
+    try {
+      // Create new peer connection with FORCED RELAY MODE
+      // Since the previous connection failed, we force TURN relay to bypass NAT/firewall issues
+      console.log(`[GroupWebRTC] 🔄 RECONNECT: Creating peer connection with forceRelay=TRUE for ${participant.odName}`)
+      const pc = this.createPeerConnection(participantId, true) // forceRelay = true
+
+      // Create and set local description (offer)
+      console.log(`[GroupWebRTC] 🔄 RECONNECT: Creating offer with ICE restart...`)
+      const offer = await pc.createOffer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: this.callType === 'video',
+        iceRestart: true // Important: request ICE restart
+      })
+      await pc.setLocalDescription(offer)
+
+      console.log(
+        `[GroupWebRTC] ✅ Reconnect offer created for ${participant.odName} (TURN RELAY FORCED - iceTransportPolicy: relay)`
+      )
+      return offer
+    } catch (error) {
+      console.error(`[GroupWebRTC] ❌ Failed to create reconnect offer for ${participantId}:`, error)
+      participant.connectionState = 'failed'
+      this.participants.set(participantId, participant)
+      this.emit({
+        type: 'participant-connection-state',
+        participantId,
+        state: 'failed'
+      })
+      return null
+    }
+  }
+
+  /**
+   * Get the connection state for a specific participant
+   */
+  getParticipantConnectionState(participantId: string): RTCPeerConnectionState | null {
+    const pc = this.peerConnections.get(participantId)
+    return pc?.connectionState || null
+  }
+
+  /**
+   * Check if a participant needs reconnection (failed or disconnected)
+   */
+  needsReconnection(participantId: string): boolean {
+    const pc = this.peerConnections.get(participantId)
+    if (!pc) return false
+    return pc.connectionState === 'failed' || pc.connectionState === 'disconnected'
   }
 
   /**

@@ -1,20 +1,8 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react'
-import {
-  Dialog,
-  DialogContent,
-  Avatar,
-  AvatarImage,
-  AvatarFallback,
-  IconAvatar,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-  DropdownMenuLabel
-} from '@newwork/nw-design-system'
-import { UserIcon, Maximize2, Minimize2, UserPlus, Expand, Shrink, Monitor } from 'lucide-react'
+import { Dialog, DialogContent, Avatar, AvatarImage, AvatarFallback, IconAvatar } from '@newwork/nw-design-system'
+import { UserIcon, Maximize2, Minimize2, Expand, Shrink, Monitor } from 'lucide-react'
 import { CallControls } from './CallControls'
+import { AddParticipantDropdown } from './AddParticipantDropdown'
 import type { CallState, CallParticipant } from '../services/webrtcClient'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
@@ -37,6 +25,9 @@ interface CallModalProps {
   // For adding participants (upgrading to group call)
   availableParticipants?: AvailableParticipant[]
   onAddParticipant?: (participant: CallParticipant) => void
+  // For user search when adding participants
+  accessToken?: string
+  currentUserId?: string | null
 }
 
 const getInitials = (name: string): string => {
@@ -130,7 +121,9 @@ export const CallModal: React.FC<CallModalProps> = ({
   onToggleScreenShare,
   prefixDataTestId = 'call-modal',
   availableParticipants = [],
-  onAddParticipant
+  onAddParticipant,
+  accessToken,
+  currentUserId
 }) => {
   const localVideoRef = useRef<HTMLVideoElement>(null)
   const remoteVideoRef = useRef<HTMLVideoElement>(null)
@@ -332,48 +325,17 @@ export const CallModal: React.FC<CallModalProps> = ({
             />
 
             {/* Add participant button - positioned in the controls bar */}
-            {onAddParticipant && participantsNotInCall.length > 0 && isConnected && (
+            {onAddParticipant && accessToken && isConnected && (
               <div className="gba:absolute gba:bottom-4 gba:right-6">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button
-                      className="gba:p-3 gba:rounded-full gba:bg-gray-700 hover:gba:bg-gray-600 gba:text-white gba:transition-all gba:relative"
-                      title="Add participant"
-                      data-testid={`${prefixDataTestId}-add-participant-btn`}
-                    >
-                      <UserPlus className="gba:w-5 gba:h-5" />
-                      <span className="gba:absolute gba:-top-1 gba:-right-1 gba:bg-primary gba:text-white gba:text-xs gba:rounded-full gba:w-5 gba:h-5 gba:flex gba:items-center gba:justify-center">
-                        {participantsNotInCall.length}
-                      </span>
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="gba:w-64 gba:max-h-64 gba:overflow-y-auto">
-                    <DropdownMenuLabel>Add to call</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    {participantsNotInCall.map(participant => (
-                      <DropdownMenuItem
-                        key={participant.id}
-                        onClick={() =>
-                          onAddParticipant({
-                            id: participant.id,
-                            odId: participant.odId,
-                            odName: participant.odName,
-                            avatarUrl: participant.avatarUrl
-                          })
-                        }
-                        className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer"
-                      >
-                        <Avatar className="gba:h-8 gba:w-8">
-                          {participant.avatarUrl ? (
-                            <AvatarImage src={participant.avatarUrl} alt={participant.odName} />
-                          ) : null}
-                          <AvatarFallback className="gba:text-xs">{getInitials(participant.odName)}</AvatarFallback>
-                        </Avatar>
-                        <span className="gba:truncate">{participant.odName}</span>
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <AddParticipantDropdown
+                  accessToken={accessToken}
+                  currentUserId={currentUserId || null}
+                  participantsInCall={remoteParticipant ? [{ id: remoteParticipant.id }] : []}
+                  conversationParticipants={participantsNotInCall}
+                  onAddParticipant={onAddParticipant}
+                  prefixDataTestId={`${prefixDataTestId}-add-participant`}
+                  size="small"
+                />
               </div>
             )}
           </div>

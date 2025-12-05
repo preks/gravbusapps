@@ -167,32 +167,97 @@ export const useCall = ({
     [clearRingTimeout, onCallEnded]
   )
 
-  // Fetch ICE servers from backend (with caching)
+  // Fallback TURN servers for when backend doesn't provide them
+  const FALLBACK_TURN_SERVERS: RTCIceServer[] = [
+    {
+      urls: 'turn:openrelay.metered.ca:80',
+      username: 'openrelayproject',
+      credential: 'openrelayproject'
+    },
+    {
+      urls: 'turn:openrelay.metered.ca:443',
+      username: 'openrelayproject',
+      credential: 'openrelayproject'
+    },
+    {
+      urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+      username: 'openrelayproject',
+      credential: 'openrelayproject'
+    }
+  ]
+
+  // Helper to check if server list has TURN
+  const hasTurnServers = (servers: RTCIceServer[]): boolean => {
+    return servers.some(
+      s =>
+        (typeof s.urls === 'string' && (s.urls.startsWith('turn:') || s.urls.startsWith('turns:'))) ||
+        (Array.isArray(s.urls) && s.urls.some(u => u.startsWith('turn:') || u.startsWith('turns:')))
+    )
+  }
+
+  // Fetch ICE servers from backend (with caching and TURN fallback)
   const fetchIceServers = useCallback(async (): Promise<RTCIceServer[]> => {
-    // Return cached ICE servers if available
-    if (iceServersRef.current) {
+    // Only use cache if it has TURN servers
+    if (iceServersRef.current && hasTurnServers(iceServersRef.current)) {
+      console.log('[useCall] ✅ Using cached ICE servers with TURN')
       return iceServersRef.current
     }
+
+    // Clear stale cache without TURN
+    if (iceServersRef.current) {
+      console.log('[useCall] 🔄 Cached servers have no TURN, refreshing...')
+      iceServersRef.current = null
+    }
+
+    let backendServers: RTCIceServer[] = []
 
     // Try to fetch from backend
     if (apiClientRef.current) {
       try {
+        console.log('[useCall] 📡 Fetching ICE servers from backend...')
         const response = await apiClientRef.current.getIceServers()
-        const iceServers = response.iceServers.map(server => ({
+        backendServers = response.iceServers.map(server => ({
           urls: server.urls,
           username: server.username,
           credential: server.credential
         }))
-        iceServersRef.current = iceServers
-        console.debug('Fetched ICE servers from backend:', iceServers.length, 'servers')
-        return iceServers
+        console.log('[useCall] Backend returned:', backendServers.length, 'servers')
       } catch (error) {
-        console.warn('Failed to fetch ICE servers from backend, using defaults:', error)
+        console.warn('[useCall] Failed to fetch ICE servers from backend:', error)
       }
     }
 
-    // Return null to use default STUN servers in WebRTCClient
-    return []
+    // Check if backend provided TURN servers
+    const hasTurnFromBackend = hasTurnServers(backendServers)
+
+    // ALWAYS add fallback TURN servers if backend doesn't have any
+    let finalServers: RTCIceServer[]
+    if (!hasTurnFromBackend) {
+      console.log('[useCall] ⚠️ Backend has NO TURN servers! Adding fallback TURN relay...')
+      finalServers = [...backendServers, ...FALLBACK_TURN_SERVERS]
+    } else {
+      console.log('[useCall] ✅ Backend provided TURN servers')
+      finalServers = backendServers
+    }
+
+    const hasTurn = hasTurnServers(finalServers)
+    console.log('[useCall] 🌐 Final ICE servers configuration:', {
+      serverCount: finalServers.length,
+      hasTurn,
+      fromBackend: backendServers.length,
+      fallbackAdded: !hasTurnFromBackend,
+      servers: finalServers.map(s => ({
+        urls: s.urls,
+        hasCredentials: !!(s.username && s.credential)
+      }))
+    })
+
+    if (!hasTurn) {
+      console.error('[useCall] ❌ CRITICAL: No TURN servers! Some users WILL NOT be able to connect!')
+    }
+
+    iceServersRef.current = finalServers
+    return finalServers
   }, [])
 
   // Initialize WebRTC and set up event handlers
