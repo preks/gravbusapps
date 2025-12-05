@@ -24,9 +24,6 @@ export interface GenericOpportunity {
   estimatedAmount?: number
   closeDate?: string
 
-  // Win probability
-  winningChance?: number
-
   // Catalog references (normalized names)
   currency?: CatalogEntry
   opportunityPipelineStage?: CatalogEntry
