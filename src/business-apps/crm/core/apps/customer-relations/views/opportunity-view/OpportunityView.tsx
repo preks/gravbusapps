@@ -138,11 +138,26 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
           return [...baseColumns.slice(0, amountIndex + 1), winningChanceColumn, ...baseColumns.slice(amountIndex + 1)]
         }
         return [...baseColumns, winningChanceColumn]
+      },
+      createSortableColumns: (availableColumnIds?: string[]) => {
+        const baseSortable = baseConfig.createSortableColumns(availableColumnIds)
+        // Add winningChance to sortable columns if it's in available columns
+        if (!availableColumnIds || availableColumnIds.includes('winningChance')) {
+          return [...baseSortable, { id: 'winningChance', label: 'Winning Chance' }]
+        }
+        return baseSortable
       }
     } as typeof baseConfig
   }, [context, fetchCustomerOpportunities, winningChanceColumn])
 
-  return <OpportunityLayout context={context} config={config} dataTestId="customer-opportunities-view" />
+  return (
+    <OpportunityLayout
+      context={context}
+      config={config}
+      dataTestId="customer-opportunities-view"
+      extendVisibleColumns={['winningChance']}
+    />
+  )
 }
 
 export default OpportunityView
