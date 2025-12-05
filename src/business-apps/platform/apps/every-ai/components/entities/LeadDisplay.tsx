@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { EntityCard } from './EntityCard'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
+import { getOperationBadge } from './utils/displayUtils'
 
 interface LeadDisplayProps {
   leadId: string
@@ -65,20 +66,7 @@ export const LeadDisplay: React.FC<LeadDisplayProps> = ({ leadId, accessToken, o
     }
   }, [leadId, accessToken, graphqlClient])
 
-  const getOperationBadge = () => {
-    switch (operation) {
-      case 'create':
-        return { text: 'Created', variant: 'success' as const }
-      case 'update':
-        return { text: 'Updated', variant: 'default' as const }
-      case 'delete':
-        return { text: 'Deleted', variant: 'destructive' as const }
-      default:
-        return undefined
-    }
-  }
-
-  const operationBadge = getOperationBadge()
+  const operationBadge = getOperationBadge(operation)
 
   const handleClick = () => {
     if (leadId) {
