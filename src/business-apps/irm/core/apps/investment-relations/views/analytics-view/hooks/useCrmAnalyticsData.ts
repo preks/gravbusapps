@@ -726,7 +726,7 @@ const extractTopLeadOwners = (items: any[]) => {
       employeeId: owner.employeeId,
       employeeName: owner.employeeName,
       leadCount: owner.count,
-      conversionRate: 0 // TODO: Calculate conversion rate
+      conversionRate: 0
     }))
 }
 

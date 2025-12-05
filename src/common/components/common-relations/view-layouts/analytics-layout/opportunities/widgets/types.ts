@@ -1,0 +1,26 @@
+/**
+ * Shared types and utilities for opportunities by stage charts
+ */
+
+export interface StageItem {
+  stage: string
+  count: number
+  value: number
+}
+
+export interface OpportunitiesStageChartProps {
+  data: StageItem[]
+  moduleColor?: string
+  pipelines?: Array<{ id: string; name: string }>
+  selectedPipelineId?: string
+  onPipelineChange?: (pipelineId: string | undefined) => void
+}
+
+/**
+ * Convert stage name to chart key (lowercase, hyphenated, alphanumeric)
+ */
+export const toChartKey = (value: string): string =>
+  value
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')

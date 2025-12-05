@@ -20,8 +20,28 @@ export interface DealHealthData {
   matrixData: DealHealthItem[]
 }
 
+interface OpportunityForHealthScore {
+  estimatedAmount?: number
+  estimatedCloseDate?: string
+  winningChance?: number
+}
+
+interface OpportunityQueryResult {
+  opportunities: {
+    id: string
+    name: string
+    createdAt: string
+    estimatedAmount?: number
+    estimatedCloseDate?: string
+    winningChance?: number
+    account?: { name: string }
+    ownerEmployee?: { displayName: string }
+    currency?: { code: string }
+  }[]
+}
+
 const calculateHealthScore = (
-  opportunity: any,
+  opportunity: OpportunityForHealthScore,
   daysInPipeline: number,
   currentDate: Date
 ): { score: number; riskFactors: string[] } => {
@@ -128,9 +148,9 @@ export const useDealHealthData = (
           orderBy: [{ createdAt: 'DESC' as const }],
           limit: 100
         }
-        const result = await graphqlClient.request<any>(query, variables)
+        const result = await graphqlClient.request<OpportunityQueryResult>(query, variables)
 
-        const processed = result.opportunities.map((opp: any) => {
+        const processed = result.opportunities.map(opp => {
           const createdDate = new Date(opp.createdAt)
           const daysInPipeline = Math.floor((currentDate.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24))
           const { score, riskFactors } = calculateHealthScore(opp, daysInPipeline, currentDate)
@@ -150,7 +170,7 @@ export const useDealHealthData = (
           } as DealHealthItem
         })
         const distribution = processed.reduce(
-          (acc: any, opp: DealHealthItem) => {
+          (acc: { excellent: number; healthy: number; warning: number; critical: number }, opp: DealHealthItem) => {
             acc[opp.healthCategory] = (acc[opp.healthCategory] || 0) + 1
             return acc
           },

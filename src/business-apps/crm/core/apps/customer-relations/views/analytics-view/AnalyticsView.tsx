@@ -5,6 +5,12 @@ import {
   AnalyticsLayout,
   AnalyticsTabKey
 } from '@/common/components/common-relations/view-layouts/analytics-layout/AnalyticsLayout'
+import {
+  getInitialAnalyticsTab,
+  updateAnalyticsTabUrl,
+  initializeAnalyticsTabUrl,
+  TimeFilter
+} from '@/common/components/common-relations/view-layouts/analytics-layout/utils/analyticsViewHelpers'
 import { useAvailableCurrencies } from '@/common/data/common/hooks/useAvailableCurrencies'
 import { useOpportunitiesOverTime } from './hooks/useOpportunitiesOverTime'
 import { useOpportunitiesByStage } from './hooks/useOpportunitiesByStage'
@@ -30,20 +36,6 @@ import { useTopDeals } from './hooks/useTopDeals'
 
 export interface AnalyticsViewProps extends BusinessAppContextProps {
   moduleColor?: string
-}
-
-type TimeFilter = 'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'
-
-// Helper function to get initial tab from URL
-const getInitialAnalyticsTab = (): AnalyticsTabKey => {
-  const urlParams = new URLSearchParams(globalThis.location.search)
-  const tabFromUrl = urlParams.get('analyticsTab')
-  const validTabs = ['overview', 'leads', 'accounts', 'opportunities', 'contacts']
-
-  if (tabFromUrl && validTabs.includes(tabFromUrl)) {
-    return tabFromUrl as AnalyticsTabKey
-  }
-  return 'overview'
 }
 
 export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'default', ...context }) => {
@@ -79,28 +71,14 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
 
   const [activeAnalyticsTab, setActiveAnalyticsTab] = useState<AnalyticsTabKey>(getInitialAnalyticsTab())
 
-  // Update URL when analytics tab changes
-  const updateAnalyticsTabUrl = useCallback((tab: AnalyticsTabKey) => {
-    const urlParams = new URLSearchParams(globalThis.location.search)
-    urlParams.set('analyticsTab', tab)
-    const newUrl = `${globalThis.location.pathname}?${urlParams.toString()}`
-    globalThis.history.replaceState({}, '', newUrl)
+  const handleAnalyticsTabChange = useCallback((tab: AnalyticsTabKey) => {
+    setActiveAnalyticsTab(tab)
+    updateAnalyticsTabUrl(tab)
   }, [])
-
-  const handleAnalyticsTabChange = useCallback(
-    (tab: AnalyticsTabKey) => {
-      setActiveAnalyticsTab(tab)
-      updateAnalyticsTabUrl(tab)
-    },
-    [updateAnalyticsTabUrl]
-  )
 
   // Initialize URL on mount if not present
   useEffect(() => {
-    const urlParams = new URLSearchParams(globalThis.location.search)
-    if (!urlParams.has('analyticsTab')) {
-      updateAnalyticsTabUrl(activeAnalyticsTab)
-    }
+    initializeAnalyticsTabUrl(activeAnalyticsTab)
   }, []) // Run only on mount
 
   // Handle browser back/forward navigation

@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
-
-export type TimeFilter = 'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'
+import { generateTimePeriods, TimeFilter } from '@/common/utils/analytics/dateRangeUtils'
 
 export interface LeadsOverTimePoint {
   date: string
@@ -210,107 +209,4 @@ export const useLeadsOverTime = (
   }, [accessToken, graphqlClient, timeFilter])
 
   return { leadsOverTime, isLoading, error }
-}
-
-// Helper function to generate time periods
-const generateTimePeriods = (filter: TimeFilter): Array<{ start: string; end: string; label: string }> => {
-  const now = new Date()
-  const periods: Array<{ start: string; end: string; label: string }> = []
-
-  switch (filter) {
-    case 'month': {
-      // Last 30 days (daily)
-      for (let i = 29; i >= 0; i--) {
-        const date = new Date(now)
-        date.setDate(date.getDate() - i)
-        const start = new Date(date)
-        start.setHours(0, 0, 0, 0)
-        const end = new Date(date)
-        end.setHours(23, 59, 59, 999)
-
-        periods.push({
-          start: start.toISOString(),
-          end: end.toISOString(),
-          label: start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-        })
-      }
-      break
-    }
-
-    case 'quarter': {
-      // Last 3 months (monthly aggregation like Revenue Trends)
-      for (let i = 2; i >= 0; i--) {
-        const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
-        const monthStart = date.toISOString()
-        const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 1).toISOString()
-        const monthName = date.toLocaleDateString('en-US', {
-          month: 'short',
-          year: 'numeric'
-        })
-
-        periods.push({
-          start: monthStart,
-          end: monthEnd,
-          label: monthName
-        })
-      }
-      break
-    }
-
-    case 'sixMonths': {
-      // Last 6 months (monthly aggregation like Revenue Trends)
-      for (let i = 5; i >= 0; i--) {
-        const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
-        const monthStart = date.toISOString()
-        const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 1).toISOString()
-        const monthName = date.toLocaleDateString('en-US', {
-          month: 'short',
-          year: 'numeric'
-        })
-
-        periods.push({
-          start: monthStart,
-          end: monthEnd,
-          label: monthName
-        })
-      }
-      break
-    }
-
-    case 'year': {
-      // Last 12 months (monthly)
-      for (let i = 11; i >= 0; i--) {
-        const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1)
-        const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 1)
-
-        periods.push({
-          start: monthStart.toISOString(),
-          end: monthEnd.toISOString(),
-          label: monthStart.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-        })
-      }
-      break
-    }
-
-    case 'historical': {
-      // Last 5 years (yearly)
-      const currentYear = now.getFullYear()
-      for (let i = 4; i >= 0; i--) {
-        const yearStart = new Date(currentYear - i, 0, 1)
-        const yearEnd = new Date(currentYear - i + 1, 0, 1)
-
-        periods.push({
-          start: yearStart.toISOString(),
-          end: yearEnd.toISOString(),
-          label: yearStart.getFullYear().toString()
-        })
-      }
-      break
-    }
-
-    default:
-      return []
-  }
-
-  return periods
 }

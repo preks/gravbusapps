@@ -11,6 +11,20 @@ export interface TopDeal {
   currencyCode: string
 }
 
+interface OpportunityResponse {
+  id: string
+  name: string
+  estimatedAmount?: number
+  winningChance?: number
+  currency?: { code: string }
+  ownerEmployee?: {
+    displayName?: string
+    firstName?: string
+    lastName?: string
+  }
+  [key: string]: any // For dynamic stage field names
+}
+
 /**
  * Shared hook for fetching top deals
  * Used by both CRM and IRM analytics modules
@@ -69,8 +83,8 @@ export const useTopDeals = (
           }
         `
 
-        const result = await graphqlClient.request<any>(query)
-        const topDeals = (result[entityName] || []).map((opp: any) => ({
+        const result = await graphqlClient.request<Record<string, OpportunityResponse[]>>(query)
+        const topDeals = (result[entityName] || []).map((opp: OpportunityResponse) => ({
           id: opp.id,
           name: opp.name,
           value: opp.estimatedAmount || 0,

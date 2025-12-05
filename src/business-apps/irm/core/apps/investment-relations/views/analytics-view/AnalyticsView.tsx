@@ -5,6 +5,12 @@ import {
   AnalyticsLayout,
   AnalyticsTabKey
 } from '@/common/components/common-relations/view-layouts/analytics-layout/AnalyticsLayout'
+import {
+  getInitialAnalyticsTab,
+  updateAnalyticsTabUrl,
+  initializeAnalyticsTabUrl,
+  TimeFilter
+} from '@/common/components/common-relations/view-layouts/analytics-layout/utils/analyticsViewHelpers'
 import { useAvailableCurrencies } from '@/common/data/common/hooks/useAvailableCurrencies'
 import { useOpportunitiesOverTime } from './hooks/useOpportunitiesOverTime'
 import { useOpportunityTrendData } from './hooks/useOpportunityTrendData'
@@ -31,18 +37,10 @@ export interface AnalyticsViewProps extends BusinessAppContextProps {
 }
 
 export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'default', ...context }) => {
-  const [leadsTimeFilter, setLeadsTimeFilter] = useState<'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'>(
-    'quarter'
-  )
-  const [oppTimeFilter, setOppTimeFilter] = useState<'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'>(
-    'quarter'
-  )
-  const [contactsTimeFilter, setContactsTimeFilter] = useState<
-    'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'
-  >('quarter')
-  const [revenueTimeFilter, setRevenueTimeFilter] = useState<'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'>(
-    'sixMonths'
-  )
+  const [leadsTimeFilter, setLeadsTimeFilter] = useState<TimeFilter>('quarter')
+  const [oppTimeFilter, setOppTimeFilter] = useState<TimeFilter>('quarter')
+  const [contactsTimeFilter, setContactsTimeFilter] = useState<TimeFilter>('quarter')
+  const [revenueTimeFilter, setRevenueTimeFilter] = useState<TimeFilter>('sixMonths')
   const [selectedPipelineId, setSelectedPipelineId] = useState<string | undefined>(undefined)
   const [selectedStagePipelineId, setSelectedStagePipelineId] = useState<string | undefined>(undefined)
 
@@ -65,44 +63,16 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     setTopDealsCurrency(opportunitiesKpiCurrency)
   }, [opportunitiesKpiCurrency])
 
-  // Get initial analytics tab from URL
-  const getInitialAnalyticsTab = useCallback(() => {
-    const urlParams = new URLSearchParams(globalThis.location.search)
-    const tabFromUrl = urlParams.get('analyticsTab')
-
-    // Valid analytics tab values
-    if (tabFromUrl && ['overview', 'leads', 'accounts', 'opportunities', 'contacts'].includes(tabFromUrl)) {
-      return tabFromUrl as AnalyticsTabKey
-    }
-
-    // Default to overview
-    return 'overview' as AnalyticsTabKey
-  }, [])
-
   const [activeAnalyticsTab, setActiveAnalyticsTab] = useState<AnalyticsTabKey>(getInitialAnalyticsTab())
 
-  // Update URL when analytics tab changes
-  const updateAnalyticsTabUrl = useCallback((tab: AnalyticsTabKey) => {
-    const urlParams = new URLSearchParams(globalThis.location.search)
-    urlParams.set('analyticsTab', tab)
-    const newUrl = `${globalThis.location.pathname}?${urlParams.toString()}`
-    globalThis.history.replaceState({}, '', newUrl)
+  const handleAnalyticsTabChange = useCallback((tab: AnalyticsTabKey) => {
+    setActiveAnalyticsTab(tab)
+    updateAnalyticsTabUrl(tab)
   }, [])
-
-  const handleAnalyticsTabChange = useCallback(
-    (tab: AnalyticsTabKey) => {
-      setActiveAnalyticsTab(tab)
-      updateAnalyticsTabUrl(tab)
-    },
-    [updateAnalyticsTabUrl]
-  )
 
   // Initialize URL on mount if not present
   useEffect(() => {
-    const urlParams = new URLSearchParams(globalThis.location.search)
-    if (!urlParams.has('analyticsTab')) {
-      updateAnalyticsTabUrl(activeAnalyticsTab)
-    }
+    initializeAnalyticsTabUrl(activeAnalyticsTab)
   }, []) // Run only on mount
 
   // Handle browser back/forward navigation

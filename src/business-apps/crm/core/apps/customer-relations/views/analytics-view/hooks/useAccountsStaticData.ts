@@ -238,13 +238,6 @@ export const useAccountsStaticData = (accessToken: string) => {
 
         const accounts = result.topAccountIds || []
 
-        console.log('[useAccountsStaticData] MEGA query completed:', {
-          kpis: { totalAccounts: result.totalAccounts?.aggregate?.count },
-          industries: industries.length,
-          sizes: companySizes.length,
-          topAccountIds: accounts.length
-        })
-
         // === STEP 3: Top Accounts Revenue Aggregates (depends on mega query account IDs) ===
         const accountAggregates = accounts
           .map((account: any, index: number) => {

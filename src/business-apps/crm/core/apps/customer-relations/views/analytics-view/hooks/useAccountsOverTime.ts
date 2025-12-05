@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { generateTimePeriods, TimePeriod } from '@/common/utils/analytics/dateRangeUtils'
 
 export type AccountsTimeFilter = 'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'
 
@@ -33,7 +34,7 @@ export const useAccountsOverTime = (accessToken: string, timeFilter: AccountsTim
 
         // Build aggregate queries for each period
         const periodAggregates = periods
-          .map((period, index) => {
+          .map((period: TimePeriod, index: number) => {
             return `
           # Accounts created in period ${index}
           accountsCreated_period${index}: AccountAggregate(
@@ -75,7 +76,7 @@ export const useAccountsOverTime = (accessToken: string, timeFilter: AccountsTim
         const result = await graphqlClient.request(query)
 
         // Transform result into AccountsOverTimePoint array
-        const transformedData: AccountsOverTimePoint[] = periods.map((period, index) => {
+        const transformedData: AccountsOverTimePoint[] = periods.map((period: TimePeriod, index: number) => {
           const accountsCreated = result[`accountsCreated_period${index}`]?.aggregate?.count || 0
           const accountsWithOpportunities = result[`accountsWithOpportunities_period${index}`]?.aggregate?.count || 0
           const accountsActive = result[`accountsActive_period${index}`]?.aggregate?.count || 0
@@ -102,123 +103,4 @@ export const useAccountsOverTime = (accessToken: string, timeFilter: AccountsTim
   }, [accessToken, timeFilter, graphqlClient])
 
   return { accountsOverTime, isLoading, error }
-}
-
-// Helper function to generate time periods
-const generateTimePeriods = (filter: AccountsTimeFilter): Array<{ start: string; end: string; label: string }> => {
-  const now = new Date()
-  const periods: Array<{ start: string; end: string; label: string }> = []
-
-  switch (filter) {
-    case 'month': {
-      // Last 30 days, daily
-      for (let i = 29; i >= 0; i--) {
-        const start = new Date(now)
-        start.setDate(now.getDate() - i)
-        start.setHours(0, 0, 0, 0)
-
-        const end = new Date(start)
-        end.setDate(start.getDate() + 1)
-
-        periods.push({
-          start: start.toISOString(),
-          end: end.toISOString(),
-          label: start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-        })
-      }
-      break
-    }
-
-    case 'quarter': {
-      // Last 3 months (monthly aggregation like Revenue Trends)
-      for (let i = 2; i >= 0; i--) {
-        const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
-        const monthStart = date.toISOString()
-        const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 1).toISOString()
-        const monthName = date.toLocaleDateString('en-US', {
-          month: 'short',
-          year: 'numeric'
-        })
-
-        periods.push({
-          start: monthStart,
-          end: monthEnd,
-          label: monthName
-        })
-      }
-      break
-    }
-
-    case 'sixMonths': {
-      // Last 6 months (monthly aggregation like Revenue Trends)
-      for (let i = 5; i >= 0; i--) {
-        const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
-        const monthStart = date.toISOString()
-        const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 1).toISOString()
-        const monthName = date.toLocaleDateString('en-US', {
-          month: 'short',
-          year: 'numeric'
-        })
-
-        periods.push({
-          start: monthStart,
-          end: monthEnd,
-          label: monthName
-        })
-      }
-      break
-    }
-
-    case 'year': {
-      // Last 12 months, monthly
-      for (let i = 11; i >= 0; i--) {
-        const start = new Date(now.getFullYear(), now.getMonth() - i, 1)
-        const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 1)
-
-        periods.push({
-          start: start.toISOString(),
-          end: end.toISOString(),
-          label: start.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-        })
-      }
-      break
-    }
-
-    case 'historical': {
-      // Last 5 years, yearly
-      const currentYear = now.getFullYear()
-      for (let i = 4; i >= 0; i--) {
-        const year = currentYear - i
-        const start = new Date(year, 0, 1) // January 1st
-        const end = new Date(year + 1, 0, 1) // January 1st next year
-
-        periods.push({
-          start: start.toISOString(),
-          end: end.toISOString(),
-          label: year.toString()
-        })
-      }
-      break
-    }
-
-    default: {
-      // Default to quarter
-      for (let i = 11; i >= 0; i--) {
-        const start = new Date(now)
-        start.setDate(now.getDate() - i * 7)
-        start.setHours(0, 0, 0, 0)
-
-        const end = new Date(start)
-        end.setDate(start.getDate() + 7)
-
-        periods.push({
-          start: start.toISOString(),
-          end: end.toISOString(),
-          label: start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-        })
-      }
-    }
-  }
-
-  return periods
 }

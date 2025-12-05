@@ -18,22 +18,9 @@ import {
 } from '@newwork/nw-design-system'
 import { BarChart, Bar, XAxis, YAxis } from 'recharts'
 import { ChartBarIcon } from '@phosphor-icons/react'
+import { OpportunitiesStageChartProps } from './types'
 
-export interface StageItem {
-  stage: string
-  count: number
-  value: number
-}
-
-interface OpportunitiesByStageBarProps {
-  data: StageItem[]
-  moduleColor?: string
-  pipelines?: Array<{ id: string; name: string }>
-  selectedPipelineId?: string
-  onPipelineChange?: (pipelineId: string | undefined) => void
-}
-
-export const OpportunitiesByStageBar: React.FC<OpportunitiesByStageBarProps> = ({
+export const OpportunitiesByStageBar: React.FC<OpportunitiesStageChartProps> = ({
   data,
   moduleColor = 'default',
   pipelines = [],

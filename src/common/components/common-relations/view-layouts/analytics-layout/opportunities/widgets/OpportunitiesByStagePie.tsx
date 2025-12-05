@@ -20,28 +20,9 @@ import {
 } from '@newwork/nw-design-system'
 import { PieChart, Pie } from 'recharts'
 import { ChartPieIcon } from '@phosphor-icons/react'
+import { OpportunitiesStageChartProps, toChartKey } from './types'
 
-export interface StageItem {
-  stage: string
-  count: number
-  value: number
-}
-
-interface OpportunitiesByStagePieProps {
-  data: StageItem[]
-  moduleColor?: string
-  pipelines?: Array<{ id: string; name: string }>
-  selectedPipelineId?: string
-  onPipelineChange?: (pipelineId: string | undefined) => void
-}
-
-const toKey = (value: string): string =>
-  value
-    .toLowerCase()
-    .replaceAll(/\s+/g, '-')
-    .replaceAll(/[^a-z0-9-]/g, '')
-
-export const OpportunitiesByStagePie: React.FC<OpportunitiesByStagePieProps> = ({
+export const OpportunitiesByStagePie: React.FC<OpportunitiesStageChartProps> = ({
   data,
   moduleColor = 'default',
   pipelines = [],
@@ -62,7 +43,7 @@ export const OpportunitiesByStagePie: React.FC<OpportunitiesByStagePieProps> = (
   const chartData = useMemo(() => {
     if (!data || data.length === 0) return []
     return data.map(item => {
-      const key = toKey(item.stage)
+      const key = toChartKey(item.stage)
       return {
         [nameKey]: key,
         [dataKey]: item.count,
@@ -75,7 +56,7 @@ export const OpportunitiesByStagePie: React.FC<OpportunitiesByStagePieProps> = (
     if (!data || data.length === 0) return {} as ChartConfig
     const config: Record<string, { label?: string }> = {}
     data.forEach(item => {
-      const key = toKey(item.stage)
+      const key = toChartKey(item.stage)
       config[key] = { label: item.stage }
     })
     return config as ChartConfig
