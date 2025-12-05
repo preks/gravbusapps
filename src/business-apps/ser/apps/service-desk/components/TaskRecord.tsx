@@ -629,6 +629,8 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({ taskId, accessToken, use
           value: opt.value || opt,
           label: opt.label || opt.value || opt
         })),
+        // Include dataSource configuration for dynamic SELECT/MULTISELECT fields
+        dataSource: field.dataSource,
         validation: field.required ? [{ type: 'required' as const }] : undefined
       })
     )
@@ -976,6 +978,7 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({ taskId, accessToken, use
                       submitButtonText="Complete Ticket"
                       title="" // No title since we have card header
                       showCard={false} // Don't wrap in card since we're already in one
+                      accessToken={accessToken} // Required for dataSource SELECT/MULTISELECT fields
                     />
                   </div>
                 </CardContent>
