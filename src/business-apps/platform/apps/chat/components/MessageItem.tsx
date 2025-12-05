@@ -14,6 +14,7 @@ import { navigateTo } from '@/common/utils/navigationUtils'
 import { formatTime, formatFullTimestamp, getStatusIcon } from './utils/messageUtils'
 import { isPreviewable } from './utils/attachmentUtils'
 import { renderContentWithReferences } from './EntityReferenceBadge'
+import { AIResponseRenderer } from './AIResponseRenderer'
 import { MessageAttachments, type MessageAttachment } from './MessageAttachments'
 import { AttachmentPreviewDialog } from './AttachmentPreviewDialog'
 
@@ -41,7 +42,9 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   accessToken,
   participants
 }) => {
-  const isOwnMessage = message.senderId === currentUserId
+  const isAIResponse = message.metadata?.isAIResponse === true
+  // AI responses should never be styled as "own message" even if sent by current user
+  const isOwnMessage = message.senderId === currentUserId && !isAIResponse
   const sender = message.sender
 
   // Look up avatar and employeeId from conversation participants if not in sender
@@ -108,8 +111,15 @@ export const MessageItem: React.FC<MessageItemProps> = ({
         className={`gba:flex gba:gap-2 gba:mb-1 ${isOwnMessage ? 'gba:flex-row-reverse' : 'gba:flex-row'}`}
         data-testid={`message-${message.id}`}
       >
+        {/* Avatar for AI responses - shown in all chat types */}
+        {isAIResponse && (
+          <div className="gba:w-7 gba:h-7 gba:flex-shrink-0 gba:mt-0.5 gba:rounded-full gba:bg-gradient-to-br gba:from-primary gba:to-accent gba:flex gba:items-center gba:justify-center">
+            <span className="gba:text-[10px] gba:text-primary-foreground gba:font-bold">AI</span>
+          </div>
+        )}
+
         {/* Avatar for other users in group chat */}
-        {!isOwnMessage && isGroupChat && (
+        {!isOwnMessage && !isAIResponse && isGroupChat && (
           <Avatar
             className={`gba:w-7 gba:h-7 gba:flex-shrink-0 gba:mt-0.5 ${employeeId ? 'gba:cursor-pointer hover:gba:ring-2 hover:gba:ring-primary gba:transition-all' : ''}`}
             onClick={() => {
@@ -138,13 +148,23 @@ export const MessageItem: React.FC<MessageItemProps> = ({
         {/* Message bubble */}
         <div
           className={`gba:max-w-[80%] gba:px-3 gba:py-2 gba:shadow-sm ${
-            isOwnMessage
-              ? 'gba:bg-primary gba:text-primary-foreground gba:rounded-2xl gba:rounded-br-md'
-              : 'gba:bg-card gba:text-card-foreground gba:rounded-2xl gba:rounded-bl-md gba:border gba:border-border/50'
+            isAIResponse
+              ? 'gba:bg-gradient-to-br gba:from-muted gba:to-accent/10 gba:text-foreground gba:rounded-2xl gba:rounded-bl-md gba:border gba:border-primary/20'
+              : isOwnMessage
+                ? 'gba:bg-primary gba:text-primary-foreground gba:rounded-2xl gba:rounded-br-md'
+                : 'gba:bg-card gba:text-card-foreground gba:rounded-2xl gba:rounded-bl-md gba:border gba:border-border/50'
           }`}
         >
+          {/* Sender name for AI responses */}
+          {isAIResponse && (
+            <div className="gba:text-[11px] gba:font-semibold gba:mb-0.5 gba:text-primary gba:flex gba:items-center gba:gap-1">
+              <span className="gba:text-xs">✨</span>
+              {getTranslationFromI18nKeyAndLabel('chat.everyAI', 'Every AI')}
+            </div>
+          )}
+
           {/* Sender name in group chat */}
-          {!isOwnMessage && isGroupChat && (sender || participantData) && (
+          {!isOwnMessage && !isAIResponse && isGroupChat && (sender || participantData) && (
             <div
               className={`gba:text-[11px] gba:font-medium gba:mb-0.5 gba:text-primary ${employeeId ? 'gba:cursor-pointer hover:gba:underline' : ''}`}
               onClick={() => {
@@ -163,7 +183,11 @@ export const MessageItem: React.FC<MessageItemProps> = ({
           {/* Text content */}
           {message.content && (
             <div className="gba:break-words gba:text-sm gba:leading-relaxed">
-              {renderContentWithReferences(message.content, message.metadata, isOwnMessage)}
+              {isAIResponse ? (
+                <AIResponseRenderer content={message.content} />
+              ) : (
+                renderContentWithReferences(message.content, message.metadata, isOwnMessage)
+              )}
             </div>
           )}
 

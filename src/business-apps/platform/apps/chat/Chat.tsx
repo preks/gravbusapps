@@ -4,12 +4,14 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useChatClient } from './hooks/useChatClient'
 import { useCall } from './hooks/useCall'
 import { useGroupCall } from './hooks/useGroupCall'
+import { useEveryAIChat } from './hooks/useEveryAIChat'
 import { ConversationList } from './components/ConversationList'
 import { ConversationHeader, type ActiveCallInfo } from './components/ConversationHeader'
 import { MessageList } from './components/MessageList'
 import { MessageInput } from './components/MessageInput'
 import { CreateGroupModal } from './components/CreateGroupModal'
 import { GroupSettingsModal } from './components/GroupSettingsModal'
+import { AIThinkingIndicator, AIResponseRenderer } from './components/AIResponseRenderer'
 import { IncomingCallDialog } from './components/IncomingCallDialog'
 import { IncomingGroupCallDialog } from './components/IncomingGroupCallDialog'
 import { CallModal } from './components/CallModal'
@@ -189,6 +191,17 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
   // Combined in-call state
   const isInAnyCall = isInCall || isInGroupCall
 
+  // Every AI integration for @Every mentions in group chats
+  const {
+    hasEveryMention,
+    processMessage: processEveryAIMessage,
+    isProcessing: isAIProcessing,
+    streamingText: aiStreamingText,
+    clearStreamingText
+  } = useEveryAIChat({
+    accessToken
+  })
+
   // Call handlers for both direct (1:1) and group conversations
   const handleAudioCall = () => {
     if (!activeConversation) return
@@ -349,12 +362,71 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
           }
         }
 
+        // Send the user's message first
         await sendMessage(activeConversationId, content, Object.keys(metadata).length > 0 ? metadata : undefined)
+
+        // Check if message contains @Every mention and process it
+        if (hasEveryMention(entityReferences) && activeConversation) {
+          try {
+            // Build context about the group chat for the AI
+            const participantNames = activeConversation.participants
+              ?.filter(p => p.user)
+              .map(p => {
+                const user = p.user!
+                return (
+                  user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || ''
+                )
+              })
+              .filter(Boolean)
+
+            const conversationContext = {
+              conversationId: activeConversationId,
+              conversationName: activeConversation.name,
+              participantNames
+            }
+
+            // Process the message with Every AI
+            const aiResponse = await processEveryAIMessage(content, entityReferences, conversationContext)
+
+            if (aiResponse && aiResponse.text && !aiResponse.error) {
+              // Keep the original text with entity links intact (don't sanitize them)
+              const responseText = aiResponse.text.trim()
+
+              if (responseText) {
+                // Small delay to let the first message settle in the UI
+                await new Promise(resolve => setTimeout(resolve, 100))
+
+                // Send the AI response as a message
+                // The visual styling (avatar, name) is handled by MessageItem based on isAIResponse metadata
+                const aiMetadata = {
+                  isAIResponse: true,
+                  aiAssistant: 'Every',
+                  originalQuestion: content
+                }
+                await sendMessage(activeConversationId, responseText, aiMetadata)
+
+                // Clear streaming text after message is sent
+                clearStreamingText()
+              }
+            }
+          } catch (aiError) {
+            console.error('Error processing Every AI response:', aiError)
+            // Don't crash the chat if AI fails - just log and continue
+          }
+        }
       } catch (err) {
         console.error('Error sending message:', err)
       }
     },
-    [activeConversationId, sendMessage, apiClient]
+    [
+      activeConversationId,
+      sendMessage,
+      apiClient,
+      hasEveryMention,
+      processEveryAIMessage,
+      activeConversation,
+      clearStreamingText
+    ]
   )
 
   const handleCreateConversation = useCallback(
@@ -815,6 +887,29 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
               accessToken={accessToken}
               participants={activeConversation.participants}
             />
+
+            {/* AI Processing Indicator */}
+            {isAIProcessing && (
+              <div className="gba:px-4 gba:py-2 gba:border-t gba:border-border/30 gba:bg-muted/20">
+                <div className="gba:flex gba:gap-2">
+                  {/* AI Avatar */}
+                  <div className="gba:w-7 gba:h-7 gba:flex-shrink-0 gba:rounded-full gba:bg-gradient-to-br gba:from-primary gba:to-accent gba:flex gba:items-center gba:justify-center">
+                    <span className="gba:text-[10px] gba:text-primary-foreground gba:font-bold">AI</span>
+                  </div>
+                  <div className="gba:flex-1">
+                    <div className="gba:text-xs gba:font-semibold gba:text-primary gba:mb-1">✨ Every AI</div>
+                    {aiStreamingText ? (
+                      <div className="gba:text-sm gba:text-foreground gba:bg-gradient-to-br gba:from-muted gba:to-accent/10 gba:rounded-lg gba:p-2 gba:border gba:border-primary/20">
+                        <AIResponseRenderer content={aiStreamingText} />
+                      </div>
+                    ) : (
+                      <AIThinkingIndicator />
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             <MessageInput
               onSend={handleSendMessage}
               onTypingStart={() => {

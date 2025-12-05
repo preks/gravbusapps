@@ -122,6 +122,8 @@ export interface PresenceStatus {
 
 // Entity Reference Types for @ mentions
 export type EntityType =
+  // AI Assistant
+  | 'ai_assistant'
   // CRM entities
   | 'lead'
   | 'contact'
@@ -158,6 +160,8 @@ export interface MessageEntityReference extends EntityReference {
 
 // Entity navigation paths (platform URLs that work with navigateTo)
 export const ENTITY_NAVIGATION_PATHS: Record<EntityType, string> = {
+  // AI Assistant - opens Every AI
+  ai_assistant: '/platform/every-ai',
   // CRM
   lead: '/platform/crm/lead-record',
   contact: '/platform/crm/contact-record',
@@ -181,6 +185,8 @@ export const ENTITY_NAVIGATION_PATHS: Record<EntityType, string> = {
 }
 
 export const ENTITY_QUERY_PARAMS: Record<EntityType, string> = {
+  // AI Assistant - no specific query param needed
+  ai_assistant: '',
   // CRM
   lead: 'leadId',
   contact: 'contactId',

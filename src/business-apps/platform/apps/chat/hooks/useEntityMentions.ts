@@ -371,44 +371,97 @@ export function useEntityMentions(accessToken: string) {
   const [mentionState, setMentionState] = useState<MentionState | null>(null)
   const [selectedEntities, setSelectedEntities] = useState<MessageEntityReference[]>([])
   const searchAbortRef = useRef<AbortController | null>(null)
+  // Track positions where mentions were just inserted to prevent re-detection
+  const justInsertedRef = useRef<{ endPosition: number; timestamp: number } | null>(null)
 
-  // Detect if user is typing a mention (@ followed by text)
-  const detectMention = useCallback((text: string, caretPosition: number): MentionState | null => {
-    // Find the last @ before caret
-    const textBeforeCaret = text.slice(0, caretPosition)
-    const atIndex = textBeforeCaret.lastIndexOf('@')
-
-    if (atIndex === -1) return null
-
-    // Ensure @ starts a word (after space, newline, or at start)
-    if (atIndex > 0) {
-      const prevChar = text.charAt(atIndex - 1)
-      if (!/\s|\n/.test(prevChar)) return null
-    }
-
-    // Get the query after @
-    const query = textBeforeCaret.slice(atIndex + 1)
-
-    // Stop if query contains another @ or newline (but allow spaces for multi-word searches)
-    if (/[@\n]/.test(query)) return null
-
-    // Stop if query ends with double space (user finished typing the mention)
-    if (query.endsWith('  ')) return null
-
-    // Limit query length to prevent very long searches
-    if (query.length > 50) return null
-
-    return {
-      isActive: true,
-      query: query.trim(), // Trim for cleaner search
-      startIndex: atIndex,
-      caretPosition
-    }
+  // Check if an @ position is within an already completed mention
+  const isWithinCompletedMention = useCallback((atIndex: number, entities: MessageEntityReference[]): boolean => {
+    return entities.some(entity => atIndex >= entity.startIndex && atIndex < entity.endIndex)
   }, [])
 
+  // Detect if user is typing a mention (@ followed by text)
+  const detectMention = useCallback(
+    (text: string, caretPosition: number, completedEntities: MessageEntityReference[]): MentionState | null => {
+      // If we just inserted a mention, skip detection briefly
+      if (justInsertedRef.current) {
+        const { endPosition, timestamp } = justInsertedRef.current
+        // Skip if caret is right after a just-inserted mention (within 500ms)
+        if (Date.now() - timestamp < 500 && caretPosition <= endPosition + 1) {
+          return null
+        }
+        // Clear the ref after timeout
+        if (Date.now() - timestamp > 500) {
+          justInsertedRef.current = null
+        }
+      }
+
+      // Find the last @ before caret
+      const textBeforeCaret = text.slice(0, caretPosition)
+      const atIndex = textBeforeCaret.lastIndexOf('@')
+
+      if (atIndex === -1) return null
+
+      // Check if this @ is within an already completed mention
+      if (isWithinCompletedMention(atIndex, completedEntities)) {
+        return null
+      }
+
+      // Ensure @ starts a word (after space, newline, or at start)
+      if (atIndex > 0) {
+        const prevChar = text.charAt(atIndex - 1)
+        if (!/\s|\n/.test(prevChar)) return null
+      }
+
+      // Get the query after @
+      const query = textBeforeCaret.slice(atIndex + 1)
+
+      // Stop if query contains another @ or newline (but allow spaces for multi-word searches)
+      if (/[@\n]/.test(query)) return null
+
+      // Stop if query ends with double space (user finished typing the mention)
+      if (query.endsWith('  ')) return null
+
+      // Limit query length to prevent very long searches
+      if (query.length > 50) return null
+
+      return {
+        isActive: true,
+        query: query.trim(), // Trim for cleaner search
+        startIndex: atIndex,
+        caretPosition
+      }
+    },
+    [isWithinCompletedMention]
+  )
+
+  // Every AI assistant entity - shown when user types @Every, @AI, or @Assistant
+  const EVERY_AI_ENTITY: EntityReference = {
+    id: 'every-ai-assistant',
+    type: 'ai_assistant',
+    name: 'Every',
+    subtitle: 'AI Assistant • Ask me anything'
+  }
+
+  // Check if query matches Every AI
+  const matchesEveryAI = (query: string): boolean => {
+    const lowerQuery = query.toLowerCase().trim()
+    return (
+      lowerQuery === '' || // Show on empty query (just typed @)
+      'every'.startsWith(lowerQuery) ||
+      'ai'.startsWith(lowerQuery) ||
+      'assistant'.startsWith(lowerQuery) ||
+      'every ai'.startsWith(lowerQuery)
+    )
+  }
+
   // Transform GraphQL response to EntityReference array
-  const transformResponse = (result: SearchResponse): EntityReference[] => {
+  const transformResponse = (result: SearchResponse, query: string): EntityReference[] => {
     const allEntities: EntityReference[] = []
+
+    // Add Every AI if query matches
+    if (matchesEveryAI(query)) {
+      allEntities.push(EVERY_AI_ENTITY)
+    }
 
     // CRM Accounts
     result.Account?.forEach(acc => {
@@ -596,7 +649,7 @@ export function useEntityMentions(accessToken: string) {
           limit: 5 // Limit per entity type
         })
 
-        const allEntities = transformResponse(result)
+        const allEntities = transformResponse(result, query)
         // Limit total results to 15 for better UX
         setEntities(allEntities.slice(0, 15))
       } catch (err) {
@@ -613,7 +666,7 @@ export function useEntityMentions(accessToken: string) {
   // Handle text change and detect mentions
   const handleTextChange = useCallback(
     (text: string, caretPosition: number) => {
-      const mention = detectMention(text, caretPosition)
+      const mention = detectMention(text, caretPosition, selectedEntities)
       setMentionState(mention)
 
       if (mention) {
@@ -622,7 +675,7 @@ export function useEntityMentions(accessToken: string) {
         setEntities([])
       }
     },
-    [detectMention, searchEntities]
+    [detectMention, searchEntities, selectedEntities]
   )
 
   // Insert selected entity into text
@@ -645,6 +698,12 @@ export function useEntityMentions(accessToken: string) {
         ...entity,
         startIndex: mentionState.startIndex,
         endIndex: mentionState.startIndex + displayText.length
+      }
+
+      // Mark this position as just inserted to prevent re-detection
+      justInsertedRef.current = {
+        endPosition: newCaretPosition,
+        timestamp: Date.now()
       }
 
       setSelectedEntities(prev => [...prev, entityRef])
