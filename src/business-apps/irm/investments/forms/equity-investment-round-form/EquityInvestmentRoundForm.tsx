@@ -16,7 +16,6 @@ import {
 } from '@newwork/nw-design-system'
 import { AppActionForm } from '@/components/app-action-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { CatalogSelect } from '@/components/catalog-select'
@@ -24,6 +23,7 @@ import {
   useGetInvestmentOpportunities,
   useGetInvestmentOpportunityById
 } from '@/common/data/investment/hooks/useInvestmentOpportunities'
+import { useGetEquityInvestments } from '@/common/data/investment/hooks/useEquityInvestments'
 
 const prefixDataTestId = 'EquityInvestmentRoundForm'
 const CURRENCY_CATALOG = 'Currency:v1'
@@ -71,12 +71,6 @@ const equityInvestmentRoundSchema = z.object({
 
 type EquityInvestmentRoundFormValues = z.infer<typeof equityInvestmentRoundSchema>
 
-interface EquityInvestmentOption {
-  id: string
-  name: string
-  investmentName?: string
-}
-
 interface OpportunityOption {
   id: string
   name: string
@@ -110,17 +104,6 @@ const EquityInvestmentRoundForm: React.FC<EquityInvestmentRoundFormProps> = ({
   // State for loading existing round data in update mode
   const [loadingRoundData, setLoadingRoundData] = useState(isUpdateMode)
 
-  // State for equity investments selection with search support (following useGetInvestmentAccounts pattern)
-  const EQUITY_INVESTMENTS_PAGE_SIZE = 50
-  const equityInvestmentsInitializedRef = React.useRef(false)
-  const [equityInvestmentsState, setEquityInvestmentsState] = useState({
-    options: [] as EquityInvestmentOption[],
-    loading: false,
-    hasMore: false,
-    currentSearch: '',
-    offset: 0
-  })
-
   // State for opportunities selection (when no opportunityId provided from context)
   const OPPORTUNITIES_PAGE_SIZE = 50
   const opportunitiesInitializedRef = React.useRef(false)
@@ -132,8 +115,18 @@ const EquityInvestmentRoundForm: React.FC<EquityInvestmentRoundFormProps> = ({
     offset: 0
   })
 
-  // Get GraphQL client for equity investments
-  const graphqlClient = useGraphQLClient(accessToken)
+  // Get equity investments hook with state management
+  const {
+    options: equityInvestmentOptions,
+    loading: equityInvestmentsLoading,
+    hasMore: equityInvestmentsHasMore,
+    search: searchEquityInvestments,
+    loadMore: loadMoreEquityInvestments,
+    initialize: initializeEquityInvestments
+  } = useGetEquityInvestments(
+    { accessToken, additionalData, ...businessAppContext },
+    { withState: true, autoFetch: false, pageSize: 50, mapToSelectOptions: true }
+  )
 
   // Get opportunities hooks for search and fetching by ID
   const { fetchInvestmentOpportunities } = useGetInvestmentOpportunities({
@@ -313,106 +306,14 @@ const EquityInvestmentRoundForm: React.FC<EquityInvestmentRoundFormProps> = ({
     }
   }, [isUpdateMode, loadExistingRoundData])
 
-  // Function to load equity investments with search and pagination support
-  const fetchEquityInvestmentsWithState = useCallback(
-    async (search: string = '', offset: number = 0, append: boolean = false) => {
-      if (!isOpportunityConversionMode || !accessToken) {
-        return
-      }
-
-      setEquityInvestmentsState(prev => ({
-        ...prev,
-        loading: true,
-        ...(append ? {} : { options: [] })
-      }))
-
-      try {
-        // Build search condition
-        const searchCondition = search.trim() ? `, investment: { name: { _ilike: "%${search.trim()}%" } }` : ''
-
-        // Query to fetch equity investments with pagination and search
-        const query = `
-          query GetEquityInvestments {
-            EquityInvestment(
-              where: { isDeleted: { _eq: false }${searchCondition} }
-              orderBy: { investment: { name: ASC_NULLS_LAST } }
-              limit: ${EQUITY_INVESTMENTS_PAGE_SIZE}
-              offset: ${offset}
-            ) {
-              id
-              investment {
-                id
-                name
-                code
-              }
-            }
-          }
-        `
-
-        const result = await graphqlClient.request<{
-          EquityInvestment: Array<{
-            id: string
-            investment?: { id: string; name: string; code?: string }
-          }>
-        }>(query)
-
-        const newOptions: EquityInvestmentOption[] = (result.EquityInvestment || [])
-          .filter(eq => eq.investment)
-          .map(eq => ({
-            id: eq.id,
-            name: eq.investment?.name || eq.id,
-            investmentName: eq.investment?.name
-          }))
-
-        // hasMore is true if we got a full page of results
-        const hasMoreRecords = newOptions.length === EQUITY_INVESTMENTS_PAGE_SIZE
-
-        setEquityInvestmentsState(prev => ({
-          options: append ? [...prev.options, ...newOptions] : newOptions,
-          loading: false,
-          hasMore: hasMoreRecords,
-          currentSearch: search,
-          offset: append ? prev.offset + newOptions.length : newOptions.length
-        }))
-      } catch (error) {
-        console.error('Error loading equity investments:', error)
-        setEquityInvestmentsState(prev => ({
-          ...prev,
-          loading: false
-        }))
-      }
-    },
-    [isOpportunityConversionMode, accessToken, graphqlClient]
-  )
-
-  // Load equity investments on mount (only in opportunity conversion mode)
+  // Initialize equity investments on mount (only in opportunity conversion mode)
+  const equityInvestmentsInitializedRef = React.useRef(false)
   useEffect(() => {
     if (isOpportunityConversionMode && accessToken && !equityInvestmentsInitializedRef.current) {
       equityInvestmentsInitializedRef.current = true
-      fetchEquityInvestmentsWithState('', 0, false)
+      initializeEquityInvestments()
     }
-  }, [isOpportunityConversionMode, accessToken, fetchEquityInvestmentsWithState])
-
-  // Handle search for equity investments
-  const handleEquityInvestmentSearch = useCallback(
-    (searchTerm: string) => {
-      fetchEquityInvestmentsWithState(searchTerm, 0, false)
-    },
-    [fetchEquityInvestmentsWithState]
-  )
-
-  // Handle load more for equity investments
-  const handleEquityInvestmentLoadMore = useCallback(() => {
-    if (equityInvestmentsState.hasMore && !equityInvestmentsState.loading) {
-      fetchEquityInvestmentsWithState(equityInvestmentsState.currentSearch, equityInvestmentsState.offset, true)
-    }
-  }, [
-    fetchEquityInvestmentsWithState,
-    equityInvestmentsState.hasMore,
-    equityInvestmentsState.loading,
-    equityInvestmentsState.currentSearch,
-    equityInvestmentsState.offset
-  ])
+  }, [isOpportunityConversionMode, accessToken, initializeEquityInvestments])
 
   // Function to load opportunities with search and pagination support
   const fetchOpportunitiesWithState = useCallback(
@@ -640,7 +541,7 @@ const EquityInvestmentRoundForm: React.FC<EquityInvestmentRoundFormProps> = ({
   // Determine if form submission should be disabled
   const isFormSubmissionDisabled =
     loadingRoundData ||
-    equityInvestmentsState.loading ||
+    equityInvestmentsLoading ||
     (isOpportunityConversionMode && !selectedEquityInvestmentId) ||
     (!isOpportunityConversionMode && finalLoadingEquityId)
 
@@ -672,15 +573,12 @@ const EquityInvestmentRoundForm: React.FC<EquityInvestmentRoundFormProps> = ({
               ? getTranslationFromI18nKeyAndLabel('investment.rounds.updateInvestmentRound', 'Update Investment Round')
               : getTranslationFromI18nKeyAndLabel('investment.rounds.createInvestmentRound', 'Create Investment Round')}
           </h2>
-          {(finalLoadingEquityId ||
-            loadingRoundData ||
-            equityInvestmentsState.loading ||
-            opportunitiesState.loading) && (
+          {(finalLoadingEquityId || loadingRoundData || equityInvestmentsLoading || opportunitiesState.loading) && (
             <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
               <Spinner size="sm" />
               {loadingRoundData
                 ? getTranslationFromI18nKeyAndLabel('investment.rounds.loadingRoundData', 'Loading round data...')
-                : equityInvestmentsState.loading
+                : equityInvestmentsLoading
                   ? getTranslationFromI18nKeyAndLabel(
                       'investment.rounds.loadingEquityInvestments',
                       'Loading equity investments...'
@@ -763,9 +661,11 @@ const EquityInvestmentRoundForm: React.FC<EquityInvestmentRoundFormProps> = ({
                         <Combobox
                           value={field.value || ''}
                           onValueChange={field.onChange}
-                          options={equityInvestmentsState.options.map(eq => ({
-                            value: eq.id,
-                            label: eq.name
+                          options={(
+                            equityInvestmentOptions as Array<{ id: string; value: string; label: string; name: string }>
+                          ).map(eq => ({
+                            value: eq.value,
+                            label: eq.label
                           }))}
                           placeholder={getTranslationFromI18nKeyAndLabel(
                             'investment.rounds.selectEquityInvestment',
@@ -779,11 +679,11 @@ const EquityInvestmentRoundForm: React.FC<EquityInvestmentRoundFormProps> = ({
                             'investment.rounds.noEquityInvestmentsFound',
                             'No equity investments found'
                           )}
-                          disabled={equityInvestmentsState.loading && equityInvestmentsState.options.length === 0}
-                          loading={equityInvestmentsState.loading}
-                          onSearch={handleEquityInvestmentSearch}
-                          onLoadMore={handleEquityInvestmentLoadMore}
-                          hasMore={equityInvestmentsState.hasMore}
+                          disabled={equityInvestmentsLoading && equityInvestmentOptions.length === 0}
+                          loading={equityInvestmentsLoading}
+                          onSearch={searchEquityInvestments}
+                          onLoadMore={loadMoreEquityInvestments}
+                          hasMore={equityInvestmentsHasMore}
                           data-testid={formatDataTestId(prefixDataTestId, 'EquityInvestmentSelect')}
                         />
                       </FormControl>
