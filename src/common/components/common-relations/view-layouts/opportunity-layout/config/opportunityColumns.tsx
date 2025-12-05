@@ -83,6 +83,7 @@ export const getStatusColor = (
     case 'WON':
     case 'CLOSED_WON':
     case 'SUCCESS':
+    case 'CONVERTED':
       return 'success'
     case 'LOST':
     case 'CLOSED_LOST':

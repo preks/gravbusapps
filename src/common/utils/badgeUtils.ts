@@ -185,6 +185,7 @@ export function getOpportunityStatusBadgeVariant(
   if (statusLower.includes('won') || statusLower.includes('closed won')) return 'success'
   if (statusLower.includes('lost') || statusLower.includes('closed lost')) return 'destructive'
   if (statusLower.includes('qualified')) return 'default'
+  if (statusLower.includes('converted')) return 'success'
   return 'default'
 }
 
