@@ -1,10 +1,9 @@
 'use client'
 
 import React from 'react'
-import { Card, Alert, useTranslation } from '@newwork/nw-design-system'
+import { Card, Alert, useTranslation, ItemMedia } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useTimeTrackingData } from '../../employee-record/components/tabs/hooks/useTimeTrackingData'
-import { ItemMedia } from '@newwork/nw-design-system'
 import {
   FolderIcon,
   CurrencyDollarIcon,
@@ -56,9 +55,9 @@ const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken }
       const tokens = String(text).trim().split(/\s+/)
       for (const token of tokens) {
         if (/^\d+h$/i.test(token)) {
-          hours = parseInt(token.slice(0, -1), 10) || 0
+          hours = Number.parseInt(token.slice(0, -1), 10) || 0
         } else if (/^\d+m$/i.test(token)) {
-          minutes = parseInt(token.slice(0, -1), 10) || 0
+          minutes = Number.parseInt(token.slice(0, -1), 10) || 0
         }
       }
       return hours * 60 + minutes

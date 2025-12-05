@@ -164,7 +164,7 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({ employee, employeeId, acces
       <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4 gba:mt-4" data-testid="timeclock-main-row">
         {/* Hero time card */}
         <Card
-          className="gba:p-10 gba:bg-info-on-card gba:text-info-foreground gba:min-h-96"
+          className="gba:p-10 gba:!bg-info-on-card gba:text-info-foreground gba:min-h-96"
           data-testid="timeclock-hero-card"
         >
           <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:text-center gba:gap-4 gba:h-full">
