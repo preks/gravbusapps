@@ -10,7 +10,7 @@ import {
   ChartLegend,
   ChartLegendContent
 } from '@newwork/nw-design-system'
-import { TrendUp } from '@phosphor-icons/react'
+import { TrendUpIcon } from '@phosphor-icons/react'
 import { ComposedChart, Area, XAxis, YAxis } from 'recharts'
 import { ActivityTimelineTooltip } from '../../shared/tooltips/ActivityTimelineTooltip'
 
@@ -55,7 +55,13 @@ export const ActivityHeatmapChart: React.FC<ActivityHeatmapChartProps> = ({
     return (
       <Card data-testid="activity-timeline-loading">
         <CardHeader className="gba:flex gba:items-center gba:gap-3">
-          <IconAvatar icon={TrendUp} variant={moduleColor as any} size="md" iconWeight="regular" decorative={true} />
+          <IconAvatar
+            icon={TrendUpIcon}
+            variant={moduleColor as any}
+            size="md"
+            iconWeight="regular"
+            decorative={true}
+          />
           <div>
             <CardTitle>Activity Timeline (Last 30 Days)</CardTitle>
           </div>
@@ -73,7 +79,13 @@ export const ActivityHeatmapChart: React.FC<ActivityHeatmapChartProps> = ({
     return (
       <Card data-testid="activity-timeline-empty">
         <CardHeader className="gba:flex gba:items-center gba:gap-3">
-          <IconAvatar icon={TrendUp} variant={moduleColor as any} size="md" iconWeight="regular" decorative={true} />
+          <IconAvatar
+            icon={TrendUpIcon}
+            variant={moduleColor as any}
+            size="md"
+            iconWeight="regular"
+            decorative={true}
+          />
           <div>
             <CardTitle>Activity Timeline (Last 30 Days)</CardTitle>
           </div>
@@ -90,7 +102,7 @@ export const ActivityHeatmapChart: React.FC<ActivityHeatmapChartProps> = ({
   return (
     <Card data-testid="activity-timeline-chart">
       <CardHeader className="gba:flex gba:items-center gba:gap-3">
-        <IconAvatar icon={TrendUp} variant={moduleColor as any} size="md" iconWeight="regular" decorative={true} />
+        <IconAvatar icon={TrendUpIcon} variant={moduleColor as any} size="md" iconWeight="regular" decorative={true} />
         <div>
           <CardTitle>Activity Timeline (Last 30 Days)</CardTitle>
         </div>
