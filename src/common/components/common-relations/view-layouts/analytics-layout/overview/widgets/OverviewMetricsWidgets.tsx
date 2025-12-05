@@ -144,7 +144,7 @@ export const OverviewMetricsWidgets: React.FC<OverviewMetricsWidgetsProps> = ({
     },
     {
       key: 'sales-cycle-length',
-      title: 'Sales Cycle Length',
+      title: 'Opportunity Cycle Length',
       value: `${conversionMetrics.salesCycleLength} days`,
       valueIsString: true,
       prefix: <UserOutlined />,

@@ -1,28 +1,27 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { getTurnoverRateQuery } from '../queries/getTurnoverRate'
+import { getTurnoverMetricsQuery } from '../queries/getTurnoverMetrics'
 import dayjs from 'dayjs'
+import { formatDate } from '@/common/utils/windowUtils'
 
 /**
- * GraphQL response type for terminated employee count query
+ * GraphQL response type for combined turnover metrics
  */
-interface TerminatedEmployeeCountResponse {
-  EmployeeWorkingConditionAggregate: {
-    aggregate: {
-      count: number
-    }
-  }
+interface TurnoverMetricsResponse {
+  currentTerminations: { aggregate: { count: number } }
+  previousTerminations: { aggregate: { count: number } }
+  currentHeadcount: { aggregate: { count: number } }
+  previousHeadcount: { aggregate: { count: number } }
+  currentHeadcountStart: { aggregate: { count: number } }
+  previousHeadcountStart: { aggregate: { count: number } }
 }
 
 /**
- * Hook to calculate the turnover rate based on employee terminations
- * Uses EmployeeWorkingCondition.exitDate to identify when employees left the company
- *
- * @param accessToken - Access token for API authentication
- * @param totalEmployees - Current total employee count for rate calculation
- * @returns Object containing turnover rate, loading state, error, and refetch function
+ * Hook to calculate the turnover rate for the current month and MoM change.
+ * - Numerator: terminations (distinct employees) within period
+ * - Denominator: average headcount over the period = (start + end) / 2
  */
-export const useTurnoverRate = (accessToken: string, totalEmployees: number) => {
+export const useTurnoverRate = (accessToken: string) => {
   // Define all hooks at the top level to ensure consistent order
   const [rate, setRate] = useState<number>(0)
   const [terminatedCount, setTerminatedCount] = useState<number>(0)
@@ -35,28 +34,23 @@ export const useTurnoverRate = (accessToken: string, totalEmployees: number) => 
   const graphQLClient = useGraphqlClient(accessToken)
 
   /**
-   * Get the start and end dates for the previous month in YYYY-MM-DD HH:mm:ss format
-   * which is compatible with the GraphQL API's timestamp type (without timezone)
+   * Get date ranges for current full month and previous full month
    */
-  const getPreviousMonthDateRange = useCallback(() => {
+  const getCurrentAndPreviousMonthRanges = useCallback(() => {
     const now = dayjs()
-    const previousMonth = now.subtract(1, 'month')
-    // Format as YYYY-MM-DD HH:mm:ss for timestamp type (without timezone)
-    const startOfPreviousMonth = previousMonth.startOf('month').format('YYYY-MM-DD HH:mm:ss')
-    const endOfPreviousMonth = previousMonth.endOf('month').format('YYYY-MM-DD HH:mm:ss')
+    const currentStart = formatDate(now.startOf('month').toDate(), 'fullDateTime.ISO') as string
+    const currentEnd = formatDate(now.endOf('month').toDate(), 'fullDateTime.ISO') as string
 
-    // Log the date range for debugging
-    console.log(`[useTurnoverRate] Previous month date range: ${startOfPreviousMonth} to ${endOfPreviousMonth}`)
+    const prev = now.subtract(1, 'month')
+    const previousStart = formatDate(prev.startOf('month').toDate(), 'fullDateTime.ISO') as string
+    const previousEnd = formatDate(prev.endOf('month').toDate(), 'fullDateTime.ISO') as string
 
     return {
-      startDate: startOfPreviousMonth,
-      endDate: endOfPreviousMonth
+      current: { startDate: currentStart, endDate: currentEnd },
+      previous: { startDate: previousStart, endDate: previousEnd }
     }
   }, [])
 
-  /**
-   * Fetch terminated employee count from GraphQL API and calculate turnover rate
-   */
   const calculateTurnoverRate = useCallback(async () => {
     if (!accessToken) {
       if (isMounted.current) {
@@ -72,60 +66,48 @@ export const useTurnoverRate = (accessToken: string, totalEmployees: number) => 
         setError(null)
       }
 
-      // Get date range for previous month
-      const { startDate, endDate } = getPreviousMonthDateRange()
+      const { current, previous } = getCurrentAndPreviousMonthRanges()
 
-      console.log('[useTurnoverRate] Fetching terminated employees using exitDate between', startDate, 'and', endDate)
+      // Cutoffs for end-of-month denominators
+      const currentCutoff = formatDate(dayjs().endOf('month').toDate(), 'fullDateTime.ISO') as string
+      const prevCutoff = previous.endDate
 
-      // Execute the GraphQL query with variables
-      const response = await graphQLClient.request<TerminatedEmployeeCountResponse>(getTurnoverRateQuery, {
-        startDate,
-        endDate
+      // Single combined call
+      const metrics = await graphQLClient.request<TurnoverMetricsResponse>(getTurnoverMetricsQuery, {
+        currentStart: current.startDate,
+        currentEnd: current.endDate,
+        previousStart: previous.startDate,
+        previousEnd: previous.endDate,
+        currentCutoff: currentCutoff,
+        previousCutoff: prevCutoff
       })
 
-      // Log the response for debugging
-      console.log('[useTurnoverRate] GraphQL response:', response)
+      const currentTerminated = Number(metrics?.currentTerminations?.aggregate?.count ?? 0)
+      const previousTerminated = Number(metrics?.previousTerminations?.aggregate?.count ?? 0)
+      const currentEndTotal = Number(metrics?.currentHeadcount?.aggregate?.count ?? 0)
+      const previousEndTotal = Number(metrics?.previousHeadcount?.aggregate?.count ?? 0)
+      const currentStartTotal = Number(metrics?.currentHeadcountStart?.aggregate?.count ?? 0)
+      const previousStartTotal = Number(metrics?.previousHeadcountStart?.aggregate?.count ?? 0)
 
-      // Validate response structure
-      if (
-        !response ||
-        !response.EmployeeWorkingConditionAggregate ||
-        !response.EmployeeWorkingConditionAggregate.aggregate
-      ) {
-        throw new Error('Invalid response structure from GraphQL API')
-      }
+      // Average denominators
+      const currentAvg = (currentStartTotal + currentEndTotal) / 2
+      const previousAvg = (previousStartTotal + previousEndTotal) / 2
 
-      // Extract and validate terminated employee count
-      const terminated = Number(response.EmployeeWorkingConditionAggregate.aggregate.count)
-      if (isNaN(terminated)) {
-        throw new Error('Terminated employee count is not a valid number')
-      }
+      const currentRate = currentAvg > 0 ? (currentTerminated / currentAvg) * 100 : 0
+      const previousRate = previousAvg > 0 ? (previousTerminated / previousAvg) * 100 : 0
 
-      // Calculate turnover rate as percentage: (terminated / total) * 100
-      // Default to 0 if totalEmployees is 0 to avoid division by zero
-      const turnoverRate = totalEmployees > 0 ? (terminated / totalEmployees) * 100 : 0
+      const roundedCurrent = Math.round(currentRate * 10) / 10
+      const roundedPrevious = Math.round(previousRate * 10) / 10
+      const changeValue = Math.round((roundedCurrent - roundedPrevious) * 10) / 10
 
-      // Round to 1 decimal place
-      const roundedRate = Math.round(turnoverRate * 10) / 10
-
-      // Mock change data for now - in a real implementation this would be calculated
-      // by comparing with the previous period
-      const changeValue = -0.8 // Decrease of 0.8%
-
-      // Update state if component is still mounted
       if (isMounted.current) {
-        setTerminatedCount(terminated)
-        setRate(roundedRate)
+        setTerminatedCount(currentTerminated)
+        setRate(roundedCurrent)
         setChange(changeValue)
         setError(null)
       }
-
-      console.log(
-        `[useTurnoverRate] Calculated: ${terminated} terminations out of ${totalEmployees} total = ${roundedRate}% turnover rate`
-      )
     } catch (err) {
       console.error('[useTurnoverRate] Error calculating turnover rate:', err)
-
       if (isMounted.current) {
         setError(err instanceof Error ? err : new Error('Failed to calculate turnover rate'))
       }
@@ -134,34 +116,19 @@ export const useTurnoverRate = (accessToken: string, totalEmployees: number) => 
         setLoading(false)
       }
     }
-  }, [accessToken, graphQLClient, getPreviousMonthDateRange, totalEmployees])
+  }, [accessToken, graphQLClient, getCurrentAndPreviousMonthRanges])
 
-  // Set up effect to fetch data and handle cleanup
   useEffect(() => {
     isMounted.current = true
-
-    // Only calculate turnover rate if we have the total employee count
-    if (totalEmployees >= 0) {
-      calculateTurnoverRate()
-    }
-
-    // Cleanup function
+    calculateTurnoverRate()
     return () => {
       isMounted.current = false
     }
-  }, [calculateTurnoverRate, totalEmployees])
+  }, [calculateTurnoverRate])
 
-  // Function to manually refresh the data
   const refetch = useCallback(() => {
     calculateTurnoverRate()
   }, [calculateTurnoverRate])
 
-  return {
-    rate,
-    terminatedCount,
-    change,
-    loading,
-    error,
-    refetch
-  }
+  return { rate, terminatedCount, change, loading, error, refetch }
 }

@@ -16,7 +16,7 @@ interface EmployeeData {
   firstName: string
   lastName: string
   displayName?: string
-  picture?: string
+  pictureThumbnail?: string
   position?: string
 }
 
@@ -28,7 +28,7 @@ interface EmployeeQueryResult {
   firstName: string
   lastName: string
   displayName?: string
-  picture?: string
+  pictureThumbnail?: string
   employeePosition?: {
     jobPosition?: {
       name?: string
@@ -65,7 +65,7 @@ const GET_EMPLOYEE_DATA = `
       firstName
       lastName
       displayName
-      picture
+      pictureThumbnail
       employeePosition {
         jobPosition {
           name
@@ -99,7 +99,7 @@ const transformEmployeeData = (employee: EmployeeQueryResult): EmployeeData => (
   firstName: employee.firstName,
   lastName: employee.lastName,
   displayName: employee.displayName || `${employee.firstName} ${employee.lastName}`,
-  picture: employee.picture,
+  pictureThumbnail: employee.pictureThumbnail,
   position: employee.employeePosition?.jobPosition?.name
 })
 

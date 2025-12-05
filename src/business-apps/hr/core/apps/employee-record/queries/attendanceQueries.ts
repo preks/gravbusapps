@@ -34,6 +34,7 @@ export const employeeAttendanceMonthlyQuery = `
       differenceTime
       manualOverride
       notes
+      attendanceLocation
     }
   }
 `
@@ -60,6 +61,7 @@ export const employeeAttendanceMonthlyAllQuery = `
       plannedTime
       recordedTime
       version
+      attendanceLocation
     }
   }
 `

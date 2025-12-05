@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useRef, useEffect } from 'react'
 import { Spinner, Alert, AlertTitle, AlertDescription, Badge, Switch, Textarea, Label } from '@newwork/nw-design-system'
 import { ThumbsUp, XCircle, MessageSquare } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -56,6 +56,18 @@ const AdvancePaymentApprovalContent: React.FC<AdvancePaymentApprovalProps> = ({
   const [isRejecting, setIsRejecting] = useState(false)
   const [showComment, setShowComment] = useState(false)
   const [comment, setComment] = useState('')
+
+  // Ref for scrolling to comment section
+  const commentSectionRef = useRef<HTMLDivElement>(null)
+
+  // Scroll to comment section when it becomes visible
+  useEffect(() => {
+    if (showComment && commentSectionRef.current) {
+      requestAnimationFrame(() => {
+        commentSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      })
+    }
+  }, [showComment])
 
   const { advancePayment, loading, error, refetch } = useAdvancePaymentData({ paymentId, accessToken })
 
@@ -439,7 +451,7 @@ const AdvancePaymentApprovalContent: React.FC<AdvancePaymentApprovalProps> = ({
 
       {/* 4. Comment Section - Only for active tasks */}
       {!isTaskCompleted && (
-        <div>
+        <div ref={commentSectionRef} data-testid="advance-payment-approval-comment-section">
           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
             <Switch id="show-comment" checked={showComment} onCheckedChange={setShowComment} />
             <Label
@@ -447,7 +459,7 @@ const AdvancePaymentApprovalContent: React.FC<AdvancePaymentApprovalProps> = ({
               className="gba:text-sm gba:font-medium gba:cursor-pointer gba:flex gba:items-center gba:gap-2"
             >
               <MessageSquare className="gba:h-4 gba:w-4" />
-              Add Comment {!showComment && '(Optional)'}
+              Add Comment (Required for rejection)
             </Label>
           </div>
 

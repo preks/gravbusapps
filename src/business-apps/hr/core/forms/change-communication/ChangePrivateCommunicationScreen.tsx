@@ -17,7 +17,7 @@ import { useCommunicationValidation } from './hooks/useCommunicationValidation'
 const prefixDataTestId = 'ChangePrivateCommunicationScreen'
 
 const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = context => {
-  const { channels, types, communications, loading } = useCommunicationLookups(context)
+  const { channels, types, communications, employee, loading } = useCommunicationLookups(context)
 
   const formState = useCommunicationFormState({
     channels,
@@ -98,13 +98,17 @@ const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = cont
       }
     }
 
+    const employeeId =
+      (context as any)?.additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId ||
+      context.userInfo?.employeeDetails?.employeeId
+
     return {
       employeeCommunication: {
         channelRef: formState.channelType,
         typeRef: formState.valueType,
         purpose: formState.purpose,
         value: formattedValue,
-        employeeId: context.userInfo?.employeeDetails?.employeeId,
+        employeeId,
         ...(typeof formState.baseline?.version === 'number' ? { version: formState.baseline?.version } : {}),
         ...(formState.baseline?.id ? { id: formState.baseline.id } : {})
       }
@@ -139,9 +143,18 @@ const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = cont
       }}
     >
       <div className="gba:bg-white gba:max-w-xl gba:w-full gba:max-h-[90vh] gba:overflow-hidden">
-        <FormHeader />
-
-        <div className="gba:border-t gba:border-border" />
+        <FormHeader
+          employee={
+            employee
+              ? {
+                  firstName: employee.firstName,
+                  lastName: employee.lastName,
+                  pictureThumbnail: employee.pictureThumbnail,
+                  jobTitle: employee.jobTitle
+                }
+              : undefined
+          }
+        />
 
         <div className="gba:px-0 gba:py-6 gba:space-y-4 gba:overflow-y-auto gba:max-h-[calc(90vh-160px)]">
           <ChannelTypeField

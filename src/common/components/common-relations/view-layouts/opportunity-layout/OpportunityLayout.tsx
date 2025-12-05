@@ -24,6 +24,7 @@ import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { useBoardEmployees } from './hooks/useBoardEmployees'
 import { opportunityBoardFilterConfig } from './config/opportunityBoardFilters'
 import type { OpportunityBoardFilters, OpportunityBoardConfig } from './config/opportunityBoardTypes'
+import { deriveAvailableColumns } from '@/common/network/graphql/descriptorUtils'
 import {
   getFiltersForSection,
   getFilterConfigForSection,
@@ -152,6 +153,7 @@ export interface OpportunityLayoutProps<TOpportunity extends { id: string } = an
   initialFilters?: Record<string, any>
   hideFilters?: boolean
   customPrimaryAction?: React.ReactNode
+  extendVisibleColumns?: string[] // Additional columns to add to base columns
 }
 
 interface OpportunityRowActionsProps<TOpportunity extends { id: string }> {
@@ -294,7 +296,8 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     dataTestId = 'opportunity-view',
     initialFilters = {},
     hideFilters = false,
-    customPrimaryAction
+    customPrimaryAction,
+    extendVisibleColumns = []
   } = props
   const { accessToken } = context
 
@@ -306,18 +309,39 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
   const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>(initialFilters)
   const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([{ id: 'createdAt', desc: true }])
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
-  const [visibleColumns, setVisibleColumns] = useState<string[]>([
-    'opportunity',
-    'amount',
-    'opportunityPipeline',
-    'opportunityPipelineStage',
-    'opportunityStatus',
-    'opportunityForecast',
-    'closeDate',
-    'account',
-    'owner',
-    'created'
-  ])
+
+  const baseVisibleColumns = useMemo(
+    () => [
+      'opportunity',
+      'amount',
+      'opportunityPipeline',
+      'opportunityPipelineStage',
+      'opportunityStatus',
+      'opportunityForecast',
+      'closeDate',
+      'account',
+      'owner',
+      'created'
+    ],
+    []
+  )
+
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
+    if (extendVisibleColumns.length === 0) {
+      return baseVisibleColumns
+    }
+
+    // Insert extended columns after 'account' if it exists, otherwise append
+    const accountIndex = baseVisibleColumns.indexOf('account')
+    if (accountIndex >= 0) {
+      return [
+        ...baseVisibleColumns.slice(0, accountIndex + 1),
+        ...extendVisibleColumns,
+        ...baseVisibleColumns.slice(accountIndex + 1)
+      ]
+    }
+    return [...baseVisibleColumns, ...extendVisibleColumns]
+  })
 
   // Board View State
   const [boardPipelineId, setBoardPipelineId] = useState('')
@@ -615,20 +639,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
 
   // Columns
   const columns = useMemo(() => config.createColumns(config.buildAccountUrl), [config])
-  const availableColumns = useMemo(
-    () => [
-      { id: 'opportunity', label: 'Opportunity' },
-      { id: 'amount', label: 'Value' },
-      { id: 'opportunityPipeline', label: 'Pipeline' },
-      { id: 'opportunityPipelineStage', label: 'Stage' },
-      { id: 'opportunityStatus', label: 'Status' },
-      { id: 'closeDate', label: 'Close Date' },
-      { id: 'account', label: 'Account' },
-      { id: 'owner', label: 'Owner' },
-      { id: 'created', label: 'Created' }
-    ],
-    []
-  )
+  const availableColumns = useMemo(() => deriveAvailableColumns(columns), [columns])
 
   // Row actions - rendered internally
   // Row actions - rendered internally (only if actions are configured)

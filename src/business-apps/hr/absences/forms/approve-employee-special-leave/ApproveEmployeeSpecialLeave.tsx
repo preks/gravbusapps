@@ -199,13 +199,12 @@ const ApproveEmployeeSpecialLeave: React.FC<ApproveEmployeeSpecialLeaveProps> = 
   // Auto-scroll to comment section when toggle is enabled
   useEffect(() => {
     if (showComment && commentSectionRef.current) {
-      // Small delay to ensure the textarea has rendered
-      setTimeout(() => {
+      requestAnimationFrame(() => {
         commentSectionRef.current?.scrollIntoView({
           behavior: 'smooth',
           block: 'center'
         })
-      }, 100)
+      })
     }
   }, [showComment])
 

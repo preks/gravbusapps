@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { getHiresPerYearQuery } from '../queries/getHiresPerYear'
+import { getHiresPerYearBatchQuery } from '../queries/getHiresPerYear'
 import dayjs from 'dayjs'
+import { formatDate } from '@/common/utils/windowUtils'
 
 /**
  * Interface for year and hire count data
@@ -11,66 +12,26 @@ export interface YearlyHireData {
   count: number
 }
 
-/**
- * GraphQL response type for hire count query
- */
-interface HireCountResponse {
-  EmployeeWorkingConditionAggregate: {
-    aggregate: {
-      count: number
-    }
-  }
+interface HiresBatchResponse {
+  y0: { aggregate: { count: number } }
+  y1: { aggregate: { count: number } }
+  y2: { aggregate: { count: number } }
+  y3: { aggregate: { count: number } }
+  y4: { aggregate: { count: number } }
 }
 
 /**
  * Hook to fetch the number of hires per year for the last 5 years
- * Uses EmployeeWorkingCondition.hireDate to identify hire dates
- *
- * @param accessToken - Access token for API authentication
- * @returns Object containing hires data, loading state, error, and refetch function
+ * Uses EmployeeWorkingCondition.hireDate to identify hires per year
  */
 export const useHiresPerYear = (accessToken: string) => {
-  // Define all hooks at the top level to ensure consistent order
   const [hiresData, setHiresData] = useState<YearlyHireData[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<Error | null>(null)
   const isMounted = useRef<boolean>(true)
 
-  // Get GraphQL client using the project's pattern
   const graphQLClient = useGraphqlClient(accessToken)
 
-  /**
-   * Fetch hire data for a specific year
-   */
-  const fetchYearData = useCallback(
-    async (year: number): Promise<YearlyHireData> => {
-      // Create date range for the year
-      const startDate = dayjs().year(year).startOf('year').format('YYYY-MM-DD HH:mm:ss')
-      const endDate = dayjs().year(year).endOf('year').format('YYYY-MM-DD HH:mm:ss')
-
-      console.log(`[useHiresPerYear] Fetching hires for year ${year}: ${startDate} to ${endDate}`)
-
-      // Execute the GraphQL query with variables
-      const response = await graphQLClient.request<HireCountResponse>(getHiresPerYearQuery, { startDate, endDate })
-
-      // Validate response structure and extract count
-      if (!response?.EmployeeWorkingConditionAggregate?.aggregate) {
-        throw new Error(`[useHiresPerYear] Invalid response for year ${year}`)
-      }
-
-      const count = Number(response.EmployeeWorkingConditionAggregate.aggregate.count)
-
-      return {
-        year,
-        count: isNaN(count) ? 0 : count
-      }
-    },
-    [graphQLClient]
-  )
-
-  /**
-   * Fetch hire data for the last 5 years
-   */
   const fetchHiresPerYear = useCallback(async () => {
     if (!accessToken) {
       if (isMounted.current) {
@@ -87,22 +48,44 @@ export const useHiresPerYear = (accessToken: string) => {
       }
 
       const currentYear = dayjs().year()
-      const years = Array.from({ length: 5 }, (_, i) => currentYear - 4 + i)
+      const s0 = formatDate(new Date(currentYear, 0, 1, 0, 0, 0, 0), 'fullDateTime.ISO') as string
+      const e0 = formatDate(new Date(), 'fullDateTime.ISO') as string
+      const s1 = formatDate(new Date(currentYear - 1, 0, 1, 0, 0, 0, 0), 'fullDateTime.ISO') as string
+      const e1 = formatDate(new Date(currentYear - 1, 11, 31, 23, 59, 59, 999), 'fullDateTime.ISO') as string
+      const s2 = formatDate(new Date(currentYear - 2, 0, 1, 0, 0, 0, 0), 'fullDateTime.ISO') as string
+      const e2 = formatDate(new Date(currentYear - 2, 11, 31, 23, 59, 59, 999), 'fullDateTime.ISO') as string
+      const s3 = formatDate(new Date(currentYear - 3, 0, 1, 0, 0, 0, 0), 'fullDateTime.ISO') as string
+      const e3 = formatDate(new Date(currentYear - 3, 11, 31, 23, 59, 59, 999), 'fullDateTime.ISO') as string
+      const s4 = formatDate(new Date(currentYear - 4, 0, 1, 0, 0, 0, 0), 'fullDateTime.ISO') as string
+      const e4 = formatDate(new Date(currentYear - 4, 11, 31, 23, 59, 59, 999), 'fullDateTime.ISO') as string
 
-      console.log(`[useHiresPerYear] Fetching data for years:`, years)
+      const resp = await graphQLClient.request<HiresBatchResponse>(getHiresPerYearBatchQuery, {
+        s0,
+        e0,
+        s1,
+        e1,
+        s2,
+        e2,
+        s3,
+        e3,
+        s4,
+        e4
+      })
 
-      // Fetch data for each year in parallel
-      const results = await Promise.all(years.map(year => fetchYearData(year)))
+      const series: YearlyHireData[] = [
+        { year: currentYear - 4, count: Number(resp.y4?.aggregate?.count ?? 0) },
+        { year: currentYear - 3, count: Number(resp.y3?.aggregate?.count ?? 0) },
+        { year: currentYear - 2, count: Number(resp.y2?.aggregate?.count ?? 0) },
+        { year: currentYear - 1, count: Number(resp.y1?.aggregate?.count ?? 0) },
+        { year: currentYear, count: Number(resp.y0?.aggregate?.count ?? 0) }
+      ]
 
       if (isMounted.current) {
-        setHiresData(results)
+        setHiresData(series)
         setError(null)
       }
-
-      console.log(`[useHiresPerYear] Fetched data:`, results)
     } catch (err) {
       console.error('[useHiresPerYear] Error fetching hires per year:', err)
-
       if (isMounted.current) {
         setError(err instanceof Error ? err : new Error('[useHiresPerYear] Failed to fetch hires per year'))
       }
@@ -111,28 +94,19 @@ export const useHiresPerYear = (accessToken: string) => {
         setLoading(false)
       }
     }
-  }, [accessToken, fetchYearData])
+  }, [accessToken, graphQLClient])
 
-  // Set up effect to fetch data and handle cleanup
   useEffect(() => {
     isMounted.current = true
     fetchHiresPerYear()
-
-    // Cleanup function
     return () => {
       isMounted.current = false
     }
   }, [fetchHiresPerYear])
 
-  // Function to manually refresh the data
   const refetch = useCallback(() => {
     fetchHiresPerYear()
   }, [fetchHiresPerYear])
 
-  return {
-    hiresData,
-    loading,
-    error,
-    refetch
-  }
+  return { hiresData, loading, error, refetch }
 }

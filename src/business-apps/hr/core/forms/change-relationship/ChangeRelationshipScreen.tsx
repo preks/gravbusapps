@@ -15,6 +15,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel, formatDateToISO } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import flowSmall from '@/assets/icons/flowSmall.svg'
+import FormHeader from '../components/FormHeader'
 import AppActionForm from '@/components/app-action-form/AppActionForm'
 import dayjs from 'dayjs'
 import { useFileClient } from '@/common/network/files/useFileClient'
@@ -41,7 +42,11 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
   const [phoneTouched, setPhoneTouched] = useState(false)
   const [relationshipTypeTouched, setRelationshipTypeTouched] = useState(false)
 
-  const { options: relationshipTypeOptions, relationships } = useRelationshipTypes({
+  const {
+    options: relationshipTypeOptions,
+    relationships,
+    employee
+  } = useRelationshipTypes({
     accessToken,
     userInfo,
     additionalData
@@ -49,7 +54,8 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
 
   const fileClient = useFileClient({ accessToken, userInfo })
 
-  const employeeId = userInfo?.employeeDetails?.employeeId
+  const employeeId =
+    (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.employeeId || userInfo?.employeeDetails?.employeeId
 
   const initialPayload = useMemo(() => (additionalData as any) || {}, [additionalData])
   const [successOpen, setSuccessOpen] = useState(false)
@@ -375,27 +381,20 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
       }}
     >
       <div className="gba:bg-white gba:w-full gba:max-w-xl gba:max-h-[90vh] gba:overflow-hidden">
-        {/* Header */}
-        <div className="gba:flex gba:items-center gba:justify-between gba:px-0 gba:py-6">
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <img
-              src={flowSmall}
-              alt="Flow Small"
-              data-testid={formatDataTestId(prefixDataTestId, 'FlowIcon')}
-              className="gba:w-6 gba:h-6"
-              style={{ filter: 'brightness(0)' }}
-            />
-            <h2
-              className="gba:text-xl gba:font-semibold gba:text-foreground"
-              data-testid={formatDataTestId(prefixDataTestId, 'Title')}
-            >
-              {getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.title', 'Change Relationship Data')}
-            </h2>
-          </div>
-        </div>
-
-        {/* Divider */}
-        <div className="gba:border-t gba:border-border" />
+        <FormHeader
+          title={getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.title', 'Change Relationship Data')}
+          flowIconUrl={flowSmall}
+          employee={
+            employee
+              ? {
+                  firstName: employee.firstName,
+                  lastName: employee.lastName,
+                  pictureThumbnail: employee.pictureThumbnail,
+                  jobTitle: employee.jobTitle
+                }
+              : undefined
+          }
+        />
 
         {/* Content */}
         <div className="gba:px-0 gba:py-6 gba:flex gba:flex-col gba:gap-4">
