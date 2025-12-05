@@ -333,19 +333,22 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       todayLocal.getDate()
     ).padStart(2, '0')}`
     let workedUntilYesterday = 0
-    let workedDaysCount = 0
+    const daysWithEntries = new Set<string>()
     for (const r of allRows) {
       const rowDay = String(r.attendanceDate)
       console.log('rowDay', rowDay)
-      if (rowDay <= untilDay) {
+      // Exclude today from daily average; consider strictly earlier days
+      if (rowDay < untilDay) {
         const effective = parseDurationToMinutes(r?.effectiveTime ? String(r.effectiveTime) : undefined)
         console.log('r', effective)
         const eff = Math.max(0, effective)
         workedUntilYesterday += eff
-        if (eff > 0) workedDaysCount += 1
+        // Count days that have any attendance entry, regardless of effective minutes
+        daysWithEntries.add(rowDay)
       }
     }
     setMonthlyWorkedUntilYesterdayMinutes(workedUntilYesterday)
+    const workedDaysCount = daysWithEntries.size
     setWorkedDaysUntilYesterdayCount(workedDaysCount)
     setDailyAverageWorkedMinutesUntilYesterday(
       workedDaysCount > 0 ? Math.round(workedUntilYesterday / workedDaysCount) : 0
