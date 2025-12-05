@@ -131,7 +131,14 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
     [context, fetchCustomerOpportunities, winningChanceColumn]
   )
 
-  return <OpportunityLayout context={context} config={config} dataTestId="customer-opportunities-view" />
+  return (
+    <OpportunityLayout
+      context={context}
+      config={config}
+      dataTestId="customer-opportunities-view"
+      extendVisibleColumns={['winningChance']}
+    />
+  )
 }
 
 export default OpportunityView

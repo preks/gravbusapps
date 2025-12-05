@@ -43,6 +43,8 @@ export interface GenericOpportunity {
   updatedAt?: string
 }
 
+import type { ColumnDef } from '@tanstack/react-table'
+
 /**
  * Props for OpportunitySection component
  */
@@ -55,6 +57,8 @@ export interface OpportunitySectionProps<T extends GenericOpportunity = GenericO
   accountUrlBuilder?: (accountId: string) => string // Optional, for account navigation
   className?: string
   'data-testid'?: string
-  // Context type for determining labels (CRM: "Winning Chance", IRM: "Deal Probability")
-  contextType?: 'customer' | 'investment'
+  // Additional columns to extend the base columns (e.g., CRM-specific winningChance)
+  additionalColumns?: ColumnDef<T>[]
+  // Additional column IDs to include in visible columns by default
+  extendVisibleColumns?: string[]
 }

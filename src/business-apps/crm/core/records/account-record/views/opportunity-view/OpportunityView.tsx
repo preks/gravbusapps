@@ -1,7 +1,10 @@
+import { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { OpportunitySection } from '@/common/components/common-relations/record-sections/opportunity-section'
-import { useRecordOpportunities } from '@/common/components/common-relations/record-sections/opportunity-section/hooks/useRecordOpportunities'
+import { useCustomerRecordOpportunities } from '@/business-apps/crm/common/hooks/useCustomerRecordOpportunities'
+import { createWinningChanceColumn } from '@/business-apps/crm/common/components'
+import type { CustomerOpportunity } from '@/common/data/customer/types/customerOpportunityTypes'
 
 interface OpportunityViewProps {
   accountId: string
@@ -9,10 +12,9 @@ interface OpportunityViewProps {
 }
 
 export const OpportunityView: React.FC<OpportunityViewProps> = ({ accountId, context }) => {
-  const { opportunities, loading, error } = useRecordOpportunities({
+  const { opportunities, loading, error } = useCustomerRecordOpportunities({
     recordId: accountId,
     recordType: 'account',
-    contextType: 'customer',
     context
   })
 
@@ -30,6 +32,9 @@ export const OpportunityView: React.FC<OpportunityViewProps> = ({ accountId, con
     })
   }
 
+  // CRM-specific: Add Winning Chance column
+  const winningChanceColumn = useMemo(() => createWinningChanceColumn<CustomerOpportunity>(), [])
+
   return (
     <OpportunitySection
       opportunities={opportunities}
@@ -37,7 +42,8 @@ export const OpportunityView: React.FC<OpportunityViewProps> = ({ accountId, con
       error={error}
       recordUrlBuilder={recordUrlBuilder}
       accountUrlBuilder={accountUrlBuilder}
-      contextType="customer"
+      additionalColumns={[winningChanceColumn]}
+      extendVisibleColumns={['winningChance']}
       data-testid="account-opportunities-section"
     />
   )
