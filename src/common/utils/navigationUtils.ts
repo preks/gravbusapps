@@ -65,6 +65,9 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/mdm/operation-data': 'mdm/apps/operation-data',
   '/platform/mdm/engagement-data': 'mdm/apps/engagement-data',
 
+  /// MDM: Records
+  '/platform/mdm/company-record': 'mdm/records/company-record',
+
   // Platform
   '/platform/every-box': 'core/every/apps/every-box',
 

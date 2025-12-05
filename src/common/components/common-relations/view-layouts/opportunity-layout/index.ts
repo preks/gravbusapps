@@ -1,5 +1,10 @@
 export { OpportunityLayout } from './OpportunityLayout'
-export type { OpportunityLayoutProps, OpportunityTabKey, OpportunityViewConfig } from './OpportunityLayout'
+export type {
+  OpportunityLayoutProps,
+  OpportunityTabKey,
+  OpportunityViewConfig,
+  QuickFiltersRenderProps
+} from './OpportunityLayout'
 export { OpportunityListLayout } from './components/OpportunityListLayout'
 export type { OpportunityListLayoutProps } from './components/OpportunityListLayout'
 export { OpportunityBoardLayout } from './components/OpportunityBoardLayout'
