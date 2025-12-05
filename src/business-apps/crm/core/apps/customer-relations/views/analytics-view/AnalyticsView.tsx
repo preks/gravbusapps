@@ -210,14 +210,12 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
   const { data: contactInsights } = useContactInsights(activeAnalyticsTab === 'contacts' ? context.accessToken : '')
   const { data: contactQuality } = useContactQualityData(activeAnalyticsTab === 'contacts' ? context.accessToken : '')
 
-  // Initialize selectedStagePipelineId to first pipeline when data is loaded
+  // Initialize selectedStagePipelineId to first pipeline when pipelines are loaded
   useEffect(() => {
-    if (data?.opportunities?.opportunitiesByPipeline && data.opportunities.opportunitiesByPipeline.length > 0) {
-      if (!selectedStagePipelineId) {
-        setSelectedStagePipelineId(data.opportunities.opportunitiesByPipeline[0].pipelineId)
-      }
+    if (pipelines && pipelines.length > 0 && !selectedStagePipelineId) {
+      setSelectedStagePipelineId(pipelines[0].id)
     }
-  }, [data?.opportunities?.opportunitiesByPipeline, selectedStagePipelineId])
+  }, [pipelines, selectedStagePipelineId])
 
   if (isLoading) {
     return (
