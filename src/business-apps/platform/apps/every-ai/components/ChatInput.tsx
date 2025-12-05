@@ -130,7 +130,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             >
               {isPrechatLoading ? (
                 <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground gba:px-1">
-                  <div className="gba:animate-spin gba:rounded-full gba:h-3 gba:w-3 gba:border-2 gba:border-primary gba:border-t-transparent" />
+                  <div className="gba:animate-spin gba:rounded-full gba:h-3 gba:w-3 gba:border-2 gba:border-ai gba:border-t-transparent" />
                   <span>Loading suggestions...</span>
                 </div>
               ) : (
@@ -153,7 +153,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                         clearFiles()
                         setIsSearching(false)
                       }}
-                      className="gba:group gba:flex-shrink-0 gba:inline-flex gba:items-center gba:gap-1.5 gba:whitespace-nowrap gba:text-xs gba:rounded-full gba:bg-muted/50 hover:gba:bg-accent gba:px-3 gba:py-1.5 gba:transition-all hover:gba:shadow-sm gba:border gba:border-transparent hover:gba:border-primary/30"
+                      className="gba:group gba:flex-shrink-0 gba:inline-flex gba:items-center gba:gap-1.5 gba:whitespace-nowrap gba:text-xs gba:rounded-full gba:bg-muted/50 hover:gba:bg-accent gba:px-3 gba:py-1.5 gba:transition-all hover:gba:shadow-sm gba:border gba:border-transparent hover:gba:border-ai/30"
                       data-testid={`suggestion-${idx}`}
                     >
                       <span className="gba:text-muted-foreground group-hover:gba:text-foreground gba:transition-colors">
@@ -175,7 +175,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 key={f.id}
                 className="gba:flex gba:items-center gba:gap-2 gba:bg-gradient-to-r gba:from-muted gba:to-muted/50 gba:rounded-lg gba:px-3 gba:py-2 gba:text-xs gba:border gba:border-border gba:shadow-sm"
               >
-                <svg className="gba:h-4 gba:w-4 gba:text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="gba:h-4 gba:w-4 gba:text-ai" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -220,7 +220,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                     size="sm"
                     className={`gba:h-9 gba:w-9 gba:rounded-xl gba:transition-all gba:flex-shrink-0 ${
                       isSearching || files.length > 0
-                        ? 'gba:bg-primary gba:text-primary-foreground'
+                        ? 'gba:bg-ai gba:text-ai-foreground'
                         : 'gba:bg-muted hover:gba:bg-accent'
                     }`}
                     aria-label="More options"
@@ -241,7 +241,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                       <Paperclip className="gba:h-4 gba:w-4 gba:text-muted-foreground" weight="bold" />
                       <span>Attach file</span>
                       {files.length > 0 && (
-                        <span className="gba:ml-auto gba:text-xs gba:bg-primary gba:text-primary-foreground gba:px-1.5 gba:py-0.5 gba:rounded-full">
+                        <span className="gba:ml-auto gba:text-xs gba:bg-ai gba:text-ai-foreground gba:px-1.5 gba:py-0.5 gba:rounded-full">
                           {files.length}
                         </span>
                       )}
@@ -318,7 +318,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 <Button
                   variant="default"
                   size="sm"
-                  className="gba:h-8 gba:w-8 gba:rounded-lg gba:bg-gradient-to-br gba:from-primary gba:to-info hover:gba:shadow-lg gba:transition-all"
+                  className="gba:h-8 gba:w-8 gba:rounded-lg gba:bg-gradient-to-br gba:from-ai gba:to-ai-secondary hover:gba:shadow-lg gba:transition-all"
                   onClick={handleSend}
                   aria-label="Send"
                   title="Send message"
