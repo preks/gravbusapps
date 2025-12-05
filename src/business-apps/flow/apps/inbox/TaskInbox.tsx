@@ -209,6 +209,32 @@ const isJustClaimable = (task: Task): boolean => {
 // Import mock users data
 import { mockUsers, type User as MockUser } from '../../data/mockUsers'
 
+// Coerce formData types based on task schema (NUMBER → number)
+const coerceFormDataBySchema = (task: Task | null, formData: any): any => {
+  if (!task || !formData) return formData
+  const inputs: any[] = task.form || task.inputs || []
+  if (!Array.isArray(inputs) || inputs.length === 0) return formData
+
+  const result: any = { ...formData }
+  inputs.forEach((input: any) => {
+    const name = input?.name
+    if (!name) return
+    const t = String(input?.type || '').toUpperCase()
+    const value = result[name]
+    if (t === 'NUMBER') {
+      if (value === '' || value === null || typeof value === 'undefined') {
+        result[name] = undefined
+      } else if (typeof value === 'string') {
+        const parsed = Number(value)
+        if (!Number.isNaN(parsed)) {
+          result[name] = parsed
+        }
+      }
+    }
+  })
+  return result
+}
+
 const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', accessToken, userInfo, ...context }) => {
   // Get logged-in user's ID from userInfo
   const loggedInUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || 'user-001'
@@ -246,7 +272,8 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', a
     }
   }, [])
 
-  const API_BASE = env('NEXT_PUBLIC_BASE_URL') + '/flow-engine' + '/api'
+  const API_BASE =
+    (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine') + '/api'
 
   // Fetch open tasks and stats for selected user
   const fetchUserData = async (userId: string) => {
@@ -351,11 +378,17 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', a
           break
         case 'COMPLETE':
           endpoint = `${API_BASE}/tasks/${taskId}/complete`
-          body = {
-            userId: selectedUserId,
-            action: 'COMPLETE',
-            formData: taskFormData,
-            ...payload
+          // Ensure NUMBER fields are sent as numbers
+          {
+            const taskForSchema =
+              selectedTask && selectedTask.id === taskId ? selectedTask : tasks.find(t => t.id === taskId) || null
+            const normalizedFormData = coerceFormDataBySchema(taskForSchema as any, taskFormData)
+            body = {
+              userId: selectedUserId,
+              action: 'COMPLETE',
+              formData: normalizedFormData,
+              ...payload
+            }
           }
           break
         default:

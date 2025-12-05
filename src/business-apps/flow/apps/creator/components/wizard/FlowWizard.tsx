@@ -1,50 +1,16 @@
 import React from 'react'
 import { Card, CardContent, Button, Alert, AlertDescription } from '@newwork/nw-design-system'
 import { AlertTriangle } from 'lucide-react'
-import { AssignmentMode } from '@/common/network/flows/FlowTemplateClient'
-import {
-  Shield,
-  Megaphone,
-  Target,
-  MessageSquare,
-  FileText,
-  HandHeart,
-  UserCheck,
-  GitBranch,
-  CheckSquare,
-  LucideIcon
-} from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useWizardStore } from '../../hooks/useWizardStore'
-import { PatternSelector } from './PatternSelector'
-import { BasicInfoForm } from './BasicInfoForm'
-import { FlowStepConfiguration } from './FlowStepConfiguration'
-import { AdvancedSettings } from './AdvancedSettings'
-import { TemplateSetupForm } from './TemplateSetupForm'
 import { CompleteConfigurationForm } from './CompleteConfigurationForm'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 interface FlowWizardProps {
   onComplete: (template: any) => void
   onCancel: () => void
+  context?: BusinessAppContextProps
   'data-testid'?: string
-}
-
-// Icon mapping for patterns
-const PATTERN_ICONS: Record<string, LucideIcon> = {
-  approval: Shield,
-  announcement: Megaphone,
-  'goal-setting': Target,
-  feedback: MessageSquare,
-  'document-review': FileText,
-  onboarding: HandHeart,
-  compliance: UserCheck,
-  decision: GitBranch,
-  'task-management': CheckSquare
-}
-
-const renderIcon = (iconName: string) => {
-  const IconComponent = PATTERN_ICONS[iconName]
-  return IconComponent ? <IconComponent className="gba:w-5 gba:h-5" /> : null
 }
 
 /**
@@ -53,17 +19,12 @@ const renderIcon = (iconName: string) => {
 export const FlowWizard: React.FC<FlowWizardProps> = ({
   onComplete,
   onCancel,
+  context,
   'data-testid': testId = 'flow-wizard'
 }) => {
-  const { currentStep, nextStep, previousStep, selectedPattern, configuration, steps, isEditMode, generateTemplate } =
-    useWizardStore()
+  const { currentStep, selectedPattern, configuration, isEditMode, generateTemplate } = useWizardStore()
 
-  const progress = ((currentStep + 1) / useWizardStore.getState().steps.length) * 100
   const currentStepInfo = useWizardStore.getState().steps[currentStep]
-
-  // Navigation helpers
-  const canGoNext = currentStep < useWizardStore.getState().steps.length - 1
-  const canGoPrevious = currentStep > 0
 
   // Use wizard store validation
   const isValid = useWizardStore.getState().validateCurrentStep()
@@ -102,7 +63,7 @@ export const FlowWizard: React.FC<FlowWizardProps> = ({
   const renderCurrentStep = () => {
     switch (currentStepInfo.id) {
       case 'complete-configuration':
-        return <CompleteConfigurationForm data-testid={`${testId}-complete-configuration`} />
+        return <CompleteConfigurationForm context={context} data-testid={`${testId}-complete-configuration`} />
 
       default:
         return <div>Unknown step</div>

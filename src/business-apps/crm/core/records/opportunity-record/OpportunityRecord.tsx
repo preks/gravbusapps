@@ -22,7 +22,6 @@ import type { Stage, StageCondition } from '@/components/stage-progression/types
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { HomeView } from './views/home-view/HomeView'
 import { DocumentView } from './views/document-view'
-import { OpportunityStatusUpdatePopup } from '@/business-apps/crm/core/popups/opportunity-status-update-popup'
 
 interface OpportunityRecordContentProps extends BusinessAppContextProps {
   opportunityId: string
@@ -40,14 +39,6 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
   const ALLOWED_TABS = ['overview', 'documents'] as const
   type TabKey = (typeof ALLOWED_TABS)[number]
   const [activeTab, setActiveTab] = useState('overview')
-
-  // Status update popup state
-  const [statusUpdatePopup, setStatusUpdatePopup] = useState<{
-    open: boolean
-    opportunityId?: string
-    opportunityVersion?: number
-    opportunityName?: string
-  }>({ open: false })
 
   // Initialize activeTab from URL on mount and write default if missing
   useEffect(() => {
@@ -240,16 +231,6 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
     }
   })
 
-  // Handler to open status update popup
-  const handleUpdateStatus = () => {
-    setStatusUpdatePopup({
-      open: true,
-      opportunityId: opportunityId,
-      opportunityVersion: opportunityData?.version || 0,
-      opportunityName: opportunityData?.name || 'Unnamed Opportunity'
-    })
-  }
-
   // Memoize stage condition action props to prevent recreation
   const stageConditionActionProps = useMemo(
     () => ({
@@ -313,14 +294,22 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
     return (
       <div className="gba:flex gba:items-center gba:gap-2">
         {statusLabel && (
-          <Badge
-            variant={getOpportunityStatusBadgeVariant(opportunityData?.opportunityStatus)}
-            className="gba:gap-1 gba:cursor-pointer hover:gba:opacity-80"
-            onClick={handleUpdateStatus}
-            data-testid="opportunity-status-badge"
+          <AppAction
+            contextsArray={[FlowContextName.customerOpportunityStatusUpdate]}
+            externalContextData={{ opportunityId }}
+            prefixDataTestId="opportunity-status-update"
+            accessToken={props.accessToken}
+            emptyStateBehavior="enable"
+            deferMainContextRequestsUntilClick
           >
-            {statusLabel}
-          </Badge>
+            <Badge
+              variant={getOpportunityStatusBadgeVariant(opportunityData?.opportunityStatus)}
+              className="gba:gap-1 gba:cursor-pointer hover:gba:opacity-80"
+              data-testid="opportunity-status-badge"
+            >
+              {statusLabel}
+            </Badge>
+          </AppAction>
         )}
         {forecast && forecastDisplayValue && (
           <Badge variant={getOpportunityForecastBadgeVariant(forecast)} data-testid="opportunity-forecast-badge">
@@ -339,7 +328,8 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
     opportunityData?.currency?.id,
     opportunityData?.opportunityStatus,
     opportunityData?.opportunityForecast,
-    handleUpdateStatus
+    opportunityId,
+    props.accessToken
   ])
 
   const headerDetailGroups = useMemo(() => {
@@ -625,26 +615,6 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
         headerContent={headerContent}
         subViews={subViewsConfig}
       />
-
-      {/* Status Update Popup */}
-      {statusUpdatePopup.open && statusUpdatePopup.opportunityId && (
-        <OpportunityStatusUpdatePopup
-          isOpen={statusUpdatePopup.open}
-          onClose={() => setStatusUpdatePopup({ open: false })}
-          accessToken={props.accessToken}
-          opportunityId={statusUpdatePopup.opportunityId}
-          opportunityVersion={statusUpdatePopup.opportunityVersion}
-          opportunityName={statusUpdatePopup.opportunityName}
-          onSuccess={() => {
-            refetch()
-            setStatusUpdatePopup({ open: false })
-          }}
-          onError={() => {
-            setStatusUpdatePopup({ open: false })
-          }}
-          data-testid="opportunity-status-update-popup"
-        />
-      )}
     </div>
   )
 }
