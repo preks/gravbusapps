@@ -116,7 +116,7 @@ export const useTopRevenueEarners = (
             }
           })
           .sort((a, b) => b.totalRevenue - a.totalRevenue)
-          .slice(0, 10)
+          .slice(0, 5)
 
         setContacts(list)
       } catch (error) {

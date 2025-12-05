@@ -51,8 +51,13 @@ export interface OpportunityLifecyclePoint {
 }
 
 const calculatePercentChange = (current: number, previous: number): string => {
+  // Handle edge case where previous is 0
   if (previous === 0) {
-    return current > 0 ? '100.0%' : '0.0%'
+    if (current === 0) {
+      return '0.0%'
+    } else {
+      return '100.0%'
+    }
   }
   return `${(((current - previous) / previous) * 100).toFixed(1)}%`
 }
@@ -148,7 +153,8 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
     {
       key: 'total-value',
       title: 'Total Pipeline Value',
-      value: totalValue,
+      value: formatCurrencyCompact(totalValue, kpiCurrency, undefined, 1, true),
+      valueIsString: true,
       prefix: <DollarCircleOutlined />,
       description: 'Combined value of all opportunities',
       ...(trendData && !trendLoading
@@ -181,7 +187,14 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
     {
       key: 'avg-deal-size',
       title: 'Avg. Deal Size',
-      value: trendData?.actualAvgDealSizeThisMonth || avgDealSize,
+      value: formatCurrencyCompact(
+        trendData?.actualAvgDealSizeThisMonth || avgDealSize,
+        kpiCurrency,
+        undefined,
+        1,
+        true
+      ),
+      valueIsString: true,
       prefix: <DollarCircleOutlined />,
       description: 'Average opportunity value',
       ...(trendData && !trendLoading
@@ -220,7 +233,8 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
     {
       key: 'avg-opportunity-value',
       title: 'Avg. Opportunity Value',
-      value: Math.round(avgSalesCycle),
+      value: formatCurrencyCompact(avgSalesCycle, kpiCurrency, undefined, 1, true),
+      valueIsString: true,
       prefix: <DollarCircleOutlined />,
       description: 'Average value per opportunity',
       ...(trendData && !trendLoading

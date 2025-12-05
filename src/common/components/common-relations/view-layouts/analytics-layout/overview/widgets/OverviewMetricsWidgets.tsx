@@ -9,6 +9,7 @@ import {
   PercentageOutlined,
   TrophyOutlined
 } from '@ant-design/icons'
+import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
 
 export interface OverviewCounts {
   leads: number
@@ -55,7 +56,26 @@ export interface OverviewMetricsWidgetsProps {
 }
 
 const calculateTrend = (current: number, previous: number) => {
-  const change = ((current - previous) / Math.max(previous, 1)) * 100
+  // Handle edge case where previous is 0
+  if (previous === 0) {
+    if (current === 0) {
+      // No change
+      return {
+        value: '0.0%',
+        positive: true,
+        description: 'vs previous period (30 days ago)'
+      }
+    } else {
+      // Previous was 0, current is not - show 100% growth
+      return {
+        value: '+100.0%',
+        positive: true,
+        description: 'vs previous period (30 days ago)'
+      }
+    }
+  }
+
+  const change = ((current - previous) / previous) * 100
   return {
     value: `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`,
     positive: change >= 0,
@@ -141,10 +161,10 @@ export const OverviewMetricsWidgets: React.FC<OverviewMetricsWidgetsProps> = ({
     {
       key: 'avg-deal-size',
       title: 'Avg Deal Size',
-      value: conversionMetrics.avgDealSize,
+      value: formatCurrencyCompact(conversionMetrics.avgDealSize, selectedCurrency, undefined, 1, true),
+      valueIsString: true,
       prefix: <DollarCircleOutlined />,
       description: 'Average opportunity value',
-      precision: 0,
       ...(trendData && !trendLoading
         ? { trend: calculateTrend(trendData.currentMonthAvgDealSize, trendData.previousMonthAvgDealSize) }
         : {})
@@ -152,10 +172,10 @@ export const OverviewMetricsWidgets: React.FC<OverviewMetricsWidgetsProps> = ({
     {
       key: 'total-won-revenue',
       title: 'Total Won Revenue',
-      value: conversionMetrics.salesCycleLength,
+      value: formatCurrencyCompact(conversionMetrics.salesCycleLength, selectedCurrency, undefined, 1, true),
+      valueIsString: true,
       prefix: <DollarCircleOutlined />,
       description: 'Total revenue from won opportunities',
-      precision: 0,
       ...(trendData && !trendLoading
         ? { trend: calculateTrend(trendData.currentMonthSalesCycleLength, trendData.previousMonthSalesCycleLength) }
         : {})

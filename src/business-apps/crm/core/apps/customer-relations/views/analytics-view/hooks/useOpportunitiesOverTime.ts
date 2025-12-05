@@ -46,7 +46,7 @@ export const useOpportunitiesOverTime = (accessToken: string, timeFilter: TimeFi
           startDate.setFullYear(endDate.getFullYear() - 1)
           break
         case 'historical':
-          startDate.setFullYear(endDate.getFullYear() - 3)
+          startDate.setFullYear(endDate.getFullYear() - 5)
           break
         default:
           startDate.setMonth(endDate.getMonth() - 3)
@@ -190,7 +190,7 @@ function createTimeSeriesData(
     wonOppsMap.get(dateKey)!.push(opp)
   })
 
-  // For month filter: return daily data, for others: aggregate into monthly periods
+  // For month filter: return daily data, for historical: yearly data, for others: monthly periods
   if (timeFilter === 'month') {
     // Generate daily data points
     const dailyData = new Map<string, OpportunityTimeSeriesData>()
@@ -230,6 +230,47 @@ function createTimeSeriesData(
     })
 
     return Array.from(dailyData.values()).sort((a, b) => a.date.localeCompare(b.date))
+  } else if (timeFilter === 'historical') {
+    // Aggregate into yearly periods (last 5 years)
+    const yearlyData = new Map<string, OpportunityTimeSeriesData>()
+
+    // Initialize years in the range
+    const currentYear = endDate.getFullYear()
+    for (let i = 4; i >= 0; i--) {
+      const year = currentYear - i
+      const yearKey = `${year}-01-01`
+      yearlyData.set(yearKey, {
+        date: yearKey,
+        count: 0,
+        value: 0,
+        opportunitiesCreated: 0,
+        opportunitiesWon: 0
+      })
+    }
+
+    // Aggregate opportunities by year
+    allOpportunities.forEach(opp => {
+      const date = new Date(opp.createdAt)
+      const yearKey = `${date.getFullYear()}-01-01`
+      const yearData = yearlyData.get(yearKey)
+      if (yearData) {
+        yearData.count += 1
+        yearData.value += opp.estimatedAmount || 0
+        yearData.opportunitiesCreated += 1
+      }
+    })
+
+    // Add won opportunities
+    wonOpportunities.forEach(opp => {
+      const date = new Date(opp.createdAt)
+      const yearKey = `${date.getFullYear()}-01-01`
+      const yearData = yearlyData.get(yearKey)
+      if (yearData) {
+        yearData.opportunitiesWon += 1
+      }
+    })
+
+    return Array.from(yearlyData.values()).sort((a, b) => a.date.localeCompare(b.date))
   } else {
     // Aggregate into monthly periods
     const monthlyData = new Map<string, OpportunityTimeSeriesData>()

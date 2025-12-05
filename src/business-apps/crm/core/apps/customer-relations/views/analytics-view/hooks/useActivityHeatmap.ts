@@ -2,10 +2,9 @@ import { useState, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 export interface ActivityHeatmapData {
-  day: string
-  hour: number
+  date: string
+  fullDate: string
   activities: number
-  dayIndex: number
 }
 
 export const useActivityHeatmap = (accessToken: string) => {
@@ -15,62 +14,74 @@ export const useActivityHeatmap = (accessToken: string) => {
   const graphqlClient = useGraphQLClient(accessToken)
 
   useEffect(() => {
-    const fetchActivityHeatmap = async () => {
+    const fetchActivityTimeline = async () => {
       try {
         setIsLoading(true)
         setError(null)
 
         const currentDate = new Date()
-        const thirtyDaysAgo = new Date(currentDate.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString()
+        const thirtyDaysAgo = new Date(currentDate.getTime() - 30 * 24 * 60 * 60 * 1000)
+        thirtyDaysAgo.setHours(0, 0, 0, 0)
 
-        const query = `
-          query GetActivityHeatmap {
-            activities: SalesActivity(
+        // Create daily data structure for last 30 days with zero counts
+        const dailyData = new Map<string, number>()
+        for (let i = 0; i < 30; i++) {
+          const date = new Date(thirtyDaysAgo)
+          date.setDate(date.getDate() + i)
+          const dateKey = date.toISOString().split('T')[0]
+          dailyData.set(dateKey, 0)
+        }
+
+        // Build aggregate queries for each day
+        const aggregateQueries = Array.from(dailyData.keys())
+          .map((dateKey, index) => {
+            const nextDay = new Date(dateKey)
+            nextDay.setDate(nextDay.getDate() + 1)
+            const nextDayISO = nextDay.toISOString().split('T')[0]
+
+            return `
+            day_${index}: SalesActivityAggregate(
               where: {
-                isDeleted: {_eq: false}
-                createdAt: {_gte: "${thirtyDaysAgo}"}
+                isDeleted: { _eq: false }
+                createdAt: { _gte: "${dateKey}T00:00:00Z", _lt: "${nextDayISO}T00:00:00Z" }
               }
             ) {
-              createdAt
+              aggregate { count }
             }
+          `
+          })
+          .join('\n')
+
+        const query = `
+          query GetActivityTimelineAggregates {
+            ${aggregateQueries}
           }
         `
 
-        const result = await graphqlClient.request(query)
+        const result = await graphqlClient.request<Record<string, { aggregate: { count: number } }>>(query)
 
-        const allActivities = result.activities || []
-
-        // Create heatmap data structure (7 days × 24 hours = 168 data points)
-        const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-        const heatmapData: ActivityHeatmapData[] = []
-
-        // Initialize data structure with zeros
-        dayNames.forEach((day, dayIndex) => {
-          for (let hour = 0; hour < 24; hour++) {
-            heatmapData.push({
-              day,
-              hour,
-              activities: 0,
-              dayIndex
-            })
-          }
+        // Extract counts from aggregates
+        const dates = Array.from(dailyData.keys())
+        dates.forEach((dateKey, index) => {
+          const aggData = result[`day_${index}`]
+          dailyData.set(dateKey, aggData?.aggregate?.count || 0)
         })
 
-        // Process activities and count by day/hour
-        allActivities.forEach((activity: any) => {
-          const date = new Date(activity.createdAt)
-          const dayOfWeek = (date.getDay() + 6) % 7 // Convert Sunday=0 to Monday=0
-          const hour = date.getHours()
+        // Convert to array and format for chart
+        const timelineData: ActivityHeatmapData[] = Array.from(dailyData.entries())
+          .map(([dateKey, count]) => {
+            const date = new Date(dateKey)
+            const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+            return {
+              date: formattedDate,
+              fullDate: dateKey,
+              activities: count
+            }
+          })
+          .sort((a, b) => a.fullDate.localeCompare(b.fullDate))
 
-          const dataPoint = heatmapData.find(d => d.dayIndex === dayOfWeek && d.hour === hour)
-          if (dataPoint) {
-            dataPoint.activities++
-          }
-        })
-
-        setActivityData(heatmapData)
+        setActivityData(timelineData)
       } catch (err) {
-        // console.error('Error fetching activity heatmap:', err);
         setError(err instanceof Error ? err.message : 'Unknown error')
       } finally {
         setIsLoading(false)
@@ -78,7 +89,7 @@ export const useActivityHeatmap = (accessToken: string) => {
     }
 
     if (accessToken) {
-      fetchActivityHeatmap()
+      fetchActivityTimeline()
     }
   }, [accessToken, graphqlClient])
 

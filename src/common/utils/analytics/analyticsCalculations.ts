@@ -5,10 +5,14 @@
 
 /**
  * Calculate percentage change between current and previous values
+ * Returns 100 when previous is 0 and current > 0
  */
 export const calculatePercentChange = (current: number, previous: number): number => {
   if (previous === 0) {
-    return current > 0 ? 100 : 0
+    // If both are 0, no change
+    if (current === 0) return 0
+    // If previous is 0 but current is not, return 100% growth
+    return 100
   }
   return ((current - previous) / previous) * 100
 }

@@ -192,7 +192,7 @@ const transformOverviewOnlyData = (
     .sort((a, b) => b.accounts - a.accounts)
     .slice(0, 5) // Top 5 countries
 
-  return {
+  const result = {
     overview: {
       totalCounts: {
         leads: totalLeads,
@@ -252,6 +252,8 @@ const transformOverviewOnlyData = (
     },
     geographicData
   }
+
+  return result
 }
 
 const transformAccountsData = (data: any, opportunitiesData: any): AccountsAnalytics => {
