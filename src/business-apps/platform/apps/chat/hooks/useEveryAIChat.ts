@@ -12,6 +12,7 @@ function resolveFlowbotBaseUrl(): string {
 interface EveryAIResponse {
   text: string
   error?: boolean
+  sessionId?: string // The session ID to store in message metadata for sharing across users
 }
 
 interface UseEveryAIChatOptions {
@@ -28,7 +29,6 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
   const [isProcessing, setIsProcessing] = useState(false)
   const [streamingText, setStreamingText] = useState<string>('')
   const inFlightRef = useRef(false)
-  const sessionIdRef = useRef<string | null>(null)
 
   /**
    * Check if message contains an @Every mention
@@ -52,11 +52,17 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
 
   /**
    * Send a message to FlowBot and get the AI response
+   * @param existingSessionId - Session ID from previous AI messages in this conversation (for shared context)
    */
   const sendToEveryAI = useCallback(
     async (
       content: string,
-      conversationContext?: { conversationId: string; conversationName?: string; participantNames?: string[] }
+      conversationContext?: {
+        conversationId: string
+        conversationName?: string
+        participantNames?: string[]
+        existingSessionId?: string // Session ID from previous AI messages for shared context
+      }
     ): Promise<EveryAIResponse> => {
       if (inFlightRef.current) {
         return { text: '', error: true }
@@ -78,8 +84,12 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
 
         const url = `${baseUrl}/flowbot/api/agent/v2/chat`
 
+        // Use existing session ID from previous AI messages in this conversation
+        // This allows all users to share the same AI context
+        const sharedSessionId = conversationContext?.existingSessionId ?? ''
+
         const form = new FormData()
-        form.append('session_id', sessionIdRef.current ?? '')
+        form.append('session_id', sharedSessionId)
         form.append('user_input_text', prompt)
         form.append('llm_model', LLM_MODEL)
         form.append('use_web_search_tool', 'false')
@@ -127,6 +137,7 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
         // Parse SSE response to extract the answer
         const reader = res.body.pipeThrough(new TextDecoderStream()).getReader()
         let responseText = ''
+        let responseSessionId = sharedSessionId // Start with existing, will be updated if new one received
         let buf = ''
 
         while (true) {
@@ -148,7 +159,10 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
 
             if (event === 'session-id') {
               try {
-                sessionIdRef.current = JSON.parse(data.trim())
+                const newSessionId = JSON.parse(data.trim())
+                if (newSessionId) {
+                  responseSessionId = newSessionId
+                }
               } catch {
                 // Ignore parse errors
               }
@@ -190,7 +204,8 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
 
         const response: EveryAIResponse = {
           text: responseText || "I'm sorry, I couldn't generate a response. Please try again.",
-          error: !responseText
+          error: !responseText,
+          sessionId: responseSessionId || undefined // Include session ID for storing in message metadata
         }
 
         if (onAIResponse) {
@@ -219,12 +234,18 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
   /**
    * Process a chat message that may contain @Every mention
    * Returns the AI response if @Every was mentioned, null otherwise
+   * @param existingSessionId - Pass session ID from previous AI messages for shared context across users
    */
   const processMessage = useCallback(
     async (
       content: string,
       entityReferences?: MessageEntityReference[],
-      conversationContext?: { conversationId: string; conversationName?: string; participantNames?: string[] }
+      conversationContext?: {
+        conversationId: string
+        conversationName?: string
+        participantNames?: string[]
+        existingSessionId?: string // Session ID from previous AI messages for shared context
+      }
     ): Promise<EveryAIResponse | null> => {
       if (!hasEveryMention(entityReferences)) {
         return null

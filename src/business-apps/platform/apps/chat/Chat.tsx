@@ -379,10 +379,18 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
               })
               .filter(Boolean)
 
+            // Find existing AI session ID from previous AI messages in this conversation
+            // This allows all users to share the same AI context
+            const existingSessionId = messages
+              .filter(m => m.metadata?.isAIResponse && m.metadata?.everyAiSessionId)
+              .map(m => m.metadata?.everyAiSessionId as string)
+              .pop() // Get the most recent session ID
+
             const conversationContext = {
               conversationId: activeConversationId,
               conversationName: activeConversation.name,
-              participantNames
+              participantNames,
+              existingSessionId // Pass existing session ID for shared AI context
             }
 
             // Process the message with Every AI
@@ -401,7 +409,8 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
                 const aiMetadata = {
                   isAIResponse: true,
                   aiAssistant: 'Every',
-                  originalQuestion: content
+                  originalQuestion: content,
+                  everyAiSessionId: aiResponse.sessionId // Store session ID for shared AI context across users
                 }
                 await sendMessage(activeConversationId, responseText, aiMetadata)
 
