@@ -1,5 +1,4 @@
 import React, { useMemo } from 'react'
-import { Badge } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCustomerOpportunities } from '@/common/data/customer/hooks/useCustomerOpportunities'
@@ -13,7 +12,11 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useCustomerOpportunityFilters } from './hooks/useCustomerOpportunityFilters'
 import { useCustomerOpportunityStatistics } from '@/common/data/customer/hooks/useCustomerOpportunityStatistics'
 import { CUSTOMER_OPPORTUNITY_DESCRIPTORS } from '@/common/data/customer/types/customerOpportunityTypes'
-import { getWinningChanceBadgeVariant } from '@/common/utils/badgeUtils'
+import {
+  insertCustomerColumnsAfter,
+  CUSTOMER_OPPORTUNITY_EXTENDED_COLUMN_IDS,
+  CUSTOMER_OPPORTUNITY_SORTABLE_COLUMNS
+} from '@/common/components/customer/view-layouts/opportunity-layout/config/opportunityColumns'
 
 // Separate component to properly use hooks with currency filtering
 const CustomerOpportunityStatistics: React.FC<{
@@ -43,33 +46,6 @@ export type OpportunityViewProps = BusinessAppContextProps
 
 export const OpportunityView: React.FC<OpportunityViewProps> = context => {
   const { fetchCustomerOpportunities } = useCustomerOpportunities(context)
-
-  // CRM-specific: Winning Chance column
-  const winningChanceColumn: ColumnDef<CustomerOpportunity> = useMemo(
-    () => ({
-      id: 'winningChance',
-      accessorKey: 'winningChance',
-      header: 'Winning Chance',
-      size: 170,
-      minSize: 140,
-      maxSize: 200,
-      cell: ({ row }) => {
-        const winningChance = row.original.winningChance
-        if (winningChance === undefined || winningChance === null) {
-          return <span className="gba:text-sm gba:text-muted-foreground">Not set</span>
-        }
-        return (
-          <Badge
-            variant={getWinningChanceBadgeVariant(winningChance)}
-            data-testid={`opportunity-winning-chance-${row.original.id}`}
-          >
-            {winningChance}%
-          </Badge>
-        )
-      }
-    }),
-    []
-  )
 
   const config = useMemo(() => {
     const baseConfig = createOpportunityConfig<CustomerOpportunity, CustomerOpportunityQueryVariables>({
@@ -126,36 +102,30 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
       })
     })
 
-    // CRM-specific: Override createColumns to add winningChance column
+    // CRM-specific: Override createColumns to add customer-specific columns
     return {
       ...baseConfig,
       createColumns: (buildAccountUrl: (id: string) => string) => {
         const baseColumns = createOpportunityColumns(buildAccountUrl) as ColumnDef<CustomerOpportunity>[]
-
-        // Insert winningChance column after 'amount' column
-        const amountIndex = baseColumns.findIndex(col => col.id === 'amount')
-        if (amountIndex >= 0) {
-          return [...baseColumns.slice(0, amountIndex + 1), winningChanceColumn, ...baseColumns.slice(amountIndex + 1)]
-        }
-        return [...baseColumns, winningChanceColumn]
+        return insertCustomerColumnsAfter(baseColumns, 'amount')
       },
       createSortableColumns: (availableColumnIds?: string[]) => {
         const baseSortable = baseConfig.createSortableColumns(availableColumnIds)
-        // Add winningChance to sortable columns if it's in available columns
-        if (!availableColumnIds || availableColumnIds.includes('winningChance')) {
-          return [...baseSortable, { id: 'winningChance', label: 'Winning Chance' }]
-        }
-        return baseSortable
+        // Add CRM-specific sortable columns
+        const additionalSortable = CUSTOMER_OPPORTUNITY_SORTABLE_COLUMNS.filter(
+          col => !availableColumnIds || availableColumnIds.includes(col.id)
+        )
+        return [...baseSortable, ...additionalSortable]
       }
     } as typeof baseConfig
-  }, [context, fetchCustomerOpportunities, winningChanceColumn])
+  }, [context, fetchCustomerOpportunities])
 
   return (
     <OpportunityLayout
       context={context}
       config={config}
       dataTestId="customer-opportunities-view"
-      extendVisibleColumns={['winningChance']}
+      extendVisibleColumns={CUSTOMER_OPPORTUNITY_EXTENDED_COLUMN_IDS}
     />
   )
 }
