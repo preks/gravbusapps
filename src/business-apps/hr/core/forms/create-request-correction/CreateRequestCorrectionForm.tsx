@@ -49,6 +49,8 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
     return { attendanceDateISO, startTimeISO, endTimeISO, notes }
   }, [additionalData])
 
+  console.log('additionalData', additionalData)
+
   // Helper: format ISO time to HH:MM for DateInput type="time"
   const formatIsoToHHMM = (iso?: string) => {
     if (!iso) return ''
@@ -118,6 +120,24 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
     return utc.toISOString()
   }
 
+  // Extract YYYY-MM-DD from an ISO string (or return the date if already in that format)
+  const toDateOnly = (isoOrDate: string): string => {
+    if (!isoOrDate) return ''
+    try {
+      const d = new Date(isoOrDate)
+      if (!isNaN(d.getTime())) {
+        const y = d.getUTCFullYear()
+        const m = String(d.getUTCMonth() + 1).padStart(2, '0')
+        const day = String(d.getUTCDate()).padStart(2, '0')
+        return `${y}-${m}-${day}`
+      }
+    } catch {
+      // no-op, fallback below
+    }
+    const m = String(isoOrDate).match(/^(\d{4}-\d{2}-\d{2})/)
+    return m ? m[1] : ''
+  }
+
   const handleSubmit = async () => {
     setSubmitting(true)
     try {
@@ -131,23 +151,51 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
 
       const nowIso = new Date().toISOString()
 
+      const requestEmployeeId =
+        employeeId ||
+        additionalData?.employeeId ||
+        additionalData?.psi_taskPayload?.employeeId ||
+        additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId
+
+      const payloadObject = additionalData?.psi_taskPayload?.psi_initialParameters
+
+      console.log('attendanceDateISO', attendanceDateISO)
+      console.log('nowIso', nowIso)
+      console.log('startTimeISO', startTimeISO)
+      console.log('endTimeISO', endTimeISO)
+
       const payload = {
+        changeMode: 'INSERT',
+        employeeid: requestEmployeeId,
         employeeAttendanceCorrectionRequest: {
-          attendanceDate: attendanceDateISO,
+          version: payloadObject?.timeEntryVersion,
+          attendanceDate: toDateOnly(attendanceDateISO),
           requestDate: nowIso,
+          decisionDate: nowIso,
           startTime: startTimeISO,
           endTime: endTimeISO,
           status: 'UNKNOWN_CORRECTION_REQUEST_STATUS',
           correctionDescription: notes,
-          employee:
-            employeeId ||
-            additionalData?.employeeId ||
-            additionalData?.psi_taskPayload?.employeeId ||
-            additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId,
-          timeEntryId:
-            additionalData?.timeEntryId ||
-            additionalData?.psi_taskPayload?.timeEntryId ||
-            additionalData?.psi_taskPayload?.psi_initialParameters?.timeEntryId
+          employee: requestEmployeeId,
+          employeeAttendance: payloadObject?.timeEntryId,
+          recordedTime: payloadObject?.recordedTime,
+          breakTime: payloadObject?.breakTime,
+          effectiveTime: payloadObject?.effectiveTime,
+          plannedTime: payloadObject?.plannedTime,
+          differenceTime: payloadObject?.differenceTime
+          // "requestDate": "2025-12-05T10:37:44.475Z",
+          // "decisionDate": "2025-12-05T10:37:44.475Z",
+          // "startTime": "2025-12-05T10:37:44.475Z",
+          // "endTime": "2025-12-05T10:37:44.475Z",
+          // "recordedTime": "string",
+          // "breakTime": "string",
+          // "effectiveTime": "string",
+          // "plannedTime": "string",
+          // "differenceTime": "string",
+          // "status": "UNKNOWN_CORRECTION_REQUEST_STATUS",
+          // "correctionDescription": "string",
+          // "employee": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+          // "employeeAttendance": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
         }
       }
 

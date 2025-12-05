@@ -169,7 +169,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       manualOverride: Boolean(row.manualOverride),
       notes: row.notes ?? '',
       attendanceLocation: row?.attendanceLocation ?? undefined,
-      status: 'approved',
+      status: 'open',
       totalMinutes
     }
   }
@@ -339,7 +339,6 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       // Exclude today from daily average; consider strictly earlier days
       if (rowDay < untilDay) {
         const effective = parseDurationToMinutes(r?.effectiveTime ? String(r.effectiveTime) : undefined)
-        console.log('r', effective)
         const eff = Math.max(0, effective)
         workedUntilYesterday += eff
         // Count days that have any attendance entry, regardless of effective minutes
