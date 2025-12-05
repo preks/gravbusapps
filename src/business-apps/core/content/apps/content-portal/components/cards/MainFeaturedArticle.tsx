@@ -1,9 +1,9 @@
-import React, { useState } from 'react'
+import React from 'react'
 import type { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
 import { useTranslation, Badge } from '@newwork/nw-design-system'
 import { MessageSquare, Share2 } from 'lucide-react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { ShareDialog } from '@/components/share-dialog'
+import { AppAction } from '@/components/app-action'
 import { getEntityTypeFromTab, buildContentRecordUrl } from '@/business-apps/core/content/utils/shareUtils'
 import translations from '../../_i18n'
 
@@ -21,11 +21,9 @@ const MainFeaturedArticle: React.FC<MainFeaturedArticleProps> = ({
   onClick,
   currentTab,
   reactionSummary,
-  accessToken,
-  userInfo
+  accessToken
 }) => {
   const { t } = useTranslation(translations)
-  const [shareDialogOpen, setShareDialogOpen] = useState(false)
   const createdDate = item?.createdAt
     ? new Date(item.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
     : ''
@@ -38,11 +36,6 @@ const MainFeaturedArticle: React.FC<MainFeaturedArticleProps> = ({
     if (!content) return 1
     const words = content.split(/\s+/).length
     return Math.ceil(words / 200)
-  }
-
-  const handleShare = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    setShareDialogOpen(true)
   }
 
   const entityType = getEntityTypeFromTab(currentTab)
@@ -167,30 +160,31 @@ const MainFeaturedArticle: React.FC<MainFeaturedArticleProps> = ({
               </div>
             </div>
             <div className="gba:flex gba:items-center">
-              <button
-                onClick={handleShare}
-                className="gba:flex gba:items-center gba:hover:opacity-70 gba:transition-opacity"
-                data-testid="share-button"
-              >
-                <Share2 className="gba:mr-1 gba:w-4 gba:h-4 gba:text-foreground" data-testid="share-button-icon" />
-              </button>
+              {entityType && accessToken && (
+                <AppAction
+                  variant="custom"
+                  mode="button"
+                  buttonSize="sm"
+                  buttonVariant="ghost"
+                  shareContext={{
+                    entityType,
+                    entityId: item.id || '',
+                    entityName: item.title || '',
+                    entityUrl: entityDisplayUrl
+                  }}
+                  accessToken={accessToken}
+                  className="gba:flex gba:items-center gba:hover:opacity-70 gba:transition-opacity"
+                  onClick={e => e.stopPropagation()}
+                  data-testid="share-button"
+                >
+                  <Share2 className="gba:mr-1 gba:w-4 gba:h-4 gba:text-foreground" data-testid="share-button-icon" />
+                </AppAction>
+              )}
               <span>0</span>
             </div>
           </div>
         </div>
       </button>
-      {entityType && accessToken && userInfo?.id && (
-        <ShareDialog
-          open={shareDialogOpen}
-          onOpenChange={setShareDialogOpen}
-          accessToken={accessToken}
-          currentUserId={userInfo.id}
-          entityType={entityType}
-          entityId={item.id || ''}
-          entityName={item.title || ''}
-          entityDisplayUrl={entityDisplayUrl}
-        />
-      )}
     </div>
   )
 }

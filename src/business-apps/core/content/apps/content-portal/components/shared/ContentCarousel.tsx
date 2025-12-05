@@ -1,11 +1,10 @@
 import React, { useCallback, useEffect, useState, useRef, useMemo } from 'react'
 import type { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
-import { Button } from '@newwork/nw-design-system'
 import { ChevronLeft, ChevronRight, MessageCircle, Share2 } from 'lucide-react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { ReactionPicker } from '@/common/components/content'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { ShareDialog } from '@/components/share-dialog'
+import { AppAction } from '@/components/app-action'
 import { getEntityTypeFromTab, buildContentRecordUrl } from '@/business-apps/core/content/utils/shareUtils'
 import { buildReactionSummaryFromCounts } from '@/common/data/content/utils/reactionUtils'
 
@@ -32,8 +31,6 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
 }) => {
   const [activeIndex, setActiveIndex] = useState<number>(0)
   const [autoplay, setAutoplay] = useState<boolean>(true)
-  const [shareDialogOpen, setShareDialogOpen] = useState(false)
-  const [selectedArticle, setSelectedArticle] = useState<ContentEntry | null>(null)
   const carouselArticles = [...articles].reverse()
 
   const getInitials = useMemo(
@@ -111,15 +108,6 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
     })
     navigateTo(url)
   }
-
-  const handleShare = (e: React.MouseEvent, article: ContentEntry) => {
-    e.stopPropagation()
-    setSelectedArticle(article)
-    setShareDialogOpen(true)
-  }
-
-  const entityType = selectedArticle ? getEntityTypeFromTab(currentTab) : null
-  const entityDisplayUrl = selectedArticle ? buildContentRecordUrl(selectedArticle.id || '', currentTab) : ''
 
   return (
     <div
@@ -224,15 +212,26 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
                             <span>{commentCount}</span>
                           </div>
                         )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="gba:ml-auto gba:p-1 gba:h-auto"
-                          onClick={e => handleShare(e, article)}
-                          data-testid={`carousel-share-${article.id}`}
-                        >
-                          <Share2 className="gba:w-4 gba:h-4" />
-                        </Button>
+                        {getEntityTypeFromTab(currentTab) && (
+                          <AppAction
+                            variant="custom"
+                            mode="button"
+                            buttonSize="sm"
+                            buttonVariant="ghost"
+                            shareContext={{
+                              entityType: getEntityTypeFromTab(currentTab)!,
+                              entityId: article.id || '',
+                              entityName: article.title || '',
+                              entityUrl: buildContentRecordUrl(article.id || '', currentTab)
+                            }}
+                            accessToken={accessToken}
+                            className="gba:ml-auto gba:p-1 gba:h-auto"
+                            onClick={e => e.stopPropagation()}
+                            data-testid={`carousel-share-${article.id}`}
+                          >
+                            <Share2 className="gba:w-4 gba:h-4" />
+                          </AppAction>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -278,18 +277,6 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
           ))}
         </div>
       </div>
-      {entityType && selectedArticle && userInfo?.id && (
-        <ShareDialog
-          open={shareDialogOpen}
-          onOpenChange={setShareDialogOpen}
-          accessToken={accessToken}
-          currentUserId={userInfo.id}
-          entityType={entityType}
-          entityId={selectedArticle.id || ''}
-          entityName={selectedArticle.title || ''}
-          entityDisplayUrl={entityDisplayUrl}
-        />
-      )}
     </div>
   )
 }

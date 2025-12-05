@@ -7,7 +7,7 @@ import { useUserContentReactions } from '@/common/data/content/hooks/useUserCont
 import { VoteButtons, type VoteState, type TranslatedTexts } from '@/common/components/content'
 import { AcceptAnswerButton } from '@/common/components/content/AcceptAnswerButton'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
-import { ShareDialog } from '@/components/share-dialog'
+import { AppAction } from '@/components/app-action'
 import { getEntityTypeFromContentGroup, buildContentRecordUrl } from '@/business-apps/core/content/utils/shareUtils'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
@@ -43,7 +43,6 @@ const QuestionView: React.FC<QuestionViewProps> = ({
   onTranslateComments
 }) => {
   const { t } = useTranslation(translations)
-  const [shareDialogOpen, setShareDialogOpen] = useState(false)
 
   // Use translated texts if available, otherwise use original
   const displayTitle = translatedTexts?.title || item.title
@@ -416,15 +415,25 @@ const QuestionView: React.FC<QuestionViewProps> = ({
 
                 {/* Share Button only */}
                 <div className="gba:flex gba:flex-row gba:items-center gba:ml-auto">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShareDialogOpen(true)}
-                    className="gba:p-2"
-                    data-testid="question-share-button"
-                  >
-                    <Share2 className="gba:w-4 gba:h-4" />
-                  </Button>
+                  {entityType && (
+                    <AppAction
+                      variant="custom"
+                      mode="button"
+                      buttonSize="sm"
+                      buttonVariant="ghost"
+                      shareContext={{
+                        entityType,
+                        entityId: item.id || '',
+                        entityName: item.title || '',
+                        entityUrl: entityDisplayUrl
+                      }}
+                      accessToken={accessToken}
+                      className="gba:p-2"
+                      data-testid="question-share-button"
+                    >
+                      <Share2 className="gba:w-4 gba:h-4" />
+                    </AppAction>
+                  )}
                 </div>
               </div>
             </div>
@@ -757,18 +766,6 @@ const QuestionView: React.FC<QuestionViewProps> = ({
             )
           })}
       </div>
-      {entityType && userId && (
-        <ShareDialog
-          open={shareDialogOpen}
-          onOpenChange={setShareDialogOpen}
-          accessToken={accessToken || ''}
-          currentUserId={userId || ''}
-          entityType={entityType}
-          entityId={item.id || ''}
-          entityName={item.title || ''}
-          entityDisplayUrl={entityDisplayUrl}
-        />
-      )}
     </div>
   )
 }

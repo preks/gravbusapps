@@ -32,13 +32,8 @@ export interface AppActionFormProps {
   // Optional overrides for test ids on action buttons
   submitButtonTestId?: string
   cancelButtonTestId?: string
-  /**
-   * @deprecated This prop is deprecated and should not be used.
-   */
+  // Support for custom form layouts (like wizards)
   customFormLayout?: boolean
-  /**
-   * @deprecated This prop is deprecated and should not be used.
-   */
   customActions?: React.ReactNode
   // Support for disabling form submission when using WizardForm or other custom handlers
   disableFormSubmission?: boolean

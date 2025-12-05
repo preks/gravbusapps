@@ -1,9 +1,8 @@
-import React, { useMemo, useState } from 'react'
-import { Button } from '@newwork/nw-design-system'
+import React, { useMemo } from 'react'
 import { Share2 } from 'lucide-react'
 import { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
 import { ReactionPicker } from '@/common/components/content'
-import { ShareDialog } from '@/components/share-dialog'
+import { AppAction } from '@/components/app-action'
 import { getEntityTypeFromContentGroup, buildContentRecordUrl } from '@/business-apps/core/content/utils/shareUtils'
 import { buildReactionSummaryFromCounts } from '@/common/data/content/utils/reactionUtils'
 import { EmployeeHoverCard } from '@/common/components/employee'
@@ -27,18 +26,12 @@ const ContentInfoSection: React.FC<ContentInfoSectionProps> = ({
   allowedReactions,
   reactionCatalogMap
 }) => {
-  const [shareDialogOpen, setShareDialogOpen] = useState(false)
-
   // Build reaction summary from contentEntryReactionCounts
   const reactionSummary = buildReactionSummaryFromCounts(item, userId)
 
   const formattedDate = useMemo(() => {
     return item.createdAt ? dayjs(item.createdAt).format('MMM DD, YYYY') : ''
   }, [item.createdAt])
-
-  const handleShare = () => {
-    setShareDialogOpen(true)
-  }
 
   const entityType = getEntityTypeFromContentGroup(item.contentGroupRef)
   const entityDisplayUrl = buildContentRecordUrl(item.id)
@@ -109,22 +102,26 @@ const ContentInfoSection: React.FC<ContentInfoSectionProps> = ({
           />
         )}
 
-        <Button variant="ghost" size="sm" onClick={handleShare} className="gba:p-2" data-testid="content-share-button">
-          <Share2 className="gba:w-4 gba:h-4" />
-        </Button>
+        {entityType && (
+          <AppAction
+            variant="custom"
+            mode="button"
+            buttonSize="sm"
+            buttonVariant="ghost"
+            shareContext={{
+              entityType,
+              entityId: item.id,
+              entityName: item.title || '',
+              entityUrl: entityDisplayUrl
+            }}
+            accessToken={accessToken}
+            className="gba:p-2"
+            data-testid="content-share-button"
+          >
+            <Share2 className="gba:w-4 gba:h-4" />
+          </AppAction>
+        )}
       </div>
-      {entityType && userId && (
-        <ShareDialog
-          open={shareDialogOpen}
-          onOpenChange={setShareDialogOpen}
-          accessToken={accessToken}
-          currentUserId={userId}
-          entityType={entityType}
-          entityId={item.id}
-          entityName={item.title || ''}
-          entityDisplayUrl={entityDisplayUrl}
-        />
-      )}
     </div>
   )
 }

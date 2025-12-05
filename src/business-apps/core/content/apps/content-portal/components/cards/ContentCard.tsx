@@ -1,12 +1,12 @@
-import React, { useState } from 'react'
-import { useTranslation, Badge, Button } from '@newwork/nw-design-system'
+import React from 'react'
+import { useTranslation, Badge } from '@newwork/nw-design-system'
 import { MessageCircle, Share2 } from 'lucide-react'
 import type { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
 import { calculateReadingTime } from '../../utils/contentUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { ReactionPicker } from '@/common/components/content'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { ShareDialog } from '@/components/share-dialog'
+import { AppAction } from '@/components/app-action'
 import { getEntityTypeFromVariant, buildContentRecordUrl } from '@/business-apps/core/content/utils/shareUtils'
 import { buildReactionSummaryFromCounts } from '@/common/data/content/utils/reactionUtils'
 import { EmployeeHoverCard } from '@/common/components/employee'
@@ -47,7 +47,6 @@ const ContentCard: React.FC<ContentCardProps> = ({
   translatedPreview
 }) => {
   const { t } = useTranslation(translations)
-  const [shareDialogOpen, setShareDialogOpen] = useState(false)
   const formattedDate = item?.createdAt ? dayjs(item.createdAt).format('MMM DD, YYYY') : ''
 
   // Use translated texts if available, otherwise use original
@@ -68,11 +67,6 @@ const ContentCard: React.FC<ContentCardProps> = ({
       })
       navigateTo(url)
     }
-  }
-
-  const handleShare = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    setShareDialogOpen(true)
   }
 
   const entityType = getEntityTypeFromVariant(variant)
@@ -195,30 +189,29 @@ const ContentCard: React.FC<ContentCardProps> = ({
                 <span>{commentCount}</span>
               </div>
             )}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="gba:ml-auto gba:p-1 gba:h-auto"
-              onClick={handleShare}
-              data-testid={`content-card-share-${item.id}`}
-            >
-              <Share2 className="gba:w-4 gba:h-4" />
-            </Button>
+            {entityType && (
+              <AppAction
+                variant="custom"
+                mode="button"
+                buttonSize="sm"
+                buttonVariant="ghost"
+                shareContext={{
+                  entityType,
+                  entityId: item.id || '',
+                  entityName: item.title || '',
+                  entityUrl: entityDisplayUrl
+                }}
+                accessToken={accessToken}
+                className="gba:ml-auto gba:p-1 gba:h-auto"
+                onClick={e => e.stopPropagation()}
+                data-testid={`content-card-share-${item.id}`}
+              >
+                <Share2 className="gba:w-4 gba:h-4" />
+              </AppAction>
+            )}
           </div>
         </div>
       </div>
-      {entityType && (
-        <ShareDialog
-          open={shareDialogOpen}
-          onOpenChange={setShareDialogOpen}
-          accessToken={accessToken}
-          currentUserId={userInfo?.id || ''}
-          entityType={entityType}
-          entityId={item.id || ''}
-          entityName={item.title || ''}
-          entityDisplayUrl={entityDisplayUrl}
-        />
-      )}
     </div>
   )
 }

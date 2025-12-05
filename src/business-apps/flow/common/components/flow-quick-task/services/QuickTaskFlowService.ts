@@ -16,7 +16,7 @@ export interface QuickTaskFlowData {
   dueDate?: string // ISO date string
   // Additional metadata
   priority?: 'low' | 'medium' | 'high'
-  // Entity reference fields for sharing content
+  // Entity reference (to be added to links)
   entityType?: string
   entityId?: string
   entityName?: string
@@ -113,20 +113,8 @@ export class QuickTaskFlowService {
     }
 
     // Tag for blink app filtering
-    const tags: Record<string, any> = {
+    const tags = {
       app: 'quick-task'
-    }
-
-    // Add entity reference to tags for outbox display
-    if (data.entityType && data.entityId) {
-      tags.entityType = data.entityType
-      tags.entityId = data.entityId
-      if (data.entityName) {
-        tags.entityName = data.entityName
-      }
-      if (data.entityDisplayUrl) {
-        tags.entityDisplayUrl = data.entityDisplayUrl
-      }
     }
 
     const template: FlowTemplate = {
