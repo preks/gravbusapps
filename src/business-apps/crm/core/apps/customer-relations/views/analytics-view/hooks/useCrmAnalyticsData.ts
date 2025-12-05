@@ -1,20 +1,15 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { CrmAnalyticsData, OverviewAnalytics, AccountsAnalytics } from '../types/analyticsTypes'
-import {
-  GET_OVERVIEW_ONLY_ANALYTICS,
-  GET_ACCOUNTS_ANALYTICS,
-  GET_OPPORTUNITIES_ANALYTICS
-} from '../queries/analyticsQueries'
+import { CrmAnalyticsData, OverviewAnalytics } from '../types/analyticsTypes'
+import { GET_OVERVIEW_ONLY_ANALYTICS } from '../queries/analyticsQueries'
 
 type AnalyticsTab = 'overview' | 'leads' | 'accounts' | 'opportunities' | 'contacts'
 
 export const useCrmAnalyticsData = (
   context: BusinessAppContextProps,
   activeTab: AnalyticsTab,
-  kpiCurrency?: string,
-  accountsCurrency?: string
+  kpiCurrency?: string
 ) => {
   const [data, setData] = useState<CrmAnalyticsData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -41,8 +36,8 @@ export const useCrmAnalyticsData = (
         return
       }
 
-      // Clear cache when currencies change
-      const currencyKey = `${kpiCurrency}-${accountsCurrency}`
+      // Clear cache when currency changes (for Overview tab)
+      const currencyKey = kpiCurrency || 'default'
       if (lastCurrencyKey.current && lastCurrencyKey.current !== currencyKey) {
         tabDataCache.current = {}
         fetchedTabs.current.clear()
@@ -63,6 +58,11 @@ export const useCrmAnalyticsData = (
         const tabData: Partial<CrmAnalyticsData> = {}
 
         // Fetch only the data for the active tab
+        // Note: Only Overview tab uses this hook now. Other tabs use dedicated hooks:
+        // - Leads: useLeadsStaticData, useLeadsOverTime
+        // - Accounts: useAccountsStaticData, useAccountsOverTime
+        // - Opportunities: useOpportunitiesStaticData, useOpportunitiesOverTime, etc.
+        // - Contacts: useContactsStaticData, useContactsOverTime
         switch (activeTab) {
           case 'overview': {
             const overviewResponse = await graphqlClient.request(GET_OVERVIEW_ONLY_ANALYTICS(kpiCurrency))
@@ -72,26 +72,6 @@ export const useCrmAnalyticsData = (
             tabData.overviewGeographicData = geographicData
             break
           }
-
-          case 'leads': {
-            // No longer needed - all leads data now comes from useLeadsStaticData hook
-            break
-          }
-
-          case 'accounts': {
-            const [accountsResponse, opportunitiesResponse] = await Promise.all([
-              graphqlClient.request(GET_ACCOUNTS_ANALYTICS, {}),
-              graphqlClient.request(GET_OPPORTUNITIES_ANALYTICS(accountsCurrency || kpiCurrency))
-            ])
-            tabData.accounts = transformAccountsData(accountsResponse, opportunitiesResponse)
-            break
-          }
-
-          // Opportunities tab now uses useOpportunitiesStaticData hook directly in AnalyticsView.tsx
-          // No need to fetch via useCrmAnalyticsData
-
-          // Contacts tab uses useContactsOverTime hook directly in AnalyticsView.tsx
-          // No need to fetch via useCrmAnalyticsData
         }
 
         // Cache the fetched tab data
@@ -109,7 +89,7 @@ export const useCrmAnalyticsData = (
     }
 
     fetchTabData()
-  }, [activeTab, context.accessToken, graphqlClient, kpiCurrency, accountsCurrency])
+  }, [activeTab, context.accessToken, graphqlClient, kpiCurrency])
 
   const refetch = useCallback(() => {
     // Clear cache and force refetch current tab
@@ -256,244 +236,29 @@ const transformOverviewOnlyData = (
   return result
 }
 
-const transformAccountsData = (data: any, opportunitiesData: any): AccountsAnalytics => {
-  const accounts = data.Account || []
-  // Use OpportunityForAccounts for accounts tab (accounts currency filtered)
-  const opportunities = opportunitiesData.OpportunityForAccounts || []
-  const totalAccounts = data.AccountAggregate?.aggregate?.count || 0
-
-  // Group by industry - show top 5 and aggregate rest
-  const industryGroups = groupByField(accounts, 'industry', 'value')
-  const sortedIndustryGroups = industryGroups
-    .map(group => ({
-      industry: group.key || 'Unknown',
-      count: group.count,
-      percentage: totalAccounts > 0 ? Math.round((group.count / totalAccounts) * 100) : 0
-    }))
-    .sort((a, b) => b.count - a.count)
-
-  const top5Industries = sortedIndustryGroups.slice(0, 5)
-  const restIndustries = sortedIndustryGroups.slice(5)
-
-  const accountsByIndustry = [...top5Industries]
-
-  // Add "Rest" category if there are more than 5 industries
-  if (restIndustries.length > 0) {
-    const restCount = restIndustries.reduce((sum, group) => sum + group.count, 0)
-    const restPercentage = totalAccounts > 0 ? Math.round((restCount / totalAccounts) * 100) : 0
-    accountsByIndustry.push({
-      industry: 'Rest',
-      count: restCount,
-      percentage: restPercentage
-    })
-  }
-
-  // Group by size (number of employees)
-  const accountsBySize = groupAccountsBySize(accounts)
-
-  // Create account lifecycle time series data (full year like leads)
-  const accountsOverTime = createAccountLifecycleTimeSeriesData(accounts)
-
-  // Calculate top accounts by revenue (won opportunities only)
-  const accountRevenueMap = new Map()
-
-  // Group opportunities by accountId and calculate revenue from won opportunities
-  opportunities.forEach((opp: any) => {
-    const accountId = opp.accountId || opp.account?.id
-    if (accountId) {
-      if (!accountRevenueMap.has(accountId)) {
-        accountRevenueMap.set(accountId, {
-          opportunities: [],
-          totalValue: 0,
-          revenue: 0,
-          wonOpportunities: 0
-        })
-      }
-      const accountData = accountRevenueMap.get(accountId)
-      accountData.opportunities.push(opp)
-      accountData.totalValue += opp.estimatedAmount || 0
-
-      // Calculate revenue from won opportunities only
-      if (opp.opportunityStatus?.code === 'WON' || opp.opportunityStatus?.value?.toLowerCase().includes('won')) {
-        accountData.revenue += opp.estimatedAmount || 0
-        accountData.wonOpportunities += 1
-      }
-    }
-  })
-
-  // Create top accounts list ranked by revenue
-  const topAccounts = accounts
-    .map((acc: any) => {
-      const oppData = accountRevenueMap.get(acc.id) || {
-        opportunities: [],
-        totalValue: 0,
-        revenue: 0,
-        wonOpportunities: 0
-      }
-      return {
-        id: acc.id,
-        name: acc.name,
-        industry: acc.industry?.value || 'Unknown',
-        opportunityCount: oppData.opportunities.length,
-        totalValue: oppData.revenue, // Use revenue instead of total estimated amount
-        revenue: oppData.revenue,
-        wonOpportunities: oppData.wonOpportunities
-      }
-    })
-    .filter((acc: any) => acc.revenue > 0) // Only accounts with won opportunities (revenue > 0)
-    .sort((a: any, b: any) => b.revenue - a.revenue)
-    .slice(0, 10)
-
-  const accountsWithOpportunities = data.accountWithOpportunities.aggregate.count || 0
-  const totalOpportunities = opportunities.length
-
-  return {
-    totalAccounts,
-    accountsByIndustry,
-    accountsBySize,
-    accountsOverTime,
-    topAccounts,
-    accountsWithOpportunities,
-    avgOpportunitiesPerAccount:
-      accountsWithOpportunities > 0 ? Math.round((totalOpportunities / accountsWithOpportunities) * 100) / 100 : 0
-  }
-}
-
+// transformAccountsData removed - Accounts tab now uses useAccountsStaticData and useAccountsOverTime hooks directly
 // transformOpportunitiesData removed - Opportunities tab now uses useOpportunitiesStaticData hook directly
-
 // transformContactsData removed - Contacts tab now uses useContactsOverTime hook directly
 
-// Helper functions
-const groupByField = (items: any[], field: string, subField?: string) => {
-  const groups = items.reduce((acc, item) => {
-    const value = subField ? item[field]?.[subField] : item[field]
-    const key = value || 'Unknown'
-    acc[key] = (acc[key] || 0) + 1
-    return acc
-  }, {})
+// All account-related helper functions removed - now handled in useAccountsStaticData hook:
+// - groupByField
+// - groupAccountsBySize
+// - createAccountLifecycleTimeSeriesData
 
-  return Object.entries(groups).map(([key, count]) => ({
-    key,
-    count: count as number
-  }))
-}
+// All lead-related helper functions removed - now handled in useLeadsStaticData hook:
+// - createLeadLifecycleTimeSeriesData
+// - extractTopLeadOwners
 
-// groupByFieldWithValue removed - no longer used after removing transformOpportunitiesData
+// All opportunity-related helper functions removed - now handled in useOpportunitiesStaticData hook:
+// - groupByFieldWithValue
+// - createTimeSeriesData
+// - createTimeSeriesDataWithValue
+// - calculateConversionRate
+// - calculateWinRate
+// - calculateWinRateLastMonth
+// - calculateAvgDealSize
+// - calculateSalesCycleLength
+// - calculatePipelineVelocity
 
-const groupAccountsBySize = (accounts: any[]) => {
-  const sizeRanges = [
-    { label: '1-10', min: 1, max: 10 },
-    { label: '11-50', min: 11, max: 50 },
-    { label: '51-200', min: 51, max: 200 },
-    { label: '201-1000', min: 201, max: 1000 },
-    { label: '1000+', min: 1001, max: Infinity }
-  ]
-
-  return sizeRanges.map(range => {
-    const count = accounts.filter(acc => {
-      const empCount = parseInt(acc.numberOfEmployees?.value || '0')
-      return empCount >= range.min && empCount <= range.max
-    }).length
-
-    return {
-      sizeRange: range.label,
-      count,
-      percentage: accounts.length > 0 ? Math.round((count / accounts.length) * 100) : 0
-    }
-  })
-}
-
-// createTimeSeriesData removed - no longer needed
-
-const createAccountLifecycleTimeSeriesData = (accounts: any[]) => {
-  // Always generate daily data for the past year (same as leads)
-  const endDate = new Date()
-  const startDate = new Date()
-  startDate.setFullYear(endDate.getFullYear() - 1) // Always go back 1 year for daily data
-
-  const periodMap = new Map<
-    string,
-    {
-      accountsCreated: number
-      accountsWithOpportunities: number
-      accountsActive: number
-      count: number
-    }
-  >()
-
-  // Generate daily periods for the entire year
-  const generateDailyPeriods = () => {
-    const current = new Date(startDate)
-
-    while (current <= endDate) {
-      const periodKey = current.toISOString().split('T')[0]
-      periodMap.set(periodKey, {
-        accountsCreated: 0,
-        accountsWithOpportunities: 0,
-        accountsActive: 0,
-        count: 0
-      })
-      current.setDate(current.getDate() + 1)
-    }
-  }
-
-  generateDailyPeriods()
-
-  // Helper function to get period key from date (always daily now)
-  const getPeriodKey = (dateStr: string): string => {
-    const date = new Date(dateStr)
-    return date.toISOString().split('T')[0]
-  }
-
-  // Process accounts data
-  accounts.forEach((account: any) => {
-    const accountDate = new Date(account.createdAt)
-
-    // Only process accounts within our date range
-    if (accountDate >= startDate && accountDate <= endDate) {
-      // Track accounts created
-      const createdPeriodKey = getPeriodKey(account.createdAt)
-      const createdPeriod = periodMap.get(createdPeriodKey)
-      if (createdPeriod) {
-        createdPeriod.accountsCreated += 1
-        createdPeriod.count += 1 // For backward compatibility
-
-        // Simulate accounts with opportunities and active accounts
-        // In real implementation, this would be based on actual relationship data
-        createdPeriod.accountsWithOpportunities += Math.random() > 0.3 ? 1 : 0 // ~70% chance
-        createdPeriod.accountsActive += Math.random() > 0.15 ? 1 : 0 // ~85% chance
-      }
-    }
-  })
-
-  // Return sorted periods
-  return Array.from(periodMap.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([period, data]) => ({
-      date: period,
-      count: data.count,
-      accountsCreated: data.accountsCreated,
-      accountsWithOpportunities: data.accountsWithOpportunities,
-      accountsActive: data.accountsActive
-    }))
-}
-
-// createLeadLifecycleTimeSeriesData removed - now using separate useLeadsOverTime hook with GraphQL aggregates
-
-// extractTopLeadOwners removed - now handled in useLeadsStaticData hook
-
-// extractTopContactOwners removed - no longer needed
-
-// createTimeSeriesDataWithValue removed - no longer used after removing transformOpportunitiesData
-
-// calculateConversionRate removed - no longer used after removing transformOpportunitiesData
-
-// calculateWinRate removed - no longer used after removing transformOpportunitiesData
-
-// calculateWinRateLastMonth removed - no longer used after removing transformOpportunitiesData
-
-// calculateAvgDealSize removed - no longer used after removing transformOpportunitiesData
-
-// calculateSalesCycleLength removed - no longer used after removing transformOpportunitiesData
-
-// calculatePipelineVelocity removed - no longer used after removing transformOpportunitiesData
+// All contact-related helper functions removed:
+// - extractTopContactOwners

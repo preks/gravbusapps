@@ -112,9 +112,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
   // Data hooks - Pass active tab for lazy loading
   const { data, isLoading, error, refetch } = useCrmAnalyticsData(
     context,
-    activeAnalyticsTab, // Only fetch data for active tab
-    kpiCurrency,
-    accountsCurrency
+    activeAnalyticsTab, // Only fetch data for active tab (Overview only)
+    kpiCurrency
   )
 
   // Only fetch data for active tab - conditional data fetching
