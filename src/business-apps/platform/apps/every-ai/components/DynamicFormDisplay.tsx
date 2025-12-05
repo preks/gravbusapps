@@ -5,7 +5,6 @@ import { useFormSubmission } from './FormSubmissionContext'
 import { useVoiceFormContext } from '../context/VoiceFormContext'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { FormHeader, FormActions, FormStatusMessages, SchemaField, SecondaryCollapsible } from './forms'
-import { extractOperation } from './forms/utils/formSchemaUtils'
 
 interface DynamicFormDisplayProps {
   data: FlowProposalOutput
@@ -527,9 +526,9 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
     }
   }, [conversation, currentFormState, formKey, data.uuid, getFormState, setFormState])
 
-  // Detect operation type from root level
-  const operation = extractOperation(data.flow_name || '')
-  const isDeleteOperation = operation === 'Delete'
+  // Detect operation type from root level operation field (defaults to 'create' if not set)
+  const operation = data.operation || 'create'
+  const isDeleteOperation = operation === 'delete'
 
   // Helper function to build entity URL based on entity type
   const buildEntityUrl = useCallback((entityType: string, entityId: string): string | null => {
@@ -793,7 +792,7 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
       className="gba:w-full gba:max-w-md gba:border-2 gba:shadow-xl gba:overflow-hidden"
       data-testid="dynamic-form-display"
     >
-      <FormHeader flowName={data.flow_name || ''} isDeleteOperation={isDeleteOperation} />
+      <FormHeader flowName={data.flow_name || ''} isDeleteOperation={isDeleteOperation} operation={operation} />
       <CardContent className="gba:p-4">
         <form onSubmit={handleSubmit} className={isCompleted ? 'gba:opacity-60 gba:pointer-events-none' : ''}>
           {isDeleteOperation && deleteSummary ? (

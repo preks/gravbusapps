@@ -54,9 +54,9 @@ export const useEmployeeCount = (accessToken: string) => {
         setError(null)
       }
 
-      // Define year ends for as-of-year-end headcount
+      // Use YTD for current year (today), and Dec 31 for last year
       const now = new Date()
-      const thisYearEnd = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999)
+      const thisYearEnd = now
       const lastYearEnd = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999)
 
       const combinedResponse = await graphQLClient.request<EmployeeCountResponse>(employeeCountQuery, {

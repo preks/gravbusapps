@@ -48,7 +48,6 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, a
     error,
     clockIn,
     clockOut,
-    todaysWorkedMinutes,
     todaysPlannedMinutes,
     todayRecordedMinutes,
     isNearHome,
@@ -304,7 +303,7 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, a
                     <span>
                       {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.work_hours_today', 'Work Hours Today')}
                     </span>
-                    <span className="gba:font-semibold">{formatHm(todaysWorkedMinutes)}</span>
+                    <span className="gba:font-semibold">{formatHm(todayRecordedMinutes)}</span>
                   </div>
                 </div>
                 <div
