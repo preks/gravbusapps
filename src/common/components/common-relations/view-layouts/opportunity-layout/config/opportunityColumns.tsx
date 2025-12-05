@@ -13,7 +13,6 @@ export interface GenericOpportunityForColumns {
   name: string
   estimatedAmount?: number | null
   currency?: { code?: string } | null
-  winningChance?: number | null
   opportunityPipeline?: { id: string; code?: string; value?: string } | null
   opportunityPipelineLabel?: string
   salesPipeline?: { id: string; code?: string; value?: string } | null
@@ -471,7 +470,7 @@ export function createOpportunityColumns<T extends GenericOpportunityForColumns>
  * Views should pass their specific descriptors (e.g., CUSTOMER_OPPORTUNITY_DESCRIPTORS or INVESTMENT_OPPORTUNITY_DESCRIPTORS)
  * which extend createOpportunityDescriptors(OpportunityFields) with domain-specific overrides
  */
-const BASE_OPPORTUNITY_COLUMN_LABELS: Record<string, string> = {
+const OPPORTUNITY_COLUMN_LABELS: Record<string, string> = {
   opportunity: 'Opportunity',
   amount: 'Amount',
   opportunityPipeline: 'Pipeline',
@@ -492,15 +491,11 @@ const BASE_OPPORTUNITY_COLUMN_LABELS: Record<string, string> = {
  * @returns Array of sortable column definitions
  */
 export const createOpportunitySortableColumns = (viewDescriptors?: Descriptor[], availableColumnIds?: string[]) => {
-  const columnLabels = {
-    ...BASE_OPPORTUNITY_COLUMN_LABELS
-  }
-
   return deriveSortableColumns(
     viewDescriptors
       ? [createOpportunityDescriptors(OpportunityFields), viewDescriptors]
       : createOpportunityDescriptors(OpportunityFields),
-    columnLabels,
+    OPPORTUNITY_COLUMN_LABELS,
     availableColumnIds
   )
 }

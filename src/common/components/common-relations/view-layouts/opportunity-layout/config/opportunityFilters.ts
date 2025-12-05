@@ -129,28 +129,6 @@ export const opportunityFilterConfig: FilterConfiguration = {
       ]
     },
     {
-      id: 'winning-chance-group',
-      label: 'Winning Chance',
-      collapsible: true,
-      defaultExpanded: false,
-      filters: [
-        {
-          id: 'winningChanceRanges',
-          field: 'winningChanceRanges',
-          label: 'Winning Chance (%)',
-          type: 'number',
-          config: {
-            mode: 'range',
-            min: 0,
-            max: 100,
-            step: 5,
-            placeholderMin: 'Min %',
-            placeholderMax: 'Max %'
-          }
-        }
-      ]
-    },
-    {
       id: 'date-group',
       label: 'Close Date',
       collapsible: true,

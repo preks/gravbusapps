@@ -1,4 +1,3 @@
-import type { ColumnDef } from '@tanstack/react-table'
 import type { OpportunityViewConfig } from '../OpportunityLayout'
 import type { OpportunityStatisticsData } from '../components/OpportunityStatisticsLayout'
 import type { OpportunityBoardFilters } from '../config/opportunityBoardTypes'
@@ -63,9 +62,6 @@ export interface OpportunityConfigBuilderOptions<TOpportunity, TQueryVariables> 
 
   rowActionsContextArray: FlowContextName[]
   buildRowActionsExternalContextData: (row: { original: TOpportunity }) => Record<string, string>
-
-  // Additional columns specific to this context (CRM or IRM)
-  additionalColumns?: ColumnDef<TOpportunity>[]
 }
 
 export const createOpportunityConfig = <TOpportunity extends { id: string }, TQueryVariables>(
@@ -78,19 +74,9 @@ export const createOpportunityConfig = <TOpportunity extends { id: string }, TQu
 
     filterDataHook: options.filterDataHook,
 
-    createColumns: (buildAccountUrl: (id: string) => string) => {
-      const baseColumns = createOpportunityColumns(buildAccountUrl) as ColumnDef<TOpportunity>[]
-      // Merge additional columns if provided
-      if (options.additionalColumns?.length) {
-        return [...baseColumns, ...options.additionalColumns]
-      }
-      return baseColumns
-    },
+    createColumns: createOpportunityColumns as any,
     createSortableColumns: (availableColumnIds?: string[]) =>
       createOpportunitySortableColumns(options.viewDescriptors, availableColumnIds),
-
-    // Pass through additional columns for the view to use
-    additionalColumns: options.additionalColumns,
 
     baseFilterConfig: opportunityFilterConfig,
 
@@ -120,22 +106,6 @@ export const createOpportunityConfig = <TOpportunity extends { id: string }, TQu
         }
       }
 
-      // Handle winning chance filter (number range)
-      if (
-        params.selectedFilters.winningChanceRanges &&
-        typeof params.selectedFilters.winningChanceRanges === 'object'
-      ) {
-        const { min, max } = params.selectedFilters.winningChanceRanges
-        if ((min !== null && min !== undefined) || (max !== null && max !== undefined)) {
-          vars.winningChanceRanges = [
-            {
-              ...(min !== null && min !== undefined && { min }),
-              ...(max !== null && max !== undefined && { max })
-            }
-          ]
-        }
-      }
-
       // Normalize date range filters
       const dateRangeKeys = ['createdAtRange', 'updatedAtRange', 'closeDateRange']
       for (const rangeKey of dateRangeKeys) {
@@ -151,7 +121,6 @@ export const createOpportunityConfig = <TOpportunity extends { id: string }, TQu
       for (const key of Object.keys(params.selectedFilters)) {
         if (
           key !== 'amount' &&
-          key !== 'winningChanceRanges' &&
           !dateRangeKeys.includes(key) &&
           params.selectedFilters[key] !== undefined &&
           params.selectedFilters[key] !== null
@@ -254,9 +223,6 @@ export const createOpportunityConfig = <TOpportunity extends { id: string }, TQu
     processCompletionEvents: ['taskCompletion'],
 
     rowActionsContextArray: options.rowActionsContextArray,
-    buildRowActionsExternalContextData: options.buildRowActionsExternalContextData,
-
-    // Pass through additional columns
-    additionalColumns: options.additionalColumns
+    buildRowActionsExternalContextData: options.buildRowActionsExternalContextData
   }
 }

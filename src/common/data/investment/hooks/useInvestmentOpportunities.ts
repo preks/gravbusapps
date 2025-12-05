@@ -137,17 +137,6 @@ export const useGetInvestmentOpportunities = (context: BusinessAppContextProps) 
         customConditions.push({ _or: orConditions })
       }
 
-      // Custom ranged filters for winningChance
-      if ((variables as any).winningChanceRanges?.length) {
-        const orConditions = ((variables as any).winningChanceRanges as any[]).map((range: any) => {
-          const chanceCondition: any = {}
-          if (range.min !== undefined) chanceCondition._gte = range.min
-          if (range.max !== undefined) chanceCondition._lte = range.max
-          return { winningChance: chanceCondition }
-        })
-        customConditions.push({ _or: orConditions })
-      }
-
       if (variables.forecastedProfitBetween) {
         customConditions.push({
           forecastedProfitAmount: {
@@ -305,17 +294,6 @@ export function useInvestmentOpportunitiesList(
           customConditions.push({ _or: orConditions })
         }
 
-        // Custom ranged filters for winningChance
-        if ((vars as any).winningChanceRanges?.length) {
-          const orConditions = ((vars as any).winningChanceRanges as any[]).map((range: any) => {
-            const chanceCondition: any = {}
-            if (range.min !== undefined) chanceCondition._gte = range.min
-            if (range.max !== undefined) chanceCondition._lte = range.max
-            return { winningChance: chanceCondition }
-          })
-          customConditions.push({ _or: orConditions })
-        }
-
         if (vars.forecastedProfitBetween) {
           customConditions.push({
             forecastedProfitAmount: {
@@ -400,17 +378,6 @@ export const useGetInvestmentOpportunityAggregates = (context: BusinessAppContex
             conditions.push({ estimatedAmount: { _isNull: true } })
           }
           return conditions
-        })
-        customConditions.push({ _or: orConditions })
-      }
-
-      // Custom ranged filters for winningChance
-      if ((variables as any).winningChanceRanges?.length) {
-        const orConditions = ((variables as any).winningChanceRanges as any[]).map((range: any) => {
-          const chanceCondition: any = {}
-          if (range.min !== undefined) chanceCondition._gte = range.min
-          if (range.max !== undefined) chanceCondition._lte = range.max
-          return { winningChance: chanceCondition }
         })
         customConditions.push({ _or: orConditions })
       }

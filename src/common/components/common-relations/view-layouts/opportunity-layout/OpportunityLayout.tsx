@@ -142,9 +142,6 @@ export interface OpportunityViewConfig<TOpportunity extends { id: string }, TQue
 
   rowActionsContextArray: FlowContextName[]
   buildRowActionsExternalContextData: (row: { original: TOpportunity }) => Record<string, string>
-
-  // Additional columns specific to this context (CRM or IRM)
-  additionalColumns?: ColumnDef<TOpportunity>[]
 }
 
 export type OpportunityTabKey = 'list' | 'board'
@@ -556,17 +553,6 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
       setBoardPipelineId(pipelines[0].id)
     }
   }, [pipelines, boardPipelineId])
-
-  // Add additional columns to visible columns when they're configured
-  useEffect(() => {
-    if (config.additionalColumns?.length) {
-      const additionalColumnIds = config.additionalColumns.map(col => col.id as string)
-      const newColumnIds = additionalColumnIds.filter(id => !visibleColumns.includes(id))
-      if (newColumnIds.length > 0) {
-        setVisibleColumns(prev => [...prev, ...newColumnIds])
-      }
-    }
-  }, [config.additionalColumns])
 
   // Initial parallel load: Load BOTH list and board data for badge counts
   useEffect(() => {
