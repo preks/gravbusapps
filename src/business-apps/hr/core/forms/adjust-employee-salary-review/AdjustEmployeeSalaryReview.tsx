@@ -1,20 +1,19 @@
-import React, { useEffect, useState, useMemo } from 'react'
+import React, { useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { useTranslation } from '@newwork/nw-design-system'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import FormHeader from '../components/FormHeader'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import {
-  GET_EMPLOYEE_NAME,
-  GET_INITIATOR_EMPLOYEE_NAME,
-  SALARY_ADJUST_REASON_CATALOG_QUERY
-} from './AdjustEmployeeSalaryReviewQueries'
-import ReviewRows from '../components/ReviewRows'
-import { buildSalaryComparisonRows, buildAdjustmentDetails } from './buildRows'
-import type { SalaryChangePayload } from './types'
+  buildSalaryComparisonRows,
+  buildAdjustmentDetails,
+  buildNewSalaryDetailRows,
+  buildAssignmentDetails
+} from './buildRows'
+import { useReviewFormData } from './hooks/useReviewFormData'
+import { AdjustModeContent } from './components/AdjustModeContent'
+import { AssignModeContent } from './components/AssignModeContent'
 import translations from '../_i18n'
 
 export const AdjustEmployeeSalaryReview: React.FC<BusinessAppContextProps> = ({
@@ -28,124 +27,38 @@ export const AdjustEmployeeSalaryReview: React.FC<BusinessAppContextProps> = ({
     mode: 'onChange'
   })
 
-  const graphqlClient = useGraphQLClient(accessToken as any)
-  const [employeeName, setEmployeeName] = useState<string>('')
-  const [initiatorName, setInitiatorName] = useState<string>('')
-  const [salaryAdjustReasonEntries, setSalaryAdjustReasonEntries] = useState<
-    Array<{
-      id: string
-      code: string
-      value: string
-      displayOrder: number | null
-      translations: Array<{
-        localeCode: string
-        value: string
-      }>
-      catalog: {
-        identifier: string
-        version: string
-        defaultLocale: string
-      }
-    }>
-  >([])
-  const locale = useMemo(() => getCurrentActiveUserLocale(), [])
+  // Use custom hook for all data fetching
+  const { employeeName, initiatorName, salaryAdjustReasonEntries, locale, payload, reviewMode, employee } =
+    useReviewFormData({
+      accessToken,
+      additionalData,
+      employeeId: userInfo?.employeeDetails?.employeeId
+    })
 
-  // Extract payload data
-  const payload: SalaryChangePayload = (additionalData as any)?.psi_taskPayload || {}
   const newSalaryData = payload?.employeeSalary || {}
-  const oldCompensation = payload?.oldEmployeeSalary || {}
+  const oldCompensation = payload?.oldEmployeeSalary
 
-  // Determine employee ID with fallback priority
-  const employeeIdFromPayload: string | undefined =
-    payload?.employeeId || newSalaryData?.employee || userInfo?.employeeDetails?.employeeId
+  // Check if newSalaryData has meaningful salary values (not just an empty object)
+  const hasNewSalaryData =
+    newSalaryData.employee ||
+    newSalaryData.annualGrossSalary ||
+    newSalaryData.monthlyGrossSalary ||
+    newSalaryData.hourlyGrossSalary
 
-  // Initiator employee ID
-  const initiatorEmployeeId: string | undefined = payload?.initiatorEmployeeId
-
-  // Fetch affected employee name
-  useEffect(() => {
-    const fetchName = async () => {
-      try {
-        if (!accessToken || !employeeIdFromPayload) return
-        const result = await graphqlClient.request<{ employee: { firstName: string; lastName: string } }>(
-          GET_EMPLOYEE_NAME,
-          { employeeId: employeeIdFromPayload }
-        )
-        const emp = result?.employee
-        if (emp) {
-          setEmployeeName(`${emp.firstName || ''} ${emp.lastName || ''}`.trim())
-        }
-      } catch {
-        // ignore
-      }
-    }
-    fetchName()
-  }, [accessToken, employeeIdFromPayload, graphqlClient])
-
-  // Fetch initiator employee name (who created the request)
-  useEffect(() => {
-    const fetchInitiatorName = async () => {
-      try {
-        if (!accessToken || !initiatorEmployeeId) return
-        const result = await graphqlClient.request<{ initiator: { firstName: string; lastName: string } }>(
-          GET_INITIATOR_EMPLOYEE_NAME,
-          { initiatorEmployeeId }
-        )
-        const initiator = result?.initiator
-        if (initiator) {
-          setInitiatorName(`${initiator.firstName || ''} ${initiator.lastName || ''}`.trim())
-        }
-      } catch {
-        // ignore
-      }
-    }
-    fetchInitiatorName()
-  }, [accessToken, initiatorEmployeeId, graphqlClient])
-
-  // Fetch salary adjustment reason catalog
-  useEffect(() => {
-    const fetchCatalog = async () => {
-      try {
-        if (!accessToken) return
-        const result = await graphqlClient.request<{
-          CatalogEntry: Array<{
-            id: string
-            code: string
-            value: string
-            displayOrder: number | null
-            translations: Array<{
-              localeCode: string
-              value: string
-            }>
-            catalog: {
-              identifier: string
-              version: string
-              defaultLocale: string
-            }
-          }>
-        }>(SALARY_ADJUST_REASON_CATALOG_QUERY)
-        setSalaryAdjustReasonEntries(result?.CatalogEntry || [])
-      } catch {
-        // ignore
-      }
-    }
-    fetchCatalog()
-  }, [accessToken, graphqlClient])
-
-  // Build salary comparison rows (only actual salary changes)
+  // ===== ADJUST MODE: Build salary comparison rows (old vs new) =====
   const comparisonRows = useMemo(() => {
-    if (!oldCompensation || !newSalaryData) return []
+    if (reviewMode !== 'adjust' || !oldCompensation || !hasNewSalaryData) return []
     return buildSalaryComparisonRows({
       oldCompensation: oldCompensation as any,
       newSalaryData: newSalaryData as any,
       locale,
       t
     })
-  }, [oldCompensation, newSalaryData, locale, t])
+  }, [reviewMode, oldCompensation, hasNewSalaryData, newSalaryData, locale, t])
 
-  // Build adjustment details (informational data)
+  // ===== ADJUST MODE: Build adjustment details (with increase summary) =====
   const adjustmentDetails = useMemo(() => {
-    if (!oldCompensation || !newSalaryData) return null
+    if (reviewMode !== 'adjust' || !oldCompensation || !hasNewSalaryData) return null
     return buildAdjustmentDetails({
       oldCompensation: oldCompensation as any,
       newSalaryData: newSalaryData as any,
@@ -153,13 +66,39 @@ export const AdjustEmployeeSalaryReview: React.FC<BusinessAppContextProps> = ({
       salaryAdjustReasonEntries,
       t
     })
-  }, [oldCompensation, newSalaryData, locale, salaryAdjustReasonEntries, t])
+  }, [reviewMode, oldCompensation, hasNewSalaryData, newSalaryData, locale, salaryAdjustReasonEntries, t])
 
-  // Build title with employee name
-  const titleText = t('adjust-salary-review-title', {
-    employeeName: employeeName || '',
-    defaultValue: `Employee Salary Adjustment Review for ${employeeName || ''}`
-  })
+  // ===== ASSIGN MODE: Build new salary detail rows (single-column) =====
+  const newSalaryDetailRows = useMemo(() => {
+    if (reviewMode !== 'assign' || !hasNewSalaryData) return []
+    return buildNewSalaryDetailRows({
+      newSalaryData: newSalaryData as any,
+      locale,
+      t
+    })
+  }, [reviewMode, hasNewSalaryData, newSalaryData, locale, t])
+
+  // ===== ASSIGN MODE: Build assignment details (start date, notes) =====
+  const assignmentDetails = useMemo(() => {
+    if (reviewMode !== 'assign' || !hasNewSalaryData) return null
+    return buildAssignmentDetails({
+      newSalaryData: newSalaryData as any
+    })
+  }, [reviewMode, hasNewSalaryData, newSalaryData])
+
+  // Build title with employee name - different for assign vs adjust mode
+  const titleText = useMemo(() => {
+    if (reviewMode === 'assign') {
+      return t('assign-salary-review-title', {
+        employeeName: employeeName || '',
+        defaultValue: `Initial Salary Assignment Review for ${employeeName || ''}`
+      })
+    }
+    return t('adjust-salary-review-title', {
+      employeeName: employeeName || '',
+      defaultValue: `Employee Salary Adjustment Review for ${employeeName || ''}`
+    })
+  }, [reviewMode, employeeName, t])
 
   // Build initiator subtitle
   const initiatorText = initiatorName
@@ -174,7 +113,7 @@ export const AdjustEmployeeSalaryReview: React.FC<BusinessAppContextProps> = ({
       className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-full gba:max-w-[1200px]"
       data-testid="review-employee-salary-change-form-container"
     >
-      <FormHeader title={titleText} flowIconUrl={flowIconUrl} className="gba:px-6" />
+      <FormHeader title={titleText} flowIconUrl={flowIconUrl} employee={employee} />
 
       {/* Initiator subtitle */}
       {initiatorText && (
@@ -187,7 +126,7 @@ export const AdjustEmployeeSalaryReview: React.FC<BusinessAppContextProps> = ({
       )}
 
       <div
-        className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='review-employee-salary-change']]:pt-0! gba:**:data-[testid='review-employee-salary-change-form']:max-w-none!"
+        className="gba:flex gba:flex-col gba:[&>div[data-testid='review-employee-salary-change']]:pt-0! gba:**:data-[testid='review-employee-salary-change-form']:max-w-none!"
         data-testid="review-employee-salary-change-form-content"
       >
         <AppActionForm
@@ -201,75 +140,21 @@ export const AdjustEmployeeSalaryReview: React.FC<BusinessAppContextProps> = ({
           submitButtonTestId="review-employee-salary-change-confirm-button"
           cancelButtonTestId="review-employee-salary-change-cancel-button"
           onSubmit={async () => {
-            return {
-              approval: 'approved'
-            }
+            return { approval: 'approved' }
           }}
           onCancel={async () => {
-            return {
-              approval: 'rejected'
-            }
+            return { approval: 'rejected' }
           }}
           data-testid="review-employee-salary-change"
         >
-          {/* Salary Comparison Section */}
-          <div className="gba:mb-6" data-testid="review-employee-salary-change-comparison-section">
-            <h3 className="gba:text-lg gba:font-semibold gba:mb-4">
-              {t('adjust-salary-review-salary-comparison', { defaultValue: 'Salary Comparison' })}
-            </h3>
-            <ReviewRows
-              rows={comparisonRows}
-              dataTestIdPrefix="review-employee-salary-change-row"
-              oldDataText={t('adjust-salary-review-current-salary', { defaultValue: 'Current Salary' })}
-              currentDataText={t('adjust-salary-review-new-salary', { defaultValue: 'New Salary' })}
-              mode="diff"
-            />
-          </div>
+          {/* ===== ADJUST MODE ===== */}
+          {reviewMode === 'adjust' && (
+            <AdjustModeContent comparisonRows={comparisonRows} adjustmentDetails={adjustmentDetails} t={t} />
+          )}
 
-          {/* Adjustment Details Section */}
-          {adjustmentDetails && (
-            <div className="gba:mb-4 gba:space-y-3" data-testid="adjust-employee-salary-review-details-section">
-              <h3 className="gba:text-lg gba:font-semibold gba:mb-4">
-                {t('adjust-salary-review-adjustment-details', { defaultValue: 'Adjustment Details' })}
-              </h3>
-
-              {/* Increase Summary - Highlighted */}
-              <div
-                className="gba:bg-card gba:text-card-foreground gba:border gba:border-foreground gba:p-3 gba:rounded-md"
-                data-testid="adjust-employee-salary-review-increase-summary"
-              >
-                <div className="gba:text-sm gba:font-medium gba:mb-1">
-                  {t('adjust-salary-review-total-increase', { defaultValue: 'Total Increase' })}
-                </div>
-                <div className="gba:text-lg gba:font-semibold">{adjustmentDetails.increaseSummary}</div>
-              </div>
-
-              {/* Effective Date */}
-              <div data-testid="adjust-employee-salary-review-effective-date">
-                <div className="gba:text-sm gba:text-muted-foreground gba:mb-1">
-                  {t('adjust-salary-review-effective-date', { defaultValue: 'Effective Date' })}
-                </div>
-                <div className="gba:font-medium">{adjustmentDetails.effectiveDate}</div>
-              </div>
-
-              {/* Reason */}
-              <div data-testid="adjust-employee-salary-review-reason">
-                <div className="gba:text-sm gba:text-muted-foreground gba:mb-1">
-                  {t('adjust-salary-review-reason', { defaultValue: 'Reason' })}
-                </div>
-                <div className="gba:font-medium">{adjustmentDetails.reason}</div>
-              </div>
-
-              {/* Notes - Only if present */}
-              {adjustmentDetails.notes && (
-                <div data-testid="adjust-employee-salary-review-notes">
-                  <div className="gba:text-sm gba:text-muted-foreground gba:mb-1">
-                    {t('adjust-salary-review-notes', { defaultValue: 'Notes' })}
-                  </div>
-                  <div className="gba:font-medium gba:whitespace-pre-wrap">{adjustmentDetails.notes}</div>
-                </div>
-              )}
-            </div>
+          {/* ===== ASSIGN MODE ===== */}
+          {reviewMode === 'assign' && (
+            <AssignModeContent newSalaryDetailRows={newSalaryDetailRows} assignmentDetails={assignmentDetails} t={t} />
           )}
         </AppActionForm>
       </div>

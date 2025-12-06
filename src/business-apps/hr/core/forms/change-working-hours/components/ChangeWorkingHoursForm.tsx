@@ -265,6 +265,7 @@ export const ChangeWorkingHoursForm: React.FC = () => {
         <div className="gba:flex-1 gba:flex gba:flex-col gba:justify-between">
           <div>
             <div className="gba:flex gba:items-center gba:mb-6">{renderEmployeeHeader()}</div>
+            <div className="gba:border-t gba:mb-6" />
 
             <div
               className="gba:grid gba:grid-cols-2 gba:sm:grid-cols-3 gba:md:grid-cols-4 gba:lg:grid-cols-7 gba:gap-4"

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
-import { Card, CardContent } from '@newwork/nw-design-system'
+import { EntityCard } from './EntityCard'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { getOperationBadge } from './utils/displayUtils'
 
 interface AbsenceDisplayProps {
   absenceId: string
@@ -66,73 +67,40 @@ export const AbsenceDisplay: React.FC<AbsenceDisplayProps> = ({ absenceId, acces
     }
   }, [absenceId, accessToken, graphqlClient])
 
-  if (isLoading) {
-    return (
-      <Card className="gba:w-full gba:animate-pulse">
-        <CardContent className="gba:p-4">
-          <div className="gba:h-32 gba:bg-muted gba:rounded" />
-        </CardContent>
-      </Card>
-    )
-  }
+  const operationBadge = getOperationBadge(operation)
 
-  if (error) {
-    return (
-      <Card className="gba:w-full">
-        <CardContent className="gba:p-4">
-          <span className="gba:text-destructive gba:text-lg">{error}</span>
-        </CardContent>
-      </Card>
-    )
-  }
-
-  if (!absence) {
-    return null
-  }
+  const icon = (
+    <div className="gba:h-12 gba:w-12 gba:rounded-full gba:bg-info-secondary gba:flex gba:items-center gba:justify-center">
+      <svg className="gba:h-6 gba:w-6 gba:text-info" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+        />
+      </svg>
+    </div>
+  )
 
   return (
-    <Card className="gba:w-full gba:rounded-2xl" data-testid="absence-display">
-      <CardContent className="gba:p-6">
-        <div className="gba:flex gba:items-start gba:justify-between gba:mb-4">
-          <span className="gba:text-lg gba:font-semibold">Absence</span>
-          {operation && (
-            <span
-              className={`gba:text-sm gba:font-medium gba:px-2.5 gba:py-0.5 gba:rounded-xl gba:capitalize ${
-                operation === 'create'
-                  ? 'gba:bg-success-secondary gba:text-success'
-                  : 'gba:bg-muted gba:text-muted-foreground'
-              }`}
-            >
-              {operation}
-            </span>
-          )}
-        </div>
-
-        <div className="gba:space-y-3">
-          <div>
-            <div className="gba:text-muted-foreground gba:text-sm">Employee</div>
-            <div className="gba:text-foreground gba:text-base gba:font-bold">
-              {absence.employee ? `${absence.employee.firstName} ${absence.employee.lastName}` : '-'}
-            </div>
-          </div>
-
-          <div>
-            <div className="gba:text-muted-foreground gba:text-sm">Type of absence</div>
-            <div className="gba:text-foreground gba:text-sm">{absence.reason || '-'}</div>
-          </div>
-
-          <div>
-            <div className="gba:text-muted-foreground gba:text-sm">Start</div>
-            <div className="gba:text-foreground gba:text-sm">{absence.startDate || '-'}</div>
-          </div>
-
-          <div>
-            <div className="gba:text-muted-foreground gba:text-sm">End</div>
-            <div className="gba:text-foreground gba:text-sm">{absence.endDate || '-'}</div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+    <EntityCard
+      title={absence?.employee ? `${absence.employee.firstName} ${absence.employee.lastName}` : 'Absence'}
+      subtitle={absence?.reason || undefined}
+      icon={icon}
+      status={operationBadge?.text}
+      statusVariant={operationBadge?.variant}
+      fields={
+        absence
+          ? [
+              { label: 'Start', value: absence.startDate },
+              { label: 'End', value: absence.endDate }
+            ]
+          : undefined
+      }
+      isLoading={isLoading}
+      error={error || undefined}
+      data-testid="absence-display"
+    />
   )
 }
 

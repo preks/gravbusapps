@@ -30,6 +30,25 @@ adjust-salary-frequency-hourly = Pe oră
 adjust-salary-current-salary = Salariu curent
 adjust-salary-calculation-breakdown = Rezumat ajustare salariu
 
+# Assign Salary Mode (new employee without existing salary)
+assign-salary-title = Atribuire salariu angajat
+assign-salary-type = Tip compensație
+assign-salary-type-required = Tipul compensației este obligatoriu. Vă rugăm să selectați un tip de compensație.
+assign-salary-type-yearly-monthly = Salariu lunar
+assign-salary-type-hourly = Salariu pe oră
+assign-salary-monthly-salary = Salariu brut lunar
+assign-salary-monthly-salary-required = Salariul lunar este obligatoriu. Vă rugăm să introduceți salariul lunar.
+assign-salary-monthly-salary-positive = Salariul lunar trebuie să fie mai mare decât zero.
+assign-salary-hourly-salary = Salariu brut pe oră
+assign-salary-hourly-salary-required = Salariul pe oră este obligatoriu. Vă rugăm să introduceți salariul pe oră.
+assign-salary-hourly-salary-positive = Salariul pe oră trebuie să fie mai mare decât zero.
+assign-salary-currency-required = Moneda este obligatorie. Vă rugăm să selectați o monedă.
+assign-salary-annual-equivalent = Echivalent anual
+assign-salary-expected-monthly-wage = Salariu lunar estimat
+assign-salary-expected-monthly-wage-description = Bazat pe orele de lucru ale angajatului
+assign-salary-start-date = Dată de început
+assign-salary-start-date-required = Data de început este obligatorie. Vă rugăm să selectați o dată de început.
+
 # Adjust Employee Salary Review Form
 adjust-salary-review-title = Revizuire ajustare salariu pentru { $employeeName }
 adjust-salary-review-initiated-by = Inițiat de { $initiatorName }
@@ -46,6 +65,19 @@ adjust-salary-review-reject = Respinge
 adjust-salary-review-annual-gross-salary = Salariu brut anual
 adjust-salary-review-monthly-gross-salary = Salariu brut lunar
 adjust-salary-review-hourly-gross-salary = Salariu brut pe oră
+adjust-salary-review-increase-text = { $percentage }% creștere
+adjust-salary-review-hourly-suffix = /h
+
+# Assign Employee Salary Review Form (new employee without existing salary)
+assign-salary-review-title = Revizuire atribuire inițială salariu pentru { $employeeName }
+assign-salary-review-salary-details = Detalii salariu
+assign-salary-review-assignment-details = Detalii atribuire
+assign-salary-review-annual-salary = Salariu brut anual
+assign-salary-review-monthly-salary = Salariu brut lunar
+assign-salary-review-hourly-salary = Salariu brut pe oră
+assign-salary-review-currency = Monedă
+assign-salary-review-start-date = Dată de început
+assign-salary-review-notes = Note
 
 # Common Actions
 action-select-placeholder = Vă rugăm să selectați

@@ -22,6 +22,7 @@ export interface User {
   lastName?: string
   displayName?: string
   avatarUrl?: string
+  employeeId?: string
   isActive?: boolean
   isOnline?: boolean
   lastSeen?: Date | string

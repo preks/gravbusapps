@@ -63,10 +63,7 @@ export const CatalogSelectField = <T extends FieldValues>({
             onValueChange={v => field.onChange(v || '')}
           >
             <FormControl>
-              <SelectTrigger
-                className="gba:block gba:w-full! gba:min-w-0 gba:max-w-none!"
-                data-testid={`${dataTestIdPrefix}-select`}
-              >
+              <SelectTrigger className="gba:w-full" data-testid={`${dataTestIdPrefix}-select`}>
                 <SelectValue placeholder={placeholder} />
               </SelectTrigger>
             </FormControl>

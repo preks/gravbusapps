@@ -13,7 +13,7 @@ import { Users, FileText, User, CurrencyDollar } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { getContactTypeDisplayValue, getContactFullName } from './utils'
@@ -298,22 +298,31 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
     )
   }, [aiSummaryHook, contactId])
 
+  // Calculate fullName early for use in headerActionButton
+  const fullName = getContactFullName(contactData, null)
+
   const headerActionButton = useMemo(
     () => (
-      <AppActionButton
+      <AppAction
         data-testid="investment-contact-record-action-button"
-        size="icon"
-        contextsArray={[FlowContextName.investmentContactEntity]}
-        externalContextData={{
-          contactId: contactId
+        variant="header"
+        contexts={[
+          {
+            context: FlowContextName.investmentContactEntity,
+            contextData: { contactId }
+          }
+        ]}
+        shareContext={{
+          entityType: 'investment-contact',
+          entityId: contactId,
+          entityName: fullName,
+          entityUrl: `/platform/irm/contact-record?contactId=${contactId}`
         }}
         prefixDataTestId="investment-contact-record-action"
         accessToken={props.accessToken}
-        emptyStateBehavior="hide"
-        deferMainContextRequestsUntilClick={false}
       />
     ),
-    [contactId, props.accessToken]
+    [contactId, fullName, props.accessToken]
   )
 
   // Action props for sections - must be defined before subViewsConfig
@@ -455,8 +464,6 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
       </div>
     )
   }
-
-  const fullName = getContactFullName(contactData, null)
 
   // Create header title with contact type badge
   const contactType = contactData?.type

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { Spinner, Button, RecordLayout, Badge } from '@newwork/nw-design-system'
-import { User, FileText, Star, Lightbulb, Bot } from 'lucide-react'
+import { User, FileText, Star, Lightbulb, Bot, TrendingUp } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
@@ -14,7 +14,7 @@ import { formatCurrency, extractCurrencyCode } from '@/business-apps/crm/common/
 import { getOpportunityStatusBadgeVariant, getOpportunityForecastBadgeVariant } from '@/common/utils/badgeUtils'
 import { useAiSummary } from './hooks/useAiSummary'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { AppAction } from '@/components/app-action'
 import { OpportunityStageProgression } from '@/common/components/common-relations/record-sections/opportunity-pipeline-section/OpportunityStageProgression'
 import type { OpportunityPipelineContextConfig } from '@/common/components/common-relations/record-sections/opportunity-pipeline-section/types'
 import { getEmployeeName } from '@/common/components/common-relations/record-sections/opportunity-pipeline-section/utils'
@@ -22,7 +22,6 @@ import type { Stage, StageCondition } from '@/components/stage-progression/types
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { HomeView } from './views/home-view/HomeView'
 import { DocumentView } from './views/document-view'
-import { OpportunityStatusUpdatePopup } from '@/business-apps/crm/core/popups/opportunity-status-update-popup'
 
 interface OpportunityRecordContentProps extends BusinessAppContextProps {
   opportunityId: string
@@ -40,14 +39,6 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
   const ALLOWED_TABS = ['overview', 'documents'] as const
   type TabKey = (typeof ALLOWED_TABS)[number]
   const [activeTab, setActiveTab] = useState('overview')
-
-  // Status update popup state
-  const [statusUpdatePopup, setStatusUpdatePopup] = useState<{
-    open: boolean
-    opportunityId?: string
-    opportunityVersion?: number
-    opportunityName?: string
-  }>({ open: false })
 
   // Initialize activeTab from URL on mount and write default if missing
   useEffect(() => {
@@ -240,16 +231,6 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
     }
   })
 
-  // Handler to open status update popup
-  const handleUpdateStatus = () => {
-    setStatusUpdatePopup({
-      open: true,
-      opportunityId: opportunityId,
-      opportunityVersion: opportunityData?.version || 0,
-      opportunityName: opportunityData?.name || 'Unnamed Opportunity'
-    })
-  }
-
   // Memoize stage condition action props to prevent recreation
   const stageConditionActionProps = useMemo(
     () => ({
@@ -263,17 +244,25 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
   // Memoize header action button to prevent recreation
   const headerActionButton = useMemo(
     () => (
-      <AppActionButton
-        size="icon"
-        contextsArray={[FlowContextName.customerOpportunityEntity]}
-        externalContextData={{ opportunityId }}
+      <AppAction
+        variant="header"
+        contexts={[
+          {
+            context: FlowContextName.customerOpportunityEntity,
+            contextData: { opportunityId }
+          }
+        ]}
+        shareContext={{
+          entityType: 'opportunity',
+          entityId: opportunityId,
+          entityName: opportunityData?.name || 'Opportunity',
+          entityUrl: `/platform/crm/opportunity-record?opportunityId=${opportunityId}`
+        }}
         prefixDataTestId="opportunity-record-action"
-        emptyStateBehavior="hide"
-        deferMainContextRequestsUntilClick={false}
         accessToken={props.accessToken}
       />
     ),
-    [opportunityId, props.accessToken]
+    [opportunityId, opportunityData?.name, props.accessToken]
   )
 
   // Memoize RecordLayout data to prevent unnecessary re-renders (must be before early returns)
@@ -305,14 +294,22 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
     return (
       <div className="gba:flex gba:items-center gba:gap-2">
         {statusLabel && (
-          <Badge
-            variant={getOpportunityStatusBadgeVariant(opportunityData?.opportunityStatus)}
-            className="gba:gap-1 gba:cursor-pointer hover:gba:opacity-80"
-            onClick={handleUpdateStatus}
-            data-testid="opportunity-status-badge"
+          <AppAction
+            contextsArray={[FlowContextName.customerOpportunityStatusUpdate]}
+            externalContextData={{ opportunityId }}
+            prefixDataTestId="opportunity-status-update"
+            accessToken={props.accessToken}
+            emptyStateBehavior="enable"
+            deferMainContextRequestsUntilClick
           >
-            {statusLabel}
-          </Badge>
+            <Badge
+              variant={getOpportunityStatusBadgeVariant(opportunityData?.opportunityStatus)}
+              className="gba:gap-1 gba:cursor-pointer hover:gba:opacity-80"
+              data-testid="opportunity-status-badge"
+            >
+              {statusLabel}
+            </Badge>
+          </AppAction>
         )}
         {forecast && forecastDisplayValue && (
           <Badge variant={getOpportunityForecastBadgeVariant(forecast)} data-testid="opportunity-forecast-badge">
@@ -331,7 +328,8 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
     opportunityData?.currency?.id,
     opportunityData?.opportunityStatus,
     opportunityData?.opportunityForecast,
-    handleUpdateStatus
+    opportunityId,
+    props.accessToken
   ])
 
   const headerDetailGroups = useMemo(() => {
@@ -383,6 +381,14 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
             value: extractCurrencyCode(opportunityData?.currency?.id || 'Currency:v1:EUR')
           },
           {
+            label: getTranslationFromI18nKeyAndLabel('crm.opportunity.winningChance', 'Winning Chance'),
+            value:
+              opportunityData?.winningChance !== undefined && opportunityData?.winningChance !== null
+                ? `${opportunityData.winningChance}%`
+                : getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
+            icon: TrendingUp
+          },
+          {
             label: getTranslationFromI18nKeyAndLabel('crm.opportunity.estimatedAmount', 'Estimated Amount'),
             value: opportunityData?.estimatedAmount
               ? formatCurrency(opportunityData.estimatedAmount, opportunityData.currency?.id || 'Currency:v1:EUR')
@@ -405,6 +411,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
     opportunityData?.opportunityPipelineStage?.code,
     opportunityData?.closeDate,
     opportunityData?.currency?.id,
+    opportunityData?.winningChance,
     opportunityData?.estimatedAmount,
     opportunityData?.ownerEmployee
   ])
@@ -608,26 +615,6 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
         headerContent={headerContent}
         subViews={subViewsConfig}
       />
-
-      {/* Status Update Popup */}
-      {statusUpdatePopup.open && statusUpdatePopup.opportunityId && (
-        <OpportunityStatusUpdatePopup
-          isOpen={statusUpdatePopup.open}
-          onClose={() => setStatusUpdatePopup({ open: false })}
-          accessToken={props.accessToken}
-          opportunityId={statusUpdatePopup.opportunityId}
-          opportunityVersion={statusUpdatePopup.opportunityVersion}
-          opportunityName={statusUpdatePopup.opportunityName}
-          onSuccess={() => {
-            refetch()
-            setStatusUpdatePopup({ open: false })
-          }}
-          onError={() => {
-            setStatusUpdatePopup({ open: false })
-          }}
-          data-testid="opportunity-status-update-popup"
-        />
-      )}
     </div>
   )
 }
