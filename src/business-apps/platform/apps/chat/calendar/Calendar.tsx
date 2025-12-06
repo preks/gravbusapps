@@ -23,11 +23,22 @@ export const Calendar: React.FC<CalendarProps> = ({ accessToken, prefixDataTestI
   let baseUrl = env('NEXT_PUBLIC_BASE_URL') || ''
   baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
   const apiUrl = env('NEXT_PUBLIC_CHAT_API') || `${baseUrl}/chat-service/api/v1`
+  const wsUrl = (() => {
+    const fromEnv = env('NEXT_PUBLIC_CHAT_WEB_SOCKET')
+    if (fromEnv) {
+      // Strip trailing socket.io or chat-service to avoid duplicate path; path set separately
+      return fromEnv.replace(/\/socket\.io.*$/, '').replace(/\/chat-service$/, '')
+    }
+    return `${baseUrl}`
+  })()
+  const wsSocketPath = '/chat-service/socket.io'
 
   // Initialize chat client for WebSocket and API access (needed for calls)
   const chatClient = useChatClient({
     accessToken,
-    apiUrl
+    apiUrl,
+    wsUrl,
+    wsSocketPath
   })
 
   const { currentUser, wsClient, apiClient } = chatClient

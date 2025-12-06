@@ -6,6 +6,9 @@ import { useEntityMentions } from '../hooks/useEntityMentions'
 import { EntityMentionPopover } from './EntityMentionPopover'
 import type { EntityReference, MessageEntityReference } from '../types'
 
+// Persist focus state across unmounts caused by parent re-renders
+let lastHadFocus = false
+
 interface Attachment {
   id: string
   file: File
@@ -21,8 +24,13 @@ interface MessageInputProps {
   placeholder?: string
   compact?: boolean
   accessToken?: string
-  prependText?: string
-  onPrependTextConsumed?: () => void
+  // controlled value from parent
+  value?: string
+  onChange?: (v: string) => void
+  // Callback to get registerMentionEntity function for external use
+  onRegisterMentionReady?: (
+    registerFn: (entity: EntityReference, text: string, startIndex: number) => MessageEntityReference
+  ) => void
 }
 
 export const MessageInput: React.FC<MessageInputProps> = memo(
@@ -34,10 +42,12 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
     placeholder = getTranslationFromI18nKeyAndLabel('chat.input.placeholder', 'Type a message...'),
     compact = false,
     accessToken = '',
-    prependText,
-    onPrependTextConsumed
+    value: controlledValue,
+    onChange,
+    onRegisterMentionReady
   }) => {
-    const [value, setValue] = useState('')
+    const [uncontrolledValue, setUncontrolledValue] = useState('')
+    const value = controlledValue !== undefined ? controlledValue : uncontrolledValue
     const [isTyping, setIsTyping] = useState(false)
     const [selectedMentionIndex, setSelectedMentionIndex] = useState(0)
     const [attachments, setAttachments] = useState<Attachment[]>([])
@@ -58,14 +68,31 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
       handleTextChange,
       insertEntity,
       clearMentions,
-      closeMention
+      closeMention,
+      registerMentionEntity
     } = useEntityMentions(accessToken)
+
+    // Helper to update value (works for both controlled and uncontrolled)
+    const setValue = useCallback(
+      (newValue: string) => {
+        if (controlledValue !== undefined) {
+          onChange?.(newValue)
+        } else {
+          setUncontrolledValue(newValue)
+        }
+      },
+      [controlledValue, onChange]
+    )
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const newValue = e.target.value
       const caretPosition = e.target.selectionStart || newValue.length
 
-      setValue(newValue)
+      if (controlledValue !== undefined) {
+        onChange?.(newValue)
+      } else {
+        setUncontrolledValue(newValue)
+      }
       handleTextChange(newValue, caretPosition)
 
       // Handle typing indicators
@@ -122,12 +149,35 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
         hadFocusRef.current = true
         shouldRestoreFocusRef.current = true
 
+        // Ensure @Every is registered as a mention if text starts with it
+        let entitiesToSend = selectedEntities
+        const trimmedValue = value.trim()
+        if (trimmedValue.startsWith('@Every ')) {
+          const hasEveryMention = selectedEntities.some(
+            e => e.type === 'ai_assistant' && e.id === 'every-ai-assistant' && e.startIndex === 0
+          )
+          if (!hasEveryMention) {
+            const EVERY_AI_ENTITY: EntityReference = {
+              id: 'every-ai-assistant',
+              type: 'ai_assistant',
+              name: 'Every',
+              subtitle: 'AI Assistant • Ask me anything'
+            }
+            const registeredEntity = registerMentionEntity(EVERY_AI_ENTITY, trimmedValue, 0)
+            entitiesToSend = [...selectedEntities, registeredEntity]
+          }
+        }
+
         onSend(
-          value.trim(),
-          selectedEntities.length > 0 ? selectedEntities : undefined,
+          trimmedValue,
+          entitiesToSend.length > 0 ? entitiesToSend : undefined,
           attachments.length > 0 ? attachments : undefined
         )
-        setValue('')
+        if (controlledValue !== undefined) {
+          onChange?.('')
+        } else {
+          setUncontrolledValue('')
+        }
         setAttachments([])
         setIsTyping(false)
         onTypingStop()
@@ -142,6 +192,10 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
         }
 
         scheduleFocusRestoration()
+        // Extra focus attempt after send to combat platform steals
+        requestAnimationFrame(() => {
+          inputRef.current?.focus()
+        })
       }
     }
 
@@ -190,6 +244,7 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
     const handleEntitySelect = (entity: EntityReference) => {
       const { newText, newCaretPosition } = insertEntity(entity, value)
       setValue(newText)
+      handleTextChange(newText, newCaretPosition) // Update mention state
       setSelectedMentionIndex(0)
 
       // Focus input and set caret position
@@ -272,42 +327,35 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
       })
     }
 
+    // Debug mount/unmount to detect remounts that could wipe state
+    useEffect(() => {
+      console.debug('[MessageInput] mount')
+      return () => {
+        console.debug('[MessageInput] unmount')
+      }
+    }, [])
+
     // Reset selected index when entities change
     useEffect(() => {
       setSelectedMentionIndex(0)
     }, [entities])
 
-    // Handle prepend text (e.g., when replying to AI)
+    // (Deprecated) prepend handling removed; now controlled in parent to avoid loops
     useEffect(() => {
-      // Only process if prependText is set and hasn't been processed yet
-      if (prependText && prependText !== lastProcessedPrependRef.current) {
-        lastProcessedPrependRef.current = prependText
+      lastProcessedPrependRef.current = null
+    }, [])
 
-        // Get current value from the input directly to avoid stale closure
-        const currentValue = inputRef.current?.value || ''
-        const newValue = currentValue ? `${prependText}${currentValue}` : prependText
-
-        setValue(newValue)
-
-        // Focus and move cursor to end after state update
-        requestAnimationFrame(() => {
-          if (inputRef.current) {
-            inputRef.current.focus()
-            inputRef.current.setSelectionRange(newValue.length, newValue.length)
-          }
-        })
-
-        // Notify that we've consumed the prepend text
-        onPrependTextConsumed?.()
-      } else if (!prependText) {
-        // Reset the ref when prependText is cleared
-        lastProcessedPrependRef.current = null
+    // Expose registerMentionEntity to parent via callback
+    useEffect(() => {
+      if (onRegisterMentionReady) {
+        onRegisterMentionReady(registerMentionEntity)
       }
-    }, [prependText, onPrependTextConsumed])
+    }, [onRegisterMentionReady, registerMentionEntity])
 
     // Track focus state and restore it after re-renders
     const handleFocus = useCallback(() => {
       hadFocusRef.current = true
+      lastHadFocus = true
     }, [])
 
     const handleBlur = useCallback(
@@ -318,24 +366,33 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
         if (!relatedTarget) {
           // Focus left to body (platform steals it) - immediately plan to restore
           shouldRestoreFocusRef.current = true
+          lastHadFocus = true // Keep module-level flag set
           scheduleFocusRestoration()
           return
         }
 
         if (!container?.contains(relatedTarget)) {
+          // Only clear if focus truly left our component tree
           hadFocusRef.current = false
+          // Don't clear lastHadFocus here - keep it set if we want to restore
         }
       },
       [scheduleFocusRestoration]
     )
 
-    // Restore focus after re-renders if we had focus
+    // Restore focus after re-renders if we had focus - run on every render
     useLayoutEffect(() => {
-      if (shouldRestoreFocusRef.current && inputRef.current) {
-        focusInput()
-        shouldRestoreFocusRef.current = false
+      // Restore focus if this input had focus before unmount
+      if ((shouldRestoreFocusRef.current || lastHadFocus) && inputRef.current) {
+        // Use requestAnimationFrame to ensure DOM is ready
+        requestAnimationFrame(() => {
+          if (inputRef.current && (shouldRestoreFocusRef.current || lastHadFocus)) {
+            focusInput()
+            shouldRestoreFocusRef.current = false
+          }
+        })
       }
-    }, [value, focusInput])
+    }) // No dependencies - run on every render to catch remounts
 
     useEffect(() => {
       if (hadFocusRef.current && inputRef.current && document.activeElement !== inputRef.current) {

@@ -8,6 +8,13 @@ import { useMessages } from './useMessages'
 import { useTypingIndicator } from './useTypingIndicator'
 import { usePresence } from './usePresence'
 
+// Shared (singleton) WS/API clients per token+urls to avoid duplicate sockets
+let sharedApiClient: ChatApiClient | null = null
+let sharedApiKey: string | null = null
+let sharedWsClient: ChatWebSocketClient | null = null
+let sharedWsKey: string | null = null
+const initializedWsKeys = new Set<string>()
+
 interface UseChatClientOptions {
   accessToken: string
   apiUrl: string
@@ -54,16 +61,24 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     activeCallsRef.current = activeCalls
   }, [activeCalls])
 
-  // Initialize API client
+  // Initialize API client (singleton per apiUrl+token)
   useEffect(() => {
     if (accessToken) {
-      const client = new ChatApiClient(apiUrl, accessToken)
-      apiClientRef.current = client
-      setApiClientState(client)
+      const key = `${apiUrl}|${accessToken}`
+      if (sharedApiClient && sharedApiKey === key) {
+        apiClientRef.current = sharedApiClient
+        setApiClientState(sharedApiClient)
+      } else {
+        const client = new ChatApiClient(apiUrl, accessToken)
+        sharedApiClient = client
+        sharedApiKey = key
+        apiClientRef.current = client
+        setApiClientState(client)
+      }
 
       // Get current user
-      client
-        .getCurrentUser()
+      apiClientRef.current
+        ?.getCurrentUser()
         .then(user => {
           setCurrentUser(user)
           setError(null)
@@ -139,12 +154,39 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     typingHookRef.current = typingHook
   })
 
-  // Initialize WebSocket client
+  // Initialize WebSocket client (singleton per wsUrl+path+token)
   useEffect(() => {
+    if (!wsUrl) {
+      console.error('[useChatClient] missing wsUrl, skipping websocket init')
+      return
+    }
     if (accessToken && apiClientRef.current) {
-      wsClientRef.current = new ChatWebSocketClient(wsUrl, { path: wsSocketPath })
+      const key = `${wsUrl}|${wsSocketPath || '/socket.io'}|${accessToken}`
+      // If we've already initialized this key, reuse the singleton and avoid double connect
+      if (sharedWsClient && sharedWsKey === key) {
+        wsClientRef.current = sharedWsClient
+        console.debug('[useChatClient] reusing websocket', { wsUrl, wsSocketPath })
+        // If somehow not connected, don't create a second socket; let existing handle reconnects
+        return
+      }
 
-      const socket = wsClientRef.current.connect(accessToken)
+      if (initializedWsKeys.has(key)) {
+        // Another instance is initializing; just reuse once available
+        if (sharedWsClient) {
+          wsClientRef.current = sharedWsClient
+        }
+        console.debug('[useChatClient] websocket init already in progress, awaiting reuse', { wsUrl, wsSocketPath })
+        return
+      }
+
+      console.debug('[useChatClient] init websocket', { wsUrl, wsSocketPath })
+      initializedWsKeys.add(key)
+      const client = new ChatWebSocketClient(wsUrl, { path: wsSocketPath })
+      sharedWsClient = client
+      sharedWsKey = key
+      wsClientRef.current = client
+
+      const socket = client.connect(accessToken)
 
       socket.on('connect', async () => {
         setIsConnected(true)
@@ -482,6 +524,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
 
     const handleConversationCallEnded = (data: { conversationId: string; roomId: string }) => {
       setActiveCalls(prev => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { [data.conversationId]: _removed, ...rest } = prev
         return rest
       })

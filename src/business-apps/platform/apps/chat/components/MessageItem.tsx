@@ -173,7 +173,11 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={onReplyToAI}
+                        onClick={e => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          onReplyToAI()
+                        }}
                         className="gba:h-5 gba:w-5 gba:text-primary/70 gba:hover:text-primary gba:hover:bg-primary/10"
                         data-testid={`reply-to-ai-${message.id}`}
                       >

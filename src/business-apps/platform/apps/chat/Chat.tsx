@@ -32,23 +32,50 @@ interface ChatProps extends BusinessAppContextProps {
   prefixDataTestId?: string
 }
 
-export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'chat' }) => {
+export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefixDataTestId = 'chat' }) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const [showConversationList, setShowConversationList] = useState(true)
   const [viewMode, setViewMode] = useState<ViewMode>('full')
   const [showCreateGroupModal, setShowCreateGroupModal] = useState(false)
   const [showGroupSettingsModal, setShowGroupSettingsModal] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [replyToAIPrepend, setReplyToAIPrepend] = useState<string | undefined>(undefined)
+  const [draftMessage, setDraftMessage] = useState<string>('')
+  const registerMentionEntityRef = useRef<((entity: any, text: string, startIndex: number) => any) | null>(null)
   const urlContextProcessed = useRef(false)
   const conversationIdFromUrlProcessed = useRef(false)
+  const activeConversationIdRef = useRef<string | null>(null)
+
+  // Stabilize accessToken - only update state when VALUE actually changes
+  // This prevents re-renders caused by the platform passing new string references
+  const [stableAccessToken, setStableAccessToken] = useState(accessTokenProp)
+  const prevAccessTokenRef = useRef(accessTokenProp)
+
+  useEffect(() => {
+    // Only update if the actual value changed, not just the reference
+    if (accessTokenProp !== prevAccessTokenRef.current) {
+      prevAccessTokenRef.current = accessTokenProp
+      setStableAccessToken(accessTokenProp)
+    }
+  }, [accessTokenProp])
+
+  // Use the stable token throughout the component
+  const accessToken = stableAccessToken
 
   let baseUrl = env('NEXT_PUBLIC_BASE_URL') || ''
   baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
 
+  // Normalize API and WS endpoints; enforce chat-service socket path to avoid `/socket.io` root fallback
   const apiUrl = env('NEXT_PUBLIC_CHAT_API') || `${baseUrl}/chat-service/api/v1` || ''
-  const wsUrl = env('NEXT_PUBLIC_CHAT_WEB_SOCKET') || `${baseUrl}/chat-service` || ''
-  const wsSocketPath = env('NEXT_PUBLIC_CHAT_WEB_SOCKET') ? undefined : '/chat-service/socket.io'
+  const wsUrl = (() => {
+    const fromEnv = env('NEXT_PUBLIC_CHAT_WEB_SOCKET')
+    if (fromEnv) {
+      // Strip any trailing socket.io or chat-service path; we set path separately
+      return fromEnv.replace(/\/socket\.io.*$/, '').replace(/\/chat-service$/, '')
+    }
+    return `${baseUrl}` // host only; path defined separately
+  })()
+  // Always force chat-service socket path; prevents fallback to root /socket.io
+  const wsSocketPath = '/chat-service/socket.io'
 
   const chatClient = useChatClient({
     accessToken,
@@ -91,6 +118,24 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
     wsClient,
     activeCalls
   } = chatClient
+
+  // Keep last known active conversation to avoid transient unmounts when list refreshes
+  const lastActiveConversationRef = useRef<typeof activeConversation>(null)
+  const stableActiveConversation =
+    activeConversation ||
+    (activeConversationId && lastActiveConversationRef.current?.id === activeConversationId
+      ? lastActiveConversationRef.current
+      : null)
+  useEffect(() => {
+    if (activeConversation) {
+      lastActiveConversationRef.current = activeConversation
+    }
+  }, [activeConversation])
+
+  // Log for diagnostics
+  useEffect(() => {
+    console.debug('[Chat] stableActiveConversation', stableActiveConversation?.id)
+  }, [stableActiveConversation?.id])
 
   // Convert current user to CallParticipant format
   const currentUserAsParticipant: CallParticipant | null = useMemo(() => {
@@ -366,6 +411,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
 
         // Send the user's message first
         await sendMessage(activeConversationId, content, Object.keys(metadata).length > 0 ? metadata : undefined)
+        setDraftMessage('') // clear draft after successful send
 
         // Check if message contains @Every mention and process it
         if (hasEveryMention(entityReferences) && activeConversation) {
@@ -624,15 +670,44 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
     }
   }, [refreshConversations])
 
-  // Handle reply to AI - prepopulates input with @Every
+  // Handle reply to AI - prepopulate draft with @Every and register it as a mention
   const handleReplyToAI = useCallback(() => {
-    setReplyToAIPrepend('@Every ')
+    setDraftMessage(prev => {
+      if (prev.startsWith('@Every ')) {
+        return prev
+      }
+      const newText = `@Every ${prev}`
+      // Register @Every as a mention entity if registerMentionEntity is available
+      if (registerMentionEntityRef.current) {
+        const EVERY_AI_ENTITY = {
+          id: 'every-ai-assistant',
+          type: 'ai_assistant' as const,
+          name: 'Every',
+          subtitle: 'AI Assistant • Ask me anything'
+        }
+        registerMentionEntityRef.current(EVERY_AI_ENTITY, newText, 0)
+      }
+      return newText
+    })
   }, [])
 
-  // Clear the prepend text after it's been consumed by the input
-  const handleReplyToAIConsumed = useCallback(() => {
-    setReplyToAIPrepend(undefined)
-  }, [])
+  // Keep ref in sync with activeConversationId for stable callbacks
+  useEffect(() => {
+    activeConversationIdRef.current = activeConversationId
+  }, [activeConversationId])
+
+  // Stable typing callbacks that use ref instead of direct state
+  const handleTypingStart = useCallback(() => {
+    if (activeConversationIdRef.current) {
+      startTyping(activeConversationIdRef.current)
+    }
+  }, [startTyping])
+
+  const handleTypingStop = useCallback(() => {
+    if (activeConversationIdRef.current) {
+      stopTyping(activeConversationIdRef.current)
+    }
+  }, [stopTyping])
 
   // Container-aware responsive view detection
   useEffect(() => {
@@ -771,10 +846,76 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
     }
   }, [currentUser, isConnected, createContextConversation, createAiAgentConversation, viewMode])
 
+  // Helper to get the other participant's user ID from a direct conversation
+  const getOtherParticipantUserId = (conversation: Conversation): string | null => {
+    if (conversation.type !== 'direct' || !conversation.participants) {
+      return null
+    }
+    const otherParticipant = conversation.participants.find(
+      p => p.userId !== currentUser?.id && p.user?.id !== currentUser?.id
+    )
+    return otherParticipant?.userId || otherParticipant?.user?.id || null
+  }
+
+  // Get presence for the other user in direct conversations
+  const otherUserId = stableActiveConversation ? getOtherParticipantUserId(stableActiveConversation) : null
+  const otherUserPresence = otherUserId ? getUserPresence(otherUserId) : undefined
+
+  // Check if there's an active call in this conversation (for group chats)
+  const activeCallInfo: ActiveCallInfo | null = useMemo(() => {
+    if (!stableActiveConversation || stableActiveConversation.type !== 'group') return null
+
+    const activeCall = activeCalls[stableActiveConversation.id]
+
+    if (activeCall) {
+      const participantNames =
+        stableActiveConversation.participants
+          ?.filter(p => activeCall.participantIds.includes(p.userId || p.user?.id || ''))
+          .map(p => {
+            const user = p.user
+            return user?.displayName || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Unknown'
+          }) || []
+
+      return {
+        roomId: activeCall.roomId,
+        callType: activeCall.callType,
+        participantCount: activeCall.participantIds.length,
+        participantNames:
+          participantNames.length > 0 ? participantNames : [`${activeCall.participantIds.length} participant(s)`]
+      }
+    }
+
+    if (groupCallState.status !== 'idle' && groupCallState.roomId === stableActiveConversation.id) {
+      return {
+        roomId: groupCallState.roomId,
+        callType: groupCallState.callType,
+        participantCount: groupParticipants.length,
+        participantNames: groupParticipants.map(p => p.odName)
+      }
+    }
+
+    return null
+  }, [
+    stableActiveConversation,
+    activeCalls,
+    groupCallState.status,
+    groupCallState.roomId,
+    groupCallState.callType,
+    groupParticipants
+  ])
+
+  // Handler to join an active call
+  const handleJoinActiveCall = useCallback(() => {
+    if (!activeCallInfo || !stableActiveConversation) return
+    // Pass true to indicate we're joining an existing call (don't ring everyone)
+    handleGroupCall(activeCallInfo.callType, true)
+  }, [activeCallInfo, stableActiveConversation, handleGroupCall])
+
   // Determine if we should show single-view mode (list OR chat, not both)
   const isSingleViewMode = viewMode === 'mobile' || viewMode === 'compact'
-  const showListView = isSingleViewMode ? showConversationList || !activeConversation : true
-  const showChatView = isSingleViewMode ? !showConversationList && !!activeConversation : true
+  const hasConversation = !!stableActiveConversation
+  const showListView = isSingleViewMode ? showConversationList || !hasConversation : true
+  const showChatView = isSingleViewMode ? !showConversationList && hasConversation : true
 
   // Error state
   if (error) {
@@ -839,184 +980,6 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
         </p>
       </div>
     ) : null
-
-  // Helper to get the other participant's user ID from a direct conversation
-  const getOtherParticipantUserId = (conversation: Conversation): string | null => {
-    if (conversation.type !== 'direct' || !conversation.participants) {
-      return null
-    }
-    const otherParticipant = conversation.participants.find(
-      p => p.userId !== currentUser?.id && p.user?.id !== currentUser?.id
-    )
-    return otherParticipant?.userId || otherParticipant?.user?.id || null
-  }
-
-  // Chat view component (header + messages + input)
-  const ChatView = () => {
-    // Get presence for the other user in direct conversations
-    const otherUserId = activeConversation ? getOtherParticipantUserId(activeConversation) : null
-    const otherUserPresence = otherUserId ? getUserPresence(otherUserId) : undefined
-
-    // Check if there's an active call in this conversation (for group chats)
-    const activeCallInfo: ActiveCallInfo | null = useMemo(() => {
-      if (!activeConversation || activeConversation.type !== 'group') return null
-
-      console.debug('Checking active call for conversation:', activeConversation.id)
-      console.debug('Active calls count:', Object.keys(activeCalls).length)
-      console.debug('Active calls:', activeCalls)
-
-      // Check if we know about an active call in this conversation
-      const activeCall = activeCalls[activeConversation.id]
-      console.debug('Found active call for this conversation:', activeCall)
-
-      if (activeCall) {
-        // Get participant names from conversation participants
-        const participantNames =
-          activeConversation.participants
-            ?.filter(p => activeCall.participantIds.includes(p.userId || p.user?.id || ''))
-            .map(p => {
-              const user = p.user
-              return user?.displayName || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Unknown'
-            }) || []
-
-        const result = {
-          roomId: activeCall.roomId,
-          callType: activeCall.callType,
-          participantCount: activeCall.participantIds.length,
-          participantNames:
-            participantNames.length > 0 ? participantNames : [`${activeCall.participantIds.length} participant(s)`]
-        }
-        console.debug('Returning activeCallInfo:', result)
-        return result
-      }
-
-      // Fallback: If we're in a group call and the roomId matches the conversation
-      if (groupCallState.status !== 'idle' && groupCallState.roomId === activeConversation.id) {
-        const result = {
-          roomId: groupCallState.roomId,
-          callType: groupCallState.callType,
-          participantCount: groupParticipants.length,
-          participantNames: groupParticipants.map(p => p.odName)
-        }
-        console.debug('Returning activeCallInfo from current call state:', result)
-        return result
-      }
-
-      console.debug('No active call found for this conversation')
-      return null
-    }, [
-      activeConversation,
-      activeCalls,
-      groupCallState.status,
-      groupCallState.roomId,
-      groupCallState.callType,
-      groupParticipants
-    ])
-
-    // Handler to join an active call
-    const handleJoinActiveCall = useCallback(() => {
-      if (!activeCallInfo || !activeConversation) return
-      // Pass true to indicate we're joining an existing call (don't ring everyone)
-      handleGroupCall(activeCallInfo.callType, true)
-    }, [activeCallInfo, activeConversation])
-
-    return (
-      <div className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:h-full gba:max-h-full gba:overflow-hidden">
-        {activeConversation ? (
-          <>
-            <ConversationHeader
-              conversation={activeConversation}
-              onBack={isSingleViewMode ? handleBack : undefined}
-              onClose={handleCloseConversation}
-              onRemove={handleRemoveConversation}
-              onGroupSettings={handleShowGroupSettings}
-              onAudioCall={handleAudioCall}
-              onVideoCall={handleVideoCall}
-              onJoinCall={handleJoinActiveCall}
-              showBackButton={isSingleViewMode}
-              currentUserId={currentUser?.id || null}
-              compact={viewMode === 'compact'}
-              otherUserPresence={otherUserPresence}
-              isCallEnabled={isConnected}
-              isInCall={isInAnyCall}
-              activeCall={activeCallInfo}
-            />
-            <MessageList
-              messages={messages}
-              currentUserId={currentUser?.id || null}
-              isGroupChat={activeConversation.type === 'group'}
-              typingUsers={Object.values(typingUsers).flat()}
-              isLoading={messagesLoading}
-              hasMore={hasMoreMessages}
-              onLoadMore={loadMoreMessages}
-              conversationId={activeConversation.id}
-              accessToken={accessToken}
-              participants={activeConversation.participants}
-              onReplyToAI={handleReplyToAI}
-            />
-
-            {/* AI Processing Indicator */}
-            {isAIProcessing && (
-              <div className="gba:px-4 gba:py-2 gba:border-t gba:border-border/30 gba:bg-muted/20">
-                <div className="gba:flex gba:gap-2">
-                  {/* AI Avatar */}
-                  <div className="gba:w-7 gba:h-7 gba:flex-shrink-0 gba:rounded-full gba:bg-gradient-to-br gba:from-primary gba:to-accent gba:flex gba:items-center gba:justify-center">
-                    <span className="gba:text-[10px] gba:text-primary-foreground gba:font-bold">AI</span>
-                  </div>
-                  <div className="gba:flex-1">
-                    <div className="gba:text-xs gba:font-semibold gba:text-primary gba:mb-1">✨ Every AI</div>
-                    {aiStreamingText ? (
-                      <div className="gba:text-sm gba:text-foreground gba:bg-gradient-to-br gba:from-muted gba:to-accent/10 gba:rounded-lg gba:p-2 gba:border gba:border-primary/20">
-                        <AIResponseRenderer content={aiStreamingText} />
-                      </div>
-                    ) : (
-                      <AIThinkingIndicator />
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <MessageInput
-              onSend={handleSendMessage}
-              onTypingStart={() => {
-                if (activeConversationId) startTyping(activeConversationId)
-              }}
-              onTypingStop={() => {
-                if (activeConversationId) stopTyping(activeConversationId)
-              }}
-              disabled={!isConnected}
-              compact={viewMode !== 'full'}
-              accessToken={accessToken}
-              prependText={replyToAIPrepend}
-              onPrependTextConsumed={handleReplyToAIConsumed}
-            />
-          </>
-        ) : (
-          <div className="gba:flex-1 gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-6 gba:text-center">
-            <div className="gba:w-16 gba:h-16 gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:mb-4">
-              <svg
-                className="gba:w-8 gba:h-8 gba:text-muted-foreground"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                />
-              </svg>
-            </div>
-            <p className="gba:text-sm gba:text-muted-foreground gba:max-w-[200px]">
-              {getTranslationFromI18nKeyAndLabel('chat.selectConversation', 'Select a conversation to start chatting')}
-            </p>
-          </div>
-        )}
-      </div>
-    )
-  }
 
   return (
     <div
@@ -1100,7 +1063,106 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
         )}
 
         {/* Active Conversation */}
-        {showChatView && <ChatView />}
+        {showChatView && (
+          <div className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:h-full gba:max-h-full gba:overflow-hidden">
+            {stableActiveConversation ? (
+              <>
+                <ConversationHeader
+                  conversation={stableActiveConversation}
+                  onBack={isSingleViewMode ? handleBack : undefined}
+                  onClose={handleCloseConversation}
+                  onRemove={handleRemoveConversation}
+                  onGroupSettings={handleShowGroupSettings}
+                  onAudioCall={handleAudioCall}
+                  onVideoCall={handleVideoCall}
+                  onJoinCall={handleJoinActiveCall}
+                  showBackButton={isSingleViewMode}
+                  currentUserId={currentUser?.id || null}
+                  compact={viewMode === 'compact'}
+                  otherUserPresence={otherUserPresence}
+                  isCallEnabled={isConnected}
+                  isInCall={isInAnyCall}
+                  activeCall={activeCallInfo}
+                />
+                <MessageList
+                  messages={messages}
+                  currentUserId={currentUser?.id || null}
+                  isGroupChat={stableActiveConversation.type === 'group'}
+                  typingUsers={Object.values(typingUsers).flat()}
+                  isLoading={messagesLoading}
+                  hasMore={hasMoreMessages}
+                  onLoadMore={loadMoreMessages}
+                  conversationId={stableActiveConversation.id}
+                  accessToken={accessToken}
+                  participants={stableActiveConversation.participants}
+                  onReplyToAI={handleReplyToAI}
+                />
+
+                {/* AI Processing Indicator */}
+                {isAIProcessing && (
+                  <div className="gba:px-4 gba:py-2 gba:border-t gba:border-border/30 gba:bg-muted/20">
+                    <div className="gba:flex gba:gap-2">
+                      {/* AI Avatar */}
+                      <div className="gba:w-7 gba:h-7 gba:flex-shrink-0 gba:rounded-full gba:bg-gradient-to-br gba:from-primary gba:to-accent gba:flex gba:items-center gba:justify-center">
+                        <span className="gba:text-[10px] gba:text-primary-foreground gba:font-bold">AI</span>
+                      </div>
+                      <div className="gba:flex-1">
+                        <div className="gba:text-xs gba:font-semibold gba:text-primary gba:mb-1">✨ Every AI</div>
+                        {aiStreamingText ? (
+                          <div className="gba:text-sm gba:text-foreground gba:bg-gradient-to-br gba:from-muted gba:to-accent/10 gba:rounded-lg gba:p-2 gba:border gba:border-primary/20">
+                            <AIResponseRenderer content={aiStreamingText} />
+                          </div>
+                        ) : (
+                          <AIThinkingIndicator />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="gba:flex-1 gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-6 gba:text-center">
+                <div className="gba:w-16 gba:h-16 gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:mb-4">
+                  <svg
+                    className="gba:w-8 gba:h-8 gba:text-muted-foreground"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                    />
+                  </svg>
+                </div>
+                <p className="gba:text-sm gba:text-muted-foreground gba:max-w-[200px]">
+                  {getTranslationFromI18nKeyAndLabel(
+                    'chat.selectConversation',
+                    'Select a conversation to start chatting'
+                  )}
+                </p>
+              </div>
+            )}
+
+            {stableActiveConversation && (
+              <MessageInput
+                onSend={handleSendMessage}
+                onTypingStart={handleTypingStart}
+                onTypingStop={handleTypingStop}
+                disabled={false}
+                compact={viewMode !== 'full'}
+                accessToken={accessToken}
+                value={draftMessage}
+                onChange={setDraftMessage}
+                onRegisterMentionReady={registerFn => {
+                  registerMentionEntityRef.current = registerFn
+                }}
+              />
+            )}
+          </div>
+        )}
       </div>
 
       {/* Group Chat Modals */}

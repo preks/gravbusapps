@@ -35,6 +35,12 @@ export class ChatWebSocketClient {
     // Build transports array based on configuration
     const transports = this.options.enablePollingFallback ? ['websocket', 'polling'] : ['websocket']
 
+    console.debug('[ChatWebSocketClient] connecting', {
+      url: this.url,
+      path: this.options.path,
+      transports
+    })
+
     this.socket = io(this.url, {
       auth: {
         token

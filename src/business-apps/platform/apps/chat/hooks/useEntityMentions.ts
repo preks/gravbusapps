@@ -417,6 +417,28 @@ export function useEntityMentions(accessToken: string) {
       // Get the query after @
       const query = textBeforeCaret.slice(atIndex + 1)
 
+      // Special case: If text starts with @Every (case-insensitive), don't activate mention detection
+      // This handles the reply button case where @Every is inserted and user continues typing
+      if (atIndex === 0 && /^every\s/i.test(query)) {
+        return null
+      }
+
+      // Check if this @ is part of a completed mention entity
+      const matchesCompletedMention = completedEntities.some(entity => {
+        // Check if the @ we found is part of this completed mention
+        if (atIndex >= entity.startIndex && atIndex < entity.endIndex) {
+          return true
+        }
+        // Also check if query starts with the entity name (for cases where user types after @Every)
+        if (atIndex === entity.startIndex && query.toLowerCase().startsWith(entity.name.toLowerCase())) {
+          return true
+        }
+        return false
+      })
+      if (matchesCompletedMention) {
+        return null
+      }
+
       // Stop if query contains another @ or newline (but allow spaces for multi-word searches)
       if (/[@\n]/.test(query)) return null
 
@@ -731,6 +753,37 @@ export function useEntityMentions(accessToken: string) {
     setEntities([])
   }, [])
 
+  // Register a mention entity at a specific position (for programmatic insertion like @Every)
+  const registerMentionEntity = useCallback(
+    (entity: EntityReference, text: string, startIndex: number): MessageEntityReference => {
+      const displayText = `@${entity.name}`
+      const endIndex = startIndex + displayText.length
+
+      const entityRef: MessageEntityReference = {
+        ...entity,
+        startIndex,
+        endIndex
+      }
+
+      setSelectedEntities(prev => {
+        // Check if this entity is already registered at this position
+        const exists = prev.some(e => e.id === entity.id && e.startIndex === startIndex && e.endIndex === endIndex)
+        if (exists) return prev
+        return [...prev, entityRef]
+      })
+
+      // Mark this position as just inserted to prevent re-detection
+      // Use a longer timeout and check the full text length to handle typing after
+      justInsertedRef.current = {
+        endPosition: text.length, // Use full text length to cover typing after
+        timestamp: Date.now()
+      }
+
+      return entityRef
+    },
+    []
+  )
+
   return {
     entities,
     isLoading,
@@ -740,6 +793,7 @@ export function useEntityMentions(accessToken: string) {
     insertEntity,
     clearMentions,
     closeMention,
-    searchEntities
+    searchEntities,
+    registerMentionEntity
   }
 }
