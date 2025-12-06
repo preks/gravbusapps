@@ -16,6 +16,7 @@ interface MessageListProps {
   conversationId: string
   accessToken?: string
   participants?: ConversationParticipant[]
+  onReplyToAI?: () => void
 }
 
 export const MessageList: React.FC<MessageListProps> = ({
@@ -28,7 +29,8 @@ export const MessageList: React.FC<MessageListProps> = ({
   onLoadMore,
   conversationId,
   accessToken,
-  participants
+  participants,
+  onReplyToAI
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
@@ -211,6 +213,7 @@ export const MessageList: React.FC<MessageListProps> = ({
                 isGroupChat={isGroupChat}
                 accessToken={accessToken}
                 participants={participants}
+                onReplyToAI={message.metadata?.isAIResponse ? onReplyToAI : undefined}
               />
             ))}
 

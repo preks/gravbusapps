@@ -21,6 +21,8 @@ interface MessageInputProps {
   placeholder?: string
   compact?: boolean
   accessToken?: string
+  prependText?: string
+  onPrependTextConsumed?: () => void
 }
 
 export const MessageInput: React.FC<MessageInputProps> = ({
@@ -30,7 +32,9 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   disabled = false,
   placeholder = getTranslationFromI18nKeyAndLabel('chat.input.placeholder', 'Type a message...'),
   compact = false,
-  accessToken = ''
+  accessToken = '',
+  prependText,
+  onPrependTextConsumed
 }) => {
   const [value, setValue] = useState('')
   const [isTyping, setIsTyping] = useState(false)
@@ -270,6 +274,24 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   useEffect(() => {
     setSelectedMentionIndex(0)
   }, [entities])
+
+  // Handle prepend text (e.g., when replying to AI)
+  useEffect(() => {
+    if (prependText && onPrependTextConsumed) {
+      // Add the prepend text to the beginning, preserving any existing text
+      const newValue = value ? `${prependText}${value}` : prependText
+      setValue(newValue)
+      onPrependTextConsumed()
+
+      // Focus and move cursor to end
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus()
+          inputRef.current.setSelectionRange(newValue.length, newValue.length)
+        }
+      }, 0)
+    }
+  }, [prependText, onPrependTextConsumed])
 
   // Track focus state and restore it after re-renders
   const handleFocus = useCallback(() => {

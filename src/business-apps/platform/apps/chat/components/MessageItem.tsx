@@ -6,8 +6,10 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-  TooltipProvider
+  TooltipProvider,
+  Button
 } from '@newwork/nw-design-system'
+import { ArrowBendUpLeft } from '@phosphor-icons/react'
 import type { Message, ConversationParticipant } from '../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo } from '@/common/utils/navigationUtils'
@@ -33,6 +35,7 @@ interface MessageItemProps {
   isGroupChat: boolean
   accessToken?: string
   participants?: ConversationParticipant[]
+  onReplyToAI?: () => void
 }
 
 export const MessageItem: React.FC<MessageItemProps> = ({
@@ -40,7 +43,8 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   currentUserId,
   isGroupChat,
   accessToken,
-  participants
+  participants,
+  onReplyToAI
 }) => {
   const isAIResponse = message.metadata?.isAIResponse === true
   // AI responses should never be styled as "own message" even if sent by current user
@@ -157,9 +161,33 @@ export const MessageItem: React.FC<MessageItemProps> = ({
         >
           {/* Sender name for AI responses */}
           {isAIResponse && (
-            <div className="gba:text-[11px] gba:font-semibold gba:mb-0.5 gba:text-primary gba:flex gba:items-center gba:gap-1">
-              <span className="gba:text-xs">✨</span>
-              {getTranslationFromI18nKeyAndLabel('chat.everyAI', 'Every AI')}
+            <div className="gba:text-[11px] gba:font-semibold gba:mb-0.5 gba:text-primary gba:flex gba:items-center gba:justify-between">
+              <div className="gba:flex gba:items-center gba:gap-1">
+                <span className="gba:text-xs">✨</span>
+                {getTranslationFromI18nKeyAndLabel('chat.everyAI', 'Every AI')}
+              </div>
+              {onReplyToAI && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={onReplyToAI}
+                        className="gba:h-5 gba:w-5 gba:text-primary/70 gba:hover:text-primary gba:hover:bg-primary/10"
+                        data-testid={`reply-to-ai-${message.id}`}
+                      >
+                        <ArrowBendUpLeft className="gba:w-3.5 gba:h-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="gba:text-xs">
+                        {getTranslationFromI18nKeyAndLabel('chat.replyToEvery', 'Reply to Every')}
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
             </div>
           )}
 

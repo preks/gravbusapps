@@ -39,6 +39,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
   const [showCreateGroupModal, setShowCreateGroupModal] = useState(false)
   const [showGroupSettingsModal, setShowGroupSettingsModal] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [replyToAIPrepend, setReplyToAIPrepend] = useState<string | undefined>(undefined)
   const urlContextProcessed = useRef(false)
   const conversationIdFromUrlProcessed = useRef(false)
 
@@ -623,6 +624,16 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
     }
   }, [refreshConversations])
 
+  // Handle reply to AI - prepopulates input with @Every
+  const handleReplyToAI = useCallback(() => {
+    setReplyToAIPrepend('@Every ')
+  }, [])
+
+  // Clear the prepend text after it's been consumed by the input
+  const handleReplyToAIConsumed = useCallback(() => {
+    setReplyToAIPrepend(undefined)
+  }, [])
+
   // Container-aware responsive view detection
   useEffect(() => {
     const container = containerRef.current
@@ -941,6 +952,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
               conversationId={activeConversation.id}
               accessToken={accessToken}
               participants={activeConversation.participants}
+              onReplyToAI={handleReplyToAI}
             />
 
             {/* AI Processing Indicator */}
@@ -976,6 +988,8 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
               disabled={!isConnected}
               compact={viewMode !== 'full'}
               accessToken={accessToken}
+              prependText={replyToAIPrepend}
+              onPrependTextConsumed={handleReplyToAIConsumed}
             />
           </>
         ) : (
