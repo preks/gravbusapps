@@ -26,6 +26,13 @@ export const LeadDisplay: React.FC<LeadDisplayProps> = ({ leadId, accessToken, o
   const graphqlClient = useGraphQLClient(accessToken)
 
   useEffect(() => {
+    // For delete operations, skip GraphQL query since entity is already deleted
+    if (operation === 'delete') {
+      setIsLoading(false)
+      setError(null)
+      return
+    }
+
     const fetchLead = async () => {
       setIsLoading(true)
       setError(null)
@@ -64,7 +71,7 @@ export const LeadDisplay: React.FC<LeadDisplayProps> = ({ leadId, accessToken, o
     if (leadId && accessToken) {
       fetchLead()
     }
-  }, [leadId, accessToken, graphqlClient])
+  }, [leadId, accessToken, graphqlClient, operation])
 
   const operationBadge = getOperationBadge(operation)
 

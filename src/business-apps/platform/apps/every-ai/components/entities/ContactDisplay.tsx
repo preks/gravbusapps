@@ -27,6 +27,13 @@ export const ContactDisplay: React.FC<ContactDisplayProps> = ({ contactId, acces
   const graphqlClient = useGraphQLClient(accessToken)
 
   useEffect(() => {
+    // For delete operations, skip GraphQL query since entity is already deleted
+    if (operation === 'delete') {
+      setIsLoading(false)
+      setError(null)
+      return
+    }
+
     const fetchContact = async () => {
       setIsLoading(true)
       setError(null)
@@ -66,7 +73,7 @@ export const ContactDisplay: React.FC<ContactDisplayProps> = ({ contactId, acces
     if (contactId && accessToken) {
       fetchContact()
     }
-  }, [contactId, accessToken, graphqlClient])
+  }, [contactId, accessToken, graphqlClient, operation])
 
   const operationBadge = getOperationBadge(operation)
 
