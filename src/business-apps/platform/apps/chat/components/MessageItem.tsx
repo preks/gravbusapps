@@ -184,7 +184,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
           {message.content && (
             <div className="gba:break-words gba:text-sm gba:leading-relaxed">
               {isAIResponse ? (
-                <AIResponseRenderer content={message.content} />
+                <AIResponseRenderer content={message.content} scheduledMeeting={message.metadata?.scheduledMeeting} />
               ) : (
                 renderContentWithReferences(message.content, message.metadata, isOwnMessage)
               )}

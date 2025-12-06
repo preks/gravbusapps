@@ -118,6 +118,7 @@ export const Calendar: React.FC<CalendarProps> = ({ accessToken, prefixDataTestI
     updateMeeting,
     cancelMeeting,
     respondToInvitation,
+    refresh,
     dateRange,
     viewTitle
   } = useCalendar({
@@ -197,6 +198,57 @@ export const Calendar: React.FC<CalendarProps> = ({ accessToken, prefixDataTestI
 
     enrichEventWithAvatars()
   }, [selectedEvent, isDetailModalOpen, fetchAvatarsWithEmployeeIds])
+
+  // Handle URL params to navigate to a specific date/meeting (e.g., from MeetingCard click)
+  useEffect(() => {
+    const handleNavigation = async (event?: Event) => {
+      const urlParams = new URLSearchParams(window.location.search)
+      const dateParam = urlParams.get('date')
+      const meetingIdParam = urlParams.get('meetingId')
+
+      // If this is triggered by switchToCalendar event, refresh the calendar first
+      // This ensures we have the latest events (e.g., after AI schedules a meeting)
+      if (event?.type === 'switchToCalendar') {
+        await refresh()
+      }
+
+      if (dateParam) {
+        const targetDate = new Date(dateParam)
+        if (!isNaN(targetDate.getTime())) {
+          setCurrentDate(targetDate)
+          setView('day')
+
+          // If we have a meetingId, find and select that meeting after events load
+          if (meetingIdParam) {
+            // Wait a bit for events to load, then select the meeting
+            setTimeout(() => {
+              const meetingEvent = events.find(e => e.id === meetingIdParam)
+              if (meetingEvent) {
+                selectEvent(meetingEvent)
+                setIsDetailModalOpen(true)
+              }
+            }, 500)
+          }
+
+          // Clear the params after handling to avoid re-triggering
+          const url = new URL(window.location.href)
+          url.searchParams.delete('date')
+          url.searchParams.delete('meetingId')
+          window.history.replaceState({}, '', url.toString())
+        }
+      }
+    }
+
+    // Handle initial load
+    handleNavigation()
+
+    // Also listen for switchToCalendar event
+    const handleSwitchEvent = (e: Event) => handleNavigation(e)
+    window.addEventListener('switchToCalendar', handleSwitchEvent)
+    return () => {
+      window.removeEventListener('switchToCalendar', handleSwitchEvent)
+    }
+  }, [events, setCurrentDate, setView, selectEvent, refresh])
 
   // Handle event click
   const handleEventClick = useCallback(

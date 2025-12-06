@@ -214,6 +214,7 @@ const SEARCH_ENTITIES_QUERY = `
       orderBy: { firstName: ASC }
     ) {
       id
+      userId
       firstName
       lastName
       pictureThumbnail
@@ -334,6 +335,7 @@ interface SearchResponse {
   // Other
   Employee: Array<{
     id: string
+    userId?: string // Open Directory ID (user ID for calendar/meetings)
     firstName?: string
     lastName?: string
     pictureThumbnail?: string
@@ -565,6 +567,7 @@ export function useEntityMentions(accessToken: string) {
       const subtitle = [jobTitle, orgUnit].filter(Boolean).join(' • ') || undefined
       allEntities.push({
         id: emp.id,
+        userId: emp.userId, // Open Directory ID for calendar/meetings
         type: 'employee',
         name,
         subtitle,

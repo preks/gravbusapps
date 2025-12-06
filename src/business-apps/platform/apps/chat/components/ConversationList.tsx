@@ -22,6 +22,8 @@ interface ConversationListProps {
   accessToken: string
   compact?: boolean
   getUserPresence?: (userId: string) => UserPresence
+  // Pass presenceMap to trigger re-renders when presence changes via WebSocket
+  presenceMap?: Map<string, UserPresence>
 }
 
 // Helper to get the other participant's user ID from a direct conversation
@@ -49,8 +51,12 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   currentUserId = null,
   accessToken,
   compact = false,
-  getUserPresence
+  getUserPresence,
+  presenceMap // Used to trigger re-renders when presence changes - the actual lookup uses getUserPresence
 }) => {
+  // Log presence map changes for debugging (can be removed after verification)
+  // The presenceMap prop ensures this component re-renders when any user's presence changes
+  void presenceMap // Explicitly reference to suppress unused variable warning
   const [searchQuery, setSearchQuery] = useState('')
   const [showUserSearch, setShowUserSearch] = useState(false)
   const [showNewChatMenu, setShowNewChatMenu] = useState(false)

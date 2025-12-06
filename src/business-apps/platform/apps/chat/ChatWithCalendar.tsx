@@ -40,6 +40,19 @@ export const ChatWithCalendar: React.FC<ChatWithCalendarProps> = ({
     }
   }, [])
 
+  // Listen for custom event to switch to calendar (e.g., from MeetingCard click)
+  useEffect(() => {
+    const handleSwitchToCalendar = () => {
+      setActiveTab('calendar')
+      // The Calendar component will handle the date/meetingId from URL params
+    }
+
+    window.addEventListener('switchToCalendar', handleSwitchToCalendar as EventListener)
+    return () => {
+      window.removeEventListener('switchToCalendar', handleSwitchToCalendar as EventListener)
+    }
+  }, [])
+
   // Update URL when tab changes
   const handleTabChange = (value: string) => {
     setActiveTab(value as TabValue)

@@ -147,6 +147,7 @@ export type EntityType =
 
 export interface EntityReference {
   id: string
+  userId?: string // Open Directory ID (for employees - used by calendar/meetings API)
   type: EntityType
   name: string
   subtitle?: string

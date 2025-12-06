@@ -1,6 +1,8 @@
 import React from 'react'
 import { Building2, User, Users, UserCircle, Rocket, TrendingUp, Sparkles } from 'lucide-react'
 import { navigateTo } from '@/common/utils/navigationUtils'
+import type { ScheduledMeeting } from '../hooks/useEveryAIChat'
+import { MeetingCard } from './MeetingCard'
 
 /**
  * Entity link pattern: [Display Name](type://id)
@@ -124,48 +126,62 @@ const EntityChip: React.FC<{ link: EntityLink }> = ({ link }) => {
   )
 }
 
+interface AIResponseRendererProps {
+  content: string
+  scheduledMeeting?: ScheduledMeeting
+}
+
 /**
- * Render AI response with clickable entity cards
+ * Render AI response with clickable entity cards and optional meeting card
  */
-export const AIResponseRenderer: React.FC<{ content: string }> = ({ content }) => {
+export const AIResponseRenderer: React.FC<AIResponseRendererProps> = ({ content, scheduledMeeting }) => {
   const entityLinks = parseEntityLinks(content)
 
-  if (entityLinks.length === 0) {
-    // No entity links, render as plain text with markdown-style formatting
-    return <span className="gba:whitespace-pre-wrap">{renderMarkdownLite(content)}</span>
-  }
+  const renderTextContent = () => {
+    if (entityLinks.length === 0) {
+      // No entity links, render as plain text with markdown-style formatting
+      return <span className="gba:whitespace-pre-wrap">{renderMarkdownLite(content)}</span>
+    }
 
-  // Build parts array with text and entity chips
-  const parts: React.ReactNode[] = []
-  let lastIndex = 0
+    // Build parts array with text and entity chips
+    const parts: React.ReactNode[] = []
+    let lastIndex = 0
 
-  entityLinks.forEach((link, idx) => {
-    // Add text before this link
-    if (link.startIndex > lastIndex) {
-      const textBefore = content.slice(lastIndex, link.startIndex)
+    entityLinks.forEach((link, idx) => {
+      // Add text before this link
+      if (link.startIndex > lastIndex) {
+        const textBefore = content.slice(lastIndex, link.startIndex)
+        parts.push(
+          <span key={`text-${idx}`} className="gba:whitespace-pre-wrap">
+            {renderMarkdownLite(textBefore)}
+          </span>
+        )
+      }
+
+      // Add the entity chip
+      parts.push(<EntityChip key={`entity-${idx}`} link={link} />)
+
+      lastIndex = link.endIndex
+    })
+
+    // Add remaining text
+    if (lastIndex < content.length) {
       parts.push(
-        <span key={`text-${idx}`} className="gba:whitespace-pre-wrap">
-          {renderMarkdownLite(textBefore)}
+        <span key="text-end" className="gba:whitespace-pre-wrap">
+          {renderMarkdownLite(content.slice(lastIndex))}
         </span>
       )
     }
 
-    // Add the entity chip
-    parts.push(<EntityChip key={`entity-${idx}`} link={link} />)
-
-    lastIndex = link.endIndex
-  })
-
-  // Add remaining text
-  if (lastIndex < content.length) {
-    parts.push(
-      <span key="text-end" className="gba:whitespace-pre-wrap">
-        {renderMarkdownLite(content.slice(lastIndex))}
-      </span>
-    )
+    return <div className="gba:leading-relaxed">{parts}</div>
   }
 
-  return <div className="gba:leading-relaxed">{parts}</div>
+  return (
+    <div className="gba:space-y-3">
+      {renderTextContent()}
+      {scheduledMeeting && <MeetingCard meeting={scheduledMeeting} />}
+    </div>
+  )
 }
 
 /**

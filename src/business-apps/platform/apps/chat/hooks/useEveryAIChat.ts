@@ -9,10 +9,43 @@ function resolveFlowbotBaseUrl(): string {
   return env('NEXT_PUBLIC_FLOWBOT_ENDPOINT') || env('NEXT_PUBLIC_BASE_URL') || DEFAULT_FLOWBOT_BASE_URL
 }
 
+// Participant details for AI context
+export interface ParticipantInfo {
+  id: string
+  odId?: string // Open Directory ID (user ID for calendar/meetings)
+  name: string
+  email?: string
+  employeeId?: string
+}
+
+// Meeting data returned when AI schedules a meeting
+export interface ScheduledMeeting {
+  id: string
+  title: string
+  startTime: string
+  endTime: string
+  participants: string[]
+  meetingLink?: string
+  description?: string
+}
+
 interface EveryAIResponse {
   text: string
   error?: boolean
   sessionId?: string // The session ID to store in message metadata for sharing across users
+  scheduledMeeting?: ScheduledMeeting // If AI scheduled a meeting
+}
+
+// Conversation context with full participant details
+export interface ConversationContext {
+  conversationId: string
+  conversationName?: string
+  participants?: ParticipantInfo[] // Full participant details
+  existingSessionId?: string // Session ID from previous AI messages for shared context
+  currentUserId?: string // The user who is sending the message
+  currentUserName?: string
+  lastScheduledMeeting?: ScheduledMeeting // Last meeting scheduled in this conversation
+  mentionedUsers?: ParticipantInfo[] // Users mentioned via @ in the message (not necessarily in chat)
 }
 
 interface UseEveryAIChatOptions {
@@ -24,11 +57,13 @@ interface UseEveryAIChatOptions {
 /**
  * Hook to handle @Every AI mentions in group chats
  * Sends messages to FlowBot and returns AI responses
+ * Supports meeting scheduling for chat participants
  */
 export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }: UseEveryAIChatOptions) {
   const [isProcessing, setIsProcessing] = useState(false)
   const [streamingText, setStreamingText] = useState<string>('')
   const inFlightRef = useRef(false)
+  const conversationContextRef = useRef<ConversationContext | null>(null)
 
   /**
    * Check if message contains an @Every mention
@@ -51,21 +86,78 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
   }, [])
 
   /**
+   * Build an enhanced prompt with full participant context
+   */
+  const buildEnhancedPrompt = useCallback((prompt: string, context?: ConversationContext): string => {
+    const parts: string[] = []
+
+    // Add group chat name
+    if (context?.conversationName) {
+      parts.push(`[Group chat: ${context.conversationName}]`)
+    }
+
+    // Add participant information
+    if (context?.participants && context.participants.length > 0) {
+      const participantList = context.participants
+        .map(p => {
+          const details = [p.name]
+          if (p.email) details.push(`<${p.email}>`)
+          if (p.id) details.push(`(id: ${p.id})`)
+          return details.join(' ')
+        })
+        .join(', ')
+      parts.push(`[Chat participants: ${participantList}]`)
+    }
+
+    // Add mentioned users (people referenced via @ who may not be in the chat)
+    if (context?.mentionedUsers && context.mentionedUsers.length > 0) {
+      const mentionedList = context.mentionedUsers.map(p => `${p.name} (id: ${p.id})`).join(', ')
+      parts.push(`[Mentioned users in this message: ${mentionedList}]`)
+    }
+
+    // Add current user context
+    if (context?.currentUserName) {
+      parts.push(`[You are speaking to: ${context.currentUserName}]`)
+    }
+
+    // Add last scheduled meeting info so AI can update it
+    if (context?.lastScheduledMeeting) {
+      const m = context.lastScheduledMeeting
+      const meetingDate = new Date(m.startTime)
+      parts.push(
+        `[Last scheduled meeting in this chat: "${m.title}" (id: ${m.id}) on ${meetingDate.toLocaleDateString()} at ${meetingDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} with ${m.participants.join(', ')}]`
+      )
+    }
+
+    // Add meeting capabilities hint - FlowBot has tools for this
+    parts.push(
+      `[MEETING CAPABILITIES: You have access to tools for scheduling and updating meetings:
+        - schedule_meeting: Create a new meeting with title, date (YYYY-MM-DD), time (HH:MM), duration, and participants (names)
+        - update_meeting: Update an existing meeting - add/remove participants, change date/time
+        - cancel_meeting: Cancel an existing meeting
+        Use these tools when the user asks to schedule, update, or cancel meetings.
+        Participants should be specified by name (e.g., ["John Smith", "Maria"]).
+        The tools will automatically search and resolve names to user IDs.]`
+    )
+
+    parts.push(prompt)
+
+    return parts.join(' ')
+  }, [])
+
+  /**
    * Send a message to FlowBot and get the AI response
    * @param existingSessionId - Session ID from previous AI messages in this conversation (for shared context)
    */
   const sendToEveryAI = useCallback(
-    async (
-      content: string,
-      conversationContext?: {
-        conversationId: string
-        conversationName?: string
-        participantNames?: string[]
-        existingSessionId?: string // Session ID from previous AI messages for shared context
-      }
-    ): Promise<EveryAIResponse> => {
+    async (content: string, conversationContext?: ConversationContext): Promise<EveryAIResponse> => {
       if (inFlightRef.current) {
         return { text: '', error: true }
+      }
+
+      // Store context for meeting scheduling
+      if (conversationContext) {
+        conversationContextRef.current = conversationContext
       }
 
       try {
@@ -90,23 +182,16 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
 
         const form = new FormData()
         form.append('session_id', sharedSessionId)
-        form.append('user_input_text', prompt)
         form.append('llm_model', LLM_MODEL)
         form.append('use_web_search_tool', 'false')
 
         // Build context in the format FlowBot expects
-        // The API expects a FLAT object with type at the root level (not nested in currentPage)
         const currentPageUrl = typeof window !== 'undefined' ? window.location.href : ''
         const currentPageRoute = typeof window !== 'undefined' ? window.location.pathname : ''
 
-        // Include group chat context in the prompt itself for better AI understanding
-        let enhancedPrompt = prompt
-        if (conversationContext?.conversationName) {
-          enhancedPrompt = `[Group chat: ${conversationContext.conversationName}] ${prompt}`
-        }
-
-        // Update the user_input_text with enhanced prompt
-        form.set('user_input_text', enhancedPrompt)
+        // Build enhanced prompt with full participant context
+        const enhancedPrompt = buildEnhancedPrompt(prompt, conversationContext)
+        form.append('user_input_text', enhancedPrompt)
 
         // Use 'unknown' type since we're in a chat context, not an entity page
         // Format matches prepareCurrentPageContext output: flat object with type at root
@@ -202,10 +287,14 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
           }
         }
 
+        // Meeting scheduling is now handled by FlowBot backend tools
+        // The AI will call schedule_meeting, update_meeting, or cancel_meeting tools directly
+        // and include the results in its response
+
         const response: EveryAIResponse = {
           text: responseText || "I'm sorry, I couldn't generate a response. Please try again.",
           error: !responseText,
-          sessionId: responseSessionId || undefined // Include session ID for storing in message metadata
+          sessionId: responseSessionId || undefined
         }
 
         if (onAIResponse) {
@@ -228,24 +317,19 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
         setIsProcessing(false)
       }
     },
-    [accessToken, extractPromptFromMessage, onAIResponse]
+    [accessToken, extractPromptFromMessage, onAIResponse, onStreamingUpdate, buildEnhancedPrompt]
   )
 
   /**
    * Process a chat message that may contain @Every mention
    * Returns the AI response if @Every was mentioned, null otherwise
-   * @param existingSessionId - Pass session ID from previous AI messages for shared context across users
+   * @param conversationContext - Full context including participants and session ID
    */
   const processMessage = useCallback(
     async (
       content: string,
       entityReferences?: MessageEntityReference[],
-      conversationContext?: {
-        conversationId: string
-        conversationName?: string
-        participantNames?: string[]
-        existingSessionId?: string // Session ID from previous AI messages for shared context
-      }
+      conversationContext?: ConversationContext
     ): Promise<EveryAIResponse | null> => {
       if (!hasEveryMention(entityReferences)) {
         return null

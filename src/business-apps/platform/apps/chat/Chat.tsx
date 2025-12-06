@@ -71,6 +71,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
     messagesLoading,
     hasMoreMessages,
     typingUsers,
+    presenceMap,
     getUserPresence,
     updatePresenceFromUser,
     sendMessage,
@@ -368,16 +369,31 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
         // Check if message contains @Every mention and process it
         if (hasEveryMention(entityReferences) && activeConversation) {
           try {
-            // Build context about the group chat for the AI
-            const participantNames = activeConversation.participants
+            // Build full participant details for the AI context
+            // This allows AI to know all participants and schedule meetings for them
+            const participants = activeConversation.participants
               ?.filter(p => p.user)
               .map(p => {
                 const user = p.user!
-                return (
+                const name =
                   user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || ''
-                )
+                return {
+                  id: p.userId || user.id,
+                  odId: p.userId || user.id, // Open Directory ID for calendar/meetings
+                  name,
+                  email: user.email,
+                  employeeId: user.employeeId
+                }
               })
-              .filter(Boolean)
+              .filter(p => p.name)
+
+            // Get current user info
+            const currentUserName = currentUser
+              ? currentUser.displayName ||
+                `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() ||
+                currentUser.username ||
+                ''
+              : ''
 
             // Find existing AI session ID from previous AI messages in this conversation
             // This allows all users to share the same AI context
@@ -386,11 +402,35 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
               .map(m => m.metadata?.everyAiSessionId as string)
               .pop() // Get the most recent session ID
 
+            // Find the last scheduled meeting from previous AI messages
+            // This allows AI to update existing meetings instead of creating new ones
+            const lastScheduledMeeting = messages
+              .filter(m => m.metadata?.isAIResponse && m.metadata?.scheduledMeeting)
+              .map(m => m.metadata?.scheduledMeeting)
+              .pop()
+
+            // Extract mentioned users from entity references (people mentioned with @ who might not be in the chat)
+            // For employees, use userId (Open Directory ID) which the calendar API expects
+            const mentionedUsers =
+              entityReferences
+                ?.filter(ref => ref.type === 'employee' || ref.type === 'contact')
+                .map(ref => ({
+                  id: ref.id,
+                  odId: ref.userId || ref.id, // Use userId (OD ID) for employees, fallback to id
+                  name: ref.name || 'Unknown',
+                  email: undefined,
+                  employeeId: ref.type === 'employee' ? ref.id : undefined
+                })) || []
+
             const conversationContext = {
               conversationId: activeConversationId,
               conversationName: activeConversation.name,
-              participantNames,
-              existingSessionId // Pass existing session ID for shared AI context
+              participants,
+              existingSessionId,
+              currentUserId: currentUser?.id,
+              currentUserName,
+              lastScheduledMeeting,
+              mentionedUsers
             }
 
             // Process the message with Every AI
@@ -406,12 +446,18 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
 
                 // Send the AI response as a message
                 // The visual styling (avatar, name) is handled by MessageItem based on isAIResponse metadata
-                const aiMetadata = {
+                const aiMetadata: Record<string, any> = {
                   isAIResponse: true,
                   aiAssistant: 'Every',
                   originalQuestion: content,
-                  everyAiSessionId: aiResponse.sessionId // Store session ID for shared AI context across users
+                  everyAiSessionId: aiResponse.sessionId
                 }
+
+                // Include scheduled meeting data if present
+                if (aiResponse.scheduledMeeting) {
+                  aiMetadata.scheduledMeeting = aiResponse.scheduledMeeting
+                }
+
                 await sendMessage(activeConversationId, responseText, aiMetadata)
 
                 // Clear streaming text after message is sent
@@ -1034,6 +1080,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
               accessToken={accessToken}
               compact={viewMode === 'compact'}
               getUserPresence={getUserPresence}
+              presenceMap={presenceMap}
             />
           </div>
         )}
