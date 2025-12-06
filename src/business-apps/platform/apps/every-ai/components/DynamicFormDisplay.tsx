@@ -558,84 +558,40 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
   const deleteSummary = useMemo(() => {
     if (!isDeleteOperation) return null
 
-    const flowData = data.arguments?.flow || {}
-    const taskData = data.arguments?.task || {}
     const entityDataFromFlow = (data as any).entity_data
 
-    // Find the main entity object (similar to initialValues extraction)
-    const findEntityObject = (obj: Record<string, any>): any => {
-      for (const [key, value] of Object.entries(obj)) {
-        if (
-          typeof value === 'object' &&
-          value !== null &&
-          !Array.isArray(value) &&
-          !['changeMode', 'id', 'version', 'businessKey', 'meta', 'reason'].includes(key)
-        ) {
-          return { key, value }
-        }
-      }
-      return null
-    }
+    // For delete operations, use ONLY entity_data (not GraphQL since item is already deleted)
+    if (!entityDataFromFlow) return null
 
-    const taskEntity = findEntityObject(taskData)
-    const flowEntity = findEntityObject(flowData)
+    // Extract entity type from entity_data (check both 'entity' and 'entity_name' fields)
+    const entityTypeFromData = entityDataFromFlow.entity || entityDataFromFlow.entity_name
+    if (!entityTypeFromData) return null
 
-    const entity = taskEntity || flowEntity
-    if (!entity) return null
+    // Convert snake_case to camelCase for entity type mapping (e.g., "content_entry" -> "contentEntry")
+    const camelCaseEntityType = entityTypeFromData
+      .split('_')
+      .map((word: string, index: number) => (index === 0 ? word : word.charAt(0).toUpperCase() + word.slice(1)))
+      .join('')
 
-    const entityData = entity.value
-    let entityType = entity.key
-    let entityId = entityData.id
+    const entityId = entityDataFromFlow.id
+    if (!entityId) return null
 
-    // If entity_data is available, use it to get better entity type and text_title
-    if (entityDataFromFlow) {
-      // Use entity type from entity_data if available (e.g., "content_entry" -> "contentEntry")
-      if (entityDataFromFlow.entity) {
-        // Convert snake_case to camelCase for entity type mapping
-        const entityTypeFromData = entityDataFromFlow.entity
-        const camelCaseEntityType = entityTypeFromData
-          .split('_')
-          .map((word: string, index: number) => (index === 0 ? word : word.charAt(0).toUpperCase() + word.slice(1)))
-          .join('')
-        entityType = camelCaseEntityType
-      }
-      if (entityDataFromFlow.id) {
-        entityId = entityDataFromFlow.id
-      }
-    }
-
-    // Extract display fields
+    // Extract display fields - use text_title from entity_data
     const summary: Array<{ label: string; value: string }> = []
-
-    // Prioritize text_title from entity_data if available
-    if (entityDataFromFlow?.text_title) {
+    if (entityDataFromFlow.text_title) {
       summary.push({ label: 'Title', value: entityDataFromFlow.text_title })
-    } else if (entityData.title) {
-      summary.push({ label: 'Title', value: entityData.title })
     }
-
-    // Fallback to other common fields if text_title not available
-    if (!entityDataFromFlow?.text_title) {
-      if (entityData.name) summary.push({ label: 'Name', value: entityData.name })
-      if (entityData.firstName && entityData.lastName) {
-        summary.push({ label: 'Name', value: `${entityData.firstName} ${entityData.lastName}`.trim() })
-      } else if (entityData.firstName) summary.push({ label: 'First Name', value: entityData.firstName })
-      else if (entityData.lastName) summary.push({ label: 'Last Name', value: entityData.lastName })
-      if (entityData.email) summary.push({ label: 'Email', value: entityData.email })
-    }
-
-    // Don't show ID/UUID to user
 
     // Build entity URL
-    const entityUrl = buildEntityUrl(entityType, entityId)
+    const entityUrl = buildEntityUrl(camelCaseEntityType, entityId)
 
     return {
-      entityType: entityType.replace(/([A-Z])/g, ' $1').trim(),
+      entityType: camelCaseEntityType.replace(/([A-Z])/g, ' $1').trim(),
       entityId,
       entityUrl,
       fields: summary
     }
-  }, [isDeleteOperation, data.arguments, buildEntityUrl, data])
+  }, [isDeleteOperation, buildEntityUrl, data])
 
   const fields = useMemo(() => {
     if (!schema || !schema.properties) return []

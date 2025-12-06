@@ -25,6 +25,13 @@ export const CompanyDisplay: React.FC<CompanyDisplayProps> = ({ companyId, acces
   const graphqlClient = useGraphQLClient(accessToken)
 
   useEffect(() => {
+    // For delete operations, skip GraphQL query since entity is already deleted
+    if (operation === 'delete') {
+      setIsLoading(false)
+      setError(null)
+      return
+    }
+
     const fetchCompany = async () => {
       setIsLoading(true)
       setError(null)
@@ -63,7 +70,7 @@ export const CompanyDisplay: React.FC<CompanyDisplayProps> = ({ companyId, acces
     if (companyId && accessToken) {
       fetchCompany()
     }
-  }, [companyId, accessToken, graphqlClient])
+  }, [companyId, accessToken, graphqlClient, operation])
 
   const operationBadge = getOperationBadge(operation)
 
