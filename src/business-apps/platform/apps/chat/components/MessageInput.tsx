@@ -277,19 +277,23 @@ export const MessageInput: React.FC<MessageInputProps> = ({
 
   // Handle prepend text (e.g., when replying to AI)
   useEffect(() => {
-    if (prependText && onPrependTextConsumed) {
-      // Add the prepend text to the beginning, preserving any existing text
-      const newValue = value ? `${prependText}${value}` : prependText
-      setValue(newValue)
-      onPrependTextConsumed()
+    if (prependText) {
+      // Get current value from the input directly to avoid stale closure
+      const currentValue = inputRef.current?.value || ''
+      const newValue = currentValue ? `${prependText}${currentValue}` : prependText
 
-      // Focus and move cursor to end
-      setTimeout(() => {
+      setValue(newValue)
+
+      // Focus and move cursor to end after state update
+      requestAnimationFrame(() => {
         if (inputRef.current) {
           inputRef.current.focus()
           inputRef.current.setSelectionRange(newValue.length, newValue.length)
         }
-      }, 0)
+      })
+
+      // Notify that we've consumed the prepend text
+      onPrependTextConsumed?.()
     }
   }, [prependText, onPrependTextConsumed])
 
