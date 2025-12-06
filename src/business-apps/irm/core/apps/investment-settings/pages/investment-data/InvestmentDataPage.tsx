@@ -4,7 +4,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   useGetInvestmentCatalogData,
   InvestmentCatalogData
-} from '@/business-apps/irm/investments/forms/investment-form/queries/InvestmentCatalogQueries'
+} from '@/common/data/investment/hooks/useInvestmentCatalogs'
 import { InvestmentDataHeader, GroupTypeSelector, ConfigurationNav, ConfigurationContent } from './components'
 import { CatalogEntryWithConfig, FieldGroup, ProspectField, TileField } from './types'
 import { useInvestmentConfiguration, useInvestmentDataSave, mapCatalogEntryToTyped } from '../../hooks'

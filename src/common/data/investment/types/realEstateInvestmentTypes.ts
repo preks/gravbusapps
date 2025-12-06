@@ -6,6 +6,7 @@ import type { Investment } from './investmentTypes.new'
  * Real Estate Investment Type
  */
 export interface RealEstateInvestment extends BaseEntity {
+  id?: string
   buildingYear?: string
   numberOfUnits?: number
   annualNetColdRent?: number

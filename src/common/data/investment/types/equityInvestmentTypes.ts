@@ -6,6 +6,7 @@ import type { Investment } from './investmentTypes.new'
  * Equity Investment Type
  */
 export interface EquityInvestment extends BaseEntity {
+  id?: string
   foundationDate?: string
   marketValue?: number
   turnoverAmount?: number

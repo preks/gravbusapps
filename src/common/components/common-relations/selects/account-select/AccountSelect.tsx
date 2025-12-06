@@ -66,6 +66,7 @@ interface AccountSelectProps {
 
   // Component behavior
   multiple?: boolean
+  disabled?: boolean
 }
 
 const AccountSelect: React.FC<AccountSelectProps> = ({
@@ -79,7 +80,8 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
   searchAccounts,
   accountContacts = [],
   initialAccount,
-  multiple = false
+  multiple = false,
+  disabled = false
   // onNewAccount - can be added later if needed
 }) => {
   // Helper function to extract ID from value (string or object)
@@ -428,7 +430,7 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
           placeholder="Search and select account..."
           searchPlaceholder="Search accounts..."
           emptyText={accountsLoading ? 'Loading...' : 'No accounts found'}
-          disabled={accountsLoading}
+          disabled={disabled || accountsLoading}
           loading={accountsLoading}
           onSearch={searchAccounts}
           data-testid={formatDataTestId(dataTestId || 'account-list', 'combobox')}
@@ -520,7 +522,7 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
           placeholder="Search and select account..."
           searchPlaceholder="Search accounts..."
           emptyText={accountsLoading ? 'Loading...' : 'No accounts found'}
-          disabled={accountsLoading}
+          disabled={disabled || accountsLoading}
           loading={accountsLoading}
           onSearch={searchAccounts}
           data-testid={formatDataTestId(dataTestId || 'account-list', 'combobox')}

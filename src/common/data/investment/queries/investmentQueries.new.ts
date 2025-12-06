@@ -426,6 +426,7 @@ export const buildInvestmentFragment = (fields: string[]): string => {
         ${LiquidFundInvestmentFields.earlyTerminationAllowed}
         ${LiquidFundInvestmentFields.interestRate}
         ${LiquidFundInvestmentFields.maturityDate}
+        ${LiquidFundInvestmentFields.additionalProperties}
         ${LiquidFundInvestmentFields.investmentLiquidFundType} {
           ${CATALOG_ENTRY}
         }

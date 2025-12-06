@@ -217,12 +217,19 @@ export const useEmployeeSelect = ({
 
   // Ensure initialEmployee is in options
   const employeesWithInitial = useMemo(() => {
-    if (!effectiveInitialEmployee || !value || value === effectiveInitialEmployee.id) {
+    if (!effectiveInitialEmployee) {
       return employees
     }
-    const isInEmployees = employees.some(emp => emp.id === effectiveInitialEmployee.id)
-    if (isInEmployees) return employees
 
+    // Check if initialEmployee is already in the list
+    const isInEmployees = employees.some(emp => emp.id === effectiveInitialEmployee.id)
+
+    // If already in list, return as-is
+    if (isInEmployees) {
+      return employees
+    }
+
+    // If not in list, add it (important for update mode when employees list might be empty initially)
     return [effectiveInitialEmployee, ...employees]
   }, [employees, effectiveInitialEmployee, value])
 

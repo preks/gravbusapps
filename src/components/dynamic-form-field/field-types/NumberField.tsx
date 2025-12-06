@@ -1,49 +1,40 @@
-import { Input, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@newwork/nw-design-system'
-import { Control, FieldValues, Path } from 'react-hook-form'
+import React from 'react'
+import { Input } from '@newwork/nw-design-system'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import { DynamicFieldDefinition } from '../DynamicFormField'
 
-interface NumberFieldProps<TFieldValues extends FieldValues = FieldValues> {
-  field: DynamicFieldDefinition
+type NumberFieldProps = React.ComponentProps<typeof Input> & {
   fieldName: string
-  control: Control<TFieldValues>
   testIdPrefix: string
 }
 
-export function NumberField<TFieldValues extends FieldValues = FieldValues>({
-  field,
+export function NumberField({
   fieldName,
-  control,
-  testIdPrefix
-}: NumberFieldProps<TFieldValues>) {
+  testIdPrefix,
+  type = 'number',
+  step = '0.01',
+  min = '0',
+  placeholder = 'Enter number',
+  value,
+  onChange,
+  ...props
+}: NumberFieldProps) {
   return (
-    <FormField
-      key={fieldName}
-      control={control}
-      name={fieldName as Path<TFieldValues>}
-      render={({ field: formField }) => (
-        <FormItem>
-          <FormLabel>
-            {field.label} {field.required && <span className="gba:text-destructive">*</span>}
-          </FormLabel>
-          <FormControl>
-            <Input
-              {...formField}
-              value={formField.value || ''}
-              onChange={e => {
-                const value = e.target.value === '' ? '' : e.target.value
-                formField.onChange(value)
-              }}
-              type="number"
-              step="0.01"
-              min="0"
-              placeholder="Enter number"
-              data-testid={formatDataTestId(testIdPrefix, `${fieldName}Input`)}
-            />
-          </FormControl>
-          <FormMessage />
-        </FormItem>
-      )}
+    <Input
+      {...props}
+      type={type}
+      step={step}
+      min={min}
+      placeholder={placeholder}
+      value={value || ''}
+      onChange={e => {
+        const newValue = e.target.value === '' ? '' : e.target.value
+        const syntheticEvent = {
+          ...e,
+          target: { ...e.target, value: newValue }
+        } as React.ChangeEvent<HTMLInputElement>
+        onChange?.(syntheticEvent)
+      }}
+      data-testid={formatDataTestId(testIdPrefix, `${fieldName}Input`)}
     />
   )
 }

@@ -9,10 +9,7 @@ import {
   formatFieldValue
 } from '../../utils/investmentHeaderConfig'
 import { getValueByPath } from '@/common/utils/objectUtils'
-import {
-  FormFieldsDefinition,
-  FormFieldDefinition
-} from '@/business-apps/irm/investments/forms/investment-form/queries/InvestmentCatalogQueries'
+import { FormFieldsDefinition, FormFieldDefinition } from '@/common/data/investment/hooks/useInvestmentCatalogs'
 
 export interface ColumnDefinition {
   key: string

@@ -7,7 +7,7 @@ import {
   useGetInvestmentCatalogData,
   InvestmentCatalogData,
   InvestmentLiquidFundTypeEntry
-} from '@/business-apps/irm/investments/forms/investment-form/queries/InvestmentCatalogQueries'
+} from '@/common/data/investment/hooks/useInvestmentCatalogs'
 import { DynamicTableColumn, transformFormFieldsToTableColumns } from '../utils/liquidFundReportColumnTransformer'
 
 /**

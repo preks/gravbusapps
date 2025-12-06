@@ -153,6 +153,8 @@ export enum FlowContextName {
   investmentReportUpload = 'investmentReportUpload',
   investmentReportEntity = 'investmentReportEntity', // Integrate
   investmentReportGenerate = 'investmentReportGenerate',
+  investmentReportCreate = 'investmentReportCreate',
+  investmentReportUpdate = 'investmentReportUpdate',
 
   expenseItems = 'expenseItems',
   expensePlans = 'expensePlans',

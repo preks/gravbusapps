@@ -1,7 +1,9 @@
 import { Control, FieldValues } from 'react-hook-form'
+import { ControllerRenderProps } from 'react-hook-form'
 import { DynamicFormField } from '@/components/dynamic-form-field'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { DynamicFormConfiguration, DynamicFormFieldDefinition, DynamicFormFieldGroup } from './types'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 /**
  * Props for DynamicForm component
@@ -18,7 +20,15 @@ export interface DynamicFormProps<TFieldValues extends FieldValues = FieldValues
   /** Currency symbol to display in amount fields */
   currencySymbol?: string
   /** Custom renderer for REF_ fields */
-  renderReferenceField?: (entityType: string, field: DynamicFormFieldDefinition, fieldName: string) => React.ReactNode
+  renderReferenceField?: (
+    entityType: string,
+    field: DynamicFormFieldDefinition,
+    fieldName: string,
+    formField: ControllerRenderProps<TFieldValues>,
+    businessAppContext: BusinessAppContextProps
+  ) => React.ReactNode
+  /** Business app context (required for REF_ fields) */
+  businessAppContext?: BusinessAppContextProps
   /** Loading state */
   isLoading?: boolean
   /** Error message */
@@ -41,7 +51,7 @@ export interface DynamicFormProps<TFieldValues extends FieldValues = FieldValues
  * - Form field: "investment.investmentType" (no Ref)
  * - API payload: "investment.investmentTypeRef" (has Ref - handled by payload builder)
  */
-function getFieldNameFromProperty(property: string, fieldType: string): string {
+function getFieldNameFromProperty(property: string): string {
   // Use the property path as-is (no Ref suffix manipulation needed)
   // Form state uses catalog fields WITHOUT "Ref" suffix
   return property
@@ -108,6 +118,7 @@ export function DynamicForm<TFieldValues extends FieldValues = FieldValues>({
   testIdPrefix = 'DynamicForm',
   currencySymbol,
   renderReferenceField,
+  businessAppContext,
   isLoading = false,
   error = null,
   emptyMessage = 'No form fields available'
@@ -189,7 +200,7 @@ export function DynamicForm<TFieldValues extends FieldValues = FieldValues>({
                 if (fieldsInOrder.length === 1) {
                   // Single field - full width
                   const field = fieldsInOrder[0]
-                  const fieldName = getFieldNameFromProperty(field.property, field.type)
+                  const fieldName = getFieldNameFromProperty(field.property)
 
                   return (
                     <div key={orderBase}>
@@ -201,6 +212,7 @@ export function DynamicForm<TFieldValues extends FieldValues = FieldValues>({
                         testIdPrefix={testIdPrefix}
                         currencySymbol={currencySymbol}
                         renderReferenceField={renderReferenceField}
+                        businessAppContext={businessAppContext}
                       />
                     </div>
                   )
@@ -215,7 +227,7 @@ export function DynamicForm<TFieldValues extends FieldValues = FieldValues>({
                       }}
                     >
                       {fieldsInOrder.map(field => {
-                        const fieldName = getFieldNameFromProperty(field.property, field.type)
+                        const fieldName = getFieldNameFromProperty(field.property)
 
                         return (
                           <div key={field.property}>
@@ -227,6 +239,7 @@ export function DynamicForm<TFieldValues extends FieldValues = FieldValues>({
                               testIdPrefix={testIdPrefix}
                               currencySymbol={currencySymbol}
                               renderReferenceField={renderReferenceField}
+                              businessAppContext={businessAppContext}
                             />
                           </div>
                         )

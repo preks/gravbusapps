@@ -16,6 +16,15 @@ export const FILE_CONTEXT = {
 } as const
 
 /**
+ * Investment Group Codes
+ */
+export enum InvestmentGroupCode {
+  EQUITY = 'EQUITY',
+  REAL_ESTATE = 'REAL_ESTATE',
+  LIQUID_FUND = 'LIQUID_FUND'
+}
+
+/**
  * Maps reference entity type to FILE_ENTITY constant
  */
 export const getFileEntityFromType = (

@@ -1,0 +1,74 @@
+import React from 'react'
+import { Combobox } from '@newwork/nw-design-system'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useGetInvestmentAccounts, AccountSelectOption } from '@/common/data/investment/hooks/useInvestmentAccounts'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+
+type InvestmentAccountFieldProps = Omit<
+  React.ComponentProps<typeof Combobox>,
+  'value' | 'onValueChange' | 'mode' | 'options'
+> & {
+  fieldName: string
+  businessAppContext: BusinessAppContextProps
+  testIdPrefix?: string
+  value?: string | { id: string } | null
+  onValueChange?: (value: string | { id: string } | null) => void
+}
+
+export const InvestmentAccountField = ({
+  fieldName,
+  businessAppContext,
+  testIdPrefix = 'InvestmentForm',
+  value,
+  onValueChange,
+  ...props
+}: InvestmentAccountFieldProps) => {
+  // Use enhanced hook for account selection with state management
+  const {
+    options: investmentAccounts,
+    loading: investmentAccountsLoading,
+    hasMore: investmentAccountsHasMore,
+    search: searchInvestmentAccounts,
+    loadMore: loadMoreInvestmentAccounts
+  } = useGetInvestmentAccounts(businessAppContext, {
+    withState: true,
+    autoFetch: true,
+    pageSize: 50,
+    mapToSelectOptions: true
+  })
+
+  // Type assertion: mapToSelectOptions: true ensures AccountSelectOption[]
+  // AccountSelectOption has id, value, label, name which matches ComboboxOption structure
+  const accountOptions = investmentAccounts as unknown as AccountSelectOption[]
+
+  // Extract value: handle both object format {id: "..."} and string format
+  const fieldValue =
+    typeof value === 'object' && value !== null && !Array.isArray(value)
+      ? (value as any)?.id || ''
+      : (value as string) || ''
+
+  return (
+    <Combobox
+      {...props}
+      value={fieldValue}
+      onValueChange={(newValue: string) => {
+        // Store as string ID (like ownerEmployeeId), not object
+        onValueChange?.(newValue || null)
+      }}
+      options={accountOptions as any}
+      placeholder={getTranslationFromI18nKeyAndLabel(
+        'investment.form.selectInvestmentAccount',
+        'Select investment account...'
+      )}
+      searchPlaceholder="Search investment accounts..."
+      emptyText="No investment accounts found"
+      disabled={investmentAccountsLoading}
+      loading={investmentAccountsLoading}
+      onSearch={searchInvestmentAccounts}
+      onLoadMore={loadMoreInvestmentAccounts}
+      hasMore={investmentAccountsHasMore}
+      data-testid={formatDataTestId(testIdPrefix, `${fieldName}Select`)}
+    />
+  )
+}

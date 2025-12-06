@@ -4,7 +4,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { EquityAnalyticsFilters } from './types'
 import { EquityAnalyticsTable } from './components/EquityAnalyticsTable'
 import { useEquityInvestmentTypes } from './hooks/useEquityInvestmentTypes'
-import { useGetInvestmentCatalogData } from '@/business-apps/irm/investments/forms/investment-form/queries/InvestmentCatalogQueries'
+import { useGetInvestmentCatalogData } from '@/common/data/investment/hooks/useInvestmentCatalogs'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { UseReportFiltersReturn, ColumnConfig, useReportFilters } from '../../hooks'
 
