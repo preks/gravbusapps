@@ -244,6 +244,26 @@ export class ChatWebSocketClient {
     parentId?: string,
     metadata?: Record<string, any>
   ) {
+    console.log('[ChatWebSocketClient] sendMessage called', {
+      conversationId,
+      senderId,
+      contentLength: content?.length,
+      hasParentId: !!parentId,
+      hasMetadata: !!metadata,
+      socketConnected: this.socket?.connected,
+      socketId: this.socket?.id
+    })
+
+    if (!this.socket) {
+      console.error('[ChatWebSocketClient] Cannot send message: socket is null')
+      return
+    }
+
+    if (!this.socket.connected) {
+      console.error('[ChatWebSocketClient] Cannot send message: socket not connected')
+      return
+    }
+
     const payload = {
       conversationId,
       content,
@@ -252,7 +272,11 @@ export class ChatWebSocketClient {
       ...(metadata && { metadata })
     }
 
-    this.socket?.emit('send_message', payload)
+    console.log('[ChatWebSocketClient] Emitting send_message event', payload)
+    this.socket.emit('send_message', payload, (response: any) => {
+      console.log('[ChatWebSocketClient] send_message acknowledgment received', response)
+    })
+    console.log('[ChatWebSocketClient] send_message emitted')
   }
 
   sendTypingStart(conversationId: string) {

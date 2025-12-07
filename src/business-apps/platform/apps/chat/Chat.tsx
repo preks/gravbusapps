@@ -5,6 +5,7 @@ import { useChatClient } from './hooks/useChatClient'
 import { useCall } from './hooks/useCall'
 import { useGroupCall } from './hooks/useGroupCall'
 import { useEveryAIChat } from './hooks/useEveryAIChat'
+import { usePersonalAgentIntegration } from './hooks/usePersonalAgentIntegration'
 import { ConversationList } from './components/ConversationList'
 import { ConversationHeader, type ActiveCallInfo } from './components/ConversationHeader'
 import { MessageList } from './components/MessageList'
@@ -17,6 +18,7 @@ import { IncomingGroupCallDialog } from './components/IncomingGroupCallDialog'
 import { CallModal } from './components/CallModal'
 import { GroupCallModal } from './components/GroupCallModal'
 import { initGlobalMinimizedCallRenderer } from './components/GlobalMinimizedCall'
+import { AgentCreationDialog } from '../personal-agents/components/AgentCreationDialog'
 import type { Conversation, User, MessageEntityReference } from './types'
 import type { CallParticipant } from './services/webrtcClient'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -74,17 +76,9 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
   let baseUrl = env('NEXT_PUBLIC_BASE_URL') || ''
   baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
 
-  // Normalize API and WS endpoints; enforce chat-service socket path to avoid `/socket.io` root fallback
+  // Normalize API and WS endpoints; use host-only WS URL with chat-service path
   const apiUrl = env('NEXT_PUBLIC_CHAT_API') || `${baseUrl}/chat-service/api/v1` || ''
-  const wsUrl = (() => {
-    const fromEnv = env('NEXT_PUBLIC_CHAT_WEB_SOCKET')
-    if (fromEnv) {
-      // Strip any trailing socket.io or chat-service path; we set path separately
-      return fromEnv.replace(/\/socket\.io.*$/, '').replace(/\/chat-service$/, '')
-    }
-    return `${baseUrl}` // host only; path defined separately
-  })()
-  // Always force chat-service socket path; prevents fallback to root /socket.io
+  const wsUrl = `${baseUrl}` // host only
   const wsSocketPath = '/chat-service/socket.io'
 
   const chatClient = useChatClient({
@@ -146,6 +140,12 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
   useEffect(() => {
     console.debug('[Chat] stableActiveConversation', stableActiveConversation?.id)
   }, [stableActiveConversation?.id])
+
+  // Personal Agent Integration
+  const agentIntegration = usePersonalAgentIntegration({
+    accessToken,
+    userInfo: currentUser || undefined
+  })
 
   // Convert current user to CallParticipant format
   const currentUserAsParticipant: CallParticipant | null = useMemo(() => {
@@ -399,6 +399,16 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
   const handleSendMessage = useCallback(
     async (content: string, entityReferences?: MessageEntityReference[], attachments?: any[]) => {
       if (!activeConversationId) return
+
+      // Check if this is an agent creation request
+      console.log('[Chat] Checking for agent creation intent:', content)
+      const isAgentRequest = await agentIntegration.processMessageForAgentCreation(content, 'chat')
+      console.log('[Chat] Is agent request:', isAgentRequest)
+      if (isAgentRequest) {
+        console.log('[Chat] Handled as agent request, showing dialog')
+        setDraftMessage('') // Clear input after showing agent dialog
+        return
+      }
 
       try {
         // Build metadata with entity references and attachments if present
@@ -1291,6 +1301,15 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
           currentUserId={currentUser?.id || null}
         />
       )}
+
+      {/* Agent Creation Dialog */}
+      <AgentCreationDialog
+        isOpen={agentIntegration.showAgentDialog}
+        parseResult={agentIntegration.currentParseResult}
+        onConfirm={agentIntegration.confirmAgentCreation}
+        onCancel={agentIntegration.cancelAgentCreation}
+        isLoading={agentIntegration.isLoading}
+      />
     </div>
   )
 }
