@@ -36,10 +36,10 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context, curr
       setIsLoading(true)
       setError(null)
 
-      // Get current date and 30 days ago for comparison
+      // Get current date and 91 days ago for comparison
       const currentDate = new Date()
-      const thirtyDaysAgo = new Date()
-      thirtyDaysAgo.setDate(currentDate.getDate() - 30)
+      const quarterAgo = new Date()
+      quarterAgo.setDate(currentDate.getDate() - 91)
 
       // Use central hook to get all investments with currency filter, then filter for planned exits
       const response = await fetchInvestments({
@@ -102,7 +102,7 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context, curr
 
       // Calculate current and historical metrics
       const current = calculateMetrics()
-      const historical = calculateMetrics(thirtyDaysAgo)
+      const historical = calculateMetrics(quarterAgo)
 
       // Calculate percentage changes
       const calculatePercentageChange = (current: number, previous: number): number => {
@@ -176,7 +176,7 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context, curr
           trend: {
             value: formatPercentageChange(metrics.countChange),
             positive: metrics.countChange < 0, // Fewer exits is positive from portfolio perspective
-            description: getTranslationFromI18nKeyAndLabel('vs_last_30_days', 'vs last 30 days')
+            description: getTranslationFromI18nKeyAndLabel('vs_last_quarter', 'vs last quarter')
           }
         },
         {
@@ -191,7 +191,7 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context, curr
           trend: {
             value: formatPercentageChange(metrics.investmentValueChange),
             positive: metrics.investmentValueChange >= 0,
-            description: getTranslationFromI18nKeyAndLabel('vs_last_30_days', 'vs last 30 days')
+            description: getTranslationFromI18nKeyAndLabel('vs_last_quarter', 'vs last quarter')
           }
         },
         {
@@ -206,7 +206,7 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context, curr
           trend: {
             value: formatPercentageChange(metrics.marketValueChange),
             positive: metrics.marketValueChange >= 0,
-            description: getTranslationFromI18nKeyAndLabel('vs_last_30_days', 'vs last 30 days')
+            description: getTranslationFromI18nKeyAndLabel('vs_last_quarter', 'vs last quarter')
           }
         },
         {
@@ -225,7 +225,7 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context, curr
           trend: {
             value: formatPercentageChange(metrics.performanceChange),
             positive: metrics.performanceChange >= 0,
-            description: getTranslationFromI18nKeyAndLabel('vs_last_30_days', 'vs last 30 days')
+            description: getTranslationFromI18nKeyAndLabel('vs_last_quarter', 'vs last quarter')
           }
         }
       ]

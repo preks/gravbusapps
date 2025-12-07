@@ -10,6 +10,7 @@ import type { GrantEmployeeBonusFormValues, CatalogEntry } from './types'
 import BonusDetailsGroup from './components/BonusDetailsGroup'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { extractEmployeeId } from './utils/employeeIdUtils'
+import { useTaskCancellation } from '../../hooks/useTaskCancellation'
 import translations from '../_i18n'
 
 const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ additionalData, userInfo }) => {
@@ -17,6 +18,7 @@ const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ addition
   const { t } = useTranslation(translations)
 
   const employee = useMemo(() => data?.employee?.EmployeeByPk, [data])
+  const employeePosition = useMemo(() => data?.employee?.EmployeePosition?.[0], [data])
   const catalogs = useMemo(
     () => ({
       bonusType: data?.catalogs?.bonusType || []
@@ -72,6 +74,9 @@ const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ addition
     } as GrantEmployeeBonusFormValues
   }, [defaultValues, catalogs])
 
+  // Handle task cancellation when form closes without submission
+  const { markAsSubmitted, markAsCancelled } = useTaskCancellation('pse_abort')
+
   // Reset to normalized defaults whenever catalogs change
   useEffect(() => {
     // Only reset if form is pristine (not yet touched by user)
@@ -119,10 +124,23 @@ const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ addition
       className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-full gba:max-w-[800px]"
       data-testid="flw_grantEmployeeBonus_screenContentLayout"
     >
-      <FormHeader title={title} flowIconUrl={flowIconUrl} className="gba:px-6" />
+      <FormHeader
+        title={title}
+        flowIconUrl={flowIconUrl}
+        employee={
+          employee
+            ? {
+                firstName: employee.firstName,
+                lastName: employee.lastName,
+                pictureThumbnail: employee.pictureThumbnail,
+                jobTitle: employeePosition?.jobPosition?.name
+              }
+            : undefined
+        }
+      />
 
       <div
-        className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='grant-employee-bonus']]:pt-0!"
+        className="gba:flex gba:flex-col gba:[&>div[data-testid='grant-employee-bonus']]:pt-0!"
         data-testid="grant-employee-bonus-form-content"
       >
         <AppActionForm
@@ -135,8 +153,13 @@ const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ addition
           submitButtonText={t('action-submit')}
           isSubmitDisabled={!form.formState.isValid || isUnchangedNow}
           // Shows cancel button - default cancelEventType="pse_abort" handles process abort
-          onCancel={() => undefined}
+          onCancel={() => {
+            markAsCancelled()
+          }}
           onSubmit={async (values: GrantEmployeeBonusFormValues) => {
+            // Mark as submitted to prevent abort on cleanup
+            markAsSubmitted()
+
             const payload = {
               // Manager context for Kogito flow
               employeeIdManager: managerEmployeeId,

@@ -67,7 +67,7 @@ const AcknowledgeEmployeeVacation: React.FC<AcknowledgeEmployeeVacationProps> = 
   const isTaskCompleted = taskStatus === 'COMPLETED'
 
   // Get task title from process metadata or use default
-  const taskTitle = processMetadata?.referenceTaskName || processMetadata?.nodeName || 'Acknowledge Vacation (HR)'
+  const taskTitle = processMetadata?.referenceTaskName || processMetadata?.nodeName || 'Acknowledge Vacation'
 
   // Get task source from process metadata (fallback to 'kogito' if not available)
   const taskSource: 'kogito' | 'cflow' = processMetadata?.source || 'kogito'

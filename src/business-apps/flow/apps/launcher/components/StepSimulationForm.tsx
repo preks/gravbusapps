@@ -63,18 +63,36 @@ export const StepSimulationForm: React.FC<StepSimulationFormProps> = ({
     }
   }
 
-  const getStepTypeColor = (stepType: string) => {
+  // getStepTypeColor removed (unused)
+
+  // Design-system class mappings (avoid inline styles)
+  const getStepTypeColorClass = (stepType: string) => {
     switch (stepType) {
       case 'TASK':
-        return 'var(--color-primary-500)'
+        return 'gba:text-primary'
       case 'APPROVAL':
-        return 'var(--color-warning-500)'
+        return 'gba:text-warning'
       case 'INFORMATION':
-        return 'var(--color-info-500)'
+        return 'gba:text-info'
       case 'ACKNOWLEDGE':
-        return 'var(--color-success-500)'
+        return 'gba:text-success'
       default:
-        return 'var(--color-surface-disabled)'
+        return 'gba:text-muted-foreground'
+    }
+  }
+
+  const getStepBadgeVariant = (stepType: string) => {
+    switch (stepType) {
+      case 'TASK':
+        return 'default' as const
+      case 'APPROVAL':
+        return 'warning' as const
+      case 'INFORMATION':
+        return 'info' as const
+      case 'ACKNOWLEDGE':
+        return 'success' as const
+      default:
+        return 'secondary' as const
     }
   }
 
@@ -388,41 +406,17 @@ export const StepSimulationForm: React.FC<StepSimulationFormProps> = ({
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-2xl)' }} data-testid={testId}>
+    <div className="gba:flex gba:flex-col gba:gap-8" data-testid={testId}>
       {/* Step Info */}
       <div>
-        <div
-          className="gba:flex gba:items-center"
-          style={{
-            gap: 'var(--spacing-md)',
-            marginBottom: 'var(--spacing-lg)'
-          }}
-        >
-          <div style={{ color: getStepTypeColor(step.type) }}>{getStepTypeIcon(step.type)}</div>
-          <Badge
-            variant="outline"
-            style={{
-              backgroundColor: getStepTypeColor(step.type),
-              color: 'var(--color-on-primary)',
-              border: 'none'
-            }}
-          >
-            {step.type}
-          </Badge>
+        <div className="gba:flex gba:items-center gba:gap-3 gba:mb-6">
+          <div className={getStepTypeColorClass(step.type)}>{getStepTypeIcon(step.type)}</div>
+          <Badge variant={getStepBadgeVariant(step.type)}>{step.type}</Badge>
         </div>
 
         {step.message && (
-          <div
-            className="gba:p-4 gba:rounded-lg gba:border"
-            style={{
-              backgroundColor: 'var(--color-surface-secondary)',
-              borderColor: 'var(--color-border-default)'
-            }}
-          >
-            <p
-              className="gba:text-sm gba:leading-relaxed gba:whitespace-pre-wrap"
-              style={{ color: 'var(--color-text-primary)' }}
-            >
+          <div className="gba:p-4 gba:rounded-lg gba:border gba:bg-muted">
+            <p className="gba:text-sm gba:leading-relaxed gba:whitespace-pre-wrap gba:text-foreground">
               {step.message}
             </p>
           </div>
@@ -430,81 +424,33 @@ export const StepSimulationForm: React.FC<StepSimulationFormProps> = ({
 
         {/* Related Links */}
         {step.links && step.links.length > 0 && (
-          <div style={{ marginTop: 'var(--spacing-xl)' }}>
-            <h5
-              className="gba:flex gba:items-center"
-              style={{
-                fontSize: '0.875rem',
-                fontWeight: '500',
-                lineHeight: '1.25rem',
-                color: 'var(--color-text-secondary)',
-                marginBottom: 'var(--spacing-lg)',
-                gap: 'var(--spacing-sm)'
-              }}
-            >
-              <FileText style={{ width: '1rem', height: '1rem' }} />
+          <div className="gba:mt-6">
+            <h5 className="gba:flex gba:items-center gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-6 gba:gap-2">
+              <FileText className="gba:w-4 gba:h-4" />
               Related Links
             </h5>
 
-            <div className="gba:grid" style={{ gap: 'var(--spacing-sm)' }}>
+            <div className="gba:grid gba:gap-2">
               {step.links.map((link: any, index: number) => (
                 <div
                   key={index}
-                  className="gba:group gba:rounded-lg gba:border gba:transition-all gba:duration-200 gba:hover:shadow-sm"
-                  style={{
-                    padding: 'var(--spacing-md)',
-                    backgroundColor: 'var(--color-surface-primary)',
-                    borderColor: 'var(--color-border-default)'
-                  }}
+                  className="gba:group gba:rounded-lg gba:border gba:bg-card gba:p-4 gba:transition-all gba:duration-200 hover:gba:shadow-sm"
                 >
                   {link.url ? (
                     <a
                       href={link.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="gba:flex gba:items-center gba:group-hover:underline"
-                      style={{
-                        gap: 'var(--spacing-md)',
-                        color: 'var(--color-primary-600)',
-                        fontSize: '0.875rem',
-                        fontWeight: '500',
-                        lineHeight: '1.25rem'
-                      }}
+                      className="gba:flex gba:items-center gba:gap-4 gba:text-sm gba:font-medium gba:text-primary hover:gba:underline"
                     >
-                      <div
-                        className="gba:flex-shrink-0 gba:rounded-full"
-                        style={{
-                          width: '0.5rem',
-                          height: '0.5rem',
-                          backgroundColor: 'var(--color-primary-600)'
-                        }}
-                      ></div>
+                      <div className="gba:flex-shrink-0 gba:rounded-full gba:w-2 gba:h-2 gba:bg-primary"></div>
                       <span className="gba:flex-1">{link.name || link.url}</span>
-                      <ExternalLink
-                        className="gba:opacity-60 gba:group-hover:opacity-100"
-                        style={{ width: '1rem', height: '1rem' }}
-                      />
+                      <ExternalLink className="gba:w-4 gba:h-4 gba:opacity-60 group-hover:gba:opacity-100" />
                     </a>
                   ) : (
-                    <div
-                      className="gba:flex gba:items-center"
-                      style={{
-                        gap: 'var(--spacing-md)',
-                        fontSize: '0.875rem',
-                        lineHeight: '1.25rem'
-                      }}
-                    >
-                      <div
-                        className="gba:flex-shrink-0 gba:rounded-full"
-                        style={{
-                          width: '0.5rem',
-                          height: '0.5rem',
-                          backgroundColor: 'var(--color-text-secondary)'
-                        }}
-                      ></div>
-                      <span className="gba:flex-1" style={{ color: 'var(--color-text-primary)' }}>
-                        {link.name}
-                      </span>
+                    <div className="gba:flex gba:items-center gba:gap-4 gba:text-sm">
+                      <div className="gba:flex-shrink-0 gba:rounded-full gba:w-2 gba:h-2 gba:bg-muted-foreground"></div>
+                      <span className="gba:flex-1 gba:text-foreground">{link.name}</span>
                     </div>
                   )}
                 </div>
@@ -516,31 +462,15 @@ export const StepSimulationForm: React.FC<StepSimulationFormProps> = ({
 
       {/* Form Inputs */}
       {step.form && step.form.length > 0 && (
-        <Card
-          style={{
-            boxShadow: 'var(--shadow-sm)',
-            border: `1px solid var(--color-border-default)`,
-            backgroundColor: 'var(--color-surface-primary)'
-          }}
-        >
-          <div style={{ padding: 'var(--spacing-2xl)' }}>
-            <h4
-              className="gba:flex gba:items-center"
-              style={{
-                fontSize: '1.125rem',
-                fontWeight: '500',
-                lineHeight: '1.75rem',
-                color: 'var(--color-text-primary)',
-                marginBottom: 'var(--spacing-xl)',
-                gap: 'var(--spacing-sm)'
-              }}
-            >
-              <FileText style={{ width: '1rem', height: '1rem' }} />
+        <Card className="gba:shadow-sm gba:border gba:bg-card">
+          <div className="gba:p-6">
+            <h4 className="gba:flex gba:items-center gba:text-lg gba:font-medium gba:text-foreground gba:mb-6 gba:gap-2">
+              <FileText className="gba:w-4 gba:h-4" />
               Form Fields
             </h4>
 
             <Form {...form}>
-              <form style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)' }}>
+              <form className="gba:flex gba:flex-col gba:gap-4">
                 {step.form.map((input: any, index: number) => renderInputField(input, index))}
               </form>
             </Form>
@@ -550,31 +480,26 @@ export const StepSimulationForm: React.FC<StepSimulationFormProps> = ({
 
       {/* Action Buttons */}
       {simulationMode && !simulationResult && (
-        <div className="gba:flex gba:justify-center" style={{ paddingTop: 'var(--spacing-xl)' }}>
-          {getActionButtons()}
-        </div>
+        <div className="gba:flex gba:justify-center gba:pt-6">{getActionButtons()}</div>
       )}
 
       {/* Simulation Result */}
       {simulationResult && (
         <div
-          className="gba:p-4 gba:rounded-lg gba:border"
-          style={{
-            backgroundColor: simulationResult === 'REJECTED' ? 'var(--color-danger-50)' : 'var(--color-success-50)',
-            borderColor: simulationResult === 'REJECTED' ? 'var(--color-danger-300)' : 'var(--color-success-300)'
-          }}
+          className={`gba:p-4 gba:rounded-lg gba:border ${
+            simulationResult === 'REJECTED'
+              ? 'gba:bg-destructive-secondary gba:border-destructive'
+              : 'gba:bg-success-secondary gba:border-success'
+          }`}
         >
           <div className="gba:flex gba:items-center gba:gap-2">
             {simulationResult === 'REJECTED' ? (
-              <XCircle className="gba:w-5 gba:h-5" style={{ color: 'var(--color-danger-600)' }} />
+              <XCircle className="gba:w-5 gba:h-5 gba:text-destructive" />
             ) : (
-              <CheckCircle className="gba:w-5 gba:h-5" style={{ color: 'var(--color-success-600)' }} />
+              <CheckCircle className="gba:w-5 gba:h-5 gba:text-success" />
             )}
             <span
-              className="gba:font-medium"
-              style={{
-                color: simulationResult === 'REJECTED' ? 'var(--color-danger-700)' : 'var(--color-success-700)'
-              }}
+              className={`gba:font-medium ${simulationResult === 'REJECTED' ? 'gba:text-destructive' : 'gba:text-success'}`}
             >
               Step {simulationResult === 'REJECTED' ? 'Rejected' : 'Completed'} Successfully
             </span>

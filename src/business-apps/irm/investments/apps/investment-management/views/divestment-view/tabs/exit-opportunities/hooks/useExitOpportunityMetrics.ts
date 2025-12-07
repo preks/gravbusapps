@@ -18,7 +18,7 @@ export interface ExitOpportunityMetrics {
   winRateChange: number
 }
 
-const HISTORICAL_DAYS = 30
+const HISTORICAL_DAYS = 91
 
 // Global cache instance with TTL management - typed for metrics
 const metricsCache = createTTLCache<Partial<ExitOpportunityMetrics>>()
@@ -150,7 +150,7 @@ export const useExitOpportunityMetrics = ({ accessToken, filters }: UseExitOppor
         const historicalDate = new Date()
         historicalDate.setDate(currentDate.getDate() - HISTORICAL_DAYS)
 
-        // Create a proper historical range spanning from 30 days ago to now
+        // Create a proper historical range spanning from 91 days ago to now
         const historicalDateRange = {
           from: historicalDate.toISOString(),
           to: currentDate.toISOString()

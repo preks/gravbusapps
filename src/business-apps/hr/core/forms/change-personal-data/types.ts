@@ -33,10 +33,16 @@ export interface EmployeeByPk {
   academicTitleRef?: string[] | string | null
   notes?: string
   employeeId?: string
+  pictureThumbnail?: string
 }
 
 export interface EmployeeDataResponse {
   EmployeeByPk?: EmployeeByPk
+  EmployeePosition?: Array<{
+    jobPosition?: {
+      name?: string
+    }
+  }>
 }
 
 export interface CatalogsDataResponse {

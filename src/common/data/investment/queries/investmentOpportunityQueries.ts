@@ -43,6 +43,7 @@ import { InvestmentDocumentFields } from '../types/investmentDocumentTypes'
 import { InvestmentLeadFields } from '../types/investmentLeadTypes'
 import { InvestmentNoteFields } from '../types/investmentNoteTypes'
 import { InvestmentTaskFields } from '../types/investmentTaskTypes'
+import { INVESTMENT_REF } from './fragments/investmentReferenceFragments'
 
 /**
  * Investment Opportunity Query Variables Interface
@@ -80,6 +81,12 @@ export const buildInvestmentOpportunityQuery = (
     ${fields.leads}(where: { isDeleted: { _eq: false } }) {
       ${buildLeadFragment(InvestmentLeadFields)}
     }
+    
+    # Divestment relation
+    divestment {
+      ${INVESTMENT_REF}
+    }
+    divestmentId
     
     # IRM-specific Investment fields
     dealType
@@ -157,6 +164,12 @@ export const buildInvestmentOpportunityByIdQuery = (
     ${fields.leads}(where: { isDeleted: { _eq: false } }) {
       ${buildLeadFragment(InvestmentLeadFields)}
     }
+    
+    # Divestment relation
+    divestment {
+      ${INVESTMENT_REF}
+    }
+    divestmentId
     
     # IRM-specific Investment fields
     dealType

@@ -29,6 +29,19 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
   const formatTime = (iso?: string) =>
     iso ? new Date(iso).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) : '-'
 
+  const getLocationLabel = (loc?: string) => {
+    switch (loc) {
+      case 'IS_NEAR_HOME':
+        return getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.location.home', 'Home')
+      case 'IS_NEAR_OFFICE':
+        return getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.location.office', 'Office')
+      case 'IS_OTHER_LOCATION':
+        return getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.location.remote', 'Remote Location')
+      default:
+        return getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.location.unknown', 'Unknown')
+    }
+  }
+
   return (
     <div data-testid="time-tracking-table">
       <Table>
@@ -49,6 +62,9 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
             </TableHead>
             <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.diff', 'Diff')}</TableHead>
             <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.manual', 'Manual')}</TableHead>
+            <TableHead>
+              {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.location.label', 'Location')}
+            </TableHead>
             <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.notes', 'Notes')}</TableHead>
             <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.status', 'Status')}</TableHead>
             <TableHead className="gba:w-[60px]">
@@ -59,7 +75,7 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
         <TableBody>
           {entries.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={11} className="gba:text-muted-foreground">
+              <TableCell colSpan={13} className="gba:text-muted-foreground">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.empty', 'No entries')}
               </TableCell>
             </TableRow>
@@ -86,6 +102,9 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
                       ? getTranslationFromI18nKeyAndLabel('common.yes', 'Yes')
                       : getTranslationFromI18nKeyAndLabel('common.no', 'No')}
                   </Badge>
+                </TableCell>
+                <TableCell data-testid={`time-tracking-table-location-cell-${e.id}`}>
+                  {getLocationLabel(e.attendanceLocation)}
                 </TableCell>
                 <TableCell data-testid={`time-tracking-table-notes-cell-${e.id}`}>{e.notes ?? ''}</TableCell>
                 <TableCell data-testid={`time-tracking-table-status-cell-${e.id}`}>
