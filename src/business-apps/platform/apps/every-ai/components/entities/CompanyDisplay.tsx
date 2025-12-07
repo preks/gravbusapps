@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { EntityCard } from './EntityCard'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
+import { getOperationBadge } from './utils/displayUtils'
 
 interface CompanyDisplayProps {
   companyId: string
@@ -24,6 +25,13 @@ export const CompanyDisplay: React.FC<CompanyDisplayProps> = ({ companyId, acces
   const graphqlClient = useGraphQLClient(accessToken)
 
   useEffect(() => {
+    // For delete operations, skip GraphQL query since entity is already deleted
+    if (operation === 'delete') {
+      setIsLoading(false)
+      setError(null)
+      return
+    }
+
     const fetchCompany = async () => {
       setIsLoading(true)
       setError(null)
@@ -62,22 +70,9 @@ export const CompanyDisplay: React.FC<CompanyDisplayProps> = ({ companyId, acces
     if (companyId && accessToken) {
       fetchCompany()
     }
-  }, [companyId, accessToken, graphqlClient])
+  }, [companyId, accessToken, graphqlClient, operation])
 
-  const getOperationBadge = () => {
-    switch (operation) {
-      case 'create':
-        return { text: 'Created', variant: 'success' as const }
-      case 'update':
-        return { text: 'Updated', variant: 'default' as const }
-      case 'delete':
-        return { text: 'Deleted', variant: 'destructive' as const }
-      default:
-        return undefined
-    }
-  }
-
-  const operationBadge = getOperationBadge()
+  const operationBadge = getOperationBadge(operation)
 
   const handleClick = () => {
     if (companyId) {

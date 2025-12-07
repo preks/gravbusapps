@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Card, CardContent } from '@newwork/nw-design-system'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { getOperationBadge } from './utils/displayUtils'
 
 interface IrmNoteDisplayProps {
   noteId: string
@@ -93,17 +94,22 @@ export const IrmNoteDisplay: React.FC<IrmNoteDisplayProps> = ({ noteId, accessTo
       <CardContent className="gba:p-6">
         <div className="gba:flex gba:items-start gba:justify-between gba:mb-4">
           <span className="gba:text-lg gba:font-semibold">IRM Note</span>
-          {operation && (
-            <span
-              className={`gba:text-sm gba:font-medium gba:px-2.5 gba:py-0.5 gba:rounded-xl gba:capitalize ${
-                operation === 'create'
-                  ? 'gba:bg-success-secondary gba:text-success'
-                  : 'gba:bg-info-secondary gba:text-info'
-              }`}
-            >
-              {operation}
-            </span>
-          )}
+          {(() => {
+            const operationBadge = getOperationBadge(operation)
+            return operationBadge ? (
+              <span
+                className={`gba:text-sm gba:font-medium gba:px-2.5 gba:py-0.5 gba:rounded-xl ${
+                  operationBadge.variant === 'success'
+                    ? 'gba:bg-success-secondary gba:text-success'
+                    : operationBadge.variant === 'destructive'
+                      ? 'gba:bg-destructive-secondary gba:text-destructive'
+                      : 'gba:bg-info-secondary gba:text-info'
+                }`}
+              >
+                {operationBadge.text}
+              </span>
+            ) : null
+          })()}
         </div>
 
         <div className="gba:space-y-3">

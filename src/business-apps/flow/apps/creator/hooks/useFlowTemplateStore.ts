@@ -59,6 +59,7 @@ const createEmptyStep = (): FlowStep => ({
   title: 'New Step',
   message: '',
   type: FlowStepType.TASK,
+  kind: 'USER',
   inputs: [],
   links: [],
   assignment: {

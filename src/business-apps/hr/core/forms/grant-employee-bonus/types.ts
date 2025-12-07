@@ -25,7 +25,13 @@ export interface EmployeeDataResponse {
     firstName?: string
     lastName?: string
     displayName?: string
+    pictureThumbnail?: string
   } | null
+  EmployeePosition?: Array<{
+    jobPosition?: {
+      name?: string
+    }
+  }>
 }
 
 export interface EmployeeBankAccountCurrency {

@@ -38,6 +38,7 @@ export enum FlowContextName {
   customerOpportunityEntity = 'customerOpportunityEntity',
   customerOpportunityCreate = 'customerOpportunityCreate', // TODO: Replace startProcess
   customerOpportunityUpdate = 'customerOpportunityUpdate', // TODO: Replace startProcess
+  customerOpportunityStatusUpdate = 'customerOpportunityStatusUpdate', // Status change context
   customerOpportunityStageTransition = 'customerOpportunityStageTransition',
   customerOpportunityConditionUpdate = 'customerOpportunityConditionUpdate',
 
@@ -87,6 +88,7 @@ export enum FlowContextName {
   investmentOpportunityEntity = 'investmentOpportunityEntity',
   investmentOpportunityCreate = 'investmentOpportunityCreate',
   investmentOpportunityUpdate = 'investmentOpportunityUpdate',
+  investmentOpportunityStatusUpdate = 'investmentOpportunityStatusUpdate', // Status change context
   investmentOpportunityStageTransition = 'investmentOpportunityStageTransition',
   investmentOpportunityConditionUpdate = 'investmentOpportunityConditionUpdate',
   investmentOpportunityReject = 'investmentOpportunityReject',

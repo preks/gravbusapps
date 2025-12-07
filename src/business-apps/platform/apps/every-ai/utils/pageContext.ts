@@ -34,7 +34,10 @@ const ENTITY_URL_PATTERNS = [
   { pattern: /\/platform\/orgchart\/([^/?]+)/, entity_name: 'employee' },
 
   // Content entities
-  { pattern: /\/platform\/content\/intranet\/content-record\?[^#]*contentId=([^&]+)/, entity_name: 'content_entry' }
+  { pattern: /\/platform\/content\/intranet\/content-record\?[^#]*contentId=([^&]+)/, entity_name: 'content_entry' },
+
+  // Flow/Workflow entities
+  { pattern: /\/platform\/apps\/flow\/apps\/creator\?[^#]*templateId=([^&#]+)/, entity_name: 'workflow_template' }
 ] as const
 
 /**

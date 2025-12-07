@@ -57,15 +57,25 @@ export const commonAccountColumns: ColumnDef<Account>[] = [
     maxSize: 350,
     enableResizing: false,
     cell: ({ row }) => {
+      const accountName = safeString(row.original.name)
+      const imageUrl = row.original.pictureThumbnail
+        ? `data:image/gif;base64,${row.original.pictureThumbnail}`
+        : undefined
+
       return (
         <div
-          className="gba:flex gba:items-center gba:gap-2 gba:min-w-0"
+          className="gba:flex gba:items-center gba:gap-3 gba:min-w-0"
           data-testid={`account-cell-${row.original.id}`}
         >
-          <Building2 className="gba:h-4 gba:w-4 gba:text-gray-400 gba:shrink-0" />
+          <Avatar className="gba:w-8 gba:h-8 gba:shrink-0">
+            {imageUrl && <AvatarImage src={imageUrl} alt={accountName} />}
+            <AvatarFallback>
+              <Building2 className="gba:h-4 gba:w-4" />
+            </AvatarFallback>
+          </Avatar>
           <div className="gba:min-w-0 gba:flex-1">
-            <div className="gba:font-medium gba:text-sm gba:truncate" title={safeString(row.original.name)}>
-              {safeString(row.original.name)}
+            <div className="gba:font-medium gba:text-sm gba:truncate" title={accountName}>
+              {accountName}
             </div>
           </div>
         </div>

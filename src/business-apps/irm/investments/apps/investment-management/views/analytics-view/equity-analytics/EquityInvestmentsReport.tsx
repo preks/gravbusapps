@@ -322,7 +322,7 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
               prefix: <TeamOutlined />,
               color: 'var(--nw-color-primary-500)',
               span: { xs: 24, sm: 12, lg: 6 },
-              description: 'Total number of equity investments',
+              description: 'Equity count',
               trend: {
                 value: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).value,
                 positive: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).positive,
@@ -344,7 +344,7 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
               color: 'var(--nw-color-success-500)',
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
-              description: 'Total assets under management',
+              description: 'Total AUM',
               trend: {
                 value: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).value,
                 positive: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).positive,
@@ -359,7 +359,7 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
               color: 'var(--nw-color-warning-500)',
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
-              description: 'Average multiple on invested capital',
+              description: 'Avg MOIC',
               trend: {
                 value: calculateChange(kpis.portfolioMoic, previousKpis.portfolioMoic).value,
                 positive: calculateChange(kpis.portfolioMoic, previousKpis.portfolioMoic).positive,
@@ -374,7 +374,7 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
               color: 'var(--nw-color-purple-500)',
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
-              description: 'Average holding period since acquisition',
+              description: 'Avg holding period',
               trend: {
                 value: calculateChange(kpis.averageDuration, previousKpis.averageDuration).value,
                 positive: calculateChange(kpis.averageDuration, previousKpis.averageDuration).positive,
