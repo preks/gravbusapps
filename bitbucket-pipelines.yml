@@ -223,9 +223,8 @@ pipelines:
   pull-requests:
     '**':
       - step: *install_dependencies
-      - parallel:
-        - step: *build-validate-screens
-        - step: *sonar_scan
+      - step: *sonar_scan
+      - step: *build-validate-screens
 
   branches:
     develop:
