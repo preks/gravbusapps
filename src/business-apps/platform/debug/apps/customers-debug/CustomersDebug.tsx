@@ -21,14 +21,12 @@ import {
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 // Import customer data hooks
-import {
-  useCustomerTasks,
-  useCustomerActivities,
-  useCustomerAccounts,
-  useCustomerContacts,
-  useCustomerLeads,
-  useCustomerOpportunities
-} from '@/common/data/customer'
+import { useCustomerTasks } from '@/common/data/customer/hooks/useCustomerTasks'
+import { useCustomerActivities } from '@/common/data/customer/hooks/useCustomerActivities'
+import { useCustomerAccounts } from '@/common/data/customer/hooks/useCustomerAccounts'
+import { useCustomerContacts } from '@/common/data/customer/hooks/useCustomerContacts'
+import { useCustomerLeads } from '@/common/data/customer/hooks/useCustomerLeads'
+import { useCustomerOpportunities } from '@/common/data/customer/hooks/useCustomerOpportunities'
 
 // NOTE: Mappers are already applied in hooks!
 // Raw data is not exposed by hooks - they return pre-mapped types
