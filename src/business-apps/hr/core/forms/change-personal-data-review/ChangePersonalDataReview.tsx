@@ -15,7 +15,8 @@ import {
   Spinner,
   Collapsible,
   CollapsibleTrigger,
-  CollapsibleContent
+  CollapsibleContent,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   User,
@@ -35,6 +36,7 @@ import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/comp
 import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
 import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
 import { usePersonalDataReviewData } from './hooks/usePersonalDataReviewData'
+import translations from './_i18n'
 import dayjs from 'dayjs'
 
 /**
@@ -82,6 +84,9 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
   userInfo,
   onClose
 }) => {
+  // Translation hook
+  const { t } = useTranslation(translations)
+
   // Cast additionalData to extended interface for proper typing
   const extendedAdditionalData = additionalData as ExtendedAdditionalData | undefined
 
@@ -94,8 +99,7 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
   const taskStatus = additionalData?.psi_taskStatus || processMetadata?.status || 'IN_PROGRESS'
   const taskCompletedAt = processMetadata?.completedAt || extendedAdditionalData?.psi_taskCompletedAt
   const isTaskCompleted = taskStatus === 'COMPLETED' || !!taskCompletedAt
-  const taskTitle = processMetadata?.referenceTaskName || processMetadata?.nodeName || 'Review Personal Data Change'
-  const taskSource: 'kogito' | 'cflow' = processMetadata?.source || 'kogito'
+  const taskTitle = t('task-title')
   const creatorName = taskPayload?.creatorName as string | undefined
 
   // Extract personal information data from payload
@@ -126,13 +130,12 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
   // Helper function to get alert description message (extracted to reduce nested ternaries)
   const getAlertDescriptionMessage = (mode: string, hasOld: boolean, changes: number): string => {
     if (mode === 'INSERT') {
-      return 'This is new personal data being added to the employee record.'
+      return t('alert-new-data')
     }
     if (hasOld && changes > 0) {
-      const changeWord = changes === 1 ? 'change' : 'changes'
-      return `This is an update with ${changes} ${changeWord} to the existing personal data. Changed fields are highlighted below.`
+      return t('alert-update-with-changes', { count: changes })
     }
-    return 'This is an update to existing personal data in the employee record.'
+    return t('alert-update-no-changes')
   }
 
   // Count total changes - MUST BE BEFORE CONDITIONAL RETURNS
@@ -157,15 +160,15 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
       'schoolQualificationRef'
     ]
 
-    const compareField = (newVal: any, oldVal: any): boolean => {
-      const format = (v: any) => String(v || 'N/A')
+    const compareFieldValues = (newVal: any, oldVal: any): boolean => {
+      const format = (v: any) => String(v || t('value-na'))
       return format(newVal) !== format(oldVal)
     }
 
     return fields.reduce((count, field) => {
-      return compareField(newPersonalInformation[field], oldPersonalInformation[field]) ? count + 1 : count
+      return compareFieldValues(newPersonalInformation[field], oldPersonalInformation[field]) ? count + 1 : count
     }, 0)
-  }, [newPersonalInformation, oldPersonalInformation, hasOldPersonalInformation])
+  }, [newPersonalInformation, oldPersonalInformation, hasOldPersonalInformation, t])
 
   const handleClose = () => {
     if (onClose) {
@@ -204,14 +207,14 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
   if (error) {
     return (
       <Alert variant="destructive" data-testid="change-personal-data-review-error">
-        <AlertTitle>Error Loading Personal Data</AlertTitle>
+        <AlertTitle>{t('error-loading-title')}</AlertTitle>
         <AlertDescription>
           {error}
           <button
             onClick={refetch}
             className="gba:mt-2 gba:px-3 gba:py-1 gba:bg-destructive gba:text-destructive-foreground gba:rounded gba:text-sm"
           >
-            Retry
+            {t('action-retry')}
           </button>
         </AlertDescription>
       </Alert>
@@ -220,7 +223,7 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
 
   // Helper functions
   const getCatalogValue = (ref?: string | null): string => {
-    if (!ref) return 'N/A'
+    if (!ref) return t('value-na')
     const entry = catalogMap[ref]
     if (!entry) return ref.split(':').pop() || ref
 
@@ -240,7 +243,7 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
   }
 
   const compareField = (newVal: any, oldVal: any, formatter?: (val: any) => string): FieldComparison => {
-    const format = formatter || ((v: any) => String(v || 'N/A'))
+    const format = formatter || ((v: any) => String(v || t('value-na')))
     const newFormatted = format(newVal)
     const oldFormatted = format(oldVal)
 
@@ -258,7 +261,8 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
 
     const isNewData = !hasOldPersonalInformation || changeMode === 'INSERT'
     // Display "Not set" if old value was empty/null/N/A
-    const displayOldValue = comparison.oldValue === 'N/A' || !comparison.oldValue ? 'Not set' : comparison.oldValue
+    const displayOldValue =
+      comparison.oldValue === t('value-na') || !comparison.oldValue ? t('value-not-set') : comparison.oldValue
 
     return (
       <div className="gba:space-y-2">
@@ -266,7 +270,7 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
           {icon}
           {label}
           <Badge variant={isNewData ? 'success' : 'warning'} className="gba:ml-2">
-            {isNewData ? 'New' : 'Changed'}
+            {isNewData ? t('badge-new') : t('badge-changed')}
           </Badge>
         </Label>
 
@@ -291,7 +295,7 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
   // Render unchanged field - Show current value for unchanged fields
   const renderUnchangedField = (label: string, value: string, icon?: React.ReactNode) => {
     // Skip empty values
-    if (!value || value === 'N/A') return null
+    if (!value || value === t('value-na')) return null
 
     return (
       <div className="gba:space-y-2">
@@ -310,8 +314,6 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
       header={
         <TaskDetailHeader
           title={taskTitle}
-          status={taskStatus}
-          source={taskSource}
           showEmployeeInfo={true}
           employeeData={
             employeeData
@@ -327,11 +329,6 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
           isLoadingEmployee={loading}
           creatorName={creatorName}
           onClose={isEveryBoxContext ? handleClose : undefined}
-          customBadges={
-            <Badge variant={changeMode === 'INSERT' ? 'success' : 'info'} data-testid="personal-data-change-mode-badge">
-              {changeMode === 'INSERT' ? 'New Data' : 'Data Update'}
-            </Badge>
-          }
         />
       }
       footer={
@@ -340,7 +337,7 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
             data-testid="change-personal-data-review-actions"
             actions={[
               {
-                label: 'Acknowledge',
+                label: t('action-acknowledge'),
                 onClick: handleAcknowledge,
                 variant: 'default' as const,
                 disabled: isAcknowledging,
@@ -369,12 +366,10 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
           <div className="gba:flex gba:items-center gba:justify-between">
             <h4 className="gba:flex gba:items-center gba:gap-2 gba:text-lg gba:font-semibold">
               <User className="gba:h-5 gba:w-5" />
-              {changeMode === 'INSERT' ? 'New Personal Data' : 'Personal Data Changes'}
+              {changeMode === 'INSERT' ? t('card-title-new-data') : t('card-title-changes')}
             </h4>
             {hasOldPersonalInformation && changesCount > 0 && (
-              <Badge variant="warning">
-                {changesCount} {changesCount === 1 ? 'Change' : 'Changes'}
-              </Badge>
+              <Badge variant="warning">{t('badge-changes', { count: changesCount })}</Badge>
             )}
           </div>
         </div>
@@ -382,28 +377,31 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
           {/* Names Section */}
           <div className="gba:space-y-4">
             {renderComparisonField(
-              'Salutation',
+              t('label-salutation'),
               compareField(newPersonalInformation.salutationRef, oldPersonalInformation.salutationRef, getCatalogValue)
             )}
-            {renderComparisonField('Title', compareField(newPersonalInformation.title, oldPersonalInformation.title))}
             {renderComparisonField(
-              'First Name',
+              t('label-title'),
+              compareField(newPersonalInformation.title, oldPersonalInformation.title)
+            )}
+            {renderComparisonField(
+              t('label-first-name'),
               compareField(newPersonalInformation.firstName, oldPersonalInformation.firstName)
             )}
             {renderComparisonField(
-              'Last Name',
+              t('label-last-name'),
               compareField(newPersonalInformation.lastName, oldPersonalInformation.lastName)
             )}
             {renderComparisonField(
-              'Display Name',
+              t('label-display-name'),
               compareField(newPersonalInformation.displayName, oldPersonalInformation.displayName)
             )}
             {renderComparisonField(
-              'Preferred Name',
+              t('label-preferred-name'),
               compareField(newPersonalInformation.preferredName, oldPersonalInformation.preferredName)
             )}
             {renderComparisonField(
-              'Birth Name',
+              t('label-birth-name'),
               compareField(newPersonalInformation.birthName, oldPersonalInformation.birthName)
             )}
           </div>
@@ -413,19 +411,19 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
           {/* Birth and Gender Section */}
           <div className="gba:space-y-4">
             {renderComparisonField(
-              'Birth Date',
+              t('label-birth-date'),
               compareField(newPersonalInformation.birthDate, oldPersonalInformation.birthDate, date =>
-                date ? dayjs(date).format('MMM D, YYYY') : 'N/A'
+                date ? dayjs(date).format('MMM D, YYYY') : t('value-na')
               ),
               <Calendar className="gba:h-4 gba:w-4" />
             )}
             {renderComparisonField(
-              'Birth Place',
+              t('label-birth-place'),
               compareField(newPersonalInformation.birthPlace, oldPersonalInformation.birthPlace),
               <MapPin className="gba:h-4 gba:w-4" />
             )}
             {renderComparisonField(
-              'Gender',
+              t('label-gender'),
               compareField(newPersonalInformation.genderRef, oldPersonalInformation.genderRef, getCatalogValue),
               <User className="gba:h-4 gba:w-4" />
             )}
@@ -436,7 +434,7 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
           {/* Additional Information */}
           <div className="gba:space-y-4">
             {renderComparisonField(
-              'Nationality',
+              t('label-nationality'),
               compareField(
                 newPersonalInformation.nationalityRef,
                 oldPersonalInformation.nationalityRef,
@@ -445,12 +443,12 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
               <Globe className="gba:h-4 gba:w-4" />
             )}
             {renderComparisonField(
-              'Language',
+              t('label-language'),
               compareField(newPersonalInformation.languageRef, oldPersonalInformation.languageRef, getCatalogValue),
               <Globe className="gba:h-4 gba:w-4" />
             )}
             {renderComparisonField(
-              'Marital Status',
+              t('label-marital-status'),
               compareField(
                 newPersonalInformation.maritalStatusRef,
                 oldPersonalInformation.maritalStatusRef,
@@ -459,14 +457,14 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
               <Heart className="gba:h-4 gba:w-4" />
             )}
             {renderComparisonField(
-              'Disability Degree',
+              t('label-disability-degree'),
               compareField(
                 newPersonalInformation.severelyDisabilityDegree,
                 oldPersonalInformation.severelyDisabilityDegree
               )
             )}
             {renderComparisonField(
-              'School Qualification',
+              t('label-school-qualification'),
               compareField(
                 newPersonalInformation.schoolQualificationRef,
                 oldPersonalInformation.schoolQualificationRef,
@@ -480,7 +478,10 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
           {(newPersonalInformation.notes || oldPersonalInformation.notes) && (
             <>
               <Separator />
-              {renderComparisonField('Notes', compareField(newPersonalInformation.notes, oldPersonalInformation.notes))}
+              {renderComparisonField(
+                t('label-notes'),
+                compareField(newPersonalInformation.notes, oldPersonalInformation.notes)
+              )}
             </>
           )}
         </div>
@@ -495,9 +496,9 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
                 <div className="gba:flex gba:items-center gba:justify-between">
                   <h4 className="gba:flex gba:items-center gba:gap-2 gba:text-lg gba:font-semibold">
                     <User className="gba:h-5 gba:w-5" />
-                    All Other Fields
+                    {t('card-title-unchanged')}
                     <Badge variant="secondary" className="gba:ml-2">
-                      Unchanged
+                      {t('badge-unchanged')}
                     </Badge>
                   </h4>
                   <ChevronDown
@@ -519,22 +520,22 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
                       oldPersonalInformation.salutationRef,
                       getCatalogValue
                     )
-                    return !comparison.changed && renderUnchangedField('Salutation', comparison.newValue)
+                    return !comparison.changed && renderUnchangedField(t('label-salutation'), comparison.newValue)
                   })()}
 
                   {(() => {
                     const comparison = compareField(newPersonalInformation.title, oldPersonalInformation.title)
-                    return !comparison.changed && renderUnchangedField('Title', comparison.newValue)
+                    return !comparison.changed && renderUnchangedField(t('label-title'), comparison.newValue)
                   })()}
 
                   {(() => {
                     const comparison = compareField(newPersonalInformation.firstName, oldPersonalInformation.firstName)
-                    return !comparison.changed && renderUnchangedField('First Name', comparison.newValue)
+                    return !comparison.changed && renderUnchangedField(t('label-first-name'), comparison.newValue)
                   })()}
 
                   {(() => {
                     const comparison = compareField(newPersonalInformation.lastName, oldPersonalInformation.lastName)
-                    return !comparison.changed && renderUnchangedField('Last Name', comparison.newValue)
+                    return !comparison.changed && renderUnchangedField(t('label-last-name'), comparison.newValue)
                   })()}
 
                   {(() => {
@@ -542,7 +543,7 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
                       newPersonalInformation.displayName,
                       oldPersonalInformation.displayName
                     )
-                    return !comparison.changed && renderUnchangedField('Display Name', comparison.newValue)
+                    return !comparison.changed && renderUnchangedField(t('label-display-name'), comparison.newValue)
                   })()}
 
                   {(() => {
@@ -550,12 +551,12 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
                       newPersonalInformation.preferredName,
                       oldPersonalInformation.preferredName
                     )
-                    return !comparison.changed && renderUnchangedField('Preferred Name', comparison.newValue)
+                    return !comparison.changed && renderUnchangedField(t('label-preferred-name'), comparison.newValue)
                   })()}
 
                   {(() => {
                     const comparison = compareField(newPersonalInformation.birthName, oldPersonalInformation.birthName)
-                    return !comparison.changed && renderUnchangedField('Birth Name', comparison.newValue)
+                    return !comparison.changed && renderUnchangedField(t('label-birth-name'), comparison.newValue)
                   })()}
                 </div>
 
@@ -567,11 +568,15 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
                     const comparison = compareField(
                       newPersonalInformation.birthDate,
                       oldPersonalInformation.birthDate,
-                      date => (date ? dayjs(date).format('MMM D, YYYY') : 'N/A')
+                      date => (date ? dayjs(date).format('MMM D, YYYY') : t('value-na'))
                     )
                     return (
                       !comparison.changed &&
-                      renderUnchangedField('Birth Date', comparison.newValue, <Calendar className="gba:h-4 gba:w-4" />)
+                      renderUnchangedField(
+                        t('label-birth-date'),
+                        comparison.newValue,
+                        <Calendar className="gba:h-4 gba:w-4" />
+                      )
                     )
                   })()}
 
@@ -582,7 +587,11 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
                     )
                     return (
                       !comparison.changed &&
-                      renderUnchangedField('Birth Place', comparison.newValue, <MapPin className="gba:h-4 gba:w-4" />)
+                      renderUnchangedField(
+                        t('label-birth-place'),
+                        comparison.newValue,
+                        <MapPin className="gba:h-4 gba:w-4" />
+                      )
                     )
                   })()}
 
@@ -594,7 +603,7 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
                     )
                     return (
                       !comparison.changed &&
-                      renderUnchangedField('Gender', comparison.newValue, <User className="gba:h-4 gba:w-4" />)
+                      renderUnchangedField(t('label-gender'), comparison.newValue, <User className="gba:h-4 gba:w-4" />)
                     )
                   })()}
                 </div>
@@ -611,7 +620,11 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
                     )
                     return (
                       !comparison.changed &&
-                      renderUnchangedField('Nationality', comparison.newValue, <Globe className="gba:h-4 gba:w-4" />)
+                      renderUnchangedField(
+                        t('label-nationality'),
+                        comparison.newValue,
+                        <Globe className="gba:h-4 gba:w-4" />
+                      )
                     )
                   })()}
 
@@ -623,7 +636,11 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
                     )
                     return (
                       !comparison.changed &&
-                      renderUnchangedField('Language', comparison.newValue, <Globe className="gba:h-4 gba:w-4" />)
+                      renderUnchangedField(
+                        t('label-language'),
+                        comparison.newValue,
+                        <Globe className="gba:h-4 gba:w-4" />
+                      )
                     )
                   })()}
 
@@ -635,7 +652,11 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
                     )
                     return (
                       !comparison.changed &&
-                      renderUnchangedField('Marital Status', comparison.newValue, <Heart className="gba:h-4 gba:w-4" />)
+                      renderUnchangedField(
+                        t('label-marital-status'),
+                        comparison.newValue,
+                        <Heart className="gba:h-4 gba:w-4" />
+                      )
                     )
                   })()}
 
@@ -644,7 +665,9 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
                       newPersonalInformation.severelyDisabilityDegree,
                       oldPersonalInformation.severelyDisabilityDegree
                     )
-                    return !comparison.changed && renderUnchangedField('Disability Degree', comparison.newValue)
+                    return (
+                      !comparison.changed && renderUnchangedField(t('label-disability-degree'), comparison.newValue)
+                    )
                   })()}
 
                   {(() => {
@@ -656,7 +679,7 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
                     return (
                       !comparison.changed &&
                       renderUnchangedField(
-                        'School Qualification',
+                        t('label-school-qualification'),
                         comparison.newValue,
                         <GraduationCap className="gba:h-4 gba:w-4" />
                       )
@@ -672,7 +695,7 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
                       return (
                         <>
                           <Separator />
-                          {renderUnchangedField('Notes', comparison.newValue)}
+                          {renderUnchangedField(t('label-notes'), comparison.newValue)}
                         </>
                       )
                     }

@@ -30,10 +30,11 @@
  */
 
 import React, { useState, useEffect } from 'react'
-import { Button, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
+import { Button, Avatar, AvatarImage, AvatarFallback, useTranslation } from '@newwork/nw-design-system'
 import { X } from 'lucide-react'
 import { getInitials } from '../utils/avatarUtils'
 import { useEmployeeData } from '../hooks/useEmployeeData'
+import translations from '../_i18n'
 
 // Helper function to get initials from employee data or creator name
 const getAvatarInitials = (
@@ -92,6 +93,8 @@ export const TaskDetailHeader: React.FC<TaskDetailHeaderProps> = ({
   showEmployeeInfo = false,
   onClose
 }) => {
+  const { t } = useTranslation(translations)
+
   // Auto-fetch employee data if IDs are provided and no manual data exists
   const shouldAutoFetch = showEmployeeInfo && !manualEmployeeData && (employeeId || userId) && accessToken
 
@@ -182,7 +185,10 @@ export const TaskDetailHeader: React.FC<TaskDetailHeaderProps> = ({
                   - On error or missing URL: show initials in AvatarFallback
                 */}
                 {showAvatarImage && (
-                  <AvatarImage src={employeeData?.avatarUrl} alt={employeeData?.displayName || 'Employee avatar'} />
+                  <AvatarImage
+                    src={employeeData?.avatarUrl}
+                    alt={employeeData?.displayName || t('task-detail-header-employee-avatar')}
+                  />
                 )}
                 {showAvatarFallback && (
                   <AvatarFallback className="gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white gba:text-xs">
@@ -199,7 +205,7 @@ export const TaskDetailHeader: React.FC<TaskDetailHeaderProps> = ({
                 {isLoadingEmployee ? (
                   <span className="gba:inline-block gba:h-4 gba:w-32 gba:bg-muted gba:rounded gba:animate-pulse" />
                 ) : (
-                  employeeData?.displayName || creatorName || 'Employee'
+                  employeeData?.displayName || creatorName || t('task-detail-header-employee')
                 )}
               </p>
               {employeeData?.position && !isLoadingEmployee && (

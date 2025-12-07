@@ -4,7 +4,9 @@
  */
 
 import React from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { Inbox, Send, CheckCircle, LucideIcon } from 'lucide-react'
+import translations from '../_i18n'
 
 type EmptyStateType = 'inbox' | 'outbox' | 'completed'
 
@@ -25,31 +27,33 @@ const getEmptyStateIcon = (type: EmptyStateType): LucideIcon => {
   }
 }
 
-// Helper function to get the default message based on type
-const getDefaultMessage = (type: EmptyStateType): string => {
-  switch (type) {
-    case 'inbox':
-      return 'No tasks assigned to you at the moment'
-    case 'outbox':
-      return 'You have not initiated any workflows yet'
-    case 'completed':
-      return 'No completed tasks yet'
-  }
-}
-
-// Helper function to get the title based on type
-const getEmptyStateTitle = (type: EmptyStateType): string => {
-  switch (type) {
-    case 'inbox':
-      return 'Inbox Empty'
-    case 'outbox':
-      return 'No Workflows Started'
-    case 'completed':
-      return 'No Completed Tasks'
-  }
-}
-
 export const EmptyState: React.FC<EmptyStateProps> = ({ type, message }) => {
+  const { t } = useTranslation(translations)
+
+  // Helper function to get the default message based on type
+  const getDefaultMessage = (emptyStateType: EmptyStateType): string => {
+    switch (emptyStateType) {
+      case 'inbox':
+        return t('inbox-empty-no-tasks')
+      case 'outbox':
+        return t('outbox-empty-no-workflows')
+      case 'completed':
+        return t('inbox-empty-no-completed')
+    }
+  }
+
+  // Helper function to get the title based on type
+  const getEmptyStateTitle = (emptyStateType: EmptyStateType): string => {
+    switch (emptyStateType) {
+      case 'inbox':
+        return t('empty-state-inbox-title')
+      case 'outbox':
+        return t('empty-state-outbox-title')
+      case 'completed':
+        return t('empty-state-completed-title')
+    }
+  }
+
   const Icon = getEmptyStateIcon(type)
   const defaultMessage = getDefaultMessage(type)
   const title = getEmptyStateTitle(type)

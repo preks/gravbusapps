@@ -13,7 +13,8 @@ import {
   AlertTitle,
   Collapsible,
   CollapsibleTrigger,
-  CollapsibleContent
+  CollapsibleContent,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   Landmark,
@@ -32,6 +33,7 @@ import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/comp
 import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
 import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
 import { useBankAccountReviewData } from './hooks/useBankAccountReviewData'
+import translations from './_i18n'
 
 /**
  * Extended interface for additionalData with form-specific properties
@@ -73,6 +75,9 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
   userInfo,
   onClose
 }) => {
+  // Translation hook
+  const { t } = useTranslation(translations)
+
   // Cast additionalData to extended interface for proper typing
   const extendedAdditionalData = additionalData as ExtendedAdditionalData | undefined
 
@@ -85,8 +90,7 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
   const taskStatus = additionalData?.psi_taskStatus || processMetadata?.status || 'IN_PROGRESS'
   const taskCompletedAt = processMetadata?.completedAt || extendedAdditionalData?.psi_taskCompletedAt
   const isTaskCompleted = taskStatus === 'COMPLETED' || !!taskCompletedAt
-  const taskTitle = processMetadata?.referenceTaskName || processMetadata?.nodeName || 'Review Bank Account Change'
-  const taskSource: 'kogito' | 'cflow' = processMetadata?.source || (processMetadata?.endpoint ? 'kogito' : 'kogito')
+  const taskTitle = t('task-title')
   const creatorName = taskPayload?.creatorName as string | undefined
 
   // Extract bank account data from payload
@@ -180,14 +184,14 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
   if (error) {
     return (
       <Alert variant="destructive" data-testid="change-bank-account-review-error">
-        <AlertTitle>Error Loading Bank Account Data</AlertTitle>
+        <AlertTitle>{t('error-loading-title')}</AlertTitle>
         <AlertDescription>
           {error}
           <button
             onClick={refetch}
             className="gba:mt-2 gba:px-3 gba:py-1 gba:bg-destructive gba:text-destructive-foreground gba:rounded gba:text-sm"
           >
-            Retry
+            {t('action-retry')}
           </button>
         </AlertDescription>
       </Alert>
@@ -196,7 +200,7 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
 
   // Helper functions
   const getCatalogValue = (ref?: string | null): string => {
-    if (!ref) return 'N/A'
+    if (!ref) return t('value-na')
     const entry = catalogMap[ref]
     if (!entry) return ref.split(':').pop() || ref
 
@@ -205,18 +209,18 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
   }
 
   const formatAccountType = (type?: string | null): string => {
-    if (!type) return 'N/A'
-    if (type === 'CHECKINGS') return 'Checkings'
-    if (type === 'SAVINGS') return 'Savings'
+    if (!type) return t('value-na')
+    if (type === 'CHECKINGS') return t('value-checkings')
+    if (type === 'SAVINGS') return t('value-savings')
     return type
   }
 
   const formatAddressType = (addressId?: string | null): string => {
-    if (!addressId) return 'N/A'
+    if (!addressId) return t('value-na')
     const type = addressTypeMap[addressId]
-    if (!type) return 'N/A'
-    if (type.toUpperCase() === 'PRIMARY') return 'Primary'
-    if (type.toUpperCase() === 'SECONDARY') return 'Secondary'
+    if (!type) return t('value-na')
+    if (type.toUpperCase() === 'PRIMARY') return t('value-primary')
+    if (type.toUpperCase() === 'SECONDARY') return t('value-secondary')
     return type
   }
 
@@ -271,7 +275,8 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
 
     const isNewAccount = !hasOldBankAccount || changeMode === 'INSERT'
     // Display "Not set" if old value was empty/null/N/A
-    const displayOldValue = comparison.oldValue === 'N/A' || !comparison.oldValue ? 'Not set' : comparison.oldValue
+    const displayOldValue =
+      comparison.oldValue === t('value-na') || !comparison.oldValue ? t('value-not-set') : comparison.oldValue
 
     return (
       <div className="gba:space-y-2">
@@ -279,7 +284,7 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
           {icon}
           {label}
           <Badge variant={isNewAccount ? 'success' : 'warning'} className="gba:ml-2">
-            {isNewAccount ? 'New' : 'Changed'}
+            {isNewAccount ? t('badge-new') : t('badge-changed')}
           </Badge>
         </Label>
 
@@ -310,7 +315,7 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
     showForNonUS?: boolean
   ) => {
     // Skip empty values
-    if (!value || value === 'N/A') return null
+    if (!value || value === t('value-na')) return null
 
     const newIsUS = isUSAccount(newBankAccount.countryRef)
     const oldIsUS = isUSAccount(oldBankAccount.countryRef)
@@ -336,8 +341,6 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
       header={
         <TaskDetailHeader
           title={taskTitle}
-          status={taskStatus}
-          source={taskSource}
           showEmployeeInfo={true}
           employeeData={
             employeeData
@@ -355,11 +358,6 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
           isLoadingEmployee={loading}
           creatorName={creatorName}
           onClose={isEveryBoxContext ? handleClose : undefined}
-          customBadges={
-            <Badge variant={changeMode === 'INSERT' ? 'success' : 'info'} data-testid="bank-account-change-mode-badge">
-              {changeMode === 'INSERT' ? 'New Account' : 'Account Update'}
-            </Badge>
-          }
         />
       }
       footer={
@@ -368,7 +366,7 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
             data-testid="change-bank-account-review-actions"
             actions={[
               {
-                label: 'Acknowledge',
+                label: t('action-acknowledge'),
                 onClick: handleAcknowledge,
                 variant: 'default' as const,
                 disabled: isAcknowledging,
@@ -388,10 +386,10 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
         <FileText className="gba:h-4 gba:w-4" />
         <AlertDescription>
           {changeMode === 'INSERT'
-            ? 'This is a new bank account being added to the employee record.'
+            ? t('alert-new-account')
             : hasOldBankAccount && changesCount > 0
-              ? `This is an update with ${changesCount} ${changesCount === 1 ? 'change' : 'changes'} to the existing bank account. Changed fields are highlighted below.`
-              : 'This is an update to an existing bank account in the employee record.'}
+              ? t('alert-update-with-changes', { count: changesCount })
+              : t('alert-update-no-changes')}
         </AlertDescription>
       </Alert>
 
@@ -401,12 +399,10 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
           <div className="gba:flex gba:items-center gba:justify-between">
             <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-lg">
               <Landmark className="gba:h-5 gba:w-5" />
-              {changeMode === 'INSERT' ? 'New Bank Account Details' : 'Bank Account Changes'}
+              {changeMode === 'INSERT' ? t('card-title-new-account') : t('card-title-changes')}
             </CardTitle>
             {hasOldBankAccount && changesCount > 0 && (
-              <Badge variant="warning">
-                {changesCount} {changesCount === 1 ? 'Change' : 'Changes'}
-              </Badge>
+              <Badge variant="warning">{t('badge-changes', { count: changesCount })}</Badge>
             )}
           </div>
         </CardHeader>
@@ -414,12 +410,12 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
           {/* Country and Currency */}
           <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
             {renderComparisonField(
-              'Country',
+              t('label-country'),
               compareField(newBankAccount.countryRef, oldBankAccount.countryRef, getCatalogValue),
               <Globe className="gba:h-4 gba:w-4" />
             )}
             {renderComparisonField(
-              'Currency',
+              t('label-currency'),
               compareField(
                 newBankAccount.currencyRef,
                 oldBankAccount.currencyRef,
@@ -434,12 +430,12 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
           {/* Bank Name and Account Type */}
           <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
             {renderComparisonField(
-              'Bank Name',
+              t('label-bank-name'),
               compareField(newBankAccount.bankName, oldBankAccount.bankName),
               <Landmark className="gba:h-4 gba:w-4" />
             )}
             {renderComparisonField(
-              'Account Type',
+              t('label-account-type'),
               compareField(newBankAccount.accountType, oldBankAccount.accountType, formatAccountType),
               <CreditCard className="gba:h-4 gba:w-4" />
             )}
@@ -449,7 +445,7 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
 
           {/* Account Holder */}
           {renderComparisonField(
-            'Account Holder',
+            t('label-account-holder'),
             compareField(newBankAccount.accountHolder, oldBankAccount.accountHolder)
           )}
 
@@ -459,25 +455,25 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
               <Separator />
               <div className="gba:space-y-4">
                 {renderComparisonField(
-                  'Routing Number Type',
+                  t('label-routing-number-type'),
                   compareField(newBankAccount.routingNumberType, oldBankAccount.routingNumberType, getCatalogValue),
                   undefined,
                   true
                 )}
                 {renderComparisonField(
-                  'Account Number',
+                  t('label-account-number'),
                   compareField(newBankAccount.accountNumber, oldBankAccount.accountNumber),
                   <Hash className="gba:h-4 gba:w-4" />,
                   true
                 )}
                 {renderComparisonField(
-                  'Routing Number',
+                  t('label-routing-number'),
                   compareField(newBankAccount.routingNumber, oldBankAccount.routingNumber),
                   <Hash className="gba:h-4 gba:w-4" />,
                   true
                 )}
                 {renderComparisonField(
-                  'Address',
+                  t('label-address'),
                   compareField(newBankAccount.employeeAddress, oldBankAccount.employeeAddress, formatAddressType),
                   undefined,
                   true
@@ -492,14 +488,14 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
               <Separator />
               <div className="gba:space-y-4">
                 {renderComparisonField(
-                  'IBAN',
+                  t('label-iban'),
                   compareField(newBankAccount.iban, oldBankAccount.iban),
                   <Hash className="gba:h-4 gba:w-4" />,
                   false,
                   true
                 )}
                 {renderComparisonField(
-                  'Swift',
+                  t('label-swift'),
                   compareField(newBankAccount.swift, oldBankAccount.swift),
                   <Hash className="gba:h-4 gba:w-4" />,
                   false,
@@ -513,7 +509,7 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
           {(newBankAccount.notes || oldBankAccount.notes) && (
             <>
               <Separator />
-              {renderComparisonField('Notes', compareField(newBankAccount.notes, oldBankAccount.notes))}
+              {renderComparisonField(t('label-notes'), compareField(newBankAccount.notes, oldBankAccount.notes))}
             </>
           )}
         </CardContent>
@@ -528,9 +524,9 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
                 <div className="gba:flex gba:items-center gba:justify-between">
                   <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-lg">
                     <CreditCard className="gba:h-5 gba:w-5" />
-                    All Other Fields
+                    {t('card-title-unchanged')}
                     <Badge variant="secondary" className="gba:ml-2">
-                      Unchanged
+                      {t('badge-unchanged')}
                     </Badge>
                   </CardTitle>
                   <ChevronDown
@@ -554,7 +550,11 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
                     )
                     return (
                       !comparison.changed &&
-                      renderUnchangedField('Country', comparison.newValue, <Globe className="gba:h-4 gba:w-4" />)
+                      renderUnchangedField(
+                        t('label-country'),
+                        comparison.newValue,
+                        <Globe className="gba:h-4 gba:w-4" />
+                      )
                     )
                   })()}
 
@@ -566,7 +566,11 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
                     )
                     return (
                       !comparison.changed &&
-                      renderUnchangedField('Currency', comparison.newValue, <DollarSign className="gba:h-4 gba:w-4" />)
+                      renderUnchangedField(
+                        t('label-currency'),
+                        comparison.newValue,
+                        <DollarSign className="gba:h-4 gba:w-4" />
+                      )
                     )
                   })()}
                 </div>
@@ -578,7 +582,11 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
                     const comparison = compareField(newBankAccount.bankName, oldBankAccount.bankName)
                     return (
                       !comparison.changed &&
-                      renderUnchangedField('Bank Name', comparison.newValue, <Landmark className="gba:h-4 gba:w-4" />)
+                      renderUnchangedField(
+                        t('label-bank-name'),
+                        comparison.newValue,
+                        <Landmark className="gba:h-4 gba:w-4" />
+                      )
                     )
                   })()}
 
@@ -591,7 +599,7 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
                     return (
                       !comparison.changed &&
                       renderUnchangedField(
-                        'Account Type',
+                        t('label-account-type'),
                         comparison.newValue,
                         <CreditCard className="gba:h-4 gba:w-4" />
                       )
@@ -602,7 +610,7 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
                 {/* Account Holder */}
                 {(() => {
                   const comparison = compareField(newBankAccount.accountHolder, oldBankAccount.accountHolder)
-                  return !comparison.changed && renderUnchangedField('Account Holder', comparison.newValue)
+                  return !comparison.changed && renderUnchangedField(t('label-account-holder'), comparison.newValue)
                 })()}
 
                 <Separator />
@@ -618,7 +626,13 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
                       )
                       return (
                         !comparison.changed &&
-                        renderUnchangedField('Routing Number Type', comparison.newValue, undefined, true, false)
+                        renderUnchangedField(
+                          t('label-routing-number-type'),
+                          comparison.newValue,
+                          undefined,
+                          true,
+                          false
+                        )
                       )
                     })()}
 
@@ -627,7 +641,7 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
                       return (
                         !comparison.changed &&
                         renderUnchangedField(
-                          'Account Number',
+                          t('label-account-number'),
                           comparison.newValue,
                           <Hash className="gba:h-4 gba:w-4" />,
                           true,
@@ -641,7 +655,7 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
                       return (
                         !comparison.changed &&
                         renderUnchangedField(
-                          'Routing Number',
+                          t('label-routing-number'),
                           comparison.newValue,
                           <Hash className="gba:h-4 gba:w-4" />,
                           true,
@@ -658,7 +672,7 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
                       )
                       return (
                         !comparison.changed &&
-                        renderUnchangedField('Address', comparison.newValue, undefined, true, false)
+                        renderUnchangedField(t('label-address'), comparison.newValue, undefined, true, false)
                       )
                     })()}
                   </div>
@@ -672,7 +686,7 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
                       return (
                         !comparison.changed &&
                         renderUnchangedField(
-                          'IBAN',
+                          t('label-iban'),
                           comparison.newValue,
                           <Hash className="gba:h-4 gba:w-4" />,
                           false,
@@ -686,7 +700,7 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
                       return (
                         !comparison.changed &&
                         renderUnchangedField(
-                          'Swift',
+                          t('label-swift'),
                           comparison.newValue,
                           <Hash className="gba:h-4 gba:w-4" />,
                           false,
@@ -705,7 +719,7 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
                       return (
                         <>
                           <Separator />
-                          {renderUnchangedField('Notes', comparison.newValue)}
+                          {renderUnchangedField(t('label-notes'), comparison.newValue)}
                         </>
                       )
                     }

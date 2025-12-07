@@ -5,7 +5,7 @@
  */
 
 import React, { useState } from 'react'
-import { Separator, Spinner, Alert } from '@newwork/nw-design-system'
+import { Separator, Spinner, Alert, useTranslation } from '@newwork/nw-design-system'
 import { CheckCircle, AlertCircle } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
@@ -18,23 +18,33 @@ import { formatDateTime } from '@/business-apps/core/every/apps/every-box/utils/
 import { useEntityDates } from '@/common/data/common/hooks/useEntityDates'
 import { useApproverData } from '@/common/data/employee/hooks/useApproverData'
 import dayjs from 'dayjs'
+import translations from './_i18n'
 
 /**
  * Formats working days and hours into a readable string
  */
-const formatWorkingDaysAndHours = (workingDays?: number, workingHours?: number): string => {
+const formatWorkingDaysAndHours = (
+  workingDays?: number,
+  workingHours?: number,
+  t?: (key: string, vars?: Record<string, unknown>) => string
+): string => {
   const parts: string[] = []
 
   if (workingDays !== undefined) {
-    parts.push(`${workingDays} ${workingDays === 1 ? 'day' : 'days'}`)
+    if (t) {
+      parts.push(t('working-days-format', { days: workingDays }))
+    } else {
+      parts.push(`${workingDays} ${workingDays === 1 ? 'day' : 'days'}`)
+    }
   }
 
   if (workingHours !== undefined) {
-    const hoursText = `(${workingHours} ${workingHours === 1 ? 'hour' : 'hours'})`
-    if (parts.length > 0) {
-      parts.push(` ${hoursText}`)
+    if (t) {
+      const hoursText = t('working-hours-format', { hours: workingHours })
+      parts.push(parts.length > 0 ? ` ${hoursText}` : hoursText)
     } else {
-      parts.push(hoursText)
+      const hoursText = `(${workingHours} ${workingHours === 1 ? 'hour' : 'hours'})`
+      parts.push(parts.length > 0 ? ` ${hoursText}` : hoursText)
     }
   }
 
@@ -52,6 +62,8 @@ const AcknowledgeEmployeeVacation: React.FC<AcknowledgeEmployeeVacationProps> = 
   userInfo,
   onClose
 }) => {
+  const { t } = useTranslation(translations)
+
   const [isAcknowledging, setIsAcknowledging] = useState(false)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -66,11 +78,8 @@ const AcknowledgeEmployeeVacation: React.FC<AcknowledgeEmployeeVacationProps> = 
   const taskStatus = additionalData?.psi_taskStatus || processMetadata?.status || 'IN_PROGRESS'
   const isTaskCompleted = taskStatus === 'COMPLETED'
 
-  // Get task title from process metadata or use default
-  const taskTitle = processMetadata?.referenceTaskName || processMetadata?.nodeName || 'Acknowledge Vacation'
-
-  // Get task source from process metadata (fallback to 'kogito' if not available)
-  const taskSource: 'kogito' | 'cflow' = processMetadata?.source || 'kogito'
+  // Get task title (translated)
+  const taskTitle = t('task-title-acknowledge-vacation')
 
   // Use custom hook for data fetching (reuse from vacation approval)
   const {
@@ -126,15 +135,15 @@ const AcknowledgeEmployeeVacation: React.FC<AcknowledgeEmployeeVacationProps> = 
         event: 'pse_submit'
       })
 
-      setSuccessMessage('Vacation acknowledged successfully!')
+      setSuccessMessage(t('success-vacation-acknowledged'))
 
       // Allow time for user to see success message before closing
       setTimeout(() => {
         // Platform will handle closing the modal
       }, 1500)
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Failed to acknowledge'
-      setErrorMessage(`Failed to acknowledge: ${errorMsg}`)
+      const errorMsg = err instanceof Error ? err.message : t('error-failed-to-acknowledge')
+      setErrorMessage(`${t('error-failed-to-acknowledge')}: ${errorMsg}`)
     } finally {
       setIsAcknowledging(false)
     }
@@ -162,8 +171,6 @@ const AcknowledgeEmployeeVacation: React.FC<AcknowledgeEmployeeVacationProps> = 
       header={
         <TaskDetailHeader
           title={taskTitle}
-          status={taskStatus}
-          source={taskSource}
           showEmployeeInfo={true}
           employeeData={
             employeeData
@@ -187,7 +194,7 @@ const AcknowledgeEmployeeVacation: React.FC<AcknowledgeEmployeeVacationProps> = 
             data-testid="action-footer"
             actions={[
               {
-                label: 'Acknowledge',
+                label: t('action-acknowledge'),
                 onClick: handleAcknowledge,
                 variant: 'default' as const,
                 disabled: isAcknowledging || !!successMessage,
@@ -218,12 +225,14 @@ const AcknowledgeEmployeeVacation: React.FC<AcknowledgeEmployeeVacationProps> = 
       {employeeAbsence && typeof employeeAbsence === 'object' && (
         <>
           <div data-testid="vacation-details-section">
-            <h4 className="gba:font-semibold gba:mb-4 gba:text-lg">Vacation Request Details</h4>
+            <h4 className="gba:font-semibold gba:mb-4 gba:text-lg">{t('section-vacation-request-details')}</h4>
             <div className="gba:bg-muted gba:p-4 gba:rounded-lg gba:space-y-3">
               {/* Type */}
               {absenceTypeName && (
                 <div className="gba:flex gba:items-start gba:gap-3">
-                  <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">Type:</span>
+                  <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
+                    {t('label-type')}:
+                  </span>
                   <span className="gba:text-sm gba:flex-1">{absenceTypeName}</span>
                 </div>
               )}
@@ -232,7 +241,7 @@ const AcknowledgeEmployeeVacation: React.FC<AcknowledgeEmployeeVacationProps> = 
               {employeeAbsence.startDate && employeeAbsence.endDate && (
                 <div className="gba:flex gba:items-start gba:gap-3">
                   <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                    Duration:
+                    {t('label-duration')}:
                   </span>
                   <span className="gba:text-sm gba:flex-1">
                     {(() => {
@@ -253,10 +262,10 @@ const AcknowledgeEmployeeVacation: React.FC<AcknowledgeEmployeeVacationProps> = 
               {(employeeAbsence.workingDays !== undefined || employeeAbsence.workingHours !== undefined) && (
                 <div className="gba:flex gba:items-start gba:gap-3">
                   <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                    Working Days:
+                    {t('label-working-days')}:
                   </span>
                   <span className="gba:text-sm gba:flex-1">
-                    {formatWorkingDaysAndHours(employeeAbsence.workingDays, employeeAbsence.workingHours)}
+                    {formatWorkingDaysAndHours(employeeAbsence.workingDays, employeeAbsence.workingHours, t)}
                   </span>
                 </div>
               )}
@@ -265,10 +274,10 @@ const AcknowledgeEmployeeVacation: React.FC<AcknowledgeEmployeeVacationProps> = 
               {employeeAbsence.balance !== undefined && !isBusinessTrip && (
                 <div className="gba:flex gba:items-start gba:gap-3">
                   <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                    Remaining Balance:
+                    {t('label-remaining-balance')}:
                   </span>
                   <span className="gba:text-sm gba:flex-1 gba:font-medium gba:text-success">
-                    {employeeAbsence.balance} days
+                    {t('balance-days', { balance: employeeAbsence.balance })}
                   </span>
                 </div>
               )}
@@ -277,10 +286,10 @@ const AcknowledgeEmployeeVacation: React.FC<AcknowledgeEmployeeVacationProps> = 
               {employeeAbsence.substituteEmployee && (
                 <div className="gba:flex gba:items-start gba:gap-3">
                   <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                    Substitute:
+                    {t('label-substitute')}:
                   </span>
                   <span className="gba:text-sm gba:flex-1 gba:text-muted-foreground">
-                    {isLoadingSubstitute ? <Spinner size="sm" /> : substituteEmployeeName || 'Loading...'}
+                    {isLoadingSubstitute ? <Spinner size="sm" /> : substituteEmployeeName || t('loading')}
                   </span>
                 </div>
               )}
@@ -289,7 +298,7 @@ const AcknowledgeEmployeeVacation: React.FC<AcknowledgeEmployeeVacationProps> = 
               {employeeAbsence.description?.trim() && (
                 <div className="gba:flex gba:items-start gba:gap-3">
                   <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                    Description:
+                    {t('label-description')}:
                   </span>
                   <span className="gba:text-sm gba:flex-1 gba:text-muted-foreground gba:whitespace-pre-wrap">
                     {employeeAbsence.description.trim()}
@@ -301,7 +310,7 @@ const AcknowledgeEmployeeVacation: React.FC<AcknowledgeEmployeeVacationProps> = 
               {requestCreatedAt && (
                 <div className="gba:flex gba:items-start gba:gap-3">
                   <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                    Request Created:
+                    {t('label-request-created')}:
                   </span>
                   <span className="gba:text-sm gba:flex-1">
                     {isLoadingDates ? <Spinner size="sm" /> : formatDateTime(requestCreatedAt)}
@@ -318,11 +327,13 @@ const AcknowledgeEmployeeVacation: React.FC<AcknowledgeEmployeeVacationProps> = 
       {approvalStatus && (
         <>
           <div data-testid="approval-details-section">
-            <h4 className="gba:font-semibold gba:mb-4 gba:text-lg">Approval Details</h4>
+            <h4 className="gba:font-semibold gba:mb-4 gba:text-lg">{t('section-approval-details')}</h4>
             <div className="gba:bg-muted gba:p-4 gba:rounded-lg gba:space-y-3">
               {/* Status */}
               <div className="gba:flex gba:items-start gba:gap-3">
-                <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">Status:</span>
+                <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
+                  {t('label-status')}:
+                </span>
                 <span
                   className={`gba:text-sm gba:flex-1 gba:font-medium ${
                     approvalStatus === 'APPROVED' ||
@@ -337,7 +348,7 @@ const AcknowledgeEmployeeVacation: React.FC<AcknowledgeEmployeeVacationProps> = 
                   approvalStatus === 'APPROVED_BY_HR' ? (
                     <span className="gba:flex gba:items-center gba:gap-2">
                       <CheckCircle className="gba:h-4 gba:w-4" />
-                      Approved
+                      {t('status-approved')}
                     </span>
                   ) : (
                     <span className="gba:flex gba:items-center gba:gap-2">
@@ -352,10 +363,10 @@ const AcknowledgeEmployeeVacation: React.FC<AcknowledgeEmployeeVacationProps> = 
               {(approverId || approverName) && (
                 <div className="gba:flex gba:items-start gba:gap-3">
                   <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                    Approved By:
+                    {t('label-approved-by')}:
                   </span>
                   <span className="gba:text-sm gba:flex-1">
-                    {isLoadingApprover ? <Spinner size="sm" /> : approverName || 'Unknown'}
+                    {isLoadingApprover ? <Spinner size="sm" /> : approverName || t('unknown')}
                   </span>
                 </div>
               )}
@@ -364,7 +375,7 @@ const AcknowledgeEmployeeVacation: React.FC<AcknowledgeEmployeeVacationProps> = 
               {approvalDate && (
                 <div className="gba:flex gba:items-start gba:gap-3">
                   <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                    Approval Date:
+                    {t('label-approval-date')}:
                   </span>
                   <span className="gba:text-sm gba:flex-1">
                     {isLoadingDates ? <Spinner size="sm" /> : formatDateTime(approvalDate)}
@@ -378,7 +389,7 @@ const AcknowledgeEmployeeVacation: React.FC<AcknowledgeEmployeeVacationProps> = 
                   <Separator />
                   <div className="gba:flex gba:items-start gba:gap-3">
                     <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                      Comment:
+                      {t('label-comment')}:
                     </span>
                     <span className="gba:text-sm gba:flex-1 gba:text-muted-foreground gba:whitespace-pre-wrap">
                       {approvalNote.trim()}
@@ -402,7 +413,7 @@ const AcknowledgeEmployeeVacation: React.FC<AcknowledgeEmployeeVacationProps> = 
             endDate={employeeAbsence.endDate}
             currentAbsence={{
               employeeId: employeeAbsence.employeeId || employeeData?.id || '',
-              employeeName: employeeData?.displayName || creatorName || 'Unknown',
+              employeeName: employeeData?.displayName || creatorName || t('unknown'),
               position: employeeData?.position || undefined,
               type: absenceTypeName,
               status: approvalStatus

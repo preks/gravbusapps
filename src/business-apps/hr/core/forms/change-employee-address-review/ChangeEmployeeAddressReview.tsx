@@ -13,7 +13,8 @@ import {
   AlertTitle,
   Collapsible,
   CollapsibleTrigger,
-  CollapsibleContent
+  CollapsibleContent,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { Landmark, CheckCircle, ArrowRight, Globe, MapPin, FileText, Home, ChevronDown } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -22,6 +23,7 @@ import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/comp
 import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
 import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
 import { useAddressReviewData } from './hooks/useAddressReviewData'
+import translations from './_i18n'
 
 /**
  * Extended interface for additionalData with form-specific properties
@@ -60,6 +62,9 @@ const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewPr
   userInfo,
   onClose
 }) => {
+  // Translation hook
+  const { t } = useTranslation(translations)
+
   // Cast additionalData to extended interface for proper typing
   const extendedAdditionalData = additionalData as ExtendedAdditionalData | undefined
 
@@ -72,8 +77,7 @@ const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewPr
   const taskStatus = additionalData?.psi_taskStatus || processMetadata?.status || 'IN_PROGRESS'
   const taskCompletedAt = processMetadata?.completedAt || extendedAdditionalData?.psi_taskCompletedAt
   const isTaskCompleted = taskStatus === 'COMPLETED' || !!taskCompletedAt
-  const taskTitle = processMetadata?.referenceTaskName || processMetadata?.nodeName || 'Review Address Change'
-  const taskSource: 'kogito' | 'cflow' = processMetadata?.source || (processMetadata?.endpoint ? 'kogito' : 'kogito')
+  const taskTitle = t('task-title')
   const creatorName = taskPayload?.creatorName as string | undefined
 
   // Extract address data from payload
@@ -175,14 +179,14 @@ const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewPr
   if (error) {
     return (
       <Alert variant="destructive" data-testid="change-employee-address-review-error">
-        <AlertTitle>Error Loading Address Data</AlertTitle>
+        <AlertTitle>{t('error-loading-title')}</AlertTitle>
         <AlertDescription>
           {error}
           <button
             onClick={refetch}
             className="gba:mt-2 gba:px-3 gba:py-1 gba:bg-destructive gba:text-destructive-foreground gba:rounded gba:text-sm"
           >
-            Retry
+            {t('action-retry')}
           </button>
         </AlertDescription>
       </Alert>
@@ -191,7 +195,7 @@ const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewPr
 
   // Helper functions
   const getCatalogValue = (ref?: string | null): string => {
-    if (!ref) return 'N/A'
+    if (!ref) return t('value-na')
     const entry = catalogMap[ref]
     if (!entry) return ref.split(':').pop() || ref
 
@@ -204,14 +208,14 @@ const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewPr
   }
 
   const getPostalLabel = (countryRef?: string | null): string => {
-    return getCountryCode(countryRef) === 'US' ? 'ZIP Code' : 'Postal Code'
+    return getCountryCode(countryRef) === 'US' ? t('label-zip-code') : t('label-postal-code')
   }
 
   const getRegionLabel = (countryRef?: string | null): string => {
     const cc = getCountryCode(countryRef)
-    if (cc === 'US') return 'State'
-    if (cc === 'RO') return 'County'
-    return 'Region'
+    if (cc === 'US') return t('label-state')
+    if (cc === 'RO') return t('label-county')
+    return t('label-region')
   }
 
   const shouldShowRegion = (countryRef?: string | null): boolean => {
@@ -219,39 +223,25 @@ const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewPr
     return cc === 'DE' || cc === 'US' || cc === 'RO'
   }
 
-  // Get badge variant based on change mode
-  const getChangeModeBadgeVariant = (): 'success' | 'destructive' | 'info' => {
-    if (isInsertMode) return 'success'
-    if (isDeleteMode) return 'destructive'
-    return 'info'
-  }
-
-  // Get badge label based on change mode
-  const getChangeModeBadgeLabel = (): string => {
-    if (isInsertMode) return 'New Address'
-    if (isDeleteMode) return 'Delete Address'
-    return 'Address Update'
-  }
-
   // Get alert message based on change mode and state
   const getAlertMessage = (): string => {
     if (isInsertMode) {
-      return 'This is a new address being added to the employee record.'
+      return t('alert-new-address')
     }
     if (isDeleteMode) {
-      return 'The selected address was deleted by the employee.'
+      return t('alert-delete-address')
     }
     if (hasOldAddress && changesCount > 0) {
-      return `This is an update with ${changesCount} ${changesCount === 1 ? 'change' : 'changes'} to the existing address. Changed fields are highlighted below.`
+      return t('alert-update-with-changes', { count: changesCount })
     }
-    return 'This is an update to an existing address in the employee record.'
+    return t('alert-update-no-changes')
   }
 
   // Get card title based on change mode
   const getCardTitle = (): string => {
-    if (isInsertMode) return 'New Address Details'
-    if (isDeleteMode) return 'Deleted Address'
-    return 'Address Changes'
+    if (isInsertMode) return t('card-title-new-address')
+    if (isDeleteMode) return t('card-title-delete-address')
+    return t('card-title-changes')
   }
 
   // Field comparison
@@ -262,7 +252,7 @@ const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewPr
   }
 
   const compareField = (newVal: any, oldVal: any, formatter?: (val: any) => string): FieldComparison => {
-    const format = formatter || ((v: any) => String(v || 'N/A'))
+    const format = formatter || ((v: any) => String(v || t('value-na')))
     const newFormatted = format(newVal)
     const oldFormatted = format(oldVal)
 
@@ -284,7 +274,8 @@ const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewPr
 
     const isNewAddress = !hasOldAddress || isInsertMode
     // Display "Not set" if old value was empty/null/N/A
-    const displayOldValue = comparison.oldValue === 'N/A' || !comparison.oldValue ? 'Not set' : comparison.oldValue
+    const displayOldValue =
+      comparison.oldValue === t('value-na') || !comparison.oldValue ? t('value-not-set') : comparison.oldValue
 
     return (
       <div className="gba:space-y-2">
@@ -292,7 +283,7 @@ const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewPr
           {icon}
           {label}
           <Badge variant={isNewAddress ? 'success' : 'warning'} className="gba:ml-2">
-            {isNewAddress ? 'New' : 'Changed'}
+            {isNewAddress ? t('badge-new') : t('badge-changed')}
           </Badge>
         </Label>
 
@@ -336,8 +327,6 @@ const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewPr
       header={
         <TaskDetailHeader
           title={taskTitle}
-          status={taskStatus}
-          source={taskSource}
           showEmployeeInfo={true}
           employeeData={
             employeeData
@@ -355,11 +344,6 @@ const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewPr
           isLoadingEmployee={loading}
           creatorName={creatorName}
           onClose={isEveryBoxContext ? handleClose : undefined}
-          customBadges={
-            <Badge variant={getChangeModeBadgeVariant()} data-testid="address-change-mode-badge">
-              {getChangeModeBadgeLabel()}
-            </Badge>
-          }
         />
       }
       footer={
@@ -368,7 +352,7 @@ const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewPr
             data-testid="change-employee-address-review-actions"
             actions={[
               {
-                label: 'Acknowledge',
+                label: t('action-acknowledge'),
                 onClick: handleAcknowledge,
                 variant: 'default' as const,
                 disabled: isAcknowledging,
@@ -398,9 +382,7 @@ const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewPr
               {getCardTitle()}
             </CardTitle>
             {hasOldAddress && changesCount > 0 && !isDeleteMode && (
-              <Badge variant="warning">
-                {changesCount} {changesCount === 1 ? 'Change' : 'Changes'}
-              </Badge>
+              <Badge variant="warning">{t('badge-changes', { count: changesCount })}</Badge>
             )}
           </div>
         </CardHeader>
@@ -413,7 +395,7 @@ const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewPr
               return (
                 <React.Fragment key={`address-line-${i}`}>
                   {renderComparisonField(
-                    `Address Line ${i + 1}`,
+                    t('label-address-line', { number: i + 1 }),
                     compareField(newLine, oldLine),
                     <MapPin className="gba:h-4 gba:w-4" />
                   )}
@@ -433,7 +415,7 @@ const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewPr
 
           {/* City */}
           {renderComparisonField(
-            'City',
+            t('label-city'),
             compareField(newAddress.locality, oldAddress.locality),
             <Landmark className="gba:h-4 gba:w-4" />
           )}
@@ -447,7 +429,7 @@ const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewPr
 
           {/* Country */}
           {renderComparisonField(
-            'Country',
+            t('label-country'),
             compareField(newAddress.countryRef, oldAddress.countryRef, getCatalogValue),
             <Globe className="gba:h-4 gba:w-4" />
           )}
@@ -455,7 +437,7 @@ const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewPr
           {/* PO Box - only if present */}
           {(newAddress.poBox || oldAddress.poBox) &&
             renderComparisonField(
-              'PO Box',
+              t('label-po-box'),
               compareField(String(newAddress.poBox || false), String(oldAddress.poBox || false))
             )}
 
@@ -463,7 +445,7 @@ const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewPr
           {(newAddress.notes?.trim() || oldAddress.notes?.trim()) && (
             <>
               <Separator />
-              {renderComparisonField('Notes', compareField(newAddress.notes, oldAddress.notes))}
+              {renderComparisonField(t('label-notes'), compareField(newAddress.notes, oldAddress.notes))}
             </>
           )}
 
@@ -472,12 +454,12 @@ const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewPr
             <>
               <Separator />
               {renderComparisonField(
-                'Attachment',
+                t('label-attachment'),
                 compareField(
                   docNameMap[String(newAddress.employeeDocument)] ||
-                    (newAddress.employeeDocument ? 'New Attachment' : ''),
+                    (newAddress.employeeDocument ? t('value-new-attachment') : ''),
                   docNameMap[String(oldAddress.employeeDocument)] ||
-                    (oldAddress.employeeDocument ? 'Old Attachment' : '')
+                    (oldAddress.employeeDocument ? t('value-old-attachment') : '')
                 )
               )}
             </>
@@ -494,9 +476,9 @@ const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewPr
                 <div className="gba:flex gba:items-center gba:justify-between">
                   <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-lg">
                     <Home className="gba:h-5 gba:w-5" />
-                    All Other Fields
+                    {t('card-title-unchanged')}
                     <Badge variant="secondary" className="gba:ml-2">
-                      Unchanged
+                      {t('badge-unchanged')}
                     </Badge>
                   </CardTitle>
                   <ChevronDown
@@ -521,8 +503,8 @@ const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewPr
                     return (
                       <React.Fragment key={`unchanged-address-line-${i}`}>
                         {renderUnchangedField(
-                          `Address Line ${i + 1}`,
-                          newLine || 'Not set',
+                          t('label-address-line', { number: i + 1 }),
+                          newLine || t('value-not-set'),
                           <MapPin className="gba:h-4 gba:w-4" />
                         )}
                       </React.Fragment>
@@ -547,7 +529,7 @@ const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewPr
                   const comparison = compareField(newAddress.locality, oldAddress.locality)
                   return (
                     !comparison.changed &&
-                    renderUnchangedField('City', comparison.newValue, <Landmark className="gba:h-4 gba:w-4" />)
+                    renderUnchangedField(t('label-city'), comparison.newValue, <Landmark className="gba:h-4 gba:w-4" />)
                   )
                 })()}
 
@@ -566,7 +548,7 @@ const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewPr
                   const comparison = compareField(newAddress.countryRef, oldAddress.countryRef, getCatalogValue)
                   return (
                     !comparison.changed &&
-                    renderUnchangedField('Country', comparison.newValue, <Globe className="gba:h-4 gba:w-4" />)
+                    renderUnchangedField(t('label-country'), comparison.newValue, <Globe className="gba:h-4 gba:w-4" />)
                   )
                 })()}
 
@@ -577,7 +559,7 @@ const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewPr
                       String(newAddress.poBox || false),
                       String(oldAddress.poBox || false)
                     )
-                    return !comparison.changed && renderUnchangedField('PO Box', comparison.newValue)
+                    return !comparison.changed && renderUnchangedField(t('label-po-box'), comparison.newValue)
                   })()}
 
                 {/* Notes */}
@@ -588,7 +570,7 @@ const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewPr
                       return (
                         <>
                           <Separator />
-                          {renderUnchangedField('Notes', comparison.newValue)}
+                          {renderUnchangedField(t('label-notes'), comparison.newValue)}
                         </>
                       )
                     }
@@ -600,15 +582,15 @@ const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewPr
                   (() => {
                     const comparison = compareField(
                       docNameMap[String(newAddress.employeeDocument)] ||
-                        (newAddress.employeeDocument ? 'New Attachment' : ''),
+                        (newAddress.employeeDocument ? t('value-new-attachment') : ''),
                       docNameMap[String(oldAddress.employeeDocument)] ||
-                        (oldAddress.employeeDocument ? 'Old Attachment' : '')
+                        (oldAddress.employeeDocument ? t('value-old-attachment') : '')
                     )
                     if (!comparison.changed) {
                       return (
                         <>
                           <Separator />
-                          {renderUnchangedField('Attachment', comparison.newValue)}
+                          {renderUnchangedField(t('label-attachment'), comparison.newValue)}
                         </>
                       )
                     }

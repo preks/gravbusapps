@@ -13,6 +13,7 @@ interface ExpensePlanTotalsSectionProps {
   advancePaymentAmount: number
   currencyCode: string
   formatCurrency: (amount: number, currencyCode: string) => string
+  t: (key: string, vars?: Record<string, unknown>) => string
 }
 
 const ExpensePlanTotalsSection: React.FC<ExpensePlanTotalsSectionProps> = ({
@@ -25,20 +26,21 @@ const ExpensePlanTotalsSection: React.FC<ExpensePlanTotalsSectionProps> = ({
   nonDeductibleAmount,
   advancePaymentAmount,
   currencyCode,
-  formatCurrency
+  formatCurrency,
+  t
 }) => {
   return (
     <Card data-testid="approve-expense-plan-v2-financial-overview">
       <CardHeader>
         <CardTitle className="gba:flex gba:items-center gba:gap-2">
           <PiWallet className="gba:h-5 gba:w-5" />
-          Financial Overview
+          {t('section-financial-overview')}
         </CardTitle>
       </CardHeader>
       <CardContent className="gba:space-y-3">
         {/* Total Amount */}
         <div className="gba:flex gba:justify-between gba:items-center">
-          <Label className="gba:text-sm gba:text-muted-foreground">Total Amount</Label>
+          <Label className="gba:text-sm gba:text-muted-foreground">{t('label-total-amount')}</Label>
           <p className="gba:text-lg gba:font-bold">{formatCurrency(totalAmount, currencyCode)}</p>
         </div>
 
@@ -47,11 +49,11 @@ const ExpensePlanTotalsSection: React.FC<ExpensePlanTotalsSectionProps> = ({
         {/* Expenses and Allowances */}
         <div className="gba:grid gba:grid-cols-2 gba:gap-4">
           <div>
-            <Label className="gba:text-sm gba:text-muted-foreground">Expenses</Label>
+            <Label className="gba:text-sm gba:text-muted-foreground">{t('label-expenses')}</Label>
             <p className="gba:text-sm gba:font-medium">{formatCurrency(totalAmountExpense, currencyCode)}</p>
           </div>
           <div>
-            <Label className="gba:text-sm gba:text-muted-foreground">Allowances</Label>
+            <Label className="gba:text-sm gba:text-muted-foreground">{t('label-allowances')}</Label>
             <p className="gba:text-sm gba:font-medium">{formatCurrency(totalAmountAllowance, currencyCode)}</p>
           </div>
         </div>
@@ -61,13 +63,13 @@ const ExpensePlanTotalsSection: React.FC<ExpensePlanTotalsSectionProps> = ({
         {/* Reimbursable and Non-Reimbursable */}
         <div className="gba:grid gba:grid-cols-2 gba:gap-4">
           <div>
-            <Label className="gba:text-sm gba:text-muted-foreground">Reimbursable</Label>
+            <Label className="gba:text-sm gba:text-muted-foreground">{t('label-reimbursable')}</Label>
             <p className="gba:text-sm gba:font-medium gba:text-success">
               {formatCurrency(reimbursableAmount, currencyCode)}
             </p>
           </div>
           <div>
-            <Label className="gba:text-sm gba:text-muted-foreground">Non-Reimbursable</Label>
+            <Label className="gba:text-sm gba:text-muted-foreground">{t('label-non-reimbursable')}</Label>
             <p className="gba:text-sm gba:font-medium gba:text-destructive">
               {formatCurrency(nonReimbursableAmount, currencyCode)}
             </p>
@@ -79,11 +81,11 @@ const ExpensePlanTotalsSection: React.FC<ExpensePlanTotalsSectionProps> = ({
         {/* Deductible and Non-Deductible */}
         <div className="gba:grid gba:grid-cols-2 gba:gap-4">
           <div>
-            <Label className="gba:text-sm gba:text-muted-foreground">Deductible</Label>
+            <Label className="gba:text-sm gba:text-muted-foreground">{t('label-deductible')}</Label>
             <p className="gba:text-sm gba:font-medium">{formatCurrency(deductibleAmount, currencyCode)}</p>
           </div>
           <div>
-            <Label className="gba:text-sm gba:text-muted-foreground">Non-Deductible</Label>
+            <Label className="gba:text-sm gba:text-muted-foreground">{t('label-non-deductible')}</Label>
             <p className="gba:text-sm gba:font-medium">{formatCurrency(nonDeductibleAmount, currencyCode)}</p>
           </div>
         </div>
@@ -93,7 +95,7 @@ const ExpensePlanTotalsSection: React.FC<ExpensePlanTotalsSectionProps> = ({
           <>
             <Separator />
             <div>
-              <Label className="gba:text-sm gba:text-muted-foreground">Advance Payment</Label>
+              <Label className="gba:text-sm gba:text-muted-foreground">{t('label-advance-payment')}</Label>
               <p className="gba:text-sm gba:font-medium">{formatCurrency(advancePaymentAmount, currencyCode)}</p>
             </div>
           </>

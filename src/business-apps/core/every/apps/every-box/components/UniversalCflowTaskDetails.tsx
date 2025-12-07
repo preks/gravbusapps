@@ -9,9 +9,20 @@ import {
   Switch,
   Textarea,
   Alert,
-  AlertDescription
+  AlertDescription,
+  useTranslation
 } from '@newwork/nw-design-system'
-import { Clock, MessageSquare, Info, ExternalLink, Link as LinkIcon, FileText, Download } from 'lucide-react'
+import {
+  Clock,
+  MessageSquare,
+  Info,
+  ExternalLink,
+  Link as LinkIcon,
+  FileText,
+  Download,
+  CheckCircle,
+  XCircle
+} from 'lucide-react'
 import { message } from 'antd'
 import { UnifiedTask } from '../types'
 import { env } from '@/common/env/EnvUtils'
@@ -20,6 +31,8 @@ import { TaskDetailFooter } from './TaskDetailFooter'
 import { useEmployeeAvatar } from '../hooks/useEmployeeAvatar'
 import { InputRenderer } from '@/business-apps/flow/apps/creator/components/shared/InputRenderer'
 import { navigateTo } from '@/common/utils/navigationUtils'
+import { useDateFormatters } from '../hooks/useDateFormatters'
+import translations from '../_i18n'
 
 /**
  * Converts a picture thumbnail to a data URL format
@@ -61,6 +74,8 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
   flowStepData,
   isLoadingFlowData = false
 }) => {
+  const { t } = useTranslation(translations)
+  const { formatDateTime } = useDateFormatters()
   const [formValues, setFormValues] = useState<Record<string, any>>({})
   const [isCompleting, setIsCompleting] = useState(false)
   const [showComment, setShowComment] = useState(false)
@@ -70,6 +85,21 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
 
   // Derive isCompleted FIRST before using it
   const isCompleted = task.status === 'COMPLETED'
+
+  // Determine task type (approval, acknowledge, or regular)
+  const isApprovalTask = task.availableActions?.canReject === true
+  const isAcknowledgeTask = task.name?.toLowerCase().includes('acknowledge')
+
+  // Get completion details title based on task type
+  const getCompletionDetailsTitle = () => {
+    if (isApprovalTask) {
+      return t('task-approval-details-title')
+    }
+    if (isAcknowledgeTask) {
+      return t('task-acknowledge-details-title')
+    }
+    return t('task-completion-details-title')
+  }
 
   // Reset state when task changes - clear everything immediately to prevent stale data
   React.useEffect(() => {
@@ -146,7 +176,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
   ])
 
   const isBlinkTask = task.source === 'cflow' && task.tags?.app === 'quick-task'
-  const taskTitle = task.title || task.name || task.referenceTaskName || 'Untitled Task'
+  const taskTitle = task.title || task.name || task.referenceTaskName || t('task-details-untitled')
 
   // Fetch employee data for creator if userId is available
   const creatorUserId = task.sourceMetadata?.creatorUserId
@@ -161,13 +191,13 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
     if (creatorEmployeeData?.firstName && creatorEmployeeData?.lastName) {
       return `${creatorEmployeeData.firstName} ${creatorEmployeeData.lastName}`
     }
-    return task.sourceMetadata?.creatorName || task.sourceMetadata?.flowInitiatedByName || 'Unknown'
-  }, [creatorEmployeeData, task.sourceMetadata])
+    return task.sourceMetadata?.creatorName || task.sourceMetadata?.flowInitiatedByName || t('task-details-unknown')
+  }, [creatorEmployeeData, task.sourceMetadata, t])
 
   // Unified handler for all task actions
   const handleTaskAction = async (action: string, data?: any) => {
     if (!task.id || !userId) {
-      message.error('Cannot perform action: missing task ID or user ID')
+      message.error(t('task-details-action-error'))
       return
     }
 
@@ -178,7 +208,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
       switch (action) {
         case 'claim':
           // Claim task
-          message.info('Claim functionality coming soon')
+          message.info(t('task-details-claim-coming'))
           break
 
         case 'complete': {
@@ -248,7 +278,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
           }
 
           message.success({
-            content: '✓ Task completed successfully!',
+            content: t('task-dialog-completed-success'),
             duration: 3
           })
 
@@ -284,7 +314,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
           }
 
           message.success({
-            content: '✓ Task rejected successfully!',
+            content: t('task-details-task-rejected'),
             duration: 3
           })
 
@@ -299,19 +329,19 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
 
         case 'reassign':
           // Reassign task
-          message.info('Reassign functionality coming soon')
+          message.info(t('task-details-reassign-coming'))
           break
 
         case 'unclaim':
           // Unclaim task
-          message.info('Unclaim functionality coming soon')
+          message.info(t('task-details-unclaim-coming'))
           break
 
         default:
-          message.warning(`Unknown action: ${action}`)
+          message.warning(t('task-details-unknown-action', { action }))
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : `Failed to ${action} task`
+      const errorMessage = err instanceof Error ? err.message : t('task-details-action-failed', { action })
       message.error({
         content: errorMessage,
         duration: 5
@@ -327,6 +357,8 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
   // Separate entity reference link from document links
   const entityLink = allLinks.find(link => link.type?.startsWith('entity:'))
   const documentLinks = allLinks.filter(link => link.type?.startsWith('document:'))
+  // All other links (internal:*, external:*, or any other type) - generic fallback
+  const otherLinks = allLinks.filter(link => !link.type?.startsWith('entity:') && !link.type?.startsWith('document:'))
 
   // Extract entity reference data from the entity link
   const entityType = entityLink?.metadata?.entityType || entityLink?.type?.split(':')[1]
@@ -360,10 +392,59 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
 
         {/* Scrollable Content - Simple Blink Task View */}
         <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-6 gba:min-h-0">
+          {/* Completion Details - Only show for completed tasks */}
+          {isCompleted && (
+            <Card className="gba:border-success/50 gba:bg-success/5">
+              <CardHeader>
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <CheckCircle className="gba:h-5 gba:w-5 gba:text-success" />
+                  <CardTitle className="gba:text-base">{getCompletionDetailsTitle()}</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="gba:space-y-4">
+                {/* Completed At */}
+                {task.completedAt && (
+                  <div className="gba:flex gba:items-start gba:gap-3">
+                    <div className="gba:text-sm gba:text-muted-foreground gba:w-32 gba:flex-shrink-0">
+                      {t('task-completion-completed-at')}:
+                    </div>
+                    <div className="gba:text-sm gba:font-medium">{formatDateTime(task.completedAt)}</div>
+                  </div>
+                )}
+
+                {/* Outcome */}
+                <div className="gba:flex gba:items-start gba:gap-3">
+                  <div className="gba:text-sm gba:text-muted-foreground gba:w-32 gba:flex-shrink-0">
+                    {t('task-completion-outcome')}:
+                  </div>
+                  <div>
+                    <Badge variant="secondary" className="gba:bg-success/10 gba:text-success gba:border-success/20">
+                      {t('task-completion-outcome-completed')}
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Comment (if available) */}
+                {task.sourceMetadata?.completionComment && (
+                  <div className="gba:flex gba:items-start gba:gap-3">
+                    <div className="gba:text-sm gba:text-muted-foreground gba:w-32 gba:flex-shrink-0">
+                      {t('task-completion-comment')}:
+                    </div>
+                    <div className="gba:text-sm gba:italic gba:text-muted-foreground">
+                      "{task.sourceMetadata.completionComment}"
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Entity Reference (if linked to an entity) */}
           {entityType && entityId && entityName && (
             <div className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30">
-              <div className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:font-medium">Related To</div>
+              <div className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:font-medium">
+                {t('task-details-related-to')}
+              </div>
               <a
                 href={entityDisplayUrl || '#'}
                 onClick={e => {
@@ -389,7 +470,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
           {documentLinks.length > 0 && (
             <div className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30">
               <div className="gba:text-xs gba:text-muted-foreground gba:mb-3 gba:font-medium">
-                Attachments ({documentLinks.length})
+                {t('task-details-attachments', { count: documentLinks.length })}
               </div>
               <div className="gba:space-y-2">
                 {documentLinks.map(link => (
@@ -412,6 +493,40 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
             </div>
           )}
 
+          {/* Other Links (internal:*, external:*, etc.) */}
+          {otherLinks.length > 0 && (
+            <div className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30">
+              <div className="gba:text-xs gba:text-muted-foreground gba:mb-3 gba:font-medium">
+                {t('task-details-related-links', { defaultValue: 'Related Links' })}
+              </div>
+              <div className="gba:space-y-2">
+                {otherLinks.map(link => (
+                  <a
+                    key={link.url || link.name}
+                    href={link.url}
+                    onClick={e => {
+                      // For internal links, use navigateTo instead of opening new tab
+                      if (link.type?.startsWith('internal:')) {
+                        e.preventDefault()
+                        navigateTo(link.url)
+                      }
+                    }}
+                    target={link.type?.startsWith('internal:') ? undefined : '_blank'}
+                    rel={link.type?.startsWith('internal:') ? undefined : 'noopener noreferrer'}
+                    className="gba:flex gba:items-center gba:gap-3 gba:p-2 gba:-mx-2 gba:rounded-md hover:gba:bg-accent gba:transition-colors gba:no-underline gba:group"
+                    data-testid={`task-other-link-${link.name}`}
+                  >
+                    <LinkIcon className="gba:h-4 gba:w-4 gba:text-primary gba:shrink-0" />
+                    <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate gba:flex-1 group-hover:gba:underline">
+                      {link.name}
+                    </span>
+                    <ExternalLink className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:shrink-0" />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Brief description if available */}
           {(task.message || task.description) && (
             <p className="gba:text-base gba:leading-relaxed gba:text-muted-foreground">
@@ -423,9 +538,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
           {!isCompleted && (
             <Alert>
               <Info className="gba:h-4 gba:w-4" />
-              <AlertDescription className="gba:text-sm">
-                This is a quick Blink task. You can complete it directly from here.
-              </AlertDescription>
+              <AlertDescription className="gba:text-sm">{t('task-details-blink-info')}</AlertDescription>
             </Alert>
           )}
         </div>
@@ -460,10 +573,80 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
       />
 
       <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-6 gba:min-h-0">
+        {/* Completion Details - Only show for completed tasks */}
+        {isCompleted && (
+          <Card className="gba:border-success/50 gba:bg-success/5">
+            <CardHeader>
+              <div className="gba:flex gba:items-center gba:gap-2">
+                {task.sourceMetadata?.outcome === 'REJECTED' ? (
+                  <XCircle className="gba:h-5 gba:w-5 gba:text-destructive" />
+                ) : (
+                  <CheckCircle className="gba:h-5 gba:w-5 gba:text-success" />
+                )}
+                <CardTitle className="gba:text-base">{getCompletionDetailsTitle()}</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="gba:space-y-4">
+              {/* Completed At */}
+              {task.completedAt && (
+                <div className="gba:flex gba:items-start gba:gap-3">
+                  <div className="gba:text-sm gba:text-muted-foreground gba:w-32 gba:flex-shrink-0">
+                    {t('task-completion-completed-at')}:
+                  </div>
+                  <div className="gba:text-sm gba:font-medium">{formatDateTime(task.completedAt)}</div>
+                </div>
+              )}
+
+              {/* Outcome - Show based on actual outcome */}
+              <div className="gba:flex gba:items-start gba:gap-3">
+                <div className="gba:text-sm gba:text-muted-foreground gba:w-32 gba:flex-shrink-0">
+                  {t('task-completion-outcome')}:
+                </div>
+                <div>
+                  {task.sourceMetadata?.outcome === 'REJECTED' ? (
+                    <Badge
+                      variant="secondary"
+                      className="gba:bg-destructive/10 gba:text-destructive gba:border-destructive/20"
+                    >
+                      {t('task-completion-outcome-rejected')}
+                    </Badge>
+                  ) : isApprovalTask ? (
+                    <Badge variant="secondary" className="gba:bg-success/10 gba:text-success gba:border-success/20">
+                      {t('task-completion-outcome-approved')}
+                    </Badge>
+                  ) : isAcknowledgeTask ? (
+                    <Badge variant="secondary" className="gba:bg-success/10 gba:text-success gba:border-success/20">
+                      {t('task-completion-outcome-acknowledged')}
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary" className="gba:bg-success/10 gba:text-success gba:border-success/20">
+                      {t('task-completion-outcome-completed')}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+
+              {/* Comment (if available) */}
+              {task.sourceMetadata?.completionComment && (
+                <div className="gba:flex gba:items-start gba:gap-3">
+                  <div className="gba:text-sm gba:text-muted-foreground gba:w-32 gba:flex-shrink-0">
+                    {t('task-completion-comment')}:
+                  </div>
+                  <div className="gba:text-sm gba:italic gba:text-muted-foreground">
+                    "{task.sourceMetadata.completionComment}"
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Entity Reference (if linked to an entity) - Same for all cFlow tasks */}
         {entityType && entityId && entityName && (
           <div className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30">
-            <div className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:font-medium">Related To</div>
+            <div className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:font-medium">
+              {t('task-details-related-to')}
+            </div>
             <a
               href={entityDisplayUrl || '#'}
               onClick={e => {
@@ -489,7 +672,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
         {documentLinks.length > 0 && (
           <div className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30">
             <div className="gba:text-xs gba:text-muted-foreground gba:mb-3 gba:font-medium">
-              Attachments ({documentLinks.length})
+              {t('task-details-attachments', { count: documentLinks.length })}
             </div>
             <div className="gba:space-y-2">
               {documentLinks.map(link => (
@@ -512,6 +695,40 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
           </div>
         )}
 
+        {/* Other Links (internal:*, external:*, etc.) - Same for all cFlow tasks */}
+        {otherLinks.length > 0 && (
+          <div className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30">
+            <div className="gba:text-xs gba:text-muted-foreground gba:mb-3 gba:font-medium">
+              {t('task-details-related-links', { defaultValue: 'Related Links' })}
+            </div>
+            <div className="gba:space-y-2">
+              {otherLinks.map(link => (
+                <a
+                  key={link.url || link.name}
+                  href={link.url}
+                  onClick={e => {
+                    // For internal links, use navigateTo instead of opening new tab
+                    if (link.type?.startsWith('internal:')) {
+                      e.preventDefault()
+                      navigateTo(link.url)
+                    }
+                  }}
+                  target={link.type?.startsWith('internal:') ? undefined : '_blank'}
+                  rel={link.type?.startsWith('internal:') ? undefined : 'noopener noreferrer'}
+                  className="gba:flex gba:items-center gba:gap-3 gba:p-2 gba:-mx-2 gba:rounded-md hover:gba:bg-accent gba:transition-colors gba:no-underline gba:group"
+                  data-testid={`task-other-link-${link.name}`}
+                >
+                  <LinkIcon className="gba:h-4 gba:w-4 gba:text-primary gba:shrink-0" />
+                  <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate gba:flex-1 group-hover:gba:underline">
+                    {link.name}
+                  </span>
+                  <ExternalLink className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:shrink-0" />
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Description - Simple paragraph for all cFlow tasks */}
         {(task.message || task.description) && (
           <p className="gba:text-base gba:leading-relaxed gba:text-muted-foreground">
@@ -524,12 +741,12 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
           <Card>
             <CardHeader>
               <div className="gba:flex gba:items-center gba:gap-2">
-                <CardTitle className="gba:text-lg">Form</CardTitle>
-                {isCompleted && <Badge variant="secondary">Read-only</Badge>}
+                <CardTitle className="gba:text-lg">{t('task-details-form')}</CardTitle>
+                {isCompleted && <Badge variant="secondary">{t('task-details-read-only')}</Badge>}
                 {!formInitialized && (
                   <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
                     <Clock className="gba:h-4 gba:w-4 gba:animate-spin" />
-                    <span>Loading...</span>
+                    <span>{t('task-details-form-loading')}</span>
                   </div>
                 )}
               </div>
@@ -589,14 +806,14 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
                 className="gba:text-sm gba:font-medium gba:cursor-pointer gba:flex gba:items-center gba:gap-2"
               >
                 <MessageSquare className="gba:h-4 gba:w-4" />
-                Add Comment {!showComment && '(Optional)'}
+                {t('task-details-add-comment')} {!showComment && t('task-details-optional')}
               </Label>
             </div>
 
             {showComment && (
               <Textarea
                 id="comment"
-                placeholder="Enter your comment..."
+                placeholder={t('task-details-comment-placeholder')}
                 value={comment}
                 onChange={e => setComment(e.target.value)}
                 rows={4}

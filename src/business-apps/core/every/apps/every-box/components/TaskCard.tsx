@@ -22,13 +22,23 @@ interface TaskCardProps {
    * When true, we hide the fallback initials to avoid flicker before avatar URLs arrive.
    */
   areAvatarsLoading?: boolean
+  /** Translation function passed from parent to avoid useTranslation in each card */
+  t: (key: string, params?: Record<string, any>) => string
+  /** Locale string for date formatting (e.g., 'en-US', 'de-DE') */
+  locale: string
 }
 
 // Helper function to get due date text
-const getDueDateText = (overdue: boolean, dueSoon: boolean, dueDate?: string | null): string => {
-  if (overdue) return 'Overdue'
-  if (dueSoon) return 'Due soon'
-  return `Due ${formatRelativeTime(dueDate)}`
+const getDueDateText = (
+  overdue: boolean,
+  dueSoon: boolean,
+  dueDate: string | null | undefined,
+  locale: string,
+  t: (key: string, params?: Record<string, any>) => string
+): string => {
+  if (overdue) return t('task-card-overdue')
+  if (dueSoon) return t('task-card-due-soon')
+  return dueDate ? t('task-card-due', { date: formatRelativeTime(dueDate, locale) }) : ''
 }
 
 // Helper function to get due date styling class
@@ -39,7 +49,16 @@ const getDueDateClass = (overdue: boolean, dueSoon: boolean): string => {
 }
 
 export const TaskCard: React.FC<TaskCardProps> = memo(
-  ({ task, onView, employeeMap, isSelected = false, isDetailViewOpen = false, areAvatarsLoading = false }) => {
+  ({
+    task,
+    onView,
+    employeeMap,
+    isSelected = false,
+    isDetailViewOpen = false,
+    areAvatarsLoading = false,
+    t,
+    locale
+  }) => {
     // Check if task is completed
     const isCompleted = task.status === 'COMPLETED' || !!task.completedAt
 
@@ -70,8 +89,8 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
     // For CFlow tasks, use title or name
     const taskTitle =
       task.source === 'kogito'
-        ? task.referenceTaskName || task.sourceMetadata?.nodeName || task.name || 'Untitled Task'
-        : task.title || task.name || 'Untitled Task'
+        ? task.referenceTaskName || task.sourceMetadata?.nodeName || task.name || t('task-card-untitled')
+        : task.title || task.name || t('task-card-untitled')
 
     // Extract creator ID - both sources now use user ID:
     // - Kogito: creatorUserId (user ID)
@@ -128,7 +147,11 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
     const creatorName =
       task.sourceMetadata?.creatorName ||
       task.sourceMetadata?.ownerName ||
-      (areAvatarsLoading ? '' : employeeData ? `${employeeData.firstName} ${employeeData.lastName}`.trim() : 'Unknown')
+      (areAvatarsLoading
+        ? ''
+        : employeeData
+          ? `${employeeData.firstName} ${employeeData.lastName}`.trim()
+          : t('task-card-unknown-creator'))
 
     const createdAt = task.createdAt || task.scheduledAt || task.sourceMetadata?.createdAt
 
@@ -173,9 +196,9 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
               data-testid="task-created-at"
             >
               {task.status === 'COMPLETED' && task.completedAt ? (
-                <span className="gba:text-success">✓ {formatDateTime(task.completedAt)}</span>
+                <span className="gba:text-success">✓ {formatDateTime(task.completedAt, locale, t)}</span>
               ) : (
-                createdAt && formatDateTime(createdAt)
+                createdAt && formatDateTime(createdAt, locale, t)
               )}
             </span>
 
@@ -213,7 +236,7 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
                   data-testid="task-blink-indicator"
                 >
                   <Zap className="gba:h-4 gba:w-4 gba:text-blue-500" strokeWidth={2.5} />
-                  <span className="gba:text-sm gba:font-medium gba:text-blue-500">Blink</span>
+                  <span className="gba:text-sm gba:font-medium gba:text-blue-500">{t('task-card-blink')}</span>
                 </div>
               )}
             </div>
@@ -233,7 +256,7 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
                     <Clock className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
                   )}
                   <span className={`gba:text-sm ${getDueDateClass(overdue, dueSoon)}`} data-testid="task-due-date">
-                    {getDueDateText(overdue, dueSoon, task.dueDate)}
+                    {getDueDateText(overdue, dueSoon, task.dueDate, locale, t)}
                   </span>
                 </div>
               )}
@@ -261,9 +284,9 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
             data-testid="task-created-at"
           >
             {task.status === 'COMPLETED' && task.completedAt ? (
-              <span className="gba:text-success">✓ {formatDateTime(task.completedAt)}</span>
+              <span className="gba:text-success">✓ {formatDateTime(task.completedAt, locale, t)}</span>
             ) : (
-              createdAt && formatDateTime(createdAt)
+              createdAt && formatDateTime(createdAt, locale, t)
             )}
           </span>
 

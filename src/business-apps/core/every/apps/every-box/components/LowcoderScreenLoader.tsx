@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../_i18n'
 
 interface LowcoderScreenLoaderProps extends BusinessAppContextProps {
   appId: string
@@ -21,9 +23,8 @@ export const LowcoderScreenLoader: React.FC<LowcoderScreenLoaderProps> = ({
   onTaskCompleted,
   onTaskUpdated
 }) => {
+  const { t } = useTranslation(translations)
   const [loading, setLoading] = useState(true)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [_error, setError] = useState<string | null>(null)
   const iframeRef = useRef<HTMLIFrameElement>(null)
 
   useEffect(() => {
@@ -66,10 +67,9 @@ export const LowcoderScreenLoader: React.FC<LowcoderScreenLoaderProps> = ({
       // Handle different message types
       if (event.data.type === 'LOWCODER_LOADED') {
         setLoading(false)
-        setError(null)
       } else if (event.data.type === 'LOWCODER_ERROR') {
         setLoading(false)
-        setError(event.data.message || 'Failed to load Lowcoder screen')
+        console.error('[LowcoderScreenLoader] Error:', event.data.message || t('lowcoder-screen-failed'))
       } else if (event.data.type === 'TASK_COMPLETED') {
         if (onTaskCompleted && event.data.taskId) {
           onTaskCompleted(event.data.taskId)
@@ -108,7 +108,7 @@ export const LowcoderScreenLoader: React.FC<LowcoderScreenLoaderProps> = ({
 
   const handleIframeError = () => {
     setLoading(false)
-    setError('Failed to load Lowcoder screen')
+    console.error('[LowcoderScreenLoader] Error:', t('lowcoder-screen-failed'))
   }
 
   return (

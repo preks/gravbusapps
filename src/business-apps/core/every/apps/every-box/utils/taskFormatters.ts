@@ -1,50 +1,88 @@
 /**
  * Task Formatting Utilities
- * Date, status, and priority formatters
+ * Status, priority formatters and date utilities
+ *
+ * For convenience in components, use the useDateFormatters hook
+ * which wraps these utilities with translation support.
  */
 
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
+import localizedFormat from 'dayjs/plugin/localizedFormat'
+import isToday from 'dayjs/plugin/isToday'
+import isYesterday from 'dayjs/plugin/isYesterday'
+import 'dayjs/locale/de'
+import 'dayjs/locale/en'
+import 'dayjs/locale/ro'
+import 'dayjs/locale/fr'
+import 'dayjs/locale/es'
+import 'dayjs/locale/it'
 import { TaskStatus, FlowStatus } from '../types'
 
 dayjs.extend(relativeTime)
+dayjs.extend(localizedFormat)
+dayjs.extend(isToday)
+dayjs.extend(isYesterday)
 
 /**
- * Format date to relative time (e.g., "2 hours ago", "in 3 days")
+ * Get base locale from full locale string (e.g., 'en' from 'en-US')
  */
-export const formatRelativeTime = (date: string | Date): string => {
-  return dayjs(date).fromNow()
+const toBaseLocale = (locale: string): string => {
+  return locale?.split('-')[0]?.toLowerCase() || 'en'
+}
+
+/** Translation function type for formatters */
+export type TranslationFn = (key: string, params?: Record<string, unknown>) => string
+
+/**
+ * Format date to relative time (e.g., "2 hours ago", "vor 2 Stunden")
+ * Locale-aware via dayjs
+ * @param date - Date to format
+ * @param locale - Locale string (e.g., 'en-US', 'de-DE')
+ */
+export const formatRelativeTime = (date: string | Date, locale: string): string => {
+  return dayjs(date).locale(toBaseLocale(locale)).fromNow()
 }
 
 /**
- * Format date to readable format
+ * Format date with Today/Yesterday support
+ * @param date - Date to format
+ * @param locale - Locale string (e.g., 'en-US', 'de-DE')
+ * @param t - Optional translation function for Today/Yesterday
  */
-export const formatDate = (date: string | Date): string => {
-  return dayjs(date).format('MMM D, YYYY')
+export const formatDate = (date: string | Date, locale: string, t?: TranslationFn): string => {
+  const d = dayjs(date)
+  const baseLocale = toBaseLocale(locale)
+
+  if (d.isToday()) {
+    return t?.('formatter-today') ?? 'Today'
+  }
+  if (d.isYesterday()) {
+    return t?.('formatter-yesterday') ?? 'Yesterday'
+  }
+
+  return d.locale(baseLocale).format('L')
 }
 
 /**
- * Format date with time
- * Shows "Today" or "Yesterday" for recent dates, full date for older ones
+ * Format date with time and Today/Yesterday support
+ * @param date - Date to format
+ * @param locale - Locale string (e.g., 'en-US', 'de-DE')
+ * @param t - Optional translation function for Today/Yesterday
  */
-export const formatDateTime = (date: string | Date): string => {
-  const dateObj = dayjs(date)
-  const now = dayjs()
-  const today = now.startOf('day')
-  const yesterday = today.subtract(1, 'day')
+export const formatDateTime = (date: string | Date, locale: string, t?: TranslationFn): string => {
+  const d = dayjs(date)
+  const baseLocale = toBaseLocale(locale)
+  const time = d.locale(baseLocale).format('LT')
 
-  // Check if date is today
-  if (dateObj.isSame(today, 'day')) {
-    return `Today ${dateObj.format('h:mm A')}`
+  if (d.isToday()) {
+    return `${t?.('formatter-today') ?? 'Today'}, ${time}`
+  }
+  if (d.isYesterday()) {
+    return `${t?.('formatter-yesterday') ?? 'Yesterday'}, ${time}`
   }
 
-  // Check if date is yesterday
-  if (dateObj.isSame(yesterday, 'day')) {
-    return `Yesterday ${dateObj.format('h:mm A')}`
-  }
-
-  // For older dates, show full date
-  return dateObj.format('MMM D, YYYY h:mm A')
+  return d.locale(baseLocale).format('L LT')
 }
 
 /**
@@ -116,17 +154,19 @@ export const getFlowStatusBadgeVariant = (status: FlowStatus): 'success' | 'info
 
 /**
  * Get human-readable status text
+ * @param status - Task status
+ * @param t - Optional translation function. If not provided, returns English fallback.
  */
-export const formatTaskStatus = (status: TaskStatus): string => {
+export const formatTaskStatus = (status: TaskStatus, t?: TranslationFn): string => {
   switch (status) {
     case 'SCHEDULED':
-      return 'Scheduled'
+      return t ? t('formatter-status-scheduled') : 'Scheduled'
     case 'IN_PROGRESS':
-      return 'In Progress'
+      return t ? t('formatter-status-in-progress') : 'In Progress'
     case 'COMPLETED':
-      return 'Completed'
+      return t ? t('formatter-status-completed') : 'Completed'
     case 'FAILED':
-      return 'Failed'
+      return t ? t('formatter-status-failed') : 'Failed'
     default:
       return status
   }
@@ -134,17 +174,19 @@ export const formatTaskStatus = (status: TaskStatus): string => {
 
 /**
  * Get human-readable flow status text
+ * @param status - Flow status
+ * @param t - Optional translation function. If not provided, returns English fallback.
  */
-export const formatFlowStatus = (status: FlowStatus): string => {
+export const formatFlowStatus = (status: FlowStatus, t?: TranslationFn): string => {
   switch (status) {
     case 'RUNNING':
-      return 'Running'
+      return t ? t('formatter-flow-running') : 'Running'
     case 'COMPLETED':
-      return 'Completed'
+      return t ? t('formatter-flow-completed') : 'Completed'
     case 'FAILED':
-      return 'Failed'
+      return t ? t('formatter-flow-failed') : 'Failed'
     case 'TERMINATED':
-      return 'Terminated'
+      return t ? t('formatter-flow-terminated') : 'Terminated'
     default:
       return status
   }
@@ -153,12 +195,16 @@ export const formatFlowStatus = (status: FlowStatus): string => {
 /**
  * Get priority display text
  * Priority in Kogito: 0 = highest priority, higher numbers = lower priority
+ * @param priority - Priority number (0 = highest)
+ * @param t - Optional translation function. If not provided, returns English fallback.
  */
-export const formatPriority = (priority?: number): string => {
-  if (priority === undefined || priority === null) return 'Normal'
+export const formatPriority = (priority?: number, t?: TranslationFn): string => {
+  if (priority === undefined || priority === null) {
+    return t ? t('formatter-priority-normal') : 'Normal'
+  }
 
   // Kogito uses 0-based priority where 0 is highest
-  if (priority <= 1) return 'High'
-  if (priority <= 5) return 'Medium'
-  return 'Low'
+  if (priority <= 1) return t ? t('formatter-priority-high') : 'High'
+  if (priority <= 5) return t ? t('formatter-priority-medium') : 'Medium'
+  return t ? t('formatter-priority-low') : 'Low'
 }

@@ -8,7 +8,17 @@
  */
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react'
-import { Input, Button, Alert, AlertTitle, AlertDescription, Badge } from '@newwork/nw-design-system'
+import {
+  Input,
+  Button,
+  Alert,
+  AlertTitle,
+  AlertDescription,
+  Badge,
+  useTranslation,
+  useLocale
+} from '@newwork/nw-design-system'
+import translations from '../_i18n'
 import { Search, RefreshCw, Zap, CheckCircle, Inbox, CheckCheck, X } from 'lucide-react'
 import { UnifiedTask } from '../types'
 import { TaskCard } from './TaskCard'
@@ -67,26 +77,6 @@ const updateTaskUrl = (taskId: string | null) => {
   globalThis.history.replaceState({}, '', newUrl)
 }
 
-/**
- * Get empty state message based on search query and filter type
- */
-const getEmptyStateMessage = (searchQuery: string, filterType: TaskFilterType): string => {
-  if (searchQuery.trim()) {
-    return `No tasks found matching "${searchQuery}"`
-  }
-
-  switch (filterType) {
-    case 'blinks':
-      return 'No Blink tasks at the moment'
-    case 'approvals':
-      return 'No approval tasks at the moment'
-    case 'completed':
-      return 'No completed tasks yet'
-    default:
-      return 'No tasks assigned to you at the moment'
-  }
-}
-
 export const InboxView: React.FC<InboxViewProps> = ({
   tasks,
   totalCount,
@@ -108,6 +98,32 @@ export const InboxView: React.FC<InboxViewProps> = ({
   onLoadNewCompletedTasks,
   ...context
 }) => {
+  const { t } = useTranslation(translations)
+  const { locale } = useLocale()
+
+  /**
+   * Get empty state message based on search query and filter type
+   */
+  const getEmptyStateMessage = useCallback(
+    (query: string, filter: TaskFilterType): string => {
+      if (query.trim()) {
+        return t('inbox-empty-no-results', { query })
+      }
+
+      switch (filter) {
+        case 'blinks':
+          return t('inbox-empty-no-blinks')
+        case 'approvals':
+          return t('inbox-empty-no-approvals')
+        case 'completed':
+          return t('inbox-empty-no-completed')
+        default:
+          return t('inbox-empty-no-tasks')
+      }
+    },
+    [t]
+  )
+
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedTask, setSelectedTask] = useState<UnifiedTask | null>(null)
   const [filterType, setFilterType] = useState<TaskFilterType>('all')
@@ -530,7 +546,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
             <AlertTitle className="gba:flex gba:items-center gba:justify-between">
               <span className="gba:flex gba:items-center gba:gap-2">
                 <Zap className="gba:h-4 gba:w-4 gba:text-info-foreground" />
-                <span className="gba:text-info-foreground">New tasks available</span>
+                <span className="gba:text-info-foreground">{t('inbox-new-tasks-title')}</span>
               </span>
               <Button
                 size="sm"
@@ -538,13 +554,13 @@ export const InboxView: React.FC<InboxViewProps> = ({
                 onClick={filterType === 'completed' ? onLoadNewCompletedTasks : onLoadNewTasks}
                 data-testid="load-new-tasks-button"
               >
-                Load new tasks
+                {t('inbox-new-tasks-button')}
               </Button>
             </AlertTitle>
             <AlertDescription className="gba:text-info-secondary-foreground">
               {filterType === 'completed'
-                ? 'New completed tasks have arrived. Click to refresh and see them.'
-                : 'New tasks have arrived. Click to refresh and see them.'}
+                ? t('inbox-new-completed-tasks-description')
+                : t('inbox-new-tasks-description')}
             </AlertDescription>
           </Alert>
         )}
@@ -554,7 +570,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
           <div className="gba:relative gba:flex-1">
             <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:h-4 gba:w-4 gba:text-muted-foreground gba:pointer-events-none gba:z-10" />
             <Input
-              placeholder="Search tasks..."
+              placeholder={t('inbox-search-placeholder')}
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="gba:pl-11 gba:pr-9"
@@ -567,7 +583,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
                 onClick={() => setSearchQuery('')}
                 className="gba:absolute gba:right-3 gba:top-1/2 gba:-translate-y-1/2 gba:h-4 gba:w-4 gba:text-muted-foreground hover:gba:text-foreground gba:cursor-pointer gba:z-10"
                 data-testid="inbox-search-clear-button"
-                aria-label="Clear search"
+                aria-label={t('inbox-clear-search')}
               >
                 <X className="gba:h-4 gba:w-4" />
               </button>
@@ -594,7 +610,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
             className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:flex-shrink-0"
           >
             <Inbox className="gba:h-3.5 gba:w-3.5" />
-            <span>All</span>
+            <span>{t('inbox-filter-all')}</span>
             <Badge variant="secondary" className="gba:px-1.5 gba:py-0 gba:text-xs">
               {taskCounts.all}
               {taskCounts.allHasMore ? '+' : ''}
@@ -608,7 +624,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
             className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:flex-shrink-0"
           >
             <Zap className="gba:h-3.5 gba:w-3.5" />
-            <span>Blinks</span>
+            <span>{t('inbox-filter-blinks')}</span>
             {taskCounts.blinks > 0 && (
               <Badge variant="secondary" className="gba:px-1.5 gba:py-0 gba:text-xs">
                 {taskCounts.blinks}
@@ -624,7 +640,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
             className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:flex-shrink-0"
           >
             <CheckCircle className="gba:h-3.5 gba:w-3.5" />
-            <span>Approvals</span>
+            <span>{t('inbox-filter-approvals')}</span>
             {taskCounts.approvals > 0 && (
               <Badge variant="secondary" className="gba:px-1.5 gba:py-0 gba:text-xs">
                 {taskCounts.approvals}
@@ -640,7 +656,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
             className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:flex-shrink-0"
           >
             <CheckCheck className="gba:h-3.5 gba:w-3.5" />
-            <span>Completed</span>
+            <span>{t('inbox-filter-completed')}</span>
             {taskCounts.completed > 0 && (
               <Badge variant="secondary" className="gba:px-1.5 gba:py-0 gba:text-xs">
                 {taskCounts.completed}
@@ -653,7 +669,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
         {/* Error Alert */}
         {currentError && (
           <Alert variant="destructive">
-            <AlertTitle>Error Loading Tasks</AlertTitle>
+            <AlertTitle>{t('inbox-error-title')}</AlertTitle>
             <AlertDescription>{currentError}</AlertDescription>
           </Alert>
         )}
@@ -674,6 +690,8 @@ export const InboxView: React.FC<InboxViewProps> = ({
                     areAvatarsLoading={areAvatarsLoading}
                     isSelected={selectedTask?.id === task.id}
                     isDetailViewOpen={!!selectedTask}
+                    t={t}
+                    locale={locale}
                   />
                 ))}
               </div>
@@ -682,8 +700,11 @@ export const InboxView: React.FC<InboxViewProps> = ({
               {!searchQuery.trim() && (
                 <div className="gba:flex gba:items-center gba:justify-between gba:pt-4 gba:border-t gba:mt-4">
                   <p className="gba:text-sm gba:text-muted-foreground">
-                    Showing {filteredTasks.length} of {currentTotalCount}
-                    {currentHasMore ? '+' : ''} tasks
+                    {t('inbox-showing-tasks', {
+                      current: filteredTasks.length.toString(),
+                      total: currentTotalCount.toString(),
+                      hasMore: currentHasMore ? '+' : ''
+                    })}
                   </p>
                   {currentHasMore && (
                     <Button
@@ -692,7 +713,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
                       disabled={currentIsLoading}
                       data-testid="inbox-load-more-button"
                     >
-                      Load More
+                      {t('inbox-load-more')}
                     </Button>
                   )}
                 </div>
