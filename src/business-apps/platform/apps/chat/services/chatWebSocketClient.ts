@@ -168,7 +168,11 @@ export class ChatWebSocketClient {
 
   // Event listeners
   onNewMessage(handler: (message: Message) => void) {
-    this.socket?.on('new_message', handler)
+    console.log('[WebSocket] Registering new_message event listener')
+    this.socket?.on('new_message', (message: Message) => {
+      console.log('[WebSocket] new_message event received:', message.id)
+      handler(message)
+    })
   }
 
   onMessageUpdated(handler: (message: Message) => void) {
@@ -225,6 +229,7 @@ export class ChatWebSocketClient {
 
   // Emit events
   joinConversation(conversationId: string) {
+    console.log('[WebSocket] Emitting join_conversation:', conversationId)
     this.socket?.emit('join_conversation', { conversationId })
   }
 

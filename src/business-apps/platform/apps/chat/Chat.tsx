@@ -46,6 +46,15 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
   const conversationIdFromUrlProcessed = useRef(false)
   const activeConversationIdRef = useRef<string | null>(null)
 
+  // Reset URL processing refs on mount to allow restoration after hard refresh
+  useEffect(() => {
+    // Only reset if there's a conversationId in URL (user refreshed with a conversation open)
+    const urlParams = new URLSearchParams(window.location.search)
+    if (urlParams.get('conversationId')) {
+      conversationIdFromUrlProcessed.current = false
+    }
+  }, [])
+
   // Stabilize accessToken - only update state when VALUE actually changes
   // This prevents re-renders caused by the platform passing new string references
   const [stableAccessToken, setStableAccessToken] = useState(accessTokenProp)
@@ -747,24 +756,48 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
 
   // Restore active conversation from URL parameter (for panel reopen persistence)
   useEffect(() => {
-    // Only process once when conversations are loaded, and only if no conversation is already active
-    if (conversationIdFromUrlProcessed.current || !conversations.length || activeConversationId) {
+    // Only process once
+    if (conversationIdFromUrlProcessed.current) {
       return
     }
 
     const urlParams = new URLSearchParams(window.location.search)
     const conversationIdParam = urlParams.get('conversationId')
 
-    if (conversationIdParam) {
-      // Find the conversation in the loaded list
-      const conversation = conversations.find(c => c.id === conversationIdParam)
-      if (conversation) {
-        conversationIdFromUrlProcessed.current = true
-        setActiveConversation(conversation)
-        setShowConversationList(false)
-      }
+    if (!conversationIdParam) {
+      return
     }
-  }, [conversations, setActiveConversation, activeConversationId])
+
+    // First, try to find the conversation in the loaded list
+    const conversation = conversations.find(c => c.id === conversationIdParam)
+    if (conversation) {
+      conversationIdFromUrlProcessed.current = true
+      setActiveConversation(conversation)
+      setShowConversationList(false)
+      return
+    }
+
+    // If conversation not in list but conversations have loaded, try fetching it directly
+    // This handles cases where the conversation might not be in the first page
+    if (conversations.length > 0 && apiClient && !conversationsLoading) {
+      conversationIdFromUrlProcessed.current = true
+      // Fetch conversation directly from API
+      apiClient
+        .getConversationById(conversationIdParam)
+        .then(fetchedConversation => {
+          // Add to conversations list and set as active
+          if (fetchedConversation) {
+            setActiveConversation(fetchedConversation)
+            setShowConversationList(false)
+          }
+        })
+        .catch(err => {
+          console.error('Error fetching conversation from URL:', err)
+          // Reset the flag so we can retry if conversations reload
+          conversationIdFromUrlProcessed.current = false
+        })
+    }
+  }, [conversations, setActiveConversation, activeConversationId, apiClient, conversationsLoading])
 
   // Handle URL parameters for context and AI agent conversations (only once)
   useEffect(() => {
