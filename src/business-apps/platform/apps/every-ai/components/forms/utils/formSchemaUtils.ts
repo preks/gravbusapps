@@ -151,10 +151,22 @@ export const extractFieldType = (schema: any): string | undefined => {
 
 /**
  * Format flow name for display
+ * Removes "save" prefix if present (since operation is shown in badge)
  */
 export const formatFlowName = (flowName: string): string => {
   if (!flowName) return ''
-  return flowName
+
+  // Remove "save" prefix (case-insensitive) before formatting
+  let formatted = flowName
+  const lowerFlowName = flowName.toLowerCase().trim()
+  if (lowerFlowName.startsWith('save')) {
+    // Remove "save" prefix (preserving original case)
+    formatted = flowName.substring(4).trim()
+    // Also remove any leading underscore or space after "save"
+    formatted = formatted.replace(/^[_\s]+/, '')
+  }
+
+  return formatted
     .replace(/_/g, ' ')
     .replace(/([A-Z])/g, ' $1')
     .trim()

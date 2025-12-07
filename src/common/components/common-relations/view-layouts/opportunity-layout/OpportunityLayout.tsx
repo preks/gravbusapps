@@ -128,7 +128,7 @@ export interface OpportunityViewConfig<TOpportunity extends { id: string }, TQue
   buildAccountUrl: (id: string) => string
 
   opportunityStatistics?: OpportunityStatisticsData
-  renderStatistics?: (selectedCurrency?: string) => React.ReactNode
+  renderStatistics?: (selectedCurrency?: string, quickFilter?: string) => React.ReactNode
 
   boardConfig: OpportunityBoardConfig
   fetchOpportunitiesForBoard: (
@@ -146,6 +146,12 @@ export interface OpportunityViewConfig<TOpportunity extends { id: string }, TQue
 
 export type OpportunityTabKey = 'list' | 'board'
 
+export interface QuickFiltersRenderProps {
+  statuses: Array<{ id: string; label: string; code?: string }>
+  selectedFilters: Record<string, any>
+  onFilterChange: (filters: Record<string, any>) => void
+}
+
 export interface OpportunityLayoutProps<TOpportunity extends { id: string } = any, TQueryVariables = any> {
   context: BusinessAppContextProps
   config: OpportunityViewConfig<TOpportunity, TQueryVariables>
@@ -154,6 +160,8 @@ export interface OpportunityLayoutProps<TOpportunity extends { id: string } = an
   hideFilters?: boolean
   customPrimaryAction?: React.ReactNode
   extendVisibleColumns?: string[] // Additional columns to add to base columns
+  renderQuickFilters?: (props: QuickFiltersRenderProps) => React.ReactNode
+  quickFilter?: string // Current quick filter value (e.g., 'all', 'qualified', 'unqualified')
 }
 
 interface OpportunityRowActionsProps<TOpportunity extends { id: string }> {
@@ -297,7 +305,9 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     initialFilters = {},
     hideFilters = false,
     customPrimaryAction,
-    extendVisibleColumns = []
+    extendVisibleColumns = [],
+    renderQuickFilters,
+    quickFilter
   } = props
   const { accessToken } = context
 
@@ -721,13 +731,24 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     <div data-testid={dataTestId}>
       {/* Statistics */}
       {config.renderStatistics ? (
-        <div data-testid={`${dataTestId}-statistics`}>{config.renderStatistics(selectedCurrencyId)}</div>
+        <div data-testid={`${dataTestId}-statistics`}>{config.renderStatistics(selectedCurrencyId, quickFilter)}</div>
       ) : config.opportunityStatistics ? (
         <OpportunityStatisticsLayout
           statistics={config.opportunityStatistics}
           data-testid={`${dataTestId}-statistics`}
         />
       ) : null}
+
+      {/* Quick Filters */}
+      {renderQuickFilters && (
+        <div className="gba:mb-4" data-testid={`${dataTestId}-quick-filters`}>
+          {renderQuickFilters({
+            statuses: statuses as Array<{ id: string; label: string; code?: string }>,
+            selectedFilters,
+            onFilterChange: handleFilterUpdate
+          })}
+        </div>
+      )}
 
       {/* DataDisplay with titleSections as Tabs */}
       <DataDisplay

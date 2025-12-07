@@ -558,57 +558,40 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
   const deleteSummary = useMemo(() => {
     if (!isDeleteOperation) return null
 
-    const flowData = data.arguments?.flow || {}
-    const taskData = data.arguments?.task || {}
+    const entityDataFromFlow = (data as any).entity_data
 
-    // Find the main entity object (similar to initialValues extraction)
-    const findEntityObject = (obj: Record<string, any>): any => {
-      for (const [key, value] of Object.entries(obj)) {
-        if (
-          typeof value === 'object' &&
-          value !== null &&
-          !Array.isArray(value) &&
-          !['changeMode', 'id', 'version', 'businessKey', 'meta', 'reason'].includes(key)
-        ) {
-          return { key, value }
-        }
-      }
-      return null
+    // For delete operations, use ONLY entity_data (not GraphQL since item is already deleted)
+    if (!entityDataFromFlow) return null
+
+    // Extract entity type from entity_data (check both 'entity' and 'entity_name' fields)
+    const entityTypeFromData = entityDataFromFlow.entity || entityDataFromFlow.entity_name
+    if (!entityTypeFromData) return null
+
+    // Convert snake_case to camelCase for entity type mapping (e.g., "content_entry" -> "contentEntry")
+    const camelCaseEntityType = entityTypeFromData
+      .split('_')
+      .map((word: string, index: number) => (index === 0 ? word : word.charAt(0).toUpperCase() + word.slice(1)))
+      .join('')
+
+    const entityId = entityDataFromFlow.id
+    if (!entityId) return null
+
+    // Extract display fields - use text_title from entity_data
+    const summary: Array<{ label: string; value: string }> = []
+    if (entityDataFromFlow.text_title) {
+      summary.push({ label: 'Title', value: entityDataFromFlow.text_title })
     }
 
-    const taskEntity = findEntityObject(taskData)
-    const flowEntity = findEntityObject(flowData)
-
-    const entity = taskEntity || flowEntity
-    if (!entity) return null
-
-    const entityData = entity.value
-    const entityType = entity.key
-    const entityId = entityData.id
-
-    // Extract display fields
-    const summary: Array<{ label: string; value: string }> = []
-
-    // Common fields to extract
-    if (entityData.title) summary.push({ label: 'Title', value: entityData.title })
-    if (entityData.name) summary.push({ label: 'Name', value: entityData.name })
-    if (entityData.firstName && entityData.lastName) {
-      summary.push({ label: 'Name', value: `${entityData.firstName} ${entityData.lastName}`.trim() })
-    } else if (entityData.firstName) summary.push({ label: 'First Name', value: entityData.firstName })
-    else if (entityData.lastName) summary.push({ label: 'Last Name', value: entityData.lastName })
-    if (entityData.email) summary.push({ label: 'Email', value: entityData.email })
-    if (entityData.id) summary.push({ label: 'ID', value: entityData.id.substring(0, 8) + '...' })
-
     // Build entity URL
-    const entityUrl = buildEntityUrl(entityType, entityId)
+    const entityUrl = buildEntityUrl(camelCaseEntityType, entityId)
 
     return {
-      entityType: entityType.replace(/([A-Z])/g, ' $1').trim(),
+      entityType: camelCaseEntityType.replace(/([A-Z])/g, ' $1').trim(),
       entityId,
       entityUrl,
       fields: summary
     }
-  }, [isDeleteOperation, data.arguments, buildEntityUrl])
+  }, [isDeleteOperation, buildEntityUrl, data])
 
   const fields = useMemo(() => {
     if (!schema || !schema.properties) return []
@@ -787,21 +770,47 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
     // We explicitly unregister above when conditions change, and on voice mode exit.
   }, [isVoiceMode, isCompleted, initialCheckComplete, data.uuid, formKey, data.flow_name, data.module_name])
 
+  // Handle card click to navigate to entity page
+  const handleCardClick = useCallback(
+    (e: React.MouseEvent) => {
+      // Don't navigate if clicking on form elements or buttons
+      const target = e.target as HTMLElement
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT' ||
+        target.tagName === 'BUTTON' ||
+        target.closest('button') ||
+        target.closest('form')
+      ) {
+        return
+      }
+
+      // Only navigate for delete operations with entity URL
+      if (isDeleteOperation && deleteSummary?.entityUrl) {
+        navigateTo(deleteSummary.entityUrl)
+      }
+    },
+    [isDeleteOperation, deleteSummary]
+  )
+
   return (
     <Card
-      className="gba:w-full gba:max-w-md gba:border-2 gba:shadow-xl gba:overflow-hidden"
+      className={`gba:w-full gba:max-w-md gba:border-2 gba:shadow-xl gba:overflow-hidden ${
+        isDeleteOperation && deleteSummary?.entityUrl
+          ? 'gba:cursor-pointer hover:gba:shadow-2xl gba:transition-shadow'
+          : ''
+      }`}
       data-testid="dynamic-form-display"
+      onClick={isDeleteOperation && deleteSummary?.entityUrl ? handleCardClick : undefined}
     >
       <FormHeader flowName={data.flow_name || ''} isDeleteOperation={isDeleteOperation} operation={operation} />
       <CardContent className="gba:p-4">
         <form onSubmit={handleSubmit} className={isCompleted ? 'gba:opacity-60 gba:pointer-events-none' : ''}>
           {isDeleteOperation && deleteSummary ? (
             // Simplified delete confirmation UI
-            <div className="gba:space-y-4">
-              <div className="gba:p-4 gba:bg-destructive-secondary/20 gba:border gba:border-destructive/30 gba:rounded-lg">
-                <p className="gba:text-sm gba:font-semibold gba:text-destructive gba:mb-3">
-                  Are you sure you want to delete this {deleteSummary.entityType}?
-                </p>
+            <div className="gba:space-y-3">
+              {deleteSummary.fields.length > 0 && (
                 <div className="gba:space-y-2">
                   {deleteSummary.fields.map((field, idx) => (
                     <div key={idx} className="gba:flex gba:gap-2">
@@ -810,26 +819,29 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
                     </div>
                   ))}
                 </div>
-                {deleteSummary.entityUrl && (
-                  <div className="gba:mt-4 gba:pt-3 gba:border-t gba:border-destructive/20">
-                    <button
-                      type="button"
-                      onClick={() => navigateTo(deleteSummary.entityUrl!)}
-                      className="gba:inline-flex gba:items-center gba:gap-2 gba:text-sm gba:text-primary hover:gba:text-primary/80 gba:underline gba:transition-colors"
-                    >
-                      <svg className="gba:h-4 gba:w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                        />
-                      </svg>
-                      <span>View original {deleteSummary.entityType}</span>
-                    </button>
-                  </div>
-                )}
-              </div>
+              )}
+              {deleteSummary.entityUrl && (
+                <div>
+                  <button
+                    type="button"
+                    onClick={e => {
+                      e.stopPropagation()
+                      navigateTo(deleteSummary.entityUrl!)
+                    }}
+                    className="gba:inline-flex gba:items-center gba:gap-2 gba:text-sm gba:text-primary hover:gba:text-primary/80 gba:underline gba:transition-colors"
+                  >
+                    <svg className="gba:h-4 gba:w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                      />
+                    </svg>
+                    <span>View original {deleteSummary.entityType}</span>
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             // Regular form with all fields
