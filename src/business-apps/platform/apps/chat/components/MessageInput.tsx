@@ -31,6 +31,7 @@ interface MessageInputProps {
   onRegisterMentionReady?: (
     registerFn: (entity: EntityReference, text: string, startIndex: number) => MessageEntityReference
   ) => void
+  onFocusReady?: (focusFn: () => void) => void
 }
 
 export const MessageInput: React.FC<MessageInputProps> = memo(
@@ -44,7 +45,8 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
     accessToken = '',
     value: controlledValue,
     onChange,
-    onRegisterMentionReady
+    onRegisterMentionReady,
+    onFocusReady
   }) => {
     const [uncontrolledValue, setUncontrolledValue] = useState('')
     const value = controlledValue !== undefined ? controlledValue : uncontrolledValue
@@ -54,6 +56,7 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
     const typingTimerRef = useRef<NodeJS.Timeout | null>(null)
     const stopTypingTimerRef = useRef<NodeJS.Timeout | null>(null)
     const inputRef = useRef<HTMLInputElement>(null)
+    const contentEditableRef = useRef<HTMLDivElement>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
     const hadFocusRef = useRef<boolean>(false)
     const shouldRestoreFocusRef = useRef<boolean>(false)
@@ -68,6 +71,7 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
       handleTextChange,
       insertEntity,
       clearMentions,
+      removeMention: removeMentionFromHook,
       closeMention,
       registerMentionEntity
     } = useEntityMentions(accessToken)
@@ -120,7 +124,23 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
     }
 
     const focusInput = useCallback(() => {
-      if (inputRef.current) {
+      if (contentEditableRef.current) {
+        contentEditableRef.current.focus({ preventScroll: true })
+        // Move cursor to end
+        const range = document.createRange()
+        const selection = window.getSelection()
+        if (selection && contentEditableRef.current.lastChild) {
+          range.selectNodeContents(contentEditableRef.current)
+          range.collapse(false)
+          selection.removeAllRanges()
+          selection.addRange(range)
+        } else if (selection) {
+          range.setStart(contentEditableRef.current, contentEditableRef.current.childNodes.length)
+          range.collapse(true)
+          selection.removeAllRanges()
+          selection.addRange(range)
+        }
+      } else if (inputRef.current) {
         inputRef.current.focus({ preventScroll: true })
         const cursorPosition = inputRef.current.value.length
         inputRef.current.setSelectionRange(cursorPosition, cursorPosition)
@@ -194,12 +214,127 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
         scheduleFocusRestoration()
         // Extra focus attempt after send to combat platform steals
         requestAnimationFrame(() => {
-          inputRef.current?.focus()
+          focusInput()
         })
       }
     }
 
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement> | React.KeyboardEvent<HTMLDivElement>) => {
+      // Handle backspace to remove mentions when cursor is right after them
+      if (e.key === 'Backspace' && selectedEntities.length > 0) {
+        let cursorPosition = 0
+
+        // Get cursor position in plain text (use value state as source of truth)
+        if (contentEditableRef.current) {
+          const selection = window.getSelection()
+          if (selection?.rangeCount) {
+            const range = selection.getRangeAt(0)
+
+            // Check if cursor is immediately after a mention badge element (most common case)
+            const containerNode = range.startContainer
+            if (containerNode.nodeType === Node.TEXT_NODE && range.startOffset === 0) {
+              // Cursor is at start of a text node - check if previous sibling is a mention badge
+              const prevSibling = containerNode.previousSibling
+              if (prevSibling && prevSibling.nodeType === Node.ELEMENT_NODE) {
+                const el = prevSibling as Element
+                if (el.classList?.contains('mention-badge')) {
+                  // Find the mention that corresponds to this badge
+                  const removeBtn = el.querySelector('.mention-remove-btn') as HTMLElement
+                  if (removeBtn) {
+                    const mentionId = removeBtn.getAttribute('data-mention-id')
+                    const mentionStart = parseInt(removeBtn.getAttribute('data-mention-start') || '0', 10)
+                    const mentionToRemove = selectedEntities.find(
+                      m => m.id === mentionId && m.startIndex === mentionStart
+                    )
+                    if (mentionToRemove) {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      removeMention(mentionToRemove)
+                      return
+                    }
+                  }
+                }
+              }
+            }
+
+            // Calculate cursor position by counting text before cursor, treating mention badges as their text length
+            const walker = document.createTreeWalker(
+              contentEditableRef.current,
+              NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT,
+              null
+            )
+
+            let position = 0
+            let node
+            while ((node = walker.nextNode())) {
+              if (node === range.endContainer) {
+                // We've reached the node containing the cursor
+                if (node.nodeType === Node.TEXT_NODE) {
+                  position += range.endOffset
+                } else if (node.nodeType === Node.ELEMENT_NODE) {
+                  const el = node as Element
+                  if (el.classList?.contains('mention-badge')) {
+                    // If cursor is inside a mention badge, find which mention it is
+                    const removeBtn = el.querySelector('.mention-remove-btn') as HTMLElement
+                    if (removeBtn) {
+                      const mentionId = removeBtn.getAttribute('data-mention-id')
+                      const mentionStart = parseInt(removeBtn.getAttribute('data-mention-start') || '0', 10)
+                      const mention = selectedEntities.find(m => m.id === mentionId && m.startIndex === mentionStart)
+                      if (mention) {
+                        // Cursor is within this mention - remove it
+                        e.preventDefault()
+                        e.stopPropagation()
+                        removeMention(mention)
+                        return
+                      }
+                    }
+                  }
+                }
+                break
+              }
+
+              if (node.nodeType === Node.TEXT_NODE) {
+                position += node.textContent?.length || 0
+              } else if (node.nodeType === Node.ELEMENT_NODE) {
+                const el = node as Element
+                if (el.classList?.contains('mention-badge')) {
+                  // Mention badge represents "@name" in plain text - find its length
+                  const removeBtn = el.querySelector('.mention-remove-btn') as HTMLElement
+                  if (removeBtn) {
+                    const mentionId = removeBtn.getAttribute('data-mention-id')
+                    const mentionStart = parseInt(removeBtn.getAttribute('data-mention-start') || '0', 10)
+                    const mention = selectedEntities.find(m => m.id === mentionId && m.startIndex === mentionStart)
+                    if (mention) {
+                      // Add the length of the mention text (@name)
+                      position += mention.endIndex - mention.startIndex
+                    }
+                  }
+                }
+              }
+            }
+            cursorPosition = position
+          } else {
+            // Fallback: use current value length
+            cursorPosition = value.length
+          }
+        } else if (inputRef.current) {
+          cursorPosition = inputRef.current.selectionStart || 0
+        }
+
+        // Check if cursor is right after a mention (at mention.endIndex)
+        // Also check if cursor is within the mention (user is deleting into it)
+        const mentionToRemove = selectedEntities.find(
+          m => cursorPosition === m.endIndex || (cursorPosition > m.startIndex && cursorPosition <= m.endIndex)
+        )
+
+        if (mentionToRemove) {
+          e.preventDefault()
+          e.stopPropagation()
+          removeMention(mentionToRemove)
+          return
+        }
+      }
+
       // If mention popover is open, handle navigation
       if (mentionState?.isActive && entities.length > 0) {
         if (e.key === 'ArrowDown') {
@@ -242,6 +377,10 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
     }
 
     const handleEntitySelect = (entity: EntityReference) => {
+      // Mark that we want to keep focus
+      hadFocusRef.current = true
+      shouldRestoreFocusRef.current = true
+
       const { newText, newCaretPosition } = insertEntity(entity, value)
       setValue(newText)
       handleTextChange(newText, newCaretPosition) // Update mention state
@@ -249,16 +388,18 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
 
       // Focus input and set caret position
       setTimeout(() => {
+        focusInput()
         if (inputRef.current) {
-          inputRef.current.focus()
           inputRef.current.setSelectionRange(newCaretPosition, newCaretPosition)
         }
       }, 0)
+      scheduleFocusRestoration()
     }
 
     // Handle @ button click - insert @ and trigger mention
     const handleAtClick = () => {
       const currentPos = inputRef.current?.selectionStart || value.length
+
       const beforeCursor = value.slice(0, currentPos)
       const afterCursor = value.slice(currentPos)
 
@@ -272,8 +413,8 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
 
       // Focus and set cursor position
       setTimeout(() => {
+        focusInput()
         if (inputRef.current) {
-          inputRef.current.focus()
           inputRef.current.setSelectionRange(newCaretPosition, newCaretPosition)
         }
       }, 0)
@@ -352,6 +493,247 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
       }
     }, [onRegisterMentionReady, registerMentionEntity])
 
+    // Expose focusInput to parent via callback
+    useEffect(() => {
+      if (onFocusReady) {
+        onFocusReady(focusInput)
+      }
+    }, [onFocusReady, focusInput])
+
+    // Helper to extract plain text from contentEditable, properly handling mention badges
+    const getTextFromContentEditable = useCallback((element: HTMLElement): string => {
+      // Clone to avoid modifying original
+      const clone = element.cloneNode(true) as HTMLElement
+
+      // Remove all remove buttons
+      clone.querySelectorAll('.mention-remove-btn').forEach(btn => btn.remove())
+
+      // For mention badges, replace with "@name" format
+      clone.querySelectorAll('.mention-badge').forEach(badge => {
+        const nameSpan = badge.querySelector('span:last-of-type') || badge.querySelector('span')
+        const mentionName = nameSpan?.textContent?.trim() || ''
+        const textNode = document.createTextNode(`@${mentionName} `)
+        badge.parentNode?.replaceChild(textNode, badge)
+      })
+
+      // Get text content
+      const text = clone.innerText || clone.textContent || ''
+
+      // Clean up any extra spaces and return
+      return text.replace(/\s+/g, ' ').trim()
+    }, [])
+
+    // Helper to render HTML with inline mention badges
+    const renderContentWithMentionsHTML = useCallback((): string => {
+      if (selectedEntities.length === 0) {
+        return value.replace(/\n/g, '<br>')
+      }
+
+      // Sort mentions by start index
+      const sortedMentions = [...selectedEntities].sort((a, b) => a.startIndex - b.startIndex)
+      let html = ''
+      let lastIndex = 0
+
+      sortedMentions.forEach(mention => {
+        // Add text before mention (escape HTML)
+        if (mention.startIndex > lastIndex) {
+          const textBefore = value.slice(lastIndex, mention.startIndex)
+          html += textBefore.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')
+        }
+
+        // Add mention badge as inline HTML
+        const showAvatar = mention.type === 'employee' && mention.pictureThumbnail
+        html += `<span contenteditable="false" class="mention-badge" style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.125rem 0.375rem; border-radius: 0.375rem; font-size: 0.75rem; font-weight: 500; background-color: hsl(var(--primary) / 0.1); color: hsl(var(--primary)); margin: 0 0.125rem; vertical-align: middle;">`
+        if (showAvatar) {
+          html += `<img src="data:image/jpeg;base64,${mention.pictureThumbnail}" alt="${mention.name.replace(/"/g, '&quot;')}" style="width: 0.75rem; height: 0.75rem; border-radius: 9999px; object-fit: cover;" />`
+        } else {
+          // For icons, we'll use a simple text representation since we can't easily embed React components
+          html += `<span style="font-size: 0.75rem;">@</span>`
+        }
+        html += `<span>${mention.name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>`
+        html += `<button type="button" class="mention-remove-btn" style="background: none; border: none; color: inherit; cursor: pointer; padding: 0; margin-left: 0.25rem; display: inline-flex; align-items: center; font-size: 1rem; line-height: 1;" data-mention-id="${mention.id}" data-mention-start="${mention.startIndex}">×</button>`
+        html += `</span>`
+
+        lastIndex = mention.endIndex
+      })
+
+      // Add remaining text
+      if (lastIndex < value.length) {
+        const textAfter = value.slice(lastIndex)
+        html += textAfter.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')
+      }
+
+      return html || value.replace(/\n/g, '<br>')
+    }, [value, selectedEntities])
+
+    // Handle contentEditable input
+    const handleContentEditableInput = useCallback(
+      (e: React.FormEvent<HTMLDivElement>) => {
+        const element = e.currentTarget
+        const newText = getTextFromContentEditable(element)
+
+        // Get cursor position before updating
+        const selection = window.getSelection()
+        const range = selection?.getRangeAt(0)
+        let caretPosition = newText.length
+        if (range && contentEditableRef.current) {
+          const preCaretRange = range.cloneRange()
+          preCaretRange.selectNodeContents(contentEditableRef.current)
+          preCaretRange.setEnd(range.endContainer, range.endOffset)
+          caretPosition = preCaretRange.toString().length
+        }
+
+        setValue(newText)
+        handleTextChange(newText, caretPosition)
+
+        // Only re-render HTML if mentions structure changed, not on every keystroke
+        // This prevents cursor jumping issues
+
+        // Handle typing indicators
+        if (newText.length > 0 && !isTyping) {
+          setIsTyping(true)
+          onTypingStart()
+          if (stopTypingTimerRef.current) {
+            clearTimeout(stopTypingTimerRef.current)
+          }
+        }
+
+        if (stopTypingTimerRef.current) {
+          clearTimeout(stopTypingTimerRef.current)
+        }
+
+        stopTypingTimerRef.current = setTimeout(() => {
+          if (isTyping) {
+            setIsTyping(false)
+            onTypingStop()
+          }
+        }, 2000)
+      },
+      [
+        getTextFromContentEditable,
+        setValue,
+        handleTextChange,
+        isTyping,
+        onTypingStart,
+        onTypingStop,
+        selectedEntities,
+        renderContentWithMentionsHTML
+      ]
+    )
+
+    // Remove a mention entity
+    const removeMention = useCallback(
+      (mention: MessageEntityReference) => {
+        // Remove from selected entities in hook
+        removeMentionFromHook(mention)
+
+        // Remove the text from the input value
+        const beforeMention = value.slice(0, mention.startIndex)
+        const afterMention = value.slice(mention.endIndex)
+        const newValue = beforeMention + afterMention
+
+        // Update the text - handleTextChange will automatically adjust mention positions
+        setValue(newValue)
+
+        setTimeout(() => {
+          // Re-run handleTextChange to update mention positions based on new text
+          handleTextChange(newValue, beforeMention.length)
+
+          // Focus back on input
+          focusInput()
+          if (contentEditableRef.current) {
+            // For contentEditable, focus is handled by focusInput
+          } else if (inputRef.current) {
+            inputRef.current.setSelectionRange(beforeMention.length, beforeMention.length)
+          }
+        }, 0)
+      },
+      [value, setValue, handleTextChange, focusInput, removeMentionFromHook]
+    )
+
+    // Handle contentEditable click on remove button - use event delegation
+    useEffect(() => {
+      const container = contentEditableRef.current
+      if (!container) return
+
+      const handleClick = (e: MouseEvent) => {
+        const target = e.target as HTMLElement
+        // Check if clicked element or its parent is the remove button
+        const removeBtn = target.closest('.mention-remove-btn') as HTMLElement
+        if (removeBtn && removeBtn.dataset.mentionId && removeBtn.dataset.mentionStart) {
+          e.preventDefault()
+          e.stopPropagation()
+          const mentionId = removeBtn.dataset.mentionId
+          const mentionStart = parseInt(removeBtn.dataset.mentionStart || '0', 10)
+          const mention = selectedEntities.find(m => m.id === mentionId && m.startIndex === mentionStart)
+          if (mention) {
+            removeMention(mention)
+          }
+          return false
+        }
+      }
+
+      container.addEventListener('click', handleClick, true) // Use capture phase
+      return () => {
+        container.removeEventListener('click', handleClick, true)
+      }
+    }, [selectedEntities, removeMention])
+
+    // Initialize and sync contentEditable content when value or mentions change
+    useEffect(() => {
+      if (contentEditableRef.current && selectedEntities.length > 0) {
+        const currentText = getTextFromContentEditable(contentEditableRef.current)
+        const expectedHTML = renderContentWithMentionsHTML()
+        // Only update if text changed or HTML structure changed
+        if (currentText !== value || contentEditableRef.current.innerHTML !== expectedHTML) {
+          const selection = window.getSelection()
+          const hadFocus = document.activeElement === contentEditableRef.current
+          let cursorPosition = 0
+          if (selection?.rangeCount) {
+            const range = selection.getRangeAt(0)
+            const preCaretRange = range.cloneRange()
+            preCaretRange.selectNodeContents(contentEditableRef.current)
+            preCaretRange.setEnd(range.endContainer, range.endOffset)
+            cursorPosition = preCaretRange.toString().length
+          }
+
+          contentEditableRef.current.innerHTML = renderContentWithMentionsHTML()
+
+          // Restore cursor position
+          if (hadFocus && selection) {
+            requestAnimationFrame(() => {
+              if (!contentEditableRef.current) return
+
+              const range = document.createRange()
+              const walker = document.createTreeWalker(contentEditableRef.current, NodeFilter.SHOW_TEXT, null)
+              let currentPos = 0
+              let targetNode: Node | null = null
+              let targetOffset = 0
+
+              while (walker.nextNode()) {
+                const node = walker.currentNode
+                const nodeLength = node.textContent?.length || 0
+                if (currentPos + nodeLength >= cursorPosition) {
+                  targetNode = node
+                  targetOffset = cursorPosition - currentPos
+                  break
+                }
+                currentPos += nodeLength
+              }
+
+              if (targetNode) {
+                range.setStart(targetNode, Math.min(targetOffset, targetNode.textContent?.length || 0))
+                range.collapse(true)
+                selection.removeAllRanges()
+                selection.addRange(range)
+              }
+              contentEditableRef.current.focus()
+            })
+          }
+        }
+      }
+    }, [selectedEntities.length, value, getTextFromContentEditable, renderContentWithMentionsHTML]) // Only depend on mention count, not every entity change
+
     // Track focus state and restore it after re-renders
     const handleFocus = useCallback(() => {
       hadFocusRef.current = true
@@ -395,10 +777,12 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
     }) // No dependencies - run on every render to catch remounts
 
     useEffect(() => {
-      if (hadFocusRef.current && inputRef.current && document.activeElement !== inputRef.current) {
+      const activeElement = document.activeElement
+      const isInputFocused = activeElement === inputRef.current
+      if (hadFocusRef.current && !isInputFocused) {
         // Use requestAnimationFrame to ensure DOM is ready
         const rafId = requestAnimationFrame(() => {
-          if (hadFocusRef.current && inputRef.current && document.activeElement !== inputRef.current) {
+          if (hadFocusRef.current) {
             focusInput()
           }
         })
@@ -540,22 +924,47 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
             data-testid="message-file-input"
           />
 
-          {/* Text input */}
+          {/* Text input - use contentEditable when there are mentions, regular Input otherwise */}
           <div className="gba:flex-1 gba:min-w-0">
-            <Input
-              ref={inputRef}
-              value={value}
-              onChange={handleChange}
-              onKeyDown={handleKeyDown}
-              onFocus={handleFocus}
-              onBlur={handleBlur}
-              placeholder={placeholder}
-              disabled={disabled}
-              className={`gba:w-full gba:bg-muted/50 gba:border-0 focus-visible:gba:ring-1 focus-visible:gba:ring-primary/50 ${
-                compact ? 'gba:h-8 gba:text-sm' : 'gba:h-9'
-              }`}
-              data-testid="message-input-field"
-            />
+            {selectedEntities.length > 0 ? (
+              <div
+                ref={contentEditableRef}
+                contentEditable
+                suppressContentEditableWarning
+                onInput={handleContentEditableInput}
+                onKeyDown={handleKeyDown}
+                onFocus={handleFocus}
+                onBlur={handleBlur}
+                data-placeholder={placeholder}
+                className={`gba:w-full gba:bg-muted/50 gba:border-0 focus-visible:gba:ring-1 focus-visible:gba:ring-primary/50 gba:rounded-md gba:px-3 gba:py-2 gba:outline-none gba:min-h-[36px] ${
+                  compact ? 'gba:h-8 gba:text-sm' : 'gba:h-9'
+                } ${
+                  !value && placeholder
+                    ? 'before:content-[attr(data-placeholder)] before:text-muted-foreground before:pointer-events-none'
+                    : ''
+                }`}
+                style={{
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word'
+                }}
+                data-testid="message-input-field"
+              />
+            ) : (
+              <Input
+                ref={inputRef}
+                value={value}
+                onChange={handleChange}
+                onKeyDown={handleKeyDown}
+                onFocus={handleFocus}
+                onBlur={handleBlur}
+                placeholder={placeholder}
+                disabled={disabled}
+                className={`gba:w-full gba:bg-muted/50 gba:border-0 focus-visible:gba:ring-1 focus-visible:gba:ring-primary/50 ${
+                  compact ? 'gba:h-8 gba:text-sm' : 'gba:h-9'
+                }`}
+                data-testid="message-input-field"
+              />
+            )}
           </div>
 
           {/* Send button */}

@@ -41,6 +41,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [draftMessage, setDraftMessage] = useState<string>('')
   const registerMentionEntityRef = useRef<((entity: any, text: string, startIndex: number) => any) | null>(null)
+  const focusInputRef = useRef<(() => void) | null>(null)
   const urlContextProcessed = useRef(false)
   const conversationIdFromUrlProcessed = useRef(false)
   const activeConversationIdRef = useRef<string | null>(null)
@@ -687,6 +688,12 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
         }
         registerMentionEntityRef.current(EVERY_AI_ENTITY, newText, 0)
       }
+      // Restore focus after a brief delay to ensure DOM is updated
+      setTimeout(() => {
+        if (focusInputRef.current) {
+          focusInputRef.current()
+        }
+      }, 0)
       return newText
     })
   }, [])
@@ -1158,6 +1165,9 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
                 onChange={setDraftMessage}
                 onRegisterMentionReady={registerFn => {
                   registerMentionEntityRef.current = registerFn
+                }}
+                onFocusReady={focusFn => {
+                  focusInputRef.current = focusFn
                 }}
               />
             )}

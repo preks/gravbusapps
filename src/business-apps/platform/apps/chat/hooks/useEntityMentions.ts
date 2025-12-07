@@ -747,6 +747,13 @@ export function useEntityMentions(accessToken: string) {
     setSelectedEntities([])
   }, [])
 
+  // Remove a specific mention entity
+  const removeMention = useCallback((mention: MessageEntityReference) => {
+    setSelectedEntities(prev =>
+      prev.filter(e => !(e.id === mention.id && e.startIndex === mention.startIndex && e.endIndex === mention.endIndex))
+    )
+  }, [])
+
   // Close mention popover
   const closeMention = useCallback(() => {
     setMentionState(null)
@@ -792,6 +799,7 @@ export function useEntityMentions(accessToken: string) {
     handleTextChange,
     insertEntity,
     clearMentions,
+    removeMention,
     closeMention,
     searchEntities,
     registerMentionEntity
