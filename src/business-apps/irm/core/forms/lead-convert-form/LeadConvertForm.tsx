@@ -161,13 +161,14 @@ export const ConvertInvestmentLeadForm = ({
   }, [leadData?.id, leadData])
 
   // Investment Types Hook - provides hierarchy and field definitions
+  // Use 'prospect' fieldType to get referenceFields for opportunity conversion
   const {
     getTypesByLevel,
     getTypesByParent,
     getPathByType,
     getInvestmentFieldsByType,
     loading: investmentTypesLoading
-  } = useInvestmentTypes(businessAppContext)
+  } = useInvestmentTypes(businessAppContext, 'prospect')
 
   // Convert group/type to investmentTypeId for baseOpportunityValues
   const baseOpportunityValuesWithTypeId = useMemo(() => {
@@ -194,7 +195,7 @@ export const ConvertInvestmentLeadForm = ({
   // Get initial prospect fields configuration (referenceFields) for selected type
   const initialFormFieldsDefinition = useMemo(() => {
     if (!initialEffectiveTypeId) return null
-    return getInvestmentFieldsByType(initialEffectiveTypeId, 'prospect')
+    return getInvestmentFieldsByType(initialEffectiveTypeId)
   }, [initialEffectiveTypeId, getInvestmentFieldsByType])
 
   // Build initial dynamic schema
@@ -222,7 +223,7 @@ export const ConvertInvestmentLeadForm = ({
   // Get prospect fields configuration (referenceFields) for selected type (reactive)
   const formFieldsDefinition = useMemo(() => {
     if (!effectiveTypeId) return initialFormFieldsDefinition
-    return getInvestmentFieldsByType(effectiveTypeId, 'prospect')
+    return getInvestmentFieldsByType(effectiveTypeId)
   }, [effectiveTypeId, getInvestmentFieldsByType, initialFormFieldsDefinition])
 
   // Build dynamic schema (reactive)

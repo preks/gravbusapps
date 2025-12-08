@@ -6,6 +6,7 @@ import { EmployeeSelect } from '@/components/employee-select'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import AccountSelect from '@/common/components/common-relations/selects/account-select/AccountSelect'
 import type { SelectOption as AccountSelectOption } from '@/common/components/common-relations/selects/account-select'
+import { CompanySelect } from '@/components/company-select'
 import { CURRENCY } from '@/common/constants/commonCatalogs'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
@@ -26,6 +27,9 @@ interface InvestmentInformationSegmentProps {
     error: string | null
     refetch: (variables?: any) => Promise<void>
   }
+
+  // Company from investment data (to display immediately)
+  company?: any
 
   // Entity ID (investment ID for edit mode)
   entityId?: string
@@ -62,6 +66,7 @@ const InvestmentInformationSegment: React.FC<InvestmentInformationSegmentProps> 
   businessAppContext,
   ownerEmployee,
   account,
+  company,
   useAccounts,
   entityId,
   investmentGroup,
@@ -119,6 +124,30 @@ const InvestmentInformationSegment: React.FC<InvestmentInformationSegmentProps> 
       </div>
 
       <div className="gba:space-y-6">
+        {/* Company Selection */}
+        <FormField
+          control={form.control}
+          name="investment.companyId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{getTranslationFromI18nKeyAndLabel('investment.form.company', 'Company')}</FormLabel>
+              <FormControl>
+                <CompanySelect
+                  value={field.value || null}
+                  onValueChange={(v: string | null) => {
+                    field.onChange(v || '')
+                  }}
+                  businessAppContext={businessAppContext}
+                  initialCompany={company}
+                  data-testid={formatDataTestId(prefixDataTestId, 'CompanySelect')}
+                  disabled={disabled}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
         {/* Owner Selection */}
         <FormField
           control={form.control}

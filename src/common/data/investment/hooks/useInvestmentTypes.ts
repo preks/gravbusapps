@@ -372,10 +372,8 @@ export interface UseInvestmentTypesReturn {
   // Get complete path with all ancestors and descendants: [root, ..., type, ...allDescendants]
   getPathByType: (typeId: string | null | undefined) => InvestmentType[]
   // Get investment fields (formFields or referenceFields) by type, traversing hierarchy
-  getInvestmentFieldsByType: (
-    typeId: string | null | undefined,
-    fieldType: 'investment' | 'prospect'
-  ) => DynamicFormConfiguration | null
+  // Uses the default fieldType from hook initialization
+  getInvestmentFieldsByType: (typeId: string | null | undefined) => DynamicFormConfiguration | null
   refetch: () => Promise<void>
 }
 
@@ -383,30 +381,30 @@ export interface UseInvestmentTypesReturn {
  * Hook to fetch and manage investment types as a unified tree hierarchy
  *
  * @param context - Business app context with access token
+ * @param fieldType - Optional default fieldType ('investment' for formFields, 'prospect' for referenceFields)
  * @returns Investment types with helper functions
  *
  * @example
  * ```tsx
- * const { types, getTypesByLevel, getTypesByParent, getPathByType } = useInvestmentTypes(businessAppContext)
+ * // For investment forms (uses formFields)
+ * const { getInvestmentFieldsByType } = useInvestmentTypes(businessAppContext)
+ * const fields = getInvestmentFieldsByType(typeId)
  *
- * // Get all groups (level 0)
- * const groups = getTypesByLevel(0)
- *
- * // Get types by parent ID
- * const types = getTypesByParent(groupId)
- *
- * // Get complete path with ancestors and descendants from any type
- * const path = getPathByType(typeId)
- * // path = [root (level 0), ..., parent, selectedType, ...allDescendants]
- *
- * // Extract root group ID
- * const rootGroupId = path.find(t => t.level === 0)?.id || null
+ * // For lead/opportunity forms (uses referenceFields)
+ * const { getInvestmentFieldsByType } = useInvestmentTypes(businessAppContext, 'prospect')
+ * const fields = getInvestmentFieldsByType(typeId) // Uses 'prospect' from hook
  * ```
  */
-export const useInvestmentTypes = (context: BusinessAppContextProps): UseInvestmentTypesReturn => {
+export const useInvestmentTypes = (
+  context: BusinessAppContextProps,
+  fieldType?: 'investment' | 'prospect'
+): UseInvestmentTypesReturn => {
   const [types, setTypes] = useState<InvestmentType[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Store default fieldType from hook initialization
+  const defaultFieldType = fieldType || 'investment'
 
   const graphqlClient = useGraphQLClient(context.accessToken)
 
@@ -470,10 +468,11 @@ export const useInvestmentTypes = (context: BusinessAppContextProps): UseInvestm
 
   // Helper function to get investment fields by type
   const getInvestmentFieldsByTypeHelper = useCallback(
-    (typeId: string | null | undefined, fieldType: 'investment' | 'prospect'): DynamicFormConfiguration | null => {
-      return getInvestmentFieldsByType(types, typeId, fieldType)
+    (typeId: string | null | undefined): DynamicFormConfiguration | null => {
+      // Always use defaultFieldType from hook initialization
+      return getInvestmentFieldsByType(types, typeId, defaultFieldType)
     },
-    [types]
+    [types, defaultFieldType]
   )
 
   return {

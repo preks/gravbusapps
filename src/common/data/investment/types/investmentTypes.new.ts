@@ -1,6 +1,7 @@
 import { type BaseEntity, type CatalogEntry, BASE_ENTITY_DESCRIPTORS } from '@/common/network/graphql/commonTypes'
 import type { Employee } from '@/common/data/employee/types/employeeBaseTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
+import type { Company } from '@/common/data/orgchart/types/companyTypes'
 import type { InvestmentAccount } from './investmentAccountTypes'
 import type { InvestmentOpportunity } from './investmentOpportunityTypes'
 import { type EquityInvestment, EquityInvestmentFormFields } from './equityInvestmentTypes'
@@ -72,12 +73,14 @@ export interface Investment extends BaseEntity {
   investmentAccount?: InvestmentAccount
   investmentOpportunity?: InvestmentOpportunity
   loanRecipientInvestmentAccount?: InvestmentAccount
+  company?: Company
 
   // Entity Reference IDs (Id fields)
   ownerEmployeeId?: string
   investmentAccountId?: string
   investmentOpportunityId?: string
   loanRecipientInvestmentAccountId?: string
+  companyId?: string
 
   // Investment Role relationships (array)
   investmentRole?: InvestmentRole[]
@@ -163,12 +166,14 @@ export const InvestmentFields = {
   investmentAccount: 'investmentAccount',
   investmentOpportunity: 'investmentOpportunity',
   loanRecipientInvestmentAccount: 'loanRecipientInvestmentAccount',
+  company: 'company',
 
   // Entity Reference IDs (Id fields)
   ownerEmployeeId: 'ownerEmployeeId',
   investmentAccountId: 'investmentAccountId',
   investmentOpportunityId: 'investmentOpportunityId',
   loanRecipientInvestmentAccountId: 'loanRecipientInvestmentAccountId',
+  companyId: 'companyId',
 
   // Array Relationships (not used in forms)
   equityInvestment: 'equityInvestment',
@@ -237,6 +242,7 @@ export const InvestmentFormFields = {
   investmentAccountId: 'investmentAccount',
   investmentOpportunityId: 'investmentOpportunity',
   loanRecipientInvestmentAccountId: 'loanRecipientInvestmentAccount',
+  companyId: 'company',
 
   investmentRole: 'investmentRoles'
 } as const
@@ -456,6 +462,12 @@ export const createInvestmentDescriptors = (
     sortPath: `${fields.investmentOpportunity}.name`,
     type: 'text'
   },
+  {
+    key: 'company',
+    searchPaths: [`${fields.company}.name`, `${fields.company}.code`],
+    sortPath: `${fields.company}.name`,
+    type: 'text'
+  },
 
   // Filter IDs
   {
@@ -532,6 +544,15 @@ export const createInvestmentDescriptors = (
     optionSelectPaths: [`${fields.investmentAccount}.id`, `${fields.investmentAccount}.name`],
     optionSearchPaths: [`${fields.investmentAccount}.name`, `${fields.investmentAccount}.code`],
     optionDistinctOn: [fields.investmentAccountId],
+    kind: 'inIds'
+  },
+  {
+    key: 'companyIds',
+    path: fields.companyId,
+    filterLabel: 'Company',
+    optionSelectPaths: [`${fields.company}.id`, `${fields.company}.name`],
+    optionSearchPaths: [`${fields.company}.name`, `${fields.company}.code`],
+    optionDistinctOn: [fields.companyId],
     kind: 'inIds'
   },
   {

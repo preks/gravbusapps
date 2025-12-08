@@ -22,6 +22,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { transformInvestment } from './utils/transformInvestment'
 import { transformInvestmentReport } from './utils/transformInvestmentReport'
 import { sanitizeInvestmentReport } from './utils/sanitizeInvestmentReport'
+import { Skeleton } from '@newwork/nw-design-system'
 
 type InvestmentReportFormProps = BusinessAppContextProps
 
@@ -43,21 +44,40 @@ export const InvestmentReportForm: React.FC<InvestmentReportFormProps> = ({
     error: reportError
   } = useInvestmentReport(accessToken || '', investmentReportId, 'record')
 
-  // Extract initialInvestmentId from additionalData (immutable - only from initial props)
-  const initialInvestmentId =
-    additionalData?.investmentId || additionalData?.psi_taskPayload?.psi_initialParameters?.investmentId
+  // Compute initialInvestmentId - prioritize fetchedReport.investmentId if report is loaded
+  // Wait for report loading to complete if investmentReportId was provided
+  const initialInvestmentId = useMemo(() => {
+    // If we have an investmentReportId, wait for loading to complete
+    if (investmentReportId && reportLoading) {
+      // Return fallback during loading (will be updated once loading completes)
+      return additionalData?.investmentId || additionalData?.psi_taskPayload?.psi_initialParameters?.investmentId
+    }
 
-  // InvestmentId as state - can be changed by user selection
-  // Initialize with initialInvestmentId, will be updated when fetchedReport loads
+    // Once loading is complete (or no reportId), prioritize fetchedReport.investmentId
+    if (fetchedReport?.investmentId) {
+      return fetchedReport.investmentId
+    }
+
+    // Fallback to additionalData
+    return additionalData?.investmentId || additionalData?.psi_taskPayload?.psi_initialParameters?.investmentId
+  }, [
+    investmentReportId,
+    reportLoading,
+    fetchedReport?.investmentId,
+    additionalData?.investmentId,
+    additionalData?.psi_taskPayload?.psi_initialParameters?.investmentId
+  ])
+
+  // InvestmentId as state - initialize with computed initialInvestmentId
+  // This will update when fetchedReport finishes loading
   const [investmentId, setInvestmentId] = useState<string | undefined>(initialInvestmentId)
 
-  // Update investmentId when fetchedReport loads (if it has an investmentId)
+  // Update investmentId when initialInvestmentId changes (e.g., when report finishes loading)
   useEffect(() => {
-    const reportInvestmentId = fetchedReport?.investmentId
-    if (reportInvestmentId && reportInvestmentId !== investmentId) {
-      setInvestmentId(reportInvestmentId)
+    if (initialInvestmentId && initialInvestmentId !== investmentId) {
+      setInvestmentId(initialInvestmentId)
     }
-  }, [fetchedReport?.investmentId, investmentId])
+  }, [initialInvestmentId])
 
   // Load investment data - automatically reloads when investmentId changes
   const { investment: fetchedInvestment, loading: investmentLoading } = useInvestment(
@@ -120,17 +140,15 @@ export const InvestmentReportForm: React.FC<InvestmentReportFormProps> = ({
     }
   }, [transformedInitialValues, form])
 
-  // Get current form values using useWatch
-  const investment = useWatch({ control: form.control, name: 'investment' })
-  const equityInvestment = useWatch({ control: form.control, name: 'equityInvestment' })
-  const realEstateInvestment = useWatch({ control: form.control, name: 'realEstateInvestment' })
-  const liquidFundInvestment = useWatch({ control: form.control, name: 'liquidFundInvestment' })
+  // Get current form values using useWatch - watch all values at once to avoid type instantiation issues
+  const formValues = useWatch({ control: form.control }) as InvestmentFormValues & {
+    investmentReportDate?: string
+    investmentReportScope?: string
+  }
 
-  const formValues: InvestmentFormValues = {
-    investment: investment || { name: '' },
-    equityInvestment,
-    realEstateInvestment,
-    liquidFundInvestment
+  // Ensure investment has at least name field
+  if (!formValues.investment?.name) {
+    formValues.investment = { ...formValues.investment, name: '' }
   }
 
   // Helper: Get investment type ID from form values (deepest level)
@@ -147,7 +165,7 @@ export const InvestmentReportForm: React.FC<InvestmentReportFormProps> = ({
 
   // Get form fields definition using getInvestmentFieldsByType
   const formFieldsDefinition = useMemo(() => {
-    return getInvestmentFieldsByType(investmentTypeId, 'investment')
+    return getInvestmentFieldsByType(investmentTypeId)
   }, [getInvestmentFieldsByType, investmentTypeId])
 
   // Create dynamic schema based on formFieldsDefinition
@@ -209,7 +227,7 @@ export const InvestmentReportForm: React.FC<InvestmentReportFormProps> = ({
     }
 
     // Get form fields definition for dynamic mapping
-    const fieldsDef = getInvestmentFieldsByType(investmentTypeId, 'investment')
+    const fieldsDef = getInvestmentFieldsByType(investmentTypeId)
     if (!fieldsDef) {
       return
     }
@@ -219,27 +237,38 @@ export const InvestmentReportForm: React.FC<InvestmentReportFormProps> = ({
 
     // Merge dynamic fields with existing form values
     if (Object.keys(dynamicFields).length > 0) {
-      // Update form directly
-      if (dynamicFields.investment) {
-        Object.keys(dynamicFields.investment).forEach(key => {
-          form.setValue(`investment.${key}` as any, (dynamicFields.investment as any)[key])
+      // Get current form values
+      const currentValues = form.getValues()
+
+      // Merge dynamic fields with current values
+      const mergedValues = {
+        ...currentValues,
+        investment: {
+          ...currentValues.investment,
+          ...(dynamicFields.investment || {})
+        },
+        ...(dynamicFields.equityInvestment && {
+          equityInvestment: {
+            ...currentValues.equityInvestment,
+            ...dynamicFields.equityInvestment
+          }
+        }),
+        ...(dynamicFields.realEstateInvestment && {
+          realEstateInvestment: {
+            ...currentValues.realEstateInvestment,
+            ...dynamicFields.realEstateInvestment
+          }
+        }),
+        ...(dynamicFields.liquidFundInvestment && {
+          liquidFundInvestment: {
+            ...currentValues.liquidFundInvestment,
+            ...dynamicFields.liquidFundInvestment
+          }
         })
       }
-      if (dynamicFields.equityInvestment) {
-        form.setValue('equityInvestment', { ...formValues.equityInvestment, ...dynamicFields.equityInvestment } as any)
-      }
-      if (dynamicFields.realEstateInvestment) {
-        form.setValue('realEstateInvestment', {
-          ...formValues.realEstateInvestment,
-          ...dynamicFields.realEstateInvestment
-        } as any)
-      }
-      if (dynamicFields.liquidFundInvestment) {
-        form.setValue('liquidFundInvestment', {
-          ...formValues.liquidFundInvestment,
-          ...dynamicFields.liquidFundInvestment
-        } as any)
-      }
+
+      // Update form with merged values in one call (avoids type instantiation issues)
+      form.reset(mergedValues as any)
     }
 
     // Mark this investment as mapped
@@ -350,17 +379,36 @@ export const InvestmentReportForm: React.FC<InvestmentReportFormProps> = ({
   const processType = isUpdate ? 'update' : 'create'
   const prefixDataTestId = 'investment-report-form'
 
+  // Determine if we're still loading initial data
+  const isLoading = reportLoading || (investmentId && investmentLoading) || investmentTypesLoading
+
   // Early returns AFTER all hooks
   if (!accessToken) {
     return <ErrorAlert errors={[{ type: 'accessToken' }]} prefixDataTestId={prefixDataTestId} />
   }
 
-  if (reportLoading) {
+  // Show skeletons while loading (replaces spinner)
+  if (isLoading) {
     return (
-      <div className="gba:flex gba:justify-center gba:items-center gba:p-8">
-        <div className="gba:flex gba:flex-col gba:items-center gba:gap-4">
-          <div className="gba:animate-spin gba:rounded-full gba:h-12 gba:w-12 gba:border-b-2 gba:border-primary" />
-          <p className="gba:text-muted-foreground">Loading investment report data...</p>
+      <div data-testid={formatDataTestId(prefixDataTestId, 'loading')} className="gba:space-y-6 gba:p-6">
+        {/* Report-specific fields skeleton */}
+        <div className="gba:space-y-4">
+          <Skeleton className="gba:h-10 gba:w-full" />
+          <Skeleton className="gba:h-10 gba:w-1/2" />
+        </div>
+        {/* Investment Information Skeleton */}
+        <div className="gba:space-y-4">
+          <Skeleton className="gba:h-10 gba:w-full" />
+          <Skeleton className="gba:h-10 gba:w-full" />
+          <Skeleton className="gba:h-10 gba:w-3/4" />
+          <Skeleton className="gba:h-10 gba:w-full" />
+          <Skeleton className="gba:h-32 gba:w-full" />
+        </div>
+        {/* Dynamic Segment Skeleton */}
+        <div className="gba:space-y-2">
+          <Skeleton className="gba:h-12 gba:w-full" />
+          <Skeleton className="gba:h-12 gba:w-full" />
+          <Skeleton className="gba:h-24 gba:w-full" />
         </div>
       </div>
     )
@@ -412,6 +460,7 @@ export const InvestmentReportForm: React.FC<InvestmentReportFormProps> = ({
             getTypesByLevel={getTypesByLevel}
             getTypesByParent={getTypesByParent}
             getPathByType={getPathByType}
+            loading={false}
           />
         )}
       </AppActionForm>

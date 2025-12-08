@@ -69,24 +69,33 @@ export const transformInvestment = (
     }
   }
 
-  // Remove id and version from investment if we're creating a new report (not updating)
-  // These belong to the investment, not the report, so we shouldn't include them in create mode
+  // Remove id and version from investment - these belong to the investment, not the report
   if (mappedValues.investment) {
     delete (mappedValues.investment as any).id
     delete (mappedValues.investment as any).version
+  }
 
-    // Also remove id and version from sub-groups if we're creating a new report
-    if ((mappedValues.investment as any).equityInvestment) {
-      delete (mappedValues.investment as any).equityInvestment.id
-      delete (mappedValues.investment as any).equityInvestment.version
+  // Remove id and version from sub-investments - these belong to the investment, not the report
+  // Sub-investments are at the top level, not nested in investment
+  if ((mappedValues as any).equityInvestment) {
+    ;(mappedValues as any).equityInvestment = {
+      ...(mappedValues as any).equityInvestment,
+      id: undefined,
+      version: undefined
     }
-    if ((mappedValues.investment as any).liquidFundInvestment) {
-      delete (mappedValues.investment as any).liquidFundInvestment.id
-      delete (mappedValues.investment as any).liquidFundInvestment.version
+  }
+  if ((mappedValues as any).liquidFundInvestment) {
+    ;(mappedValues as any).liquidFundInvestment = {
+      ...(mappedValues as any).liquidFundInvestment,
+      id: undefined,
+      version: undefined
     }
-    if ((mappedValues.investment as any).realEstateInvestment) {
-      delete (mappedValues.investment as any).realEstateInvestment.id
-      delete (mappedValues.investment as any).realEstateInvestment.version
+  }
+  if ((mappedValues as any).realEstateInvestment) {
+    ;(mappedValues as any).realEstateInvestment = {
+      ...(mappedValues as any).realEstateInvestment,
+      id: undefined,
+      version: undefined
     }
   }
 

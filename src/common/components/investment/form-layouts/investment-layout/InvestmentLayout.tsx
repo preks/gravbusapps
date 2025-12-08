@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react'
 import { useFormContext, useWatch } from 'react-hook-form'
+import { Skeleton } from '@newwork/nw-design-system'
 import { InvestmentInformationSegment } from '@/common/components/investment/form-segments/investment-information-segment'
 import DynamicInvestmentSegment from '@/common/components/investment/form-segments/dynamic-investment-segment/DynamicInvestmentSegment'
 import { InvestmentFormValues } from './types'
@@ -28,6 +29,8 @@ export interface InvestmentLayoutProps {
   getTypesByParent?: (parentId: string) => InvestmentType[]
   getPathByType?: (typeId: string | null | undefined) => InvestmentType[]
   baseTypeId?: string | null // Optional: override baseTypeId calculation
+  // Loading state - shows skeletons while data is being fetched
+  loading?: boolean
 }
 
 export const InvestmentLayout: React.FC<InvestmentLayoutProps> = ({
@@ -42,9 +45,32 @@ export const InvestmentLayout: React.FC<InvestmentLayoutProps> = ({
   getTypesByLevel,
   getTypesByParent,
   getPathByType,
-  baseTypeId: baseTypeIdProp
+  baseTypeId: baseTypeIdProp,
+  loading = false
 }) => {
   const form = useFormContext<InvestmentFormValues>()
+
+  // Show skeletons while loading (after all hooks)
+  if (loading) {
+    return (
+      <div data-testid={`${prefixDataTestId}-loading`} className="gba:space-y-6">
+        {/* Investment Information Skeleton */}
+        <div className="gba:space-y-4">
+          <Skeleton className="gba:h-10 gba:w-full" />
+          <Skeleton className="gba:h-10 gba:w-full" />
+          <Skeleton className="gba:h-10 gba:w-3/4" />
+          <Skeleton className="gba:h-10 gba:w-full" />
+          <Skeleton className="gba:h-32 gba:w-full" />
+        </div>
+        {/* Dynamic Segment Skeleton */}
+        <div className="gba:space-y-2">
+          <Skeleton className="gba:h-12 gba:w-full" />
+          <Skeleton className="gba:h-12 gba:w-full" />
+          <Skeleton className="gba:h-24 gba:w-full" />
+        </div>
+      </div>
+    )
+  }
 
   // Use useWatch to get current form values
   const investment = useWatch({ control: form.control, name: 'investment' })
@@ -100,6 +126,7 @@ export const InvestmentLayout: React.FC<InvestmentLayoutProps> = ({
         businessAppContext={businessAppContext}
         ownerEmployee={ownerEmployee || formValues.investment.ownerEmployee}
         account={account}
+        company={formValues.investment.company}
         useAccounts={useAccounts}
         entityId={formValues.investment.id}
         investmentGroup={baseTypeId}

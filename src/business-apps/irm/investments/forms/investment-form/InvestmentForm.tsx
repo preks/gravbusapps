@@ -88,7 +88,7 @@ const InvestmentForm: React.FC<InvestmentFormProps> = ({ accessToken, userInfo, 
     // Use fetched opportunity data if available
     if (fetchedOpportunity && !opportunityLoading) {
       const opportunityTypeId = fetchedOpportunity.investmentType?.id || fetchedOpportunity.investmentTypeRef
-      const formFieldsDef = opportunityTypeId ? getInvestmentFieldsByType(opportunityTypeId, 'investment') : undefined
+      const formFieldsDef = opportunityTypeId ? getInvestmentFieldsByType(opportunityTypeId) : undefined
       const mapped = transformOpportunity(fetchedOpportunity, formFieldsDef || undefined, getPathByType)
       return mapped
     }
@@ -124,8 +124,16 @@ const InvestmentForm: React.FC<InvestmentFormProps> = ({ accessToken, userInfo, 
       })
     }
 
+    // Add investmentOpportunityId if opportunityId is provided
+    if (opportunityId && result.investment) {
+      result.investment = {
+        ...result.investment,
+        investmentOpportunityId: opportunityId
+      }
+    }
+
     return result
-  }, [fetchedInvestment, investmentLoading, investmentId, mappedInitialValues])
+  }, [fetchedInvestment, investmentLoading, investmentId, mappedInitialValues, opportunityId])
 
   // Reset form when initial values change
   useEffect(() => {
@@ -194,7 +202,7 @@ const InvestmentForm: React.FC<InvestmentFormProps> = ({ accessToken, userInfo, 
 
   // Get form fields definition using getInvestmentFieldsByType
   const formFieldsDefinition = useMemo(() => {
-    return getInvestmentFieldsByType(investmentTypeId, 'investment')
+    return getInvestmentFieldsByType(investmentTypeId)
   }, [getInvestmentFieldsByType, investmentTypeId])
 
   // Track if we've already mapped dynamic fields for this investment
@@ -218,7 +226,7 @@ const InvestmentForm: React.FC<InvestmentFormProps> = ({ accessToken, userInfo, 
     }
 
     // Get form fields definition for dynamic mapping
-    const fieldsDef = getInvestmentFieldsByType(investmentTypeId, 'investment')
+    const fieldsDef = getInvestmentFieldsByType(investmentTypeId)
     if (!fieldsDef) {
       return
     }
@@ -339,6 +347,9 @@ const InvestmentForm: React.FC<InvestmentFormProps> = ({ accessToken, userInfo, 
   const processType = isUpdate ? 'update' : 'create'
   const prefixDataTestId = 'investment-form'
 
+  // Determine if we're still loading initial data
+  const isLoading = (isUpdate && investmentLoading) || (opportunityId && opportunityLoading) || investmentTypesLoading
+
   // Early returns AFTER all hooks
   if (!accessToken) {
     return <ErrorAlert errors={[{ type: 'accessToken' }]} prefixDataTestId={prefixDataTestId} />
@@ -399,6 +410,7 @@ const InvestmentForm: React.FC<InvestmentFormProps> = ({ accessToken, userInfo, 
           getTypesByParent={getTypesByParent}
           getPathByType={getPathByType}
           baseTypeId={baseTypeId}
+          loading={isLoading}
         />
       </AppActionForm>
     </CatalogSelect.Provider>

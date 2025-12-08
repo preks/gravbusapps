@@ -76,7 +76,7 @@ const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalDa
   // Get prospect fields configuration (referenceFields) for selected type
   const formFieldsDefinition = useMemo(() => {
     if (!effectiveTypeId) return null
-    return getInvestmentFieldsByType(effectiveTypeId, 'prospect')
+    return getInvestmentFieldsByType(effectiveTypeId)
   }, [effectiveTypeId, getInvestmentFieldsByType])
 
   // Build dynamic schema

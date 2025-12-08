@@ -6,6 +6,7 @@
 
 import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments'
 import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments'
+import { COMPANY_REF } from '@/common/data/orgchart/queries/fragments/companyFragments'
 import { INVESTMENT_ACCOUNT_REF, INVESTMENT_OPPORTUNITY_REF } from './fragments/investmentReferenceFragments'
 import { InvestmentFields } from '../types/investmentTypes.new'
 import { EquityInvestmentFields } from '../types/equityInvestmentTypes'
@@ -338,6 +339,15 @@ export const buildInvestmentFragment = (fields: string[]): string => {
         ? `
       ${fieldSet.has('investmentOpportunity') ? `${InvestmentFields.investmentOpportunity} { ${INVESTMENT_OPPORTUNITY_REF} }` : ''}
       ${InvestmentFields.investmentOpportunityId}
+    `
+        : ''
+    }
+    
+    ${
+      fieldSet.has('company') || fieldSet.has('companyId')
+        ? `
+      ${fieldSet.has('company') ? `${InvestmentFields.company} { ${COMPANY_REF} }` : ''}
+      ${InvestmentFields.companyId}
     `
         : ''
     }

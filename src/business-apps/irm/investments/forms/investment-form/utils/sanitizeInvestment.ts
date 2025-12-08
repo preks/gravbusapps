@@ -25,6 +25,10 @@ export const sanitizeInvestment = (
     investmentTypeId: undefined,
     investmentGroupRef: (groupId ?? undefined) as string | undefined,
     investmentTypeRef: (typeId ?? undefined) as string | undefined,
+    // Include investmentOpportunityId if present (for creating investment from opportunity)
+    ...(formData.investment?.investmentOpportunityId && {
+      investmentOpportunityId: formData.investment.investmentOpportunityId
+    }),
     // Convert subtype objects to arrays (matching Investment interface)
     ...(formData.equityInvestment
       ? {

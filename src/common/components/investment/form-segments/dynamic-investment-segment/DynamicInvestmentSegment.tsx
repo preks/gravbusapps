@@ -207,12 +207,16 @@ const DynamicInvestmentSegment: React.FC<DynamicInvestmentSegmentProps> = ({
   const deepestSelectedType = selectedPath.length > 0 ? selectedPath[selectedPath.length - 1] : null
   const hasMoreChildren = deepestSelectedType ? getTypesByParent(deepestSelectedType.id).length > 0 : false
 
-  // Determine which formFieldsDefinition to use based on mode
-  const effectiveFormFieldsDefinition = isUpdate
-    ? formFieldsDefinition // Update mode: Use from InvestmentForm
-    : !hasMoreChildren && deepestSelectedType
-      ? getFormFieldsDefinitionForSelectedType()
-      : null // Create mode: Only if leaf type
+  // Determine which formFieldsDefinition to use
+  // Priority: Use provided formFieldsDefinition (works for both investment formFields and prospect referenceFields)
+  // Fallback: Only in create mode without provided definition, look for formFields in objectValue
+  const effectiveFormFieldsDefinition = formFieldsDefinition
+    ? formFieldsDefinition // Use provided definition (from getInvestmentFieldsByType with 'investment' or 'prospect')
+    : isUpdate
+      ? null // Update mode without provided definition: no fields
+      : !hasMoreChildren && deepestSelectedType
+        ? getFormFieldsDefinitionForSelectedType() // Create mode fallback: look for formFields in objectValue
+        : null
 
   return (
     <div data-testid={formatDataTestId(testIdPrefix, 'Container')} className="gba:space-y-6">

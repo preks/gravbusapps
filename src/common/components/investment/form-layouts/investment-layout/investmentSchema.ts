@@ -30,7 +30,11 @@ const baseInvestmentSchema = z.object({
       currencyRef: z.string().min(1, 'Currency is required'),
       investmentAccountId: z.string().min(1, 'Related account is required'),
       // Investment type field (leaf InvestmentType ID)
-      investmentTypeId: z.string().min(1, 'Investment type is required')
+      investmentTypeId: z.string().min(1, 'Investment type is required'),
+      // Optional opportunity ID (when creating investment from opportunity)
+      investmentOpportunityId: z.string().nullable().optional(),
+      // Optional company ID
+      companyId: z.string().nullable().optional()
     })
     .passthrough(),
 

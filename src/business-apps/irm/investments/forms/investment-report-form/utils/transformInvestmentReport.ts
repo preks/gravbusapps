@@ -20,37 +20,79 @@ export const transformInvestmentReport = (
 ): Partial<InvestmentFormValues & { investmentReportDate?: string; investmentReportScope?: string }> => {
   // Extract investment data from report
   // Priority: 1) report.investment, 2) report itself (if no investment object)
+  // IMPORTANT: Never include investment id/version - these belong to the investment, not the report
+  // Only the report itself should have id/version when updating (handled separately)
   const investmentData: Partial<Investment> = report.investment
     ? {
         ...report.investment,
-        // Only include id and version if we're updating an existing report
-        ...(reportId
-          ? {
-              id: report.investment.id,
-              version: report.investment.version
-            }
-          : {}),
+        // Exclude id and version - these belong to the investment, not the report
+        id: undefined,
+        version: undefined,
         // Convert null to undefined for optional fields
         ...(report.investment.code === null ? {} : { code: report.investment.code })
       }
     : {
         // If no investment object, create from report fields
-        // Only include id and version if we're updating an existing report
-        ...(reportId
-          ? {
-              id: report.id,
-              version: report.version
-            }
-          : {}),
+        // Exclude id and version - these belong to the investment, not the report
         name: (report as any).name || '',
         // Convert null to undefined for optional fields
         ...((report as any).code === null ? {} : { code: (report as any).code })
       }
 
   // Merge with fetchedInvestment if provided (for additional fields that might be missing)
+  // IMPORTANT: Exclude id and version from fetchedInvestment - these belong to the investment, not the report
   const mergedInvestmentData = fetchedInvestment
     ? {
         ...fetchedInvestment,
+        // Exclude id and version from fetched investment
+        id: undefined,
+        version: undefined,
+        // Exclude id and version from sub-investments in fetchedInvestment
+        ...(fetchedInvestment.equityInvestment
+          ? {
+              equityInvestment: Array.isArray(fetchedInvestment.equityInvestment)
+                ? fetchedInvestment.equityInvestment.map((eq: any) => ({
+                    ...eq,
+                    id: undefined,
+                    version: undefined
+                  }))
+                : {
+                    ...fetchedInvestment.equityInvestment,
+                    id: undefined,
+                    version: undefined
+                  }
+            }
+          : {}),
+        ...(fetchedInvestment.liquidFundInvestment
+          ? {
+              liquidFundInvestment: Array.isArray(fetchedInvestment.liquidFundInvestment)
+                ? fetchedInvestment.liquidFundInvestment.map((lf: any) => ({
+                    ...lf,
+                    id: undefined,
+                    version: undefined
+                  }))
+                : {
+                    ...fetchedInvestment.liquidFundInvestment,
+                    id: undefined,
+                    version: undefined
+                  }
+            }
+          : {}),
+        ...(fetchedInvestment.realEstateInvestment
+          ? {
+              realEstateInvestment: Array.isArray(fetchedInvestment.realEstateInvestment)
+                ? fetchedInvestment.realEstateInvestment.map((re: any) => ({
+                    ...re,
+                    id: undefined,
+                    version: undefined
+                  }))
+                : {
+                    ...fetchedInvestment.realEstateInvestment,
+                    id: undefined,
+                    version: undefined
+                  }
+            }
+          : {}),
         ...investmentData // investmentData takes precedence
       }
     : investmentData
@@ -123,10 +165,18 @@ export const transformInvestmentReport = (
         } // Exclude id/version in create mode
   }
 
-  // Set investment.id so InvestmentLayout automatically loads it
+  // Set investment.id and investmentId so InvestmentLayout automatically loads it
+  // IMPORTANT: investment.id should be the investmentId (for InvestmentLayout), not the report id
   if (mappedValues.investment && investmentId) {
     ;(mappedValues.investment as any).id = investmentId
     ;(mappedValues.investment as any).investmentId = investmentId
+  }
+
+  // Store report id and version in form data when updating (for sanitizer to include in payload)
+  // These are separate from investment.id - investment.id is the investmentId, reportId is the report's id
+  if (reportId && mappedValues.investment) {
+    ;(mappedValues.investment as any).reportId = reportId
+    ;(mappedValues.investment as any).reportVersion = report.version
   }
 
   // Normalize liquidFundInvestment array if present
