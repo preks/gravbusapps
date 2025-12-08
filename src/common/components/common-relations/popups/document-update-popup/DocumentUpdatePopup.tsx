@@ -21,10 +21,10 @@ import {
   SelectValue,
   Alert,
   AlertDescription,
-  Button
+  Button,
+  FileUpload
 } from '@newwork/nw-design-system'
 import { useForm } from 'react-hook-form'
-import { File, Upload, X } from 'lucide-react'
 import { fileClient } from '@/common/network/files/FileClient'
 
 export interface DocumentUpdatePopupProps extends BusinessAppContextProps {
@@ -311,20 +311,17 @@ export const DocumentUpdatePopup: React.FC<DocumentUpdatePopupProps> = ({
     loadParentFolders()
   }, [accessToken, entityId, entityIdFieldName, isOpen, graphqlClient, graphqlEntity])
 
-  // Handle file selection
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
+  // Handle file selection from FileUpload component
+  const handleFilesChange = (files: any[]) => {
+    const file = files?.[0]?.file || null
     if (file) {
       setSelectedFile(file)
       form.setValue('file', file)
+    } else {
+      setSelectedFile(null)
+      setUploadedFileId('')
+      form.setValue('file', null)
     }
-  }
-
-  // Handle file removal
-  const handleFileRemove = () => {
-    setSelectedFile(null)
-    setUploadedFileId('')
-    form.setValue('file', null)
   }
 
   // Submit handler
@@ -445,39 +442,28 @@ export const DocumentUpdatePopup: React.FC<DocumentUpdatePopupProps> = ({
         </div>
 
         {/* File Upload */}
-        <div className="gba:space-y-2">
-          <FormLabel>{getTranslationFromI18nKeyAndLabel('document.file', 'File')}</FormLabel>
-          <div className="gba:flex gba:items-center gba:gap-2">
-            {selectedFile ? (
-              <div className="gba:flex gba:items-center gba:gap-2 gba:p-2 gba:border gba:rounded-md gba:flex-1">
-                <File className="gba:w-4 gba:h-4" />
-                <span className="gba:text-sm gba:flex-1">{selectedFile.name}</span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleFileRemove}
-                  data-testid={formatDataTestId(dataTestId, 'remove-file-button')}
-                >
-                  <X className="gba:w-4 gba:h-4" />
-                </Button>
-              </div>
-            ) : (
-              <label className="gba:flex gba:items-center gba:gap-2 gba:p-2 gba:border gba:rounded-md gba:cursor-pointer hover:gba:bg-accent gba:flex-1">
-                <Upload className="gba:w-4 gba:h-4" />
-                <span className="gba:text-sm">
-                  {getTranslationFromI18nKeyAndLabel('document.file.select', 'Select new file (optional)')}
-                </span>
-                <input
-                  type="file"
-                  className="gba:hidden"
-                  onChange={handleFileChange}
-                  data-testid={formatDataTestId(dataTestId, 'file-input')}
+        <FormField
+          control={form.control}
+          name="file"
+          render={() => (
+            <FormItem>
+              <FormLabel>{getTranslationFromI18nKeyAndLabel('document.file', 'File (optional)')}</FormLabel>
+              <FormControl>
+                <FileUpload
+                  layout="list"
+                  preview="icon"
+                  maxFiles={1}
+                  maxSizeMB={50}
+                  multiple={false}
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png,.gif,.zip"
+                  onFilesChange={handleFilesChange}
+                  data-testid={formatDataTestId(dataTestId, 'file-upload')}
                 />
-              </label>
-            )}
-          </div>
-        </div>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         {/* Document Group */}
         <FormField
