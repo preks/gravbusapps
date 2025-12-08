@@ -148,10 +148,10 @@ export const useRelationshipReviewData = ({
   }, [accessToken, employeeId, graphqlClient, newRelationship, oldRelationship])
 
   useEffect(() => {
-    if (accessToken) {
+    if (accessToken && employeeId) {
       fetchData()
     }
-  }, [accessToken, fetchData])
+  }, [accessToken, employeeId]) // ✅ Remove fetchData from dependencies to prevent infinite loop
 
   return {
     employeeData,
