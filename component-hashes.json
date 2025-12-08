@@ -162,7 +162,7 @@
   "irm/core/records/account-record": "37833919a2f4d728ed8f06a9cb2892d0",
   "irm/core/records/contact-record": "ca0282717a67d182f143b4ead5a61938",
   "irm/core/records/lead-record": "bfbdf9417153384144357616e3c69a72",
-  "irm/core/records/opportunity-record": "ed93ceaf1c0081167ccf6965b273c3d8",
+  "irm/core/records/opportunity-record": "56a2064b608fa236e4efb573c582d803",
   "irm/investments/apps/investment-management": "0f2b5840dcd2044a9ddd177cdfd89fe7",
   "irm/investments/apps/investment-portal": "5f871f2b190bc0a57c9cfd047fe6bacb",
   "irm/investments/forms/equity-investment-round-form": "e0804d302f8a9e6461f8716a5eeeb7ba",
@@ -174,7 +174,7 @@
   "irm/investments/popups/investment-delete-popup": "20042185cd057bd370c956b0e573ab6b",
   "irm/investments/popups/investment-popup": "f3c182df9213c574f2049f9748c4789b",
   "irm/investments/popups/investment-shareholder-popup": "4ab7197f28d0e1967619b44fed9a1863",
-  "irm/investments/records/investment-record": "d411d2b3612347825a533e380f5f3afc",
+  "irm/investments/records/investment-record": "371c8c774ec1cdb9801621eb7e87a454",
   "mdm/apps/compensation-data": "832aafeed52f90fd6a6cda1a99c78cc8",
   "mdm/apps/employment-data": "dcb20cfdae30473ed463b505d098347b",
   "mdm/apps/engagement-data": "7e194ecf0812b2f4e17014ab8278503d",
@@ -228,6 +228,6 @@
   "sales-demo/sales-order/apps/sales-order-overview": "408b46b8323d1084e14826720de3227a",
   "sales-demo/sales-order/apps/sales-performance-report": "6925a3347e2b2ebe727867d936453e85",
   "sales-demo/sales-order/forms/sales-order-creation-form": "3ff58127087793e0391956c038923671",
-  "ser/apps/service-desk": "3ebae7864785564a1fa4c91eb60dd27b",
-  "ser/apps/service-portal": "502fc5b7040d8a612eb204dffbc094f1"
+  "ser/apps/service-desk": "7fca8dc80fee40c2d6dba204092c0f89",
+  "ser/apps/service-portal": "d58f545d7358509b4ed43e2fcec48293"
 }
