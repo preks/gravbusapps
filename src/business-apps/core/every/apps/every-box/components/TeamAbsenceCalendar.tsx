@@ -233,7 +233,7 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
 
       // Get absence type and color (with locale-aware translation)
       const statusDisplay = getAbsenceStatusDisplay(absence.status, t)
-      const absenceType = getCatalogValue(absence.type) || 'Absence'
+      const absenceType = getCatalogValue(absence.type) || t('absence-calendar-fallback-type')
 
       // Determine color based on status
       let color = 'gba:bg-info'

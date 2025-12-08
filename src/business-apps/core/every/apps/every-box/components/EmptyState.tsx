@@ -6,7 +6,6 @@
 
 import React from 'react'
 import { useTranslation, EmptyState as DesignSystemEmptyState } from '@newwork/nw-design-system'
-import { Inbox, Send, CheckCircle, LucideIcon } from 'lucide-react'
 import translations from '../_i18n'
 
 type EmptyStateType = 'inbox' | 'outbox' | 'completed'
@@ -14,18 +13,6 @@ type EmptyStateType = 'inbox' | 'outbox' | 'completed'
 interface EmptyStateProps {
   type: EmptyStateType
   message?: string
-}
-
-// Helper function to get the icon based on type
-const getEmptyStateIcon = (type: EmptyStateType): LucideIcon => {
-  switch (type) {
-    case 'inbox':
-      return Inbox
-    case 'outbox':
-      return Send
-    case 'completed':
-      return CheckCircle
-  }
 }
 
 export const EmptyState: React.FC<EmptyStateProps> = ({ type, message }) => {
@@ -55,7 +42,6 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ type, message }) => {
     }
   }
 
-  const Icon = getEmptyStateIcon(type)
   const defaultMessage = getDefaultMessage(type)
   const title = getEmptyStateTitle(type)
 
@@ -64,18 +50,6 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ type, message }) => {
       type="no-data"
       title={title}
       description={message || defaultMessage}
-      config={{
-        configs: {
-          'no-data': {
-            type: 'no-data',
-            title: title,
-            description: message || defaultMessage,
-            icon: Icon,
-            size: 'md',
-            centered: true
-          }
-        }
-      }}
       data-testid={`empty-state-${type}`}
     />
   )

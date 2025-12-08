@@ -192,7 +192,7 @@ export const useVacationApprovalData = ({
         if (result.CatalogEntry && result.CatalogEntry.length > 0) {
           // Use getCatalogValue to get the translated value based on current locale
           const translatedValue = getCatalogValue(result.CatalogEntry[0])
-          setAbsenceTypeName(translatedValue || 'Vacation')
+          setAbsenceTypeName(translatedValue ?? 'Vacation')
         }
       } catch (err) {
         console.error('Error fetching absence type:', err)

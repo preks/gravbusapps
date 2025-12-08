@@ -1,7 +1,10 @@
 import React, { useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Separator, Label, Spinner } from '@newwork/nw-design-system'
 import { CheckCircle, AlertCircle } from 'lucide-react'
-import { formatDateTime } from '@/business-apps/core/every/apps/every-box/utils/taskFormatters'
+import dayjs from 'dayjs'
+import localizedFormat from 'dayjs/plugin/localizedFormat'
+
+dayjs.extend(localizedFormat)
 
 interface ApprovalDetailsSectionProps {
   approvalStatus?: string | null
@@ -112,7 +115,7 @@ const ApprovalDetailsSection: React.FC<ApprovalDetailsSectionProps> = ({
           <>
             <Separator />
             <div>
-              <Label className="gba:text-sm gba:text-muted-foreground">{t('label-approved-by')}</Label>
+              <Label className="gba:text-sm gba:text-muted-foreground">{t('label-reviewed-by')}</Label>
               <p className="gba:text-sm gba:mt-1">{isLoadingApprover ? <Spinner size="sm" /> : approverName}</p>
             </div>
           </>
@@ -124,7 +127,7 @@ const ApprovalDetailsSection: React.FC<ApprovalDetailsSectionProps> = ({
             <Separator />
             <div>
               <Label className="gba:text-sm gba:text-muted-foreground">{t('label-date')}</Label>
-              <p className="gba:text-sm gba:mt-1">{formatDateTime(approvalDate)}</p>
+              <p className="gba:text-sm gba:mt-1">{dayjs(approvalDate).format('L LT')}</p>
             </div>
           </>
         )}

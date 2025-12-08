@@ -86,6 +86,7 @@ label-allowances = Indemnizații
 
 request-type-trip = Călătorie
 request-type-expenses = Cheltuieli
+request-type-other = Altele ({ $code })
 
 # ============================================
 # Payment Methods

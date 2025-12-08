@@ -25,6 +25,7 @@ export const LowcoderScreenLoader: React.FC<LowcoderScreenLoaderProps> = ({
 }) => {
   const { t } = useTranslation(translations)
   const [loading, setLoading] = useState(true)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const iframeRef = useRef<HTMLIFrameElement>(null)
 
   useEffect(() => {
@@ -67,9 +68,16 @@ export const LowcoderScreenLoader: React.FC<LowcoderScreenLoaderProps> = ({
       // Handle different message types
       if (event.data.type === 'LOWCODER_LOADED') {
         setLoading(false)
+        setErrorMessage(null)
       } else if (event.data.type === 'LOWCODER_ERROR') {
         setLoading(false)
-        console.error('[LowcoderScreenLoader] Error:', event.data.message || t('lowcoder-screen-failed'))
+        setErrorMessage(event.data.message || t('lowcoder-screen-failed'))
+        console.error(
+          '[LowcoderScreenLoader] Error:',
+          event.data.message || t('lowcoder-screen-failed'),
+          'Raw error:',
+          event.data
+        )
       } else if (event.data.type === 'TASK_COMPLETED') {
         if (onTaskCompleted && event.data.taskId) {
           onTaskCompleted(event.data.taskId)
@@ -108,19 +116,37 @@ export const LowcoderScreenLoader: React.FC<LowcoderScreenLoaderProps> = ({
 
   const handleIframeError = () => {
     setLoading(false)
-    console.error('[LowcoderScreenLoader] Error:', t('lowcoder-screen-failed'))
+    setErrorMessage(t('lowcoder-screen-failed'))
+    console.error('[LowcoderScreenLoader] Iframe failed to load:', iframeRef.current?.src)
   }
 
   return (
     <div className="gba:relative gba:w-full gba:h-full gba:min-h-[600px]">
-      <iframe
-        ref={iframeRef}
-        title={appName}
-        className="gba:w-full gba:h-full gba:min-h-[600px] gba:border-0"
-        onLoad={handleIframeLoad}
-        onError={handleIframeError}
-        sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"
-      />
+      {errorMessage ? (
+        <div className="gba:flex gba:items-center gba:justify-center gba:w-full gba:h-full gba:min-h-[600px] gba:p-6">
+          <div className="gba:text-center gba:max-w-md">
+            <div className="gba:text-destructive gba:text-lg gba:font-semibold gba:mb-2">
+              {t('lowcoder-screen-error-title')}
+            </div>
+            <div className="gba:text-muted-foreground gba:mb-4">{errorMessage}</div>
+            <button
+              onClick={onClose}
+              className="gba:px-4 gba:py-2 gba:bg-primary gba:text-primary-foreground gba:rounded gba:hover:bg-primary/90"
+            >
+              {t('close')}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <iframe
+          ref={iframeRef}
+          title={appName}
+          className="gba:w-full gba:h-full gba:min-h-[600px] gba:border-0"
+          onLoad={handleIframeLoad}
+          onError={handleIframeError}
+          sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"
+        />
+      )}
     </div>
   )
 }

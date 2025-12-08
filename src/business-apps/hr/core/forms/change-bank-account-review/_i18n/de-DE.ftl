@@ -15,7 +15,7 @@ badge-account-update = Kontoaktualisierung
 alert-new-account = Dies ist ein neues Bankkonto, das dem Mitarbeiterdatensatz hinzugefügt wird.
 alert-update-with-changes = Dies ist eine Aktualisierung mit { $count } { $count ->
     [one] Änderung
-   *[other] Änderungen
+    *[other] Änderungen
 } am bestehenden Bankkonto. Geänderte Felder sind unten hervorgehoben.
 alert-update-no-changes = Dies ist eine Aktualisierung eines bestehenden Bankkontos im Mitarbeiterdatensatz.
 

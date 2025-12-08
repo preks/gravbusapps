@@ -86,6 +86,7 @@ label-allowances = Zulagen
 
 request-type-trip = Reise
 request-type-expenses = Spesen
+request-type-other = Sonstige ({ $code })
 
 # ============================================
 # Payment Methods

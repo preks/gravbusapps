@@ -171,6 +171,8 @@ remote-screen-retry = Reîncearcă
 
 # LowcoderScreenLoader Component
 lowcoder-screen-failed = Ecranul Lowcoder nu a putut fi încărcat
+lowcoder-screen-error-title = Nu se poate încărca ecranul
+close = Închide
 
 # TeamAbsenceCalendar Component
 absence-status-approved = Aprobat

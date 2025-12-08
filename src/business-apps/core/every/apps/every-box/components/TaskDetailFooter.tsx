@@ -44,6 +44,62 @@ export interface TaskDetailFooterProps extends React.HTMLAttributes<HTMLDivEleme
   isLoading?: boolean
 }
 
+/**
+ * Helper function to detect if a task is an approval task
+ * Uses multiple fields for robust detection instead of relying only on canReject
+ */
+const isApprovalTask = (task: UnifiedTask): boolean => {
+  // Strong indicator: presence of reject action
+  if (task.availableActions?.canReject) {
+    return true
+  }
+
+  // Check explicit task category (most reliable)
+  if (task.taskCategory?.toLowerCase().includes('approval')) {
+    return true
+  }
+
+  // Check tags for explicit approval categorization
+  if (task.tags?.category === 'approval' || task.tags?.type === 'approval') {
+    return true
+  }
+
+  // Check type field (second most reliable)
+  if (task.type?.toLowerCase().includes('approval')) {
+    return true
+  }
+
+  // Fall back to name-based detection with word boundaries
+  const taskName = (task.referenceTaskName || task.name || task.title || '').toLowerCase()
+  return /\bapproval\b|\bapprove\b/.test(taskName)
+}
+
+/**
+ * Helper function to detect if a task is an acknowledgement task
+ * Uses multiple fields for robust detection instead of fragile string matching
+ */
+const isAcknowledgementTask = (task: UnifiedTask): boolean => {
+  // Check explicit task category first (most reliable)
+  if (task.taskCategory?.toLowerCase().includes('acknowledge')) {
+    return true
+  }
+
+  // Check tags for explicit acknowledgement categorization
+  if (task.tags?.category === 'acknowledgement' || task.tags?.type === 'acknowledgement') {
+    return true
+  }
+
+  // Check type field (second most reliable)
+  if (task.type?.toLowerCase().includes('acknowledge')) {
+    return true
+  }
+
+  // Fall back to name-based detection as last resort with more specific patterns
+  const taskName = (task.referenceTaskName || task.name || task.title || '').toLowerCase()
+  // Use word boundaries to avoid false positives like "unacknowledged_error"
+  return /\backnowledge\b/.test(taskName)
+}
+
 export const TaskDetailFooter: React.FC<TaskDetailFooterProps> = ({
   task,
   onTaskAction,
@@ -84,11 +140,10 @@ export const TaskDetailFooter: React.FC<TaskDetailFooterProps> = ({
     }
 
     // canComplete - Complete task (or Approve/Acknowledge based on task type) - goes on RIGHT
-    // Priority: 1. Approval (has canReject) 2. Acknowledge (name contains "acknowledge") 3. Complete Task
+    // Priority: 1. Approval (detected via multiple fields) 2. Acknowledge (detected via multiple fields) 3. Complete Task
     if (task.availableActions.canComplete) {
-      const isApprovalTask = task.availableActions.canReject
-      const taskName = (task.referenceTaskName || task.name || task.title || '').toLowerCase()
-      const isAcknowledgeTask = !isApprovalTask && taskName.includes('acknowledge')
+      const isApproval = isApprovalTask(task)
+      const isAcknowledge = !isApproval && isAcknowledgementTask(task)
 
       // Determine label, icon, and styling based on task type
       let label: string
@@ -96,12 +151,12 @@ export const TaskDetailFooter: React.FC<TaskDetailFooterProps> = ({
       let testId: string
       let buttonClassName: string | undefined
 
-      if (isApprovalTask) {
+      if (isApproval) {
         label = t('task-footer-approve')
         icon = ThumbsUp
         testId = 'approve-task-button'
         buttonClassName = 'gba:bg-success gba:text-success-foreground gba:hover:bg-success/90'
-      } else if (isAcknowledgeTask) {
+      } else if (isAcknowledge) {
         label = t('task-footer-acknowledge')
         icon = CheckCircle
         testId = 'acknowledge-task-button'

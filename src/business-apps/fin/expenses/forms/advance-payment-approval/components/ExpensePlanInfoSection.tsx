@@ -25,7 +25,8 @@ const ExpensePlanInfoSection: React.FC<ExpensePlanInfoSectionProps> = ({
     if (typeLower.includes('expense')) {
       return t('request-type-expenses')
     }
-    return requestTypeCode
+    // Fallback to translated generic label with raw code as defaultValue
+    return t('request-type-other', { code: requestTypeCode })
   }
 
   const displayName =

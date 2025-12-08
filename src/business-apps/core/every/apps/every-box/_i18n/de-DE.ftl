@@ -171,6 +171,8 @@ remote-screen-retry = Erneut versuchen
 
 # LowcoderScreenLoader Component
 lowcoder-screen-failed = Lowcoder-Bildschirm konnte nicht geladen werden
+lowcoder-screen-error-title = Bildschirm kann nicht geladen werden
+close = Schließen
 
 # TeamAbsenceCalendar Component
 absence-status-approved = Genehmigt

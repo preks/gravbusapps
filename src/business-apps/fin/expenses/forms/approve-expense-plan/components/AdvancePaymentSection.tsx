@@ -15,8 +15,11 @@ import {
 import { PiHandCoins } from 'react-icons/pi'
 import { CheckCircle2, XCircle } from 'lucide-react'
 import { AdvancePayment } from '../types/expensePlanV2Types'
-import { formatDateTime } from '@/business-apps/core/every/apps/every-box/utils/taskFormatters'
 import Pill from '@/components/pill'
+import dayjs from 'dayjs'
+import localizedFormat from 'dayjs/plugin/localizedFormat'
+
+dayjs.extend(localizedFormat)
 
 interface AdvancePaymentSectionProps {
   advancePayments: AdvancePayment[]
@@ -33,10 +36,10 @@ const AdvancePaymentSection: React.FC<AdvancePaymentSectionProps> = ({
   prefixDataTestId = 'approve-expense-plan-v2',
   t
 }) => {
-  // Date formatting helper - use formatDateTime from every-box
+  // Date formatting helper - format date and time using dayjs
   const formatDateDisplay = (dateString: string | null | undefined) => {
     if (!dateString) return '-'
-    return formatDateTime(dateString)
+    return dayjs(dateString).format('L LT') // e.g., "12/31/2024 2:30 PM"
   }
 
   // Format amount helper function
@@ -71,6 +74,8 @@ const AdvancePaymentSection: React.FC<AdvancePaymentSectionProps> = ({
         return t('status-rejected')
       case 'PENDING':
         return t('status-pending')
+      case 'PAID':
+        return t('status-paid')
       default:
         return status
     }
@@ -163,8 +168,9 @@ const AdvancePaymentSection: React.FC<AdvancePaymentSectionProps> = ({
               })}
               {/* Total Row */}
               <TableRow className="gba:font-semibold" data-testid={`${prefixDataTestId}-advance-payment-total-row`}>
-                <TableCell colSpan={7}>{t('label-total')}</TableCell>
+                <TableCell>{t('label-total')}</TableCell>
                 <TableCell className="gba:text-right">{formatAmount(totalAmount)}</TableCell>
+                <TableCell colSpan={6} />
               </TableRow>
             </TableBody>
           </Table>
