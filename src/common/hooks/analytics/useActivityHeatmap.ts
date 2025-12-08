@@ -154,7 +154,8 @@ export const useActivityHeatmap = (config: UseActivityHeatmapConfig) => {
     if (accessToken && entityAggregates.length > 0) {
       fetchActivityTimeline()
     }
-  }, [accessToken, graphqlClient, days, entityAggregatesKey])
+    // Note: graphqlClient is a singleton, only accessToken changes matter
+  }, [accessToken, days, entityAggregatesKey])
 
   return { activityData, isLoading, error }
 }
