@@ -18,7 +18,6 @@ export interface ExpenseSettingsProps extends BusinessAppContextProps {
 }
 
 const ExpenseSettings: React.FC<ExpenseSettingsProps> = context => {
-  console.log('🚀🚀🚀 EXPENSE SETTINGS COMPONENT RENDERING 🚀🚀🚀', context)
   const { prefixDataTestId = '', className = '' } = context
 
   // TEMPORARY: Feature flag disabled for local development testing
