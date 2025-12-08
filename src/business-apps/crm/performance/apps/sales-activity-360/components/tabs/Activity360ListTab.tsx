@@ -37,7 +37,7 @@ const GET_ALL_EMPLOYEES = `
 export const Activity360ListTab: React.FC<Activity360ListTabProps> = ({ accessToken, userInfo, filter, entityId }) => {
   const [search, setSearch] = useState('')
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
-  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([{ id: 'createdAt', desc: true }])
+  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([{ id: 'occurredAt', desc: true }])
   const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>({})
   const [visibleColumns, setVisibleColumns] = useState<string[]>([
     'occurredAt',
@@ -152,7 +152,7 @@ export const Activity360ListTab: React.FC<Activity360ListTabProps> = ({ accessTo
   }, [selectedFilters, entityFilters, convertToTeamFilters])
 
   const sortField = useMemo(() => {
-    if (sorting.length === 0) return 'createdAt'
+    if (sorting.length === 0) return 'occurredAt'
     return sorting[0].id as any
   }, [sorting])
 

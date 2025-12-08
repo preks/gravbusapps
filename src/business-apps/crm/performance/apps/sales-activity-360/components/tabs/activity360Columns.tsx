@@ -19,8 +19,7 @@ import {
   PiTarget,
   PiHandshake,
   PiBuilding,
-  PiCalendarBlank as PiCalendar,
-  PiInfo
+  PiCalendarBlank as PiCalendar
 } from 'react-icons/pi'
 import type { TeamSalesActivity } from '@/business-apps/crm/performance/apps/sales-team-performance/components/team-performance-view/hooks/useTeamActivitiesData'
 import {
@@ -28,6 +27,10 @@ import {
   getEntityType,
   getActivityTypeVariant
 } from '@/business-apps/crm/performance/apps/sales-team-performance/utils/activityHelpers'
+import {
+  calculateActivityScore,
+  getScoreBadgeVariant
+} from '@/business-apps/crm/performance/apps/sales-team-performance/utils/activityScoreCalculator'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 // Format date with time
@@ -39,7 +42,7 @@ const formatDateTime = (date: string | Date) => {
   }
 }
 
-// Date cell component with hover/touch support for created date
+// Date cell component with activity score, hover/touch support for created date and score legend
 const DateCell: React.FC<{ occurredAt?: string; createdAt?: string }> = ({ occurredAt, createdAt }) => {
   const [showTooltip, setShowTooltip] = useState(false)
 
@@ -49,14 +52,45 @@ const DateCell: React.FC<{ occurredAt?: string; createdAt?: string }> = ({ occur
 
   const occurred = formatDateTime(occurredAt)
   const created = createdAt ? formatDateTime(createdAt) : null
+  const activityScore = calculateActivityScore(createdAt, occurredAt)
+  const scoreVariant = getScoreBadgeVariant(activityScore)
 
-  const tooltipContent = created ? (
-    <div className="gba:text-xs">
-      <div className="gba:font-medium gba:mb-1">Created</div>
-      <div>{created.date}</div>
-      <div className="gba:text-muted-foreground">{created.time}</div>
+  const tooltipContent = (
+    <div className="gba:text-xs gba:space-y-3 gba:min-w-[180px]">
+      {/* Created date info */}
+      {created && (
+        <div>
+          <div className="gba:font-medium gba:mb-1">Created</div>
+          <div>
+            {created.date} at {created.time}
+          </div>
+        </div>
+      )}
+
+      {/* Activity Score Legend */}
+      <div>
+        <div className="gba:font-medium gba:mb-1.5">Activity Score Legend</div>
+        <div className="gba:text-[10px] gba:space-y-0.5 gba:text-muted-foreground">
+          <div className="gba:flex gba:justify-between">
+            <span>Same day logging</span>
+            <span className="gba:text-success gba:font-medium">85-100</span>
+          </div>
+          <div className="gba:flex gba:justify-between">
+            <span>Within 3 days</span>
+            <span className="gba:text-warning gba:font-medium">70-84</span>
+          </div>
+          <div className="gba:flex gba:justify-between">
+            <span>Within 1 week</span>
+            <span className="gba:font-medium">60-69</span>
+          </div>
+          <div className="gba:flex gba:justify-between">
+            <span>More than 1 week</span>
+            <span className="gba:text-destructive gba:font-medium">0-59</span>
+          </div>
+        </div>
+      </div>
     </div>
-  ) : null
+  )
 
   return (
     <TooltipProvider>
@@ -67,23 +101,23 @@ const DateCell: React.FC<{ occurredAt?: string; createdAt?: string }> = ({ occur
             className="gba:flex gba:items-start gba:gap-2 gba:text-left gba:bg-transparent gba:border-0 gba:p-0 gba:cursor-default"
             onClick={() => setShowTooltip(!showTooltip)}
             onTouchStart={() => setShowTooltip(true)}
-            onTouchEnd={() => setTimeout(() => setShowTooltip(false), 2000)}
+            onTouchEnd={() => setTimeout(() => setShowTooltip(false), 3000)}
           >
             <PiCalendar className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:mt-0.5 gba:flex-shrink-0" />
             <div className="gba:flex gba:flex-col">
-              <span className="gba:text-sm gba:font-medium">{occurred.date}</span>
+              <div className="gba:flex gba:items-center gba:gap-1.5">
+                <span className="gba:text-sm gba:font-medium">{occurred.date}</span>
+                <Badge variant={scoreVariant} className="gba:text-[10px] gba:px-1 gba:py-0 gba:h-4">
+                  {activityScore}
+                </Badge>
+              </div>
               <span className="gba:text-xs gba:text-muted-foreground">{occurred.time}</span>
             </div>
-            {created && (
-              <PiInfo className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:ml-1 gba:mt-0.5 gba:flex-shrink-0 gba:opacity-50" />
-            )}
           </button>
         </TooltipTrigger>
-        {tooltipContent && (
-          <TooltipContent side="top" className="gba:bg-popover gba:text-popover-foreground">
-            {tooltipContent}
-          </TooltipContent>
-        )}
+        <TooltipContent side="top" className="gba:bg-popover gba:text-popover-foreground gba:p-3">
+          {tooltipContent}
+        </TooltipContent>
       </Tooltip>
     </TooltipProvider>
   )
