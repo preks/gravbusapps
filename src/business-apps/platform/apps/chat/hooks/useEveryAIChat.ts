@@ -121,7 +121,7 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
         })
         .join(', ')
       parts.push(`[Chat participants: ${participantList}]`)
-      
+
       // Also provide participant mapping in structured format for direct use
       const participantMapping = context.participants
         .map(p => {
@@ -129,7 +129,9 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
           return `"${p.name}": "${odId}"`
         })
         .join(', ')
-      parts.push(`[PARTICIPANT_ID_MAPPING: Use these exact participant IDs when scheduling meetings: {${participantMapping}}]`)
+      parts.push(
+        `[PARTICIPANT_ID_MAPPING: Use these exact participant IDs when scheduling meetings: {${participantMapping}}]`
+      )
     }
 
     // Add mentioned users (people referenced via @ who may not be in the chat)
@@ -144,7 +146,7 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
         })
         .join(', ')
       parts.push(`[Mentioned users in this message: ${mentionedList}]`)
-      
+
       // Also provide mentioned users mapping in structured format
       const mentionedMapping = context.mentionedUsers
         .map(p => {
@@ -152,7 +154,9 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
           return `"${p.name}": "${odId}"`
         })
         .join(', ')
-      parts.push(`[MENTIONED_USER_ID_MAPPING: Use these exact participant IDs when scheduling meetings: {${mentionedMapping}}]`)
+      parts.push(
+        `[MENTIONED_USER_ID_MAPPING: Use these exact participant IDs when scheduling meetings: {${mentionedMapping}}]`
+      )
     }
 
     // Add current user context
@@ -177,35 +181,21 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
     // Add meeting capabilities hint - FlowBot has tools for this
     parts.push(
       `[MEETING CAPABILITIES: You have access to tools for scheduling and updating meetings:
-        - schedule_meeting: Create a new meeting with title, date (YYYY-MM-DD), time (HH:MM), duration, timezone, and participants
-        - find_meeting_slot: Find available meeting slots by checking participant calendars. Use this when user asks to "find a time", "when can we meet", "find a slot", or wants to schedule when everyone is available
-        - update_meeting: Update an existing meeting - add/remove participants, change date/time
+        - schedule_meeting: Create a new meeting with title, date, time, duration, timezone, and participant IDs
+        - find_meeting_slot: Find available meeting slots by checking participant calendars
+        - update_meeting: Update an existing meeting
         - cancel_meeting: Cancel an existing meeting
-        Use these tools when the user asks to schedule, update, cancel meetings, or find available times.
-        CRITICAL REQUIREMENTS:
-        1. TIMEZONE HANDLING:
-           - User's timezone is ${userTimezone} (UTC${timezoneOffsetString})
-           - When user says a time like "10:15 AM" or "2pm", interpret it as ${userTimezone} time
-           - ALWAYS pass timezone parameter as "${userTimezone}" to schedule_meeting tool
-           - Convert the time to ISO format with timezone: use format "YYYY-MM-DDTHH:mm:ss" and append timezone offset "${timezoneOffsetString}"
-           - Example: If user says "tomorrow at 10:15 AM" in ${userTimezone}, use date "2025-12-08", time "10:15:00", timezone "${userTimezone}"
-        2. PARTICIPANT HANDLING:
-           - ALWAYS include ALL chat participants by default (extract ALL values from PARTICIPANT_ID_MAPPING above)
-           - Extract all odId values from PARTICIPANT_ID_MAPPING object - use ALL values, not just matching names
-           - Example: If PARTICIPANT_ID_MAPPING is {"Denis": "odId-123", "Emir": "odId-456"}, extract ["odId-123", "odId-456"]
-           - Include mentioned users from MENTIONED_USER_ID_MAPPING if user explicitly mentions them
-           - Pass participant IDs as an array of odId strings, e.g. participantIds=["odId-123", "odId-456"]
-           - Do NOT use the "participants" parameter with names - always use "participantIds" with odId values
-        3. FINDING AVAILABLE SLOTS:
-           - When user asks to "find a time", "when can we meet", "find a slot", or wants to schedule when everyone is available, use find_meeting_slot
-           - Call find_meeting_slot with: participantIds=[array of ALL odId values from PARTICIPANT_ID_MAPPING], duration_minutes, timezone="${userTimezone}"
-           - Example: find_meeting_slot(participantIds=["odId-123", "odId-456"], duration_minutes=30, timezone="${userTimezone}")
-           - The tool will return available slots - use the first suggested slot to schedule the meeting
-           - If no slots found, suggest alternative times or ask user for preferences
-        4. TOOL CALL FORMAT:
-           - Call schedule_meeting with: title, date (YYYY-MM-DD), time (HH:MM), duration (minutes), timezone="${userTimezone}", participantIds=[array of ALL odId values from PARTICIPANT_ID_MAPPING]
-           - Example: schedule_meeting(title="Meeting", date="2025-12-08", time="10:15", duration_minutes=30, timezone="${userTimezone}", participantIds=["odId-123", "odId-456"])
-           - Do NOT rely on name resolution - use the odId values directly from PARTICIPANT_ID_MAPPING]`
+        
+        CONTEXT PROVIDED:
+        - User's timezone: ${userTimezone} (UTC${timezoneOffsetString})
+        - Current date/time: ${new Date().toLocaleString('en-US', { timeZone: userTimezone })}
+        - Participant IDs available in PARTICIPANT_ID_MAPPING above
+        
+        When scheduling meetings:
+        1. Use timezone="${userTimezone}" 
+        2. Include ALL participant odIds from PARTICIPANT_ID_MAPPING
+        3. Interpret times in ${userTimezone} timezone
+        4. Use participantIds parameter (array of odId strings), not participants with names]`
     )
 
     parts.push(prompt)

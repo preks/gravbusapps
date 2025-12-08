@@ -75,10 +75,10 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
   let baseUrl = env('NEXT_PUBLIC_BASE_URL') || ''
   baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
 
-  // Normalize API and WS endpoints; use host-only WS URL with chat-service path
+  // Normalize API and WS endpoints; connect to chat-service namespace with default socket path
   const apiUrl = env('NEXT_PUBLIC_CHAT_API') || `${baseUrl}/chat-service/api/v1` || ''
-  const wsUrl = `${baseUrl}` // host only
-  const wsSocketPath = '/chat-service/socket.io'
+  const wsUrl = `${baseUrl}/chat-service` // namespace in URL (matches gateway)
+  const wsSocketPath = '/socket.io' // default socket.io path
 
   const chatClient = useChatClient({
     accessToken,
