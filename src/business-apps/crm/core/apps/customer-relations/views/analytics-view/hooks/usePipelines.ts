@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 export interface Pipeline {
   id: string
@@ -12,9 +11,7 @@ export const usePipelines = (accessToken: string) => {
   const [pipelines, setPipelines] = useState<Pipeline[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-
-  const catalogClient = useCatalogManagerClient(accessToken)
-  const userLocale = getCurrentActiveUserLocale() ?? 'en-US'
+  const graphqlClient = useGraphQLClient(accessToken)
 
   const loadPipelines = useCallback(async () => {
     if (!accessToken) {
@@ -26,38 +23,48 @@ export const usePipelines = (accessToken: string) => {
     setError(null)
 
     try {
-      const response = await catalogClient.getCatalogEntriesList(
-        {
-          catalogIdentifier: 'SalesPipeline',
-          version: 'v1'
-        },
-        {
-          limit: 50,
-          offset: 0,
-          returnTotalRecords: true,
-          localeCode: userLocale
+      // Fetch unique pipelines using distinctOn - much more efficient!
+      const query = `
+        query GetDistinctPipelines {
+          Opportunity(
+            where: {
+              isDeleted: {_eq: false}
+              salesPipelineRef: {_isNull: false}
+            }
+            distinctOn: [salesPipelineRef]
+            limit: 20
+          ) {
+            salesPipeline {
+              id
+              value
+              code
+            }
+          }
         }
-      )
+      `
 
-      if (response?.data) {
-        const processedPipelines = response.data.map((entry: any) => ({
-          id: entry.id,
-          name: entry.value || entry.code || entry.id,
-          value: entry.value || entry.code || entry.id
-        }))
+      const response = await graphqlClient.request<{
+        Opportunity: Array<{ salesPipeline: { id: string; value?: string; code?: string } | null }>
+      }>(query)
 
-        setPipelines(processedPipelines)
-      } else {
-        setPipelines([])
-      }
+      // Map to Pipeline format (filter ensures salesPipeline is not null)
+      const uniquePipelines = response.Opportunity.filter(opp => opp.salesPipeline?.id).map(opp => {
+        const pipeline = opp.salesPipeline!
+        return {
+          id: pipeline.id,
+          name: pipeline.value || pipeline.code || pipeline.id,
+          value: pipeline.value || pipeline.code || pipeline.id
+        }
+      })
+
+      setPipelines(uniquePipelines)
     } catch (err) {
-      // Error handled by state management
       setError(err instanceof Error ? err.message : 'Failed to load pipelines')
       setPipelines([])
     } finally {
       setIsLoading(false)
     }
-  }, [catalogClient, accessToken, userLocale])
+  }, [graphqlClient, accessToken])
 
   useEffect(() => {
     loadPipelines()

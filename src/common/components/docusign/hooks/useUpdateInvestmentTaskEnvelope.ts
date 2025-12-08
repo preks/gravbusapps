@@ -13,6 +13,7 @@ export interface UpdateInvestmentTaskEnvelopeArgs {
   task: InvestmentTaskFormData
   documentId: string
   envelopeId: string
+  envelopeMode?: 'embedded' | 'email'
 }
 
 export const useUpdateInvestmentTaskEnvelope = (context?: BusinessAppContextProps) => {
@@ -46,7 +47,7 @@ export const useUpdateInvestmentTaskEnvelope = (context?: BusinessAppContextProp
   }
 
   const saveEnvelopeId = useCallback(
-    async ({ taskId, task, documentId, envelopeId }: UpdateInvestmentTaskEnvelopeArgs) => {
+    async ({ taskId, task, documentId, envelopeId, envelopeMode = 'embedded' }: UpdateInvestmentTaskEnvelopeArgs) => {
       if (!context?.accessToken) {
         throw new Error('Missing access token')
       }
@@ -68,7 +69,8 @@ export const useUpdateInvestmentTaskEnvelope = (context?: BusinessAppContextProp
                   ...doc,
                   fileInfo: {
                     ...(doc.fileInfo || {}),
-                    docusignEnvelopeId: envelopeId
+                    docusignEnvelopeId: envelopeId,
+                    docusignEnvelopeMode: envelopeMode
                   }
                 }
               : doc
@@ -87,4 +89,3 @@ export const useUpdateInvestmentTaskEnvelope = (context?: BusinessAppContextProp
 }
 
 export default useUpdateInvestmentTaskEnvelope
-

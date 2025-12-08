@@ -18,91 +18,154 @@ export const useOpportunityVelocityData = (accessToken: string) => {
       try {
         setIsLoading(true)
 
-        const query = `
-          query GetOpportunityVelocityData(
-            $recentWhere: OpportunityBoolExp
-            $recentOrderBy: [OpportunityOrderBy!]
-            $recentLimit: Int
-            $quickWinsWhere: OpportunityBoolExp
-            $quickWinsOrderBy: [OpportunityOrderBy!]
-            $quickWinsLimit: Int
-            $slowMoversWhere: OpportunityBoolExp
-            $slowMoversOrderBy: [OpportunityOrderBy!]
-            $slowMoversLimit: Int
+        const currentDate = new Date()
+        const sixMonthsAgo = new Date(currentDate)
+        sixMonthsAgo.setMonth(currentDate.getMonth() - 6)
+
+        // Generate monthly periods for last 6 months
+        const monthlyPeriods = []
+        for (let i = 5; i >= 0; i--) {
+          const periodEnd = new Date(currentDate)
+          periodEnd.setMonth(currentDate.getMonth() - i)
+          periodEnd.setDate(1)
+          periodEnd.setHours(0, 0, 0, 0)
+
+          const periodStart = new Date(periodEnd)
+          periodStart.setMonth(periodEnd.getMonth() - 1)
+
+          const nextMonth = new Date(periodEnd)
+          nextMonth.setMonth(periodEnd.getMonth() + 1)
+
+          monthlyPeriods.push({
+            start: periodStart.toISOString(),
+            end: nextMonth.toISOString(),
+            label: periodEnd.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+          })
+        }
+
+        // Build aggregate queries for each month
+        const monthlyAggregates = monthlyPeriods
+          .map(
+            (period, idx) => `
+          month${idx}Total: OpportunityAggregate(
+            where: {
+              isDeleted: {_eq: false}
+              createdAt: {_gte: "${period.start}", _lt: "${period.end}"}
+            }
           ) {
-            opportunities: Opportunity(where: $recentWhere, orderBy: $recentOrderBy, limit: $recentLimit) {
+            aggregate { count }
+          }
+
+          month${idx}Won: OpportunityAggregate(
+            where: {
+              isDeleted: {_eq: false}
+              createdAt: {_gte: "${period.start}", _lt: "${period.end}"}
+              opportunityStatus: {code: {_eq: "WON"}}
+            }
+          ) {
+            aggregate { count }
+          }
+
+          month${idx}HighWinChance: OpportunityAggregate(
+            where: {
+              isDeleted: {_eq: false}
+              createdAt: {_gte: "${period.start}", _lt: "${period.end}"}
+              winningChance: {_gte: 70}
+            }
+          ) {
+            aggregate { count }
+          }
+        `
+          )
+          .join('\n')
+
+        const query = `
+          query GetOpportunityVelocityData {
+            # Monthly aggregates for velocity trend (last 6 months)
+            ${monthlyAggregates}
+
+            # Sample for avg pipeline days calculation (last 6 months only)
+            recentOpportunities: Opportunity(
+              where: {
+                isDeleted: {_eq: false}
+                createdAt: {_gte: "${sixMonthsAgo.toISOString()}"}
+              }
+              limit: 100
+            ) {
+              createdAt
+            }
+
+            # Quick Wins (Recent Wins)
+            quickWins: Opportunity(
+              where: {
+                isDeleted: {_eq: false}
+                closeDate: {_neq: null}
+                winningChance: {_gte: 80}
+              }
+              orderBy: [{closeDate: DESC}]
+              limit: 5
+            ) {
               id
               name
               estimatedAmount
-              winningChance
-              createdAt
-              updatedAt
               closeDate
               account { name }
+              currency {
+                code
+                value
+              }
             }
-            quickWins: Opportunity(where: $quickWinsWhere, orderBy: $quickWinsOrderBy, limit: $quickWinsLimit) {
-              id
-              name
-              estimatedAmount
-              closeDate
-              account { name }
-            }
-            slowMovers: Opportunity(where: $slowMoversWhere, orderBy: $slowMoversOrderBy, limit: $slowMoversLimit) {
+
+            # Slow Movers (Oldest Open)
+            slowMovers: Opportunity(
+              where: {
+                isDeleted: {_eq: false}
+                closeDate: {_eq: null}
+              }
+              orderBy: [{createdAt: ASC}]
+              limit: 5
+            ) {
               id
               name
               estimatedAmount
               createdAt
               account { name }
+              currency {
+                code
+                value
+              }
             }
           }
         `
 
-        const variables = {
-          recentWhere: { isDeleted: { _eq: false }, createdAt: { _gte: '2024-01-01T00:00:00Z' } },
-          recentOrderBy: [{ createdAt: 'DESC' as const }],
-          recentLimit: 200,
-          quickWinsWhere: { isDeleted: { _eq: false }, closeDate: { _neq: null }, winningChance: { _gte: 80 } },
-          quickWinsOrderBy: [{ closeDate: 'DESC' as const }],
-          quickWinsLimit: 5,
-          slowMoversWhere: { isDeleted: { _eq: false }, closeDate: { _eq: null } },
-          slowMoversOrderBy: [{ createdAt: 'ASC' as const }],
-          slowMoversLimit: 5
-        }
+        const result = await graphqlClient.request<any>(query)
 
-        const result = await graphqlClient.request<any>(query, variables)
-        const currentDate = new Date()
-
+        // Calculate avg days in pipeline from last 6 months sample
+        const recentOpportunities = result.recentOpportunities || []
         const avgDaysInPipeline =
-          result.opportunities.reduce((sum: number, opp: any) => {
-            const createdDate = new Date(opp.createdAt)
-            const days = Math.floor((currentDate.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24))
-            return sum + days
-          }, 0) / (result.opportunities.length || 1)
+          recentOpportunities.length > 0
+            ? recentOpportunities.reduce((sum: number, opp: any) => {
+                const createdDate = new Date(opp.createdAt)
+                const days = Math.floor((currentDate.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24))
+                return sum + days
+              }, 0) / recentOpportunities.length
+            : 0
 
-        const monthly = new Map<string, { opportunities: any[]; totalDays: number }>()
-        result.opportunities.forEach((opp: any) => {
-          const date = new Date(opp.createdAt)
-          const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-          if (!monthly.has(monthKey)) monthly.set(monthKey, { opportunities: [], totalDays: 0 })
-          const days = Math.floor((currentDate.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
-          monthly.get(monthKey)!.opportunities.push(opp)
-          monthly.get(monthKey)!.totalDays += days
+        // Process monthly aggregates for velocity trend
+        const velocityTrend = monthlyPeriods.map((period, idx) => {
+          const totalCount = result[`month${idx}Total`]?.aggregate?.count || 0
+          const highWinChanceCount = result[`month${idx}HighWinChance`]?.aggregate?.count || 0
+
+          return {
+            month: period.label,
+            averageDays: 0, // Will be calculated from sample if needed
+            opportunityCount: totalCount,
+            conversionRate: totalCount > 0 ? Math.round((highWinChanceCount / totalCount) * 100) : 0
+          }
         })
 
-        const velocityTrend = Array.from(monthly.entries())
-          .map(([month, m]) => {
-            const avgDays = m.totalDays / m.opportunities.length
-            const highWin = m.opportunities.filter((o: any) => (o.winningChance || 0) >= 70).length
-            return {
-              month,
-              averageDays: Math.round(avgDays),
-              opportunityCount: m.opportunities.length,
-              conversionRate: Math.round((highWin / m.opportunities.length) * 100)
-            }
-          })
-          .slice(-6)
-
-        const quickWins = result.quickWins.map((opp: any) => {
+        // Process Quick Wins
+        const quickWins = (result.quickWins || []).map((opp: any) => {
           const closeDate = new Date(opp.closeDate)
           const daysSinceClosed = Math.floor((currentDate.getTime() - closeDate.getTime()) / (1000 * 60 * 60 * 24))
           return {
@@ -111,11 +174,13 @@ export const useOpportunityVelocityData = (accessToken: string) => {
             value: opp.estimatedAmount || 0,
             closeDate: opp.closeDate,
             daysSinceClosed,
-            isWon: true
+            isWon: true,
+            currencyCode: opp.currency?.code || 'EUR'
           }
         })
 
-        const slowMovers = result.slowMovers.map((opp: any) => {
+        // Process Slow Movers
+        const slowMovers = (result.slowMovers || []).map((opp: any) => {
           const createdDate = new Date(opp.createdAt)
           const daysSinceCreated = Math.floor((currentDate.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24))
           return {
@@ -123,11 +188,17 @@ export const useOpportunityVelocityData = (accessToken: string) => {
             title: opp.name,
             value: opp.estimatedAmount || 0,
             createdAt: opp.createdAt,
-            daysSinceCreated
+            daysSinceCreated,
+            currencyCode: opp.currency?.code || 'EUR'
           }
         })
 
-        setData({ averageDaysInPipeline: Math.round(avgDaysInPipeline), velocityTrend, quickWins, slowMovers })
+        setData({
+          averageDaysInPipeline: Math.round(avgDaysInPipeline),
+          velocityTrend,
+          quickWins,
+          slowMovers
+        })
       } finally {
         setIsLoading(false)
       }

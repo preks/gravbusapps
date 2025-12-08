@@ -180,6 +180,7 @@ export const DocuSignSignatureModal: React.FC<DocuSignSignatureModalProps> = ({
     [documents, selectedDocId]
   )
   const selectedDocEnvelopeId = selectedDocument?.fileInfo?.docusignEnvelopeId
+  const selectedDocEnvelopeMode = selectedDocument?.fileInfo?.docusignEnvelopeMode
   const selectedDocStatus = useMemo(() => {
     if (!selectedDocEnvelopeId) return undefined
     const cacheStatus = statusMap[selectedDocEnvelopeId]?.status?.toLowerCase()
@@ -198,7 +199,8 @@ export const DocuSignSignatureModal: React.FC<DocuSignSignatureModalProps> = ({
     assignedUserId &&
     currentUserId &&
     assignedUserId === currentUserId &&
-    selectedDocStatus !== 'completed'
+    selectedDocStatus !== 'completed' &&
+    selectedDocEnvelopeMode !== 'email'
   const canPersistEnvelope = selectedSource === 'existing' && !!taskContext && !!selectedDocId
   const isSelectedDocCompleted = selectedDocStatus === 'completed'
   const primaryButtonLabel = useMemo(() => {
@@ -237,6 +239,12 @@ export const DocuSignSignatureModal: React.FC<DocuSignSignatureModalProps> = ({
             alertMessage: 'You will be redirected to DocuSign to continue signing this envelope and then returned here.'
           }
         }
+        if (selectedDocEnvelopeMode === 'email') {
+          return {
+            alertVariant: 'info' as const,
+            alertMessage: 'This request was sent via email. Please use the DocuSign email invitation to sign.'
+          }
+        }
         return {
           alertVariant: 'info' as const,
           alertMessage:
@@ -255,7 +263,7 @@ export const DocuSignSignatureModal: React.FC<DocuSignSignatureModalProps> = ({
       alertMessage:
         'After you upload a supported document (PDF, Office, or image), the signer will be redirected to DocuSign to complete the signature.'
     }
-  }, [selectedSource, selectedDocEnvelopeId, isSelectedDocCompleted, canReuseEnvelope])
+  }, [selectedSource, selectedDocEnvelopeId, isSelectedDocCompleted, canReuseEnvelope, selectedDocEnvelopeMode])
 
   const fetchBlobFromFileInfo = async (info: FileInfo): Promise<Blob> => {
     // Prefer authenticated file fetch by fileId using FileClient.getFile
@@ -315,7 +323,7 @@ export const DocuSignSignatureModal: React.FC<DocuSignSignatureModalProps> = ({
     return data as { success: boolean; envelopeId: string; redirectUrl: string }
   }
 
-  const createRecipientView = async (envelopeId: string) => {
+  const createRecipientView = async (envelopeId: string, signerEmailValue: string, signerNameValue: string) => {
     const returnUrl = window.location.origin + window.location.pathname + window.location.search + window.location.hash
     const headers: HeadersInit = { 'Content-Type': 'application/json' }
     if (accessToken) {
@@ -324,7 +332,12 @@ export const DocuSignSignatureModal: React.FC<DocuSignSignatureModalProps> = ({
     const res = await fetch('/api/docusign/envelope/create-recipient-view', {
       method: 'POST',
       headers,
-      body: JSON.stringify({ envelopeId, returnUrl })
+      body: JSON.stringify({
+        envelopeId,
+        signerEmail: signerEmailValue,
+        signerName: signerNameValue,
+        returnUrl
+      })
     })
     const data = await res.json()
     if (!res.ok || !data?.success) {
@@ -335,13 +348,14 @@ export const DocuSignSignatureModal: React.FC<DocuSignSignatureModalProps> = ({
   }
 
   const persistEnvelopeId = useCallback(
-    async (newEnvelopeId: string) => {
+    async (newEnvelopeId: string, mode: 'embedded' | 'email') => {
       if (!canPersistEnvelope || !taskContext || !selectedDocId) return
       await saveEnvelopeId({
         taskId: taskContext.taskId,
         task: taskContext.taskFormData,
         documentId: selectedDocId,
-        envelopeId: newEnvelopeId
+        envelopeId: newEnvelopeId,
+        envelopeMode: mode
       })
     },
     [canPersistEnvelope, saveEnvelopeId, selectedDocId, taskContext]
@@ -357,7 +371,7 @@ export const DocuSignSignatureModal: React.FC<DocuSignSignatureModalProps> = ({
       }
 
       if (canReuseEnvelope && selectedDocEnvelopeId) {
-        const viewResult = await createRecipientView(selectedDocEnvelopeId)
+        const viewResult = await createRecipientView(selectedDocEnvelopeId, signerEmail, signerName)
         window.location.href = viewResult.redirectUrl
         return
       }
@@ -388,7 +402,11 @@ export const DocuSignSignatureModal: React.FC<DocuSignSignatureModalProps> = ({
       const base64 = await blobToBase64(blob)
 
       if (selectedSource === 'existing' && selectedDocEnvelopeId && !canReuseEnvelope) {
-        setError('A signature request for this document already exists. Please wait for the assignee to complete it.')
+        setError(
+          selectedDocEnvelopeMode === 'email'
+            ? 'This request was sent via DocuSign email. Please sign from the email invitation.'
+            : 'A signature request for this document already exists. Please wait for the assignee to complete it.'
+        )
         return
       }
 
@@ -412,7 +430,7 @@ export const DocuSignSignatureModal: React.FC<DocuSignSignatureModalProps> = ({
         if (!res.ok || !data?.success) {
           throw new Error(data?.error || data?.details || 'Failed to request email signing')
         }
-        await persistEnvelopeId(data.envelopeId)
+        await persistEnvelopeId(data.envelopeId, 'email')
         onEnvelopeCreated?.({ envelopeId: data.envelopeId, selectedSource, uploadedFile: uploadedFile || undefined })
         onClose()
         return
@@ -426,7 +444,7 @@ export const DocuSignSignatureModal: React.FC<DocuSignSignatureModalProps> = ({
         documentExtension
       })
 
-      await persistEnvelopeId(result.envelopeId)
+      await persistEnvelopeId(result.envelopeId, 'embedded')
       onEnvelopeCreated?.({ envelopeId: result.envelopeId, selectedSource, uploadedFile: uploadedFile || undefined })
       window.location.href = result.redirectUrl
     } catch (err: any) {
