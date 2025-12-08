@@ -72,6 +72,8 @@ await restClient.post('/investment-relations/updateInvestmentTask', payload, {
 
 The payload should mirror the `TaskForm` submission with one important change: include the new `docusignEnvelopeId` inside the `investmentTask.documents[i].fileInfo` object for the document that was sent to DocuSign. All other data (context, task metadata, etc.) must remain unchanged so the process engine can validate optimistic locking.
 
+Starting December 2025 the UI also stores `fileInfo.docusignEnvelopeMode` (`'embedded' | 'email'`) so it knows whether a given envelope supports recipient views. Embedded flows save `'embedded'`, while email-based requests save `'email'`. Backfills are optional; envelopes without the flag default to embedded behavior.
+
 Example snippet:
 
 ```json
