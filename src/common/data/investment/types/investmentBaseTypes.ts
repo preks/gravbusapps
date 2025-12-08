@@ -215,6 +215,8 @@ export interface BaseEquityInvestmentRound extends BaseEntity {
 
   // Entity references (using Ref types)
   equityInvestment?: BaseEquityInvestment
+  investmentOpportunity?: InvestmentOpportunity
+  investmentOpportunityId?: string
 }
 
 // real_estate_investment table

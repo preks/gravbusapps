@@ -386,6 +386,39 @@ export const EQUITY_INVESTMENT_REF = `
     ebitdaAmount
     turnoverAmount
     additionalProperties
+    ${AUDIT_FIELDS}
+    
+    # Investment rounds (only active, non-deleted rounds)
+    equityInvestmentRound(where: { isDeleted: { _eq: false } }, orderBy: { year: DESC_NULLS_LAST }) {
+        id
+        name
+        year
+        preValue
+        investmentVolume
+        volumeShare
+        roundSharePercentage
+        currencyRef
+        currency {
+            ${CATALOG_ENTRY}
+        }
+        investmentOpportunityId
+        investmentOpportunity {
+            id
+            name
+        }
+        additionalProperties
+        ${AUDIT_FIELDS}
+    }
+    
+    # Investment reports (only active, non-deleted reports)
+    equityInvestmentReport(where: { isDeleted: { _eq: false } }, orderBy: { date: DESC_NULLS_LAST }) {
+        id
+        date
+        marketValue
+        turnoverAmount
+        ebitdaAmount
+        additionalProperties
+    }
 `
 
 /**
