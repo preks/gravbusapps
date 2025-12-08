@@ -35,11 +35,20 @@ export class ChatWebSocketClient {
     // Build transports array based on configuration
     const transports = this.options.enablePollingFallback ? ['websocket', 'polling'] : ['websocket']
 
-    console.debug('[ChatWebSocketClient] connecting', {
-      url: this.url,
-      path: this.options.path,
-      transports
+    console.log('======================================')
+    console.log('🔌 [ChatWebSocketClient] INITIATING CONNECTION')
+    console.log('======================================')
+    console.log('URL:', this.url)
+    console.log('Path:', this.options.path)
+    console.log('Transports:', transports)
+    console.log('Token (first 20 chars):', token ? token.substring(0, 20) + '...' : 'NO TOKEN')
+    console.log('Full connection URL will be:', `${this.url}${this.options.path}`)
+    console.log('Options:', {
+      reconnection: true,
+      timeout: this.options.connectionTimeout,
+      reconnectionAttempts: this.options.reconnectionAttempts
     })
+    console.log('======================================')
 
     this.socket = io(this.url, {
       auth: {
@@ -67,15 +76,30 @@ export class ChatWebSocketClient {
       randomizationFactor: 0.5
     })
 
+    // Log transport upgrade attempts
+    this.socket.io.engine.on('upgrading', transport => {
+      console.log('🔄 [ChatWebSocketClient] Upgrading transport to:', transport.name)
+    })
+
+    this.socket.io.engine.on('upgrade', transport => {
+      console.log('✅ [ChatWebSocketClient] Transport upgraded to:', transport.name)
+    })
+
+    this.socket.io.engine.on('upgradeError', error => {
+      console.error('❌ [ChatWebSocketClient] Upgrade error:', error)
+    })
+
     this.socket.on('connect', () => {
       this.reconnectAttempts = 0 // Reset reconnect counter on successful connection
-      console.log('✅ Chat WebSocket connected successfully!', {
-        socketId: this.socket?.id,
-        connected: this.socket?.connected,
-        transport: this.socket?.io?.engine?.transport?.name,
-        url: this.url,
-        timestamp: new Date().toISOString()
-      })
+      console.log('======================================')
+      console.log('✅ WebSocket CONNECTED SUCCESSFULLY!')
+      console.log('======================================')
+      console.log('Socket ID:', this.socket?.id)
+      console.log('Connected:', this.socket?.connected)
+      console.log('Transport:', this.socket?.io?.engine?.transport?.name)
+      console.log('URL:', this.url)
+      console.log('Timestamp:', new Date().toISOString())
+      console.log('======================================')
     })
 
     this.socket.on('disconnect', reason => {
@@ -103,26 +127,29 @@ export class ChatWebSocketClient {
 
     this.socket.on('connect_error', error => {
       this.reconnectAttempts++
-      console.error('❌ Chat WebSocket connection error:', {
-        error: error.message,
-        errorType: error.type,
-        errorDescription: error.description,
-        attempt: this.reconnectAttempts,
-        maxAttempts: this.maxReconnectAttempts,
-        transport: this.socket?.io?.engine?.transport?.name,
-        url: this.url,
-        path: this.options.path,
-        timestamp: new Date().toISOString()
-      })
+      console.log('======================================')
+      console.error('❌ WebSocket CONNECTION ERROR')
+      console.log('======================================')
+      console.error('Error Message:', error.message)
+      console.error('Error Type:', error.type)
+      console.error('Error Description:', error.description)
+      console.error('Attempt:', this.reconnectAttempts, '/', this.maxReconnectAttempts)
+      console.error('Transport:', this.socket?.io?.engine?.transport?.name)
+      console.error('URL:', this.url)
+      console.error('Path:', this.options.path)
+      console.error('Timestamp:', new Date().toISOString())
+      console.log('======================================')
 
       // Log additional debugging info on first error
       if (this.reconnectAttempts === 1) {
-        console.error('WebSocket Connection Details:', {
+        console.log('📋 Connection Configuration:')
+        console.log({
           url: this.url,
           path: this.options.path,
           transports: this.socket?.io?.opts?.transports,
           autoConnect: this.socket?.io?.opts?.autoConnect,
-          reconnection: this.socket?.io?.opts?.reconnection
+          reconnection: this.socket?.io?.opts?.reconnection,
+          timeout: this.socket?.io?.opts?.timeout
         })
       }
 
