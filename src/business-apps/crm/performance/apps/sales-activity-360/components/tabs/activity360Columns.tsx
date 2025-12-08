@@ -145,15 +145,17 @@ export const createActivity360Columns = (): ColumnDef<TeamSalesActivity>[] => [
     accessorKey: 'title',
     header: 'Title',
     size: 250,
+    minSize: 150,
+    maxSize: 300,
     cell: ({ row }) => {
       const title = safeString(row.original.title)
       return (
-        <div className="gba:flex gba:flex-col gba:gap-1">
-          <span className="gba:text-sm gba:font-medium" title={title}>
+        <div className="gba:flex gba:flex-col gba:gap-1 gba:max-w-[250px] gba:overflow-hidden">
+          <span className="gba:text-sm gba:font-medium gba:truncate" title={title}>
             {title || '-'}
           </span>
           {row.original.description && (
-            <span className="gba:text-xs gba:text-muted-foreground gba:line-clamp-1" title={row.original.description}>
+            <span className="gba:text-xs gba:text-muted-foreground gba:truncate" title={row.original.description}>
               {row.original.description}
             </span>
           )}

@@ -230,19 +230,21 @@ export const Activity360ListTab: React.FC<Activity360ListTabProps> = ({ accessTo
         filterSheetTitle="Filter Activities"
         filterSheetDescription="Apply filters to narrow down the activity list"
       >
-        <DataTable<TeamSalesActivity>
-          data={activities}
-          columns={columns}
-          loading={loading}
-          totalCount={total}
-          pagination={pagination}
-          sorting={sorting}
-          onPaginationChange={setPagination}
-          onSortingChange={setSorting}
-          enablePagination
-          enableSorting
-          enableSelection={false}
-        />
+        <div className="gba:w-full gba:overflow-x-auto">
+          <DataTable<TeamSalesActivity>
+            data={activities}
+            columns={columns}
+            loading={loading}
+            totalCount={total}
+            pagination={pagination}
+            sorting={sorting}
+            onPaginationChange={setPagination}
+            onSortingChange={setSorting}
+            enablePagination
+            enableSorting
+            enableSelection={false}
+          />
+        </div>
       </DataDisplay>
 
       {error && (
