@@ -203,7 +203,7 @@ export const fetchExpenseCatalogueData = `query fetchExpenseCatalogueData ($empl
     structureId
     costCenterId
   }
-  ExpenseRequest(where: { currencyRef: { _isNull: true } ,isDeleted: {_eq: false}, employeeId: {_eq: $employeeId}, status: {_in: ["CREATED"]}}) {
+  ExpenseRequest(where: { currencyRef: { _isNull: true } ,isDeleted: {_eq: false}, employeeId: {_eq: $employeeId}, status: {_in: ["CREATED", "REJECTED"]}}) {
     id
     status
     title
@@ -303,7 +303,7 @@ export const expenseRequestByCurrencyQuery = `query fetchCurrency ($employeeId: 
     where: {
       isDeleted: { _eq: false }
       employeeId: { _eq: $employeeId }
-      status: { _in: ["CREATED"] }
+      status: { _in: ["CREATED", "REJECTED"] }
       _or: [
         { currencyRef: { _isNull: true } }
         { currencyRef: { _eq: $givenCurrency } }
