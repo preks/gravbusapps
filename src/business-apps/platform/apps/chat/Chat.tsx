@@ -18,7 +18,6 @@ import { IncomingGroupCallDialog } from './components/IncomingGroupCallDialog'
 import { CallModal } from './components/CallModal'
 import { GroupCallModal } from './components/GroupCallModal'
 import { initGlobalMinimizedCallRenderer } from './components/GlobalMinimizedCall'
-import { AgentCreationDialog } from '../personal-agents/components/AgentCreationDialog'
 import type { Conversation, User, MessageEntityReference } from './types'
 import type { CallParticipant } from './services/webrtcClient'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -405,8 +404,25 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
       const isAgentRequest = await agentIntegration.processMessageForAgentCreation(content, 'chat')
       console.log('[Chat] Is agent request:', isAgentRequest)
       if (isAgentRequest) {
-        console.log('[Chat] Handled as agent request, showing dialog')
-        setDraftMessage('') // Clear input after showing agent dialog
+        console.log('[Chat] Agent created automatically')
+        setDraftMessage('') // Clear input
+
+        // Send confirmation message as system message
+        const parseResult = agentIntegration.currentParseResult
+        if (parseResult?.createdAgent) {
+          const confirmationMessage = `✅ Agent created! I'll ${parseResult.createdAgent.description.toLowerCase()}`
+          await sendMessage(activeConversationId, confirmationMessage, {
+            isAIResponse: true,
+            aiAssistant: 'Every'
+          })
+        } else if (parseResult?.error) {
+          const errorMessage = `❌ Failed to create agent: ${parseResult.error}`
+          await sendMessage(activeConversationId, errorMessage, {
+            isAIResponse: true,
+            aiAssistant: 'Every'
+          })
+        }
+
         return
       }
 
@@ -547,7 +563,9 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
       hasEveryMention,
       processEveryAIMessage,
       activeConversation,
-      clearStreamingText
+      clearStreamingText,
+      agentIntegration,
+      setDraftMessage
     ]
   )
 
@@ -1301,15 +1319,6 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
           currentUserId={currentUser?.id || null}
         />
       )}
-
-      {/* Agent Creation Dialog */}
-      <AgentCreationDialog
-        isOpen={agentIntegration.showAgentDialog}
-        parseResult={agentIntegration.currentParseResult}
-        onConfirm={agentIntegration.confirmAgentCreation}
-        onCancel={agentIntegration.cancelAgentCreation}
-        isLoading={agentIntegration.isLoading}
-      />
     </div>
   )
 }

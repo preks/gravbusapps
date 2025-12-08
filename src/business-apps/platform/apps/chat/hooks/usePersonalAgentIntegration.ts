@@ -1,6 +1,6 @@
 /**
  * Integration hook for Personal Agents in Chat
- * 
+ *
  * Handles agent creation from @Every mentions in chat.
  */
 
@@ -13,7 +13,7 @@ import type { AgentParseResult, PersonalAgent } from '../../personal-agents/type
 export const usePersonalAgentIntegration = (context: BusinessAppContextProps) => {
   const { parseAgentRequest, createAgent, isLoading } = usePersonalAgents(context)
   const { detectAgentCreationIntent } = useAgentCreationDetection()
-  
+
   const [showAgentDialog, setShowAgentDialog] = useState(false)
   const [currentParseResult, setCurrentParseResult] = useState<AgentParseResult | null>(null)
 
@@ -21,28 +21,41 @@ export const usePersonalAgentIntegration = (context: BusinessAppContextProps) =>
    * Process a message to check if it's an agent creation request
    * Returns true if it should be handled as agent creation, false otherwise
    */
-  const processMessageForAgentCreation = useCallback(async (
-    message: string,
-    currentModule?: string
-  ): Promise<boolean> => {
-    // Detect if this is an agent creation request
-    const intent = detectAgentCreationIntent(message)
-    
-    if (!intent.isAgentRequest) {
-      return false // Not an agent request, process normally
-    }
+  const processMessageForAgentCreation = useCallback(
+    async (message: string, currentModule?: string): Promise<boolean> => {
+      // Detect if this is an agent creation request
+      const intent = detectAgentCreationIntent(message)
 
-    // Parse the agent request using AI
-    const parseResult = await parseAgentRequest(
-      { prompt: intent.prompt },
-      { currentModule, availableEntities: [] }
-    )
+      if (!intent.isAgentRequest) {
+        return false // Not an agent request, process normally
+      }
 
-    setCurrentParseResult(parseResult)
-    setShowAgentDialog(true)
+      // Parse the agent request using AI
+      const parseResult = await parseAgentRequest({ prompt: intent.prompt }, { currentModule, availableEntities: [] })
 
-    return true // This was handled as an agent request
-  }, [detectAgentCreationIntent, parseAgentRequest])
+      // Automatically create the agent without showing dialog
+      if (parseResult.success && parseResult.agent && context.userInfo?.id) {
+        try {
+          const agent = await createAgent({
+            ...parseResult.agent,
+            userId: context.userInfo.id,
+            status: 'active', // Start active immediately
+            executionCount: 0,
+            errorCount: 0
+          } as Omit<PersonalAgent, 'id' | 'createdAt' | 'updatedAt'>)
+
+          // Return the created agent so the chat can show a confirmation message
+          setCurrentParseResult({ ...parseResult, createdAgent: agent })
+        } catch (error) {
+          console.error('Failed to create agent:', error)
+          setCurrentParseResult({ ...parseResult, error: 'Failed to create agent' })
+        }
+      }
+
+      return true // This was handled as an agent request
+    },
+    [detectAgentCreationIntent, parseAgentRequest, createAgent, context.userInfo?.id]
+  )
 
   /**
    * Confirm and create the agent
@@ -81,11 +94,10 @@ export const usePersonalAgentIntegration = (context: BusinessAppContextProps) =>
     showAgentDialog,
     currentParseResult,
     isLoading,
-    
+
     // Actions
     processMessageForAgentCreation,
     confirmAgentCreation,
     cancelAgentCreation
   }
 }
-

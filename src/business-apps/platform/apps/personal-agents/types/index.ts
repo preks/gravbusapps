@@ -1,6 +1,6 @@
 /**
  * Personal AI Agents - Type Definitions
- * 
+ *
  * Allows users to create autonomous agents that monitor events,
  * run scheduled tasks, and send notifications via Blink.
  */
@@ -52,15 +52,15 @@ export interface PersonalAgent {
   userId: string // Owner of the agent
   name: string // User-friendly name
   description: string // What the agent does
-  
+
   // Trigger configuration
   triggerType: AgentTriggerType
   scheduleConfig?: ScheduleConfig
   eventConfig?: EventConfig
-  
+
   // Actions to perform
   actions: AgentAction[]
-  
+
   // Status and metadata
   status: 'active' | 'paused' | 'error'
   createdAt: string
@@ -69,7 +69,7 @@ export interface PersonalAgent {
   executionCount: number
   errorCount: number
   lastError?: string
-  
+
   // AI parsing metadata
   originalPrompt: string // User's original natural language request
   parsedBy: 'ai' | 'manual' // How the agent was created
@@ -94,6 +94,7 @@ export interface AgentParseResult {
   agent: Partial<PersonalAgent>
   suggestions?: string[] // If confidence is low
   error?: string
+  createdAgent?: PersonalAgent // The created agent after automatic creation
 }
 
 // Agent creation request
@@ -112,4 +113,3 @@ export interface AgentExecutionHistoryResponse {
   executions: AgentExecutionResult[]
   total: number
 }
-

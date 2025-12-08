@@ -1,6 +1,6 @@
 /**
  * Agent Registry Service
- * 
+ *
  * Manages agent storage, CRUD operations, and lifecycle.
  * This service would connect to a backend API for persistence.
  */
@@ -22,30 +22,56 @@ export class AgentRegistryService {
    * Create a new personal agent
    */
   async createAgent(agent: Omit<PersonalAgent, 'id' | 'createdAt' | 'updatedAt'>): Promise<PersonalAgent> {
+    // Transform frontend format to backend format
+    // Backend expects: { config: { triggerType, scheduleConfig, eventConfig, actions } }
+    // Frontend has: { triggerType, scheduleConfig, eventConfig, actions }
+    const backendPayload = {
+      userId: agent.userId,
+      name: agent.name,
+      description: agent.description,
+      originalPrompt: agent.originalPrompt,
+      parsedBy: agent.parsedBy,
+      config: {
+        triggerType: agent.triggerType,
+        scheduleConfig: agent.scheduleConfig,
+        eventConfig: agent.eventConfig,
+        actions: agent.actions
+      }
+    }
+
     const response = await fetch(`${this.baseUrl}/api/agents`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.accessToken}`
+        Authorization: `Bearer ${this.accessToken}`
       },
-      body: JSON.stringify(agent)
+      body: JSON.stringify(backendPayload)
     })
 
     if (!response.ok) {
       throw new Error(`Failed to create agent: ${response.statusText}`)
     }
 
-    return response.json()
+    const backendAgent = await response.json()
+
+    // Transform backend format back to frontend format
+    return {
+      ...backendAgent,
+      ...backendAgent.config
+    }
   }
 
   /**
    * Get all agents for a user
    */
-  async getUserAgents(userId: string, params?: {
-    status?: 'active' | 'paused' | 'error'
-    limit?: number
-    offset?: number
-  }): Promise<AgentListResponse> {
+  async getUserAgents(
+    userId: string,
+    params?: {
+      status?: 'active' | 'paused' | 'error'
+      limit?: number
+      offset?: number
+    }
+  ): Promise<AgentListResponse> {
     const searchParams = new URLSearchParams()
     searchParams.append('userId', userId)
     if (params?.status) searchParams.append('status', params.status)
@@ -54,7 +80,7 @@ export class AgentRegistryService {
 
     const response = await fetch(`${this.baseUrl}/api/agents?${searchParams}`, {
       headers: {
-        'Authorization': `Bearer ${this.accessToken}`
+        Authorization: `Bearer ${this.accessToken}`
       }
     })
 
@@ -71,7 +97,7 @@ export class AgentRegistryService {
   async getAgent(agentId: string): Promise<PersonalAgent> {
     const response = await fetch(`${this.baseUrl}/api/agents/${agentId}`, {
       headers: {
-        'Authorization': `Bearer ${this.accessToken}`
+        Authorization: `Bearer ${this.accessToken}`
       }
     })
 
@@ -90,7 +116,7 @@ export class AgentRegistryService {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.accessToken}`
+        Authorization: `Bearer ${this.accessToken}`
       },
       body: JSON.stringify(updates)
     })
@@ -109,7 +135,7 @@ export class AgentRegistryService {
     const response = await fetch(`${this.baseUrl}/api/agents/${agentId}`, {
       method: 'DELETE',
       headers: {
-        'Authorization': `Bearer ${this.accessToken}`
+        Authorization: `Bearer ${this.accessToken}`
       }
     })
 
@@ -139,7 +165,7 @@ export class AgentRegistryService {
     const response = await fetch(`${this.baseUrl}/api/agents/${agentId}/test`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${this.accessToken}`
+        Authorization: `Bearer ${this.accessToken}`
       }
     })
 
@@ -153,11 +179,14 @@ export class AgentRegistryService {
   /**
    * Get execution history for an agent
    */
-  async getAgentExecutionHistory(agentId: string, params?: {
-    limit?: number
-    offset?: number
-    status?: 'success' | 'error' | 'partial'
-  }): Promise<AgentExecutionHistoryResponse> {
+  async getAgentExecutionHistory(
+    agentId: string,
+    params?: {
+      limit?: number
+      offset?: number
+      status?: 'success' | 'error' | 'partial'
+    }
+  ): Promise<AgentExecutionHistoryResponse> {
     const searchParams = new URLSearchParams()
     if (params?.limit) searchParams.append('limit', params.limit.toString())
     if (params?.offset) searchParams.append('offset', params.offset.toString())
@@ -165,7 +194,7 @@ export class AgentRegistryService {
 
     const response = await fetch(`${this.baseUrl}/api/agents/${agentId}/executions?${searchParams}`, {
       headers: {
-        'Authorization': `Bearer ${this.accessToken}`
+        Authorization: `Bearer ${this.accessToken}`
       }
     })
 
@@ -176,4 +205,3 @@ export class AgentRegistryService {
     return response.json()
   }
 }
-
