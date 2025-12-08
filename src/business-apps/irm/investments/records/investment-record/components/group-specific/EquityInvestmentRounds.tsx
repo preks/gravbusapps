@@ -22,6 +22,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrencyString, extractCurrencyCode, formatPercentage } from '@/common/utils/numberFormatter'
+import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import type { BaseEquityInvestmentRound } from '@/common/data/investment/types/investmentBaseTypes'
 
 interface EquityInvestmentRoundsProps extends BusinessAppContextProps {
@@ -280,7 +281,9 @@ const EquityInvestmentRounds: React.FC<EquityInvestmentRoundsProps> = ({
                     <TableCell className="gba:py-4">
                       {round.investmentOpportunity || round.investmentOpportunityId ? (
                         <a
-                          href={`/platform/irm/opportunity-record?opportunityId=${round.investmentOpportunity?.id || round.investmentOpportunityId}`}
+                          href={buildPlatformUrl('/platform/irm/opportunity-record', {
+                            opportunityId: round.investmentOpportunity?.id || round.investmentOpportunityId || ''
+                          })}
                           className="gba:text-primary gba:hover:underline gba:cursor-pointer gba:flex gba:items-center gba:gap-1"
                           onClick={e => e.stopPropagation()}
                           data-testid={`${dataTestId}-source-link-${round.id || index}`}

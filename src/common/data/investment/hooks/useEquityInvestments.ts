@@ -9,6 +9,8 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   buildEquityInvestmentQuery,
   buildEquityInvestmentByIdQuery,
+  buildEquityInvestmentWhereCondition,
+  buildEquityInvestmentOrderBy,
   type EquityInvestmentQueryVariables
 } from '../queries/equityInvestmentQueries'
 
@@ -107,14 +109,22 @@ export function useGetEquityInvestments(
   // Core fetch function (always available)
   const fetchEquityInvestments = useCallback(
     async (variables: EquityInvestmentQueryVariables = {}) => {
-      const query = buildEquityInvestmentQuery({
-        ...variables,
-        limit: variables.limit || pageSize,
-        offset: variables.offset || 0
-      })
+      const query = buildEquityInvestmentQuery()
+
+      // Build where condition and orderBy using helper functions
+      const whereCondition = buildEquityInvestmentWhereCondition(variables)
+      const orderBy = buildEquityInvestmentOrderBy(variables.orderBy || [])
+
+      // Prepare GraphQL variables object
+      const graphQLVariables: Record<string, any> = {
+        limit: Math.min(variables.limit || pageSize, 100),
+        offset: variables.offset || 0,
+        where: whereCondition,
+        orderBy: orderBy.length > 0 ? orderBy : [{ investment: { name: 'ASC_NULLS_LAST' } }]
+      }
 
       try {
-        const result = await graphqlClient.request<EquityInvestmentQueryResponse>(query)
+        const result = await graphqlClient.request<EquityInvestmentQueryResponse>(query, graphQLVariables)
         return result
       } catch (error) {
         console.error('Error fetching equity investments:', error)
@@ -247,10 +257,10 @@ export const useGetEquityInvestmentById = (context: BusinessAppContextProps) => 
 
   const fetchEquityInvestmentById = useCallback(
     async (id: string) => {
-      const query = buildEquityInvestmentByIdQuery(id)
+      const query = buildEquityInvestmentByIdQuery()
 
       try {
-        const result = await graphqlClient.request<EquityInvestmentByIdResponse>(query)
+        const result = await graphqlClient.request<EquityInvestmentByIdResponse>(query, { id })
         return {
           equityInvestment: result.EquityInvestmentByPk || undefined
         }
