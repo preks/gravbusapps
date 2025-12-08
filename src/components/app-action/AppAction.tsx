@@ -153,7 +153,7 @@ export interface AppActionProps {
   prefixDataTestId?: string
 
   // Deprecated API
-  /** @deprecated Use contexts with contextData Array<{ context: FlowContextName | string, contextData: Record<string, any> }> instead */
+  /** @deprecated Use contexts instead */
   contextsArray?: FlowContextName[]
   /** @deprecated Use contexts instead */
   externalContextData?: Record<string, any>
@@ -405,9 +405,7 @@ export const AppAction: React.FC<AppActionProps> = React.memo(props => {
       console.warn('AppAction: "contextsArray" is deprecated. Use "contexts" instead.')
     }
     if (legacyExternalContextData !== undefined) {
-      console.warn(
-        'AppAction: "externalContextData" is deprecated. Use "contexts" with contextData Array<{ context: FlowContextName | string, contextData: Record<string, any> }> instead.'
-      )
+      console.warn('AppAction: "externalContextData" is deprecated. Use "contexts" instead.')
     }
     if (legacyStaticFlowData !== undefined) {
       console.warn('AppAction: "staticFlowData" is deprecated. Use "customActions" instead.')

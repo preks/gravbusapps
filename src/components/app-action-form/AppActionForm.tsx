@@ -441,7 +441,7 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
         <Form {...(form as any)} schema={schema}>
           <form
             onSubmit={form.handleSubmit(vals => handleSubmit(vals), handleValidationErrors)}
-            className="gba:flex gba:flex-col gba:w-full gba:max-w-full gba:h-full"
+            className="gba:flex gba:flex-col gba:w-full gba:max-w-md gba:h-full"
             data-testid={`${dataTestId}-form`}
           >
             <div className="gba:flex-1 gba:space-y-4" data-testid={`${dataTestId}-form-content`}>
