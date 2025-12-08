@@ -56,7 +56,7 @@ const DateCell: React.FC<{ occurredAt?: string; createdAt?: string }> = ({ occur
   const scoreVariant = getScoreBadgeVariant(activityScore)
 
   const tooltipContent = (
-    <div className="gba:text-xs gba:space-y-3 gba:min-w-[180px]">
+    <div className="gba:text-xs gba:space-y-3 gba:min-w-[200px]">
       {/* Created date info */}
       {created && (
         <div>
@@ -71,22 +71,29 @@ const DateCell: React.FC<{ occurredAt?: string; createdAt?: string }> = ({ occur
       <div>
         <div className="gba:font-medium gba:mb-1.5">Activity Score Legend</div>
         <div className="gba:text-[10px] gba:space-y-0.5 gba:text-muted-foreground">
-          <div className="gba:flex gba:justify-between">
-            <span>Same day logging</span>
-            <span className="gba:text-success gba:font-medium">85-100</span>
+          <div className="gba:flex gba:justify-between gba:gap-4">
+            <span>Logged within 1 day</span>
+            <span className="gba:text-success gba:font-medium">100</span>
           </div>
-          <div className="gba:flex gba:justify-between">
-            <span>Within 3 days</span>
-            <span className="gba:text-warning gba:font-medium">70-84</span>
+          <div className="gba:flex gba:justify-between gba:gap-4">
+            <span>2-4 days delay</span>
+            <span className="gba:text-success gba:font-medium">85-95</span>
           </div>
-          <div className="gba:flex gba:justify-between">
-            <span>Within 1 week</span>
-            <span className="gba:font-medium">60-69</span>
+          <div className="gba:flex gba:justify-between gba:gap-4">
+            <span>5-7 days delay</span>
+            <span className="gba:text-warning gba:font-medium">70-80</span>
           </div>
-          <div className="gba:flex gba:justify-between">
-            <span>More than 1 week</span>
-            <span className="gba:text-destructive gba:font-medium">0-59</span>
+          <div className="gba:flex gba:justify-between gba:gap-4">
+            <span>8-9 days delay</span>
+            <span className="gba:font-medium">60-65</span>
           </div>
+          <div className="gba:flex gba:justify-between gba:gap-4">
+            <span>10+ days delay</span>
+            <span className="gba:text-destructive gba:font-medium">0-55</span>
+          </div>
+        </div>
+        <div className="gba:text-[9px] gba:text-muted-foreground gba:mt-2 gba:italic">
+          Score = 100 - 5pts per day after first day
         </div>
       </div>
     </div>
