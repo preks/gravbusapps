@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -19,10 +19,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { CatalogSelect } from '@/components/catalog-select'
-import {
-  useGetInvestmentOpportunities,
-  useGetInvestmentOpportunityById
-} from '@/common/data/investment/hooks/useInvestmentOpportunities'
+import { useInvestmentOpportunitiesList } from '@/common/data/investment/hooks/useInvestmentOpportunities'
 import { useGetEquityInvestments } from '@/common/data/investment/hooks/useEquityInvestments'
 
 const prefixDataTestId = 'EquityInvestmentRoundForm'
@@ -71,11 +68,6 @@ const equityInvestmentRoundSchema = z.object({
 
 type EquityInvestmentRoundFormValues = z.infer<typeof equityInvestmentRoundSchema>
 
-interface OpportunityOption {
-  id: string
-  name: string
-}
-
 export interface EquityInvestmentRoundFormProps extends BusinessAppContextProps {
   onSuccess?: (data: any) => void
   initialValues?: Partial<EquityInvestmentRoundFormValues>
@@ -104,17 +96,6 @@ const EquityInvestmentRoundForm: React.FC<EquityInvestmentRoundFormProps> = ({
   // State for loading existing round data in update mode
   const [loadingRoundData, setLoadingRoundData] = useState(isUpdateMode)
 
-  // State for opportunities selection (when no opportunityId provided from context)
-  const OPPORTUNITIES_PAGE_SIZE = 50
-  const opportunitiesInitializedRef = React.useRef(false)
-  const [opportunitiesState, setOpportunitiesState] = useState({
-    options: [] as OpportunityOption[],
-    loading: false,
-    hasMore: false,
-    currentSearch: '',
-    offset: 0
-  })
-
   // Get equity investments hook with state management
   const {
     options: equityInvestmentOptions,
@@ -128,17 +109,11 @@ const EquityInvestmentRoundForm: React.FC<EquityInvestmentRoundFormProps> = ({
     { withState: true, autoFetch: false, pageSize: 50, mapToSelectOptions: true }
   )
 
-  // Get opportunities hooks for search and fetching by ID
-  const { fetchInvestmentOpportunities } = useGetInvestmentOpportunities({
-    accessToken,
-    additionalData,
-    ...businessAppContext
-  })
-  const { fetchInvestmentOpportunityById } = useGetInvestmentOpportunityById({
-    accessToken,
-    additionalData,
-    ...businessAppContext
-  })
+  // Get opportunities hook - declarative list hook (matching OpportunityForm pattern)
+  const useOpportunities = useInvestmentOpportunitiesList(
+    { accessToken, additionalData, ...businessAppContext },
+    { limit: 50 }
+  )
 
   // Get equity investment ID from various sources (try all possible keys)
   // IMPORTANT: Check task payload first, then fallback to direct additionalData
@@ -235,26 +210,8 @@ const EquityInvestmentRoundForm: React.FC<EquityInvestmentRoundFormProps> = ({
         const existingOpportunityId =
           roundData.investmentOpportunity?.id || roundData.investmentOpportunityId || investmentOpportunityId || ''
 
-        // If there's an existing opportunity, fetch it and add to options list
-        if (existingOpportunityId) {
-          try {
-            const { opportunity } = await fetchInvestmentOpportunityById(existingOpportunityId)
-            if (opportunity) {
-              // Pre-populate the opportunities options with the existing opportunity
-              setOpportunitiesState(prev => {
-                // Check if opportunity is already in the list
-                const exists = prev.options.some(opt => opt.id === opportunity.id)
-                if (exists) return prev
-                return {
-                  ...prev,
-                  options: [{ id: opportunity.id!, name: opportunity.name || 'Unknown' }, ...prev.options]
-                }
-              })
-            }
-          } catch {
-            // Failed to fetch existing opportunity, continue with form load
-          }
-        }
+        // Note: The existing opportunity will be available in useOpportunities.opportunities
+        // from the declarative hook's auto-fetch, so no need to manually add it to options
 
         const existingData = {
           id: equityInvestmentRoundId,
@@ -289,15 +246,7 @@ const EquityInvestmentRoundForm: React.FC<EquityInvestmentRoundFormProps> = ({
     } finally {
       setLoadingRoundData(false)
     }
-  }, [
-    isUpdateMode,
-    equityInvestmentRoundId,
-    additionalData,
-    form,
-    finalEquityInvestmentId,
-    investmentOpportunityId,
-    fetchInvestmentOpportunityById
-  ])
+  }, [isUpdateMode, equityInvestmentRoundId, additionalData, form, finalEquityInvestmentId, investmentOpportunityId])
 
   // Load existing round data on mount if in update mode
   useEffect(() => {
@@ -315,82 +264,24 @@ const EquityInvestmentRoundForm: React.FC<EquityInvestmentRoundFormProps> = ({
     }
   }, [isOpportunityConversionMode, accessToken, initializeEquityInvestments])
 
-  // Function to load opportunities with search and pagination support
-  const fetchOpportunitiesWithState = useCallback(
-    async (search: string = '', offset: number = 0, append: boolean = false) => {
-      if (!showOpportunitySelection || !accessToken) {
-        return
-      }
+  // Transform opportunities to SelectOption format (matching OpportunityForm pattern)
+  const opportunityOptions = useMemo(() => {
+    if (!useOpportunities?.opportunities) return []
+    return useOpportunities.opportunities.map(opp => ({
+      value: opp.id || '',
+      label: opp.name || opp.id || 'Unknown'
+    }))
+  }, [useOpportunities?.opportunities])
 
-      setOpportunitiesState(prev => ({
-        ...prev,
-        loading: true,
-        ...(append ? {} : { options: [] })
-      }))
-
-      try {
-        const result = await fetchInvestmentOpportunities({
-          limit: OPPORTUNITIES_PAGE_SIZE,
-          offset,
-          search: search.trim() || undefined
-        })
-
-        const newOptions: OpportunityOption[] = (result.InvestmentOpportunity || [])
-          .filter(opp => opp.id)
-          .map(opp => ({
-            id: opp.id!,
-            name: opp.name || opp.id || 'Unknown'
-          }))
-
-        // hasMore is true if we got a full page of results
-        const hasMoreRecords = newOptions.length === OPPORTUNITIES_PAGE_SIZE
-
-        setOpportunitiesState(prev => ({
-          options: append ? [...prev.options, ...newOptions] : newOptions,
-          loading: false,
-          hasMore: hasMoreRecords,
-          currentSearch: search,
-          offset: append ? prev.offset + newOptions.length : newOptions.length
-        }))
-      } catch (error) {
-        console.error('Error loading opportunities:', error)
-        setOpportunitiesState(prev => ({
-          ...prev,
-          loading: false
-        }))
-      }
-    },
-    [showOpportunitySelection, accessToken, fetchInvestmentOpportunities]
-  )
-
-  // Load opportunities on mount (only when showing opportunity selection)
-  useEffect(() => {
-    if (showOpportunitySelection && accessToken && !opportunitiesInitializedRef.current) {
-      opportunitiesInitializedRef.current = true
-      fetchOpportunitiesWithState('', 0, false)
-    }
-  }, [showOpportunitySelection, accessToken, fetchOpportunitiesWithState])
-
-  // Handle search for opportunities
-  const handleOpportunitySearch = useCallback(
+  // Simple search wrapper that calls refetch (matching OpportunityForm pattern)
+  const searchOpportunities = useCallback(
     (searchTerm: string) => {
-      fetchOpportunitiesWithState(searchTerm, 0, false)
+      if (useOpportunities?.refetch) {
+        useOpportunities.refetch({ search: searchTerm, offset: 0 })
+      }
     },
-    [fetchOpportunitiesWithState]
+    [useOpportunities?.refetch]
   )
-
-  // Handle load more for opportunities
-  const handleOpportunityLoadMore = useCallback(() => {
-    if (opportunitiesState.hasMore && !opportunitiesState.loading) {
-      fetchOpportunitiesWithState(opportunitiesState.currentSearch, opportunitiesState.offset, true)
-    }
-  }, [
-    fetchOpportunitiesWithState,
-    opportunitiesState.hasMore,
-    opportunitiesState.loading,
-    opportunitiesState.currentSearch,
-    opportunitiesState.offset
-  ])
 
   // Get selected equity investment ID from form
   const selectedEquityInvestmentId = form.watch('equityInvestment')
@@ -573,7 +464,7 @@ const EquityInvestmentRoundForm: React.FC<EquityInvestmentRoundFormProps> = ({
               ? getTranslationFromI18nKeyAndLabel('investment.rounds.updateInvestmentRound', 'Update Investment Round')
               : getTranslationFromI18nKeyAndLabel('investment.rounds.createInvestmentRound', 'Create Investment Round')}
           </h2>
-          {(finalLoadingEquityId || loadingRoundData || equityInvestmentsLoading || opportunitiesState.loading) && (
+          {(finalLoadingEquityId || loadingRoundData || equityInvestmentsLoading || useOpportunities?.loading) && (
             <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
               <Spinner size="sm" />
               {loadingRoundData
@@ -583,7 +474,7 @@ const EquityInvestmentRoundForm: React.FC<EquityInvestmentRoundFormProps> = ({
                       'investment.rounds.loadingEquityInvestments',
                       'Loading equity investments...'
                     )
-                  : opportunitiesState.loading
+                  : useOpportunities?.loading
                     ? getTranslationFromI18nKeyAndLabel(
                         'investment.rounds.loadingOpportunities',
                         'Loading opportunities...'
@@ -616,10 +507,7 @@ const EquityInvestmentRoundForm: React.FC<EquityInvestmentRoundFormProps> = ({
                         <Combobox
                           value={field.value || ''}
                           onValueChange={field.onChange}
-                          options={opportunitiesState.options.map(opp => ({
-                            value: opp.id,
-                            label: opp.name
-                          }))}
+                          options={opportunityOptions}
                           placeholder={getTranslationFromI18nKeyAndLabel(
                             'investment.rounds.selectOpportunity',
                             'Select opportunity to link...'
@@ -628,15 +516,17 @@ const EquityInvestmentRoundForm: React.FC<EquityInvestmentRoundFormProps> = ({
                             'investment.rounds.searchOpportunities',
                             'Search opportunities...'
                           )}
-                          emptyText={getTranslationFromI18nKeyAndLabel(
-                            'investment.rounds.noOpportunitiesFound',
-                            'No opportunities found'
-                          )}
-                          disabled={opportunitiesState.loading && opportunitiesState.options.length === 0}
-                          loading={opportunitiesState.loading}
-                          onSearch={handleOpportunitySearch}
-                          onLoadMore={handleOpportunityLoadMore}
-                          hasMore={opportunitiesState.hasMore}
+                          emptyText={
+                            useOpportunities?.loading
+                              ? getTranslationFromI18nKeyAndLabel('common.loading', 'Loading...')
+                              : getTranslationFromI18nKeyAndLabel(
+                                  'investment.rounds.noOpportunitiesFound',
+                                  'No opportunities found'
+                                )
+                          }
+                          disabled={useOpportunities?.loading}
+                          loading={useOpportunities?.loading}
+                          onSearch={searchOpportunities}
                           data-testid={formatDataTestId(prefixDataTestId, 'OpportunitySelect')}
                         />
                       </FormControl>
