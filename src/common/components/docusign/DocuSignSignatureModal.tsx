@@ -157,9 +157,22 @@ export const DocuSignSignatureModal: React.FC<DocuSignSignatureModalProps> = ({
     }
   }, [logout])
 
-  const pdfOnly = (name?: string, mime?: string) => {
-    const ext = (name || '').split('.').pop()?.toLowerCase()
-    return (mime && mime.toLowerCase().includes('pdf')) || ext === 'pdf'
+  const SUPPORTED_EXTENSIONS = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'png', 'jpg', 'jpeg']
+
+  const getFileExtension = (name?: string) => (name || '').split('.').pop()?.toLowerCase() || ''
+
+  const isSupportedDoc = (name?: string, mime?: string) => {
+    const ext = getFileExtension(name)
+    if (ext && SUPPORTED_EXTENSIONS.includes(ext)) {
+      return true
+    }
+    const mimeValue = (mime || '').toLowerCase()
+    return SUPPORTED_EXTENSIONS.some(token => mimeValue.includes(token))
+  }
+
+  const resolveDocumentExtension = (name?: string) => {
+    const ext = getFileExtension(name)
+    return ext && SUPPORTED_EXTENSIONS.includes(ext) ? ext : 'pdf'
   }
 
   const selectedDocument: TaskDoc | undefined = useMemo(
@@ -232,13 +245,15 @@ export const DocuSignSignatureModal: React.FC<DocuSignSignatureModalProps> = ({
       }
       return {
         alertVariant: 'info' as const,
-        alertMessage: 'The signer will be redirected to DocuSign to sign this attachment and then returned.'
+        alertMessage:
+          'The signer will be redirected to DocuSign to sign this attachment (PDF, Office, or image files) and then returned.'
       }
     }
 
     return {
       alertVariant: 'info' as const,
-      alertMessage: 'After you upload a PDF, the signer will be redirected to DocuSign to complete the signature.'
+      alertMessage:
+        'After you upload a supported document (PDF, Office, or image), the signer will be redirected to DocuSign to complete the signature.'
     }
   }, [selectedSource, selectedDocEnvelopeId, isSelectedDocCompleted, canReuseEnvelope])
 
@@ -349,22 +364,25 @@ export const DocuSignSignatureModal: React.FC<DocuSignSignatureModalProps> = ({
 
       let blob: Blob
       let fileName = ''
+      let documentExtension = 'pdf'
 
       if (selectedSource === 'existing') {
         if (!selectedDocument) throw new Error('Please select a document')
-        if (!pdfOnly(selectedDocument.name, selectedDocument.mimeType)) {
-          throw new Error('Selected document must be a PDF')
+        if (!isSupportedDoc(selectedDocument.name, selectedDocument.mimeType)) {
+          throw new Error('Selected document must be a supported DocuSign format (PDF, Office, or image)')
         }
         if (!selectedDocument.fileInfo) throw new Error('Selected document has no file info')
         blob = await fetchBlobFromFileInfo(selectedDocument.fileInfo)
         fileName = selectedDocument.name
+        documentExtension = resolveDocumentExtension(selectedDocument.name)
       } else {
-        if (!uploadedFile) throw new Error('Please upload a PDF file')
-        if (!pdfOnly(uploadedFile.name, uploadedFile.type)) {
-          throw new Error('Uploaded file must be a PDF')
+        if (!uploadedFile) throw new Error('Please upload a supported document')
+        if (!isSupportedDoc(uploadedFile.name, uploadedFile.type)) {
+          throw new Error('Uploaded file must be a supported DocuSign format (PDF, Office, or image)')
         }
         blob = uploadedFile
         fileName = uploadedFile.name
+        documentExtension = resolveDocumentExtension(uploadedFile.name)
       }
 
       const base64 = await blobToBase64(blob)
@@ -387,7 +405,7 @@ export const DocuSignSignatureModal: React.FC<DocuSignSignatureModalProps> = ({
             signerName,
             documentBase64: base64,
             documentName: fileName,
-            documentExtension: 'pdf'
+            documentExtension
           })
         })
         const data = await res.json()
@@ -405,7 +423,7 @@ export const DocuSignSignatureModal: React.FC<DocuSignSignatureModalProps> = ({
         signerName,
         documentBase64: base64,
         documentName: fileName,
-        documentExtension: 'pdf'
+        documentExtension
       })
 
       await persistEnvelopeId(result.envelopeId)
@@ -501,7 +519,7 @@ export const DocuSignSignatureModal: React.FC<DocuSignSignatureModalProps> = ({
                     </div>
                     <div className="nw:flex nw:items-center nw:gap-2">
                       <RadioGroupItem value="upload" id="source-upload" />
-                      <Label htmlFor="source-upload">Upload PDF</Label>
+                      <Label htmlFor="source-upload">Upload document</Label>
                     </div>
                   </RadioGroup>
                 </div>
@@ -518,8 +536,10 @@ export const DocuSignSignatureModal: React.FC<DocuSignSignatureModalProps> = ({
                             <Label htmlFor={`doc-${doc.id}`} className="nw:truncate nw:font-medium">
                               {doc.name}
                             </Label>
-                            {!pdfOnly(doc.name, doc.mimeType) && (
-                              <div className="nw:text-xs nw:text-destructive">Only PDF documents are supported</div>
+                            {!isSupportedDoc(doc.name, doc.mimeType) && (
+                              <div className="nw:text-xs nw:text-destructive">
+                                Unsupported file. Allowed: PDF, Office, or image formats.
+                              </div>
                             )}
                           </div>
                         </div>
@@ -538,8 +558,10 @@ export const DocuSignSignatureModal: React.FC<DocuSignSignatureModalProps> = ({
                       setUploadedFile(event.target.files?.[0] || null)
                     }
                   />
-                  {uploadedFile && !pdfOnly(uploadedFile.name, uploadedFile.type) && (
-                    <div className="nw:text-xs nw:text-destructive">Uploaded file must be a PDF</div>
+                  {uploadedFile && !isSupportedDoc(uploadedFile.name, uploadedFile.type) && (
+                    <div className="nw:text-xs nw:text-destructive">
+                      Uploaded file must be PDF, Office, or image format
+                    </div>
                   )}
                 </div>
               )}
