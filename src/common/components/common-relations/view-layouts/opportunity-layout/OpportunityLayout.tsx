@@ -13,7 +13,7 @@ import {
 import type { ColumnDef } from '@tanstack/react-table'
 import { Plus } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useAvailableCurrencies } from '@/common/data/investment/hooks/useAvailableCurrencies'
+import { useAvailableCurrencies } from '@/common/data/common/hooks/useAvailableCurrencies'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -24,6 +24,7 @@ import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { useBoardEmployees } from './hooks/useBoardEmployees'
 import { opportunityBoardFilterConfig } from './config/opportunityBoardFilters'
 import type { OpportunityBoardFilters, OpportunityBoardConfig } from './config/opportunityBoardTypes'
+import { deriveAvailableColumns } from '@/common/network/graphql/descriptorUtils'
 import {
   getFiltersForSection,
   getFilterConfigForSection,
@@ -127,7 +128,7 @@ export interface OpportunityViewConfig<TOpportunity extends { id: string }, TQue
   buildAccountUrl: (id: string) => string
 
   opportunityStatistics?: OpportunityStatisticsData
-  renderStatistics?: (selectedCurrency?: string) => React.ReactNode
+  renderStatistics?: (selectedCurrency?: string, quickFilter?: string) => React.ReactNode
 
   boardConfig: OpportunityBoardConfig
   fetchOpportunitiesForBoard: (
@@ -145,6 +146,12 @@ export interface OpportunityViewConfig<TOpportunity extends { id: string }, TQue
 
 export type OpportunityTabKey = 'list' | 'board'
 
+export interface QuickFiltersRenderProps {
+  statuses: Array<{ id: string; label: string; code?: string }>
+  selectedFilters: Record<string, any>
+  onFilterChange: (filters: Record<string, any>) => void
+}
+
 export interface OpportunityLayoutProps<TOpportunity extends { id: string } = any, TQueryVariables = any> {
   context: BusinessAppContextProps
   config: OpportunityViewConfig<TOpportunity, TQueryVariables>
@@ -152,6 +159,9 @@ export interface OpportunityLayoutProps<TOpportunity extends { id: string } = an
   initialFilters?: Record<string, any>
   hideFilters?: boolean
   customPrimaryAction?: React.ReactNode
+  extendVisibleColumns?: string[] // Additional columns to add to base columns
+  renderQuickFilters?: (props: QuickFiltersRenderProps) => React.ReactNode
+  quickFilter?: string // Current quick filter value (e.g., 'all', 'qualified', 'unqualified')
 }
 
 interface OpportunityRowActionsProps<TOpportunity extends { id: string }> {
@@ -294,7 +304,10 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     dataTestId = 'opportunity-view',
     initialFilters = {},
     hideFilters = false,
-    customPrimaryAction
+    customPrimaryAction,
+    extendVisibleColumns = [],
+    renderQuickFilters,
+    quickFilter
   } = props
   const { accessToken } = context
 
@@ -306,18 +319,39 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
   const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>(initialFilters)
   const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([{ id: 'createdAt', desc: true }])
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
-  const [visibleColumns, setVisibleColumns] = useState<string[]>([
-    'opportunity',
-    'amount',
-    'opportunityPipeline',
-    'opportunityPipelineStage',
-    'opportunityStatus',
-    'opportunityForecast',
-    'closeDate',
-    'account',
-    'owner',
-    'created'
-  ])
+
+  const baseVisibleColumns = useMemo(
+    () => [
+      'opportunity',
+      'amount',
+      'opportunityPipeline',
+      'opportunityPipelineStage',
+      'opportunityStatus',
+      'opportunityForecast',
+      'closeDate',
+      'account',
+      'owner',
+      'created'
+    ],
+    []
+  )
+
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
+    if (extendVisibleColumns.length === 0) {
+      return baseVisibleColumns
+    }
+
+    // Insert extended columns after 'account' if it exists, otherwise append
+    const accountIndex = baseVisibleColumns.indexOf('account')
+    if (accountIndex >= 0) {
+      return [
+        ...baseVisibleColumns.slice(0, accountIndex + 1),
+        ...extendVisibleColumns,
+        ...baseVisibleColumns.slice(accountIndex + 1)
+      ]
+    }
+    return [...baseVisibleColumns, ...extendVisibleColumns]
+  })
 
   // Board View State
   const [boardPipelineId, setBoardPipelineId] = useState('')
@@ -349,7 +383,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
   // Fetch available currencies efficiently using distinctOn
   const { currencies: currencyOptions } = useAvailableCurrencies(context, {
     filters: {
-      entity: 'InvestmentOpportunity',
+      entity: config.contextType === 'customer' ? 'Opportunity' : 'InvestmentOpportunity',
       ...(config.boardConfig && 'dealType' in config.boardConfig
         ? { dealType: (config.boardConfig as any).dealType }
         : {})
@@ -615,20 +649,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
 
   // Columns
   const columns = useMemo(() => config.createColumns(config.buildAccountUrl), [config])
-  const availableColumns = useMemo(
-    () => [
-      { id: 'opportunity', label: 'Opportunity' },
-      { id: 'amount', label: 'Value' },
-      { id: 'opportunityPipeline', label: 'Pipeline' },
-      { id: 'opportunityPipelineStage', label: 'Stage' },
-      { id: 'opportunityStatus', label: 'Status' },
-      { id: 'closeDate', label: 'Close Date' },
-      { id: 'account', label: 'Account' },
-      { id: 'owner', label: 'Owner' },
-      { id: 'created', label: 'Created' }
-    ],
-    []
-  )
+  const availableColumns = useMemo(() => deriveAvailableColumns(columns), [columns])
 
   // Row actions - rendered internally
   // Row actions - rendered internally (only if actions are configured)
@@ -710,13 +731,24 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     <div data-testid={dataTestId}>
       {/* Statistics */}
       {config.renderStatistics ? (
-        <div data-testid={`${dataTestId}-statistics`}>{config.renderStatistics(selectedCurrencyId)}</div>
+        <div data-testid={`${dataTestId}-statistics`}>{config.renderStatistics(selectedCurrencyId, quickFilter)}</div>
       ) : config.opportunityStatistics ? (
         <OpportunityStatisticsLayout
           statistics={config.opportunityStatistics}
           data-testid={`${dataTestId}-statistics`}
         />
       ) : null}
+
+      {/* Quick Filters */}
+      {renderQuickFilters && (
+        <div className="gba:mb-4" data-testid={`${dataTestId}-quick-filters`}>
+          {renderQuickFilters({
+            statuses: statuses as Array<{ id: string; label: string; code?: string }>,
+            selectedFilters,
+            onFilterChange: handleFilterUpdate
+          })}
+        </div>
+      )}
 
       {/* DataDisplay with titleSections as Tabs */}
       <DataDisplay

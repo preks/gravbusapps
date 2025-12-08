@@ -189,10 +189,10 @@ const InvestmentBreakdownCard: React.FC<InvestmentBreakdownCardProps> = ({
       </CardHeader>
 
       <CardContent className="gba:p-6">
-        {/* Trend indicator for last 30 days */}
+        {/* Trend indicator for last quarter */}
         <div className="gba:mb-4 gba:pb-4 gba:border-b gba:border-gray-200">
           <div className="gba:flex gba:items-center gba:gap-2">
-            <p className="gba:text-xs gba:text-gray-500">Last 30 days activity</p>
+            <p className="gba:text-xs gba:text-gray-500">Last quarter activity</p>
             {renderTrendBadge(trendData)}
           </div>
         </div>

@@ -24,7 +24,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useGetInvestments } from '@/common/data/investment/hooks/useInvestments'
 import type { Investment } from '@/common/data/investment/types/investmentTypes'
-import { useAvailableCurrencies } from '@/common/data/investment/hooks/useAvailableCurrencies'
+import { useAvailableCurrencies } from '@/common/data/common/hooks/useAvailableCurrencies'
 import { useRealEstateKPIIntegration } from './hooks'
 import { RealEstateDistributionCharts, RealEstateTimelineCharts, RealEstateAnalyticsCharts } from './components'
 import {
@@ -266,11 +266,11 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
               prefix: <TeamOutlined />,
               color: 'var(--nw-color-primary-500)',
               span: { xs: 24, sm: 12, lg: 6 },
-              description: 'Total number of real estate investments',
+              description: 'Property count',
               trend: {
                 value: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).value,
                 positive: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).positive,
-                description: 'vs 30 days ago'
+                description: 'vs last quarter'
               }
             },
             {
@@ -281,11 +281,11 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
               color: 'var(--nw-color-success-500)',
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
-              description: 'Sum of all real estate investment amounts',
+              description: 'Total capital',
               trend: {
                 value: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).value,
                 positive: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).positive,
-                description: 'vs 30 days ago'
+                description: 'vs last quarter'
               }
             },
             {
@@ -296,11 +296,11 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
               color: 'var(--nw-color-warning-500)',
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
-              description: 'Current total market value of properties',
+              description: 'Current valuation',
               trend: {
                 value: calculateChange(kpis.totalMarketValue, previousKpis.totalMarketValue).value,
                 positive: calculateChange(kpis.totalMarketValue, previousKpis.totalMarketValue).positive,
-                description: 'vs 30 days ago'
+                description: 'vs last quarter'
               }
             },
             {
@@ -311,11 +311,11 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
               color: 'var(--nw-color-purple-500)',
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
-              description: 'Average occupancy rate across all properties',
+              description: 'Portfolio avg',
               trend: {
                 value: calculateChange(kpis.averageOccupancyRate, previousKpis.averageOccupancyRate).value,
                 positive: calculateChange(kpis.averageOccupancyRate, previousKpis.averageOccupancyRate).positive,
-                description: 'vs 30 days ago'
+                description: 'vs last quarter'
               }
             }
           ]}

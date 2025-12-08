@@ -8,7 +8,10 @@ export enum FlowStepType {
   TASK = 'TASK',
   APPROVAL = 'APPROVAL',
   INFORMATION = 'INFORMATION',
-  ACKNOWLEDGE = 'ACKNOWLEDGE'
+  ACKNOWLEDGE = 'ACKNOWLEDGE',
+  FUNCTION = 'FUNCTION',
+  AI_AGENT = 'AI_AGENT',
+  AI_TASK_EXPERT = 'AI_TASK_EXPERT'
 }
 
 export enum InputType {
@@ -94,16 +97,37 @@ export type TaskAssignment = {
   allowReassignment?: boolean
 }
 
+export type StepKind = 'USER' | 'SYSTEM'
+
 export interface FlowStep {
   id?: string
   title: string
   message?: string
   type: FlowStepType
+  kind?: StepKind // USER for user tasks, SYSTEM for function/agent tasks
   dueInMinutes?: number
   form?: InputBlock[] // Backend uses 'form'
   inputs?: InputBlock[] // Legacy field for backward compatibility
   links?: Link[]
   assignment: TaskAssignment // Required to match backend API
+
+  // Function step configuration (used when type === FUNCTION)
+  functionConfig?: {
+    functionId: string // ID of the function in NEWWORK Functions service
+    version?: number // Optional specific version; latest if omitted
+    inputExpressionMap?: Record<string, string> // key -> expression string
+    outputExpressionMap?: Record<string, string> // key -> expression destination
+  }
+
+  // AI Task Expert configuration (used when type === AI_TASK_EXPERT)
+  agentConfig?: {
+    promptId: string // ID of the prompt/agent in Prompt Manager
+    version?: number // Optional specific version; latest if omitted
+    systemParamsMap?: Record<string, string> // System prompt parameters (key -> expression)
+    userParamsMap?: Record<string, string> // User prompt parameters (key -> expression)
+    outputExpressionMap?: Record<string, string> // Output mapping (key -> expression destination)
+    modelSettings?: Record<string, any> // Optional model settings override
+  }
 }
 
 // Simplified init step for self-service flows
@@ -123,12 +147,11 @@ export interface FlowTemplate {
   version: number // Required to match backend API
   steps: FlowStep[]
 
+  // Summary fields shown in workflow summary view
+  summaryFields?: SummaryField[]
+
   // Self-service specific: simplified to just the init step
   initStep?: InitStep
-
-  // Flow-level summary fields - shown in workflow results view after completion
-  // Can contain forward references to any step (e.g., {{$steps.step_3.formData.result}})
-  summaryFields?: SummaryField[]
 }
 
 export interface ExecutionConfiguration {

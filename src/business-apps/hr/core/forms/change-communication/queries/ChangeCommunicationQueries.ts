@@ -7,6 +7,9 @@ export const GET_COMMUNICATION_LOOKUPS = `
   query fetchEmployee($idEmployee: uuid!, $activeUserLocale: String!) {
     EmployeeByPk(id: $idEmployee) {
       id
+      firstName
+      lastName
+      pictureThumbnail
       communication {
         id
         version
@@ -72,11 +75,19 @@ export const useCommunicationLookups = (context: BusinessAppContextProps) => {
   const [channels, setChannels] = useState<CatalogOption[]>([])
   const [types, setTypes] = useState<CatalogOption[]>([])
   const [communications, setCommunications] = useState<EmployeeCommunicationRecord[]>([])
+  const [employee, setEmployee] = useState<{
+    firstName?: string
+    lastName?: string
+    pictureThumbnail?: string
+    jobTitle?: string
+  } | null>(null)
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
-    const employeeId = context.userInfo?.employeeDetails?.employeeId
+    const employeeId =
+      (context as any)?.additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId ||
+      context.userInfo?.employeeDetails?.employeeId
     const locale = getCurrentActiveUserLocale()
     if (!employeeId) return
     setLoading(true)
@@ -99,16 +110,27 @@ export const useCommunicationLookups = (context: BusinessAppContextProps) => {
       setChannels(mapEntries(res?.commChannel))
       setTypes(mapEntries(res?.commType))
       setCommunications(Array.isArray(res?.EmployeeByPk?.communication) ? res.EmployeeByPk.communication : [])
+      setEmployee({
+        firstName: res?.EmployeeByPk?.firstName,
+        lastName: res?.EmployeeByPk?.lastName,
+        pictureThumbnail: res?.EmployeeByPk?.pictureThumbnail,
+        jobTitle: res?.EmployeePosition?.[0]?.jobPosition?.name
+      })
     } catch (e: any) {
       setError(e?.message || 'Failed to load communication lookups')
     } finally {
       setLoading(false)
     }
-  }, [context.accessToken, context.userInfo?.employeeDetails?.employeeId, graphqlClient])
+  }, [
+    context.accessToken,
+    context.userInfo?.employeeDetails?.employeeId,
+    (context as any)?.additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId,
+    graphqlClient
+  ])
 
   useEffect(() => {
     load()
   }, [load])
 
-  return { channels, types, communications, loading, error, refetch: load }
+  return { channels, types, communications, employee, loading, error, refetch: load }
 }

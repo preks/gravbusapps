@@ -1,11 +1,15 @@
 export enum FlowContextName {
   // Intranet
-  articleEntity = 'contentEntity',
-  articleCreate = 'contentCreate',
-  articleUpdate = 'contentUpdate',
-  articleDelete = 'contentDelete',
-  contentLikeUpdate = 'contentLikeUpdate',
-  contentCommentCreate = 'contentCommentCreate',
+  contentEntryEntity = 'contentEntryEntity',
+  contentEntryCreate = 'contentEntryCreate',
+  contentEntryUpdate = 'contentEntryUpdate',
+  contentEntryDelete = 'contentEntryDelete',
+  contentEntryReact = 'contentEntryReact',
+  contentEntryComment = 'contentEntryComment',
+  contentEntryAccept = 'contentEntryAccept',
+  contentDocumentCreate = 'contentDocumentCreate',
+  contentDocumentUpdate = 'contentDocumentUpdate',
+  contentDocumentDelete = 'contentDocumentDelete',
 
   // Human Resources
   employeeEntity = 'employeeEntity',
@@ -38,6 +42,7 @@ export enum FlowContextName {
   customerOpportunityEntity = 'customerOpportunityEntity',
   customerOpportunityCreate = 'customerOpportunityCreate', // TODO: Replace startProcess
   customerOpportunityUpdate = 'customerOpportunityUpdate', // TODO: Replace startProcess
+  customerOpportunityStatusUpdate = 'customerOpportunityStatusUpdate', // Status change context
   customerOpportunityStageTransition = 'customerOpportunityStageTransition',
   customerOpportunityConditionUpdate = 'customerOpportunityConditionUpdate',
 
@@ -87,6 +92,7 @@ export enum FlowContextName {
   investmentOpportunityEntity = 'investmentOpportunityEntity',
   investmentOpportunityCreate = 'investmentOpportunityCreate',
   investmentOpportunityUpdate = 'investmentOpportunityUpdate',
+  investmentOpportunityStatusUpdate = 'investmentOpportunityStatusUpdate', // Status change context
   investmentOpportunityStageTransition = 'investmentOpportunityStageTransition',
   investmentOpportunityConditionUpdate = 'investmentOpportunityConditionUpdate',
   investmentOpportunityReject = 'investmentOpportunityReject',

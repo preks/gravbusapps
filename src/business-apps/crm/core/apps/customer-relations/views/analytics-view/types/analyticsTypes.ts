@@ -1,9 +1,39 @@
+export interface OverviewTrendData {
+  // Last 30 days vs Previous 30 days for entity counts
+  totalLeadsThisMonth: number
+  totalLeadsLastMonth: number
+  totalAccountsThisMonth: number
+  totalAccountsLastMonth: number
+  totalOpportunitiesThisMonth: number
+  totalOpportunitiesLastMonth: number
+  totalContactsThisMonth: number
+  totalContactsLastMonth: number
+  // Won opportunities trend
+  currentMonthWonOpportunities: number
+  previousMonthWonOpportunities: number
+  // Conversion metrics trend
+  currentMonthLeadConversionRate: number
+  previousMonthLeadConversionRate: number
+  currentMonthAvgDealSize: number
+  previousMonthAvgDealSize: number
+  currentMonthSalesCycleLength: number
+  previousMonthSalesCycleLength: number
+  // Compatibility fields
+  currentMonthLeads: number
+  previousMonthLeads: number
+  currentMonthAccounts: number
+  previousMonthAccounts: number
+  [key: string]: number // For additional dynamic fields
+}
+
 export interface CrmAnalyticsData {
   overview: OverviewAnalytics
+  overviewTrendData?: OverviewTrendData
+  overviewGeographicData?: Array<{ country: string; accounts: number }>
   leads: LeadsAnalytics
   accounts: AccountsAnalytics
   opportunities: OpportunitiesAnalytics
-  contacts: ContactsAnalytics
+  // contacts: Uses useContactsStaticData and useContactsOverTime hooks directly
 }
 
 export interface OverviewAnalytics {
@@ -65,13 +95,7 @@ export interface LeadsAnalytics {
     percentage: number
     sampleRevenue?: string
   }[]
-  leadsOverTime: {
-    date: string
-    count: number // Keep for backward compatibility
-    leadsCreated: number
-    leadsConverted: number
-    leadsLost: number
-  }[]
+  // leadsOverTime moved to separate useLeadsOverTime hook
   conversionRate: number
   avgTimeToConversion: number
   topOwners: {
@@ -124,6 +148,7 @@ export interface OpportunitiesAnalytics {
     percentage: number
   }[]
   opportunitiesByPipeline: {
+    pipelineId: string
     pipeline: string
     count: number
     value: number
@@ -150,27 +175,5 @@ export interface OpportunitiesAnalytics {
   }[]
 }
 
-export interface ContactsAnalytics {
-  totalContacts: number
-  contactsByAccount: {
-    accountName: string
-    contactCount: number
-  }[]
-  contactsOverTime: {
-    date: string
-    count: number
-  }[]
-  contactsWithOpportunities: number
-  topContactOwners: {
-    employeeId: string
-    employeeName: string
-    contactCount: number
-  }[]
-  contactsWithoutAccounts: number
-  avgContactsPerAccount: number
-}
-
-export interface DateRange {
-  startDate: Date
-  endDate: Date
-}
+// ContactsAnalytics removed - Contacts tab now uses useContactsStaticData and useContactsOverTime hooks directly
+// DateRange removed - Not used in CRM analytics, available in common/utils/analytics/dateRangeUtils.ts if needed

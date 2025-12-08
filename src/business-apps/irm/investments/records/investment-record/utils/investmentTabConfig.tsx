@@ -1,5 +1,5 @@
 // Investment Tab Configuration Utilities
-import { Home, BarChart3, Folder, FileText, TrendingUp, LayoutGrid } from 'lucide-react'
+import { Home, BarChart3, Folder, FileText, TrendingUp, LayoutGrid, TrendingDown } from 'lucide-react'
 import { InvestmentDocuments } from '../components/InvestmentDocuments'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -12,6 +12,7 @@ import {
 } from '../components/shared'
 import { EquityInvestmentRounds, RealEstateLiquidityForecast, EquityAnalyticsTab } from '../components/group-specific'
 import { InvestmentTilesTab } from '@/common/components/investment/tiles'
+import { DivestmentsTab } from '../components/DivestmentsTab'
 // Remove dependency on investmentTypeUtils - now using dynamic types
 
 /**
@@ -143,6 +144,18 @@ export const createInvestmentTabsConfig = (
     content: (
       <div className="gba:col-span-12">
         <InvestmentTilesTab investmentId={investmentId} investment={investment} onRefresh={loadData} {...props} />
+      </div>
+    )
+  })
+
+  // Add Divestments Tab - shows all divestment opportunities for this investment
+  tabs.push({
+    value: 'divestments',
+    label: getTranslationFromI18nKeyAndLabel('crm.investments.tabs.divestments', 'Divestments'),
+    icon: <TrendingDown className="gba:h-4 gba:w-4 gba:mr-2" />,
+    content: (
+      <div className="gba:col-span-12">
+        <DivestmentsTab investmentId={investmentId} {...props} />
       </div>
     )
   })

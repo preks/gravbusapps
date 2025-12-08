@@ -8,10 +8,12 @@ import {
   employeeAttendanceForDateQuery,
   employeeAttendanceMonthlyAllQuery,
   employeeRegionLookupQuery,
-  employmentRegionHolidaysQuery
+  employmentRegionHolidaysQuery,
+  employeeAttendanceMonthlyAllQuery as allQuery
 } from '@/business-apps/hr/core/apps/employee-record/queries/attendanceQueries'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { EmployeeTimeClient } from '@/common/network/employee-time/EmployeeTimeClient'
+import { fetchOfficeAndGeoLocation } from '../../../services/service-geo-location/geoLocationService'
 
 export type TimeEntry = {
   id: string
@@ -27,6 +29,8 @@ export type TimeEntry = {
   differenceTime?: string // Text like "-30m" or "-1h"
   manualOverride?: boolean
   notes?: string
+  // persisted location enum from BE
+  attendanceLocation?: 'UNKNOWN_LOCATION' | 'IS_NEAR_HOME' | 'IS_NEAR_OFFICE' | 'IS_OTHER_LOCATION'
   // optional external workflow status (kept for UI badge if available)
   status?: 'approved' | 'pending' | 'rejected' | 'open'
   // derived for internal calculations (not rendered directly)
@@ -73,11 +77,21 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
   const [monthlyRequiredMinutes, setMonthlyRequiredMinutes] = useState(0)
   const [monthlyRequiredUntilYesterdayMinutes, setMonthlyRequiredUntilYesterdayMinutes] = useState(0)
   const [monthlyWorkedUntilYesterdayMinutes, setMonthlyWorkedUntilYesterdayMinutes] = useState(0)
+  const [workedDaysUntilYesterdayCount, setWorkedDaysUntilYesterdayCount] = useState(0)
+  const [dailyAverageWorkedMinutesUntilYesterday, setDailyAverageWorkedMinutesUntilYesterday] = useState(0)
+  const [overtimeMinutesUntilYesterday, setOvertimeMinutesUntilYesterday] = useState(0)
   // today's totals
   const [todaysWorkedMinutes, setTodaysWorkedMinutes] = useState(0)
   const [todaysProjectMinutes, setTodaysProjectMinutes] = useState(0)
   const [todaysPlannedMinutes, setTodaysPlannedMinutes] = useState(0)
   const [todayRecordedMinutes, setTodayRecordedMinutes] = useState(0)
+  // proximity info parsed from notes of most recent entry (today)
+  const [isNearHome, setIsNearHome] = useState<boolean>(false)
+  const [isNearOffice, setIsNearOffice] = useState<boolean>(false)
+  // whether there is any attendance record (open or closed) for today
+  const [hasTodayAttendanceRecord, setHasTodayAttendanceRecord] = useState<boolean>(false)
+  // transient message shown after user confirms a new location from modal
+  const [locationBanner, setLocationBanner] = useState<null | 'home' | 'office' | 'remote'>(null)
 
   const prevMonth = useCallback(() => {
     setPage(1)
@@ -97,9 +111,9 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     const tokens = String(text).trim().split(/\s+/)
     for (const token of tokens) {
       if (/^\d+h$/i.test(token)) {
-        hours = parseInt(token.slice(0, -1), 10) || 0
+        hours = Number.parseInt(token.slice(0, -1), 10) || 0
       } else if (/^\d+m$/i.test(token)) {
-        minutes = parseInt(token.slice(0, -1), 10) || 0
+        minutes = Number.parseInt(token.slice(0, -1), 10) || 0
       }
     }
     return hours * 60 + minutes
@@ -154,6 +168,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       differenceTime: row.differenceTime,
       manualOverride: Boolean(row.manualOverride),
       notes: row.notes ?? '',
+      attendanceLocation: row?.attendanceLocation ?? undefined,
       status: 'approved',
       totalMinutes
     }
@@ -197,12 +212,23 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       isOpenAndToday && mostRecent?.startTime ? String(formatDate(mostRecent.startTime, 'time.short')) : null
     )
 
+    // Parse proximity flags from attendanceLocation field when it's from today
+    try {
+      const attLoc: string = String(mostRecent?.attendanceLocation ?? 'UNKNOWN_LOCATION')
+      setIsNearHome(attLoc === 'IS_NEAR_HOME')
+      setIsNearOffice(attLoc === 'IS_NEAR_OFFICE')
+    } catch {
+      setIsNearHome(false)
+      setIsNearOffice(false)
+    }
+
     // compute today's worked minutes
     try {
       const todayKeyLocal = toLocalDateKey(new Date())
       let todayMinutes = 0
       let todayRecordedMinutes = 0
       const todayRow = rows.find((r: any) => String(r?.attendanceDate) === todayKeyLocal)
+      setHasTodayAttendanceRecord(Boolean(todayRow?.startTime || todayRow?.endTime))
       if (todayRow?.effectiveTime) {
         todayMinutes = parseDurationToMinutes(String(todayRow.effectiveTime))
         todayRecordedMinutes = parseDurationToMinutes(String(todayRow.recordedTime))
@@ -306,16 +332,27 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     const untilDay = `${todayLocal.getFullYear()}-${String(todayLocal.getMonth() + 1).padStart(2, '0')}-${String(
       todayLocal.getDate()
     ).padStart(2, '0')}`
-    const workedUntilYesterday = allRows.reduce((acc: number, r: any) => {
-      const rowDay = String(r.attendanceDate) // format YYYY-MM-DD
+    let workedUntilYesterday = 0
+    const daysWithEntries = new Set<string>()
+    for (const r of allRows) {
+      const rowDay = String(r.attendanceDate)
+      // Exclude today from daily average; consider strictly earlier days
       if (rowDay < untilDay) {
         const effective = parseDurationToMinutes(r?.effectiveTime ? String(r.effectiveTime) : undefined)
-        // Only count effective time; ignore recorded time entirely
-        return acc + Math.max(0, effective)
+        console.log('r', effective)
+        const eff = Math.max(0, effective)
+        workedUntilYesterday += eff
+        // Count days that have any attendance entry, regardless of effective minutes
+        daysWithEntries.add(rowDay)
       }
-      return acc
-    }, 0)
+    }
     setMonthlyWorkedUntilYesterdayMinutes(workedUntilYesterday)
+    const workedDaysCount = daysWithEntries.size
+    setWorkedDaysUntilYesterdayCount(workedDaysCount)
+    setDailyAverageWorkedMinutesUntilYesterday(
+      workedDaysCount > 0 ? Math.round(workedUntilYesterday / workedDaysCount) : 0
+    )
+    setOvertimeMinutesUntilYesterday(Math.max(0, workedUntilYesterday - (monthRequiredUntilYesterday || 0)))
 
     // planned minutes for today from working hours
     try {
@@ -324,12 +361,21 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     } catch {
       setTodaysPlannedMinutes(0)
     }
-  }, [graphqlClient, employeeId, currentMonth, page, pageSize, locale])
+  }, [graphqlClient, employeeId, currentMonth, page, pageSize, locale, workingHours])
 
   useEffect(() => {
     loadFromGraphql().catch(() => setError('Failed to load time entries'))
   }, [loadFromGraphql])
 
+  // Ensure planned minutes for today are recalculated when workingHours arrive later
+  useEffect(() => {
+    try {
+      const todayIso = new Date().toISOString()
+      setTodaysPlannedMinutes(getPlannedMinutesForDate(todayIso))
+    } catch {
+      // ignore
+    }
+  }, [workingHours])
   const clockIn = useCallback(async () => {
     setError(null)
     setIsSubmitting(true)
@@ -365,6 +411,18 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       const client = new EmployeeTimeClient()
       if (accessToken) client.setAccessToken(accessToken)
 
+      // Determine proximity and set attendanceLocation
+      let attendanceLocation: 'UNKNOWN_LOCATION' | 'IS_NEAR_HOME' | 'IS_NEAR_OFFICE' | 'IS_OTHER_LOCATION' =
+        'UNKNOWN_LOCATION'
+      try {
+        const geo = await fetchOfficeAndGeoLocation(graphqlClient, employeeId)
+        const nearHome = Boolean(geo?.comparisons?.isNearHome)
+        const nearOffice = Boolean(geo?.comparisons?.isNearOffice)
+        attendanceLocation = nearHome ? 'IS_NEAR_HOME' : nearOffice ? 'IS_NEAR_OFFICE' : 'IS_OTHER_LOCATION'
+      } catch {
+        // Ignore geo errors; leave UNKNOWN_LOCATION
+      }
+
       await client.createEmployeeAttendance({
         employeeAttendance: {
           version: 0,
@@ -378,12 +436,25 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
           differenceTime: '0h',
           manualOverride: false,
           notes: 'Clock-in',
+          attendanceLocation,
           employee: employeeId
         }
       })
 
       setIsClockedIn(true)
       setClockInSince(String(formatDate(now, 'time.short')))
+      setHasTodayAttendanceRecord(true)
+      // show welcome banner in right panel for 5s based on detected location
+      try {
+        const banner =
+          attendanceLocation === 'IS_NEAR_HOME' ? 'home' : attendanceLocation === 'IS_NEAR_OFFICE' ? 'office' : 'remote'
+        setIsNearHome(banner === 'home')
+        setIsNearOffice(banner === 'office')
+        setLocationBanner(banner)
+        setTimeout(() => setLocationBanner(null), 5000)
+      } catch {
+        // ignore banner errors
+      }
 
       // Refresh current page
       await loadFromGraphql()
@@ -462,6 +533,56 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     return { start, end, totalCount }
   }, [page, pageSize, totalCount])
 
+  /**
+   * Update today's attendance location and show a short welcome banner
+   */
+  const updateLocationSelection = useCallback(
+    async (selection: 'home' | 'office' | 'remote') => {
+      try {
+        const newLoc =
+          selection === 'home' ? 'IS_NEAR_HOME' : selection === 'office' ? 'IS_NEAR_OFFICE' : 'IS_OTHER_LOCATION'
+
+        const today = new Date()
+        const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
+        const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+
+        const allRes = await graphqlClient.request<any>(allQuery, {
+          employeeId,
+          dateFrom: toDateString(monthStart),
+          dateTo: toDateString(monthEnd)
+        })
+        const allRows: any[] = allRes?.EmployeeAttendance ?? []
+        const todayStr = toLocalDateKey(today)
+        const todays = allRows.filter(r => String(r.attendanceDate) === todayStr)
+        const target = todays[todays.length - 1] || todays[0]
+        if (target?.id) {
+          const client = new EmployeeTimeClient()
+          if (accessToken) client.setAccessToken(accessToken)
+          await client.updateEmployeeAttendance({
+            employeeAttendance: {
+              id: target.id,
+              version: typeof target.version === 'number' ? target.version : 0,
+              attendanceLocation: newLoc
+            }
+          })
+        }
+
+        // Update local flags immediately and show banner for 5s
+        setIsNearHome(selection === 'home')
+        setIsNearOffice(selection === 'office')
+        setLocationBanner(selection)
+        setTimeout(() => setLocationBanner(null), 5000)
+      } catch {
+        // still update local state for UX
+        setIsNearHome(selection === 'home')
+        setIsNearOffice(selection === 'office')
+        setLocationBanner(selection)
+        setTimeout(() => setLocationBanner(null), 5000)
+      }
+    },
+    [accessToken, employeeId, graphqlClient]
+  )
+
   return {
     // state
     currentMonth,
@@ -469,6 +590,9 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     clockInSince,
     isSubmitting,
     error,
+    isNearHome,
+    isNearOffice,
+    hasTodayAttendanceRecord,
     entries,
     totalCount,
     page,
@@ -479,10 +603,14 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     monthlyRequiredMinutes,
     monthlyRequiredUntilYesterdayMinutes,
     monthlyWorkedUntilYesterdayMinutes,
+    workedDaysUntilYesterdayCount,
+    dailyAverageWorkedMinutesUntilYesterday,
+    overtimeMinutesUntilYesterday,
     todaysWorkedMinutes,
     todaysProjectMinutes,
     todaysPlannedMinutes,
     todayRecordedMinutes,
+    locationBanner,
     // actions
     setSort: (key: keyof TimeEntry, dir: SortDirection) => {
       setPage(1)
@@ -497,6 +625,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     prevMonth,
     nextMonth,
     clockIn,
-    clockOut
+    clockOut,
+    updateLocationSelection
   }
 }

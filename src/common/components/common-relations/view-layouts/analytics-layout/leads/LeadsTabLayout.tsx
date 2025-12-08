@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { TeamOutlined, PercentageOutlined, ClockCircleOutlined, RiseOutlined } from '@ant-design/icons'
 import { LeadLifecycleChart, TimeFilter } from './widgets/LeadLifecycleChart'
@@ -33,13 +33,31 @@ export interface LeadsTabLayoutProps {
   trendData?: LeadsTrendData | null
   trendLoading?: boolean
   leadsOverTime: Array<{ date: string; count: number; leadsCreated: number; leadsConverted: number; leadsLost: number }>
+  leadsOverTimeLoading?: boolean
   selectedTimeFilter: TimeFilter
   onTimeFilterChange: (filter: TimeFilter) => void
-  leadsBySource: Array<{ source: string; count: number; percentage?: number }>
+  leadsBySource: Array<{ source: string; count: number; percentage?: number; conversionRate?: number }>
+  leadsBySourceLoading?: boolean
   leadsByStatus: Array<{ status: string; count: number }>
+  leadsByStatusLoading?: boolean
   topOwners: Array<{ employeeId: string; employeeName: string; leadCount: number; conversionRate: number }>
   leadsByRating?: Array<{ rating: string; count: number; percentage?: number }>
+  leadsByRatingLoading?: boolean
+  highQualityPercentage?: number
   leadHealthIndicators?: Array<{ label: string; value: number; status?: 'good' | 'warning' | 'bad' }>
+  velocityData?: {
+    avgTimeToConversion: number
+    conversionRate: number
+    volumeTrend: number
+    velocityTrendData: Array<{
+      month: string
+      date: string
+      leadsCreated: number
+      leadsConverted: number
+      conversionVelocity: number
+    }>
+  } | null
+  velocityLoading?: boolean
   moduleColor?: string
 }
 
@@ -51,13 +69,20 @@ export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
   trendData,
   trendLoading = false,
   leadsOverTime,
+  leadsOverTimeLoading = false,
   selectedTimeFilter,
   onTimeFilterChange,
   leadsBySource,
+  leadsBySourceLoading = false,
   leadsByStatus,
+  leadsByStatusLoading = false,
   topOwners,
   leadsByRating,
+  leadsByRatingLoading = false,
+  highQualityPercentage = 0,
   leadHealthIndicators,
+  velocityData,
+  velocityLoading = false,
   moduleColor = 'default'
 }) => {
   // Helper function to calculate trend with total description (matching archived version)
@@ -164,88 +189,8 @@ export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
     }
   ]
 
-  // Generate lead lifecycle data based on selected time filter (from archived LeadTab)
-  const leadsOverTimeFiltered = useMemo(() => {
-    if (!leadsOverTime) return []
-
-    // Calculate date range based on selected time filter
-    const endDate = new Date()
-    const startDate = new Date()
-
-    switch (selectedTimeFilter) {
-      case 'month':
-        startDate.setMonth(endDate.getMonth() - 1)
-        break
-      case 'quarter':
-        startDate.setMonth(endDate.getMonth() - 3)
-        break
-      case 'sixMonths':
-        startDate.setMonth(endDate.getMonth() - 6)
-        break
-      case 'year':
-        startDate.setFullYear(endDate.getFullYear() - 1)
-        break
-      case 'historical':
-        startDate.setFullYear(endDate.getFullYear() - 3) // 3 years of historical data
-        break
-      default:
-        startDate.setMonth(endDate.getMonth() - 3)
-    }
-
-    // For month filter: return daily data, for others: aggregate into monthly periods
-    if (selectedTimeFilter === 'month') {
-      // Filter daily data for the last month
-      const startDateStr = startDate.toISOString().split('T')[0]
-      return leadsOverTime.filter(item => item.date >= startDateStr)
-    } else {
-      // Aggregate daily data into monthly periods
-      const monthlyData = new Map<
-        string,
-        {
-          date: string
-          count: number
-          leadsCreated: number
-          leadsConverted: number
-          leadsLost: number
-        }
-      >()
-
-      const current = new Date(startDate)
-      const end = new Date(endDate)
-
-      // Initialize monthly buckets
-      while (current <= end) {
-        const key = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-01`
-        monthlyData.set(key, {
-          date: key,
-          count: 0,
-          leadsCreated: 0,
-          leadsConverted: 0,
-          leadsLost: 0
-        })
-        current.setMonth(current.getMonth() + 1)
-      }
-
-      // Filter data by date range first
-      const startDateStr = startDate.toISOString().split('T')[0]
-      const filteredData = leadsOverTime.filter(item => item.date >= startDateStr)
-
-      // Aggregate the filtered daily data into monthly buckets
-      filteredData.forEach(daily => {
-        const d = new Date(daily.date)
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
-        const monthlyEntry = monthlyData.get(key)
-        if (monthlyEntry) {
-          monthlyEntry.count += daily.count
-          monthlyEntry.leadsCreated += daily.leadsCreated
-          monthlyEntry.leadsConverted += daily.leadsConverted
-          monthlyEntry.leadsLost += daily.leadsLost
-        }
-      })
-
-      return Array.from(monthlyData.values()).sort((a, b) => a.date.localeCompare(b.date))
-    }
-  }, [leadsOverTime, selectedTimeFilter])
+  // No filtering needed - useLeadsOverTime hook already returns correctly aggregated data per period
+  // (daily for month, weekly for quarter/sixMonths, monthly for year, yearly for historical)
 
   return (
     <div className="gba:space-y-6" data-testid="leads-analytics-tab">
@@ -255,7 +200,8 @@ export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
       </div>
 
       <LeadLifecycleChart
-        data={leadsOverTimeFiltered}
+        data={leadsOverTime}
+        isLoading={leadsOverTimeLoading}
         selectedTimeFilter={selectedTimeFilter}
         onTimeFilterChange={onTimeFilterChange}
         moduleColor={moduleColor}
@@ -263,19 +209,25 @@ export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
 
       <div className="gba:grid gba:grid-cols-1 xl:gba:grid-cols-2 gba:gap-6">
         <LeadVelocityAnalysis
-          data={{
-            avgTimeToConversion,
-            conversionRate,
-            leadsOverTime
-          }}
+          avgTimeToConversion={velocityData?.avgTimeToConversion || avgTimeToConversion}
+          conversionRate={velocityData?.conversionRate || conversionRate}
+          volumeTrend={velocityData?.volumeTrend || 0}
+          velocityTrendData={velocityData?.velocityTrendData || []}
+          isLoading={velocityLoading}
           moduleColor={moduleColor}
         />
         <LeadQualityMatrix
           data={{
             totalLeads,
             conversionRate,
-            leadsBySource: leadsBySource.map(s => ({ source: s.source, count: s.count, percentage: s.percentage || 0 }))
+            leadsBySource: leadsBySource.map(s => ({
+              source: s.source,
+              count: s.count,
+              percentage: s.percentage || 0,
+              conversionRate: s.conversionRate || 0
+            }))
           }}
+          isLoading={leadsBySourceLoading}
           moduleColor={moduleColor}
         />
       </div>
@@ -290,15 +242,18 @@ export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
         conversionRate={conversionRate}
         avgTimeToConversion={avgTimeToConversion}
         leadsOverTime={leadsOverTime}
+        highQualityPercentage={highQualityPercentage}
+        isLoading={leadsByRatingLoading}
         moduleColor={moduleColor}
       />
 
       <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:md:grid-cols-2">
         <LeadsBySourcePie
           data={leadsBySource.map(s => ({ source: s.source, count: s.count }))}
+          isLoading={leadsBySourceLoading}
           moduleColor={moduleColor}
         />
-        <LeadsByStatusPie data={leadsByStatus} moduleColor={moduleColor} />
+        <LeadsByStatusPie data={leadsByStatus} isLoading={leadsByStatusLoading} moduleColor={moduleColor} />
       </div>
 
       <TopLeadOwners owners={topOwners} moduleColor={moduleColor} />

@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from 'react'
+import React, { useState } from 'react'
 import { WidgetGroup } from '@/components/widget-group'
 import { BankOutlined, DollarCircleOutlined, TeamOutlined, RiseOutlined } from '@ant-design/icons'
-import { AccountLifecycleChart, TimeFilter as AccountsTimeFilter } from './widgets/AccountLifecycleChart'
+import { AccountLifecycleChart } from './widgets/AccountLifecycleChart'
 import { AccountGrowthAnalysis } from './widgets/AccountGrowthAnalysis'
 import { AccountHealthMatrix } from './widgets/AccountHealthMatrix'
 import { AccountRelationshipInsights } from './widgets/AccountRelationshipInsights'
@@ -31,6 +31,9 @@ export interface AccountsTabLayoutProps {
     accountsWithOpportunities: number
     accountsActive: number
   }>
+  accountsOverTimeLoading?: boolean
+  selectedTimeFilter?: 'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'
+  onTimeFilterChange?: (filter: 'month' | 'quarter' | 'sixMonths' | 'year' | 'historical') => void
 
   // Relationship data
   accountsByIndustry: Array<{ industry: string; count: number; percentage: number }>
@@ -43,7 +46,21 @@ export interface AccountsTabLayoutProps {
     wonOpportunities?: number
     totalValue: number
   }>
+  monthlyGrowthTrend?: Array<{
+    month: string
+    date: string
+    accountsCreated: number
+    accountsWithOpportunities: number
+    accountsActive: number
+  }>
+  growthLoading?: boolean
+  healthLoading?: boolean
   moduleColor?: string
+
+  // Currency filter props
+  selectedCurrency?: string
+  onCurrencyChange?: (currency: string) => void
+  availableCurrencies?: string[]
 }
 
 const calculateTrend = (
@@ -52,16 +69,16 @@ const calculateTrend = (
 ): { value: string; positive: boolean; description: string } => {
   if (previous === 0) {
     return {
-      value: current > 0 ? '100%' : '0%',
+      value: current > 0 ? '+100%' : '0%',
       positive: current >= 0,
-      description: `${current.toFixed(1)} this period vs ${previous.toFixed(1)} last period`
+      description: 'vs previous period (30 days ago)'
     }
   }
   const change = ((current - previous) / previous) * 100
   return {
-    value: `${Math.abs(change).toFixed(1)}%`,
+    value: `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`,
     positive: change >= 0,
-    description: `${current.toFixed(1)} this period vs ${previous.toFixed(1)} last period`
+    description: 'vs previous period (30 days ago)'
   }
 }
 
@@ -73,12 +90,20 @@ export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
   trendData,
   trendLoading = false,
   accountsOverTime,
+  accountsOverTimeLoading = false,
+  selectedTimeFilter = 'quarter',
+  onTimeFilterChange,
   accountsByIndustry,
   accountsBySize,
   topAccounts,
-  moduleColor = 'default'
+  monthlyGrowthTrend = [],
+  growthLoading = false,
+  healthLoading = false,
+  moduleColor = 'default',
+  selectedCurrency = 'EUR',
+  onCurrencyChange,
+  availableCurrencies = ['EUR', 'USD']
 }) => {
-  const [selectedTimeFilter, setSelectedTimeFilter] = useState<AccountsTimeFilter>('quarter')
   const [visibleLines, setVisibleLines] = useState({
     accountsCreated: true,
     accountsWithOpportunities: true,
@@ -101,71 +126,14 @@ export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
   const formatXAxisLabel = (value: string) => {
     const date = new Date(value)
     if (selectedTimeFilter === 'month') {
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) // "Nov 1", "Nov 2"
     }
-    return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+    if (selectedTimeFilter === 'historical') {
+      return date.getFullYear().toString() // "2024"
+    }
+    // For quarter, sixMonths, and year: show month + year (monthly aggregation)
+    return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) // "Nov 2025"
   }
-
-  const accountsOverTimeFiltered = useMemo(() => {
-    if (!accountsOverTime) return [] as any[]
-    const endDate = new Date()
-    const startDate = new Date()
-    switch (selectedTimeFilter) {
-      case 'month':
-        startDate.setMonth(endDate.getMonth() - 1)
-        break
-      case 'quarter':
-        startDate.setMonth(endDate.getMonth() - 3)
-        break
-      case 'sixMonths':
-        startDate.setMonth(endDate.getMonth() - 6)
-        break
-      case 'year':
-        startDate.setFullYear(endDate.getFullYear() - 1)
-        break
-      case 'historical':
-        startDate.setFullYear(endDate.getFullYear() - 3)
-        break
-      default:
-        startDate.setMonth(endDate.getMonth() - 3)
-    }
-    if (selectedTimeFilter === 'month') {
-      const startDateStr = startDate.toISOString().split('T')[0]
-      return accountsOverTime.filter(i => i.date >= startDateStr)
-    }
-    const monthly = new Map<
-      string,
-      {
-        date: string
-        count: number
-        accountsCreated: number
-        accountsWithOpportunities: number
-        accountsActive: number
-      }
-    >()
-    const pad2 = (n: number) => String(n).padStart(2, '0')
-    const current = new Date(startDate)
-    while (current <= endDate) {
-      const key = `${current.getFullYear()}-${pad2(current.getMonth() + 1)}-01`
-      monthly.set(key, { date: key, count: 0, accountsCreated: 0, accountsWithOpportunities: 0, accountsActive: 0 })
-      current.setMonth(current.getMonth() + 1)
-    }
-    const startDateStr = startDate.toISOString().split('T')[0]
-    accountsOverTime
-      .filter(i => i.date >= startDateStr)
-      .forEach(d => {
-        const dDate = new Date(d.date)
-        const key = `${dDate.getFullYear()}-${pad2(dDate.getMonth() + 1)}-01`
-        const acc = monthly.get(key)
-        if (acc) {
-          acc.count += d.count
-          acc.accountsCreated += d.accountsCreated
-          acc.accountsWithOpportunities += d.accountsWithOpportunities
-          acc.accountsActive += d.accountsActive
-        }
-      })
-    return Array.from(monthly.values()).sort((a, b) => a.date.localeCompare(b.date))
-  }, [accountsOverTime, selectedTimeFilter])
 
   const kpis = [
     {
@@ -215,7 +183,7 @@ export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
     {
       key: 'accounts-this-period',
       title: `New This Month`,
-      value: trendData?.currentMonthAccounts || accountsOverTimeFiltered.reduce((sum, i) => sum + i.accountsCreated, 0),
+      value: trendData?.currentMonthAccounts || accountsOverTime.reduce((sum, i) => sum + i.accountsCreated, 0),
       prefix: <RiseOutlined />,
       description: `Accounts created this month`,
       ...(trendData && !trendLoading
@@ -232,9 +200,10 @@ export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
       </div>
 
       <AccountLifecycleChart
-        data={accountsOverTimeFiltered}
+        data={accountsOverTime}
+        isLoading={accountsOverTimeLoading}
         selectedTimeFilter={selectedTimeFilter}
-        onTimeFilterChange={setSelectedTimeFilter}
+        onTimeFilterChange={onTimeFilterChange || (() => {})}
         visibleLines={visibleLines}
         onToggleLineVisibility={toggleLineVisibility}
         formatXAxisLabel={formatXAxisLabel}
@@ -244,7 +213,8 @@ export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
 
       <div className="gba:grid gba:grid-cols-1 xl:gba:grid-cols-2 gba:gap-6">
         <AccountGrowthAnalysis
-          data={{ totalAccounts, accountsWithOpportunities, topAccounts, accountsOverTime }}
+          data={{ totalAccounts, accountsWithOpportunities, topAccounts, monthlyGrowthTrend }}
+          isLoading={growthLoading}
           moduleColor={moduleColor}
         />
         <AccountHealthMatrix
@@ -256,6 +226,7 @@ export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
             accountsByIndustry,
             accountsBySize
           }}
+          isLoading={healthLoading}
           moduleColor={moduleColor}
         />
       </div>
@@ -265,7 +236,13 @@ export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
         moduleColor={moduleColor}
       />
 
-      <TopAccountsByRevenue topAccounts={topAccounts} moduleColor={moduleColor} />
+      <TopAccountsByRevenue
+        topAccounts={topAccounts}
+        moduleColor={moduleColor}
+        selectedCurrency={selectedCurrency}
+        onCurrencyChange={onCurrencyChange}
+        availableCurrencies={availableCurrencies}
+      />
     </div>
   )
 }

@@ -32,18 +32,20 @@ adjust-salary-calculation-breakdown = Salary Adjustment Summary
 
 # Assign Salary Mode (new employee without existing salary)
 assign-salary-title = Assign Employee Salary
-assign-salary-type = Salary Type
-assign-salary-type-required = Salary type is required. Please select a salary type.
-assign-salary-type-yearly-monthly = Yearly / Monthly
-assign-salary-type-hourly = Hourly
-assign-salary-annual-salary = Annual Gross Salary
-assign-salary-annual-salary-required = Annual salary is required. Please enter the annual salary.
-assign-salary-annual-salary-positive = Annual salary must be greater than zero.
+assign-salary-type = Compensation Type
+assign-salary-type-required = Compensation type is required. Please select a compensation type.
+assign-salary-type-yearly-monthly = Monthly Salary
+assign-salary-type-hourly = Hourly Wage
+assign-salary-monthly-salary = Monthly Gross Salary
+assign-salary-monthly-salary-required = Monthly salary is required. Please enter the monthly salary.
+assign-salary-monthly-salary-positive = Monthly salary must be greater than zero.
 assign-salary-hourly-salary = Hourly Gross Salary
 assign-salary-hourly-salary-required = Hourly salary is required. Please enter the hourly salary.
 assign-salary-hourly-salary-positive = Hourly salary must be greater than zero.
 assign-salary-currency-required = Currency is required. Please select a currency.
-assign-salary-monthly-equivalent = Monthly Equivalent
+assign-salary-annual-equivalent = Annual Equivalent
+assign-salary-expected-monthly-wage = Expected Monthly Wage
+assign-salary-expected-monthly-wage-description = Based on the employee working hours
 assign-salary-start-date = Start Date
 assign-salary-start-date-required = Start date is required. Please select a start date.
 
@@ -63,6 +65,19 @@ adjust-salary-review-reject = Reject
 adjust-salary-review-annual-gross-salary = Annual Gross Salary
 adjust-salary-review-monthly-gross-salary = Monthly Gross Salary
 adjust-salary-review-hourly-gross-salary = Hourly Gross Salary
+adjust-salary-review-increase-text = { $percentage }% increase
+adjust-salary-review-hourly-suffix = /hr
+
+# Assign Employee Salary Review Form (new employee without existing salary)
+assign-salary-review-title = Initial Salary Assignment Review for { $employeeName }
+assign-salary-review-salary-details = Salary Details
+assign-salary-review-assignment-details = Assignment Details
+assign-salary-review-annual-salary = Annual Gross Salary
+assign-salary-review-monthly-salary = Monthly Gross Salary
+assign-salary-review-hourly-salary = Hourly Gross Salary
+assign-salary-review-currency = Currency
+assign-salary-review-start-date = Start Date
+assign-salary-review-notes = Notes
 
 # Common Actions
 action-select-placeholder = Please Select

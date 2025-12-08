@@ -6,7 +6,8 @@ import { DotsThreeVerticalIcon, PlusIcon, PencilIcon, TrashIcon } from '@phospho
 import {
   useAppActionData,
   appActionPropsComparison,
-  type UseAppActionDataConfig
+  type UseAppActionDataConfig,
+  type ShareContext
 } from '@/common/hooks/useAppActionData'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -135,6 +136,7 @@ export interface AppActionProps {
   }>
   customActions?: ActionOption[]
   accessToken?: string
+  shareContext?: ShareContext
   variant?: 'custom' | keyof typeof actionVariants
   mode?: 'trigger' | 'button'
   emptyState?: 'disable' | 'hide' | 'enable'
@@ -151,9 +153,9 @@ export interface AppActionProps {
   prefixDataTestId?: string
 
   // Deprecated API
-  /** @deprecated Use contexts instead */
+  /** @deprecated Use contexts with contextData Array<{ context: FlowContextName | string, contextData: Record<string, any> }> instead */
   contextsArray?: FlowContextName[]
-  /** @deprecated Use contexts instead */
+  /** @deprecated Use contexts with contextData Array<{ context: FlowContextName | string, contextData: Record<string, any> }> instead */
   externalContextData?: Record<string, any>
   /** @deprecated Use customActions instead */
   staticFlowData?: ActionOption[]
@@ -324,6 +326,7 @@ export const AppAction: React.FC<AppActionProps> = React.memo(props => {
     contexts,
     customActions,
     accessToken,
+    shareContext,
     // Deprecated API (fallbacks)
     contextsArray: legacyContextsArray,
     externalContextData: legacyExternalContextData,
@@ -425,7 +428,8 @@ export const AppAction: React.FC<AppActionProps> = React.memo(props => {
     accessToken,
     prefixDataTestId,
     emptyStateBehavior: finalEmptyState,
-    deferMainContextRequestsUntilClick: lazyLoad
+    deferMainContextRequestsUntilClick: lazyLoad,
+    shareContext
   }
 
   return (
