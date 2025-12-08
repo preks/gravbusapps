@@ -4,6 +4,7 @@
 
 export * from './iconMapping'
 export * from './statusFormatter'
+export * from './templateTransformUtils'
 
 // Additional utility functions can be added here
 export const formatRequestId = (id: string | undefined | null): string => {

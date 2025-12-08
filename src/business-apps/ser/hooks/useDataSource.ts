@@ -213,11 +213,24 @@ export const useDataSource = (
         const total = data.meta.total ?? fetchedCount
         setTotalCount(total)
 
-        // When total is known, check if we've loaded everything
-        // When total is unknown (API doesn't return it), assume more if we got a full page
+        // Determine if more data is available
         const hasTotal = typeof data.meta.total === 'number' && data.meta.total > 0
-        const moreAvailable = hasTotal ? currentOffset + fetchedCount < data.meta.total : fetchedCount === limit // Full page suggests more data may exist
-        setHasMore(moreAvailable)
+
+        if (hasTotal) {
+          // Use server total if available
+          const totalLoaded = append ? currentOffset + fetchedCount : fetchedCount
+          setHasMore(totalLoaded < data.meta.total)
+        } else {
+          // Without total count from API:
+          // - If we got fewer than limit items, we've reached the end
+          // - If appending and got 0 items, we've reached the end
+          // - Otherwise, there might be more data
+          if (fetchedCount < limit || (append && fetchedCount === 0)) {
+            setHasMore(false)
+          } else {
+            setHasMore(true)
+          }
+        }
       } catch (err) {
         if ((err as Error).name === 'AbortError') {
           // Request was cancelled, ignore
@@ -229,7 +242,7 @@ export const useDataSource = (
         setIsLoading(false)
       }
     },
-    [accessToken, buildApiUrl, transformToOptions]
+    [accessToken, buildApiUrl, transformToOptions, limit]
   )
 
   // Initial load when dataSource changes
@@ -256,7 +269,7 @@ export const useDataSource = (
         clearTimeout(debounceTimerRef.current)
       }
     }
-  }, [shouldFetch, accessToken])
+  }, [shouldFetch, accessToken, fetchData, searchTerm])
 
   // Search handler with debouncing
   const search = useCallback(

@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
-import { FlowTemplate, FlowTemplateState, DynamicFormField } from '../../../types/flowTemplate'
+import { FlowTemplate, FlowTemplateState } from '../../../types/flowTemplate'
 import { createTemplatesService } from '../../../services/templatesService'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { isServicesAppTemplate } from '../../../config/servicePortalConfig'
+import { transformTemplate } from '../../../utils/templateTransformUtils'
 
 interface UseFlowTemplatesOptions {
   categoryId?: string
@@ -32,66 +33,6 @@ export const useFlowTemplates = (
   })
 
   const [currentOffset, setCurrentOffset] = useState(offset)
-
-  // Transform workflow engine template to FlowTemplate with form schema extraction
-  const transformTemplate = useCallback((engineTemplate: any): FlowTemplate => {
-    // Extract form schema and message from step_0 if it exists
-    const step0 = engineTemplate.steps?.[0]
-    let formSchema: DynamicFormField[] | undefined
-    let step0Message: string | undefined
-
-    if (step0) {
-      // Extract message from step 0
-      if (step0.message) {
-        step0Message = step0.message
-      }
-
-      // Extract form schema
-      if (step0.form && Array.isArray(step0.form)) {
-        formSchema = step0.form.map(
-          (field: any): DynamicFormField => ({
-            type: field.type || 'TEXT',
-            name: field.name || '',
-            label: field.label || field.name || '',
-            required: field.required || false,
-            placeholder: field.placeholder,
-            description: field.description,
-            dataSource: field.dataSource,
-            options: field.options?.map((opt: any) => ({
-              value: opt.value || opt,
-              label: opt.label || opt.value || opt
-            })),
-            validation: field.validation || (field.required ? [{ type: 'required' as const }] : undefined)
-          })
-        )
-      }
-    }
-
-    // Calculate UI metadata
-    const stepCount = engineTemplate.steps?.length || 0
-    const estimatedDuration = `${Math.max(1, Math.floor(stepCount * 0.5))}-${stepCount * 1} days`
-
-    let difficulty: 'simple' | 'standard' | 'complex' = 'standard'
-    if (stepCount <= 2) difficulty = 'simple'
-    else if (stepCount >= 5) difficulty = 'complex'
-
-    return {
-      id: engineTemplate.id,
-      type: 'TEMPLATE',
-      name: engineTemplate.name || 'Untitled Template',
-      description: engineTemplate.description || '',
-      version: engineTemplate.version || 1,
-      steps: engineTemplate.steps || [],
-      formSchema,
-      step0Message,
-      estimatedDuration,
-      stepCount,
-      metadata: {
-        difficulty,
-        estimatedTime: estimatedDuration
-      }
-    }
-  }, [])
 
   const fetchTemplates = useCallback(
     async (isLoadMore = false) => {
@@ -177,7 +118,7 @@ export const useFlowTemplates = (
         }))
       }
     },
-    [contextProps, categoryId, enabled, limit, currentOffset, transformTemplate, filterByApp]
+    [contextProps, categoryId, enabled, limit, currentOffset, filterByApp]
   )
 
   const refetch = useCallback(async () => {

@@ -8,6 +8,7 @@ import { useFeature } from '@/common/hooks/useFeature'
 import { Feature } from '@/common/types/constants/FeatureHub'
 import { Alert, Spinner } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { transformTemplate } from '../../utils/templateTransformUtils'
 
 export interface ServicePortalProps extends BusinessAppContextProps {
   workflowEngine?: WorkflowEngine // TODO: Inject from context or provider
@@ -88,65 +89,6 @@ export const ServicePortal: React.FC<ServicePortalProps> = ({
     selectedServiceId: serviceFromUrl,
     selectedRequestId: requestFromUrl
   })
-
-  // Transform raw template to FlowTemplate format (same logic as useFlowTemplates hook)
-  const transformTemplate = useCallback((engineTemplate: any): FlowTemplate => {
-    // Extract form schema and message from step_0 if it exists
-    const step0 = engineTemplate.steps?.[0]
-    let formSchema: FlowTemplate['formSchema'] = undefined
-    let step0Message: string | undefined = undefined
-
-    if (step0) {
-      // Extract message from step 0
-      if (step0.message) {
-        step0Message = step0.message
-      }
-
-      // Extract form schema
-      if (step0.form && Array.isArray(step0.form)) {
-        formSchema = step0.form.map((field: any) => ({
-          type: field.type || 'TEXT',
-          name: field.name || '',
-          label: field.label || field.name || '',
-          required: field.required || false,
-          placeholder: field.placeholder,
-          description: field.description,
-          dataSource: field.dataSource,
-          options: field.options?.map((opt: any) => ({
-            value: opt.value || opt,
-            label: opt.label || opt.value || opt
-          })),
-          validation: field.validation || (field.required ? [{ type: 'required' as const }] : undefined)
-        }))
-      }
-    }
-
-    // Calculate UI metadata
-    const stepCount = engineTemplate.steps?.length || 0
-    const estimatedDuration = `${Math.max(1, Math.floor(stepCount * 0.5))}-${stepCount * 1} days`
-
-    let difficulty: 'simple' | 'standard' | 'complex' = 'standard'
-    if (stepCount <= 2) difficulty = 'simple'
-    else if (stepCount >= 5) difficulty = 'complex'
-
-    return {
-      id: engineTemplate.id,
-      type: 'TEMPLATE',
-      name: engineTemplate.name || 'Untitled Template',
-      description: engineTemplate.description || '',
-      version: engineTemplate.version || 1,
-      steps: engineTemplate.steps || [],
-      formSchema,
-      step0Message,
-      tags: engineTemplate.tags,
-      estimatedDuration,
-      stepCount,
-      metadata: {
-        difficulty,
-        estimatedTime: estimatedDuration
-      }
-    }
-  }, [])
 
   // Load template from URL on mount if templateId is present
   const loadTemplateFromUrl = useCallback(

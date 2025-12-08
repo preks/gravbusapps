@@ -109,7 +109,7 @@ export const DataSourceMultiSelect: React.FC<DataSourceMultiSelectProps> = ({
 
   // Update selected labels when options load or value changes
   useEffect(() => {
-    const newLabels = new Map(selectedLabels)
+    const newLabels = new Map<string, string>()
     options.forEach(opt => {
       if (value.includes(String(opt.value))) {
         newLabels.set(String(opt.value), opt.label)
