@@ -61,7 +61,13 @@ export const ContactInsightsDashboard: React.FC<ContactInsightsDashboardProps> =
   return (
     <Card data-testid="contact-insights-analysis">
       <CardHeader className="gba:flex gba:items-center gba:gap-3">
-        <IconAvatar icon={UsersIcon} variant={moduleColor as any} size="md" iconWeight="regular" decorative={true} />
+        <IconAvatar
+          icon={UsersIcon}
+          variant={moduleColor as 'default' | 'success' | 'warning' | 'destructive' | 'info'}
+          size="md"
+          iconWeight="regular"
+          decorative={true}
+        />
         <div>
           <CardTitle>Contact Insights Dashboard</CardTitle>
           <CardDescription>Contact analytics and engagement overview</CardDescription>
@@ -111,7 +117,7 @@ export const ContactInsightsDashboard: React.FC<ContactInsightsDashboardProps> =
             <div className="gba:space-y-3 gba:max-h-80 gba:overflow-y-auto">
               {data.contactsByAccount.slice(0, 8).map((account, index) => (
                 <div
-                  key={account.accountName}
+                  key={`${account.accountName}-${index}`}
                   className="gba:p-3 gba:bg-gray-50 gba:border gba:border-gray-200 gba:rounded-lg"
                   data-testid={`top-account-${index}`}
                 >

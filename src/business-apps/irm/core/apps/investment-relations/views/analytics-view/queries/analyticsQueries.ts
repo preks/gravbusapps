@@ -1,5 +1,8 @@
 // CRM Overview Analytics Query
-export const GET_CRM_OVERVIEW_ANALYTICS = `
+export const GET_CRM_OVERVIEW_ANALYTICS = (currencyCode?: string) => {
+  const currencyFilter = currencyCode ? `, currency: { code: { _eq: "${currencyCode}" } }` : ''
+
+  return `
   query GetCrmOverviewAnalytics {
     InvestmentLeadAggregate(where: { isDeleted: { _eq: false } }) {
       aggregate {
@@ -11,7 +14,7 @@ export const GET_CRM_OVERVIEW_ANALYTICS = `
         count
       }
     }
-    InvestmentOpportunityAggregate(where: { isDeleted: { _eq: false } }) {
+    InvestmentOpportunityAggregate(where: { isDeleted: { _eq: false }${currencyFilter} }) {
       aggregate {
         count
       }
@@ -35,7 +38,7 @@ export const GET_CRM_OVERVIEW_ANALYTICS = `
     RecentOpportunities: InvestmentOpportunity(
       where: { 
         isDeleted: { _eq: false },
-        createdAt: { _gte: "2024-01-01T00:00:00Z" }
+        createdAt: { _gte: "2024-01-01T00:00:00Z" }${currencyFilter}
       },
       limit: 10,
       orderBy: { createdAt: DESC }
@@ -52,6 +55,7 @@ export const GET_CRM_OVERVIEW_ANALYTICS = `
     }
   }
 `
+}
 
 // Leads Analytics Query
 export const GET_LEADS_ANALYTICS = `
@@ -137,21 +141,22 @@ export const GET_ACCOUNTS_ANALYTICS = `
 `
 
 // Opportunities Analytics Query
-export const GET_OPPORTUNITIES_ANALYTICS = (() => {
+export const GET_OPPORTUNITIES_ANALYTICS = (currencyCode?: string) => {
+  const currencyFilter = currencyCode ? `, currency: { code: { _eq: "${currencyCode}" } }` : ''
   const now = new Date()
   const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString()
   const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
 
   return `
   query GetOpportunitiesAnalytics {
-    totalEstimatedAmount: InvestmentOpportunityAggregate(where: { isDeleted: { _eq: false } }) {
+    totalEstimatedAmount: InvestmentOpportunityAggregate(where: { isDeleted: { _eq: false }${currencyFilter} }) {
       aggregate {
         sum {
           estimatedAmount
         }
       }
     }
-    InvestmentOpportunityAggregate(where: { isDeleted: { _eq: false } }) {
+    InvestmentOpportunityAggregate(where: { isDeleted: { _eq: false }${currencyFilter} }) {
       aggregate {
         count
       }
@@ -159,7 +164,7 @@ export const GET_OPPORTUNITIES_ANALYTICS = (() => {
     WonOpportunitiesValue: InvestmentOpportunityAggregate(
       where: { 
         isDeleted: { _eq: false },
-        opportunityStatus: { code: { _eq: "WON" } }
+        opportunityStatus: { code: { _eq: "WON" } }${currencyFilter}
       }
     ) {
       aggregate {
@@ -168,12 +173,13 @@ export const GET_OPPORTUNITIES_ANALYTICS = (() => {
         }
       }
     }
-    InvestmentOpportunity(where: { isDeleted: { _eq: false } }) {
+    InvestmentOpportunity(where: { isDeleted: { _eq: false }${currencyFilter} }) {
       id
       name
       estimatedAmount
       closeDate
       createdAt
+      updatedAt
       opportunityPipelineStage {
         id
         code
@@ -289,7 +295,7 @@ export const GET_OPPORTUNITIES_ANALYTICS = (() => {
     }
   }
 `
-})()
+}
 
 // Contacts Analytics Query
 export const GET_CONTACTS_ANALYTICS = `
