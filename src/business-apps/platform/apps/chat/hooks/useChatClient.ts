@@ -709,7 +709,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
 
       // Prefer WebSocket for real-time delivery, fallback to REST API
       if (wsClientRef.current && isConnected) {
-        console.log('[useChatClient] Using WebSocket to send message')
+        console.log('✅ [useChatClient] Using WebSocket to send message (real-time)')
         try {
           // Create optimistic message for immediate UI feedback
           const optimisticMessage: Message = {
@@ -766,6 +766,10 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       }
 
       // Fallback to REST API if WebSocket is not available
+      console.warn('⚠️ [useChatClient] WebSocket not available, falling back to REST API')
+      console.warn('⚠️ Live features disabled: typing indicators, instant message delivery')
+      console.warn('⚠️ To fix: Ensure chat-service backend is running and WebSocket connection is established')
+
       if (!apiClientRef.current) {
         throw new Error('Chat client not initialized')
       }
@@ -780,9 +784,10 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
         )
         messagesHook.addMessage(message)
         typingHook.stopTyping(conversationId)
+        console.log('✅ Message sent via REST API (not real-time)')
         return message
       } catch (err) {
-        console.error('Error sending message:', err)
+        console.error('❌ Error sending message via REST API:', err)
         throw err
       }
     },

@@ -69,40 +69,71 @@ export class ChatWebSocketClient {
 
     this.socket.on('connect', () => {
       this.reconnectAttempts = 0 // Reset reconnect counter on successful connection
-      console.debug('Chat WebSocket connected', {
+      console.log('✅ Chat WebSocket connected successfully!', {
         socketId: this.socket?.id,
         connected: this.socket?.connected,
         transport: this.socket?.io?.engine?.transport?.name,
-        url: this.url
+        url: this.url,
+        timestamp: new Date().toISOString()
       })
     })
 
     this.socket.on('disconnect', reason => {
-      console.debug('Chat WebSocket disconnected:', {
+      console.warn('⚠️ Chat WebSocket disconnected:', {
         reason,
-        socketId: this.socket?.id
+        socketId: this.socket?.id,
+        timestamp: new Date().toISOString()
       })
 
       // Handle different disconnect reasons
       if (reason === 'io server disconnect') {
         // Server forcibly disconnected - attempt manual reconnection
-        console.debug('Server disconnected, attempting manual reconnection...')
+        console.warn('Server disconnected client, attempting manual reconnection...')
         this.socket?.connect()
+      } else if (reason === 'io client disconnect') {
+        console.log('Client intentionally disconnected')
+      } else if (reason === 'ping timeout') {
+        console.error('Connection lost due to ping timeout')
+      } else if (reason === 'transport close') {
+        console.error('Transport connection closed')
+      } else if (reason === 'transport error') {
+        console.error('Transport connection error')
       }
     })
 
     this.socket.on('connect_error', error => {
       this.reconnectAttempts++
-      console.error('Chat WebSocket connection error:', {
+      console.error('❌ Chat WebSocket connection error:', {
         error: error.message,
+        errorType: error.type,
+        errorDescription: error.description,
         attempt: this.reconnectAttempts,
         maxAttempts: this.maxReconnectAttempts,
-        transport: this.socket?.io?.engine?.transport?.name
+        transport: this.socket?.io?.engine?.transport?.name,
+        url: this.url,
+        path: this.options.path,
+        timestamp: new Date().toISOString()
       })
+
+      // Log additional debugging info on first error
+      if (this.reconnectAttempts === 1) {
+        console.error('WebSocket Connection Details:', {
+          url: this.url,
+          path: this.options.path,
+          transports: this.socket?.io?.opts?.transports,
+          autoConnect: this.socket?.io?.opts?.autoConnect,
+          reconnection: this.socket?.io?.opts?.reconnection
+        })
+      }
 
       // If max attempts reached and polling fallback is enabled, suggest fallback
       if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-        console.error('Max reconnection attempts reached. Connection failed.')
+        console.error('❌ Max reconnection attempts reached. Connection failed completely.')
+        console.error('Please check:')
+        console.error('1. Is the chat-service backend running?')
+        console.error('2. Are CORS settings configured correctly?')
+        console.error('3. Is the WebSocket path correct?')
+        console.error(`4. Can you access ${this.url}${this.options.path}?`)
       }
     })
 
