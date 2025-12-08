@@ -266,7 +266,7 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
               prefix: <TeamOutlined />,
               color: 'var(--nw-color-primary-500)',
               span: { xs: 24, sm: 12, lg: 6 },
-              description: 'Total number of real estate investments',
+              description: 'Property count',
               trend: {
                 value: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).value,
                 positive: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).positive,
@@ -281,7 +281,7 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
               color: 'var(--nw-color-success-500)',
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
-              description: 'Sum of all real estate investment amounts',
+              description: 'Total capital',
               trend: {
                 value: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).value,
                 positive: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).positive,
@@ -296,7 +296,7 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
               color: 'var(--nw-color-warning-500)',
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
-              description: 'Current total market value of properties',
+              description: 'Current valuation',
               trend: {
                 value: calculateChange(kpis.totalMarketValue, previousKpis.totalMarketValue).value,
                 positive: calculateChange(kpis.totalMarketValue, previousKpis.totalMarketValue).positive,
@@ -311,7 +311,7 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
               color: 'var(--nw-color-purple-500)',
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
-              description: 'Average occupancy rate across all properties',
+              description: 'Portfolio avg',
               trend: {
                 value: calculateChange(kpis.averageOccupancyRate, previousKpis.averageOccupancyRate).value,
                 positive: calculateChange(kpis.averageOccupancyRate, previousKpis.averageOccupancyRate).positive,

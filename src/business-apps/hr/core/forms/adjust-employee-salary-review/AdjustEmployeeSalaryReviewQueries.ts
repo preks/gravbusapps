@@ -4,6 +4,12 @@ export const GET_EMPLOYEE_NAME = `
       firstName
       lastName
       id
+      pictureThumbnail
+    }
+    EmployeePosition(where: {employeeId: {_eq: $employeeId}}, limit: 1) {
+      jobPosition {
+        name
+      }
     }
   }
 `

@@ -217,13 +217,8 @@ export const VoiceOverlay: React.FC<VoiceOverlayProps> = ({
 
       {/* Header */}
       <div className="gba:absolute gba:top-4 gba:left-4 gba:flex gba:items-center gba:gap-3">
-        <div className="gba:h-9 gba:w-9 gba:rounded-full gba:bg-gradient-to-br gba:from-primary gba:to-info gba:flex gba:items-center gba:justify-center gba:shadow-md">
-          <svg
-            className="gba:h-4 gba:w-4 gba:text-primary-foreground"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
+        <div className="gba:h-9 gba:w-9 gba:rounded-full gba:bg-gradient-to-br gba:from-ai gba:to-ai-secondary gba:flex gba:items-center gba:justify-center gba:shadow-md">
+          <svg className="gba:h-4 gba:w-4 gba:text-ai-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
           </svg>
         </div>
@@ -244,7 +239,7 @@ export const VoiceOverlay: React.FC<VoiceOverlayProps> = ({
             )}
             {isLoading && !isSpeaking && (
               <>
-                <span className="gba:inline-block gba:h-2 gba:w-2 gba:rounded-full gba:bg-warning gba:animate-pulse" />
+                <span className="gba:inline-block gba:h-2 gba:w-2 gba:rounded-full gba:bg-ai gba:animate-pulse" />
                 Thinking...
               </>
             )}
@@ -259,11 +254,21 @@ export const VoiceOverlay: React.FC<VoiceOverlayProps> = ({
           className="gba:absolute gba:top-20 gba:left-4 gba:right-4 gba:max-w-md gba:mx-auto gba:z-20"
           data-testid="voice-form-summary"
         >
-          <div className="gba:p-4 gba:rounded-2xl gba:bg-gradient-to-br gba:from-card gba:to-card/80 gba:backdrop-blur-lg gba:border-2 gba:border-primary/30 gba:shadow-2xl">
+          <div className="gba:p-4 gba:rounded-2xl gba:bg-gradient-to-br gba:from-card gba:to-card/80 gba:backdrop-blur-lg gba:border-2 gba:border-ai/30 gba:shadow-2xl">
             <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
-              <div className="gba:h-8 gba:w-8 gba:rounded-lg gba:bg-gradient-to-br gba:from-primary gba:to-info gba:flex gba:items-center gba:justify-center">
-                <svg className="gba:h-4 gba:w-4 gba:text-primary-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              <div className="gba:h-8 gba:w-8 gba:rounded-lg gba:bg-gradient-to-br gba:from-ai gba:to-ai-secondary gba:flex gba:items-center gba:justify-center">
+                <svg
+                  className="gba:h-4 gba:w-4 gba:text-ai-foreground"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
                 </svg>
               </div>
               <div>
@@ -271,11 +276,14 @@ export const VoiceOverlay: React.FC<VoiceOverlayProps> = ({
                 <p className="gba:text-xs gba:text-muted-foreground">Ready to submit</p>
               </div>
             </div>
-            
+
             {/* Form Fields */}
             <div className="gba:space-y-2 gba:mb-3">
               {activeForm.fields.slice(0, 5).map((field, idx) => (
-                <div key={idx} className="gba:flex gba:justify-between gba:items-center gba:text-sm gba:py-1 gba:px-2 gba:rounded gba:bg-muted/50">
+                <div
+                  key={idx}
+                  className="gba:flex gba:justify-between gba:items-center gba:text-sm gba:py-1 gba:px-2 gba:rounded gba:bg-muted/50"
+                >
                   <span className="gba:text-muted-foreground gba:font-medium">{field.name}</span>
                   <span className="gba:text-foreground gba:truncate gba:max-w-[150px]" title={field.value}>
                     {field.value || <span className="gba:text-muted-foreground/50 gba:italic">empty</span>}
@@ -288,7 +296,7 @@ export const VoiceOverlay: React.FC<VoiceOverlayProps> = ({
                 </p>
               )}
             </div>
-            
+
             {/* Voice Commands Hint */}
             <div className="gba:flex gba:flex-wrap gba:gap-2 gba:justify-center">
               <span className="gba:px-2 gba:py-1 gba:rounded-full gba:bg-success/20 gba:text-success gba:text-xs gba:font-semibold">
@@ -350,7 +358,7 @@ export const VoiceOverlay: React.FC<VoiceOverlayProps> = ({
 
         {/* AI's speech response - Only show when actually speaking or finished */}
         {currentSpeechText && (isSpeaking || (!isLoading && !isListening)) && (
-          <div className="gba:max-w-2xl gba:mx-auto gba:p-6 gba:rounded-2xl gba:bg-gradient-to-br gba:from-info/15 gba:to-primary/10 gba:backdrop-blur-md gba:border gba:border-info/40 gba:shadow-xl gba:animate-in gba:fade-in gba:duration-200">
+          <div className="gba:max-w-2xl gba:mx-auto gba:p-6 gba:rounded-2xl gba:bg-gradient-to-br gba:from-ai-secondary/15 gba:to-ai/10 gba:backdrop-blur-md gba:border gba:border-ai/40 gba:shadow-xl gba:animate-in gba:fade-in gba:duration-200">
             <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
               <div
                 className={`gba:h-2 gba:w-2 gba:rounded-full gba:bg-info ${isSpeaking ? 'gba:animate-pulse' : ''}`}
@@ -430,7 +438,7 @@ export const VoiceOverlay: React.FC<VoiceOverlayProps> = ({
         ) : (
           <Button
             size="lg"
-            className="gba:h-16 gba:px-8 gba:rounded-full gba:bg-gradient-to-r gba:from-primary gba:to-info gba:text-primary-foreground gba:shadow-lg gba:text-lg gba:font-semibold hover:gba:shadow-xl gba:transition-all gba:animate-pulse"
+            className="gba:h-16 gba:px-8 gba:rounded-full gba:bg-gradient-to-r gba:from-ai gba:to-ai-secondary gba:text-ai-foreground gba:shadow-lg gba:text-lg gba:font-semibold hover:gba:shadow-xl gba:transition-all gba:animate-pulse"
             onClick={onStartListening}
             data-testid="voice-start-listening"
           >

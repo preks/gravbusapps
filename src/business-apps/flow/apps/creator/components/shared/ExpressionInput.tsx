@@ -13,6 +13,7 @@ import { Code, Type, CheckCircle, AlertCircle, Network, Loader2 } from 'lucide-r
 import { FlowTemplate } from '../../types/flowTemplate'
 import { ExpressionBuilder } from './ExpressionBuilder'
 import { useExpressionValidator } from '../../hooks/useExpressionValidator'
+import { useEntitySchemas } from '../../hooks/useEntitySchemas'
 import { env } from '@/common/env/EnvUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
@@ -116,13 +117,20 @@ export const ExpressionInput: React.FC<ExpressionInputProps> = ({
     mode === 'expression' || (mode === 'auto' && hasExpressions)
   )
 
+  // Entity schemas for validation
+  const { schemas: entitySchemas } = useEntitySchemas({
+    includeFields: false,
+    enableCache: true
+  })
+
   // Validation state
   const [validationState, setValidationState] = useState<ValidationState>(null)
   const [validationMessage, setValidationMessage] = useState<string>('')
   const validationTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const { validateExpression: validateWithHook } = useExpressionValidator(
     template || ({} as FlowTemplate),
-    stepIndex !== undefined ? stepIndex : 0
+    stepIndex !== undefined ? stepIndex : 0,
+    entitySchemas || undefined
   )
 
   // Update expression mode when value changes (auto mode only)
@@ -264,7 +272,7 @@ export const ExpressionInput: React.FC<ExpressionInputProps> = ({
         clearTimeout(validationTimeoutRef.current)
       }
     }
-  }, [value, shouldValidate, hasExpressions])
+  }, [value, shouldValidate, hasExpressions, entitySchemas])
 
   const toggleMode = () => {
     if (mode !== 'auto') {

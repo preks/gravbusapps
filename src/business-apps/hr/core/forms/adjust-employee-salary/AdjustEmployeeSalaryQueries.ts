@@ -5,6 +5,12 @@ export const EMPLOYEE_DATA_QUERY = `query fetchEmployee($idEmployee: uuid!) {
     firstName
     lastName
     displayName
+    pictureThumbnail
+  }
+  EmployeePosition(where: {employeeId: {_eq: $idEmployee}}, limit: 1) {
+    jobPosition {
+      name
+    }
   }
 }
 `
@@ -111,6 +117,37 @@ export const EMPLOYEE_WORKING_CONDITION_QUERY = `query fetchEmployeeWorkingCondi
     hireDate
     activeFrom
     activeTo
+  }
+}
+`
+
+export const EMPLOYEE_WORKING_HOURS_QUERY = `query fetchEmployeeWorkingHours($idEmployee: uuid!) {
+  EmployeeWorkingHours(
+    where: {
+      _and: [
+        { employeeId: { _eq: $idEmployee } },
+        { isDeleted: { _neq: true } }
+      ]
+    }
+    orderBy: [{ activeFrom: DESC }, { createdAt: DESC }]
+    limit: 1
+  ) {
+    id
+    weeklyHours
+  }
+}
+`
+
+export const EMPLOYEE_BANK_ACCOUNT_CURRENCY_QUERY = `query fetchEmployeeBankAccountCurrency($idEmployee: uuid!) {
+  EmployeeBankAccount(
+    where: {
+      employeeId: { _eq: $idEmployee }
+      isDeleted: { _eq: false }
+    }
+    orderBy: [{ createdAt: DESC }]
+    limit: 1
+  ) {
+    currencyRef
   }
 }
 `

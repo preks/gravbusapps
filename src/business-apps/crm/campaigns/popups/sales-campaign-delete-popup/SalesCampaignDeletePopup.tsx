@@ -5,6 +5,7 @@ import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { Alert, AlertDescription, Badge, Spinner } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
+import { navigateTo } from '@/common/utils/navigationUtils'
 
 export interface SalesCampaignDeletePopupValues {
   campaignId: string
@@ -149,6 +150,16 @@ const SalesCampaignDeletePopup: React.FC<SalesCampaignDeletePopupProps> = ({ ini
 
   const displayName = campaign.name || 'Unnamed Sales Campaign'
 
+  const handleProcessCompletion = (detail: { resolution?: 'success' | 'failure' } | null) => {
+    if (detail?.resolution === 'success') {
+      // Small delay to ensure the popup closes properly before navigation
+      setTimeout(() => {
+        // Navigate to customer-relations with campaigns tab to preserve the navbar
+        navigateTo('/platform/crm/customer-relations?view=campaigns')
+      }, 100)
+    }
+  }
+
   return (
     <AppActionForm
       processType="delete"
@@ -157,6 +168,7 @@ const SalesCampaignDeletePopup: React.FC<SalesCampaignDeletePopupProps> = ({ ini
       validateForm={validateForm}
       submitButtonText={getTranslationFromI18nKeyAndLabel('common.delete', 'Delete')}
       submitButtonVariant="destructive"
+      onProcessCompletion={handleProcessCompletion}
       data-testid={formatDataTestId(prefixDataTestId, 'form')}
     >
       <div className="gba:space-y-4" data-testid={formatDataTestId(prefixDataTestId, 'container')}>

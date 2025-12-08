@@ -194,10 +194,7 @@ export const ExitsStatistics: React.FC<ExitsStatisticsProps> = ({ accessToken, u
       prefix: <CheckCircle className="gba:h-5 gba:w-5 gba:text-green-600" />,
       color: '#52c41a',
       span: { xs: 24, sm: 12, md: 12, lg: 6 },
-      description: getTranslationFromI18nKeyAndLabel(
-        'successfully_exited_opportunities',
-        'Successfully exited opportunities'
-      ),
+      description: getTranslationFromI18nKeyAndLabel('exited_opportunities', 'Exited opportunities'),
       trend: {
         value: formatPercentageChange(metrics.totalExitsChange),
         positive: metrics.totalExitsChange >= 0,
@@ -212,7 +209,7 @@ export const ExitsStatistics: React.FC<ExitsStatisticsProps> = ({ accessToken, u
       prefix: <Target className="gba:h-5 gba:w-5 gba:text-purple-600" />,
       color: '#722ed1',
       span: { xs: 24, sm: 12, md: 12, lg: 6 },
-      description: getTranslationFromI18nKeyAndLabel('average_amount_per_exit', 'Average amount per exit'),
+      description: getTranslationFromI18nKeyAndLabel('avg_per_exit', 'Avg per exit'),
       trend: {
         value: formatPercentageChange(metrics.averageExitAmountChange),
         positive: metrics.averageExitAmountChange >= 0,
@@ -227,7 +224,7 @@ export const ExitsStatistics: React.FC<ExitsStatisticsProps> = ({ accessToken, u
       prefix: <DollarSign className="gba:h-5 gba:w-5 gba:text-green-600" />,
       color: '#389e0d',
       span: { xs: 24, sm: 12, md: 12, lg: 6 },
-      description: getTranslationFromI18nKeyAndLabel('total_amount_generated', 'Total amount generated from exits'),
+      description: getTranslationFromI18nKeyAndLabel('total_generated', 'Total generated'),
       trend: {
         value: formatPercentageChange(metrics.totalExitAmountChange),
         positive: metrics.totalExitAmountChange >= 0,
@@ -241,7 +238,7 @@ export const ExitsStatistics: React.FC<ExitsStatisticsProps> = ({ accessToken, u
       prefix: <Award className="gba:h-5 gba:w-5 gba:text-blue-600" />,
       color: '#1890ff',
       span: { xs: 24, sm: 12, md: 12, lg: 6 },
-      description: getTranslationFromI18nKeyAndLabel('closed_exits_this_year', 'Closed exits this year'),
+      description: getTranslationFromI18nKeyAndLabel('closed_ytd', 'Closed YTD'),
       trend: {
         value: formatPercentageChange(metrics.exitsThisYearChange),
         positive: metrics.exitsThisYearChange >= 0,

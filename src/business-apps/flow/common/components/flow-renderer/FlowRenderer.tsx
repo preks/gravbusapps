@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react'
 import { Badge } from '@newwork/nw-design-system'
-import { GripVertical, UserCheck, UserPlus, BarChart3, CheckCircle } from 'lucide-react'
+import { GripVertical, UserCheck, UserPlus, BarChart3, CheckCircle, Cpu } from 'lucide-react'
 
 import ReactFlow, {
   Node,
@@ -75,7 +75,7 @@ const StepNode = ({ data }: { data: any }) => {
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`nopan nodrag gba:border-2 gba:rounded-lg gba:p-3 gba:w-[240px] gba:h-[130px] gba:transition-all gba:duration-200 gba:shadow-sm gba:cursor-pointer ${getSelectionBgClass(data.selected)} ${
+      className={`nopan nodrag gba:relative gba:border-2 gba:rounded-lg gba:p-3 gba:w-[240px] gba:h-[130px] gba:transition-all gba:duration-200 gba:shadow-sm gba:cursor-pointer ${getSelectionBgClass(data.selected)} ${
         data.selected ? 'gba:shadow-md gba:scale-105' : ''
       } ${isDragOver ? 'gba:opacity-50 gba:border-blue-400 gba:bg-blue-100' : ''}`}
       onClick={() => data?.onSelect?.(data.index)}
@@ -116,31 +116,60 @@ const StepNode = ({ data }: { data: any }) => {
               data.selected ? 'gba:bg-blue-500 gba:text-white' : 'gba:bg-gray-400 gba:text-white'
             }`}
           >
-            {data.type}
+            {(() => {
+              switch (data.type) {
+                case 'AI_AGENT':
+                  return 'AI Agent'
+                case 'AI_TASK_EXPERT':
+                  return 'AI Task Expert'
+                case 'FUNCTION':
+                  return 'NW Function'
+                case 'APPROVAL':
+                  return 'Approval'
+                case 'ACKNOWLEDGE':
+                  return 'Acknowledge'
+                case 'INFORMATION':
+                  return 'Information'
+                case 'TASK':
+                  return 'Task'
+                default:
+                  return String(data.type).replace(/_/g, ' ')
+              }
+            })()}
           </Badge>
         </div>
-        {/* Assignment Mode Badge - Aligned Right */}
-        {data.assignmentMode && (
+        {/* Assignment Mode Badge for User Tasks / System Badge for System Tasks - Aligned Right */}
+        {data.type === 'FUNCTION' || data.type === 'AI_AGENT' || data.type === 'AI_TASK_EXPERT' ? (
           <Badge
             variant="outline"
-            className={`gba:text-xs gba:flex gba:items-center gba:gap-1 ${
-              data.assignmentMode === 'ASSIGN'
-                ? 'gba:bg-green-100 gba:text-green-700 gba:border-green-300'
-                : 'gba:bg-purple-100 gba:text-purple-700 gba:border-purple-300'
-            }`}
+            className="gba:text-xs gba:flex gba:items-center gba:gap-1 gba:bg-blue-100 gba:text-blue-700 gba:border-blue-300"
           >
-            {data.assignmentMode === 'ASSIGN' ? (
-              <>
-                <UserPlus className="gba:h-3 gba:w-3" />
-                Assign
-              </>
-            ) : (
-              <>
-                <UserCheck className="gba:h-3 gba:w-3" />
-                Claim
-              </>
-            )}
+            <Cpu className="gba:h-3 gba:w-3" />
+            System
           </Badge>
+        ) : (
+          data.assignmentMode && (
+            <Badge
+              variant="outline"
+              className={`gba:text-xs gba:flex gba:items-center gba:gap-1 ${
+                data.assignmentMode === 'ASSIGN'
+                  ? 'gba:bg-green-100 gba:text-green-700 gba:border-green-300'
+                  : 'gba:bg-purple-100 gba:text-purple-700 gba:border-purple-300'
+              }`}
+            >
+              {data.assignmentMode === 'ASSIGN' ? (
+                <>
+                  <UserPlus className="gba:h-3 gba:w-3" />
+                  Assign
+                </>
+              ) : (
+                <>
+                  <UserCheck className="gba:h-3 gba:w-3" />
+                  Claim
+                </>
+              )}
+            </Badge>
+          )
         )}
       </div>
 
@@ -260,10 +289,14 @@ export const FlowRenderer: React.FC<FlowRendererProps> = ({
 }) => {
   // Convert steps to React Flow nodes and edges
   const { nodes, edges } = useMemo(() => {
+    const nodeWidth = 320
+    const summaryWidth = 160
+    const nodeX = 20
+    const summaryX = nodeX + (nodeWidth - summaryWidth) / 2
     const nodes: Node[] = steps.map((step, index) => ({
       id: `step-${index}`,
       type: 'default',
-      position: { x: 20, y: index * 150 + 20 },
+      position: { x: nodeX, y: index * 150 + 20 },
       data: {
         title: step.title,
         type: step.type || 'USER_TASK',
@@ -279,7 +312,7 @@ export const FlowRenderer: React.FC<FlowRendererProps> = ({
         background: 'transparent',
         border: 'none',
         padding: 0,
-        width: 240,
+        width: nodeWidth,
         height: 130
       }
     }))
@@ -290,7 +323,7 @@ export const FlowRenderer: React.FC<FlowRendererProps> = ({
       nodes.push({
         id: 'summary-node',
         type: 'summary',
-        position: { x: 60, y: summaryNodeY }, // Centered horizontally
+        position: { x: summaryX, y: summaryNodeY }, // Centered under column
         data: {
           summaryFieldsCount,
           isSelected: isSummarySelected,
@@ -300,7 +333,7 @@ export const FlowRenderer: React.FC<FlowRendererProps> = ({
           background: 'transparent',
           border: 'none',
           padding: 0,
-          width: 160,
+          width: summaryWidth,
           height: 160
         }
       })
