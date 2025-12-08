@@ -174,7 +174,7 @@ User context:
 Respond ONLY with valid JSON matching the schema above.`
 
   const promptPayload: PromptRegistration = {
-    name: 'agent-parser-v1',
+    name: 'agent_parser_v1',
     description: 'Parses natural language requests into Personal AI Agent configurations',
     type: 'task-expert',
     systemContent: systemPrompt,

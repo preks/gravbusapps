@@ -7,7 +7,7 @@
 
 2. **Create New Prompt**
    - Click "Create New Prompt"
-   - Set **Name**: `agent-parser-v1`
+   - Set **Name**: `agent_parser_v1` (no hyphens - only alphanumeric and underscores allowed)
    - Set **Description**: `Parses natural language requests into Personal AI Agent configurations`
    - Set **Type**: `Task Expert`
 
@@ -170,7 +170,7 @@ Respond ONLY with valid JSON matching the schema above.
 
 6. **Save the Prompt**
    - Click "Save"
-   - Note the Prompt ID (should be `agent-parser-v1`)
+   - Note the Prompt ID (should be `agent_parser_v1`)
 
 ---
 
@@ -222,7 +222,7 @@ If you see "AI parsing failed, using fallback parser", the prompt is not registe
 
 **Error: "Prompt not found"**
 
-- Make sure the prompt name is exactly `agent-parser-v1`
+- Make sure the prompt name is exactly `agent_parser_v1` (underscores, not hyphens)
 - Check in Task Expert Studio that the prompt exists
 
 **Error: "REST request failed: 400"**

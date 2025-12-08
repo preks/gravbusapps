@@ -10,7 +10,7 @@ import type { AgentParseResult, CreateAgentRequest, PersonalAgent } from '../typ
 import { AGENT_PARSER_USER_PROMPT } from '../prompts/agent-parser-prompt'
 
 // This will be created in Prompt Manager as a Task Expert
-const AGENT_PARSER_PROMPT_ID = 'agent-parser-v1'
+const AGENT_PARSER_PROMPT_ID = 'agent_parser_v1'
 
 export class AgentParserService {
   private accessToken: string
