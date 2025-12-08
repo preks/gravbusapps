@@ -35,8 +35,7 @@ const GET_ALL_CUSTOMER_OPPORTUNITY_STATISTICS_WITH_TREND = (currencyId?: string)
     $lastQuarter: timestamptz!,
     $thisYearStart: timestamptz!,
     $lastYearStart: timestamptz!,
-    $lastYearEnd: timestamptz!,
-    $currencyCode: String
+    $lastYearEnd: timestamptz!
   ) {
     recentOpportunitiesCurrent: OpportunityAggregate(where: {
       createdAt: {_gte: $currentStart},
@@ -190,8 +189,7 @@ export const useCustomerOpportunityStatistics = (
         lastQuarter: lastQuarter.toISOString(),
         thisYearStart: thisYearStart.toISOString(),
         lastYearStart: lastYearStart.toISOString(),
-        lastYearEnd: lastYearEnd.toISOString(),
-        currencyCode: currencyId || null
+        lastYearEnd: lastYearEnd.toISOString()
       })
 
       const currentWon = result.winRateCurrentWon.aggregate.count || 0
