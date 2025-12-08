@@ -25,7 +25,7 @@ export const Calendar: React.FC<CalendarProps> = ({ accessToken, prefixDataTestI
   const apiUrl = env('NEXT_PUBLIC_CHAT_API') || `${baseUrl}/chat-service/api/v1`
   // Use chat-service namespace with default socket path (consistent with Chat.tsx)
   const wsUrl = `${baseUrl}/chat-service`
-  const wsSocketPath = '/socket.io'
+  const wsSocketPath = '/chat-service/socket.io'
 
   // Initialize chat client for WebSocket and API access (needed for calls)
   const chatClient = useChatClient({

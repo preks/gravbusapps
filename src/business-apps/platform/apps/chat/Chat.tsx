@@ -78,7 +78,8 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
   // Normalize API and WS endpoints; connect to chat-service namespace with default socket path
   const apiUrl = env('NEXT_PUBLIC_CHAT_API') || `${baseUrl}/chat-service/api/v1` || ''
   const wsUrl = `${baseUrl}/chat-service` // namespace in URL (matches gateway)
-  const wsSocketPath = '/socket.io' // default socket.io path
+  // Ensure Socket.IO path keeps /chat-service prefix (Kong strip-path=true compatible)
+  const wsSocketPath = env('NEXT_PUBLIC_CHAT_WS_PATH') || '/chat-service/socket.io'
 
   const chatClient = useChatClient({
     accessToken,

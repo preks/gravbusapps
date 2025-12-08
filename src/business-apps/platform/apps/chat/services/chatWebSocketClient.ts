@@ -25,7 +25,8 @@ export class ChatWebSocketClient {
       connectionTimeout: options.connectionTimeout || 20000, // 20s timeout
       reconnectionAttempts: options.reconnectionAttempts || 10,
       reconnectionDelayMax: options.reconnectionDelayMax || 10000,
-      path: options.path || '/socket.io',
+      // Include /chat-service prefix so Kong strip-path=true forwards to upstream /socket.io
+      path: options.path || '/chat-service/socket.io',
       enablePollingFallback: options.enablePollingFallback !== false // default true
     }
     this.maxReconnectAttempts = this.options.reconnectionAttempts || 10
