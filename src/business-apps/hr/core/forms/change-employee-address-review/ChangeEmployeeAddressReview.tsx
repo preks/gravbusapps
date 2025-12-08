@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState } from 'react'
 import {
   Card,
   CardContent,
@@ -6,7 +6,6 @@ import {
   CardTitle,
   Badge,
   Separator,
-  Label,
   Spinner,
   Alert,
   AlertDescription,
@@ -16,13 +15,14 @@ import {
   CollapsibleContent,
   useTranslation
 } from '@newwork/nw-design-system'
-import { Landmark, CheckCircle, ArrowRight, Globe, MapPin, FileText, Home, ChevronDown } from 'lucide-react'
+import { Landmark, CheckCircle, Globe, MapPin, FileText, Home, ChevronDown } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/components/TaskDetailHeader'
 import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
 import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
 import { useAddressReviewData } from './hooks/useAddressReviewData'
+import { useReviewFormData, RenderComparisonField, RenderUnchangedField } from '../shared'
 import translations from './_i18n'
 
 /**
@@ -105,39 +105,62 @@ const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewPr
       oldAddress?.countryRef
   )
 
-  // Count total changes - MUST BE BEFORE CONDITIONAL RETURNS
-  const changesCount = useMemo(() => {
+  // Helper functions for formatters
+  const getCatalogValue = (ref?: string | null): string => {
+    if (!ref) return t('value-na')
+    const entry = catalogMap[ref]
+    if (!entry) return ref.split(':').pop() || ref
+    return entry.translations?.[0]?.value || entry.value || entry.code || ref
+  }
+
+  const formatAddressType = (type?: string | null): string => {
+    if (!type) return t('value-na')
+    if (type.toUpperCase() === 'PRIMARY') return t('value-primary')
+    if (type.toUpperCase() === 'SECONDARY') return t('value-secondary')
+    return type
+  }
+
+  const formatPoBox = (poBox?: boolean | null): string => {
+    if (poBox === true) return t('value-yes')
+    if (poBox === false) return t('value-no')
+    return t('value-na')
+  }
+
+  const formatDocument = (docId?: string | null): string => {
+    if (!docId) return t('value-na')
+    return docNameMap[docId] || t('value-na')
+  }
+
+  // Use shared hook for review form data (exclude addressLine as it needs special handling)
+  const { changesCount: baseChangesCount, compareField } = useReviewFormData<AddressData>({
+    newData: newAddress,
+    oldData: oldAddress,
+    fields: ['type', 'postalCode', 'locality', 'regionRef', 'countryRef', 'poBox', 'notes', 'employeeDocument'],
+    formatters: {
+      type: formatAddressType,
+      regionRef: getCatalogValue,
+      countryRef: getCatalogValue,
+      poBox: formatPoBox,
+      employeeDocument: formatDocument
+    },
+    defaultFormatter: (v: any) => String(v || t('value-na')),
+    t
+  })
+
+  // Calculate address line changes separately
+  const addressLineChanges = (() => {
     if (!hasOldAddress || isInsertMode) return 0
-
-    const fields: (keyof AddressData)[] = [
-      'type',
-      'postalCode',
-      'locality',
-      'regionRef',
-      'countryRef',
-      'poBox',
-      'notes',
-      'employeeDocument'
-    ]
-
-    const compareField = (newVal: unknown, oldVal: unknown): boolean => {
-      const format = (v: unknown) => String(v || 'N/A')
-      return format(newVal) !== format(oldVal)
-    }
-
-    let count = fields.reduce((acc, field) => {
-      return compareField(newAddress[field], oldAddress[field]) ? acc + 1 : acc
-    }, 0)
-
-    // Check address lines
+    let count = 0
     for (let i = 0; i < 4; i++) {
       const oldLine = String((oldAddress.addressLine || [])[i] || '').trim()
       const newLine = String((newAddress.addressLine || [])[i] || '').trim()
       if (oldLine !== newLine) count++
     }
-
     return count
-  }, [newAddress, oldAddress, hasOldAddress, isInsertMode])
+  })()
+
+  // Total changes including address lines
+  const changesCount = baseChangesCount + addressLineChanges
 
   // Detect if we're in every-box context
   const isEveryBoxContext = !!onClose
@@ -193,16 +216,7 @@ const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewPr
     )
   }
 
-  // Helper functions
-  const getCatalogValue = (ref?: string | null): string => {
-    if (!ref) return t('value-na')
-    const entry = catalogMap[ref]
-    if (!entry) return ref.split(':').pop() || ref
-
-    // Use translation if available, otherwise use default value
-    return entry.translations?.[0]?.value || entry.value || entry.code || ref
-  }
-
+  // Additional helper functions for country-specific logic
   const getCountryCode = (ref?: string | null): string => {
     return ref?.split(':').pop() || ''
   }
@@ -244,81 +258,19 @@ const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewPr
     return t('card-title-changes')
   }
 
-  // Field comparison
-  interface FieldComparison {
-    changed: boolean
-    oldValue: string
-    newValue: string
-  }
-
-  const compareField = (newVal: any, oldVal: any, formatter?: (val: any) => string): FieldComparison => {
-    const format = formatter || ((v: any) => String(v || t('value-na')))
-    const newFormatted = format(newVal)
-    const oldFormatted = format(oldVal)
-
-    return {
-      changed: newFormatted !== oldFormatted,
-      oldValue: oldFormatted,
-      newValue: newFormatted
-    }
-  }
-
   const displayName = employeeData
     ? `${employeeData.firstName || ''} ${employeeData.lastName || ''}`.trim() || 'Employee'
     : 'Employee'
 
-  // Render comparison field - Show ONLY changed fields with old → new
-  const renderComparisonField = (label: string, comparison: FieldComparison, icon?: React.ReactNode) => {
-    // Only show changed fields
-    if (!comparison.changed) return null
-
-    const isNewAddress = !hasOldAddress || isInsertMode
-    // Display "Not set" if old value was empty/null/N/A
-    const displayOldValue =
-      comparison.oldValue === t('value-na') || !comparison.oldValue ? t('value-not-set') : comparison.oldValue
-
-    return (
-      <div className="gba:space-y-2">
-        <Label className="gba:text-muted-foreground gba:flex gba:items-center gba:gap-2">
-          {icon}
-          {label}
-          <Badge variant={isNewAddress ? 'success' : 'warning'} className="gba:ml-2">
-            {isNewAddress ? t('badge-new') : t('badge-changed')}
-          </Badge>
-        </Label>
-
-        {/* Always show old → new for changed fields */}
-        <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
-          {!isNewAddress && (
-            <>
-              <div className="gba:px-3 gba:py-2 gba:bg-destructive/10 gba:text-destructive gba:rounded gba:text-sm gba:line-through">
-                {displayOldValue}
-              </div>
-              <ArrowRight className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
-            </>
-          )}
-          <div className="gba:px-3 gba:py-2 gba:bg-success/10 gba:text-success gba:rounded gba:text-sm gba:font-medium">
-            {comparison.newValue}
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // Render unchanged field - Show current value for unchanged fields
-  const renderUnchangedField = (label: string, value: string, icon?: React.ReactNode) => {
-    // Skip empty values
-    if (!value || value === 'N/A') return null
-
-    return (
-      <div className="gba:space-y-2">
-        <Label className="gba:text-muted-foreground gba:flex gba:items-center gba:gap-2">
-          {icon}
-          {label}
-        </Label>
-        <div className="gba:px-3 gba:py-2 gba:bg-muted gba:rounded gba:text-sm">{value}</div>
-      </div>
-    )
+  // Helper to compare address line values
+  const compareAddressLine = (newLine: string, oldLine: string) => {
+    const newVal = newLine.trim() || t('value-not-set')
+    const oldVal = oldLine.trim() || t('value-not-set')
+    return {
+      newValue: newVal,
+      oldValue: oldVal,
+      changed: newVal !== oldVal
+    }
   }
 
   return (
@@ -392,13 +344,16 @@ const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewPr
             const oldLine = String((oldAddress.addressLine || [])[i] || '').trim()
             const newLine = String((newAddress.addressLine || [])[i] || '').trim()
             if (i === 0 || oldLine || newLine) {
+              const comparison = compareAddressLine(newLine, oldLine)
               return (
                 <React.Fragment key={`address-line-${i}`}>
-                  {renderComparisonField(
-                    t('label-address-line', { number: i + 1 }),
-                    compareField(newLine, oldLine),
-                    <MapPin className="gba:h-4 gba:w-4" />
-                  )}
+                  <RenderComparisonField
+                    label={t('label-address-line', { number: i + 1 })}
+                    comparison={comparison}
+                    icon={<MapPin className="gba:h-4 gba:w-4" />}
+                    isNewData={isInsertMode}
+                    t={t}
+                  />
                 </React.Fragment>
               )
             }
@@ -408,44 +363,61 @@ const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewPr
           <Separator />
 
           {/* Postal Code */}
-          {renderComparisonField(
-            getPostalLabel(newAddress.countryRef),
-            compareField(newAddress.postalCode, oldAddress.postalCode)
-          )}
+          <RenderComparisonField
+            label={getPostalLabel(newAddress.countryRef)}
+            comparison={compareField('postalCode')}
+            isNewData={isInsertMode}
+            t={t}
+          />
 
           {/* City */}
-          {renderComparisonField(
-            t('label-city'),
-            compareField(newAddress.locality, oldAddress.locality),
-            <Landmark className="gba:h-4 gba:w-4" />
-          )}
+          <RenderComparisonField
+            label={t('label-city')}
+            comparison={compareField('locality')}
+            icon={<Landmark className="gba:h-4 gba:w-4" />}
+            isNewData={isInsertMode}
+            t={t}
+          />
 
           {/* Region - Only show if country requires it */}
-          {(shouldShowRegion(newAddress.countryRef) || shouldShowRegion(oldAddress.countryRef)) &&
-            renderComparisonField(
-              getRegionLabel(newAddress.countryRef),
-              compareField(newAddress.regionRef, oldAddress.regionRef, getCatalogValue)
-            )}
-
-          {/* Country */}
-          {renderComparisonField(
-            t('label-country'),
-            compareField(newAddress.countryRef, oldAddress.countryRef, getCatalogValue),
-            <Globe className="gba:h-4 gba:w-4" />
+          {(shouldShowRegion(newAddress.countryRef) || shouldShowRegion(oldAddress.countryRef)) && (
+            <RenderComparisonField
+              label={getRegionLabel(newAddress.countryRef)}
+              comparison={compareField('regionRef', getCatalogValue)}
+              isNewData={isInsertMode}
+              t={t}
+            />
           )}
 
+          {/* Country */}
+          <RenderComparisonField
+            label={t('label-country')}
+            comparison={compareField('countryRef', getCatalogValue)}
+            icon={<Globe className="gba:h-4 gba:w-4" />}
+            isNewData={isInsertMode}
+            t={t}
+          />
+
           {/* PO Box - only if present */}
-          {(newAddress.poBox || oldAddress.poBox) &&
-            renderComparisonField(
-              t('label-po-box'),
-              compareField(String(newAddress.poBox || false), String(oldAddress.poBox || false))
-            )}
+          {(newAddress.poBox != null || oldAddress.poBox != null) && (
+            <RenderComparisonField
+              label={t('label-po-box')}
+              comparison={compareField('poBox', formatPoBox)}
+              isNewData={isInsertMode}
+              t={t}
+            />
+          )}
 
           {/* Notes - only if present */}
           {(newAddress.notes?.trim() || oldAddress.notes?.trim()) && (
             <>
               <Separator />
-              {renderComparisonField(t('label-notes'), compareField(newAddress.notes, oldAddress.notes))}
+              <RenderComparisonField
+                label={t('label-notes')}
+                comparison={compareField('notes')}
+                isNewData={isInsertMode}
+                t={t}
+              />
             </>
           )}
 
@@ -453,15 +425,12 @@ const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewPr
           {(newAddress.employeeDocument || oldAddress.employeeDocument) && (
             <>
               <Separator />
-              {renderComparisonField(
-                t('label-attachment'),
-                compareField(
-                  docNameMap[String(newAddress.employeeDocument)] ||
-                    (newAddress.employeeDocument ? t('value-new-attachment') : ''),
-                  docNameMap[String(oldAddress.employeeDocument)] ||
-                    (oldAddress.employeeDocument ? t('value-old-attachment') : '')
-                )
-              )}
+              <RenderComparisonField
+                label={t('label-attachment')}
+                comparison={compareField('employeeDocument', formatDocument)}
+                isNewData={isInsertMode}
+                t={t}
+              />
             </>
           )}
         </CardContent>
@@ -496,17 +465,18 @@ const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewPr
                 {[0, 1, 2, 3].map(i => {
                   const oldLine = String((oldAddress.addressLine || [])[i] || '').trim()
                   const newLine = String((newAddress.addressLine || [])[i] || '').trim()
-                  const comparison = compareField(newLine, oldLine)
+                  const comparison = compareAddressLine(newLine, oldLine)
 
                   // Only show if field exists and is NOT changed
                   if ((i === 0 || oldLine || newLine) && !comparison.changed) {
                     return (
                       <React.Fragment key={`unchanged-address-line-${i}`}>
-                        {renderUnchangedField(
-                          t('label-address-line', { number: i + 1 }),
-                          newLine || t('value-not-set'),
-                          <MapPin className="gba:h-4 gba:w-4" />
-                        )}
+                        <RenderUnchangedField
+                          label={t('label-address-line', { number: i + 1 })}
+                          value={comparison.newValue}
+                          icon={<MapPin className="gba:h-4 gba:w-4" />}
+                          t={t}
+                        />
                       </React.Fragment>
                     )
                   }
@@ -517,60 +487,83 @@ const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewPr
 
                 {/* Postal Code */}
                 {(() => {
-                  const comparison = compareField(newAddress.postalCode, oldAddress.postalCode)
+                  const comparison = compareField('postalCode')
                   return (
-                    !comparison.changed &&
-                    renderUnchangedField(getPostalLabel(newAddress.countryRef), comparison.newValue)
+                    !comparison.changed && (
+                      <RenderUnchangedField
+                        label={getPostalLabel(newAddress.countryRef)}
+                        value={comparison.newValue}
+                        t={t}
+                      />
+                    )
                   )
                 })()}
 
                 {/* City */}
                 {(() => {
-                  const comparison = compareField(newAddress.locality, oldAddress.locality)
+                  const comparison = compareField('locality')
                   return (
-                    !comparison.changed &&
-                    renderUnchangedField(t('label-city'), comparison.newValue, <Landmark className="gba:h-4 gba:w-4" />)
+                    !comparison.changed && (
+                      <RenderUnchangedField
+                        label={t('label-city')}
+                        value={comparison.newValue}
+                        icon={<Landmark className="gba:h-4 gba:w-4" />}
+                        t={t}
+                      />
+                    )
                   )
                 })()}
 
                 {/* Region - Only if country requires it */}
                 {(shouldShowRegion(newAddress.countryRef) || shouldShowRegion(oldAddress.countryRef)) &&
                   (() => {
-                    const comparison = compareField(newAddress.regionRef, oldAddress.regionRef, getCatalogValue)
+                    const comparison = compareField('regionRef', getCatalogValue)
                     return (
-                      !comparison.changed &&
-                      renderUnchangedField(getRegionLabel(newAddress.countryRef), comparison.newValue)
+                      !comparison.changed && (
+                        <RenderUnchangedField
+                          label={getRegionLabel(newAddress.countryRef)}
+                          value={comparison.newValue}
+                          t={t}
+                        />
+                      )
                     )
                   })()}
 
                 {/* Country */}
                 {(() => {
-                  const comparison = compareField(newAddress.countryRef, oldAddress.countryRef, getCatalogValue)
+                  const comparison = compareField('countryRef', getCatalogValue)
                   return (
-                    !comparison.changed &&
-                    renderUnchangedField(t('label-country'), comparison.newValue, <Globe className="gba:h-4 gba:w-4" />)
+                    !comparison.changed && (
+                      <RenderUnchangedField
+                        label={t('label-country')}
+                        value={comparison.newValue}
+                        icon={<Globe className="gba:h-4 gba:w-4" />}
+                        t={t}
+                      />
+                    )
                   )
                 })()}
 
                 {/* PO Box */}
-                {(newAddress.poBox || oldAddress.poBox) &&
+                {(newAddress.poBox != null || oldAddress.poBox != null) &&
                   (() => {
-                    const comparison = compareField(
-                      String(newAddress.poBox || false),
-                      String(oldAddress.poBox || false)
+                    const comparison = compareField('poBox', formatPoBox)
+                    return (
+                      !comparison.changed && (
+                        <RenderUnchangedField label={t('label-po-box')} value={comparison.newValue} t={t} />
+                      )
                     )
-                    return !comparison.changed && renderUnchangedField(t('label-po-box'), comparison.newValue)
                   })()}
 
                 {/* Notes */}
                 {(newAddress.notes?.trim() || oldAddress.notes?.trim()) &&
                   (() => {
-                    const comparison = compareField(newAddress.notes, oldAddress.notes)
+                    const comparison = compareField('notes')
                     if (!comparison.changed) {
                       return (
                         <>
                           <Separator />
-                          {renderUnchangedField(t('label-notes'), comparison.newValue)}
+                          <RenderUnchangedField label={t('label-notes')} value={comparison.newValue} t={t} />
                         </>
                       )
                     }
@@ -580,17 +573,12 @@ const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewPr
                 {/* Document */}
                 {(newAddress.employeeDocument || oldAddress.employeeDocument) &&
                   (() => {
-                    const comparison = compareField(
-                      docNameMap[String(newAddress.employeeDocument)] ||
-                        (newAddress.employeeDocument ? t('value-new-attachment') : ''),
-                      docNameMap[String(oldAddress.employeeDocument)] ||
-                        (oldAddress.employeeDocument ? t('value-old-attachment') : '')
-                    )
+                    const comparison = compareField('employeeDocument', formatDocument)
                     if (!comparison.changed) {
                       return (
                         <>
                           <Separator />
-                          {renderUnchangedField(t('label-attachment'), comparison.newValue)}
+                          <RenderUnchangedField label={t('label-attachment')} value={comparison.newValue} t={t} />
                         </>
                       )
                     }

@@ -4,7 +4,6 @@ import {
   Alert,
   AlertTitle,
   AlertDescription,
-  Badge,
   Card,
   CardContent,
   CardHeader,
@@ -78,7 +77,6 @@ const ConfirmTransferAdvPaymentContent: React.FC<ConfirmTransferAdvPaymentProps>
   const taskCompletedAt = processMetadata?.completedAt || extendedAdditionalData?.psi_taskCompletedAt
   const isTaskCompleted = taskStatus === 'COMPLETED' || !!taskCompletedAt
   const taskTitle = processMetadata?.referenceTaskName || processMetadata?.nodeName || t('task-title')
-  const taskSource: 'kogito' | 'cflow' = processMetadata?.source || 'kogito'
 
   const formatDateToISO = (dateString: string): string => {
     if (!dateString) {
@@ -226,27 +224,10 @@ const ConfirmTransferAdvPaymentContent: React.FC<ConfirmTransferAdvPaymentProps>
     }
   }, [paymentData])
 
-  // Get status display
-  const getStatusDisplay = (status?: string) => {
-    if (!status) return { label: t('status-pending'), variant: 'default' as const }
-    const statusUpper = status.toUpperCase()
-    if (statusUpper === 'BOOKED' || statusUpper === 'APPROVED') {
-      return { label: status, variant: 'default' as const }
-    }
-    return { label: status, variant: 'default' as const }
-  }
-
-  const statusDisplay = useMemo(() => getStatusDisplay(paymentData?.status), [paymentData?.status])
-
   if (isLoading) {
     return (
       <div className="gba:flex gba:flex-col gba:h-full gba:px-6" data-testid="confirm-transfer-adv-payment-container">
-        <TaskDetailHeader
-          title={taskTitle}
-          status={taskStatus}
-          source={taskSource}
-          onClose={isEveryBoxContext ? handleClose : undefined}
-        />
+        <TaskDetailHeader title={taskTitle} onClose={isEveryBoxContext ? handleClose : undefined} />
         <div
           className="gba:flex gba:justify-center gba:items-center gba:min-h-[400px] gba:flex-1"
           data-testid="confirm-transfer-adv-payment-loading"
@@ -260,12 +241,7 @@ const ConfirmTransferAdvPaymentContent: React.FC<ConfirmTransferAdvPaymentProps>
   if (error) {
     return (
       <div className="gba:flex gba:flex-col gba:h-full gba:px-6" data-testid="confirm-transfer-adv-payment-container">
-        <TaskDetailHeader
-          title={taskTitle}
-          status={taskStatus}
-          source={taskSource}
-          onClose={isEveryBoxContext ? handleClose : undefined}
-        />
+        <TaskDetailHeader title={taskTitle} onClose={isEveryBoxContext ? handleClose : undefined} />
         <div className="gba:flex-1 gba:overflow-y-auto gba:py-6">
           <Alert variant="destructive" data-testid="confirm-transfer-adv-payment-error">
             <AlertTitle>{t('error-loading-title')}</AlertTitle>
@@ -294,12 +270,7 @@ const ConfirmTransferAdvPaymentContent: React.FC<ConfirmTransferAdvPaymentProps>
   if (!paymentData) {
     return (
       <div className="gba:flex gba:flex-col gba:h-full gba:px-6" data-testid="confirm-transfer-adv-payment-container">
-        <TaskDetailHeader
-          title={taskTitle}
-          status={taskStatus}
-          source={taskSource}
-          onClose={isEveryBoxContext ? handleClose : undefined}
-        />
+        <TaskDetailHeader title={taskTitle} onClose={isEveryBoxContext ? handleClose : undefined} />
         <div className="gba:flex-1 gba:overflow-y-auto gba:flex gba:items-center gba:justify-center gba:py-6">
           <Alert data-testid="confirm-transfer-adv-payment-no-data">
             <AlertTitle>{t('error-no-data-title')}</AlertTitle>
@@ -331,17 +302,10 @@ const ConfirmTransferAdvPaymentContent: React.FC<ConfirmTransferAdvPaymentProps>
       header={
         <TaskDetailHeader
           title={taskTitle}
-          status={taskStatus}
-          source={taskSource}
           showEmployeeInfo={true}
           employeeData={employeeDataForHeader}
           isLoadingEmployee={isLoading}
           onClose={isEveryBoxContext ? handleClose : undefined}
-          customBadges={
-            <Badge variant={statusDisplay.variant} data-testid="payment-status-badge">
-              {statusDisplay.label}
-            </Badge>
-          }
         />
       }
       footer={
@@ -386,7 +350,6 @@ const ConfirmTransferAdvPaymentContent: React.FC<ConfirmTransferAdvPaymentProps>
             status={paymentData.status}
             expensePlan={expensePlan}
             accessToken={accessToken}
-            t={t}
           />
         </CardContent>
       </Card>
@@ -398,7 +361,7 @@ const ConfirmTransferAdvPaymentContent: React.FC<ConfirmTransferAdvPaymentProps>
             <CardTitle>{t('section-approved-by')}</CardTitle>
           </CardHeader>
           <CardContent>
-            <SupervisorInfoSection supervisor={employee.employeePosition.supervisor} t={t} />
+            <SupervisorInfoSection supervisor={employee.employeePosition.supervisor} />
           </CardContent>
         </Card>
       )}
@@ -417,7 +380,6 @@ const ConfirmTransferAdvPaymentContent: React.FC<ConfirmTransferAdvPaymentProps>
               onTransactionDateChange={handleTransactionDateChange}
               onTransactionIdChange={handleTransactionIdChange}
               onConfirmationChange={handleConfirmationChange}
-              t={t}
             />
           </CardContent>
         </Card>
@@ -438,7 +400,6 @@ const ConfirmTransferAdvPaymentContent: React.FC<ConfirmTransferAdvPaymentProps>
                   ? `${paymentData.transactionConfirmedByEmployee.firstName} ${paymentData.transactionConfirmedByEmployee.lastName}`
                   : undefined
               }
-              t={t}
             />
           </CardContent>
         </Card>

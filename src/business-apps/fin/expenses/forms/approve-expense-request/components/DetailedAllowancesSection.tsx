@@ -2,7 +2,7 @@ import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Badge, Label } from '@newwork/nw-design-system'
 import { PiCurrencyCircleDollar, PiCalendarDuotone, PiMapPin } from 'react-icons/pi'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { formatDateTime } from '@/business-apps/core/every/apps/every-box/utils/taskFormatters'
+import { formatDateTime } from '@/common/utils/dateFormatter'
 import { ExpenseRequestAllowance } from '../types/expenseRequestV2Types'
 import { getCatalogValue } from '../utils/formatters'
 

@@ -4,7 +4,6 @@ import {
   Alert,
   AlertTitle,
   AlertDescription,
-  Badge,
   Switch,
   Textarea,
   Label,
@@ -91,7 +90,6 @@ const AdvancePaymentApprovalContent: React.FC<AdvancePaymentApprovalProps> = ({
   // Task is completed if status is COMPLETED OR if completedAt exists (matching InboxView logic)
   const isTaskCompleted = taskStatus === 'COMPLETED' || !!taskCompletedAt
   const taskTitle = t('task-title')
-  const taskSource: 'kogito' | 'cflow' = processMetadata?.source || 'kogito'
   const creatorName = taskPayload?.creatorName as string | undefined
 
   // Use generic hooks for entity dates (request created)
@@ -101,10 +99,24 @@ const AdvancePaymentApprovalContent: React.FC<AdvancePaymentApprovalProps> = ({
     entityType: 'AdvancePayment'
   })
 
+  // For completed tasks, try to extract approver from comments
+  const approverId = useMemo(() => {
+    if (!isTaskCompleted || !advancePayment?.advancePaymentComment) return null
+
+    // Find the most recent APPROVE_COMMENT or REJECT_COMMENT with an authorEmployee
+    const approvalComment = advancePayment.advancePaymentComment.find(
+      comment =>
+        (comment.commentType === 'APPROVE_COMMENT' || comment.commentType === 'REJECT_COMMENT') &&
+        comment.authorEmployee
+    )
+
+    return approvalComment?.authorEmployee || null
+  }, [isTaskCompleted, advancePayment?.advancePaymentComment])
+
   // For completed tasks, fetch approver name
   const { approverName, isLoading: isLoadingApproverName } = useApproverData({
     accessToken,
-    approverId: isTaskCompleted ? advancePayment?.approverId : null
+    approverId
   })
 
   // Extract approval data from task outputs/inputs (for completed tasks)
@@ -356,16 +368,6 @@ const AdvancePaymentApprovalContent: React.FC<AdvancePaymentApprovalProps> = ({
     )
   }
 
-  // Get status display
-  const getStatusDisplay = (status?: string) => {
-    if (!status) return { label: t('status-pending'), variant: 'default' as const }
-    const statusLower = status.toLowerCase()
-    if (statusLower.includes('approved')) return { label: t('status-approved'), variant: 'success' as const }
-    if (statusLower.includes('rejected')) return { label: t('status-rejected'), variant: 'destructive' as const }
-    return { label: status, variant: 'default' as const }
-  }
-
-  const statusDisplay = getStatusDisplay(approvalStatus || advancePayment.status)
   const displayName =
     `${advancePayment.expensePlan?.employee?.firstName || ''} ${advancePayment.expensePlan?.employee?.lastName || ''}`.trim() ||
     t('value-employee')
@@ -376,8 +378,6 @@ const AdvancePaymentApprovalContent: React.FC<AdvancePaymentApprovalProps> = ({
       header={
         <TaskDetailHeader
           title={taskTitle}
-          status={taskStatus}
-          source={taskSource}
           showEmployeeInfo={true}
           employeeData={
             advancePayment?.expensePlan?.employee
@@ -395,11 +395,6 @@ const AdvancePaymentApprovalContent: React.FC<AdvancePaymentApprovalProps> = ({
           isLoadingEmployee={loading}
           creatorName={creatorName}
           onClose={isEveryBoxContext ? handleClose : undefined}
-          customBadges={
-            <Badge variant={statusDisplay.variant} data-testid="advance-payment-status-badge">
-              {statusDisplay.label}
-            </Badge>
-          }
         />
       }
       footer={

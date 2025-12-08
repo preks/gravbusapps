@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Spinner, Alert, AlertTitle, AlertDescription, Badge, useTranslation } from '@newwork/nw-design-system'
+import { Spinner, Alert, AlertTitle, AlertDescription, useTranslation } from '@newwork/nw-design-system'
 import { Check } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
@@ -69,7 +69,6 @@ const PayTransferAdvPaymentContent: React.FC<PayTransferAdvPaymentProps> = ({
   // Task is completed if status is COMPLETED OR if completedAt exists
   const isTaskCompleted = taskStatus === 'COMPLETED' || !!taskCompletedAt
   const taskTitle = processMetadata?.referenceTaskName || processMetadata?.nodeName || t('task-title')
-  const taskSource: 'kogito' | 'cflow' = processMetadata?.source || 'kogito'
   const creatorName = taskPayload?.creatorName as string | undefined
 
   // Use generic hooks for entity dates (request created)
@@ -164,20 +163,6 @@ const PayTransferAdvPaymentContent: React.FC<PayTransferAdvPaymentProps> = ({
     )
   }
 
-  // Get status display
-  const getStatusDisplay = (status?: string) => {
-    if (!status) return { label: t('status-pending'), variant: 'default' as const }
-    const statusLower = status.toLowerCase()
-    if (statusLower.includes('transferred') || statusLower.includes('confirmed')) {
-      return { label: t('status-transferred'), variant: 'success' as const }
-    }
-    if (statusLower.includes('booked')) return { label: t('status-booked'), variant: 'default' as const }
-    if (statusLower.includes('approved')) return { label: t('status-approved'), variant: 'success' as const }
-    if (statusLower.includes('pending')) return { label: t('status-pending'), variant: 'default' as const }
-    return { label: status, variant: 'default' as const }
-  }
-
-  const statusDisplay = getStatusDisplay(advancePayment.status)
   const displayName =
     `${advancePayment.expensePlan?.employee?.firstName || ''} ${advancePayment.expensePlan?.employee?.lastName || ''}`.trim() ||
     t('value-employee')
@@ -191,8 +176,6 @@ const PayTransferAdvPaymentContent: React.FC<PayTransferAdvPaymentProps> = ({
       header={
         <TaskDetailHeader
           title={taskTitle}
-          status={taskStatus}
-          source={taskSource}
           showEmployeeInfo={true}
           employeeData={
             advancePayment?.expensePlan?.employee
@@ -210,11 +193,6 @@ const PayTransferAdvPaymentContent: React.FC<PayTransferAdvPaymentProps> = ({
           isLoadingEmployee={loading}
           creatorName={creatorName}
           onClose={isEveryBoxContext ? handleClose : undefined}
-          customBadges={
-            <Badge variant={statusDisplay.variant} data-testid="advance-payment-status-badge">
-              {statusDisplay.label}
-            </Badge>
-          }
         />
       }
       footer={
@@ -247,14 +225,12 @@ const PayTransferAdvPaymentContent: React.FC<PayTransferAdvPaymentProps> = ({
         expensePlanTitle={advancePayment.expensePlan?.title}
         expensePlanDocument={advancePayment.expensePlan?.employeeDocument}
         prefixDataTestId="pay-transfer-adv-payment"
-        t={t}
       />
 
       {/* 2. Approved By - Supervisor Information */}
       <ApprovedBySection
         approver={advancePayment.expensePlan?.employee?.employeePosition?.supervisor}
         prefixDataTestId="pay-transfer-adv-payment"
-        t={t}
       />
 
       {/* 3. Pickup Confirmation (only for non-completed tasks) */}
@@ -265,7 +241,6 @@ const PayTransferAdvPaymentContent: React.FC<PayTransferAdvPaymentProps> = ({
           onTransactionDateChange={setTransactionDate}
           onConfirmationChange={setConfirmationChecked}
           prefixDataTestId="pay-transfer-adv-payment"
-          t={t}
         />
       )}
 
@@ -280,7 +255,6 @@ const PayTransferAdvPaymentContent: React.FC<PayTransferAdvPaymentProps> = ({
               : undefined
           }
           prefixDataTestId="pay-transfer-adv-payment"
-          t={t}
         />
       )}
     </TaskFormLayout>

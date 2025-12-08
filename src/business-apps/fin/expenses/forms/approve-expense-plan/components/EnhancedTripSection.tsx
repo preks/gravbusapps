@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Badge, Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@newwork/nw-design-system'
 import { PiMapPin, PiArrowRight, PiArrowLeft, PiMapTrifold, PiFlag, PiTable, PiChartLine } from 'react-icons/pi'
-import { formatDateTime } from '@/business-apps/core/every/apps/every-box/utils/taskFormatters'
+import { formatDateTime } from '@/common/utils/dateFormatter'
 import { getCatalogValue } from '../utils/formatters'
 import { ExpenseRequestTrip } from '../types/expensePlanV2Types'
 import Pill from '@/components/pill'

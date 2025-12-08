@@ -29,7 +29,8 @@ import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/comp
 import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
 import { useEntityDates } from '@/common/data/common/hooks/useEntityDates'
 import { useApproverData } from '@/common/data/employee/hooks/useApproverData'
-import { formatWorkingDaysAndHours, formatDateTime } from '@/business-apps/hr/absences/utils/formatters'
+import { formatWorkingDaysAndHours } from '@/business-apps/hr/absences/utils/formatters'
+import { formatDateTime } from '@/common/utils/dateFormatter'
 import { ExtendedAdditionalData } from '@/business-apps/hr/absences/types/taskTypes'
 import { useApprovalData } from '@/business-apps/hr/absences/hooks/useApprovalData'
 import dayjs from 'dayjs'
@@ -228,7 +229,7 @@ const ApproveEmployeeVacation: React.FC<ApproveEmployeeVacationProps> = ({
       }
 
       // Build completion endpoint - match useKogitoProcess logic exactly
-      const kogitoBaseUrl = env('NEXT_PUBLIC_NEWWORK_PLATFORM_API_URL') || 'https://newwork-dev.newwork.com'
+      const kogitoBaseUrl = env('NEXT_PUBLIC_BASE_URL')
       let completionEndpoint = ''
 
       // Parse the endpoint to ensure it's a proper URL (same as useKogitoProcess)
@@ -348,7 +349,7 @@ const ApproveEmployeeVacation: React.FC<ApproveEmployeeVacationProps> = ({
       }
 
       // Build completion endpoint - match useKogitoProcess logic exactly
-      const kogitoBaseUrl = env('NEXT_PUBLIC_NEWWORK_PLATFORM_API_URL') || 'https://newwork-dev.newwork.com'
+      const kogitoBaseUrl = env('NEXT_PUBLIC_BASE_URL')
       let completionEndpoint = ''
 
       // Parse the endpoint to ensure it's a proper URL (same as useKogitoProcess)
@@ -593,7 +594,7 @@ const ApproveEmployeeVacation: React.FC<ApproveEmployeeVacationProps> = ({
                     {t('label-request-created')}:
                   </span>
                   <span className="gba:text-sm gba:flex-1">
-                    {isLoadingRequestDate ? <Spinner size="sm" /> : formatDateTime(requestCreatedAt, locale, t)}
+                    {isLoadingRequestDate ? <Spinner size="sm" /> : formatDateTime(requestCreatedAt, locale)}
                   </span>
                 </div>
               )}
@@ -663,7 +664,7 @@ const ApproveEmployeeVacation: React.FC<ApproveEmployeeVacationProps> = ({
                       <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
                         {t('label-date')}:
                       </span>
-                      <span className="gba:text-sm gba:flex-1">{formatDateTime(approvalDate, locale, t)}</span>
+                      <span className="gba:text-sm gba:flex-1">{formatDateTime(approvalDate, locale)}</span>
                     </div>
                   )}
 

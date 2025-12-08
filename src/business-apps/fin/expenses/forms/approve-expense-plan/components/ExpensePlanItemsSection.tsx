@@ -15,7 +15,7 @@ import {
 } from '@newwork/nw-design-system'
 import { PiLink } from 'react-icons/pi'
 import { ExpensePlanItem } from '../types/expensePlanV2Types'
-import { formatDateTime } from '@/business-apps/core/every/apps/every-box/utils/taskFormatters'
+import { formatDateTime } from '@/common/utils/dateFormatter'
 import Pill from '@/components/pill'
 
 interface ExpensePlanItemsSectionProps {

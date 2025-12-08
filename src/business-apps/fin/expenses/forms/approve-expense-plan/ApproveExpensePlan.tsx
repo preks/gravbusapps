@@ -4,7 +4,6 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  Badge,
   Label,
   Spinner,
   Alert,
@@ -18,7 +17,7 @@ import { PiCalendarDuotone, PiClock, PiMapPin } from 'react-icons/pi'
 import { ThumbsUp, XCircle, MessageSquare } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
-import { formatDateTime } from '@/business-apps/core/every/apps/every-box/utils/taskFormatters'
+import { formatDateTime } from '@/common/utils/dateFormatter'
 import { splitExpenseItems } from './utils/expenseItemUtils'
 import { useExpensePlanData } from './hooks/useExpensePlanData'
 import { formatCurrency, getCatalogValue } from './utils/formatters'
@@ -108,7 +107,6 @@ const ApproveExpensePlanContent: React.FC<ApproveExpensePlanProps> = ({
   const isTaskCompleted = taskStatus === 'COMPLETED' || !!taskCompletedAt
   const taskTitle =
     processMetadata?.referenceTaskName || processMetadata?.nodeName || expensePlan?.title || t('task-title')
-  const taskSource: 'kogito' | 'cflow' = processMetadata?.source || 'kogito'
   const creatorName = taskPayload?.creatorName as string | undefined
 
   // Use generic hooks for entity dates (request created)
@@ -389,16 +387,6 @@ const ApproveExpensePlanContent: React.FC<ApproveExpensePlanProps> = ({
           0
         )
 
-  // Get status display
-  const getStatusDisplay = (status?: string) => {
-    if (!status) return { label: t('status-pending'), variant: 'default' as const }
-    const statusLower = status.toLowerCase()
-    if (statusLower.includes('approved')) return { label: t('status-approved'), variant: 'success' as const }
-    if (statusLower.includes('rejected')) return { label: t('status-rejected'), variant: 'destructive' as const }
-    return { label: status, variant: 'default' as const }
-  }
-
-  const statusDisplay = getStatusDisplay(expensePlan.status)
   const displayName =
     `${expensePlan.employee?.firstName || ''} ${expensePlan.employee?.lastName || ''}`.trim() || t('value-employee')
 
@@ -408,8 +396,6 @@ const ApproveExpensePlanContent: React.FC<ApproveExpensePlanProps> = ({
       header={
         <TaskDetailHeader
           title={taskTitle}
-          status={taskStatus}
-          source={taskSource}
           showEmployeeInfo={true}
           employeeData={
             expensePlan?.employee
@@ -427,11 +413,6 @@ const ApproveExpensePlanContent: React.FC<ApproveExpensePlanProps> = ({
           isLoadingEmployee={loading}
           creatorName={creatorName}
           onClose={isEveryBoxContext ? handleClose : undefined}
-          customBadges={
-            <Badge variant={statusDisplay.variant} data-testid="expense-plan-status-badge">
-              {statusDisplay.label}
-            </Badge>
-          }
         />
       }
       footer={
@@ -547,8 +528,6 @@ const ApproveExpensePlanContent: React.FC<ApproveExpensePlanProps> = ({
             {/* Trip Table/Timeline */}
             <EnhancedTripSection
               expenseRequestTrip={expensePlan.expenseRequestTrip}
-              startDate={expensePlan.startDate}
-              endDate={expensePlan.endDate}
               prefixDataTestId="approve-expense-plan"
               t={t}
             />

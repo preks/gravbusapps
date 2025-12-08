@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState } from 'react'
 import {
   Card,
   CardContent,
@@ -6,7 +6,6 @@ import {
   CardTitle,
   Badge,
   Separator,
-  Label,
   Spinner,
   Alert,
   AlertDescription,
@@ -16,23 +15,14 @@ import {
   CollapsibleContent,
   useTranslation
 } from '@newwork/nw-design-system'
-import {
-  Landmark,
-  CreditCard,
-  CheckCircle,
-  ArrowRight,
-  Globe,
-  DollarSign,
-  Hash,
-  FileText,
-  ChevronDown
-} from 'lucide-react'
+import { Landmark, CreditCard, CheckCircle, Globe, DollarSign, Hash, FileText, ChevronDown } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/components/TaskDetailHeader'
 import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
 import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
 import { useBankAccountReviewData } from './hooks/useBankAccountReviewData'
+import { useReviewFormData, RenderComparisonField, RenderUnchangedField } from '../shared'
 import translations from './_i18n'
 
 /**
@@ -110,19 +100,40 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
   // Detect if we're in every-box context
   const isEveryBoxContext = !!onClose
 
-  // Helper: check if old bank account exists
-  const hasOldBankAccount = Boolean(
-    oldBankAccount?.bankName || oldBankAccount?.accountHolder || oldBankAccount?.accountNumber || oldBankAccount?.iban
-  )
+  // Helper functions for formatters
+  const getCatalogValue = (ref?: string | null): string => {
+    if (!ref) return t('value-na')
+    const entry = catalogMap[ref]
+    if (!entry) return ref.split(':').pop() || ref
+    return entry.translations?.[0]?.value || entry.value || entry.code || ref
+  }
 
-  const changeMode = hasOldBankAccount ? 'UPDATE' : 'INSERT'
-  const isInsertMode = changeMode === 'INSERT'
+  const formatAccountType = (type?: string | null): string => {
+    if (!type) return t('value-na')
+    if (type === 'CHECKINGS') return t('value-checkings')
+    if (type === 'SAVINGS') return t('value-savings')
+    return type
+  }
 
-  // Count total changes - MUST BE BEFORE CONDITIONAL RETURNS
-  const changesCount = useMemo(() => {
-    if (!hasOldBankAccount) return 0
+  const formatAddressType = (addressId?: string | null): string => {
+    if (!addressId) return t('value-na')
+    const type = addressTypeMap[addressId]
+    if (!type) return t('value-na')
+    if (type.toUpperCase() === 'PRIMARY') return t('value-primary')
+    if (type.toUpperCase() === 'SECONDARY') return t('value-secondary')
+    return type
+  }
 
-    const fields: (keyof BankAccountData)[] = [
+  const formatCurrency = (ref?: string | null): string => {
+    if (!ref) return t('value-na')
+    return catalogMap[ref]?.code || getCatalogValue(ref)
+  }
+
+  // Use shared hook for review form data
+  const { changesCount, hasOldData, changeMode, isInsertMode, compareField } = useReviewFormData<BankAccountData>({
+    newData: newBankAccount,
+    oldData: oldBankAccount,
+    fields: [
       'countryRef',
       'currencyRef',
       'bankName',
@@ -135,17 +146,19 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
       'iban',
       'swift',
       'notes'
-    ]
+    ],
+    formatters: {
+      countryRef: getCatalogValue,
+      currencyRef: getCatalogValue,
+      accountType: formatAccountType,
+      routingNumberType: getCatalogValue,
+      employeeAddress: formatAddressType
+    },
+    defaultFormatter: (v: any) => String(v || t('value-na')),
+    t
+  })
 
-    const compareField = (newVal: any, oldVal: any): boolean => {
-      const format = (v: any) => String(v || 'N/A')
-      return format(newVal) !== format(oldVal)
-    }
-
-    return fields.reduce((count, field) => {
-      return compareField(newBankAccount[field], oldBankAccount[field]) ? count + 1 : count
-    }, 0)
-  }, [newBankAccount, oldBankAccount, hasOldBankAccount])
+  const hasOldBankAccount = hasOldData
 
   const handleClose = () => {
     if (onClose) {
@@ -198,32 +211,7 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
     )
   }
 
-  // Helper functions
-  const getCatalogValue = (ref?: string | null): string => {
-    if (!ref) return t('value-na')
-    const entry = catalogMap[ref]
-    if (!entry) return ref.split(':').pop() || ref
-
-    // Use translation if available, otherwise use default value
-    return entry.translations?.[0]?.value || entry.value || entry.code || ref
-  }
-
-  const formatAccountType = (type?: string | null): string => {
-    if (!type) return t('value-na')
-    if (type === 'CHECKINGS') return t('value-checkings')
-    if (type === 'SAVINGS') return t('value-savings')
-    return type
-  }
-
-  const formatAddressType = (addressId?: string | null): string => {
-    if (!addressId) return t('value-na')
-    const type = addressTypeMap[addressId]
-    if (!type) return t('value-na')
-    if (type.toUpperCase() === 'PRIMARY') return t('value-primary')
-    if (type.toUpperCase() === 'SECONDARY') return t('value-secondary')
-    return type
-  }
-
+  // Helper functions for US account detection
   const getCountryCode = (ref?: string | null): string => {
     return ref?.split(':').pop() || ''
   }
@@ -232,34 +220,16 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
     return getCountryCode(countryRef) === 'US'
   }
 
-  // Field comparison
-  interface FieldComparison {
-    changed: boolean
-    oldValue: string
-    newValue: string
-  }
-
-  const compareField = (newVal: any, oldVal: any, formatter?: (val: any) => string): FieldComparison => {
-    const format = formatter || ((v: any) => String(v || 'N/A'))
-    const newFormatted = format(newVal)
-    const oldFormatted = format(oldVal)
-
-    return {
-      changed: newFormatted !== oldFormatted,
-      oldValue: oldFormatted,
-      newValue: newFormatted
-    }
-  }
-
   const displayName = employeeData
     ? `${employeeData.firstName || ''} ${employeeData.lastName || ''}`.trim() || 'Employee'
     : 'Employee'
 
-  // Render comparison field - Show ONLY changed fields with old → new
-  const renderComparisonField = (
+  // Wrapper functions for US-specific rendering logic
+  const renderComparisonFieldWithUSLogic = (
     label: string,
-    comparison: FieldComparison,
+    field: keyof BankAccountData,
     icon?: React.ReactNode,
+    formatter?: (val: any) => string,
     showForUS?: boolean,
     showForNonUS?: boolean
   ) => {
@@ -270,53 +240,18 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
     if (showForUS !== undefined && !showForUS && (newIsUS || oldIsUS)) return null
     if (showForNonUS !== undefined && !showForNonUS && !newIsUS && !oldIsUS) return null
 
-    // Only show changed fields
-    if (!comparison.changed) return null
-
-    const isNewAccount = !hasOldBankAccount || changeMode === 'INSERT'
-    // Display "Not set" if old value was empty/null/N/A
-    const displayOldValue =
-      comparison.oldValue === t('value-na') || !comparison.oldValue ? t('value-not-set') : comparison.oldValue
-
-    return (
-      <div className="gba:space-y-2">
-        <Label className="gba:text-muted-foreground gba:flex gba:items-center gba:gap-2">
-          {icon}
-          {label}
-          <Badge variant={isNewAccount ? 'success' : 'warning'} className="gba:ml-2">
-            {isNewAccount ? t('badge-new') : t('badge-changed')}
-          </Badge>
-        </Label>
-
-        {/* Always show old → new for changed fields */}
-        <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
-          {!isNewAccount && (
-            <>
-              <div className="gba:px-3 gba:py-2 gba:bg-destructive/10 gba:text-destructive gba:rounded gba:text-sm gba:line-through">
-                {displayOldValue}
-              </div>
-              <ArrowRight className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
-            </>
-          )}
-          <div className="gba:px-3 gba:py-2 gba:bg-success/10 gba:text-success gba:rounded gba:text-sm gba:font-medium">
-            {comparison.newValue}
-          </div>
-        </div>
-      </div>
-    )
+    const comparison = compareField(field, formatter)
+    return <RenderComparisonField label={label} comparison={comparison} icon={icon} isNewData={isInsertMode} t={t} />
   }
 
-  // Render unchanged field - Show current value for unchanged fields
-  const renderUnchangedField = (
+  const renderUnchangedFieldWithUSLogic = (
     label: string,
-    value: string,
+    field: keyof BankAccountData,
     icon?: React.ReactNode,
+    formatter?: (val: any) => string,
     showForUS?: boolean,
     showForNonUS?: boolean
   ) => {
-    // Skip empty values
-    if (!value || value === t('value-na')) return null
-
     const newIsUS = isUSAccount(newBankAccount.countryRef)
     const oldIsUS = isUSAccount(oldBankAccount.countryRef)
 
@@ -324,15 +259,10 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
     if (showForUS !== undefined && !showForUS && (newIsUS || oldIsUS)) return null
     if (showForNonUS !== undefined && !showForNonUS && !newIsUS && !oldIsUS) return null
 
-    return (
-      <div className="gba:space-y-2">
-        <Label className="gba:text-muted-foreground gba:flex gba:items-center gba:gap-2">
-          {icon}
-          {label}
-        </Label>
-        <div className="gba:px-3 gba:py-2 gba:bg-muted gba:rounded gba:text-sm">{value}</div>
-      </div>
-    )
+    const comparison = compareField(field, formatter)
+    if (comparison.changed) return null
+
+    return <RenderUnchangedField label={label} value={comparison.newValue} icon={icon} t={t} />
   }
 
   return (
@@ -387,7 +317,7 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
         <AlertDescription>
           {changeMode === 'INSERT'
             ? t('alert-new-account')
-            : hasOldBankAccount && changesCount > 0
+            : changesCount > 0
               ? t('alert-update-with-changes', { count: changesCount })
               : t('alert-update-no-changes')}
         </AlertDescription>
@@ -399,9 +329,9 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
           <div className="gba:flex gba:items-center gba:justify-between">
             <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-lg">
               <Landmark className="gba:h-5 gba:w-5" />
-              {changeMode === 'INSERT' ? t('card-title-new-account') : t('card-title-changes')}
+              {isInsertMode ? t('card-title-new-account') : t('card-title-changes')}
             </CardTitle>
-            {hasOldBankAccount && changesCount > 0 && (
+            {!isInsertMode && changesCount > 0 && (
               <Badge variant="warning">{t('badge-changes', { count: changesCount })}</Badge>
             )}
           </div>
@@ -409,19 +339,17 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
         <CardContent className="gba:space-y-4">
           {/* Country and Currency */}
           <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
-            {renderComparisonField(
+            {renderComparisonFieldWithUSLogic(
               t('label-country'),
-              compareField(newBankAccount.countryRef, oldBankAccount.countryRef, getCatalogValue),
-              <Globe className="gba:h-4 gba:w-4" />
+              'countryRef',
+              <Globe className="gba:h-4 gba:w-4" />,
+              getCatalogValue
             )}
-            {renderComparisonField(
+            {renderComparisonFieldWithUSLogic(
               t('label-currency'),
-              compareField(
-                newBankAccount.currencyRef,
-                oldBankAccount.currencyRef,
-                ref => catalogMap[ref || '']?.code || getCatalogValue(ref)
-              ),
-              <DollarSign className="gba:h-4 gba:w-4" />
+              'currencyRef',
+              <DollarSign className="gba:h-4 gba:w-4" />,
+              formatCurrency
             )}
           </div>
 
@@ -429,53 +357,55 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
 
           {/* Bank Name and Account Type */}
           <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
-            {renderComparisonField(
+            {renderComparisonFieldWithUSLogic(
               t('label-bank-name'),
-              compareField(newBankAccount.bankName, oldBankAccount.bankName),
+              'bankName',
               <Landmark className="gba:h-4 gba:w-4" />
             )}
-            {renderComparisonField(
+            {renderComparisonFieldWithUSLogic(
               t('label-account-type'),
-              compareField(newBankAccount.accountType, oldBankAccount.accountType, formatAccountType),
-              <CreditCard className="gba:h-4 gba:w-4" />
+              'accountType',
+              <CreditCard className="gba:h-4 gba:w-4" />,
+              formatAccountType
             )}
           </div>
 
           <Separator />
 
           {/* Account Holder */}
-          {renderComparisonField(
-            t('label-account-holder'),
-            compareField(newBankAccount.accountHolder, oldBankAccount.accountHolder)
-          )}
+          {renderComparisonFieldWithUSLogic(t('label-account-holder'), 'accountHolder')}
 
           {/* US-specific fields */}
           {(isUSAccount(newBankAccount.countryRef) || isUSAccount(oldBankAccount.countryRef)) && (
             <>
               <Separator />
               <div className="gba:space-y-4">
-                {renderComparisonField(
+                {renderComparisonFieldWithUSLogic(
                   t('label-routing-number-type'),
-                  compareField(newBankAccount.routingNumberType, oldBankAccount.routingNumberType, getCatalogValue),
+                  'routingNumberType',
                   undefined,
+                  getCatalogValue,
                   true
                 )}
-                {renderComparisonField(
+                {renderComparisonFieldWithUSLogic(
                   t('label-account-number'),
-                  compareField(newBankAccount.accountNumber, oldBankAccount.accountNumber),
+                  'accountNumber',
                   <Hash className="gba:h-4 gba:w-4" />,
-                  true
-                )}
-                {renderComparisonField(
-                  t('label-routing-number'),
-                  compareField(newBankAccount.routingNumber, oldBankAccount.routingNumber),
-                  <Hash className="gba:h-4 gba:w-4" />,
-                  true
-                )}
-                {renderComparisonField(
-                  t('label-address'),
-                  compareField(newBankAccount.employeeAddress, oldBankAccount.employeeAddress, formatAddressType),
                   undefined,
+                  true
+                )}
+                {renderComparisonFieldWithUSLogic(
+                  t('label-routing-number'),
+                  'routingNumber',
+                  <Hash className="gba:h-4 gba:w-4" />,
+                  undefined,
+                  true
+                )}
+                {renderComparisonFieldWithUSLogic(
+                  t('label-address'),
+                  'employeeAddress',
+                  undefined,
+                  formatAddressType,
                   true
                 )}
               </div>
@@ -487,17 +417,19 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
             <>
               <Separator />
               <div className="gba:space-y-4">
-                {renderComparisonField(
+                {renderComparisonFieldWithUSLogic(
                   t('label-iban'),
-                  compareField(newBankAccount.iban, oldBankAccount.iban),
+                  'iban',
                   <Hash className="gba:h-4 gba:w-4" />,
+                  undefined,
                   false,
                   true
                 )}
-                {renderComparisonField(
+                {renderComparisonFieldWithUSLogic(
                   t('label-swift'),
-                  compareField(newBankAccount.swift, oldBankAccount.swift),
+                  'swift',
                   <Hash className="gba:h-4 gba:w-4" />,
+                  undefined,
                   false,
                   true
                 )}
@@ -509,7 +441,7 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
           {(newBankAccount.notes || oldBankAccount.notes) && (
             <>
               <Separator />
-              {renderComparisonField(t('label-notes'), compareField(newBankAccount.notes, oldBankAccount.notes))}
+              {renderComparisonFieldWithUSLogic(t('label-notes'), 'notes')}
             </>
           )}
         </CardContent>
@@ -542,189 +474,108 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
               <CardContent className="gba:space-y-4 gba:pt-0">
                 {/* Basic Account Information */}
                 <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
-                  {(() => {
-                    const comparison = compareField(
-                      newBankAccount.countryRef,
-                      oldBankAccount.countryRef,
-                      getCatalogValue
-                    )
-                    return (
-                      !comparison.changed &&
-                      renderUnchangedField(
-                        t('label-country'),
-                        comparison.newValue,
-                        <Globe className="gba:h-4 gba:w-4" />
-                      )
-                    )
-                  })()}
-
-                  {(() => {
-                    const comparison = compareField(
-                      newBankAccount.currencyRef,
-                      oldBankAccount.currencyRef,
-                      getCatalogValue
-                    )
-                    return (
-                      !comparison.changed &&
-                      renderUnchangedField(
-                        t('label-currency'),
-                        comparison.newValue,
-                        <DollarSign className="gba:h-4 gba:w-4" />
-                      )
-                    )
-                  })()}
+                  {renderUnchangedFieldWithUSLogic(
+                    t('label-country'),
+                    'countryRef',
+                    <Globe className="gba:h-4 gba:w-4" />,
+                    getCatalogValue
+                  )}
+                  {renderUnchangedFieldWithUSLogic(
+                    t('label-currency'),
+                    'currencyRef',
+                    <DollarSign className="gba:h-4 gba:w-4" />,
+                    formatCurrency
+                  )}
                 </div>
 
                 <Separator />
 
                 <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
-                  {(() => {
-                    const comparison = compareField(newBankAccount.bankName, oldBankAccount.bankName)
-                    return (
-                      !comparison.changed &&
-                      renderUnchangedField(
-                        t('label-bank-name'),
-                        comparison.newValue,
-                        <Landmark className="gba:h-4 gba:w-4" />
-                      )
-                    )
-                  })()}
-
-                  {(() => {
-                    const comparison = compareField(
-                      newBankAccount.accountType,
-                      oldBankAccount.accountType,
-                      formatAccountType
-                    )
-                    return (
-                      !comparison.changed &&
-                      renderUnchangedField(
-                        t('label-account-type'),
-                        comparison.newValue,
-                        <CreditCard className="gba:h-4 gba:w-4" />
-                      )
-                    )
-                  })()}
+                  {renderUnchangedFieldWithUSLogic(
+                    t('label-bank-name'),
+                    'bankName',
+                    <Landmark className="gba:h-4 gba:w-4" />
+                  )}
+                  {renderUnchangedFieldWithUSLogic(
+                    t('label-account-type'),
+                    'accountType',
+                    <CreditCard className="gba:h-4 gba:w-4" />,
+                    formatAccountType
+                  )}
                 </div>
 
                 {/* Account Holder */}
-                {(() => {
-                  const comparison = compareField(newBankAccount.accountHolder, oldBankAccount.accountHolder)
-                  return !comparison.changed && renderUnchangedField(t('label-account-holder'), comparison.newValue)
-                })()}
+                {renderUnchangedFieldWithUSLogic(t('label-account-holder'), 'accountHolder')}
 
                 <Separator />
 
                 {/* US-specific fields */}
                 {(isUSAccount(newBankAccount.countryRef) || isUSAccount(oldBankAccount.countryRef)) && (
                   <div className="gba:space-y-4">
-                    {(() => {
-                      const comparison = compareField(
-                        newBankAccount.routingNumberType,
-                        oldBankAccount.routingNumberType,
-                        getCatalogValue
-                      )
-                      return (
-                        !comparison.changed &&
-                        renderUnchangedField(
-                          t('label-routing-number-type'),
-                          comparison.newValue,
-                          undefined,
-                          true,
-                          false
-                        )
-                      )
-                    })()}
-
-                    {(() => {
-                      const comparison = compareField(newBankAccount.accountNumber, oldBankAccount.accountNumber)
-                      return (
-                        !comparison.changed &&
-                        renderUnchangedField(
-                          t('label-account-number'),
-                          comparison.newValue,
-                          <Hash className="gba:h-4 gba:w-4" />,
-                          true,
-                          false
-                        )
-                      )
-                    })()}
-
-                    {(() => {
-                      const comparison = compareField(newBankAccount.routingNumber, oldBankAccount.routingNumber)
-                      return (
-                        !comparison.changed &&
-                        renderUnchangedField(
-                          t('label-routing-number'),
-                          comparison.newValue,
-                          <Hash className="gba:h-4 gba:w-4" />,
-                          true,
-                          false
-                        )
-                      )
-                    })()}
-
-                    {(() => {
-                      const comparison = compareField(
-                        newBankAccount.employeeAddress,
-                        oldBankAccount.employeeAddress,
-                        formatAddressType
-                      )
-                      return (
-                        !comparison.changed &&
-                        renderUnchangedField(t('label-address'), comparison.newValue, undefined, true, false)
-                      )
-                    })()}
+                    {renderUnchangedFieldWithUSLogic(
+                      t('label-routing-number-type'),
+                      'routingNumberType',
+                      undefined,
+                      getCatalogValue,
+                      true,
+                      false
+                    )}
+                    {renderUnchangedFieldWithUSLogic(
+                      t('label-account-number'),
+                      'accountNumber',
+                      <Hash className="gba:h-4 gba:w-4" />,
+                      undefined,
+                      true,
+                      false
+                    )}
+                    {renderUnchangedFieldWithUSLogic(
+                      t('label-routing-number'),
+                      'routingNumber',
+                      <Hash className="gba:h-4 gba:w-4" />,
+                      undefined,
+                      true,
+                      false
+                    )}
+                    {renderUnchangedFieldWithUSLogic(
+                      t('label-address'),
+                      'employeeAddress',
+                      undefined,
+                      formatAddressType,
+                      true,
+                      false
+                    )}
                   </div>
                 )}
 
                 {/* Non-US fields */}
-                {!isUSAccount(newBankAccount.countryRef) && !isUSAccount(oldBankAccount.countryRef) && (
+                {(!isUSAccount(newBankAccount.countryRef) || !isUSAccount(oldBankAccount.countryRef)) && (
                   <div className="gba:space-y-4">
-                    {(() => {
-                      const comparison = compareField(newBankAccount.iban, oldBankAccount.iban)
-                      return (
-                        !comparison.changed &&
-                        renderUnchangedField(
-                          t('label-iban'),
-                          comparison.newValue,
-                          <Hash className="gba:h-4 gba:w-4" />,
-                          false,
-                          true
-                        )
-                      )
-                    })()}
-
-                    {(() => {
-                      const comparison = compareField(newBankAccount.swift, oldBankAccount.swift)
-                      return (
-                        !comparison.changed &&
-                        renderUnchangedField(
-                          t('label-swift'),
-                          comparison.newValue,
-                          <Hash className="gba:h-4 gba:w-4" />,
-                          false,
-                          true
-                        )
-                      )
-                    })()}
+                    {renderUnchangedFieldWithUSLogic(
+                      t('label-iban'),
+                      'iban',
+                      <Hash className="gba:h-4 gba:w-4" />,
+                      undefined,
+                      false,
+                      true
+                    )}
+                    {renderUnchangedFieldWithUSLogic(
+                      t('label-swift'),
+                      'swift',
+                      <Hash className="gba:h-4 gba:w-4" />,
+                      undefined,
+                      false,
+                      true
+                    )}
                   </div>
                 )}
 
                 {/* Notes */}
-                {(newBankAccount.notes || oldBankAccount.notes) &&
-                  (() => {
-                    const comparison = compareField(newBankAccount.notes, oldBankAccount.notes)
-                    if (!comparison.changed) {
-                      return (
-                        <>
-                          <Separator />
-                          {renderUnchangedField(t('label-notes'), comparison.newValue)}
-                        </>
-                      )
-                    }
-                    return null
-                  })()}
+                {!compareField('notes').changed && (newBankAccount.notes || oldBankAccount.notes) && (
+                  <>
+                    <Separator />
+                    {renderUnchangedFieldWithUSLogic(t('label-notes'), 'notes')}
+                  </>
+                )}
               </CardContent>
             </CollapsibleContent>
           </Collapsible>

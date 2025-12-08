@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState } from 'react'
 import {
   Card,
   CardContent,
@@ -6,7 +6,6 @@ import {
   CardTitle,
   Badge,
   Separator,
-  Label,
   Spinner,
   Alert,
   AlertDescription,
@@ -16,24 +15,14 @@ import {
   CollapsibleContent,
   useTranslation
 } from '@newwork/nw-design-system'
-import {
-  Users,
-  CheckCircle,
-  ArrowRight,
-  User,
-  Phone,
-  Mail,
-  Calendar,
-  FileText,
-  Shield,
-  ChevronDown
-} from 'lucide-react'
+import { Users, CheckCircle, User, Phone, Mail, Calendar, FileText, Shield, ChevronDown } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/components/TaskDetailHeader'
 import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
 import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
 import { useRelationshipReviewData } from './hooks/useRelationshipReviewData'
+import { useReviewFormData, RenderComparisonField, RenderUnchangedField } from '../shared'
 import translations from './_i18n'
 
 /**
@@ -112,14 +101,35 @@ const ChangeRelationshipReviewContent: React.FC<ChangeRelationshipReviewProps> =
     oldRelationship?.firstName || oldRelationship?.lastName || oldRelationship?.phoneNumber || oldRelationship?.typeRef
   )
 
-  const changeMode = hasOldRelationship ? 'UPDATE' : 'INSERT'
-  const isInsertMode = changeMode === 'INSERT'
+  // Helper functions for formatters
+  const getCatalogValue = (ref?: string | null): string => {
+    if (!ref) return t('value-na')
+    const entry = catalogMap[ref]
+    if (!entry) return ref.split(':').pop() || ref
+    return entry.translations?.[0]?.value || entry.value || entry.code || ref
+  }
 
-  // Count total changes - MUST BE BEFORE CONDITIONAL RETURNS
-  const changesCount = useMemo(() => {
-    if (!hasOldRelationship) return 0
+  const formatEmergencyContact = (isEmergency?: boolean | null): string => {
+    if (isEmergency === true) return t('value-yes')
+    if (isEmergency === false) return t('value-no')
+    return t('value-na')
+  }
 
-    const fields: (keyof EmployeeRelationshipData)[] = [
+  const formatBirthDate = (date?: string | null): string => {
+    if (!date) return t('value-na')
+    try {
+      const d = new Date(date)
+      return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+    } catch {
+      return String(date)
+    }
+  }
+
+  // Use shared hook for review form data
+  const { changesCount, isInsertMode, compareField } = useReviewFormData<EmployeeRelationshipData>({
+    newData: newRelationship,
+    oldData: oldRelationship,
+    fields: [
       'firstName',
       'lastName',
       'phoneNumber',
@@ -127,18 +137,17 @@ const ChangeRelationshipReviewContent: React.FC<ChangeRelationshipReviewProps> =
       'notes',
       'typeRef',
       'birthDate',
-      'emergencyContact'
-    ]
-
-    const compareFieldValues = (newVal: any, oldVal: any): boolean => {
-      const format = (v: any) => String(v || t('value-na'))
-      return format(newVal) !== format(oldVal)
-    }
-
-    return fields.reduce((count, field) => {
-      return compareFieldValues(newRelationship[field], oldRelationship[field]) ? count + 1 : count
-    }, 0)
-  }, [newRelationship, oldRelationship, hasOldRelationship, t])
+      'emergencyContact',
+      'relationshipDocument'
+    ],
+    formatters: {
+      typeRef: getCatalogValue,
+      birthDate: formatBirthDate,
+      emergencyContact: formatEmergencyContact
+    },
+    defaultFormatter: (v: any) => String(v || t('value-na')),
+    t
+  })
 
   const handleClose = () => {
     if (onClose) {
@@ -191,113 +200,12 @@ const ChangeRelationshipReviewContent: React.FC<ChangeRelationshipReviewProps> =
     )
   }
 
-  // Helper functions
-  const getCatalogValue = (ref?: string | null): string => {
-    if (!ref) return t('value-na')
-    const entry = catalogMap[ref]
-    if (!entry) return ref.split(':').pop() || ref
-
-    // Use translation if available, otherwise use default value
-    return entry.translations?.[0]?.value || entry.value || entry.code || ref
-  }
-
-  const formatDate = (dateStr?: string | null): string => {
-    if (!dateStr) return t('value-na')
-    try {
-      const date = new Date(dateStr)
-      return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-    } catch {
-      return dateStr
-    }
-  }
-
-  // Field comparison
-  interface FieldComparison {
-    changed: boolean
-    oldValue: string
-    newValue: string
-  }
-
-  const compareField = (newVal: any, oldVal: any, formatter?: (val: any) => string): FieldComparison => {
-    const format = formatter || ((v: any) => String(v || t('value-na')))
-    const newFormatted = format(newVal)
-    const oldFormatted = format(oldVal)
-
-    return {
-      changed: newFormatted !== oldFormatted,
-      oldValue: oldFormatted,
-      newValue: newFormatted
-    }
-  }
-
   const displayName = employeeData
     ? `${employeeData.firstName || ''} ${employeeData.lastName || ''}`.trim() || 'Employee'
     : 'Employee'
 
   const relationshipName =
     `${newRelationship.firstName || ''} ${newRelationship.lastName || ''}`.trim() || 'Relationship'
-
-  // Render comparison field - Show changed fields OR all fields with values in insert mode
-  const renderComparisonField = (label: string, comparison: FieldComparison, icon?: React.ReactNode) => {
-    const isNewRelationship = !hasOldRelationship || isInsertMode
-
-    // For insert mode: show all fields that have a value
-    // For update mode: only show changed fields
-    if (isNewRelationship) {
-      // Skip empty values in insert mode
-      if (!comparison.newValue || comparison.newValue === t('value-na')) return null
-    } else {
-      // Only show changed fields in update mode
-      if (!comparison.changed) return null
-    }
-
-    // Display "Not set" if old value was empty/null/N/A
-    const displayOldValue =
-      comparison.oldValue === t('value-na') || !comparison.oldValue ? t('value-not-set') : comparison.oldValue
-
-    return (
-      <div className="gba:space-y-2">
-        <Label className="gba:text-muted-foreground gba:flex gba:items-center gba:gap-2">
-          {icon}
-          {label}
-          <Badge variant={isNewRelationship ? 'success' : 'warning'} className="gba:ml-2">
-            {isNewRelationship ? t('badge-new') : t('badge-changed')}
-          </Badge>
-        </Label>
-
-        {/* Always show old → new for changed fields */}
-        <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
-          {!isNewRelationship && (
-            <>
-              <div className="gba:px-3 gba:py-2 gba:bg-destructive/10 gba:text-destructive gba:rounded gba:text-sm gba:line-through">
-                {displayOldValue}
-              </div>
-              <ArrowRight className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
-            </>
-          )}
-          <div className="gba:px-3 gba:py-2 gba:bg-success/10 gba:text-success gba:rounded gba:text-sm gba:font-medium">
-            {comparison.newValue}
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // Render unchanged field - Show current value for unchanged fields
-  const renderUnchangedField = (label: string, value: string, icon?: React.ReactNode) => {
-    // Skip empty values
-    if (!value || value === t('value-na')) return null
-
-    return (
-      <div className="gba:space-y-2">
-        <Label className="gba:text-muted-foreground gba:flex gba:items-center gba:gap-2">
-          {icon}
-          {label}
-        </Label>
-        <div className="gba:px-3 gba:py-2 gba:bg-muted gba:rounded gba:text-sm">{value}</div>
-      </div>
-    )
-  }
 
   return (
     <TaskFormLayout
@@ -373,67 +281,83 @@ const ChangeRelationshipReviewContent: React.FC<ChangeRelationshipReviewProps> =
         <CardContent className="gba:space-y-4">
           {/* Personal Information */}
           <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
-            {renderComparisonField(
-              t('label-first-name'),
-              compareField(newRelationship.firstName, oldRelationship.firstName),
-              <User className="gba:h-4 gba:w-4" />
-            )}
-            {renderComparisonField(
-              t('label-last-name'),
-              compareField(newRelationship.lastName, oldRelationship.lastName),
-              <User className="gba:h-4 gba:w-4" />
-            )}
+            <RenderComparisonField
+              label={t('label-first-name')}
+              comparison={compareField('firstName')}
+              icon={<User className="gba:h-4 gba:w-4" />}
+              isNewData={isInsertMode}
+              t={t}
+            />
+            <RenderComparisonField
+              label={t('label-last-name')}
+              comparison={compareField('lastName')}
+              icon={<User className="gba:h-4 gba:w-4" />}
+              isNewData={isInsertMode}
+              t={t}
+            />
           </div>
 
           <Separator />
 
           {/* Contact Information */}
           <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
-            {renderComparisonField(
-              t('label-phone-number'),
-              compareField(newRelationship.phoneNumber, oldRelationship.phoneNumber),
-              <Phone className="gba:h-4 gba:w-4" />
-            )}
-            {renderComparisonField(
-              t('label-email'),
-              compareField(newRelationship.email, oldRelationship.email),
-              <Mail className="gba:h-4 gba:w-4" />
-            )}
+            <RenderComparisonField
+              label={t('label-phone-number')}
+              comparison={compareField('phoneNumber')}
+              icon={<Phone className="gba:h-4 gba:w-4" />}
+              isNewData={isInsertMode}
+              t={t}
+            />
+            <RenderComparisonField
+              label={t('label-email')}
+              comparison={compareField('email')}
+              icon={<Mail className="gba:h-4 gba:w-4" />}
+              isNewData={isInsertMode}
+              t={t}
+            />
           </div>
 
           <Separator />
 
           {/* Relationship Details */}
           <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
-            {renderComparisonField(
-              t('label-relationship-type'),
-              compareField(newRelationship.typeRef, oldRelationship.typeRef, getCatalogValue),
-              <Users className="gba:h-4 gba:w-4" />
-            )}
-            {renderComparisonField(
-              t('label-birth-date'),
-              compareField(newRelationship.birthDate, oldRelationship.birthDate, formatDate),
-              <Calendar className="gba:h-4 gba:w-4" />
-            )}
+            <RenderComparisonField
+              label={t('label-relationship-type')}
+              comparison={compareField('typeRef')}
+              icon={<Users className="gba:h-4 gba:w-4" />}
+              isNewData={isInsertMode}
+              t={t}
+            />
+            <RenderComparisonField
+              label={t('label-birth-date')}
+              comparison={compareField('birthDate')}
+              icon={<Calendar className="gba:h-4 gba:w-4" />}
+              isNewData={isInsertMode}
+              t={t}
+            />
           </div>
 
           <Separator />
 
           {/* Emergency Contact */}
-          {renderComparisonField(
-            t('label-emergency-contact'),
-            compareField(
-              String(newRelationship.emergencyContact || false),
-              String(oldRelationship.emergencyContact || false)
-            ),
-            <Shield className="gba:h-4 gba:w-4" />
-          )}
+          <RenderComparisonField
+            label={t('label-emergency-contact')}
+            comparison={compareField('emergencyContact')}
+            icon={<Shield className="gba:h-4 gba:w-4" />}
+            isNewData={isInsertMode}
+            t={t}
+          />
 
           {/* Notes - only show if present */}
           {(newRelationship.notes || oldRelationship.notes) && (
             <>
               <Separator />
-              {renderComparisonField(t('label-notes'), compareField(newRelationship.notes, oldRelationship.notes))}
+              <RenderComparisonField
+                label={t('label-notes')}
+                comparison={compareField('notes')}
+                isNewData={isInsertMode}
+                t={t}
+              />
             </>
           )}
         </CardContent>
@@ -467,25 +391,29 @@ const ChangeRelationshipReviewContent: React.FC<ChangeRelationshipReviewProps> =
                 {/* Personal Information */}
                 <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
                   {(() => {
-                    const comparison = compareField(newRelationship.firstName, oldRelationship.firstName)
+                    const comparison = compareField('firstName')
                     return (
-                      !comparison.changed &&
-                      renderUnchangedField(
-                        t('label-first-name'),
-                        comparison.newValue,
-                        <User className="gba:h-4 gba:w-4" />
+                      !comparison.changed && (
+                        <RenderUnchangedField
+                          label={t('label-first-name')}
+                          value={comparison.newValue}
+                          icon={<User className="gba:h-4 gba:w-4" />}
+                          t={t}
+                        />
                       )
                     )
                   })()}
 
                   {(() => {
-                    const comparison = compareField(newRelationship.lastName, oldRelationship.lastName)
+                    const comparison = compareField('lastName')
                     return (
-                      !comparison.changed &&
-                      renderUnchangedField(
-                        t('label-last-name'),
-                        comparison.newValue,
-                        <User className="gba:h-4 gba:w-4" />
+                      !comparison.changed && (
+                        <RenderUnchangedField
+                          label={t('label-last-name')}
+                          value={comparison.newValue}
+                          icon={<User className="gba:h-4 gba:w-4" />}
+                          t={t}
+                        />
                       )
                     )
                   })()}
@@ -496,22 +424,30 @@ const ChangeRelationshipReviewContent: React.FC<ChangeRelationshipReviewProps> =
                 {/* Contact Information */}
                 <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
                   {(() => {
-                    const comparison = compareField(newRelationship.phoneNumber, oldRelationship.phoneNumber)
+                    const comparison = compareField('phoneNumber')
                     return (
-                      !comparison.changed &&
-                      renderUnchangedField(
-                        t('label-phone-number'),
-                        comparison.newValue,
-                        <Phone className="gba:h-4 gba:w-4" />
+                      !comparison.changed && (
+                        <RenderUnchangedField
+                          label={t('label-phone-number')}
+                          value={comparison.newValue}
+                          icon={<Phone className="gba:h-4 gba:w-4" />}
+                          t={t}
+                        />
                       )
                     )
                   })()}
 
                   {(() => {
-                    const comparison = compareField(newRelationship.email, oldRelationship.email)
+                    const comparison = compareField('email')
                     return (
-                      !comparison.changed &&
-                      renderUnchangedField(t('label-email'), comparison.newValue, <Mail className="gba:h-4 gba:w-4" />)
+                      !comparison.changed && (
+                        <RenderUnchangedField
+                          label={t('label-email')}
+                          value={comparison.newValue}
+                          icon={<Mail className="gba:h-4 gba:w-4" />}
+                          t={t}
+                        />
+                      )
                     )
                   })()}
                 </div>
@@ -521,25 +457,29 @@ const ChangeRelationshipReviewContent: React.FC<ChangeRelationshipReviewProps> =
                 {/* Relationship Details */}
                 <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
                   {(() => {
-                    const comparison = compareField(newRelationship.typeRef, oldRelationship.typeRef, getCatalogValue)
+                    const comparison = compareField('typeRef')
                     return (
-                      !comparison.changed &&
-                      renderUnchangedField(
-                        t('label-relationship-type'),
-                        comparison.newValue,
-                        <Users className="gba:h-4 gba:w-4" />
+                      !comparison.changed && (
+                        <RenderUnchangedField
+                          label={t('label-relationship-type')}
+                          value={comparison.newValue}
+                          icon={<Users className="gba:h-4 gba:w-4" />}
+                          t={t}
+                        />
                       )
                     )
                   })()}
 
                   {(() => {
-                    const comparison = compareField(newRelationship.birthDate, oldRelationship.birthDate, formatDate)
+                    const comparison = compareField('birthDate')
                     return (
-                      !comparison.changed &&
-                      renderUnchangedField(
-                        t('label-birth-date'),
-                        comparison.newValue,
-                        <Calendar className="gba:h-4 gba:w-4" />
+                      !comparison.changed && (
+                        <RenderUnchangedField
+                          label={t('label-birth-date')}
+                          value={comparison.newValue}
+                          icon={<Calendar className="gba:h-4 gba:w-4" />}
+                          t={t}
+                        />
                       )
                     )
                   })()}
@@ -549,16 +489,15 @@ const ChangeRelationshipReviewContent: React.FC<ChangeRelationshipReviewProps> =
 
                 {/* Emergency Contact */}
                 {(() => {
-                  const comparison = compareField(
-                    String(newRelationship.emergencyContact || false),
-                    String(oldRelationship.emergencyContact || false)
-                  )
+                  const comparison = compareField('emergencyContact')
                   return (
-                    !comparison.changed &&
-                    renderUnchangedField(
-                      t('label-emergency-contact'),
-                      comparison.newValue,
-                      <Shield className="gba:h-4 gba:w-4" />
+                    !comparison.changed && (
+                      <RenderUnchangedField
+                        label={t('label-emergency-contact')}
+                        value={comparison.newValue}
+                        icon={<Shield className="gba:h-4 gba:w-4" />}
+                        t={t}
+                      />
                     )
                   )
                 })()}
@@ -566,12 +505,12 @@ const ChangeRelationshipReviewContent: React.FC<ChangeRelationshipReviewProps> =
                 {/* Notes */}
                 {(newRelationship.notes || oldRelationship.notes) &&
                   (() => {
-                    const comparison = compareField(newRelationship.notes, oldRelationship.notes)
+                    const comparison = compareField('notes')
                     if (!comparison.changed) {
                       return (
                         <>
                           <Separator />
-                          {renderUnchangedField(t('label-notes'), comparison.newValue)}
+                          <RenderUnchangedField label={t('label-notes')} value={comparison.newValue} t={t} />
                         </>
                       )
                     }
@@ -610,32 +549,42 @@ const ChangeRelationshipReviewContent: React.FC<ChangeRelationshipReviewProps> =
               <CardContent className="gba:space-y-4 gba:pt-0">
                 {/* Contact Information - show if not set */}
                 <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
-                  {(!newRelationship.phoneNumber || newRelationship.phoneNumber === t('value-na')) &&
-                    renderUnchangedField(
-                      t('label-phone-number'),
-                      t('value-not-set'),
-                      <Phone className="gba:h-4 gba:w-4" />
-                    )}
+                  {!newRelationship.phoneNumber && (
+                    <RenderUnchangedField
+                      label={t('label-phone-number')}
+                      value={t('value-not-set')}
+                      icon={<Phone className="gba:h-4 gba:w-4" />}
+                      t={t}
+                    />
+                  )}
 
-                  {(!newRelationship.email || newRelationship.email === t('value-na')) &&
-                    renderUnchangedField(t('label-email'), t('value-not-set'), <Mail className="gba:h-4 gba:w-4" />)}
+                  {!newRelationship.email && (
+                    <RenderUnchangedField
+                      label={t('label-email')}
+                      value={t('value-not-set')}
+                      icon={<Mail className="gba:h-4 gba:w-4" />}
+                      t={t}
+                    />
+                  )}
                 </div>
 
                 <Separator />
 
                 {/* Emergency Contact - show if not set */}
-                {!newRelationship.emergencyContact &&
-                  renderUnchangedField(
-                    t('label-emergency-contact'),
-                    t('value-not-set'),
-                    <Shield className="gba:h-4 gba:w-4" />
-                  )}
+                {newRelationship.emergencyContact == null && (
+                  <RenderUnchangedField
+                    label={t('label-emergency-contact')}
+                    value={t('value-not-set')}
+                    icon={<Shield className="gba:h-4 gba:w-4" />}
+                    t={t}
+                  />
+                )}
 
                 {/* Notes - show if not set */}
                 {!newRelationship.notes && (
                   <>
                     <Separator />
-                    {renderUnchangedField(t('label-notes'), t('value-not-set'))}
+                    <RenderUnchangedField label={t('label-notes')} value={t('value-not-set')} t={t} />
                   </>
                 )}
               </CardContent>
