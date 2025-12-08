@@ -8,6 +8,15 @@ export interface PipelineHealthData {
   avgWinningChance: number
 }
 
+interface HealthQueryResult {
+  totalOpportunities: { aggregate: { count: number } }
+  stalledOpportunities: { aggregate: { count: number } }
+  opportunitySample: Array<{
+    createdAt: string
+    winningChance: number | null
+  }>
+}
+
 export const usePipelineHealth = (accessToken: string, selectedPipelineId?: string) => {
   const [pipelineHealth, setPipelineHealth] = useState<PipelineHealthData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -63,7 +72,7 @@ export const usePipelineHealth = (accessToken: string, selectedPipelineId?: stri
           }
         `
 
-        const result = await graphqlClient.request(query)
+        const result = await graphqlClient.request<HealthQueryResult>(query)
 
         if (!result.totalOpportunities) {
           throw new Error('No opportunities data received from GraphQL')
@@ -77,7 +86,7 @@ export const usePipelineHealth = (accessToken: string, selectedPipelineId?: stri
         // ✅ Calculate average age from sample (100 records instead of ALL)
         const avgAge =
           result.opportunitySample?.length > 0
-            ? result.opportunitySample.reduce((sum: number, opp: any) => {
+            ? result.opportunitySample.reduce((sum, opp) => {
                 const age = Math.floor(
                   (currentDate.getTime() - new Date(opp.createdAt).getTime()) / (1000 * 60 * 60 * 24)
                 )

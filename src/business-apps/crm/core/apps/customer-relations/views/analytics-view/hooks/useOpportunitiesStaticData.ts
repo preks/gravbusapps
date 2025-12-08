@@ -305,7 +305,6 @@ export const useOpportunitiesStaticData = (accessToken: string, currencyCode?: s
           previous30DaysConversionRate
         })
       } catch (err) {
-        console.error('Error fetching opportunities static data:', err)
         setError(err instanceof Error ? err.message : 'Failed to fetch opportunities static data')
       } finally {
         setIsLoading(false)

@@ -225,7 +225,7 @@ export const useContactQualityData = (accessToken: string) => {
 
         setData({ overallScore, qualityDistribution, completenessMetrics, issuesSummary })
       } catch (err) {
-        console.error('Error fetching contact quality data:', err)
+        setError(err instanceof Error ? err.message : 'Failed to fetch contact quality data')
       } finally {
         setIsLoading(false)
       }

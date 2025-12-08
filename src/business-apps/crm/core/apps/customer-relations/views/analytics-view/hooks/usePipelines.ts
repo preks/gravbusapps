@@ -59,7 +59,6 @@ export const usePipelines = (accessToken: string) => {
 
       setPipelines(uniquePipelines)
     } catch (err) {
-      console.error('[usePipelines] Error fetching pipelines:', err)
       setError(err instanceof Error ? err.message : 'Failed to load pipelines')
       setPipelines([])
     } finally {

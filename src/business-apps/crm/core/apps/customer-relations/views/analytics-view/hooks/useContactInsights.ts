@@ -226,7 +226,7 @@ export const useContactInsights = (accessToken: string) => {
           recentContacts
         })
       } catch (err) {
-        console.error('Error fetching contact insights:', err)
+        setError(err instanceof Error ? err.message : 'Failed to fetch contact insights')
       } finally {
         setIsLoading(false)
       }

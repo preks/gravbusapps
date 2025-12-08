@@ -92,7 +92,6 @@ export const useAccountsOverTime = (accessToken: string, timeFilter: AccountsTim
 
         setAccountsOverTime(transformedData)
       } catch (err) {
-        console.error('Error fetching accounts over time:', err)
         setError(err instanceof Error ? err.message : 'Unknown error')
       } finally {
         setIsLoading(false)

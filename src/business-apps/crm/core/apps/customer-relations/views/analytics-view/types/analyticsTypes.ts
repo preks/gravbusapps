@@ -1,7 +1,35 @@
+export interface OverviewTrendData {
+  // Last 30 days vs Previous 30 days for entity counts
+  totalLeadsThisMonth: number
+  totalLeadsLastMonth: number
+  totalAccountsThisMonth: number
+  totalAccountsLastMonth: number
+  totalOpportunitiesThisMonth: number
+  totalOpportunitiesLastMonth: number
+  totalContactsThisMonth: number
+  totalContactsLastMonth: number
+  // Won opportunities trend
+  currentMonthWonOpportunities: number
+  previousMonthWonOpportunities: number
+  // Conversion metrics trend
+  currentMonthLeadConversionRate: number
+  previousMonthLeadConversionRate: number
+  currentMonthAvgDealSize: number
+  previousMonthAvgDealSize: number
+  currentMonthSalesCycleLength: number
+  previousMonthSalesCycleLength: number
+  // Compatibility fields
+  currentMonthLeads: number
+  previousMonthLeads: number
+  currentMonthAccounts: number
+  previousMonthAccounts: number
+  [key: string]: number // For additional dynamic fields
+}
+
 export interface CrmAnalyticsData {
   overview: OverviewAnalytics
-  overviewTrendData?: any // Trend data for overview KPIs
-  overviewGeographicData?: Array<{ country: string; accounts: number }> // Geographic distribution data
+  overviewTrendData?: OverviewTrendData
+  overviewGeographicData?: Array<{ country: string; accounts: number }>
   leads: LeadsAnalytics
   accounts: AccountsAnalytics
   opportunities: OpportunitiesAnalytics

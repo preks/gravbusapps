@@ -11,6 +11,19 @@ export interface OpportunityTimeSeriesData {
   opportunitiesWon: number
 }
 
+interface OpportunityData {
+  createdAt: string
+  estimatedAmount: number | null
+  opportunityStatus: {
+    code: string
+  } | null
+}
+
+interface QueryVariables {
+  startDate: string
+  endDate?: string
+}
+
 export const useOpportunitiesOverTime = (accessToken: string, timeFilter: TimeFilter, selectedPipelineId?: string) => {
   const [data, setData] = useState<OpportunityTimeSeriesData[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -134,7 +147,7 @@ export const useOpportunitiesOverTime = (accessToken: string, timeFilter: TimeFi
         }
       `
 
-      const variables: any = {
+      const variables: QueryVariables = {
         startDate: startDate.toISOString()
       }
 
@@ -143,8 +156,8 @@ export const useOpportunitiesOverTime = (accessToken: string, timeFilter: TimeFi
       }
 
       const result = await graphqlClient.request<{
-        allOpportunities: any[]
-        wonOpportunities: any[]
+        allOpportunities: OpportunityData[]
+        wonOpportunities: OpportunityData[]
       }>(query, variables)
 
       // Create time series data
@@ -158,7 +171,6 @@ export const useOpportunitiesOverTime = (accessToken: string, timeFilter: TimeFi
 
       setData(timeSeriesData)
     } catch (err) {
-      // console.error("Error fetching opportunities over time:", err);
       setError(err instanceof Error ? err.message : 'Unknown error')
     } finally {
       setIsLoading(false)
@@ -174,8 +186,8 @@ export const useOpportunitiesOverTime = (accessToken: string, timeFilter: TimeFi
 
 // Helper function to create time series data
 function createTimeSeriesData(
-  allOpportunities: any[],
-  wonOpportunities: any[],
+  allOpportunities: OpportunityData[],
+  wonOpportunities: OpportunityData[],
   startDate: Date,
   endDate: Date,
   timeFilter: TimeFilter

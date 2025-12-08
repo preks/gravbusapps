@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { CrmAnalyticsData, OverviewAnalytics } from '../types/analyticsTypes'
+import { CrmAnalyticsData, OverviewAnalytics, OverviewTrendData } from '../types/analyticsTypes'
 import { GET_OVERVIEW_ONLY_ANALYTICS } from '../queries/analyticsQueries'
 
 type AnalyticsTab = 'overview' | 'leads' | 'accounts' | 'opportunities' | 'contacts'
@@ -113,7 +113,7 @@ const transformOverviewOnlyData = (
   response: any
 ): {
   overview: OverviewAnalytics
-  trendData: any
+  trendData: OverviewTrendData
   geographicData: Array<{ country: string; accounts: number }>
 } => {
   // Calculate conversion metrics from aggregates only
