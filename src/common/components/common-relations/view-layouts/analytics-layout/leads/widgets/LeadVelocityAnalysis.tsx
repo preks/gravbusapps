@@ -14,65 +14,48 @@ import {
 import { BarChart, Bar, XAxis, YAxis } from 'recharts'
 import { ClockIcon } from '@phosphor-icons/react'
 
-export interface LeadOverTimePoint {
+export interface LeadVelocityDataPoint {
+  month: string
   date: string
   leadsCreated: number
   leadsConverted: number
+  conversionVelocity: number
 }
 
 export interface LeadVelocityAnalysisProps {
-  data: {
-    avgTimeToConversion: number
-    conversionRate: number
-    leadsOverTime: LeadOverTimePoint[]
-  }
+  avgTimeToConversion: number
+  conversionRate: number
+  volumeTrend: number
+  velocityTrendData: LeadVelocityDataPoint[]
+  isLoading?: boolean
   moduleColor?: string
 }
 
-export const LeadVelocityAnalysis: React.FC<LeadVelocityAnalysisProps> = ({ data, moduleColor = 'default' }) => {
-  const aggregateDataByMonth = (dailyData: LeadOverTimePoint[]) => {
-    const monthMap = new Map<string, { leadsCreated: number; leadsConverted: number; date: string }>()
-
-    dailyData.forEach(item => {
-      const date = new Date(item.date)
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-      if (!monthMap.has(monthKey)) {
-        monthMap.set(monthKey, {
-          leadsCreated: 0,
-          leadsConverted: 0,
-          date: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`
-        })
-      }
-      const m = monthMap.get(monthKey)!
-      m.leadsCreated += item.leadsCreated || 0
-      m.leadsConverted += item.leadsConverted || 0
-    })
-
-    return Array.from(monthMap.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([, v]) => v)
+export const LeadVelocityAnalysis: React.FC<LeadVelocityAnalysisProps> = ({
+  avgTimeToConversion,
+  conversionRate,
+  volumeTrend,
+  velocityTrendData,
+  isLoading = false,
+  moduleColor = 'default'
+}) => {
+  if (isLoading) {
+    return (
+      <Card data-testid="lead-velocity-analysis-loading">
+        <CardHeader>
+          <CardTitle className="gba:flex gba:items-center gba:gap-2">
+            <IconAvatar icon={ClockIcon} variant={moduleColor as any} size="md" decorative />
+            Lead Velocity Analysis
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="gba:flex gba:items-center gba:justify-center gba:h-64">
+            <div className="gba:animate-pulse gba:text-gray-500">Loading velocity data...</div>
+          </div>
+        </CardContent>
+      </Card>
+    )
   }
-
-  const monthlyData = aggregateDataByMonth(data?.leadsOverTime || [])
-  const recentLeadsData = monthlyData.slice(-12)
-  const velocityTrendData = recentLeadsData.slice(-6).map(item => {
-    const d = new Date(item.date)
-    const monthYear = d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
-    const conversionVelocity = item.leadsCreated > 0 ? Math.round((item.leadsConverted / item.leadsCreated) * 100) : 0
-    return {
-      month: monthYear,
-      date: item.date,
-      leadsCreated: item.leadsCreated,
-      leadsConverted: item.leadsConverted,
-      conversionVelocity
-    }
-  })
-
-  const velocityScore = data?.conversionRate ? Math.round(data.conversionRate * 10) / 10 : 0
-
-  const recentVolume = recentLeadsData.slice(-3).reduce((s, x) => s + x.leadsCreated, 0)
-  const previousVolume = recentLeadsData.slice(-6, -3).reduce((s, x) => s + x.leadsCreated, 0)
-  const volumeTrend = previousVolume > 0 ? Math.round(((recentVolume - previousVolume) / previousVolume) * 100) : 0
 
   return (
     <Card data-testid="lead-velocity-analysis">
@@ -86,12 +69,12 @@ export const LeadVelocityAnalysis: React.FC<LeadVelocityAnalysisProps> = ({ data
         <div className="gba:space-y-4">
           <div className="gba:grid gba:grid-cols-2 gba:gap-4 gba:text-center">
             <div className="gba:p-3 gba:bg-blue-50 gba:rounded-lg">
-              <div className="gba:text-2xl gba:font-bold gba:text-blue-600">{data?.avgTimeToConversion}</div>
+              <div className="gba:text-2xl gba:font-bold gba:text-blue-600">{avgTimeToConversion}</div>
               <div className="gba:text-sm gba:text-gray-600">Avg Days to Convert</div>
               <div className="gba:text-xs gba:text-gray-500">Real conversion timeline</div>
             </div>
             <div className="gba:p-3 gba:bg-green-50 gba:rounded-lg">
-              <div className="gba:text-2xl gba:font-bold gba:text-green-600">{velocityScore}%</div>
+              <div className="gba:text-2xl gba:font-bold gba:text-green-600">{conversionRate}%</div>
               <div className="gba:text-sm gba:text-gray-600">Conversion Rate</div>
               <div className="gba:text-xs gba:text-gray-500">Lead to conversion success</div>
             </div>

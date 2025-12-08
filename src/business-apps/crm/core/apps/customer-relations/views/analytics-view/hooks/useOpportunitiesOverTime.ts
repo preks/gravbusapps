@@ -11,6 +11,19 @@ export interface OpportunityTimeSeriesData {
   opportunitiesWon: number
 }
 
+interface OpportunityData {
+  createdAt: string
+  estimatedAmount: number | null
+  opportunityStatus: {
+    code: string
+  } | null
+}
+
+interface QueryVariables {
+  startDate: string
+  endDate?: string
+}
+
 export const useOpportunitiesOverTime = (accessToken: string, timeFilter: TimeFilter, selectedPipelineId?: string) => {
   const [data, setData] = useState<OpportunityTimeSeriesData[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -46,7 +59,7 @@ export const useOpportunitiesOverTime = (accessToken: string, timeFilter: TimeFi
           startDate.setFullYear(endDate.getFullYear() - 1)
           break
         case 'historical':
-          startDate.setFullYear(endDate.getFullYear() - 3)
+          startDate.setFullYear(endDate.getFullYear() - 5)
           break
         default:
           startDate.setMonth(endDate.getMonth() - 3)
@@ -134,7 +147,7 @@ export const useOpportunitiesOverTime = (accessToken: string, timeFilter: TimeFi
         }
       `
 
-      const variables: any = {
+      const variables: QueryVariables = {
         startDate: startDate.toISOString()
       }
 
@@ -143,8 +156,8 @@ export const useOpportunitiesOverTime = (accessToken: string, timeFilter: TimeFi
       }
 
       const result = await graphqlClient.request<{
-        allOpportunities: any[]
-        wonOpportunities: any[]
+        allOpportunities: OpportunityData[]
+        wonOpportunities: OpportunityData[]
       }>(query, variables)
 
       // Create time series data
@@ -158,7 +171,6 @@ export const useOpportunitiesOverTime = (accessToken: string, timeFilter: TimeFi
 
       setData(timeSeriesData)
     } catch (err) {
-      // console.error("Error fetching opportunities over time:", err);
       setError(err instanceof Error ? err.message : 'Unknown error')
     } finally {
       setIsLoading(false)
@@ -174,8 +186,8 @@ export const useOpportunitiesOverTime = (accessToken: string, timeFilter: TimeFi
 
 // Helper function to create time series data
 function createTimeSeriesData(
-  allOpportunities: any[],
-  wonOpportunities: any[],
+  allOpportunities: OpportunityData[],
+  wonOpportunities: OpportunityData[],
   startDate: Date,
   endDate: Date,
   timeFilter: TimeFilter
@@ -190,7 +202,7 @@ function createTimeSeriesData(
     wonOppsMap.get(dateKey)!.push(opp)
   })
 
-  // For month filter: return daily data, for others: aggregate into monthly periods
+  // For month filter: return daily data, for historical: yearly data, for others: monthly periods
   if (timeFilter === 'month') {
     // Generate daily data points
     const dailyData = new Map<string, OpportunityTimeSeriesData>()
@@ -230,6 +242,47 @@ function createTimeSeriesData(
     })
 
     return Array.from(dailyData.values()).sort((a, b) => a.date.localeCompare(b.date))
+  } else if (timeFilter === 'historical') {
+    // Aggregate into yearly periods (last 5 years)
+    const yearlyData = new Map<string, OpportunityTimeSeriesData>()
+
+    // Initialize years in the range
+    const currentYear = endDate.getFullYear()
+    for (let i = 4; i >= 0; i--) {
+      const year = currentYear - i
+      const yearKey = `${year}-01-01`
+      yearlyData.set(yearKey, {
+        date: yearKey,
+        count: 0,
+        value: 0,
+        opportunitiesCreated: 0,
+        opportunitiesWon: 0
+      })
+    }
+
+    // Aggregate opportunities by year
+    allOpportunities.forEach(opp => {
+      const date = new Date(opp.createdAt)
+      const yearKey = `${date.getFullYear()}-01-01`
+      const yearData = yearlyData.get(yearKey)
+      if (yearData) {
+        yearData.count += 1
+        yearData.value += opp.estimatedAmount || 0
+        yearData.opportunitiesCreated += 1
+      }
+    })
+
+    // Add won opportunities
+    wonOpportunities.forEach(opp => {
+      const date = new Date(opp.createdAt)
+      const yearKey = `${date.getFullYear()}-01-01`
+      const yearData = yearlyData.get(yearKey)
+      if (yearData) {
+        yearData.opportunitiesWon += 1
+      }
+    })
+
+    return Array.from(yearlyData.values()).sort((a, b) => a.date.localeCompare(b.date))
   } else {
     // Aggregate into monthly periods
     const monthlyData = new Map<string, OpportunityTimeSeriesData>()

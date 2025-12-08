@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
@@ -35,7 +35,8 @@ const GET_ALL_CUSTOMER_OPPORTUNITY_STATISTICS_WITH_TREND = (currencyId?: string)
     $lastQuarter: timestamptz!,
     $thisYearStart: timestamptz!,
     $lastYearStart: timestamptz!,
-    $lastYearEnd: timestamptz!
+    $lastYearEnd: timestamptz!,
+    $currencyCode: String
   ) {
     recentOpportunitiesCurrent: OpportunityAggregate(where: {
       createdAt: {_gte: $currentStart},
@@ -146,10 +147,10 @@ export const useCustomerOpportunityStatistics = (
   props: BusinessAppContextProps,
   currencyId?: string
 ): UseCustomerOpportunityStatisticsReturn => {
-  const [trendData, setTrendData] = useState<OpportunityStatisticsTrendData | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<Error | null>(null)
   const graphqlClient = useGraphQLClient(props.accessToken)
+  const [trendData, setTrendData] = useState<OpportunityStatisticsTrendData | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
 
   const refetch = useCallback(async () => {
     if (!props.accessToken) {
@@ -189,7 +190,8 @@ export const useCustomerOpportunityStatistics = (
         lastQuarter: lastQuarter.toISOString(),
         thisYearStart: thisYearStart.toISOString(),
         lastYearStart: lastYearStart.toISOString(),
-        lastYearEnd: lastYearEnd.toISOString()
+        lastYearEnd: lastYearEnd.toISOString(),
+        currencyCode: currencyId || null
       })
 
       const currentWon = result.winRateCurrentWon.aggregate.count || 0

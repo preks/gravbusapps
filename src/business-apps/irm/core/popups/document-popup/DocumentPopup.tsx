@@ -12,9 +12,9 @@ import {
   FormLabel,
   FormControl,
   FormMessage,
-  Button
+  Button,
+  FileUpload
 } from '@newwork/nw-design-system'
-import { File, Upload, X } from 'lucide-react'
 import { env } from '../../../../../common/env/EnvUtils'
 import { useForm } from 'react-hook-form'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
@@ -34,7 +34,7 @@ export interface DocumentPopupValues {
   parentDocument?: string | null
   folder: boolean
   name: string
-  file?: File | null
+  files?: File[]
   documentGroupRef?: string
   documentTypeRef?: string
   description?: string
@@ -130,7 +130,7 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
       parentDocument: contextValues.parentDocument || '',
       folder: contextValues.folder,
       name: contextValues.name || '',
-      file: null,
+      files: [],
       documentGroupRef: '',
       documentTypeRef: '',
       description: ''
@@ -240,24 +240,19 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
     [applyTypeAfterGroup, filteredDocumentTypes, form]
   )
 
-  const handleFileInputChange = React.useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0] || null
-      form.setValue('file', file)
-      if (file) {
-        if (isUpdateMode || !form.getValues('name')) {
-          form.setValue('name', file.name)
-        }
+  const handleFilesChange = React.useCallback(
+    (filesList: any[]) => {
+      const filesArray = filesList.map(f => f.file).filter(Boolean) as File[]
+      form.setValue('files', filesArray)
+
+      // Auto-fill name with first file name if empty
+      const firstFile = filesArray[0]
+      if (firstFile && !form.getValues('name')) {
+        form.setValue('name', firstFile.name)
       }
     },
-    [form, isUpdateMode]
+    [form]
   )
-
-  const handleClearFile = React.useCallback(() => {
-    form.setValue('file', null)
-    const fileInput = document.getElementById('file-input') as HTMLInputElement | null
-    if (fileInput) fileInput.value = ''
-  }, [form])
 
   // Populate form with initial values when in update mode
   useEffect(() => {
@@ -311,14 +306,15 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
     form.setValue('documentTypeRef', '', { shouldDirty: true, shouldValidate: true, shouldTouch: true })
   }, [watchedDocumentGroupRef, form, renameMode, watchedFolder])
 
-  const watchedFile = form.watch('file')
+  const watchedFiles = form.watch('files')
   useEffect(() => {
     let isCancelled = false
-    const currentFile = watchedFile as File | null
+    const currentFiles = watchedFiles as File[] | undefined
+    const firstFile = currentFiles?.[0] || null
     const controller = new AbortController()
     const run = async () => {
       if (renameMode || watchedFolder) return
-      const f = currentFile
+      const f = firstFile
       if (!f) return
       setAiLoading(true)
       setAiError(null)
@@ -335,7 +331,7 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
         const dataObj = (resp ?? {}) as Record<string, unknown>
         const type = typeof dataObj.type === 'string' ? dataObj.type : undefined
         const group = typeof dataObj.group === 'string' ? dataObj.group : undefined
-        if (isCancelled || form.getValues('file') !== f) return
+        if (isCancelled || form.getValues('files')?.[0] !== f) return
         setAiSuggestion({ type, group })
       } catch (err) {
         if (isCancelled) return
@@ -350,7 +346,7 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
       isCancelled = true
       controller.abort()
     }
-  }, [watchedFile, renameMode, watchedFolder, props.accessToken, form])
+  }, [watchedFiles, renameMode, watchedFolder, props.accessToken, form])
 
   useEffect(() => {
     if (renameMode || watchedFolder) return
@@ -520,7 +516,7 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
 
   // File upload handler for pre-submit
   const handleFileUpload = async (formData: DocumentPopupValues) => {
-    if (!renameMode && !formData.folder && formData.file && props.accessToken) {
+    if (!renameMode && !formData.folder && formData.files && formData.files.length > 0 && props.accessToken) {
       fileClient.setAccessToken(props.accessToken)
 
       const entityBindingKey = (() => {
@@ -593,14 +589,12 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
         }
       })()
 
-      // Sanitize the resolvedId to match the required regex pattern ^(/[\w_-]{1,256})+$
-
       // Ensure resolvedId exists and sanitize it
       if (!resolvedId || resolvedId.trim() === '') {
         throw new Error('Entity ID is required for file upload')
       }
 
-      const sanitizedId = resolvedId.replace(/[^\w-]/g, '_') // Replace non-word/non-hyphen chars with underscore
+      const sanitizedId = resolvedId.replace(/[^\w-]/g, '_')
       const folderPath = `/${folderEntity}/${sanitizedId}/documents`
 
       // Validate the folder path matches the expected regex
@@ -612,7 +606,13 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
 
       const pathParams = { accessScope: 'public' } as const
       const queryParams = { appName: 'irm', folderPath } as const
-      return await fileClient.uploadFile(formData.file, pathParams, queryParams)
+
+      // Upload all files
+      const uploadResponses = await Promise.all(
+        formData.files.map(file => fileClient.uploadFile(file, pathParams, queryParams))
+      )
+
+      return uploadResponses
     }
     return null
   }
@@ -695,7 +695,7 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
       investmentDocument.version = 0
       investmentDocument.name = formData.folder
         ? formData.name.trim()
-        : ensureNameHasExtension(formData.name.trim(), formData.file)
+        : ensureNameHasExtension(formData.name.trim(), formData.files?.[0])
       investmentDocument.parentDocument = formData.parentDocument || undefined
       investmentDocument.format = formData.folder ? 'FOLDER' : 'FILE'
     }
@@ -706,17 +706,47 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
       if (formData.description) investmentDocument.description = formData.description
     }
 
-    // Use pre-uploaded file response when available (preferred)
-    const uploadResponse = (formData as any)._fileUploadResponse
-    if (uploadResponse?.fileInfo) {
-      investmentDocument.fileInfo = uploadResponse.fileInfo
-      // Keep "file" for backward compatibility (will become obsolete)
-      investmentDocument.file = uploadResponse.fileInfo.fileId
-      investmentDocument.fileSize = uploadResponse.fileInfo.fileMetadata?.size || formData.file?.size
-      investmentDocument.mimeType = uploadResponse.fileInfo.fileMetadata?.mimeType || formData.file?.type || undefined
-      // If name is empty, fallback to original file name from metadata
-      if (!investmentDocument.name) {
-        investmentDocument.name = uploadResponse.fileInfo.fileMetadata?.originalFileName || formData.name?.trim()
+    // Handle multiple uploaded files
+    const uploadResponses = (formData as any)._fileUploadResponse
+    if (uploadResponses && Array.isArray(uploadResponses) && uploadResponses.length > 0) {
+      // For multiple files, create multiple documents
+      if (uploadResponses.length > 1) {
+        const investmentDocuments = uploadResponses.map((uploadResponse, index) => {
+          const doc: Record<string, any> = { ...investmentDocument }
+
+          if (uploadResponse?.fileInfo) {
+            doc.fileInfo = uploadResponse.fileInfo
+            doc.file = uploadResponse.fileInfo.fileId
+            doc.fileSize = uploadResponse.fileInfo.fileMetadata?.size || formData.files?.[index]?.size
+            doc.mimeType = uploadResponse.fileInfo.fileMetadata?.mimeType || formData.files?.[index]?.type || undefined
+            // Use original file name for each document
+            doc.name =
+              uploadResponse.fileInfo.fileMetadata?.originalFileName ||
+              formData.files?.[index]?.name ||
+              formData.name?.trim()
+          }
+
+          return doc
+        })
+
+        return {
+          [entityIdKey]: resolvedId,
+          folder: formData.folder,
+          investmentDocuments // Multiple documents
+        }
+      } else {
+        // Single file
+        const uploadResponse = uploadResponses[0]
+        if (uploadResponse?.fileInfo) {
+          investmentDocument.fileInfo = uploadResponse.fileInfo
+          investmentDocument.file = uploadResponse.fileInfo.fileId
+          investmentDocument.fileSize = uploadResponse.fileInfo.fileMetadata?.size || formData.files?.[0]?.size
+          investmentDocument.mimeType =
+            uploadResponse.fileInfo.fileMetadata?.mimeType || formData.files?.[0]?.type || undefined
+          if (!investmentDocument.name) {
+            investmentDocument.name = uploadResponse.fileInfo.fileMetadata?.originalFileName || formData.name?.trim()
+          }
+        }
       }
     }
 
@@ -739,13 +769,14 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
       errors.push('Please provide a name.')
     }
 
-    // For create mode, require file only if not a folder and not rename mode
-    if (!renameMode && !formData.folder && !formData.file && !isUpdateMode) {
-      errors.push('Please select a file.')
+    // For create mode, require files only if not a folder and not rename mode
+    if (!renameMode && !formData.folder && !isUpdateMode) {
+      if (!formData.files || formData.files.length === 0) {
+        errors.push('Please select at least one file.')
+      }
     }
 
-    // For update mode, file is optional - user can update just metadata
-    // No file validation needed for update mode
+    // For update mode, files are optional - user can update just metadata
 
     return errors.length > 0 ? errors : null
   }
@@ -793,57 +824,21 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
     <div className="gba:space-y-4">
       <FormField
         control={form.control}
-        name="file"
-        render={({ field: { value } }) => (
+        name="files"
+        render={() => (
           <FormItem>
-            <FormLabel>File</FormLabel>
+            <FormLabel>Files</FormLabel>
             <FormControl>
-              <div className="gba:space-y-2">
-                {/* Hidden file input */}
-                <input
-                  type="file"
-                  onChange={handleFileInputChange}
-                  className="gba:hidden"
-                  id="file-input"
-                  data-testid={formatDataTestId(prefixDataTestId, 'FileInput')}
-                />
-
-                {/* Custom file display */}
-                {value ? (
-                  <div className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:border gba:rounded-md gba:bg-muted/50">
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <File className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
-                      <div className="gba:flex gba:flex-col">
-                        <span className="gba:text-sm gba:font-medium">{value.name}</span>
-                        <span className="gba:text-xs gba:text-muted-foreground">
-                          {(value.size / 1024).toFixed(1)} KB
-                        </span>
-                      </div>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleClearFile}
-                      className="gba:h-8 gba:w-8 gba:p-0"
-                    >
-                      <X className="gba:h-4 gba:w-4" />
-                    </Button>
-                  </div>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      document.getElementById('file-input')?.click()
-                    }}
-                    className="gba:w-full gba:justify-start gba:gap-2"
-                  >
-                    <Upload className="gba:h-4 gba:w-4" />
-                    Choose File
-                  </Button>
-                )}
-              </div>
+              <FileUpload
+                layout="list"
+                preview="icon"
+                maxFiles={10}
+                maxSizeMB={50}
+                multiple={true}
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png,.gif,.zip"
+                onFilesChange={handleFilesChange}
+                data-testid={formatDataTestId(prefixDataTestId, 'FileUpload')}
+              />
             </FormControl>
             <FormMessage />
           </FormItem>

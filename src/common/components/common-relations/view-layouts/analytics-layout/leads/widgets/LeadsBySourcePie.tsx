@@ -10,7 +10,8 @@ import {
   ChartTooltip,
   ChartTooltipContent,
   ChartLegend,
-  ChartLegendContent
+  ChartLegendContent,
+  Spinner
 } from '@newwork/nw-design-system'
 import { PieChart, Pie } from 'recharts'
 
@@ -22,6 +23,7 @@ export interface LeadsBySourceItem {
 export interface LeadsBySourcePieProps {
   data: LeadsBySourceItem[]
   moduleColor?: string
+  isLoading?: boolean
 }
 
 const toKey = (value: string): string =>
@@ -30,7 +32,7 @@ const toKey = (value: string): string =>
     .replace(/\s+/g, '-')
     .replace(/[^a-z0-9-]/g, '')
 
-export const LeadsBySourcePie: React.FC<LeadsBySourcePieProps> = ({ data }) => {
+export const LeadsBySourcePie: React.FC<LeadsBySourcePieProps> = ({ data, isLoading = false }) => {
   const dataKey = 'leads'
   const nameKey = 'source'
 
@@ -48,15 +50,31 @@ export const LeadsBySourcePie: React.FC<LeadsBySourcePieProps> = ({ data }) => {
 
   const chartConfig = useMemo(() => {
     if (!data || data.length === 0) return {} as ChartConfig
-    const config: Record<string, { label?: string }> = {
-      [dataKey]: {}
-    }
+    const config: Record<string, { label?: string }> = {}
     data.forEach(item => {
       const key = toKey(item.source)
       config[key] = { label: item.source }
     })
     return config as ChartConfig
   }, [data])
+
+  if (isLoading) {
+    return (
+      <Card data-testid="leads-by-source-chart" className="gba:flex gba:flex-col">
+        <CardHeader className="gba:flex gba:items-center gba:gap-3">
+          <div>
+            <CardTitle>Leads by Source</CardTitle>
+            <CardDescription>Distribution by source</CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent className="gba:flex-1 gba:pb-0">
+          <div className="gba:flex gba:justify-center gba:items-center gba:py-12">
+            <Spinner size="lg" />
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <Card data-testid="leads-by-source-chart" className="gba:flex gba:flex-col">

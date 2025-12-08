@@ -9,15 +9,15 @@ export interface CurrencyOption {
 }
 
 interface CurrencyFilters {
-  // For Investments
+  // For IRM Investments
   investmentGroupId?: string // "InvestmentGroup:v1:EQUITY"
   investmentGroupIds?: string[]
 
-  // For Opportunities
+  // For IRM Opportunities
   dealType?: string // "DIVESTMENT_DEAL"
 
-  // Common
-  entity?: 'Investment' | 'InvestmentOpportunity'
+  // Common - Supports both IRM and CRM entities
+  entity?: 'Investment' | 'InvestmentOpportunity' | 'Opportunity' | 'Account'
 }
 
 interface UseAvailableCurrenciesOptions {
@@ -35,26 +35,41 @@ interface UseAvailableCurrenciesResult {
 
 /**
  * Central hook to efficiently fetch available currencies using GraphQL distinctOn
+ * Supports both IRM (Investment, InvestmentOpportunity) and CRM (Opportunity, Account) entities
  *
  * @example
- * // Investment View - All investments
+ * // IRM - Investment View - All investments
  * const { currencies } = useAvailableCurrencies(context, {
  *   filters: { entity: 'Investment' },
  *   returnFormat: 'codes'
  * })
  *
  * @example
- * // Equity Analytics - Equity investments only
+ * // IRM - Equity Analytics - Equity investments only
  * const { currencies } = useAvailableCurrencies(context, {
  *   filters: { entity: 'Investment', investmentGroupId: 'InvestmentGroup:v1:EQUITY' },
  *   returnFormat: 'full'
  * })
  *
  * @example
- * // Divestment - Exit opportunities
+ * // IRM - Divestment - Exit opportunities
  * const { currencies } = useAvailableCurrencies(context, {
  *   filters: { entity: 'InvestmentOpportunity', dealType: 'DIVESTMENT_DEAL' },
  *   returnFormat: 'codes'
+ * })
+ *
+ * @example
+ * // CRM - Opportunity View - All opportunities
+ * const { currencies } = useAvailableCurrencies(context, {
+ *   filters: { entity: 'Opportunity' },
+ *   returnFormat: 'codes'
+ * })
+ *
+ * @example
+ * // CRM - Account View - All accounts
+ * const { currencies } = useAvailableCurrencies(context, {
+ *   filters: { entity: 'Account' },
+ *   returnFormat: 'full'
  * })
  */
 export const useAvailableCurrencies = (
@@ -81,6 +96,7 @@ export const useAvailableCurrencies = (
   const whereConditions = useMemo(() => {
     const conditions: string[] = ['{ isDeleted: { _eq: false } }', '{ currencyRef: { _isNull: false } }']
 
+    // IRM-specific filters
     if (investmentGroupId) {
       conditions.push(`{ investmentGroup: { id: { _eq: "${investmentGroupId}" } } }`)
     }
@@ -133,6 +149,14 @@ export const useAvailableCurrencies = (
           currency: { code: string; value: string } | null
         }>
         InvestmentOpportunity?: Array<{
+          currencyRef: string | null
+          currency: { code: string; value: string } | null
+        }>
+        Opportunity?: Array<{
+          currencyRef: string | null
+          currency: { code: string; value: string } | null
+        }>
+        Account?: Array<{
           currencyRef: string | null
           currency: { code: string; value: string } | null
         }>

@@ -11,6 +11,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Label,
   IconAvatar,
   ChartContainer,
   ChartTooltip,
@@ -38,6 +39,9 @@ export interface RevenueTrendChartProps {
   onPipelineChange?: (pipelineId: string | undefined) => void
   selectedTimeFilter?: TimeFilter
   onTimeFilterChange?: (timeFilter: TimeFilter) => void
+  selectedCurrency?: string
+  onCurrencyChange?: (currency: string) => void
+  availableCurrencies?: string[]
   moduleColor?: string
 }
 
@@ -49,6 +53,9 @@ export const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({
   onPipelineChange,
   selectedTimeFilter = 'sixMonths',
   onTimeFilterChange,
+  selectedCurrency = 'EUR',
+  onCurrencyChange,
+  availableCurrencies = ['EUR', 'USD'],
   moduleColor = 'default'
 }) => {
   // Early return for loading state BEFORE any hooks
@@ -107,10 +114,19 @@ export const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD',
+      currency: selectedCurrency,
       notation: 'compact',
       maximumFractionDigits: 1
     }).format(value)
+  }
+
+  const formatXAxisLabel = (value: string) => {
+    if (selectedTimeFilter === 'historical') {
+      // For historical view, try to extract year from the value
+      const date = new Date(value)
+      return date.getFullYear().toString() // Show only year for historical view
+    }
+    return value // For other views, return as is (already formatted in data)
   }
 
   const currentFilterLabel =
@@ -129,22 +145,8 @@ export const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({
               </span>
             )}
           </CardTitle>
-          <div className="gba:flex gba:items-center gba:gap-4">
-            <div className="gba:min-w-48">
-              <Select value={selectedPipelineId || 'all'} onValueChange={handlePipelineChange}>
-                <SelectTrigger data-testid="revenue-pipeline-selector">
-                  <SelectValue placeholder="Select pipeline" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Pipelines</SelectItem>
-                  {pipelines.map(pipeline => (
-                    <SelectItem key={pipeline.id} value={pipeline.id}>
-                      {pipeline.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="gba:flex gba:items-center gba:gap-4 gba:ml-auto">
+            {/* Time Filters */}
             <div className="gba:flex gba:items-center gba:gap-2">
               <CalendarIcon size={16} className="gba:text-gray-500" />
               <div className="gba:flex gba:gap-1" data-testid="revenue-time-filters">
@@ -161,6 +163,42 @@ export const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({
                 ))}
               </div>
             </div>
+
+            {/* Pipeline Filter */}
+            <div className="gba:min-w-48">
+              <Select value={selectedPipelineId || 'all'} onValueChange={handlePipelineChange}>
+                <SelectTrigger data-testid="revenue-pipeline-selector">
+                  <SelectValue placeholder="Select pipeline" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Pipelines</SelectItem>
+                  {pipelines.map(pipeline => (
+                    <SelectItem key={pipeline.id} value={pipeline.id}>
+                      {pipeline.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Currency Filter */}
+            {availableCurrencies && availableCurrencies.length > 1 && onCurrencyChange && (
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <Label className="gba:text-sm gba:font-medium gba:whitespace-nowrap">Currency</Label>
+                <Select value={selectedCurrency} onValueChange={onCurrencyChange}>
+                  <SelectTrigger data-testid="revenue-currency-selector" className="gba:w-32">
+                    <SelectValue placeholder="Select currency" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableCurrencies.map(currency => (
+                      <SelectItem key={currency} value={currency}>
+                        {currency}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
         </div>
         <div className="gba:mt-4 gba:border-t gba:pt-4">
@@ -209,7 +247,7 @@ export const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({
             className="gba:h-[400px] gba:w-full gba:aspect-auto"
           >
             <AreaChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-              <XAxis dataKey="month" tickLine={false} />
+              <XAxis dataKey="month" tickLine={false} tickFormatter={formatXAxisLabel} />
               <YAxis tickFormatter={formatCurrency} tickLine={false} />
               <ChartTooltip content={<ChartTooltipContent labelKey="month" />} />
               <ChartLegend content={<ChartLegendContent />} />

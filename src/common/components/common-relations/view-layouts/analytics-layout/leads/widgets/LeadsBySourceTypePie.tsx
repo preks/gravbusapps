@@ -48,9 +48,7 @@ export const LeadsBySourceTypePie: React.FC<LeadsBySourceTypePieProps> = ({ data
 
   const chartConfig = useMemo(() => {
     if (!data || data.length === 0) return {} as ChartConfig
-    const config: Record<string, { label?: string }> = {
-      [dataKey]: {}
-    }
+    const config: Record<string, { label?: string }> = {}
     data.forEach(item => {
       const key = toKey(item.sourceType)
       config[key] = { label: item.sourceType }
