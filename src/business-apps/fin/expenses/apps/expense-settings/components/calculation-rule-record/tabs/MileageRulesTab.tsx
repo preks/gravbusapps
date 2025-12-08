@@ -191,10 +191,31 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
   const loadMileageRules = useCallback(async () => {
     setIsMileageRulesLoading(true)
     try {
+      // Build where condition to filter by overlapping validity dates
+      const whereConditions: string[] = ['isDeleted: { _eq: false }']
+
+      // Add validity date overlap logic
+      // Rule is valid if:
+      // 1. Mileage rule's activeTo is null OR activeTo >= expense rule's activeFrom
+      // 2. Mileage rule's activeFrom is null OR activeFrom <= expense rule's activeTo (or infinity if no activeTo)
+      const expenseRuleActiveTo = activeTo || '9999-12-31'
+
+      whereConditions.push(`_or: [
+        { activeFrom: { _isNull: true } },
+        { activeFrom: { _lte: "${expenseRuleActiveTo}" } }
+      ]`)
+
+      whereConditions.push(`_or: [
+        { activeTo: { _isNull: true } },
+        { activeTo: { _gte: "${activeFrom}" } }
+      ]`)
+
+      const whereClause = `{ _and: [${whereConditions.map(c => `{ ${c} }`).join(', ')}] }`
+
       const query = `
         query GetMileageRules {
           MileageRule(
-            where: { isDeleted: { _eq: false } }
+            where: ${whereClause}
             orderBy: { code: ASC }
           ) {
             id
@@ -210,7 +231,7 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
     } finally {
       setIsMileageRulesLoading(false)
     }
-  }, [graphqlClient])
+  }, [graphqlClient, activeFrom, activeTo])
 
   const fetchMileageRules = useCallback(async () => {
     setIsLoading(true)
@@ -922,47 +943,50 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="mileageRuleId"
-                  render={({ field }) => (
-                    <FormItem data-testid="mileage-rule-select-field">
-                      <FormLabel data-testid="mileage-rule-select-label">Mileage Rule</FormLabel>
-                      <Select
-                        value={field.value}
-                        onValueChange={value => {
-                          field.onChange(value)
-                          // Clear unit price when mileage rule is selected
-                          if (value) {
-                            form.setValue('unitPrice', undefined)
-                          }
-                        }}
-                        disabled={isMileageRulesLoading || isRestrictedEdit}
-                      >
-                        <FormControl>
-                          <SelectTrigger data-testid="mileage-rule-select-trigger">
-                            <SelectValue placeholder="Select a mileage rule (optional)" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent data-testid="mileage-rule-select-options">
-                          {mileageRuleOptions.map(option => (
-                            <SelectItem
-                              key={option.id}
-                              value={option.id}
-                              data-testid={`mileage-rule-option-${option.id}`}
-                            >
-                              {option.code} - {option.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-                        Select a mileage rule OR enter unit price below (not both)
-                      </p>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {/* Only show Mileage Rule selector if there are available options */}
+                {mileageRuleOptions.length > 0 && (
+                  <FormField
+                    control={form.control}
+                    name="mileageRuleId"
+                    render={({ field }) => (
+                      <FormItem data-testid="mileage-rule-select-field">
+                        <FormLabel data-testid="mileage-rule-select-label">Mileage Rule</FormLabel>
+                        <Select
+                          value={field.value}
+                          onValueChange={value => {
+                            field.onChange(value)
+                            // Clear unit price when mileage rule is selected
+                            if (value) {
+                              form.setValue('unitPrice', undefined)
+                            }
+                          }}
+                          disabled={isMileageRulesLoading || isRestrictedEdit}
+                        >
+                          <FormControl>
+                            <SelectTrigger data-testid="mileage-rule-select-trigger">
+                              <SelectValue placeholder="Select a mileage rule (optional)" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent data-testid="mileage-rule-select-options">
+                            {mileageRuleOptions.map(option => (
+                              <SelectItem
+                                key={option.id}
+                                value={option.id}
+                                data-testid={`mileage-rule-option-${option.id}`}
+                              >
+                                {option.code} - {option.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
+                          Select a mileage rule OR enter unit price below (not both)
+                        </p>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
               </div>
 
               <div className="gba:grid gba:grid-cols-3 gba:gap-4">
