@@ -352,7 +352,13 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
               id
               code
               name
-              rateAmount
+              mileageRuleDetail(
+                where: { isDeleted: { _eq: false } }
+                orderBy: [{ detailOrder: ASC }]
+                limit: 1
+              ) {
+                amount
+              }
             }
           }
         `
@@ -361,12 +367,15 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
 
         if (selectedRule) {
           // Auto-populate code, name, and unitPrice from the selected MileageRule
+          // Use the first detail's amount as the unit price
+          const firstDetailAmount = selectedRule.mileageRuleDetail?.[0]?.amount || 0
+
           const currentValues = form.getValues()
           form.reset({
             ...currentValues,
             code: selectedRule.code,
             name: selectedRule.name,
-            unitPrice: selectedRule.rateAmount || 0,
+            unitPrice: firstDetailAmount,
             mileageRuleId: selectedRule.id
           })
         }
