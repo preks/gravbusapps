@@ -340,53 +340,6 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
     }
   }, [ruleId, accessToken, fetchMileageRules, loadTaxCodes, loadMileageRules])
 
-  // Handler to auto-populate fields when MileageRule is selected
-  const handleMileageRuleSelect = useCallback(
-    async (mileageRuleId: string) => {
-      if (!mileageRuleId) return
-
-      try {
-        const query = `
-          query GetMileageRuleById {
-            MileageRule(where: { id: { _eq: "${mileageRuleId}" }, isDeleted: { _eq: false } }) {
-              id
-              code
-              name
-              mileageRuleDetail(
-                where: { isDeleted: { _eq: false } }
-                orderBy: [{ detailOrder: ASC }]
-                limit: 1
-              ) {
-                amount
-              }
-            }
-          }
-        `
-        const result = await graphqlClient.request<{ MileageRule: any[] }>(query)
-        const selectedRule = result.MileageRule?.[0]
-
-        if (selectedRule) {
-          // Auto-populate code, name, and unitPrice from the selected MileageRule
-          // Use the first detail's amount as the unit price
-          const firstDetailAmount = selectedRule.mileageRuleDetail?.[0]?.amount || 0
-
-          const currentValues = form.getValues()
-          form.reset({
-            ...currentValues,
-            code: selectedRule.code,
-            name: selectedRule.name,
-            unitPrice: firstDetailAmount,
-            mileageRuleId: selectedRule.id
-          })
-        }
-      } catch (error) {
-        console.error('Error fetching MileageRule details:', error)
-        toast.error('Failed to load mileage rule details')
-      }
-    },
-    [graphqlClient, form]
-  )
-
   const handleAdd = () => {
     setEditingItem(null)
     setIsRestrictedEdit(false)
@@ -979,13 +932,16 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
                         value={field.value}
                         onValueChange={value => {
                           field.onChange(value)
-                          handleMileageRuleSelect(value)
+                          // Clear unit price when mileage rule is selected
+                          if (value) {
+                            form.setValue('unitPrice', undefined)
+                          }
                         }}
                         disabled={isMileageRulesLoading || isRestrictedEdit}
                       >
                         <FormControl>
                           <SelectTrigger data-testid="mileage-rule-select-trigger">
-                            <SelectValue placeholder="Select a mileage rule" />
+                            <SelectValue placeholder="Select a mileage rule (optional)" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent data-testid="mileage-rule-select-options">
@@ -1001,7 +957,7 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
                         </SelectContent>
                       </Select>
                       <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-                        Select a mileage rule to auto-populate code, name, and unit price
+                        Select a mileage rule OR enter unit price below (not both)
                       </p>
                       <FormMessage />
                     </FormItem>
@@ -1043,12 +999,23 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
                           min={0}
                           step={0.01}
                           value={field.value || ''}
-                          onChange={e => field.onChange(parseFloat(e.target.value) || undefined)}
+                          onChange={e => {
+                            field.onChange(parseFloat(e.target.value) || undefined)
+                            // Clear mileage rule when unit price is entered
+                            if (e.target.value) {
+                              form.setValue('mileageRuleId', undefined)
+                            }
+                          }}
                           placeholder="0.00"
-                          disabled={isRestrictedEdit}
+                          disabled={isRestrictedEdit || !!form.watch('mileageRuleId')}
                           data-testid="mileage-rule-unit-price-input"
                         />
                       </FormControl>
+                      <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
+                        {form.watch('mileageRuleId')
+                          ? 'Disabled - Mileage Rule selected'
+                          : 'Enter unit price if no mileage rule'}
+                      </p>
                       <FormMessage />
                     </FormItem>
                   )}
