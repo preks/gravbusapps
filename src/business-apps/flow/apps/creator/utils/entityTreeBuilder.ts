@@ -47,7 +47,7 @@ const CATEGORY_NAMES: Record<string, string> = {
   relationships: 'Relationships',
   metadata: 'Metadata',
   organization: 'Organization',
-  skills: 'Skills & Capabilities',
+  skills: 'Capabilities',
   location: 'Location',
   assignment: 'Assignment',
   content: 'Content',

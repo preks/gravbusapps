@@ -66,6 +66,7 @@ adjust-salary-review-annual-gross-salary = Jahresbruttogehalt
 adjust-salary-review-monthly-gross-salary = Monatliches Bruttogehalt
 adjust-salary-review-hourly-gross-salary = Stündliches Bruttogehalt
 adjust-salary-review-increase-text = { $percentage }% Erhöhung
+adjust-salary-review-hourly-suffix = /h
 
 # Assign Employee Salary Review Form (new employee without existing salary)
 assign-salary-review-title = Erstmalige Gehaltszuweisung prüfen für { $employeeName }

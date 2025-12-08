@@ -1,15 +1,19 @@
 import React from 'react'
-import { PageLayout } from '@newwork/nw-design-system'
+import { PageLayout, useTranslation } from '@newwork/nw-design-system'
 import { ClockIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getCurrentActiveStructureId, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { MODULE_COLORS } from '@/common/constants/ui'
 import TimeTracking from './components/TimeTracking'
 import { useEmployeeData } from '../employee-record/hooks/useEmployeeData'
+import timeTrackingTranslations from './_i18n'
+import DailyLog from './components/DailyLog'
+import TimeHistory from './components/TimeHistory'
 
 enum MyTimeTabEnum {
   TimeTracking = 'time-tracking',
-  Activity = 'activity'
+  DailyLog = 'daily-log',
+  History = 'history'
 }
 
 export const MyTime: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo }) => {
@@ -20,6 +24,7 @@ export const MyTime: React.FC<BusinessAppContextProps> = ({ accessToken, userInf
   const handleTabChange = (value: string) => setActiveTab(value as MyTimeTabEnum)
 
   const { employee } = useEmployeeData(accessToken, activeStructureId, employeeId)
+  const { t } = useTranslation(timeTrackingTranslations)
 
   return (
     <div data-testid="my-time-container">
@@ -37,11 +42,15 @@ export const MyTime: React.FC<BusinessAppContextProps> = ({ accessToken, userInf
             {
               value: MyTimeTabEnum.TimeTracking,
               label: getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.summary.title', 'Time Tracking')
+            },
+            {
+              value: MyTimeTabEnum.DailyLog,
+              label: t('daily_log')
+            },
+            {
+              value: MyTimeTabEnum.History,
+              label: getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.history.title', 'History')
             }
-            // {
-            //   value: MyTimeTabEnum.Activity,
-            //   label: getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.activity_log', 'Activity log')
-            // }
           ]
         }}
         variant={MODULE_COLORS.HR}
@@ -53,11 +62,17 @@ export const MyTime: React.FC<BusinessAppContextProps> = ({ accessToken, userInf
           </div>
         )}
 
-        {/* {activeTab === MyTimeTabEnum.Activity && (
+        {activeTab === MyTimeTabEnum.DailyLog && (
           <div data-testid="my-time-activity-content" className="gba:mt-4">
-            <History employeeId={employeeId} accessToken={accessToken} />
+            <DailyLog employee={employee} employeeId={employeeId} accessToken={accessToken} />
           </div>
-        )} */}
+        )}
+
+        {activeTab === MyTimeTabEnum.History && (
+          <div data-testid="my-time-history-content" className="gba:mt-4">
+            <TimeHistory employee={employee} employeeId={employeeId} accessToken={accessToken} />
+          </div>
+        )}
       </PageLayout>
     </div>
   )

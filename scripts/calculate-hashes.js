@@ -280,76 +280,194 @@ async function main() {
     const ourNewHashes = { ...hashes }
     const hashFileName = path.basename(hashFile)
 
+    /**
+     * Check if a rebase is currently in progress
+     */
+    const isRebaseInProgress = () => {
+      const gitDir = path.join(projectRoot, '.git')
+      return fs.existsSync(path.join(gitDir, 'rebase-merge')) || fs.existsSync(path.join(gitDir, 'rebase-apply'))
+    }
+
+    /**
+     * Abort any in-progress rebase
+     */
+    const abortRebaseIfNeeded = () => {
+      if (isRebaseInProgress()) {
+        console.log('   ⚠️  Aborting in-progress rebase...')
+        try {
+          execSync('git rebase --abort', { cwd: projectRoot, stdio: 'pipe' })
+        } catch {
+          // Ignore errors during abort
+        }
+      }
+    }
+
+    /**
+     * Resolve merge conflict in hash file by merging our changes with remote
+     */
+    const resolveHashConflict = () => {
+      console.log('   ⚠️  Rebase conflict detected, merging hashes manually...')
+
+      // During rebase: --ours = remote (the branch we're rebasing onto), --theirs = our local changes
+      // We want the remote version as base, then merge our new hashes on top
+      try {
+        execSync(`git checkout --ours ${hashFileName}`, { cwd: projectRoot, stdio: 'pipe' })
+      } catch {
+        // File might not exist on remote, start with empty
+        console.log('   📄 Remote version not available, using local as base')
+      }
+
+      // Load whatever version we have now (remote or empty)
+      let remoteHashes = {}
+      try {
+        remoteHashes = loadHashFile(hashFile)
+      } catch {
+        // If file doesn't exist or is invalid, start fresh
+      }
+
+      // Merge our new hashes into the remote version (our changes take priority)
+      const mergedHashes = { ...remoteHashes, ...ourNewHashes }
+
+      // Save the merged result
+      saveHashFile(hashFile, mergedHashes)
+      console.log(
+        `   🔀 Merged ${Object.keys(ourNewHashes).length} local hash(es) with ${Object.keys(remoteHashes).length} remote hash(es)`
+      )
+
+      // Stage the resolved file
+      execSync(`git add ${hashFileName}`, { cwd: projectRoot, stdio: 'pipe' })
+
+      // Continue the rebase
+      try {
+        execSync('git rebase --continue', {
+          cwd: projectRoot,
+          stdio: 'pipe',
+          env: { ...process.env, GIT_EDITOR: 'true' }
+        })
+      } catch {
+        // Try alternative approach
+        execSync('git -c core.editor=true rebase --continue', { cwd: projectRoot, stdio: 'pipe' })
+      }
+
+      console.log('   ✅ Conflict resolved and rebase continued')
+    }
+
     try {
       configureGit(projectRoot, execSync)
+
+      // Get the current branch name
+      const currentBranch = execSync('git rev-parse --abbrev-ref HEAD', { cwd: projectRoot, encoding: 'utf8' }).trim()
+      console.log(`   Current branch: ${currentBranch}`)
+      console.log(`   Target branch: ${branch}`)
+
+      // Check if we're already on the target branch
+      const needsBranchSwitch = currentBranch !== branch
+
+      if (needsBranchSwitch) {
+        console.log(`   📌 Switching from ${currentBranch} to ${branch}...`)
+
+        // Stash any uncommitted changes (the hash file we just modified)
+        // We'll use a different approach: copy the hash file, switch branch, then restore
+        const hashFileContent = fs.readFileSync(hashFile, 'utf8')
+
+        // Fetch the target branch
+        execSync(`git fetch origin ${branch}:${branch}`, { cwd: projectRoot, stdio: 'pipe' })
+
+        // Checkout the target branch
+        execSync(`git checkout ${branch}`, { cwd: projectRoot, stdio: 'pipe' })
+
+        // Restore the hash file with our changes
+        fs.writeFileSync(hashFile, hashFileContent, 'utf8')
+        console.log(`   ✅ Switched to ${branch} and restored hash file`)
+      }
+
       execSync(`git add ${hashFileName}`, { cwd: projectRoot })
-      execSync(
-        `git commit -m "chore(ci): calculate ${args.env} component hashes (${successCount} screens) [skip ci]"`,
-        {
-          cwd: projectRoot
-        }
-      )
+      execSync(`git commit -m "chore(ci): update ${args.env} component hashes (manual calculation) [skip ci]"`, {
+        cwd: projectRoot
+      })
 
       // Pull with rebase and push
       let pushSuccess = false
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-          execSync(`git pull --rebase origin ${branch}`, { cwd: projectRoot, stdio: 'inherit' })
-          execSync(`git push origin ${branch}`, { cwd: projectRoot, stdio: 'inherit' })
+          // Check if there's an incomplete rebase from a previous attempt
+          if (isRebaseInProgress()) {
+            console.log(`🔄 Attempt ${attempt}/3: Resolving in-progress rebase...`)
+            resolveHashConflict()
+          } else {
+            console.log(`🔄 Attempt ${attempt}/3: Pulling and rebasing...`)
+            // Capture output to detect conflicts
+            execSync(`git pull --rebase origin ${branch}`, { cwd: projectRoot, stdio: 'pipe' })
+          }
+
+          // If we got here, rebase succeeded - try to push
+          execSync(`git push origin ${branch}`, { cwd: projectRoot, stdio: 'pipe' })
           pushSuccess = true
           console.log(`✅ Changes committed and pushed to ${branch}`)
           break
         } catch (error) {
-          // Check if this is a rebase conflict
-          const errorMsg = error.message || ''
-          if (errorMsg.includes('CONFLICT') || errorMsg.includes('Merge conflict')) {
-            console.log('   ⚠️  Rebase conflict detected, merging hashes manually')
+          const errorOutput =
+            (error.stdout?.toString() || '') + (error.stderr?.toString() || '') + (error.message || '')
 
-            // During rebase: --ours = remote, --theirs = our local changes
-            // Get the remote version and merge our changes into it
-            execSync(`git checkout --ours ${hashFileName}`, { cwd: projectRoot })
+          // Check if this is a rebase conflict or if rebase is in progress
+          const isConflict =
+            errorOutput.includes('CONFLICT') ||
+            errorOutput.includes('Merge conflict') ||
+            errorOutput.includes('unmerged files') ||
+            errorOutput.includes('fix conflicts') ||
+            isRebaseInProgress()
 
-            // Load the remote hashes
-            const remoteHashes = loadHashFile(hashFile)
-
-            // Merge our new hashes into the remote version
-            const mergedHashes = { ...remoteHashes, ...ourNewHashes }
-
-            // Save the merged result
-            saveHashFile(hashFile, mergedHashes)
-            console.log(
-              `   🔀 Merged ${Object.keys(ourNewHashes).length} local hash(es) with ${Object.keys(remoteHashes).length} remote hash(es)`
-            )
-
-            execSync(`git add ${hashFileName}`, { cwd: projectRoot })
-
-            // Continue the rebase
+          if (isConflict) {
             try {
-              execSync('git rebase --continue', { cwd: projectRoot, env: { ...process.env, GIT_EDITOR: 'true' } })
-            } catch {
-              execSync('git -c core.editor=true rebase --continue', { cwd: projectRoot })
+              resolveHashConflict()
+              // After resolving, try to push
+              execSync(`git push origin ${branch}`, { cwd: projectRoot, stdio: 'pipe' })
+              pushSuccess = true
+              console.log(`✅ Changes committed and pushed to ${branch} (after conflict resolution)`)
+              break
+            } catch (pushError) {
+              const pushErrorOutput =
+                (pushError.stdout?.toString() || '') + (pushError.stderr?.toString() || '') + (pushError.message || '')
+              // If push failed due to more remote changes, we need to retry the whole process
+              if (pushErrorOutput.includes('rejected') || pushErrorOutput.includes('non-fast-forward')) {
+                console.log('   ⚠️  More remote changes detected, retrying...')
+                abortRebaseIfNeeded()
+                // Re-commit our changes
+                execSync(`git add ${hashFileName}`, { cwd: projectRoot, stdio: 'pipe' })
+                try {
+                  execSync(
+                    `git commit -m "chore(ci): update ${args.env} component hashes (manual calculation) [skip ci]"`,
+                    {
+                      cwd: projectRoot,
+                      stdio: 'pipe'
+                    }
+                  )
+                } catch {
+                  // Commit might fail if no changes, that's ok
+                }
+              } else {
+                throw pushError
+              }
             }
-
-            // Try to push after resolving conflict
-            execSync(`git push origin ${branch}`, { cwd: projectRoot, stdio: 'inherit' })
-            pushSuccess = true
-            console.log(`✅ Changes committed and pushed to ${branch} (after conflict resolution)`)
-            break
-          }
-
-          if (attempt < 3) {
+          } else if (attempt < 3) {
             console.log(`🔄 Push failed (attempt ${attempt}/3), retrying...`)
+            abortRebaseIfNeeded()
             await new Promise(resolve => setTimeout(resolve, 2000 * attempt))
           } else {
+            // On final attempt failure, abort any in-progress rebase
+            abortRebaseIfNeeded()
             throw error
           }
         }
       }
 
       if (!pushSuccess) {
+        abortRebaseIfNeeded()
         throw new Error('Failed to push after 3 retries')
       }
     } catch (error) {
+      // Clean up on failure
+      abortRebaseIfNeeded()
       console.error(`❌ Failed to commit/push: ${error.message}`)
       console.log('ℹ️  Hashes were saved locally, you can commit manually')
     }

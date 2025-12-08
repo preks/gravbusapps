@@ -65,13 +65,18 @@ export interface OverviewTabLayoutProps {
   trendLoading?: boolean
 
   pipelines: Array<{ id: string; name: string }>
-  selectedPipelineId?: string
-  onPipelineChange?: (pipelineId: string | undefined) => void
+
+  // Revenue Trends specific pipeline filter
+  revenuePipelineId?: string
+  onRevenuePipelineChange?: (pipelineId: string | undefined) => void
   revenueTimeFilter?: TimeFilter
   onRevenueTimeFilterChange?: (timeFilter: TimeFilter) => void
   revenueTrends: RevenueTrendData[]
   revenueLoading?: boolean
 
+  // Pipeline Health specific pipeline filter
+  healthPipelineId?: string
+  onHealthPipelineChange?: (pipelineId: string | undefined) => void
   pipelineHealth: {
     data?: PipelineHealthMetrics | null
     isLoading?: boolean
@@ -89,6 +94,15 @@ export interface OverviewTabLayoutProps {
   }
 
   topPerformers: TopPerformerItem[]
+
+  // Currency filters
+  kpiCurrency?: string
+  onKpiCurrencyChange?: (currency: string) => void
+  availableCurrencies?: string[]
+  revenueCurrency?: string
+  onRevenueCurrencyChange?: (currency: string) => void
+  topPerformersCurrency?: string
+  onTopPerformersCurrencyChange?: (currency: string) => void
 }
 
 export const OverviewTabLayout: React.FC<OverviewTabLayoutProps> = ({
@@ -98,17 +112,26 @@ export const OverviewTabLayout: React.FC<OverviewTabLayoutProps> = ({
   trendData,
   trendLoading = false,
   pipelines,
-  selectedPipelineId,
-  onPipelineChange,
+  revenuePipelineId,
+  onRevenuePipelineChange,
   revenueTimeFilter = 'sixMonths',
   onRevenueTimeFilterChange,
   revenueTrends,
   revenueLoading = false,
+  healthPipelineId,
+  onHealthPipelineChange,
   pipelineHealth,
   geographicDistribution,
   activityHeatmap,
   topPerformers,
-  moduleColor = 'default'
+  moduleColor = 'default',
+  kpiCurrency = 'EUR',
+  onKpiCurrencyChange,
+  availableCurrencies = ['EUR', 'USD'],
+  revenueCurrency = 'EUR',
+  onRevenueCurrencyChange,
+  topPerformersCurrency = 'EUR',
+  onTopPerformersCurrencyChange
 }) => {
   return (
     <div className="gba:space-y-6" data-testid="overview-analytics-tab">
@@ -119,6 +142,9 @@ export const OverviewTabLayout: React.FC<OverviewTabLayoutProps> = ({
           conversionMetrics={conversionMetrics}
           trendData={trendData}
           trendLoading={trendLoading}
+          selectedCurrency={kpiCurrency}
+          onCurrencyChange={onKpiCurrencyChange}
+          availableCurrencies={availableCurrencies}
         />
       </div>
 
@@ -127,10 +153,13 @@ export const OverviewTabLayout: React.FC<OverviewTabLayoutProps> = ({
         data={revenueTrends}
         isLoading={revenueLoading}
         pipelines={pipelines}
-        selectedPipelineId={selectedPipelineId}
-        onPipelineChange={onPipelineChange}
+        selectedPipelineId={revenuePipelineId}
+        onPipelineChange={onRevenuePipelineChange}
         selectedTimeFilter={revenueTimeFilter}
         onTimeFilterChange={onRevenueTimeFilterChange}
+        selectedCurrency={revenueCurrency}
+        onCurrencyChange={onRevenueCurrencyChange}
+        availableCurrencies={availableCurrencies}
       />
 
       <div className="gba:flex gba:gap-6" data-testid="analytics-charts-container">
@@ -141,8 +170,8 @@ export const OverviewTabLayout: React.FC<OverviewTabLayoutProps> = ({
             data={pipelineHealth?.data ?? null}
             moduleColor={moduleColor}
             pipelines={pipelines}
-            selectedPipelineId={selectedPipelineId}
-            onPipelineChange={onPipelineChange}
+            selectedPipelineId={healthPipelineId}
+            onPipelineChange={onHealthPipelineChange}
           />
         </div>
         <div className="gba:min-w-0 gba:w-full lg:gba:w-1/3" data-testid="geographic-chart-container">
@@ -162,7 +191,13 @@ export const OverviewTabLayout: React.FC<OverviewTabLayoutProps> = ({
         />
       </div>
 
-      <TopPerformers performers={topPerformers} moduleColor={moduleColor} />
+      <TopPerformers
+        performers={topPerformers}
+        moduleColor={moduleColor}
+        selectedCurrency={topPerformersCurrency}
+        onCurrencyChange={onTopPerformersCurrencyChange}
+        availableCurrencies={availableCurrencies}
+      />
     </div>
   )
 }

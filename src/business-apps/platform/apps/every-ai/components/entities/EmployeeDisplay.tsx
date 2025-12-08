@@ -3,6 +3,7 @@ import { Card, CardContent } from '@newwork/nw-design-system'
 import { useEmployeeDetails } from '../../queries/employeeQueries'
 import { AvatarWithInitials } from '../shared/AvatarWithInitials'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
+import { getOperationBadge } from './utils/displayUtils'
 
 interface EmployeeDisplayProps {
   employeeId: string
@@ -56,24 +57,26 @@ export const EmployeeDisplay: React.FC<EmployeeDisplayProps> = ({ employeeId, ac
       onClick={handleClick}
     >
       <CardContent className="gba:p-6">
-        {operation && (
-          <div className="gba:flex gba:justify-between gba:items-start gba:mb-4">
-            <span className="gba:text-lg gba:font-semibold">Employee</span>
-            <span
-              className={`gba:text-sm gba:font-medium gba:px-2.5 gba:py-0.5 gba:rounded-xl gba:capitalize ${
-                operation === 'create'
-                  ? 'gba:bg-success-secondary gba:text-success'
-                  : operation === 'update'
-                    ? 'gba:bg-info-secondary gba:text-info'
-                    : operation === 'delete'
-                      ? 'gba:bg-destructive-secondary gba:text-destructive'
-                      : 'gba:bg-muted gba:text-muted-foreground'
-              }`}
-            >
-              {operation}
-            </span>
-          </div>
-        )}
+        {operation &&
+          (() => {
+            const operationBadge = getOperationBadge(operation)
+            return operationBadge ? (
+              <div className="gba:flex gba:justify-between gba:items-start gba:mb-4">
+                <span className="gba:text-lg gba:font-semibold">Employee</span>
+                <span
+                  className={`gba:text-sm gba:font-medium gba:px-2.5 gba:py-0.5 gba:rounded-xl ${
+                    operationBadge.variant === 'success'
+                      ? 'gba:bg-success-secondary gba:text-success'
+                      : operationBadge.variant === 'destructive'
+                        ? 'gba:bg-destructive-secondary gba:text-destructive'
+                        : 'gba:bg-info-secondary gba:text-info'
+                  }`}
+                >
+                  {operationBadge.text}
+                </span>
+              </div>
+            ) : null
+          })()}
 
         <div className="gba:flex gba:items-center gba:gap-4 gba:mb-4">
           <AvatarWithInitials

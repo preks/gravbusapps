@@ -10,7 +10,7 @@ import {
 } from '@newwork/nw-design-system'
 import { AppAction } from '@/components/app-action/AppAction'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useAvailableCurrencies } from '@/common/data/investment/hooks/useAvailableCurrencies'
+import { useAvailableCurrencies } from '@/common/data/common/hooks/useAvailableCurrencies'
 import { useInvestmentStatistics } from '@/common/data/investment/hooks/useInvestmentStatistics'
 import AllInvestmentsList from './data/investment-data/AllInvestmentsList'
 import EquityInvestmentsList from './data/equity-data/EquityInvestmentsList'
@@ -240,97 +240,127 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
 
   const currentState = getCurrentSectionState()
 
-  // Render primary action based on current section
-  const renderPrimaryAction = () => {
-    if (currentSection === 'overview') {
-      return (
-        <AppAction
-          variant="create-primary"
-          contexts={[
-            {
-              context: FlowContextName.investmentCreate,
-              contextData: {
-                fromView: 'investments',
-                fromSubView: 'overview'
-              }
-            }
-          ]}
-          accessToken={accessToken || ''}
-          data-testid="all-investments-add-action"
-          emptyState="hide"
-        >
-          {getTranslationFromI18nKeyAndLabel('investment:investment.addInvestment', 'Add Investment')}
-        </AppAction>
-      )
-    }
-    if (currentSection === 'liquid-funds') {
-      return (
-        <AppAction
-          variant="create-primary"
-          contexts={[
-            {
-              context: FlowContextName.investmentCreate,
-              contextData: {
-                investmentGroup: 'InvestmentGroup:v1:LIQUID_FUND',
-                fromView: 'investments',
-                fromSubView: 'liquid-funds'
-              }
-            }
-          ]}
-          accessToken={accessToken || ''}
-          data-testid="liquid-fund-investments-add-action"
-          emptyState="hide"
-        >
-          {getTranslationFromI18nKeyAndLabel('investment:liquidFund.addLiquidFund', 'Add Liquid Fund')}
-        </AppAction>
-      )
-    }
-    if (currentSection === 'real-estate') {
-      return (
-        <AppAction
-          variant="create-primary"
-          contexts={[
-            {
-              context: FlowContextName.investmentCreate,
-              contextData: {
-                investmentGroup: 'InvestmentGroup:v1:REAL_ESTATE',
-                fromView: 'investments',
-                fromSubView: 'real-estate'
-              }
-            }
-          ]}
-          accessToken={accessToken || ''}
-          data-testid="real-estate-investments-add-action"
-          emptyState="hide"
-        >
-          {getTranslationFromI18nKeyAndLabel('investment:realEstate.addRealEstate', 'Add Real Estate')}
-        </AppAction>
-      )
-    }
-    if (currentSection === 'equity') {
-      return (
-        <AppAction
-          variant="create-primary"
-          contexts={[
-            {
-              context: FlowContextName.investmentCreate,
-              contextData: {
-                investmentGroup: 'InvestmentGroup:v1:EQUITY',
-                fromView: 'investments',
-                fromSubView: 'equity'
-              }
-            }
-          ]}
-          accessToken={accessToken || ''}
-          data-testid="equity-investments-add-action"
-          emptyState="hide"
-        >
-          {getTranslationFromI18nKeyAndLabel('investment:equity.addEquityInvestment', 'Add Equity Investment')}
-        </AppAction>
-      )
-    }
-    return undefined
-  }
+  // Define all action contexts - loaded once for all sections
+  const overviewActionContexts = useMemo(
+    () => [
+      {
+        context: FlowContextName.investmentCreate,
+        contextData: {
+          fromView: 'investments',
+          fromSubView: 'overview'
+        }
+      }
+    ],
+    []
+  )
+
+  const liquidFundActionContexts = useMemo(
+    () => [
+      {
+        context: FlowContextName.investmentCreate,
+        contextData: {
+          investmentGroup: 'InvestmentGroup:v1:LIQUID_FUND',
+          fromView: 'investments',
+          fromSubView: 'liquid-funds'
+        }
+      }
+    ],
+    []
+  )
+
+  const realEstateActionContexts = useMemo(
+    () => [
+      {
+        context: FlowContextName.investmentCreate,
+        contextData: {
+          investmentGroup: 'InvestmentGroup:v1:REAL_ESTATE',
+          fromView: 'investments',
+          fromSubView: 'real-estate'
+        }
+      }
+    ],
+    []
+  )
+
+  const equityActionContexts = useMemo(
+    () => [
+      {
+        context: FlowContextName.investmentCreate,
+        contextData: {
+          investmentGroup: 'InvestmentGroup:v1:EQUITY',
+          fromView: 'investments',
+          fromSubView: 'equity'
+        }
+      }
+    ],
+    []
+  )
+
+  // Render all primary actions - all loaded initially, only current one visible
+  const renderPrimaryAction = useMemo(() => {
+    return (
+      <div className="gba:relative" style={{ minHeight: '40px' }}>
+        {/* Overview Action */}
+        <div style={{ display: currentSection === 'overview' ? 'block' : 'none' }}>
+          <AppAction
+            variant="create-primary"
+            contexts={overviewActionContexts}
+            accessToken={accessToken || ''}
+            data-testid="all-investments-add-action"
+            emptyState="hide"
+          >
+            {getTranslationFromI18nKeyAndLabel('investment:investment.addInvestment', 'Add Investment')}
+          </AppAction>
+        </div>
+
+        {/* Liquid Fund Action */}
+        <div style={{ display: currentSection === 'liquid-funds' ? 'block' : 'none' }}>
+          <AppAction
+            variant="create-primary"
+            contexts={liquidFundActionContexts}
+            accessToken={accessToken || ''}
+            data-testid="liquid-fund-investments-add-action"
+            emptyState="hide"
+          >
+            {getTranslationFromI18nKeyAndLabel('investment:liquidFund.addLiquidFund', 'Add Liquid Fund')}
+          </AppAction>
+        </div>
+
+        {/* Real Estate Action */}
+        <div style={{ display: currentSection === 'real-estate' ? 'block' : 'none' }}>
+          <AppAction
+            variant="create-primary"
+            contexts={realEstateActionContexts}
+            accessToken={accessToken || ''}
+            data-testid="real-estate-investments-add-action"
+            emptyState="hide"
+          >
+            {getTranslationFromI18nKeyAndLabel('investment:realEstate.addRealEstate', 'Add Real Estate')}
+          </AppAction>
+        </div>
+
+        {/* Equity Action */}
+        <div style={{ display: currentSection === 'equity' ? 'block' : 'none' }}>
+          <AppAction
+            variant="create-primary"
+            contexts={equityActionContexts}
+            accessToken={accessToken || ''}
+            data-testid="equity-investments-add-action"
+            emptyState="hide"
+          >
+            {getTranslationFromI18nKeyAndLabel('investment:equity.addEquityInvestment', 'Add Equity Investment')}
+          </AppAction>
+        </div>
+      </div>
+    )
+  }, [
+    currentSection,
+    overviewActionContexts,
+    liquidFundActionContexts,
+    realEstateActionContexts,
+    equityActionContexts,
+    accessToken
+  ])
 
   return (
     <div data-testid="investment-view">
@@ -436,7 +466,7 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
         availableColumns={availableColumns}
         visibleColumns={currentState.visibleColumns}
         onVisibleColumnsChange={currentState.setVisibleColumns}
-        primaryAction={renderPrimaryAction()}
+        primaryAction={renderPrimaryAction}
         secondaryActions={currencyFilterUI}
         toolbarDensity="default"
       >

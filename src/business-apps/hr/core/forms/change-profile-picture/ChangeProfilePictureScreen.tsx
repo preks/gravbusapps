@@ -42,7 +42,9 @@ const ChangeProfilePictureScreen: React.FC<BusinessAppContextProps> = ({ additio
     const load = async () => {
       // Skip if already have preview or payload provides avatar
       if (previewUrl || currentImageUrl) return
-      const employeeId = userInfo?.employeeDetails?.employeeId
+      const employeeId =
+        (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.employeeId ||
+        userInfo?.employeeDetails?.employeeId
       if (!employeeId) return
       try {
         setIsImageLoading(true)
@@ -63,7 +65,15 @@ const ChangeProfilePictureScreen: React.FC<BusinessAppContextProps> = ({ additio
     return () => {
       cancelled = true
     }
-  }, [userInfo?.employeeDetails?.employeeId, accessToken])
+  }, [
+    userInfo?.employeeDetails?.employeeId,
+    (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.employeeId,
+    accessToken,
+    additionalData,
+    previewUrl,
+    currentImageUrl,
+    fetchEmployeePicture
+  ])
 
   const imageSrc = previewUrl || currentImageUrl || undefined
 
@@ -79,7 +89,9 @@ const ChangeProfilePictureScreen: React.FC<BusinessAppContextProps> = ({ additio
   }
 
   const handlePreSubmit = async () => {
-    const employeeId = userInfo?.employeeDetails?.employeeId
+    const employeeId =
+      (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.employeeId ||
+      userInfo?.employeeDetails?.employeeId
     if (!employeeId || !changedFile) return {}
 
     const file = changedFile?.file

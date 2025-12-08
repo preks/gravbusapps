@@ -33,11 +33,14 @@ interface AddressFormValues {
   employeeDocumentId?: string
 }
 
-const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo }) => {
+const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo, additionalData }) => {
   const [fileList, setFileList] = useState<any[]>([])
   const [addressLineCount, setAddressLineCount] = useState<number>(1)
   const [addressLinesError, setAddressLinesError] = useState<string | null>(null)
   const { data, refetchAddresses } = useChangeEmployeeAddress()
+
+  const employee = useMemo(() => (data?.address as any)?.Employee?.[0], [data])
+  const employeePosition = useMemo(() => (data?.address as any)?.EmployeePosition?.[0], [data])
   const ADD_SENTINEL = '__ADD_ADDRESS__'
   const [isDeleteMode, setIsDeleteMode] = useState(false)
   const [deletePayload, setDeletePayload] = useState<any | null>(null)
@@ -220,10 +223,23 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
       className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-[100%] gba:max-w-[800px]"
       data-testid="change-employee-address-form-container"
     >
-      <FormHeader title={title} flowIconUrl={flowIconUrl} className="gba:px-6" />
+      <FormHeader
+        title={title}
+        flowIconUrl={flowIconUrl}
+        employee={
+          employee
+            ? {
+                firstName: employee.firstName,
+                lastName: employee.lastName,
+                pictureThumbnail: employee.pictureThumbnail,
+                jobTitle: employeePosition?.jobPosition?.name
+              }
+            : undefined
+        }
+      />
 
       <div
-        className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='change-employee-address']]:!pt-0"
+        className="gba:flex gba:flex-col gba:[&>div[data-testid='change-employee-address']]:!pt-0"
         data-testid="change-employee-address-form-content"
       >
         {/* moved upload below comment - removed from here */}
@@ -239,7 +255,10 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
           }
           handlePreSubmit={async values => {
             const employeeId =
-              userInfo?.employeeDetails?.employeeId || data?.address?.EmployeeAddress[0]?.employeeId || ''
+              (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.employeeId ||
+              userInfo?.employeeDetails?.employeeId ||
+              data?.address?.EmployeeAddress[0]?.employeeId ||
+              ''
             const uploadedEmployeeDocumentId = await uploadEmployeeDocumentIfAny(
               fileClient,
               accessToken,
@@ -250,7 +269,10 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
           }}
           onSubmit={async (values: AddressFormValues) => {
             const employeeId =
-              userInfo?.employeeDetails?.employeeId || data?.address?.EmployeeAddress[0]?.employeeId || ''
+              (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.employeeId ||
+              userInfo?.employeeDetails?.employeeId ||
+              data?.address?.EmployeeAddress[0]?.employeeId ||
+              ''
             // ensure 4 address lines
             const lines = ensureFourLines(values.addressLines)
             const addresses = (data?.address?.EmployeeAddress || []) as any[]
@@ -361,6 +383,7 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
                         setSelectedIdBeforeDelete(selId)
                         const selected = addresses.find((a: any) => String(a.id) === selId)
                         const employeeId =
+                          (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.employeeId ||
                           selected?.employeeId ||
                           userInfo?.employeeDetails?.employeeId ||
                           data?.address?.EmployeeAddress?.[0]?.employeeId ||

@@ -23,9 +23,6 @@ export interface AppActionFormProps {
   validateForm?: (formData: any) => string[] | null
   submitButtonText?: string
   cancelButtonText?: string
-  /**
-   * @deprecated Use `onCancel` prop instead. Cancel button will be shown automatically if `onCancel` is provided.
-   */
   showCancelButton?: boolean
   submitButtonVariant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link'
   form?: UseFormReturn<any>
@@ -334,13 +331,10 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
   const internalForm = useForm<any>({ defaultValues: formData, resolver })
   const form = externalForm || internalForm
 
-  // Auto-determine showCancelButton from onCancel (deprecated prop takes precedence for backward compatibility)
-  const shouldShowCancelButton = showCancelButton ?? !!onCancel
-
   // Navigation component for forms (standard forms only show Cancel and Submit)
   const formNavigation = (
     <FormNavigation
-      showCancelButton={shouldShowCancelButton}
+      showCancelButton={showCancelButton}
       showBackButton={false}
       showNextButton={false}
       showSubmitButton={true}
@@ -363,7 +357,7 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
 
     return (
       <FormNavigation
-        showCancelButton={shouldShowCancelButton}
+        showCancelButton={showCancelButton}
         showBackButton={!isFirstStep}
         showNextButton={!isLastStep}
         showSubmitButton={isLastStep}
@@ -447,7 +441,7 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
         <Form {...(form as any)} schema={schema}>
           <form
             onSubmit={form.handleSubmit(vals => handleSubmit(vals), handleValidationErrors)}
-            className="gba:flex gba:flex-col gba:w-full gba:max-w-md gba:h-full"
+            className="gba:flex gba:flex-col gba:w-full gba:max-w-full gba:h-full"
             data-testid={`${dataTestId}-form`}
           >
             <div className="gba:flex-1 gba:space-y-4" data-testid={`${dataTestId}-form-content`}>
