@@ -24,12 +24,19 @@ export interface TaskDocument {
   name: string
   mimeType?: string
   fileSize?: number
+  version?: number
+  description?: string
+  documentGroupRef?: string
+  documentTypeRef?: string
+  envelopeId?: string
+  envelopeStatus?: string
   fileInfo?: FileInfo
 }
 
 export interface Task {
   id: string
   name: string
+  code?: string
   description?: string
   assignedTo?: TaskEmployee // Optional - tasks can be unassigned
   type?: string // Optional - may not always have a type
@@ -39,17 +46,34 @@ export interface Task {
   taskType?: CatalogEntry
   taskPriority?: CatalogEntry
   taskStatus?: CatalogEntry
+  taskPriorityRef?: string
+  taskStatusRef?: string
+  taskTypeRef?: string
   reference?: TaskReference
   dueDate?: string // Optional
   scheduleDate?: string
   timingType?: 'DEADLINE' | 'SCHEDULED' | 'UNKNOWN_TIMING_TYPE'
+  taskTiming?: string
   createdAt?: string
   updatedAt?: string
   version?: number
   createdBy?: string
+  creatorEmployeeId?: string
+  creatorUserId?: string
+  assignedEmployeeId?: string
+  assignedUserId?: string
+  investmentId?: string
+  accountId?: string
+  contactId?: string
+  opportunityId?: string
+  leadId?: string
+  templateStartDate?: string
+  startDate?: string
+  endDate?: string
   creatorEmployee?: TaskEmployee
   documents?: TaskDocument[]
   rawSalesTask?: any // Legacy field for backwards compatibility
+  rawInvestmentTask?: any
 }
 
 export interface TaskStatisticItem {

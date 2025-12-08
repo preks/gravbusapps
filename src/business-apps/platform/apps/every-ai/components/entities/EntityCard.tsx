@@ -13,6 +13,7 @@ interface EntityCardProps {
   isLoading?: boolean
   error?: string
   onClick?: () => void
+  'data-testid'?: string
 }
 
 export const EntityCard: React.FC<EntityCardProps> = ({
@@ -26,11 +27,16 @@ export const EntityCard: React.FC<EntityCardProps> = ({
   actions,
   isLoading,
   error,
-  onClick
+  onClick,
+  'data-testid': dataTestId
 }) => {
   if (isLoading) {
     return (
-      <Card className={`gba:border-2 gba:shadow-lg ${onClick ? 'gba:cursor-pointer' : ''}`} onClick={onClick}>
+      <Card
+        className={`gba:border-2 gba:shadow-lg ${onClick ? 'gba:cursor-pointer' : ''}`}
+        onClick={onClick}
+        data-testid={dataTestId}
+      >
         <CardContent className="gba:p-5">
           <div className="gba:flex gba:items-center gba:gap-4">
             <div className="gba:h-14 gba:w-14 gba:rounded-full gba:bg-gradient-to-br gba:from-muted gba:to-muted/50 gba:animate-pulse gba:shadow-md" />
@@ -46,7 +52,7 @@ export const EntityCard: React.FC<EntityCardProps> = ({
 
   if (error) {
     return (
-      <Card className="gba:border-2 gba:border-destructive/30 gba:shadow-lg">
+      <Card className="gba:border-2 gba:border-destructive/30 gba:shadow-lg" data-testid={dataTestId}>
         <CardContent className="gba:p-5">
           <p className="gba:text-sm gba:text-destructive gba:font-medium">{error}</p>
         </CardContent>
@@ -58,9 +64,10 @@ export const EntityCard: React.FC<EntityCardProps> = ({
     <Card
       className={`gba:group gba:border-2 gba:shadow-lg hover:gba:shadow-xl gba:transition-all gba:relative gba:overflow-hidden ${onClick ? 'gba:cursor-pointer hover:gba:border-primary/50' : ''}`}
       onClick={onClick}
+      data-testid={dataTestId}
     >
       {/* Subtle gradient overlay on hover */}
-      <div className="gba:absolute gba:inset-0 gba:bg-gradient-to-br gba:from-primary/5 gba:to-info/5 gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity gba:pointer-events-none" />
+      <div className="gba:absolute gba:inset-0 gba:bg-gradient-to-br gba:from-ai/5 gba:to-ai-secondary/5 gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity gba:pointer-events-none" />
 
       <CardContent className="gba:p-5 gba:relative">
         <div className="gba:flex gba:items-start gba:gap-4">

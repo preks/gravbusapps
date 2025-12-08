@@ -40,6 +40,19 @@ export interface EmployeeWorkingConditionResponse {
   }>
 }
 
+export interface EmployeeWorkingHoursResponse {
+  EmployeeWorkingHours: Array<{
+    id: string
+    weeklyHours: number | null
+  }>
+}
+
+export interface EmployeeBankAccountCurrencyResponse {
+  EmployeeBankAccount: Array<{
+    currencyRef: string | null
+  }>
+}
+
 export interface AdjustEmployeeSalaryContextData {
   employee: EmployeeDataResponse | null
   compensation: EmployeeCompensationResponse | null
@@ -48,6 +61,10 @@ export interface AdjustEmployeeSalaryContextData {
   formMode: FormMode
   /** Employee's hire date from working condition - used as default start date in assign mode */
   hireDate: string | null
+  /** Employee's weekly working hours - used to calculate expected monthly wage for hourly workers */
+  weeklyHours: number | null
+  /** Employee's bank account currency - prefilled if exists, otherwise user selects */
+  bankAccountCurrency: string | null
 }
 
 export interface EmployeeDataResponse {
@@ -57,7 +74,13 @@ export interface EmployeeDataResponse {
     firstName?: string
     lastName?: string
     displayName?: string
+    pictureThumbnail?: string
   } | null
+  EmployeePosition?: Array<{
+    jobPosition?: {
+      name?: string
+    }
+  }>
 }
 
 /**
@@ -124,8 +147,8 @@ export type AdjustEmployeeSalaryFormValues = {
   // ===== Assign Mode Fields =====
   /** Salary type for new assignment: yearlyMonthly or hourly */
   salaryType: SalaryType
-  /** Annual salary for yearly/monthly assignments */
-  annualSalary: number | null
+  /** Monthly salary for monthly assignments (annual is calculated as monthly × 12) */
+  monthlySalary: number | null
   /** Hourly salary for hourly assignments */
   hourlySalary: number | null
   /** Currency reference (e.g., "Currency:v1:EUR") */

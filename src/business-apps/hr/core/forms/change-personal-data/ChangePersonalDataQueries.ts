@@ -20,6 +20,7 @@ export const EMPLOYEE_DATA_QUERY = `query fetchEmployee($idEmployee: uuid!) {
     salutationRef
     languageRef
     picture
+    pictureThumbnail
     userId
   }
   EmployeePosition(where: {employeeId: {_eq: $idEmployee}}) {

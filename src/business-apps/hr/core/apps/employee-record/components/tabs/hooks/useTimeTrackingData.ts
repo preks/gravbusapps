@@ -77,6 +77,9 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
   const [monthlyRequiredMinutes, setMonthlyRequiredMinutes] = useState(0)
   const [monthlyRequiredUntilYesterdayMinutes, setMonthlyRequiredUntilYesterdayMinutes] = useState(0)
   const [monthlyWorkedUntilYesterdayMinutes, setMonthlyWorkedUntilYesterdayMinutes] = useState(0)
+  const [workedDaysUntilYesterdayCount, setWorkedDaysUntilYesterdayCount] = useState(0)
+  const [dailyAverageWorkedMinutesUntilYesterday, setDailyAverageWorkedMinutesUntilYesterday] = useState(0)
+  const [overtimeMinutesUntilYesterday, setOvertimeMinutesUntilYesterday] = useState(0)
   // today's totals
   const [todaysWorkedMinutes, setTodaysWorkedMinutes] = useState(0)
   const [todaysProjectMinutes, setTodaysProjectMinutes] = useState(0)
@@ -108,9 +111,9 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     const tokens = String(text).trim().split(/\s+/)
     for (const token of tokens) {
       if (/^\d+h$/i.test(token)) {
-        hours = parseInt(token.slice(0, -1), 10) || 0
+        hours = Number.parseInt(token.slice(0, -1), 10) || 0
       } else if (/^\d+m$/i.test(token)) {
-        minutes = parseInt(token.slice(0, -1), 10) || 0
+        minutes = Number.parseInt(token.slice(0, -1), 10) || 0
       }
     }
     return hours * 60 + minutes
@@ -329,16 +332,27 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     const untilDay = `${todayLocal.getFullYear()}-${String(todayLocal.getMonth() + 1).padStart(2, '0')}-${String(
       todayLocal.getDate()
     ).padStart(2, '0')}`
-    const workedUntilYesterday = allRows.reduce((acc: number, r: any) => {
-      const rowDay = String(r.attendanceDate) // format YYYY-MM-DD
+    let workedUntilYesterday = 0
+    const daysWithEntries = new Set<string>()
+    for (const r of allRows) {
+      const rowDay = String(r.attendanceDate)
+      // Exclude today from daily average; consider strictly earlier days
       if (rowDay < untilDay) {
         const effective = parseDurationToMinutes(r?.effectiveTime ? String(r.effectiveTime) : undefined)
-        // Only count effective time; ignore recorded time entirely
-        return acc + Math.max(0, effective)
+        console.log('r', effective)
+        const eff = Math.max(0, effective)
+        workedUntilYesterday += eff
+        // Count days that have any attendance entry, regardless of effective minutes
+        daysWithEntries.add(rowDay)
       }
-      return acc
-    }, 0)
+    }
     setMonthlyWorkedUntilYesterdayMinutes(workedUntilYesterday)
+    const workedDaysCount = daysWithEntries.size
+    setWorkedDaysUntilYesterdayCount(workedDaysCount)
+    setDailyAverageWorkedMinutesUntilYesterday(
+      workedDaysCount > 0 ? Math.round(workedUntilYesterday / workedDaysCount) : 0
+    )
+    setOvertimeMinutesUntilYesterday(Math.max(0, workedUntilYesterday - (monthRequiredUntilYesterday || 0)))
 
     // planned minutes for today from working hours
     try {
@@ -347,12 +361,21 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     } catch {
       setTodaysPlannedMinutes(0)
     }
-  }, [graphqlClient, employeeId, currentMonth, page, pageSize, locale])
+  }, [graphqlClient, employeeId, currentMonth, page, pageSize, locale, workingHours])
 
   useEffect(() => {
     loadFromGraphql().catch(() => setError('Failed to load time entries'))
   }, [loadFromGraphql])
 
+  // Ensure planned minutes for today are recalculated when workingHours arrive later
+  useEffect(() => {
+    try {
+      const todayIso = new Date().toISOString()
+      setTodaysPlannedMinutes(getPlannedMinutesForDate(todayIso))
+    } catch {
+      // ignore
+    }
+  }, [workingHours])
   const clockIn = useCallback(async () => {
     setError(null)
     setIsSubmitting(true)
@@ -580,6 +603,9 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     monthlyRequiredMinutes,
     monthlyRequiredUntilYesterdayMinutes,
     monthlyWorkedUntilYesterdayMinutes,
+    workedDaysUntilYesterdayCount,
+    dailyAverageWorkedMinutesUntilYesterday,
+    overtimeMinutesUntilYesterday,
     todaysWorkedMinutes,
     todaysProjectMinutes,
     todaysPlannedMinutes,

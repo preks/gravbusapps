@@ -46,7 +46,14 @@ export const EMPLOYEE_DATA_QUERY = `query fetchEmployeeData($idEmployee: uuid!) 
       lastName
       userId
       picture
-}}
+      pictureThumbnail
+  }
+  EmployeePosition(where: {employeeId: {_eq: $idEmployee}}) {
+    jobPosition {
+      name
+    }
+  }
+}
 `
 
 export const CATALOG_DATA_QUERY = `query fetchCatalogData($activeUserLocale: String!) {
