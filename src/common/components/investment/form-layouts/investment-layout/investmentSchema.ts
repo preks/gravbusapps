@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { FormFieldsDefinition } from './queries/InvestmentCatalogQueries'
+import { DynamicFormConfiguration } from '@/components/dynamic-form/types'
 
 // Catalog entry schema - accepts either string ID, catalog object, or null (for clearing)
 const catalogEntrySchema = z.union([
@@ -16,52 +16,29 @@ const catalogEntrySchema = z.union([
 ])
 
 // Base investment form schema - nested structure matching form state
-// NOTE: Form state stores full objects for catalog/entity fields
-const baseInvestmentSchema = z
-  .object({
-    // Main investment object (required)
-    investment: z
-      .object({
-        id: z.string().optional(),
-        version: z.number().optional(),
-        name: z.string().min(1, 'Investment name is required'),
-        investmentGroup: catalogEntrySchema.optional().refine(val => val !== null && val !== undefined, {
-          message: 'Investment group is required'
-        }),
-        ownerEmployeeId: z.string().min(1, 'Investment owner is required'),
-        investmentStatus: catalogEntrySchema.optional(),
-        code: z.string().nullable().optional(),
-        currencyRef: z.string().min(1, 'Currency is required'),
-        investmentAccountId: z.string().min(1, 'Related account is required'),
-        investmentType: catalogEntrySchema.optional().refine(val => val !== null && val !== undefined, {
-          message: 'Investment type is required'
-        })
-      })
-      .passthrough(),
+// NOTE: Form state stores only the leaf InvestmentType ID in investment.investmentTypeId
+const baseInvestmentSchema = z.object({
+  // Main investment object (required)
+  investment: z
+    .object({
+      id: z.string().optional(),
+      version: z.number().optional(),
+      name: z.string().min(1, 'Investment name is required'),
+      ownerEmployeeId: z.string().min(1, 'Investment owner is required'),
+      investmentStatus: catalogEntrySchema.optional(),
+      code: z.string().nullable().optional(),
+      currencyRef: z.string().min(1, 'Currency is required'),
+      investmentAccountId: z.string().min(1, 'Related account is required'),
+      // Investment type field (leaf InvestmentType ID)
+      investmentTypeId: z.string().min(1, 'Investment type is required')
+    })
+    .passthrough(),
 
-    // Group-specific data (optional - one will be present based on group)
-    equityInvestment: z.any().optional(),
-    realEstateInvestment: z.any().optional(),
-    liquidFundInvestment: z.any().optional()
-  })
-  .superRefine((data, ctx) => {
-    // Check if investment group is LIQUID_FUND
-    const investmentGroup = data.investment.investmentGroup as any
-    const groupId = typeof investmentGroup === 'object' ? investmentGroup?.id : investmentGroup
-    const groupCode = groupId?.split(':').pop()
-
-    // If LIQUID_FUND group, require liquid fund type
-    if (groupCode === 'LIQUID_FUND') {
-      const liquidFundType = (data.liquidFundInvestment as any)?.investmentLiquidFundType
-      if (!liquidFundType || liquidFundType === null) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'Liquid fund type is required',
-          path: ['liquidFundInvestment', 'investmentLiquidFundType']
-        })
-      }
-    }
-  })
+  // Group-specific data (optional - one will be present based on group)
+  equityInvestment: z.any().optional(),
+  realEstateInvestment: z.any().optional(),
+  liquidFundInvestment: z.any().optional()
+})
 
 // Helper function to convert property path to field name for nested structure
 // With nested structure, we use the FULL property path as the field name
@@ -80,7 +57,7 @@ const getPropertyName = (property: string): string => {
 /**
  * Creates a dynamic Zod schema based on the form fields definition from catalog
  */
-export const createDynamicInvestmentSchema = (formFieldsDefinition?: FormFieldsDefinition) => {
+export const createDynamicInvestmentSchema = (formFieldsDefinition?: DynamicFormConfiguration) => {
   // Separate dynamic fields by their parent object
   const investmentFields: Record<string, z.ZodTypeAny> = {}
   const equityInvestmentFields: Record<string, z.ZodTypeAny> = {}
@@ -238,7 +215,7 @@ export const createDynamicInvestmentSchema = (formFieldsDefinition?: FormFieldsD
               break
             case 'DATE':
             case 'DATETIME':
-              validationRule = z.string().optional()
+              validationRule = z.string().nullable().optional()
               break
             default:
               if (field.type.startsWith('CATALOG_')) {
@@ -316,40 +293,21 @@ export const createDynamicInvestmentSchema = (formFieldsDefinition?: FormFieldsD
 
   // Extend base schema with dynamic fields
   // Note: We need to extract the base object schema before superRefine, extend it, then re-apply superRefine
-  const extendedSchema = z
-    .object({
-      investment: baseInvestmentSchema.shape.investment.extend(investmentFields),
-      equityInvestment:
-        Object.keys(equityInvestmentFields).length > 0
-          ? z.object(equityInvestmentFields).passthrough().optional()
-          : z.any().optional(),
-      realEstateInvestment:
-        Object.keys(realEstateInvestmentFields).length > 0
-          ? z.object(realEstateInvestmentFields).passthrough().optional()
-          : z.any().optional(),
-      liquidFundInvestment:
-        Object.keys(liquidFundInvestmentFields).length > 0
-          ? z.object(liquidFundInvestmentFields).passthrough().optional()
-          : z.any().optional()
-    })
-    .superRefine((data, ctx) => {
-      // Check if investment group is LIQUID_FUND
-      const investmentGroup = data.investment.investmentGroup as any
-      const groupId = typeof investmentGroup === 'object' ? investmentGroup?.id : investmentGroup
-      const groupCode = groupId?.split(':').pop()
-
-      // If LIQUID_FUND group, require liquid fund type
-      if (groupCode === 'LIQUID_FUND') {
-        const liquidFundType = (data.liquidFundInvestment as any)?.investmentLiquidFundType
-        if (!liquidFundType || liquidFundType === null) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: 'Liquid fund type is required',
-            path: ['liquidFundInvestment', 'investmentLiquidFundType']
-          })
-        }
-      }
-    })
+  const extendedSchema = z.object({
+    investment: baseInvestmentSchema.shape.investment.extend(investmentFields),
+    equityInvestment:
+      Object.keys(equityInvestmentFields).length > 0
+        ? z.object(equityInvestmentFields).passthrough().optional()
+        : z.any().optional(),
+    realEstateInvestment:
+      Object.keys(realEstateInvestmentFields).length > 0
+        ? z.object(realEstateInvestmentFields).passthrough().optional()
+        : z.any().optional(),
+    liquidFundInvestment:
+      Object.keys(liquidFundInvestmentFields).length > 0
+        ? z.object(liquidFundInvestmentFields).passthrough().optional()
+        : z.any().optional()
+  })
 
   return extendedSchema
 }
@@ -357,7 +315,7 @@ export const createDynamicInvestmentSchema = (formFieldsDefinition?: FormFieldsD
 /**
  * Creates a zodResolver with the dynamic schema
  */
-export const createInvestmentFormResolver = (formFieldsDefinition?: FormFieldsDefinition) => {
+export const createInvestmentFormResolver = (formFieldsDefinition?: DynamicFormConfiguration) => {
   const schema = createDynamicInvestmentSchema(formFieldsDefinition)
 
   // Debug: Uncomment to see schema creation

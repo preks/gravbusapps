@@ -6,8 +6,8 @@ type CatalogFieldProps = Omit<CatalogSelectProps, 'catalogIdentifier' | 'variant
   catalogName: string
   fieldName: string
   testIdPrefix: string
-  value?: string | { id: string } | null
-  onValueChange?: (value: string | { id: string } | null) => void
+  value?: string | { id: string } | null // Accept both for backward compatibility, but stores as string
+  onValueChange?: (value: string) => void // Always stores as string ID
 }
 
 export function CatalogField({
@@ -31,8 +31,8 @@ export function CatalogField({
       variant="combobox"
       value={fieldValue}
       onValueChange={newValue => {
-        // Store as object if value exists, undefined if cleared
-        onValueChange?.(newValue ? ({ id: newValue } as any) : null)
+        // Store as string ID (like currencyRef), not object
+        onValueChange?.(newValue || '')
       }}
       data-testid={formatDataTestId(testIdPrefix, `${fieldName}CatalogSelect`)}
     />

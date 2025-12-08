@@ -116,12 +116,6 @@ const InvestmentInformationSegment: React.FC<InvestmentInformationSegmentProps> 
         <h3 className="gba:m-0 gba:text-foreground gba:text-lg gba:font-semibold gba:mb-2">
           {getTranslationFromI18nKeyAndLabel('investment.form.typeInformation', `${investmentTypeName} Information`)}
         </h3>
-        <p className="gba:m-0 gba:text-muted-foreground gba:text-sm">
-          {getTranslationFromI18nKeyAndLabel(
-            'investment.form.basicInformation',
-            `Basic information about the ${investmentTypeName.toLowerCase()}`
-          )}
-        </p>
       </div>
 
       <div className="gba:space-y-6">

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { FormFieldsDefinition } from './useInvestmentProspectFields'
+import { DynamicFormConfiguration } from '@/components/dynamic-form/types'
 
 /**
  * Preprocess function for number fields (required)
@@ -8,9 +8,7 @@ import { FormFieldsDefinition } from './useInvestmentProspectFields'
  * Converts null to undefined for required fields
  */
 const preprocessNumber = (val: any): number | undefined => {
-  // Handle empty/null/undefined
   if (val === null || val === undefined || val === '') return undefined
-  // Convert to number - 0 is a valid value
   const num = Number(val)
   return Number.isNaN(num) ? undefined : num
 }
@@ -22,53 +20,41 @@ const preprocessNumber = (val: any): number | undefined => {
  * Preserves null for optional fields (to work with API null values)
  */
 const preprocessNumberOptional = (val: any): number | null | undefined => {
-  // Preserve null for optional fields (API may send null)
   if (val === null) return null
-  // Handle empty/undefined
   if (val === undefined || val === '') return undefined
-  // Convert to number - 0 is a valid value
   const num = Number(val)
   return Number.isNaN(num) ? undefined : num
 }
 
 /**
+ * Catalog entry schema - accepts either string ID, catalog object, or null (for clearing)
+ */
+const catalogEntrySchema = z.union([
+  z.string().min(1),
+  z
+    .object({
+      id: z.string().min(1),
+      code: z.string().optional(),
+      value: z.string().optional()
+    })
+    .passthrough(),
+  z.null()
+])
+
+/**
  * Creates a catalog entry validation rule (required)
  */
 const createRequiredCatalogRule = (errorMessage: string): z.ZodTypeAny => {
-  return z
-    .union([
-      z.string().min(1),
-      z
-        .object({
-          id: z.string().min(1),
-          code: z.string().optional(),
-          value: z.string().optional()
-        })
-        .catchall(z.unknown()),
-      z.null()
-    ])
-    .refine(val => val !== null && val !== undefined, {
-      message: errorMessage
-    })
+  return catalogEntrySchema.refine(val => val !== null && val !== undefined, {
+    message: errorMessage
+  })
 }
 
 /**
  * Creates a catalog entry validation rule (optional)
  */
 const createOptionalCatalogRule = (): z.ZodTypeAny => {
-  return z
-    .union([
-      z.string().min(1),
-      z
-        .object({
-          id: z.string().min(1),
-          code: z.string().optional(),
-          value: z.string().optional()
-        })
-        .catchall(z.unknown()),
-      z.null()
-    ])
-    .optional()
+  return catalogEntrySchema.optional()
 }
 
 /**
@@ -82,7 +68,7 @@ const createRequiredReferenceRule = (errorMessage: string): z.ZodTypeAny => {
         .object({
           id: z.string().min(1, errorMessage)
         })
-        .catchall(z.unknown())
+        .passthrough()
     ])
     .refine(val => val !== null && val !== undefined, {
       message: errorMessage
@@ -100,7 +86,7 @@ const createOptionalReferenceRule = (): z.ZodTypeAny => {
         .object({
           id: z.string().optional()
         })
-        .catchall(z.unknown())
+        .passthrough()
     ])
     .optional()
 }
@@ -171,7 +157,7 @@ const createOptionalFieldRule = (field: { type: string; label: string }): z.ZodT
       return z.preprocess(preprocessNumberOptional, z.number().nullable()).optional()
     case 'DATE':
     case 'DATETIME':
-      return z.string().optional()
+      return z.string().nullable().optional()
     default:
       if (field.type.startsWith('CATALOG_')) {
         return createOptionalCatalogRule()
@@ -184,15 +170,19 @@ const createOptionalFieldRule = (field: { type: string; label: string }): z.ZodT
 }
 
 /**
- * Builds dynamic prospect field validations from FormFieldsDefinition
- * Returns only the dynamic fields as Record<string, z.ZodTypeAny>
- *
- * @param formFieldsDefinition - Prospect fields configuration from catalog
- * @param existingFields - Set of field names that already exist in schema (to skip)
- * @returns Record of dynamic field validations
+ * Helper function to convert property path to field name
+ * For prospect fields, properties are flat (not nested like investment.*)
  */
-export const buildInvestmentProspectSchema = (
-  formFieldsDefinition?: FormFieldsDefinition,
+const getPropertyName = (property: string): string => {
+  return property
+}
+
+/**
+ * Creates a dynamic Zod schema based on the form fields definition from catalog
+ * For prospect fields, all fields are at root level (not nested)
+ */
+export const createDynamicInvestmentProspectSchema = (
+  formFieldsDefinition?: DynamicFormConfiguration | null,
   existingFields?: Set<string>
 ): Record<string, z.ZodTypeAny> => {
   const dynamicFields: Record<string, z.ZodTypeAny> = {}
@@ -203,7 +193,8 @@ export const buildInvestmentProspectSchema = (
 
   for (const group of formFieldsDefinition.formFields) {
     for (const field of group.fields) {
-      const fieldName = field.property
+      // Use full property path
+      const fieldName = getPropertyName(field.property)
 
       // Skip if field already exists in schema
       if (existingFields?.has(fieldName)) {
@@ -218,4 +209,41 @@ export const buildInvestmentProspectSchema = (
   }
 
   return dynamicFields
+}
+
+/**
+ * Creates a resolver function for investment prospect forms
+ */
+export const createInvestmentProspectFormResolver = (
+  baseSchema: z.ZodObject<any>,
+  formFieldsDefinition?: DynamicFormConfiguration | null
+) => {
+  const existingFields = new Set(Object.keys(baseSchema.shape))
+  const dynamicFields = createDynamicInvestmentProspectSchema(formFieldsDefinition, existingFields)
+
+  const extendedSchema = Object.keys(dynamicFields).length > 0 ? baseSchema.extend(dynamicFields) : baseSchema
+
+  return extendedSchema
+}
+
+/**
+ * Creates investment prospect schema for Lead forms
+ * Extends leadSchema with investmentTypeId (leaf InvestmentType ID)
+ */
+export const createInvestmentLeadSchema = (baseLeadSchema: z.ZodObject<any>) => {
+  return baseLeadSchema.extend({
+    investmentName: z.string().min(1, 'Investment Name is required'),
+    investmentTypeId: z.string().min(1, 'Investment type is required')
+  })
+}
+
+/**
+ * Creates investment prospect schema for Opportunity forms
+ * Extends opportunitySchema with investmentTypeId (leaf InvestmentType ID)
+ */
+export const createInvestmentOpportunitySchema = (baseOpportunitySchema: z.ZodObject<any>) => {
+  return baseOpportunitySchema.extend({
+    investmentName: z.string().min(1, 'Investment Name is required'),
+    investmentTypeId: z.string().min(1, 'Investment type is required')
+  })
 }

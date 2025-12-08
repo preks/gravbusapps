@@ -7,7 +7,12 @@ import type { LiquidFundInvestment } from '@/common/data/investment/types/liquid
 // react-hook-form handles nested structures perfectly with dot notation (e.g., "investment.name")
 export interface InvestmentFormValues {
   // Main investment data - matches Investment interface
-  investment: Partial<Investment>
+  investment: Partial<
+    Investment & {
+      // Investment type field (leaf InvestmentType ID)
+      investmentTypeId?: string | null
+    }
+  >
 
   // Group-specific data - exactly one must be present based on investmentGroup
   equityInvestment?: Partial<EquityInvestment>
@@ -31,33 +36,4 @@ export interface SelectOption {
     department?: string
     position?: string
   }
-}
-
-export interface InvestmentContextState {
-  // Loading states
-  isLoading: boolean
-  error: string | null
-
-  // Data collections
-  investmentGroups: SelectOption[]
-  // Note: accounts now accessed via centralized fetchInvestmentAccounts function
-  // Note: employee positions are handled by EmployeeSelect component automatically via businessAppContext
-}
-
-export interface InvestmentApiPayload {
-  id?: string
-  sourceApp?: string
-  ownerEmployeeId: string
-  name: string
-  accountId: string
-  initialInvestmentAmount: number
-  group: string
-  version?: number
-}
-
-export interface InvestmentApiResponse {
-  success: boolean
-  data?: any
-  error?: string
-  message?: string
 }

@@ -1,35 +1,51 @@
 import { InvestmentOpportunity } from '@/common/data/investment/types/investmentOpportunityTypes'
-import { InvestmentFormValues } from '../types'
-import { FormFieldsDefinition } from '../queries/InvestmentCatalogQueries'
+import { InvestmentFormValues } from '@/common/components/investment/form-layouts/investment-layout/types'
+import { DynamicFormConfiguration } from '@/components/dynamic-form/types'
+import { InvestmentType } from '@/common/data/investment/hooks/useInvestmentTypes'
+import { mapToSingleInvestmentTypeId } from '@/common/components/investment/form-layouts/investment-layout/utils/investmentTypeMapper'
 
 /**
  * Maps investment opportunity data to investment form values
  * Maps static fields + dynamic fields based on form field definitions
- * Uses full objects instead of extracting IDs
+ * Uses investmentTypeId instead of separate group/type refs
  *
  * @param opportunityData - The opportunity data from GraphQL
  * @param formFieldsDefinition - Form field definitions from catalog (optional)
+ * @param getPathByType - Function to get path by type ID (for converting to investmentTypeId)
  * @returns Partial investment form values with static and dynamic fields mapped
  */
-export const mapOpportunityToInvestmentFormValues = (
+export const transformOpportunity = (
   opportunityData: InvestmentOpportunity,
-  formFieldsDefinition?: FormFieldsDefinition
+  formFieldsDefinition?: DynamicFormConfiguration,
+  getPathByType?: (typeId: string | null | undefined) => InvestmentType[]
 ): Partial<InvestmentFormValues> => {
   if (!opportunityData) {
     return {}
   }
 
-  // NOTE: Form state stores full objects for catalog fields, but IDs for Ref fields
+  // Extract group/type IDs
+  const groupId = opportunityData.investmentGroup?.id || opportunityData.investmentGroupRef || null
+  const typeId = opportunityData.investmentType?.id || opportunityData.investmentTypeRef || null
+
+  // Convert to single investmentTypeId if getPathByType is available
+  const investmentTypeId =
+    getPathByType && (groupId || typeId)
+      ? mapToSingleInvestmentTypeId(groupId, typeId, null, getPathByType)
+      : typeId || groupId
+
+  // NOTE: Form state stores investmentTypeId in investment object
   const result: Partial<InvestmentFormValues> = {
     investment: {
       // Static field mappings from opportunity to investment form
       ownerEmployee: opportunityData.ownerEmployee as any,
+      ownerEmployeeId: opportunityData.ownerEmployee?.id || opportunityData.ownerEmployeeId || '',
       name: opportunityData.investmentName || opportunityData.name || '',
       currencyRef: opportunityData.currency?.id || opportunityData.currencyRef || '',
-      investmentGroup: opportunityData.investmentGroup as any,
-      investmentType: opportunityData.investmentType as any,
       investmentStatus: { id: 'InvestmentStatus:v1:ACTIVE', code: 'ACTIVE' } as any, // Default status as object
-      investmentAccountId: opportunityData.account?.id || opportunityData.accountId || ''
+      investmentAccount: opportunityData.account as any,
+      investmentAccountId: opportunityData.account?.id || opportunityData.accountId || '',
+      // Investment type field (leaf InvestmentType ID)
+      investmentTypeId: investmentTypeId || null
     }
   }
 

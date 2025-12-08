@@ -275,18 +275,7 @@ export const InvestmentReportFormFields = {
   totalCommitmentAmount: 'totalCommitmentAmount',
   totalDistributionAmount: 'totalDistributionAmount',
   fundManagerName: 'fundManagerName',
-  identification: 'identification',
-
-  // Additional metadata fields
-  businessKey: 'businessKey',
-  processInstanceId: 'processInstanceId',
-  synchronizedAt: 'synchronizedAt',
-
-  // Nested report structures - Form field names → API field names
-  equityInvestmentReport: 'equityInvestmentReport',
-  liquidFundInvestmentReport: 'liquidFundInvestmentReport',
-  realEstateInvestmentReport: 'realEstateInvestmentReport',
-  investmentRoleReport: 'investmentRoles'
+  identification: 'identification'
 } as const
 
 /**
@@ -309,6 +298,7 @@ export const EquityInvestmentReportFormFields = {
 export const LiquidFundInvestmentReportFormFields = {
   id: 'id',
   version: 'version',
+  additionalProperties: 'additionalProperties',
   // Liquid Fund Investment Report Fields
   proprietorName: 'proprietorName',
   bankName: 'bankName',

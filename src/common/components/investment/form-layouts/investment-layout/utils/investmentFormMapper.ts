@@ -63,24 +63,15 @@ export const mapInvestmentDataToFormFields = (rawInvestment: any, fieldsDef: any
         value = getValueByPath(rawInvestment, `additionalProperties.${propertyName}`)
       }
 
-      // CATALOG_ FIELD: Keep full catalog object in form state
-      // This avoids re-fetching data and simplifies component code
-      // The payload builder will extract .id when needed for API submission
-      if (field.type.startsWith('CATALOG_')) {
-        const catalogEntry = getValueByPath(rawInvestment, lookupPath)
-        if (catalogEntry && typeof catalogEntry === 'object') {
-          value = catalogEntry // Keep full catalog object
-        }
-        // If it's already a string ID, leave it as-is (backward compatibility)
-      }
+      // CATALOG_ FIELD: Property already has Ref suffix from sanitizeProperty
+      // lookupPath already points to the Ref field (e.g., "someCatalogFieldRef")
+      // Just use the value directly - no special handling needed
 
       if (value !== undefined && value !== null && value !== '') {
         // Format the value based on field type
         // DATE fields: DateInput handles formatting internally (accepts ISO strings directly)
         let formattedValue = value
-        if (field.type.startsWith('CATALOG_') && typeof value === 'object') {
-          formattedValue = value // Keep catalog object as-is
-        } else if (typeof value !== 'string' && typeof value !== 'object') {
+        if (typeof value !== 'string' && typeof value !== 'object') {
           formattedValue = String(value)
         } else {
           formattedValue = value // Keep as-is if string or object (including ISO date strings)

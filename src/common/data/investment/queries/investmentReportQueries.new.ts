@@ -5,7 +5,6 @@
  */
 
 import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments'
-import { INVESTMENT_REF } from './fragments/investmentReferenceFragments'
 import { INVESTMENT_ACCOUNT_REF } from './fragments/investmentReferenceFragments'
 import { InvestmentReportFields } from '../types/investmentReportTypes'
 import type { BaseQueryVariables } from '@/common/network/graphql/commonTypes'
@@ -188,7 +187,62 @@ export const buildInvestmentReportFragment = (fields: string[]): string => {
     ${
       fieldSet.has('investment') || fieldSet.has('investmentId')
         ? `
-      ${fieldSet.has('investment') ? `${InvestmentReportFields.investment} { ${INVESTMENT_REF} }` : ''}
+      ${
+        fieldSet.has('investment')
+          ? `${InvestmentReportFields.investment} {
+        ${AUDIT_FIELDS}
+        id
+        code
+        name
+        isin
+        initialInvestmentAmount
+        totalInvestmentAmount
+        investmentMarketValue
+        acquisitionDate
+        exitDate
+        plannedExitDate
+        planedExit
+        additionalProperties
+        
+        # Catalog relationships
+        investmentGroup {
+          ${CATALOG_ENTRY}
+        }
+        investmentType {
+          ${CATALOG_ENTRY}
+        }
+        investmentStatus {
+          ${CATALOG_ENTRY}
+        }
+        currency {
+          ${CATALOG_ENTRY}
+        }
+        
+        # Owner employee relationship
+        ownerEmployee {
+          id
+          code
+          firstName
+          lastName
+          displayName
+          fullName
+          picture
+          pictureThumbnail
+          employeePosition {
+            jobPosition { name }
+            organizationalUnit { id name }
+          }
+        }
+        ownerEmployeeId
+        
+        # Investment account relationship
+        investmentAccount {
+          ${INVESTMENT_ACCOUNT_REF}
+        }
+        investmentAccountId
+      }`
+          : ''
+      }
       ${fieldSet.has('investmentId') ? InvestmentReportFields.investmentId : ''}
     `
         : ''

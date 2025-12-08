@@ -11,12 +11,19 @@ import {
   OpportunityLayout,
   opportunitySchema
 } from '@/common/components/common-relations/form-layouts/opportunity-layout'
+import { InvestmentProspectLayout } from '@/common/components/investment/form-layouts/investment-prospect-layout'
+import { createDynamicInvestmentProspectSchema } from '@/common/components/investment/form-layouts/investment-prospect-layout'
 import {
-  InvestmentProspectSegment,
-  useProspectFields,
-  useInvestmentProspectForm
-} from '@/common/components/investment/form-segments/investment-prospect-segment'
+  extractProspectFieldsFromFormValues,
+  extractProspectFieldsFromEntity
+} from '@/common/components/investment/form-layouts/investment-prospect-layout/utils/extractProspectFields'
+import { useInvestmentTypes } from '@/common/data/investment/hooks/useInvestmentTypes'
 import { mapToFormValues } from '@/common/utils/formMappingUtils'
+import {
+  mapToSingleInvestmentTypeId,
+  mapFromSingleInvestmentTypeId
+} from '@/common/components/investment/form-layouts/investment-prospect-layout/utils/investmentTypeMapper'
+import { createInvestmentOpportunitySchema } from '@/common/components/investment/form-layouts/investment-prospect-layout/investmentProspectSchema'
 import {
   type InvestmentOpportunity,
   buildInvestmentOpportunityPayload
@@ -46,30 +53,14 @@ import {
 
 const prefixDataTestId = 'InvestmentOpportunityForm'
 
-export const investmentOpportunitySchema = opportunitySchema.extend({
+// Base investment opportunity schema (will be extended with investmentTypeId)
+const baseInvestmentOpportunitySchema = opportunitySchema.extend({
   investmentName: z.string().min(1, 'Investment Name is required'),
-  investmentGroupRef: z
-    .union([
-      z.string().min(1),
-      z
-        .object({ id: z.string().min(1), code: z.string().optional(), value: z.string().optional() })
-        .catchall(z.unknown()),
-      z.null()
-    ])
-    .refine(val => val !== null && val !== undefined && val !== '', {
-      message: 'Investment group is required'
-    }),
-  investmentTypeRef: z
-    .union([
-      z.string().min(1),
-      z
-        .object({ id: z.string().min(1), code: z.string().optional(), value: z.string().optional() })
-        .catchall(z.unknown()),
-      z.null()
-    ])
-    .optional(),
   dealType: z.string().nullable().optional()
 })
+
+// Create investment opportunity schema with investmentTypeId
+export const investmentOpportunitySchema = createInvestmentOpportunitySchema(baseInvestmentOpportunitySchema)
 
 // Deal types for Investment Opportunities (matching backend enum values)
 const DEAL_TYPES = [
@@ -116,45 +107,48 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
   // Contact selection hook - using new declarative list hook
   const useContacts = useInvestmentContactsList({ accessToken, userInfo, additionalData }, { limit: 20 })
 
-  // Initialize React Hook Form with base schema first (will be updated by hook)
-  // Note: Schema is dynamic, so we use 'as any' for TypeScript compatibility
+  // Create form instance - resolver will be updated dynamically
   const form = useForm({
-    resolver: zodResolver(investmentOpportunitySchema) as any,
     defaultValues: mapToFormValues(opportunity || {}, investmentOpportunitySchema) as Partial<InvestmentOpportunity>,
     mode: 'onSubmit',
     reValidateMode: 'onSubmit'
   }) as any
 
-  // Watch form values for Investment Prospect fields
-  const watchedGroupRef = form.watch('investmentGroupRef')
-  const watchedTypeRef = form.watch('investmentTypeRef')
+  // Watch investmentTypeId from form
+  const watchedInvestmentTypeId = form.watch('investmentTypeId')
 
-  // Investment Prospect Fields Hook (reactive with watched values)
-  const effectiveGroupRef = (watchedGroupRef as string) || opportunity?.investmentGroupRef || null
-  const effectiveTypeRef = (watchedTypeRef as string) || opportunity?.investmentTypeRef || null
-
+  // Investment Types Hook - provides hierarchy and field definitions
+  const businessAppContext = { accessToken, userInfo, additionalData }
   const {
-    formFieldsDefinition,
-    groups,
-    types,
-    configuration,
-    loading: catalogLoading
-  } = useProspectFields({
-    investmentGroupRef: effectiveGroupRef,
-    investmentTypeRef: effectiveTypeRef,
-    accessToken
-  })
+    getTypesByLevel,
+    getTypesByParent,
+    getPathByType,
+    getInvestmentFieldsByType,
+    loading: investmentTypesLoading
+  } = useInvestmentTypes(businessAppContext)
 
-  // Investment Prospect Form Hook - handles dynamic schema and field extraction
-  const { schema, prospectSchema, extractDynamicFieldValuesFromEntity, updateDynamicFieldsInFormValues } =
-    useInvestmentProspectForm({
-      baseSchema: investmentOpportunitySchema,
-      formFieldsDefinition: formFieldsDefinition || undefined,
-      entity: opportunity
-    })
+  // Get effective type ID from form or opportunity
+  const effectiveTypeId = (watchedInvestmentTypeId as string) || opportunity?.investmentTypeId || null
 
-  // Resolver memoization - MUST update when schema changes for validation
-  const resolver = useMemo(() => zodResolver(schema) as any, [schema])
+  // Get prospect fields configuration (referenceFields) for selected type
+  const formFieldsDefinition = useMemo(() => {
+    if (!effectiveTypeId) return null
+    return getInvestmentFieldsByType(effectiveTypeId, 'prospect')
+  }, [effectiveTypeId, getInvestmentFieldsByType])
+
+  // Build dynamic schema
+  const prospectSchema = useMemo(() => {
+    const existingFields = new Set(Object.keys(investmentOpportunitySchema.shape))
+    const dynamicFields = createDynamicInvestmentProspectSchema(formFieldsDefinition || null, existingFields)
+    return Object.keys(dynamicFields).length > 0
+      ? investmentOpportunitySchema.extend(dynamicFields)
+      : investmentOpportunitySchema
+  }, [investmentOpportunitySchema, formFieldsDefinition])
+
+  // Create resolver dynamically based on schema
+  const formResolver = useMemo(() => {
+    return zodResolver(prospectSchema) as any
+  }, [prospectSchema])
 
   // Sync form when opportunity changes (like CRM OpportunityForm, but with dynamic field handling)
   const opportunityRef = useRef(opportunity)
@@ -162,8 +156,10 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
 
   useEffect(() => {
     // Update resolver when schema changes
-    if (form.control._options.resolver !== resolver) {
-      form.control._options.resolver = resolver
+    if (form && formResolver) {
+      if (form.control._options.resolver !== formResolver) {
+        form.control._options.resolver = formResolver
+      }
     }
 
     const schemaChanged =
@@ -176,8 +172,20 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
     if (opportunityRef.current?.id !== opportunity?.id) {
       // Entity ID changed: Load all values (like CRM OpportunityForm)
       const baseValues = mapToFormValues(opportunity || {}, prospectSchema)
-      const dynamicFieldValues = extractDynamicFieldValuesFromEntity()
+      const dynamicFieldValues = extractProspectFieldsFromEntity(opportunity, formFieldsDefinition)
       const currentUserEmployeeId = userInfo?.employeeDetails?.employeeId
+
+      // Convert group/type to investmentTypeId if opportunity has them
+      if (opportunity && (opportunity.investmentGroupRef || opportunity.investmentTypeRef) && getPathByType) {
+        const groupId = opportunity.investmentGroupRef || null
+        const typeId = opportunity.investmentTypeRef || null
+        const investmentTypeId = mapToSingleInvestmentTypeId(groupId, typeId, getPathByType)
+        if (investmentTypeId) {
+          baseValues.investmentTypeId = investmentTypeId
+        }
+      } else if (opportunity?.investmentTypeId) {
+        baseValues.investmentTypeId = opportunity.investmentTypeId
+      }
 
       const mergedValues = {
         ...baseValues,
@@ -191,10 +199,23 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
     } else if (schemaChanged) {
       // Schema changed: Update only dynamic fields
       const currentValues = form.getValues()
-      const updatedValues = updateDynamicFieldsInFormValues(currentValues)
+      const updatedValues = { ...currentValues }
+
+      // Update dynamic fields: use value from entity if available, otherwise undefined
+      if (formFieldsDefinition?.formFields) {
+        for (const group of formFieldsDefinition.formFields) {
+          for (const field of group.fields) {
+            const property = field.property
+            if (opportunity && property in opportunity) {
+              updatedValues[property] = (opportunity as any)[property]
+            } else {
+              updatedValues[property] = undefined
+            }
+          }
+        }
+      }
 
       // Preserve base fields (investmentGroupRef, investmentTypeRef) from entity if they're empty in form
-      // These are not dynamic fields, so they won't be updated by updateDynamicFieldsInFormValues
       if (!updatedValues.investmentGroupRef && opportunity?.investmentGroupRef) {
         updatedValues.investmentGroupRef = opportunity.investmentGroupRef
       }
@@ -209,30 +230,68 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
     opportunity,
     form,
     prospectSchema,
-    schema,
-    resolver,
+    formResolver,
     userInfo?.employeeDetails?.employeeId,
-    extractDynamicFieldValuesFromEntity,
-    updateDynamicFieldsInFormValues
+    formFieldsDefinition,
+    getPathByType
   ])
 
   // Handle form submission - returns payload for AppActionForm (like CRM OpportunityForm, but with dynamic fields)
-  const handleSubmit = useCallback(async (data: any) => {
-    try {
-      const { investmentOpportunity } = buildInvestmentOpportunityPayload(data)
-      const changeMode = data.id ? 'UPDATE' : 'INSERT'
+  const handleSubmit = useCallback(
+    async (data: any) => {
+      try {
+        // Debug: Check schema and form values
+        console.log('🔍 [OpportunityForm] Schema keys:', Object.keys(prospectSchema.shape))
+        console.log('🔍 [OpportunityForm] Form values:', form.getValues())
 
-      return {
-        investmentOpportunity: {
-          ...investmentOpportunity
-        },
-        changeMode
+        // Debug: Log what's in data
+        console.log('🔍 [OpportunityForm] handleSubmit data:', {
+          stakePercentage: data.stakePercentage,
+          hasStakePercentage: 'stakePercentage' in data,
+          dataKeys: Object.keys(data),
+          formFieldsDefinition: formFieldsDefinition?.formFields?.map(g => g.fields.map(f => f.property))
+        })
+
+        // Extract dynamic prospect fields and merge with form data
+        const prospectFields = extractProspectFieldsFromFormValues(data, formFieldsDefinition)
+        console.log('🔍 [OpportunityForm] prospectFields:', prospectFields)
+
+        // Convert investmentTypeId back to group/type for payload
+        const investmentTypeId = data.investmentTypeId
+        const { groupId, typeId } = mapFromSingleInvestmentTypeId(investmentTypeId, getPathByType)
+
+        const mergedData = {
+          ...data,
+          ...prospectFields,
+          // Remove investmentTypeId from payload (not part of API)
+          investmentTypeId: undefined,
+          // Add group/type for payload
+          investmentGroupRef: groupId,
+          investmentTypeRef: typeId
+        }
+        console.log('🔍 [OpportunityForm] mergedData:', {
+          stakePercentage: mergedData.stakePercentage,
+          hasStakePercentage: 'stakePercentage' in mergedData
+        })
+
+        const { investmentOpportunity } = buildInvestmentOpportunityPayload(mergedData)
+        console.log('🔍 [OpportunityForm] payload:', investmentOpportunity)
+
+        const changeMode = data.id ? 'UPDATE' : 'INSERT'
+
+        return {
+          investmentOpportunity: {
+            ...investmentOpportunity
+          },
+          changeMode
+        }
+      } catch (error) {
+        console.error('Error submitting opportunity:', error)
+        throw error
       }
-    } catch (error) {
-      console.error('Error submitting opportunity:', error)
-      throw error
-    }
-  }, [])
+    },
+    [formFieldsDefinition, getPathByType]
+  )
 
   // Handle form cancellation
   const handleCancel = async () => {
@@ -310,7 +369,7 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
         handlePreSubmit={handlePreSubmit}
         formData={form.getValues()}
         form={form}
-        schema={schema}
+        schema={prospectSchema}
         data-testid={formatDataTestId('investment-opportunity-form', 'Form')}
         submitButtonText={opportunity?.id ? 'Update Opportunity' : 'Create Opportunity'}
         isSubmitDisabled={loading}
@@ -334,16 +393,15 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
               id: 'investment-prospect',
               title: 'Investment Information',
               content: (
-                <InvestmentProspectSegment
-                  investmentGroupRef={(watchedGroupRef as string) || opportunity?.investmentGroupRef || null}
-                  investmentTypeRef={(watchedTypeRef as string) || opportunity?.investmentTypeRef || null}
+                <InvestmentProspectLayout
                   businessAppContext={{ accessToken, userInfo, additionalData }}
-                  testIdPrefix={formatDataTestId('investment-opportunity-form', 'investment-prospect')}
+                  formFieldsDefinition={formFieldsDefinition}
+                  investmentCatalogLoading={investmentTypesLoading}
+                  getTypesByLevel={getTypesByLevel}
+                  getTypesByParent={getTypesByParent}
+                  getPathByType={getPathByType}
                   currencySymbol={currencySymbol}
-                  configuration={configuration}
-                  groups={groups}
-                  types={types}
-                  isLoading={catalogLoading}
+                  testIdPrefix={formatDataTestId('investment-opportunity-form', 'investment-prospect')}
                 />
               )
             }

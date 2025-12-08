@@ -52,35 +52,24 @@ import type { InvestmentContact } from '@/common/data/investment/types/investmen
 import type { InvestmentOpportunity } from '@/common/data/investment/types/investmentOpportunityTypes'
 import type { SelectOption as AccountSelectOption } from '@/common/components/common-relations/selects/account-select'
 import type { SelectOption as ContactSelectOption } from '@/common/components/common-relations/selects/contact-select'
+import { InvestmentProspectLayout } from '@/common/components/investment/form-layouts/investment-prospect-layout'
+import { createDynamicInvestmentProspectSchema } from '@/common/components/investment/form-layouts/investment-prospect-layout'
+import { createInvestmentOpportunitySchema } from '@/common/components/investment/form-layouts/investment-prospect-layout/investmentProspectSchema'
+import { useInvestmentTypes } from '@/common/data/investment/hooks/useInvestmentTypes'
+import { mapToSingleInvestmentTypeId } from '@/common/components/investment/form-layouts/investment-prospect-layout/utils/investmentTypeMapper'
 import {
-  InvestmentProspectSegment,
-  useProspectFields,
-  useInvestmentProspectForm
-} from '@/common/components/investment/form-segments/investment-prospect-segment'
+  extractProspectFieldsFromFormValues,
+  extractProspectFieldsFromEntity
+} from '@/common/components/investment/form-layouts/investment-prospect-layout/utils/extractProspectFields'
 
 // IRM-specific schema extension for Opportunity (adds investment fields)
-const investmentOpportunitySchema = opportunitySchema.extend({
+const baseInvestmentOpportunitySchema = opportunitySchema.extend({
   investmentName: z.string().min(1, 'Investment Name is required'),
-  investmentGroupRef: z
-    .union([
-      z.string().min(1),
-      z
-        .object({ id: z.string().min(1), code: z.string().optional(), value: z.string().optional() })
-        .catchall(z.unknown()),
-      z.null()
-    ])
-    .optional(),
-  investmentTypeRef: z
-    .union([
-      z.string().min(1),
-      z
-        .object({ id: z.string().min(1), code: z.string().optional(), value: z.string().optional() })
-        .catchall(z.unknown()),
-      z.null()
-    ])
-    .optional(),
   dealType: z.string().nullable().optional()
 })
+
+// Create investment opportunity schema with investmentTypeId
+const investmentOpportunitySchema = createInvestmentOpportunitySchema(baseInvestmentOpportunitySchema)
 
 type ConvertLeadFormData = LeadConvertSchema
 
@@ -162,53 +151,95 @@ export const ConvertInvestmentLeadForm = ({
       investmentGroupRef: (leadData as any)?.investmentGroupRef || '',
       investmentRoleRef: (leadData as any)?.investmentRoleRef || '',
       investmentStakeTypeRef: (leadData as any)?.investmentStakeTypeRef || '',
-      investmentTypeRef: (leadData as any)?.investmentTypeRef || ''
+      // Convert group/type to investmentTypeId if lead has them
+      ...((leadData as any)?.investmentGroupRef || (leadData as any)?.investmentTypeRef
+        ? {
+            investmentTypeId: null as string | null // Will be set below
+          }
+        : {})
     }
   }, [leadData?.id, leadData])
 
+  // Investment Types Hook - provides hierarchy and field definitions
+  const {
+    getTypesByLevel,
+    getTypesByParent,
+    getPathByType,
+    getInvestmentFieldsByType,
+    loading: investmentTypesLoading
+  } = useInvestmentTypes(businessAppContext)
+
+  // Convert group/type to investmentTypeId for baseOpportunityValues
+  const baseOpportunityValuesWithTypeId = useMemo(() => {
+    if (
+      baseOpportunityValues.investmentGroupRef ||
+      baseOpportunityValues.investmentTypeRef ||
+      (leadData as any)?.investmentGroupRef ||
+      (leadData as any)?.investmentTypeRef
+    ) {
+      const groupId = baseOpportunityValues.investmentGroupRef || (leadData as any)?.investmentGroupRef || null
+      const typeId = baseOpportunityValues.investmentTypeRef || (leadData as any)?.investmentTypeRef || null
+      const investmentTypeId = mapToSingleInvestmentTypeId(groupId, typeId, getPathByType)
+      return {
+        ...baseOpportunityValues,
+        investmentTypeId: investmentTypeId || null
+      }
+    }
+    return baseOpportunityValues
+  }, [baseOpportunityValues, leadData, getPathByType])
+
+  // Get initial effective type ID from baseOpportunityValues (before form is created)
+  const initialEffectiveTypeId = baseOpportunityValuesWithTypeId.investmentTypeId || null
+
+  // Get initial prospect fields configuration (referenceFields) for selected type
+  const initialFormFieldsDefinition = useMemo(() => {
+    if (!initialEffectiveTypeId) return null
+    return getInvestmentFieldsByType(initialEffectiveTypeId, 'prospect')
+  }, [initialEffectiveTypeId, getInvestmentFieldsByType])
+
+  // Build initial dynamic schema
+  const initialProspectSchema = useMemo(() => {
+    const existingFields = new Set(Object.keys(investmentOpportunitySchema.shape))
+    const dynamicFields = createDynamicInvestmentProspectSchema(initialFormFieldsDefinition || null, existingFields)
+    return Object.keys(dynamicFields).length > 0
+      ? investmentOpportunitySchema.extend(dynamicFields)
+      : investmentOpportunitySchema
+  }, [investmentOpportunitySchema, initialFormFieldsDefinition])
+
   // Opportunity form with base schema (will be updated when prospect schema is available)
   const opportunityForm = useForm<z.infer<typeof investmentOpportunitySchema>>({
-    resolver: zodResolver(investmentOpportunitySchema) as any,
-    defaultValues: baseOpportunityValues as any,
+    resolver: zodResolver(initialProspectSchema) as any,
+    defaultValues: baseOpportunityValuesWithTypeId as any,
     mode: 'onChange'
   })
 
-  // Watch form values for Investment Prospect fields (reactive)
-  const watchedGroupRef = opportunityForm.watch('investmentGroupRef')
-  const watchedTypeRef = opportunityForm.watch('investmentTypeRef')
+  // Watch investmentTypeId from form (after form is created)
+  const watchedInvestmentTypeId = opportunityForm.watch('investmentTypeId')
 
-  // Prospect fields hook for dynamic schema (reactive with watched values)
-  const {
-    formFieldsDefinition,
-    groups,
-    types,
-    configuration,
-    loading: catalogLoading
-  } = useProspectFields({
-    accessToken,
-    investmentGroupRef: (watchedGroupRef as string) || baseOpportunityValues.investmentGroupRef || null,
-    investmentTypeRef: (watchedTypeRef as string) || baseOpportunityValues.investmentTypeRef || null
-  })
+  // Get effective type ID from form or initial value
+  const effectiveTypeId = watchedInvestmentTypeId || initialEffectiveTypeId || null
 
-  // Investment Prospect Form hook for dynamic schema management (reactive with formFieldsDefinition)
-  const {
-    schema: opportunitySchemaWithProspect,
-    prospectSchema,
-    extractDynamicFieldValuesFromEntity,
-    updateDynamicFieldsInFormValues,
-    extractProspectFieldsFromFormValues
-  } = useInvestmentProspectForm({
-    baseSchema: investmentOpportunitySchema,
-    formFieldsDefinition: formFieldsDefinition || undefined,
-    entity: baseOpportunityValues
-  })
+  // Get prospect fields configuration (referenceFields) for selected type (reactive)
+  const formFieldsDefinition = useMemo(() => {
+    if (!effectiveTypeId) return initialFormFieldsDefinition
+    return getInvestmentFieldsByType(effectiveTypeId, 'prospect')
+  }, [effectiveTypeId, getInvestmentFieldsByType, initialFormFieldsDefinition])
+
+  // Build dynamic schema (reactive)
+  const prospectSchema = useMemo(() => {
+    const existingFields = new Set(Object.keys(investmentOpportunitySchema.shape))
+    const dynamicFields = createDynamicInvestmentProspectSchema(formFieldsDefinition || null, existingFields)
+    return Object.keys(dynamicFields).length > 0
+      ? investmentOpportunitySchema.extend(dynamicFields)
+      : investmentOpportunitySchema
+  }, [investmentOpportunitySchema, formFieldsDefinition])
 
   // Update opportunity form resolver when schema changes
   useEffect(() => {
-    if (opportunityForm && opportunitySchemaWithProspect) {
-      ;(opportunityForm.control._options as any).resolver = zodResolver(opportunitySchemaWithProspect) as any
+    if (opportunityForm && prospectSchema) {
+      ;(opportunityForm.control._options as any).resolver = zodResolver(prospectSchema) as any
     }
-  }, [opportunityForm, opportunitySchemaWithProspect])
+  }, [opportunityForm, prospectSchema])
 
   // File client for avatar uploads
   const fileClient = useFileClient({ accessToken, userInfo, additionalData })
@@ -229,7 +260,13 @@ export const ConvertInvestmentLeadForm = ({
 
       // For opportunity: merge common values + IRM-specific fields + dynamic field values
       const commonValues = mapLeadToOpportunity(leadData)
-      const dynamicFieldValues = extractDynamicFieldValuesFromEntity()
+      const dynamicFieldValues = extractProspectFieldsFromEntity(leadData, formFieldsDefinition)
+
+      // Convert group/type to investmentTypeId if lead has them
+      const groupId = (leadData as any)?.investmentGroupRef || null
+      const typeId = (leadData as any)?.investmentTypeRef || null
+      const investmentTypeId = mapToSingleInvestmentTypeId(groupId, typeId, getPathByType)
+
       const allOpportunityValues = {
         ...commonValues,
         // IRM-specific investment fields
@@ -249,17 +286,16 @@ export const ConvertInvestmentLeadForm = ({
         buildingYear: (leadData as any)?.buildingYear || undefined,
         size: (leadData as any)?.size || undefined,
         sizeMeasurementUnitRef: (leadData as any)?.sizeMeasurementUnitRef || '',
-        investmentGroupRef: (leadData as any)?.investmentGroupRef || '',
         investmentRoleRef: (leadData as any)?.investmentRoleRef || '',
         investmentStakeTypeRef: (leadData as any)?.investmentStakeTypeRef || '',
-        investmentTypeRef: (leadData as any)?.investmentTypeRef || '',
+        investmentTypeId: investmentTypeId || null,
         ...dynamicFieldValues
       }
       opportunityForm.reset(allOpportunityValues as any)
 
       leadDataRef.current = leadData?.id
     }
-  }, [leadData?.id, accountForm, contactForm, opportunityForm, extractDynamicFieldValuesFromEntity])
+  }, [leadData?.id, accountForm, contactForm, opportunityForm, formFieldsDefinition, getPathByType])
 
   // Update opportunity form when prospect schema changes (including when formFieldsDefinition becomes available)
   // Track previous schema keys to avoid unnecessary resets
@@ -274,7 +310,21 @@ export const ConvertInvestmentLeadForm = ({
         previousProspectSchemaKeysRef.current = currentSchemaKeys
 
         const currentValues = opportunityForm.getValues()
-        const updatedValues = updateDynamicFieldsInFormValues(currentValues)
+        const updatedValues = { ...currentValues }
+
+        // Update dynamic fields: use value from entity if available, otherwise undefined
+        if (formFieldsDefinition?.formFields) {
+          for (const group of formFieldsDefinition.formFields) {
+            for (const field of group.fields) {
+              const property = field.property
+              if (leadData && property && property in leadData) {
+                updatedValues[property] = (leadData as any)[property]
+              } else {
+                updatedValues[property] = undefined
+              }
+            }
+          }
+        }
 
         const hasChanges = JSON.stringify(currentValues) !== JSON.stringify(updatedValues)
 
@@ -284,7 +334,7 @@ export const ConvertInvestmentLeadForm = ({
         }
       }
     }
-  }, [prospectSchema, opportunityForm, updateDynamicFieldsInFormValues, formFieldsDefinition])
+  }, [prospectSchema, opportunityForm, formFieldsDefinition, leadData])
 
   // Use central hooks for accounts and contacts - extract refetch directly
   const {
@@ -443,6 +493,7 @@ export const ConvertInvestmentLeadForm = ({
   )
 
   // Create dynamic wizard steps based on user choices - MEMOIZED to prevent re-creation on every render
+  // NOTE: This must be defined AFTER opportunityForm is initialized (which happens at line 213)
   const wizardSteps: WizardStep<LeadConvertSchema>[] = useMemo(() => {
     const steps: WizardStep<LeadConvertSchema>[] = []
 
@@ -538,7 +589,7 @@ export const ConvertInvestmentLeadForm = ({
         title: 'Create Opportunity',
         description: 'Enter new opportunity details',
         form: opportunityForm,
-        formSchema: opportunitySchema,
+        formSchema: prospectSchema,
         content: (
           <CatalogSelect.Provider {...businessAppContext} form={opportunityForm}>
             <LeadConvertOpportunityStep
@@ -568,17 +619,15 @@ export const ConvertInvestmentLeadForm = ({
                   id: 'investment-prospect',
                   title: 'Investment Information',
                   content: (
-                    <InvestmentProspectSegment
-                      investmentGroupRef={
-                        (watchedGroupRef as string) || baseOpportunityValues.investmentGroupRef || null
-                      }
-                      investmentTypeRef={(watchedTypeRef as string) || baseOpportunityValues.investmentTypeRef || null}
+                    <InvestmentProspectLayout
                       businessAppContext={businessAppContext}
+                      formFieldsDefinition={formFieldsDefinition}
+                      investmentCatalogLoading={investmentTypesLoading}
+                      getTypesByLevel={getTypesByLevel}
+                      getTypesByParent={getTypesByParent}
+                      getPathByType={getPathByType}
+                      currencySymbol="€"
                       testIdPrefix={formatDataTestId('convert-investment-lead-form', 'investment-prospect')}
-                      configuration={configuration || null}
-                      groups={groups}
-                      types={types}
-                      isLoading={catalogLoading}
                     />
                   )
                 }
@@ -615,14 +664,9 @@ export const ConvertInvestmentLeadForm = ({
     accountsError,
     refetchAccounts,
     loading,
-    watchedGroupRef,
-    watchedTypeRef,
-    baseOpportunityValues.investmentGroupRef,
-    baseOpportunityValues.investmentTypeRef,
-    configuration ? JSON.stringify(configuration) : null,
-    groups.length,
-    types.length,
-    catalogLoading,
+    baseOpportunityValuesWithTypeId.investmentTypeId,
+    formFieldsDefinition ? JSON.stringify(formFieldsDefinition) : null,
+    investmentTypesLoading,
     accountAvatarFileRef,
     contactAvatarFileRef
   ])
@@ -693,7 +737,9 @@ export const ConvertInvestmentLeadForm = ({
       accountForm,
       contactForm,
       opportunityForm,
-      extractProspectFieldsFromFormValues
+      extractProspectFieldsFromFormValues,
+      formFieldsDefinition,
+      getPathByType
     ]
   )
 
@@ -734,7 +780,7 @@ export const ConvertInvestmentLeadForm = ({
       formData={form.getValues()}
       form={form}
       wizardSteps={wizardSteps}
-      schema={opportunitySchemaWithProspect as any}
+      schema={prospectSchema as any}
       submitButtonText={getTranslationFromI18nKeyAndLabel('crm:convertLead.convertLead', 'Convert Lead')}
       cancelButtonText={getTranslationFromI18nKeyAndLabel('common:button.cancel', 'Cancel')}
       data-testid="convert-lead-process-dialog"

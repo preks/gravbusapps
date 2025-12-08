@@ -1,69 +1,63 @@
 import React, { useMemo, useCallback, useState, useEffect, useRef } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { InvestmentLayout, InvestmentFormValues } from '@/common/components/investment/form-layouts/investment-layout'
-import {
-  useGetInvestmentCatalogData,
-  FormFieldsDefinition
-} from '@/common/components/investment/form-layouts/investment-layout/queries/InvestmentCatalogQueries'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppActionForm } from '@/components/app-action-form'
 import { CatalogSelect } from '@/components/catalog-select'
-import { buildInvestmentPayload } from '@/common/data/investment/types/investmentTypes.new'
-import type { Investment } from '@/common/data/investment/types/investmentTypes.new'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { ErrorAlert } from '@/components/error-alert'
 import { createDynamicInvestmentSchema } from '@/common/components/investment/form-layouts/investment-layout/investmentSchema'
 import { useInvestment } from '@/common/data/investment/hooks/useInvestment.new'
-import { mapToFormValues, ArrayToObjectConfig } from '@/common/utils/formMappingUtils'
+import { mapToFormValues } from '@/common/utils/formMappingUtils'
 import { mapInvestmentDataToFormFields } from '@/common/components/investment/form-layouts/investment-layout/utils/investmentFormMapper'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useInvestmentTypes } from '@/common/data/investment/hooks/useInvestmentTypes'
 import { useInvestmentAccountsList } from '@/common/data/investment/hooks/useInvestmentAccounts'
-import GroupSelectSegment from './GroupSelectSegment'
+import { useInvestmentOpportunity } from '@/common/data/investment/hooks/useInvestmentOpportunity'
+import { transformInvestment } from './utils/transformInvestment'
+import { transformOpportunity } from './utils/transformOpportunity'
+import { sanitizeInvestment } from './utils/sanitizeInvestment'
+import { buildInvestmentPayload } from '@/common/data/investment/types/investmentTypes.new'
+import GroupSelectSegment from './segments/InvestmentGroupSegment'
 import { Badge } from '@newwork/nw-design-system'
 import { PiSwap } from 'react-icons/pi'
 
-interface InvestmentFormProps {
-  initialValues?: Partial<InvestmentFormValues>
-  onSubmit?: (values: InvestmentFormValues) => Promise<void>
-  onCancel?: () => Promise<void>
-  onDelete?: (id: string) => Promise<void>
-}
+type InvestmentFormProps = BusinessAppContextProps
 
-// Internal component that renders form with wrappers
-const InvestmentFormContent: React.FC<{
-  onSubmit?: (values: InvestmentFormValues) => Promise<void>
-  onCancel?: () => Promise<void>
-  investmentInformationCustomFields?: React.ReactNode
-  accessToken: string
-  userInfo: BusinessAppContextProps['userInfo']
-  additionalData: BusinessAppContextProps['additionalData']
-  fetchedInvestment?: any
-  investmentId?: string
-  form: ReturnType<typeof useForm<InvestmentFormValues>>
-  initialValues: Partial<InvestmentFormValues>
-}> = ({
-  onSubmit,
-  onCancel,
-  investmentInformationCustomFields,
-  accessToken,
-  userInfo,
-  additionalData,
-  fetchedInvestment,
-  investmentId,
-  form
-}) => {
+const InvestmentForm: React.FC<InvestmentFormProps> = ({ accessToken, userInfo, additionalData }) => {
   const businessAppContext = { accessToken, userInfo, additionalData }
+  // Extract investmentId from additionalData (like AccountForm/LeadForm)
+  const investmentId =
+    additionalData?.investmentId || additionalData?.psi_taskPayload?.psi_initialParameters?.investmentId
+
+  // Extract opportunityId from additionalData (for creating investment from opportunity)
+  const opportunityId =
+    additionalData?.opportunityId || additionalData?.psi_taskPayload?.psi_initialParameters?.opportunityId
+
+  // Load investment data if in update mode
+  const { investment: fetchedInvestment, loading: investmentLoading } = useInvestment(
+    accessToken || '',
+    investmentId,
+    'record'
+  )
+
+  // Load opportunity data if opportunityId is provided (for creating investment from opportunity)
+  const { opportunity: fetchedOpportunity, loading: opportunityLoading } = useInvestmentOpportunity(
+    accessToken || '',
+    opportunityId
+  )
+
   const isUpdate = Boolean(investmentId)
 
-  // Load useInvestmentTypes hook (needed for both create and update mode to display hierarchy)
-  const investmentTypesHook = useInvestmentTypes(businessAppContext)
+  // Load investment types hook (needed for both create and update mode to display hierarchy)
   const {
     getTypesByLevel,
     getTypesByParent,
+    getPathByType,
+    getInvestmentFieldsByType,
     loading: investmentTypesLoading,
     error: investmentTypesError
-  } = investmentTypesHook
+  } = useInvestmentTypes(businessAppContext)
 
   // Account selection hook - using new declarative list hook (like OpportunityForm)
   const useAccounts = useInvestmentAccountsList(businessAppContext, { limit: 20 })
@@ -71,42 +65,92 @@ const InvestmentFormContent: React.FC<{
   // UI state for group selection step
   const [currentStep, setCurrentStep] = useState<'select' | 'form'>('select')
   const [skipAutoDetection, setSkipAutoDetection] = useState(false)
+  // Track baseTypeId (level 0 group) - set directly when group is selected
+  const [baseTypeId, setBaseTypeId] = useState<string | null>(null)
 
-  // Load catalog data (still needed for formFieldsDefinition)
-  const [investmentCatalogData, setInvestmentCatalogData] = useState<any>(null)
-  const [investmentCatalogLoading, setInvestmentCatalogLoading] = useState(false)
-  const { fetchInvestmentCatalogData } = useGetInvestmentCatalogData(businessAppContext)
-
-  useEffect(() => {
-    if (!accessToken) return
-
-    const loadCatalogData = async () => {
-      setInvestmentCatalogLoading(true)
-      try {
-        const data = await fetchInvestmentCatalogData()
-        setInvestmentCatalogData(data)
-      } catch (err) {
-        console.error('Failed to load investment catalog data:', err)
-      } finally {
-        setInvestmentCatalogLoading(false)
-      }
-    }
-
-    loadCatalogData()
-  }, [accessToken, fetchInvestmentCatalogData])
+  // Create form instance - resolver will be updated dynamically
+  const form = useForm<InvestmentFormValues>({
+    defaultValues: {},
+    mode: 'onSubmit',
+    reValidateMode: 'onSubmit'
+  })
 
   // Get current form values using useWatch
-  const investment = useWatch({ control: form.control, name: 'investment' })
-  const equityInvestment = useWatch({ control: form.control, name: 'equityInvestment' })
-  const realEstateInvestment = useWatch({ control: form.control, name: 'realEstateInvestment' })
-  const liquidFundInvestment = useWatch({ control: form.control, name: 'liquidFundInvestment' })
+  const formValues = useWatch({ control: form.control }) as InvestmentFormValues
 
-  const formValues: InvestmentFormValues = {
-    investment: investment || { name: '' },
-    equityInvestment,
-    realEstateInvestment,
-    liquidFundInvestment
+  // Ensure investment has at least name field
+  if (!formValues.investment?.name) {
+    formValues.investment = { ...formValues.investment, name: '' }
   }
+
+  // Map opportunity data if available
+  const mappedInitialValues = useMemo(() => {
+    // Use fetched opportunity data if available
+    if (fetchedOpportunity && !opportunityLoading) {
+      const opportunityTypeId = fetchedOpportunity.investmentType?.id || fetchedOpportunity.investmentTypeRef
+      const formFieldsDef = opportunityTypeId ? getInvestmentFieldsByType(opportunityTypeId, 'investment') : undefined
+      const mapped = transformOpportunity(fetchedOpportunity, formFieldsDef || undefined, getPathByType)
+      return mapped
+    }
+
+    return undefined
+  }, [fetchedOpportunity, opportunityLoading, getInvestmentFieldsByType, getPathByType])
+
+  // Enhanced initial values with investmentId for updates
+  const enhancedInitialValues = useMemo(() => {
+    // If we have fetched investment data, map it to form values
+    if (fetchedInvestment && !investmentLoading) {
+      const baseSchema = createDynamicInvestmentSchema(undefined)
+
+      // Map investment data to form values
+      // Wrap fetchedInvestment in { investment: ... } structure to match schema
+      const mappedValues = mapToFormValues(
+        { investment: fetchedInvestment },
+        baseSchema
+      ) as Partial<InvestmentFormValues>
+
+      // Apply custom transformations (normalize arrays, extract IDs, set defaults)
+      return transformInvestment(mappedValues, fetchedInvestment, getPathByType)
+    }
+
+    // Otherwise use provided initial values (may be mapped from opportunity)
+    const result = {
+      ...mappedInitialValues,
+      ...(investmentId && {
+        investment: {
+          ...mappedInitialValues?.investment,
+          id: investmentId
+        }
+      })
+    }
+
+    return result
+  }, [fetchedInvestment, investmentLoading, investmentId, mappedInitialValues])
+
+  // Reset form when initial values change
+  useEffect(() => {
+    if (enhancedInitialValues) {
+      form.reset(enhancedInitialValues as any)
+    }
+  }, [enhancedInitialValues, form])
+
+  // Get investment type ID from current form values
+  const investmentTypeId = useMemo(() => {
+    return formValues.investment?.investmentTypeId || null
+  }, [formValues.investment?.investmentTypeId])
+
+  // Get complete path with ancestors and descendants (needed for dynamic field mapping)
+  const typePath = useMemo(() => getPathByType(investmentTypeId), [getPathByType, investmentTypeId])
+
+  // Update baseTypeId from investmentTypeId when it's set (for update mode or when type is selected)
+  useEffect(() => {
+    if (investmentTypeId) {
+      const root = typePath.find(t => t.level === 0)
+      if (root) {
+        setBaseTypeId(root.id)
+      }
+    }
+  }, [investmentTypeId, typePath])
 
   // Initialize form step based on whether we have a group selected
   useEffect(() => {
@@ -115,99 +159,43 @@ const InvestmentFormContent: React.FC<{
       setCurrentStep('form')
     } else {
       // Create mode: Show select if no group, form if group selected
-      const hasGroup = formValues.investment.investmentGroup
-      if (hasGroup && currentStep === 'select') {
+      if (baseTypeId && currentStep === 'select') {
         setCurrentStep('form')
-      } else if (!hasGroup && currentStep === 'form') {
+      } else if (!baseTypeId && currentStep === 'form') {
         setCurrentStep('select')
       }
     }
-  }, [isUpdate, formValues.investment.investmentGroup, currentStep])
+  }, [isUpdate, baseTypeId, currentStep])
 
   // Handle group selection
   const handleGroupSelect = useCallback(
     (group: string) => {
-      // Update react-hook-form state
-      form.setValue('investment.investmentGroup', { id: group } as any)
+      // Don't set investmentTypeId - let user select type manually
+      form.setValue('investment.investmentTypeId', undefined as any)
+      // Set baseTypeId directly
+      setBaseTypeId(group)
       if (!formValues.investment.name) {
         form.setValue('investment.name', '')
       }
       form.setValue('investment.investmentStatus', { id: 'InvestmentStatus:v1:ACTIVE', code: 'ACTIVE' } as any)
 
-      // Clear all subtype data when group changes (cascade clearing)
-      form.setValue('investment.investmentType', undefined as any)
+      // Clear all subtype data when group changes
       form.setValue('investment.currency', undefined as any)
       form.setValue('investment.investmentAccountId', undefined as any)
       form.setValue('equityInvestment', undefined as any)
       form.setValue('realEstateInvestment', undefined as any)
       form.setValue('liquidFundInvestment', undefined as any)
 
-      // Reset skip auto-detection flag after selection
       setSkipAutoDetection(false)
       setCurrentStep('form')
     },
     [form, formValues.investment.name]
   )
 
-  // Implement getFormFieldsDefinition
-  const getFormFieldsDefinition = useCallback((): FormFieldsDefinition | null => {
-    if (!investmentCatalogData) return null
-
-    // Extract codes from form values
-    const getIdFromField = (field: any): string | null => {
-      if (!field) return null
-      const id = typeof field === 'object' ? field.id : field
-      return id || null
-    }
-    const groupId = getIdFromField(formValues.investment.investmentGroup)
-    const typeId = getIdFromField(formValues.investment.investmentType)
-    const liquidFundTypeId = getIdFromField(formValues.liquidFundInvestment?.investmentLiquidFundType)
-
-    const groupCode = groupId?.split(':').pop() || null
-    const typeCode = typeId?.split(':').pop() || null
-    const liquidFundTypeCode = liquidFundTypeId?.split(':').pop() || null
-
-    // PRIORITY 1: Investment Liquid Fund Type (highest priority for liquid funds)
-    if (groupCode === 'LIQUID_FUND' && liquidFundTypeCode) {
-      const liquidFundTypeEntry = investmentCatalogData.investmentLiquidFundTypes?.find(
-        (entry: any) => entry.code === liquidFundTypeCode
-      )
-      if (liquidFundTypeEntry?.objectValue?.formFields && liquidFundTypeEntry.objectValue.formFields.length > 0) {
-        return liquidFundTypeEntry.objectValue
-      }
-    }
-
-    // PRIORITY 2: Investment Type
-    if (typeCode) {
-      const typeEntry = investmentCatalogData.investmentTypes.find((type: any) => type.code === typeCode)
-      if (typeEntry && typeEntry.objectValue && typeEntry.objectValue.formFields?.length > 0) {
-        return typeEntry.objectValue
-      }
-    }
-
-    // PRIORITY 3: Investment Group (fallback)
-    if (groupCode) {
-      const groupEntry = investmentCatalogData.investmentGroups.find((group: any) => group.code === groupCode)
-      if (groupEntry && groupEntry.objectValue && groupEntry.objectValue.formFields?.length > 0) {
-        return groupEntry.objectValue
-      }
-    }
-
-    return null
-  }, [
-    investmentCatalogData,
-    typeof formValues.investment.investmentGroup === 'object'
-      ? formValues.investment.investmentGroup?.id
-      : formValues.investment.investmentGroup,
-    typeof formValues.investment.investmentType === 'object'
-      ? formValues.investment.investmentType?.id
-      : formValues.investment.investmentType,
-    typeof formValues.liquidFundInvestment?.investmentLiquidFundType === 'object'
-      ? formValues.liquidFundInvestment?.investmentLiquidFundType?.id
-      : formValues.liquidFundInvestment?.investmentLiquidFundType
-  ])
-
-  const formFieldsDefinition = getFormFieldsDefinition()
+  // Get form fields definition using getInvestmentFieldsByType
+  const formFieldsDefinition = useMemo(() => {
+    return getInvestmentFieldsByType(investmentTypeId, 'investment')
+  }, [getInvestmentFieldsByType, investmentTypeId])
 
   // Track if we've already mapped dynamic fields for this investment
   const lastMappedInvestmentIdRef = useRef<string | null>(null)
@@ -219,8 +207,8 @@ const InvestmentFormContent: React.FC<{
       return
     }
 
-    // Wait for catalog data to be loaded
-    if (!investmentCatalogData || investmentCatalogLoading) {
+    // Wait for type path to be available (from getPathByType)
+    if (typePath.length === 0 && investmentTypesLoading) {
       return
     }
 
@@ -230,39 +218,32 @@ const InvestmentFormContent: React.FC<{
     }
 
     // Get form fields definition for dynamic mapping
-    const fieldsDef = getFormFieldsDefinition()
+    const fieldsDef = getInvestmentFieldsByType(investmentTypeId, 'investment')
     if (!fieldsDef) {
-      console.log('🟡 [InvestmentFormContent] No formFieldsDefinition available yet')
       return
     }
-
-    console.log('🟡 [InvestmentFormContent] Mapping dynamic fields for investment:', investmentId)
-    console.log('🟡 [InvestmentFormContent] fieldsDef:', fieldsDef)
-    console.log('🟡 [InvestmentFormContent] current formValues:', formValues)
 
     // Normalize array fields to objects (same as in enhancedInitialValues)
     // GraphQL returns arrays, but form expects single objects
     const normalizedInvestment = { ...fetchedInvestment }
-    const fetchedAny = fetchedInvestment as any
-    if (fetchedAny.liquidFundInvestment) {
-      normalizedInvestment.liquidFundInvestment = Array.isArray(fetchedAny.liquidFundInvestment)
-        ? fetchedAny.liquidFundInvestment[0]
-        : fetchedAny.liquidFundInvestment
+    if (fetchedInvestment.liquidFundInvestment) {
+      normalizedInvestment.liquidFundInvestment = Array.isArray(fetchedInvestment.liquidFundInvestment)
+        ? fetchedInvestment.liquidFundInvestment[0]
+        : fetchedInvestment.liquidFundInvestment
     }
-    if (fetchedAny.equityInvestment) {
-      normalizedInvestment.equityInvestment = Array.isArray(fetchedAny.equityInvestment)
-        ? fetchedAny.equityInvestment[0]
-        : fetchedAny.equityInvestment
+    if (fetchedInvestment.equityInvestment) {
+      normalizedInvestment.equityInvestment = Array.isArray(fetchedInvestment.equityInvestment)
+        ? fetchedInvestment.equityInvestment[0]
+        : fetchedInvestment.equityInvestment
     }
-    if (fetchedAny.realEstateInvestment) {
-      normalizedInvestment.realEstateInvestment = Array.isArray(fetchedAny.realEstateInvestment)
-        ? fetchedAny.realEstateInvestment[0]
-        : fetchedAny.realEstateInvestment
+    if (fetchedInvestment.realEstateInvestment) {
+      normalizedInvestment.realEstateInvestment = Array.isArray(fetchedInvestment.realEstateInvestment)
+        ? fetchedInvestment.realEstateInvestment[0]
+        : fetchedInvestment.realEstateInvestment
     }
 
     // Map dynamic fields from normalized investment data
     const dynamicFields = mapInvestmentDataToFormFields(normalizedInvestment, fieldsDef)
-    console.log('🟡 [InvestmentFormContent] dynamicFields mapped:', dynamicFields)
 
     // Merge dynamic fields with existing form values
     if (Object.keys(dynamicFields).length > 0) {
@@ -287,8 +268,6 @@ const InvestmentFormContent: React.FC<{
           ...dynamicFields.liquidFundInvestment
         } as any)
       }
-
-      console.log('🟢 [InvestmentFormContent] Merged dynamic fields into form')
     }
 
     // Mark this investment as mapped
@@ -296,11 +275,12 @@ const InvestmentFormContent: React.FC<{
   }, [
     investmentId,
     fetchedInvestment,
-    investmentCatalogData,
-    investmentCatalogLoading,
-    getFormFieldsDefinition,
+    investmentTypeId,
+    getInvestmentFieldsByType,
+    investmentTypesLoading,
     form,
-    formValues
+    formValues,
+    typePath
   ])
 
   // Create dynamic schema based on formFieldsDefinition
@@ -323,88 +303,34 @@ const InvestmentFormContent: React.FC<{
     }
   }, [form, formResolver])
 
-  // Handle form submission - merge formValues (context data) with formData (user input)
+  // Handle form submission - formData contains all current form values
   const handleSubmit = useCallback(
     async (formData: InvestmentFormValues) => {
       try {
-        // Merge formValues (context data) with formData (user input) and convert to Investment format
-        const mergedData: Partial<Investment> = {
-          ...formValues.investment, // Context data (selections, defaults)
-          ...formData.investment, // Form data (user input)
-          // Convert subtype objects to arrays (matching Investment interface)
-          ...(formData.equityInvestment || formValues.equityInvestment
-            ? {
-                equityInvestment: [
-                  {
-                    ...formValues.equityInvestment,
-                    ...formData.equityInvestment
-                  }
-                ]
-              }
-            : {}),
-          ...(formData.realEstateInvestment || formValues.realEstateInvestment
-            ? {
-                realEstateInvestment: [
-                  {
-                    ...formValues.realEstateInvestment,
-                    ...formData.realEstateInvestment
-                  }
-                ]
-              }
-            : {}),
-          ...(formData.liquidFundInvestment || formValues.liquidFundInvestment
-            ? {
-                liquidFundInvestment: [
-                  {
-                    ...formValues.liquidFundInvestment,
-                    ...formData.liquidFundInvestment
-                  }
-                ]
-              }
-            : {})
-        }
-
-        const payload = buildInvestmentPayload(mergedData)
-
-        // Call optional custom handler
-        if (onSubmit) {
-          await onSubmit(formData)
-        }
-
+        const investment = sanitizeInvestment(formData, getPathByType)
+        const payload = buildInvestmentPayload(investment)
         return payload
       } catch (error) {
-        console.error('❌ Error building payload:', error)
+        console.error('Error building payload:', error)
         throw error
       }
     },
-    [onSubmit, formValues]
+    [getPathByType]
   )
 
   // Handle form cancellation
   const handleCancel = useCallback(async () => {
-    if (onCancel) {
-      await onCancel()
-    }
     // AppActionForm handles cancellation via process events
-  }, [onCancel])
-
-  // Handle pre-submit (placeholder for future implementation)
-  const handlePreSubmit = useCallback(async (formData: any) => {
-    return formData
   }, [])
 
   // Handle going back to group selection (only for create mode)
   const handleBack = useCallback(() => {
     if (!isUpdate) {
-      // Clear group selection
-      form.setValue('investment.investmentGroup', undefined as any)
-      form.setValue('investment.investmentType', undefined as any)
-      form.setValue('liquidFundInvestment.investmentLiquidFundType', undefined as any)
-      // Clear subtype data
+      form.setValue('investment.investmentTypeId', undefined as any)
+      setBaseTypeId(null)
       form.setValue('equityInvestment', undefined as any)
       form.setValue('realEstateInvestment', undefined as any)
       form.setValue('liquidFundInvestment', undefined as any)
-      // Go back to select step
       setCurrentStep('select')
       setSkipAutoDetection(true)
     }
@@ -412,6 +338,11 @@ const InvestmentFormContent: React.FC<{
 
   const processType = isUpdate ? 'update' : 'create'
   const prefixDataTestId = 'investment-form'
+
+  // Early returns AFTER all hooks
+  if (!accessToken) {
+    return <ErrorAlert errors={[{ type: 'accessToken' }]} prefixDataTestId={prefixDataTestId} />
+  }
 
   // Show group selection step (only in create mode when no group selected)
   if (!isUpdate && currentStep === 'select') {
@@ -438,12 +369,11 @@ const InvestmentFormContent: React.FC<{
         schema={dynamicSchema}
         onSubmit={handleSubmit}
         onCancel={handleCancel}
-        handlePreSubmit={handlePreSubmit}
         submitButtonText={isUpdate ? 'Update' : 'Create'}
         data-testid={formatDataTestId(prefixDataTestId, 'Form')}
       >
         {/* Back Button for create mode */}
-        {!isUpdate && formValues.investment.investmentGroup && (
+        {!isUpdate && baseTypeId && (
           <div className="gba:mb-4">
             <Badge
               variant="secondary"
@@ -458,161 +388,20 @@ const InvestmentFormContent: React.FC<{
         )}
 
         <InvestmentLayout
-          investmentInformationCustomFields={investmentInformationCustomFields}
-          ownerEmployee={fetchedInvestment?.ownerEmployee}
-          account={fetchedInvestment?.investmentAccount}
+          investmentInformationCustomFields={undefined}
+          ownerEmployee={fetchedInvestment?.ownerEmployee || formValues.investment.ownerEmployee}
+          account={fetchedInvestment?.investmentAccount || formValues.investment.investmentAccount}
           useAccounts={useAccounts}
           businessAppContext={businessAppContext}
           formFieldsDefinition={formFieldsDefinition}
-          investmentCatalogLoading={investmentCatalogLoading}
+          investmentCatalogLoading={investmentTypesLoading}
           getTypesByLevel={getTypesByLevel}
           getTypesByParent={getTypesByParent}
+          getPathByType={getPathByType}
+          baseTypeId={baseTypeId}
         />
       </AppActionForm>
     </CatalogSelect.Provider>
-  )
-}
-
-const InvestmentForm: React.FC<BusinessAppContextProps & InvestmentFormProps> = ({
-  initialValues,
-  onSubmit,
-  onCancel,
-  accessToken,
-  userInfo,
-  additionalData
-}) => {
-  if (!accessToken) {
-    return <ErrorAlert errors={[{ type: 'accessToken' }]} prefixDataTestId="investment-form" />
-  }
-
-  // Extract investmentId from additionalData (like AccountForm/LeadForm)
-  const investmentId =
-    additionalData?.investmentId || additionalData?.psi_taskPayload?.psi_initialParameters?.investmentId
-
-  // Load investment data if in update mode
-  const { investment: fetchedInvestment, loading: investmentLoading } = useInvestment(
-    accessToken,
-    investmentId,
-    'record'
-  )
-
-  // Create form instance - resolver will be updated dynamically in InvestmentFormContent
-  const form = useForm<InvestmentFormValues>({
-    defaultValues: {},
-    mode: 'onSubmit',
-    reValidateMode: 'onSubmit'
-  })
-
-  // Enhanced initial values with investmentId for updates
-  const enhancedInitialValues = useMemo(() => {
-    // If we have fetched investment data, map it to form values
-    if (fetchedInvestment && !investmentLoading) {
-      console.log('🔵 [InvestmentForm] fetchedInvestment:', fetchedInvestment)
-      console.log('🔵 [InvestmentForm] investmentGroup:', fetchedInvestment.investmentGroup)
-      console.log('🔵 [InvestmentForm] investmentType:', fetchedInvestment.investmentType)
-
-      // Create base schema for mapping (without dynamic fields for now)
-      const baseSchema = createDynamicInvestmentSchema(undefined)
-      const arrayToObjectConfig: ArrayToObjectConfig = {
-        arrayFields: ['equityInvestment', 'realEstateInvestment', 'liquidFundInvestment']
-      }
-
-      // Map investment data to form values
-      // Wrap fetchedInvestment in { investment: ... } structure to match schema
-      const mappedValues = mapToFormValues(
-        { investment: fetchedInvestment },
-        baseSchema,
-        undefined,
-        initialValues,
-        arrayToObjectConfig
-      ) as Partial<InvestmentFormValues>
-
-      console.log('🟢 [InvestmentForm] mappedValues after mapToFormValues:', mappedValues)
-
-      // Extract liquidFundInvestment, equityInvestment, realEstateInvestment from fetchedInvestment
-      // Schema expects them at top level, but GraphQL returns them as arrays nested in investment.*
-      const fetchedAny = fetchedInvestment as any
-      if (fetchedAny.liquidFundInvestment) {
-        const liquidFund = Array.isArray(fetchedAny.liquidFundInvestment)
-          ? fetchedAny.liquidFundInvestment[0]
-          : fetchedAny.liquidFundInvestment
-        ;(mappedValues as any).liquidFundInvestment = liquidFund
-      }
-      if (fetchedAny.equityInvestment) {
-        const equity = Array.isArray(fetchedAny.equityInvestment)
-          ? fetchedAny.equityInvestment[0]
-          : fetchedAny.equityInvestment
-        ;(mappedValues as any).equityInvestment = equity
-      }
-      if (fetchedAny.realEstateInvestment) {
-        const realEstate = Array.isArray(fetchedAny.realEstateInvestment)
-          ? fetchedAny.realEstateInvestment[0]
-          : fetchedAny.realEstateInvestment
-        ;(mappedValues as any).realEstateInvestment = realEstate
-      }
-
-      console.log('🟢 [InvestmentForm] mappedValues after extracting subtypes:', mappedValues)
-      console.log(
-        '🟢 [InvestmentForm] mappedValues.investment.investmentGroup:',
-        mappedValues.investment?.investmentGroup
-      )
-      console.log(
-        '🟢 [InvestmentForm] mappedValues.investment.investmentType:',
-        mappedValues.investment?.investmentType
-      )
-      console.log('🟢 [InvestmentForm] mappedValues.liquidFundInvestment:', mappedValues.liquidFundInvestment)
-
-      // Ensure investmentStatus has a default if missing
-      if (!mappedValues.investment?.investmentStatus) {
-        mappedValues.investment = {
-          ...mappedValues.investment,
-          investmentStatus: {
-            id: 'InvestmentStatus:v1:ACTIVE',
-            code: 'ACTIVE'
-          } as any
-        }
-      }
-
-      // Convert null to undefined for optional fields (schema expects string | undefined, not null)
-      if (mappedValues.investment?.code === null) {
-        delete mappedValues.investment.code
-      }
-
-      return mappedValues
-    }
-
-    // Otherwise use provided initial values
-    return {
-      ...initialValues,
-      ...(investmentId && {
-        investment: {
-          ...initialValues?.investment,
-          id: investmentId
-        }
-      })
-    }
-  }, [fetchedInvestment, investmentLoading, investmentId, initialValues])
-
-  // Reset form when initial values change
-  useEffect(() => {
-    if (enhancedInitialValues) {
-      form.reset(enhancedInitialValues as any)
-    }
-  }, [enhancedInitialValues, form])
-
-  return (
-    <InvestmentFormContent
-      onSubmit={onSubmit}
-      onCancel={onCancel}
-      investmentInformationCustomFields={undefined}
-      accessToken={accessToken}
-      userInfo={userInfo}
-      additionalData={additionalData}
-      fetchedInvestment={fetchedInvestment}
-      investmentId={investmentId}
-      form={form}
-      initialValues={enhancedInitialValues}
-    />
   )
 }
 

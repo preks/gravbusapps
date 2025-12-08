@@ -4,7 +4,7 @@ import { InvestmentInformationSegment } from '@/common/components/investment/for
 import DynamicInvestmentSegment from '@/common/components/investment/form-segments/dynamic-investment-segment/DynamicInvestmentSegment'
 import { InvestmentFormValues } from './types'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { FormFieldsDefinition } from './queries/InvestmentCatalogQueries'
+import { DynamicFormConfiguration } from '@/components/dynamic-form/types'
 import { InvestmentType } from '@/common/data/investment/hooks/useInvestmentTypes'
 
 const prefixDataTestId = 'InvestmentLayout'
@@ -22,10 +22,12 @@ export interface InvestmentLayoutProps {
     refetch: (variables?: any) => Promise<void>
   }
   businessAppContext: BusinessAppContextProps
-  formFieldsDefinition: FormFieldsDefinition | null
+  formFieldsDefinition: DynamicFormConfiguration | null
   investmentCatalogLoading: boolean
   getTypesByLevel?: (level: number) => InvestmentType[]
   getTypesByParent?: (parentId: string) => InvestmentType[]
+  getPathByType?: (typeId: string | null | undefined) => InvestmentType[]
+  baseTypeId?: string | null // Optional: override baseTypeId calculation
 }
 
 export const InvestmentLayout: React.FC<InvestmentLayoutProps> = ({
@@ -38,7 +40,9 @@ export const InvestmentLayout: React.FC<InvestmentLayoutProps> = ({
   formFieldsDefinition,
   investmentCatalogLoading,
   getTypesByLevel,
-  getTypesByParent
+  getTypesByParent,
+  getPathByType,
+  baseTypeId: baseTypeIdProp
 }) => {
   const form = useFormContext<InvestmentFormValues>()
 
@@ -58,12 +62,19 @@ export const InvestmentLayout: React.FC<InvestmentLayoutProps> = ({
 
   const isUpdate = Boolean(formValues.investment.id)
 
-  // Extract selected Group ID from form state
-  const getGroupId = (group: any): string | null => {
-    if (!group) return null
-    return typeof group === 'object' ? group.id : group
-  }
-  const selectedGroupId = getGroupId(formValues.investment.investmentGroup)
+  // Get investmentTypeId from form state
+  const investmentTypeId = investment?.investmentTypeId || null
+
+  // Use prop if provided, otherwise derive from investmentTypeId
+  const baseTypeId = useMemo(() => {
+    if (baseTypeIdProp !== undefined) {
+      return baseTypeIdProp
+    }
+    if (!investmentTypeId || !getPathByType) return null
+    const path = getPathByType(investmentTypeId)
+    const rootType = path.find(t => t.level === 0)
+    return rootType?.id || null
+  }, [investmentTypeId, getPathByType, baseTypeIdProp])
 
   // Get currency symbol from formValues.investment.currencyRef (now string ID)
   const currencySymbol = useMemo(() => {
@@ -91,17 +102,19 @@ export const InvestmentLayout: React.FC<InvestmentLayoutProps> = ({
         account={account}
         useAccounts={useAccounts}
         entityId={formValues.investment.id}
-        investmentGroup={formValues.investment.investmentGroup}
+        investmentGroup={baseTypeId}
         customFields={investmentInformationCustomFields}
         disabled={disableInvestmentFields}
       />
 
       {/* Dynamic Investment Segment - handles type selection and dynamic fields recursively */}
-      {selectedGroupId && getTypesByLevel && getTypesByParent && (
+      {baseTypeId && getTypesByLevel && getTypesByParent && getPathByType && (
         <DynamicInvestmentSegment
-          selectedGroupId={selectedGroupId}
+          baseTypeId={baseTypeId}
+          investmentTypeIdFieldPath="investment.investmentTypeId"
           getTypesByLevel={getTypesByLevel}
           getTypesByParent={getTypesByParent}
+          getPathByType={getPathByType}
           businessAppContext={businessAppContext}
           currencySymbol={currencySymbol}
           testIdPrefix={prefixDataTestId}

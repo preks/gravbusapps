@@ -3,9 +3,14 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { CatalogEntry, BaseCatalogEntry } from '@/common/data/catalog/types/catalogTypes'
+import {
+  DynamicFormConfiguration,
+  DynamicFormFieldDefinition,
+  DynamicFormFieldGroup
+} from '@/components/dynamic-form/types'
 
 /**
- * InvestmentType extends CatalogEntry with a level property and fieldPath
+ * InvestmentType extends CatalogEntry with a level property
  * Level 0 = InvestmentGroups
  * Level 1 = InvestmentTypes
  * Level 2 = LiquidFundInvestmentTypes
@@ -13,7 +18,6 @@ import { CatalogEntry, BaseCatalogEntry } from '@/common/data/catalog/types/cata
  */
 export type InvestmentType = CatalogEntry & {
   level: number
-  fieldPath: string // Form field path (e.g., "investment.investmentType", "liquidFundInvestment.investmentLiquidFundType")
 }
 
 /**
@@ -276,8 +280,10 @@ const toCatalogEntry = (entry: BaseCatalogEntry, level: number, childEntries?: C
   const translatedValue = translations.find(t => t.localeCode)?.value || displayValue
 
   // Create entry without childEntries first
-  const entryWithoutChildren = { ...entry }
-  delete entryWithoutChildren.childEntries
+  // Remove childEntries from entry (it's optional in BaseCatalogEntry)
+  const entryWithoutChildren = Object.fromEntries(
+    Object.entries(entry).filter(([key]) => key !== 'childEntries')
+  ) as Omit<BaseCatalogEntry, 'childEntries'>
 
   return {
     ...entryWithoutChildren,
@@ -298,28 +304,6 @@ const toCatalogEntry = (entry: BaseCatalogEntry, level: number, childEntries?: C
       .toLowerCase(),
     childEntries
   }
-}
-
-/**
- * Get field path for a type based on level and group code
- */
-const getFieldPathForType = (level: number, groupCode?: string | null): string => {
-  if (level === 0) {
-    return 'investment.investmentGroup'
-  }
-  if (level === 1) {
-    return 'investment.investmentType'
-  }
-  if (level === 2) {
-    // Level 2 depends on group code
-    if (groupCode === 'LIQUID_FUND') {
-      return 'liquidFundInvestment.investmentLiquidFundType'
-    }
-    // For other groups, level 2 might not exist, return empty string
-    return ''
-  }
-  // Future levels - would need to be configured
-  return ''
 }
 
 /**
@@ -346,7 +330,7 @@ const getGroupCodeFromParentId = (parentId: string | null | undefined, allTypes:
 }
 
 /**
- * Recursively process catalog entries and assign levels and fieldPaths
+ * Recursively process catalog entries and assign levels
  */
 const processEntries = (
   entries: BaseCatalogEntry[],
@@ -372,9 +356,10 @@ const processEntries = (
       // Convert childTypes to CatalogEntry[] for childEntries
       childCatalogEntries = childTypes.map(child => {
         const childChildren = child.childEntries
-        const childWithoutChildren = { ...child }
-        delete childWithoutChildren.childEntries
-        delete childWithoutChildren.fieldPath
+        // Create a copy without childEntries
+        const childWithoutChildren = Object.fromEntries(
+          Object.entries(child).filter(([key]) => key !== 'childEntries')
+        ) as Omit<InvestmentType, 'childEntries'>
         return toCatalogEntry(childWithoutChildren as BaseCatalogEntry, childLevel, childChildren)
       })
       result.push(...childTypes)
@@ -383,13 +368,9 @@ const processEntries = (
     // Create catalog entry with processed children
     const catalogEntry = toCatalogEntry(entry, level, childCatalogEntries)
 
-    // Determine field path
-    const fieldPath = getFieldPathForType(level, currentGroupCode)
-
     const investmentType: InvestmentType = {
       ...catalogEntry,
-      level,
-      fieldPath
+      level
     }
 
     result.push(investmentType)
@@ -446,6 +427,189 @@ const buildInvestmentTypesTree = (data: InvestmentCatalogDataResponse): Investme
 }
 
 /**
+ * Parse objectValue from catalog entry (might be string or object)
+ */
+const parseObjectValue = (objValue: any): any => {
+  if (!objValue) return null
+  try {
+    return typeof objValue === 'string' ? JSON.parse(objValue) : objValue
+  } catch {
+    return objValue
+  }
+}
+
+/**
+ * Sanitize property path based on field type
+ * Currently handles catalog fields by ensuring Ref suffix is present
+ * Can be extended for other field types in the future
+ */
+const sanitizeProperty = (property: string, fieldType: string): string => {
+  // Handle catalog fields: ensure Ref suffix is present
+  if (fieldType.startsWith('CATALOG_')) {
+    // Check if property already ends with Ref
+    if (property.endsWith('Ref')) {
+      return property // Already has Ref suffix
+    }
+
+    // Handle nested paths: "investment.someField" -> "investment.someFieldRef"
+    if (property.includes('.')) {
+      const parts = property.split('.')
+      const lastPart = parts[parts.length - 1]
+      // Only add Ref if last part doesn't already have it
+      if (!lastPart.endsWith('Ref')) {
+        parts[parts.length - 1] = `${lastPart}Ref`
+        return parts.join('.')
+      }
+      return property
+    }
+
+    // Handle flat paths: "someField" -> "someFieldRef"
+    return `${property}Ref`
+  }
+
+  // For non-catalog fields, return as-is (can add other sanitizations here later)
+  return property
+}
+
+/**
+ * Get investment fields by type (formFields for "investment" or referenceFields for "prospect")
+ * Traverses hierarchy from deepest level up to root until fields are found
+ */
+const getInvestmentFieldsByType = (
+  allTypes: InvestmentType[],
+  typeId: string | null | undefined,
+  fieldType: 'investment' | 'prospect'
+): DynamicFormConfiguration | null => {
+  if (!typeId) return null
+
+  // Get path from type (ancestors only, no descendants needed for field lookup)
+  const path: InvestmentType[] = []
+  let currentType = allTypes.find(t => t.id === typeId)
+
+  if (!currentType) return null
+
+  // Traverse up to root
+  while (currentType) {
+    path.unshift(currentType) // [root, ..., selectedType]
+    if (!currentType.parentEntryId) break
+    currentType = allTypes.find(t => t.id === currentType!.parentEntryId)
+  }
+
+  if (path.length === 0) return null
+
+  // Traverse from deepest level (highest level) up to root
+  // Priority: deepest level first, then parent, then grandparent, etc.
+  for (let i = path.length - 1; i >= 0; i--) {
+    const type = path[i]
+    if (!type?.objectValue) continue
+
+    const parsedObjectValue = parseObjectValue(type.objectValue)
+
+    if (fieldType === 'investment') {
+      // Look for formFields - convert to DynamicFormConfiguration
+      const formFields = parsedObjectValue?.formFields
+      if (formFields && Array.isArray(formFields) && formFields.length > 0) {
+        // Convert FormFieldGroup[] to DynamicFormFieldGroup[]
+        const dynamicFormFields: DynamicFormFieldGroup[] = formFields.map((group: any) => ({
+          groupId: group.groupId,
+          groupLabel: group.groupLabel,
+          displayOrder: group.displayOrder,
+          fields: group.fields.map(
+            (field: any): DynamicFormFieldDefinition => ({
+              type: field.type,
+              label: field.label,
+              property: sanitizeProperty(field.property, field.type),
+              required: field.required,
+              displayOrder: field.displayOrder
+            })
+          )
+        }))
+        return { formFields: dynamicFormFields }
+      }
+    } else if (fieldType === 'prospect') {
+      // Look for referenceFields - convert to DynamicFormConfiguration
+      const referenceFields = parsedObjectValue?.referenceFields
+      if (referenceFields && Array.isArray(referenceFields) && referenceFields.length > 0) {
+        const fields: DynamicFormFieldDefinition[] = referenceFields.map((refField: any, index: number) => ({
+          type: refField.type || 'TEXT',
+          label: refField.label || refField.property || `Field ${index + 1}`,
+          property: sanitizeProperty(refField.property || '', refField.type || 'TEXT'),
+          required: refField.required || false,
+          displayOrder:
+            typeof refField.displayOrder === 'string'
+              ? refField.displayOrder
+              : String(refField.displayOrder || index + 1)
+        }))
+
+        // Sort by displayOrder
+        fields.sort((a, b) => {
+          const orderA = Number.parseFloat(String(a.displayOrder))
+          const orderB = Number.parseFloat(String(b.displayOrder))
+          return orderA - orderB
+        })
+
+        // Create DynamicFormConfiguration with single group
+        return {
+          formFields: [
+            {
+              groupId: 'investment-prospect',
+              groupLabel: 'Investment Details',
+              displayOrder: 1,
+              fields
+            }
+          ]
+        }
+      }
+    }
+  }
+
+  return null
+}
+
+/**
+ * Traverse up the hierarchy from any type to root group, then include all descendants
+ * Returns: [root (level 0), ..., parent, selectedType, ...allDescendants (recursively)]
+ */
+const getPathByType = (allTypes: InvestmentType[], typeId: string | null | undefined): InvestmentType[] => {
+  if (!typeId) return []
+
+  const selectedType = allTypes.find(t => t.id === typeId)
+  if (!selectedType) return []
+
+  const path: InvestmentType[] = []
+
+  // Step 1: Traverse up the parent chain to build path from root to selected type
+  let currentType: InvestmentType | undefined = selectedType
+  const ancestors: InvestmentType[] = []
+
+  while (currentType) {
+    ancestors.unshift(currentType) // Add to beginning to maintain order [root, ..., selectedType]
+
+    if (!currentType.parentEntryId) {
+      break // Reached root (level 0)
+    }
+
+    currentType = allTypes.find(t => t.id === currentType!.parentEntryId)
+  }
+
+  path.push(...ancestors)
+
+  // Step 2: Add all descendants of the selected type recursively
+  const addDescendants = (parentId: string) => {
+    const children = allTypes.filter(t => t.parentEntryId === parentId)
+    for (const child of children) {
+      path.push(child)
+      addDescendants(child.id) // Recursively add children of children
+    }
+  }
+
+  // Add all descendants of the selected type
+  addDescendants(typeId)
+
+  return path
+}
+
+/**
  * Hook return interface
  */
 export interface UseInvestmentTypesReturn {
@@ -454,6 +618,13 @@ export interface UseInvestmentTypesReturn {
   error: string | null
   getTypesByLevel: (level: number) => InvestmentType[]
   getTypesByParent: (parentId: string) => InvestmentType[]
+  // Get complete path with all ancestors and descendants: [root, ..., type, ...allDescendants]
+  getPathByType: (typeId: string | null | undefined) => InvestmentType[]
+  // Get investment fields (formFields or referenceFields) by type, traversing hierarchy
+  getInvestmentFieldsByType: (
+    typeId: string | null | undefined,
+    fieldType: 'investment' | 'prospect'
+  ) => DynamicFormConfiguration | null
   refetch: () => Promise<void>
 }
 
@@ -465,13 +636,20 @@ export interface UseInvestmentTypesReturn {
  *
  * @example
  * ```tsx
- * const { types, getTypesByLevel, getTypesByParent } = useInvestmentTypes(businessAppContext)
+ * const { types, getTypesByLevel, getTypesByParent, getPathByType } = useInvestmentTypes(businessAppContext)
  *
  * // Get all groups (level 0)
  * const groups = getTypesByLevel(0)
  *
  * // Get types by parent ID
  * const types = getTypesByParent(groupId)
+ *
+ * // Get complete path with ancestors and descendants from any type
+ * const path = getPathByType(typeId)
+ * // path = [root (level 0), ..., parent, selectedType, ...allDescendants]
+ *
+ * // Extract root group ID
+ * const rootGroupId = path.find(t => t.level === 0)?.id || null
  * ```
  */
 export const useInvestmentTypes = (context: BusinessAppContextProps): UseInvestmentTypesReturn => {
@@ -531,12 +709,30 @@ export const useInvestmentTypes = (context: BusinessAppContextProps): UseInvestm
     [types]
   )
 
+  // Helper function to get path by type (ancestors + type + descendants)
+  const getPathByTypeHelper = useCallback(
+    (typeId: string | null | undefined): InvestmentType[] => {
+      return getPathByType(types, typeId)
+    },
+    [types]
+  )
+
+  // Helper function to get investment fields by type
+  const getInvestmentFieldsByTypeHelper = useCallback(
+    (typeId: string | null | undefined, fieldType: 'investment' | 'prospect'): DynamicFormConfiguration | null => {
+      return getInvestmentFieldsByType(types, typeId, fieldType)
+    },
+    [types]
+  )
+
   return {
     types,
     loading,
     error,
     getTypesByLevel,
     getTypesByParent,
+    getPathByType: getPathByTypeHelper,
+    getInvestmentFieldsByType: getInvestmentFieldsByTypeHelper,
     refetch: fetchInvestmentTypes
   }
 }
