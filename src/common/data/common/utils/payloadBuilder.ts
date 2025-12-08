@@ -148,34 +148,10 @@ export const buildPayload = <T extends Record<string, any>>(entity: Partial<T>, 
   for (const [sourceKey, targetKey] of Object.entries(formFields)) {
     const value: any = entity[sourceKey as keyof T]
 
-    // Debug logging for investmentRoles
-    if (sourceKey === 'investmentRoles' || targetKey === 'investmentRoles') {
-      console.log('🔍 [buildPayload] Processing investmentRoles:', {
-        sourceKey,
-        targetKey,
-        value,
-        valueType: typeof value,
-        isArray: Array.isArray(value),
-        isUndefined: value === undefined,
-        entityKeys: Object.keys(entity)
-      })
-    }
-
     if (value === undefined) continue
 
     const valueType = getValueType(value)
     const transformedValue = transformValueByType(value, valueType)
-
-    // Debug logging for investmentRoles after transformation
-    if (sourceKey === 'investmentRoles' || targetKey === 'investmentRoles') {
-      console.log('🔍 [buildPayload] investmentRoles after transformation:', {
-        sourceKey,
-        targetKey,
-        transformedValue,
-        valueType,
-        willBeIncluded: transformedValue !== undefined
-      })
-    }
 
     if (transformedValue !== undefined) {
       // Use targetKey directly from formFields configuration

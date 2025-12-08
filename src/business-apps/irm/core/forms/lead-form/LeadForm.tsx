@@ -65,7 +65,7 @@ const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalDa
     getPathByType,
     getInvestmentFieldsByType,
     loading: investmentTypesLoading
-  } = useInvestmentTypes(businessAppContext)
+  } = useInvestmentTypes(businessAppContext, 'prospect')
 
   // Watch investmentTypeId from form
   const watchedInvestmentTypeId = form.watch('investmentTypeId')

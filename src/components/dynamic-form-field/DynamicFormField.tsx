@@ -100,9 +100,7 @@ export function DynamicFormField<TFieldValues extends FieldValues = FieldValues>
       render={({ field: formField }) => {
         return (
           <FormItem>
-            <FormLabel>
-              {field.label} {field.required && <span className="gba:text-destructive">*</span>}
-            </FormLabel>
+            <FormLabel>{field.label}</FormLabel>
             <FormControl>
               {renderFieldInput(fieldType, {
                 formField,

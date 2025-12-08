@@ -126,8 +126,7 @@ const InvestmentInformationSegment: React.FC<InvestmentInformationSegmentProps> 
           render={({ field }) => (
             <FormItem>
               <FormLabel>
-                {getTranslationFromI18nKeyAndLabel('investment.form.typeOwner', `${investmentTypeName} Owner`)}{' '}
-                <span className="gba:text-destructive">*</span>
+                {getTranslationFromI18nKeyAndLabel('investment.form.typeOwner', `${investmentTypeName} Owner`)}
               </FormLabel>
               <FormControl>
                 <EmployeeSelect
@@ -156,8 +155,7 @@ const InvestmentInformationSegment: React.FC<InvestmentInformationSegmentProps> 
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>
-                    {getTranslationFromI18nKeyAndLabel('investment.form.typeName', `${investmentTypeName} Name`)}{' '}
-                    <span className="gba:text-destructive">*</span>
+                    {getTranslationFromI18nKeyAndLabel('investment.form.typeName', `${investmentTypeName} Name`)}
                   </FormLabel>
                   <FormControl>
                     <Input
@@ -184,10 +182,7 @@ const InvestmentInformationSegment: React.FC<InvestmentInformationSegmentProps> 
               name="investment.currencyRef"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>
-                    {getTranslationFromI18nKeyAndLabel('investment.form.currency', 'Currency')}{' '}
-                    <span className="gba:text-destructive">*</span>
-                  </FormLabel>
+                  <FormLabel>{getTranslationFromI18nKeyAndLabel('investment.form.currency', 'Currency')}</FormLabel>
                   <FormControl>
                     <CatalogSelect
                       catalogIdentifier={CURRENCY}
@@ -214,8 +209,7 @@ const InvestmentInformationSegment: React.FC<InvestmentInformationSegmentProps> 
           render={({ field }) => (
             <FormItem>
               <FormLabel>
-                {getTranslationFromI18nKeyAndLabel('investment.form.relatedAccount', 'Related Account')}{' '}
-                <span className="gba:text-destructive">*</span>
+                {getTranslationFromI18nKeyAndLabel('investment.form.relatedAccount', 'Related Account')}
               </FormLabel>
               <FormControl>
                 <AccountSelect

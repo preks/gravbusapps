@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo } from 'react'
 import { useFormContext, useWatch } from 'react-hook-form'
-import { Button, FormItem, FormLabel, FormControl, FormMessage } from '@newwork/nw-design-system'
+import { Button, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@newwork/nw-design-system'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { InvestmentType } from '@/common/data/investment/hooks/useInvestmentTypes'
 
@@ -89,9 +89,7 @@ export const InvestmentTypeSelect: React.FC<InvestmentTypeSelectProps> = ({
           key={`type-select-level-${level}`}
           data-testid={formatDataTestId(testIdPrefix, `TypeSelect-Level${level}`)}
         >
-          <FormLabel className="gba:text-lg gba:font-semibold">
-            {label} <span className="gba:text-destructive">*</span>
-          </FormLabel>
+          <FormLabel className="gba:text-lg gba:font-semibold">{label}</FormLabel>
           <p className="gba:m-0 gba:text-muted-foreground gba:text-sm gba:mb-4">
             {level === 1
               ? 'Choose the type of investment you want to create'
@@ -136,7 +134,6 @@ export const InvestmentTypeSelect: React.FC<InvestmentTypeSelectProps> = ({
               })}
             </div>
           </FormControl>
-          <FormMessage />
         </FormItem>
       )
     },
@@ -197,9 +194,18 @@ export const InvestmentTypeSelect: React.FC<InvestmentTypeSelectProps> = ({
   }
 
   return (
-    <div data-testid={formatDataTestId(testIdPrefix, 'Container')} className="gba:space-y-6">
-      {renderAllTypeSelections}
-    </div>
+    <FormField
+      control={control}
+      name={investmentTypeIdFieldPath as any}
+      render={() => (
+        <>
+          <div data-testid={formatDataTestId(testIdPrefix, 'Container')} className="gba:space-y-6">
+            {renderAllTypeSelections}
+          </div>
+          <FormMessage />
+        </>
+      )}
+    />
   )
 }
 
