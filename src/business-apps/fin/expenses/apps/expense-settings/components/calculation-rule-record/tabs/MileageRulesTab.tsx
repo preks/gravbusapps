@@ -379,6 +379,7 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
       reimbursable: true,
       taxValue: 0,
       unitPrice: 0,
+      expenseGroupRef: 'ExpenseGroup:v1:OTHER_TRANSPORT',
       activeFrom: validFromValue,
       activeTo: validToValue
     })
@@ -411,7 +412,7 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
         activeFrom:
           formatDateForInput(freshData.activeFrom) || formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
         activeTo: formatDateForInput(freshData.activeTo),
-        expenseGroupRef: freshData.expenseGroup?.id,
+        expenseGroupRef: 'ExpenseGroup:v1:OTHER_TRANSPORT',
         measurementUnitRef: freshData.measurementUnit?.id,
         mileageRuleId: freshData.mileageRule?.id,
         version: freshData.version
@@ -525,7 +526,7 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
         saveData.unitPrice = formValues.unitPrice
         // Convert to ISO format for API (java.time.Instant)
         saveData.activeFrom = formValues.activeFrom ? dayjs(formValues.activeFrom).startOf('day').toISOString() : null
-        saveData.expenseGroupRef = formValues.expenseGroupRef
+        saveData.expenseGroupRef = 'ExpenseGroup:v1:OTHER_TRANSPORT'
         saveData.measurementUnitRef = formValues.measurementUnitRef
         saveData.mileageRuleId = formValues.mileageRuleId
 
@@ -573,14 +574,6 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
     const unitCode = unit?.code || 'km'
     return `${value.toFixed(2)} / ${unitCode}`
   }
-
-  // Mock data for dropdowns (replace with actual catalog queries)
-  const expenseGroupOptions = [
-    { value: 'ExpenseGroup:v1:TRANSPORT', label: 'Transportation' },
-    { value: 'ExpenseGroup:v1:OTHER_TRANSPORT', label: 'Other Transport Costs' },
-    { value: 'ExpenseGroup:v1:ACCOMMODATION', label: 'Accommodation' },
-    { value: 'ExpenseGroup:v1:MEAL', label: 'Meals' }
-  ]
 
   const measurementUnitOptions = [
     { value: 'MeasurementUnit:v1:km', label: 'Kilometers (km)' },
@@ -1178,24 +1171,14 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
                   render={({ field }) => (
                     <FormItem data-testid="mileage-rule-expense-group-field">
                       <FormLabel data-testid="mileage-rule-expense-group-label">Expense Group</FormLabel>
-                      <Select value={field.value} onValueChange={field.onChange} disabled={isRestrictedEdit}>
-                        <FormControl>
-                          <SelectTrigger data-testid="mileage-rule-expense-group-select">
-                            <SelectValue placeholder="Select expense group" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent data-testid="mileage-rule-expense-group-options">
-                          {expenseGroupOptions.map(option => (
-                            <SelectItem
-                              key={option.value}
-                              value={option.value}
-                              data-testid={`mileage-rule-expense-group-option-${option.value}`}
-                            >
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          value="Other transportation cost"
+                          disabled
+                          data-testid="mileage-rule-expense-group-input"
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
