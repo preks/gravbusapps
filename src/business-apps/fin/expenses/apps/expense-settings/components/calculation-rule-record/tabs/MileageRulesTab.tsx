@@ -118,6 +118,10 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
   const [editingItem, setEditingItem] = useState<EnhancedExpenseRuleMileage | null>(null)
   const [isSaving, setIsSaving] = useState(false)
 
+  // MileageRule master data state
+  const [mileageRuleOptions, setMileageRuleOptions] = useState<Array<{ id: string; code: string; name: string }>>([])
+  const [isMileageRulesLoading, setIsMileageRulesLoading] = useState(false)
+
   // Extract date portion to avoid timezone issues (YYYY-MM-DD format)
   const formatDateForInput = (dateStr?: string) => {
     if (!dateStr) return undefined
@@ -182,6 +186,31 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
       setCatalogsLoading(false)
     }
   }, [catalogClient])
+
+  // Load MileageRule master data
+  const loadMileageRules = useCallback(async () => {
+    setIsMileageRulesLoading(true)
+    try {
+      const query = `
+        query GetMileageRules {
+          MileageRule(
+            where: { isDeleted: { _eq: false } }
+            orderBy: { code: ASC }
+          ) {
+            id
+            code
+            name
+          }
+        }
+      `
+      const result = await graphqlClient.request<{ MileageRule: any[] }>(query)
+      setMileageRuleOptions(result.MileageRule || [])
+    } catch (error) {
+      console.error('Error loading MileageRule options:', error)
+    } finally {
+      setIsMileageRulesLoading(false)
+    }
+  }, [graphqlClient])
 
   const fetchMileageRules = useCallback(async () => {
     setIsLoading(true)
@@ -307,8 +336,47 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
     if (ruleId && accessToken) {
       fetchMileageRules()
       loadTaxCodes()
+      loadMileageRules()
     }
-  }, [ruleId, accessToken, fetchMileageRules, loadTaxCodes])
+  }, [ruleId, accessToken, fetchMileageRules, loadTaxCodes, loadMileageRules])
+
+  // Handler to auto-populate fields when MileageRule is selected
+  const handleMileageRuleSelect = useCallback(
+    async (mileageRuleId: string) => {
+      if (!mileageRuleId) return
+
+      try {
+        const query = `
+          query GetMileageRuleById {
+            MileageRule(where: { id: { _eq: "${mileageRuleId}" }, isDeleted: { _eq: false } }) {
+              id
+              code
+              name
+              rateAmount
+            }
+          }
+        `
+        const result = await graphqlClient.request<{ MileageRule: any[] }>(query)
+        const selectedRule = result.MileageRule?.[0]
+
+        if (selectedRule) {
+          // Auto-populate code, name, and unitPrice from the selected MileageRule
+          const currentValues = form.getValues()
+          form.reset({
+            ...currentValues,
+            code: selectedRule.code,
+            name: selectedRule.name,
+            unitPrice: selectedRule.rateAmount || 0,
+            mileageRuleId: selectedRule.id
+          })
+        }
+      } catch (error) {
+        console.error('Error fetching MileageRule details:', error)
+        toast.error('Failed to load mileage rule details')
+      }
+    },
+    [graphqlClient, form]
+  )
 
   const handleAdd = () => {
     setEditingItem(null)
@@ -887,6 +955,45 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
                           data-testid="mileage-rule-name-input"
                         />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="mileageRuleId"
+                  render={({ field }) => (
+                    <FormItem data-testid="mileage-rule-select-field">
+                      <FormLabel data-testid="mileage-rule-select-label">Mileage Rule</FormLabel>
+                      <Select
+                        value={field.value}
+                        onValueChange={value => {
+                          field.onChange(value)
+                          handleMileageRuleSelect(value)
+                        }}
+                        disabled={isMileageRulesLoading || isRestrictedEdit}
+                      >
+                        <FormControl>
+                          <SelectTrigger data-testid="mileage-rule-select-trigger">
+                            <SelectValue placeholder="Select a mileage rule" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent data-testid="mileage-rule-select-options">
+                          {mileageRuleOptions.map(option => (
+                            <SelectItem
+                              key={option.id}
+                              value={option.id}
+                              data-testid={`mileage-rule-option-${option.id}`}
+                            >
+                              {option.code} - {option.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
+                        Select a mileage rule to auto-populate code, name, and unit price
+                      </p>
                       <FormMessage />
                     </FormItem>
                   )}
