@@ -79,9 +79,14 @@ loading = Se încarcă...
 unknown = Necunoscut
 
 # ============================================
-# Time Formats (with pluralization)
+# Date and Time Formats
 # ============================================
 
+# Relative date labels (used by formatDateTime utility)
+date-today = Astăzi
+date-yesterday = Ieri
+
+# Time formats (with pluralization)
 working-days-format = { $days } { $days ->
     [one] zi
    *[other] zile

@@ -5,7 +5,16 @@
  */
 
 import React, { useState, useEffect, useMemo, useRef } from 'react'
-import { Separator, Textarea, Switch, Label, Spinner, Alert, useTranslation } from '@newwork/nw-design-system'
+import {
+  Separator,
+  Textarea,
+  Switch,
+  Label,
+  Spinner,
+  Alert,
+  useTranslation,
+  useLocale
+} from '@newwork/nw-design-system'
 import { ThumbsUp, XCircle, MessageSquare, CheckCircle, AlertCircle } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
@@ -14,65 +23,13 @@ import { TeamAbsenceCalendar } from '@/business-apps/core/every/apps/every-box/c
 import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/components/TaskDetailHeader'
 import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
 import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { formatDateTime } from '@/business-apps/core/every/apps/every-box/utils/taskFormatters'
 import { useEntityDates } from '@/common/data/common/hooks/useEntityDates'
 import { useApproverData } from '@/common/data/employee/hooks/useApproverData'
+import { formatWorkingDaysAndHours, formatDateTime } from '@/business-apps/hr/absences/utils/formatters'
+import { ExtendedAdditionalData } from '@/business-apps/hr/absences/types/taskTypes'
+import { useApprovalData } from '@/business-apps/hr/absences/hooks/useApprovalData'
 import dayjs from 'dayjs'
 import translations from './_i18n'
-
-/**
- * Extended interface for additionalData with form-specific properties
- * This provides proper typing for dynamic task payload properties
- */
-interface ExtendedAdditionalData {
-  [k: string]: unknown
-  formData?: {
-    approval?: string
-    approvalNote?: string
-  }
-  psi_taskCompletedAt?: string
-  psi_taskPayload?: {
-    endpoint?: string
-    [k: string]: unknown
-  }
-  psi_processMetadata?: {
-    [k: string]: unknown
-  }
-  psi_taskStatus?: string
-  endpoint?: string
-}
-
-/**
- * Formats working days and hours into a readable string
- */
-const formatWorkingDaysAndHours = (
-  workingDays?: number,
-  workingHours?: number,
-  t?: (key: string, vars?: Record<string, unknown>) => string
-): string => {
-  const parts: string[] = []
-
-  if (workingDays !== undefined) {
-    if (t) {
-      parts.push(t('working-days-format', { days: workingDays }))
-    } else {
-      parts.push(`${workingDays} ${workingDays === 1 ? 'day' : 'days'}`)
-    }
-  }
-
-  if (workingHours !== undefined) {
-    if (t) {
-      const hoursText = t('working-hours-format', { hours: workingHours })
-      parts.push(parts.length > 0 ? ` ${hoursText}` : hoursText)
-    } else {
-      const hoursText = `(${workingHours} ${workingHours === 1 ? 'hour' : 'hours'})`
-      parts.push(parts.length > 0 ? ` ${hoursText}` : hoursText)
-    }
-  }
-
-  return parts.join('')
-}
 
 interface ApproveEmployeeSpecialLeaveProps extends BusinessAppContextProps {
   // Additional props from task payload
@@ -86,6 +43,7 @@ const ApproveEmployeeSpecialLeave: React.FC<ApproveEmployeeSpecialLeaveProps> = 
   onClose
 }) => {
   const { t } = useTranslation(translations)
+  const { locale } = useLocale()
 
   // Cast additionalData to extended interface for proper typing
   const extendedAdditionalData = additionalData as ExtendedAdditionalData | undefined
@@ -96,15 +54,9 @@ const ApproveEmployeeSpecialLeave: React.FC<ApproveEmployeeSpecialLeaveProps> = 
   const [isRejecting, setIsRejecting] = useState(false)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [actualApprovalStatus, setActualApprovalStatus] = useState<string | null>(null)
-  const [actualApprovalNote, setActualApprovalNote] = useState<string | null>(null)
-  const [actualApprovalDate, setActualApprovalDate] = useState<string | null>(null)
-  const [isLoadingApprovalData, setIsLoadingApprovalData] = useState(false)
 
   // Ref for comment section to scroll into view
   const commentSectionRef = useRef<HTMLDivElement>(null)
-
-  const graphqlClient = useGraphqlClient(accessToken)
 
   // Extract task data from additionalData
   const taskPayload = additionalData?.psi_taskPayload || {}
@@ -217,105 +169,17 @@ const ApproveEmployeeSpecialLeave: React.FC<ApproveEmployeeSpecialLeaveProps> = 
     }
   }, [showComment])
 
-  // Fetch approval data from absence record for completed tasks
-  useEffect(() => {
-    const fetchApprovalData = async () => {
-      if (!accessToken || !employeeAbsence?.id || !isTaskCompleted) {
-        // If we have task output data, use it
-        if (taskOutputApprovalStatus) {
-          setActualApprovalStatus(taskOutputApprovalStatus)
-          setActualApprovalNote(taskOutputApprovalNote)
-        }
-        return
-      }
-
-      setIsLoadingApprovalData(true)
-      try {
-        const absenceQuery = `
-          query GetAbsenceApprovalData($absenceId: uuid!) {
-            EmployeeAbsence(where: {id: {_eq: $absenceId}}, limit: 1) {
-              id
-              status
-              approvalNote
-              approverId
-              updatedAt
-            }
-          }
-        `
-
-        const response = await graphqlClient.request<{
-          EmployeeAbsence: any[]
-        }>(absenceQuery, {
-          absenceId: employeeAbsence.id
-        })
-
-        if (response.EmployeeAbsence && response.EmployeeAbsence.length > 0) {
-          const absence = response.EmployeeAbsence[0]
-
-          // Priority order for approval status:
-          // 1. Task outputs (most reliable for completed tasks)
-          // 2. EmployeeAbsence.status
-          if (taskOutputApprovalStatus) {
-            setActualApprovalStatus(taskOutputApprovalStatus)
-          } else if (absence.status) {
-            setActualApprovalStatus(absence.status)
-          }
-
-          // Priority order for approval note:
-          // 1. Task outputs/inputs (most reliable for completed tasks)
-          // 2. EmployeeAbsence.approvalNote
-          if (taskOutputApprovalNote) {
-            setActualApprovalNote(taskOutputApprovalNote)
-          } else if (absence.approvalNote) {
-            setActualApprovalNote(absence.approvalNote)
-          } else {
-            setActualApprovalNote(null)
-          }
-
-          // Priority order for approval date:
-          // 1. Task completedAt (most reliable for completed tasks)
-          // 2. EmployeeAbsence.updatedAt (fallback)
-          if (completedAt) {
-            setActualApprovalDate(completedAt)
-          } else if (absence.updatedAt) {
-            setActualApprovalDate(absence.updatedAt)
-          } else {
-            setActualApprovalDate(null)
-          }
-        } else {
-          // Fallback to task output data if fetch fails
-          setActualApprovalStatus(taskOutputApprovalStatus || employeeAbsence.status)
-          setActualApprovalNote(taskOutputApprovalNote || employeeAbsence.approvalNote)
-          setActualApprovalDate(completedAt || null)
-        }
-      } catch (error) {
-        console.error('Error fetching approval data:', error)
-        // Fallback to task output data if fetch fails
-        setActualApprovalStatus(taskOutputApprovalStatus || employeeAbsence.status)
-        setActualApprovalNote(taskOutputApprovalNote || employeeAbsence.approvalNote)
-        setActualApprovalDate(completedAt || null)
-      } finally {
-        setIsLoadingApprovalData(false)
-      }
-    }
-
-    fetchApprovalData()
-  }, [
+  // Use custom hook for approval data fetching
+  const { approvalStatus, approvalNote, approvalDate, isLoadingApprovalData } = useApprovalData({
     accessToken,
-    employeeAbsence?.id,
+    absenceId: employeeAbsence?.id,
     isTaskCompleted,
-    graphqlClient,
     taskOutputApprovalStatus,
     taskOutputApprovalNote,
-    employeeAbsence?.status,
-    employeeAbsence?.approvalNote,
-    completedAt
-  ])
-
-  // Use actual approval data (from fetch) or fallback to task output data
-  const approvalStatus = actualApprovalStatus || taskOutputApprovalStatus
-  const approvalNote = actualApprovalNote !== null ? actualApprovalNote : taskOutputApprovalNote
-  const approvalDate = actualApprovalDate !== null ? actualApprovalDate : completedAt
+    completedAt,
+    fallbackStatus: employeeAbsence?.status,
+    fallbackNote: employeeAbsence?.approvalNote
+  })
 
   const handleApprove = async () => {
     setIsApproving(true)
@@ -550,7 +414,7 @@ const ApproveEmployeeSpecialLeave: React.FC<ApproveEmployeeSpecialLeaveProps> = 
                     {t('label-request-created')}:
                   </span>
                   <span className="gba:text-sm gba:flex-1">
-                    {isLoadingRequestDate ? <Spinner size="sm" /> : formatDateTime(requestCreatedAt)}
+                    {isLoadingRequestDate ? <Spinner size="sm" /> : formatDateTime(requestCreatedAt, locale)}
                   </span>
                 </div>
               )}
@@ -620,7 +484,7 @@ const ApproveEmployeeSpecialLeave: React.FC<ApproveEmployeeSpecialLeaveProps> = 
                       <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
                         {t('label-date')}:
                       </span>
-                      <span className="gba:text-sm gba:flex-1">{formatDateTime(approvalDate)}</span>
+                      <span className="gba:text-sm gba:flex-1">{formatDateTime(approvalDate, locale)}</span>
                     </div>
                   )}
 

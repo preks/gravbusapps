@@ -79,9 +79,14 @@ loading = Loading...
 unknown = Unknown
 
 # ============================================
-# Time Formats (with pluralization)
+# Date and Time Formats
 # ============================================
 
+# Relative date labels (used by formatDateTime utility)
+date-today = Today
+date-yesterday = Yesterday
+
+# Time formats (with pluralization)
 working-days-format = { $days } { $days ->
     [one] day
    *[other] days

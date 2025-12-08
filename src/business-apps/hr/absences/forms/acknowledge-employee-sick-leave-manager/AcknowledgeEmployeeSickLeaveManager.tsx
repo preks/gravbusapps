@@ -5,7 +5,7 @@
  */
 
 import React, { useState } from 'react'
-import { Separator, Spinner, Alert, useTranslation } from '@newwork/nw-design-system'
+import { Separator, Spinner, Alert, useTranslation, useLocale } from '@newwork/nw-design-system'
 import { CheckCircle } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
@@ -14,41 +14,10 @@ import { TeamAbsenceCalendar } from '@/business-apps/core/every/apps/every-box/c
 import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/components/TaskDetailHeader'
 import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
 import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
-import { formatDateTime } from '@/business-apps/core/every/apps/every-box/utils/taskFormatters'
 import { useEntityDates } from '@/common/data/common/hooks/useEntityDates'
+import { formatWorkingDaysAndHours, formatDateTime } from '@/business-apps/hr/absences/utils/formatters'
 import dayjs from 'dayjs'
 import translations from './_i18n'
-
-/**
- * Formats working days and hours into a readable string
- */
-const formatWorkingDaysAndHours = (
-  workingDays?: number,
-  workingHours?: number,
-  t?: (key: string, vars?: Record<string, unknown>) => string
-): string => {
-  const parts: string[] = []
-
-  if (workingDays !== undefined) {
-    if (t) {
-      parts.push(t('working-days-format', { days: workingDays }))
-    } else {
-      parts.push(`${workingDays} ${workingDays === 1 ? 'day' : 'days'}`)
-    }
-  }
-
-  if (workingHours !== undefined) {
-    if (t) {
-      const hoursText = t('working-hours-format', { hours: workingHours })
-      parts.push(parts.length > 0 ? ` ${hoursText}` : hoursText)
-    } else {
-      const hoursText = `(${workingHours} ${workingHours === 1 ? 'hour' : 'hours'})`
-      parts.push(parts.length > 0 ? ` ${hoursText}` : hoursText)
-    }
-  }
-
-  return parts.join('')
-}
 
 interface AcknowledgeEmployeeSickLeaveManagerProps extends BusinessAppContextProps {
   // Additional props from task payload
@@ -62,6 +31,7 @@ const AcknowledgeEmployeeSickLeaveManager: React.FC<AcknowledgeEmployeeSickLeave
   onClose
 }) => {
   const { t } = useTranslation(translations)
+  const { locale } = useLocale()
 
   const [isAcknowledging, setIsAcknowledging] = useState(false)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
@@ -295,7 +265,7 @@ const AcknowledgeEmployeeSickLeaveManager: React.FC<AcknowledgeEmployeeSickLeave
                     {t('label-request-created')}:
                   </span>
                   <span className="gba:text-sm gba:flex-1">
-                    {isLoadingRequestDate ? <Spinner size="sm" /> : formatDateTime(requestCreatedAt)}
+                    {isLoadingRequestDate ? <Spinner size="sm" /> : formatDateTime(requestCreatedAt, locale)}
                   </span>
                 </div>
               )}
