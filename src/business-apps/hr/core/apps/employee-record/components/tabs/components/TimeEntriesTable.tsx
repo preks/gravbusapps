@@ -128,7 +128,13 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
                         attendanceDateISO: e.attendanceDateISO,
                         startTimeISO: e.startTimeISO,
                         endTimeISO: e.endTimeISO,
-                        notes: e.notes
+                        notes: e.notes,
+                        timeEntryVersion: e.version,
+                        recordedTime: e.recordedTime,
+                        breakTime: e.breakTime,
+                        effectiveTime: e.effectiveTime,
+                        plannedTime: e.plannedTime,
+                        differenceTime: e.differenceTime
                       }}
                       prefixDataTestId={`time-tracking-update`}
                       accessToken={accessToken}

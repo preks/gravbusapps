@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useEffect, useRef } from 'react'
+import React, { useCallback, useMemo, useEffect, useRef, useState } from 'react'
 import { useFormContext, useWatch } from 'react-hook-form'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -9,6 +9,9 @@ import { InvestmentAccountField } from '@/common/components/investment/form-comp
 import { InvestmentRolesField } from '@/common/components/investment/form-components/investment-role-select/InvestmentRolesField'
 import { InvestmentTypeSelect } from '@/common/components/investment/form-components/investment-type-select'
 import { DynamicFormConfiguration } from '@/components/dynamic-form/types'
+import InvestmentFileUploadSegment from './InvestmentFileUploadSegment'
+import { useInvestmentAiAutofill } from './useInvestmentAiAutofill'
+import { mapFromSingleInvestmentTypeId } from '@/common/components/investment/form-layouts/investment-layout/utils/investmentTypeMapper'
 
 /**
  * Parse objectValue from catalog entry (might be string or object)
@@ -34,6 +37,8 @@ interface DynamicInvestmentSegmentProps {
   isUpdate?: boolean
   formFieldsDefinition?: DynamicFormConfiguration | null
   investmentCatalogLoading?: boolean
+  enableAiAutofill?: boolean // New prop to enable AI autofill feature
+  onAiAutofillLoadingChange?: (isLoading: boolean) => void // Callback to notify parent of loading state changes
 }
 
 /**
@@ -55,15 +60,36 @@ const DynamicInvestmentSegment: React.FC<DynamicInvestmentSegmentProps> = ({
   testIdPrefix = 'DynamicInvestmentSegment',
   isUpdate = false,
   formFieldsDefinition,
-  investmentCatalogLoading = false
+  investmentCatalogLoading = false,
+  enableAiAutofill = false,
+  onAiAutofillLoadingChange
 }) => {
   const { control, setValue } = useFormContext<InvestmentFormValues>()
   const previousInvestmentTypeIdRef = useRef<string | null>(null)
+
+  // AI autofill state (only if enabled)
+  const [aiSourceFile, setAiSourceFile] = useState<File | null>(null)
+  const [lastAutofillKey, setLastAutofillKey] = useState<string | null>(null)
+  const [lastAppliedFieldsKey, setLastAppliedFieldsKey] = useState<string | null>(null)
+
+  // AI autofill hook (only if enabled) - Must be called before renderReferenceField
+  const { runAutofill: runInvestmentAiAutofill, isLoading: aiAutofillIsLoading } = useInvestmentAiAutofill(
+    enableAiAutofill ? businessAppContext.accessToken : undefined
+  )
+
+  // Notify parent of loading state changes
+  useEffect(() => {
+    if (onAiAutofillLoadingChange) {
+      onAiAutofillLoadingChange(aiAutofillIsLoading)
+    }
+  }, [aiAutofillIsLoading, onAiAutofillLoadingChange])
 
   // Render reference field (for REF_ type fields)
   // IMPORTANT: Must be defined before any conditional returns (Rules of Hooks)
   const renderReferenceField = useCallback(
     (entityType: string, _field: DynamicFormFieldDefinition, fieldName: string, formField: any) => {
+      const isDisabled = aiAutofillIsLoading
+
       if (entityType === 'InvestmentAccount') {
         return (
           <InvestmentAccountField
@@ -72,6 +98,7 @@ const DynamicInvestmentSegment: React.FC<DynamicInvestmentSegmentProps> = ({
             fieldName={fieldName}
             businessAppContext={businessAppContext}
             testIdPrefix={testIdPrefix}
+            disabled={isDisabled}
           />
         )
       }
@@ -84,6 +111,7 @@ const DynamicInvestmentSegment: React.FC<DynamicInvestmentSegmentProps> = ({
             fieldName={fieldName}
             businessAppContext={businessAppContext as any}
             testIdPrefix={testIdPrefix}
+            disabled={isDisabled}
           />
         )
       }
@@ -91,7 +119,7 @@ const DynamicInvestmentSegment: React.FC<DynamicInvestmentSegmentProps> = ({
       // Fallback for unknown entity types
       return null
     },
-    [businessAppContext, testIdPrefix]
+    [businessAppContext, testIdPrefix, aiAutofillIsLoading]
   )
 
   // Watch entire form state once
@@ -106,6 +134,31 @@ const DynamicInvestmentSegment: React.FC<DynamicInvestmentSegmentProps> = ({
 
   // Get current investmentTypeId
   const investmentTypeId = getInvestmentTypeId()
+
+  // Extract group/type/liquidFundType from single investmentTypeId for AI autofill (only if enabled)
+  const typeHierarchy = useMemo(() => {
+    if (!enableAiAutofill || !investmentTypeId || !getPathByType) {
+      return { groupId: null, typeId: null, liquidFundTypeId: null }
+    }
+    return mapFromSingleInvestmentTypeId(investmentTypeId, getPathByType)
+  }, [enableAiAutofill, investmentTypeId, getPathByType])
+
+  // Watch form fields for AI autofill (always call hooks, but only use values if enabled)
+  const watchedName = useWatch({ control, name: 'investment.name' })
+  const watchedOwnerEmployee = useWatch({ control, name: 'investment.ownerEmployeeId' })
+  const watchedCurrency = useWatch({ control, name: 'investment.currencyRef' })
+  const watchedAccount = useWatch({ control, name: 'investment.investmentAccountId' })
+
+  // Extract IDs for AI autofill
+  const investmentGroupRefForAi = typeHierarchy.groupId || baseTypeId || ''
+  const investmentTypeRefForAi = typeHierarchy.typeId || ''
+  const investmentLiquidFundTypeRefForAi = typeHierarchy.liquidFundTypeId || ''
+  const investmentOwnerEmployeeIdForAi = typeof watchedOwnerEmployee === 'string' ? watchedOwnerEmployee : ''
+  const investmentCurrencyRefForAi = typeof watchedCurrency === 'string' ? watchedCurrency : ''
+  const investmentAccountIdForAi = typeof watchedAccount === 'string' ? watchedAccount : ''
+  const investmentNameForAi = typeof watchedName === 'string' ? watchedName : ''
+  
+  const isLiquidFundForAi = investmentGroupRefForAi && investmentGroupRefForAi.split(':').pop() === 'LIQUID_FUND'
 
   // Clear dynamic fields when investmentTypeId changes (in create mode only)
   useEffect(() => {
@@ -138,6 +191,93 @@ const DynamicInvestmentSegment: React.FC<DynamicInvestmentSegmentProps> = ({
 
     previousInvestmentTypeIdRef.current = currentTypeId
   }, [investmentTypeId, isUpdate, formFieldsDefinition, setValue])
+
+  // AI autofill effect (only if enabled)
+  useEffect(() => {
+    if (!enableAiAutofill || !aiSourceFile) return
+
+    const hasRequiredContext =
+      !!investmentGroupRefForAi &&
+      !!investmentTypeRefForAi &&
+      (!isLiquidFundForAi || !!investmentLiquidFundTypeRefForAi)
+
+    if (!hasRequiredContext) {
+      return
+    }
+
+    const keyParts = [
+      aiSourceFile.name,
+      aiSourceFile.size,
+      aiSourceFile.lastModified,
+      investmentGroupRefForAi,
+      investmentTypeRefForAi,
+      investmentLiquidFundTypeRefForAi || ''
+    ]
+    const currentKey = keyParts.join('|')
+
+    if (currentKey === lastAutofillKey) {
+      return
+    }
+
+    let isCancelled = false
+
+    const run = async () => {
+      try {
+        const response = await runInvestmentAiAutofill({
+          file: aiSourceFile,
+          investmentGroupRef: investmentGroupRefForAi,
+          investmentTypeRef: investmentTypeRefForAi || undefined,
+          investmentLiquidFundTypeRef: investmentLiquidFundTypeRefForAi || undefined,
+          investmentOwnerEmployeeId: investmentOwnerEmployeeIdForAi || undefined,
+          investmentName: investmentNameForAi || undefined,
+          investmentCurrencyRef: investmentCurrencyRefForAi || undefined,
+          investmentAccountId: investmentAccountIdForAi || undefined
+        })
+
+        if (!isCancelled && response?.fields) {
+          const fieldEntries = Object.entries(response.fields)
+          const fieldsKey = JSON.stringify(fieldEntries.map(([path, value]) => [path, value]))
+
+          if (fieldsKey !== lastAppliedFieldsKey) {
+            fieldEntries.forEach(([path, value]) => {
+              setValue(path as any, value as any, {
+                shouldDirty: true,
+                shouldValidate: true,
+                shouldTouch: true
+              })
+            })
+
+            setLastAppliedFieldsKey(fieldsKey)
+          }
+
+          setLastAutofillKey(currentKey)
+        }
+      } catch {
+        // Errors are already logged inside the hook
+      }
+    }
+
+    run()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [
+    enableAiAutofill,
+    aiSourceFile,
+    investmentGroupRefForAi,
+    investmentTypeRefForAi,
+    investmentLiquidFundTypeRefForAi,
+    investmentOwnerEmployeeIdForAi,
+    investmentNameForAi,
+    investmentCurrencyRefForAi,
+    investmentAccountIdForAi,
+    isLiquidFundForAi,
+    lastAutofillKey,
+    lastAppliedFieldsKey,
+    runInvestmentAiAutofill,
+    setValue
+  ])
 
   // Get selected path from investmentTypeId (only ancestors + selected type, no descendants)
   const selectedPath = useMemo(() => {
@@ -208,16 +348,22 @@ const DynamicInvestmentSegment: React.FC<DynamicInvestmentSegmentProps> = ({
   const hasMoreChildren = deepestSelectedType ? getTypesByParent(deepestSelectedType.id).length > 0 : false
 
   // Determine which formFieldsDefinition to use
+  // Only show fields when we're at a leaf type (no more children)
   // Priority: Use provided formFieldsDefinition (works for both investment formFields and prospect referenceFields)
   // Fallback: Only in create mode without provided definition, look for formFields in objectValue
   const getEffectiveFormFieldsDefinition = (): DynamicFormConfiguration | null => {
+    // Only show fields when we're at a leaf type (no more children to select)
+    if (hasMoreChildren) {
+      return null
+    }
+
     if (formFieldsDefinition) {
       return formFieldsDefinition
     }
     if (isUpdate) {
       return null
     }
-    if (!hasMoreChildren && deepestSelectedType) {
+    if (deepestSelectedType) {
       return getFormFieldsDefinitionForSelectedType()
     }
     return null
@@ -237,30 +383,39 @@ const DynamicInvestmentSegment: React.FC<DynamicInvestmentSegmentProps> = ({
 
       {/* Create mode: Render type selection */}
       {!isUpdate && (
-        <InvestmentTypeSelect
-          baseTypeId={baseTypeId}
-          investmentTypeIdFieldPath={investmentTypeIdFieldPath}
-          getTypesByLevel={getTypesByLevel}
-          getTypesByParent={getTypesByParent}
-          getPathByType={getPathByType}
-          testIdPrefix={testIdPrefix}
-        />
+        <>
+          <InvestmentTypeSelect
+            baseTypeId={baseTypeId}
+            investmentTypeIdFieldPath={investmentTypeIdFieldPath}
+            getTypesByLevel={getTypesByLevel}
+            getTypesByParent={getTypesByParent}
+            getPathByType={getPathByType}
+            testIdPrefix={testIdPrefix}
+          />
+
+          {/* AI Source Document for Autofill (only if enabled and leaf type is selected) */}
+          {enableAiAutofill && baseTypeId && !hasMoreChildren && deepestSelectedType && (
+            <InvestmentFileUploadSegment file={aiSourceFile} onFileChange={setAiSourceFile} isLoading={aiAutofillIsLoading} />
+          )}
+        </>
       )}
 
       {/* Show dynamic fields when available */}
       {effectiveFormFieldsDefinition && (
-        <DynamicForm
-          configuration={effectiveFormFieldsDefinition}
-          control={control}
-          accessToken={businessAppContext.accessToken}
-          testIdPrefix={testIdPrefix}
-          currencySymbol={currencySymbol}
-          renderReferenceField={renderReferenceField}
-          businessAppContext={businessAppContext}
-          isLoading={investmentCatalogLoading}
-          error={null}
-          emptyMessage="No dynamic fields available for this investment type"
-        />
+        <fieldset disabled={aiAutofillIsLoading}>
+          <DynamicForm
+            configuration={effectiveFormFieldsDefinition}
+            control={control}
+            accessToken={businessAppContext.accessToken}
+            testIdPrefix={testIdPrefix}
+            currencySymbol={currencySymbol}
+            renderReferenceField={renderReferenceField}
+            businessAppContext={businessAppContext}
+            isLoading={investmentCatalogLoading}
+            error={null}
+            emptyMessage="No dynamic fields available for this investment type"
+          />
+        </fieldset>
       )}
     </div>
   )

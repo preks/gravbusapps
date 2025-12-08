@@ -407,6 +407,7 @@ const InvestmentForm: React.FC<InvestmentFormProps> = ({ accessToken, userInfo, 
           getPathByType={getPathByType}
           baseTypeId={baseTypeId}
           loading={isLoading}
+          enableAiAutofill={true}
         />
       </AppActionForm>
     </CatalogSelect.Provider>

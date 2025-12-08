@@ -460,6 +460,7 @@ export const InvestmentReportForm: React.FC<InvestmentReportFormProps> = ({
             getTypesByParent={getTypesByParent}
             getPathByType={getPathByType}
             loading={false}
+            enableAiAutofill={true}
           />
         )}
       </AppActionForm>

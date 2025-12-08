@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState, useCallback } from 'react'
 import { useFormContext, useWatch } from 'react-hook-form'
 import { Skeleton } from '@newwork/nw-design-system'
 import { InvestmentInformationSegment } from '@/common/components/investment/form-segments/investment-information-segment'
@@ -31,6 +31,7 @@ export interface InvestmentLayoutProps {
   baseTypeId?: string | null // Optional: override baseTypeId calculation
   // Loading state - shows skeletons while data is being fetched
   loading?: boolean
+  enableAiAutofill?: boolean // New prop to enable AI autofill feature
 }
 
 export const InvestmentLayout: React.FC<InvestmentLayoutProps> = ({
@@ -46,9 +47,15 @@ export const InvestmentLayout: React.FC<InvestmentLayoutProps> = ({
   getTypesByParent,
   getPathByType,
   baseTypeId: baseTypeIdProp,
-  loading = false
+  loading = false,
+  enableAiAutofill = false
 }) => {
   const form = useFormContext<InvestmentFormValues>()
+  const [aiAutofillLoading, setAiAutofillLoading] = useState(false)
+
+  const handleAiAutofillLoadingChange = useCallback((isLoading: boolean) => {
+    setAiAutofillLoading(isLoading)
+  }, [])
 
   // Use useWatch to get current form values - MUST be called before any conditional returns
   const investment = useWatch({ control: form.control, name: 'investment' })
@@ -119,8 +126,10 @@ export const InvestmentLayout: React.FC<InvestmentLayoutProps> = ({
   }
 
   // Show main form - only render form fields, no wrappers
+  const isFormDisabled = disableInvestmentFields || aiAutofillLoading
+
   return (
-    <div data-testid={`${prefixDataTestId}-content`} className="gba:space-y-6">
+    <fieldset disabled={isFormDisabled} className="gba:space-y-6" data-testid={`${prefixDataTestId}-content`}>
       {/* Investment Basic Information */}
       <InvestmentInformationSegment
         businessAppContext={businessAppContext}
@@ -131,7 +140,7 @@ export const InvestmentLayout: React.FC<InvestmentLayoutProps> = ({
         entityId={formValues.investment.id}
         investmentGroup={baseTypeId}
         customFields={investmentInformationCustomFields}
-        disabled={disableInvestmentFields}
+        disabled={isFormDisabled}
       />
 
       {/* Dynamic Investment Segment - handles type selection and dynamic fields recursively */}
@@ -148,9 +157,11 @@ export const InvestmentLayout: React.FC<InvestmentLayoutProps> = ({
           isUpdate={isUpdate}
           formFieldsDefinition={formFieldsDefinition}
           investmentCatalogLoading={investmentCatalogLoading}
+          enableAiAutofill={enableAiAutofill}
+          onAiAutofillLoadingChange={handleAiAutofillLoadingChange}
         />
       )}
-    </div>
+    </fieldset>
   )
 }
 
