@@ -6,16 +6,27 @@
 import React, { memo, useMemo, useState, useEffect } from 'react'
 import { Card, CardContent, Badge, Progress, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
 import { Calendar, Users, Zap, ArrowRight, FileText, DollarSign } from 'lucide-react'
+import dayjs from 'dayjs'
+import relativeTime from 'dayjs/plugin/relativeTime'
+import localizedFormat from 'dayjs/plugin/localizedFormat'
+import isToday from 'dayjs/plugin/isToday'
+import isYesterday from 'dayjs/plugin/isYesterday'
+import 'dayjs/locale/de'
+import 'dayjs/locale/en'
+import 'dayjs/locale/ro'
+import 'dayjs/locale/fr'
+import 'dayjs/locale/es'
+import 'dayjs/locale/it'
 import { Flow } from '../types'
-import {
-  formatRelativeTime,
-  formatDateTime,
-  getFlowStatusBadgeVariant,
-  formatFlowStatus
-} from '../utils/taskFormatters'
+import { getFlowStatusBadgeVariant, formatFlowStatus } from '../utils/taskFormatters'
 import { useEmployeeAvatar } from '../hooks/useEmployeeAvatar'
 import { base64ToObjectURL, getInitials, getDisplayName } from '../utils/avatarUtils'
 import { EmployeeAvatarData } from '../hooks/useEmployeeAvatarsBatch'
+
+dayjs.extend(relativeTime)
+dayjs.extend(localizedFormat)
+dayjs.extend(isToday)
+dayjs.extend(isYesterday)
 
 interface FlowCardProps {
   flow: Flow
@@ -100,6 +111,27 @@ const AssigneeAvatar: React.FC<AssigneeAvatarProps> = memo(({ userId, accessToke
 export const FlowCard: React.FC<FlowCardProps> = memo(
   ({ flow, onView, accessToken, isSelected = false, employeeMap, t, locale }) => {
     const progressPercentage = flow.totalSteps > 0 ? Math.round((flow.currentStep / flow.totalSteps) * 100) : 0
+
+    // Date formatting functions
+    const baseLocale = locale?.split('-')[0]?.toLowerCase() || 'en'
+
+    const formatRelativeTime = (date: string | Date): string => {
+      return dayjs(date).locale(baseLocale).fromNow()
+    }
+
+    const formatDateTime = (date: string | Date): string => {
+      const d = dayjs(date)
+      const time = d.locale(baseLocale).format('LT')
+
+      if (d.isToday()) {
+        return `${t('formatter-today')}, ${time}`
+      }
+      if (d.isYesterday()) {
+        return `${t('formatter-yesterday')}, ${time}`
+      }
+
+      return d.locale(baseLocale).format('L LT')
+    }
 
     // Check if this is a blink flow (has blinkGroupId or is grouped)
     const isBlinkFlow = !!(flow.blinkGroupId || flow.isGrouped)
@@ -268,12 +300,12 @@ export const FlowCard: React.FC<FlowCardProps> = memo(
                 <div className="gba:flex gba:items-center gba:gap-1">
                   <Calendar className="gba:h-3 gba:w-3" />
                   <span data-testid="flow-started-at">
-                    {t('flow-card-started', { date: formatRelativeTime(flow.startedAt, locale) })}
+                    {t('flow-card-started', { date: formatRelativeTime(flow.startedAt) })}
                   </span>
                 </div>
                 {flow.completedAt && (
                   <span data-testid="flow-completed-at">
-                    {t('flow-card-completed', { date: formatDateTime(flow.completedAt, locale, t) })}
+                    {t('flow-card-completed', { date: formatDateTime(flow.completedAt) })}
                   </span>
                 )}
               </div>

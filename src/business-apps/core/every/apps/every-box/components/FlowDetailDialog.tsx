@@ -19,16 +19,27 @@ import {
   useLocale
 } from '@newwork/nw-design-system'
 import { Calendar, CheckCircle, Circle, Users, Clock, X } from 'lucide-react'
+import dayjs from 'dayjs'
+import relativeTime from 'dayjs/plugin/relativeTime'
+import localizedFormat from 'dayjs/plugin/localizedFormat'
+import isToday from 'dayjs/plugin/isToday'
+import isYesterday from 'dayjs/plugin/isYesterday'
+import 'dayjs/locale/de'
+import 'dayjs/locale/en'
+import 'dayjs/locale/ro'
+import 'dayjs/locale/fr'
+import 'dayjs/locale/es'
+import 'dayjs/locale/it'
 import { Flow } from '../types'
-import {
-  formatDateTime,
-  formatRelativeTime,
-  getFlowStatusBadgeVariant,
-  formatFlowStatus
-} from '../utils/taskFormatters'
+import { getFlowStatusBadgeVariant, formatFlowStatus } from '../utils/taskFormatters'
 import { useEmployeeAvatar } from '../hooks/useEmployeeAvatar'
 import { base64ToObjectURL } from '../utils/avatarUtils'
 import translations from '../_i18n'
+
+dayjs.extend(relativeTime)
+dayjs.extend(localizedFormat)
+dayjs.extend(isToday)
+dayjs.extend(isYesterday)
 
 // Helper function to get step status icon color class
 const getStepStatusIconClass = (status: string): { className: string; filled: boolean } => {
@@ -68,6 +79,12 @@ const AssigneeItem: React.FC<AssigneeItemProps> = ({ assigneeFlow, index, access
   const { employeeData, isLoading } = useEmployeeAvatar(accessToken, assigneeUserId)
 
   const isCompleted = assigneeFlow.status === 'COMPLETED'
+
+  // Date formatting function
+  const baseLocale = locale?.split('-')[0]?.toLowerCase() || 'en'
+  const formatRelativeTime = (date: string | Date): string => {
+    return dayjs(date).locale(baseLocale).fromNow()
+  }
 
   // Get display name and initials
   const displayName =
@@ -141,11 +158,11 @@ const AssigneeItem: React.FC<AssigneeItemProps> = ({ assigneeFlow, index, access
           {isCompleted ? (
             <>
               {t('flow-detail-completed-at', {
-                date: assigneeFlow.completedAt ? formatRelativeTime(assigneeFlow.completedAt, locale) : ''
+                date: assigneeFlow.completedAt ? formatRelativeTime(assigneeFlow.completedAt) : ''
               })}
             </>
           ) : (
-            <>{t('flow-detail-in-progress', { date: formatRelativeTime(assigneeFlow.startedAt, locale) })}</>
+            <>{t('flow-detail-in-progress', { date: formatRelativeTime(assigneeFlow.startedAt) })}</>
           )}
         </div>
       </div>
@@ -237,6 +254,27 @@ export const FlowDetailDialog: React.FC<FlowDetailDialogProps> = ({ flow, onClos
 
   const progressPercentage = flow.totalSteps > 0 ? Math.round((flow.currentStep / flow.totalSteps) * 100) : 0
 
+  // Date formatting functions
+  const baseLocale = locale?.split('-')[0]?.toLowerCase() || 'en'
+
+  const formatRelativeTime = (date: string | Date): string => {
+    return dayjs(date).locale(baseLocale).fromNow()
+  }
+
+  const formatDateTime = (date: string | Date): string => {
+    const d = dayjs(date)
+    const time = d.locale(baseLocale).format('LT')
+
+    if (d.isToday()) {
+      return `${t('formatter-today')}, ${time}`
+    }
+    if (d.isYesterday()) {
+      return `${t('formatter-yesterday')}, ${time}`
+    }
+
+    return d.locale(baseLocale).format('L LT')
+  }
+
   return (
     <Card className="gba:h-full gba:flex gba:flex-col gba:shadow-lg" data-testid="flow-detail-dialog">
       {/* Header with Close Button */}
@@ -325,7 +363,7 @@ export const FlowDetailDialog: React.FC<FlowDetailDialogProps> = ({ flow, onClos
               <div>
                 <div className="gba:text-xs gba:text-muted-foreground">{t('flow-detail-started')}</div>
                 <div className="gba:font-medium">
-                  {formatDateTime(flow.startedAt, locale, t)} ({formatRelativeTime(flow.startedAt, locale)})
+                  {formatDateTime(flow.startedAt)} ({formatRelativeTime(flow.startedAt)})
                 </div>
               </div>
             </div>
@@ -336,7 +374,7 @@ export const FlowDetailDialog: React.FC<FlowDetailDialogProps> = ({ flow, onClos
                 <div>
                   <div className="gba:text-xs gba:text-muted-foreground">{t('flow-detail-completed')}</div>
                   <div className="gba:font-medium">
-                    {formatDateTime(flow.completedAt, locale, t)} ({formatRelativeTime(flow.completedAt, locale)})
+                    {formatDateTime(flow.completedAt)} ({formatRelativeTime(flow.completedAt)})
                   </div>
                 </div>
               </div>
@@ -420,7 +458,7 @@ export const FlowDetailDialog: React.FC<FlowDetailDialogProps> = ({ flow, onClos
                           </div>
                           {step.completedAt && (
                             <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-                              {t('flow-detail-completed-at', { date: formatRelativeTime(step.completedAt, locale) })}
+                              {t('flow-detail-completed-at', { date: formatRelativeTime(step.completedAt) })}
                             </div>
                           )}
                         </div>

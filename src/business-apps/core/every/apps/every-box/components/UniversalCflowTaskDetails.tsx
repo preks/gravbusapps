@@ -10,7 +10,8 @@ import {
   Textarea,
   Alert,
   AlertDescription,
-  useTranslation
+  useTranslation,
+  useLocale
 } from '@newwork/nw-design-system'
 import {
   Clock,
@@ -24,6 +25,16 @@ import {
   XCircle
 } from 'lucide-react'
 import { message } from 'antd'
+import dayjs from 'dayjs'
+import localizedFormat from 'dayjs/plugin/localizedFormat'
+import isToday from 'dayjs/plugin/isToday'
+import isYesterday from 'dayjs/plugin/isYesterday'
+import 'dayjs/locale/de'
+import 'dayjs/locale/en'
+import 'dayjs/locale/ro'
+import 'dayjs/locale/fr'
+import 'dayjs/locale/es'
+import 'dayjs/locale/it'
 import { UnifiedTask } from '../types'
 import { env } from '@/common/env/EnvUtils'
 import { TaskDetailHeader } from './TaskDetailHeader'
@@ -31,8 +42,11 @@ import { TaskDetailFooter } from './TaskDetailFooter'
 import { useEmployeeAvatar } from '../hooks/useEmployeeAvatar'
 import { InputRenderer } from '@/business-apps/flow/apps/creator/components/shared/InputRenderer'
 import { navigateTo } from '@/common/utils/navigationUtils'
-import { useDateFormatters } from '../hooks/useDateFormatters'
 import translations from '../_i18n'
+
+dayjs.extend(localizedFormat)
+dayjs.extend(isToday)
+dayjs.extend(isYesterday)
 
 /**
  * Converts a picture thumbnail to a data URL format
@@ -75,13 +89,29 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
   isLoadingFlowData = false
 }) => {
   const { t } = useTranslation(translations)
-  const { formatDateTime } = useDateFormatters()
+  const { locale } = useLocale()
   const [formValues, setFormValues] = useState<Record<string, any>>({})
   const [isCompleting, setIsCompleting] = useState(false)
   const [showComment, setShowComment] = useState(false)
   const [comment, setComment] = useState('')
   const [formInitialized, setFormInitialized] = useState(false)
   const [currentTaskId, setCurrentTaskId] = useState<string | null>(null)
+
+  // Format date with Today/Yesterday support
+  const formatDateTime = (date: string | Date): string => {
+    const d = dayjs(date)
+    const baseLocale = locale?.split('-')[0]?.toLowerCase() || 'en'
+    const time = d.locale(baseLocale).format('LT')
+
+    if (d.isToday()) {
+      return `${t('formatter-today')}, ${time}`
+    }
+    if (d.isYesterday()) {
+      return `${t('formatter-yesterday')}, ${time}`
+    }
+
+    return d.locale(baseLocale).format('L LT')
+  }
 
   // Derive isCompleted FIRST before using it
   const isCompleted = task.status === 'COMPLETED'

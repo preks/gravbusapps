@@ -6,10 +6,26 @@
 import React, { memo, useEffect, useState } from 'react'
 import { Badge, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
 import { Clock, AlertTriangle, Zap } from 'lucide-react'
+import dayjs from 'dayjs'
+import relativeTime from 'dayjs/plugin/relativeTime'
+import localizedFormat from 'dayjs/plugin/localizedFormat'
+import isToday from 'dayjs/plugin/isToday'
+import isYesterday from 'dayjs/plugin/isYesterday'
+import 'dayjs/locale/de'
+import 'dayjs/locale/en'
+import 'dayjs/locale/ro'
+import 'dayjs/locale/fr'
+import 'dayjs/locale/es'
+import 'dayjs/locale/it'
 import { UnifiedTask } from '../types'
-import { formatRelativeTime, formatDateTime, isOverdue, isDueSoon } from '../utils/taskFormatters'
+import { isOverdue, isDueSoon } from '../utils/taskFormatters'
 import { EmployeeAvatarData } from '../hooks/useEmployeeAvatarsBatch'
 import { getModuleInfo } from '../utils/moduleIcons'
+
+dayjs.extend(relativeTime)
+dayjs.extend(localizedFormat)
+dayjs.extend(isToday)
+dayjs.extend(isYesterday)
 
 interface TaskCardProps {
   task: UnifiedTask
@@ -38,7 +54,8 @@ const getDueDateText = (
 ): string => {
   if (overdue) return t('task-card-overdue')
   if (dueSoon) return t('task-card-due-soon')
-  return dueDate ? t('task-card-due', { date: formatRelativeTime(dueDate, locale) }) : ''
+  const baseLocale = locale?.split('-')[0]?.toLowerCase() || 'en'
+  return dueDate ? t('task-card-due', { date: dayjs(dueDate).locale(baseLocale).fromNow() }) : ''
 }
 
 // Helper function to get due date styling class
@@ -155,6 +172,22 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
 
     const createdAt = task.createdAt || task.scheduledAt || task.sourceMetadata?.createdAt
 
+    // Format date with Today/Yesterday support
+    const formatDateTime = (date: string | Date): string => {
+      const d = dayjs(date)
+      const baseLocale = locale?.split('-')[0]?.toLowerCase() || 'en'
+      const time = d.locale(baseLocale).format('LT')
+
+      if (d.isToday()) {
+        return `${t('formatter-today')}, ${time}`
+      }
+      if (d.isYesterday()) {
+        return `${t('formatter-yesterday')}, ${time}`
+      }
+
+      return d.locale(baseLocale).format('L LT')
+    }
+
     // Generate initials from creator name (use metadata name, consistent with creatorName)
     const getInitials = (name: string): string => {
       const parts = name.trim().split(/\s+/)
@@ -196,9 +229,9 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
               data-testid="task-created-at"
             >
               {task.status === 'COMPLETED' && task.completedAt ? (
-                <span className="gba:text-success">✓ {formatDateTime(task.completedAt, locale, t)}</span>
+                <span className="gba:text-success">✓ {formatDateTime(task.completedAt)}</span>
               ) : (
-                createdAt && formatDateTime(createdAt, locale, t)
+                createdAt && formatDateTime(createdAt)
               )}
             </span>
 
@@ -284,9 +317,9 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
             data-testid="task-created-at"
           >
             {task.status === 'COMPLETED' && task.completedAt ? (
-              <span className="gba:text-success">✓ {formatDateTime(task.completedAt, locale, t)}</span>
+              <span className="gba:text-success">✓ {formatDateTime(task.completedAt)}</span>
             ) : (
-              createdAt && formatDateTime(createdAt, locale, t)
+              createdAt && formatDateTime(createdAt)
             )}
           </span>
 
