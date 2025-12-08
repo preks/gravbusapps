@@ -111,9 +111,6 @@ export interface FlowStep {
   links?: Link[]
   assignment: TaskAssignment // Required to match backend API
 
-  // Summary fields (Step 0 only) - shown only in workflow summary view
-  summaryFields?: SummaryField[]
-
   // Function step configuration (used when type === FUNCTION)
   functionConfig?: {
     functionId: string // ID of the function in NEWWORK Functions service
@@ -149,6 +146,9 @@ export interface FlowTemplate {
   description?: string
   version: number // Required to match backend API
   steps: FlowStep[]
+
+  // Summary fields shown in workflow summary view
+  summaryFields?: SummaryField[]
 
   // Self-service specific: simplified to just the init step
   initStep?: InitStep
