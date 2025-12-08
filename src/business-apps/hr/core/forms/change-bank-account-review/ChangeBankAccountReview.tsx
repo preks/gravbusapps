@@ -22,7 +22,8 @@ import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/comp
 import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
 import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
 import { useBankAccountReviewData } from './hooks/useBankAccountReviewData'
-import { useReviewFormData, RenderComparisonField, RenderUnchangedField } from '../shared'
+import { useReviewFormData } from '../../hooks/useReviewFormData'
+import { RenderComparisonField, RenderUnchangedField } from '../../components/ReviewFieldRenderer'
 import translations from './_i18n'
 
 /**
