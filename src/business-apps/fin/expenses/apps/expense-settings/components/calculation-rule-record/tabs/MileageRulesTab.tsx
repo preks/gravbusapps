@@ -42,7 +42,8 @@ import {
   FormLabel,
   FormControl,
   FormMessage,
-  DateInput
+  DateInput,
+  Textarea
 } from '@newwork/nw-design-system'
 import {
   PiPlus,
@@ -88,11 +89,11 @@ interface MileageRuleFormData {
   mileageOrder?: number
   activeFrom: string
   activeTo?: string
-  wageCode?: string
   expenseGroupRef?: string
   measurementUnitRef?: string
   mileageRuleId?: string
   version?: number
+  additionalProperties?: Record<string, any>
 }
 
 interface TaxCodeOption {
@@ -153,6 +154,9 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [itemToDelete, setItemToDelete] = useState<EnhancedExpenseRuleMileage | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+
+  // Additional properties JSON state
+  const [additionalPropertiesJson, setAdditionalPropertiesJson] = useState<string>('')
 
   // Set up client
   expenseSettingsClient.setAccessToken(accessToken)
@@ -256,7 +260,6 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
               activeTo
               version
               isDeleted
-              wageCode
               expenseGroup {
                 id
                 value
@@ -379,6 +382,7 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
       activeFrom: validFromValue,
       activeTo: validToValue
     })
+    setAdditionalPropertiesJson('')
     setIsModalVisible(true)
   }
 
@@ -407,12 +411,17 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
         activeFrom:
           formatDateForInput(freshData.activeFrom) || formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
         activeTo: formatDateForInput(freshData.activeTo),
-        wageCode: freshData.wageCode,
         expenseGroupRef: freshData.expenseGroup?.id,
         measurementUnitRef: freshData.measurementUnit?.id,
         mileageRuleId: freshData.mileageRule?.id,
         version: freshData.version
       })
+
+      // Set additional properties JSON
+      setAdditionalPropertiesJson(
+        freshData.additionalProperties ? JSON.stringify(freshData.additionalProperties, null, 2) : ''
+      )
+
       setIsModalVisible(true)
     } catch (err) {
       toast.error('Failed to load latest data for editing')
@@ -516,10 +525,23 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
         saveData.unitPrice = formValues.unitPrice
         // Convert to ISO format for API (java.time.Instant)
         saveData.activeFrom = formValues.activeFrom ? dayjs(formValues.activeFrom).startOf('day').toISOString() : null
-        saveData.wageCode = formValues.wageCode
         saveData.expenseGroupRef = formValues.expenseGroupRef
         saveData.measurementUnitRef = formValues.measurementUnitRef
         saveData.mileageRuleId = formValues.mileageRuleId
+
+        // Parse and include additionalProperties
+        if (additionalPropertiesJson.trim()) {
+          try {
+            saveData.additionalProperties = JSON.parse(additionalPropertiesJson)
+          } catch {
+            form.setError('root', {
+              type: 'manual',
+              message: 'Invalid JSON in Additional Info field'
+            })
+            setIsSaving(false)
+            return
+          }
+        }
       }
 
       await expenseSettingsClient.saveExpenseRuleMileage(saveData)
@@ -1179,25 +1201,22 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="wageCode"
-                  render={({ field }) => (
-                    <FormItem data-testid="mileage-rule-wage-code-field">
-                      <FormLabel data-testid="mileage-rule-wage-code-label">Wage Code</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          value={field.value || ''}
-                          placeholder="Enter wage code (optional)"
-                          disabled={isRestrictedEdit}
-                          data-testid="mileage-rule-wage-code-input"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <FormItem data-testid="mileage-rule-additional-field">
+                  <FormLabel data-testid="mileage-rule-additional-label">Additional Info (JSON)</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      value={additionalPropertiesJson}
+                      onChange={e => setAdditionalPropertiesJson(e.target.value)}
+                      placeholder='{"postingDetails": {"text": "", "account": "", "accountDetail": ""}}'
+                      className="gba:font-mono gba:text-sm gba:min-h-[100px]"
+                      disabled={isRestrictedEdit}
+                      data-testid="mileage-rule-additional-textarea"
+                    />
+                  </FormControl>
+                  <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
+                    Enter valid JSON for posting details and other additional data
+                  </p>
+                </FormItem>
               </div>
 
               <div className="gba:space-y-4">
