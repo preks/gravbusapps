@@ -40,12 +40,10 @@ export const Activity360ListTab: React.FC<Activity360ListTabProps> = ({ accessTo
   const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([{ id: 'createdAt', desc: true }])
   const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>({})
   const [visibleColumns, setVisibleColumns] = useState<string[]>([
-    'ownerEmployee.displayName',
-    'title',
-    'activityType.value',
+    'occurredAt',
+    'ownerEmployee.fullName',
     'reference',
-    'createdAt',
-    'occurredAt'
+    'activityType.value'
   ])
   const [allEmployeeIds, setAllEmployeeIds] = useState<string[]>([])
   const [loadingEmployees, setLoadingEmployees] = useState(true)
