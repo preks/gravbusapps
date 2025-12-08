@@ -1335,7 +1335,7 @@ export const MyRequests: React.FC<MyRequestsProps> = ({ workflowEngine, onBack, 
             data-testid="back-button"
           >
             <ArrowLeftIcon className="gba:mr-2" />
-            <span>Back to Catalog</span>
+            <span>Back to Portal</span>
           </button>
         </div>
 
@@ -1373,7 +1373,7 @@ export const MyRequests: React.FC<MyRequestsProps> = ({ workflowEngine, onBack, 
           data-testid="back-button"
         >
           <ArrowLeftIcon className="gba:mr-2" />
-          <span>Back to Catalog</span>
+          <span>Back to Portal</span>
         </button>
       </div>
 

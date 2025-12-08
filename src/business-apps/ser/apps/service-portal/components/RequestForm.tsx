@@ -36,7 +36,6 @@ import {
   WarningIcon,
   SparkleIcon,
   UserIcon,
-  StarIcon,
   RobotIcon,
   BrainIcon,
   CopyIcon,
@@ -52,6 +51,7 @@ import { flowbotClient } from '@/common/network/flowbot'
 import { parseMarkdownForReact } from '@/common/utils/markdownUtils'
 import { DataSourceSelect } from './DataSourceSelect'
 import { DataSourceMultiSelect } from './DataSourceMultiSelect'
+import { MessageRenderer } from '../../../components/MessageRenderer'
 
 export interface RequestFormProps extends BusinessAppContextProps {
   flowTemplate: FlowTemplate
@@ -564,7 +564,12 @@ Please try again in a few moments, or proceed with submitting your request.`)
       {/* Back navigation */}
       <div className="gba:back-navigation gba:mb-4">
         <button
-          onClick={onCancel}
+          type="button"
+          onClick={e => {
+            e.preventDefault()
+            e.stopPropagation()
+            onCancel()
+          }}
           disabled={isLoading}
           className="gba:flex gba:items-center gba:text-blue-500 gba:hover:text-blue-600 disabled:gba:opacity-50 disabled:gba:cursor-not-allowed"
           data-testid="back-button"
@@ -710,9 +715,32 @@ Please try again in a few moments, or proceed with submitting your request.`)
                 {flowTemplate?.formSchema && (
                   <div className="gba:space-y-6">
                     <div className="gba:border-b gba:pb-4">
-                      <h3 className="gba:text-lg gba:font-semibold gba:text-gray-900">{flowTemplate.name} Details</h3>
+                      <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
+                        <h3 className="gba:text-lg gba:font-semibold gba:text-gray-900">{flowTemplate.name} Details</h3>
+                        {flowTemplate.version && (
+                          <Badge variant="outline" className="gba:text-xs gba:font-normal">
+                            v{flowTemplate.version}
+                          </Badge>
+                        )}
+                      </div>
                       <p className="gba:text-sm gba:text-gray-600 gba:mt-1">{flowTemplate.description}</p>
                     </div>
+
+                    {/* Step 0 Message - Instructions or information for the user */}
+                    {flowTemplate.step0Message && (
+                      <div className="gba:space-y-2">
+                        <h4 className="gba:text-sm gba:font-medium gba:text-foreground gba:flex gba:items-center gba:gap-2">
+                          <FileTextIcon className="gba:w-4 gba:h-4 gba:text-primary" />
+                          Instructions
+                        </h4>
+                        <MessageRenderer
+                          content={flowTemplate.step0Message}
+                          format="auto"
+                          variant="card"
+                          data-testid="step0-message"
+                        />
+                      </div>
+                    )}
 
                     {/* Render dynamic fields without form wrapper */}
                     <div className="gba:space-y-4">
@@ -1252,9 +1280,12 @@ Please try again in a few moments, or proceed with submitting your request.`)
                             </div>
 
                             {step.message && (
-                              <p className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:leading-relaxed">
-                                {step.message}
-                              </p>
+                              <MessageRenderer
+                                content={step.message}
+                                format="auto"
+                                variant="compact"
+                                className="gba:mb-2"
+                              />
                             )}
 
                             <div className="gba:flex gba:items-center gba:justify-between gba:text-xs">
@@ -1274,47 +1305,6 @@ Please try again in a few moments, or proceed with submitting your request.`)
                 </div>
               </Card>
             )}
-
-            {/* Quick Tips */}
-            <Card className="gba:p-6">
-              <h3 className="gba:text-lg gba:font-semibold gba:mb-4 gba:flex gba:items-center">
-                <StarIcon className="gba:mr-2 gba:text-yellow-500" />
-                Quick Tips
-              </h3>
-              <div className="gba:space-y-3 gba:text-sm">
-                <div className="gba:flex gba:items-start gba:space-x-2">
-                  <CheckCircleIcon className="gba:text-green-500 gba:mt-0.5 gba:flex-shrink-0" size={16} />
-                  <span>Provide detailed information to speed up processing</span>
-                </div>
-                <div className="gba:flex gba:items-start gba:space-x-2">
-                  <CheckCircleIcon className="gba:text-green-500 gba:mt-0.5 gba:flex-shrink-0" size={16} />
-                  <span>Include business justification for faster approval</span>
-                </div>
-                <div className="gba:flex gba:items-start gba:space-x-2">
-                  <CheckCircleIcon className="gba:text-green-500 gba:mt-0.5 gba:flex-shrink-0" size={16} />
-                  <span>Check "My Requests" for real-time status updates</span>
-                </div>
-                <div className="gba:flex gba:items-start gba:space-x-2">
-                  <CheckCircleIcon className="gba:text-green-500 gba:mt-0.5 gba:flex-shrink-0" size={16} />
-                  <span>Contact your manager if urgent approval is needed</span>
-                </div>
-              </div>
-            </Card>
-
-            {/* Support Contact */}
-            <Card className="gba:p-6 gba:border-blue-200 gba:bg-blue-50">
-              <h3 className="gba:text-lg gba:font-semibold gba:mb-2 gba:text-blue-900">Need Help?</h3>
-              <p className="gba:text-sm gba:text-blue-700 gba:mb-4">
-                If you need assistance with this request, our support team is here to help.
-              </p>
-              <Button
-                variant="outline"
-                className="gba:w-full gba:border-blue-300 gba:text-blue-700 hover:gba:bg-blue-100"
-              >
-                <UsersIcon className="gba:mr-2" size={16} />
-                Contact Support
-              </Button>
-            </Card>
           </div>
         </div>
       </PageLayout>

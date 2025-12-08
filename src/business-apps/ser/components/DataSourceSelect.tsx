@@ -44,8 +44,11 @@ export const DataSourceSelect: React.FC<DataSourceSelectProps> = ({
   disabled = false,
   className = '',
   'data-testid': testId,
-  initialOptions = []
+  initialOptions
 }) => {
+  // Ensure initialOptions is always an array (handles explicit undefined)
+  const safeInitialOptions = initialOptions ?? []
+
   const [isOpen, setIsOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
@@ -65,7 +68,7 @@ export const DataSourceSelect: React.FC<DataSourceSelectProps> = ({
   // If API fails or no results, fall back to initial options
   const options = React.useMemo(() => {
     // Convert initial options to DataSourceOption format
-    const initialOpts: DataSourceOption[] = initialOptions.map(opt => ({
+    const initialOpts: DataSourceOption[] = safeInitialOptions.map(opt => ({
       value: opt.value,
       label: opt.label
     }))
@@ -81,20 +84,20 @@ export const DataSourceSelect: React.FC<DataSourceSelectProps> = ({
     }
 
     return []
-  }, [apiOptions, initialOptions])
+  }, [apiOptions, safeInitialOptions])
 
   // Only show error if we have no fallback options to display
-  const showError = error && initialOptions.length === 0
+  const showError = error && safeInitialOptions.length === 0
 
   // Determine if search input should be shown (hide for 10 or fewer options)
   const SEARCH_THRESHOLD = 10
-  const estimatedTotalOptions = Math.max(totalCount, apiOptions.length, initialOptions.length)
+  const estimatedTotalOptions = Math.max(totalCount, apiOptions.length, safeInitialOptions.length)
   const showSearchInput = estimatedTotalOptions > SEARCH_THRESHOLD || hasMore
 
   // Find the selected option's label (check both API and initial options)
   const selectedOption =
     options.find(opt => String(opt.value) === String(value)) ||
-    initialOptions.find(opt => String(opt.value) === String(value))
+    safeInitialOptions.find(opt => String(opt.value) === String(value))
   const displayValue = selectedOption?.label || ''
 
   // Handle search input change

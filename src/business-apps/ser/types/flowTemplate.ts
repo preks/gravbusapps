@@ -125,6 +125,7 @@ export interface FlowTemplate {
 
   // Computed properties for UI
   formSchema?: DynamicFormField[] // Extracted from step_0.form
+  step0Message?: string // Message from step_0 to display in the form
   estimatedDuration?: string
   stepCount?: number
 }

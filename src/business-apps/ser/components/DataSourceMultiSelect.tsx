@@ -45,8 +45,11 @@ export const DataSourceMultiSelect: React.FC<DataSourceMultiSelectProps> = ({
   disabled = false,
   className = '',
   'data-testid': testId,
-  initialOptions = []
+  initialOptions
 }) => {
+  // Ensure initialOptions is always an array (handles explicit undefined)
+  const safeInitialOptions = initialOptions ?? []
+
   const [isOpen, setIsOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
@@ -66,7 +69,7 @@ export const DataSourceMultiSelect: React.FC<DataSourceMultiSelectProps> = ({
   // If API fails or no results, fall back to initial options
   const options = React.useMemo(() => {
     // Convert initial options to DataSourceOption format
-    const initialOpts: DataSourceOption[] = initialOptions.map(opt => ({
+    const initialOpts: DataSourceOption[] = safeInitialOptions.map(opt => ({
       value: opt.value,
       label: opt.label
     }))
@@ -82,21 +85,21 @@ export const DataSourceMultiSelect: React.FC<DataSourceMultiSelectProps> = ({
     }
 
     return []
-  }, [apiOptions, initialOptions])
+  }, [apiOptions, safeInitialOptions])
 
   // Only show error if we have no fallback options to display
-  const showError = error && initialOptions.length === 0
+  const showError = error && safeInitialOptions.length === 0
 
   // Determine if search input should be shown (hide for 10 or fewer options)
   const SEARCH_THRESHOLD = 10
-  const estimatedTotalOptions = Math.max(totalCount, apiOptions.length, initialOptions.length)
+  const estimatedTotalOptions = Math.max(totalCount, apiOptions.length, safeInitialOptions.length)
   const showSearchInput = estimatedTotalOptions > SEARCH_THRESHOLD || hasMore
 
   // Track selected options with their labels (for display when not in dropdown)
   const [selectedLabels, setSelectedLabels] = useState<Map<string, string>>(() => {
     // Initialize with labels from initialOptions
     const labels = new Map<string, string>()
-    initialOptions.forEach(opt => {
+    safeInitialOptions.forEach(opt => {
       if (value.includes(opt.value)) {
         labels.set(opt.value, opt.label)
       }
@@ -213,7 +216,7 @@ export const DataSourceMultiSelect: React.FC<DataSourceMultiSelectProps> = ({
     const option = options.find(opt => String(opt.value) === val)
     if (option?.label) return option.label
     // Finally check initial options
-    const initialOption = initialOptions.find(opt => String(opt.value) === val)
+    const initialOption = safeInitialOptions.find(opt => String(opt.value) === val)
     return initialOption?.label || val
   }
 
