@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import dayjs from 'dayjs'
 import { useFeature } from '@/common/hooks/useFeature'
 import {
@@ -42,6 +43,7 @@ import { sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 import { ExpenseSettingsClient } from '../../utils/ExpenseSettingsClient'
 import { useGetMileageRuleStandaloneById } from '../../queries/ExpenseRuleQueries'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { mileageRuleFormSchema } from '../../schemas'
 
 interface MileageRuleFormData {
   id?: string
@@ -118,8 +120,9 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
     return null
   }
 
-  // React Hook Form for basic fields
+  // React Hook Form for basic fields with Zod validation
   const form = useForm<MileageRuleFormData>({
+    resolver: zodResolver(mileageRuleFormSchema),
     defaultValues: {
       code: initialData?.code || '',
       ruleName: initialData?.ruleName || '',
@@ -631,7 +634,6 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
               <FormField
                 control={form.control}
                 name="code"
-                rules={{ required: 'Code is required' }}
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Code *</FormLabel>
@@ -653,7 +655,6 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
               <FormField
                 control={form.control}
                 name="ruleName"
-                rules={{ required: 'Rule name is required' }}
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Rule Name *</FormLabel>
@@ -675,7 +676,6 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
               <FormField
                 control={form.control}
                 name="rulePeriod"
-                rules={{ required: 'Rule period is required' }}
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Rule Period *</FormLabel>
@@ -731,7 +731,6 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
               <FormField
                 control={form.control}
                 name="activeFrom"
-                rules={{ required: 'Active from is required' }}
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Active From *</FormLabel>

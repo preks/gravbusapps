@@ -238,19 +238,9 @@ const DeductionTab: React.FC<DeductionTabProps> = ({ ruleId, accessToken, active
     setIsRestrictedEdit(false)
     setCurrentUsageInfo(null)
 
-    // Determine validity period based on existing entries
-    let validFromValue = formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD')
-    let validToValue: string | undefined = undefined
-
-    if (deductions.length > 0) {
-      // Use the same validity period as the first existing entry
-      const existingEntry = deductions[0]
-      validFromValue = formatDateForInput(existingEntry.activeFrom) || validFromValue
-      validToValue = formatDateForInput(existingEntry.activeTo)
-    } else {
-      // No existing entries - set validTo to December 31, 9999 (or rule's activeTo if set)
-      validToValue = formatDateForInput(activeTo) || '9999-12-31'
-    }
+    // ALWAYS inherit validity period from parent Expense Rule
+    const validFromValue = formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD')
+    const validToValue = formatDateForInput(activeTo) || '9999-12-31'
 
     form.reset({
       expenseRuleId: ruleId,
@@ -382,8 +372,10 @@ const DeductionTab: React.FC<DeductionTabProps> = ({ ruleId, accessToken, active
         return
       }
 
+      // IMPORTANT: Always use editingItem for id and version when updating
+      const isUpdate = !!editingItem
       const saveData: any = {
-        ...(editingItem && { id: editingItem.id, version: editingItem.version }),
+        ...(isUpdate && { id: editingItem.id, version: editingItem.version }),
         expenseRuleId: ruleId,
         // Convert to ISO format for API
         activeTo: formValues.activeTo ? dayjs(formValues.activeTo).endOf('day').toISOString() : null

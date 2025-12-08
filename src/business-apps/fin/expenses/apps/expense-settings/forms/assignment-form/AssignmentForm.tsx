@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useFeature } from '@/common/hooks/useFeature'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
@@ -45,6 +46,7 @@ dayjs.extend(localeData)
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { SaveExpenseRuleAssignmentInput, ExpenseRule, ExpenseRuleAssignment } from '../../types/ExpenseRuleTypes'
 import { useGetExpenseRuleAssignmentById } from '../../queries/ExpenseRuleQueries'
+import { assignmentFormSchema } from '../../schemas'
 
 export interface AssignmentFormData {
   id?: string
@@ -87,8 +89,9 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
   // Feature flag check
   const isDevEnabled = useFeature('dev.enabled')
 
-  // React Hook Form setup
+  // React Hook Form setup with Zod validation
   const form = useForm<AssignmentFormData>({
+    resolver: zodResolver(assignmentFormSchema),
     defaultValues: {
       cascading: false,
       applicants: false,

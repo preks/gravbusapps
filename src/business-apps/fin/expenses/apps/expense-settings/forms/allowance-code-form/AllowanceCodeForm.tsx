@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useFeature } from '@/common/hooks/useFeature'
 import {
@@ -34,16 +35,9 @@ import {
 } from '../../types/ExpenseEnums'
 import { ExpenseRuleAllowanceCode } from '../../types/ExpenseRuleTypes'
 import { useGetExpenseRuleAllowanceCodeById } from '../../queries/ExpenseRuleQueries'
+import { allowanceCodeFormSchema, type AllowanceCodeFormSchema } from '../../schemas'
 
-export interface AllowanceCodeFormData {
-  id?: string
-  code: string
-  amount: number
-  travelLocation?: TravelLocation
-  allowanceType?: AllowanceType
-  calculation?: string
-  codeOrder: number
-}
+export type AllowanceCodeFormData = AllowanceCodeFormSchema
 
 interface AllowanceCodeFormProps extends BusinessAppContextProps {
   open: boolean
@@ -69,8 +63,9 @@ const AllowanceCodeForm: React.FC<AllowanceCodeFormProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // React Hook Form setup
+  // React Hook Form setup with Zod validation
   const form = useForm<AllowanceCodeFormData>({
+    resolver: zodResolver(allowanceCodeFormSchema),
     defaultValues: {
       code: '',
       amount: 0,
@@ -132,39 +127,7 @@ const AllowanceCodeForm: React.FC<AllowanceCodeFormProps> = ({
   }, [initialData?.id, isEditing, fetchExpenseRuleAllowanceCodeById, form])
 
   const handleSubmit = async (data: AllowanceCodeFormData) => {
-    // Validate required fields
-    let hasErrors = false
-
-    if (!data.code?.trim()) {
-      form.setError('code', { message: 'Allowance code is required' })
-      hasErrors = true
-    } else if (data.code.length > 10) {
-      form.setError('code', { message: 'Code cannot exceed 10 characters' })
-      hasErrors = true
-    }
-
-    if (data.amount === undefined || data.amount === null) {
-      form.setError('amount', { message: 'Amount is required' })
-      hasErrors = true
-    }
-
-    if (!data.codeOrder || data.codeOrder < 1) {
-      form.setError('codeOrder', { message: 'Display order must be at least 1' })
-      hasErrors = true
-    }
-
-    if (!data.travelLocation) {
-      form.setError('travelLocation', { message: 'Travel location is required' })
-      hasErrors = true
-    }
-
-    if (!data.allowanceType) {
-      form.setError('allowanceType', { message: 'Allowance type is required' })
-      hasErrors = true
-    }
-
-    if (hasErrors) return
-
+    // Validation is handled by Zod schema
     setIsSubmitting(true)
     setError(null)
 
@@ -210,10 +173,6 @@ const AllowanceCodeForm: React.FC<AllowanceCodeFormProps> = ({
                 <FormField
                   control={form.control}
                   name="code"
-                  rules={{
-                    required: 'Allowance code is required',
-                    maxLength: { value: 10, message: 'Code cannot exceed 10 characters' }
-                  }}
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>
@@ -234,7 +193,6 @@ const AllowanceCodeForm: React.FC<AllowanceCodeFormProps> = ({
                 <FormField
                   control={form.control}
                   name="amount"
-                  rules={{ required: 'Amount is required' }}
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>
@@ -259,10 +217,6 @@ const AllowanceCodeForm: React.FC<AllowanceCodeFormProps> = ({
                 <FormField
                   control={form.control}
                   name="codeOrder"
-                  rules={{
-                    required: 'Display order is required',
-                    min: { value: 1, message: 'Display order must be at least 1' }
-                  }}
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>
@@ -289,7 +243,6 @@ const AllowanceCodeForm: React.FC<AllowanceCodeFormProps> = ({
                 <FormField
                   control={form.control}
                   name="travelLocation"
-                  rules={{ required: 'Travel location is required' }}
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>
@@ -317,7 +270,6 @@ const AllowanceCodeForm: React.FC<AllowanceCodeFormProps> = ({
                 <FormField
                   control={form.control}
                   name="allowanceType"
-                  rules={{ required: 'Allowance type is required' }}
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>

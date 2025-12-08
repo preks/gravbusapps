@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useFeature } from '@/common/hooks/useFeature'
 import {
@@ -29,6 +30,7 @@ import { PiWarning } from 'react-icons/pi'
 import { RuleSource, getRuleSourceOptions } from '../../types/ExpenseEnums'
 import { ExpenseRuleCustomField } from '../../types/ExpenseRuleTypes'
 import { useGetExpenseRuleOtherInfoById } from '../../queries/ExpenseRuleQueries'
+import { customFieldFormSchema } from '../../schemas'
 
 export interface CustomFieldFormData {
   id?: string
@@ -63,8 +65,9 @@ const CustomFieldForm: React.FC<CustomFieldFormProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // React Hook Form setup
+  // React Hook Form setup with Zod validation
   const form = useForm<CustomFieldFormData>({
+    resolver: zodResolver(customFieldFormSchema),
     defaultValues: {
       fieldName: '',
       fieldValue: '',
@@ -189,10 +192,6 @@ const CustomFieldForm: React.FC<CustomFieldFormProps> = ({
                 <FormField
                   control={form.control}
                   name="fieldName"
-                  rules={{
-                    required: 'Field name is required',
-                    maxLength: { value: 100, message: 'Field name cannot exceed 100 characters' }
-                  }}
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>
@@ -213,7 +212,6 @@ const CustomFieldForm: React.FC<CustomFieldFormProps> = ({
                 <FormField
                   control={form.control}
                   name="fieldType"
-                  rules={{ required: 'Field type is required' }}
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>
@@ -243,7 +241,6 @@ const CustomFieldForm: React.FC<CustomFieldFormProps> = ({
                 <FormField
                   control={form.control}
                   name="ruleSource"
-                  rules={{ required: 'Rule source is required' }}
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>
@@ -271,7 +268,6 @@ const CustomFieldForm: React.FC<CustomFieldFormProps> = ({
                 <FormField
                   control={form.control}
                   name="fieldOrder"
-                  rules={{ required: 'Display order is required' }}
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>
@@ -296,7 +292,6 @@ const CustomFieldForm: React.FC<CustomFieldFormProps> = ({
               <FormField
                 control={form.control}
                 name="fieldValue"
-                rules={{ required: 'Field value is required' }}
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>

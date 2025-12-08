@@ -324,8 +324,15 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
     formData: GeneralExpenseFormData & { additionalProperties?: Record<string, unknown> }
   ) => {
     try {
+      // Debug logging
+      console.log('[GeneralExpensesTab] formData received:', formData)
+      console.log('[GeneralExpensesTab] editingItem:', editingItem)
+
+      // IMPORTANT: Always use editingItem for id and version when updating
+      // The form may not reliably track these hidden fields
+      const isUpdate = !!editingItem
       const saveData: any = {
-        ...(editingItem && { id: editingItem.id, version: editingItem.version }),
+        ...(isUpdate && { id: editingItem.id, version: editingItem.version }),
         expenseRuleId: ruleId,
         activeTo: formData.activeTo ? dayjs(formData.activeTo).endOf('day').toISOString() : null,
         additionalProperties: formData.additionalProperties
@@ -341,6 +348,9 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
         saveData.activeFrom = formData.activeFrom ? dayjs(formData.activeFrom).startOf('day').toISOString() : null
         saveData.expenseGroupRef = formData.expenseGroupRef
       }
+
+      console.log('[GeneralExpensesTab] isUpdate:', isUpdate)
+      console.log('[GeneralExpensesTab] saveData being sent:', saveData)
 
       await expenseSettingsClient.saveExpenseRuleGeneralExpense(saveData)
       toast.success(`General expense rule ${editingItem ? 'updated' : 'created'} successfully`)

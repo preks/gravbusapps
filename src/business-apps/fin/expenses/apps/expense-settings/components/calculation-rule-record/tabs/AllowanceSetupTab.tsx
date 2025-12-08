@@ -297,19 +297,9 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
     setCurrentUsageInfo(null)
     setValidityError(null)
 
-    // Determine validity period based on existing entries
-    let validFromValue = formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD')
-    let validToValue: string | undefined = undefined
-
-    if (allowanceSetups.length > 0) {
-      // Use the same validity period as the first existing entry
-      const existingEntry = allowanceSetups[0]
-      validFromValue = formatDateForInput(existingEntry.validFrom) || validFromValue
-      validToValue = formatDateForInput(existingEntry.validTo)
-    } else {
-      // No existing entries - set validTo to December 31, 9999
-      validToValue = formatDateForInput(activeTo) || '9999-12-31'
-    }
+    // ALWAYS inherit validity period from parent Expense Rule
+    const validFromValue = formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD')
+    const validToValue = formatDateForInput(activeTo) || '9999-12-31'
 
     form.reset({
       name: '',
@@ -424,6 +414,9 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
         return dayjs(dateStr).startOf('day').toISOString()
       }
 
+      // IMPORTANT: Always use editingItem for id and version when updating
+      const isUpdate = !!editingItem
+
       // If restricted edit, only update validTo
       if (isRestrictedEdit && editingItem) {
         await expenseSettingsClient.saveExpenseRuleAllowanceSetup({
@@ -441,7 +434,7 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
       } else {
         // Full save
         await expenseSettingsClient.saveExpenseRuleAllowanceSetup({
-          ...(editingItem && { id: editingItem.id, version: editingItem.version }),
+          ...(isUpdate && { id: editingItem.id, version: editingItem.version }),
           expenseRuleId: ruleId,
           businessKey: undefined,
           activeTo: formatDateToISO(formValues.validTo),

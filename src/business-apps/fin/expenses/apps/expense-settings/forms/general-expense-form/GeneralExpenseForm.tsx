@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import {
   Button,
   Dialog,
@@ -28,21 +29,9 @@ import {
 import { PiWarning } from 'react-icons/pi'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import dayjs from 'dayjs'
+import { createGeneralExpenseFormSchema, type GeneralExpenseFormSchema } from '../../schemas'
 
-export interface GeneralExpenseFormData {
-  id?: string
-  expenseRuleId: string
-  code: string
-  name: string
-  reimbursable: boolean
-  taxCodeRef?: string
-  taxValue?: number
-  activeFrom: string
-  activeTo?: string
-  expenseGroupRef?: string
-  version?: number
-  additionalProperties?: Record<string, unknown>
-}
+export type GeneralExpenseFormData = GeneralExpenseFormSchema
 
 export interface UsageInfo {
   isUsed: boolean
@@ -109,7 +98,14 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
     return dayjs(dateStr).format('YYYY-MM-DD')
   }
 
+  // Create schema with date validation based on rule dates
+  const schema = useMemo(
+    () => createGeneralExpenseFormSchema(ruleActiveFrom, ruleActiveTo),
+    [ruleActiveFrom, ruleActiveTo]
+  )
+
   const form = useForm<GeneralExpenseFormData>({
+    resolver: zodResolver(schema),
     defaultValues: {
       expenseRuleId: ruleId,
       code: '',
@@ -130,14 +126,28 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
           { catalogIdentifier: 'TaxCode', version: 'v1' },
           { limit: 100, offset: 0, returnTotalRecords: true }
         )
+        console.log('[GeneralExpenseForm] Tax Code Catalog Response:', taxResponse?.data)
         if (taxResponse?.data) {
-          setTaxCodes(
-            taxResponse.data.map((entry: any) => ({
+          const mappedTaxCodes = taxResponse.data.map((entry: any) => {
+            // Extract percentage from value string (e.g., "Input tax 7%" -> 7)
+            const percentMatch = entry.value.match(/(\d+(?:\.\d+)?)\s*%/)
+            const taxPercentage = percentMatch ? parseFloat(percentMatch[1]) : 0
+
+            console.log('[GeneralExpenseForm] Tax Code Entry:', {
+              id: entry.id,
+              code: entry.code,
+              value: entry.value,
+              extractedPercentage: taxPercentage
+            })
+            return {
               id: entry.id,
               value: entry.value,
-              code: entry.code
-            }))
-          )
+              code: entry.code,
+              taxPercentage // Store the extracted percentage
+            }
+          })
+          console.log('[GeneralExpenseForm] Mapped Tax Codes:', mappedTaxCodes)
+          setTaxCodes(mappedTaxCodes as any)
         }
 
         // Load expense groups
@@ -201,59 +211,11 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
   }, [editingItem, ruleId, ruleActiveFrom, ruleActiveTo, form])
 
   const handleSave = async () => {
+    // Trigger validation
+    const isValid = await form.trigger()
+    if (!isValid) return
+
     const data = form.getValues()
-
-    // Validation
-    if (!data.code?.trim()) {
-      form.setError('code', { type: 'manual', message: 'Code is required' })
-      return
-    }
-    if (!data.name?.trim()) {
-      form.setError('name', { type: 'manual', message: 'Name is required' })
-      return
-    }
-    if (!data.activeFrom) {
-      form.setError('activeFrom', { type: 'manual', message: 'Valid From is required' })
-      return
-    }
-
-    // Validate dates against rule's validity period
-    const ruleFrom = dayjs(ruleActiveFrom)
-    const ruleTo = ruleActiveTo ? dayjs(ruleActiveTo) : null
-    const expenseFrom = dayjs(data.activeFrom)
-    const expenseTo = data.activeTo ? dayjs(data.activeTo) : null
-
-    if (expenseFrom.isBefore(ruleFrom)) {
-      form.setError('activeFrom', {
-        type: 'manual',
-        message: `Valid From cannot be before the rule's Valid From (${ruleFrom.format('DD.MM.YYYY')})`
-      })
-      return
-    }
-
-    if (ruleTo && expenseFrom.isAfter(ruleTo)) {
-      form.setError('activeFrom', {
-        type: 'manual',
-        message: `Valid From cannot be after the rule's Valid To (${ruleTo.format('DD.MM.YYYY')})`
-      })
-      return
-    }
-
-    if (ruleTo && expenseTo && expenseTo.isAfter(ruleTo)) {
-      form.setError('activeTo', {
-        type: 'manual',
-        message: `Valid To cannot be after the rule's Valid To (${ruleTo.format('DD.MM.YYYY')})`
-      })
-      return
-    }
-
-    if (expenseTo && expenseFrom.isAfter(expenseTo)) {
-      form.setError('activeTo', {
-        type: 'manual',
-        message: `Valid To cannot be before Valid From`
-      })
-      return
-    }
 
     // Parse additional properties
     let additionalProperties: Record<string, unknown> | undefined
@@ -368,7 +330,20 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
                     <FormLabel data-testid="general-expense-tax-code-label">Tax Code</FormLabel>
                     <Select
                       value={field.value}
-                      onValueChange={field.onChange}
+                      onValueChange={value => {
+                        console.log('[GeneralExpenseForm] Tax Code Selected:', value)
+                        field.onChange(value)
+                        // Auto-populate tax value from extracted percentage
+                        const selectedTaxCode = taxCodes.find(tc => tc.id === value) as any
+                        console.log('[GeneralExpenseForm] Selected Tax Code Object:', selectedTaxCode)
+                        if (selectedTaxCode?.taxPercentage !== undefined) {
+                          console.log('[GeneralExpenseForm] Setting tax value to:', selectedTaxCode.taxPercentage)
+                          form.setValue('taxValue', selectedTaxCode.taxPercentage)
+                        } else {
+                          console.log('[GeneralExpenseForm] No tax percentage found, setting to 0')
+                          form.setValue('taxValue', 0)
+                        }
+                      }}
                       disabled={catalogsLoading || isRestrictedEdit}
                     >
                       <FormControl>
@@ -407,11 +382,14 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
                         step={0.01}
                         value={field.value ?? ''}
                         onChange={e => field.onChange(parseFloat(e.target.value) || undefined)}
-                        placeholder="0.00"
+                        placeholder="Auto-populated from Tax Code"
                         disabled={isRestrictedEdit}
                         data-testid="general-expense-tax-value-input"
                       />
                     </FormControl>
+                    <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
+                      Value is auto-populated when you select a Tax Code
+                    </p>
                     <FormMessage />
                   </FormItem>
                 )}

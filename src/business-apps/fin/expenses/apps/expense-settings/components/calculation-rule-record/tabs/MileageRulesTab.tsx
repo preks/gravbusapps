@@ -163,11 +163,18 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
       )
 
       setTaxCodes(
-        response.data.map((item: any) => ({
-          id: item.id,
-          value: item.value,
-          code: item.code
-        }))
+        response.data.map((item: any) => {
+          // Extract percentage from value string (e.g., "Input tax 7%" -> 7)
+          const percentMatch = item.value.match(/(\d+(?:\.\d+)?)\s*%/)
+          const taxPercentage = percentMatch ? parseFloat(percentMatch[1]) : 0
+
+          return {
+            id: item.id,
+            value: item.value,
+            code: item.code,
+            taxPercentage // Store the extracted percentage
+          }
+        })
       )
     } catch (error) {
       console.error('Error loading TaxCode catalog:', error)
@@ -307,19 +314,9 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
     setEditingItem(null)
     setIsRestrictedEdit(false)
 
-    // Determine validity period based on existing entries
-    let validFromValue = formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD')
-    let validToValue: string | undefined = undefined
-
-    if (mileageRules.length > 0) {
-      // Use the same validity period as the first existing entry
-      const existingEntry = mileageRules[0]
-      validFromValue = formatDateForInput(existingEntry.activeFrom) || validFromValue
-      validToValue = formatDateForInput(existingEntry.activeTo)
-    } else {
-      // No existing entries - set validTo to December 31, 9999 (or rule's activeTo if set)
-      validToValue = formatDateForInput(activeTo) || '9999-12-31'
-    }
+    // ALWAYS inherit validity period from parent Expense Rule
+    const validFromValue = formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD')
+    const validToValue = formatDateForInput(activeTo) || '9999-12-31'
 
     form.reset({
       expenseRuleId: ruleId,
@@ -449,8 +446,10 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
         return
       }
 
+      // IMPORTANT: Always use editingItem for id and version when updating
+      const isUpdate = !!editingItem
       const saveData: any = {
-        ...(editingItem && { id: editingItem.id, version: editingItem.version }),
+        ...(isUpdate && { id: editingItem.id, version: editingItem.version }),
         expenseRuleId: ruleId,
         // Convert to ISO format for API (java.time.Instant)
         activeTo: formValues.activeTo ? dayjs(formValues.activeTo).endOf('day').toISOString() : null
@@ -978,7 +977,16 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
                       <FormLabel data-testid="mileage-rule-tax-code-label">Tax Code</FormLabel>
                       <Select
                         value={field.value}
-                        onValueChange={field.onChange}
+                        onValueChange={value => {
+                          field.onChange(value)
+                          // Auto-populate tax value from extracted percentage
+                          const selectedTaxCode = taxCodes.find(tc => tc.id === value) as any
+                          if (selectedTaxCode?.taxPercentage !== undefined) {
+                            form.setValue('taxValue', selectedTaxCode.taxPercentage)
+                          } else {
+                            form.setValue('taxValue', 0)
+                          }
+                        }}
                         disabled={catalogsLoading || isRestrictedEdit}
                       >
                         <FormControl>
@@ -1017,11 +1025,14 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
                           step={0.01}
                           value={field.value || ''}
                           onChange={e => field.onChange(parseFloat(e.target.value) || undefined)}
-                          placeholder="0.00"
+                          placeholder="Auto-populated from Tax Code"
                           disabled={isRestrictedEdit}
                           data-testid="mileage-rule-tax-value-input"
                         />
                       </FormControl>
+                      <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
+                        Value is auto-populated when you select a Tax Code
+                      </p>
                       <FormMessage />
                     </FormItem>
                   )}

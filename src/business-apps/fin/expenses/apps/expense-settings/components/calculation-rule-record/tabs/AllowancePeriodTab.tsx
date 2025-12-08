@@ -469,6 +469,9 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
         return
       }
 
+      // IMPORTANT: Always use editingItem for id and version when updating
+      const isUpdate = !!editingItem
+
       // If restricted edit, only update validTo
       if (isRestrictedEdit && editingItem) {
         await expenseSettingsClient.saveExpenseRuleAllowancePeriod({
@@ -488,7 +491,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
       } else {
         // Full save
         await expenseSettingsClient.saveExpenseRuleAllowancePeriod({
-          ...(editingItem && { id: editingItem.id, version: editingItem.version }),
+          ...(isUpdate && { id: editingItem.id, version: editingItem.version }),
           expenseRuleId: ruleId,
           businessKey: undefined,
           activeTo: formData.validTo ? dayjs(formData.validTo).endOf('day').toISOString() : null,

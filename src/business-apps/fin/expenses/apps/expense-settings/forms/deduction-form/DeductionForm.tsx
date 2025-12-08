@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useFeature } from '@/common/hooks/useFeature'
 import {
@@ -29,16 +30,9 @@ import { PiWarning } from 'react-icons/pi'
 import { DeductionDay, getDeductionDayOptions } from '../../types/ExpenseEnums'
 import { ExpenseRuleDeduction } from '../../types/ExpenseRuleTypes'
 import { useGetExpenseRuleDeductionById } from '../../queries/ExpenseRuleQueries'
+import { deductionFormSchema, type DeductionFormSchema } from '../../schemas'
 
-export interface DeductionFormData {
-  id?: string
-  deductBreakfast: boolean
-  deductLunch: boolean
-  deductDinner: boolean
-  deductionDay?: DeductionDay
-  deductionOrder: number
-  overnightAllowance: boolean
-}
+export type DeductionFormData = DeductionFormSchema
 
 interface DeductionFormProps extends BusinessAppContextProps {
   open: boolean
@@ -64,8 +58,9 @@ const DeductionForm: React.FC<DeductionFormProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // React Hook Form setup
+  // React Hook Form setup with Zod validation
   const form = useForm<DeductionFormData>({
+    resolver: zodResolver(deductionFormSchema),
     defaultValues: {
       deductBreakfast: false,
       deductLunch: false,
@@ -127,16 +122,7 @@ const DeductionForm: React.FC<DeductionFormProps> = ({
   }, [initialData?.id, isEditing, fetchExpenseRuleDeductionById, form])
 
   const handleSubmit = async (data: DeductionFormData) => {
-    // Validate required fields
-    if (!data.deductionDay) {
-      form.setError('deductionDay', { message: 'Deduction day is required' })
-      return
-    }
-    if (!data.deductionOrder || data.deductionOrder < 1) {
-      form.setError('deductionOrder', { message: 'Deduction order must be at least 1' })
-      return
-    }
-
+    // Validation is handled by Zod schema
     setIsSubmitting(true)
     setError(null)
 
@@ -184,7 +170,6 @@ const DeductionForm: React.FC<DeductionFormProps> = ({
                 <FormField
                   control={form.control}
                   name="deductionDay"
-                  rules={{ required: 'Deduction day is required' }}
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>
@@ -212,10 +197,6 @@ const DeductionForm: React.FC<DeductionFormProps> = ({
                 <FormField
                   control={form.control}
                   name="deductionOrder"
-                  rules={{
-                    required: 'Deduction order is required',
-                    min: { value: 1, message: 'Deduction order must be at least 1' }
-                  }}
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>

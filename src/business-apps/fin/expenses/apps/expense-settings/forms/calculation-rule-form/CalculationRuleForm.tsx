@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useFeature } from '@/common/hooks/useFeature'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
@@ -35,6 +36,7 @@ import { PiWarning } from 'react-icons/pi'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
+import { calculationRuleFormSchema } from '../../schemas'
 
 dayjs.extend(weekday)
 dayjs.extend(localeData)
@@ -44,12 +46,12 @@ export interface CalculationRuleFormData {
   code: string
   name?: string
   description?: string
-  standard?: boolean
+  standard: boolean
   activeFrom: string
   activeTo?: string
   deductionLimit: boolean
-  useLastCountry?: boolean
-  useSingleCurrency?: boolean
+  useLastCountry: boolean
+  useSingleCurrency: boolean
   taxesCode?: string
   nonpayableCode?: string
   advancePaymentCode?: string
@@ -99,8 +101,9 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
 
   const catalogClient = useCatalogManagerClient(accessToken)
 
-  // React Hook Form setup
+  // React Hook Form setup with Zod validation
   const form = useForm<CalculationRuleFormData>({
+    resolver: zodResolver(calculationRuleFormSchema),
     defaultValues: {
       code: '',
       name: '',
@@ -331,7 +334,6 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
                     <FormField
                       control={form.control}
                       name="code"
-                      rules={{ required: 'Rule code is required' }}
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>
@@ -471,7 +473,6 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
                     <FormField
                       control={form.control}
                       name="activeFrom"
-                      rules={{ required: 'Active from is required' }}
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>

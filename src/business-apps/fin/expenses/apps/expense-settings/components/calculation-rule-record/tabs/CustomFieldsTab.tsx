@@ -447,6 +447,9 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
         return
       }
 
+      // IMPORTANT: Always use editingItem for id and version when updating
+      const isUpdate = !!editingItem
+
       // If restricted edit, only update validTo and infoValue
       if (isRestrictedEdit && editingItem) {
         await expenseSettingsClient.saveExpenseRuleOtherInfo({
@@ -464,7 +467,7 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
       } else {
         // Full save
         const payload = {
-          ...(editingItem && { id: editingItem.id, version: editingItem.version }),
+          ...(isUpdate && { id: editingItem.id, version: editingItem.version }),
           expenseRuleId: ruleId,
           businessKey: undefined,
           activeTo: formValues.validTo ? dayjs(formValues.validTo).endOf('day').toISOString() : null,

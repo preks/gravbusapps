@@ -368,32 +368,61 @@ export class ExpenseSettingsClient extends RestClient {
   async saveExpenseRuleAllowanceCode(data: any): Promise<any> {
     // Determine if this is create or update based on presence of id
     const hasId = data.id
+    console.log('[ExpenseSettingsClient] saveExpenseRuleAllowanceCode - data received:', data)
+    console.log('[ExpenseSettingsClient] saveExpenseRuleAllowanceCode - hasId:', hasId)
+
+    // Helper to check if a value should be included (not undefined and not empty string for strings)
+    const hasValue = (val: any) => val !== undefined && val !== null && val !== ''
+
+    // Build payload - for UPDATE, always include relationship fields even if null
+    const expenseRuleAllowanceCode: any = {
+      ...(hasId && { id: data.id }),
+      ...(data.version !== undefined && { version: data.version }),
+      ...(hasValue(data.businessKey) && { businessKey: data.businessKey }),
+      ...(data.activeTo !== undefined && { activeTo: data.activeTo }),
+      additionalProperties: data.additionalProperties || {},
+      ...(hasValue(data.code) && { code: data.code }),
+      ...(hasValue(data.name) && { name: data.name }),
+      ...(data.reimbursable !== undefined && { reimbursable: data.reimbursable }),
+      ...(data.amount !== undefined && { amount: data.amount }),
+      ...(hasValue(data.calculationRef) && { calculationRef: data.calculationRef }),
+      ...(hasValue(data.firstWageCode) && { firstWageCode: data.firstWageCode }),
+      ...(hasValue(data.secondWageCode) && { secondWageCode: data.secondWageCode }),
+      ...(hasValue(data.expenseGroupRef) && { expenseGroupRef: data.expenseGroupRef }),
+      ...(data.activeFrom !== undefined && { activeFrom: data.activeFrom }),
+      ...(hasValue(data.travelLocation) && { travelLocation: data.travelLocation }),
+      ...(data.codeOrder !== undefined && { codeOrder: data.codeOrder }),
+      ...(data.expenseRuleId && { expenseRule: data.expenseRuleId })
+    }
+
+    // Include relationship fields AND their percents ONLY as pairs
+    // Backend expects: if you send the percent, you MUST send the rule ID (and vice versa)
+    if (hasValue(data.firstAllowanceRegionRuleId)) {
+      expenseRuleAllowanceCode.firstAllowanceRegionRule = data.firstAllowanceRegionRuleId
+      expenseRuleAllowanceCode.firstAllowanceRegionRulePercent = data.firstAllowanceRegionRulePercent ?? 0
+    }
+    if (hasValue(data.secondAllowanceRegionRuleId)) {
+      expenseRuleAllowanceCode.secondAllowanceRegionRule = data.secondAllowanceRegionRuleId
+      expenseRuleAllowanceCode.secondAllowanceRegionRulePercent = data.secondAllowanceRegionRulePercent ?? 0
+    }
+
     const payload = {
-      expenseRuleAllowanceCode: {
-        ...(hasId && { id: data.id }),
-        ...(data.version !== undefined && { version: data.version }),
-        businessKey: data.businessKey,
-        activeTo: data.activeTo,
-        additionalProperties: data.additionalProperties || {},
-        code: data.code,
-        name: data.name,
-        reimbursable: data.reimbursable,
-        amount: data.amount,
-        firstAllowanceRegionRulePercent: data.firstAllowanceRegionRulePercent,
-        secondAllowanceRegionRulePercent: data.secondAllowanceRegionRulePercent,
-        calculationRef: data.calculationRef,
-        firstWageCode: data.firstWageCode,
-        secondWageCode: data.secondWageCode,
-        expenseGroupRef: data.expenseGroupRef,
-        activeFrom: data.activeFrom,
-        travelLocation: data.travelLocation,
-        codeOrder: data.codeOrder,
-        expenseRule: data.expenseRuleId,
-        firstAllowanceRegionRule: data.firstAllowanceRegionRuleId,
-        secondAllowanceRegionRule: data.secondAllowanceRegionRuleId
-      },
+      expenseRuleAllowanceCode,
       changeMode: hasId ? 'UPDATE' : 'INSERT'
     }
+    console.log('='.repeat(80))
+    console.log('[ALLOWANCE CODE] - FULL PAYLOAD TO BACKEND:')
+    console.log(JSON.stringify(payload, null, 2))
+    console.log('[ALLOWANCE CODE] - All fields present:', Object.keys(expenseRuleAllowanceCode).sort())
+    console.log(
+      '[ALLOWANCE CODE] - Null fields:',
+      Object.keys(expenseRuleAllowanceCode).filter(k => expenseRuleAllowanceCode[k] === null)
+    )
+    console.log(
+      '[ALLOWANCE CODE] - Undefined fields:',
+      Object.keys(expenseRuleAllowanceCode).filter(k => expenseRuleAllowanceCode[k] === undefined)
+    )
+    console.log('='.repeat(80))
     return this.post(`/${BASE_PATH}/saveExpenseRuleAllowanceCode`, payload)
   }
 
@@ -412,23 +441,30 @@ export class ExpenseSettingsClient extends RestClient {
   async saveExpenseRuleDeduction(data: any): Promise<any> {
     // Determine if this is create or update based on presence of id
     const hasId = data.id
+
+    // Helper to check if a value should be included
+    const hasValue = (val: any) => val !== undefined && val !== null && val !== ''
+
+    // Build payload with only defined fields to support restricted edit mode
+    const expenseRuleDeduction: any = {
+      ...(hasId && { id: data.id }),
+      ...(data.version !== undefined && { version: data.version }),
+      ...(data.expenseRuleId && { expenseRuleId: data.expenseRuleId }),
+      ...(data.deductBreakfast !== undefined && { deductBreakfast: data.deductBreakfast }),
+      ...(data.deductLunch !== undefined && { deductLunch: data.deductLunch }),
+      ...(data.deductDinner !== undefined && { deductDinner: data.deductDinner }),
+      ...(hasValue(data.deductionDay) && { deductionDay: data.deductionDay }),
+      ...(data.deductionOrder !== undefined && { deductionOrder: data.deductionOrder }),
+      ...(data.overnightAllowance !== undefined && { overnightAllowance: data.overnightAllowance }),
+      ...(data.activeFrom !== undefined && { activeFrom: data.activeFrom }),
+      ...(data.activeTo !== undefined && { activeTo: data.activeTo }),
+      ...(data.taxBreakfast !== undefined && { taxBreakfast: data.taxBreakfast }),
+      ...(data.taxLunch !== undefined && { taxLunch: data.taxLunch }),
+      ...(data.taxDinner !== undefined && { taxDinner: data.taxDinner })
+    }
+
     const payload = {
-      expenseRuleDeduction: {
-        ...(hasId && { id: data.id }),
-        expenseRuleId: data.expenseRuleId,
-        deductBreakfast: data.deductBreakfast,
-        deductLunch: data.deductLunch,
-        deductDinner: data.deductDinner,
-        deductionDay: data.deductionDay,
-        deductionOrder: data.deductionOrder,
-        overnightAllowance: data.overnightAllowance,
-        activeFrom: data.activeFrom,
-        activeTo: data.activeTo,
-        taxBreakfast: data.taxBreakfast,
-        taxLunch: data.taxLunch,
-        taxDinner: data.taxDinner,
-        ...(data.version !== undefined && { version: data.version })
-      },
+      expenseRuleDeduction,
       changeMode: hasId ? 'UPDATE' : 'INSERT'
     }
     return this.post(`/${BASE_PATH}/saveExpenseRuleDeduction`, payload)
@@ -448,26 +484,48 @@ export class ExpenseSettingsClient extends RestClient {
   async saveExpenseRuleGeneralExpense(data: any): Promise<any> {
     // Determine if this is create or update based on presence of id
     const hasId = data.id
+    console.log('[ExpenseSettingsClient] saveExpenseRuleGeneralExpense - data received:', data)
+    console.log('[ExpenseSettingsClient] saveExpenseRuleGeneralExpense - hasId:', hasId)
+
+    // Helper to check if a value should be included (not undefined and not empty string for strings)
+    const hasValue = (val: any) => val !== undefined && val !== null && val !== ''
+
+    // Build payload with only defined, non-empty fields to support restricted edit mode
+    const expenseRuleGeneralExpense: any = {
+      ...(hasId && { id: data.id }),
+      ...(data.version !== undefined && { version: data.version }),
+      ...(hasValue(data.businessKey) && { businessKey: data.businessKey }),
+      ...(data.activeTo !== undefined && { activeTo: data.activeTo }),
+      additionalProperties: data.additionalProperties || {},
+      ...(hasValue(data.code) && { code: data.code }),
+      ...(hasValue(data.name) && { name: data.name }),
+      ...(data.reimbursable !== undefined && { reimbursable: data.reimbursable }),
+      ...(data.taxValue !== undefined && { taxValue: data.taxValue }),
+      ...(hasValue(data.taxCodeRef) && { taxCodeRef: data.taxCodeRef }),
+      ...(hasValue(data.wageCode) && { wageCode: data.wageCode }),
+      ...(hasValue(data.expenseGroupRef) && { expenseGroupRef: data.expenseGroupRef }),
+      ...(data.activeFrom !== undefined && { activeFrom: data.activeFrom }),
+      ...(data.expenseOrder !== undefined && { expenseOrder: data.expenseOrder }),
+      ...(data.expenseRuleId && { expenseRule: data.expenseRuleId })
+    }
+
     const payload = {
-      expenseRuleGeneralExpense: {
-        ...(hasId && { id: data.id }),
-        ...(data.version !== undefined && { version: data.version }),
-        businessKey: data.businessKey,
-        activeTo: data.activeTo,
-        additionalProperties: data.additionalProperties || {},
-        code: data.code,
-        name: data.name,
-        reimbursable: data.reimbursable,
-        taxValue: data.taxValue,
-        taxCodeRef: data.taxCodeRef,
-        wageCode: data.wageCode,
-        expenseGroupRef: data.expenseGroupRef,
-        activeFrom: data.activeFrom,
-        expenseOrder: data.expenseOrder,
-        expenseRule: data.expenseRuleId
-      },
+      expenseRuleGeneralExpense,
       changeMode: hasId ? 'UPDATE' : 'INSERT'
     }
+    console.log('='.repeat(80))
+    console.log('[GENERAL EXPENSE] - FULL PAYLOAD TO BACKEND:')
+    console.log(JSON.stringify(payload, null, 2))
+    console.log('[GENERAL EXPENSE] - All fields present:', Object.keys(expenseRuleGeneralExpense).sort())
+    console.log(
+      '[GENERAL EXPENSE] - Null fields:',
+      Object.keys(expenseRuleGeneralExpense).filter(k => expenseRuleGeneralExpense[k] === null)
+    )
+    console.log(
+      '[GENERAL EXPENSE] - Undefined fields:',
+      Object.keys(expenseRuleGeneralExpense).filter(k => expenseRuleGeneralExpense[k] === undefined)
+    )
+    console.log('='.repeat(80))
     return this.post(`/${BASE_PATH}/saveExpenseRuleGeneralExpense`, payload)
   }
 

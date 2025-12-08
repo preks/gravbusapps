@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import {
   Dialog,
   DialogContent,
@@ -21,6 +22,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { ExpenseSettingsClient } from '../../utils/ExpenseSettingsClient'
 import dayjs from 'dayjs'
+import { allowanceRegionRuleFormSchema } from '../../schemas'
 
 // Custom toast function
 const toast = (message: string, type: 'success' | 'error' = 'success') => {
@@ -57,8 +59,9 @@ const AllowanceRegionRuleForm: React.FC<AllowanceRegionRuleFormProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // React Hook Form setup
+  // React Hook Form setup with Zod validation
   const form = useForm<AllowanceRegionRuleFormData>({
+    resolver: zodResolver(allowanceRegionRuleFormSchema),
     defaultValues: {
       code: '',
       name: '',
@@ -93,12 +96,6 @@ const AllowanceRegionRuleForm: React.FC<AllowanceRegionRuleFormProps> = ({
   }, [open, travelRegionSetId, form])
 
   const handleSubmit = async (data: AllowanceRegionRuleFormData) => {
-    // Validate required fields
-    if (!data.code.trim() || !data.name.trim()) {
-      setError('Code and Name are required')
-      return
-    }
-
     setIsSubmitting(true)
     setError(null)
 
@@ -178,7 +175,6 @@ const AllowanceRegionRuleForm: React.FC<AllowanceRegionRuleFormProps> = ({
               <FormField
                 control={form.control}
                 name="code"
-                rules={{ required: 'Code is required' }}
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>
@@ -202,7 +198,6 @@ const AllowanceRegionRuleForm: React.FC<AllowanceRegionRuleFormProps> = ({
               <FormField
                 control={form.control}
                 name="name"
-                rules={{ required: 'Name is required' }}
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>
@@ -250,7 +245,6 @@ const AllowanceRegionRuleForm: React.FC<AllowanceRegionRuleFormProps> = ({
                 <FormField
                   control={form.control}
                   name="activeFrom"
-                  rules={{ required: 'Active from is required' }}
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>
