@@ -28,7 +28,7 @@ export const TopRevenueEarners: React.FC<TopRevenueEarnersProps> = ({ contacts, 
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <div className="gba:text-center gba:text-gray-500 gba:py-8">Loading revenue data...</div>
+          <div className="gba:text-center gba:text-muted-foreground gba:py-8">Loading revenue data...</div>
         ) : contacts.length > 0 ? (
           <div className="gba:space-y-3">
             {contacts.map((contact, index) => (
@@ -43,21 +43,21 @@ export const TopRevenueEarners: React.FC<TopRevenueEarnersProps> = ({ contacts, 
                     <div className="gba:font-medium">
                       {contact.firstName} {contact.lastName}
                     </div>
-                    <div className="gba:text-sm gba:text-gray-600">
+                    <div className="gba:text-sm gba:text-muted-foreground">
                       {contact.accountName} • {contact.wonOpportunities} won opportunities
                     </div>
-                    <div className="gba:text-xs gba:text-gray-500">{contact.email}</div>
+                    <div className="gba:text-xs gba:text-muted-foreground">{contact.email}</div>
                   </div>
                 </div>
                 <div className="gba:text-right">
                   <div className="gba:font-bold">${contact.totalRevenue.toLocaleString()}</div>
-                  <div className="gba:text-sm gba:text-gray-600">Revenue</div>
+                  <div className="gba:text-sm gba:text-muted-foreground">Revenue</div>
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <div className="gba:text-center gba:text-gray-500 gba:py-8">No contacts with revenue available</div>
+          <div className="gba:text-center gba:text-muted-foreground gba:py-8">No contacts with revenue available</div>
         )}
       </CardContent>
     </Card>

@@ -10,6 +10,7 @@ import {
   TrophyOutlined
 } from '@ant-design/icons'
 import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
+import type { OverviewTrendData } from '../../hooks'
 
 export interface OverviewCounts {
   leads: number
@@ -22,40 +23,100 @@ export interface ConversionMetrics {
   leadToOpportunityRate: number
   opportunityWinRate: number
   avgDealSize: number
-  salesCycleLength: number
+  totalWonRevenue: number
+  salesCycleLength?: number // Optional: not used in KPIs display
 }
 
-export interface TrendData {
-  totalLeadsThisMonth: number
-  totalLeadsLastMonth: number
-  totalAccountsThisMonth: number
-  totalAccountsLastMonth: number
-  totalOpportunitiesThisMonth: number
-  totalOpportunitiesLastMonth: number
-  totalContactsThisMonth: number
-  totalContactsLastMonth: number
-  currentMonthWonOpportunities: number
-  previousMonthWonOpportunities: number
-  // New trend metrics for conversion rates and performance indicators
-  currentMonthLeadConversionRate: number
-  previousMonthLeadConversionRate: number
-  currentMonthAvgDealSize: number
-  previousMonthAvgDealSize: number
-  currentMonthSalesCycleLength: number
-  previousMonthSalesCycleLength: number
+/**
+ * Configuration for customizing KPI labels and descriptions
+ * Allows modules (CRM, IRM, etc.) to use their own terminology
+ */
+export interface KpiLabels {
+  // First row KPIs (entity counts)
+  leads?: { title: string; description: string }
+  accounts?: { title: string; description: string }
+  opportunities?: { title: string; description: string }
+  contacts?: { title: string; description: string }
+
+  // Second row KPIs (conversion metrics)
+  leadToOpportunityRate?: { title: string; description: string }
+  opportunityWinRate?: { title: string; description: string }
+  avgDealSize?: { title: string; description: string }
+  totalWonRevenue?: { title: string; description: string }
+}
+
+/**
+ * Configuration for showing/hiding specific KPIs
+ * Set to false to hide a KPI from the overview
+ */
+export interface KpiVisibility {
+  leads?: boolean
+  accounts?: boolean
+  opportunities?: boolean
+  contacts?: boolean
+  leadToOpportunityRate?: boolean
+  opportunityWinRate?: boolean
+  avgDealSize?: boolean
+  totalWonRevenue?: boolean
 }
 
 export interface OverviewMetricsWidgetsProps {
   counts: OverviewCounts
   conversionMetrics: ConversionMetrics
-  trendData?: TrendData | null
+  trendData?: OverviewTrendData | null
   trendLoading?: boolean
   selectedCurrency?: string
   onCurrencyChange?: (currency: string) => void
   availableCurrencies?: string[]
+
+  // Optional: Customize KPI labels (defaults to CRM terminology)
+  kpiLabels?: KpiLabels
+
+  // Optional: Show/hide specific KPIs (all shown by default)
+  kpiVisibility?: KpiVisibility
+}
+
+/**
+ * Default KPI labels (CRM terminology)
+ */
+const DEFAULT_KPI_LABELS: Required<KpiLabels> = {
+  leads: {
+    title: 'Total Leads',
+    description: 'Active leads in system'
+  },
+  accounts: {
+    title: 'Total Accounts',
+    description: 'Active accounts in system'
+  },
+  opportunities: {
+    title: 'Total Opportunities',
+    description: 'Active opportunities in pipeline'
+  },
+  contacts: {
+    title: 'Total Contacts',
+    description: 'Active contacts in system'
+  },
+  leadToOpportunityRate: {
+    title: 'Lead to Opportunity Rate',
+    description: 'Lead conversion efficiency'
+  },
+  opportunityWinRate: {
+    title: 'Opportunity Win Rate',
+    description: 'Deal closing success rate'
+  },
+  avgDealSize: {
+    title: 'Avg Deal Size',
+    description: 'Average opportunity value'
+  },
+  totalWonRevenue: {
+    title: 'Total Won Revenue',
+    description: 'Total revenue from won opportunities'
+  }
 }
 
 const calculateTrend = (current: number, previous: number) => {
+  console.log('Previos: ', previous)
+  console.log('Current: ', current)
   // Handle edge case where previous is 0
   if (previous === 0) {
     if (current === 0) {
@@ -90,97 +151,159 @@ export const OverviewMetricsWidgets: React.FC<OverviewMetricsWidgetsProps> = ({
   trendLoading = false,
   selectedCurrency = 'EUR',
   onCurrencyChange,
-  availableCurrencies = ['EUR', 'USD']
+  availableCurrencies = ['EUR', 'USD'],
+  kpiLabels = {},
+  kpiVisibility = {}
 }) => {
-  const keyMetricsWidgets: WidgetItem[] = [
-    {
+  // Merge custom labels with defaults
+  const labels = {
+    leads: { ...DEFAULT_KPI_LABELS.leads, ...kpiLabels.leads },
+    accounts: { ...DEFAULT_KPI_LABELS.accounts, ...kpiLabels.accounts },
+    opportunities: { ...DEFAULT_KPI_LABELS.opportunities, ...kpiLabels.opportunities },
+    contacts: { ...DEFAULT_KPI_LABELS.contacts, ...kpiLabels.contacts },
+    leadToOpportunityRate: { ...DEFAULT_KPI_LABELS.leadToOpportunityRate, ...kpiLabels.leadToOpportunityRate },
+    opportunityWinRate: { ...DEFAULT_KPI_LABELS.opportunityWinRate, ...kpiLabels.opportunityWinRate },
+    avgDealSize: { ...DEFAULT_KPI_LABELS.avgDealSize, ...kpiLabels.avgDealSize },
+    totalWonRevenue: { ...DEFAULT_KPI_LABELS.totalWonRevenue, ...kpiLabels.totalWonRevenue }
+  }
+
+  // Default visibility: all KPIs are shown unless explicitly hidden
+  const visibility = {
+    leads: kpiVisibility.leads !== false,
+    accounts: kpiVisibility.accounts !== false,
+    opportunities: kpiVisibility.opportunities !== false,
+    contacts: kpiVisibility.contacts !== false,
+    leadToOpportunityRate: kpiVisibility.leadToOpportunityRate !== false,
+    opportunityWinRate: kpiVisibility.opportunityWinRate !== false,
+    avgDealSize: kpiVisibility.avgDealSize !== false,
+    totalWonRevenue: kpiVisibility.totalWonRevenue !== false
+  }
+
+  // Build KPI widgets based on visibility
+  const keyMetricsWidgets: WidgetItem[] = []
+
+  if (visibility.leads) {
+    keyMetricsWidgets.push({
       key: 'total-leads',
-      title: 'Total Leads',
+      title: labels.leads.title,
       value: counts.leads,
       prefix: <UserOutlined />,
-      description: 'Active leads in system',
+      description: labels.leads.description,
       ...(trendData && !trendLoading
-        ? { trend: calculateTrend(trendData.totalLeadsThisMonth, trendData.totalLeadsLastMonth) }
+        ? { trend: calculateTrend(trendData.leads.current, trendData.leads.previous) }
         : {})
-    },
-    {
+    })
+  }
+
+  if (visibility.accounts) {
+    keyMetricsWidgets.push({
       key: 'total-accounts',
-      title: 'Total Accounts',
+      title: labels.accounts.title,
       value: counts.accounts,
       prefix: <BankOutlined />,
-      description: 'Active accounts in system',
+      description: labels.accounts.description,
       ...(trendData && !trendLoading
-        ? { trend: calculateTrend(trendData.totalAccountsThisMonth, trendData.totalAccountsLastMonth) }
+        ? { trend: calculateTrend(trendData.accounts.current, trendData.accounts.previous) }
         : {})
-    },
-    {
+    })
+  }
+
+  if (visibility.opportunities) {
+    keyMetricsWidgets.push({
       key: 'total-opportunities',
-      title: 'Total Opportunities',
+      title: labels.opportunities.title,
       value: counts.opportunities,
       prefix: <DollarCircleOutlined />,
-      description: 'Active opportunities in pipeline',
+      description: labels.opportunities.description,
       ...(trendData && !trendLoading
-        ? { trend: calculateTrend(trendData.totalOpportunitiesThisMonth, trendData.totalOpportunitiesLastMonth) }
+        ? { trend: calculateTrend(trendData.opportunities.current, trendData.opportunities.previous) }
         : {})
-    },
-    {
+    })
+  }
+
+  if (visibility.contacts) {
+    keyMetricsWidgets.push({
       key: 'total-contacts',
-      title: 'Total Contacts',
+      title: labels.contacts.title,
       value: counts.contacts,
       prefix: <ContactsOutlined />,
-      description: 'Active contacts in system',
+      description: labels.contacts.description,
       ...(trendData && !trendLoading
-        ? { trend: calculateTrend(trendData.totalContactsThisMonth, trendData.totalContactsLastMonth) }
+        ? { trend: calculateTrend(trendData.contacts.current, trendData.contacts.previous) }
         : {})
-    }
-  ]
+    })
+  }
 
-  const conversionWidgets: WidgetItem[] = [
-    {
+  const conversionWidgets: WidgetItem[] = []
+
+  if (visibility.leadToOpportunityRate) {
+    // Trend shows change in opportunities created (last 30 days vs previous 30 days)
+    // Note: We compare absolute counts, not rates, to avoid division by zero when few entities exist
+    conversionWidgets.push({
       key: 'lead-conversion-rate',
-      title: 'Lead to Opportunity Rate',
+      title: labels.leadToOpportunityRate.title,
       value: `${conversionMetrics.leadToOpportunityRate}%`,
       valueIsString: true,
       prefix: <PercentageOutlined />,
-      description: 'Lead conversion efficiency',
+      description: labels.leadToOpportunityRate.description,
       ...(trendData && !trendLoading
-        ? { trend: calculateTrend(trendData.currentMonthLeadConversionRate, trendData.previousMonthLeadConversionRate) }
+        ? { trend: calculateTrend(trendData.opportunities.current, trendData.opportunities.previous) }
         : {})
-    },
-    {
+    })
+  }
+
+  if (visibility.opportunityWinRate) {
+    // Trend shows change in won opportunities (last 30 days vs previous 30 days)
+    // Note: We compare absolute counts, not rates, to avoid division by zero when few entities exist
+    conversionWidgets.push({
       key: 'opportunity-win-rate',
-      title: 'Opportunity Win Rate',
+      title: labels.opportunityWinRate.title,
       value: `${conversionMetrics.opportunityWinRate}%`,
       valueIsString: true,
       prefix: <TrophyOutlined />,
-      description: 'Deal closing success rate',
+      description: labels.opportunityWinRate.description,
       ...(trendData && !trendLoading
-        ? { trend: calculateTrend(trendData.currentMonthWonOpportunities, trendData.previousMonthWonOpportunities) }
+        ? { trend: calculateTrend(trendData.wonOpportunities.current, trendData.wonOpportunities.previous) }
         : {})
-    },
-    {
+    })
+  }
+
+  if (visibility.avgDealSize) {
+    // Calculate avg deal size for each period (last 30 days vs previous 30 days)
+    // If no won opportunities in a period, default to 0 to avoid division by zero
+    const currentAvgDealSize =
+      trendData && trendData.wonOpportunities.current > 0
+        ? trendData.wonRevenue.current / trendData.wonOpportunities.current
+        : 0
+    const previousAvgDealSize =
+      trendData && trendData.wonOpportunities.previous > 0
+        ? trendData.wonRevenue.previous / trendData.wonOpportunities.previous
+        : 0
+
+    conversionWidgets.push({
       key: 'avg-deal-size',
-      title: 'Avg Deal Size',
+      title: labels.avgDealSize.title,
       value: formatCurrencyCompact(conversionMetrics.avgDealSize, selectedCurrency, undefined, 1, true),
       valueIsString: true,
       prefix: <DollarCircleOutlined />,
-      description: 'Average opportunity value',
-      ...(trendData && !trendLoading
-        ? { trend: calculateTrend(trendData.currentMonthAvgDealSize, trendData.previousMonthAvgDealSize) }
-        : {})
-    },
-    {
+      description: labels.avgDealSize.description,
+      ...(trendData && !trendLoading ? { trend: calculateTrend(currentAvgDealSize, previousAvgDealSize) } : {})
+    })
+  }
+
+  if (visibility.totalWonRevenue) {
+    conversionWidgets.push({
       key: 'total-won-revenue',
-      title: 'Total Won Revenue',
-      value: formatCurrencyCompact(conversionMetrics.salesCycleLength, selectedCurrency, undefined, 1, true),
+      title: labels.totalWonRevenue.title,
+      value: formatCurrencyCompact(conversionMetrics.totalWonRevenue, selectedCurrency, undefined, 1, true),
       valueIsString: true,
       prefix: <DollarCircleOutlined />,
-      description: 'Total revenue from won opportunities',
+      description: labels.totalWonRevenue.description,
       ...(trendData && !trendLoading
-        ? { trend: calculateTrend(trendData.currentMonthSalesCycleLength, trendData.previousMonthSalesCycleLength) }
+        ? { trend: calculateTrend(trendData.wonRevenue.current, trendData.wonRevenue.previous) }
         : {})
-    }
-  ]
+    })
+  }
 
   const allKpiWidgets = [...keyMetricsWidgets, ...conversionWidgets]
 

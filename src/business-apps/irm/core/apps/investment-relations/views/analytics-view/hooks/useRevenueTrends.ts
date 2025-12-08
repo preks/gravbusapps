@@ -4,9 +4,15 @@
  *
  * Note: IRM uses 'InvestmentOpportunity' as the entity name and 'opportunityPipeline' as the pipeline field
  */
-import { useRevenueTrends as useSharedRevenueTrends } from '@/common/hooks/analytics/useRevenueTrends'
+import {
+  useRevenueTrends as useSharedRevenueTrends,
+  type TimeFilter
+} from '@/common/components/common-relations/view-layouts/analytics-layout/hooks'
 
-export type { RevenueTrendData, TimeFilter } from '@/common/hooks/analytics/useRevenueTrends'
+export type {
+  RevenueTrendData,
+  TimeFilter
+} from '@/common/components/common-relations/view-layouts/analytics-layout/hooks'
 
 /**
  * Wrapper hook for IRM that uses 'InvestmentOpportunity' entity

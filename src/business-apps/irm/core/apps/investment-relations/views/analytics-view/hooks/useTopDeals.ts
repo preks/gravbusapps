@@ -4,9 +4,9 @@
  *
  * Note: IRM uses 'InvestmentOpportunity', 'opportunityPipelineStage', and doesn't have winningChance
  */
-import { useTopDeals as useSharedTopDeals } from '@/common/hooks/analytics/useTopDeals'
+import { useTopDeals as useSharedTopDeals } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks'
 
-export type { TopDeal } from '@/common/hooks/analytics/useTopDeals'
+export type { TopDeal } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks'
 
 /**
  * Wrapper hook for IRM that uses 'InvestmentOpportunity' entity with limit 10

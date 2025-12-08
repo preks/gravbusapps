@@ -20,6 +20,7 @@ import { useContactInsights } from './hooks/useContactInsights'
 import { useContactQualityData } from './hooks/useContactQualityData'
 import { useTopRevenueEarners } from './hooks/useTopRevenueEarners'
 import { useCrmAnalyticsData } from './hooks/useCrmAnalyticsData'
+import { useOverviewData } from './hooks/useOverviewData'
 import { useRevenueTrends } from './hooks/useRevenueTrends'
 import { usePipelineHealth } from './hooks/usePipelineHealth'
 import { useActivityHeatmap } from './hooks/useActivityHeatmap'
@@ -31,6 +32,7 @@ import { useLeadsOverTime } from './hooks/useLeadsOverTime'
 import { useLeadsStaticData } from './hooks/useLeadsStaticData'
 import { useAccountsStaticData } from './hooks/useAccountsStaticData'
 import { useAccountsOverTime } from './hooks/useAccountsOverTime'
+import { useTopAccountsByRevenue } from './hooks/useTopAccountsByRevenue'
 import { useOpportunitiesStaticData } from './hooks/useOpportunitiesStaticData'
 import { useTopDeals } from './hooks/useTopDeals'
 
@@ -109,17 +111,23 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
 
   // Contacts now uses same time filter types as Leads and Accounts
 
-  // Data hooks - Pass active tab for lazy loading
-  const { data, isLoading, error, refetch } = useCrmAnalyticsData(
+  // Overview tab - Use dedicated hook
+  const { data: overviewData } = useOverviewData(
+    activeAnalyticsTab === 'overview' ? context.accessToken : '',
+    kpiCurrency
+  )
+
+  // Legacy hook - kept for backward compatibility (can be removed once all tabs use dedicated hooks)
+  const { isLoading, error, refetch } = useCrmAnalyticsData(
     context,
     activeAnalyticsTab, // Only fetch data for active tab (Overview only)
     kpiCurrency
   )
 
   // Only fetch data for active tab - conditional data fetching
-  // Overview tab data
-  const kpiTrendData = activeAnalyticsTab === 'overview' ? data?.overviewTrendData || null : null
-  const geographicData = activeAnalyticsTab === 'overview' ? data?.overviewGeographicData || [] : []
+  // Overview tab data - get trend data from useOverviewData hook
+  const kpiTrendData = activeAnalyticsTab === 'overview' ? overviewData?.overviewTrendData || null : null
+  const geographicData = activeAnalyticsTab === 'overview' ? overviewData?.overviewGeographicData || [] : []
 
   const { revenueTrends, isLoading: revenueLoading } = useRevenueTrends(
     activeAnalyticsTab === 'overview' ? context.accessToken : '',
@@ -134,7 +142,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
   const { activityData: activityHeatmap, isLoading: activityLoading } = useActivityHeatmap(
     activeAnalyticsTab === 'overview' ? context.accessToken : ''
   )
-  const { contacts: topRevenueContacts } = useTopRevenueEarners(
+  const { contacts: topRevenueContacts, isLoading: topPerformersLoading } = useTopRevenueEarners(
     activeAnalyticsTab === 'overview' ? context.accessToken : '',
     topPerformersCurrency
   )
@@ -153,6 +161,12 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
   // Accounts static data (KPIs + trends) - single query
   const { data: accountsStaticData, isLoading: accountsStaticLoading } = useAccountsStaticData(
     activeAnalyticsTab === 'accounts' ? context.accessToken : ''
+  )
+
+  // Top Accounts by Revenue - separate query with currency filter (only refetches on currency change)
+  const { data: topAccountsByRevenue, isLoading: topAccountsLoading } = useTopAccountsByRevenue(
+    activeAnalyticsTab === 'accounts' ? context.accessToken : '',
+    accountsCurrency
   )
 
   // Accounts lifecycle chart data - dynamic time filter
@@ -249,18 +263,29 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     )
   }
 
-  // Prepare Overview Props - Always show tab
+  // Prepare Overview Props - Uses flexible shared layout
+  // Note: All components below marked "Optional" can be removed by not passing them
   const overviewProps = {
     title: 'CRM Overview',
-    counts: data?.overview?.totalCounts || { leads: 0, accounts: 0, opportunities: 0, contacts: 0 },
-    conversionMetrics: data?.overview?.conversionMetrics || {
-      leadToOpportunityRate: 0,
-      opportunityWinRate: 0,
-      avgDealSize: 0,
-      salesCycleLength: 0 // Now represents Total Won Revenue (filtered by kpiCurrency)
+    moduleColor,
+
+    // Required: Core KPI metrics
+    counts: overviewData?.overview?.totalCounts || { leads: 0, accounts: 0, opportunities: 0, contacts: 0 },
+    conversionMetrics: {
+      leadToOpportunityRate: overviewData?.overview?.conversionMetrics?.leadToOpportunityRate || 0,
+      opportunityWinRate: overviewData?.overview?.conversionMetrics?.opportunityWinRate || 0,
+      avgDealSize: overviewData?.overview?.conversionMetrics?.avgDealSize || 0,
+      totalWonRevenue: overviewData?.overview?.conversionMetrics?.totalWonRevenue || 0,
+      salesCycleLength: overviewData?.overview?.conversionMetrics?.salesCycleLength || 0 // Default to 0 if not provided
     },
     trendData: kpiTrendData || null,
     trendLoading: false,
+
+    // CRM uses default KPI labels (no customization needed)
+    // kpiLabels: undefined,
+    // kpiVisibility: undefined,
+
+    // Required: Revenue trends with currency filter
     pipelines: pipelines || [],
     revenuePipelineId: revenuePipelineId,
     onRevenuePipelineChange: setRevenuePipelineId,
@@ -268,33 +293,44 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     onRevenueTimeFilterChange: setRevenueTimeFilter,
     revenueTrends: revenueTrends || [],
     revenueLoading: revenueLoading,
-    healthPipelineId: healthPipelineId,
-    onHealthPipelineChange: setHealthPipelineId,
+    revenueCurrency,
+    onRevenueCurrencyChange: setRevenueCurrency,
+
+    // Optional: Pipeline Health chart (remove by deleting these props)
     pipelineHealth: {
       data: pipelineHealth,
       isLoading: pipelineHealthLoading
     },
+    healthPipelineId: healthPipelineId,
+    onHealthPipelineChange: setHealthPipelineId,
+
+    // Optional: Geographic Distribution chart
     geographicDistribution: {
       data: geographicData || [],
       isLoading: isLoading
     },
+
+    // Optional: Activity Timeline chart
     activityHeatmap: {
       data: activityHeatmap || [],
       isLoading: activityLoading
     },
+
+    // Optional: Top Performers table
     topPerformers: topRevenueContacts.map(contact => ({
       employeeId: contact.id,
       employeeName: `${contact.firstName} ${contact.lastName}`,
       dealsWon: contact.wonOpportunities,
       totalValue: contact.totalRevenue
     })),
+    topPerformersLoading,
+    topPerformersCurrency,
+    onTopPerformersCurrencyChange: setTopPerformersCurrency,
+
+    // Currency controls
     kpiCurrency,
     onKpiCurrencyChange: setKpiCurrency,
-    availableCurrencies,
-    revenueCurrency,
-    onRevenueCurrencyChange: setRevenueCurrency,
-    topPerformersCurrency,
-    onTopPerformersCurrencyChange: setTopPerformersCurrency
+    availableCurrencies
   }
 
   // Prepare Leads Props - Always show tab
@@ -324,23 +360,62 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
       leadCount: o.leadCount,
       conversionRate: o.conversionRate
     })),
-    leadsByRating: (leadsStaticData?.leadsByRating || []).map(r => ({
-      rating: r.rating,
-      count: r.count,
-      percentage: r.percentage
-    })),
-    leadsByRatingLoading: leadsStaticLoading,
-    highQualityPercentage: leadsStaticData?.highQualityPercentage || 0,
     // Lead velocity data from combined static data
     velocityData: leadsStaticData
       ? {
           avgTimeToConversion: leadsStaticData.avgTimeToConversion,
           conversionRate: leadsStaticData.conversionRate,
-          volumeTrend: leadsStaticData.volumeTrend,
-          velocityTrendData: leadsStaticData.velocityTrendData
+          volumeTrend: 0, // Generic hook doesn't calculate this
+          velocityTrendData: leadsStaticData.velocityData // Map velocityData to velocityTrendData
         }
       : null,
-    velocityLoading: leadsStaticLoading
+    velocityLoading: leadsStaticLoading,
+
+    // Lead Quality Matrix - shows source distribution with conversion rates
+    leadQualityMatrix: leadsStaticData
+      ? {
+          leadsBySource: (leadsStaticData.leadsBySource || []).map(s => ({
+            source: s.source,
+            count: s.count,
+            percentage: s.percentage,
+            conversionRate: s.conversionRate
+          })),
+          isLoading: leadsStaticLoading
+        }
+      : undefined,
+
+    // Lead Engagement Insights - shows rating distribution and health indicators
+    leadEngagementInsights: leadsStaticData
+      ? {
+          leadsByRating: (leadsStaticData.leadsByRating || []).map(r => ({
+            rating: r.rating,
+            count: r.count,
+            percentage: r.percentage
+          })),
+          leadHealthIndicators: [
+            {
+              label: 'High Quality Leads',
+              value: leadsStaticData.highQualityPercentage || 0,
+              status: ((leadsStaticData.highQualityPercentage || 0) >= 50
+                ? 'good'
+                : (leadsStaticData.highQualityPercentage || 0) >= 30
+                  ? 'warning'
+                  : 'bad') as 'good' | 'warning' | 'bad'
+            },
+            {
+              label: 'Conversion Rate',
+              value: leadsStaticData.conversionRate || 0,
+              status: ((leadsStaticData.conversionRate || 0) >= 20
+                ? 'good'
+                : (leadsStaticData.conversionRate || 0) >= 10
+                  ? 'warning'
+                  : 'bad') as 'good' | 'warning' | 'bad'
+            }
+          ],
+          highQualityPercentage: leadsStaticData.highQualityPercentage || 0,
+          isLoading: leadsStaticLoading
+        }
+      : undefined
   }
 
   // Prepare Accounts Props - Always show tab
@@ -366,7 +441,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     onTimeFilterChange: setAccountsTimeFilter,
     accountsByIndustry: accountsStaticData?.accountsByIndustry || [],
     accountsBySize: accountsStaticData?.accountsBySize || [],
-    topAccounts: accountsStaticData?.topAccounts || [],
+    topAccounts: topAccountsByRevenue || [],
+    topAccountsLoading,
     monthlyGrowthTrend: accountsStaticData?.monthlyGrowthTrend || [],
     growthLoading: accountsStaticLoading,
     healthLoading: accountsStaticLoading,

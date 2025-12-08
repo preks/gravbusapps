@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
-import { useActivityHeatmap as useSharedActivityHeatmap } from '@/common/hooks/analytics/useActivityHeatmap'
+import { useActivityHeatmap as useSharedActivityHeatmap } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks'
 
-export type { ActivityHeatmapData } from '@/common/hooks/analytics/useActivityHeatmap'
+export type { ActivityHeatmapData } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks'
 
 /**
  * CRM-specific wrapper for activity heatmap data.
