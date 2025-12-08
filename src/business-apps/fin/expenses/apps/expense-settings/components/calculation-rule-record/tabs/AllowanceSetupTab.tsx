@@ -247,7 +247,7 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
         validTo: setup.activeTo,
         allowancePeriod: setup.allowancePeriod || { id: '', code: '', name: '' },
         allowanceCode: setup.allowanceCode || { id: '', code: '', name: '' },
-        version: setup.version || 1,
+        version: setup.version,
         isDeleted: false
       }))
 

@@ -231,7 +231,7 @@ const UnassignedRulesView: React.FC<UnassignedRulesViewProps> = ({ accessToken, 
       const saveData = {
         allowanceRegionRule: {
           id: selectedRule.id,
-          version: selectedRule.version || 0,
+          version: selectedRule.version,
           code: selectedRule.code,
           name: selectedRule.name,
           activeFrom: selectedRule.activeFrom,

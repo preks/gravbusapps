@@ -306,7 +306,7 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
 
     setIsDeleting(true)
     try {
-      await expenseSettingsClient.deleteExpenseRuleGeneralExpense(itemToDelete.id, itemToDelete.version || 1)
+      await expenseSettingsClient.deleteExpenseRuleGeneralExpense(itemToDelete.id, itemToDelete.version)
       toast.success('General expense deleted successfully')
       setDeleteDialogOpen(false)
       setItemToDelete(null)

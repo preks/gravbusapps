@@ -41,7 +41,6 @@ import MileageRulesTab from './tabs/MileageRulesTab'
 import AllowancePeriodTab from './tabs/AllowancePeriodTab'
 import AllowanceCodeTab from './tabs/AllowanceCodeTab'
 import AllowanceSetupTab from './tabs/AllowanceSetupTab'
-import DeductionTab from './tabs/DeductionTab'
 import CustomFieldsTab from './tabs/CustomFieldsTab'
 import OtherCalculationTab from './tabs/OtherCalculationTab'
 
@@ -267,7 +266,7 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
         nonpayableCode: ruleData.nonpayableCode || '',
         advancePaymentCode: ruleData.advancePaymentCode || '',
         useSingleCurrency: ruleData.useSingleCurrency || false,
-        version: ruleData.version || 1,
+        version: ruleData.version,
         createdAt: ruleData.createdAt || new Date().toISOString(),
         updatedAt: ruleData.updatedAt || new Date().toISOString(),
         isDeleted: false
@@ -894,9 +893,6 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
                   <TabsTrigger value="allowance-setup" data-testid="subtab-allowance-setup">
                     Allowance Setup
                   </TabsTrigger>
-                  <TabsTrigger value="allowance-deduction" data-testid="subtab-allowance-deduction">
-                    Allowance Deduction
-                  </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="allowance-period">
@@ -919,15 +915,6 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
 
                 <TabsContent value="allowance-setup">
                   <AllowanceSetupTab
-                    ruleId={ruleId}
-                    accessToken={accessToken}
-                    activeFrom={ruleDetails.activeFrom}
-                    activeTo={ruleDetails.activeTo}
-                  />
-                </TabsContent>
-
-                <TabsContent value="allowance-deduction">
-                  <DeductionTab
                     ruleId={ruleId}
                     accessToken={accessToken}
                     activeFrom={ruleDetails.activeFrom}

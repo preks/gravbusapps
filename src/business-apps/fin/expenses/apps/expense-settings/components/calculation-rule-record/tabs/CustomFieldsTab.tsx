@@ -106,6 +106,11 @@ interface UsageInfo {
 const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, activeFrom, activeTo }) => {
   const graphqlClient = useGraphQLClient(accessToken)
 
+  // Helper function to convert UI source values to API enum values
+  const mapSourceToApiEnum = (source: 'Expense' | 'Mileage'): string => {
+    return source === 'Mileage' ? 'MILEAGE_RULE' : 'GENERAL_EXPENSE_RULE'
+  }
+
   const [customFields, setCustomFields] = useState<CustomField[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -252,7 +257,7 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
           mandatory: info.mandatory || false,
           validFrom: info.activeFrom,
           validTo: info.activeTo,
-          version: info.version || 1,
+          version: info.version,
           isDeleted: false,
           relatedId,
           relatedCode,
@@ -456,7 +461,7 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
           id: editingItem.id,
           version: editingItem.version,
           expenseRuleId: ruleId,
-          source: editingItem.source,
+          source: mapSourceToApiEnum(editingItem.source),
           infoValue: formValues.infoValue,
           mandatory: editingItem.mandatory,
           activeFrom: editingItem.validFrom ? dayjs(editingItem.validFrom).startOf('day').toISOString() : null,
@@ -472,7 +477,7 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
           businessKey: undefined,
           activeTo: formValues.validTo ? dayjs(formValues.validTo).endOf('day').toISOString() : null,
           additionalProperties: undefined,
-          source: formValues.source,
+          source: mapSourceToApiEnum(formValues.source),
           infoValue: formValues.infoValue,
           mandatory: formValues.mandatory,
           activeFrom: formValues.validFrom ? dayjs(formValues.validFrom).startOf('day').toISOString() : null,

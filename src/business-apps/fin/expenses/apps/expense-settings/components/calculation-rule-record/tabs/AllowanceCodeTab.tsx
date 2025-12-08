@@ -349,7 +349,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
         firstWageCode: code.firstWageCode,
         validFrom: code.activeFrom,
         validTo: code.activeTo,
-        version: code.version || 1,
+        version: code.version,
         isDeleted: false
       }))
 
@@ -549,7 +549,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
 
     setIsDeleting(true)
     try {
-      await expenseSettingsClient.deleteExpenseRuleAllowanceCode(itemToDelete.id, itemToDelete.version || 1)
+      await expenseSettingsClient.deleteExpenseRuleAllowanceCode(itemToDelete.id, itemToDelete.version)
       toast.success('Allowance code deleted successfully')
       setDeleteDialogOpen(false)
       setItemToDelete(null)

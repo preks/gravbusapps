@@ -325,7 +325,7 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
           reimbursablePercent: calc.reimbursablePercent || undefined,
           validFrom: calc.activeFrom,
           validTo: calc.activeTo,
-          version: calc.version || 1
+          version: calc.version
         }
       })
 
@@ -451,7 +451,7 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
 
     setIsDeleting(true)
     try {
-      await expenseSettingsClient.deleteExpenseRuleOtherCalc(itemToDelete.id, itemToDelete.version || 1)
+      await expenseSettingsClient.deleteExpenseRuleOtherCalc(itemToDelete.id, itemToDelete.version)
       toast.success('Other calculation deleted successfully')
       setDeleteDialogOpen(false)
       setItemToDelete(null)

@@ -281,7 +281,7 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
         activeFrom: data.activeFrom ? dayjs(data.activeFrom).toISOString() : '',
         activeTo: data.activeTo ? dayjs(data.activeTo).toISOString() : '',
         id: result.expenseRule?.id || initialData?.id,
-        version: result.expenseRule?.version || (initialData?.version ? initialData.version + 1 : 1)
+        version: result.expenseRule?.version ?? (initialData?.version !== undefined ? initialData.version + 1 : 1)
       }
 
       await onSave(saveData)

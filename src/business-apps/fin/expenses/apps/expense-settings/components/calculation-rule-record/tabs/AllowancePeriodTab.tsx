@@ -290,7 +290,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
         validFrom: period.activeFrom,
         validTo: period.activeTo,
         order: period.periodOrder || index + 1,
-        version: period.version || 1,
+        version: period.version,
         isDeleted: false
       }))
 

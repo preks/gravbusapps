@@ -1218,7 +1218,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                   travelRegionRef: cell.travelRegionId,
                   countryRef: countryRef,
                   allowanceRegionRule: rule.id,
-                  ...(cell.id && { version: cell.version || undefined })
+                  ...(cell.id && cell.version !== undefined && { version: cell.version })
                 },
                 changeMode: cell.id ? 'UPDATE' : 'INSERT'
               }
