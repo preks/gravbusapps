@@ -177,6 +177,7 @@ export const DocuSignSignatureModal: React.FC<DocuSignSignatureModalProps> = ({
     ensureStatus(selectedDocEnvelopeId)
   }, [isOpen, selectedDocEnvelopeId, ensureStatus])
   const currentUserId = businessAppContext?.userInfo?.id
+  const isCurrentUserAssignee = Boolean(assignedUserId && currentUserId && assignedUserId === currentUserId)
   const canReuseEnvelope =
     selectedSource === 'existing' &&
     !emailOnly &&
@@ -194,10 +195,20 @@ export const DocuSignSignatureModal: React.FC<DocuSignSignatureModalProps> = ({
         if (canReuseEnvelope) return 'Resume signing'
         return 'View envelope'
       }
+      if (!emailOnly && isCurrentUserAssignee) {
+        return 'Sign'
+      }
       return 'Request Signature'
     }
     return 'Request Signature'
-  }, [selectedSource, selectedDocEnvelopeId, isSelectedDocCompleted, canReuseEnvelope])
+  }, [
+    selectedSource,
+    selectedDocEnvelopeId,
+    isSelectedDocCompleted,
+    canReuseEnvelope,
+    emailOnly,
+    isCurrentUserAssignee
+  ])
   const { alertVariant, alertMessage } = useMemo(() => {
     if (selectedSource === 'existing') {
       if (selectedDocEnvelopeId) {
