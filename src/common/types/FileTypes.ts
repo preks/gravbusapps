@@ -113,6 +113,8 @@ export interface FileInfo {
   uploadedAt?: string
   /** Access scope (e.g., 'tenant') */
   accessScope?: string
+  /** Associated DocuSign envelope ID for signed documents */
+  docusignEnvelopeId?: string
   /** File metadata (mimeType, originalFileName, etc.) */
   fileMetadata?: {
     /** MIME type of the file */

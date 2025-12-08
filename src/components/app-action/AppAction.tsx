@@ -153,9 +153,9 @@ export interface AppActionProps {
   prefixDataTestId?: string
 
   // Deprecated API
-  /** @deprecated Use contexts instead */
+  /** @deprecated Use contexts with contextData Array<{ context: FlowContextName | string, contextData: Record<string, any> }> instead */
   contextsArray?: FlowContextName[]
-  /** @deprecated Use contexts instead */
+  /** @deprecated Use contexts with contextData Array<{ context: FlowContextName | string, contextData: Record<string, any> }> instead */
   externalContextData?: Record<string, any>
   /** @deprecated Use customActions instead */
   staticFlowData?: ActionOption[]
