@@ -314,7 +314,7 @@ export const EntitySelector: React.FC<EntitySelectorProps> = ({ accessToken, ent
 
               return {
                 id: e.id,
-                name: e.fullName || `${e.firstName} ${e.lastName}`,
+                name: e.fullName || `${e.firstName || ''} ${e.lastName || ''}`.trim() || 'Unknown',
                 subtitle,
                 avatar: e.pictureThumbnail
               }

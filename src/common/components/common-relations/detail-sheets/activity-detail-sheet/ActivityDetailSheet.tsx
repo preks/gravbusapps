@@ -242,38 +242,46 @@ const ActivityCard: React.FC<{
       {expanded && (
         <CardContent className="gba:pt-0 gba:space-y-2">
           {/* Owner Employee */}
-          {activity.ownerEmployee && (
-            <FieldRow icon={UserIcon} label="Owner" testId={`${dataTestId || DATA_TEST_ID_PREFIX}-owner-field`}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    onClick={handleOwnerClick}
-                    className="gba:cursor-pointer gba:hover:bg-accent gba:px-2 gba:py-1 gba:rounded gba:transition-colors gba:w-fit gba:min-h-[24px] gba:border-0 gba:bg-transparent"
-                  >
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <Avatar size="sm">
-                        {activity.ownerEmployee.pictureThumbnail && (
-                          <AvatarImage
-                            src={`data:image/jpeg;base64,${activity.ownerEmployee.pictureThumbnail}`}
-                            alt={activity.ownerEmployee.fullName || 'Unknown'}
-                          />
-                        )}
-                        <AvatarFallback>
-                          <UserIcon size={14} />
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="gba:text-sm gba:font-medium gba:truncate">
-                        {activity.ownerEmployee.fullName || 'Unknown'}
-                      </span>
-                      <ArrowSquareOutIcon size={12} className="gba:text-muted-foreground gba:shrink-0" />
-                    </div>
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>View employee profile</TooltipContent>
-              </Tooltip>
-            </FieldRow>
-          )}
+          {activity.ownerEmployee &&
+            (() => {
+              const ownerEmployee = activity.ownerEmployee
+              const displayName =
+                ownerEmployee.fullName ||
+                (ownerEmployee.firstName && ownerEmployee.lastName
+                  ? `${ownerEmployee.firstName} ${ownerEmployee.lastName}`.trim()
+                  : ownerEmployee.firstName || ownerEmployee.lastName || 'Unknown')
+
+              return (
+                <FieldRow icon={UserIcon} label="Owner" testId={`${dataTestId || DATA_TEST_ID_PREFIX}-owner-field`}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={handleOwnerClick}
+                        className="gba:cursor-pointer gba:hover:bg-accent gba:px-2 gba:py-1 gba:rounded gba:transition-colors gba:w-fit gba:min-h-[24px] gba:border-0 gba:bg-transparent"
+                      >
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <Avatar size="sm">
+                            {ownerEmployee.pictureThumbnail && (
+                              <AvatarImage
+                                src={`data:image/jpeg;base64,${ownerEmployee.pictureThumbnail}`}
+                                alt={displayName}
+                              />
+                            )}
+                            <AvatarFallback>
+                              <UserIcon size={14} />
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="gba:text-sm gba:font-medium gba:truncate">{displayName}</span>
+                          <ArrowSquareOutIcon size={12} className="gba:text-muted-foreground gba:shrink-0" />
+                        </div>
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>View employee profile</TooltipContent>
+                  </Tooltip>
+                </FieldRow>
+              )
+            })()}
 
           {/* Entity Reference */}
           <FieldRow icon={LinkIcon} label="Reference" testId={`${dataTestId || DATA_TEST_ID_PREFIX}-reference-field`}>

@@ -83,7 +83,15 @@ export const createActivity360Columns = (): ColumnDef<TeamSalesActivity>[] => [
     size: 200,
     cell: ({ row }) => {
       const activity = row.original
-      const fullName = activity.ownerEmployee?.fullName || 'Unknown'
+      const ownerEmployee = activity.ownerEmployee
+
+      // Fallback to firstName + lastName if fullName is not available
+      const fullName =
+        ownerEmployee?.fullName ||
+        (ownerEmployee?.firstName && ownerEmployee?.lastName
+          ? `${ownerEmployee.firstName} ${ownerEmployee.lastName}`.trim()
+          : ownerEmployee?.firstName || ownerEmployee?.lastName || 'Unknown')
+
       const employeeId = activity.ownerEmployeeId
       const avatar = activity.ownerEmployee?.pictureThumbnail
 
@@ -123,7 +131,7 @@ export const createActivity360Columns = (): ColumnDef<TeamSalesActivity>[] => [
           <Avatar size="sm" className="gba:opacity-50">
             {avatar && <AvatarImage src={`data:image/jpeg;base64,${avatar}`} alt={fullName} />}
             <AvatarFallback>
-              <User className="gba:h-4 gba:w-4" />
+              <PiUser className="gba:h-4 gba:w-4" />
             </AvatarFallback>
           </Avatar>
           <span className="gba:text-[color:var(--nw-color-text-disabled)]">{fullName}</span>
