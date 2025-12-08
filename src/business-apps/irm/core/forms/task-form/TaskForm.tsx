@@ -31,7 +31,6 @@ export const TaskForm: React.FC<TaskFormProps> = ({ accessToken, userInfo, addit
   const initialParameters = useMemo(() => {
     return additionalData?.psi_taskPayload?.psi_initialParameters || null
   }, [additionalData])
-
   const {
     entities,
     loading: entitiesLoading,
