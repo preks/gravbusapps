@@ -1,8 +1,8 @@
-import React, { useState, useMemo } from 'react';
-import { 
-  PageLayout, 
-  Card, 
-  Button, 
+import React, { useState, useMemo } from 'react'
+import {
+  PageLayout,
+  Card,
+  Button,
   Input,
   Textarea,
   Select,
@@ -10,8 +10,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Alert, 
-  Badge, 
+  Alert,
+  Badge,
   Spinner,
   Separator,
   Dialog,
@@ -20,23 +20,22 @@ import {
   DialogTitle,
   DialogDescription,
   type KpiCardData
-} from '@newwork/nw-design-system';
-import { WorkflowEngine, FlowTemplate } from '../../../types';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { DateTimeField } from '../../../components/DateTimeField';
-import { FileUploadField } from '../../../components/FileUploadField';
-import { NumberField } from '../../../components/NumberField';
-import type { UploadFile } from '../../../components/FileUploadField';
-import { serializeUploadResults } from '../../../utils/fileUploadUtils';
-import { useServiceFileUpload } from '../../../hooks/useServiceFileUpload';
-import { 
-  FileTextIcon, 
-  CheckCircleIcon, 
+} from '@newwork/nw-design-system'
+import { WorkflowEngine, FlowTemplate } from '../../../types'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { DateTimeField } from '../../../components/DateTimeField'
+import { FileUploadField } from '../../../components/FileUploadField'
+import { NumberField } from '../../../components/NumberField'
+import type { UploadFile } from '../../../components/FileUploadField'
+import { serializeUploadResults } from '../../../utils/fileUploadUtils'
+import { useServiceFileUpload } from '../../../hooks/useServiceFileUpload'
+import {
+  FileTextIcon,
+  CheckCircleIcon,
   UsersIcon,
   WarningIcon,
   SparkleIcon,
   UserIcon,
-  StarIcon,
   RobotIcon,
   BrainIcon,
   CopyIcon,
@@ -44,398 +43,28 @@ import {
   LightbulbIcon,
   TargetIcon,
   ShieldCheckIcon
-} from '@phosphor-icons/react';
-import { ArrowLeftOutlined } from '@ant-design/icons';
-import { getCategoryIcon } from '../../../utils/iconMapping';
-import { useRealEmployeeData, getEmployeeOptions } from '../hooks/useRealEmployeeData';
-import { flowbotClient } from '@/common/network/flowbot';
-import { parseMarkdownForReact } from '@/common/utils/markdownUtils';
+} from '@phosphor-icons/react'
+import { ArrowLeftOutlined } from '@ant-design/icons'
+import { getCategoryIcon } from '../../../utils/iconMapping'
+import { useRealEmployeeData, getEmployeeOptions } from '../hooks/useRealEmployeeData'
+import { flowbotClient } from '@/common/network/flowbot'
+import { parseMarkdownForReact } from '@/common/utils/markdownUtils'
+import { DataSourceSelect } from './DataSourceSelect'
+import { DataSourceMultiSelect } from './DataSourceMultiSelect'
+import { MessageRenderer } from '../../../components/MessageRenderer'
 
 export interface RequestFormProps extends BusinessAppContextProps {
-  flowTemplate: FlowTemplate;
-  workflowEngine: WorkflowEngine;
-  onSuccess: (requestId: string) => void;
-  onCancel: () => void;
+  flowTemplate: FlowTemplate
+  workflowEngine: WorkflowEngine
+  onSuccess: (requestId: string) => void
+  onCancel: () => void
 }
 
 // FormField component removed - only using dynamic form generation from flow templates
 
 // ProcessStepPreview component removed - only using flow template steps preview
-
-interface MultiSelectProps {
-  id: string;
-  value: string[];
-  onChange: (values: string[]) => void;
-  options: Array<{ value: string; label: string }>;
-  placeholder?: string;
-  required?: boolean;
-  className?: string;
-}
-
-interface FileUploadProps {
-  id: string;
-  value: File[];
-  onChange: (files: File[]) => void;
-  accept?: string;
-  multiple?: boolean;
-  maxSize?: number; // in MB
-  maxFiles?: number;
-  required?: boolean;
-  className?: string;
-}
-
-const MultiSelect: React.FC<MultiSelectProps> = ({
-  id,
-  value = [],
-  onChange,
-  options,
-  placeholder = "Select options...",
-  className = ""
-}) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-
-  const filteredOptions = options.filter(option =>
-    option.label.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const handleToggleOption = (optionValue: string) => {
-    const newValue = value.includes(optionValue)
-      ? value.filter(v => v !== optionValue)
-      : [...value, optionValue];
-    onChange(newValue);
-  };
-
-  const handleRemoveOption = (optionValue: string) => {
-    onChange(value.filter(v => v !== optionValue));
-  };
-
-  const getSelectedLabels = () => {
-    return value.map(v => options.find(opt => opt.value === v)?.label || v);
-  };
-
-  return (
-    <div className={`gba:relative ${className}`}>
-      {/* Selected values display */}
-      <div
-        className="gba:min-h-[40px] gba:w-full gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-3 gba:py-2 gba:text-sm gba:cursor-pointer gba:flex gba:flex-wrap gba:gap-1 gba:items-center"
-        onClick={() => setIsOpen(!isOpen)}
-        data-testid={`multiselect-${id}`}
-      >
-        {value.length === 0 ? (
-          <span className="gba:text-muted-foreground">{placeholder}</span>
-        ) : (
-          <>
-            {getSelectedLabels().map((label, index) => (
-              <span
-                key={value[index]}
-                className="gba:inline-flex gba:items-center gba:gap-1 gba:rounded gba:bg-primary gba:px-2 gba:py-1 gba:text-xs gba:text-primary-foreground"
-              >
-                {label}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleRemoveOption(value[index]);
-                  }}
-                  className="gba:ml-1 gba:hover:gba:bg-primary/80 gba:rounded-full gba:p-0.5"
-                  data-testid={`remove-${value[index]}`}
-                >
-                  ×
-                </button>
-              </span>
-            ))}
-          </>
-        )}
-        <div className="gba:ml-auto gba:flex gba:items-center">
-          <span className="gba:text-muted-foreground">
-            {isOpen ? '▲' : '▼'}
-          </span>
-        </div>
-      </div>
-
-      {/* Dropdown */}
-      {isOpen && (
-        <div className="gba:absolute gba:top-full gba:left-0 gba:right-0 gba:z-50 gba:mt-1 gba:max-h-60 gba:overflow-auto gba:rounded-md gba:border gba:bg-popover gba:shadow-md">
-          {/* Search input */}
-          <div className="gba:p-2 gba:border-b">
-            <Input
-              type="text"
-              placeholder="Search options..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="gba:h-8"
-              data-testid={`multiselect-search-${id}`}
-            />
-          </div>
-
-          {/* Options list */}
-          <div className="gba:max-h-48 gba:overflow-auto">
-            {filteredOptions.length === 0 ? (
-              <div className="gba:p-2 gba:text-sm gba:text-muted-foreground gba:text-center">
-                No options found
-              </div>
-            ) : (
-              filteredOptions.map((option) => (
-                <div
-                  key={option.value}
-                  className={`gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:text-sm gba:cursor-pointer gba:hover:gba:bg-accent gba:hover:gba:text-accent-foreground ${
-                    value.includes(option.value) ? 'gba:bg-accent' : ''
-                  }`}
-                  onClick={() => handleToggleOption(option.value)}
-                  data-testid={`option-${option.value}`}
-                >
-                  <div className={`gba:w-4 gba:h-4 gba:border gba:rounded gba:flex gba:items-center gba:justify-center ${
-                    value.includes(option.value) 
-                      ? 'gba:bg-primary gba:border-primary gba:text-primary-foreground' 
-                      : 'gba:border-input'
-                  }`}>
-                    {value.includes(option.value) && (
-                      <CheckCircleIcon className="gba:w-3 gba:h-3" />
-                    )}
-                  </div>
-                  <span>{option.label}</span>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Click outside to close */}
-      {isOpen && (
-        <div
-          className="gba:fixed gba:inset-0 gba:z-40"
-          onClick={() => setIsOpen(false)}
-        />
-      )}
-    </div>
-  );
-};
-
-const FileUpload: React.FC<FileUploadProps> = ({
-  id,
-  value = [],
-  onChange,
-  accept = "*/*",
-  multiple = false,
-  maxSize = 10, // 10MB default
-  maxFiles = 5,
-  className = ""
-}) => {
-  const [dragOver, setDragOver] = useState(false);
-  const [error, setError] = useState<string>('');
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
-
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
-  const validateFile = (file: File): string | null => {
-    // Check file size
-    if (file.size > maxSize * 1024 * 1024) {
-      return `File size exceeds ${maxSize}MB limit`;
-    }
-
-    // Check file type if accept is specified and not wildcard
-    if (accept !== "*/*" && accept) {
-      const acceptedTypes = accept.split(',').map(type => type.trim());
-      const fileType = file.type;
-      const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
-      
-      const isValidType = acceptedTypes.some(acceptedType => {
-        if (acceptedType.startsWith('.')) {
-          return acceptedType.toLowerCase() === fileExtension;
-        }
-        if (acceptedType.includes('*')) {
-          const baseType = acceptedType.split('/')[0];
-          return fileType.startsWith(baseType);
-        }
-        return acceptedType === fileType;
-      });
-
-      if (!isValidType) {
-        return `File type not allowed. Accepted types: ${accept}`;
-      }
-    }
-
-    return null;
-  };
-
-  const handleFiles = (files: FileList | null) => {
-    if (!files) return;
-
-    setError('');
-    const fileArray = Array.from(files);
-    const validFiles: File[] = [];
-    let errorMessage = '';
-
-    // Check total file count
-    if (!multiple && fileArray.length > 1) {
-      setError('Only one file is allowed');
-      return;
-    }
-
-    if (multiple && value.length + fileArray.length > maxFiles) {
-      setError(`Maximum ${maxFiles} files allowed`);
-      return;
-    }
-
-    // Validate each file
-    for (const file of fileArray) {
-      const validationError = validateFile(file);
-      if (validationError) {
-        errorMessage = validationError;
-        break;
-      }
-      validFiles.push(file);
-    }
-
-    if (errorMessage) {
-      setError(errorMessage);
-      return;
-    }
-
-    // Update files
-    if (multiple) {
-      onChange([...value, ...validFiles]);
-    } else {
-      onChange(validFiles);
-    }
-  };
-
-  const removeFile = (index: number) => {
-    const newFiles = value.filter((_, i) => i !== index);
-    onChange(newFiles);
-    setError('');
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-    handleFiles(e.dataTransfer.files);
-  };
-
-  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    handleFiles(e.target.files);
-    // Reset input value to allow selecting the same file again
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
-  const openFileDialog = () => {
-    fileInputRef.current?.click();
-  };
-
-  return (
-    <div className={`gba:space-y-3 ${className}`}>
-      {/* File Drop Zone */}
-      <div
-        className={`gba:border-2 gba:border-dashed gba:rounded-lg gba:p-6 gba:text-center gba:cursor-pointer gba:transition-colors ${
-          dragOver
-            ? 'gba:border-primary gba:bg-primary/5'
-            : error
-            ? 'gba:border-destructive gba:bg-destructive/5'
-            : 'gba:border-border gba:hover:gba:border-primary gba:hover:gba:bg-primary/5'
-        }`}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        onClick={openFileDialog}
-        data-testid={`file-upload-${id}`}
-      >
-        <div className="gba:space-y-2">
-          <div className="gba:mx-auto gba:w-12 gba:h-12 gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center">
-            <FileTextIcon className="gba:w-6 gba:h-6 gba:text-muted-foreground" />
-          </div>
-          <div>
-            <p className="gba:text-sm gba:font-medium gba:text-foreground">
-              Click to upload or drag and drop
-            </p>
-            <p className="gba:text-xs gba:text-muted-foreground">
-              {accept !== "*/*" ? `Accepted types: ${accept}` : 'Any file type'}
-              {maxSize && ` • Max size: ${maxSize}MB`}
-              {multiple && ` • Max files: ${maxFiles}`}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Hidden File Input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept={accept}
-        multiple={multiple}
-        onChange={handleFileInputChange}
-        className="gba:hidden"
-        data-testid={`file-input-${id}`}
-      />
-
-      {/* Error Message */}
-      {error && (
-        <div className="gba:text-sm gba:text-destructive gba:bg-destructive/10 gba:border gba:border-destructive/20 gba:rounded gba:p-2">
-          {error}
-        </div>
-      )}
-
-      {/* Selected Files List */}
-      {value.length > 0 && (
-        <div className="gba:space-y-2">
-          <p className="gba:text-sm gba:font-medium gba:text-foreground">
-            Selected Files ({value.length})
-          </p>
-          <div className="gba:space-y-2 gba:max-h-32 gba:overflow-y-auto">
-            {value.map((file, index) => (
-              <div
-                key={`${file.name}-${index}`}
-                className="gba:flex gba:items-center gba:justify-between gba:p-2 gba:bg-muted gba:rounded gba:border"
-              >
-                <div className="gba:flex gba:items-center gba:space-x-2 gba:min-w-0 gba:flex-1">
-                  <FileTextIcon className="gba:w-4 gba:h-4 gba:text-muted-foreground gba:flex-shrink-0" />
-                  <div className="gba:min-w-0 gba:flex-1">
-                    <p className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">
-                      {file.name}
-                    </p>
-                    <p className="gba:text-xs gba:text-muted-foreground">
-                      {formatFileSize(file.size)}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeFile(index);
-                  }}
-                  className="gba:ml-2 gba:p-1 gba:text-muted-foreground gba:hover:gba:text-destructive gba:hover:gba:bg-destructive/10 gba:rounded gba:transition-colors"
-                  data-testid={`remove-file-${index}`}
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
+// MultiSelect component removed - now using DataSourceMultiSelect for all multiselect fields
+// FileUpload component removed - not currently used in this form
 
 export const RequestForm: React.FC<RequestFormProps> = ({
   flowTemplate,
@@ -447,182 +76,185 @@ export const RequestForm: React.FC<RequestFormProps> = ({
   // Check URL query parameter to show first step assignment (for debugging)
   const [showFirstStepAssignment] = useState(() => {
     if (typeof window !== 'undefined') {
-      const urlParams = new URLSearchParams(window.location.search);
-      return urlParams.get('showFirstStepAssignment') === 'true';
+      const urlParams = new URLSearchParams(window.location.search)
+      return urlParams.get('showFirstStepAssignment') === 'true'
     }
-    return false;
-  });
-  const [formData, setFormData] = useState<any>({});
-  const [isLoading, setIsLoading] = useState(false);
-  const [isUploadingFiles, setIsUploadingFiles] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<string>('');
-  const [error, setError] = useState<{ message: string; payload?: any } | null>(null);
-  const [stepsRequiringAssignment, setStepsRequiringAssignment] = useState<Array<{
-    stepId: string;
-    stepIndex: number;
-    title: string;
-    assignmentMode: string;
-    requiresUsers: boolean;
-  }>>([]);
-  const [loadingAssignments, setLoadingAssignments] = useState(false);
-  
+    return false
+  })
+  const [formData, setFormData] = useState<any>({})
+  const [isLoading, setIsLoading] = useState(false)
+  const [isUploadingFiles, setIsUploadingFiles] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState<string>('')
+  const [error, setError] = useState<{ message: string; payload?: any } | null>(null)
+  const [stepsRequiringAssignment, setStepsRequiringAssignment] = useState<
+    Array<{
+      stepId: string
+      stepIndex: number
+      title: string
+      assignmentMode: string
+      requiresUsers: boolean
+    }>
+  >([])
+  const [loadingAssignments, setLoadingAssignments] = useState(false)
+
   // AI Response Modal State
-  const [showAIResponse, setShowAIResponse] = useState(false);
-  const [aiResponse, setAIResponse] = useState<string>('');
-  const [aiLoading, setAILoading] = useState(false);
-  const [aiResponseType, setAIResponseType] = useState<'suggestion' | 'validation' | 'optimization'>('suggestion');
-  
+  const [showAIResponse, setShowAIResponse] = useState(false)
+  const [aiResponse, setAIResponse] = useState<string>('')
+  const [aiLoading, setAILoading] = useState(false)
+  const [aiResponseType, setAIResponseType] = useState<'suggestion' | 'validation' | 'optimization'>('suggestion')
+
   // Only using flow templates now
-  const currentTemplate = flowTemplate;
-  
+  const currentTemplate = flowTemplate
+
   // 🌐 UNIVERSAL: Load steps requiring assignment for any template
   React.useEffect(() => {
     const loadRequiredAssignments = async () => {
       if (!flowTemplate?.id || !workflowEngine.getStepsRequiringAssignment) {
-        setStepsRequiringAssignment([]);
-        return;
+        setStepsRequiringAssignment([])
+        return
       }
 
-      setLoadingAssignments(true);
+      setLoadingAssignments(true)
       try {
-        const requiredSteps = await workflowEngine.getStepsRequiringAssignment(flowTemplate.id);
-        setStepsRequiringAssignment(requiredSteps);
-        
+        const requiredSteps = await workflowEngine.getStepsRequiringAssignment(flowTemplate.id)
+        setStepsRequiringAssignment(requiredSteps)
+
         // Initialize step assignment form fields
         if (requiredSteps.length > 0) {
-          const initialAssignments: any = { stepAssignments: {} };
+          const initialAssignments: any = { stepAssignments: {} }
           requiredSteps.forEach(step => {
             // Set assignment mode and allowReassignment from template
-            initialAssignments[`${step.stepId}_assignmentMode`] = step.assignmentMode;
-            initialAssignments[`${step.stepId}_allowReassignment`] = step.assignmentMode !== 'ASSIGN';
-            
+            initialAssignments[`${step.stepId}_assignmentMode`] = step.assignmentMode
+            initialAssignments[`${step.stepId}_allowReassignment`] = step.assignmentMode !== 'ASSIGN'
+
             // 🎯 SERVICE PORTAL: Auto-assign ASSIGN mode steps to current user
             if (step.assignmentMode === 'ASSIGN') {
-              initialAssignments.stepAssignments[step.stepId] = contextProps.userInfo?.id || 'current-user';
+              initialAssignments.stepAssignments[step.stepId] = contextProps.userInfo?.id || 'current-user'
             }
-          });
-          setFormData((prev: any) => ({ ...prev, ...initialAssignments }));
+          })
+          setFormData((prev: any) => ({ ...prev, ...initialAssignments }))
         }
-        
-        console.log(`[RequestForm] 🔍 Template ${flowTemplate.id} requires assignments for:`, requiredSteps);
-      } catch (error) {
-        console.error('[RequestForm] Error loading required assignments:', error);
-        setStepsRequiringAssignment([]);
-      } finally {
-        setLoadingAssignments(false);
-      }
-    };
 
-    loadRequiredAssignments();
-  }, [flowTemplate?.id, workflowEngine]);
-  
+        console.log(`[RequestForm] 🔍 Template ${flowTemplate.id} requires assignments for:`, requiredSteps)
+      } catch (error) {
+        console.error('[RequestForm] Error loading required assignments:', error)
+        setStepsRequiringAssignment([])
+      } finally {
+        setLoadingAssignments(false)
+      }
+    }
+
+    loadRequiredAssignments()
+  }, [flowTemplate?.id, workflowEngine])
+
   if (!currentTemplate) {
     return (
       <Alert variant="destructive" className="gba:mb-4" style={{ display: 'block' }}>
         <WarningIcon className="gba:h-4 gba:w-4" />
         <h4 className="gba:font-semibold">Invalid Template</h4>
-        <div style={{ display: 'block', wordWrap: 'break-word', whiteSpace: 'normal' }} className="gba:text-sm gba:mt-2">
+        <div
+          style={{ display: 'block', wordWrap: 'break-word', whiteSpace: 'normal' }}
+          className="gba:text-sm gba:mt-2"
+        >
           No valid template provided for this request form.
         </div>
       </Alert>
-    );
+    )
   }
 
   // Load real employee data
-  const {
-    employees,
-    isLoading: dataLoading,
-    error: dataError
-  } = useRealEmployeeData(contextProps);
+  const { employees, isLoading: dataLoading, error: dataError } = useRealEmployeeData(contextProps)
 
   // Initialize file upload hook
   const { uploadFiles } = useServiceFileUpload({
     accessToken: contextProps.accessToken,
-    onSuccess: (results) => {
-      console.log('🔍 [RequestForm] File upload completed:', results);
+    onSuccess: results => {
+      console.log('🔍 [RequestForm] File upload completed:', results)
     },
-    onError: (error) => {
-      console.error('🔍 [RequestForm] File upload error:', error);
+    onError: error => {
+      console.error('🔍 [RequestForm] File upload error:', error)
     }
-  });
+  })
 
   // Handle form field changes
   const handleFieldChange = (field: string, value: any) => {
-    setFormData((prev: any) => ({ ...prev, [field]: value }));
-    
+    setFormData((prev: any) => ({ ...prev, [field]: value }))
+
     // 🌐 UNIVERSAL: Handle step assignment changes
     if (field.startsWith('stepAssignment_')) {
-      const stepId = field.replace('stepAssignment_', '');
+      const stepId = field.replace('stepAssignment_', '')
       setFormData((prev: any) => ({
         ...prev,
         stepAssignments: {
           ...prev.stepAssignments,
           [stepId]: value
         }
-      }));
+      }))
     }
-  };
+  }
 
   // Get category and icon for flow template
-  const category = { id: 'flow-templates', name: 'Flow Template', description: 'Dynamic workflow template' };
-  const IconComponent = getCategoryIcon(category.id) || FileTextIcon;
+  const category = { id: 'flow-templates', name: 'Flow Template', description: 'Dynamic workflow template' }
+  const IconComponent = getCategoryIcon(category.id) || FileTextIcon
 
   const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    
-    setIsLoading(true);
-    setError(null);
+    event.preventDefault()
+
+    setIsLoading(true)
+    setError(null)
 
     // Build complete payload for debugging
-    let completePayload: any = {};
-    let finalFormData = { ...formData };
+    let completePayload: any = {}
+    const finalFormData = { ...formData }
 
     try {
       // Step 1: Check if there are any file fields with files to upload
-      const fileFields = flowTemplate?.formSchema?.filter(field => field.type?.toUpperCase() === 'FILE') || [];
-      const filesToUpload: { fieldName: string; files: File[] }[] = [];
+      const fileFields = flowTemplate?.formSchema?.filter(field => field.type?.toUpperCase() === 'FILE') || []
+      const filesToUpload: { fieldName: string; files: File[] }[] = []
 
       for (const field of fileFields) {
-        const fieldValue = formData[field.name];
+        const fieldValue = formData[field.name]
         if (Array.isArray(fieldValue) && fieldValue.length > 0) {
           // Extract actual File objects from UploadFile array
           const files = fieldValue
             .filter((uploadFile: UploadFile) => uploadFile.originFileObj instanceof File)
-            .map((uploadFile: UploadFile) => uploadFile.originFileObj!);
-          
+            .map((uploadFile: UploadFile) => uploadFile.originFileObj!)
+
           if (files.length > 0) {
-            filesToUpload.push({ fieldName: field.name, files });
+            filesToUpload.push({ fieldName: field.name, files })
           }
         }
       }
 
       // Step 2: Upload files if any exist
       if (filesToUpload.length > 0) {
-        setIsUploadingFiles(true);
-        setUploadProgress('Preparing file uploads...');
+        setIsUploadingFiles(true)
+        setUploadProgress('Preparing file uploads...')
 
         for (const { fieldName, files } of filesToUpload) {
-          setUploadProgress(`Uploading files for ${fieldName}...`);
-          
+          setUploadProgress(`Uploading files for ${fieldName}...`)
+
           try {
             // Generate a temporary request ID for file organization
-            const tempRequestId = `temp/${Date.now()}`;
-            
+            const tempRequestId = `temp/${Date.now()}`
+
             // Upload files for this field
-            const uploadResults = await uploadFiles(files, tempRequestId);
-            
+            const uploadResults = await uploadFiles(files, tempRequestId)
+
             // Serialize and store upload results
-            const serializedResults = serializeUploadResults(uploadResults);
-            finalFormData[`${fieldName}_uploadResults`] = serializedResults;
-            
-            console.log(`🔍 [RequestForm] Uploaded files for ${fieldName}:`, serializedResults);
+            const serializedResults = serializeUploadResults(uploadResults)
+            finalFormData[`${fieldName}_uploadResults`] = serializedResults
+
+            console.log(`🔍 [RequestForm] Uploaded files for ${fieldName}:`, serializedResults)
           } catch (uploadErr) {
-            throw new Error(`Failed to upload files for ${fieldName}: ${uploadErr instanceof Error ? uploadErr.message : 'Unknown error'}`);
+            throw new Error(
+              `Failed to upload files for ${fieldName}: ${uploadErr instanceof Error ? uploadErr.message : 'Unknown error'}`
+            )
           }
         }
 
-        setUploadProgress('Files uploaded successfully!');
-        setIsUploadingFiles(false);
+        setUploadProgress('Files uploaded successfully!')
+        setIsUploadingFiles(false)
       }
 
       // Step 3: Submit the form with upload results
@@ -632,16 +264,19 @@ export const RequestForm: React.FC<RequestFormProps> = ({
         if (typeof workflowEngine.executeTemplate === 'function') {
           // Build the actual API payload that will be sent to custom-flow-engine
           // Debug: Log the complete form data before submission
-          console.log('🔍 [RequestForm] Complete form data before submission:', finalFormData);
-          
+          console.log('🔍 [RequestForm] Complete form data before submission:', finalFormData)
+
           // Debug: Log file upload results specifically
           Object.keys(finalFormData).forEach(key => {
             if (key.endsWith('_uploadResults')) {
-              console.log(`🔍 [RequestForm] File upload results for ${key}:`, finalFormData[key]);
-              console.log(`🔍 [RequestForm] File upload results stringified:`, JSON.stringify(finalFormData[key], null, 2));
+              console.log(`🔍 [RequestForm] File upload results for ${key}:`, finalFormData[key])
+              console.log(
+                `🔍 [RequestForm] File upload results stringified:`,
+                JSON.stringify(finalFormData[key], null, 2)
+              )
             }
-          });
-          
+          })
+
           completePayload = {
             apiEndpoint: `POST /api/templates/${flowTemplate.id || flowTemplate.name}/execute`,
             expectedCustomFlowEnginePayload: {
@@ -656,9 +291,9 @@ export const RequestForm: React.FC<RequestFormProps> = ({
               name: flowTemplate.name,
               description: flowTemplate.description
             }
-          };
-          const newRequestId = await workflowEngine.executeTemplate(flowTemplate.id || flowTemplate.name, finalFormData);
-          onSuccess(newRequestId);
+          }
+          const newRequestId = await workflowEngine.executeTemplate(flowTemplate.id || flowTemplate.name, finalFormData)
+          onSuccess(newRequestId)
         } else {
           // Fallback to startRequest with template name as key
           completePayload = {
@@ -675,29 +310,29 @@ export const RequestForm: React.FC<RequestFormProps> = ({
               name: flowTemplate.name,
               description: flowTemplate.description
             }
-          };
-          const newRequestId = await workflowEngine.startRequest(flowTemplate.name, finalFormData);
-          onSuccess(newRequestId);
+          }
+          const newRequestId = await workflowEngine.startRequest(flowTemplate.name, finalFormData)
+          onSuccess(newRequestId)
         }
       } else {
-        throw new Error('No valid flow template provided');
+        throw new Error('No valid flow template provided')
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to submit request';
-      
+      const errorMessage = err instanceof Error ? err.message : 'Failed to submit request'
+
       // Check if this is an enhanced error from ConductorWorkflowEngineAdapter with actual payload
-      const actualPayload = (err as any)?.debugPayload || null;
-      
+      const actualPayload = (err as any)?.debugPayload || null
+
       setError({
         message: errorMessage,
         payload: actualPayload || completePayload // Use actual payload if available, fallback to mock
-      });
+      })
     } finally {
-      setIsLoading(false);
-      setIsUploadingFiles(false);
-      setUploadProgress('');
+      setIsLoading(false)
+      setIsUploadingFiles(false)
+      setUploadProgress('')
     }
-  };
+  }
 
   // No more form field configuration needed - only using dynamic flow templates
 
@@ -705,186 +340,189 @@ export const RequestForm: React.FC<RequestFormProps> = ({
 
   // KPI cards for the form
   const kpiCards: KpiCardData[] = useMemo(() => {
-    const stepCount = flowTemplate?.stepCount || flowTemplate?.steps?.length || 0;
-    const estimatedTime = flowTemplate?.estimatedDuration || `${stepCount}-${stepCount * 2} days`;
+    const stepCount = flowTemplate?.stepCount || flowTemplate?.steps?.length || 0
+    const estimatedTime = flowTemplate?.estimatedDuration || `${stepCount}-${stepCount * 2} days`
 
     return [
-    {
-      id: 'processing-steps',
-      title: 'Processing Steps',
+      {
+        id: 'processing-steps',
+        title: 'Processing Steps',
         value: stepCount,
-      description: 'Workflow stages'
-    },
-    {
-      id: 'estimated-time',
-      title: 'Est. Completion',
+        description: 'Workflow stages'
+      },
+      {
+        id: 'estimated-time',
+        title: 'Est. Completion',
         value: estimatedTime,
-      description: 'Business days'
-    },
+        description: 'Business days'
+      },
       {
         id: 'template-type',
         title: 'Template Type',
         value: 'Live',
         description: 'Workflow engine'
       },
-    {
-      id: 'success-rate',
-      title: 'Success Rate',
-      value: '98%',
-      description: 'Completion rate'
+      {
+        id: 'success-rate',
+        title: 'Success Rate',
+        value: '98%',
+        description: 'Completion rate'
       }
-    ];
-  }, [flowTemplate]);
+    ]
+  }, [flowTemplate])
 
   // Calculate form completion percentage (including step assignments)
   const completionPercentage = useMemo(() => {
-    let totalRequired = 0;
-    let completedRequired = 0;
+    let totalRequired = 0
+    let completedRequired = 0
 
     // Only handle flow templates - no more mock templates
     if (flowTemplate?.formSchema) {
-      totalRequired = flowTemplate.formSchema.filter(f => f.required).length;
+      totalRequired = flowTemplate.formSchema.filter(f => f.required).length
       completedRequired = flowTemplate.formSchema.filter(f => {
-        if (!f.required) return false;
-        
-        const value = formData[f.name];
-        
+        if (!f.required) return false
+
+        const value = formData[f.name]
+
         // Handle file fields - consider filled if at least one file is selected
         if (f.type?.toUpperCase() === 'FILE') {
-          return Array.isArray(value) && value.length > 0;
+          return Array.isArray(value) && value.length > 0
         }
-        
+
         // Handle other field types
-        return value !== undefined && value !== '';
-      }).length;
+        return value !== undefined && value !== ''
+      }).length
     }
 
     // 🌐 UNIVERSAL: Add step assignments to completion calculation
     if (stepsRequiringAssignment.length > 0) {
       // Filter out first step (always assigned to initiator) unless query param is set
-      const visibleSteps = stepsRequiringAssignment.filter(step => 
-        showFirstStepAssignment || step.stepIndex !== 0
-      );
-      
-      const claimStepsRequiringInput = visibleSteps.filter(step => step.assignmentMode === 'CLAIM');
-      
+      const visibleSteps = stepsRequiringAssignment.filter(step => showFirstStepAssignment || step.stepIndex !== 0)
+
+      const claimStepsRequiringInput = visibleSteps.filter(step => step.assignmentMode === 'CLAIM')
+
       // Only count CLAIM steps as requiring user input (ASSIGN steps are auto-completed)
-      totalRequired += claimStepsRequiringInput.length;
-      
-      const completedClaimAssignments = claimStepsRequiringInput.filter(step => 
-        formData.stepAssignments?.[step.stepId]
-      ).length;
-      completedRequired += completedClaimAssignments;
-      
+      totalRequired += claimStepsRequiringInput.length
+
+      const completedClaimAssignments = claimStepsRequiringInput.filter(
+        step => formData.stepAssignments?.[step.stepId]
+      ).length
+      completedRequired += completedClaimAssignments
+
       // ASSIGN steps are automatically completed (assigned to current user)
     }
 
-    return totalRequired > 0 ? Math.round((completedRequired / totalRequired) * 100) : (totalRequired === 0 ? 100 : 0);
-  }, [flowTemplate, formData, stepsRequiringAssignment, showFirstStepAssignment]);
+    return totalRequired > 0 ? Math.round((completedRequired / totalRequired) * 100) : totalRequired === 0 ? 100 : 0
+  }, [flowTemplate, formData, stepsRequiringAssignment, showFirstStepAssignment])
 
   // Handle AI button click - collect form data and call real AI API
   const handleAskAI = async () => {
-    console.log('🤖 [Ask AI for Quick Solution] Button clicked');
-    
-    // Start AI loading
-    setAILoading(true);
-    setShowAIResponse(true);
-    setError(null);
-      
-      // Prepare AI payload with form data for the ticket_data structure
-      const ticketData = {
-        timestamp: new Date().toISOString(),
-        templateInfo: {
-          type: 'flow-template',
-          id: flowTemplate?.id,
-          name: flowTemplate?.name,
-          description: currentTemplate?.description
-        },
-        formData: { ...formData },
-        formCompletion: {
-          percentage: completionPercentage,
-          totalFields: flowTemplate?.formSchema?.length || 0,
-          filledFields: Object.keys(formData).filter(key => {
-            const value = formData[key];
-            // Handle file fields
-            if (Array.isArray(value) && value.length > 0 && value[0] instanceof File) {
-              return true;
-            }
-            // Handle other field types
-            return value !== undefined && value !== '';
-          }).length
-        },
-        stepAssignments: formData.stepAssignments || {},
-        requiredAssignments: stepsRequiringAssignment.map(step => ({
-          stepId: step.stepId,
-          title: step.title,
-          assignmentMode: step.assignmentMode,
-          assignedTo: formData.stepAssignments?.[step.stepId] || (step.assignmentMode === 'ASSIGN' ? 'current-user' : 'unassigned')
-        })),
-        userContext: {
-          userId: contextProps.userInfo?.id,
-          employeeId: contextProps.userInfo?.employeeId,
-          fullName: contextProps.userInfo?.fullName,
-          email: contextProps.userInfo?.email
-        },
-        aiRequestContext: {
-          purpose: 'quick-solution-suggestion',
-          expectedResponse: 'AI should analyze the form data and suggest optimizations, missing fields, or quick solutions'
-        }
-      };
+    console.log('🤖 [Ask AI for Quick Solution] Button clicked')
 
-      console.log('🤖 [Ask AI] Prepared payload for AI service:', ticketData);
-      
+    // Start AI loading
+    setAILoading(true)
+    setShowAIResponse(true)
+    setError(null)
+
+    // Prepare AI payload with form data for the ticket_data structure
+    const ticketData = {
+      timestamp: new Date().toISOString(),
+      templateInfo: {
+        type: 'flow-template',
+        id: flowTemplate?.id,
+        name: flowTemplate?.name,
+        description: currentTemplate?.description
+      },
+      formData: { ...formData },
+      formCompletion: {
+        percentage: completionPercentage,
+        totalFields: flowTemplate?.formSchema?.length || 0,
+        filledFields: Object.keys(formData).filter(key => {
+          const value = formData[key]
+          // Handle file fields
+          if (Array.isArray(value) && value.length > 0 && value[0] instanceof File) {
+            return true
+          }
+          // Handle other field types
+          return value !== undefined && value !== ''
+        }).length
+      },
+      stepAssignments: formData.stepAssignments || {},
+      requiredAssignments: stepsRequiringAssignment.map(step => ({
+        stepId: step.stepId,
+        title: step.title,
+        assignmentMode: step.assignmentMode,
+        assignedTo:
+          formData.stepAssignments?.[step.stepId] || (step.assignmentMode === 'ASSIGN' ? 'current-user' : 'unassigned')
+      })),
+      userContext: {
+        userId: contextProps.userInfo?.id,
+        employeeId: contextProps.userInfo?.employeeId,
+        fullName: contextProps.userInfo?.fullName,
+        email: contextProps.userInfo?.email
+      },
+      aiRequestContext: {
+        purpose: 'quick-solution-suggestion',
+        expectedResponse:
+          'AI should analyze the form data and suggest optimizations, missing fields, or quick solutions'
+      }
+    }
+
+    console.log('🤖 [Ask AI] Prepared payload for AI service:', ticketData)
+
     try {
       // Set access token for the API call
       if (contextProps.accessToken) {
-        flowbotClient.setAccessToken(contextProps.accessToken);
+        flowbotClient.setAccessToken(contextProps.accessToken)
       }
-      
+
       // Call the real AI API
-      const response = await flowbotClient.getQuickTipsForTicket(ticketData);
-      
-      console.log('🤖 [Ask AI] API Response:', response);
-      
+      const response = await flowbotClient.getQuickTipsForTicket(ticketData)
+
+      console.log('🤖 [Ask AI] API Response:', response)
+
       // Process the response and determine type based on content
-      let responseText = '';
-      let responseType: 'suggestion' | 'validation' | 'optimization' = 'suggestion';
-      
+      let responseText = ''
+      let responseType: 'suggestion' | 'validation' | 'optimization' = 'suggestion'
+
       // Extract text from response - prioritize "quick_tips" field
       if (response && typeof response === 'object' && 'quick_tips' in response) {
-        responseText = response.quick_tips as string;
+        responseText = response.quick_tips as string
       } else if (typeof response === 'string') {
-        responseText = response;
+        responseText = response
       } else if (response.suggestions) {
-        responseText = response.suggestions;
+        responseText = response.suggestions
       } else if (response.analysis) {
-        responseText = response.analysis;
+        responseText = response.analysis
       } else if (response.recommendations && Array.isArray(response.recommendations)) {
-        responseText = response.recommendations.join('\n\n');
+        responseText = response.recommendations.join('\n\n')
       } else {
         // Fallback: stringify the entire response
-        responseText = JSON.stringify(response, null, 2);
+        responseText = JSON.stringify(response, null, 2)
       }
-      
+
       // Determine response type based on content or form completion
       if (completionPercentage < 50) {
-        responseType = 'validation';
+        responseType = 'validation'
       } else if (completionPercentage >= 100) {
-        responseType = 'optimization';
+        responseType = 'optimization'
       } else {
-        responseType = 'suggestion';
+        responseType = 'suggestion'
       }
-      
-      setAIResponse(responseText || 'AI analysis completed. No specific recommendations at this time.');
-      setAIResponseType(responseType);
-      
-      console.log('🤖 [Ask AI] Processed response:', { responseType, completionPercentage, responseLength: responseText.length });
-      
+
+      setAIResponse(responseText || 'AI analysis completed. No specific recommendations at this time.')
+      setAIResponseType(responseType)
+
+      console.log('🤖 [Ask AI] Processed response:', {
+        responseType,
+        completionPercentage,
+        responseLength: responseText.length
+      })
     } catch (err) {
-      console.error('🤖 [Ask AI] API Error:', err);
-      
+      console.error('🤖 [Ask AI] API Error:', err)
+
       // Fallback to informative error message
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
       setAIResponse(`❌ **AI Service Temporarily Unavailable**
 
 We're unable to connect to the AI service right now. This might be due to:
@@ -901,9 +539,9 @@ We're unable to connect to the AI service right now. This might be due to:
 
 **Error Details:** ${errorMessage}
 
-Please try again in a few moments, or proceed with submitting your request.`);
-      setAIResponseType('validation');
-      
+Please try again in a few moments, or proceed with submitting your request.`)
+      setAIResponseType('validation')
+
       // Also set the error state for debugging
       setError({
         message: `AI Service Error: ${errorMessage}`,
@@ -915,18 +553,23 @@ Please try again in a few moments, or proceed with submitting your request.`);
           error: errorMessage,
           ticketData
         }
-      });
+      })
     } finally {
-      setAILoading(false);
+      setAILoading(false)
     }
-  };
+  }
 
-    return (
-    <div data-testid="request-form-container" style={{ backgroundColor: "white", padding: "16px" }}>
+  return (
+    <div data-testid="request-form-container" className="gba:bg-background gba:p-4">
       {/* Back navigation */}
-      <div className="gba:back-navigation" style={{ marginBottom: "16px" }}>
+      <div className="gba:back-navigation gba:mb-4">
         <button
-          onClick={onCancel}
+          type="button"
+          onClick={e => {
+            e.preventDefault()
+            e.stopPropagation()
+            onCancel()
+          }}
           disabled={isLoading}
           className="gba:flex gba:items-center gba:text-blue-500 gba:hover:text-blue-600 disabled:gba:opacity-50 disabled:gba:cursor-not-allowed"
           data-testid="back-button"
@@ -935,12 +578,12 @@ Please try again in a few moments, or proceed with submitting your request.`);
           <span>Cancel Request</span>
         </button>
       </div>
-      
+
       <PageLayout
         headerPhosphorIcon={{
           icon: IconComponent,
-          variant: "strategy",
-          size: "lg",
+          variant: 'strategy',
+          size: 'lg',
           label: currentTemplate?.name || 'Service Request'
         }}
         headerTitle={`Request: ${currentTemplate?.name || 'Service Request'}`}
@@ -956,18 +599,20 @@ Please try again in a few moments, or proceed with submitting your request.`);
               <Alert variant="destructive" className="gba:mb-4" style={{ display: 'block' }}>
                 <WarningIcon className="gba:h-4 gba:w-4" />
                 <h4 className="gba:font-semibold">Request Failed</h4>
-                <div style={{ display: 'block', wordWrap: 'break-word', whiteSpace: 'normal' }} className="gba:text-sm gba:mt-2">
+                <div
+                  style={{ display: 'block', wordWrap: 'break-word', whiteSpace: 'normal' }}
+                  className="gba:text-sm gba:mt-2"
+                >
                   <strong>Error:</strong> {error.message}
                 </div>
                 {error.payload && (
                   <div className="gba:mt-4 gba:space-y-4">
                     <div className="gba:text-xs gba:font-semibold gba:text-gray-700">
-                      {error.payload.sentPayload ? 
-                        '🎯 ACTUAL API Debug Info (from ConductorWorkflowEngineAdapter):' : 
-                        '🔍 API Debug Info (Development):'
-                      }
+                      {error.payload.sentPayload
+                        ? '🎯 ACTUAL API Debug Info (from ConductorWorkflowEngineAdapter):'
+                        : '🔍 API Debug Info (Development):'}
                     </div>
-                    
+
                     {/* 1. API Call Information */}
                     {error.payload.apiCall && (
                       <div className="gba:p-3 gba:bg-blue-50 gba:rounded gba:border gba:border-blue-200">
@@ -979,7 +624,7 @@ Please try again in a few moments, or proceed with submitting your request.`);
                         </pre>
                       </div>
                     )}
-                    
+
                     {/* 2. Sent Payload */}
                     {error.payload.sentPayload && (
                       <div className="gba:p-3 gba:bg-green-50 gba:rounded gba:border gba:border-green-200">
@@ -991,7 +636,7 @@ Please try again in a few moments, or proceed with submitting your request.`);
                         </pre>
                       </div>
                     )}
-                    
+
                     {/* 3. Response Information */}
                     {error.payload.response && (
                       <div className="gba:p-3 gba:bg-red-50 gba:rounded gba:border gba:border-red-200">
@@ -1003,12 +648,18 @@ Please try again in a few moments, or proceed with submitting your request.`);
                         </pre>
                       </div>
                     )}
-                    
+
                     <div className="gba:text-xs gba:text-blue-600 gba:bg-blue-50 gba:p-2 gba:rounded">
                       {error.payload.sentPayload ? (
-                        <span>✅ <strong>These show the EXACT API call data!</strong> Compare with browser network tab - each section matches the corresponding network request parts.</span>
+                        <span>
+                          ✅ <strong>These show the EXACT API call data!</strong> Compare with browser network tab -
+                          each section matches the corresponding network request parts.
+                        </span>
                       ) : (
-                        <span>💡 <strong>Tip:</strong> Check browser console for ConductorWorkflowEngineAdapter logs to see the actual data sent to custom-flow-engine</span>
+                        <span>
+                          💡 <strong>Tip:</strong> Check browser console for ConductorWorkflowEngineAdapter logs to see
+                          the actual data sent to custom-flow-engine
+                        </span>
                       )}
                     </div>
                   </div>
@@ -1028,7 +679,7 @@ Please try again in a few moments, or proceed with submitting your request.`);
                 </span>
               </div>
               <div className="gba:w-full gba:bg-muted gba:rounded-full gba:h-2">
-                <div 
+                <div
                   className="gba:bg-primary gba:h-2 gba:rounded-full gba:transition-all gba:duration-500"
                   style={{ width: `${completionPercentage}%` }}
                 />
@@ -1045,13 +696,16 @@ Please try again in a few moments, or proceed with submitting your request.`);
                     <span className="gba:text-sm gba:text-muted-foreground">Loading form data...</span>
                   </div>
                 )}
-                
+
                 {/* Show data error */}
                 {dataError && (
                   <Alert variant="destructive" className="gba:mb-6" style={{ display: 'block' }}>
                     <WarningIcon className="gba:h-4 gba:w-4" />
                     <h4 className="gba:font-semibold">Data Loading Error</h4>
-                    <div style={{ display: 'block', wordWrap: 'break-word', whiteSpace: 'normal' }} className="gba:text-sm gba:mt-2">
+                    <div
+                      style={{ display: 'block', wordWrap: 'break-word', whiteSpace: 'normal' }}
+                      className="gba:text-sm gba:mt-2"
+                    >
                       {dataError}
                     </div>
                   </Alert>
@@ -1061,62 +715,82 @@ Please try again in a few moments, or proceed with submitting your request.`);
                 {flowTemplate?.formSchema && (
                   <div className="gba:space-y-6">
                     <div className="gba:border-b gba:pb-4">
-                      <h3 className="gba:text-lg gba:font-semibold gba:text-gray-900">{flowTemplate.name} Details</h3>
+                      <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
+                        <h3 className="gba:text-lg gba:font-semibold gba:text-gray-900">{flowTemplate.name} Details</h3>
+                        {flowTemplate.version && (
+                          <Badge variant="outline" className="gba:text-xs gba:font-normal">
+                            v{flowTemplate.version}
+                          </Badge>
+                        )}
+                      </div>
                       <p className="gba:text-sm gba:text-gray-600 gba:mt-1">{flowTemplate.description}</p>
                     </div>
-                    
+
+                    {/* Step 0 Message - Instructions or information for the user */}
+                    {flowTemplate.step0Message && (
+                      <div className="gba:space-y-2">
+                        <h4 className="gba:text-sm gba:font-medium gba:text-foreground gba:flex gba:items-center gba:gap-2">
+                          <FileTextIcon className="gba:w-4 gba:h-4 gba:text-primary" />
+                          Instructions
+                        </h4>
+                        <MessageRenderer
+                          content={flowTemplate.step0Message}
+                          format="auto"
+                          variant="card"
+                          data-testid="step0-message"
+                        />
+                      </div>
+                    )}
+
                     {/* Render dynamic fields without form wrapper */}
                     <div className="gba:space-y-4">
-                      {flowTemplate.formSchema.map((field) => (
+                      {flowTemplate.formSchema.map(field => (
                         <div key={field.name} className="gba:space-y-2">
-                          <label htmlFor={field.name} className="gba:block gba:text-sm gba:font-medium gba:text-gray-700">
+                          <label
+                            htmlFor={field.name}
+                            className="gba:block gba:text-sm gba:font-medium gba:text-gray-700"
+                          >
                             {field.label}
                             {field.required && <span className="gba:text-red-500 gba:ml-1">*</span>}
                           </label>
-                          {field.description && (
-                            <p className="gba:text-xs gba:text-gray-500">{field.description}</p>
-                          )}
-                          
+                          {field.description && <p className="gba:text-xs gba:text-gray-500">{field.description}</p>}
+
                           {/* Render field based on type */}
                           {field.type?.toUpperCase() === 'TEXT' && (
                             <Input
                               id={field.name}
                               value={formData[field.name] || ''}
-                              onChange={(e) => handleFieldChange(field.name, e.target.value)}
+                              onChange={e => handleFieldChange(field.name, e.target.value)}
                               placeholder={field.placeholder}
                               required={field.required}
                             />
                           )}
-                          
+
                           {field.type?.toUpperCase() === 'TEXTAREA' && (
                             <Textarea
                               id={field.name}
                               value={formData[field.name] || ''}
-                              onChange={(e) => handleFieldChange(field.name, e.target.value)}
+                              onChange={e => handleFieldChange(field.name, e.target.value)}
                               placeholder={field.placeholder}
                               required={field.required}
                               rows={4}
                             />
                           )}
-                          
+
                           {field.type?.toUpperCase() === 'SELECT' && (
-                            <Select
+                            <DataSourceSelect
+                              id={field.name}
                               value={formData[field.name] || ''}
-                              onValueChange={(value) => handleFieldChange(field.name, value)}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder={field.placeholder || `Select ${field.label}`} />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {field.options?.map(option => (
-                                  <SelectItem key={option.value} value={option.value}>
-                                    {option.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                              onChange={value => handleFieldChange(field.name, value)}
+                              dataSource={field.dataSource!}
+                              accessToken={contextProps.accessToken}
+                              placeholder={field.placeholder || `Search ${field.label}...`}
+                              required={field.required}
+                              data-testid={`select-${field.name}`}
+                              initialOptions={field.options}
+                            />
                           )}
-                          
+
                           {field.type?.toUpperCase() === 'DATE' && (
                             <DateTimeField
                               name={field.name}
@@ -1124,13 +798,15 @@ Please try again in a few moments, or proceed with submitting your request.`);
                               showLabel={false}
                               type="date"
                               value={formData[field.name] || null}
-                              onChange={(date) => handleFieldChange(field.name, date ? date.toISOString().split('T')[0] : '')}
+                              onChange={date =>
+                                handleFieldChange(field.name, date ? date.toISOString().split('T')[0] : '')
+                              }
                               required={field.required}
                               placeholder={field.placeholder}
                               description={field.description}
                             />
                           )}
-                          
+
                           {field.type?.toUpperCase() === 'DATETIME' && (
                             <DateTimeField
                               name={field.name}
@@ -1138,55 +814,64 @@ Please try again in a few moments, or proceed with submitting your request.`);
                               showLabel={false}
                               type="datetime"
                               value={formData[field.name] || null}
-                              onChange={(date) => handleFieldChange(field.name, date ? date.toISOString() : '')}
+                              onChange={date => handleFieldChange(field.name, date ? date.toISOString() : '')}
                               required={field.required}
                               placeholder={field.placeholder}
                               description={field.description}
                             />
                           )}
-                          
+
                           {field.type?.toUpperCase() === 'NUMBER' && (
                             <NumberField
                               name={field.name}
                               label={field.label}
                               showLabel={false}
                               value={formData[field.name] ?? ''}
-                              onChange={(parsedValue) => handleFieldChange(field.name, parsedValue)}
+                              onChange={parsedValue => handleFieldChange(field.name, parsedValue)}
                               required={field.required}
                               placeholder={field.placeholder}
                               description={field.description}
                               id={field.name}
                             />
                           )}
-                          
+
                           {field.type?.toUpperCase() === 'EMAIL' && (
                             <Input
                               id={field.name}
                               type="email"
                               value={formData[field.name] || ''}
-                              onChange={(e) => handleFieldChange(field.name, e.target.value)}
+                              onChange={e => handleFieldChange(field.name, e.target.value)}
                               placeholder={field.placeholder}
                               required={field.required}
                             />
                           )}
-                          
+
                           {field.type?.toUpperCase() === 'CHECKBOX' && (
                             <div className="gba:space-y-3">
                               {field.options?.map(option => (
-                                <label key={option.value} className="gba:flex gba:items-center gba:space-x-3 gba:cursor-pointer">
+                                <label
+                                  key={option.value}
+                                  className="gba:flex gba:items-center gba:space-x-3 gba:cursor-pointer"
+                                >
                                   <input
                                     type="checkbox"
                                     value={option.value}
-                                    checked={Array.isArray(formData[field.name]) ? formData[field.name].includes(option.value) : false}
-                                    onChange={(e) => {
-                                      const currentValue = Array.isArray(formData[field.name]) ? formData[field.name] : [];
-                                      let newValue;
+                                    checked={
+                                      Array.isArray(formData[field.name])
+                                        ? formData[field.name].includes(option.value)
+                                        : false
+                                    }
+                                    onChange={e => {
+                                      const currentValue = Array.isArray(formData[field.name])
+                                        ? formData[field.name]
+                                        : []
+                                      let newValue
                                       if (e.target.checked) {
-                                        newValue = [...currentValue, option.value];
+                                        newValue = [...currentValue, option.value]
                                       } else {
-                                        newValue = currentValue.filter((v: any) => v !== option.value);
+                                        newValue = currentValue.filter((v: any) => v !== option.value)
                                       }
-                                      handleFieldChange(field.name, newValue);
+                                      handleFieldChange(field.name, newValue)
                                     }}
                                     className="gba:h-4 gba:w-4 gba:text-primary gba:border-input gba:rounded gba:focus:ring-2 gba:focus:ring-primary/20"
                                     data-testid={`checkbox-${field.name}-${option.value}`}
@@ -1201,28 +886,34 @@ Please try again in a few moments, or proceed with submitting your request.`);
                               )}
                             </div>
                           )}
-                          
+
                           {field.type?.toUpperCase() === 'MULTISELECT' && (
-                            <MultiSelect
+                            <DataSourceMultiSelect
                               id={field.name}
                               value={Array.isArray(formData[field.name]) ? formData[field.name] : []}
-                              onChange={(values) => handleFieldChange(field.name, values)}
-                              options={field.options || []}
-                              placeholder={field.placeholder || `Select ${field.label}`}
+                              onChange={values => handleFieldChange(field.name, values)}
+                              dataSource={field.dataSource!}
+                              accessToken={contextProps.accessToken}
+                              placeholder={field.placeholder || `Search ${field.label}...`}
                               required={field.required}
+                              data-testid={`multiselect-${field.name}`}
+                              initialOptions={field.options}
                             />
                           )}
-                          
+
                           {field.type?.toUpperCase() === 'RADIO' && (
                             <div className="gba:space-y-3">
                               {field.options?.map(option => (
-                                <label key={option.value} className="gba:flex gba:items-center gba:space-x-3 gba:cursor-pointer">
+                                <label
+                                  key={option.value}
+                                  className="gba:flex gba:items-center gba:space-x-3 gba:cursor-pointer"
+                                >
                                   <input
                                     type="radio"
                                     name={field.name}
                                     value={option.value}
                                     checked={formData[field.name] === option.value}
-                                    onChange={(e) => handleFieldChange(field.name, e.target.value)}
+                                    onChange={e => handleFieldChange(field.name, e.target.value)}
                                     className="gba:h-4 gba:w-4 gba:text-primary gba:border-input gba:focus:ring-2 gba:focus:ring-primary/20"
                                     required={field.required}
                                     data-testid={`radio-${field.name}-${option.value}`}
@@ -1237,7 +928,7 @@ Please try again in a few moments, or proceed with submitting your request.`);
                               )}
                             </div>
                           )}
-                          
+
                           {field.type?.toUpperCase() === 'FILE' && (
                             <FileUploadField
                               name={field.name}
@@ -1257,13 +948,14 @@ Please try again in a few moments, or proceed with submitting your request.`);
                         </div>
                       ))}
                     </div>
-                </div>
+                  </div>
                 )}
 
                 <Separator />
 
                 {/* 🌐 UNIVERSAL: Step Assignment Section */}
-                {stepsRequiringAssignment.filter(step => showFirstStepAssignment || step.stepIndex !== 0).length > 0 && (
+                {stepsRequiringAssignment.filter(step => showFirstStepAssignment || step.stepIndex !== 0).length >
+                  0 && (
                   <div className="gba:space-y-6">
                     <div className="gba:border-l-4 gba:border-blue-500 gba:pl-4 gba:py-2 gba:bg-blue-50">
                       <h4 className="gba:text-base gba:font-semibold gba:flex gba:items-center gba:text-blue-900">
@@ -1271,10 +963,12 @@ Please try again in a few moments, or proceed with submitting your request.`);
                         Step Assignments
                       </h4>
                       <p className="gba:text-sm gba:text-blue-700 gba:mt-1">
-                        This template requires specific step assignments. Steps marked as "ASSIGN" are automatically assigned to you. You can assign "CLAIM" steps to others if needed.
+                        This template requires specific step assignments. Steps marked as "ASSIGN" are automatically
+                        assigned to you. You can assign "CLAIM" steps to others if needed.
                         {!showFirstStepAssignment && (
                           <span className="gba:block gba:text-xs gba:text-blue-600 gba:mt-1">
-                            Note: First step assignment is hidden (always assigned to you). Add ?showFirstStepAssignment=true to URL to see it.
+                            Note: First step assignment is hidden (always assigned to you). Add
+                            ?showFirstStepAssignment=true to URL to see it.
                           </span>
                         )}
                       </p>
@@ -1289,105 +983,107 @@ Please try again in a few moments, or proceed with submitting your request.`);
                       <div className="gba:space-y-4">
                         {stepsRequiringAssignment
                           .filter(step => showFirstStepAssignment || step.stepIndex !== 0)
-                          .map((step) => (
-                          <div key={step.stepId} className="gba:p-4 gba:border gba:rounded-lg gba:bg-gray-50">
-                            <div className="gba:flex gba:items-start gba:justify-between gba:mb-3">
-                              <div>
-                                <h5 className="gba:font-semibold gba:text-gray-900">
-                                  {step.title}
-                                </h5>
-                                <div className="gba:flex gba:items-center gba:space-x-2 gba:mt-1">
-                                  <Badge 
-                                    variant="outline" 
-                                    className={`gba:text-xs ${
-                                      step.assignmentMode === 'ASSIGN' 
-                                        ? 'gba:bg-green-50 gba:text-green-700 gba:border-green-200' 
-                                        : 'gba:bg-blue-50 gba:text-blue-700 gba:border-blue-200'
-                                    }`}
-                                  >
-                                    {step.assignmentMode} Mode
-                                  </Badge>
-                                  <span className="gba:text-xs gba:text-gray-500">
-                                    Step {step.stepIndex + 1}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                            
-                            {/* ASSIGN Mode - Auto-assigned to current user */}
-                            {step.assignmentMode === 'ASSIGN' ? (
-                              <div className="gba:space-y-3">
-                                <label className="gba:flex gba:items-center gba:text-sm gba:font-semibold gba:text-foreground">
-                                  <UserIcon className="gba:mr-2 gba:h-4 gba:w-4 gba:text-green-600" />
-                                  Assigned to
-                                </label>
-                                
-                                <div className="gba:p-3 gba:bg-green-50 gba:border gba:border-green-200 gba:rounded">
-                                  <div className="gba:flex gba:items-center">
-                                    <UserIcon className="gba:mr-2 gba:h-4 gba:w-4 gba:text-green-600" />
-                                    <div>
-                                      <span className="gba:font-medium gba:text-green-900">
-                                        You (Current User)
-                                      </span>
-                                      <p className="gba:text-xs gba:text-green-700">
-                                        This step is automatically assigned to you as the requester.
-                                      </p>
-                                    </div>
+                          .map(step => (
+                            <div key={step.stepId} className="gba:p-4 gba:border gba:rounded-lg gba:bg-gray-50">
+                              <div className="gba:flex gba:items-start gba:justify-between gba:mb-3">
+                                <div>
+                                  <h5 className="gba:font-semibold gba:text-gray-900">{step.title}</h5>
+                                  <div className="gba:flex gba:items-center gba:space-x-2 gba:mt-1">
+                                    <Badge
+                                      variant="outline"
+                                      className={`gba:text-xs ${
+                                        step.assignmentMode === 'ASSIGN'
+                                          ? 'gba:bg-green-50 gba:text-green-700 gba:border-green-200'
+                                          : 'gba:bg-blue-50 gba:text-blue-700 gba:border-blue-200'
+                                      }`}
+                                    >
+                                      {step.assignmentMode} Mode
+                                    </Badge>
+                                    <span className="gba:text-xs gba:text-gray-500">Step {step.stepIndex + 1}</span>
                                   </div>
                                 </div>
                               </div>
-                            ) : (
-                              /* CLAIM Mode - Allow assignment selection */
-                              <div className="gba:space-y-3">
-                                <label className="gba:flex gba:items-center gba:text-sm gba:font-semibold gba:text-foreground">
-                                  <UserIcon className="gba:mr-2 gba:h-4 gba:w-4 gba:text-primary" />
-                                  Assign to User
-                                  <span className="gba:text-destructive gba:ml-1">*</span>
-                                </label>
-                                
-                                <Select 
-                                  value={formData.stepAssignments?.[step.stepId] || ''} 
-                                  onValueChange={(val) => handleFieldChange(`stepAssignment_${step.stepId}`, val)}
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select user to assign this step to..." />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {/* Current user option */}
-                                    <SelectItem value={contextProps.userInfo?.id || 'current-user'}>
-                                      <div className="gba:flex gba:flex-col">
-                                        <span className="gba:font-medium">You (Current User)</span>
-                                        <span className="gba:text-xs gba:text-muted-foreground">Handle this step yourself</span>
+
+                              {/* ASSIGN Mode - Auto-assigned to current user */}
+                              {step.assignmentMode === 'ASSIGN' ? (
+                                <div className="gba:space-y-3">
+                                  <label className="gba:flex gba:items-center gba:text-sm gba:font-semibold gba:text-foreground">
+                                    <UserIcon className="gba:mr-2 gba:h-4 gba:w-4 gba:text-green-600" />
+                                    Assigned to
+                                  </label>
+
+                                  <div className="gba:p-3 gba:bg-green-50 gba:border gba:border-green-200 gba:rounded">
+                                    <div className="gba:flex gba:items-center">
+                                      <UserIcon className="gba:mr-2 gba:h-4 gba:w-4 gba:text-green-600" />
+                                      <div>
+                                        <span className="gba:font-medium gba:text-green-900">You (Current User)</span>
+                                        <p className="gba:text-xs gba:text-green-700">
+                                          This step is automatically assigned to you as the requester.
+                                        </p>
                                       </div>
-                                    </SelectItem>
-                                    
-                                    <Separator className="gba:my-1" />
-                                    
-                                    {/* Employee options */}
-                                    {getEmployeeOptions(employees).map((emp) => (
-                                      <SelectItem key={emp.value} value={emp.value}>
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : (
+                                /* CLAIM Mode - Allow assignment selection */
+                                <div className="gba:space-y-3">
+                                  <label className="gba:flex gba:items-center gba:text-sm gba:font-semibold gba:text-foreground">
+                                    <UserIcon className="gba:mr-2 gba:h-4 gba:w-4 gba:text-primary" />
+                                    Assign to User
+                                    <span className="gba:text-destructive gba:ml-1">*</span>
+                                  </label>
+
+                                  <Select
+                                    value={formData.stepAssignments?.[step.stepId] || ''}
+                                    onValueChange={val => handleFieldChange(`stepAssignment_${step.stepId}`, val)}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select user to assign this step to..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {/* Current user option */}
+                                      <SelectItem value={contextProps.userInfo?.id || 'current-user'}>
                                         <div className="gba:flex gba:flex-col">
-                                          <span className="gba:font-medium">{emp.label}</span>
-                                          {emp.jobTitle && <span className="gba:text-xs gba:text-muted-foreground">{emp.jobTitle} • {emp.department}</span>}
+                                          <span className="gba:font-medium">You (Current User)</span>
+                                          <span className="gba:text-xs gba:text-muted-foreground">
+                                            Handle this step yourself
+                                          </span>
                                         </div>
                                       </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                                
-                                <div className="gba:text-xs gba:text-blue-600 gba:bg-blue-50 gba:p-2 gba:rounded">
-                                  ℹ️ This step uses CLAIM mode - you can assign it to yourself or someone else who can claim the task.
+
+                                      <Separator className="gba:my-1" />
+
+                                      {/* Employee options */}
+                                      {getEmployeeOptions(employees).map(emp => (
+                                        <SelectItem key={emp.value} value={emp.value}>
+                                          <div className="gba:flex gba:flex-col">
+                                            <span className="gba:font-medium">{emp.label}</span>
+                                            {emp.jobTitle && (
+                                              <span className="gba:text-xs gba:text-muted-foreground">
+                                                {emp.jobTitle} • {emp.department}
+                                              </span>
+                                            )}
+                                          </div>
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+
+                                  <div className="gba:text-xs gba:text-blue-600 gba:bg-blue-50 gba:p-2 gba:rounded">
+                                    ℹ️ This step uses CLAIM mode - you can assign it to yourself or someone else who can
+                                    claim the task.
+                                  </div>
                                 </div>
-                              </div>
-                            )}
-                          </div>
-                        ))}
+                              )}
+                            </div>
+                          ))}
                       </div>
                     )}
                   </div>
                 )}
 
-                {stepsRequiringAssignment.filter(step => showFirstStepAssignment || step.stepIndex !== 0).length > 0 && <Separator />}
+                {stepsRequiringAssignment.filter(step => showFirstStepAssignment || step.stepIndex !== 0).length >
+                  0 && <Separator />}
 
                 {/* Additional Information Section */}
                 <div className="gba:space-y-4">
@@ -1398,7 +1094,7 @@ Please try again in a few moments, or proceed with submitting your request.`);
                   <Textarea
                     placeholder="Enter any additional comments or information..."
                     value={formData.additionalComments || ''}
-                    onChange={(e) => handleFieldChange('additionalComments', e.target.value)}
+                    onChange={e => handleFieldChange('additionalComments', e.target.value)}
                     className="gba:min-h-[100px] gba:resize-none"
                   />
                 </div>
@@ -1410,59 +1106,31 @@ Please try again in a few moments, or proceed with submitting your request.`);
                     type="button"
                     onClick={handleAskAI}
                     disabled={isLoading || aiLoading}
-                    className="gba:w-full gba:py-4 gba:px-6 gba:bg-gradient-to-r gba:from-purple-500 gba:via-violet-500 gba:to-blue-600 hover:gba:from-purple-600 hover:gba:via-violet-600 hover:gba:to-blue-700 gba:text-white gba:font-semibold gba:rounded-lg gba:border-0 gba:shadow-xl hover:gba:shadow-2xl gba:transition-all gba:duration-300 gba:ease-in-out hover:gba:scale-105 active:gba:scale-95 disabled:gba:opacity-50 disabled:gba:cursor-not-allowed disabled:hover:gba:scale-100 gba:relative gba:overflow-hidden gba:group"
+                    className="gba:w-full gba:py-4 gba:px-6 gba:bg-gradient-to-br gba:from-ai-from gba:to-ai-to gba:text-ai-foreground gba:font-semibold gba:rounded-lg gba:border-0 gba:shadow-xl hover:gba:shadow-2xl gba:transition-all gba:duration-300 gba:ease-in-out hover:gba:scale-105 active:gba:scale-95 disabled:gba:opacity-50 disabled:gba:cursor-not-allowed disabled:hover:gba:scale-100 gba:relative gba:overflow-hidden gba:group"
                     data-testid="ask-ai-button"
-                    style={{
-                      background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 25%, #6366f1 50%, #3b82f6 75%, #2563eb 100%)',
-                      backgroundSize: '200% 200%',
-                      animation: 'gradient-shift 3s ease infinite'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundPosition = '100% 0%';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundPosition = '0% 0%';
-                    }}
                   >
-                    {/* Shimmer overlay effect */}
-                    <div 
-                      className="gba:absolute gba:inset-0 gba:bg-gradient-to-r gba:from-transparent gba:via-white gba:to-transparent gba:opacity-30"
-                      style={{
-                        width: '30%',
-                        transform: 'translateX(-200%) skewX(-15deg)',
-                        animation: 'shimmer 2s ease-in-out infinite'
-                      }}
-                    ></div>
-                    
                     {/* Content */}
                     <div className="gba:relative gba:flex gba:items-center gba:justify-center gba:gap-3 gba:z-10">
                       {aiLoading ? (
                         <>
                           <Spinner size="sm" className="gba:w-6 gba:h-6" />
-                          <span className="gba:text-lg gba:font-bold gba:tracking-wide gba:filter gba:drop-shadow-sm">AI is thinking...</span>
-                          <BrainIcon className="gba:w-5 gba:h-5 gba:filter gba:drop-shadow-lg gba:animate-pulse" />
+                          <span className="gba:text-lg gba:font-bold gba:tracking-wide">AI is thinking...</span>
+                          <BrainIcon className="gba:w-5 gba:h-5 gba:animate-pulse" />
                         </>
                       ) : (
                         <>
-                          <RobotIcon className="gba:w-6 gba:h-6 gba:filter gba:drop-shadow-lg group-hover:gba:animate-bounce" />
-                          <span className="gba:text-lg gba:font-bold gba:tracking-wide gba:filter gba:drop-shadow-sm">Ask AI for quick solution</span>
-                          <SparkleIcon className="gba:w-5 gba:h-5 gba:filter gba:drop-shadow-lg gba:animate-pulse" />
+                          <RobotIcon className="gba:w-6 gba:h-6 group-hover:gba:animate-bounce" />
+                          <span className="gba:text-lg gba:font-bold gba:tracking-wide">Ask AI for quick solution</span>
+                          <SparkleIcon className="gba:w-5 gba:h-5 gba:animate-pulse" />
                         </>
                       )}
                     </div>
-                    
-                    {/* Glow effect */}
-                    <div className="gba:absolute gba:inset-0 gba:rounded-lg gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity gba:duration-300" 
-                         style={{
-                           boxShadow: '0 0 30px rgba(139, 92, 246, 0.6), 0 0 60px rgba(139, 92, 246, 0.4)'
-                         }}>
-                    </div>
                   </button>
-                  
+
                   {/* Primary Actions */}
                   <div className="gba:flex gba:gap-4">
-                    <Button 
-                      type="submit" 
+                    <Button
+                      type="submit"
                       disabled={isLoading || isUploadingFiles || completionPercentage < 100}
                       className="gba:flex-1 gba:py-3"
                       size="lg"
@@ -1484,9 +1152,9 @@ Please try again in a few moments, or proceed with submitting your request.`);
                         </>
                       )}
                     </Button>
-                    <Button 
-                      type="button" 
-                      variant="outline" 
+                    <Button
+                      type="button"
+                      variant="outline"
                       onClick={onCancel}
                       disabled={isLoading}
                       className="gba:px-8"
@@ -1525,74 +1193,80 @@ Please try again in a few moments, or proceed with submitting your request.`);
                   <SparkleIcon className="gba:mr-2 gba:text-indigo-600" size={20} />
                   Workflow Steps
                 </h3>
-                
+
                 <p className="gba:text-sm gba:text-muted-foreground gba:mb-6">
-                  This request will follow {flowTemplate.steps.length} workflow step{flowTemplate.steps.length !== 1 ? 's' : ''}:
+                  This request will follow {flowTemplate.steps.length} workflow step
+                  {flowTemplate.steps.length !== 1 ? 's' : ''}:
                 </p>
-                
+
                 <div className="gba:space-y-4">
                   {flowTemplate.steps.slice(0, 5).map((step: any, index: number) => {
                     // Helper function to get step type icon and color
                     const getStepTypeInfo = (type: string) => {
                       switch (type) {
                         case 'TASK':
-                          return { icon: '📋', color: 'gba:bg-blue-600', bgColor: 'gba:bg-blue-50' };
+                          return { icon: '📋', color: 'gba:bg-blue-600', bgColor: 'gba:bg-blue-50' }
                         case 'GATEWAY':
-                          return { icon: '🔀', color: 'gba:bg-yellow-600', bgColor: 'gba:bg-yellow-50' };
+                          return { icon: '🔀', color: 'gba:bg-yellow-600', bgColor: 'gba:bg-yellow-50' }
                         case 'SUBPROCESS':
-                          return { icon: '⚙️', color: 'gba:bg-purple-600', bgColor: 'gba:bg-purple-50' };
+                          return { icon: '⚙️', color: 'gba:bg-purple-600', bgColor: 'gba:bg-purple-50' }
                         default:
-                          return { icon: '📝', color: 'gba:bg-gray-600', bgColor: 'gba:bg-gray-50' };
+                          return { icon: '📝', color: 'gba:bg-gray-600', bgColor: 'gba:bg-gray-50' }
                       }
-                    };
+                    }
 
                     // Helper function to format assignment info
                     const getAssignmentInfo = (assignment: any) => {
-                      if (!assignment) return 'System';
-                      
-                      const { targets, assignmentMode } = assignment;
-                      
-                      if (index === 0) return 'You (Requester)';
-                      
+                      if (!assignment) return 'System'
+
+                      const { targets, assignmentMode } = assignment
+
+                      if (index === 0) return 'You (Requester)'
+
                       if (targets?.organizationalUnits?.length > 0) {
-                        const mode = assignmentMode === 'CLAIM' ? 'Team (any member)' : 'Team (assigned)';
-                        return mode;
+                        const mode = assignmentMode === 'CLAIM' ? 'Team (any member)' : 'Team (assigned)'
+                        return mode
                       }
-                      
+
                       if (targets?.users?.length > 0) {
-                        return assignmentMode === 'CLAIM' ? 'Specific Users' : 'Assigned User';
+                        return assignmentMode === 'CLAIM' ? 'Specific Users' : 'Assigned User'
                       }
-                      
-                      return assignmentMode === 'CLAIM' ? 'Available Team Member' : 'System Assigned';
-                    };
+
+                      return assignmentMode === 'CLAIM' ? 'Available Team Member' : 'System Assigned'
+                    }
 
                     // Helper function to format duration
                     const formatDuration = (minutes: number) => {
-                      if (!minutes) return 'Variable';
-                      
-                      if (minutes < 60) return `${minutes} min`;
-                      
-                      const hours = Math.floor(minutes / 60);
-                      const remainingMinutes = minutes % 60;
-                      
-                      if (hours < 24) {
-                        return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
-                      }
-                      
-                      const days = Math.floor(hours / 24);
-                      const remainingHours = hours % 24;
-                      
-                      return remainingHours > 0 ? `${days}d ${remainingHours}h` : `${days}d`;
-                    };
+                      if (!minutes) return 'Variable'
 
-                    const typeInfo = getStepTypeInfo(step.type);
-                    const assignmentInfo = getAssignmentInfo(step.assignment);
-                    const duration = formatDuration(step.dueInMinutes);
+                      if (minutes < 60) return `${minutes} min`
+
+                      const hours = Math.floor(minutes / 60)
+                      const remainingMinutes = minutes % 60
+
+                      if (hours < 24) {
+                        return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`
+                      }
+
+                      const days = Math.floor(hours / 24)
+                      const remainingHours = hours % 24
+
+                      return remainingHours > 0 ? `${days}d ${remainingHours}h` : `${days}d`
+                    }
+
+                    const typeInfo = getStepTypeInfo(step.type)
+                    const assignmentInfo = getAssignmentInfo(step.assignment)
+                    const duration = formatDuration(step.dueInMinutes)
 
                     return (
-                      <div key={step.id || index} className={`gba:p-3 gba:rounded-lg gba:border ${typeInfo.bgColor} gba:border-opacity-30`}>
+                      <div
+                        key={step.id || index}
+                        className={`gba:p-3 gba:rounded-lg gba:border ${typeInfo.bgColor} gba:border-opacity-30`}
+                      >
                         <div className="gba:flex gba:items-start gba:space-x-3">
-                          <div className={`gba:flex gba:items-center gba:justify-center gba:w-7 gba:h-7 gba:rounded-full ${typeInfo.color} gba:text-white gba:text-xs gba:font-bold gba:flex-shrink-0`}>
+                          <div
+                            className={`gba:flex gba:items-center gba:justify-center gba:w-7 gba:h-7 gba:rounded-full ${typeInfo.color} gba:text-white gba:text-xs gba:font-bold gba:flex-shrink-0`}
+                          >
                             {index + 1}
                           </div>
                           <div className="gba:flex-1 gba:min-w-0">
@@ -1604,25 +1278,24 @@ Please try again in a few moments, or proceed with submitting your request.`);
                                 {typeInfo.icon}
                               </span>
                             </div>
-                            
+
                             {step.message && (
-                              <p className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:leading-relaxed">
-                                {step.message}
-                              </p>
+                              <MessageRenderer
+                                content={step.message}
+                                format="auto"
+                                variant="compact"
+                                className="gba:mb-2"
+                              />
                             )}
-                            
+
                             <div className="gba:flex gba:items-center gba:justify-between gba:text-xs">
-                              <span className="gba:text-muted-foreground">
-                                👤 {assignmentInfo}
-                              </span>
-                              <span className="gba:text-muted-foreground">
-                                ⏱️ {duration}
-                              </span>
+                              <span className="gba:text-muted-foreground">👤 {assignmentInfo}</span>
+                              <span className="gba:text-muted-foreground">⏱️ {duration}</span>
                             </div>
                           </div>
                         </div>
                       </div>
-                    );
+                    )
                   })}
                   {flowTemplate.steps.length > 5 && (
                     <div className="gba:text-center gba:text-xs gba:text-muted-foreground gba:pt-2 gba:border-t gba:border-gray-200">
@@ -1632,44 +1305,6 @@ Please try again in a few moments, or proceed with submitting your request.`);
                 </div>
               </Card>
             )}
-
-            {/* Quick Tips */}
-            <Card className="gba:p-6">
-              <h3 className="gba:text-lg gba:font-semibold gba:mb-4 gba:flex gba:items-center">
-                <StarIcon className="gba:mr-2 gba:text-yellow-500" />
-                Quick Tips
-              </h3>
-              <div className="gba:space-y-3 gba:text-sm">
-                <div className="gba:flex gba:items-start gba:space-x-2">
-                  <CheckCircleIcon className="gba:text-green-500 gba:mt-0.5 gba:flex-shrink-0" size={16} />
-                  <span>Provide detailed information to speed up processing</span>
-                </div>
-                <div className="gba:flex gba:items-start gba:space-x-2">
-                  <CheckCircleIcon className="gba:text-green-500 gba:mt-0.5 gba:flex-shrink-0" size={16} />
-                  <span>Include business justification for faster approval</span>
-                </div>
-                <div className="gba:flex gba:items-start gba:space-x-2">
-                  <CheckCircleIcon className="gba:text-green-500 gba:mt-0.5 gba:flex-shrink-0" size={16} />
-                  <span>Check "My Requests" for real-time status updates</span>
-                </div>
-                <div className="gba:flex gba:items-start gba:space-x-2">
-                  <CheckCircleIcon className="gba:text-green-500 gba:mt-0.5 gba:flex-shrink-0" size={16} />
-                  <span>Contact your manager if urgent approval is needed</span>
-                </div>
-              </div>
-            </Card>
-
-            {/* Support Contact */}
-            <Card className="gba:p-6 gba:border-blue-200 gba:bg-blue-50">
-              <h3 className="gba:text-lg gba:font-semibold gba:mb-2 gba:text-blue-900">Need Help?</h3>
-              <p className="gba:text-sm gba:text-blue-700 gba:mb-4">
-                If you need assistance with this request, our support team is here to help.
-              </p>
-              <Button variant="outline" className="gba:w-full gba:border-blue-300 gba:text-blue-700 hover:gba:bg-blue-100">
-                <UsersIcon className="gba:mr-2" size={16} />
-                Contact Support
-              </Button>
-            </Card>
           </div>
         </div>
       </PageLayout>
@@ -1712,14 +1347,14 @@ Please try again in a few moments, or proceed with submitting your request.`);
               <div className="gba:space-y-6">
                 {/* Response Type Badge */}
                 <div className="gba:flex gba:items-center gba:gap-2">
-                  <Badge 
-                    variant="outline" 
+                  <Badge
+                    variant="outline"
                     className={`gba:px-3 gba:py-1 gba:text-sm gba:font-medium ${
-                      aiResponseType === 'validation' 
-                        ? 'gba:bg-orange-50 gba:text-orange-700 gba:border-orange-200' 
+                      aiResponseType === 'validation'
+                        ? 'gba:bg-orange-50 gba:text-orange-700 gba:border-orange-200'
                         : aiResponseType === 'optimization'
-                        ? 'gba:bg-green-50 gba:text-green-700 gba:border-green-200'
-                        : 'gba:bg-blue-50 gba:text-blue-700 gba:border-blue-200'
+                          ? 'gba:bg-green-50 gba:text-green-700 gba:border-green-200'
+                          : 'gba:bg-blue-50 gba:text-blue-700 gba:border-blue-200'
                     }`}
                   >
                     {aiResponseType === 'validation' && '🔍 Form Validation'}
@@ -1734,7 +1369,7 @@ Please try again in a few moments, or proceed with submitting your request.`);
                 {/* AI Response Text */}
                 <Card className="gba:p-6 gba:bg-gradient-to-br gba:from-gray-50 gba:to-white gba:border-l-4 gba:border-l-purple-500">
                   <div className="gba:prose gba:prose-sm gba:max-w-none">
-                    <div 
+                    <div
                       className="gba:whitespace-pre-line gba:text-gray-800 gba:leading-relaxed"
                       dangerouslySetInnerHTML={parseMarkdownForReact(aiResponse)}
                     />
@@ -1745,7 +1380,7 @@ Please try again in a few moments, or proceed with submitting your request.`);
                 <div className="gba:flex gba:gap-3 gba:pt-4 gba:border-t gba:border-gray-200">
                   <Button
                     onClick={() => {
-                      navigator.clipboard.writeText(aiResponse);
+                      navigator.clipboard.writeText(aiResponse)
                       // Could add a toast notification here
                     }}
                     variant="outline"
@@ -1754,11 +1389,11 @@ Please try again in a few moments, or proceed with submitting your request.`);
                     <CopyIcon className="gba:w-4 gba:h-4" />
                     Copy Response
                   </Button>
-                  
+
                   <Button
                     onClick={() => {
                       // Could implement feedback functionality
-                      console.log('👍 AI Response feedback: Helpful');
+                      console.log('👍 AI Response feedback: Helpful')
                     }}
                     variant="outline"
                     className="gba:flex gba:items-center gba:gap-2 gba:text-green-600 hover:gba:bg-green-50"
@@ -1782,7 +1417,8 @@ Please try again in a few moments, or proceed with submitting your request.`);
                     <div>
                       <h4 className="gba:font-semibold gba:text-blue-800 gba:text-sm">Pro Tip</h4>
                       <p className="gba:text-blue-700 gba:text-sm gba:mt-1">
-                        You can ask the AI for help again after making changes to your form. The suggestions will be updated based on your progress!
+                        You can ask the AI for help again after making changes to your form. The suggestions will be
+                        updated based on your progress!
                       </p>
                     </div>
                   </div>
@@ -1793,5 +1429,5 @@ Please try again in a few moments, or proceed with submitting your request.`);
         </DialogContent>
       </Dialog>
     </div>
-  );
-};
+  )
+}

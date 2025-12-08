@@ -1,29 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  PageLayout, 
-  Card, 
-  Button, 
-  Badge, 
-  Alert,
-  Spinner,
-  type KpiCardData
-} from '@newwork/nw-design-system';
-import { FlowTemplate } from '../../../types';
-import { useSharedFlowTemplates } from '../../../hooks/useSharedFlowTemplates';
-import { FlowTemplateCard } from './FlowTemplateCard';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { 
-  ArrowLeft, 
-  ClockCounterClockwise, 
-  Users,
-  Tree,
-  Warning,
-  CheckCircle
-} from '@phosphor-icons/react';
+import React, { useEffect } from 'react'
+import { PageLayout, Card, Button, Badge, Alert, Spinner, type KpiCardData } from '@newwork/nw-design-system'
+import { FlowTemplate } from '../../../types'
+import { useSharedFlowTemplates } from '../../../hooks/useSharedFlowTemplates'
+import { FlowTemplateCard } from './FlowTemplateCard'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { ArrowLeft, Tree, Warning, CheckCircle } from '@phosphor-icons/react'
 
 export interface FlowTemplatesDetailProps extends BusinessAppContextProps {
-  onRequestFlowTemplate?: (template: FlowTemplate) => void;
-  onBack: () => void;
+  onRequestFlowTemplate?: (template: FlowTemplate) => void
+  onBack: () => void
 }
 
 export const FlowTemplatesDetail: React.FC<FlowTemplatesDetailProps> = ({
@@ -31,19 +16,19 @@ export const FlowTemplatesDetail: React.FC<FlowTemplatesDetailProps> = ({
   onBack,
   ...contextProps
 }) => {
-  console.log('🎭 [FlowTemplatesDetail] Component mounted');
+  console.log('🎭 [FlowTemplatesDetail] Component mounted')
 
   // Fetch flow templates from custom-flow-engine using shared service
-  const { 
-    templates: flowTemplates, 
-    isLoading: flowTemplatesLoading, 
+  const {
+    templates: flowTemplates,
+    isLoading: flowTemplatesLoading,
     error: flowTemplatesError,
     refetch: refetchFlowTemplates,
     totalCount: flowTemplatesCount
-  } = useSharedFlowTemplates(contextProps, { 
+  } = useSharedFlowTemplates(contextProps, {
     enabled: true,
     limit: 100
-  });
+  })
 
   // Debug effect for flow templates
   useEffect(() => {
@@ -52,8 +37,8 @@ export const FlowTemplatesDetail: React.FC<FlowTemplatesDetailProps> = ({
       error: flowTemplatesError,
       count: flowTemplates.length,
       templates: flowTemplates.map(t => ({ id: t.id, name: t.name }))
-    });
-  }, [flowTemplates, flowTemplatesLoading, flowTemplatesError]);
+    })
+  }, [flowTemplates, flowTemplatesLoading, flowTemplatesError])
 
   // Calculate KPI cards for flow templates
   const kpiCards: KpiCardData[] = [
@@ -72,9 +57,10 @@ export const FlowTemplatesDetail: React.FC<FlowTemplatesDetailProps> = ({
     {
       id: 'avg-steps',
       title: 'Avg. Steps',
-      value: flowTemplates.length > 0 
-        ? Math.round(flowTemplates.reduce((sum, t) => sum + t.stepCount, 0) / flowTemplates.length).toString()
-        : '0',
+      value:
+        flowTemplates.length > 0
+          ? Math.round(flowTemplates.reduce((sum, t) => sum + t.stepCount, 0) / flowTemplates.length).toString()
+          : '0',
       description: 'Per workflow template'
     },
     {
@@ -83,28 +69,28 @@ export const FlowTemplatesDetail: React.FC<FlowTemplatesDetailProps> = ({
       value: 'Real-time',
       description: 'Live from engine'
     }
-  ];
+  ]
 
   return (
-    <div data-testid="flow-templates-detail-container" style={{ backgroundColor: "white", padding: "16px" }}>
+    <div data-testid="flow-templates-detail-container" className="gba:bg-background gba:p-4">
       {/* Back navigation */}
-      <div className="gba:back-navigation" style={{ marginBottom: "16px" }}>
+      <div className="gba:back-navigation" style={{ marginBottom: '16px' }}>
         <button
           onClick={onBack}
           className="gba:flex gba:items-center gba:text-blue-500 gba:hover:text-blue-600"
           data-testid="back-button"
         >
           <ArrowLeft className="gba:mr-2" size={16} />
-          <span>Back to Catalog</span>
+          <span>Back to Portal</span>
         </button>
       </div>
-      
+
       <PageLayout
         headerPhosphorIcon={{
           icon: Tree,
-          variant: "strategy",
-          size: "lg",
-          label: "Flow Templates"
+          variant: 'strategy',
+          size: 'lg',
+          label: 'Flow Templates'
         }}
         headerTitle="Flow Templates"
         headerDescription="Dynamic workflow templates from custom-flow-engine with automatic form generation based on template definitions"
@@ -120,31 +106,27 @@ export const FlowTemplatesDetail: React.FC<FlowTemplatesDetailProps> = ({
                 <Tree className="gba:w-5 gba:h-5 gba:text-indigo-600" />
                 <h2 className="gba:text-xl gba:font-semibold gba:text-gray-900">Dynamic Templates</h2>
               </div>
-              <Badge variant="outline" className="gba:text-xs gba:bg-indigo-50 gba:text-indigo-700 gba:border-indigo-300">
+              <Badge
+                variant="outline"
+                className="gba:text-xs gba:bg-indigo-50 gba:text-indigo-700 gba:border-indigo-300"
+              >
                 Live Data
               </Badge>
-              {flowTemplatesLoading && (
-                <Spinner className="gba:w-4 gba:h-4 gba:text-indigo-600" />
-              )}
+              {flowTemplatesLoading && <Spinner className="gba:w-4 gba:h-4 gba:text-indigo-600" />}
             </div>
-            
+
             <div className="gba:flex gba:gap-2">
               {flowTemplatesError && (
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={refetchFlowTemplates}
-                  className="gba:text-xs"
-                >
+                <Button variant="outline" size="sm" onClick={refetchFlowTemplates} className="gba:text-xs">
                   Retry
                 </Button>
               )}
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="sm"
                 onClick={() => {
-                  console.log('🎭 [FlowTemplatesDetail] Manual refresh clicked');
-                  refetchFlowTemplates();
+                  console.log('🎭 [FlowTemplatesDetail] Manual refresh clicked')
+                  refetchFlowTemplates()
                 }}
                 className="gba:text-xs"
               >
@@ -154,7 +136,8 @@ export const FlowTemplatesDetail: React.FC<FlowTemplatesDetailProps> = ({
           </div>
 
           <p className="gba:text-sm gba:text-gray-600">
-            These templates are dynamically loaded from the custom-flow-engine and automatically generate forms based on their step definitions.
+            These templates are dynamically loaded from the custom-flow-engine and automatically generate forms based on
+            their step definitions.
           </p>
 
           {/* Flow Templates Loading State */}
@@ -183,7 +166,9 @@ export const FlowTemplatesDetail: React.FC<FlowTemplatesDetailProps> = ({
                 <p className="gba:font-semibold">Failed to Load Flow Templates</p>
                 <p className="gba:text-sm">{flowTemplatesError}</p>
                 <div className="gba:mt-2 gba:text-xs gba:space-y-1">
-                  <div>💡 <strong>Troubleshooting:</strong></div>
+                  <div>
+                    💡 <strong>Troubleshooting:</strong>
+                  </div>
                   <div>1. Verify custom-flow-engine is running on localhost:3000</div>
                   <div>2. Check http://localhost:3000/api/templates responds</div>
                   <div>3. Look for console errors with tags "🎭" and "🎯"</div>
@@ -194,13 +179,18 @@ export const FlowTemplatesDetail: React.FC<FlowTemplatesDetailProps> = ({
 
           {/* Debug Information */}
           <div className="gba:p-4 gba:bg-gray-50 gba:rounded-lg gba:text-xs gba:text-gray-600">
-            <div><strong>Flow Templates Debug Info:</strong></div>
+            <div>
+              <strong>Flow Templates Debug Info:</strong>
+            </div>
             <div>• Loading: {flowTemplatesLoading ? 'Yes' : 'No'}</div>
             <div>• Error: {flowTemplatesError || 'None'}</div>
             <div>• Templates Count: {flowTemplates.length}</div>
             <div>• Total Count: {flowTemplatesCount}</div>
             <div>• Backend: localhost:3000</div>
-            <div>• Console Tags: Look for "🎭 [FlowTemplatesDetail]", "🎭 [useSharedFlowTemplates]" and "🎯 [TemplatesService]"</div>
+            <div>
+              • Console Tags: Look for "🎭 [FlowTemplatesDetail]", "🎭 [useSharedFlowTemplates]" and "🎯
+              [TemplatesService]"
+            </div>
           </div>
 
           {/* Flow Templates Grid */}
@@ -211,14 +201,14 @@ export const FlowTemplatesDetail: React.FC<FlowTemplatesDetailProps> = ({
                 <div>
                   <p className="gba:font-semibold">Templates Loaded Successfully</p>
                   <p className="gba:text-sm">
-                    Found {flowTemplates.length} workflow template{flowTemplates.length !== 1 ? 's' : ''} from custom-flow-engine. 
-                    Click on any template to create a new request with dynamic form generation.
+                    Found {flowTemplates.length} workflow template{flowTemplates.length !== 1 ? 's' : ''} from
+                    custom-flow-engine. Click on any template to create a new request with dynamic form generation.
                   </p>
                 </div>
               </Alert>
-              
+
               <div className="gba:grid gba:gap-6 gba:grid-cols-1 gba:lg:grid-cols-2 gba:xl:grid-cols-3">
-                {flowTemplates.map((template) => (
+                {flowTemplates.map(template => (
                   <FlowTemplateCard
                     key={template.id || template.name}
                     template={template}
@@ -246,5 +236,5 @@ export const FlowTemplatesDetail: React.FC<FlowTemplatesDetailProps> = ({
         </div>
       </PageLayout>
     </div>
-  );
-};
+  )
+}
