@@ -124,6 +124,7 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
                       contextsArray={[FlowContextName.employeeAttendanceCorrectionRequest]}
                       externalContextData={{
                         employeeId,
+                        employeeid: employeeId,
                         timeEntryId: e.id,
                         attendanceDateISO: e.attendanceDateISO,
                         startTimeISO: e.startTimeISO,
@@ -134,12 +135,16 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
                         breakTime: e.breakTime,
                         effectiveTime: e.effectiveTime,
                         plannedTime: e.plannedTime,
-                        differenceTime: e.differenceTime
+                        differenceTime: e.differenceTime,
+                        changeMode: 'INSERT',
+                        employeeAttendanceCorrectionRequest: {
+                          timeEntryVersion: e.version,
+                          timeEntryId: e.id
+                        }
                       }}
                       prefixDataTestId={`time-tracking-update`}
                       accessToken={accessToken}
                       emptyStateBehavior="enable"
-                      deferMainContextRequestsUntilClick
                       onClick={evt => evt.stopPropagation()}
                     />
                   </div>
