@@ -9,11 +9,11 @@ export const generalExpenseFormSchema = z.object({
   code: z.string().min(1, 'Code is required'),
   name: z.string().min(1, 'Name is required'),
   reimbursable: z.boolean().default(true),
-  taxCodeRef: z.string().optional(),
+  taxCodeRef: z.string().min(1, 'Tax Code is required'),
   taxValue: z.number().min(0).max(100).optional(),
   activeFrom: z.string().min(1, 'Valid From is required'),
   activeTo: z.string().optional(),
-  expenseGroupRef: z.string().optional(),
+  expenseGroupRef: z.string().min(1, 'Expense Group is required'),
   version: z.number().optional(),
   additionalProperties: z.record(z.unknown()).optional()
 })

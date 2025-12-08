@@ -327,7 +327,7 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
                 name="taxCodeRef"
                 render={({ field }) => (
                   <FormItem data-testid="general-expense-tax-code-field">
-                    <FormLabel data-testid="general-expense-tax-code-label">Tax Code</FormLabel>
+                    <FormLabel data-testid="general-expense-tax-code-label">Tax Code *</FormLabel>
                     <Select
                       value={field.value}
                       onValueChange={value => {
@@ -381,7 +381,10 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
                         max={100}
                         step={0.01}
                         value={field.value ?? ''}
-                        onChange={e => field.onChange(parseFloat(e.target.value) || undefined)}
+                        onChange={e => {
+                          const value = e.target.value
+                          field.onChange(value === '' ? undefined : parseFloat(value))
+                        }}
                         placeholder="Auto-populated from Tax Code"
                         disabled={isRestrictedEdit}
                         data-testid="general-expense-tax-value-input"
@@ -400,7 +403,7 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
                 name="expenseGroupRef"
                 render={({ field }) => (
                   <FormItem data-testid="general-expense-group-field">
-                    <FormLabel data-testid="general-expense-group-label">Expense Group</FormLabel>
+                    <FormLabel data-testid="general-expense-group-label">Expense Group *</FormLabel>
                     <Select value={field.value} onValueChange={field.onChange} disabled={isRestrictedEdit}>
                       <FormControl>
                         <SelectTrigger data-testid="general-expense-group-select">

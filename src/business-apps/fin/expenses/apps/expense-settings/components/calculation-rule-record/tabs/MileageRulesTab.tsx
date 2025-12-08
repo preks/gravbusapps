@@ -1023,8 +1023,11 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
                           min={0}
                           max={100}
                           step={0.01}
-                          value={field.value || ''}
-                          onChange={e => field.onChange(parseFloat(e.target.value) || undefined)}
+                          value={field.value ?? ''}
+                          onChange={e => {
+                            const value = e.target.value
+                            field.onChange(value === '' ? undefined : parseFloat(value))
+                          }}
                           placeholder="Auto-populated from Tax Code"
                           disabled={isRestrictedEdit}
                           data-testid="mileage-rule-tax-value-input"
