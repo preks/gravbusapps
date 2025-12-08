@@ -13,7 +13,7 @@ import {
   DataDisplay
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useAvailableCurrencies } from '@/common/data/investment/hooks/useAvailableCurrencies'
+import { useAvailableCurrencies } from '@/common/data/common/hooks/useAvailableCurrencies'
 import { useInvestments } from '@/common/data/investment/hooks/useInvestments.new'
 import type { InvestmentQueryVariables } from '@/common/data/investment/queries/investmentQueries.new'
 import PlannedExitsMetrics from './components/PlannedExitsMetrics'
@@ -226,7 +226,6 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
         <PlannedExitsTable
           accessToken={accessToken}
           userInfo={userInfo}
-          currencyCode={selectedCurrency}
           data={investments}
           loading={isLoading && !initialLoadDone.current}
           error={error}

@@ -1,4 +1,3 @@
-import React from 'react'
 import { DataTable, Button, Alert } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
 import type { Activity } from '@/common/data/relations/types/activityTypes'

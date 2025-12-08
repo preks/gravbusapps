@@ -45,6 +45,13 @@ export const useCustomerOpportunities = (context: BusinessAppContextProps) => {
 
       const customConditions: Record<string, any>[] = []
 
+      // Custom filter for currencyCode
+      if (variables.currencyCode) {
+        customConditions.push({
+          currency: { code: { _eq: variables.currencyCode } }
+        })
+      }
+
       // Custom filter for stageValues (stage OR salesPipelineStage.value)
       if ((variables as any).stageValues?.length) {
         customConditions.push({

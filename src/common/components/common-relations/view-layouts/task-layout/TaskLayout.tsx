@@ -546,6 +546,7 @@ function ConfigTaskLayout<TTask extends Task = Task, TQueryVariables = any>(
         }}
         buildReferenceUrl={config.buildReferenceUrl}
         data-testid={`${dataTestId}-detail-sheet`}
+        businessAppContext={context}
       />
     </div>
   )

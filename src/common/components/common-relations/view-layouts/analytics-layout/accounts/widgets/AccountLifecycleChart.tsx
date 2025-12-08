@@ -26,6 +26,7 @@ interface AccountLifecycleChartProps {
     accountsWithOpportunities: number
     accountsActive: number
   }>
+  isLoading?: boolean
   selectedTimeFilter: TimeFilter
   onTimeFilterChange: (filter: TimeFilter) => void
   visibleLines: { accountsCreated: boolean; accountsWithOpportunities: boolean; accountsActive: boolean }
@@ -39,6 +40,7 @@ const DATA_TEST_ID_PREFIX = 'account-lifecycle-overview'
 
 export const AccountLifecycleChart: React.FC<AccountLifecycleChartProps> = ({
   data,
+  isLoading = false,
   selectedTimeFilter,
   onTimeFilterChange,
   visibleLines,
@@ -63,6 +65,96 @@ export const AccountLifecycleChart: React.FC<AccountLifecycleChartProps> = ({
     },
     { key: 'accountsActive' as const, label: 'Active Accounts', dataKey: 'accountsActive' }
   ]
+
+  const chartConfig = useMemo(
+    () => ({
+      accountsCreated: { label: 'Accounts Created' },
+      accountsWithOpportunities: { label: 'Accounts with Opportunities' },
+      accountsActive: { label: 'Active Accounts' }
+    }),
+    []
+  )
+
+  const chartData = data
+
+  const renderChartContent = () => {
+    if (isLoading) {
+      return (
+        <div
+          className="gba:flex gba:justify-center gba:items-center gba:h-[320px]"
+          data-testid={`${DATA_TEST_ID_PREFIX}-loading`}
+        >
+          <div className="gba:text-center">
+            <div className="gba:animate-spin gba:rounded-full gba:h-12 gba:w-12 gba:border-b-2 gba:border-primary gba:mx-auto" />
+            <p className="gba:mt-4 gba:text-sm gba:text-muted-foreground">Loading chart data...</p>
+          </div>
+        </div>
+      )
+    }
+
+    if (chartData.length === 0) {
+      return (
+        <div className="gba:text-center gba:p-8" data-testid={`${DATA_TEST_ID_PREFIX}-empty-state`}>
+          <ChartLineIcon className="gba:mx-auto gba:h-12 gba:w-12 gba:text-gray-400" />
+          <h3 className="gba:mt-2 gba:text-sm gba:font-medium gba:text-gray-900">No data available</h3>
+          <p className="gba:mt-1 gba:text-sm gba:text-gray-500">
+            No account lifecycle data found for the selected time period.
+          </p>
+        </div>
+      )
+    }
+
+    return (
+      <ChartContainer
+        config={chartConfig}
+        className="gba:h-[320px] gba:w-full"
+        data-testid={`${DATA_TEST_ID_PREFIX}-chart`}
+      >
+        <AreaChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+          <XAxis dataKey="date" tick={{ fontSize: 12 }} tickFormatter={formatXAxisLabel} />
+          <YAxis tick={{ fontSize: 12 }} />
+          <ChartTooltip content={<ChartTooltipContent labelKey="date" />} />
+          <ChartLegend content={<ChartLegendContent />} />
+          {visibleLines.accountsCreated && (
+            <Area
+              type="monotone"
+              dataKey="accountsCreated"
+              name="accountsCreated"
+              stroke={`var(--color-accountsCreated)`}
+              fill={`var(--color-accountsCreated)`}
+              fillOpacity={0.12}
+              strokeWidth={2}
+              dot={false}
+            />
+          )}
+          {visibleLines.accountsWithOpportunities && (
+            <Area
+              type="monotone"
+              dataKey="accountsWithOpportunities"
+              name="accountsWithOpportunities"
+              stroke={`var(--color-accountsWithOpportunities)`}
+              fill={`var(--color-accountsWithOpportunities)`}
+              fillOpacity={0.12}
+              strokeWidth={2}
+              dot={false}
+            />
+          )}
+          {visibleLines.accountsActive && (
+            <Area
+              type="monotone"
+              dataKey="accountsActive"
+              name="accountsActive"
+              stroke={`var(--color-accountsActive)`}
+              fill={`var(--color-accountsActive)`}
+              fillOpacity={0.12}
+              strokeWidth={2}
+              dot={false}
+            />
+          )}
+        </AreaChart>
+      </ChartContainer>
+    )
+  }
 
   return (
     <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
@@ -114,73 +206,7 @@ export const AccountLifecycleChart: React.FC<AccountLifecycleChartProps> = ({
           </div>
         </div>
       </CardHeader>
-      <CardContent>
-        {data.length === 0 ? (
-          <div className="gba:text-center gba:p-8" data-testid={`${DATA_TEST_ID_PREFIX}-empty-state`}>
-            <ChartLineIcon className="gba:mx-auto gba:h-12 gba:w-12 gba:text-gray-400" />
-            <h3 className="gba:mt-2 gba:text-sm gba:font-medium gba:text-gray-900">No data available</h3>
-            <p className="gba:mt-1 gba:text-sm gba:text-gray-500">
-              No account lifecycle data found for the selected time period.
-            </p>
-          </div>
-        ) : (
-          <ChartContainer
-            config={useMemo(
-              () => ({
-                accountsCreated: { label: 'Accounts Created' },
-                accountsWithOpportunities: { label: 'Accounts with Opportunities' },
-                accountsActive: { label: 'Active Accounts' }
-              }),
-              []
-            )}
-            className="gba:h-[320px] gba:w-full"
-            data-testid={`${DATA_TEST_ID_PREFIX}-chart`}
-          >
-            <AreaChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-              <XAxis dataKey="date" tick={{ fontSize: 12 }} tickFormatter={formatXAxisLabel} />
-              <YAxis tick={{ fontSize: 12 }} />
-              <ChartTooltip content={<ChartTooltipContent labelKey="date" />} />
-              <ChartLegend content={<ChartLegendContent />} />
-              {visibleLines.accountsCreated && (
-                <Area
-                  type="monotone"
-                  dataKey="accountsCreated"
-                  name="accountsCreated"
-                  stroke={`var(--color-accountsCreated)`}
-                  fill={`var(--color-accountsCreated)`}
-                  fillOpacity={0.12}
-                  strokeWidth={2}
-                  dot={false}
-                />
-              )}
-              {visibleLines.accountsWithOpportunities && (
-                <Area
-                  type="monotone"
-                  dataKey="accountsWithOpportunities"
-                  name="accountsWithOpportunities"
-                  stroke={`var(--color-accountsWithOpportunities)`}
-                  fill={`var(--color-accountsWithOpportunities)`}
-                  fillOpacity={0.12}
-                  strokeWidth={2}
-                  dot={false}
-                />
-              )}
-              {visibleLines.accountsActive && (
-                <Area
-                  type="monotone"
-                  dataKey="accountsActive"
-                  name="accountsActive"
-                  stroke={`var(--color-accountsActive)`}
-                  fill={`var(--color-accountsActive)`}
-                  fillOpacity={0.12}
-                  strokeWidth={2}
-                  dot={false}
-                />
-              )}
-            </AreaChart>
-          </ChartContainer>
-        )}
-      </CardContent>
+      <CardContent>{renderChartContent()}</CardContent>
     </Card>
   )
 }
