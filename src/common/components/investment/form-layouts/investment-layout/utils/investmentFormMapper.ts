@@ -70,16 +70,10 @@ export const mapInvestmentDataToFormFields = (rawInvestment: any, fieldsDef: any
       if (value !== undefined && value !== null && value !== '') {
         // Format the value based on field type
         // DATE fields: DateInput handles formatting internally (accepts ISO strings directly)
-        let formattedValue = value
-        if (typeof value !== 'string' && typeof value !== 'object') {
-          formattedValue = String(value)
-        } else {
-          formattedValue = value // Keep as-is if string or object (including ISO date strings)
-        }
+        const valueToSet = typeof value !== 'string' && typeof value !== 'object' ? String(value) : value
 
         // Set value at the nested path in the result object
-        // E.g., "equityInvestment.marketValue" creates { equityInvestment: { marketValue: ... } }
-        setNestedValue(nestedData, field.property, formattedValue)
+        setNestedValue(nestedData, field.property, valueToSet)
       }
     }
   }

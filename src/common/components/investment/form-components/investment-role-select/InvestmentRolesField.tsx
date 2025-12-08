@@ -78,14 +78,14 @@ export const InvestmentRolesField = ({
       // Find removed IDs (in current but not in new)
       const currentIds = new Set(selectedRoleIds)
       const newIds = new Set(newRoleIds)
-      const removedIds = selectedRoleIds.filter(id => !newIds.has(id))
+      const removedIds = new Set(selectedRoleIds.filter(id => !newIds.has(id)))
       const addedIds = newRoleIds.filter(id => !currentIds.has(id))
 
       // Handle removals: mark as deleted or remove
       const updatedRoles = currentRoles
         .map(role => {
           const roleId = role.investmentRole?.id
-          if (roleId && removedIds.includes(roleId)) {
+          if (roleId && removedIds.has(roleId)) {
             // If role has an ID (exists in DB), mark as deleted instead of removing
             if (role.id) {
               return { ...role, isDeleted: true }

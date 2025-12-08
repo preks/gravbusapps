@@ -250,7 +250,9 @@ export const InvestmentFormFields = {
 /**
  * Export Subtype Form Fields for use in payload builders
  */
-export { EquityInvestmentFormFields, RealEstateInvestmentFormFields, LiquidFundInvestmentFormFields }
+export { EquityInvestmentFormFields } from './equityInvestmentTypes'
+export { RealEstateInvestmentFormFields } from './realEstateInvestmentTypes'
+export { LiquidFundInvestmentFormFields } from './liquidFundInvestmentTypes'
 
 /**
  * Investment Role Fields

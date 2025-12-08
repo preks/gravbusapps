@@ -1,5 +1,4 @@
-import { Control, FieldValues } from 'react-hook-form'
-import { ControllerRenderProps } from 'react-hook-form'
+import { Control, FieldValues, ControllerRenderProps } from 'react-hook-form'
 import { DynamicFormField } from '@/components/dynamic-form-field'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { DynamicFormConfiguration, DynamicFormFieldDefinition, DynamicFormFieldGroup } from './types'
@@ -10,17 +9,17 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
  */
 export interface DynamicFormProps<TFieldValues extends FieldValues = FieldValues> {
   /** Form configuration (JSON structure) */
-  configuration: DynamicFormConfiguration
+  readonly configuration: DynamicFormConfiguration
   /** React Hook Form control */
-  control: Control<TFieldValues>
+  readonly control: Control<TFieldValues>
   /** Access token for API requests (required for CATALOG_ fields) */
-  accessToken: string
+  readonly accessToken: string
   /** Optional data-testid prefix */
-  testIdPrefix?: string
+  readonly testIdPrefix?: string
   /** Currency symbol to display in amount fields */
-  currencySymbol?: string
+  readonly currencySymbol?: string
   /** Custom renderer for REF_ fields */
-  renderReferenceField?: (
+  readonly renderReferenceField?: (
     entityType: string,
     field: DynamicFormFieldDefinition,
     fieldName: string,
@@ -28,13 +27,13 @@ export interface DynamicFormProps<TFieldValues extends FieldValues = FieldValues
     businessAppContext: BusinessAppContextProps
   ) => React.ReactNode
   /** Business app context (required for REF_ fields) */
-  businessAppContext?: BusinessAppContextProps
+  readonly businessAppContext?: BusinessAppContextProps
   /** Loading state */
-  isLoading?: boolean
+  readonly isLoading?: boolean
   /** Error message */
-  error?: string | null
+  readonly error?: string | null
   /** Empty state message */
-  emptyMessage?: string
+  readonly emptyMessage?: string
 }
 
 /**

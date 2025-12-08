@@ -188,7 +188,10 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
       return multiple ? [] : wiredControllerValue || ''
     }
     if (multiple) {
-      return Array.isArray(value) ? value : value ? [value] : []
+      if (Array.isArray(value)) {
+        return value
+      }
+      return value ? [value] : []
     }
     return Array.isArray(value) ? value[0] || '' : value || ''
   }, [value, multiple, wiredControllerValue])
@@ -219,42 +222,38 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
     }
   }, [wiredOptions, effectiveValue, propSelectedOption, multiple])
 
+  // Helper: Build merged options for multiple mode
+  const buildMultipleModeOptions = React.useCallback(() => {
+    const selectedValues = new Set(Array.isArray(effectiveValue) ? effectiveValue.map(v => String(v)) : [])
+    const selectedOptionsList = Array.isArray(selectedOptions) ? selectedOptions : []
+    const availableOptions = wiredOptions.filter(opt => !selectedValues.has(String(opt.value)))
+    const allOptions = [...selectedOptionsList, ...availableOptions]
+
+    if (propSelectedOption && selectedValues.has(String(propSelectedOption.value))) {
+      const existsInAll = allOptions.some(opt => String(opt.value) === String(propSelectedOption.value))
+      if (!existsInAll) {
+        return [propSelectedOption, ...allOptions]
+      }
+    }
+    return allOptions
+  }, [effectiveValue, selectedOptions, wiredOptions, propSelectedOption])
+
+  // Helper: Build merged options for single mode
+  const buildSingleModeOptions = React.useCallback(() => {
+    if (propSelectedOption && String(propSelectedOption.value) === String(effectiveValue)) {
+      const existsInWired = wiredOptions.some(opt => String(opt.value) === String(propSelectedOption.value))
+      if (!existsInWired) {
+        return [propSelectedOption, ...wiredOptions]
+      }
+    }
+    return wiredOptions
+  }, [effectiveValue, wiredOptions, propSelectedOption])
+
   // For options list: Use wiredOptions (filtered by dependencies)
   // In multiple mode, we need to INCLUDE selected options so Combobox can display their labels
-  // The Combobox itself will filter them from the dropdown list
   const mergedOptions = React.useMemo(() => {
-    if (multiple) {
-      const selectedValues = new Set(Array.isArray(effectiveValue) ? effectiveValue.map(v => String(v)) : [])
-
-      // Get selected options (needed for Combobox to display labels)
-      const selectedOptionsList = Array.isArray(selectedOptions) ? selectedOptions : []
-
-      // Filter out already selected options from available options
-      const availableOptions = wiredOptions.filter(opt => !selectedValues.has(String(opt.value)))
-
-      // Combine: selected options + available options
-      // This ensures Combobox can find labels for selected values in the options array
-      const allOptions = [...selectedOptionsList, ...availableOptions]
-
-      // Add propSelectedOption if it's not in the list and matches a selected value
-      if (propSelectedOption && selectedValues.has(String(propSelectedOption.value))) {
-        const existsInAll = allOptions.some(opt => String(opt.value) === String(propSelectedOption.value))
-        if (!existsInAll) {
-          return [propSelectedOption, ...allOptions]
-        }
-      }
-      return allOptions
-    } else {
-      // Single mode - original logic
-      if (propSelectedOption && String(propSelectedOption.value) === String(effectiveValue)) {
-        const existsInWired = wiredOptions.some(opt => String(opt.value) === String(propSelectedOption.value))
-        if (!existsInWired) {
-          return [propSelectedOption, ...wiredOptions]
-        }
-      }
-      return wiredOptions
-    }
-  }, [wiredOptions, propSelectedOption, effectiveValue, multiple, selectedOptions])
+    return multiple ? buildMultipleModeOptions() : buildSingleModeOptions()
+  }, [multiple, buildMultipleModeOptions, buildSingleModeOptions])
 
   // Initial sync: Set controller value from form's initial value (only once on mount)
   const hasInitializedRef = React.useRef(false)
@@ -497,15 +496,12 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
           className="gba:w-full gba:max-w-full gba:h-auto gba:[&_button]:max-w-full gba:[&_button]:min-w-0 gba:[&_button]:overflow-hidden gba:[&_button_span]:truncate"
           mode={multiple ? 'multiple' : 'default'}
           options={comboboxOptions}
-          value={
-            multiple
-              ? Array.isArray(effectiveValue)
-                ? effectiveValue
-                : []
-              : Array.isArray(effectiveValue)
-                ? effectiveValue[0] || ''
-                : effectiveValue || ''
-          }
+          value={(() => {
+            if (multiple) {
+              return Array.isArray(effectiveValue) ? effectiveValue : []
+            }
+            return Array.isArray(effectiveValue) ? effectiveValue[0] || '' : effectiveValue || ''
+          })()}
           onValueChange={v => handleExternalValueChange(v)}
           placeholder="Select..."
           searchPlaceholder="Type to search..."

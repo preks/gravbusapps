@@ -145,12 +145,10 @@ const buildInvestmentTypesTree = (data: InvestmentCatalogDataResponse): Investme
   // Process InvestmentTypes (level 1) that might not be in groups
   if (data.investmentTypes) {
     // For standalone types, we need to find their group code from parentEntryId
-    const typeTypes = data.investmentTypes
-      .map(entry => {
-        const groupCode = getGroupCodeFromParentId(entry.parentEntryId, allTypes)
-        return processEntries([entry], 1, allTypes, groupCode)
-      })
-      .flat()
+    const typeTypes = data.investmentTypes.flatMap(entry => {
+      const groupCode = getGroupCodeFromParentId(entry.parentEntryId, allTypes)
+      return processEntries([entry], 1, allTypes, groupCode)
+    })
 
     // Only add types that aren't already added as children of groups
     const existingIds = new Set(allTypes.map(t => t.id))
@@ -161,12 +159,10 @@ const buildInvestmentTypesTree = (data: InvestmentCatalogDataResponse): Investme
   // Process LiquidFundInvestmentTypes (level 2) that might not be in types
   if (data.investmentLiquidFundTypes) {
     // For standalone liquid fund types, we need to find their group code through parent chain
-    const liquidFundTypes = data.investmentLiquidFundTypes
-      .map(entry => {
-        const groupCode = getGroupCodeFromParentId(entry.parentEntryId, allTypes)
-        return processEntries([entry], 2, allTypes, groupCode)
-      })
-      .flat()
+    const liquidFundTypes = data.investmentLiquidFundTypes.flatMap(entry => {
+      const groupCode = getGroupCodeFromParentId(entry.parentEntryId, allTypes)
+      return processEntries([entry], 2, allTypes, groupCode)
+    })
 
     // Only add types that aren't already added as children
     const existingIds = new Set(allTypes.map(t => t.id))
@@ -226,6 +222,75 @@ const sanitizeProperty = (property: string, fieldType: string): string => {
  * Get investment fields by type (formFields for "investment" or referenceFields for "prospect")
  * Traverses hierarchy from deepest level up to root until fields are found
  */
+/**
+ * Convert formFields to DynamicFormConfiguration
+ */
+const convertFormFieldsToConfig = (formFields: any[]): DynamicFormConfiguration => {
+  const dynamicFormFields: DynamicFormFieldGroup[] = formFields.map((group: any) => ({
+    groupId: group.groupId,
+    groupLabel: group.groupLabel,
+    displayOrder: group.displayOrder,
+    fields: group.fields.map(
+      (field: any): DynamicFormFieldDefinition => ({
+        type: field.type,
+        label: field.label,
+        property: sanitizeProperty(field.property, field.type),
+        required: field.required,
+        displayOrder: field.displayOrder
+      })
+    )
+  }))
+  return { formFields: dynamicFormFields }
+}
+
+/**
+ * Convert referenceFields to DynamicFormConfiguration
+ */
+const convertReferenceFieldsToConfig = (referenceFields: any[]): DynamicFormConfiguration => {
+  const fields: DynamicFormFieldDefinition[] = referenceFields.map((refField: any, index: number) => ({
+    type: refField.type || 'TEXT',
+    label: refField.label || refField.property || `Field ${index + 1}`,
+    property: sanitizeProperty(refField.property || '', refField.type || 'TEXT'),
+    required: refField.required || false,
+    displayOrder:
+      typeof refField.displayOrder === 'string' ? refField.displayOrder : String(refField.displayOrder || index + 1)
+  }))
+
+  fields.sort((a, b) => {
+    const orderA = Number.parseFloat(String(a.displayOrder))
+    const orderB = Number.parseFloat(String(b.displayOrder))
+    return orderA - orderB
+  })
+
+  return {
+    formFields: [
+      {
+        groupId: 'investment-prospect',
+        groupLabel: 'Investment Details',
+        displayOrder: 1,
+        fields
+      }
+    ]
+  }
+}
+
+/**
+ * Get path from type to root
+ */
+const getTypePath = (allTypes: InvestmentType[], typeId: string): InvestmentType[] | null => {
+  const path: InvestmentType[] = []
+  let currentType = allTypes.find(t => t.id === typeId)
+  if (!currentType) return null
+
+  while (currentType) {
+    path.unshift(currentType)
+    if (!currentType.parentEntryId) break
+    currentType = allTypes.find(t => t.id === currentType!.parentEntryId)
+  }
+
+  return path.length > 0 ? path : null
+}
+
 const getInvestmentFieldsByType = (
   allTypes: InvestmentType[],
   typeId: string | null | undefined,
@@ -233,23 +298,10 @@ const getInvestmentFieldsByType = (
 ): DynamicFormConfiguration | null => {
   if (!typeId) return null
 
-  // Get path from type (ancestors only, no descendants needed for field lookup)
-  const path: InvestmentType[] = []
-  let currentType = allTypes.find(t => t.id === typeId)
+  const path = getTypePath(allTypes, typeId)
+  if (!path) return null
 
-  if (!currentType) return null
-
-  // Traverse up to root
-  while (currentType) {
-    path.unshift(currentType) // [root, ..., selectedType]
-    if (!currentType.parentEntryId) break
-    currentType = allTypes.find(t => t.id === currentType!.parentEntryId)
-  }
-
-  if (path.length === 0) return null
-
-  // Traverse from deepest level (highest level) up to root
-  // Priority: deepest level first, then parent, then grandparent, etc.
+  // Traverse from deepest level up to root
   for (let i = path.length - 1; i >= 0; i--) {
     const type = path[i]
     if (!type?.objectValue) continue
@@ -257,59 +309,14 @@ const getInvestmentFieldsByType = (
     const parsedObjectValue = parseObjectValue(type.objectValue)
 
     if (fieldType === 'investment') {
-      // Look for formFields - convert to DynamicFormConfiguration
       const formFields = parsedObjectValue?.formFields
       if (formFields && Array.isArray(formFields) && formFields.length > 0) {
-        // Convert FormFieldGroup[] to DynamicFormFieldGroup[]
-        const dynamicFormFields: DynamicFormFieldGroup[] = formFields.map((group: any) => ({
-          groupId: group.groupId,
-          groupLabel: group.groupLabel,
-          displayOrder: group.displayOrder,
-          fields: group.fields.map(
-            (field: any): DynamicFormFieldDefinition => ({
-              type: field.type,
-              label: field.label,
-              property: sanitizeProperty(field.property, field.type),
-              required: field.required,
-              displayOrder: field.displayOrder
-            })
-          )
-        }))
-        return { formFields: dynamicFormFields }
+        return convertFormFieldsToConfig(formFields)
       }
     } else if (fieldType === 'prospect') {
-      // Look for referenceFields - convert to DynamicFormConfiguration
       const referenceFields = parsedObjectValue?.referenceFields
       if (referenceFields && Array.isArray(referenceFields) && referenceFields.length > 0) {
-        const fields: DynamicFormFieldDefinition[] = referenceFields.map((refField: any, index: number) => ({
-          type: refField.type || 'TEXT',
-          label: refField.label || refField.property || `Field ${index + 1}`,
-          property: sanitizeProperty(refField.property || '', refField.type || 'TEXT'),
-          required: refField.required || false,
-          displayOrder:
-            typeof refField.displayOrder === 'string'
-              ? refField.displayOrder
-              : String(refField.displayOrder || index + 1)
-        }))
-
-        // Sort by displayOrder
-        fields.sort((a, b) => {
-          const orderA = Number.parseFloat(String(a.displayOrder))
-          const orderB = Number.parseFloat(String(b.displayOrder))
-          return orderA - orderB
-        })
-
-        // Create DynamicFormConfiguration with single group
-        return {
-          formFields: [
-            {
-              groupId: 'investment-prospect',
-              groupLabel: 'Investment Details',
-              displayOrder: 1,
-              fields
-            }
-          ]
-        }
+        return convertReferenceFieldsToConfig(referenceFields)
       }
     }
   }

@@ -11,8 +11,10 @@ import {
   OpportunityLayout,
   opportunitySchema
 } from '@/common/components/common-relations/form-layouts/opportunity-layout'
-import { InvestmentProspectLayout } from '@/common/components/investment/form-layouts/investment-prospect-layout'
-import { createDynamicInvestmentProspectSchema } from '@/common/components/investment/form-layouts/investment-prospect-layout'
+import {
+  InvestmentProspectLayout,
+  createDynamicInvestmentProspectSchema
+} from '@/common/components/investment/form-layouts/investment-prospect-layout'
 import {
   extractProspectFieldsFromFormValues,
   extractProspectFieldsFromEntity
@@ -256,92 +258,105 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
     investmentTypesLoading
   ])
 
-  useEffect(() => {
-    // Update resolver when schema changes
-    if (form && formResolver) {
-      if (form.control._options.resolver !== formResolver) {
-        form.control._options.resolver = formResolver
+  // Helper: Update form resolver
+  const updateResolver = useCallback(() => {
+    if (form && formResolver && form.control._options.resolver !== formResolver) {
+      form.control._options.resolver = formResolver
+    }
+  }, [form, formResolver])
+
+  // Helper: Check if schema changed
+  const checkSchemaChanged = useCallback((): boolean => {
+    const currentKeys = Object.keys(prospectSchema.shape)
+    const changed = JSON.stringify(previousSchemaKeysRef.current) !== JSON.stringify(currentKeys)
+    if (changed) {
+      previousSchemaKeysRef.current = currentKeys
+    }
+    return changed
+  }, [prospectSchema])
+
+  // Helper: Build investmentTypeId from opportunity
+  const buildInvestmentTypeIdFromOpportunity = useCallback(
+    (opportunityData: typeof opportunity): string | null => {
+      if (!opportunityData) return null
+      if (opportunityData.investmentTypeId) return opportunityData.investmentTypeId
+      if ((opportunityData.investmentGroupRef || opportunityData.investmentTypeRef) && getPathByType) {
+        const groupId = opportunityData.investmentGroupRef || null
+        const typeId = opportunityData.investmentTypeRef || null
+        return mapToSingleInvestmentTypeId(groupId, typeId, getPathByType)
+      }
+      return null
+    },
+    [getPathByType]
+  )
+
+  // Helper: Build form values when entity ID changes
+  const buildFormValuesFromOpportunity = useCallback(() => {
+    const baseValues = mapToFormValues(opportunity || {}, prospectSchema)
+    const dynamicFieldValues = extractProspectFieldsFromEntity(opportunity, formFieldsDefinition)
+    const currentUserEmployeeId = userInfo?.employeeDetails?.employeeId
+    const investmentTypeId = buildInvestmentTypeIdFromOpportunity(opportunity)
+    if (investmentTypeId) {
+      baseValues.investmentTypeId = investmentTypeId
+    }
+    return {
+      ...baseValues,
+      ...dynamicFieldValues,
+      ownerEmployeeId: (baseValues.ownerEmployeeId || currentUserEmployeeId || '') as string,
+      dealType: baseValues.dealType || dealType || undefined,
+      ...(investmentId ? { investmentId: investmentId } : {})
+    }
+  }, [
+    opportunity,
+    prospectSchema,
+    formFieldsDefinition,
+    userInfo,
+    buildInvestmentTypeIdFromOpportunity,
+    dealType,
+    investmentId
+  ])
+
+  // Helper: Update dynamic fields when schema changes
+  const updateDynamicFieldsFromOpportunity = useCallback(() => {
+    const currentValues = form.getValues()
+    const updatedValues = { ...currentValues }
+
+    if (formFieldsDefinition?.formFields) {
+      for (const group of formFieldsDefinition.formFields) {
+        for (const field of group.fields) {
+          const property = field.property
+          updatedValues[property] = opportunity && property in opportunity ? (opportunity as any)[property] : undefined
+        }
       }
     }
 
-    const schemaChanged =
-      JSON.stringify(previousSchemaKeysRef.current) !== JSON.stringify(Object.keys(prospectSchema.shape))
-
-    if (schemaChanged) {
-      previousSchemaKeysRef.current = Object.keys(prospectSchema.shape)
+    if (!updatedValues.investmentGroupRef && opportunity?.investmentGroupRef) {
+      updatedValues.investmentGroupRef = opportunity.investmentGroupRef
     }
+    if (!updatedValues.investmentTypeRef && opportunity?.investmentTypeRef) {
+      updatedValues.investmentTypeRef = opportunity.investmentTypeRef
+    }
+    if (!updatedValues.dealType) {
+      updatedValues.dealType = opportunity?.dealType || dealType || undefined
+    }
+    if (mappedInvestmentValuesRef.current) {
+      Object.assign(updatedValues, mappedInvestmentValuesRef.current)
+    }
+
+    return updatedValues
+  }, [form, formFieldsDefinition, opportunity, dealType])
+
+  useEffect(() => {
+    updateResolver()
+    const schemaChanged = checkSchemaChanged()
 
     if (opportunityRef.current?.id !== opportunity?.id) {
-      // Entity ID changed: Load all values (like CRM OpportunityForm)
-      const baseValues = mapToFormValues(opportunity || {}, prospectSchema)
-      const dynamicFieldValues = extractProspectFieldsFromEntity(opportunity, formFieldsDefinition)
-      const currentUserEmployeeId = userInfo?.employeeDetails?.employeeId
-
-      // Convert group/type to investmentTypeId if opportunity has them (HEAD approach)
-      if (opportunity && (opportunity.investmentGroupRef || opportunity.investmentTypeRef) && getPathByType) {
-        const groupId = opportunity.investmentGroupRef || null
-        const typeId = opportunity.investmentTypeRef || null
-        const investmentTypeId = mapToSingleInvestmentTypeId(groupId, typeId, getPathByType)
-        if (investmentTypeId) {
-          baseValues.investmentTypeId = investmentTypeId
-        }
-      } else if (opportunity?.investmentTypeId) {
-        baseValues.investmentTypeId = opportunity.investmentTypeId
-      }
-
-      // Ensure dealType is set from additionalData if not in opportunity (develop approach)
-      const mergedValues = {
-        ...baseValues,
-        ...dynamicFieldValues,
-        ownerEmployeeId: (baseValues.ownerEmployeeId || currentUserEmployeeId || '') as string,
-        // Preserve dealType from additionalData if not in opportunity
-        dealType: baseValues.dealType || dealType || undefined,
-        // Set investmentId if provided
-        ...(investmentId ? { investmentId: investmentId } : {})
-      }
-
+      const mergedValues = buildFormValuesFromOpportunity()
       form.reset(mergedValues as Partial<InvestmentOpportunity>)
-
       opportunityRef.current = opportunity
-      investmentLoadedRef.current = false // Reset flag when opportunity changes
+      investmentLoadedRef.current = false
     } else if (schemaChanged) {
-      // Schema changed: Update only dynamic fields
-      const currentValues = form.getValues()
-      const updatedValues = { ...currentValues }
-
-      // Update dynamic fields: use value from entity if available, otherwise undefined
-      if (formFieldsDefinition?.formFields) {
-        for (const group of formFieldsDefinition.formFields) {
-          for (const field of group.fields) {
-            const property = field.property
-            if (opportunity && property in opportunity) {
-              updatedValues[property] = (opportunity as any)[property]
-            } else {
-              updatedValues[property] = undefined
-            }
-          }
-        }
-      }
-
-      // Preserve base fields (investmentGroupRef, investmentTypeRef) from entity if they're empty in form
-      if (!updatedValues.investmentGroupRef && opportunity?.investmentGroupRef) {
-        updatedValues.investmentGroupRef = opportunity.investmentGroupRef
-      }
-      if (!updatedValues.investmentTypeRef && opportunity?.investmentTypeRef) {
-        updatedValues.investmentTypeRef = opportunity.investmentTypeRef
-      }
-
-      // Ensure dealType is preserved from opportunity or additionalData
-      if (!updatedValues.dealType) {
-        updatedValues.dealType = opportunity?.dealType || dealType || undefined
-      }
-
-      // If we have mapped investment values, include them (already contain static + dynamic fields from mapper)
-      if (mappedInvestmentValuesRef.current) {
-        // Merge mapped investment values into updated values (already contain all dynamic fields)
-        Object.assign(updatedValues, mappedInvestmentValuesRef.current)
-      }
-
+      const updatedValues = updateDynamicFieldsFromOpportunity()
       form.reset(updatedValues as Partial<InvestmentOpportunity>)
     }
   }, [
@@ -355,7 +370,11 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
     getPathByType,
     dealType,
     investmentId,
-    extractProspectFieldsFromEntity
+    extractProspectFieldsFromEntity,
+    updateResolver,
+    checkSchemaChanged,
+    buildFormValuesFromOpportunity,
+    updateDynamicFieldsFromOpportunity
   ])
 
   // Handle form submission - returns payload for AppActionForm (like CRM OpportunityForm, but with dynamic fields)
@@ -363,10 +382,8 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
     async (data: any) => {
       try {
         // For non-divestment: extract dynamic prospect fields from form values
-        const prospectFields =
-          (data.dealType || dealType) !== 'DIVESTMENT_DEAL'
-            ? extractProspectFieldsFromFormValues(data, formFieldsDefinition)
-            : {}
+        const isDivestmentDeal = (data.dealType || dealType) === 'DIVESTMENT_DEAL'
+        const prospectFields = isDivestmentDeal ? {} : extractProspectFieldsFromFormValues(data, formFieldsDefinition)
 
         // For divestment: map investment data to opportunity form values (develop approach)
         const investmentMappedFields =
@@ -464,7 +481,8 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
   // Investment selector - hide if not DIVESTMENT_DEAL, or if investmentId/divestmentId already exists
   const investmentSelectorField = useMemo(() => {
     // Hide if not a divestment deal
-    if ((watchedDealType || dealType || opportunity?.dealType) !== 'DIVESTMENT_DEAL') return null
+    const isDivestmentDeal = (watchedDealType || dealType || opportunity?.dealType) === 'DIVESTMENT_DEAL'
+    if (!isDivestmentDeal) return null
     // Hide if investmentId from additionalData or divestmentId from opportunity already exists
     if (investmentId || opportunity?.divestmentId) return null
     return (

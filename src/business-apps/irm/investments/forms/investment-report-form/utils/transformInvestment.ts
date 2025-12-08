@@ -7,6 +7,24 @@ import { createDynamicInvestmentSchema } from '@/common/components/investment/fo
 import { mapToFormValues } from '@/common/utils/formMappingUtils'
 
 /**
+ * Normalize array to single object (for sub-investments)
+ */
+const normalizeSubInvestment = (subInvestment: any): any => {
+  return Array.isArray(subInvestment) ? subInvestment[0] : subInvestment
+}
+
+/**
+ * Remove id and version from sub-investment
+ */
+const removeIdVersion = (subInvestment: any): any => {
+  return {
+    ...subInvestment,
+    id: undefined,
+    version: undefined
+  }
+}
+
+/**
  * Transforms Investment to InvestmentFormValues structure for Investment Report Form
  * Used when creating a new report from an existing investment
  */
@@ -16,7 +34,7 @@ export const transformInvestment = (
   getPathByType?: (typeId: string | null | undefined) => InvestmentType[]
 ): Partial<InvestmentFormValues & { investmentReportDate?: string; investmentReportScope?: string }> => {
   // Create base schema for mapping
-  const baseSchema = createDynamicInvestmentSchema(undefined)
+  const baseSchema = createDynamicInvestmentSchema()
 
   // Map investment data to form values (automatic mapping of all fields)
   const mappedValues = mapToFormValues({ investment }, baseSchema) as Partial<InvestmentFormValues>
@@ -28,25 +46,17 @@ export const transformInvestment = (
   // Normalize arrays to single objects
   let liquidFundTypeId: string | null = null
   if (investment.liquidFundInvestment) {
-    const liquidFund = Array.isArray(investment.liquidFundInvestment)
-      ? investment.liquidFundInvestment[0]
-      : investment.liquidFundInvestment
+    const liquidFund = normalizeSubInvestment(investment.liquidFundInvestment)
     ;(mappedValues as any).liquidFundInvestment = liquidFund
     liquidFundTypeId = liquidFund?.investmentLiquidFundTypeRef || null
   }
 
   if (investment.equityInvestment) {
-    const equity = Array.isArray(investment.equityInvestment)
-      ? investment.equityInvestment[0]
-      : investment.equityInvestment
-    ;(mappedValues as any).equityInvestment = equity
+    ;(mappedValues as any).equityInvestment = normalizeSubInvestment(investment.equityInvestment)
   }
 
   if (investment.realEstateInvestment) {
-    const realEstate = Array.isArray(investment.realEstateInvestment)
-      ? investment.realEstateInvestment[0]
-      : investment.realEstateInvestment
-    ;(mappedValues as any).realEstateInvestment = realEstate
+    ;(mappedValues as any).realEstateInvestment = normalizeSubInvestment(investment.realEstateInvestment)
   }
 
   // Convert to single investmentTypeId
@@ -76,27 +86,14 @@ export const transformInvestment = (
   }
 
   // Remove id and version from sub-investments - these belong to the investment, not the report
-  // Sub-investments are at the top level, not nested in investment
   if ((mappedValues as any).equityInvestment) {
-    ;(mappedValues as any).equityInvestment = {
-      ...(mappedValues as any).equityInvestment,
-      id: undefined,
-      version: undefined
-    }
+    ;(mappedValues as any).equityInvestment = removeIdVersion((mappedValues as any).equityInvestment)
   }
   if ((mappedValues as any).liquidFundInvestment) {
-    ;(mappedValues as any).liquidFundInvestment = {
-      ...(mappedValues as any).liquidFundInvestment,
-      id: undefined,
-      version: undefined
-    }
+    ;(mappedValues as any).liquidFundInvestment = removeIdVersion((mappedValues as any).liquidFundInvestment)
   }
   if ((mappedValues as any).realEstateInvestment) {
-    ;(mappedValues as any).realEstateInvestment = {
-      ...(mappedValues as any).realEstateInvestment,
-      id: undefined,
-      version: undefined
-    }
+    ;(mappedValues as any).realEstateInvestment = removeIdVersion((mappedValues as any).realEstateInvestment)
   }
 
   // Set investment.id and investmentId so InvestmentLayout recognizes it

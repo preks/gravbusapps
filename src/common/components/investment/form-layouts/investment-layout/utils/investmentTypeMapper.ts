@@ -21,30 +21,32 @@ export const mapToSingleInvestmentTypeId = (
 
   // Check if it has children - if yes, it's not a leaf
   const hasChildren = path.some(t => t.parentEntryId === leafTypeId)
-  if (hasChildren) {
-    // Find the deepest child
-    const children = path.filter(t => t.parentEntryId === leafTypeId)
-    if (children.length > 0) {
-      // Recursively find the deepest child
-      let deepest = children[0]
-      for (const child of children) {
-        const childPath = getPathByType(child.id)
-        const childHasChildren = childPath.some(t => t.parentEntryId === child.id)
-        if (!childHasChildren) {
-          deepest = child
-        } else {
-          // This child has children, find its deepest
-          const childChildren = childPath.filter(t => t.parentEntryId === child.id)
-          if (childChildren.length > 0) {
-            deepest = childChildren[childChildren.length - 1] // Take last as deepest
-          }
-        }
-      }
-      return deepest.id
-    }
+  if (!hasChildren) {
+    return leafTypeId
   }
 
-  return leafTypeId
+  // Find the deepest child
+  const children = path.filter(t => t.parentEntryId === leafTypeId)
+  if (children.length === 0) {
+    return leafTypeId
+  }
+
+  // Recursively find the deepest child
+  let deepest = children[0]
+  for (const child of children) {
+    const childPath = getPathByType(child.id)
+    const childHasChildren = childPath.some(t => t.parentEntryId === child.id)
+    if (childHasChildren) {
+      // This child has children, find its deepest
+      const childChildren = childPath.filter(t => t.parentEntryId === child.id)
+      if (childChildren.length > 0) {
+        deepest = childChildren[childChildren.length - 1] // Take last as deepest
+      }
+    } else {
+      deepest = child
+    }
+  }
+  return deepest.id
 }
 
 /**

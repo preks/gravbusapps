@@ -63,7 +63,7 @@ export const InvestmentTypeSelect: React.FC<InvestmentTypeSelectProps> = ({
   const baseType = useMemo(() => {
     if (!baseTypeId) return null
     const level0Types = getTypesByLevel(0)
-    return level0Types.find(t => t.id === baseTypeId) || null
+    return level0Types.find(t => t.id === baseTypeId) ?? null
   }, [baseTypeId, getTypesByLevel])
 
   // Recursive render function for type selection

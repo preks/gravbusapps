@@ -3,18 +3,18 @@ import { DynamicFieldDefinition } from '../DynamicFormField'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 interface ReferenceFieldProps<TFieldValues extends FieldValues = FieldValues> {
-  entityType: string
-  field: DynamicFieldDefinition
-  fieldName: string
-  formField: ControllerRenderProps<TFieldValues>
-  renderReferenceField?: (
+  readonly entityType: string
+  readonly field: DynamicFieldDefinition
+  readonly fieldName: string
+  readonly formField: ControllerRenderProps<TFieldValues>
+  readonly renderReferenceField?: (
     entityType: string,
     field: DynamicFieldDefinition,
     fieldName: string,
     formField: ControllerRenderProps<TFieldValues>,
     businessAppContext: BusinessAppContextProps
   ) => React.ReactNode
-  businessAppContext: BusinessAppContextProps
+  readonly businessAppContext: BusinessAppContextProps
 }
 
 export function ReferenceField<TFieldValues extends FieldValues = FieldValues>({

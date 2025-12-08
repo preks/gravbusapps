@@ -50,6 +50,52 @@ export const InvestmentLayout: React.FC<InvestmentLayoutProps> = ({
 }) => {
   const form = useFormContext<InvestmentFormValues>()
 
+  // Use useWatch to get current form values - MUST be called before any conditional returns
+  const investment = useWatch({ control: form.control, name: 'investment' })
+  const equityInvestment = useWatch({ control: form.control, name: 'equityInvestment' })
+  const realEstateInvestment = useWatch({ control: form.control, name: 'realEstateInvestment' })
+  const liquidFundInvestment = useWatch({ control: form.control, name: 'liquidFundInvestment' })
+
+  // Create formValues object for compatibility
+  const formValues: InvestmentFormValues = {
+    investment: investment || { name: '' },
+    equityInvestment,
+    realEstateInvestment,
+    liquidFundInvestment
+  }
+
+  const isUpdate = Boolean(formValues.investment.id)
+
+  // Get investmentTypeId from form state
+  const investmentTypeId = investment?.investmentTypeId || null
+
+  // Use prop if provided, otherwise derive from investmentTypeId - MUST be called before any conditional returns
+  const baseTypeId = useMemo(() => {
+    if (baseTypeIdProp !== undefined) {
+      return baseTypeIdProp
+    }
+    if (!investmentTypeId || !getPathByType) return null
+    const path = getPathByType(investmentTypeId)
+    const rootType = path.find(t => t.level === 0)
+    return rootType?.id || null
+  }, [investmentTypeId, getPathByType, baseTypeIdProp])
+
+  // Get currency symbol from formValues.investment.currencyRef (now string ID) - MUST be called before any conditional returns
+  const currencySymbol = useMemo(() => {
+    const currencyRef: any = formValues.investment.currencyRef
+    if (!currencyRef) return ''
+
+    // If currencyRef is a string (ID format like "Currency:v1:EUR")
+    if (typeof currencyRef === 'string') {
+      // Extract code from ID format (e.g., "Currency:v1:EUR" -> "EUR")
+      const parts = currencyRef.split(':')
+      const code = parts.length > 0 ? parts[parts.length - 1] : currencyRef
+      return code
+    }
+
+    return ''
+  }, [formValues.investment.currencyRef])
+
   // Show skeletons while loading (after all hooks)
   if (loading) {
     return (
@@ -71,52 +117,6 @@ export const InvestmentLayout: React.FC<InvestmentLayoutProps> = ({
       </div>
     )
   }
-
-  // Use useWatch to get current form values
-  const investment = useWatch({ control: form.control, name: 'investment' })
-  const equityInvestment = useWatch({ control: form.control, name: 'equityInvestment' })
-  const realEstateInvestment = useWatch({ control: form.control, name: 'realEstateInvestment' })
-  const liquidFundInvestment = useWatch({ control: form.control, name: 'liquidFundInvestment' })
-
-  // Create formValues object for compatibility
-  const formValues: InvestmentFormValues = {
-    investment: investment || { name: '' },
-    equityInvestment,
-    realEstateInvestment,
-    liquidFundInvestment
-  }
-
-  const isUpdate = Boolean(formValues.investment.id)
-
-  // Get investmentTypeId from form state
-  const investmentTypeId = investment?.investmentTypeId || null
-
-  // Use prop if provided, otherwise derive from investmentTypeId
-  const baseTypeId = useMemo(() => {
-    if (baseTypeIdProp !== undefined) {
-      return baseTypeIdProp
-    }
-    if (!investmentTypeId || !getPathByType) return null
-    const path = getPathByType(investmentTypeId)
-    const rootType = path.find(t => t.level === 0)
-    return rootType?.id || null
-  }, [investmentTypeId, getPathByType, baseTypeIdProp])
-
-  // Get currency symbol from formValues.investment.currencyRef (now string ID)
-  const currencySymbol = useMemo(() => {
-    const currencyRef: any = formValues.investment.currencyRef
-    if (!currencyRef) return ''
-
-    // If currencyRef is a string (ID format like "Currency:v1:EUR")
-    if (typeof currencyRef === 'string') {
-      // Extract code from ID format (e.g., "Currency:v1:EUR" -> "EUR")
-      const parts = currencyRef.split(':')
-      const code = parts.length > 0 ? parts[parts.length - 1] : currencyRef
-      return code
-    }
-
-    return ''
-  }, [formValues.investment.currencyRef])
 
   // Show main form - only render form fields, no wrappers
   return (

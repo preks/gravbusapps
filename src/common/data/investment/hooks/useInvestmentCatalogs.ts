@@ -10,7 +10,7 @@ export interface CatalogEntryTranslation {
 }
 
 export interface FormFieldDefinition {
-  type: 'DATE' | 'DATETIME' | 'AMOUNT' | 'TEXT' | 'TEXTAREA' | string // string for CATALOG_<name> or REF_<name>
+  type: string // 'DATE' | 'DATETIME' | 'AMOUNT' | 'TEXT' | 'TEXTAREA' | 'CATALOG_<name>' | 'REF_<name>'
   label: string
   property: string // e.g., "investment.acquisitionDate" or "equityInvestment.marketValue"
   required: boolean

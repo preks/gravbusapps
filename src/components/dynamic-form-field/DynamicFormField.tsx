@@ -31,19 +31,19 @@ export interface DynamicFieldDefinition {
  */
 export interface DynamicFormFieldProps<TFieldValues extends FieldValues = FieldValues> {
   /** Field definition from catalog configuration */
-  field: DynamicFieldDefinition
+  readonly field: DynamicFieldDefinition
   /** Field name in the form */
-  fieldName: string
+  readonly fieldName: string
   /** React Hook Form control */
-  control: Control<TFieldValues>
+  readonly control: Control<TFieldValues>
   /** Access token for API requests (required for CATALOG_ fields) */
-  accessToken: string
+  readonly accessToken: string
   /** Optional data-testid prefix */
-  testIdPrefix?: string
+  readonly testIdPrefix?: string
   /** Currency symbol to display in amount fields */
-  currencySymbol?: string
+  readonly currencySymbol?: string
   /** Custom renderer for REF_ fields */
-  renderReferenceField?: (
+  readonly renderReferenceField?: (
     entityType: string,
     field: DynamicFieldDefinition,
     fieldName: string,
@@ -51,7 +51,7 @@ export interface DynamicFormFieldProps<TFieldValues extends FieldValues = FieldV
     businessAppContext: BusinessAppContextProps
   ) => React.ReactNode
   /** Business app context (required for REF_ fields) */
-  businessAppContext?: BusinessAppContextProps
+  readonly businessAppContext?: BusinessAppContextProps
 }
 
 /**

@@ -31,8 +31,8 @@ export const sanitizeInvestmentReport = (
   // Remove investmentTypeId from payload (not part of API)
   delete (mergedData as any).investmentTypeId
   // Add group/type/liquidFundType for payload
-  mergedData.investmentGroupRef = (groupId ?? undefined) as string | undefined
-  mergedData.investmentTypeRef = (typeId ?? undefined) as string | undefined
+  mergedData.investmentGroupRef = groupId ?? undefined
+  mergedData.investmentTypeRef = typeId ?? undefined
 
   // Get report-specific fields directly from formData (no fallbacks)
   const reportDate = (formData as any).investmentReportDate

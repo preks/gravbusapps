@@ -8,8 +8,10 @@ import { mapToFormValues } from '@/common/utils/formMappingUtils'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { type InvestmentLead, buildInvestmentLeadPayload } from '@/common/data/investment/types/investmentLeadTypes'
 import { AppActionForm } from '@/components/app-action-form'
-import { InvestmentProspectLayout } from '@/common/components/investment/form-layouts/investment-prospect-layout'
-import { createDynamicInvestmentProspectSchema } from '@/common/components/investment/form-layouts/investment-prospect-layout'
+import {
+  InvestmentProspectLayout,
+  createDynamicInvestmentProspectSchema
+} from '@/common/components/investment/form-layouts/investment-prospect-layout'
 import {
   extractProspectFieldsFromFormValues,
   extractProspectFieldsFromEntity
@@ -95,82 +97,96 @@ const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalDa
   const leadRef = useRef(lead)
   const previousSchemaKeysRef = useRef<string[]>([])
 
-  useEffect(() => {
-    // Update resolver when schema changes
-    if (form && formResolver) {
-      if (form.control._options.resolver !== formResolver) {
-        form.control._options.resolver = formResolver
+  // Helper: Update form resolver
+  const updateResolver = useCallback(() => {
+    if (form && formResolver && form.control._options.resolver !== formResolver) {
+      form.control._options.resolver = formResolver
+    }
+  }, [form, formResolver])
+
+  // Helper: Check if schema changed
+  const checkSchemaChanged = useCallback((): boolean => {
+    const currentKeys = Object.keys(prospectSchema.shape)
+    const changed = JSON.stringify(previousSchemaKeysRef.current) !== JSON.stringify(currentKeys)
+    if (changed) {
+      previousSchemaKeysRef.current = currentKeys
+    }
+    return changed
+  }, [prospectSchema])
+
+  // Helper: Build investmentTypeId from lead
+  const buildInvestmentTypeIdFromLead = useCallback(
+    (leadData: typeof lead): string | null => {
+      if (!leadData) return null
+      if (leadData.investmentTypeId) return leadData.investmentTypeId
+      if ((leadData.investmentGroupRef || leadData.investmentTypeRef) && getPathByType) {
+        const groupId = leadData.investmentGroupRef || null
+        const typeId = leadData.investmentTypeRef || null
+        return mapToSingleInvestmentTypeId(groupId, typeId, getPathByType)
+      }
+      return null
+    },
+    [getPathByType]
+  )
+
+  // Helper: Build form values when entity ID changes
+  const buildFormValuesFromLead = useCallback(() => {
+    const baseValues = mapToFormValues(lead || {}, prospectSchema)
+    const dynamicFieldValues = extractProspectFieldsFromEntity(lead, formFieldsDefinition)
+    const investmentTypeId = buildInvestmentTypeIdFromLead(lead)
+    if (investmentTypeId) {
+      baseValues.investmentTypeId = investmentTypeId
+    }
+    return { ...baseValues, ...dynamicFieldValues }
+  }, [lead, prospectSchema, formFieldsDefinition, buildInvestmentTypeIdFromLead])
+
+  // Helper: Update dynamic fields when schema changes
+  const updateDynamicFieldsFromLead = useCallback(() => {
+    const currentValues = form.getValues()
+    const updatedValues = { ...currentValues }
+
+    if (formFieldsDefinition?.formFields) {
+      for (const group of formFieldsDefinition.formFields) {
+        for (const field of group.fields) {
+          const property = field.property
+          updatedValues[property] = lead && property in lead ? (lead as any)[property] : undefined
+        }
       }
     }
 
-    const schemaChanged =
-      JSON.stringify(previousSchemaKeysRef.current) !== JSON.stringify(Object.keys(prospectSchema.shape))
-
-    if (schemaChanged) {
-      previousSchemaKeysRef.current = Object.keys(prospectSchema.shape)
+    const investmentTypeId = buildInvestmentTypeIdFromLead(lead)
+    if (investmentTypeId && !updatedValues.investmentTypeId) {
+      updatedValues.investmentTypeId = investmentTypeId
     }
+
+    return updatedValues
+  }, [form, formFieldsDefinition, lead, buildInvestmentTypeIdFromLead])
+
+  useEffect(() => {
+    updateResolver()
+    const schemaChanged = checkSchemaChanged()
 
     if (leadRef.current?.id !== lead?.id) {
-      // Entity ID changed: Load all values (like CRM LeadForm)
-      const baseValues = mapToFormValues(lead || {}, prospectSchema)
-      const dynamicFieldValues = extractProspectFieldsFromEntity(lead, formFieldsDefinition)
-
-      // Convert group/type to investmentTypeId if lead has them
-      if (lead && (lead.investmentGroupRef || lead.investmentTypeRef) && getPathByType) {
-        const groupId = lead.investmentGroupRef || null
-        const typeId = lead.investmentTypeRef || null
-        const investmentTypeId = mapToSingleInvestmentTypeId(groupId, typeId, getPathByType)
-        if (investmentTypeId) {
-          baseValues.investmentTypeId = investmentTypeId
-        }
-      } else if (lead?.investmentTypeId) {
-        baseValues.investmentTypeId = lead.investmentTypeId
-      }
-
-      const mergedValues = { ...baseValues, ...dynamicFieldValues }
-
+      const mergedValues = buildFormValuesFromLead()
       form.reset(mergedValues as Partial<InvestmentLead>)
-
       leadRef.current = lead
     } else if (schemaChanged) {
-      // Schema changed: Update only dynamic fields
-      const currentValues = form.getValues()
-      const updatedValues = { ...currentValues }
-
-      // Update dynamic fields: use value from entity if available, otherwise undefined
-      if (formFieldsDefinition?.formFields) {
-        for (const group of formFieldsDefinition.formFields) {
-          for (const field of group.fields) {
-            const property = field.property
-            if (lead && property in lead) {
-              updatedValues[property] = (lead as any)[property]
-            } else {
-              updatedValues[property] = undefined
-            }
-          }
-        }
-      }
-
-      // Preserve investmentTypeId from entity if they're empty in form
-      if (!updatedValues.investmentTypeId && lead?.investmentTypeId) {
-        updatedValues.investmentTypeId = lead.investmentTypeId
-      } else if (
-        !updatedValues.investmentTypeId &&
-        (lead?.investmentGroupRef || lead?.investmentTypeRef) &&
-        getPathByType
-      ) {
-        // Convert group/type to investmentTypeId if lead has them
-        const groupId = lead.investmentGroupRef || null
-        const typeId = lead.investmentTypeRef || null
-        const investmentTypeId = mapToSingleInvestmentTypeId(groupId, typeId, getPathByType)
-        if (investmentTypeId) {
-          updatedValues.investmentTypeId = investmentTypeId
-        }
-      }
-
+      const updatedValues = updateDynamicFieldsFromLead()
       form.reset(updatedValues as Partial<InvestmentLead>)
     }
-  }, [lead?.id, lead, form, prospectSchema, formResolver, formFieldsDefinition, getPathByType])
+  }, [
+    lead?.id,
+    lead,
+    form,
+    prospectSchema,
+    formResolver,
+    formFieldsDefinition,
+    getPathByType,
+    updateResolver,
+    checkSchemaChanged,
+    buildFormValuesFromLead,
+    updateDynamicFieldsFromLead
+  ])
 
   // Handle form submission - returns payload for AppActionForm (like CRM LeadForm, but with dynamic fields)
   const handleSubmit = useCallback(

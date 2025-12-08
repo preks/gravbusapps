@@ -37,7 +37,7 @@ const catalogEntrySchema = z.union([
       code: z.string().optional(),
       value: z.string().optional()
     })
-    .passthrough(),
+    .catchall(z.any()),
   z.null()
 ])
 
@@ -68,7 +68,7 @@ const createRequiredReferenceRule = (errorMessage: string): z.ZodTypeAny => {
         .object({
           id: z.string().min(1, errorMessage)
         })
-        .passthrough()
+        .catchall(z.any())
     ])
     .refine(val => val !== null && val !== undefined, {
       message: errorMessage
@@ -86,7 +86,7 @@ const createOptionalReferenceRule = (): z.ZodTypeAny => {
         .object({
           id: z.string().optional()
         })
-        .passthrough()
+        .catchall(z.any())
     ])
     .optional()
 }

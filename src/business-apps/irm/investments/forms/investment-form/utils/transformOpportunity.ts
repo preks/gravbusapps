@@ -58,54 +58,36 @@ export const transformOpportunity = (
   }
 
   // If no form fields definition provided, return static fields only
-  if (!formFieldsDefinition || !formFieldsDefinition.formFields || formFieldsDefinition.formFields.length === 0) {
+  if (!formFieldsDefinition?.formFields?.length) {
     return result
   }
 
   // Map dynamic fields based on form field definitions
   for (const group of formFieldsDefinition.formFields) {
     for (const field of group.fields) {
-      // Extract property path (e.g., "investment.acquisitionDate", "equityInvestment.marketValue")
       const propertyPath = field.property
-
-      // Split into entity type and field path
       const parts = propertyPath.split('.')
       if (parts.length < 2) {
-        continue // Invalid property path
+        continue
       }
 
-      const entityType = parts[0] // "investment", "equityInvestment", "realEstateInvestment", "liquidFundInvestment"
-      const fieldPath = parts.slice(1).join('.') // All parts after entity type
-
-      // Handle nested paths (e.g., additionalProperties.fieldName)
+      const entityType = parts[0]
+      const fieldPath = parts.slice(1).join('.')
       const opportunityValue = fieldPath.split('.').reduce((obj, key) => obj?.[key], opportunityData as any)
 
-      // Skip if field doesn't exist in opportunity or is undefined/null
       if (opportunityValue === undefined || opportunityValue === null) {
         continue
       }
 
-      // Map to the correct entity (merge with existing mapped values)
+      // Map to the correct entity
       if (entityType === 'investment') {
-        result.investment = {
-          ...result.investment,
-          [fieldPath]: opportunityValue
-        } as any
+        result.investment = { ...result.investment, [fieldPath]: opportunityValue } as any
       } else if (entityType === 'equityInvestment') {
-        result.equityInvestment = {
-          ...result.equityInvestment,
-          [fieldPath]: opportunityValue
-        } as any
+        result.equityInvestment = { ...result.equityInvestment, [fieldPath]: opportunityValue } as any
       } else if (entityType === 'realEstateInvestment') {
-        result.realEstateInvestment = {
-          ...result.realEstateInvestment,
-          [fieldPath]: opportunityValue
-        } as any
+        result.realEstateInvestment = { ...result.realEstateInvestment, [fieldPath]: opportunityValue } as any
       } else if (entityType === 'liquidFundInvestment') {
-        result.liquidFundInvestment = {
-          ...result.liquidFundInvestment,
-          [fieldPath]: opportunityValue
-        } as any
+        result.liquidFundInvestment = { ...result.liquidFundInvestment, [fieldPath]: opportunityValue } as any
       }
     }
   }

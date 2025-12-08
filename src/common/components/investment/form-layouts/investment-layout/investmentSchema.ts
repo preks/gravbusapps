@@ -11,7 +11,7 @@ const catalogEntrySchema = z.union([
       code: z.string().optional(),
       value: z.string().optional()
     })
-    .passthrough(),
+    .catchall(z.any()),
   z.null()
 ])
 
@@ -36,7 +36,7 @@ const baseInvestmentSchema = z.object({
       // Optional company ID
       companyId: z.string().nullable().optional()
     })
-    .passthrough(),
+    .catchall(z.any()),
 
   // Group-specific data (optional - one will be present based on group)
   equityInvestment: z.any().optional(),
@@ -98,7 +98,7 @@ export const createDynamicInvestmentSchema = (formFieldsDefinition?: DynamicForm
                 val => {
                   if (val === null || val === undefined || val === '') return undefined
                   const num = Number(val)
-                  return isNaN(num) ? undefined : num
+                  return Number.isNaN(num) ? undefined : num
                 },
                 z.number({ message: errorMessage }).min(0, `${field.label} must be positive`)
               )
@@ -108,7 +108,7 @@ export const createDynamicInvestmentSchema = (formFieldsDefinition?: DynamicForm
                 val => {
                   if (val === null || val === undefined || val === '') return undefined
                   const num = Number(val)
-                  return isNaN(num) ? undefined : num
+                  return Number.isNaN(num) ? undefined : num
                 },
                 z
                   .number({ message: errorMessage })
@@ -121,7 +121,7 @@ export const createDynamicInvestmentSchema = (formFieldsDefinition?: DynamicForm
                 val => {
                   if (val === null || val === undefined || val === '') return undefined
                   const num = Number(val)
-                  return isNaN(num) ? undefined : num
+                  return Number.isNaN(num) ? undefined : num
                 },
                 z.number({ message: errorMessage })
               )
@@ -152,25 +152,15 @@ export const createDynamicInvestmentSchema = (formFieldsDefinition?: DynamicForm
                       .min(1, errorMessage)
                     break
                   case 'InvestmentAccount':
-                    // Single account reference - accepts string or object
-                    validationRule = z.union([
-                      z.string().min(1, errorMessage),
-                      z
-                        .object({
-                          id: z.string().min(1, errorMessage)
-                        })
-                        .passthrough()
-                    ])
-                    break
                   default:
-                    // Default single reference - accepts string or object
+                    // Single reference - accepts string or object
                     validationRule = z.union([
                       z.string().min(1, errorMessage),
                       z
                         .object({
                           id: z.string().min(1, errorMessage)
                         })
-                        .passthrough()
+                        .catchall(z.any())
                     ])
                     break
                 }
@@ -191,7 +181,7 @@ export const createDynamicInvestmentSchema = (formFieldsDefinition?: DynamicForm
                 val => {
                   if (val === null || val === undefined || val === '') return undefined
                   const num = Number(val)
-                  return isNaN(num) ? undefined : num
+                  return Number.isNaN(num) ? undefined : num
                 },
                 z.number().min(0, `${field.label} must be positive`).optional()
               )
@@ -201,7 +191,7 @@ export const createDynamicInvestmentSchema = (formFieldsDefinition?: DynamicForm
                 val => {
                   if (val === null || val === undefined || val === '') return undefined
                   const num = Number(val)
-                  return isNaN(num) ? undefined : num
+                  return Number.isNaN(num) ? undefined : num
                 },
                 z
                   .number()
@@ -214,7 +204,7 @@ export const createDynamicInvestmentSchema = (formFieldsDefinition?: DynamicForm
               validationRule = z.preprocess(val => {
                 if (val === null || val === undefined || val === '') return undefined
                 const num = Number(val)
-                return isNaN(num) ? undefined : num
+                return Number.isNaN(num) ? undefined : num
               }, z.number().optional())
               break
             case 'DATE':
@@ -243,20 +233,8 @@ export const createDynamicInvestmentSchema = (formFieldsDefinition?: DynamicForm
                       .optional()
                     break
                   case 'InvestmentAccount':
-                    // Single account reference - accepts string or object
-                    validationRule = z
-                      .union([
-                        z.string().optional(),
-                        z
-                          .object({
-                            id: z.string().optional()
-                          })
-                          .passthrough()
-                      ])
-                      .optional()
-                    break
                   default:
-                    // Default single reference - accepts string or object
+                    // Single reference - accepts string or object
                     validationRule = z
                       .union([
                         z.string().optional(),
@@ -264,7 +242,7 @@ export const createDynamicInvestmentSchema = (formFieldsDefinition?: DynamicForm
                           .object({
                             id: z.string().optional()
                           })
-                          .passthrough()
+                          .catchall(z.any())
                       ])
                       .optional()
                     break
@@ -301,15 +279,15 @@ export const createDynamicInvestmentSchema = (formFieldsDefinition?: DynamicForm
     investment: baseInvestmentSchema.shape.investment.extend(investmentFields),
     equityInvestment:
       Object.keys(equityInvestmentFields).length > 0
-        ? z.object(equityInvestmentFields).passthrough().optional()
+        ? z.object(equityInvestmentFields).catchall(z.any()).optional()
         : z.any().optional(),
     realEstateInvestment:
       Object.keys(realEstateInvestmentFields).length > 0
-        ? z.object(realEstateInvestmentFields).passthrough().optional()
+        ? z.object(realEstateInvestmentFields).catchall(z.any()).optional()
         : z.any().optional(),
     liquidFundInvestment:
       Object.keys(liquidFundInvestmentFields).length > 0
-        ? z.object(liquidFundInvestmentFields).passthrough().optional()
+        ? z.object(liquidFundInvestmentFields).catchall(z.any()).optional()
         : z.any().optional()
   })
 

@@ -71,15 +71,15 @@ const detectInvestmentGroup = (
       businessAppContext?.additionalData?.view,
 
       // 2. URL parameters (secondary)
-      new URLSearchParams(window.location.search).get('fromSubView'),
-      new URLSearchParams(window.location.search).get('subView'),
-      new URLSearchParams(window.location.search).get('view'),
+      new URLSearchParams(globalThis.location.search).get('fromSubView'),
+      new URLSearchParams(globalThis.location.search).get('subView'),
+      new URLSearchParams(globalThis.location.search).get('view'),
 
       // 3. Document referrer (tertiary)
       document.referrer,
 
       // 4. Current URL (fallback)
-      window.location.href
+      globalThis.location.href
     ]
 
     // Find first valid investment group
@@ -89,7 +89,7 @@ const detectInvestmentGroup = (
         // Special case: Skip auto-detection for overview/all contexts
         if (source) {
           const normalized = source.trim().toLowerCase()
-          if (['overview', 'all'].some(skip => normalized === skip)) {
+          if (['overview', 'all'].includes(normalized)) {
             continue
           }
         }
@@ -158,8 +158,8 @@ const GroupSelectSegment: React.FC<GroupSelectSegmentProps> = ({
         businessAppContext?.additionalData?.fromSubView,
         businessAppContext?.additionalData?.subView,
         businessAppContext?.additionalData?.investmentGroup,
-        new URLSearchParams(window.location.search).get('fromSubView'),
-        new URLSearchParams(window.location.search).get('subView')
+        new URLSearchParams(globalThis.location.search).get('fromSubView'),
+        new URLSearchParams(globalThis.location.search).get('subView')
       ]
 
       for (const source of sources) {
@@ -167,7 +167,7 @@ const GroupSelectSegment: React.FC<GroupSelectSegmentProps> = ({
           // Skip auto-detection for overview/all contexts
           if (source) {
             const normalized = source.trim().toLowerCase()
-            if (['overview', 'all'].some(skip => normalized === skip)) {
+            if (['overview', 'all'].includes(normalized)) {
               return false
             }
           }
@@ -280,7 +280,15 @@ const GroupSelectSegment: React.FC<GroupSelectSegmentProps> = ({
             {groupsForDisplay.map(group => (
               <div
                 key={group.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => onGroupSelect(group.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    onGroupSelect(group.value)
+                  }
+                }}
                 data-testid={formatDataTestId(prefixDataTestId, `investment-group-button-${group.id}`)}
                 className="gba:min-h-16 gba:h-16 gba:flex gba:items-center gba:justify-center gba:text-center gba:whitespace-normal gba:px-8 gba:py-6 gba:bg-secondary gba:text-secondary-foreground gba:border gba:border-solid gba:rounded-md gba:text-base gba:font-medium gba:cursor-pointer gba:transition-all gba:duration-200 gba:ease-in-out gba:select-none gba:hover:opacity-80 gba:border-ring"
               >

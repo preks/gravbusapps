@@ -5,7 +5,7 @@
  */
 
 import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments'
-import { INVESTMENT_ACCOUNT_REF } from './fragments/investmentReferenceFragments'
+import { INVESTMENT_ACCOUNT_REF, INVESTMENT_REF } from './fragments/investmentReferenceFragments'
 import { InvestmentReportFields } from '../types/investmentReportTypes'
 import type { BaseQueryVariables } from '@/common/network/graphql/commonTypes'
 
@@ -95,6 +95,58 @@ export const INVESTMENT_REPORT_QUERY_CONFIGS: Record<string, string[]> = {
 }
 
 /**
+ * Build catalog reference field fragment
+ */
+const buildCatalogReferenceField = (
+  fieldSet: Set<string>,
+  fieldName: string,
+  fieldRefName: string,
+  fieldKey: string
+): string => {
+  if (!fieldSet.has(fieldName) && !fieldSet.has(fieldRefName)) {
+    return ''
+  }
+  const hasObject = fieldSet.has(fieldName)
+  return `
+      ${hasObject ? `${fieldKey} { ${CATALOG_ENTRY} }` : ''}
+      ${InvestmentReportFields[fieldRefName as keyof typeof InvestmentReportFields]}
+    `
+}
+
+/**
+ * Build entity reference field fragment
+ */
+const buildEntityReferenceField = (
+  fieldSet: Set<string>,
+  fieldName: string,
+  fieldRefName: string,
+  fieldKey: string,
+  refFragment: string
+): string => {
+  if (!fieldSet.has(fieldName) && !fieldSet.has(fieldRefName)) {
+    return ''
+  }
+  const hasObject = fieldSet.has(fieldName)
+  return `
+      ${hasObject ? `${fieldKey} { ${refFragment} }` : ''}
+      ${InvestmentReportFields[fieldRefName as keyof typeof InvestmentReportFields]}
+    `
+}
+
+/**
+ * Build investment field fragment
+ */
+const buildInvestmentFieldFragment = (fieldSet: Set<string>): string => {
+  return buildEntityReferenceField(
+    fieldSet,
+    'investment',
+    'investmentId',
+    InvestmentReportFields.investment,
+    INVESTMENT_REF
+  )
+}
+
+/**
  * Build Investment Report Fragment
  * Field names match InvestmentReport interface field names exactly
  */
@@ -139,123 +191,19 @@ export const buildInvestmentReportFragment = (fields: string[]): string => {
     ${fieldSet.has('activeTo') ? 'activeTo' : ''}
     ${fieldSet.has('additionalProperties') ? 'additionalProperties' : ''}
     
-    ${
-      fieldSet.has('investmentStakeType') || fieldSet.has('investmentStakeTypeRef')
-        ? `
-      ${fieldSet.has('investmentStakeType') ? `${InvestmentReportFields.investmentStakeType} { ${CATALOG_ENTRY} }` : ''}
-      ${InvestmentReportFields.investmentStakeTypeRef}
-    `
-        : ''
-    }
+    ${buildCatalogReferenceField(fieldSet, 'investmentStakeType', 'investmentStakeTypeRef', InvestmentReportFields.investmentStakeType)}
     
-    ${
-      fieldSet.has('investmentPhase') || fieldSet.has('investmentPhaseRef')
-        ? `
-      ${fieldSet.has('investmentPhase') ? `${InvestmentReportFields.investmentPhase} { ${CATALOG_ENTRY} }` : ''}
-      ${InvestmentReportFields.investmentPhaseRef}
-    `
-        : ''
-    }
+    ${buildCatalogReferenceField(fieldSet, 'investmentPhase', 'investmentPhaseRef', InvestmentReportFields.investmentPhase)}
     
-    ${
-      fieldSet.has('investmentStatus') || fieldSet.has('investmentStatusRef')
-        ? `
-      ${fieldSet.has('investmentStatus') ? `${InvestmentReportFields.investmentStatus} { ${CATALOG_ENTRY} }` : ''}
-      ${InvestmentReportFields.investmentStatusRef}
-    `
-        : ''
-    }
+    ${buildCatalogReferenceField(fieldSet, 'investmentStatus', 'investmentStatusRef', InvestmentReportFields.investmentStatus)}
     
-    ${
-      fieldSet.has('investmentRiskLevel') || fieldSet.has('investmentRiskLevelRef')
-        ? `
-      ${fieldSet.has('investmentRiskLevel') ? `${InvestmentReportFields.investmentRiskLevel} { ${CATALOG_ENTRY} }` : ''}
-      ${InvestmentReportFields.investmentRiskLevelRef}
-    `
-        : ''
-    }
+    ${buildCatalogReferenceField(fieldSet, 'investmentRiskLevel', 'investmentRiskLevelRef', InvestmentReportFields.investmentRiskLevel)}
     
-    ${
-      fieldSet.has('currency') || fieldSet.has('currencyRef')
-        ? `
-      ${fieldSet.has('currency') ? `${InvestmentReportFields.currency} { ${CATALOG_ENTRY} }` : ''}
-      ${InvestmentReportFields.currencyRef}
-    `
-        : ''
-    }
+    ${buildCatalogReferenceField(fieldSet, 'currency', 'currencyRef', InvestmentReportFields.currency)}
     
-    ${
-      fieldSet.has('investment') || fieldSet.has('investmentId')
-        ? `
-      ${
-        fieldSet.has('investment')
-          ? `${InvestmentReportFields.investment} {
-        ${AUDIT_FIELDS}
-        id
-        code
-        name
-        isin
-        initialInvestmentAmount
-        totalInvestmentAmount
-        investmentMarketValue
-        acquisitionDate
-        exitDate
-        plannedExitDate
-        planedExit
-        additionalProperties
-        
-        # Catalog relationships
-        investmentGroup {
-          ${CATALOG_ENTRY}
-        }
-        investmentType {
-          ${CATALOG_ENTRY}
-        }
-        investmentStatus {
-          ${CATALOG_ENTRY}
-        }
-        currency {
-          ${CATALOG_ENTRY}
-        }
-        
-        # Owner employee relationship
-        ownerEmployee {
-          id
-          code
-          firstName
-          lastName
-          displayName
-          fullName
-          picture
-          pictureThumbnail
-          employeePosition {
-            jobPosition { name }
-            organizationalUnit { id name }
-          }
-        }
-        ownerEmployeeId
-        
-        # Investment account relationship
-        investmentAccount {
-          ${INVESTMENT_ACCOUNT_REF}
-        }
-        investmentAccountId
-      }`
-          : ''
-      }
-      ${fieldSet.has('investmentId') ? InvestmentReportFields.investmentId : ''}
-    `
-        : ''
-    }
+    ${buildInvestmentFieldFragment(fieldSet)}
     
-    ${
-      fieldSet.has('loanRecipientInvestmentAccount') || fieldSet.has('loanRecipientInvestmentAccountId')
-        ? `
-      ${fieldSet.has('loanRecipientInvestmentAccount') ? `${InvestmentReportFields.loanRecipientInvestmentAccount} { ${INVESTMENT_ACCOUNT_REF} }` : ''}
-      ${InvestmentReportFields.loanRecipientInvestmentAccountId}
-    `
-        : ''
-    }
+    ${buildEntityReferenceField(fieldSet, 'loanRecipientInvestmentAccount', 'loanRecipientInvestmentAccountId', InvestmentReportFields.loanRecipientInvestmentAccount, INVESTMENT_ACCOUNT_REF)}
     
     ${
       fieldSet.has('equityInvestmentReport')

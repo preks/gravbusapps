@@ -29,14 +29,14 @@ export const mapToSingleInvestmentTypeId = (
       for (const child of children) {
         const childPath = getPathByType(child.id)
         const childHasChildren = childPath.some(t => t.parentEntryId === child.id)
-        if (!childHasChildren) {
-          deepest = child
-        } else {
+        if (childHasChildren) {
           // This child has children, find its deepest
           const childChildren = childPath.filter(t => t.parentEntryId === child.id)
           if (childChildren.length > 0) {
             deepest = childChildren[childChildren.length - 1] // Take last as deepest
           }
+        } else {
+          deepest = child
         }
       }
       return deepest.id

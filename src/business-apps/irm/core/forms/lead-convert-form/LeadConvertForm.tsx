@@ -52,8 +52,10 @@ import type { InvestmentContact } from '@/common/data/investment/types/investmen
 import type { InvestmentOpportunity } from '@/common/data/investment/types/investmentOpportunityTypes'
 import type { SelectOption as AccountSelectOption } from '@/common/components/common-relations/selects/account-select'
 import type { SelectOption as ContactSelectOption } from '@/common/components/common-relations/selects/contact-select'
-import { InvestmentProspectLayout } from '@/common/components/investment/form-layouts/investment-prospect-layout'
-import { createDynamicInvestmentProspectSchema } from '@/common/components/investment/form-layouts/investment-prospect-layout'
+import {
+  InvestmentProspectLayout,
+  createDynamicInvestmentProspectSchema
+} from '@/common/components/investment/form-layouts/investment-prospect-layout'
 import { createInvestmentOpportunitySchema } from '@/common/components/investment/form-layouts/investment-prospect-layout/investmentProspectSchema'
 import { useInvestmentTypes } from '@/common/data/investment/hooks/useInvestmentTypes'
 import { mapToSingleInvestmentTypeId } from '@/common/components/investment/form-layouts/investment-prospect-layout/utils/investmentTypeMapper'
@@ -302,40 +304,41 @@ export const ConvertInvestmentLeadForm = ({
   // Track previous schema keys to avoid unnecessary resets
   const previousProspectSchemaKeysRef = useRef<string[]>([])
 
-  useEffect(() => {
-    if (opportunityForm && prospectSchema && formFieldsDefinition) {
-      const currentSchemaKeys = Object.keys(prospectSchema.shape)
-      const schemaChanged = JSON.stringify(previousProspectSchemaKeysRef.current) !== JSON.stringify(currentSchemaKeys)
+  // Helper: Update dynamic fields from lead data
+  const updateDynamicFieldsFromLeadData = useCallback(() => {
+    if (!opportunityForm || !formFieldsDefinition) return null
 
-      if (schemaChanged) {
-        previousProspectSchemaKeysRef.current = currentSchemaKeys
+    const currentValues = opportunityForm.getValues()
+    const updatedValues = { ...currentValues }
 
-        const currentValues = opportunityForm.getValues()
-        const updatedValues = { ...currentValues }
-
-        // Update dynamic fields: use value from entity if available, otherwise undefined
-        if (formFieldsDefinition?.formFields) {
-          for (const group of formFieldsDefinition.formFields) {
-            for (const field of group.fields) {
-              const property = field.property
-              if (leadData && property && property in leadData) {
-                updatedValues[property] = (leadData as any)[property]
-              } else {
-                updatedValues[property] = undefined
-              }
-            }
-          }
-        }
-
-        const hasChanges = JSON.stringify(currentValues) !== JSON.stringify(updatedValues)
-
-        // Only reset if there are actual changes
-        if (hasChanges) {
-          opportunityForm.reset(updatedValues as any)
+    if (formFieldsDefinition.formFields) {
+      for (const group of formFieldsDefinition.formFields) {
+        for (const field of group.fields) {
+          const property = field.property
+          updatedValues[property] =
+            leadData && property && property in leadData ? (leadData as any)[property] : undefined
         }
       }
     }
-  }, [prospectSchema, opportunityForm, formFieldsDefinition, leadData])
+
+    const hasChanges = JSON.stringify(currentValues) !== JSON.stringify(updatedValues)
+    return hasChanges ? updatedValues : null
+  }, [opportunityForm, formFieldsDefinition, leadData])
+
+  useEffect(() => {
+    if (!opportunityForm || !prospectSchema || !formFieldsDefinition) return
+
+    const currentSchemaKeys = Object.keys(prospectSchema.shape)
+    const schemaChanged = JSON.stringify(previousProspectSchemaKeysRef.current) !== JSON.stringify(currentSchemaKeys)
+
+    if (schemaChanged) {
+      previousProspectSchemaKeysRef.current = currentSchemaKeys
+      const updatedValues = updateDynamicFieldsFromLeadData()
+      if (updatedValues) {
+        opportunityForm.reset(updatedValues as any)
+      }
+    }
+  }, [prospectSchema, opportunityForm, formFieldsDefinition, leadData, updateDynamicFieldsFromLeadData])
 
   // Use central hooks for accounts and contacts - extract refetch directly
   const {

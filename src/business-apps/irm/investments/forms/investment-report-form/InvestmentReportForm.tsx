@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { InvestmentLayout, InvestmentFormValues } from '@/common/components/investment/form-layouts/investment-layout'
-import { useTranslation } from '@newwork/nw-design-system'
+import { useTranslation, Skeleton } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppActionForm } from '@/components/app-action-form'
 import { CatalogSelect } from '@/components/catalog-select'
@@ -22,7 +22,6 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { transformInvestment } from './utils/transformInvestment'
 import { transformInvestmentReport } from './utils/transformInvestmentReport'
 import { sanitizeInvestmentReport } from './utils/sanitizeInvestmentReport'
-import { Skeleton } from '@newwork/nw-design-system'
 
 type InvestmentReportFormProps = BusinessAppContextProps
 
@@ -245,7 +244,7 @@ export const InvestmentReportForm: React.FC<InvestmentReportFormProps> = ({
         ...currentValues,
         investment: {
           ...currentValues.investment,
-          ...(dynamicFields.investment || {})
+          ...(dynamicFields.investment ?? {})
         },
         ...(dynamicFields.equityInvestment && {
           equityInvestment: {

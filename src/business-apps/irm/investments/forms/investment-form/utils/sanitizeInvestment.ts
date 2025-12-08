@@ -23,8 +23,8 @@ export const sanitizeInvestment = (
     ...formData.investment,
     // Remove investmentTypeId from payload (not part of API) and replace it with group & type
     investmentTypeId: undefined,
-    investmentGroupRef: (groupId ?? undefined) as string | undefined,
-    investmentTypeRef: (typeId ?? undefined) as string | undefined,
+    investmentGroupRef: groupId ?? undefined,
+    investmentTypeRef: typeId ?? undefined,
     // Include investmentOpportunityId if present (for creating investment from opportunity)
     ...(formData.investment?.investmentOpportunityId && {
       investmentOpportunityId: formData.investment.investmentOpportunityId
