@@ -8,10 +8,12 @@ import TimeTracking from './components/TimeTracking'
 import { useEmployeeData } from '../employee-record/hooks/useEmployeeData'
 import timeTrackingTranslations from './_i18n'
 import DailyLog from './components/DailyLog'
+import TimeHistory from './components/TimeHistory'
 
 enum MyTimeTabEnum {
   TimeTracking = 'time-tracking',
-  DailyLog = 'daily-log'
+  DailyLog = 'daily-log',
+  History = 'history'
 }
 
 export const MyTime: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo }) => {
@@ -44,6 +46,10 @@ export const MyTime: React.FC<BusinessAppContextProps> = ({ accessToken, userInf
             {
               value: MyTimeTabEnum.DailyLog,
               label: t('daily_log')
+            },
+            {
+              value: MyTimeTabEnum.History,
+              label: getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.history.title', 'History')
             }
           ]
         }}
@@ -59,6 +65,12 @@ export const MyTime: React.FC<BusinessAppContextProps> = ({ accessToken, userInf
         {activeTab === MyTimeTabEnum.DailyLog && (
           <div data-testid="my-time-activity-content" className="gba:mt-4">
             <DailyLog employee={employee} employeeId={employeeId} accessToken={accessToken} />
+          </div>
+        )}
+
+        {activeTab === MyTimeTabEnum.History && (
+          <div data-testid="my-time-history-content" className="gba:mt-4">
+            <TimeHistory employee={employee} employeeId={employeeId} accessToken={accessToken} />
           </div>
         )}
       </PageLayout>

@@ -3,6 +3,7 @@ export { default as InvestmentSegment } from './InvestmentSegment'
 export { default as TypeSelectSegment } from './TypeSelectSegment'
 export { default as LiquidFundTypeSelectSegment } from './LiquidFundTypeSelectSegment'
 export { default as DynamicSegment } from './DynamicSegment'
+export { default as InvestmentFileUploadSegment } from './InvestmentFileUploadSegment'
 
 export type { GroupSelectSegmentProps } from './GroupSelectSegment'
 export type { TypeSelectSegmentProps } from './TypeSelectSegment'
