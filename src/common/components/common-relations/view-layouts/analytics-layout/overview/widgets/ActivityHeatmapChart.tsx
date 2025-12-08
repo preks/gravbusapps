@@ -13,12 +13,7 @@ import {
 import { TrendUpIcon } from '@phosphor-icons/react'
 import { ComposedChart, Area, XAxis, YAxis } from 'recharts'
 import { ActivityTimelineTooltip } from '../../shared/tooltips/ActivityTimelineTooltip'
-
-export interface ActivityHeatmapData {
-  date: string
-  fullDate: string
-  activities: number
-}
+import type { ActivityHeatmapData } from '@/common/hooks/analytics/useActivityHeatmap'
 
 export interface ActivityHeatmapChartProps {
   data: ActivityHeatmapData[]

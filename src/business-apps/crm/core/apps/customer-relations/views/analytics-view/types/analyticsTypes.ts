@@ -148,8 +148,4 @@ export interface OpportunitiesAnalytics {
 }
 
 // ContactsAnalytics removed - Contacts tab now uses useContactsStaticData and useContactsOverTime hooks directly
-
-export interface DateRange {
-  startDate: Date
-  endDate: Date
-}
+// DateRange removed - Not used in CRM analytics, available in common/utils/analytics/dateRangeUtils.ts if needed
