@@ -1,10 +1,11 @@
 /**
  * EmptyState Component
  * Displays empty state message when no tasks or flows are available
+ * Uses the design system EmptyState component for consistency
  */
 
 import React from 'react'
-import { useTranslation } from '@newwork/nw-design-system'
+import { useTranslation, EmptyState as DesignSystemEmptyState } from '@newwork/nw-design-system'
 import { Inbox, Send, CheckCircle, LucideIcon } from 'lucide-react'
 import translations from '../_i18n'
 
@@ -59,15 +60,23 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ type, message }) => {
   const title = getEmptyStateTitle(type)
 
   return (
-    <div
-      className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-16 gba:px-4 gba:text-center"
+    <DesignSystemEmptyState
+      type="no-data"
+      title={title}
+      description={message || defaultMessage}
+      config={{
+        configs: {
+          'no-data': {
+            type: 'no-data',
+            title: title,
+            description: message || defaultMessage,
+            icon: Icon,
+            size: 'md',
+            centered: true
+          }
+        }
+      }}
       data-testid={`empty-state-${type}`}
-    >
-      <div className="gba:mb-4 gba:rounded-full gba:bg-muted gba:p-6">
-        <Icon className="gba:h-12 gba:w-12 gba:text-muted-foreground" />
-      </div>
-      <h3 className="gba:text-lg gba:font-semibold gba:mb-2">{title}</h3>
-      <p className="gba:text-sm gba:text-muted-foreground gba:max-w-md">{message || defaultMessage}</p>
-    </div>
+    />
   )
 }
