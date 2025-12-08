@@ -31,6 +31,7 @@ import IrmNoteDisplay from './entities/IrmNoteDisplay'
 import IrmDocumentDisplay from './entities/IrmDocumentDisplay'
 import SalesActivityDisplay from './entities/SalesActivityDisplay'
 import WorkflowDisplay from './entities/WorkflowDisplay'
+import ContentEntryDisplay from './entities/ContentEntryDisplay'
 import EntityLink, { markdownUrlTransform } from './links/EntityLink'
 import NavigationDisplay from './displays/NavigationDisplay'
 import { ReminderDisplay } from './displays/ReminderDisplay'
@@ -418,6 +419,15 @@ function renderEntity(item: EntityData, accessToken: string) {
         <ServiceTicketDisplay
           key={item.id}
           serviceTicketId={item.id}
+          accessToken={accessToken}
+          operation={item.operation}
+        />
+      )
+    case 'content_entry':
+      return (
+        <ContentEntryDisplay
+          key={item.id}
+          contentEntryId={item.id}
           accessToken={accessToken}
           operation={item.operation}
         />

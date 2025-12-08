@@ -63,6 +63,7 @@ export type EntityData = {
     | 'lead'
     | 'contact'
     | 'opportunity'
+    | 'content_entry'
     | 'crm_note'
     | 'crm_document'
     | 'irm_note'

@@ -7,16 +7,25 @@
 import { dataRegistry } from '../core/dataRegistry'
 
 // Catalog data imports
-import {
-  mockProductGroups,
-  mockProductTypes,
-  mockUnitOfMeasurements,
-  mockCurrencies,
-  mockLocationTypes,
-  mockInventoryMovementTypes
-} from '../../product/mock-data/catalogs'
+// NOTE:
+// The original implementation imported mock catalog data from
+// "../../product/mock-data/catalogs" and "../../product/mock-data/pricing".
+// These files do not exist in this repository, which breaks Vite's module
+// resolution in local development.
+//
+// To keep the graphql-mock layer working without external dependencies,
+// we provide minimal in-file stubs. They can be extended with real mock data
+// later if needed.
 
-import { mockPriceTypes, mockCustomerGroups } from '../../product/mock-data/pricing'
+const mockProductGroups: any[] = []
+const mockProductTypes: any[] = []
+const mockUnitOfMeasurements: any[] = []
+const mockCurrencies: any[] = []
+const mockLocationTypes: any[] = []
+const mockInventoryMovementTypes: any[] = []
+
+const mockPriceTypes: any[] = []
+const mockCustomerGroups: any[] = []
 
 /**
  * Register all catalog-related entities
