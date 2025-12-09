@@ -135,7 +135,7 @@ export type EntityType =
 
 export interface EntityReference {
   id: string
-  type: EntityType
+  type: EntityType | string
   name: string
   subtitle?: string
   pictureThumbnail?: string
@@ -192,3 +192,8 @@ export const ENTITY_QUERY_PARAMS: Record<EntityType, string> = {
   campaign: 'campaignId',
   expense_request: 'expenseRequestId'
 }
+
+const SUPPORTED_ENTITY_TYPES = new Set<EntityType>(Object.keys(ENTITY_NAVIGATION_PATHS) as EntityType[])
+
+export const isSupportedEntityType = (type: string): type is EntityType =>
+  SUPPORTED_ENTITY_TYPES.has(type as EntityType)
