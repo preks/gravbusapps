@@ -100,7 +100,7 @@ const TravelRegionForm: React.FC<TravelRegionFormProps> = ({
     }
 
     if (!formData.countryId) {
-      setError('Destination Country is required')
+      setError('Country is required')
       return
     }
 
@@ -256,7 +256,7 @@ const TravelRegionForm: React.FC<TravelRegionFormProps> = ({
                 htmlFor={`${prefixDataTestId}-country-select`}
                 data-testid={`${prefixDataTestId}-country-label`}
               >
-                {getTranslationFromI18nKeyAndLabel('expense-settings:destination_country', 'Destination Country')}
+                {getTranslationFromI18nKeyAndLabel('expense-settings:country', 'Country')}
                 <span className="gba:text-red-500 gba:ml-1">*</span>
               </label>
               <Select
