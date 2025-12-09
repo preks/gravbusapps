@@ -75,11 +75,27 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
   let baseUrl = env('NEXT_PUBLIC_BASE_URL') || ''
   baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
 
+  // If running on localhost, connect to DEV environment
+  const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+  if (isLocalhost) {
+    baseUrl = 'https://newwork-dev.newwork.com'
+    console.log('🔄 [Chat] Local development detected - connecting to DEV environment:', baseUrl)
+  }
+
   // Normalize API and WS endpoints; connect to chat-service namespace with default socket path
-  const apiUrl = env('NEXT_PUBLIC_CHAT_API') || `${baseUrl}/chat-service/api/v1` || ''
+  let apiUrl = env('NEXT_PUBLIC_CHAT_API') || `${baseUrl}/chat-service/api/v1` || ''
+
+  // Override if NEXT_PUBLIC_CHAT_API is pointing to localhost when running locally
+  if (isLocalhost && apiUrl.includes('localhost')) {
+    apiUrl = `${baseUrl}/chat-service/api/v1`
+    console.log('🔄 [Chat] Overriding localhost CHAT_API to use DEV environment:', apiUrl)
+  }
+
   const wsUrl = `${baseUrl}/chat-service` // namespace in URL (matches gateway)
   // Ensure Socket.IO path keeps /chat-service prefix (Kong strip-path=true compatible)
   const wsSocketPath = env('NEXT_PUBLIC_CHAT_WS_PATH') || '/chat-service/socket.io'
+
+  console.log('📍 [Chat] Final connection URLs:', { apiUrl, wsUrl, wsSocketPath })
 
   const chatClient = useChatClient({
     accessToken,

@@ -227,12 +227,15 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
           return { text: "I'm here to help! What would you like to know?", error: false }
         }
 
-        const baseUrl =
-          typeof window !== 'undefined' && window.location.hostname === 'localhost'
-            ? 'http://localhost:8000'
-            : resolveFlowbotBaseUrl()
+        // When running locally, connect to DEV environment FlowBot
+        const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+        const baseUrl = isLocalhost ? 'https://newwork-dev.newwork.com' : resolveFlowbotBaseUrl()
 
         const url = `${baseUrl}/flowbot/api/agent/v2/chat`
+
+        if (isLocalhost) {
+          console.log('🤖 [EveryAI] Local development - connecting to DEV FlowBot:', url)
+        }
 
         // Use existing session ID from previous AI messages in this conversation
         // This allows all users to share the same AI context
