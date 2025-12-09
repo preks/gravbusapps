@@ -162,6 +162,14 @@ export const InvestmentReportForm: React.FC<InvestmentReportFormProps> = ({
   // Get complete path with ancestors and descendants
   const typePath = useMemo(() => getPathByType(investmentTypeId), [getPathByType, investmentTypeId])
 
+  // Calculate baseTypeId from investmentTypeId (root type at level 0)
+  const baseTypeId = useMemo(() => {
+    if (!investmentTypeId || !getPathByType) return null
+    const path = getPathByType(investmentTypeId)
+    const rootType = path.find(t => t.level === 0)
+    return rootType?.id || null
+  }, [investmentTypeId, getPathByType])
+
   // Get form fields definition using getInvestmentFieldsByType
   const formFieldsDefinition = useMemo(() => {
     return getInvestmentFieldsByType(investmentTypeId)
@@ -459,6 +467,7 @@ export const InvestmentReportForm: React.FC<InvestmentReportFormProps> = ({
             getTypesByLevel={getTypesByLevel}
             getTypesByParent={getTypesByParent}
             getPathByType={getPathByType}
+            baseTypeId={baseTypeId}
             loading={false}
             enableAiAutofill={true}
           />

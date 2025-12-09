@@ -6,7 +6,7 @@ export const opportunitySchema = z.object({
   name: z.string().min(1, 'Opportunity name is required'),
   accountId: z.string().nullable().optional(),
   companyId: z.string().nullable().optional(),
-  estimatedAmount: z.string().nullable().optional(),
+  estimatedAmount: z.coerce.number().nullable().optional(),
   currencyRef: z.string().nullable().optional(),
   closeDate: z.string().nullable().optional(),
   opportunityPipelineRef: z.string().min(1, 'Pipeline is required'),

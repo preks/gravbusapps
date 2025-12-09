@@ -77,9 +77,20 @@ const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalDa
 
   // Get prospect fields configuration (referenceFields) for selected type
   const formFieldsDefinition = useMemo(() => {
-    if (!effectiveTypeId) return null
+    if (!effectiveTypeId) {
+      return null
+    }
     return getInvestmentFieldsByType(effectiveTypeId)
   }, [effectiveTypeId, getInvestmentFieldsByType])
+
+  // Determine if we need to wait for formFieldsDefinition to be ready
+  // If we have an effectiveTypeId, we need to wait for formFieldsDefinition to be loaded (or confirmed as null)
+  // If we don't have an effectiveTypeId, we don't need to wait
+  const isFormFieldsDefinitionLoading =
+    effectiveTypeId !== null && formFieldsDefinition === undefined && investmentTypesLoading
+
+  // Show loading state until everything is ready
+  const isFormReady = !loading && !isFormFieldsDefinitionLoading && !investmentTypesLoading
 
   // Build dynamic schema
   const prospectSchema = useMemo(() => {
@@ -96,6 +107,7 @@ const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalDa
   // Sync form when lead changes (like CRM LeadForm, but with dynamic field handling)
   const leadRef = useRef(lead)
   const previousSchemaKeysRef = useRef<string[]>([])
+  const previousFormFieldsDefinitionRef = useRef<typeof formFieldsDefinition>(null)
 
   // Helper: Update form resolver
   const updateResolver = useCallback(() => {
@@ -132,47 +144,80 @@ const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalDa
   // Helper: Build form values when entity ID changes
   const buildFormValuesFromLead = useCallback(() => {
     const baseValues = mapToFormValues(lead || {}, prospectSchema)
-    const dynamicFieldValues = extractProspectFieldsFromEntity(lead, formFieldsDefinition)
+
+    // Calculate investmentTypeId FIRST from lead data
     const investmentTypeId = buildInvestmentTypeIdFromLead(lead)
+
+    // Get formFieldsDefinition for this specific investmentTypeId (not the component-level one)
+    const effectiveFormFieldsDefinition = investmentTypeId ? getInvestmentFieldsByType(investmentTypeId) : null
+
+    // Extract dynamic fields using the calculated formFieldsDefinition
+    const dynamicFieldValues = extractProspectFieldsFromEntity(lead, effectiveFormFieldsDefinition)
+
+    // investmentTypeId is the single source of truth
+    // InvestmentProspectLayout will derive baseTypeId (group) from investmentTypeId
     if (investmentTypeId) {
       baseValues.investmentTypeId = investmentTypeId
     }
-    return { ...baseValues, ...dynamicFieldValues }
-  }, [lead, prospectSchema, formFieldsDefinition, buildInvestmentTypeIdFromLead])
+
+    const mergedValues = { ...baseValues, ...dynamicFieldValues }
+    return mergedValues
+  }, [lead, prospectSchema, buildInvestmentTypeIdFromLead, getInvestmentFieldsByType])
 
   // Helper: Update dynamic fields when schema changes
   const updateDynamicFieldsFromLead = useCallback(() => {
     const currentValues = form.getValues()
     const updatedValues = { ...currentValues }
 
-    if (formFieldsDefinition?.formFields) {
-      for (const group of formFieldsDefinition.formFields) {
+    // Get investmentTypeId from form values first
+    const formInvestmentTypeId = currentValues.investmentTypeId || null
+
+    // Calculate investmentTypeId from lead if not in form
+    // ALWAYS preserve investmentTypeId - it's the single source of truth
+    const leadInvestmentTypeId = formInvestmentTypeId || buildInvestmentTypeIdFromLead(lead)
+
+    // Always set investmentTypeId in updatedValues to preserve it
+    if (leadInvestmentTypeId) {
+      updatedValues.investmentTypeId = leadInvestmentTypeId
+    }
+
+    // Get formFieldsDefinition for this specific investmentTypeId (fallback to component-level if not available)
+    const effectiveFormFieldsDefinition = leadInvestmentTypeId
+      ? getInvestmentFieldsByType(leadInvestmentTypeId)
+      : formFieldsDefinition
+
+    if (effectiveFormFieldsDefinition?.formFields) {
+      for (const group of effectiveFormFieldsDefinition.formFields) {
         for (const field of group.fields) {
           const property = field.property
-          updatedValues[property] = lead && property in lead ? (lead as any)[property] : undefined
+          const value = lead && property in lead ? (lead as any)[property] : undefined
+          updatedValues[property] = value
         }
       }
     }
 
-    const investmentTypeId = buildInvestmentTypeIdFromLead(lead)
-    if (investmentTypeId && !updatedValues.investmentTypeId) {
-      updatedValues.investmentTypeId = investmentTypeId
-    }
-
     return updatedValues
-  }, [form, formFieldsDefinition, lead, buildInvestmentTypeIdFromLead])
+  }, [form, formFieldsDefinition, lead, buildInvestmentTypeIdFromLead, getInvestmentFieldsByType])
 
   useEffect(() => {
     updateResolver()
     const schemaChanged = checkSchemaChanged()
 
+    // Detect when formFieldsDefinition changes from null to a value (or vice versa)
+    const formFieldsDefinitionChanged =
+      (previousFormFieldsDefinitionRef.current === null && formFieldsDefinition !== null) ||
+      (previousFormFieldsDefinitionRef.current !== null && formFieldsDefinition === null) ||
+      previousFormFieldsDefinitionRef.current !== formFieldsDefinition
+
     if (leadRef.current?.id !== lead?.id) {
       const mergedValues = buildFormValuesFromLead()
       form.reset(mergedValues as Partial<InvestmentLead>)
       leadRef.current = lead
-    } else if (schemaChanged) {
+      previousFormFieldsDefinitionRef.current = formFieldsDefinition
+    } else if (schemaChanged || formFieldsDefinitionChanged) {
       const updatedValues = updateDynamicFieldsFromLead()
       form.reset(updatedValues as Partial<InvestmentLead>)
+      previousFormFieldsDefinitionRef.current = formFieldsDefinition
     }
   }, [
     lead?.id,
@@ -192,21 +237,8 @@ const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalDa
   const handleSubmit = useCallback(
     async (data: any) => {
       try {
-        // Debug: Check schema and form values
-        console.log('🔍 [LeadForm] Schema keys:', Object.keys(prospectSchema.shape))
-        console.log('🔍 [LeadForm] Form values:', form.getValues())
-
-        // Debug: Log what's in data
-        console.log('🔍 [LeadForm] handleSubmit data:', {
-          stakePercentage: data.stakePercentage,
-          hasStakePercentage: 'stakePercentage' in data,
-          dataKeys: Object.keys(data),
-          formFieldsDefinition: formFieldsDefinition?.formFields?.map(g => g.fields.map(f => f.property))
-        })
-
         // Extract dynamic prospect fields and merge with form data
         const prospectFields = extractProspectFieldsFromFormValues(data, formFieldsDefinition)
-        console.log('🔍 [LeadForm] prospectFields:', prospectFields)
 
         // Convert investmentTypeId back to group/type for payload
         const investmentTypeId = data.investmentTypeId
@@ -221,13 +253,8 @@ const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalDa
           investmentGroupRef: groupId,
           investmentTypeRef: typeId
         }
-        console.log('🔍 [LeadForm] mergedData:', {
-          stakePercentage: mergedData.stakePercentage,
-          hasStakePercentage: 'stakePercentage' in mergedData
-        })
 
         const { investmentLead } = buildInvestmentLeadPayload(mergedData)
-        console.log('🔍 [LeadForm] payload:', investmentLead)
 
         return {
           investmentLead: {
@@ -291,7 +318,7 @@ const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalDa
           leadRatingCatalogIdentifier={LEAD_RATING}
           companySizeCatalogIdentifier={COMPANY_SIZE}
           annualRevenueCatalogIdentifier={ANNUAL_REVENUE}
-          loading={loading && !!leadId}
+          loading={!isFormReady}
           customSegments={[
             {
               id: 'investment-prospect',

@@ -229,6 +229,7 @@ export const createInvestmentProspectFormResolver = (
 /**
  * Creates investment prospect schema for Lead forms
  * Extends leadSchema with investmentTypeId (leaf InvestmentType ID)
+ * investmentTypeId is the single source of truth - group/type are derived from it
  */
 export const createInvestmentLeadSchema = (baseLeadSchema: z.ZodObject<any>) => {
   return baseLeadSchema.extend({
@@ -240,6 +241,7 @@ export const createInvestmentLeadSchema = (baseLeadSchema: z.ZodObject<any>) => 
 /**
  * Creates investment prospect schema for Opportunity forms
  * Extends opportunitySchema with investmentTypeId (leaf InvestmentType ID)
+ * investmentTypeId is the single source of truth - group/type are derived from it
  */
 export const createInvestmentOpportunitySchema = (baseOpportunitySchema: z.ZodObject<any>) => {
   return baseOpportunitySchema.extend({

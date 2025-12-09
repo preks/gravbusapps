@@ -125,9 +125,10 @@ export const InvestmentProspectLayout: React.FC<InvestmentProspectLayoutProps> =
       />
 
       {/* Investment Group Selection - Only groups with referenceFields */}
+      {/* Bound to investmentTypeId (single source of truth) - derives baseTypeId for display */}
       <FormField
         control={form.control}
-        name="investmentGroupRef"
+        name="investmentTypeId"
         render={() => (
           <FormItem>
             <FormLabel>Investment Group</FormLabel>

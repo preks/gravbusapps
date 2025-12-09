@@ -156,9 +156,20 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
 
   // Get prospect fields configuration (referenceFields) for selected type
   const formFieldsDefinition = useMemo(() => {
-    if (!effectiveTypeId) return null
+    if (!effectiveTypeId) {
+      return null
+    }
     return getInvestmentFieldsByType(effectiveTypeId)
   }, [effectiveTypeId, getInvestmentFieldsByType])
+
+  // Determine if we need to wait for formFieldsDefinition to be ready
+  // If we have an effectiveTypeId, we need to wait for formFieldsDefinition to be loaded (or confirmed as null)
+  // If we don't have an effectiveTypeId, we don't need to wait
+  const isFormFieldsDefinitionLoading =
+    effectiveTypeId !== null && formFieldsDefinition === undefined && investmentTypesLoading
+
+  // Show loading state until everything is ready
+  const isFormReady = !isLoading && !isFormFieldsDefinitionLoading && !investmentTypesLoading
 
   // Build dynamic schema
   const prospectSchema = useMemo(() => {
@@ -177,6 +188,7 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
   // Sync form when opportunity changes (like CRM OpportunityForm, but with dynamic field handling)
   const opportunityRef = useRef(opportunity)
   const previousSchemaKeysRef = useRef<string[]>([])
+  const previousFormFieldsDefinitionRef = useRef<typeof formFieldsDefinition>(null)
   const investmentLoadedRef = useRef(false)
   const mappedInvestmentValuesRef = useRef<Partial<InvestmentOpportunity> | null>(null)
 
@@ -293,25 +305,38 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
   // Helper: Build form values when entity ID changes
   const buildFormValuesFromOpportunity = useCallback(() => {
     const baseValues = mapToFormValues(opportunity || {}, prospectSchema)
-    const dynamicFieldValues = extractProspectFieldsFromEntity(opportunity, formFieldsDefinition)
-    const currentUserEmployeeId = userInfo?.employeeDetails?.employeeId
+
+    // Calculate investmentTypeId FIRST from opportunity data
     const investmentTypeId = buildInvestmentTypeIdFromOpportunity(opportunity)
+
+    // Get formFieldsDefinition for this specific investmentTypeId (not the component-level one)
+    const effectiveFormFieldsDefinition = investmentTypeId ? getInvestmentFieldsByType(investmentTypeId) : null
+
+    // Extract dynamic fields using the calculated formFieldsDefinition
+    const dynamicFieldValues = extractProspectFieldsFromEntity(opportunity, effectiveFormFieldsDefinition)
+
+    const currentUserEmployeeId = userInfo?.employeeDetails?.employeeId
+
+    // investmentTypeId is the single source of truth
+    // InvestmentProspectLayout will derive baseTypeId (group) from investmentTypeId
     if (investmentTypeId) {
       baseValues.investmentTypeId = investmentTypeId
     }
-    return {
+
+    const mergedValues = {
       ...baseValues,
       ...dynamicFieldValues,
       ownerEmployeeId: (baseValues.ownerEmployeeId || currentUserEmployeeId || '') as string,
       dealType: baseValues.dealType || dealType || undefined,
       ...(investmentId ? { investmentId: investmentId } : {})
     }
+    return mergedValues
   }, [
     opportunity,
     prospectSchema,
-    formFieldsDefinition,
     userInfo,
     buildInvestmentTypeIdFromOpportunity,
+    getInvestmentFieldsByType,
     dealType,
     investmentId
   ])
@@ -321,21 +346,33 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
     const currentValues = form.getValues()
     const updatedValues = { ...currentValues }
 
-    if (formFieldsDefinition?.formFields) {
-      for (const group of formFieldsDefinition.formFields) {
+    // Get investmentTypeId from form values first
+    const formInvestmentTypeId = currentValues.investmentTypeId || null
+
+    // Calculate investmentTypeId from opportunity if not in form
+    // ALWAYS preserve investmentTypeId - it's the single source of truth
+    const opportunityInvestmentTypeId = formInvestmentTypeId || buildInvestmentTypeIdFromOpportunity(opportunity)
+
+    // Always set investmentTypeId in updatedValues to preserve it
+    if (opportunityInvestmentTypeId) {
+      updatedValues.investmentTypeId = opportunityInvestmentTypeId
+    }
+
+    // Get formFieldsDefinition for this specific investmentTypeId (fallback to component-level if not available)
+    const effectiveFormFieldsDefinition = opportunityInvestmentTypeId
+      ? getInvestmentFieldsByType(opportunityInvestmentTypeId)
+      : formFieldsDefinition
+
+    if (effectiveFormFieldsDefinition?.formFields) {
+      for (const group of effectiveFormFieldsDefinition.formFields) {
         for (const field of group.fields) {
           const property = field.property
-          updatedValues[property] = opportunity && property in opportunity ? (opportunity as any)[property] : undefined
+          const value = opportunity && property in opportunity ? (opportunity as any)[property] : undefined
+          updatedValues[property] = value
         }
       }
     }
 
-    if (!updatedValues.investmentGroupRef && opportunity?.investmentGroupRef) {
-      updatedValues.investmentGroupRef = opportunity.investmentGroupRef
-    }
-    if (!updatedValues.investmentTypeRef && opportunity?.investmentTypeRef) {
-      updatedValues.investmentTypeRef = opportunity.investmentTypeRef
-    }
     if (!updatedValues.dealType) {
       updatedValues.dealType = opportunity?.dealType || dealType || undefined
     }
@@ -344,20 +381,35 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
     }
 
     return updatedValues
-  }, [form, formFieldsDefinition, opportunity, dealType])
+  }, [
+    form,
+    formFieldsDefinition,
+    opportunity,
+    dealType,
+    buildInvestmentTypeIdFromOpportunity,
+    getInvestmentFieldsByType
+  ])
 
   useEffect(() => {
     updateResolver()
     const schemaChanged = checkSchemaChanged()
+
+    // Detect when formFieldsDefinition changes from null to a value (or vice versa)
+    const formFieldsDefinitionChanged =
+      (previousFormFieldsDefinitionRef.current === null && formFieldsDefinition !== null) ||
+      (previousFormFieldsDefinitionRef.current !== null && formFieldsDefinition === null) ||
+      previousFormFieldsDefinitionRef.current !== formFieldsDefinition
 
     if (opportunityRef.current?.id !== opportunity?.id) {
       const mergedValues = buildFormValuesFromOpportunity()
       form.reset(mergedValues as Partial<InvestmentOpportunity>)
       opportunityRef.current = opportunity
       investmentLoadedRef.current = false
-    } else if (schemaChanged) {
+      previousFormFieldsDefinitionRef.current = formFieldsDefinition
+    } else if (schemaChanged || formFieldsDefinitionChanged) {
       const updatedValues = updateDynamicFieldsFromOpportunity()
       form.reset(updatedValues as Partial<InvestmentOpportunity>)
+      previousFormFieldsDefinitionRef.current = formFieldsDefinition
     }
   }, [
     opportunity?.id,
@@ -579,7 +631,7 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
               {investmentSelectorField}
             </>
           }
-          loading={isLoading}
+          loading={!isFormReady}
           customSegments={useMemo(() => {
             // Hide InvestmentProspectLayout for divestment deals (develop approach)
             return (watchedDealType || dealType) === 'DIVESTMENT_DEAL'

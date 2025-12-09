@@ -58,7 +58,10 @@ import {
 } from '@/common/components/investment/form-layouts/investment-prospect-layout'
 import { createInvestmentOpportunitySchema } from '@/common/components/investment/form-layouts/investment-prospect-layout/investmentProspectSchema'
 import { useInvestmentTypes } from '@/common/data/investment/hooks/useInvestmentTypes'
-import { mapToSingleInvestmentTypeId } from '@/common/components/investment/form-layouts/investment-prospect-layout/utils/investmentTypeMapper'
+import {
+  mapToSingleInvestmentTypeId,
+  mapFromSingleInvestmentTypeId
+} from '@/common/components/investment/form-layouts/investment-prospect-layout/utils/investmentTypeMapper'
 import {
   extractProspectFieldsFromFormValues,
   extractProspectFieldsFromEntity
@@ -228,6 +231,15 @@ export const ConvertInvestmentLeadForm = ({
     return getInvestmentFieldsByType(effectiveTypeId)
   }, [effectiveTypeId, getInvestmentFieldsByType, initialFormFieldsDefinition])
 
+  // Determine if we need to wait for formFieldsDefinition to be ready
+  // If we have an effectiveTypeId, we need to wait for formFieldsDefinition to be loaded (or confirmed as null)
+  // If we don't have an effectiveTypeId, we don't need to wait
+  const isFormFieldsDefinitionLoading =
+    effectiveTypeId !== null && formFieldsDefinition === undefined && investmentTypesLoading
+
+  // Show loading state until everything is ready for opportunity step
+  const isOpportunityFormReady = !loading && !isFormFieldsDefinitionLoading && !investmentTypesLoading
+
   // Build dynamic schema (reactive)
   const prospectSchema = useMemo(() => {
     const existingFields = new Set(Object.keys(investmentOpportunitySchema.shape))
@@ -263,12 +275,18 @@ export const ConvertInvestmentLeadForm = ({
 
       // For opportunity: merge common values + IRM-specific fields + dynamic field values
       const commonValues = mapLeadToOpportunity(leadData)
-      const dynamicFieldValues = extractProspectFieldsFromEntity(leadData, formFieldsDefinition)
 
-      // Convert group/type to investmentTypeId if lead has them
+      // Convert group/type to investmentTypeId FIRST if lead has them
+      // investmentTypeId is the single source of truth
       const groupId = (leadData as any)?.investmentGroupRef || null
       const typeId = (leadData as any)?.investmentTypeRef || null
       const investmentTypeId = mapToSingleInvestmentTypeId(groupId, typeId, getPathByType)
+
+      // Get formFieldsDefinition for this specific investmentTypeId (not the component-level one)
+      const effectiveFormFieldsDefinition = investmentTypeId ? getInvestmentFieldsByType(investmentTypeId) : null
+
+      // Extract dynamic fields using the calculated formFieldsDefinition
+      const dynamicFieldValues = extractProspectFieldsFromEntity(leadData, effectiveFormFieldsDefinition)
 
       const allOpportunityValues = {
         ...commonValues,
@@ -294,51 +312,102 @@ export const ConvertInvestmentLeadForm = ({
         investmentTypeId: investmentTypeId || null,
         ...dynamicFieldValues
       }
+
       opportunityForm.reset(allOpportunityValues as any)
 
       leadDataRef.current = leadData?.id
     }
-  }, [leadData?.id, accountForm, contactForm, opportunityForm, formFieldsDefinition, getPathByType])
+  }, [leadData?.id, accountForm, contactForm, opportunityForm, getPathByType, getInvestmentFieldsByType])
 
   // Update opportunity form when prospect schema changes (including when formFieldsDefinition becomes available)
   // Track previous schema keys to avoid unnecessary resets
   const previousProspectSchemaKeysRef = useRef<string[]>([])
+  const previousFormFieldsDefinitionRef = useRef<typeof formFieldsDefinition>(null)
 
   // Helper: Update dynamic fields from lead data
   const updateDynamicFieldsFromLeadData = useCallback(() => {
-    if (!opportunityForm || !formFieldsDefinition) return null
+    if (!opportunityForm) return null
 
     const currentValues = opportunityForm.getValues()
     const updatedValues = { ...currentValues }
 
-    if (formFieldsDefinition.formFields) {
-      for (const group of formFieldsDefinition.formFields) {
+    // Get investmentTypeId from form values first
+    const formInvestmentTypeId = currentValues.investmentTypeId || null
+
+    // Calculate investmentTypeId from leadData if not in form
+    // ALWAYS preserve investmentTypeId - it's the single source of truth
+    let leadInvestmentTypeId = formInvestmentTypeId
+    if (!leadInvestmentTypeId && leadData) {
+      const groupId = (leadData as any)?.investmentGroupRef || null
+      const typeId = (leadData as any)?.investmentTypeRef || null
+      leadInvestmentTypeId = mapToSingleInvestmentTypeId(groupId, typeId, getPathByType)
+    }
+
+    // Always set investmentTypeId in updatedValues to preserve it
+    if (leadInvestmentTypeId) {
+      updatedValues.investmentTypeId = leadInvestmentTypeId
+    }
+
+    // Get formFieldsDefinition for this specific investmentTypeId (fallback to component-level if not available)
+    const effectiveFormFieldsDefinition = leadInvestmentTypeId
+      ? getInvestmentFieldsByType(leadInvestmentTypeId)
+      : formFieldsDefinition
+
+    if (!effectiveFormFieldsDefinition) return null
+
+    if (effectiveFormFieldsDefinition.formFields) {
+      for (const group of effectiveFormFieldsDefinition.formFields) {
         for (const field of group.fields) {
           const property = field.property
-          updatedValues[property] =
-            leadData && property && property in leadData ? (leadData as any)[property] : undefined
+          const value = leadData && property && property in leadData ? (leadData as any)[property] : undefined
+          updatedValues[property] = value
         }
       }
     }
 
     const hasChanges = JSON.stringify(currentValues) !== JSON.stringify(updatedValues)
     return hasChanges ? updatedValues : null
-  }, [opportunityForm, formFieldsDefinition, leadData])
+  }, [
+    opportunityForm,
+    formFieldsDefinition,
+    leadData,
+    getInvestmentFieldsByType,
+    getPathByType,
+    mapToSingleInvestmentTypeId
+  ])
 
   useEffect(() => {
-    if (!opportunityForm || !prospectSchema || !formFieldsDefinition) return
+    if (!opportunityForm || !prospectSchema) return
+
+    // Wait for formFieldsDefinition if we have an effectiveTypeId
+    if (effectiveTypeId && !formFieldsDefinition && investmentTypesLoading) return
 
     const currentSchemaKeys = Object.keys(prospectSchema.shape)
     const schemaChanged = JSON.stringify(previousProspectSchemaKeysRef.current) !== JSON.stringify(currentSchemaKeys)
 
-    if (schemaChanged) {
+    // Detect when formFieldsDefinition changes from null to a value (or vice versa)
+    const formFieldsDefinitionChanged =
+      (previousFormFieldsDefinitionRef.current === null && formFieldsDefinition !== null) ||
+      (previousFormFieldsDefinitionRef.current !== null && formFieldsDefinition === null) ||
+      previousFormFieldsDefinitionRef.current !== formFieldsDefinition
+
+    if (schemaChanged || formFieldsDefinitionChanged) {
       previousProspectSchemaKeysRef.current = currentSchemaKeys
+      previousFormFieldsDefinitionRef.current = formFieldsDefinition
       const updatedValues = updateDynamicFieldsFromLeadData()
       if (updatedValues) {
         opportunityForm.reset(updatedValues as any)
       }
     }
-  }, [prospectSchema, opportunityForm, formFieldsDefinition, leadData, updateDynamicFieldsFromLeadData])
+  }, [
+    prospectSchema,
+    opportunityForm,
+    formFieldsDefinition,
+    leadData,
+    effectiveTypeId,
+    investmentTypesLoading,
+    updateDynamicFieldsFromLeadData
+  ])
 
   // Use central hooks for accounts and contacts - extract refetch directly
   const {
@@ -613,7 +682,7 @@ export const ConvertInvestmentLeadForm = ({
                 error: contactsError,
                 refetch: refetchContacts
               }}
-              loading={loading}
+              loading={!isOpportunityFormReady}
               pipelineCatalogIdentifier={OPPORTUNITY_PIPELINE}
               stageCatalogIdentifier={OPPORTUNITY_PIPELINE_STAGE}
               opportunityStatusCatalogIdentifier={OPPORTUNITY_STATUS}
@@ -721,10 +790,20 @@ export const ConvertInvestmentLeadForm = ({
       const opportunity = data.createOpportunity
         ? (() => {
             const opportunityValues = opportunityForm.getValues()
-            const prospectFields = extractProspectFieldsFromFormValues(opportunityValues)
+            const prospectFields = extractProspectFieldsFromFormValues(opportunityValues, formFieldsDefinition)
+
+            // Convert investmentTypeId back to group/type for payload
+            const investmentTypeId = opportunityValues.investmentTypeId
+            const { groupId, typeId } = mapFromSingleInvestmentTypeId(investmentTypeId, getPathByType)
+
             return {
               ...opportunityValues,
-              ...prospectFields
+              ...prospectFields,
+              // Remove investmentTypeId from payload (not part of API)
+              investmentTypeId: undefined,
+              // Add group/type for payload
+              investmentGroupRef: groupId,
+              investmentTypeRef: typeId
             } as Partial<InvestmentOpportunity>
           })()
         : undefined

@@ -129,39 +129,43 @@ export const InvestmentLayout: React.FC<InvestmentLayoutProps> = ({
   const isFormDisabled = disableInvestmentFields || aiAutofillLoading
 
   return (
-    <fieldset disabled={isFormDisabled} className="gba:space-y-6" data-testid={`${prefixDataTestId}-content`}>
+    <div className="gba:space-y-6" data-testid={`${prefixDataTestId}-content`}>
       {/* Investment Basic Information */}
-      <InvestmentInformationSegment
-        businessAppContext={businessAppContext}
-        ownerEmployee={ownerEmployee || formValues.investment.ownerEmployee}
-        account={account}
-        company={formValues.investment.company}
-        useAccounts={useAccounts}
-        entityId={formValues.investment.id}
-        investmentGroup={baseTypeId}
-        customFields={investmentInformationCustomFields}
-        disabled={isFormDisabled}
-      />
+      <fieldset disabled={isFormDisabled}>
+        <InvestmentInformationSegment
+          businessAppContext={businessAppContext}
+          ownerEmployee={ownerEmployee || formValues.investment.ownerEmployee}
+          account={account}
+          company={formValues.investment.company}
+          useAccounts={useAccounts}
+          entityId={formValues.investment.id}
+          investmentGroup={baseTypeId}
+          customFields={investmentInformationCustomFields}
+          disabled={isFormDisabled}
+        />
+      </fieldset>
 
       {/* Dynamic Investment Segment - handles type selection and dynamic fields recursively */}
       {baseTypeId && getTypesByLevel && getTypesByParent && getPathByType && (
-        <DynamicInvestmentSegment
-          baseTypeId={baseTypeId}
-          investmentTypeIdFieldPath="investment.investmentTypeId"
-          getTypesByLevel={getTypesByLevel}
-          getTypesByParent={getTypesByParent}
-          getPathByType={getPathByType}
-          businessAppContext={businessAppContext}
-          currencySymbol={currencySymbol}
-          testIdPrefix={prefixDataTestId}
-          isUpdate={isUpdate}
-          formFieldsDefinition={formFieldsDefinition}
-          investmentCatalogLoading={investmentCatalogLoading}
-          enableAiAutofill={enableAiAutofill}
-          onAiAutofillLoadingChange={handleAiAutofillLoadingChange}
-        />
+        <fieldset disabled={aiAutofillLoading}>
+          <DynamicInvestmentSegment
+            baseTypeId={baseTypeId}
+            investmentTypeIdFieldPath="investment.investmentTypeId"
+            getTypesByLevel={getTypesByLevel}
+            getTypesByParent={getTypesByParent}
+            getPathByType={getPathByType}
+            businessAppContext={businessAppContext}
+            currencySymbol={currencySymbol}
+            testIdPrefix={prefixDataTestId}
+            isUpdate={isUpdate}
+            formFieldsDefinition={formFieldsDefinition}
+            investmentCatalogLoading={investmentCatalogLoading}
+            enableAiAutofill={enableAiAutofill}
+            onAiAutofillLoadingChange={handleAiAutofillLoadingChange}
+          />
+        </fieldset>
       )}
-    </fieldset>
+    </div>
   )
 }
 
