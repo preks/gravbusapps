@@ -2,14 +2,13 @@
  * IRM-specific wrapper for useGenericAccountsStaticData
  * Uses Investment entity names and field mappings
  */
-import { useGenericAccountsStaticData } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks'
-
-export type {
-  TopAccountData,
-  MonthlyGrowthPoint,
-  AccountIndustryData,
-  AccountSizeData,
-  AccountsStaticData
+import {
+  useGenericAccountsStaticData,
+  type TopAccountData,
+  type MonthlyGrowthPoint,
+  type AccountIndustryData,
+  type AccountSizeData,
+  type AccountsStaticData
 } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks'
 
 const IRM_ACCOUNTS_CONFIG = {
@@ -17,9 +16,20 @@ const IRM_ACCOUNTS_CONFIG = {
   opportunityEntity: 'InvestmentOpportunity',
   industryField: 'industryClass',
   sizeField: 'companySize',
-  opportunityRelation: 'investmentOpportunity'
+  opportunityRelation: 'opportunityAccounts',
+  isOpportunityRelationList: true,
+  isJunctionTable: true
 }
 
-export const useAccountsStaticData = (accessToken: string) => {
+const useAccountsStaticData = (accessToken: string) => {
   return useGenericAccountsStaticData(accessToken, IRM_ACCOUNTS_CONFIG)
+}
+
+export {
+  useAccountsStaticData,
+  type TopAccountData,
+  type MonthlyGrowthPoint,
+  type AccountIndustryData,
+  type AccountSizeData,
+  type AccountsStaticData
 }

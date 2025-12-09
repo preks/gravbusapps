@@ -37,7 +37,8 @@ export interface AccountGrowthAnalysisProps {
   data: {
     totalAccounts: number
     accountsWithOpportunities: number
-    topAccounts: TopAccountData[]
+    avgRevenuePerAccount?: number // Average revenue per account with won opportunities
+    topAccounts?: TopAccountData[] // Legacy: only used if avgRevenuePerAccount is not provided
     monthlyGrowthTrend: MonthlyGrowthPoint[]
   }
   isLoading?: boolean
@@ -51,10 +52,20 @@ export const AccountGrowthAnalysis: React.FC<AccountGrowthAnalysisProps> = ({
 }) => {
   const expansionRate =
     data?.totalAccounts > 0 ? Math.round((data.accountsWithOpportunities / data.totalAccounts) * 100) : 0
+
+  // Use avgRevenuePerAccount from data if provided (aggregate calculation from backend)
+  // Otherwise fallback to calculating from topAccounts (legacy approach for backward compatibility)
   const avgRevenuePerAccount =
-    data?.topAccounts?.length > 0
-      ? Math.round(data.topAccounts.reduce((sum, account) => sum + account.totalValue, 0) / data.topAccounts.length)
-      : 0
+    data?.avgRevenuePerAccount !== undefined
+      ? data.avgRevenuePerAccount
+      : data?.topAccounts && data.topAccounts.length > 0
+        ? Math.round(data.topAccounts.reduce((sum, account) => sum + account.totalValue, 0) / data.topAccounts.length)
+        : 0
+
+  const accountsCount =
+    data?.avgRevenuePerAccount !== undefined
+      ? 'all accounts with won opportunities'
+      : `top ${data?.topAccounts?.length || 0} performing accounts`
 
   // Use pre-aggregated monthly growth trend data directly (no more frontend aggregation!)
   const growthTrendData = data?.monthlyGrowthTrend || []
@@ -111,9 +122,7 @@ export const AccountGrowthAnalysis: React.FC<AccountGrowthAnalysisProps> = ({
                   ${avgRevenuePerAccount.toLocaleString()}
                 </div>
                 <div className="gba:text-sm gba:text-gray-600">Avg Revenue per Account</div>
-                <div className="gba:text-xs gba:text-gray-500">
-                  From top {data?.topAccounts?.length || 0} performing accounts
-                </div>
+                <div className="gba:text-xs gba:text-gray-500">From {accountsCount}</div>
               </div>
             </div>
 

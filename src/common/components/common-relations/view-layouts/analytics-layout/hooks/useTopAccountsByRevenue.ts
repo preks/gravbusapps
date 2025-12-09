@@ -13,7 +13,8 @@ interface TopAccountsConfig {
   accountEntity: string // "Account" | "InvestmentAccount"
   opportunityEntity: string // "Opportunity" | "InvestmentOpportunity"
   industryField: string // "industry" | "industryClass"
-  opportunityRelation?: string // "opportunity" | "investmentOpportunity"
+  opportunityRelation?: string // "opportunity" | "opportunityAccounts" (junction table for IRM)
+  isJunctionTable?: boolean // true if using junction table (IRM uses opportunityAccounts)
   currencyCode?: string // Optional currency filter
 }
 

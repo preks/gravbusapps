@@ -22,6 +22,7 @@ export interface AccountsTabLayoutProps {
   totalAccounts: number
   accountsWithOpportunities: number
   avgOpportunitiesPerAccount: number
+  avgRevenuePerAccount?: number // Average revenue per account with won opportunities (aggregate calculation)
   trendData?: AccountsTrendData | null
   trendLoading?: boolean
   accountsOverTime: Array<{
@@ -91,6 +92,7 @@ export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
   totalAccounts,
   accountsWithOpportunities,
   avgOpportunitiesPerAccount,
+  avgRevenuePerAccount,
   trendData,
   trendLoading = false,
   accountsOverTime,
@@ -219,7 +221,13 @@ export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
 
       <div className="gba:grid gba:grid-cols-1 xl:gba:grid-cols-2 gba:gap-6">
         <AccountGrowthAnalysis
-          data={{ totalAccounts, accountsWithOpportunities, topAccounts, monthlyGrowthTrend }}
+          data={{
+            totalAccounts,
+            accountsWithOpportunities,
+            avgRevenuePerAccount, // Pass aggregate calculation if available
+            topAccounts, // Legacy fallback
+            monthlyGrowthTrend
+          }}
           isLoading={growthLoading}
           topAccountsLoading={topAccountsLoading}
           moduleColor={moduleColor}

@@ -2,14 +2,13 @@
  * CRM-specific wrapper for useGenericAccountsStaticData
  * Uses CRM entity names and field mappings
  */
-import { useGenericAccountsStaticData } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks'
-
-export type {
-  TopAccountData,
-  MonthlyGrowthPoint,
-  AccountIndustryData,
-  AccountSizeData,
-  AccountsStaticData
+import {
+  useGenericAccountsStaticData,
+  type TopAccountData,
+  type MonthlyGrowthPoint,
+  type AccountIndustryData,
+  type AccountSizeData,
+  type AccountsStaticData
 } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks'
 
 const CRM_ACCOUNTS_CONFIG = {
@@ -18,8 +17,18 @@ const CRM_ACCOUNTS_CONFIG = {
   industryField: 'industry',
   sizeField: 'numberOfEmployees',
   opportunityRelation: 'opportunity'
+  // isOpportunityRelationList defaults to false for CRM (singular relationship)
 }
 
-export const useAccountsStaticData = (accessToken: string) => {
+const useAccountsStaticData = (accessToken: string) => {
   return useGenericAccountsStaticData(accessToken, CRM_ACCOUNTS_CONFIG)
+}
+
+export {
+  useAccountsStaticData,
+  type TopAccountData,
+  type MonthlyGrowthPoint,
+  type AccountIndustryData,
+  type AccountSizeData,
+  type AccountsStaticData
 }

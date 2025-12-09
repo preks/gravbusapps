@@ -14,7 +14,9 @@ export interface AccountsOverTimePoint {
 
 export interface AccountsOverTimeConfig {
   accountEntity: string // "Account" | "InvestmentAccount"
-  opportunityRelation: string // "opportunity" | "investment"
+  opportunityRelation: string // "opportunity" | "opportunityAccounts" (junction table for IRM)
+  isOpportunityRelationList?: boolean // true for IRM (list relationship), false for CRM (singular)
+  isJunctionTable?: boolean // true if using junction table (IRM uses opportunityAccounts)
 }
 
 /**
@@ -62,7 +64,13 @@ export const useGenericAccountsOverTime = (
             where: {
               isDeleted: {_eq: false}
               createdAt: {_lt: "${period.end}"}
-              ${config.opportunityRelation}: {id: {_isNull: false}}
+              ${
+                config.isJunctionTable
+                  ? `${config.opportunityRelation}: {opportunity: {isDeleted: {_eq: false}}}` // Junction table: filter through opportunity relation
+                  : config.isOpportunityRelationList
+                    ? `${config.opportunityRelation}: {isDeleted: {_eq: false}}` // List: check if array has items with isDeleted = false
+                    : `${config.opportunityRelation}: {id: {_isNull: false}}` // Singular: check if not null
+              }
             }
           ) { aggregate { count } }
           
@@ -71,8 +79,12 @@ export const useGenericAccountsOverTime = (
             where: {
               isDeleted: {_eq: false}
               createdAt: {_lt: "${period.end}"}
-              ${config.opportunityRelation}: {
-                updatedAt: {_gte: "${new Date(new Date(period.end).getTime() - 90 * 24 * 60 * 60 * 1000).toISOString()}"}
+              ${
+                config.isJunctionTable
+                  ? `${config.opportunityRelation}: {opportunity: {isDeleted: {_eq: false}, updatedAt: {_gte: "${new Date(new Date(period.end).getTime() - 90 * 24 * 60 * 60 * 1000).toISOString()}"}}}` // Junction table: filter through opportunity relation with updatedAt
+                  : config.isOpportunityRelationList
+                    ? `${config.opportunityRelation}: {isDeleted: {_eq: false}, updatedAt: {_gte: "${new Date(new Date(period.end).getTime() - 90 * 24 * 60 * 60 * 1000).toISOString()}"}}` // List: filter by isDeleted and updatedAt
+                    : `${config.opportunityRelation}: {updatedAt: {_gte: "${new Date(new Date(period.end).getTime() - 90 * 24 * 60 * 60 * 1000).toISOString()}"}}` // Singular: filter by updatedAt
               }
             }
           ) { aggregate { count } }

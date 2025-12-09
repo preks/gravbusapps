@@ -35,6 +35,7 @@ export interface AccountsStaticData {
   totalAccounts: number
   accountsWithOpportunities: number
   avgOpportunitiesPerAccount: number
+  avgRevenuePerAccount: number // Average revenue from won opportunities per account
 
   // Trend data (last 30 days vs previous 30 days)
   last30DaysAccounts: number
@@ -55,7 +56,9 @@ export interface AccountsEntityConfig {
   opportunityEntity: string // "Opportunity" | "InvestmentOpportunity"
   industryField: string // "industry" | "industryClass"
   sizeField: string // "numberOfEmployees" | "companySize"
-  opportunityRelation?: string // "opportunity" | "investment"
+  opportunityRelation?: string // "opportunity" | "opportunityAccounts" (junction table for IRM)
+  isOpportunityRelationList?: boolean // true for IRM (list relationship), false for CRM (singular)
+  isJunctionTable?: boolean // true if using junction table (IRM uses opportunityAccounts)
 }
 
 /**
@@ -121,7 +124,13 @@ export const useGenericAccountsStaticData = (accessToken: string, config: Accoun
               where: {
                 isDeleted: {_eq: false}
                 createdAt: {_lt: "${monthEnd}"}
-                ${config.opportunityRelation || 'opportunity'}: {id: {_isNull: false}}
+                ${
+                  config.isJunctionTable
+                    ? `${config.opportunityRelation}: {opportunity: {isDeleted: {_eq: false}}}` // Junction table: filter through opportunity relation
+                    : config.isOpportunityRelationList
+                      ? `${config.opportunityRelation}: {isDeleted: {_eq: false}}` // List: check if array has items with isDeleted = false
+                      : `${config.opportunityRelation || 'opportunity'}: {id: {_isNull: false}}` // Singular: check if not null
+                }
               }
             ) { aggregate { count } }
           `
@@ -135,7 +144,13 @@ export const useGenericAccountsStaticData = (accessToken: string, config: Accoun
               where: {
                 isDeleted: {_eq: false}
                 createdAt: {_lt: "${monthEnd}"}
-                ${config.opportunityRelation || 'opportunity'}: {updatedAt: {_gte: "${activeThreshold.toISOString()}"}}
+                ${
+                  config.isJunctionTable
+                    ? `${config.opportunityRelation}: {opportunity: {isDeleted: {_eq: false}, updatedAt: {_gte: "${activeThreshold.toISOString()}"}}}` // Junction table: filter through opportunity relation with updatedAt
+                    : config.isOpportunityRelationList
+                      ? `${config.opportunityRelation}: {updatedAt: {_gte: "${activeThreshold.toISOString()}"}}` // List: filter by updatedAt
+                      : `${config.opportunityRelation || 'opportunity'}: {updatedAt: {_gte: "${activeThreshold.toISOString()}"}}` // Singular: filter by updatedAt
+                }
               }
             ) { aggregate { count } }
           `)
@@ -150,11 +165,57 @@ export const useGenericAccountsStaticData = (accessToken: string, config: Accoun
           ) { aggregate { count } }
 
           accountsWithOpportunities: ${config.accountEntity}Aggregate(
-            where: {isDeleted: {_eq: false}, ${config.opportunityRelation || 'opportunity'}: {id: {_isNull: false}}}
+            where: {
+              isDeleted: {_eq: false}
+              ${
+                config.isJunctionTable
+                  ? `${config.opportunityRelation}: {opportunity: {isDeleted: {_eq: false}}}` // Junction table: filter through opportunity relation
+                  : config.isOpportunityRelationList
+                    ? `${config.opportunityRelation}: {isDeleted: {_eq: false}}` // List: check if array has items with isDeleted = false
+                    : `${config.opportunityRelation || 'opportunity'}: {id: {_isNull: false}}` // Singular: check if not null
+              }
+            }
           ) { aggregate { count } }
 
           totalOpportunities: ${config.opportunityEntity}Aggregate(
-            where: {isDeleted: {_eq: false}, accountId: {_isNull: false}}
+            where: {
+              isDeleted: {_eq: false}
+              ${
+                config.isJunctionTable
+                  ? `opportunityAccounts: {}` // Junction table: opportunities that have account links in the junction table
+                  : `accountId: {_isNull: false}` // Direct link: opportunities with accountId
+              }
+            }
+          ) { aggregate { count } }
+
+          # === Revenue Data for Average Calculation ===
+          wonOpportunitiesRevenue: ${config.opportunityEntity}Aggregate(
+            where: {
+              isDeleted: {_eq: false}
+              ${
+                config.isJunctionTable
+                  ? `opportunityAccounts: {}` // Junction table: opportunities that have account links in the junction table
+                  : `accountId: {_isNull: false}` // Direct link: opportunities with accountId
+              }
+              opportunityStatus: {code: {_eq: "WON"}}
+            }
+          ) {
+            aggregate {
+              sum { estimatedAmount }
+            }
+          }
+
+          accountsWithWonOpportunities: ${config.accountEntity}Aggregate(
+            where: {
+              isDeleted: {_eq: false}
+              ${
+                config.isJunctionTable
+                  ? `${config.opportunityRelation}: {opportunity: {isDeleted: {_eq: false}, opportunityStatus: {code: {_eq: "WON"}}}}` // Junction table: filter through opportunity relation
+                  : config.isOpportunityRelationList
+                    ? `${config.opportunityRelation}: {isDeleted: {_eq: false}, opportunityStatus: {code: {_eq: "WON"}}}` // List: check if array has won opportunities
+                    : `${config.opportunityRelation || 'opportunity'}: {opportunityStatus: {code: {_eq: "WON"}}}` // Singular: check for won opportunities
+              }
+            }
           ) { aggregate { count } }
 
           # === 30-day Trend Data ===
@@ -173,7 +234,13 @@ export const useGenericAccountsStaticData = (accessToken: string, config: Accoun
             where: {
               isDeleted: {_eq: false}
               createdAt: {_gte: "${last30DaysStart.toISOString()}"}
-              ${config.opportunityRelation || 'opportunity'}: {id: {_isNull: false}}
+              ${
+                config.isJunctionTable
+                  ? `${config.opportunityRelation}: {opportunity: {isDeleted: {_eq: false}}}` // Junction table: filter through opportunity relation
+                  : config.isOpportunityRelationList
+                    ? `${config.opportunityRelation}: {isDeleted: {_eq: false}}` // List: check if array has items with isDeleted = false
+                    : `${config.opportunityRelation || 'opportunity'}: {id: {_isNull: false}}` // Singular: check if not null
+              }
             }
           ) { aggregate { count } }
 
@@ -181,7 +248,13 @@ export const useGenericAccountsStaticData = (accessToken: string, config: Accoun
             where: {
               isDeleted: {_eq: false}
               createdAt: {_gte: "${previous30DaysStart.toISOString()}", _lt: "${previous30DaysEnd.toISOString()}"}
-              ${config.opportunityRelation || 'opportunity'}: {id: {_isNull: false}}
+              ${
+                config.isJunctionTable
+                  ? `${config.opportunityRelation}: {opportunity: {isDeleted: {_eq: false}}}` // Junction table: filter through opportunity relation
+                  : config.isOpportunityRelationList
+                    ? `${config.opportunityRelation}: {isDeleted: {_eq: false}}` // List: check if array has items with isDeleted = false
+                    : `${config.opportunityRelation || 'opportunity'}: {id: {_isNull: false}}` // Singular: check if not null
+              }
             }
           ) { aggregate { count } }
 
@@ -322,10 +395,16 @@ export const useGenericAccountsStaticData = (accessToken: string, config: Accoun
           }
         }
 
+        // Calculate average revenue per account from won opportunities
+        const totalWonRevenue = result.wonOpportunitiesRevenue?.aggregate?.sum?.estimatedAmount || 0
+        const accountsWithWonOpps = result.accountsWithWonOpportunities?.aggregate?.count || 0
+        const avgRevenuePerAccount = accountsWithWonOpps > 0 ? Math.round(totalWonRevenue / accountsWithWonOpps) : 0
+
         const finalData: AccountsStaticData = {
           totalAccounts,
           accountsWithOpportunities,
           avgOpportunitiesPerAccount,
+          avgRevenuePerAccount, // Average revenue from won opportunities per account
           last30DaysAccounts: result.last30DaysAccounts?.aggregate?.count || 0,
           previous30DaysAccounts: result.previous30DaysAccounts?.aggregate?.count || 0,
           last30DaysAccountsWithOpportunities: result.last30DaysAccountsWithOpportunities?.aggregate?.count || 0,

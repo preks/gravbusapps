@@ -288,6 +288,7 @@ export function buildAccountsProps(data: AccountsBuilderData, config: AccountsBu
     totalAccounts: data.accountsStaticData?.totalAccounts || 0,
     accountsWithOpportunities: data.accountsStaticData?.accountsWithOpportunities || 0,
     avgOpportunitiesPerAccount: data.accountsStaticData?.avgOpportunitiesPerAccount || 0,
+    avgRevenuePerAccount: data.accountsStaticData?.avgRevenuePerAccount, // Average revenue per account with won opportunities
 
     // Trend data
     trendData: data.accountsStaticData
