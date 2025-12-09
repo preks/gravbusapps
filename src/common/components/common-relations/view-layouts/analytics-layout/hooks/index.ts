@@ -9,6 +9,8 @@ export { useGenericAccountsOverTime } from './useGenericAccountsOverTime'
 export { useTopAccountsByRevenue } from './useTopAccountsByRevenue'
 export { useGenericContactsStaticData } from './useGenericContactsStaticData'
 export { useGenericContactsOverTime } from './useGenericContactsOverTime'
+export { useGenericOpportunitiesStaticData } from './useGenericOpportunitiesStaticData'
+export { useGenericOpportunitiesOverTime } from './useGenericOpportunitiesOverTime'
 
 // Shared analytics hooks (used by both CRM and IRM)
 export { useActivityHeatmap } from './useActivityHeatmap'
@@ -57,6 +59,15 @@ export type { AccountsTimeFilter, AccountsOverTimePoint, AccountsOverTimeConfig 
 export type { ContactsStaticData, ContactsEntityConfig } from './useGenericContactsStaticData'
 
 export type { ContactsOverTimePoint, ContactsTimeFilter, ContactsOverTimeConfig } from './useGenericContactsOverTime'
+
+// Export types - Generic hooks (opportunities)
+export type { OpportunitiesEntityConfig, GenericOpportunitiesStaticData } from './useGenericOpportunitiesStaticData'
+
+export type {
+  OpportunityTimeSeriesData,
+  TimeFilter as OpportunitiesTimeFilter,
+  OpportunitiesOverTimeConfig
+} from './useGenericOpportunitiesOverTime'
 
 // Export types - Shared hooks
 export type { ActivityHeatmapData } from './useActivityHeatmap'

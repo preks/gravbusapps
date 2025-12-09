@@ -3,21 +3,23 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 export interface PipelineHealthData {
   healthScore: number
-  stageDistribution: { stage: string; count: number; value: number }[]
-  pipelineDistribution: {
-    pipeline: string
-    pipelineId: string
-    count: number
-    value: number
-  }[]
   avgOpportunityAge: number
-  stalledOpportunities: number
   totalOpportunities: number
   avgWinningChance: number
-  selectedPipeline?: string
-  isAllPipelines: boolean
 }
 
+interface HealthQueryResult {
+  totalOpportunities: { aggregate: { count: number; avg?: { winningChance?: number } } }
+  stalledOpportunities: { aggregate: { count: number } }
+  opportunitySample: Array<{
+    createdAt: string
+  }>
+}
+
+/**
+ * IRM Pipeline Health hook - Optimized with aggregates
+ * Uses same approach as CRM for consistency and performance
+ */
 export const usePipelineHealth = (accessToken: string, selectedPipelineId?: string) => {
   const [pipelineHealth, setPipelineHealth] = useState<PipelineHealthData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -26,6 +28,11 @@ export const usePipelineHealth = (accessToken: string, selectedPipelineId?: stri
 
   useEffect(() => {
     const fetchPipelineHealth = async () => {
+      if (!accessToken) {
+        setIsLoading(false)
+        return
+      }
+
       try {
         setIsLoading(true)
         setError(null)
@@ -41,24 +48,14 @@ export const usePipelineHealth = (accessToken: string, selectedPipelineId?: stri
         const activeOppsWhere = `${baseWhere}, opportunityStatus: {code: {_nin: ["WON", "LOST"]}}`
 
         const query = `
-          query GetPipelineHealth {
-            # All active opportunities (exclude closed states)
-            allOpportunities: InvestmentOpportunity(
-              where: {
-                ${activeOppsWhere}
-              }
+          query GetInvestmentPipelineHealth {
+            # Total active opportunities aggregate (optimized - no full record fetch)
+            totalOpportunities: InvestmentOpportunityAggregate(
+              where: { ${activeOppsWhere} }
             ) {
-              id
-              estimatedAmount
-              createdAt
-              closeDate
-              opportunityPipelineStage {
-                id
-                value
-              }
-              opportunityPipeline {
-                id
-                value
+              aggregate {
+                count
+                sum { estimatedAmount }
               }
             }
             
@@ -71,133 +68,53 @@ export const usePipelineHealth = (accessToken: string, selectedPipelineId?: stri
             ) {
               aggregate { count }
             }
+
+            # Sample opportunities for age calculation (limited to 1000 like CRM)
+            opportunitySample: InvestmentOpportunity(
+              where: { ${activeOppsWhere} }
+              limit: 1000
+            ) {
+              createdAt
+            }
           }
         `
 
-        const result = await graphqlClient.request(query)
+        const result = await graphqlClient.request<HealthQueryResult>(query)
 
-        if (!result.allOpportunities) {
+        if (!result.totalOpportunities) {
           throw new Error('No opportunities data received from GraphQL')
         }
 
-        // Process all opportunities for grouping by stage
-        // When no specific pipeline is selected, show all opportunities
-        // When a specific pipeline is selected, only show opportunities from that pipeline
-        let filteredOpportunities = result.allOpportunities
-        // Only filter if a specific pipeline is selected
-        if (selectedPipelineId) {
-          filteredOpportunities = result.allOpportunities
-          // Filtered to specific pipeline
-        } else {
-          // Showing all opportunities
-        }
+        // Get aggregate data directly from GraphQL (no frontend iteration)
+        const totalOpps = result.totalOpportunities.aggregate.count || 0
+        const stalledCount = result.stalledOpportunities.aggregate.count || 0
+        // Note: IRM doesn't have winningChance field
+        const avgWinningChance = 0
 
-        // Processing opportunities data
-
-        // Calculate average opportunity age
+        // Calculate average age from sample (max 1000 records instead of ALL)
         const avgAge =
-          filteredOpportunities.length > 0
-            ? filteredOpportunities.reduce((sum: number, opp: any) => {
+          result.opportunitySample?.length > 0
+            ? result.opportunitySample.reduce((sum, opp) => {
                 const age = Math.floor(
                   (currentDate.getTime() - new Date(opp.createdAt).getTime()) / (1000 * 60 * 60 * 24)
                 )
                 return sum + age
-              }, 0) / filteredOpportunities.length
+              }, 0) / result.opportunitySample.length
             : 0
 
-        // Calculate average winning chance (exclude null values)
-        const oppsWithWinChance = filteredOpportunities.filter((opp: any) => opp.winningChance != null)
-        const avgWinningChance =
-          oppsWithWinChance.length > 0
-            ? oppsWithWinChance.reduce((sum: number, opp: any) => sum + opp.winningChance, 0) / oppsWithWinChance.length
-            : 0
-
-        // Group opportunities by stage and calculate distribution
-        const stageGroups = new Map<string, { count: number; value: number }>()
-        const pipelineGroups = new Map<string, { count: number; value: number; pipelineId: string }>()
-
-        filteredOpportunities.forEach((opp: any) => {
-          // Group by pipeline when no specific pipeline is selected
-          if (!selectedPipelineId) {
-            const pipelineName = opp.opportunityPipeline?.value || 'Unknown Pipeline'
-            const pipelineId = opp.opportunityPipeline?.id || 'unknown'
-            const existing = pipelineGroups.get(pipelineName) || {
-              count: 0,
-              value: 0,
-              pipelineId
-            }
-            pipelineGroups.set(pipelineName, {
-              count: existing.count + 1,
-              value: existing.value + (opp.estimatedAmount || 0),
-              pipelineId
-            })
-          } else {
-            // Group by stage when a specific pipeline is selected
-            let stageName = 'Unknown'
-            if (opp.opportunityPipelineStage?.value) {
-              stageName = opp.opportunityPipelineStage.value
-            } else if (opp.stage) {
-              stageName = opp.stage
-                .replace(/_/g, ' ')
-                .toLowerCase()
-                .replace(/\b\w/g, (l: string) => l.toUpperCase())
-            }
-
-            const existing = stageGroups.get(stageName) || {
-              count: 0,
-              value: 0
-            }
-            stageGroups.set(stageName, {
-              count: existing.count + 1,
-              value: existing.value + (opp.estimatedAmount || 0)
-            })
-          }
-        })
-
-        // Convert to arrays and limit to top 5
-        const stageDistribution = selectedPipelineId
-          ? Array.from(stageGroups.entries())
-              .map(([stage, data]) => ({
-                stage,
-                count: data.count,
-                value: data.value
-              }))
-              .sort((a, b) => b.count - a.count)
-              .slice(0, 5)
-          : []
-
-        const pipelineDistribution = !selectedPipelineId
-          ? Array.from(pipelineGroups.entries())
-              .map(([pipeline, data]) => ({
-                pipeline,
-                pipelineId: data.pipelineId,
-                count: data.count,
-                value: data.value
-              }))
-              .sort((a, b) => b.count - a.count)
-              .slice(0, 5)
-          : []
-
-        // Calculate health score (0-100)
-        const totalOpps = filteredOpportunities.length
-        const stalledCount = result.stalledOpportunities.aggregate.count
+        // Calculate health score
         const stalledRatio = totalOpps > 0 ? stalledCount / totalOpps : 0
-        const ageScore = Math.max(0, 100 - avgAge / 2) // Penalty for old opportunities
-        const winChanceScore = avgWinningChance
+        const ageScore = Math.max(0, 100 - avgAge / 2) // Penalty for old opportunities (sample-based)
+        const winChanceScore = avgWinningChance // IRM doesn't have this field
         const activityScore = Math.max(0, 100 - stalledRatio * 100)
 
         const healthScore = totalOpps > 0 ? Math.round((ageScore + winChanceScore + activityScore) / 3) : 0
 
         const healthData = {
           healthScore,
-          stageDistribution,
-          pipelineDistribution,
           avgOpportunityAge: Math.round(avgAge),
-          stalledOpportunities: stalledCount,
           totalOpportunities: totalOpps,
-          avgWinningChance: Math.round(avgWinningChance),
-          selectedPipeline: selectedPipelineId,
-          isAllPipelines: !selectedPipelineId
+          avgWinningChance: Math.round(avgWinningChance)
         }
 
         setPipelineHealth(healthData)
@@ -209,9 +126,7 @@ export const usePipelineHealth = (accessToken: string, selectedPipelineId?: stri
       }
     }
 
-    if (accessToken) {
-      fetchPipelineHealth()
-    }
+    fetchPipelineHealth()
   }, [accessToken, graphqlClient, selectedPipelineId])
 
   return { pipelineHealth, isLoading, error }

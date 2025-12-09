@@ -12,6 +12,7 @@ import {
   TimeFilter
 } from '@/common/components/common-relations/view-layouts/analytics-layout/utils/analyticsViewHelpers'
 import { useAvailableCurrencies } from '@/common/data/common/hooks/useAvailableCurrencies'
+import { useOpportunitiesStaticData } from './hooks/useOpportunitiesStaticData'
 import { useOpportunitiesOverTime } from './hooks/useOpportunitiesOverTime'
 import { useOpportunityTrendData } from './hooks/useOpportunityTrendData'
 import { useOpportunitiesByStage } from './hooks/useOpportunitiesByStage'
@@ -19,8 +20,6 @@ import { useContactsStaticData } from './hooks/useContactsStaticData'
 import { useContactsOverTime } from './hooks/useContactsOverTime'
 import { useContactInsights as useInvestmentContactInsights } from './hooks/useContactInsights'
 import { useContactQualityData as useInvestmentContactQualityData } from './hooks/useContactQualityData'
-// import { useTopRevenueEarners as useInvestmentTopRevenueEarners } from './hooks/useTopRevenueEarners' // DISABLED for IRM
-// import { useAccountsCount as useInvestmentAccountsCount } from './hooks/useAccountsCount' // REMOVED: Redundant with accountsStaticData
 import { useIrmAnalyticsData } from './hooks/useIrmAnalyticsData'
 import { useOverviewData } from './hooks/useOverviewData'
 import { useLeadsTrendData } from './hooks/useLeadsTrendData'
@@ -28,16 +27,14 @@ import { useLeadsStaticData } from './hooks/useLeadsStaticData'
 import { useLeadsOverTime } from './hooks/useLeadsOverTime'
 import { useAccountsStaticData } from './hooks/useAccountsStaticData'
 import { useAccountsOverTime } from './hooks/useAccountsOverTime'
-// import { useKpiTrendData } from './hooks/useKpiTrendData' // REMOVED: Merged into GET_IRM_OVERVIEW_ONLY_ANALYTICS
 import { useRevenueTrends } from './hooks/useRevenueTrends'
 import { usePipelineHealth } from './hooks/usePipelineHealth'
 import { useActivityHeatmap } from './hooks/useActivityHeatmap'
-// import { useGeographicDistribution } from './hooks/useGeographicDistribution' // DEPRECATED: Now using useOverviewData
+import { usePipelines } from './hooks/usePipelines'
 import { IRM_KPI_LABELS, IRM_KPI_VISIBILITY } from './config/kpiConfig'
 
 import { useOpportunityVelocityData } from './hooks/useOpportunityVelocityData'
 import { useDealHealthData } from './hooks/useDealHealthData'
-import { useTopDeals } from './hooks/useTopDeals'
 
 export interface AnalyticsViewProps extends BusinessAppContextProps {
   moduleColor?: string
@@ -52,21 +49,16 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
   const [selectedPipelineId, setSelectedPipelineId] = useState<string | undefined>(undefined)
   const [selectedStagePipelineId, setSelectedStagePipelineId] = useState<string | undefined>(undefined)
 
-  // Currency filters for analytics
   const [kpiCurrency, setKpiCurrency] = useState('EUR') // Master currency
   const [revenueCurrency, setRevenueCurrency] = useState('EUR')
-  // const [topPerformersCurrency, setTopPerformersCurrency] = useState('EUR') // DISABLED for IRM
   const [accountsCurrency, setAccountsCurrency] = useState('EUR') // Currency for Accounts tab
   const [opportunitiesKpiCurrency, setOpportunitiesKpiCurrency] = useState('EUR') // Master currency for Opportunities tab
   const [topDealsCurrency, setTopDealsCurrency] = useState('EUR') // Currency for Top Opportunities table
 
-  // Reset chart currencies when master KPI currency changes
   useEffect(() => {
     setRevenueCurrency(kpiCurrency)
-    // setTopPerformersCurrency(kpiCurrency) // DISABLED for IRM
   }, [kpiCurrency])
 
-  // Reset top deals currency when opportunities KPI currency changes
   useEffect(() => {
     setTopDealsCurrency(opportunitiesKpiCurrency)
   }, [opportunitiesKpiCurrency])
@@ -78,10 +70,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     updateAnalyticsTabUrl(tab)
   }, [])
 
-  // Initialize URL on mount if not present
   useEffect(() => {
     initializeAnalyticsTabUrl(activeAnalyticsTab)
-  }, []) // Run only on mount
+  }, [])
 
   // Handle browser back/forward navigation
   useEffect(() => {
@@ -104,8 +95,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
 
   const availableCurrencies = currencyOptions as string[]
 
-  // Note: Generic contacts hooks now support all time filters including sixMonths
-  // No conversion needed anymore!
+  // Fetch pipelines from catalog
+  const { pipelines } = usePipelines(context.accessToken)
 
   // Overview tab - Use dedicated hook
   const { data: overviewData, isLoading: overviewLoading } = useOverviewData(
@@ -114,15 +105,12 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
   )
 
   // Legacy hook - kept for backward compatibility (can be removed once all tabs use dedicated hooks)
-  const { data, isLoading, error, refetch } = useIrmAnalyticsData(
+  const { isLoading, error, refetch } = useIrmAnalyticsData(
     context,
     activeAnalyticsTab, // NEW: Lazy loading based on active tab
     kpiCurrency
   )
-  // Overview tab hooks - trend data now comes from useOverviewData (shared generic hook)
-  // const { trendData: kpiTrendData } = useKpiTrendData(
-  //   activeAnalyticsTab === 'overview' ? context.accessToken : '',
-  //   kpiCurrency
+
   // )
   const { revenueTrends, isLoading: revenueLoading } = useRevenueTrends(
     activeAnalyticsTab === 'overview' ? context.accessToken : '',
@@ -139,14 +127,6 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
   )
   // Geographic data now comes from useOverviewData (shared generic hook)
   const geographicData = activeAnalyticsTab === 'overview' ? overviewData?.overviewGeographicData || [] : []
-  // const { geographicData, isLoading: geoLoading } = useGeographicDistribution(
-  //   activeAnalyticsTab === 'overview' ? context.accessToken : ''
-  // ) // DEPRECATED: Now using data from useOverviewData
-  // Top performers - DISABLED for IRM (uncomment to enable)
-  // const { contacts: topRevenueContacts } = useInvestmentTopRevenueEarners(
-  //   activeAnalyticsTab === 'overview' ? context.accessToken : '',
-  //   topPerformersCurrency
-  // )
 
   // Leads tab hooks - Use aggregate-based hooks instead of full-record query
   const { data: leadsStaticData, isLoading: leadsStaticLoading } = useLeadsStaticData(
@@ -171,11 +151,11 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     accountsTimeFilter
   )
 
-  // Opportunities tab hooks
-  const { data: oppVelocityData } = useOpportunityVelocityData(
-    activeAnalyticsTab === 'opportunities' ? context.accessToken : ''
+  // Opportunities tab hooks - Use aggregate-based hooks like CRM
+  const { data: opportunitiesStaticData, isLoading: opportunitiesStaticLoading } = useOpportunitiesStaticData(
+    activeAnalyticsTab === 'opportunities' ? context.accessToken : '',
+    opportunitiesKpiCurrency
   )
-  const { data: oppHealthData } = useDealHealthData(activeAnalyticsTab === 'opportunities' ? context.accessToken : '')
   const { data: oppLifecycleData } = useOpportunitiesOverTime(
     activeAnalyticsTab === 'opportunities' ? context.accessToken : '',
     oppTimeFilter,
@@ -187,13 +167,13 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     undefined,
     opportunitiesKpiCurrency
   )
+  const { data: oppVelocityData } = useOpportunityVelocityData(
+    activeAnalyticsTab === 'opportunities' ? context.accessToken : ''
+  )
+  const { data: oppHealthData } = useDealHealthData(activeAnalyticsTab === 'opportunities' ? context.accessToken : '')
   const { data: oppStageData } = useOpportunitiesByStage(
     activeAnalyticsTab === 'opportunities' ? context.accessToken : '',
     selectedStagePipelineId
-  )
-  const { data: topDealsData } = useTopDeals(
-    activeAnalyticsTab === 'opportunities' ? context.accessToken : '',
-    topDealsCurrency
   )
 
   // Contacts tab hooks - using new generic hooks
@@ -212,11 +192,6 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
   const { data: contactQuality } = useInvestmentContactQualityData(
     activeAnalyticsTab === 'contacts' ? context.accessToken : ''
   )
-
-  // Extract pipelines from opportunities data
-  const pipelines = data?.opportunities?.opportunitiesByPipeline
-    ? data.opportunities.opportunitiesByPipeline.map(p => ({ id: p.pipelineId, name: p.pipeline }))
-    : []
 
   // Initialize selectedStagePipelineId to first pipeline if not set
   useEffect(() => {
@@ -261,8 +236,6 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
   // Trend data comes from useOverviewData hook
   const transformedTrendData = overviewData?.overviewTrendData || null
 
-  // Prepare the props for each tab - Always define to show tabs
-  // Overview uses flexible layout with optional components
   const overviewProps = {
     title: 'Investment Relations Overview',
     moduleColor,
@@ -311,16 +284,6 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
       data: activityHeatmap || [],
       isLoading: activityLoading
     },
-
-    // Optional: Top Performers - HIDDEN for IRM (remove comments to show)
-    // topPerformers: topRevenueContacts.map(contact => ({
-    //   employeeId: contact.id,
-    //   employeeName: `${contact.firstName} ${contact.lastName}`,
-    //   dealsWon: contact.wonOpportunities,
-    //   totalValue: contact.totalRevenue
-    // })),
-    // topPerformersCurrency,
-    // onTopPerformersCurrencyChange: setTopPerformersCurrency,
 
     // Currency filters
     kpiCurrency,
@@ -418,26 +381,23 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     showTopAccounts: false // IRM doesn't show Top Accounts by Revenue section
   }
 
-  // Prepare opportunities props - Always define to show tab
+  // Prepare opportunities props - Use aggregate-based data like CRM
   const opportunitiesProps = {
     title: 'Opportunities Analytics',
-    totalOpportunities: data?.opportunities?.totalOpportunities || 0,
-    totalValue: data?.opportunities?.totalValue || 0,
-    winRate: data?.opportunities?.winRate || 0,
-    avgDealSize: data?.opportunities?.avgDealSize || 0,
-    avgSalesCycle: data?.opportunities?.avgSalesCycle || 0,
-    pipelineVelocity: data?.opportunities?.pipelineVelocity || 0,
+    totalOpportunities: opportunitiesStaticData?.totalOpportunities || 0,
+    totalValue: opportunitiesStaticData?.totalValue || 0,
+    winRate: opportunitiesStaticData?.winRate || 0,
+    avgDealSize: opportunitiesStaticData?.avgDealSize || 0,
+    avgSalesCycle: opportunitiesStaticData?.avgOpportunityValue || 0, // Avg opportunity value for all opps
+    pipelineVelocity: opportunitiesStaticData?.pipelineVelocity || 0,
     trendData: oppTrendData || null,
-    trendLoading: false,
+    trendLoading: opportunitiesStaticLoading,
     lifecycleData: (oppLifecycleData || []).map(d => ({
       date: d.date,
       opportunitiesCreated: d.opportunitiesCreated,
       opportunitiesWon: d.opportunitiesWon
     })),
-    pipelines: (data?.opportunities?.opportunitiesByPipeline || []).map(p => ({
-      id: p.pipelineId,
-      name: p.pipeline
-    })),
+    pipelines: pipelines, // From usePipelines hook
     selectedPipelineId: selectedPipelineId,
     onPipelineChange: (id: string) => setSelectedPipelineId(id === 'all' ? undefined : id),
     selectedTimeFilter: oppTimeFilter,
@@ -445,14 +405,15 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     opportunitiesByStage: (oppStageData || []).map(s => ({ stage: s.stage, count: s.count, value: s.value })),
     selectedStagePipelineId: selectedStagePipelineId,
     onStagePipelineChange: (id: string | undefined) => setSelectedStagePipelineId(id),
-    topDeals: topDealsData,
+    topDeals: [], // IRM doesn't fetch or show top deals
     velocityData: oppVelocityData || null,
     dealHealthData: oppHealthData || null,
     kpiCurrency: opportunitiesKpiCurrency,
     onKpiCurrencyChange: setOpportunitiesKpiCurrency,
     topDealsCurrency: topDealsCurrency,
     onTopDealsCurrencyChange: setTopDealsCurrency,
-    availableCurrencies: availableCurrencies
+    availableCurrencies: availableCurrencies,
+    showTopDeals: false // IRM doesn't show Top Opportunities by Value section
   }
 
   // Prepare contacts props - Always define to show tab

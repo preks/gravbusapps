@@ -19,6 +19,8 @@ interface OpportunityTrendData {
   actualWinRateLastMonth: number
   actualAvgDealSizeThisMonth: number
   actualAvgDealSizeLastMonth: number
+  actualAvgOpportunityValueThisMonth: number // Average value of ALL opportunities
+  actualAvgOpportunityValueLastMonth: number // Average value of ALL opportunities (previous period)
   actualAvgSalesCycleThisMonth: number
   actualAvgSalesCycleLastMonth: number
   actualConversionRateThisMonth: number
@@ -285,6 +287,8 @@ export const useOpportunityTrendData = (
           actualWinRateLastMonth: 0, // Will add later
           actualAvgDealSizeThisMonth: Math.round(currentPeriodAvgDealSize),
           actualAvgDealSizeLastMonth: Math.round(previousPeriodAvgDealSize),
+          actualAvgOpportunityValueThisMonth: Math.round(currentPeriodAvgDealSize), // Same as avgDealSize (all opps)
+          actualAvgOpportunityValueLastMonth: Math.round(previousPeriodAvgDealSize), // Same as avgDealSize (previous period)
           actualAvgSalesCycleThisMonth: currentPeriodPipelineVelocity,
           actualAvgSalesCycleLastMonth: previousPeriodPipelineVelocity,
           actualConversionRateThisMonth: Math.round(currentPeriodConversionRate),

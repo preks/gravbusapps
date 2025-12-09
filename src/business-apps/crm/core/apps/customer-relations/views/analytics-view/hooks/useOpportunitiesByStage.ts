@@ -77,7 +77,7 @@ export const useOpportunitiesByStage = (accessToken: string, pipelineId?: string
             return `
               stage_${index}: OpportunityAggregate(
                 where: {
-                  isDeleted: {_eq: false}
+                  isDeleted: {_eq: false},
                   salesPipelineStageRef: {_eq: "${stageId}"}
                   ${pipelineFilter ? ', ' + pipelineFilter : ''}
                 }

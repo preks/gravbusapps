@@ -204,7 +204,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     activeAnalyticsTab === 'opportunities' ? context.accessToken : '',
     selectedStagePipelineId
   )
-  const { data: topDealsData } = useTopDeals(
+  const { data: topDealsData, isLoading: topDealsLoading } = useTopDeals(
     activeAnalyticsTab === 'opportunities' ? context.accessToken : '',
     topDealsCurrency
   )
@@ -506,6 +506,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     selectedStagePipelineId: selectedStagePipelineId,
     onStagePipelineChange: (id: string | undefined) => setSelectedStagePipelineId(id),
     topDeals: topDealsData,
+    topDealsLoading: topDealsLoading,
     velocityData: oppVelocityData || null,
     dealHealthData: oppHealthData || null,
     kpiCurrency: opportunitiesKpiCurrency,

@@ -24,7 +24,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Label
+  Label,
+  Spinner
 } from '@newwork/nw-design-system'
 import { OpportunitiesByStagePie } from './widgets/OpportunitiesByStagePie'
 import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
@@ -36,6 +37,8 @@ export interface OpportunitiesTrendData {
   actualWinRateLastMonth: number
   actualAvgDealSizeThisMonth: number
   actualAvgDealSizeLastMonth: number
+  actualAvgOpportunityValueThisMonth?: number // Average value of ALL opportunities
+  actualAvgOpportunityValueLastMonth?: number // Average value of ALL opportunities (previous period)
   actualAvgSalesCycleLastMonth: number
   currentPeriodOpportunities: number
   previousPeriodOpportunities: number
@@ -90,6 +93,7 @@ export interface OpportunitiesTabLayoutProps {
     owner: string
     currencyCode?: string
   }>
+  topDealsLoading?: boolean
   velocityData?: { averageDaysInPipeline: number; velocityTrend: any[]; quickWins: any[]; slowMovers: any[] } | null
   dealHealthData?: { healthDistribution: any; matrixData: any[] } | null
   moduleColor?: string
@@ -100,6 +104,9 @@ export interface OpportunitiesTabLayoutProps {
   topDealsCurrency?: string
   onTopDealsCurrencyChange?: (currency: string) => void
   availableCurrencies?: string[]
+
+  // Feature flags
+  showTopDeals?: boolean // Default: true - Set to false to hide top deals section (e.g., for IRM)
 }
 
 // colors local to pie widget
@@ -124,6 +131,7 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
   selectedStagePipelineId,
   onStagePipelineChange,
   topDeals,
+  topDealsLoading = false,
   velocityData,
   dealHealthData,
   moduleColor = 'default',
@@ -131,7 +139,8 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
   onKpiCurrencyChange,
   topDealsCurrency = 'EUR',
   onTopDealsCurrencyChange,
-  availableCurrencies = ['EUR', 'USD']
+  availableCurrencies = ['EUR', 'USD'],
+  showTopDeals = true
 }) => {
   const kpis = [
     {
@@ -237,11 +246,11 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
       valueIsString: true,
       prefix: <DollarCircleOutlined />,
       description: 'Average value per opportunity',
-      ...(trendData && !trendLoading
+      ...(trendData && !trendLoading && trendData.actualAvgOpportunityValueLastMonth !== undefined
         ? {
             trend: {
-              value: calculatePercentChange(avgSalesCycle, trendData.actualAvgSalesCycleLastMonth || 0),
-              positive: avgSalesCycle >= (trendData.actualAvgSalesCycleLastMonth || 0),
+              value: calculatePercentChange(avgSalesCycle, trendData.actualAvgOpportunityValueLastMonth || 0),
+              positive: avgSalesCycle >= (trendData.actualAvgOpportunityValueLastMonth || 0),
               description: 'vs previous period (30 days ago)'
             }
           }
@@ -349,62 +358,72 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
         onPipelineChange={onStagePipelineChange}
       />
 
-      <Card data-testid="top-deals-section">
-        <CardHeader>
-          <div className="gba:flex gba:items-center gba:justify-between">
-            <CardTitle className="gba:flex gba:items-center gba:gap-2">Top Opportunities by Value</CardTitle>
-            {/* Currency Filter */}
-            {availableCurrencies && availableCurrencies.length > 1 && onTopDealsCurrencyChange && (
-              <div className="gba:flex gba:items-center gba:gap-2 gba:ml-auto" data-testid="top-deals-currency-filter">
-                <Label className="gba:text-sm gba:font-medium gba:whitespace-nowrap">Currency</Label>
-                <Select value={topDealsCurrency} onValueChange={onTopDealsCurrencyChange}>
-                  <SelectTrigger className="gba:w-32">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableCurrencies.map(currency => (
-                      <SelectItem key={currency} value={currency}>
-                        {currency}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {topDeals.length > 0 ? (
-            <div className="gba:space-y-3">
-              {topDeals.map((deal, index) => (
+      {/* Conditionally render Top Deals section */}
+      {showTopDeals && (
+        <Card data-testid="top-deals-section">
+          <CardHeader>
+            <div className="gba:flex gba:items-center gba:justify-between">
+              <CardTitle className="gba:flex gba:items-center gba:gap-2">Top Opportunities by Value</CardTitle>
+              {/* Currency Filter */}
+              {availableCurrencies && availableCurrencies.length > 1 && onTopDealsCurrencyChange && (
                 <div
-                  key={deal.id}
-                  className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:border gba:rounded-lg"
-                  data-testid={`top-deal-${index}`}
+                  className="gba:flex gba:items-center gba:gap-2 gba:ml-auto"
+                  data-testid="top-deals-currency-filter"
                 >
-                  <div className="gba:flex gba:items-center gba:gap-3">
-                    <span className="gba:text-xs gba:text-gray-600">#{index + 1}</span>
-                    <div>
-                      <div className="gba:font-medium">{deal.name}</div>
-                      <div className="gba:text-sm gba:text-gray-600">
-                        {deal.stage} • {deal.winChance}% win chance • {deal.owner}
+                  <Label className="gba:text-sm gba:font-medium gba:whitespace-nowrap">Currency</Label>
+                  <Select value={topDealsCurrency} onValueChange={onTopDealsCurrencyChange}>
+                    <SelectTrigger className="gba:w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableCurrencies.map(currency => (
+                        <SelectItem key={currency} value={currency}>
+                          {currency}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {topDealsLoading ? (
+              <div className="gba:flex gba:justify-center gba:items-center gba:py-12" data-testid="top-deals-loading">
+                <Spinner size="lg" />
+              </div>
+            ) : topDeals.length > 0 ? (
+              <div className="gba:space-y-3">
+                {topDeals.map((deal, index) => (
+                  <div
+                    key={deal.id}
+                    className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:border gba:rounded-lg"
+                    data-testid={`top-deal-${index}`}
+                  >
+                    <div className="gba:flex gba:items-center gba:gap-3">
+                      <span className="gba:text-xs gba:text-gray-600">#{index + 1}</span>
+                      <div>
+                        <div className="gba:font-medium">{deal.name}</div>
+                        <div className="gba:text-sm gba:text-gray-600">
+                          {deal.stage} • {deal.winChance}% win chance • {deal.owner}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="gba:text-right">
-                    <div className="gba:font-bold">
-                      {formatCurrencyCompact(deal.value, topDealsCurrency, undefined, 1, true)}
+                    <div className="gba:text-right">
+                      <div className="gba:font-bold">
+                        {formatCurrencyCompact(deal.value, topDealsCurrency, undefined, 1, true)}
+                      </div>
+                      <div className="gba:text-sm gba:text-gray-600">Opportunity Value</div>
                     </div>
-                    <div className="gba:text-sm gba:text-gray-600">Opportunity Value</div>
                   </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="gba:text-center gba:text-gray-500 gba:py-8">No deal data available</div>
-          )}
-        </CardContent>
-      </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="gba:text-center gba:text-gray-500 gba:py-8">No deal data available</div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

@@ -4,7 +4,7 @@ export interface IrmAnalyticsData {
   overviewGeographicData?: Array<{ country: string; accounts: number }>
   leads: LeadsAnalytics
   accounts: AccountsAnalytics
-  opportunities: OpportunitiesAnalytics
+  opportunities?: OpportunitiesAnalytics // Optional: No longer populated by useIrmAnalyticsData (uses dedicated aggregate hooks instead)
   contacts?: ContactsAnalytics // Optional: No longer populated by useIrmAnalyticsData (uses dedicated hooks instead)
 }
 
