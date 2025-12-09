@@ -1,11 +1,8 @@
 // IRM-specific wrapper for shared generic pipelines hook
 import { useMemo } from 'react'
-import {
-  useGenericPipelines,
-  type Pipeline
-} from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericPipelines'
+import { useGenericPipelines } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericPipelines'
 
-export type { Pipeline }
+export type { Pipeline } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericPipelines'
 
 /**
  * IRM Pipelines hook - Uses Catalog API to fetch pipeline options

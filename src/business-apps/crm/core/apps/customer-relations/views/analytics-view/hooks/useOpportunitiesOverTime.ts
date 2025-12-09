@@ -1,10 +1,12 @@
-import {
-  useGenericOpportunitiesOverTime,
+import { useGenericOpportunitiesOverTime } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericOpportunitiesOverTime'
+
+export type {
   OpportunityTimeSeriesData,
   TimeFilter
 } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericOpportunitiesOverTime'
 
-export type { OpportunityTimeSeriesData, TimeFilter }
+// Type imported locally for function signature
+import type { TimeFilter } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericOpportunitiesOverTime'
 
 /**
  * CRM-specific wrapper for useGenericOpportunitiesOverTime

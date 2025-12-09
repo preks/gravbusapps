@@ -130,6 +130,17 @@ export function buildOverviewProps(data: OverviewBuilderData, config: OverviewBu
 }
 
 // ============================================================================
+// HELPER FUNCTIONS FOR LEADS TAB
+// ============================================================================
+
+/** Determine status based on threshold values */
+function getQualityStatus(value: number, goodThreshold: number, warningThreshold: number): 'good' | 'warning' | 'bad' {
+  if (value >= goodThreshold) return 'good'
+  if (value >= warningThreshold) return 'warning'
+  return 'bad'
+}
+
+// ============================================================================
 // LEADS TAB BUILDER
 // ============================================================================
 
@@ -211,20 +222,12 @@ export function buildLeadsProps(data: LeadsBuilderData, config: LeadsBuilderConf
             {
               label: 'High Quality Leads',
               value: data.leadsStaticData.highQualityPercentage || 0,
-              status: ((data.leadsStaticData.highQualityPercentage || 0) >= 50
-                ? 'good'
-                : (data.leadsStaticData.highQualityPercentage || 0) >= 30
-                  ? 'warning'
-                  : 'bad') as 'good' | 'warning' | 'bad'
+              status: getQualityStatus(data.leadsStaticData.highQualityPercentage || 0, 50, 30)
             },
             {
               label: 'Conversion Rate',
               value: data.leadsStaticData.conversionRate || 0,
-              status: ((data.leadsStaticData.conversionRate || 0) >= 20
-                ? 'good'
-                : (data.leadsStaticData.conversionRate || 0) >= 10
-                  ? 'warning'
-                  : 'bad') as 'good' | 'warning' | 'bad'
+              status: getQualityStatus(data.leadsStaticData.conversionRate || 0, 20, 10)
             }
           ],
           highQualityPercentage: data.leadsStaticData.highQualityPercentage || 0,
@@ -379,41 +382,44 @@ export interface OpportunitiesBuilderData {
   availableCurrencies?: string[]
 }
 
+/** Helper: Calculate trend data from static opportunities data */
+function calculateOpportunitiesTrendData(staticData: OpportunitiesStaticData) {
+  const sd = staticData
+  return {
+    totalOpportunitiesLastMonth: sd.previous30DaysOpportunities || 0,
+    previousPeriodPipelineValue: sd.previous30DaysTotalValue || 0,
+    actualWinRateThisMonth:
+      (sd.last30DaysWonOpportunities || 0) > 0
+        ? ((sd.last30DaysWonOpportunities || 0) / (sd.last30DaysOpportunities || 1)) * 100
+        : 0,
+    actualWinRateLastMonth:
+      (sd.previous30DaysWonOpportunities || 0) > 0
+        ? ((sd.previous30DaysWonOpportunities || 0) / (sd.previous30DaysOpportunities || 1)) * 100
+        : 0,
+    actualAvgDealSizeThisMonth:
+      (sd.last30DaysWonOpportunities || 0) > 0
+        ? (sd.last30DaysTotalValue || 0) / (sd.last30DaysWonOpportunities || 1)
+        : 0,
+    actualAvgDealSizeLastMonth:
+      (sd.previous30DaysWonOpportunities || 0) > 0
+        ? (sd.previous30DaysTotalValue || 0) / (sd.previous30DaysWonOpportunities || 1)
+        : 0,
+    actualAvgOpportunityValueLastMonth: sd.previous30DaysAvgOpportunityValue || 0,
+    actualAvgSalesCycleLastMonth: sd.previous30DaysAvgOpportunityValue || 0,
+    currentPeriodOpportunities: sd.last30DaysOpportunities || 0,
+    previousPeriodOpportunities: sd.previous30DaysOpportunities || 0,
+    actualConversionRateThisMonth: sd.last30DaysConversionRate || 0,
+    actualConversionRateLastMonth: sd.previous30DaysConversionRate || 0
+  }
+}
+
 export function buildOpportunitiesProps(data: OpportunitiesBuilderData, config: OpportunitiesBuilderConfig) {
   // Build trend data based on config
   let trendData = null
   if (config.useTrendData && data.oppTrendData) {
-    // IRM: Use dedicated trend hook data
     trendData = data.oppTrendData
   } else if (data.opportunitiesStaticData) {
-    // CRM: Calculate from static data
-    const sd = data.opportunitiesStaticData
-    trendData = {
-      totalOpportunitiesLastMonth: sd.previous30DaysOpportunities || 0,
-      previousPeriodPipelineValue: sd.previous30DaysTotalValue || 0,
-      actualWinRateThisMonth:
-        (sd.last30DaysWonOpportunities || 0) > 0
-          ? ((sd.last30DaysWonOpportunities || 0) / (sd.last30DaysOpportunities || 1)) * 100
-          : 0,
-      actualWinRateLastMonth:
-        (sd.previous30DaysWonOpportunities || 0) > 0
-          ? ((sd.previous30DaysWonOpportunities || 0) / (sd.previous30DaysOpportunities || 1)) * 100
-          : 0,
-      actualAvgDealSizeThisMonth:
-        (sd.last30DaysWonOpportunities || 0) > 0
-          ? (sd.last30DaysTotalValue || 0) / (sd.last30DaysWonOpportunities || 1)
-          : 0,
-      actualAvgDealSizeLastMonth:
-        (sd.previous30DaysWonOpportunities || 0) > 0
-          ? (sd.previous30DaysTotalValue || 0) / (sd.previous30DaysWonOpportunities || 1)
-          : 0,
-      actualAvgOpportunityValueLastMonth: sd.previous30DaysAvgOpportunityValue || 0,
-      actualAvgSalesCycleLastMonth: sd.previous30DaysAvgOpportunityValue || 0,
-      currentPeriodOpportunities: sd.last30DaysOpportunities || 0,
-      previousPeriodOpportunities: sd.previous30DaysOpportunities || 0,
-      actualConversionRateThisMonth: sd.last30DaysConversionRate || 0,
-      actualConversionRateLastMonth: sd.previous30DaysConversionRate || 0
-    }
+    trendData = calculateOpportunitiesTrendData(data.opportunitiesStaticData)
   }
 
   return {

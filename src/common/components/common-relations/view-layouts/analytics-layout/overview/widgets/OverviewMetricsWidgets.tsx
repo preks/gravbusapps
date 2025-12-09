@@ -12,6 +12,97 @@ import {
 import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
 import type { OverviewTrendData } from '../../hooks'
 
+// ============================================================================
+// HELPER FUNCTIONS - Reduce cognitive complexity
+// ============================================================================
+
+/** Calculate percentage trend between current and previous values */
+const calculateTrend = (
+  current: number,
+  previous: number
+): { value: string; positive: boolean; description: string } => {
+  // Handle edge case where previous is 0
+  if (previous === 0) {
+    if (current === 0) {
+      return {
+        value: '0.0%',
+        positive: true,
+        description: 'vs previous period (30 days ago)'
+      }
+    } else {
+      return {
+        value: '+100.0%',
+        positive: true,
+        description: 'vs previous period (30 days ago)'
+      }
+    }
+  }
+
+  const change = ((current - previous) / previous) * 100
+  return {
+    value: `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`,
+    positive: change >= 0,
+    description: 'vs previous period (30 days ago)'
+  }
+}
+
+/** Build a count-based KPI widget with optional trend */
+const buildCountWidget = (
+  key: string,
+  title: string,
+  value: number,
+  icon: React.ReactElement,
+  description: string,
+  trendData?: { current: number; previous: number },
+  trendLoading?: boolean
+): WidgetItem => ({
+  key,
+  title,
+  value,
+  prefix: icon,
+  description,
+  ...(trendData && !trendLoading ? { trend: calculateTrend(trendData.current, trendData.previous) } : {})
+})
+
+/** Build a percentage-based KPI widget with optional trend */
+const buildPercentageWidget = (
+  key: string,
+  title: string,
+  value: number,
+  icon: React.ReactElement,
+  description: string,
+  trendData?: { current: number; previous: number },
+  trendLoading?: boolean
+): WidgetItem => ({
+  key,
+  title,
+  value: `${value}%`,
+  valueIsString: true,
+  prefix: icon,
+  description,
+  ...(trendData && !trendLoading ? { trend: calculateTrend(trendData.current, trendData.previous) } : {})
+})
+
+/** Build a currency-based KPI widget with optional trend */
+const buildCurrencyWidget = (
+  key: string,
+  title: string,
+  value: number,
+  currency: string,
+  icon: React.ReactElement,
+  description: string,
+  trendData?: { current: number; previous: number },
+  trendLoading?: boolean
+): WidgetItem => ({
+  key,
+  title,
+  value: formatCurrencyCompact(value, currency, undefined, 1, true),
+  valueIsString: true,
+  prefix: icon,
+  description,
+  ...(trendData && !trendLoading ? { trend: calculateTrend(trendData.current, trendData.previous) } : {})
+})
+
 export interface OverviewCounts {
   leads: number
   accounts: number
@@ -114,36 +205,6 @@ const DEFAULT_KPI_LABELS: Required<KpiLabels> = {
   }
 }
 
-const calculateTrend = (current: number, previous: number) => {
-  console.log('Previos: ', previous)
-  console.log('Current: ', current)
-  // Handle edge case where previous is 0
-  if (previous === 0) {
-    if (current === 0) {
-      // No change
-      return {
-        value: '0.0%',
-        positive: true,
-        description: 'vs previous period (30 days ago)'
-      }
-    } else {
-      // Previous was 0, current is not - show 100% growth
-      return {
-        value: '+100.0%',
-        positive: true,
-        description: 'vs previous period (30 days ago)'
-      }
-    }
-  }
-
-  const change = ((current - previous) / previous) * 100
-  return {
-    value: `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`,
-    positive: change >= 0,
-    description: 'vs previous period (30 days ago)'
-  }
-}
-
 export const OverviewMetricsWidgets: React.FC<OverviewMetricsWidgetsProps> = ({
   counts,
   conversionMetrics,
@@ -179,98 +240,96 @@ export const OverviewMetricsWidgets: React.FC<OverviewMetricsWidgetsProps> = ({
     totalWonRevenue: kpiVisibility.totalWonRevenue !== false
   }
 
-  // Build KPI widgets based on visibility
+  // Build KPI widgets based on visibility using helper functions
   const keyMetricsWidgets: WidgetItem[] = []
 
   if (visibility.leads) {
-    keyMetricsWidgets.push({
-      key: 'total-leads',
-      title: labels.leads.title,
-      value: counts.leads,
-      prefix: <UserOutlined />,
-      description: labels.leads.description,
-      ...(trendData && !trendLoading
-        ? { trend: calculateTrend(trendData.leads.current, trendData.leads.previous) }
-        : {})
-    })
+    keyMetricsWidgets.push(
+      buildCountWidget(
+        'total-leads',
+        labels.leads.title,
+        counts.leads,
+        <UserOutlined />,
+        labels.leads.description,
+        trendData?.leads,
+        trendLoading
+      )
+    )
   }
 
   if (visibility.accounts) {
-    keyMetricsWidgets.push({
-      key: 'total-accounts',
-      title: labels.accounts.title,
-      value: counts.accounts,
-      prefix: <BankOutlined />,
-      description: labels.accounts.description,
-      ...(trendData && !trendLoading
-        ? { trend: calculateTrend(trendData.accounts.current, trendData.accounts.previous) }
-        : {})
-    })
+    keyMetricsWidgets.push(
+      buildCountWidget(
+        'total-accounts',
+        labels.accounts.title,
+        counts.accounts,
+        <BankOutlined />,
+        labels.accounts.description,
+        trendData?.accounts,
+        trendLoading
+      )
+    )
   }
 
   if (visibility.opportunities) {
-    keyMetricsWidgets.push({
-      key: 'total-opportunities',
-      title: labels.opportunities.title,
-      value: counts.opportunities,
-      prefix: <DollarCircleOutlined />,
-      description: labels.opportunities.description,
-      ...(trendData && !trendLoading
-        ? { trend: calculateTrend(trendData.opportunities.current, trendData.opportunities.previous) }
-        : {})
-    })
+    keyMetricsWidgets.push(
+      buildCountWidget(
+        'total-opportunities',
+        labels.opportunities.title,
+        counts.opportunities,
+        <DollarCircleOutlined />,
+        labels.opportunities.description,
+        trendData?.opportunities,
+        trendLoading
+      )
+    )
   }
 
   if (visibility.contacts) {
-    keyMetricsWidgets.push({
-      key: 'total-contacts',
-      title: labels.contacts.title,
-      value: counts.contacts,
-      prefix: <ContactsOutlined />,
-      description: labels.contacts.description,
-      ...(trendData && !trendLoading
-        ? { trend: calculateTrend(trendData.contacts.current, trendData.contacts.previous) }
-        : {})
-    })
+    keyMetricsWidgets.push(
+      buildCountWidget(
+        'total-contacts',
+        labels.contacts.title,
+        counts.contacts,
+        <ContactsOutlined />,
+        labels.contacts.description,
+        trendData?.contacts,
+        trendLoading
+      )
+    )
   }
 
   const conversionWidgets: WidgetItem[] = []
 
   if (visibility.leadToOpportunityRate) {
-    // Trend shows change in opportunities created (last 30 days vs previous 30 days)
-    // Note: We compare absolute counts, not rates, to avoid division by zero when few entities exist
-    conversionWidgets.push({
-      key: 'lead-conversion-rate',
-      title: labels.leadToOpportunityRate.title,
-      value: `${conversionMetrics.leadToOpportunityRate}%`,
-      valueIsString: true,
-      prefix: <PercentageOutlined />,
-      description: labels.leadToOpportunityRate.description,
-      ...(trendData && !trendLoading
-        ? { trend: calculateTrend(trendData.opportunities.current, trendData.opportunities.previous) }
-        : {})
-    })
+    conversionWidgets.push(
+      buildPercentageWidget(
+        'lead-conversion-rate',
+        labels.leadToOpportunityRate.title,
+        conversionMetrics.leadToOpportunityRate,
+        <PercentageOutlined />,
+        labels.leadToOpportunityRate.description,
+        trendData?.opportunities,
+        trendLoading
+      )
+    )
   }
 
   if (visibility.opportunityWinRate) {
-    // Trend shows change in won opportunities (last 30 days vs previous 30 days)
-    // Note: We compare absolute counts, not rates, to avoid division by zero when few entities exist
-    conversionWidgets.push({
-      key: 'opportunity-win-rate',
-      title: labels.opportunityWinRate.title,
-      value: `${conversionMetrics.opportunityWinRate}%`,
-      valueIsString: true,
-      prefix: <TrophyOutlined />,
-      description: labels.opportunityWinRate.description,
-      ...(trendData && !trendLoading
-        ? { trend: calculateTrend(trendData.wonOpportunities.current, trendData.wonOpportunities.previous) }
-        : {})
-    })
+    conversionWidgets.push(
+      buildPercentageWidget(
+        'opportunity-win-rate',
+        labels.opportunityWinRate.title,
+        conversionMetrics.opportunityWinRate,
+        <TrophyOutlined />,
+        labels.opportunityWinRate.description,
+        trendData?.wonOpportunities,
+        trendLoading
+      )
+    )
   }
 
   if (visibility.avgDealSize) {
-    // Calculate avg deal size for each period (last 30 days vs previous 30 days)
-    // If no won opportunities in a period, default to 0 to avoid division by zero
     const currentAvgDealSize =
       trendData && trendData.wonOpportunities.current > 0
         ? trendData.wonRevenue.current / trendData.wonOpportunities.current
@@ -280,29 +339,33 @@ export const OverviewMetricsWidgets: React.FC<OverviewMetricsWidgetsProps> = ({
         ? trendData.wonRevenue.previous / trendData.wonOpportunities.previous
         : 0
 
-    conversionWidgets.push({
-      key: 'avg-deal-size',
-      title: labels.avgDealSize.title,
-      value: formatCurrencyCompact(conversionMetrics.avgDealSize, selectedCurrency, undefined, 1, true),
-      valueIsString: true,
-      prefix: <DollarCircleOutlined />,
-      description: labels.avgDealSize.description,
-      ...(trendData && !trendLoading ? { trend: calculateTrend(currentAvgDealSize, previousAvgDealSize) } : {})
-    })
+    conversionWidgets.push(
+      buildCurrencyWidget(
+        'avg-deal-size',
+        labels.avgDealSize.title,
+        conversionMetrics.avgDealSize,
+        selectedCurrency,
+        <DollarCircleOutlined />,
+        labels.avgDealSize.description,
+        { current: currentAvgDealSize, previous: previousAvgDealSize },
+        trendLoading
+      )
+    )
   }
 
   if (visibility.totalWonRevenue) {
-    conversionWidgets.push({
-      key: 'total-won-revenue',
-      title: labels.totalWonRevenue.title,
-      value: formatCurrencyCompact(conversionMetrics.totalWonRevenue, selectedCurrency, undefined, 1, true),
-      valueIsString: true,
-      prefix: <DollarCircleOutlined />,
-      description: labels.totalWonRevenue.description,
-      ...(trendData && !trendLoading
-        ? { trend: calculateTrend(trendData.wonRevenue.current, trendData.wonRevenue.previous) }
-        : {})
-    })
+    conversionWidgets.push(
+      buildCurrencyWidget(
+        'total-won-revenue',
+        labels.totalWonRevenue.title,
+        conversionMetrics.totalWonRevenue,
+        selectedCurrency,
+        <DollarCircleOutlined />,
+        labels.totalWonRevenue.description,
+        trendData?.wonRevenue,
+        trendLoading
+      )
+    )
   }
 
   const allKpiWidgets = [...keyMetricsWidgets, ...conversionWidgets]

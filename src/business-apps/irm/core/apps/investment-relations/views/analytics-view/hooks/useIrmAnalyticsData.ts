@@ -1,22 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import {
-  IrmAnalyticsData
-  // OverviewAnalytics, // REMOVED: Handled by useOverviewData hook
-  // OverviewTrendData, // REMOVED: Handled by useOverviewData hook
-  // LeadsAnalytics, // REMOVED: Handled by useLeadsStaticData hook
-  // AccountsAnalytics, // REMOVED: Handled by useAccountsStaticData hook
-  // ContactsAnalytics, // REMOVED: Handled by useContactsStaticData hook
-  // OpportunitiesAnalytics // REMOVED: Handled by useOpportunitiesStaticData hook
-} from '../types/analyticsTypes'
-// import {
-//   GET_IRM_OVERVIEW_ONLY_ANALYTICS, // REMOVED: Overview data now handled by useOverviewData hook
-//   GET_LEADS_ANALYTICS, // REMOVED: Leads data now handled by dedicated aggregate hooks
-//   GET_ACCOUNTS_ANALYTICS, // REMOVED: Accounts data now handled by dedicated aggregate hooks
-//   GET_CONTACTS_ANALYTICS, // REMOVED: Contacts data now handled by useContactsStaticData + useContactsOverTime hooks
-//   GET_OPPORTUNITIES_ANALYTICS // REMOVED: Opportunities data now handled by useOpportunitiesStaticData + useOpportunitiesOverTime hooks
-// } from '../queries/analyticsQueries'
+import { IrmAnalyticsData } from '../types/analyticsTypes'
 
 export type AnalyticsTab = 'overview' | 'leads' | 'accounts' | 'opportunities' | 'contacts'
 

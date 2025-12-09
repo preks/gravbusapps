@@ -31,6 +31,41 @@ export interface PipelineHealthConfig {
   includeStageFilter?: boolean // CRM includes stage filter
 }
 
+// ============================================================================
+// HELPER FUNCTIONS - Reduce cognitive complexity
+// ============================================================================
+
+/** Build WHERE conditions for pipeline health queries */
+function buildPipelineHealthWhereConditions(
+  config: PipelineHealthConfig,
+  selectedPipelineId: string | undefined
+): { baseWhere: string; activeOppsWhere: string } {
+  const pipelineFilter = selectedPipelineId ? `${config.pipelineField}: {id: {_eq: "${selectedPipelineId}"}}` : ''
+  const baseWhere = `isDeleted: {_eq: false} ${pipelineFilter ? ', ' + pipelineFilter : ''}`
+
+  let activeOppsWhere = `${baseWhere}, opportunityStatus: {code: {_nin: ["WON", "LOST"]}}`
+
+  if (config.includeStageFilter) {
+    activeOppsWhere = `${baseWhere}, stage: {_nin: ["CLOSED", "LOST"]}, opportunityStatus: {code: {_nin: ["WON", "LOST"]}}, winningChance: {_lte: "100"}`
+  }
+
+  return { baseWhere, activeOppsWhere }
+}
+
+/** Calculate average opportunity age from sample */
+function calculateAvgOpportunityAge(sample: Array<{ createdAt: string }>): number {
+  if (sample.length === 0) return 0
+
+  const now = Date.now()
+  const totalAge = sample.reduce((sum, opp) => {
+    const createdAt = new Date(opp.createdAt).getTime()
+    const ageInDays = (now - createdAt) / (1000 * 60 * 60 * 24)
+    return sum + ageInDays
+  }, 0)
+
+  return totalAge / sample.length
+}
+
 export const useGenericPipelineHealth = (
   accessToken: string,
   selectedPipelineId: string | undefined,
@@ -55,18 +90,8 @@ export const useGenericPipelineHealth = (
         const currentDate = new Date()
         const thirtyDaysAgo = new Date(currentDate.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString()
 
-        // Build where condition for pipeline filtering
-        const pipelineFilter = selectedPipelineId ? `${config.pipelineField}: {id: {_eq: "${selectedPipelineId}"}}` : ''
-
-        const baseWhere = `isDeleted: {_eq: false} ${pipelineFilter ? ', ' + pipelineFilter : ''}`
-
-        // Build active opportunities filter
-        let activeOppsWhere = `${baseWhere}, opportunityStatus: {code: {_nin: ["WON", "LOST"]}}`
-
-        if (config.includeStageFilter) {
-          // CRM includes stage filter
-          activeOppsWhere = `${baseWhere}, stage: {_nin: ["CLOSED", "LOST"]}, opportunityStatus: {code: {_nin: ["WON", "LOST"]}}, winningChance: {_lte: "100"}`
-        }
+        // Build where conditions using helper
+        const { activeOppsWhere } = buildPipelineHealthWhereConditions(config, selectedPipelineId)
 
         // Build opportunity sample fields
         const sampleFields = config.includeWinningChanceInQuery ? `createdAt\nwinningChance` : `createdAt`
@@ -113,16 +138,8 @@ export const useGenericPipelineHealth = (
         const stalledOpps = result.stalledOpportunities?.aggregate?.count || 0
         const sample = result.opportunitySample || []
 
-        // Calculate average opportunity age from sample
-        const now = new Date().getTime()
-        const avgAge =
-          sample.length > 0
-            ? sample.reduce((sum, opp) => {
-                const createdAt = new Date(opp.createdAt).getTime()
-                const ageInDays = (now - createdAt) / (1000 * 60 * 60 * 24)
-                return sum + ageInDays
-              }, 0) / sample.length
-            : 0
+        // Calculate average opportunity age using helper
+        const avgAge = calculateAvgOpportunityAge(sample)
 
         // Calculate average winning chance
         let avgWinningChance = 0

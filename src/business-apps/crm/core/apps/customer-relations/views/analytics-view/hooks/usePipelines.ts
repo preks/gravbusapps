@@ -1,11 +1,8 @@
 // CRM-specific wrapper for shared generic pipelines hook
 import { useMemo } from 'react'
-import {
-  useGenericPipelines,
-  type Pipeline
-} from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericPipelines'
+import { useGenericPipelines } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericPipelines'
 
-export type { Pipeline }
+export type { Pipeline } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericPipelines'
 
 /**
  * CRM Pipelines hook - Uses GraphQL distinctOn to fetch unique pipelines

@@ -27,9 +27,8 @@ export const TopRevenueEarners: React.FC<TopRevenueEarnersProps> = ({ contacts, 
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {isLoading ? (
-          <div className="gba:text-center gba:text-muted-foreground gba:py-8">Loading revenue data...</div>
-        ) : contacts.length > 0 ? (
+        {isLoading && <div className="gba:text-center gba:text-muted-foreground gba:py-8">Loading revenue data...</div>}
+        {!isLoading && contacts.length > 0 && (
           <div className="gba:space-y-3">
             {contacts.map((contact, index) => (
               <div
@@ -56,7 +55,8 @@ export const TopRevenueEarners: React.FC<TopRevenueEarnersProps> = ({ contacts, 
               </div>
             ))}
           </div>
-        ) : (
+        )}
+        {!isLoading && contacts.length === 0 && (
           <div className="gba:text-center gba:text-muted-foreground gba:py-8">No contacts with revenue available</div>
         )}
       </CardContent>

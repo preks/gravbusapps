@@ -388,11 +388,12 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
             </div>
           </CardHeader>
           <CardContent>
-            {topDealsLoading ? (
+            {topDealsLoading && (
               <div className="gba:flex gba:justify-center gba:items-center gba:py-12" data-testid="top-deals-loading">
                 <Spinner size="lg" />
               </div>
-            ) : topDeals.length > 0 ? (
+            )}
+            {!topDealsLoading && topDeals.length > 0 && (
               <div className="gba:space-y-3">
                 {topDeals.map((deal, index) => (
                   <div
@@ -418,7 +419,8 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
                   </div>
                 ))}
               </div>
-            ) : (
+            )}
+            {!topDealsLoading && topDeals.length === 0 && (
               <div className="gba:text-center gba:text-gray-500 gba:py-8">No deal data available</div>
             )}
           </CardContent>

@@ -21,6 +21,49 @@ export interface LeadsEntityConfig {
   entityAggregate: string // "LeadAggregate" or "InvestmentLeadAggregate"
 }
 
+// ============================================================================
+// HELPER FUNCTIONS - Reduce nesting depth
+// ============================================================================
+
+/** Build status query for a period */
+function buildStatusQuery(
+  statusCodes: string[],
+  period: { start: string; end: string },
+  prefix: string,
+  entityAggregate: string
+): string {
+  return statusCodes
+    .map(code => {
+      const safeCode = code.replace(/\W/g, '_')
+      return `
+            ${prefix}_status_${safeCode}: ${entityAggregate}(
+              where: {
+                isDeleted: {_eq: false}
+                createdAt: {_gte: "${period.start}", _lt: "${period.end}"}
+                leadStatus: {code: {_eq: "${code}"}}
+              }
+            ) { aggregate { count } }
+          `
+    })
+    .join('\n')
+}
+
+/** Count leads by status code for a period */
+function countLeadsByStatusCode(
+  result: any,
+  allStatusCodes: LeadStatusCatalogEntry[],
+  statusCodeToMatch: string,
+  prefix: string
+): number {
+  return allStatusCodes
+    .filter(s => s.code.toUpperCase() === statusCodeToMatch.toUpperCase())
+    .reduce((sum, status) => {
+      const safeCode = status.code.replace(/\W/g, '_')
+      const count = result[`${prefix}_status_${safeCode}`]?.aggregate?.count || 0
+      return sum + count
+    }, 0)
+}
+
 export const useGenericLeadsOverTime = (
   accessToken: string,
   config: LeadsEntityConfig,
@@ -69,24 +112,6 @@ export const useGenericLeadsOverTime = (
           }))
         }
 
-        // Helper function to build status query for a period
-        const buildStatusQuery = (statusCodes: string[], period: { start: string; end: string }, prefix: string) => {
-          return statusCodes
-            .map(code => {
-              const safeCode = code.replace(/\W/g, '_')
-              return `
-            ${prefix}_status_${safeCode}: ${config.entityAggregate}(
-              where: {
-                isDeleted: {_eq: false}
-                createdAt: {_gte: "${period.start}", _lt: "${period.end}"}
-                leadStatus: {code: {_eq: "${code}"}}
-              }
-            ) { aggregate { count } }
-          `
-            })
-            .join('\n')
-        }
-
         // Step 2: Generate time periods
         const periods = generateTimePeriods(timeFilter)
 
@@ -96,7 +121,8 @@ export const useGenericLeadsOverTime = (
           const statusQuery = buildStatusQuery(
             allStatusCodes.map(s => s.code),
             period,
-            prefix
+            prefix,
+            config.entityAggregate
           )
 
           return `
@@ -125,24 +151,9 @@ export const useGenericLeadsOverTime = (
           const prefix = `period${index}`
           const totalLeads = result[`${prefix}_total`]?.aggregate?.count || 0
 
-          // Count leads by status for this period
-          const convertedCount =
-            allStatusCodes
-              .filter(s => s.code.toUpperCase() === 'CONVERTED')
-              .reduce((sum, status) => {
-                const safeCode = status.code.replace(/\W/g, '_')
-                const count = result[`${prefix}_status_${safeCode}`]?.aggregate?.count || 0
-                return sum + count
-              }, 0) || 0
-
-          const lostCount =
-            allStatusCodes
-              .filter(s => s.code.toUpperCase() === 'LOST')
-              .reduce((sum, status) => {
-                const safeCode = status.code.replace(/\W/g, '_')
-                const count = result[`${prefix}_status_${safeCode}`]?.aggregate?.count || 0
-                return sum + count
-              }, 0) || 0
+          // Count leads by status for this period using helper function
+          const convertedCount = countLeadsByStatusCode(result, allStatusCodes, 'CONVERTED', prefix)
+          const lostCount = countLeadsByStatusCode(result, allStatusCodes, 'LOST', prefix)
 
           return {
             date: period.label, // Use period label directly

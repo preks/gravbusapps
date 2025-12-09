@@ -18,5 +18,5 @@ export const useAccountsOverTime = (
   accessToken: string,
   timeFilter: 'month' | 'quarter' | 'sixMonths' | 'year' | 'historical' = 'quarter'
 ) => {
-  return useGenericAccountsOverTime(accessToken, timeFilter, CRM_ACCOUNTS_CONFIG)
+  return useGenericAccountsOverTime(accessToken, CRM_ACCOUNTS_CONFIG, timeFilter)
 }

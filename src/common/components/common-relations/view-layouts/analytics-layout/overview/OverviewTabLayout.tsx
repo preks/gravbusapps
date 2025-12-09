@@ -13,7 +13,6 @@ import {
   GeographicData
 } from '@/common/components/common-relations/view-layouts/analytics-layout/overview/widgets/GeographicChart'
 import { ActivityHeatmapChart } from '@/common/components/common-relations/view-layouts/analytics-layout/overview/widgets/ActivityHeatmapChart'
-import type { ActivityHeatmapData } from '../hooks'
 import {
   TopPerformers,
   TopPerformerItem
@@ -22,6 +21,7 @@ import OverviewMetricsWidgets, {
   KpiLabels,
   KpiVisibility
 } from '@/common/components/common-relations/view-layouts/analytics-layout/overview/widgets/OverviewMetricsWidgets'
+import type { ActivityHeatmapData, OverviewTrendData } from '../hooks'
 
 export interface OverviewCounts {
   leads: number
@@ -37,9 +37,6 @@ export interface ConversionMetrics {
   totalWonRevenue: number
   salesCycleLength?: number // Optional: not always used
 }
-
-// Import the shared OverviewTrendData type
-import type { OverviewTrendData } from '../hooks'
 
 export interface OverviewTabLayoutProps {
   title?: string

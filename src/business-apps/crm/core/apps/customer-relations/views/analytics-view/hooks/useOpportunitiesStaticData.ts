@@ -1,9 +1,6 @@
-import {
-  useGenericOpportunitiesStaticData,
-  GenericOpportunitiesStaticData as OpportunitiesStaticData
-} from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericOpportunitiesStaticData'
+import { useGenericOpportunitiesStaticData } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericOpportunitiesStaticData'
 
-export type { OpportunitiesStaticData }
+export type { GenericOpportunitiesStaticData as OpportunitiesStaticData } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericOpportunitiesStaticData'
 
 /**
  * CRM-specific wrapper for useGenericOpportunitiesStaticData

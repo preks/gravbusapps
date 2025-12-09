@@ -23,8 +23,8 @@ export interface AccountsOverTimeConfig {
  */
 export const useGenericAccountsOverTime = (
   accessToken: string,
-  timeFilter: AccountsTimeFilter = 'quarter',
-  config: AccountsOverTimeConfig
+  config: AccountsOverTimeConfig,
+  timeFilter: AccountsTimeFilter = 'quarter'
 ) => {
   const [accountsOverTime, setAccountsOverTime] = useState<AccountsOverTimePoint[]>([])
   const [isLoading, setIsLoading] = useState(true)

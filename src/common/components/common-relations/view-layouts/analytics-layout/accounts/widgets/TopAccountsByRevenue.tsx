@@ -78,11 +78,12 @@ export const TopAccountsByRevenue: React.FC<TopAccountsByRevenueProps> = ({
         </div>
       </CardHeader>
       <CardContent>
-        {isLoading ? (
+        {isLoading && (
           <div className="gba:flex gba:justify-center gba:items-center gba:py-12" data-testid="top-accounts-loading">
             <Spinner size="lg" />
           </div>
-        ) : topAccounts.length > 0 ? (
+        )}
+        {!isLoading && topAccounts.length > 0 && (
           <div className="gba:space-y-3">
             {topAccounts.map((account, index) => (
               <div
@@ -106,7 +107,8 @@ export const TopAccountsByRevenue: React.FC<TopAccountsByRevenueProps> = ({
               </div>
             ))}
           </div>
-        ) : (
+        )}
+        {!isLoading && topAccounts.length === 0 && (
           <div className="gba:text-center gba:text-gray-500 gba:py-8">No accounts with revenue available</div>
         )}
       </CardContent>

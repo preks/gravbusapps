@@ -78,11 +78,12 @@ export const TopPerformers: React.FC<TopPerformersProps> = ({
         )}
       </CardHeader>
       <CardContent>
-        {isLoading ? (
+        {isLoading && (
           <div className="gba:flex gba:justify-center gba:items-center gba:py-12" data-testid="top-performers-loading">
             <Spinner size="lg" />
           </div>
-        ) : performers.length > 0 ? (
+        )}
+        {!isLoading && performers.length > 0 && (
           <div className="gba:space-y-3">
             {performers.map((performer, index) => (
               <div
@@ -106,7 +107,8 @@ export const TopPerformers: React.FC<TopPerformersProps> = ({
               </div>
             ))}
           </div>
-        ) : (
+        )}
+        {!isLoading && performers.length === 0 && (
           <div className="gba:text-center gba:text-gray-500 gba:py-12" data-testid="top-performers-empty">
             <TrophyIcon className="gba:text-4xl gba:mb-4 gba:opacity-50" />
             <p>No performance data available for {selectedCurrency}</p>

@@ -41,7 +41,6 @@ export interface AccountGrowthAnalysisProps {
     monthlyGrowthTrend: MonthlyGrowthPoint[]
   }
   isLoading?: boolean
-  topAccountsLoading?: boolean
   moduleColor?: string
 }
 
