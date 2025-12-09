@@ -115,15 +115,13 @@ export const useGenericLeadsOverTime = (
         // Step 2: Generate time periods
         const periods = generateTimePeriods(timeFilter)
 
+        // Extract status codes once (avoid nested function depth)
+        const statusCodes = allStatusCodes.map(s => s.code)
+
         // Step 3: Build comprehensive query for all periods
         const periodQueries = periods.map((period, index) => {
           const prefix = `period${index}`
-          const statusQuery = buildStatusQuery(
-            allStatusCodes.map(s => s.code),
-            period,
-            prefix,
-            config.entityAggregate
-          )
+          const statusQuery = buildStatusQuery(statusCodes, period, prefix, config.entityAggregate)
 
           return `
           # Period ${index + 1}: ${period.label}

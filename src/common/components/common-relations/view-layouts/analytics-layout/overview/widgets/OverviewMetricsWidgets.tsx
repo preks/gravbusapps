@@ -84,23 +84,25 @@ const buildPercentageWidget = (
 })
 
 /** Build a currency-based KPI widget with optional trend */
-const buildCurrencyWidget = (
-  key: string,
-  title: string,
-  value: number,
-  currency: string,
-  icon: React.ReactElement,
-  description: string,
-  trendData?: { current: number; previous: number },
+const buildCurrencyWidget = (params: {
+  key: string
+  title: string
+  value: number
+  currency: string
+  icon: React.ReactElement
+  description: string
+  trendData?: { current: number; previous: number }
   trendLoading?: boolean
-): WidgetItem => ({
-  key,
-  title,
-  value: formatCurrencyCompact(value, currency, undefined, 1, true),
+}): WidgetItem => ({
+  key: params.key,
+  title: params.title,
+  value: formatCurrencyCompact(params.value, params.currency, undefined, 1, true),
   valueIsString: true,
-  prefix: icon,
-  description,
-  ...(trendData && !trendLoading ? { trend: calculateTrend(trendData.current, trendData.previous) } : {})
+  prefix: params.icon,
+  description: params.description,
+  ...(params.trendData && !params.trendLoading
+    ? { trend: calculateTrend(params.trendData.current, params.trendData.previous) }
+    : {})
 })
 
 export interface OverviewCounts {
@@ -340,31 +342,31 @@ export const OverviewMetricsWidgets: React.FC<OverviewMetricsWidgetsProps> = ({
         : 0
 
     conversionWidgets.push(
-      buildCurrencyWidget(
-        'avg-deal-size',
-        labels.avgDealSize.title,
-        conversionMetrics.avgDealSize,
-        selectedCurrency,
-        <DollarCircleOutlined />,
-        labels.avgDealSize.description,
-        { current: currentAvgDealSize, previous: previousAvgDealSize },
+      buildCurrencyWidget({
+        key: 'avg-deal-size',
+        title: labels.avgDealSize.title,
+        value: conversionMetrics.avgDealSize,
+        currency: selectedCurrency,
+        icon: <DollarCircleOutlined />,
+        description: labels.avgDealSize.description,
+        trendData: { current: currentAvgDealSize, previous: previousAvgDealSize },
         trendLoading
-      )
+      })
     )
   }
 
   if (visibility.totalWonRevenue) {
     conversionWidgets.push(
-      buildCurrencyWidget(
-        'total-won-revenue',
-        labels.totalWonRevenue.title,
-        conversionMetrics.totalWonRevenue,
-        selectedCurrency,
-        <DollarCircleOutlined />,
-        labels.totalWonRevenue.description,
-        trendData?.wonRevenue,
+      buildCurrencyWidget({
+        key: 'total-won-revenue',
+        title: labels.totalWonRevenue.title,
+        value: conversionMetrics.totalWonRevenue,
+        currency: selectedCurrency,
+        icon: <DollarCircleOutlined />,
+        description: labels.totalWonRevenue.description,
+        trendData: trendData?.wonRevenue,
         trendLoading
-      )
+      })
     )
   }
 

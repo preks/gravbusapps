@@ -135,7 +135,9 @@ export const useGenericOpportunitiesOverTime = (
       let queryParts = ''
       timePeriods.forEach((period, index) => {
         const alias = `period_${index}`
-        const whereCondition = `{ isDeleted: { _eq: false }, createdAt: { _gte: "${period.start}", _lt: "${period.end}" }${pipelineFilter ? `, ${pipelineFilter}` : ''} }`
+        // Build where condition without nested template literals
+        const pipelinePart = pipelineFilter ? `, ${pipelineFilter}` : ''
+        const whereCondition = `{ isDeleted: { _eq: false }, createdAt: { _gte: "${period.start}", _lt: "${period.end}" }${pipelinePart} }`
 
         queryParts += `
           # All opportunities in period ${index}

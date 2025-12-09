@@ -67,6 +67,20 @@ function buildEntityAggregateQuery(
                 `
 }
 
+/** Build queries for all entity aggregates for a single day */
+function buildDayQueries(dateKey: string, dayIndex: number, entityAggregates: string[]): string {
+  const nextDay = new Date(dateKey)
+  nextDay.setDate(nextDay.getDate() + 1)
+  const nextDayISO = nextDay.toISOString().split('T')[0]
+
+  return entityAggregates
+    .map((entityAggregate, entityIndex) => {
+      const queryAlias = entityAggregates.length === 1 ? `day_${dayIndex}` : `day_${dayIndex}_entity_${entityIndex}`
+      return buildEntityAggregateQuery(entityAggregate, dateKey, nextDayISO, queryAlias)
+    })
+    .join('\n')
+}
+
 /** Calculate total count for a day from all entity aggregates */
 function calculateDayTotal(
   result: Record<string, { aggregate: { count: number } }>,
@@ -113,23 +127,9 @@ export const useActivityHeatmap = (config: UseActivityHeatmapConfig) => {
           dailyData.set(dateKey, 0)
         }
 
-        // Build aggregate queries for each day and entity
+        // Build aggregate queries for each day and entity using helper to reduce nesting
         const aggregateQueries = Array.from(dailyData.keys())
-          .map((dateKey, dayIndex) => {
-            const nextDay = new Date(dateKey)
-            nextDay.setDate(nextDay.getDate() + 1)
-            const nextDayISO = nextDay.toISOString().split('T')[0]
-
-            // Create queries for all entity aggregates for this day using helper
-            return entityAggregates
-              .map((entityAggregate, entityIndex) => {
-                const queryAlias =
-                  entityAggregates.length === 1 ? `day_${dayIndex}` : `day_${dayIndex}_entity_${entityIndex}`
-
-                return buildEntityAggregateQuery(entityAggregate, dateKey, nextDayISO, queryAlias)
-              })
-              .join('\n')
-          })
+          .map((dateKey, dayIndex) => buildDayQueries(dateKey, dayIndex, entityAggregates))
           .join('\n')
 
         const query = `
