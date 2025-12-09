@@ -2,8 +2,10 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { Employee } from '../../hooks/useEmployeeData'
-import { Spin, Empty, Select, Drawer, Collapse, List } from 'antd'
+import { Spin, Empty, Select, Drawer, Collapse, List, notification } from 'antd'
 import { Button } from '@newwork/gravity-ui-catalog'
+import { DeleteConfirmPopup } from '@/common/components/common-relations/popups/delete-confirm-popup'
+import { env } from '@/common/env/EnvUtils'
 import {
   SearchOutlined,
   CaretRightOutlined,
@@ -11,7 +13,8 @@ import {
   FilePdfOutlined,
   FileImageOutlined,
   FileExcelOutlined,
-  FileWordOutlined
+  FileWordOutlined,
+  DeleteOutlined
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import 'dayjs/plugin/weekday'
@@ -28,8 +31,9 @@ import { AppAction } from '@/components/app-action/AppAction'
 interface DocumentsTabProps {
   employee: Employee
   accessToken: string
-  employeeId?: string // Optional employeeId override for permissions check
-  userInfo?: UserInfoProps // Current user info for self-view check
+  employeeId?: string
+  userInfo?: UserInfoProps
+  canEditDocuments?: boolean
 }
 
 interface EmployeeDocument {
@@ -44,7 +48,7 @@ interface EmployeeDocument {
   employeeId: string
   createdAt: string
   validTo: string | null
-  url?: string // Optional URL field
+  url?: string
 }
 
 interface DocumentType {
@@ -56,26 +60,25 @@ interface DocumentType {
 interface Document {
   id: string
   title: string
-  name?: string // Document name
+  name?: string
   type: string
+  typeRef: string
   typeValue: string
-  documentGroup?: string // Document group
-  description?: string // Description
-  createdBy?: string // Upload by
-  createdAt?: string // Upload date
+  documentGroup?: string
+  description?: string
+  createdBy?: string
+  createdAt?: string
   uploadDate: string
   validTo: string | null
   size?: string
   file: string
   mimeType: string
   fileId?: string
+  employeeId: string
+  version?: number
 }
 
-/**
- * Documents Tab Component
- * Displays documents related to the employee
- */
-const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) => {
+const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canEditDocuments = false }) => {
   const [documents, setDocuments] = useState<Document[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -86,23 +89,18 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
   const [documentBlob, setDocumentBlob] = useState<Blob | null>(null)
   const [documentUrl, setDocumentUrl] = useState<string | null>(null)
 
-  // Search functionality state
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [searchField, setSearchField] = useState<string>('all')
-
-  // Document preview state
   const [documentPreviews, setDocumentPreviews] = useState<Record<string, string>>({})
   const [previewsLoading, setPreviewsLoading] = useState<Record<string, boolean>>({})
-
-  // For tracking if the component is mounted (to prevent state updates after unmount)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [documentToDelete, setDocumentToDelete] = useState<Document | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
   const isMounted = useRef(true)
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       isMounted.current = false
-
-      // Clean up any blob URLs when component unmounts
       if (documentUrl && documentUrl.startsWith('blob:')) {
         URL.revokeObjectURL(documentUrl)
       }
@@ -110,47 +108,34 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
   }, [documentUrl])
 
   const graphQLClient = useGraphqlClient(accessToken)
+  const fileClient = useFileClient({ accessToken })
 
-  // FileClient hook with proper BusinessAppContext for authentication
-  const fileClient = useFileClient({
-    accessToken
-  })
-
-  // Function to fetch documents and document types/groups
   const fetchDocuments = async () => {
     try {
       setLoading(true)
 
-      // Fetch employee documents using the first query
       const screenDataResponse = await graphQLClient.request(employeeDocumentsQuery, {
         employeeId: employee.id
       })
 
-      // Extract document data, document types, and document groups from the response
       const employeeDocuments: EmployeeDocument[] = screenDataResponse?.EmployeeDocument || []
       const documentGroups = screenDataResponse?.documentGroup || []
 
-      // Create a map of document group ID to document group display value
       const documentGroupMap: Record<string, string> = {}
       documentGroups.forEach((group: any) => {
-        // Check if there's a translation for the current locale
         const translation =
           group.translations && group.translations.length > 0 ? group.translations[0].value : group.value
         documentGroupMap[group.id] = translation
       })
 
-      // Get type references to fetch detailed type information with second query
       const documentTypeRefs = employeeDocuments.map(doc => doc.type).filter(Boolean)
-
       let typeDetailsMap: Record<string, DocumentType> = {}
 
       if (documentTypeRefs.length > 0) {
-        // Fetch document type details using the second query
         const catalogDataResponse = await graphQLClient.request(documentTypeCatalogQuery, {
           documentTypeRefs
         })
 
-        // Create a map of document type ID to document type details
         const catalogEntries: DocumentType[] = catalogDataResponse?.CatalogEntry || []
         typeDetailsMap = catalogEntries.reduce(
           (acc, entry) => {
@@ -161,9 +146,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
         )
       }
 
-      // Transform the API response to our Document interface
       const formattedDocuments: Document[] = employeeDocuments.map(doc => {
-        // Extract fileId from file URL if present
         let fileId: string | undefined = undefined
         if (doc.file) {
           const fileUrlMatch = doc.file.match(/files\/([\w\d-]+)/i)
@@ -177,6 +160,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
           title: doc.name,
           name: doc.name,
           type: doc.mimeType?.split('/')[1]?.toUpperCase() || 'Unknown',
+          typeRef: doc.type,
           typeValue: typeDetailsMap[doc.type]?.value || 'Other',
           documentGroup: documentGroupMap[doc.documentGroup] || 'Other',
           description: doc.description,
@@ -186,16 +170,16 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
           validTo: doc.validTo,
           file: doc.file,
           mimeType: doc.mimeType,
-          fileId: fileId
+          fileId: fileId,
+          employeeId: doc.employeeId,
+          version: 0
         }
       })
 
-      // Sort documents by upload date in descending order (newest first)
       const sortedDocuments = [...formattedDocuments].sort((a, b) => {
-        // Convert dates to timestamps for comparison
         const dateA = new Date(a.uploadDate).getTime()
         const dateB = new Date(b.uploadDate).getTime()
-        return dateB - dateA // Descending order
+        return dateB - dateA
       })
 
       setDocuments(sortedDocuments)
@@ -211,16 +195,13 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
     fetchDocuments()
   }, [employee?.id])
 
-  // Load document previews for visible documents
   useEffect(() => {
     const loadDocumentPreviews = async () => {
-      // Only load previews for the first few documents to avoid performance issues
-      const previewableDocuments = documents.filter(doc => isImageDocument(doc) || isPdfDocument(doc)).slice(0, 6) // Limit to 6 previews at a time
+      const previewableDocuments = documents.filter(doc => isImageDocument(doc) || isPdfDocument(doc)).slice(0, 6)
 
       if (previewableDocuments.length === 0) return
 
       for (const doc of previewableDocuments) {
-        // Skip if we already have a preview or are loading it
         if (documentPreviews[doc.id] || previewsLoading[doc.id]) continue
 
         try {
@@ -264,7 +245,6 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
 
     loadDocumentPreviews()
 
-    // Cleanup function to revoke object URLs
     return () => {
       Object.values(documentPreviews).forEach(url => {
         if (url && url.startsWith('blob:')) {
@@ -274,27 +254,96 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
     }
   }, [documents, fileClient, employee?.id])
 
-  // Handle search query changes
   const handleSearchChange = (value: string) => {
     setSearchQuery(value)
   }
 
-  // Handle search field changes
   const handleSearchFieldChange = (value: string) => {
     setSearchField(value)
   }
 
-  // Group documents by document group
+  const handleDeleteClick = (doc: Document, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation()
+    }
+    setDocumentToDelete(doc)
+    setDeleteConfirmOpen(true)
+  }
+
+  const handleCancelDelete = () => {
+    setDeleteConfirmOpen(false)
+    setDocumentToDelete(null)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!documentToDelete) return
+
+    setIsDeleting(true)
+    try {
+      const processesBase = env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT') || 'https://newwork-dev.newwork.com/processes'
+      const deleteUrl = `${processesBase}/employee/deleteEmployeeDocument`
+
+      const requestBody = {
+        employeeDocument: {
+          id: documentToDelete.id,
+          version: documentToDelete.version || 0,
+          employeeId: documentToDelete.employeeId,
+          type: documentToDelete.typeRef,
+          name: documentToDelete.name || documentToDelete.title,
+          file: documentToDelete.file,
+          mimeType: documentToDelete.mimeType
+        }
+      }
+
+      const response = await fetch(deleteUrl, {
+        method: 'POST',
+        headers: {
+          Authorization: accessToken ? `Bearer ${accessToken}` : '',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete document')
+      }
+
+      notification.success({
+        message: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:hr_documents.delete_success',
+          'Document deleted successfully'
+        ),
+        placement: 'bottomRight'
+      })
+
+      if (currentDocument?.id === documentToDelete.id) {
+        closeDocumentViewer()
+      }
+
+      await fetchDocuments()
+    } catch (err) {
+      console.error('Error deleting document:', err)
+      notification.error({
+        message: getTranslationFromI18nKeyAndLabel('lowcoder:hr_documents.delete_error', 'Failed to delete document'),
+        description: err instanceof Error ? err.message : 'Unknown error occurred',
+        placement: 'bottomRight'
+      })
+    } finally {
+      setIsDeleting(false)
+      setDeleteConfirmOpen(false)
+      setDocumentToDelete(null)
+    }
+  }
+
   const groupedDocuments = useMemo(() => {
     const groups: { [key: string]: Document[] } = {
       Salary: [],
       Expenses: [],
       Development: [],
       Personal: [],
-      Other: [] // For documents with undefined or other groups
+      Other: []
     }
 
-    // Group documents
     documents.forEach(doc => {
       const group = doc.documentGroup
       if (group && ['Salary', 'Expenses', 'Development', 'Personal'].includes(group)) {
@@ -307,7 +356,6 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
     return groups
   }, [documents])
 
-  // Filter documents based on search query and field
   const filteredDocuments = useMemo(() => {
     if (!searchQuery) return documents
 
@@ -315,7 +363,6 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
 
     return documents.filter(doc => {
       if (searchField === 'all') {
-        // Search in all fields
         return (
           doc.title?.toLowerCase().includes(query) ||
           doc.type?.toLowerCase().includes(query) ||
@@ -327,7 +374,6 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
           (doc.validTo && dayjs(doc.validTo).format('MMM D, YYYY').toLowerCase().includes(query))
         )
       } else {
-        // Search in specific field
         switch (searchField) {
           case 'title':
             return doc.title?.toLowerCase().includes(query)
@@ -350,17 +396,15 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
     })
   }, [documents, searchQuery, searchField])
 
-  // Filter and group documents based on search query
   const filteredGroupedDocuments = useMemo(() => {
     const groups: { [key: string]: Document[] } = {
       Salary: [],
       Expenses: [],
       Development: [],
       Personal: [],
-      Other: [] // For documents with undefined or other groups
+      Other: []
     }
 
-    // Group filtered documents
     filteredDocuments.forEach(doc => {
       const group = doc.documentGroup
       if (group && ['Salary', 'Expenses', 'Development', 'Personal'].includes(group)) {
@@ -373,17 +417,13 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
     return groups
   }, [filteredDocuments])
 
-  // Function to handle opening a document in the viewer
   const openDocumentViewer = async (document: Document) => {
     try {
-      // Reset previous state
       setError(null)
       setDocumentBlob(null)
       setDocumentUrl(null)
-
       setCurrentDocument(document)
 
-      // Set drawer width based on document type
       if (isPdfDocument(document)) {
         setDrawerWidth(800)
       } else if (isImageDocument(document)) {
@@ -456,14 +496,11 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
           throw new Error('Empty blob received')
         }
 
-        // Create a properly typed blob for PDFs to ensure correct rendering
         if (currentDocument && isPdfDocument(currentDocument)) {
-          // Create a new blob with explicit PDF MIME type
           const typedBlob = new Blob([documentBlob], { type: 'application/pdf' })
           const url = URL.createObjectURL(typedBlob)
           setDocumentUrl(url)
         } else {
-          // For other document types, use the original blob
           const url = URL.createObjectURL(documentBlob)
           setDocumentUrl(url)
         }
@@ -499,24 +536,19 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
     )
   }
 
-  // Format date helper function
   const formatDate = (dateString: string): string => {
     return dayjs(dateString).format('MMM D, YYYY')
   }
 
-  // Get document type icon based on mime type or file extension
   const getDocumentTypeIcon = (document: Document) => {
-    // Check if it's an image
     if (isImageDocument(document)) {
       return <FileImageOutlined className="gba:text-info gba:text-lg" />
     }
 
-    // Check if it's a PDF
     if (isPdfDocument(document)) {
       return <FilePdfOutlined className="gba:text-destructive gba:text-lg" />
     }
 
-    // Check for Excel files
     if (
       document.mimeType?.includes('excel') ||
       document.mimeType?.includes('spreadsheet') ||
@@ -526,7 +558,6 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
       return <FileExcelOutlined className="gba:text-success gba:text-lg" />
     }
 
-    // Check for Word files
     if (
       document.mimeType?.includes('word') ||
       document.mimeType?.includes('document') ||
@@ -536,11 +567,9 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
       return <FileWordOutlined className="gba:text-info gba:text-lg" />
     }
 
-    // Default file icon for other types
     return <FileOutlined className="gba:text-muted-foreground gba:text-lg" />
   }
 
-  // Function to render a document list item
   const renderDocumentListItem = (document: Document) => {
     return (
       <List.Item
@@ -559,16 +588,28 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
               {document.typeValue}
             </div>
           </div>
-          <div className="gba:ml-4 gba:flex gba:flex-col gba:items-end gba:text-xs gba:text-muted-foreground gba:gap-2">
-            <div>{formatDate(document.uploadDate)}</div>
-            {document.validTo && (
-              <div
-                className={`gba:px-2 gba:py-0.5 gba:rounded-md gba:text-xs gba:text-white gba:font-medium ${document.validTo < dayjs().format('YYYY-MM-DD') ? 'gba:bg-destructive' : 'gba:bg-success'}`}
-                title={document.validTo < dayjs().format('YYYY-MM-DD') ? 'Document has expired' : 'Document is valid'}
-                data-testid={`document-validity-indicator-${document.id}`}
+          <div className="gba:ml-4 gba:flex gba:items-center gba:gap-3">
+            <div className="gba:flex gba:flex-col gba:items-end gba:text-xs gba:text-muted-foreground gba:gap-2">
+              <div>{formatDate(document.uploadDate)}</div>
+              {document.validTo && (
+                <div
+                  className={`gba:px-2 gba:py-0.5 gba:rounded-md gba:text-xs gba:text-white gba:font-medium ${document.validTo < dayjs().format('YYYY-MM-DD') ? 'gba:bg-destructive' : 'gba:bg-success'}`}
+                  title={document.validTo < dayjs().format('YYYY-MM-DD') ? 'Document has expired' : 'Document is valid'}
+                  data-testid={`document-validity-indicator-${document.id}`}
+                >
+                  {document.validTo < dayjs().format('YYYY-MM-DD') ? 'Expired' : 'Valid'}
+                </div>
+              )}
+            </div>
+            {canEditDocuments && (
+              <button
+                onClick={e => handleDeleteClick(document, e)}
+                className="gba:p-2 gba:rounded-md gba:text-destructive gba:hover:bg-destructive-secondary gba:transition-colors"
+                title={getTranslationFromI18nKeyAndLabel('lowcoder:hr_documents.delete_document', 'Delete document')}
+                data-testid={`document-delete-button-${document.id}`}
               >
-                {document.validTo < dayjs().format('YYYY-MM-DD') ? 'Expired' : 'Valid'}
-              </div>
+                <DeleteOutlined className="gba:text-base" />
+              </button>
             )}
           </div>
         </div>
@@ -576,7 +617,6 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
     )
   }
 
-  // ... (rest of the code remains the same)
   if (loading) {
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:h-40">
@@ -596,7 +636,6 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
   if (documents.length === 0) {
     return (
       <div className="gba:space-y-4" data-testid="documents-tab-container">
-        {/* Documents Overview Headline with Action Button */}
         <div className="gba:flex gba:justify-between gba:items-start" data-testid="documents-header">
           <div className="gba:documents-header">
             <div className="gba:font-bold gba:text-2xl" data-testid="documents-title">
@@ -632,7 +671,6 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
 
   return (
     <div className="gba:space-y-4" data-testid="documents-tab-container">
-      {/* Documents Overview Headline with Action Button */}
       <div className="gba:flex gba:justify-between gba:items-start" data-testid="documents-header">
         <div className="gba:documents-header">
           <div className="gba:font-bold gba:text-2xl" data-testid="documents-title">
@@ -646,7 +684,6 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
           </div>
         </div>
 
-        {/* Upload button */}
         <div>
           <AppAction
             variant="update-secondary"
@@ -659,7 +696,6 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
         </div>
       </div>
 
-      {/* Search section */}
       <div className="gba:flex gba:justify-start gba:items-center gba:mb-4">
         <div className="gba:flex gba:items-center gba:gap-3 gba:w-full gba:md:w-auto">
           <div className="gba:flex gba:items-center gba:gap-3 gba:w-full">
@@ -696,7 +732,6 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
         </div>
       </div>
 
-      {/* Search results info */}
       {searchQuery && (
         <div className="gba:text-sm gba:text-muted-foreground gba:mb-4">
           Found {filteredDocuments.length} {filteredDocuments.length === 1 ? 'document' : 'documents'}
@@ -815,18 +850,35 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
           body: {
             padding: 0,
             overflow: 'auto',
-            height: 'calc(100% - 55px)'
+            height: canEditDocuments ? 'calc(100% - 110px)' : 'calc(100% - 55px)'
           },
           header: {
             padding: '16px 24px',
             borderBottom: '1px solid #f0f0f0'
+          },
+          footer: {
+            padding: '16px 24px',
+            borderTop: '1px solid #f0f0f0'
           }
         }}
         placement="right"
         destroyOnClose
         data-testid="document-viewer-drawer"
         maskClosable
-        footer={null}
+        footer={
+          canEditDocuments && currentDocument ? (
+            <div className="gba:flex gba:justify-end">
+              <button
+                onClick={() => handleDeleteClick(currentDocument)}
+                className="gba:px-4 gba:py-2 gba:bg-destructive gba:text-destructive-foreground gba:rounded-md gba:hover:bg-destructive/90 gba:transition-colors gba:flex gba:items-center gba:gap-2"
+                data-testid="document-drawer-delete-button"
+              >
+                <DeleteOutlined />
+                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_documents.delete_document', 'Delete Document')}
+              </button>
+            </div>
+          ) : null
+        }
       >
         {documentLoading ? (
           <div className="gba:flex gba:justify-center gba:items-center gba:h-full">
@@ -864,10 +916,8 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
                             const a = document.createElement('a')
                             a.href = documentUrl
 
-                            // More robust file extension handling
                             let filename = ''
 
-                            // Option 1: Try to extract original filename from file path if exists
                             if (currentDocument.file) {
                               const filePathMatch = currentDocument.file.match(/[^\/]+$/)
                               if (filePathMatch && filePathMatch[0]) {
@@ -875,13 +925,10 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
                               }
                             }
 
-                            // Option 2: If no path or couldn't extract, build filename from title and type
                             if (!filename) {
                               filename = currentDocument.title || 'document'
 
-                              // Add extension if missing
                               if (!filename.match(/\.[a-z0-9]+$/i)) {
-                                // Check document mime type
                                 if (currentDocument.mimeType) {
                                   if (currentDocument.mimeType.includes('pdf')) {
                                     filename += '.pdf'
@@ -905,7 +952,6 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
                                   } else if (currentDocument.mimeType.includes('text/plain')) {
                                     filename += '.txt'
                                   } else {
-                                    // Fallback to generic extension from mime type
                                     const fileType = currentDocument.mimeType.split('/')?.[1]
                                     if (fileType) {
                                       filename += '.' + fileType.split(';')[0]
@@ -1130,6 +1176,16 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
           </div>
         )}
       </Drawer>
+
+      <DeleteConfirmPopup
+        isOpen={deleteConfirmOpen}
+        onClose={handleCancelDelete}
+        itemTitle={documentToDelete?.title || ''}
+        itemType="document"
+        isLoading={isDeleting}
+        onConfirm={handleConfirmDelete}
+        data-testid="document-delete-confirmation"
+      />
     </div>
   )
 }
