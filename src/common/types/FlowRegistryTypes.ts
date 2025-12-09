@@ -1,11 +1,15 @@
 export enum FlowContextName {
   // Intranet
-  articleEntity = 'contentEntity',
-  articleCreate = 'contentCreate',
-  articleUpdate = 'contentUpdate',
-  articleDelete = 'contentDelete',
-  contentLikeUpdate = 'contentLikeUpdate',
-  contentCommentCreate = 'contentCommentCreate',
+  contentEntryEntity = 'contentEntryEntity',
+  contentEntryCreate = 'contentEntryCreate',
+  contentEntryUpdate = 'contentEntryUpdate',
+  contentEntryDelete = 'contentEntryDelete',
+  contentEntryReact = 'contentEntryReact',
+  contentEntryComment = 'contentEntryComment',
+  contentEntryAccept = 'contentEntryAccept',
+  contentDocumentCreate = 'contentDocumentCreate',
+  contentDocumentUpdate = 'contentDocumentUpdate',
+  contentDocumentDelete = 'contentDocumentDelete',
 
   // Human Resources
   employeeEntity = 'employeeEntity',
@@ -167,6 +171,7 @@ export enum FlowContextName {
   flowInstance = 'flowInstance',
 
   documentPersonal = 'documentPersonal',
+  employeeDocumentDelete = 'employeeDocumentDelete',
   employeeAbsenceRecord = 'employeeAbsenceRecord',
   employeePerformanceGoal = 'employeePerformanceGoal',
   employeeGiveFeedback = 'employeeGiveFeedback',

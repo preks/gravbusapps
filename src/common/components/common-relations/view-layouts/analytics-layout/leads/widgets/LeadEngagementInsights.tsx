@@ -1,5 +1,5 @@
 import React from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
+import { Card, CardContent, CardHeader, CardTitle, Spinner } from '@newwork/nw-design-system'
 
 export interface LeadRatingItem {
   rating: string
@@ -13,14 +13,18 @@ export interface LeadEngagementInsightsProps {
   conversionRate: number
   avgTimeToConversion?: number
   leadsOverTime?: Array<{ date: string; leadsCreated: number }>
+  highQualityPercentage?: number
   moduleColor?: string
+  isLoading?: boolean
 }
 
 export const LeadEngagementInsights: React.FC<LeadEngagementInsightsProps> = ({
   leadsByRating,
   conversionRate,
   avgTimeToConversion,
-  leadsOverTime
+  leadsOverTime,
+  highQualityPercentage = 0,
+  isLoading = false
 }) => {
   const engagementLevels = (leadsByRating || []).map((rating, index) => {
     const colors = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444'] // success, info, warn, danger
@@ -44,18 +48,7 @@ export const LeadEngagementInsights: React.FC<LeadEngagementInsightsProps> = ({
     },
     {
       factor: 'Lead Quality',
-      score: (() => {
-        // Calculate quality based on high-rating leads percentage
-        if (!leadsByRating || leadsByRating.length === 0) return 0
-
-        // Find "Hot" and "Warm" leads (higher quality ratings)
-        const highQualityLeads = leadsByRating.filter(
-          rating => rating.rating.toLowerCase().includes('hot') || rating.rating.toLowerCase().includes('warm')
-        )
-
-        const highQualityPercentage = highQualityLeads.reduce((sum, rating) => sum + rating.percentage, 0)
-        return Math.min(highQualityPercentage, 100)
-      })(),
+      score: Math.min(highQualityPercentage, 100), // ✅ Now from backend aggregate
       target: 60,
       description: 'Percentage of high-quality (Hot/Warm) leads'
     },
@@ -103,6 +96,33 @@ export const LeadEngagementInsights: React.FC<LeadEngagementInsightsProps> = ({
     healthFactors.reduce((sum, factor) => sum + factor.score, 0) / healthFactors.length
   )
 
+  if (isLoading) {
+    return (
+      <div className="gba:grid gba:grid-cols-2 gba:gap-6">
+        <Card data-testid="lead-engagement-levels">
+          <CardHeader>
+            <CardTitle className="gba:text-base">Lead Rating Distribution</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="gba:flex gba:justify-center gba:items-center gba:py-12">
+              <Spinner size="lg" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card data-testid="lead-health-indicators">
+          <CardHeader>
+            <CardTitle className="gba:text-base">Lead Health Indicators</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="gba:flex gba:justify-center gba:items-center gba:py-12">
+              <Spinner size="lg" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <div className="gba:grid gba:grid-cols-2 gba:gap-6">
       <Card data-testid="lead-engagement-levels">
@@ -147,7 +167,6 @@ export const LeadEngagementInsights: React.FC<LeadEngagementInsightsProps> = ({
             <div className="gba:text-center gba:p-3 gba:bg-green-50 gba:rounded-lg">
               <div className="gba:text-2xl gba:font-bold gba:text-green-600">{overallEngagementScore}%</div>
               <div className="gba:text-sm gba:text-gray-600">Pipeline Health</div>
-              <div className="gba:text-xs gba:text-gray-500">Based on real performance metrics</div>
             </div>
 
             <div className="gba:space-y-2">

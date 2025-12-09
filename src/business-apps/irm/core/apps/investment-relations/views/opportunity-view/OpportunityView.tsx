@@ -19,6 +19,7 @@ import { OpportunityQuickFilters, type QuickFilterType } from './components'
 const getStatusCodesFromQuickFilter = (quickFilter?: string): string[] | undefined => {
   if (quickFilter === 'qualified') return ['WON']
   if (quickFilter === 'unqualified') return ['OPEN', 'LOST']
+  if (quickFilter === 'converted') return ['CONVERTED']
   return undefined // 'all' or undefined - no filter
 }
 
@@ -26,7 +27,7 @@ const getStatusCodesFromQuickFilter = (quickFilter?: string): string[] | undefin
 const InvestmentOpportunityStatistics: React.FC<{
   context: BusinessAppContextProps
   selectedCurrency?: string // Full currency ID like "Currency:v1:EUR" or undefined
-  quickFilter?: string // Quick filter type: 'all', 'qualified', 'unqualified'
+  quickFilter?: string // Quick filter type: 'all', 'qualified', 'unqualified', 'converted'
 }> = ({ context, selectedCurrency, quickFilter }) => {
   const statusCodes = useMemo(() => getStatusCodesFromQuickFilter(quickFilter), [quickFilter])
   const opportunityStatistics = useInvestmentOpportunityStatistics(context, selectedCurrency, statusCodes)

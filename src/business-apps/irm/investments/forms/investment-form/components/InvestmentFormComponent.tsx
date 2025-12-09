@@ -10,7 +10,8 @@ import {
   InvestmentSegment,
   TypeSelectSegment,
   LiquidFundTypeSelectSegment,
-  DynamicSegment
+  DynamicSegment,
+  InvestmentFileUploadSegment
 } from './segments'
 import { getCurrencySymbol } from '@/common/utils/numberFormatter'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
@@ -21,6 +22,7 @@ import { createInvestmentFormResolver } from '../utils/investmentFormSchema'
 import { InvestmentFormValues } from '../types'
 import { buildInvestmentPayload } from '@/common/data/investment/payloads/investmentPayloads'
 import { mapOpportunityToInvestmentFormValues } from '../utils/opportunityToInvestmentMapper'
+import { useInvestmentAiAutofill } from '../hooks/useInvestmentAiAutofill'
 
 const prefixDataTestId = 'InvestmentForm'
 
@@ -53,6 +55,7 @@ export const InvestmentFormComponent: React.FC = () => {
   const [isLoadingInvestment, setIsLoadingInvestment] = useState(false)
   const [loadingError, setLoadingError] = useState<string | null>(null)
   const [skipAutoDetection, setSkipAutoDetection] = useState(false)
+  const [aiSourceFile, setAiSourceFile] = useState<File | null>(null)
 
   // Store raw investment data for payload building
   const [rawInvestmentData, setRawInvestmentData] = useState<any>(null)
@@ -363,6 +366,104 @@ export const InvestmentFormComponent: React.FC = () => {
     name: 'investment.currency' // Without Ref suffix
   })
 
+  const watchedGroup = useWatch({
+    control: form.control,
+    name: 'investment.investmentGroup'
+  })
+
+  const watchedType = useWatch({
+    control: form.control,
+    name: 'investment.investmentType'
+  })
+
+  const watchedLiquidFundType = useWatch({
+    control: form.control,
+    name: 'liquidFundInvestment.investmentLiquidFundType'
+  })
+
+  const watchedName = useWatch({
+    control: form.control,
+    name: 'investment.name'
+  })
+
+  const watchedOwnerEmployee = useWatch({
+    control: form.control,
+    name: 'investment.ownerEmployee'
+  })
+
+  const watchedInvestmentAccount = useWatch({
+    control: form.control,
+    name: 'investment.investmentAccount'
+  })
+
+  const normalizeCatalogRef = (value: unknown): string => {
+    if (!value) return ''
+    if (typeof value === 'object' && value !== null && 'id' in (value as any)) {
+      return ((value as any).id as string) || ''
+    }
+    return (value as string) || ''
+  }
+
+  const investmentGroupRefForAi = normalizeCatalogRef(watchedGroup)
+  const investmentTypeRefForAi = normalizeCatalogRef(watchedType)
+  const investmentLiquidFundTypeRefForAi = normalizeCatalogRef(watchedLiquidFundType)
+  const investmentOwnerEmployeeIdForAi = normalizeCatalogRef(watchedOwnerEmployee)
+  const investmentCurrencyRefForAi = normalizeCatalogRef(selectedCurrencyRef)
+  const investmentAccountIdForAi = normalizeCatalogRef(watchedInvestmentAccount)
+  const investmentNameForAi = typeof watchedName === 'string' ? watchedName : ''
+  const isLiquidFundForAi = investmentGroupRefForAi && investmentGroupRefForAi.split(':').pop() === 'LIQUID_FUND'
+
+  const { runAutofill: runInvestmentAiAutofill } = useInvestmentAiAutofill(businessAppContext.accessToken)
+  const [lastAutofillKey, setLastAutofillKey] = useState<string | null>(null)
+  const [lastAppliedFieldsKey, setLastAppliedFieldsKey] = useState<string | null>(null)
+
+  /**
+   * Normalize InvestmentRole values returned from AI autofill into the structure
+   * expected by the form and Zod schema.
+   *
+   * Backend returns: ["InvestmentRole:v1:LEAD_INVESTOR", ...]
+   * Form expects: [{ investmentRole: CatalogEntry, displayOrder: number }, ...]
+   */
+  const normalizeInvestmentRolesValue = async (value: unknown): Promise<unknown> => {
+    // If value is already an array of role objects, keep as-is
+    if (Array.isArray(value) && value.every(item => typeof item === 'object')) {
+      return value
+    }
+
+    const toArray = (val: unknown): unknown[] => {
+      if (Array.isArray(val)) return val
+      if (val == null) return []
+      return [val]
+    }
+
+    const rawItems = toArray(value)
+    const normalized: any[] = []
+
+    for (const item of rawItems) {
+      // Expected format from backend: string catalog ref, e.g. "InvestmentRole:v1:LEAD_INVESTOR"
+      if (typeof item === 'string' && item) {
+        try {
+          const entry = await catalogClient.getCatalogEntryById(item)
+          if (entry) {
+            normalized.push({
+              investmentRole: entry,
+              displayOrder: normalized.length
+            })
+          }
+        } catch (error) {
+          console.error('Error loading investment role entry for AI autofill:', error)
+        }
+      }
+    }
+
+    // If we failed to build a normalized array, fall back to original value
+    if (normalized.length === 0) {
+      return value
+    }
+
+    return normalized
+  }
+
   // Load currency entry when currency changes
   useEffect(() => {
     const loadCurrencyEntry = async () => {
@@ -405,6 +506,108 @@ export const InvestmentFormComponent: React.FC = () => {
     // Fallback to empty string (user needs to select currency)
     return ''
   }, [currencyEntry, rawInvestmentData])
+
+  // Automatically trigger AI autofill when:
+  // 1) User selected required investment group/type (and liquid fund type for liquid funds)
+  // 2) User selected AI source file
+  useEffect(() => {
+    if (!aiSourceFile) return
+
+    const hasRequiredContext =
+      !!investmentGroupRefForAi &&
+      !!investmentTypeRefForAi &&
+      (!isLiquidFundForAi || !!investmentLiquidFundTypeRefForAi)
+
+    if (!hasRequiredContext) {
+      return
+    }
+
+    const keyParts = [
+      aiSourceFile.name,
+      aiSourceFile.size,
+      aiSourceFile.lastModified,
+      investmentGroupRefForAi,
+      investmentTypeRefForAi,
+      investmentLiquidFundTypeRefForAi || ''
+    ]
+    const currentKey = keyParts.join('|')
+
+    if (currentKey === lastAutofillKey) {
+      return
+    }
+
+    let isCancelled = false
+
+    const run = async () => {
+      try {
+        const response = await runInvestmentAiAutofill({
+          file: aiSourceFile,
+          investmentGroupRef: investmentGroupRefForAi,
+          investmentTypeRef: investmentTypeRefForAi || undefined,
+          investmentLiquidFundTypeRef: investmentLiquidFundTypeRefForAi || undefined,
+          investmentOwnerEmployeeId: investmentOwnerEmployeeIdForAi || undefined,
+          investmentName: investmentNameForAi || undefined,
+          investmentCurrencyRef: investmentCurrencyRefForAi || undefined,
+          investmentAccountId: investmentAccountIdForAi || undefined
+        })
+
+        if (!isCancelled && response?.fields) {
+          // Apply returned fields directly to react-hook-form using property paths
+          const rawFieldEntries = Object.entries(response.fields)
+
+          // Normalize specific fields (e.g. investment.investmentRole) before applying
+          const normalizedEntries: [string, unknown][] = []
+
+          for (const [path, value] of rawFieldEntries) {
+            if (path === 'investment.investmentRole') {
+              const normalizedValue = await normalizeInvestmentRolesValue(value)
+              normalizedEntries.push([path, normalizedValue])
+            } else {
+              normalizedEntries.push([path, value])
+            }
+          }
+
+          const fieldsKey = JSON.stringify(normalizedEntries)
+
+          if (fieldsKey !== lastAppliedFieldsKey) {
+            normalizedEntries.forEach(([path, value]) => {
+              form.setValue(path as any, value as any, {
+                shouldDirty: true,
+                shouldValidate: true,
+                shouldTouch: true
+              })
+            })
+
+            setLastAppliedFieldsKey(fieldsKey)
+          }
+
+          setLastAutofillKey(currentKey)
+        }
+      } catch {
+        // Errors are already logged inside the hook
+      }
+    }
+
+    run()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [
+    aiSourceFile,
+    investmentGroupRefForAi,
+    investmentTypeRefForAi,
+    investmentLiquidFundTypeRefForAi,
+    investmentOwnerEmployeeIdForAi,
+    investmentNameForAi,
+    investmentCurrencyRefForAi,
+    investmentAccountIdForAi,
+    isLiquidFundForAi,
+    lastAutofillKey,
+    lastAppliedFieldsKey,
+    runInvestmentAiAutofill,
+    form
+  ])
 
   // Show loading spinner
   if (isLoadingInvestment) {
@@ -529,6 +732,9 @@ export const InvestmentFormComponent: React.FC = () => {
             isUpdate={isUpdate}
           />
         )}
+
+        {/* AI Source Document for Autofill (front-end only, not sent in payload yet) */}
+        <InvestmentFileUploadSegment file={aiSourceFile} onFileChange={setAiSourceFile} />
 
         {/* Dynamic Fields - Conditional Display:
              - For NON-liquid funds: Show when investment type is selected

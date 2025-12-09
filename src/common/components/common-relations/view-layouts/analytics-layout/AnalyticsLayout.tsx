@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system'
 import { BarChartOutlined, TeamOutlined, BankOutlined, DollarCircleOutlined, ContactsOutlined } from '@ant-design/icons'
 
@@ -76,16 +76,18 @@ export const AnalyticsLayout: React.FC<AnalyticsLayoutProps> = ({
     return items
   }, [overviewProps, leadsProps, accountsProps, opportunitiesProps, contactsProps])
 
-  const initialTab = useMemo<AnalyticsTabKey>(() => {
-    const availableKeys = tabs.map(t => t.key)
-    return (availableKeys.includes(defaultTab) ? defaultTab : availableKeys[0] || 'overview') as AnalyticsTabKey
-  }, [tabs, defaultTab])
+  const [internalTab, setInternalTab] = useState<AnalyticsTabKey>(defaultTab)
 
-  const [activeTab, setActiveTab] = useState<AnalyticsTabKey>(initialTab)
+  // Sync internal state with defaultTab prop changes
+  useEffect(() => {
+    setInternalTab(defaultTab)
+  }, [defaultTab])
+
+  const activeTab = internalTab
 
   const handleTabChange = (key: string) => {
     const k = key as AnalyticsTabKey
-    setActiveTab(k)
+    setInternalTab(k)
     onTabChange?.(k)
   }
 

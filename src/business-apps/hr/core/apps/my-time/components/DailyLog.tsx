@@ -1,23 +1,15 @@
 'use client'
 
 import React from 'react'
-import { Card, Alert, useTranslation, ItemMedia } from '@newwork/nw-design-system'
+import { Card, Alert } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useTimeTrackingData } from '../../employee-record/components/tabs/hooks/useTimeTrackingData'
-import {
-  FolderIcon,
-  CurrencyDollarIcon,
-  ClockIcon,
-  SunIcon,
-  CalculatorIcon,
-  CalendarBlankIcon
-} from '@phosphor-icons/react'
 import AbsenceCalendar from '../../employee-record/components/tabs/components/AbsenceCalendar'
 import type { AbsenceListCardAbsence } from '../../employee-record/queries/types'
 import dayjs, { Dayjs } from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
-import timeTrackingTranslations from '../_i18n'
+import TimeSummaryCards from '../../employee-record/components/tabs/components/TimeSummaryCards'
 dayjs.extend(weekday)
 dayjs.extend(localeData)
 
@@ -44,8 +36,6 @@ const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken }
     accessToken,
     workingHours: employee?.workingHours?.[0]
   })
-
-  const { t } = useTranslation(timeTrackingTranslations)
 
   const calendarAbsences = React.useMemo<AbsenceListCardAbsence[]>(() => {
     const parseMinutes = (text?: string): number => {
@@ -99,130 +89,15 @@ const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken }
     })
   }, [entries])
 
-  const fmt = (m: number) => {
-    const sign = m < 0 ? '-' : ''
-    const abs = Math.abs(Math.round(m))
-    const hours = Math.floor(abs / 60)
-    const minutes = abs % 60
-    return minutes === 0 ? `${sign}${hours}h` : `${sign}${hours}h ${minutes}m`
-  }
-
   return (
     <div data-testid="time-tracking-history-container">
-      <div className="gba:mt-6">
-        {(() => {
-          const missingMinutes = Math.max(0, monthlyRequiredUntilYesterdayMinutes - monthlyWorkedUntilYesterdayMinutes)
-          return (
-            <div
-              className="gba:grid gba:grid-cols-1 gba:md:grid-cols-4 gba:gap-4"
-              data-testid="time-tracking-monthly-summary"
-            >
-              <Card className="gba:p-6 gba:gap-0">
-                <div className="gba:flex gba:items-start gba:justify-between">
-                  <div className="gba:text-base gba:font-semibold">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:time_tracking.summary.required_month',
-                      'Required this month'
-                    )}
-                  </div>
-                  <ItemMedia variant="icon" icon={CalendarBlankIcon} iconVariant="decorative" />
-                </div>
-                <div className="gba:text-4xl gba:font-bold">{fmt(monthlyRequiredMinutes)}</div>
-                <div className="gba:mt-1 gba:text-sm gba:text-muted-foreground">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:time_tracking.summary.required_month_desc',
-                    'Total required hours'
-                  )}
-                </div>
-              </Card>
-
-              <Card className="gba:p-6 gba:gap-0">
-                <div className="gba:flex gba:items-start gba:justify-between">
-                  <div className="gba:text-base gba:font-semibold">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:time_tracking.summary.required_until_today',
-                      'Required until today'
-                    )}
-                  </div>
-                  <ItemMedia variant="icon" icon={ClockIcon} iconVariant="decorative" />
-                </div>
-                <div className="gba:text-4xl gba:font-bold">{fmt(monthlyRequiredUntilYesterdayMinutes)}</div>
-                <div className="gba:mt-1 gba:text-sm gba:text-muted-foreground">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:time_tracking.summary.required_until_today_desc',
-                    'Target up to yesterday'
-                  )}
-                </div>
-              </Card>
-
-              <Card className="gba:p-6 gba:gap-0">
-                <div className="gba:flex gba:items-start gba:justify-between">
-                  <div className="gba:text-base gba:font-semibold">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:time_tracking.summary.worked_until_today',
-                      'Worked until today'
-                    )}
-                  </div>
-                  <ItemMedia variant="icon" icon={SunIcon} iconVariant="decorative" />
-                </div>
-                <div className="gba:text-4xl gba:font-bold">{fmt(monthlyWorkedUntilYesterdayMinutes)}</div>
-                <div className="gba:mt-1 gba:text-sm gba:text-muted-foreground">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:time_tracking.summary.worked_until_today_desc',
-                    'Logged up to yesterday'
-                  )}
-                </div>
-              </Card>
-
-              <Card className="gba:p-6 gba:gap-0">
-                <div className="gba:flex gba:items-start gba:justify-between">
-                  <div className="gba:text-base gba:font-semibold">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:time_tracking.summary.missing_vs_required',
-                      'Missing vs required'
-                    )}
-                  </div>
-                  <ItemMedia variant="icon" icon={CalculatorIcon} iconVariant="decorative" />
-                </div>
-                <div className="gba:text-4xl gba:font-bold">{fmt(missingMinutes)}</div>
-                <div className="gba:mt-1 gba:text-sm gba:text-muted-foreground">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:time_tracking.summary.missing_vs_required_desc',
-                    'Hours needed to reach target'
-                  )}
-                </div>
-              </Card>
-            </div>
-          )
-        })()}
-
-        {(() => {
-          return (
-            <div
-              className="gba:mt-4 gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4"
-              data-testid="time-tracking-monthly-secondary"
-            >
-              <Card className="gba:p-6 gba:gap-0">
-                <div className="gba:flex gba:items-start gba:justify-between">
-                  <div className="gba:text-base gba:font-semibold">{t('daily_average')}</div>
-                  <ItemMedia variant="icon" icon={FolderIcon} iconVariant="decorative" />
-                </div>
-                <div className="gba:text-4xl gba:font-bold">{fmt(dailyAverageWorkedMinutesUntilYesterday)}</div>
-              </Card>
-
-              <Card className="gba:p-6 gba:gap-0">
-                <div className="gba:flex gba:items-start gba:justify-between">
-                  <div className="gba:text-base gba:font-semibold">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.summary.overtime', 'Overtime')}
-                  </div>
-                  <ItemMedia variant="icon" icon={CurrencyDollarIcon} iconVariant="decorative" />
-                </div>
-                <div className="gba:text-4xl gba:font-bold">{fmt(overtimeMinutesUntilYesterday)}</div>
-              </Card>
-            </div>
-          )
-        })()}
-      </div>
+      <TimeSummaryCards
+        monthlyRequiredMinutes={monthlyRequiredMinutes}
+        monthlyRequiredUntilYesterdayMinutes={monthlyRequiredUntilYesterdayMinutes}
+        monthlyWorkedUntilYesterdayMinutes={monthlyWorkedUntilYesterdayMinutes}
+        dailyAverageWorkedMinutesUntilYesterday={dailyAverageWorkedMinutesUntilYesterday}
+        overtimeMinutesUntilYesterday={overtimeMinutesUntilYesterday}
+      />
 
       {/* Month Calendar (reused AbsenceCalendar) based on table data */}
       <Card className="gba:p-4 gba:mt-4" data-testid="time-tracking-calendar">
