@@ -8,7 +8,12 @@ import {
   Input,
   Alert,
   AlertDescription,
-  Toaster
+  Toaster,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from '@newwork/nw-design-system'
 import { toast } from 'sonner'
 import { useFeature } from '@/common/hooks/useFeature'
@@ -21,6 +26,13 @@ export interface TravelRegionFormData {
   value: string
   description?: string
   parentCatalogEntryId?: string // For associating with a Travel Region Set
+  countryId?: string // Country catalog entry ID
+}
+
+interface CountryOption {
+  id: string
+  code: string
+  value: string
 }
 
 interface TravelRegionFormProps extends BusinessAppContextProps {
@@ -29,6 +41,7 @@ interface TravelRegionFormProps extends BusinessAppContextProps {
   onSave: (data: TravelRegionFormData) => void
   travelRegionSetId?: string // The parent Travel Region Set ID
   travelRegionSetName?: string // For display purposes
+  countries?: CountryOption[] // Available countries
   prefixDataTestId?: string
 }
 
@@ -39,6 +52,7 @@ const TravelRegionForm: React.FC<TravelRegionFormProps> = ({
   onSave,
   travelRegionSetId,
   travelRegionSetName,
+  countries = [],
   prefixDataTestId = ''
 }) => {
   // Feature flag check
@@ -50,7 +64,8 @@ const TravelRegionForm: React.FC<TravelRegionFormProps> = ({
     code: '',
     value: '',
     description: '',
-    parentCatalogEntryId: travelRegionSetId
+    parentCatalogEntryId: travelRegionSetId,
+    countryId: ''
   })
 
   // Feature flag guard
@@ -68,7 +83,8 @@ const TravelRegionForm: React.FC<TravelRegionFormProps> = ({
         code: '',
         value: '',
         description: '',
-        parentCatalogEntryId: travelRegionSetId
+        parentCatalogEntryId: travelRegionSetId,
+        countryId: ''
       })
       // Clear any previous errors
       setError(null)
@@ -83,16 +99,30 @@ const TravelRegionForm: React.FC<TravelRegionFormProps> = ({
       return
     }
 
+    if (!formData.countryId) {
+      setError('Destination Country is required')
+      return
+    }
+
     setIsSubmitting(true)
     setError(null)
 
     try {
+      // Build objectValue with destination_country_ref
+      const objectValue = {
+        destination_country_ref: formData.countryId // e.g., "Country:v1:RO"
+      }
+
+      console.log('🔍 Form data:', formData)
+      console.log('🔍 Object value being created:', objectValue)
+
       // Create the catalog entry for TravelRegion
       const catalogEntry = {
         code: formData.code.trim(),
         value: formData.value.trim(),
         description: formData.description?.trim() || '',
         parentEntryId: travelRegionSetId, // Use parentEntryId instead of parentCatalogEntryId
+        objectValue: objectValue, // Add objectValue with country reference
         translations: [
           {
             localeCode: 'en',
@@ -101,7 +131,7 @@ const TravelRegionForm: React.FC<TravelRegionFormProps> = ({
         ]
       }
 
-      console.log('🚀 Creating Travel Region:', catalogEntry)
+      console.log('🚀 Creating Travel Region with full payload:', JSON.stringify(catalogEntry, null, 2))
 
       await catalogClient.createCatalogEntry('TravelRegion', 'v1', catalogEntry)
 
@@ -122,7 +152,8 @@ const TravelRegionForm: React.FC<TravelRegionFormProps> = ({
       code: '',
       value: '',
       description: '',
-      parentCatalogEntryId: travelRegionSetId
+      parentCatalogEntryId: travelRegionSetId,
+      countryId: ''
     })
     setError(null)
     onClose()
@@ -219,6 +250,41 @@ const TravelRegionForm: React.FC<TravelRegionFormProps> = ({
               />
             </div>
 
+            <div className="gba:space-y-2" data-testid={`${prefixDataTestId}-country-field`}>
+              <label
+                className="gba:text-sm gba:font-medium gba:text-gray-700"
+                htmlFor={`${prefixDataTestId}-country-select`}
+                data-testid={`${prefixDataTestId}-country-label`}
+              >
+                {getTranslationFromI18nKeyAndLabel('expense-settings:destination_country', 'Destination Country')}
+                <span className="gba:text-red-500 gba:ml-1">*</span>
+              </label>
+              <Select
+                value={formData.countryId}
+                onValueChange={value => handleInputChange('countryId', value)}
+                disabled={isSubmitting}
+              >
+                <SelectTrigger
+                  id={`${prefixDataTestId}-country-select`}
+                  data-testid={`${prefixDataTestId}-country-select`}
+                  className="gba:h-9 gba:text-sm"
+                >
+                  <SelectValue placeholder="Select destination country" />
+                </SelectTrigger>
+                <SelectContent data-testid={`${prefixDataTestId}-country-select-content`}>
+                  {countries.map(country => (
+                    <SelectItem
+                      key={country.id}
+                      value={country.id}
+                      data-testid={`${prefixDataTestId}-country-option-${country.code}`}
+                    >
+                      {country.value} ({country.code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div
               className="gba:flex gba:justify-end gba:gap-2 gba:pt-4"
               data-testid={`${prefixDataTestId}-button-group`}
@@ -236,7 +302,7 @@ const TravelRegionForm: React.FC<TravelRegionFormProps> = ({
               </Button>
               <Button
                 type="submit"
-                disabled={isSubmitting || !formData.code.trim() || !formData.value.trim()}
+                disabled={isSubmitting || !formData.code.trim() || !formData.value.trim() || !formData.countryId}
                 size="sm"
                 className="gba:h-9 gba:text-sm"
                 data-testid={`${prefixDataTestId}-save-button`}

@@ -7,11 +7,18 @@ import {
   Button,
   Alert,
   AlertDescription,
-  Badge
+  Badge,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
 } from '@newwork/nw-design-system'
-import { PiPlus, PiMapPin, PiTable } from 'react-icons/pi'
+import { PiPlus, PiMapPin, PiTable, PiTrash, PiPencil } from 'react-icons/pi'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import TravelRegionSetModal from './TravelRegionSetModal'
 
@@ -25,7 +32,10 @@ interface TravelRegionSet {
   code: string
   value: string
   description?: string
+  parentCatalogEntryId?: string // Country ID
   childCount?: number
+  hasDetails?: boolean // Whether this set has allowance rule details defined
+  childRegionIds?: string[] // IDs of child travel regions for cascade delete
 }
 
 interface TravelRegionSetCardViewProps extends BusinessAppContextProps {
@@ -44,8 +54,15 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isCreateFormVisible, setIsCreateFormVisible] = useState(false)
+  const [editingSet, setEditingSet] = useState<TravelRegionSet | null>(null)
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{ isOpen: boolean; set: TravelRegionSet | null }>({
+    isOpen: false,
+    set: null
+  })
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const graphqlClient = useGraphQLClient(accessToken)
+  const catalogClient = useCatalogManagerClient(accessToken)
 
   const loadTravelRegionSets = useCallback(async () => {
     setIsLoading(true)
@@ -69,6 +86,7 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
             code
             value
             description
+            parentEntryId
             childEntriesAggregate(
               where: { 
                 isDeleted: { _eq: false },
@@ -82,20 +100,102 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
                 count
               }
             }
+            childEntries(
+              where: { 
+                isDeleted: { _eq: false },
+                catalog: { 
+                  identifier: { _eq: "TravelRegion" }, 
+                  version: { _eq: "v1" } 
+                }
+              }
+            ) {
+              id
+            }
           }
         }
       `
 
       const result = await graphqlClient.request<{ CatalogEntry: any[] }>(query)
 
-      const sets: TravelRegionSet[] = result.CatalogEntry.map((item: any) => ({
-        id: item.id,
-        code: item.code,
-        value: item.value,
-        description: item.description,
-        // Get childCount from GraphQL aggregate
-        childCount: item.childEntriesAggregate?.aggregate?.count || 0
-      }))
+      console.log('🔍 Checking travel region sets for details:', {
+        totalSets: result.CatalogEntry.length,
+        setIds: result.CatalogEntry.map((s: any) => s.id)
+      })
+
+      // Check each set for rules with details by querying AllowanceRegionRule.travel_region_set_ref
+      const setsWithDetails = new Map<string, { hasDetails: boolean; ruleCount: number; detailCount: number }>()
+
+      for (const set of result.CatalogEntry) {
+        const setId = set.id // e.g., "TravelRegionSet:v1:TRS_DE"
+
+        const rulesQuery = `
+          query CheckSetRules($setId: String!) {
+            AllowanceRegionRule(
+              where: {
+                isDeleted: { _eq: false }
+                travelRegionSetRef: { _eq: $setId }
+              }
+            ) {
+              id
+              allowanceRegionRuleDetailAggregate(
+                where: { isDeleted: { _eq: false } }
+              ) {
+                aggregate {
+                  count
+                }
+              }
+            }
+          }
+        `
+
+        const rulesResult = await graphqlClient.request<{ AllowanceRegionRule: any[] }>(rulesQuery, {
+          setId
+        })
+
+        const ruleCount = rulesResult.AllowanceRegionRule.length
+        const detailCount = rulesResult.AllowanceRegionRule.reduce(
+          (sum, rule) => sum + (rule.allowanceRegionRuleDetailAggregate?.aggregate?.count || 0),
+          0
+        )
+        const hasDetails = detailCount > 0
+
+        setsWithDetails.set(setId, { hasDetails, ruleCount, detailCount })
+
+        console.log(`🔍 Set "${set.value}" (${set.code}, ${setId}):`, {
+          ruleCount,
+          detailCount,
+          hasDetails
+        })
+      }
+
+      const sets: TravelRegionSet[] = result.CatalogEntry.map((item: any) => {
+        // Get child region IDs for cascade delete
+        const childRegionIds = item.childEntries?.map((child: any) => child.id) || []
+
+        // Check if this set has rules with details
+        const setInfo = setsWithDetails.get(item.id) || { hasDetails: false, ruleCount: 0, detailCount: 0 }
+        const hasDetails = setInfo.hasDetails
+
+        console.log(`🔍 Final Set "${item.value}" (${item.code}):`, {
+          childCount: item.childEntriesAggregate?.aggregate?.count || 0,
+          hasDetails,
+          ruleCount: setInfo.ruleCount,
+          detailCount: setInfo.detailCount,
+          sampleChildIds: childRegionIds.slice(0, 3)
+        })
+
+        return {
+          id: item.id,
+          code: item.code,
+          value: item.value,
+          description: item.description,
+          parentCatalogEntryId: item.parentEntryId, // Include parent country ID for editing
+          // Get childCount from GraphQL aggregate
+          childCount: item.childEntriesAggregate?.aggregate?.count || 0,
+          hasDetails,
+          childRegionIds
+        }
+      })
 
       setTravelRegionSets(sets)
     } catch (err) {
@@ -148,12 +248,72 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
 
   const handleCreateFormClose = () => {
     setIsCreateFormVisible(false)
+    setEditingSet(null)
   }
 
   const handleCreateFormSave = () => {
-    // Refresh the list to show the newly created set
+    // Refresh the list to show the newly created/updated set
     loadTravelRegionSets()
-    toast('Travel Region Set created successfully', 'success')
+    const message = editingSet ? 'Travel Region Set updated successfully' : 'Travel Region Set created successfully'
+    toast(message, 'success')
+    setEditingSet(null)
+  }
+
+  const handleEditClick = (set: TravelRegionSet, e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent card click
+    setEditingSet(set)
+    setIsCreateFormVisible(true)
+  }
+
+  const handleDeleteClick = (set: TravelRegionSet, e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent card click
+    setDeleteConfirmation({ isOpen: true, set })
+  }
+
+  const handleDeleteCancel = () => {
+    setDeleteConfirmation({ isOpen: false, set: null })
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteConfirmation.set) return
+
+    setIsDeleting(true)
+    try {
+      const { set } = deleteConfirmation
+      const childRegionCount = set.childRegionIds?.length || 0
+
+      // Delete all child travel regions first (if any)
+      if (childRegionCount > 0) {
+        console.log(`🗑️ Deleting ${childRegionCount} child travel regions...`)
+
+        // Delete all child regions in parallel
+        await Promise.all(
+          (set.childRegionIds || []).map(regionId => catalogClient.deleteCatalogEntry('TravelRegion', 'v1', regionId))
+        )
+
+        console.log(`✅ Deleted ${childRegionCount} child travel regions`)
+      }
+
+      // Then delete the travel region set
+      console.log('🗑️ Deleting travel region set...')
+      await catalogClient.deleteCatalogEntry('TravelRegionSet', 'v1', set.id)
+
+      const message =
+        childRegionCount > 0
+          ? `Travel Region Set "${set.value}" and ${childRegionCount} travel region${childRegionCount > 1 ? 's' : ''} deleted successfully`
+          : `Travel Region Set "${set.value}" deleted successfully`
+
+      toast(message, 'success')
+
+      // Close dialog and refresh list
+      setDeleteConfirmation({ isOpen: false, set: null })
+      loadTravelRegionSets()
+    } catch (err) {
+      console.error('Error deleting travel region set:', err)
+      toast(`Failed to delete Travel Region Set: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error')
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   return (
@@ -216,19 +376,57 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
                   <Badge variant="secondary" className="gba:text-xs">
                     {set.childCount || 0} travel regions
                   </Badge>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={e => {
-                      e.stopPropagation()
-                      handleSetSelect(set)
-                    }}
-                    data-testid={`${prefixDataTestId}-view-matrix-button-${set.id}`}
-                  >
-                    <PiMapPin className="gba:w-4 gba:h-4 gba:mr-1" />
-                    View Matrix
-                  </Button>
+                  <div className="gba:flex gba:gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={e => {
+                        e.stopPropagation()
+                        handleSetSelect(set)
+                      }}
+                      data-testid={`${prefixDataTestId}-view-matrix-button-${set.id}`}
+                    >
+                      <PiMapPin className="gba:w-4 gba:h-4 gba:mr-1" />
+                      View Matrix
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={e => handleEditClick(set, e)}
+                      data-testid={`${prefixDataTestId}-edit-set-button-${set.id}`}
+                      className="hover:gba:bg-accent"
+                      title="Edit travel region set"
+                    >
+                      <PiPencil className="gba:w-4 gba:h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={e => handleDeleteClick(set, e)}
+                      disabled={set.hasDetails}
+                      data-testid={`${prefixDataTestId}-delete-set-button-${set.id}`}
+                      className={
+                        set.hasDetails
+                          ? 'gba:cursor-not-allowed'
+                          : 'gba:text-destructive hover:gba:text-destructive hover:gba:bg-destructive-secondary'
+                      }
+                      title={
+                        set.hasDetails
+                          ? 'Cannot delete - this set has allowance rule details defined'
+                          : 'Delete travel region set'
+                      }
+                    >
+                      <PiTrash className="gba:w-4 gba:h-4" />
+                    </Button>
+                  </div>
                 </div>
+                {set.hasDetails && (
+                  <div className="gba:mt-2">
+                    <Badge variant="secondary" className="gba:text-xs gba:bg-info-secondary gba:text-info">
+                      In use - cannot delete
+                    </Badge>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -249,14 +447,88 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
         </div>
       )}
 
-      {/* Travel Region Set Creation Modal */}
+      {/* Travel Region Set Creation/Edit Modal */}
       <TravelRegionSetModal
         accessToken={accessToken}
         isVisible={isCreateFormVisible}
         onCancel={handleCreateFormClose}
         onSave={handleCreateFormSave}
-        prefixDataTestId={`${prefixDataTestId}-create-travel-region-set`}
+        editingSet={editingSet}
+        prefixDataTestId={`${prefixDataTestId}-${editingSet ? 'edit' : 'create'}-travel-region-set`}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteConfirmation.isOpen} onOpenChange={handleDeleteCancel}>
+        <DialogContent data-testid={`${prefixDataTestId}-delete-confirmation-dialog`}>
+          <DialogHeader>
+            <DialogTitle>
+              {getTranslationFromI18nKeyAndLabel(
+                'expense-settings:delete_travel_region_set',
+                'Delete Travel Region Set'
+              )}
+            </DialogTitle>
+            <DialogDescription>
+              {deleteConfirmation.set && (
+                <div className="gba:space-y-2">
+                  <p>
+                    Are you sure you want to delete the travel region set{' '}
+                    <span className="gba:font-semibold">"{deleteConfirmation.set.value}"</span>?
+                  </p>
+                  {/* Show cascade delete warning if there are child regions without details */}
+                  {deleteConfirmation.set.childCount &&
+                    deleteConfirmation.set.childCount > 0 &&
+                    !deleteConfirmation.set.hasDetails && (
+                      <Alert variant="default" className="gba:bg-warning-secondary gba:text-warning gba:border-warning">
+                        <AlertDescription>
+                          <p className="gba:font-medium gba:mb-1">⚠️ Cascade Delete</p>
+                          <p>
+                            This will also delete <strong>{deleteConfirmation.set.childCount}</strong> travel region
+                            {deleteConfirmation.set.childCount > 1 ? 's' : ''} within this set.
+                          </p>
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  {/* Show error if has details */}
+                  {deleteConfirmation.set.hasDetails && (
+                    <Alert variant="destructive">
+                      <AlertDescription>
+                        <p className="gba:font-medium gba:mb-1">❌ Cannot Delete</p>
+                        <p>
+                          This travel region set has allowance rule details defined. You must remove all rule details
+                          before deleting this set.
+                        </p>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  {!deleteConfirmation.set.hasDetails && (
+                    <p className="gba:text-sm gba:text-muted-foreground">This action cannot be undone.</p>
+                  )}
+                </div>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={handleDeleteCancel}
+              disabled={isDeleting}
+              data-testid={`${prefixDataTestId}-delete-cancel-button`}
+            >
+              {getTranslationFromI18nKeyAndLabel('expense-settings:cancel', 'Cancel')}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteConfirm}
+              disabled={isDeleting || deleteConfirmation.set?.hasDetails}
+              data-testid={`${prefixDataTestId}-delete-confirm-button`}
+            >
+              {isDeleting
+                ? getTranslationFromI18nKeyAndLabel('expense-settings:deleting', 'Deleting...')
+                : getTranslationFromI18nKeyAndLabel('expense-settings:delete', 'Delete')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

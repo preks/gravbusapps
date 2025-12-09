@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -11,7 +11,12 @@ import {
   FormControl,
   FormItem,
   FormLabel,
-  FormMessage
+  FormMessage,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from '@newwork/nw-design-system'
 import { useFeature } from '@/common/hooks/useFeature'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -27,6 +32,13 @@ export interface TravelRegionSetFormData {
   code: string
   value: string
   description?: string
+  parentCatalogEntryId?: string // Country ID
+}
+
+interface CountryOption {
+  id: string
+  code: string
+  value: string
 }
 
 interface TravelRegionSetFormProps extends BusinessAppContextProps {
@@ -58,10 +70,41 @@ const TravelRegionSetForm: React.FC<TravelRegionSetFormProps> = ({
   const [formData, setFormData] = useState<TravelRegionSetFormData>({
     code: '',
     value: '',
-    description: ''
+    description: '',
+    parentCatalogEntryId: ''
   })
+  const [countries, setCountries] = useState<CountryOption[]>([])
+  const [isLoadingCountries, setIsLoadingCountries] = useState(true)
 
   const catalogClient = useCatalogManagerClient(accessToken)
+
+  // Load countries when form opens
+  useEffect(() => {
+    const loadCountries = async () => {
+      if (!isOpen || !accessToken) return
+
+      setIsLoadingCountries(true)
+      try {
+        const response = await catalogClient.getCatalogEntriesList(
+          { catalogIdentifier: 'Country', version: 'v1' },
+          { limit: 500, offset: 0, returnTotalRecords: true, includeChildCatalogEntries: true }
+        )
+        const countryOptions = response.data.map((item: any) => ({
+          id: item.id,
+          code: item.code,
+          value: item.value
+        }))
+        setCountries(countryOptions)
+      } catch (err) {
+        console.error('Error loading countries:', err)
+        setError('Failed to load countries')
+      } finally {
+        setIsLoadingCountries(false)
+      }
+    }
+
+    loadCountries()
+  }, [isOpen, accessToken])
 
   // Feature flag guard
   if (isDevEnabled === false) {
@@ -76,6 +119,11 @@ const TravelRegionSetForm: React.FC<TravelRegionSetFormProps> = ({
       return
     }
 
+    if (!formData.parentCatalogEntryId) {
+      setError('Country is required')
+      return
+    }
+
     setIsSubmitting(true)
     setError(null)
 
@@ -85,6 +133,7 @@ const TravelRegionSetForm: React.FC<TravelRegionSetFormProps> = ({
         code: formData.code.trim(),
         value: formData.value.trim(),
         description: formData.description?.trim() || '',
+        parentEntryId: formData.parentCatalogEntryId, // Set the Country as parent
         translations: [
           {
             localeCode: 'en',
@@ -113,7 +162,8 @@ const TravelRegionSetForm: React.FC<TravelRegionSetFormProps> = ({
     setFormData({
       code: '',
       value: '',
-      description: ''
+      description: '',
+      parentCatalogEntryId: ''
     })
     setError(null)
     handleCloseModal()
@@ -144,6 +194,31 @@ const TravelRegionSetForm: React.FC<TravelRegionSetFormProps> = ({
           )}
 
           <form onSubmit={handleSubmit} className="gba:space-y-3 gba:px-1">
+            <FormItem>
+              <FormLabel className="gba:required gba:text-sm gba:font-medium">
+                {getTranslationFromI18nKeyAndLabel('expense-settings:country', 'Country')}
+              </FormLabel>
+              <FormControl>
+                <Select
+                  value={formData.parentCatalogEntryId}
+                  onValueChange={value => handleInputChange('parentCatalogEntryId', value)}
+                  disabled={isSubmitting || isLoadingCountries}
+                >
+                  <SelectTrigger className="gba:h-9 gba:text-sm" data-testid={`${prefixDataTestId}-country-select`}>
+                    <SelectValue placeholder={isLoadingCountries ? 'Loading countries...' : 'Select a country'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {countries.map(country => (
+                      <SelectItem key={country.id} value={country.id}>
+                        {country.code} - {country.value}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+
             <FormItem>
               <FormLabel className="gba:required gba:text-sm gba:font-medium">
                 {getTranslationFromI18nKeyAndLabel('expense-settings:code', 'Code')}
@@ -211,7 +286,9 @@ const TravelRegionSetForm: React.FC<TravelRegionSetFormProps> = ({
               </Button>
               <Button
                 type="submit"
-                disabled={isSubmitting || !formData.code.trim() || !formData.value.trim()}
+                disabled={
+                  isSubmitting || !formData.code.trim() || !formData.value.trim() || !formData.parentCatalogEntryId
+                }
                 size="sm"
                 className="gba:h-9 gba:text-sm"
                 data-testid={`${prefixDataTestId}-save-button`}

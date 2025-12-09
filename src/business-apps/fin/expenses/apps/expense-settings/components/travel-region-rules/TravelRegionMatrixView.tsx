@@ -25,16 +25,24 @@ import {
   DateInput
 } from '@newwork/nw-design-system'
 import { toast } from 'sonner'
-import { PiArrowLeft, PiPlus, PiMapPin, PiFloppyDisk, PiDotsSixVertical } from 'react-icons/pi'
+import { PiArrowLeft, PiPlus, PiMapPin, PiFloppyDisk, PiDotsSixVertical, PiTrash } from 'react-icons/pi'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { ExpenseSettingsClient } from '../../utils/ExpenseSettingsClient'
 import TravelRegionRuleForm from '../../forms/travel-region-rule-form/TravelRegionRuleForm'
 import TravelRegionForm from '../../forms/travel-region-form/TravelRegionForm'
-import { useAllowanceRuleUsageCheck, UsageInfo } from '../../hooks'
+import { useAllowanceRuleUsageCheck } from '../../hooks'
 import MileageRulesPagination from '../mileage-rules/MileageRulesPagination'
-import { useMatrixDataLoaders } from './hooks'
+import { useMatrixDataLoaders, useMatrixCellEditing } from './hooks'
+import {
+  EditableCell,
+  EditableTravelRegion,
+  EditableAllowanceRegionRule,
+  ValidityPeriod,
+  CurrencyOption,
+  UsageInfo
+} from './types'
 import dayjs from 'dayjs'
 import {
   DndContext,
@@ -53,92 +61,8 @@ import {
   useSortable
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+
 interface TravelRegion {
-  id: string
-  code: string
-  value: string
-}
-
-interface AllowanceRegionRule {
-  id: string
-  code: string
-  name: string
-  activeFrom: string
-  activeTo?: string
-  ruleOrder?: number
-  version?: number
-  travelRegionSetRef?: string
-  additionalProperties?: Record<string, any>
-  details: AllowanceRegionRuleDetail[]
-}
-
-interface AllowanceRegionRuleDetail {
-  id: string
-  amount: number
-  activeFrom: string
-  activeTo?: string
-  version?: number
-  countryRef?: string
-  currencyRef?: string
-  travelRegionRef?: string
-  country?: {
-    id: string
-    code: string
-    value: string
-  }
-  currency?: {
-    id: string
-    code: string
-    value: string
-  }
-  travelRegion?: {
-    id: string
-    code: string
-    value: string
-  }
-}
-
-interface EditableCell {
-  id?: string // detail ID for existing, undefined for new
-  travelRegionId: string
-  allowanceRegionRuleId: string
-  amount: number
-  currencyCode: string
-  currencyRef?: string // Full currency catalog entry ID
-  countryRef?: string // Full country catalog entry ID (required for API)
-  activeFrom: string
-  activeTo?: string
-  version?: number // Version for optimistic locking
-  isNew: boolean
-  isModified: boolean
-  hasError?: boolean
-  errorMessage?: string
-  // Additional fields for validation
-  validityPeriodId?: string // To group cells with same validity period
-}
-
-interface EditableTravelRegion extends TravelRegion {
-  isEditing: boolean
-  editingCode: string
-  editingValue: string
-  isModified: boolean
-  isNew: boolean
-}
-
-interface EditableAllowanceRegionRule extends AllowanceRegionRule {
-  validityPeriods: ValidityPeriod[]
-}
-
-interface ValidityPeriod {
-  id: string
-  activeFrom: string
-  activeTo?: string
-  currencyCode: string
-  hasConflict: boolean
-  ruleId: string // Track which rule this period belongs to
-}
-
-interface CurrencyOption {
   id: string
   code: string
   value: string
@@ -203,6 +127,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
   const [allowanceRegionRules, setAllowanceRegionRules] = useState<EditableAllowanceRegionRule[]>([])
   const [editableCells, setEditableCells] = useState<EditableCell[]>([])
   const [currencies, setCurrencies] = useState<CurrencyOption[]>([])
+  const [countries, setCountries] = useState<CurrencyOption[]>([]) // Reuse CurrencyOption type for countries
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
@@ -233,11 +158,12 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
   // Filter state - show regions with details first (default: true)
   const [showRegionsWithDetailsFirst, setShowRegionsWithDetailsFirst] = useState(true)
 
-  // Track which cell is being edited (for existing cells)
-  const [editingCellId, setEditingCellId] = useState<string | null>(null)
-  const [editingCellUsageInfo, setEditingCellUsageInfo] = useState<UsageInfo | null>(null)
-  const [isCheckingCellUsage, setIsCheckingCellUsage] = useState(false)
-  const [isSavingCell, setIsSavingCell] = useState(false)
+  // Delete region confirmation state
+  const [deleteRegionConfirmation, setDeleteRegionConfirmation] = useState<{
+    isOpen: boolean
+    region: TravelRegion | null
+  }>({ isOpen: false, region: null })
+  const [isDeletingRegion, setIsDeletingRegion] = useState(false)
 
   const catalogClient = useCatalogManagerClient(accessToken)
   const graphqlClient = useGraphQLClient(accessToken)
@@ -258,6 +184,67 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     }
     return client
   }, [accessToken])
+
+  // Check if a specific AllowanceRegionRuleDetail is used in transactions
+  const checkDetailUsage = useCallback(
+    async (detailId: string): Promise<UsageInfo> => {
+      const query = `
+      query CheckDetailUsage($detailId: uuid!) {
+        expenseAllowanceCount: ExpenseAllowanceAggregate(
+          where: { 
+            allowanceRegionRuleDetailId: { _eq: $detailId }
+            isDeleted: { _eq: false }
+          }
+        ) {
+          aggregate { count }
+        }
+        expenseRequestTripCount: ExpenseRequestTripAggregate(
+          where: { 
+            allowanceRegionRuleDetailId: { _eq: $detailId }
+            isDeleted: { _eq: false }
+          }
+        ) {
+          aggregate { count }
+        }
+        expenseRequestTripTimeCount: ExpenseRequestTripTimeAggregate(
+          where: { 
+            allowanceRegionRuleDetailId: { _eq: $detailId }
+            isDeleted: { _eq: false }
+          }
+        ) {
+          aggregate { count }
+        }
+      }
+    `
+
+      const result = await graphqlClient.request<{
+        expenseAllowanceCount: { aggregate: { count: number } }
+        expenseRequestTripCount: { aggregate: { count: number } }
+        expenseRequestTripTimeCount: { aggregate: { count: number } }
+      }>(query, { detailId })
+
+      const allowanceCount = result.expenseAllowanceCount?.aggregate?.count || 0
+      const tripCount = result.expenseRequestTripCount?.aggregate?.count || 0
+      const tripTimeCount = result.expenseRequestTripTimeCount?.aggregate?.count || 0
+      const totalUsage = allowanceCount + tripCount + tripTimeCount
+
+      if (totalUsage === 0) {
+        return { isUsed: false, usedIn: {}, message: '' }
+      }
+
+      const usageDetails: string[] = []
+      if (allowanceCount > 0) usageDetails.push(`${allowanceCount} expense allowance(s)`)
+      if (tripCount > 0) usageDetails.push(`${tripCount} trip(s)`)
+      if (tripTimeCount > 0) usageDetails.push(`${tripTimeCount} trip time(s)`)
+
+      return {
+        isUsed: true,
+        usedIn: { allowanceCount, tripCount, tripTimeCount },
+        message: `This detail is used in ${usageDetails.join(', ')}. Only "Valid To" can be edited.`
+      }
+    },
+    [graphqlClient]
+  )
 
   // Drag and drop sensors
   const sensors = useSensors(
@@ -359,21 +346,75 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
 
   // Get sorted regions - with details first if checkbox is checked
   const sortedRegions = useMemo(() => {
+    console.log('🔍 Sorting ALL regions:', {
+      showRegionsWithDetailsFirst,
+      totalRegions: editableTravelRegions.length,
+      totalRules: allowanceRegionRules.length,
+      travelRegionSetId
+    })
+
     if (!showRegionsWithDetailsFirst) {
+      // When checkbox is unchecked, return regions alphabetically
       return editableTravelRegions
     }
 
-    const regionsWithDetails = editableTravelRegions.filter(region => regionHasDetails(region, allowanceRegionRules))
-    const regionsWithoutDetails = editableTravelRegions.filter(
-      region => !regionHasDetails(region, allowanceRegionRules)
-    )
+    // Separate regions into two groups: with details and without details
+    const regionsWithDetails: TravelRegion[] = []
+    const regionsWithoutDetails: TravelRegion[] = []
 
+    editableTravelRegions.forEach(region => {
+      if (regionHasDetails(region, allowanceRegionRules)) {
+        regionsWithDetails.push(region)
+      } else {
+        regionsWithoutDetails.push(region)
+      }
+    })
+
+    console.log('🔍 Sort result:', {
+      withDetails: regionsWithDetails.length,
+      withoutDetails: regionsWithoutDetails.length,
+      sampleWithDetails: regionsWithDetails.slice(0, 5).map(r => ({ code: r.code, value: r.value })),
+      sampleWithoutDetails: regionsWithoutDetails.slice(0, 5).map(r => ({ code: r.code, value: r.value }))
+    })
+
+    // Return: regions with details first, then regions without details
     return [...regionsWithDetails, ...regionsWithoutDetails]
-  }, [editableTravelRegions, allowanceRegionRules, showRegionsWithDetailsFirst, regionHasDetails])
+  }, [editableTravelRegions, allowanceRegionRules, showRegionsWithDetailsFirst, regionHasDetails, travelRegionSetId])
 
-  // Check if any region has details
+  // Client-side pagination: slice the sorted array based on current page
+  const paginatedRegions = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize
+    const endIndex = startIndex + pageSize
+    const page = sortedRegions.slice(startIndex, endIndex)
+
+    console.log('🔍 Pagination:', {
+      currentPage,
+      pageSize,
+      totalRegions: sortedRegions.length,
+      startIndex,
+      endIndex,
+      pageRegions: page.length,
+      firstRegion: page[0] ? { code: page[0].code, value: page[0].value } : null,
+      lastRegion: page[page.length - 1]
+        ? { code: page[page.length - 1].code, value: page[page.length - 1].value }
+        : null
+    })
+
+    return page
+  }, [sortedRegions, currentPage, pageSize])
+
+  // Check if any region has details in the CURRENT travel region set
   const anyRegionHasDetails = useMemo(() => {
-    return editableTravelRegions.some(region => regionHasDetails(region, allowanceRegionRules))
+    // Check across all regions (not just current page)
+    const hasAny = editableTravelRegions.some(region => regionHasDetails(region, allowanceRegionRules))
+
+    console.log('🔍 Checking anyRegionHasDetails:', {
+      result: hasAny,
+      totalRegions: editableTravelRegions.length,
+      totalRules: allowanceRegionRules.length
+    })
+
+    return hasAny
   }, [editableTravelRegions, allowanceRegionRules, regionHasDetails])
 
   // Convert rule details to editable cells
@@ -459,27 +500,38 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     setError(null)
 
     try {
-      const [paginatedRegions, rulesData, currenciesData] = await Promise.all([
-        loadTravelRegions(currentPage, pageSize, ''), // No search for normal load
+      // Always load ALL regions (no pagination in API call)
+      // We'll handle pagination client-side after sorting
+      const [allRegions, rulesData, currenciesData, countriesData] = await Promise.all([
+        loadTravelRegions(1, 9999, ''), // Load ALL regions
         loadAllowanceRegionRules(),
-        loadCurrencies()
+        loadCurrencies(),
+        catalogClient.getCatalogEntriesList(
+          { catalogIdentifier: 'Country', version: 'v1' },
+          { limit: 500, offset: 0, returnTotalRecords: true, includeChildCatalogEntries: true }
+        )
       ])
 
       const { rules, regionsWithDetails } = rulesData
       setAllowanceRegionRules(rules)
       setCurrencies(currenciesData)
+      setCountries(
+        countriesData.data.map((item: any) => ({
+          id: item.id,
+          code: item.code,
+          value: item.value
+        }))
+      )
 
-      // Generate cells for ALL rules and ALL regions (including those with details)
-      // This ensures details are available for rendering even if region is on another page
-      const allRegionsForCells = [...paginatedRegions, ...regionsWithDetails]
+      // Generate cells for ALL rules and ALL regions
+      const allRegionsForCells = [...allRegions, ...regionsWithDetails]
       const uniqueRegionsForCells = Array.from(new Map(allRegionsForCells.map(r => [r.id, r])).values())
       const cells = convertToEditableCells(rules, uniqueRegionsForCells)
       const validatedCells = validateCurrencies(cells)
       setEditableCells(validatedCells)
 
-      // When "show regions with details first" is enabled, include regions with details
-      // that might be on other pages, combined with paginated regions
-      const allRegionsForDisplay = [...paginatedRegions, ...regionsWithDetails]
+      // Store ALL regions - pagination will be handled client-side
+      const allRegionsForDisplay = [...allRegions, ...regionsWithDetails]
       const uniqueRegionsForDisplay = Array.from(new Map(allRegionsForDisplay.map(r => [r.id, r])).values())
 
       setEditableTravelRegions(
@@ -505,6 +557,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     convertToEditableCells,
     currentPage,
     pageSize
+    // Remove showRegionsWithDetailsFirst dependency - sorting is client-side now
   ])
 
   useEffect(() => {
@@ -512,6 +565,31 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
       loadData()
     }
   }, [accessToken, travelRegionSetId, loadData])
+
+  // Use cell editing hook - extracts cell edit logic (must be after loadData definition)
+  const {
+    editingCellId,
+    editingCellUsageInfo,
+    isCheckingCellUsage,
+    isSavingCell,
+    handleEnterCellEdit,
+    updateCellField,
+    handleSaveSingleCell,
+    handleRemoveNewCell,
+    setEditingCellId,
+    setEditingCellUsageInfo
+  } = useMatrixCellEditing({
+    accessToken,
+    currencies,
+    allowanceRegionRules,
+    editableCells,
+    setEditableCells,
+    setAllowanceRegionRules,
+    checkDetailUsage,
+    loadData,
+    travelRegionSetId,
+    getExpenseSettingsClient
+  })
 
   // Handle page change
   const handlePageChange = useCallback(
@@ -615,44 +693,126 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
   }
 
   // Handle region modal save
-  const handleRegionModalSave = async (formData: any) => {
-    try {
-      // Create travel region via catalog API
-      const regionData = {
-        code: formData.code.trim(),
-        value: formData.value.trim(),
-        description: formData.description?.trim() || `Travel region: ${formData.value.trim()}`,
-        parentEntryId: travelRegionSetId,
-        translations: [
-          {
-            localeCode: 'en',
-            value: formData.value.trim()
-          }
-        ]
-      }
-
-      await catalogClient.createCatalogEntry('TravelRegion', 'v1', regionData)
-
-      // Reload current page to show the new region
-      await handlePageChange(currentPage)
-      setIsRegionModalOpen(false)
-      toast.success('Travel region created successfully')
-    } catch (err) {
-      console.error('❌ Error creating region from modal:', err)
-      const errorMessage = err instanceof Error ? err.message : 'Failed to create region'
-
-      // Check if it's a duplicate code error
-      if (errorMessage.includes('Duplicate catalog entry codes')) {
-        toast.error('A region with this code already exists. Please try a different name.')
-      } else {
-        toast.error(errorMessage)
-      }
-    }
+  const handleRegionModalSave = async () => {
+    // The form already created the region via catalogClient.createCatalogEntry()
+    // Just reload the page to show the new region
+    console.log('✅ Region created by form, reloading page...')
+    await handlePageChange(currentPage)
+    setIsRegionModalOpen(false)
   }
 
   // Handle region modal cancel
   const handleRegionModalCancel = () => {
     setIsRegionModalOpen(false)
+  }
+
+  // Check if a region has any saved allowance details by checking against loaded rule details
+  // NOTE: This only works correctly if the rules contain ALL rules with details for these regions
+  // Since rules are filtered by travelRegionSetId, this will only check rules within the current set
+  const regionHasSavedDetails = useCallback(
+    (regionId: string): boolean => {
+      // Check if any rule has details for this region
+      const hasDetails = allowanceRegionRules.some(rule => {
+        const ruleHasDetailsForRegion = rule.details?.some(detail => {
+          const matches = detail.travelRegion?.id === regionId && detail.id
+          return matches
+        })
+        return ruleHasDetailsForRegion
+      })
+
+      // Debug logging
+      const region = editableTravelRegions.find(r => r.id === regionId)
+      console.log('🔍 Checking region for delete:', {
+        regionCode: region?.code,
+        regionValue: region?.value,
+        regionId,
+        hasDetails,
+        currentTravelRegionSet: travelRegionSetId,
+        totalRulesInCurrentSet: allowanceRegionRules.length,
+        rulesWithDetails: allowanceRegionRules
+          .filter(r => r.details && r.details.length > 0)
+          .map(r => ({
+            ruleId: r.id,
+            ruleName: r.name,
+            detailCount: r.details?.length || 0,
+            regionIdsInRule: r.details?.map(d => d.travelRegion?.id).filter(Boolean),
+            hasThisRegion: r.details?.some(d => d.travelRegion?.id === regionId)
+          }))
+      })
+
+      return hasDetails
+    },
+    [allowanceRegionRules, editableTravelRegions, travelRegionSetId]
+  )
+
+  // Handle delete region click
+  const handleDeleteRegionClick = async (region: TravelRegion, e: React.MouseEvent) => {
+    e.stopPropagation()
+
+    // Check if this region has any SAVED details in any rule
+    if (regionHasSavedDetails(region.id)) {
+      toast.error('Cannot delete region with existing allowance details')
+      return
+    }
+
+    setDeleteRegionConfirmation({ isOpen: true, region })
+  }
+
+  // Handle delete region cancel
+  const handleDeleteRegionCancel = () => {
+    setDeleteRegionConfirmation({ isOpen: false, region: null })
+  }
+
+  // Handle delete region confirm
+  const handleDeleteRegionConfirm = async () => {
+    const { region } = deleteRegionConfirmation
+    if (!region) return
+
+    console.log('🗑️ Deleting region:', {
+      id: region.id,
+      code: region.code,
+      value: region.value
+    })
+
+    setIsDeletingRegion(true)
+    try {
+      // Soft delete the region using the catalog entry ID (not code)
+      console.log('🗑️ Calling deleteCatalogEntry with:', 'TravelRegion', 'v1', region.id)
+      const deleteResult = await catalogClient.deleteCatalogEntry('TravelRegion', 'v1', region.id)
+      console.log('✅ Delete API call successful, result:', deleteResult)
+
+      // Verify deletion by trying to fetch the entry
+      try {
+        const verifyEntry = await catalogClient.getCatalogEntryById(region.id)
+        console.log('🔍 Verification: Entry after delete:', {
+          id: verifyEntry.id,
+          code: verifyEntry.code,
+          isDeleted: verifyEntry.isDeleted
+        })
+      } catch {
+        console.log('🔍 Verification: Entry not found (this might be expected)')
+      }
+
+      toast.success(`Travel region "${region.value}" deleted successfully`)
+
+      // Close dialog first
+      setDeleteRegionConfirmation({ isOpen: false, region: null })
+
+      // Fully reload all data to reflect the deletion
+      console.log('🔄 Reloading data after delete...')
+      await loadData()
+      console.log('✅ Data reloaded')
+    } catch (err) {
+      console.error('❌ Error deleting region:', err)
+      console.error('❌ Error details:', {
+        message: err instanceof Error ? err.message : 'Unknown error',
+        stack: err instanceof Error ? err.stack : undefined,
+        full: err
+      })
+      toast.error(err instanceof Error ? err.message : 'Failed to delete region')
+    } finally {
+      setIsDeletingRegion(false)
+    }
   }
 
   // Open rule creation modal
@@ -823,237 +983,6 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     setIsRuleModalOpen(false)
   }
 
-  // Check if a specific AllowanceRegionRuleDetail is used in transactions
-  const checkDetailUsage = useCallback(
-    async (detailId: string): Promise<UsageInfo> => {
-      const query = `
-      query CheckDetailUsage($detailId: uuid!) {
-        expenseAllowanceCount: ExpenseAllowanceAggregate(
-          where: { 
-            allowanceRegionRuleDetailId: { _eq: $detailId }
-            isDeleted: { _eq: false }
-          }
-        ) {
-          aggregate { count }
-        }
-        expenseRequestTripCount: ExpenseRequestTripAggregate(
-          where: { 
-            allowanceRegionRuleDetailId: { _eq: $detailId }
-            isDeleted: { _eq: false }
-          }
-        ) {
-          aggregate { count }
-        }
-        expenseRequestTripTimeCount: ExpenseRequestTripTimeAggregate(
-          where: { 
-            allowanceRegionRuleDetailId: { _eq: $detailId }
-            isDeleted: { _eq: false }
-          }
-        ) {
-          aggregate { count }
-        }
-      }
-    `
-
-      const result = await graphqlClient.request<{
-        expenseAllowanceCount: { aggregate: { count: number } }
-        expenseRequestTripCount: { aggregate: { count: number } }
-        expenseRequestTripTimeCount: { aggregate: { count: number } }
-      }>(query, { detailId })
-
-      const allowanceCount = result.expenseAllowanceCount?.aggregate?.count || 0
-      const tripCount = result.expenseRequestTripCount?.aggregate?.count || 0
-      const tripTimeCount = result.expenseRequestTripTimeCount?.aggregate?.count || 0
-      const totalUsage = allowanceCount + tripCount + tripTimeCount
-
-      if (totalUsage === 0) {
-        return { isUsed: false, usedIn: {}, message: '' }
-      }
-
-      const usageDetails: string[] = []
-      if (allowanceCount > 0) usageDetails.push(`${allowanceCount} expense allowance(s)`)
-      if (tripCount > 0) usageDetails.push(`${tripCount} trip(s)`)
-      if (tripTimeCount > 0) usageDetails.push(`${tripTimeCount} trip time(s)`)
-
-      return {
-        isUsed: true,
-        usedIn: { allowanceCount, tripCount, tripTimeCount },
-        message: `This detail is used in ${usageDetails.join(', ')}. Only "Valid To" can be edited.`
-      }
-    },
-    [graphqlClient]
-  )
-
-  // Enter edit mode for a cell - checks if THIS SPECIFIC DETAIL is used in transactions
-  const handleEnterCellEdit = useCallback(
-    async (cellId: string) => {
-      setEditingCellId(cellId)
-
-      // Find the cell to check if it's new or existing
-      const cell = editableCells.find(c => c.id === cellId)
-
-      // If the cell is new (no ID in database), it's never been used - skip validation
-      if (!cell || cell.isNew || !cell.id) {
-        setEditingCellUsageInfo({ isUsed: false, usedIn: {}, message: '' })
-        return
-      }
-
-      setIsCheckingCellUsage(true)
-      setEditingCellUsageInfo(null)
-
-      try {
-        // Check if THIS SPECIFIC DETAIL (not the rule) is used in transactions
-        const detailUsage = await checkDetailUsage(cell.id)
-        setEditingCellUsageInfo(detailUsage)
-        if (detailUsage.isUsed) {
-          toast.info(`This detail is used in transactions. Only "Valid To" can be edited.`)
-        }
-      } catch (error) {
-        console.error('Error checking detail usage:', error)
-        // Default to restricted mode for safety
-        setEditingCellUsageInfo({
-          isUsed: true,
-          usedIn: {},
-          message: 'Unable to verify usage. Editing restricted for safety.'
-        })
-      } finally {
-        setIsCheckingCellUsage(false)
-      }
-    },
-    [editableCells, checkDetailUsage]
-  )
-
-  // Save a single cell immediately
-  const handleSaveSingleCell = async (cell: EditableCell) => {
-    if (!accessToken) {
-      toast.error('Access token is missing')
-      return
-    }
-
-    // Validation: amount must be > 0
-    if (cell.amount <= 0) {
-      toast.error('Amount must be greater than 0')
-      return
-    }
-
-    // Validation: activeFrom is required
-    if (!cell.activeFrom) {
-      toast.error('Valid From date is required')
-      return
-    }
-
-    setIsSavingCell(true)
-    try {
-      const client = getExpenseSettingsClient()
-      const rule = allowanceRegionRules.find(r => r.id === cell.allowanceRegionRuleId)
-
-      if (!rule) {
-        throw new Error('Rule not found')
-      }
-
-      // Validation: Detail validity must be within Rule validity
-      const detailFrom = dayjs(cell.activeFrom)
-      const detailTo = cell.activeTo ? dayjs(cell.activeTo) : null
-      const ruleFrom = rule.activeFrom ? dayjs(rule.activeFrom) : null
-      const ruleTo = rule.activeTo ? dayjs(rule.activeTo) : null
-
-      // Check: Detail's activeFrom must be >= Rule's activeFrom
-      if (ruleFrom && detailFrom.isBefore(ruleFrom)) {
-        toast.error(
-          `Detail's "Valid From" (${detailFrom.format('DD/MM/YYYY')}) cannot be before the rule's "Valid From" (${ruleFrom.format('DD/MM/YYYY')})`
-        )
-        setIsSavingCell(false)
-        return
-      }
-
-      // Check: Detail's activeTo must be <= Rule's activeTo (if rule has an end date)
-      if (ruleTo && detailTo && detailTo.isAfter(ruleTo)) {
-        toast.error(
-          `Detail's "Valid To" (${detailTo.format('DD/MM/YYYY')}) cannot be after the rule's "Valid To" (${ruleTo.format('DD/MM/YYYY')})`
-        )
-        setIsSavingCell(false)
-        return
-      }
-
-      // Check: Detail's activeFrom must be <= Rule's activeTo (if rule has an end date)
-      if (ruleTo && detailFrom.isAfter(ruleTo)) {
-        toast.error(
-          `Detail's "Valid From" (${detailFrom.format('DD/MM/YYYY')}) cannot be after the rule's "Valid To" (${ruleTo.format('DD/MM/YYYY')})`
-        )
-        setIsSavingCell(false)
-        return
-      }
-
-      // Use stored refs or find them from catalogs
-      const currency = currencies.find(c => c.code === cell.currencyCode)
-      const currencyRef = cell.currencyRef || currency?.id
-
-      // For countryRef: use stored value, or derive from travel region code
-      let countryRef = cell.countryRef
-      if (!countryRef && cell.travelRegionId) {
-        const regionParts = cell.travelRegionId.split(':')
-        if (regionParts.length >= 3) {
-          const regionCode = regionParts[regionParts.length - 1]
-          const countryCode = regionCode.substring(0, 2)
-          countryRef = `Country:v1:${countryCode}`
-        }
-      }
-
-      const detailPayload = {
-        allowanceRegionRuleDetail: {
-          ...(cell.id && { id: cell.id }),
-          amount: cell.amount,
-          currencyRef: currencyRef,
-          activeFrom: cell.activeFrom,
-          activeTo: cell.activeTo || null,
-          travelRegionRef: cell.travelRegionId,
-          countryRef: countryRef,
-          allowanceRegionRule: rule.id,
-          // Version is required for UPDATE - if missing, API will reject
-          ...(cell.id && cell.version !== undefined && { version: cell.version })
-        },
-        changeMode: cell.id ? 'UPDATE' : 'INSERT'
-      }
-
-      console.log('📦 Saving detail payload:', JSON.stringify(detailPayload, null, 2))
-      console.log('📦 Cell data:', {
-        id: cell.id,
-        version: cell.version, // Check if version exists
-        travelRegionId: cell.travelRegionId,
-        countryRef: cell.countryRef,
-        currencyRef: cell.currencyRef,
-        currencyCode: cell.currencyCode,
-        activeFrom: cell.activeFrom,
-        isNew: cell.isNew
-      })
-
-      await client.post('/employee-expense/saveAllowanceRegionRuleDetail', detailPayload)
-
-      // Mark cell as saved (not modified anymore)
-      setEditableCells(prev =>
-        prev.map(c =>
-          c.id === cell.id || c.validityPeriodId === cell.validityPeriodId
-            ? { ...c, isModified: false, isNew: false }
-            : c
-        )
-      )
-
-      toast.success('Changes saved successfully')
-
-      // Close edit mode
-      setEditingCellId(null)
-      setEditingCellUsageInfo(null)
-
-      // Reload data to get updated versions
-      await loadData(travelRegionSetId)
-    } catch (error) {
-      console.error('Error saving cell:', error)
-      toast.error(`Failed to save: ${error instanceof Error ? error.message : 'Unknown error'}`)
-    } finally {
-      setIsSavingCell(false)
-    }
-  }
-
   // Save all changes
   const handleSaveAll = async () => {
     // Prevent multiple simultaneous save operations
@@ -1111,15 +1040,24 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
               // For countryRef: use stored value, or derive from travel region code
               let countryRef = cell.countryRef
               if (!countryRef && cell.travelRegionId) {
-                // Try to extract country code from travel region ID (e.g., "TravelRegion:v1:DE" -> "DE")
+                // Try to extract country code from travel region ID (e.g., "TravelRegion:v1:DE-01" -> "Country:v1:DE")
                 const regionParts = cell.travelRegionId.split(':')
                 if (regionParts.length >= 3) {
                   const regionCode = regionParts[regionParts.length - 1]
-                  // Extract first 2 chars as country code (e.g., "DE-DE-000" -> "DE", "DE" -> "DE")
-                  const countryCode = regionCode.substring(0, 2)
+                  // Extract first 2 chars as country code and ensure uppercase
+                  const countryCode = regionCode.substring(0, 2).toUpperCase()
                   countryRef = `Country:v1:${countryCode}`
                 }
               }
+
+              // Validation: countryRef is required
+              if (!countryRef) {
+                console.error('❌ Missing countryRef for cell:', cell.travelRegionId)
+                toast.error('Country reference is missing for some details')
+                return null // Skip this cell
+              }
+
+              console.log('💾 Saving cell with countryRef:', countryRef, 'from region:', cell.travelRegionId)
 
               // Build the detail payload
               const detailPayload = {
@@ -1411,7 +1349,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                     )}
 
                   {/* Data Rows - One row per region, columns show values based on rule periods */}
-                  {sortedRegions.map(region => (
+                  {paginatedRegions.map(region => (
                     <TableRow key={region.id}>
                       <TableCell className="gba:sticky gba:left-0 gba:bg-white gba:z-10 gba:border-r gba:w-48">
                         <div className="gba:p-3">
@@ -1430,6 +1368,30 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                 <div className="gba:font-medium gba:text-sm gba:px-1 gba:py-0.5">{region.value}</div>
                               </div>
                             </div>
+                            {/* Delete button */}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={e => {
+                                console.log('🗑️ Delete button clicked for region:', {
+                                  id: region.id,
+                                  code: region.code,
+                                  value: region.value,
+                                  hasDetails: regionHasSavedDetails(region.id)
+                                })
+                                handleDeleteRegionClick(region, e)
+                              }}
+                              className="gba:h-6 gba:w-6 gba:p-0 gba:text-destructive hover:gba:text-destructive hover:gba:bg-destructive-secondary"
+                              title={
+                                regionHasSavedDetails(region.id)
+                                  ? 'Cannot delete - region has allowance details'
+                                  : 'Delete travel region'
+                              }
+                              disabled={regionHasSavedDetails(region.id)}
+                              data-testid={`${prefixDataTestId}-delete-region-button-${region.id}`}
+                            >
+                              <PiTrash className="gba:w-4 gba:h-4" />
+                            </Button>
                           </div>
                         </div>
                       </TableCell>
@@ -1499,13 +1461,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                             value={cell.activeFrom ? dayjs(cell.activeFrom).format('YYYY-MM-DD') : ''}
                                             onChange={date => {
                                               const dateValue = date ? `${date}T00:00:00+00:00` : ''
-                                              setEditableCells(prev =>
-                                                prev.map(c =>
-                                                  c.id === cell.id || c.validityPeriodId === cell.validityPeriodId
-                                                    ? { ...c, activeFrom: dateValue, isModified: true }
-                                                    : c
-                                                )
-                                              )
+                                              updateCellField(cell.id!, cell.validityPeriodId!, 'activeFrom', dateValue)
                                             }}
                                             disabled={isUsedInTransactions && !cell.isNew}
                                             data-testid={`${prefixDataTestId}-cell-active-from-${rule.id}-${region.id}`}
@@ -1521,13 +1477,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                             value={cell.activeTo ? dayjs(cell.activeTo).format('YYYY-MM-DD') : ''}
                                             onChange={date => {
                                               const dateValue = date ? `${date}T00:00:00+00:00` : undefined
-                                              setEditableCells(prev =>
-                                                prev.map(c =>
-                                                  c.id === cell.id || c.validityPeriodId === cell.validityPeriodId
-                                                    ? { ...c, activeTo: dateValue, isModified: true }
-                                                    : c
-                                                )
-                                              )
+                                              updateCellField(cell.id!, cell.validityPeriodId!, 'activeTo', dateValue)
                                             }}
                                             data-testid={`${prefixDataTestId}-cell-active-to-${rule.id}-${region.id}`}
                                           />
@@ -1544,13 +1494,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                             value={cell.amount || ''}
                                             onChange={e => {
                                               const value = parseFloat(e.target.value) || 0
-                                              setEditableCells(prev =>
-                                                prev.map(c =>
-                                                  c.id === cell.id || c.validityPeriodId === cell.validityPeriodId
-                                                    ? { ...c, amount: value, isModified: true }
-                                                    : c
-                                                )
-                                              )
+                                              updateCellField(cell.id!, cell.validityPeriodId!, 'amount', value)
                                             }}
                                             onClick={e => e.stopPropagation()}
                                             className="gba:w-full gba:h-7 gba:text-center gba:text-sm gba:font-semibold"
@@ -1569,6 +1513,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                             value={cell.currencyCode}
                                             onValueChange={value => {
                                               const selectedCurrency = currencies.find(c => c.code === value)
+                                              // Update both currency code and ref
                                               setEditableCells(prev =>
                                                 prev.map(c =>
                                                   c.id === cell.id || c.validityPeriodId === cell.validityPeriodId
@@ -1601,6 +1546,46 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                           </Select>
                                         </div>
 
+                                        {/* Country - disabled if used in transactions */}
+                                        <div>
+                                          <label className="gba:text-xs gba:text-muted-foreground gba:block gba:mb-1">
+                                            Country:
+                                          </label>
+                                          <Select
+                                            value={cell.countryRef}
+                                            onValueChange={value => {
+                                              // Update country ref
+                                              setEditableCells(prev =>
+                                                prev.map(c =>
+                                                  c.id === cell.id || c.validityPeriodId === cell.validityPeriodId
+                                                    ? {
+                                                        ...c,
+                                                        countryRef: value,
+                                                        isModified: true
+                                                      }
+                                                    : c
+                                                )
+                                              )
+                                            }}
+                                            disabled={isUsedInTransactions && !cell.isNew}
+                                          >
+                                            <SelectTrigger
+                                              className="gba:w-full gba:h-7 gba:text-xs"
+                                              onClick={e => e.stopPropagation()}
+                                              data-testid={`${prefixDataTestId}-cell-country-${rule.id}-${region.id}`}
+                                            >
+                                              <SelectValue placeholder="Select country" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              {countries.map(country => (
+                                                <SelectItem key={country.id} value={country.id}>
+                                                  {country.code} - {country.value}
+                                                </SelectItem>
+                                              ))}
+                                            </SelectContent>
+                                          </Select>
+                                        </div>
+
                                         {/* Action buttons */}
                                         <div className="gba:flex gba:gap-2 gba:mt-2">
                                           {cell.isNew ? (
@@ -1611,23 +1596,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                                 size="sm"
                                                 onClick={e => {
                                                   e.stopPropagation()
-                                                  // Remove the new cell from editableCells
-                                                  setEditableCells(prev =>
-                                                    prev.filter(c => c.validityPeriodId !== cell.validityPeriodId)
-                                                  )
-                                                  // Also remove the validity period from the rule
-                                                  setAllowanceRegionRules(prev =>
-                                                    prev.map(r =>
-                                                      r.id === rule.id
-                                                        ? {
-                                                            ...r,
-                                                            validityPeriods: r.validityPeriods.filter(
-                                                              p => p.id !== cell.validityPeriodId
-                                                            )
-                                                          }
-                                                        : r
-                                                    )
-                                                  )
+                                                  handleRemoveNewCell(cell.validityPeriodId!, rule.id)
                                                 }}
                                                 className="gba:flex-1 gba:h-7 gba:text-xs"
                                                 disabled={isSavingCell}
@@ -1817,12 +1786,12 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
         </div>
       )}
 
-      {/* Pagination Controls */}
-      {!searchTerm && totalRegions > 0 && editableTravelRegions.length > 0 && (
+      {/* Pagination Controls - use sortedRegions length for total */}
+      {!searchTerm && sortedRegions.length > 0 && (
         <MileageRulesPagination
           currentPage={currentPage}
           pageSize={pageSize}
-          totalItems={totalRegions}
+          totalItems={sortedRegions.length}
           itemLabel="regions"
           onPageChange={async pagination => {
             const pageSizeChanged = pagination.pageSize !== pageSize
@@ -1925,8 +1894,56 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
         onSave={handleRegionModalSave}
         travelRegionSetId={travelRegionSetId}
         travelRegionSetName={travelRegionSetName}
+        countries={countries}
         prefixDataTestId={prefixDataTestId}
       />
+
+      {/* Delete Region Confirmation Dialog */}
+      <Dialog
+        open={deleteRegionConfirmation.isOpen}
+        onOpenChange={() => setDeleteRegionConfirmation({ isOpen: false, region: null })}
+      >
+        <DialogContent data-testid={`${prefixDataTestId}-delete-region-confirmation-dialog`}>
+          <DialogHeader>
+            <DialogTitle>Delete Travel Region</DialogTitle>
+          </DialogHeader>
+          <div className="gba:space-y-4">
+            <p className="gba:text-sm gba:text-muted-foreground">
+              Are you sure you want to delete the travel region{' '}
+              <strong>{deleteRegionConfirmation.region?.value}</strong>?
+            </p>
+            {deleteRegionConfirmation.region &&
+              editableCells.some(cell => cell.travelRegionId === deleteRegionConfirmation.region!.id && cell.id) && (
+                <div className="gba:bg-destructive-secondary gba:text-destructive gba:p-3 gba:rounded gba:text-sm">
+                  ⚠️ This region has{' '}
+                  {
+                    editableCells.filter(cell => cell.travelRegionId === deleteRegionConfirmation.region!.id && cell.id)
+                      .length
+                  }{' '}
+                  allowance details. Cannot delete.
+                </div>
+              )}
+            <div className="gba:flex gba:justify-end gba:gap-2">
+              <Button
+                variant="outline"
+                onClick={handleDeleteRegionCancel}
+                disabled={isDeletingRegion}
+                data-testid={`${prefixDataTestId}-delete-region-cancel-button`}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDeleteRegionConfirm}
+                disabled={isDeletingRegion}
+                data-testid={`${prefixDataTestId}-delete-region-confirm-button`}
+              >
+                {isDeletingRegion ? 'Deleting...' : 'Delete'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Rule Modal (for adding details to existing rule) */}
       <Dialog open={isEditRuleModalOpen} onOpenChange={setIsEditRuleModalOpen}>

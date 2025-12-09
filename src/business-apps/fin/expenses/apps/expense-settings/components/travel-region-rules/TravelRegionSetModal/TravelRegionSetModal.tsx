@@ -11,7 +11,12 @@ import {
   Input,
   Label,
   Alert,
-  AlertDescription
+  AlertDescription,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
@@ -21,9 +26,17 @@ const toast = (message: string, type: 'success' | 'error' = 'success') => {
 }
 
 export interface TravelRegionSetFormData {
+  id?: string // Catalog entry ID (for editing)
   code: string
   value: string
   description?: string
+  parentCatalogEntryId?: string // Country ID
+}
+
+interface CountryOption {
+  id: string
+  code: string
+  value: string
 }
 
 export interface TravelRegionSetModalProps extends BusinessAppContextProps {
@@ -45,12 +58,44 @@ const TravelRegionSetModal: React.FC<TravelRegionSetModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState<TravelRegionSetFormData>({
+    id: undefined,
     code: '',
     value: '',
-    description: ''
+    description: '',
+    parentCatalogEntryId: ''
   })
+  const [countries, setCountries] = useState<CountryOption[]>([])
+  const [isLoadingCountries, setIsLoadingCountries] = useState(true)
 
   const catalogClient = useCatalogManagerClient(accessToken)
+
+  // Load countries when modal opens
+  useEffect(() => {
+    const loadCountries = async () => {
+      if (!isVisible || !accessToken) return
+
+      setIsLoadingCountries(true)
+      try {
+        const response = await catalogClient.getCatalogEntriesList(
+          { catalogIdentifier: 'Country', version: 'v1' },
+          { limit: 500, offset: 0, returnTotalRecords: true, includeChildCatalogEntries: true }
+        )
+        const countryOptions = response.data.map((item: any) => ({
+          id: item.id,
+          code: item.code,
+          value: item.value
+        }))
+        setCountries(countryOptions)
+      } catch (err) {
+        console.error('Error loading countries:', err)
+        setError('Failed to load countries')
+      } finally {
+        setIsLoadingCountries(false)
+      }
+    }
+
+    loadCountries()
+  }, [isVisible, accessToken])
 
   // Reset form when modal opens/closes or editingSet changes
   useEffect(() => {
@@ -59,13 +104,15 @@ const TravelRegionSetModal: React.FC<TravelRegionSetModalProps> = ({
         setFormData({
           code: editingSet.code || '',
           value: editingSet.value || '',
-          description: editingSet.description || ''
+          description: editingSet.description || '',
+          parentCatalogEntryId: editingSet.parentCatalogEntryId || ''
         })
       } else {
         setFormData({
           code: '',
           value: '',
-          description: ''
+          description: '',
+          parentCatalogEntryId: ''
         })
       }
       setError(null)
@@ -80,6 +127,11 @@ const TravelRegionSetModal: React.FC<TravelRegionSetModalProps> = ({
       return
     }
 
+    if (!formData.parentCatalogEntryId) {
+      setError('Country is required')
+      return
+    }
+
     setIsSubmitting(true)
     setError(null)
 
@@ -89,6 +141,7 @@ const TravelRegionSetModal: React.FC<TravelRegionSetModalProps> = ({
         code: formData.code.trim(),
         value: formData.value.trim(),
         description: formData.description?.trim() || '',
+        parentEntryId: formData.parentCatalogEntryId, // Set the Country as parent
         translations: [
           {
             localeCode: 'en',
@@ -97,13 +150,17 @@ const TravelRegionSetModal: React.FC<TravelRegionSetModalProps> = ({
         ]
       }
 
-      console.log('🚀 Creating Travel Region Set:', catalogEntry)
+      console.log(isEditMode ? '✏️  Updating Travel Region Set:' : '🚀 Creating Travel Region Set:', catalogEntry)
 
-      if (editingSet) {
-        // TODO: Implement update functionality when needed
-        console.log('Update functionality not implemented yet')
-        toast('Update functionality not implemented yet', 'error')
+      if (isEditMode) {
+        // Update existing travel region set - use the ID from formData
+        if (!formData.id) {
+          throw new Error('Cannot update: Travel Region Set ID is missing')
+        }
+        await catalogClient.updateCatalogEntry('TravelRegionSet', 'v1', formData.id, catalogEntry)
+        toast('Travel Region Set updated successfully', 'success')
       } else {
+        // Create new travel region set
         await catalogClient.createCatalogEntry('TravelRegionSet', 'v1', catalogEntry)
         toast('Travel Region Set created successfully', 'success')
       }
@@ -111,9 +168,9 @@ const TravelRegionSetModal: React.FC<TravelRegionSetModalProps> = ({
       onSave(formData)
       handleClose()
     } catch (err) {
-      console.error('❌ Error creating Travel Region Set:', err)
-      setError(err instanceof Error ? err.message : 'Failed to create Travel Region Set')
-      toast('Failed to create Travel Region Set', 'error')
+      console.error(`❌ Error ${isEditMode ? 'updating' : 'creating'} Travel Region Set:`, err)
+      setError(err instanceof Error ? err.message : `Failed to ${isEditMode ? 'update' : 'create'} Travel Region Set`)
+      toast(`Failed to ${isEditMode ? 'update' : 'create'} Travel Region Set`, 'error')
     } finally {
       setIsSubmitting(false)
     }
@@ -121,9 +178,11 @@ const TravelRegionSetModal: React.FC<TravelRegionSetModalProps> = ({
 
   const handleClose = () => {
     setFormData({
+      id: undefined,
       code: '',
       value: '',
-      description: ''
+      description: '',
+      parentCatalogEntryId: ''
     })
     setError(null)
     onCancel()
@@ -154,6 +213,29 @@ const TravelRegionSetModal: React.FC<TravelRegionSetModalProps> = ({
 
         <form onSubmit={handleSubmit} className="gba:space-y-4">
           <div className="gba:space-y-2">
+            <Label htmlFor="country">
+              {getTranslationFromI18nKeyAndLabel('expense-settings:country', 'Country')}
+              <span className="gba:text-destructive"> *</span>
+            </Label>
+            <Select
+              value={formData.parentCatalogEntryId}
+              onValueChange={value => handleInputChange('parentCatalogEntryId', value)}
+              disabled={isSubmitting || isLoadingCountries}
+            >
+              <SelectTrigger data-testid={`${prefixDataTestId}-country-select`}>
+                <SelectValue placeholder={isLoadingCountries ? 'Loading countries...' : 'Select a country'} />
+              </SelectTrigger>
+              <SelectContent>
+                {countries.map(country => (
+                  <SelectItem key={country.id} value={country.id}>
+                    {country.code} - {country.value}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="gba:space-y-2">
             <Label htmlFor="code">
               {getTranslationFromI18nKeyAndLabel('expense-settings:code', 'Code')}
               <span className="gba:text-destructive"> *</span>
@@ -164,8 +246,10 @@ const TravelRegionSetModal: React.FC<TravelRegionSetModalProps> = ({
               onChange={e => handleInputChange('code', e.target.value)}
               placeholder="Enter unique code (e.g., EU_REGIONS)"
               data-testid={`${prefixDataTestId}-code-input`}
-              disabled={isSubmitting}
+              disabled={isSubmitting || isEditMode}
+              readOnly={isEditMode}
               required
+              className={isEditMode ? 'gba:bg-muted gba:cursor-not-allowed' : ''}
             />
           </div>
 
@@ -211,7 +295,9 @@ const TravelRegionSetModal: React.FC<TravelRegionSetModalProps> = ({
             </Button>
             <Button
               type="submit"
-              disabled={isSubmitting || !formData.code.trim() || !formData.value.trim()}
+              disabled={
+                isSubmitting || !formData.code.trim() || !formData.value.trim() || !formData.parentCatalogEntryId
+              }
               data-testid={`${prefixDataTestId}-save-button`}
             >
               {isSubmitting
