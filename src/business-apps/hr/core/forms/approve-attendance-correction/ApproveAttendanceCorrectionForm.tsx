@@ -130,7 +130,7 @@ export const ApproveAttendanceCorrection: React.FC<ChangeRelationshipReviewProps
       footer={
         !isTaskCompleted ? (
           <TaskDetailFooter
-            data-testid="change-relationship-review-actions"
+            data-testid="approve-attendance-correction-actions"
             actions={[
               {
                 label: approveLabel,
