@@ -623,6 +623,9 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
       ? `${forecastValue}: ${forecastAdditionalValue1}`
       : forecastValue
 
+    // Get associated investment (1-to-1 relationship)
+    const associatedInvestment = opportunityData?.investment?.find((inv: any) => !inv.isDeleted)
+
     return (
       <div className="gba:flex gba:items-center gba:gap-2">
         {opportunityData?.opportunityStatus?.value && (
@@ -653,6 +656,26 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
             {formatCurrency(opportunityData.estimatedAmount, opportunityData?.currency?.id || 'Currency:v1:EUR')}
           </Badge>
         )}
+        {/* Associated Investment Badge - Only show if association exists */}
+        {associatedInvestment?.id && (
+          <button
+            type="button"
+            onClick={() =>
+              navigateTo(
+                buildPlatformUrl('/platform/irm/investment-record', {
+                  investmentId: associatedInvestment.id
+                })
+              )
+            }
+            className="gba:bg-transparent gba:border-0 gba:p-0"
+            data-testid="opportunity-associated-investment-link"
+          >
+            <Badge variant="outline" className="gba:cursor-pointer gba:hover:opacity-80">
+              {getTranslationFromI18nKeyAndLabel('opportunity.associatedInvestment.label', 'Associated Investment')}:{' '}
+              {associatedInvestment.name}
+            </Badge>
+          </button>
+        )}
       </div>
     )
   }, [
@@ -660,6 +683,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     opportunityData?.currency?.id,
     opportunityData?.opportunityStatus?.value,
     opportunityData?.opportunityForecast,
+    opportunityData?.investment,
     opportunityId,
     props.accessToken
   ])
