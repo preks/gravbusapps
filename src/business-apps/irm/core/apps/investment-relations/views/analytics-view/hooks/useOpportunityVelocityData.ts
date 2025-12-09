@@ -45,6 +45,10 @@ export const useOpportunityVelocityData = (accessToken: string) => {
               estimatedAmount
               closeDate
               account { name }
+              currency {
+                code
+                value
+              }
             }
             slowMovers: InvestmentOpportunity(where: $slowMoversWhere, orderBy: $slowMoversOrderBy, limit: $slowMoversLimit) {
               id
@@ -52,6 +56,10 @@ export const useOpportunityVelocityData = (accessToken: string) => {
               estimatedAmount
               createdAt
               account { name }
+              currency {
+                code
+                value
+              }
             }
           }
         `
@@ -109,7 +117,8 @@ export const useOpportunityVelocityData = (accessToken: string) => {
             value: opp.estimatedAmount || 0,
             closeDate: opp.closeDate,
             daysSinceClosed,
-            isWon: true
+            isWon: true,
+            currencyCode: opp.currency?.code || 'EUR'
           }
         })
 
@@ -121,7 +130,8 @@ export const useOpportunityVelocityData = (accessToken: string) => {
             title: opp.name,
             value: opp.estimatedAmount || 0,
             createdAt: opp.createdAt,
-            daysSinceCreated
+            daysSinceCreated,
+            currencyCode: opp.currency?.code || 'EUR'
           }
         })
 

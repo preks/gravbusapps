@@ -1,51 +1,60 @@
 import React from 'react'
 import { useEmployeeDetails } from '../../queries/employeeQueries'
 import { AvatarWithInitials } from '../shared/AvatarWithInitials'
+import { BaseEntityLinkChip } from './BaseEntityLinkChip'
 import { navigateTo } from '@/common/utils/navigationUtils'
 
 interface EmployeeLinkChipProps {
   employeeId: string
   token: string
+  children: React.ReactNode // Link text from markdown
 }
 
-const EmployeeLinkChip: React.FC<EmployeeLinkChipProps> = ({ employeeId, token }) => {
+const EmployeeLinkChip: React.FC<EmployeeLinkChipProps> = ({ employeeId, token, children }) => {
   const { state } = useEmployeeDetails(employeeId, token)
 
+  // Loading state: show skeleton with link text
   if (state.state === 'loading') {
     return (
       <span className="gba:inline-flex gba:items-center gba:gap-1 gba:px-2 gba:py-0.5 gba:rounded-full gba:bg-muted gba:text-sm">
         <div className="gba:h-5 gba:w-5 gba:rounded-full gba:bg-muted-foreground gba:animate-pulse" />
-        <div className="gba:w-10 gba:h-3 gba:bg-muted-foreground gba:animate-pulse gba:rounded" />
+        <span className="gba:leading-none">{children}</span>
       </span>
     )
   }
 
+  // Error state: show link text with error styling
   if (state.state === 'error') {
-    return <span className="gba:text-destructive gba:text-sm">{state.message}</span>
+    return (
+      <BaseEntityLinkChip url={`/platform/employee-record?employeeId=${employeeId}`} icon={<span>👤</span>}>
+        {children}
+      </BaseEntityLinkChip>
+    )
   }
 
-  const name = `${state.employee.firstName} ${state.employee.lastName}`
+  // Success: show avatar thumbnail if available, otherwise emoji fallback
+  const icon = state.employee.pictureThumbnail ? (
+    <AvatarWithInitials
+      firstName={state.employee.firstName}
+      lastName={state.employee.lastName}
+      pictureThumbnail={state.employee.pictureThumbnail}
+      size={20}
+    />
+  ) : (
+    <span>👤</span>
+  )
 
   return (
-    <a
-      href={state.employee?.profileUrl}
-      data-testid={`every-ai-employee-link-chip-${state.employee.id}`}
-      className="gba:inline-flex gba:items-center gba:gap-1 gba:px-2 gba:py-0.5 gba:rounded-full gba:bg-muted hover:gba:bg-accent gba:text-sm gba:cursor-pointer gba:transition-colors"
+    <BaseEntityLinkChip
+      url={state.employee?.profileUrl || `/platform/employee-record?employeeId=${employeeId}`}
+      icon={icon}
       onClick={e => {
         e.preventDefault()
-        if (state.employee?.profileUrl) {
-          navigateTo(state.employee.profileUrl)
-        }
+        navigateTo(state.employee?.profileUrl || `/platform/employee-record?employeeId=${employeeId}`)
       }}
     >
-      <AvatarWithInitials
-        firstName={state.employee.firstName}
-        lastName={state.employee.lastName}
-        pictureThumbnail={state.employee.pictureThumbnail}
-        size={20}
-      />
-      <span className="gba:leading-none">{name}</span>
-    </a>
+      {children}
+    </BaseEntityLinkChip>
   )
 }
 

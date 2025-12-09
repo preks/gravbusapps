@@ -10,7 +10,8 @@ import {
   SelectTrigger,
   SelectContent,
   SelectItem,
-  SelectValue
+  SelectValue,
+  FileUpload
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
@@ -179,7 +180,7 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
 
   const [name, setName] = useState<string>(values.name || '')
   const [submitting, setSubmitting] = useState(false)
-  const [file, setFile] = useState<File | null>(null)
+  const [files, setFiles] = useState<File[]>([])
   const [documentGroupRef, setDocumentGroupRef] = useState<string>('')
   const [documentTypeRef, setDocumentTypeRef] = useState<string>('')
   const [parentFolderId, setParentFolderId] = useState<string>(values.parentDocument || '')
@@ -355,8 +356,8 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
       setError('Please provide a name.')
       return
     }
-    if (!values.folder && !isUpdateMode && !renameMode && !file) {
-      setError('Please select a file.')
+    if (!values.folder && !isUpdateMode && !renameMode && (!files || files.length === 0)) {
+      setError('Please select at least one file.')
       return
     }
     try {
@@ -445,7 +446,7 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
       } else {
         // Create
         crmDocument.version = 0
-        crmDocument.name = values.folder ? trimmed : ensureNameHasExtension(trimmed, file)
+        crmDocument.name = values.folder ? trimmed : ensureNameHasExtension(trimmed, files?.[0])
         crmDocument.parentDocument = parentFolderId || values.parentDocument || undefined
         crmDocument.format = values.folder ? 'FOLDER' : 'FILE'
       }
@@ -457,8 +458,8 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
         if (description) crmDocument.description = description
       }
 
-      // If uploading a file (create or update), upload to File Service and include returned fileId
-      if (!renameMode && !values.folder && file) {
+      // If uploading files (create or update), upload to File Service
+      if (!renameMode && !values.folder && files && files.length > 0) {
         // Validate we have a resolved entity ID before uploading
         if (!resolvedId) {
           throw new Error(`Unable to determine ${values.entityType} ID. Please ensure the entity ID is provided.`)
@@ -490,23 +491,59 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
           folderPath: `/${folderEntity}/${resolvedId}/documents`
         } as const
 
-        const uploadResponse = await fileClient.uploadFile(file, pathParams, queryParams)
+        // Upload all files
+        const uploadResponses = await Promise.all(
+          files.map(file => fileClient.uploadFile(file, pathParams, queryParams))
+        )
 
-        // Extract fileId without extension (backend expects UUID only)
-        const cleanFileId = uploadResponse.fileInfo.fileId ? uploadResponse.fileInfo.fileId.split('.')[0] : null
+        // Handle multiple files - create multiple documents
+        if (uploadResponses.length > 1) {
+          const crmDocuments = uploadResponses.map((uploadResponse, index) => {
+            const doc: Record<string, any> = { ...crmDocument }
 
-        // Create fileInfo object with clean fileId
-        const fileInfoWithCleanId = uploadResponse.fileInfo
-          ? {
-              ...uploadResponse.fileInfo,
-              fileId: cleanFileId
-            }
-          : null
+            // Extract fileId without extension (backend expects UUID only)
+            const cleanFileId = uploadResponse.fileInfo.fileId ? uploadResponse.fileInfo.fileId.split('.')[0] : null
 
-        crmDocument.file = cleanFileId
-        crmDocument.fileInfo = fileInfoWithCleanId
-        crmDocument.fileSize = file.size
-        crmDocument.mimeType = file.type || undefined
+            // Create fileInfo object with clean fileId
+            const fileInfoWithCleanId = uploadResponse.fileInfo
+              ? {
+                  ...uploadResponse.fileInfo,
+                  fileId: cleanFileId
+                }
+              : null
+
+            doc.file = cleanFileId
+            doc.fileInfo = fileInfoWithCleanId
+            doc.fileSize = files[index].size
+            doc.mimeType = files[index].type || undefined
+            // Use original file name for each document
+            doc.name = uploadResponse.fileInfo.fileMetadata?.originalFileName || files[index].name
+
+            return doc
+          })
+
+          dispatchProcessContinueEvent('pse_submit', {
+            [entityIdKey]: resolvedId,
+            folder: values.folder,
+            crmDocuments // Multiple documents
+          })
+          return
+        } else {
+          // Single file
+          const uploadResponse = uploadResponses[0]
+          const cleanFileId = uploadResponse.fileInfo.fileId ? uploadResponse.fileInfo.fileId.split('.')[0] : null
+          const fileInfoWithCleanId = uploadResponse.fileInfo
+            ? {
+                ...uploadResponse.fileInfo,
+                fileId: cleanFileId
+              }
+            : null
+
+          crmDocument.file = cleanFileId
+          crmDocument.fileInfo = fileInfoWithCleanId
+          crmDocument.fileSize = files[0].size
+          crmDocument.mimeType = files[0].type || undefined
+        }
       }
 
       dispatchProcessContinueEvent('pse_submit', {
@@ -555,17 +592,26 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
 
     return (
       <div className="gba:flex gba:flex-col gba:gap-3 gba:mb-4">
-        <Input
-          type="file"
-          onChange={e => {
-            const f = e.target.files?.[0] || null
-            setFile(f)
-            if (f && !name) {
-              setName(f.name)
-            }
-          }}
-          data-testid={formatDataTestId(prefixDataTestId, 'FileInput')}
-        />
+        <div className="gba:flex gba:flex-col gba:gap-2">
+          <label className="gba:text-sm">Files</label>
+          <FileUpload
+            layout="list"
+            preview="icon"
+            maxFiles={10}
+            maxSizeMB={50}
+            multiple={true}
+            accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png,.gif,.zip"
+            onFilesChange={filesList => {
+              const filesArray = filesList.map(f => f.file).filter(Boolean) as File[]
+              setFiles(filesArray)
+              const firstFile = filesArray[0]
+              if (firstFile && !name) {
+                setName(firstFile.name)
+              }
+            }}
+            data-testid={formatDataTestId(prefixDataTestId, 'FileUpload')}
+          />
+        </div>
         <div className="gba:flex gba:flex-col gba:gap-2">
           <label className="gba:text-sm">Document Group</label>
           <Select
