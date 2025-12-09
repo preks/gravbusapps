@@ -16,7 +16,9 @@ import { PiX } from 'react-icons/pi'
 import { Building2 } from 'lucide-react'
 import { useFormContext, useFieldArray } from 'react-hook-form'
 import { CatalogSelect } from '@/components/catalog-select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
 import { INVESTMENT_ACCOUNT_TYPE } from '@/common/data/investment/constants/investmentCatalogs'
+import { ContactTypeLabels } from '@/common/data/relations/constants/contactConstants'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 
 export interface AccountSegmentOption {
@@ -41,8 +43,11 @@ interface AccountSegmentProps {
   // Account ID field name in junction table (e.g., "investmentAccountId" or "accountId")
   accountIdFieldName: string
 
-  // Account type field name in junction table (e.g., "investmentAccountTypeRef" or "accountTypeRef")
+  // Account type field name in junction table (e.g., "investmentAccountTypeRef" or "accountTypeRef" or "contactType")
   accountTypeFieldName: string
+
+  // Type selector mode: 'accountType' (catalog) or 'contactType' (enum)
+  typeMode?: 'accountType' | 'contactType'
 
   // Account search results
   accounts: AccountSegmentOption[]
@@ -71,6 +76,7 @@ const AccountItem: React.FC<{
   fieldArrayName: string
   accountIdFieldName: string
   accountTypeFieldName: string
+  typeMode: 'accountType' | 'contactType'
   accountIndex: number
   accountContacts: any[]
   accounts: AccountSegmentOption[]
@@ -81,6 +87,7 @@ const AccountItem: React.FC<{
   fieldArrayName,
   accountIdFieldName,
   accountTypeFieldName,
+  typeMode,
   accountIndex,
   accountContacts,
   accounts,
@@ -151,7 +158,7 @@ const AccountItem: React.FC<{
         )}
       </div>
 
-      {/* Account Type Select */}
+      {/* Type Select (Account Type or Contact Type) */}
       <div className="gba:w-48">
         <FormField
           control={form.control}
@@ -159,14 +166,31 @@ const AccountItem: React.FC<{
           render={({ field }) => (
             <FormItem>
               <FormControl>
-                <CatalogSelect
-                  catalogIdentifier={INVESTMENT_ACCOUNT_TYPE}
-                  value={field.value || ''}
-                  onValueChange={v => field.onChange(v || '')}
-                  data-testid={formatDataTestId(dataTestId || 'account-segment', `account-type-${accountIndex}`)}
-                  placeholder="Select type..."
-                  disabled={disabled}
-                />
+                {typeMode === 'contactType' ? (
+                  <Select value={field.value || ''} onValueChange={v => field.onChange(v || '')} disabled={disabled}>
+                    <SelectTrigger
+                      data-testid={formatDataTestId(dataTestId || 'account-segment', `contact-type-${accountIndex}`)}
+                    >
+                      <SelectValue placeholder="Select type..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(ContactTypeLabels).map(([key, label]) => (
+                        <SelectItem key={key} value={key}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <CatalogSelect
+                    catalogIdentifier={INVESTMENT_ACCOUNT_TYPE}
+                    value={field.value || ''}
+                    onValueChange={v => field.onChange(v || '')}
+                    data-testid={formatDataTestId(dataTestId || 'account-segment', `account-type-${accountIndex}`)}
+                    placeholder="Select type..."
+                    disabled={disabled}
+                  />
+                )}
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -195,6 +219,7 @@ const AccountSegment: React.FC<AccountSegmentProps> = ({
   fieldArrayName,
   accountIdFieldName,
   accountTypeFieldName,
+  typeMode = 'accountType',
   accounts,
   accountsLoading,
   accountsError,
@@ -274,6 +299,7 @@ const AccountSegment: React.FC<AccountSegmentProps> = ({
               fieldArrayName={fieldArrayName}
               accountIdFieldName={accountIdFieldName}
               accountTypeFieldName={accountTypeFieldName}
+              typeMode={typeMode}
               accountIndex={index}
               accountContacts={accountContacts}
               accounts={accounts}
