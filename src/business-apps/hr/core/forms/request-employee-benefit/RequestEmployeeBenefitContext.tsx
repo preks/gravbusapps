@@ -5,6 +5,7 @@ import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogMan
 import { EMPLOYEE_DATA_QUERY, GET_COUNTRY_CURRENCY_QUERY } from './RequestEmployeeBenefitQueries'
 import { extractCurrencyCode } from '@/common/utils/numberFormatter'
 import { fetchBenefitProvidersForBenefit } from './utils/fetchBenefitProviders'
+import { extractEmployeeId } from './utils/employeeIdUtils'
 import type { RequestEmployeeBenefitContextData, EmployeeDataResponse } from './types'
 
 interface RequestEmployeeBenefitContextValue {
@@ -32,18 +33,8 @@ export const RequestEmployeeBenefitProvider: React.FC<ProviderProps> = ({
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Extract employee ID from context
-  const employeeId = useMemo(() => {
-    const externalContext = (additionalData as any)?.externalContextData
-    return (
-      externalContext?.employeeId ||
-      (additionalData as any)?.psi_taskPayload?.employeeId ||
-      (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.employeeId ||
-      (additionalData as any)?.employeeId ||
-      userInfo?.employeeDetails?.employeeId ||
-      ''
-    )
-  }, [additionalData, userInfo])
+  // Extract employee ID from context using utility
+  const employeeId = useMemo(() => extractEmployeeId(additionalData, userInfo), [additionalData, userInfo])
 
   // Extract selected benefit from context or payload
   const selectedBenefit = useMemo(() => {

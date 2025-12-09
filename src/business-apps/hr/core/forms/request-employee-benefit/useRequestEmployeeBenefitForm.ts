@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getDefaultStartDate } from '@/business-apps/hr/core/apps/employee-record/utils/utils'
+import { BENEFIT_FORM_VALIDATION } from '@/business-apps/hr/core/apps/employee-record/components/tabs/compensation/constants/benefitFormValidation'
 import { extractEmployeeId } from './utils/employeeIdUtils'
 import {
   buildBenefitSubmitPayload,
@@ -105,8 +106,8 @@ export const useRequestEmployeeBenefitForm = ({
     const trimmedJustification = justification.trim()
     return (
       startDate.length > 0 &&
-      trimmedJustification.length >= 20 && // BENEFIT_FORM_VALIDATION.MIN_TEXT_LENGTH
-      trimmedJustification.length <= 500 // BENEFIT_FORM_VALIDATION.MAX_TEXT_LENGTH
+      trimmedJustification.length >= BENEFIT_FORM_VALIDATION.MIN_TEXT_LENGTH &&
+      trimmedJustification.length <= BENEFIT_FORM_VALIDATION.MAX_TEXT_LENGTH
     )
   }, [startDate, justification])
 
