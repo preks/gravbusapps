@@ -17,15 +17,11 @@ import { IncomingCallDialog } from './components/IncomingCallDialog'
 import { IncomingGroupCallDialog } from './components/IncomingGroupCallDialog'
 import { CallModal } from './components/CallModal'
 import { GroupCallModal } from './components/GroupCallModal'
-import { initGlobalMinimizedCallRenderer } from './components/GlobalMinimizedCall'
+// import { initGlobalMinimizedCallRenderer } from './components/GlobalMinimizedCall'
 import type { Conversation, User, MessageEntityReference } from './types'
 import type { CallParticipant } from './services/webrtcClient'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { env } from '@/common/env/EnvUtils'
-
-// Initialize global minimized call renderer on first load
-// This ensures the minimized call persists even when Chat unmounts
-initGlobalMinimizedCallRenderer()
 
 type ViewMode = 'full' | 'compact' | 'mobile'
 
@@ -55,6 +51,13 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
       conversationIdFromUrlProcessed.current = false
     }
   }, [])
+
+  // Initialize global minimized call renderer once on mount
+  // This ensures the minimized call persists even when Chat unmounts
+  // TEMPORARILY DISABLED - causing portal conflicts
+  // useEffect(() => {
+  //   initGlobalMinimizedCallRenderer()
+  // }, [])
 
   // Stabilize accessToken - only update state when VALUE actually changes
   // This prevents re-renders caused by the platform passing new string references

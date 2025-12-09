@@ -12,7 +12,7 @@ interface MeetingCardProps {
  * A card component that displays meeting details in the chat
  * Clicking the card switches to the calendar tab within the sidepanel
  */
-export const MeetingCard: React.FC<MeetingCardProps> = ({ meeting, className = '' }) => {
+export const MeetingCard: React.FC<MeetingCardProps> = React.memo(({ meeting, className = '' }) => {
   const startDate = new Date(meeting.startTime)
   const endDate = new Date(meeting.endTime)
 
@@ -33,19 +33,22 @@ export const MeetingCard: React.FC<MeetingCardProps> = ({ meeting, className = '
   }
 
   const handleClick = () => {
-    // Switch to calendar tab within the chat sidepanel by updating URL params
-    // The ChatWithCalendar component listens to the 'view' param
+    // Switch to calendar view within Chat and open meeting details
+    // The Calendar component listens for this custom event
+    const dateStr = startDate.toISOString().split('T')[0]
+
+    // Update URL parameters (Calendar reads these on mount/event)
     const url = new URL(window.location.href)
     url.searchParams.set('view', 'calendar')
-    url.searchParams.set('date', startDate.toISOString().split('T')[0])
+    url.searchParams.set('date', dateStr)
     url.searchParams.set('meetingId', meeting.id)
     window.history.pushState({}, '', url.toString())
 
-    // Dispatch a custom event to notify the calendar to switch tabs and focus the meeting
+    // Dispatch custom event to notify Calendar component
     window.dispatchEvent(
       new CustomEvent('switchToCalendar', {
         detail: {
-          date: startDate.toISOString().split('T')[0],
+          date: dateStr,
           meetingId: meeting.id
         }
       })
@@ -54,56 +57,71 @@ export const MeetingCard: React.FC<MeetingCardProps> = ({ meeting, className = '
 
   return (
     <Card
-      className={`gba:cursor-pointer gba:transition-all gba:hover:shadow-md gba:hover:border-primary/50 gba:max-w-sm ${className}`}
+      className={`gba:cursor-pointer gba:transition-all gba:hover:shadow-lg gba:hover:border-primary gba:hover:scale-[1.02] gba:max-w-md gba:bg-gradient-to-br gba:from-primary/5 gba:to-accent/5 ${className}`}
       onClick={handleClick}
       data-testid={`meeting-card-${meeting.id}`}
     >
       <CardContent className="gba:p-4">
         {/* Header with title and badge */}
-        <div className="gba:flex gba:items-start gba:justify-between gba:gap-2 gba:mb-3">
-          <h4 className="gba:font-semibold gba:text-foreground gba:text-sm gba:line-clamp-2">{meeting.title}</h4>
+        <div className="gba:flex gba:items-start gba:justify-between gba:gap-3 gba:mb-3">
+          <div className="gba:flex gba:items-start gba:gap-2 gba:flex-1 gba:min-w-0">
+            <div className="gba:w-8 gba:h-8 gba:rounded-lg gba:bg-primary/10 gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">
+              <Calendar className="gba:w-4 gba:h-4 gba:text-primary" />
+            </div>
+            <div className="gba:flex-1 gba:min-w-0">
+              <h4 className="gba:font-semibold gba:text-foreground gba:text-sm gba:line-clamp-2">{meeting.title}</h4>
+              {meeting.description && (
+                <p className="gba:text-xs gba:text-muted-foreground gba:line-clamp-1 gba:mt-0.5">
+                  {meeting.description}
+                </p>
+              )}
+            </div>
+          </div>
           <Badge variant="success" className="gba:flex-shrink-0 gba:text-[10px]">
             Scheduled
           </Badge>
         </div>
 
         {/* Date and time */}
-        <div className="gba:space-y-2 gba:text-xs gba:text-muted-foreground">
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <Calendar className="gba:w-3.5 gba:h-3.5 gba:text-primary" />
-            <span>{formatDate(startDate)}</span>
-          </div>
-
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <Clock className="gba:w-3.5 gba:h-3.5 gba:text-primary" />
-            <span>
-              {formatTime(startDate)} - {formatTime(endDate)}
-            </span>
+        <div className="gba:space-y-2.5 gba:text-xs">
+          <div className="gba:flex gba:items-center gba:gap-2.5 gba:bg-background/50 gba:rounded-md gba:px-2.5 gba:py-1.5">
+            <Clock className="gba:w-3.5 gba:h-3.5 gba:text-primary gba:flex-shrink-0" />
+            <div className="gba:flex-1">
+              <div className="gba:font-medium gba:text-foreground">{formatDate(startDate)}</div>
+              <div className="gba:text-muted-foreground gba:mt-0.5">
+                {formatTime(startDate)} - {formatTime(endDate)}
+              </div>
+            </div>
           </div>
 
           {/* Participants */}
           {meeting.participants.length > 0 && (
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <Users className="gba:w-3.5 gba:h-3.5 gba:text-primary" />
-              <span className="gba:truncate">{meeting.participants.join(', ')}</span>
+            <div className="gba:flex gba:items-center gba:gap-2.5 gba:bg-background/50 gba:rounded-md gba:px-2.5 gba:py-1.5">
+              <Users className="gba:w-3.5 gba:h-3.5 gba:text-primary gba:flex-shrink-0" />
+              <span className="gba:text-muted-foreground gba:truncate">
+                {meeting.participants.length} participant{meeting.participants.length !== 1 ? 's' : ''}
+              </span>
             </div>
           )}
 
           {/* Meeting link indicator */}
           {meeting.meetingLink && (
-            <div className="gba:flex gba:items-center gba:gap-2 gba:text-success">
-              <Video className="gba:w-3.5 gba:h-3.5" />
-              <span>Video call included</span>
+            <div className="gba:flex gba:items-center gba:gap-2.5 gba:bg-success/10 gba:rounded-md gba:px-2.5 gba:py-1.5">
+              <Video className="gba:w-3.5 gba:h-3.5 gba:text-success gba:flex-shrink-0" />
+              <span className="gba:text-success gba:font-medium">Video call included</span>
             </div>
           )}
         </div>
 
         {/* Click hint */}
-        <div className="gba:mt-3 gba:pt-2 gba:border-t gba:border-border/50 gba:flex gba:items-center gba:justify-end gba:gap-1 gba:text-[10px] gba:text-muted-foreground">
-          <span>View in Calendar</span>
-          <ExternalLink className="gba:w-3 gba:h-3" />
+        <div className="gba:mt-3 gba:pt-3 gba:border-t gba:border-border/30 gba:flex gba:items-center gba:justify-between">
+          <span className="gba:text-[11px] gba:text-muted-foreground">Click to view details</span>
+          <div className="gba:flex gba:items-center gba:gap-1 gba:text-[11px] gba:text-primary gba:font-medium">
+            <span>Open Calendar</span>
+            <ExternalLink className="gba:w-3 gba:h-3" />
+          </div>
         </div>
       </CardContent>
     </Card>
   )
-}
+})

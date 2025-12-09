@@ -565,9 +565,16 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = ({
       </div>
     )
 
-    // Render minimized view as portal to document.body so it persists
-    // even when switching tabs or closing chat
-    return createPortal(minimizedContent, document.body)
+    // Render minimized view as portal to a dedicated container
+    // This prevents conflicts with other portals and the vanilla DOM renderer
+    let portalContainer = document.getElementById('group-call-minimized-portal')
+    if (!portalContainer) {
+      portalContainer = document.createElement('div')
+      portalContainer.id = 'group-call-minimized-portal'
+      portalContainer.style.cssText = 'position: fixed; z-index: 9999;'
+      document.body.appendChild(portalContainer)
+    }
+    return createPortal(minimizedContent, portalContainer)
   }
 
   return (

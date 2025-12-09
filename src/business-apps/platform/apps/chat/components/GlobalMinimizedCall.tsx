@@ -318,7 +318,16 @@ export const GlobalMinimizedCall: React.FC = () => {
     globalCallManager.clearCall()
   }
 
-  // Render as portal to document body
+  // Render as portal to a dedicated container
+  // This prevents conflicts with other portals
+  let portalContainer = document.getElementById('global-minimized-call-portal')
+  if (!portalContainer) {
+    portalContainer = document.createElement('div')
+    portalContainer.id = 'global-minimized-call-portal'
+    portalContainer.style.cssText = 'position: fixed; z-index: 9999;'
+    document.body.appendChild(portalContainer)
+  }
+
   return createPortal(
     <MinimizedCallUI
       callState={callData.callState}
@@ -330,7 +339,7 @@ export const GlobalMinimizedCall: React.FC = () => {
       onExpand={handleExpand}
       onEndCall={handleEndCall}
     />,
-    document.body
+    portalContainer
   )
 }
 

@@ -176,10 +176,23 @@ export const AIResponseRenderer: React.FC<AIResponseRendererProps> = ({ content,
     return <div className="gba:leading-relaxed">{parts}</div>
   }
 
+  // Render meeting card with error boundary
+  const renderMeetingCard = () => {
+    if (!scheduledMeeting) return null
+
+    try {
+      return <MeetingCard meeting={scheduledMeeting} />
+    } catch (error) {
+      console.error('❌ [AIResponseRenderer] Error rendering MeetingCard:', error)
+      // Fail silently - show text response only
+      return null
+    }
+  }
+
   return (
     <div className="gba:space-y-3">
       {renderTextContent()}
-      {scheduledMeeting && <MeetingCard meeting={scheduledMeeting} />}
+      {renderMeetingCard()}
     </div>
   )
 }
