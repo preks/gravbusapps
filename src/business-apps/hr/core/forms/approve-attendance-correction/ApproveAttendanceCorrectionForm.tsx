@@ -118,7 +118,7 @@ export const ApproveAttendanceCorrection: React.FC<ChangeRelationshipReviewProps
 
   return (
     <TaskFormLayout
-      data-testid="change-relationship-review-container"
+      data-testid="approve-attendance-correction-container"
       header={
         <TaskDetailHeader
           title={taskTitle}
