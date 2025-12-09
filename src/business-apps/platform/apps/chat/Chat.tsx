@@ -5,7 +5,6 @@ import { useChatClient } from './hooks/useChatClient'
 import { useCall } from './hooks/useCall'
 import { useGroupCall } from './hooks/useGroupCall'
 import { useEveryAIChat } from './hooks/useEveryAIChat'
-import { usePersonalAgentIntegration } from './hooks/usePersonalAgentIntegration'
 import { ConversationList } from './components/ConversationList'
 import { ConversationHeader, type ActiveCallInfo } from './components/ConversationHeader'
 import { MessageList } from './components/MessageList'
@@ -159,12 +158,6 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
   useEffect(() => {
     console.debug('[Chat] stableActiveConversation', stableActiveConversation?.id)
   }, [stableActiveConversation?.id])
-
-  // Personal Agent Integration
-  const agentIntegration = usePersonalAgentIntegration({
-    accessToken,
-    userInfo: currentUser || undefined
-  })
 
   // Convert current user to CallParticipant format
   const currentUserAsParticipant: CallParticipant | null = useMemo(() => {
@@ -419,32 +412,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
     async (content: string, entityReferences?: MessageEntityReference[], attachments?: any[]) => {
       if (!activeConversationId) return
 
-      // Check if this is an agent creation request
-      console.log('[Chat] Checking for agent creation intent:', content)
-      const isAgentRequest = await agentIntegration.processMessageForAgentCreation(content, 'chat')
-      console.log('[Chat] Is agent request:', isAgentRequest)
-      if (isAgentRequest) {
-        console.log('[Chat] Agent created automatically')
-        setDraftMessage('') // Clear input
-
-        // Send confirmation message as system message
-        const parseResult = agentIntegration.currentParseResult
-        if (parseResult?.createdAgent) {
-          const confirmationMessage = `✅ Agent created! I'll ${parseResult.createdAgent.description.toLowerCase()}`
-          await sendMessage(activeConversationId, confirmationMessage, {
-            isAIResponse: true,
-            aiAssistant: 'Every'
-          })
-        } else if (parseResult?.error) {
-          const errorMessage = `❌ Failed to create agent: ${parseResult.error}`
-          await sendMessage(activeConversationId, errorMessage, {
-            isAIResponse: true,
-            aiAssistant: 'Every'
-          })
-        }
-
-        return
-      }
+      // Note: Agent creation detection removed - backend handles this now
 
       try {
         // Build metadata with entity references and attachments if present
@@ -584,7 +552,6 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
       processEveryAIMessage,
       activeConversation,
       clearStreamingText,
-      agentIntegration,
       setDraftMessage
     ]
   )

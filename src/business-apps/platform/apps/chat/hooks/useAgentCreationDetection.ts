@@ -1,12 +1,16 @@
 /**
  * Hook to detect when user is trying to create an agent via @Every
- * 
+ *
  * Detects patterns like:
- * - "inform me when..."
- * - "notify me when..."
- * - "send me a list..."
- * - "remind me..."
- * - "alert me..."
+ * - "inform me when..." (event-based)
+ * - "notify me when..." (event-based)
+ * - "send me a list every Monday" (schedule-based)
+ * - "remind me every day to..." (schedule-based)
+ * - "alert me when..." (event-based)
+ *
+ * DOES NOT detect one-time reminders:
+ * - "remind me to call in 2 minutes" → EveryAI handles this
+ * - "remind me tomorrow to..." → EveryAI handles this
  */
 
 import { useCallback } from 'react'
@@ -27,16 +31,17 @@ const AGENT_CREATION_PATTERNS = [
   /watch\s+for/i,
   /monitor/i,
 
-  // Schedule-based patterns
+  // Schedule-based patterns (recurring only)
   /send\s+me.*(?:every|each|daily|weekly|monthly)/i,
-  /remind\s+me.*(?:every|each|to)/i,
+  /remind\s+me.*(?:every|each|daily|weekly|monthly)/i,
+  /remind\s+me.*(?:at|on).*(?:every|each|daily|weekly|monthly)/i,
   /schedule.*(?:report|summary|update)/i,
-  
+
   // General automation patterns
   /automate/i,
   /automatically/i,
   /create.*agent/i,
-  /set\s+up.*automation/i,
+  /set\s+up.*automation/i
 ]
 
 export const useAgentCreationDetection = () => {
@@ -45,7 +50,7 @@ export const useAgentCreationDetection = () => {
    */
   const detectAgentCreationIntent = useCallback((message: string): AgentCreationIntent => {
     const lowerMessage = message.toLowerCase().trim()
-    
+
     // Remove @Every mention for analysis
     const cleanMessage = lowerMessage
       .replace(/@every\s*/gi, '')
@@ -83,4 +88,3 @@ export const useAgentCreationDetection = () => {
     hasEveryMention
   }
 }
-
