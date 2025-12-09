@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Card, ItemMedia } from '@newwork/nw-design-system'
+import { Card, ItemMedia, useTranslation } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {
   FolderIcon,
@@ -11,6 +11,7 @@ import {
   CalculatorIcon,
   CalendarBlankIcon
 } from '@phosphor-icons/react'
+import hrI18n from './_i18n'
 
 interface TimeSummaryCardsProps {
   monthlyRequiredMinutes: number
@@ -34,6 +35,8 @@ const TimeSummaryCards: React.FC<TimeSummaryCardsProps> = ({
     const minutes = abs % 60
     return minutes === 0 ? `${sign}${hours}h` : `${sign}${hours}h ${minutes}m`
   }
+
+  const { t } = useTranslation(hrI18n)
 
   const missingMinutes = Math.max(0, monthlyRequiredUntilYesterdayMinutes - monthlyWorkedUntilYesterdayMinutes)
 
@@ -126,9 +129,7 @@ const TimeSummaryCards: React.FC<TimeSummaryCardsProps> = ({
       >
         <Card className="gba:p-6 gba:gap-0">
           <div className="gba:flex gba:items-start gba:justify-between">
-            <div className="gba:text-base gba:font-semibold">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.summary.daily_average', 'Daily Average')}
-            </div>
+            <div className="gba:text-base gba:font-semibold">{t('daily_average')}</div>
             <ItemMedia variant="icon" icon={FolderIcon} iconVariant="decorative" />
           </div>
           <div className="gba:text-4xl gba:font-bold">{fmt(dailyAverageWorkedMinutesUntilYesterday)}</div>
@@ -136,9 +137,7 @@ const TimeSummaryCards: React.FC<TimeSummaryCardsProps> = ({
 
         <Card className="gba:p-6 gba:gap-0">
           <div className="gba:flex gba:items-start gba:justify-between">
-            <div className="gba:text-base gba:font-semibold">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.summary.overtime', 'Overtime')}
-            </div>
+            <div className="gba:text-base gba:font-semibold">{t('overtime')}</div>
             <ItemMedia variant="icon" icon={CurrencyDollarIcon} iconVariant="decorative" />
           </div>
           <div className="gba:text-4xl gba:font-bold">{fmt(overtimeMinutesUntilYesterday)}</div>

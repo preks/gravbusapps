@@ -1,11 +1,21 @@
 'use client'
 
 import React from 'react'
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell, Badge } from '@newwork/nw-design-system'
+import {
+  Table,
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody,
+  TableCell,
+  Badge,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { TimeEntry } from '../hooks/useTimeTrackingData'
+import hrI18n from './_i18n'
 
 export interface TimeEntriesTableProps {
   entries: TimeEntry[]
@@ -18,6 +28,7 @@ export interface TimeEntriesTableProps {
 
 export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
   const { entries, locale, pageSize, onPageSizeChange, accessToken, employeeId } = props
+  const { t } = useTranslation(hrI18n)
 
   const statusToVariant: Record<string, any> = {
     approved: 'success',
@@ -67,9 +78,7 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
             </TableHead>
             <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.notes', 'Notes')}</TableHead>
             <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.status', 'Status')}</TableHead>
-            <TableHead className="gba:w-[60px]">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.actions', 'Actions')}
-            </TableHead>
+            <TableHead className="gba:w-[60px]">{t('actions')}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
