@@ -2,20 +2,26 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { Employee } from '../../hooks/useEmployeeData'
-import { Spin, Empty, Select, Drawer, Collapse, List, notification } from 'antd'
-import { Button } from '@newwork/gravity-ui-catalog'
-import { DeleteConfirmPopup } from '@/common/components/common-relations/popups/delete-confirm-popup'
-import { env } from '@/common/env/EnvUtils'
 import {
-  SearchOutlined,
-  CaretRightOutlined,
-  FileOutlined,
-  FilePdfOutlined,
-  FileImageOutlined,
-  FileExcelOutlined,
-  FileWordOutlined,
-  DeleteOutlined
-} from '@ant-design/icons'
+  Button,
+  Spinner,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetFooter,
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+  toast
+} from '@newwork/nw-design-system'
+import { DeleteConfirmPopup } from '@/common/components/common-relations/popups/delete-confirm-popup'
+import { Search, File, FileText, Image, FileSpreadsheet, Trash2, Download, ChevronDown } from 'lucide-react'
 import dayjs from 'dayjs'
 import 'dayjs/plugin/weekday'
 import 'dayjs/plugin/localeData'
@@ -27,6 +33,7 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
 import { AppAction } from '@/components/app-action/AppAction'
+import { EmployeeDocumentClient } from '../../services/employeeDocumentApi'
 
 interface DocumentsTabProps {
   employee: Employee
@@ -84,7 +91,6 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isViewerOpen, setIsViewerOpen] = useState(false)
-  const [drawerWidth, setDrawerWidth] = useState(680)
   const [currentDocument, setCurrentDocument] = useState<Document | null>(null)
   const [documentLoading, setDocumentLoading] = useState(false)
   const [documentBlob, setDocumentBlob] = useState<Blob | null>(null)
@@ -281,41 +287,24 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
 
     setIsDeleting(true)
     try {
-      const processesBase = env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT') || 'https://newwork-dev.newwork.com/processes'
-      const deleteUrl = `${processesBase}/employee/deleteEmployeeDocument`
+      const documentClient = new EmployeeDocumentClient()
+      documentClient.setAccessToken(accessToken)
 
-      const requestBody = {
+      await documentClient.deleteEmployeeDocument({
         employeeDocument: {
           id: documentToDelete.id,
-          version: documentToDelete.version || 0,
+          version: documentToDelete.version ?? 0,
           employeeId: documentToDelete.employeeId,
           type: documentToDelete.typeRef,
           name: documentToDelete.name || documentToDelete.title,
           file: documentToDelete.file,
           mimeType: documentToDelete.mimeType
         }
-      }
-
-      const response = await fetch(deleteUrl, {
-        method: 'POST',
-        headers: {
-          Authorization: accessToken ? `Bearer ${accessToken}` : '',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestBody)
       })
 
-      if (!response.ok) {
-        throw new Error('Failed to delete document')
-      }
-
-      notification.success({
-        message: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:hr_documents.delete_success',
-          'Document deleted successfully'
-        ),
-        placement: 'bottomRight'
-      })
+      toast.success(
+        getTranslationFromI18nKeyAndLabel('lowcoder:hr_documents.delete_success', 'Document deleted successfully')
+      )
 
       if (currentDocument?.id === documentToDelete.id) {
         closeDocumentViewer()
@@ -324,11 +313,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
       await fetchDocuments()
     } catch (err) {
       console.error('Error deleting document:', err)
-      notification.error({
-        message: getTranslationFromI18nKeyAndLabel('lowcoder:hr_documents.delete_error', 'Failed to delete document'),
-        description: err instanceof Error ? err.message : 'Unknown error occurred',
-        placement: 'bottomRight'
-      })
+      toast.error(getTranslationFromI18nKeyAndLabel('lowcoder:hr_documents.delete_error', 'Failed to delete document'))
     } finally {
       setIsDeleting(false)
       setDeleteConfirmOpen(false)
@@ -424,15 +409,6 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
       setDocumentBlob(null)
       setDocumentUrl(null)
       setCurrentDocument(document)
-
-      if (isPdfDocument(document)) {
-        setDrawerWidth(800)
-      } else if (isImageDocument(document)) {
-        setDrawerWidth(680)
-      } else {
-        setDrawerWidth(680)
-      }
-
       setIsViewerOpen(true)
       setDocumentLoading(true)
 
@@ -543,11 +519,11 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
 
   const getDocumentTypeIcon = (document: Document) => {
     if (isImageDocument(document)) {
-      return <FileImageOutlined className="gba:text-info gba:text-lg" />
+      return <Image className="gba:text-info gba:w-5 gba:h-5" />
     }
 
     if (isPdfDocument(document)) {
-      return <FilePdfOutlined className="gba:text-destructive gba:text-lg" />
+      return <FileText className="gba:text-destructive gba:w-5 gba:h-5" />
     }
 
     if (
@@ -556,7 +532,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
       document.name?.toLowerCase().endsWith('.xlsx') ||
       document.name?.toLowerCase().endsWith('.xls')
     ) {
-      return <FileExcelOutlined className="gba:text-success gba:text-lg" />
+      return <FileSpreadsheet className="gba:text-success gba:w-5 gba:h-5" />
     }
 
     if (
@@ -565,15 +541,15 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
       document.name?.toLowerCase().endsWith('.docx') ||
       document.name?.toLowerCase().endsWith('.doc')
     ) {
-      return <FileWordOutlined className="gba:text-info gba:text-lg" />
+      return <FileText className="gba:text-info gba:w-5 gba:h-5" />
     }
 
-    return <FileOutlined className="gba:text-muted-foreground gba:text-lg" />
+    return <File className="gba:text-muted-foreground gba:w-5 gba:h-5" />
   }
 
   const renderDocumentListItem = (document: Document) => {
     return (
-      <List.Item
+      <div
         key={document.id}
         className="gba:px-4 gba:py-3 gba:border-b gba:border-border gba:hover:bg-muted gba:cursor-pointer gba:transition-colors"
         onClick={() => openDocumentViewer(document)}
@@ -609,12 +585,12 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
                 title={getTranslationFromI18nKeyAndLabel('lowcoder:hr_documents.delete_document', 'Delete document')}
                 data-testid={`document-delete-button-${document.id}`}
               >
-                <DeleteOutlined className="gba:text-base" />
+                <Trash2 className="gba:w-4 gba:h-4" />
               </button>
             )}
           </div>
         </div>
-      </List.Item>
+      </div>
     )
   }
 
@@ -665,7 +641,10 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
           </AppAction>
         </div>
 
-        <Empty description="No documents available" className="gba:py-10" data-testid="empty-documents-state" />
+        <div className="gba:py-10 gba:text-center gba:text-muted-foreground" data-testid="empty-documents-state">
+          <File className="gba:w-12 gba:h-12 gba:mx-auto gba:mb-4 gba:opacity-50" />
+          <p>No documents available</p>
+        </div>
       </div>
     )
   }
@@ -700,9 +679,9 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
       <div className="gba:flex gba:justify-start gba:items-center gba:mb-4">
         <div className="gba:flex gba:items-center gba:gap-3 gba:w-full gba:md:w-auto">
           <div className="gba:flex gba:items-center gba:gap-3 gba:w-full">
-            <div className="gba:flex gba:items-center gba:w-full gba:border gba:border-border gba:rounded-md gba:shadow-md gba:bg-background gba:transition-all gba:duration-200 gba:hover:shadow-lg gba:focus-within:ring-2 gba:focus-within:ring-blue-500 gba:focus-within:border-blue-500">
+            <div className="gba:flex gba:items-center gba:w-full gba:border gba:border-border gba:rounded-md gba:shadow-md gba:bg-background gba:transition-all gba:duration-200 gba:hover:shadow-lg gba:focus-within:ring-2 gba:focus-within:ring-primary gba:focus-within:border-primary">
               <div className="gba:flex gba:items-center gba:justify-center gba:pl-3 gba:w-10 gba:text-info">
-                <SearchOutlined className="gba:text-lg" />
+                <Search className="gba:w-5 gba:h-5" />
               </div>
               <DebouncedInput
                 value={searchQuery}
@@ -715,20 +694,23 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
             </div>
             <Select
               value={searchField}
-              onChange={handleSearchFieldChange}
-              style={{ width: 140, boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}
-              options={[
-                { value: 'all', label: 'All Fields' },
-                { value: 'title', label: 'Name' },
-                { value: 'type', label: 'Type' },
-                { value: 'documentGroup', label: 'Group' },
-                { value: 'description', label: 'Description' },
-                { value: 'createdBy', label: 'Created By' },
-                { value: 'uploadDate', label: 'Upload Date' },
-                { value: 'validTo', label: 'Valid To' }
-              ]}
+              onValueChange={handleSearchFieldChange}
               data-testid="document-search-field-select"
-            />
+            >
+              <SelectTrigger className="gba:w-[140px]">
+                <SelectValue placeholder="All Fields" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Fields</SelectItem>
+                <SelectItem value="title">Name</SelectItem>
+                <SelectItem value="type">Type</SelectItem>
+                <SelectItem value="documentGroup">Group</SelectItem>
+                <SelectItem value="description">Description</SelectItem>
+                <SelectItem value="createdBy">Created By</SelectItem>
+                <SelectItem value="uploadDate">Upload Date</SelectItem>
+                <SelectItem value="validTo">Valid To</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </div>
@@ -742,441 +724,374 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
 
       {loading ? (
         <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
-          <Spin size="large" />
+          <Spinner size="lg" />
         </div>
       ) : error ? (
         <div className="gba:text-center gba:py-8 gba:text-destructive">{error}</div>
       ) : searchQuery ? (
         filteredDocuments.length === 0 ? (
-          <Empty description="No documents match your search" />
+          <div className="gba:py-10 gba:text-center gba:text-muted-foreground">
+            <Search className="gba:w-12 gba:h-12 gba:mx-auto gba:mb-4 gba:opacity-50" />
+            <p>No documents match your search</p>
+          </div>
         ) : (
-          <Collapse
-            expandIcon={({ isActive }) => (
-              <CaretRightOutlined rotate={isActive ? 90 : 0} className="gba:text-blue-600" />
-            )}
-            className="gba:bg-primary-foreground gba:border-0 gba:shadow-sm"
-            defaultActiveKey={['Salary', 'Expenses', 'Development', 'Personal', 'Other']}
-            data-testid="documents-accordion"
-          >
+          <div className="gba:space-y-2" data-testid="documents-accordion">
             {Object.entries(filteredGroupedDocuments).map(([group, docs]) => {
               if (docs.length === 0) return null
 
+              const bgClass =
+                group === 'Salary'
+                  ? 'gba:bg-info-secondary'
+                  : group === 'Expenses'
+                    ? 'gba:bg-success-secondary'
+                    : group === 'Development'
+                      ? 'gba:bg-info-secondary'
+                      : group === 'Personal'
+                        ? 'gba:bg-warning-secondary'
+                        : 'gba:bg-decorative-secondary'
+
               return (
-                <Collapse.Panel
+                <Collapsible
                   key={group}
-                  header={
-                    <div className="gba:flex gba:items-center gba:justify-between">
-                      <span className="gba:font-medium">{group}</span>
+                  defaultOpen
+                  className={`gba:rounded-md gba:overflow-hidden ${bgClass}`}
+                  data-testid={`document-group-${group.toLowerCase()}`}
+                >
+                  <CollapsibleTrigger className="gba:flex gba:items-center gba:justify-between gba:w-full gba:px-4 gba:py-3 gba:cursor-pointer gba:hover:opacity-80 gba:transition-opacity [&[data-state=open]>svg]:gba:rotate-180">
+                    <span className="gba:font-medium">{group}</span>
+                    <div className="gba:flex gba:items-center gba:gap-2">
                       <span className="gba:text-sm gba:text-muted-foreground">
                         {docs.length} {docs.length === 1 ? 'document' : 'documents'}
                       </span>
+                      <ChevronDown className="gba:w-4 gba:h-4 gba:transition-transform gba:duration-200" />
                     </div>
-                  }
-                  className={`gba:border-0 gba:mb-2 gba:rounded-md gba:overflow-hidden ${
-                    group === 'Salary'
-                      ? 'gba:bg-info-secondary'
-                      : group === 'Expenses'
-                        ? 'gba:bg-success-secondary'
-                        : group === 'Development'
-                          ? 'gba:bg-info-secondary'
-                          : group === 'Personal'
-                            ? 'gba:bg-warning-secondary'
-                            : 'gba:bg-decorative-secondary'
-                  }`}
-                  data-testid={`document-group-${group.toLowerCase()}`}
-                >
-                  <List
-                    className="gba:border-0"
-                    dataSource={docs}
-                    renderItem={renderDocumentListItem}
-                    data-testid={`document-list-${group.toLowerCase()}`}
-                  />
-                </Collapse.Panel>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent data-testid={`document-list-${group.toLowerCase()}`}>
+                    <div className="gba:bg-background">{docs.map(renderDocumentListItem)}</div>
+                  </CollapsibleContent>
+                </Collapsible>
               )
             })}
-          </Collapse>
+          </div>
         )
       ) : (
-        <Collapse
-          expandIcon={({ isActive }) => <CaretRightOutlined rotate={isActive ? 90 : 0} className="gba:text-blue-600" />}
-          className="gba:bg-primary-foreground gba:border-0 gba:shadow-sm"
-          defaultActiveKey={['Salary', 'Expenses', 'Development', 'Personal', 'Other']}
-          data-testid="documents-accordion"
-        >
+        <div className="gba:space-y-2" data-testid="documents-accordion">
           {Object.entries(groupedDocuments).map(([group, docs]) => {
             if (docs.length === 0) return null
 
+            const bgClass =
+              group === 'Salary'
+                ? 'gba:bg-info-secondary'
+                : group === 'Expenses'
+                  ? 'gba:bg-success-secondary'
+                  : group === 'Development'
+                    ? 'gba:bg-info-secondary'
+                    : group === 'Personal'
+                      ? 'gba:bg-warning-secondary'
+                      : 'gba:bg-decorative-secondary'
+
             return (
-              <Collapse.Panel
+              <Collapsible
                 key={group}
-                header={
-                  <div className="gba:flex gba:items-center gba:justify-between">
-                    <span className="gba:font-medium">{group}</span>
+                defaultOpen
+                className={`gba:rounded-md gba:overflow-hidden ${bgClass}`}
+                data-testid={`document-group-${group.toLowerCase()}`}
+              >
+                <CollapsibleTrigger className="gba:flex gba:items-center gba:justify-between gba:w-full gba:px-4 gba:py-3 gba:cursor-pointer gba:hover:opacity-80 gba:transition-opacity [&[data-state=open]>svg]:gba:rotate-180">
+                  <span className="gba:font-medium">{group}</span>
+                  <div className="gba:flex gba:items-center gba:gap-2">
                     <span className="gba:text-sm gba:text-muted-foreground">
                       {docs.length} {docs.length === 1 ? 'document' : 'documents'}
                     </span>
+                    <ChevronDown className="gba:w-4 gba:h-4 gba:transition-transform gba:duration-200" />
                   </div>
-                }
-                className={`gba:border-0 gba:mb-2 gba:rounded-md gba:overflow-hidden ${
-                  group === 'Salary'
-                    ? 'gba:bg-info-secondary'
-                    : group === 'Expenses'
-                      ? 'gba:bg-success-secondary'
-                      : group === 'Development'
-                        ? 'gba:bg-info-secondary'
-                        : group === 'Personal'
-                          ? 'gba:bg-warning-secondary'
-                          : 'gba:bg-decorative-secondary'
-                }`}
-                data-testid={`document-group-${group.toLowerCase()}`}
-              >
-                <List
-                  className="gba:border-0"
-                  dataSource={docs}
-                  renderItem={renderDocumentListItem}
-                  data-testid={`document-list-${group.toLowerCase()}`}
-                />
-              </Collapse.Panel>
+                </CollapsibleTrigger>
+                <CollapsibleContent data-testid={`document-list-${group.toLowerCase()}`}>
+                  <div className="gba:bg-background">{docs.map(renderDocumentListItem)}</div>
+                </CollapsibleContent>
+              </Collapsible>
             )
           })}
-        </Collapse>
+        </div>
       )}
 
-      <Drawer
-        title={currentDocument?.title || ''}
+      <Sheet
         open={isViewerOpen}
-        onClose={closeDocumentViewer}
-        width={drawerWidth}
-        styles={{
-          body: {
-            padding: 0,
-            overflow: 'auto',
-            height: canEditDocuments ? 'calc(100% - 110px)' : 'calc(100% - 55px)'
-          },
-          header: {
-            padding: '16px 24px',
-            borderBottom: '1px solid #f0f0f0'
-          },
-          footer: {
-            padding: '16px 24px',
-            borderTop: '1px solid #f0f0f0'
-          }
-        }}
-        placement="right"
-        destroyOnClose
-        data-testid="document-viewer-drawer"
-        maskClosable
-        footer={
-          canEditDocuments && currentDocument ? (
-            <div className="gba:flex gba:justify-end">
-              <button
-                onClick={() => handleDeleteClick(currentDocument)}
-                className="gba:px-4 gba:py-2 gba:bg-destructive gba:text-destructive-foreground gba:rounded-md gba:hover:bg-destructive/90 gba:transition-colors gba:flex gba:items-center gba:gap-2"
-                data-testid="document-drawer-delete-button"
-              >
-                <DeleteOutlined />
-                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_documents.delete_document', 'Delete Document')}
-              </button>
-            </div>
-          ) : null
-        }
+        onOpenChange={open => !open && closeDocumentViewer()}
+        title={currentDocument?.title || 'Document Viewer'}
       >
-        {documentLoading ? (
-          <div className="gba:flex gba:justify-center gba:items-center gba:h-full">
-            <div className="gba:text-center">
-              <Spin size="large" />
-              <div className="gba:mt-2">Loading document...</div>
-            </div>
-          </div>
-        ) : error ? (
-          <div className="gba:flex gba:justify-center gba:items-center gba:h-full gba:text-destructive">
-            <p>{error}</p>
-          </div>
-        ) : documentUrl ? (
-          <div className="gba:flex gba:flex-col gba:w-full">
-            {/* Document viewer - top */}
-            <div className="gba:w-full gba:min-h-[400px] gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-6">
-              {isPdfDocument(currentDocument) ? (
-                <div className="gba:w-full gba:overflow-hidden gba:rounded-md gba:shadow-sm">
-                  <object
-                    data={documentUrl}
-                    type="application/pdf"
-                    className="gba:w-full gba:border-0 gba:rounded-md"
-                    style={{ width: '100%', height: '500px', display: 'block', border: 'none' }}
-                    data-testid="pdf-viewer"
-                  >
-                    <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:p-4">
-                      <p className="gba:mb-4 gba:text-center">
-                        Your browser cannot display the PDF inline.
-                        <br />
-                        Please download the document to view it.
-                      </p>
-                      <Button
-                        onClick={() => {
-                          if (documentUrl && currentDocument) {
-                            const a = document.createElement('a')
-                            a.href = documentUrl
+        <SheetContent
+          side="right"
+          className="gba:w-[680px] gba:max-w-[680px] gba:sm:max-w-[680px] gba:p-0 gba:flex gba:flex-col"
+          data-testid="document-viewer-drawer"
+        >
+          <SheetHeader className="gba:px-6 gba:py-4 gba:border-b gba:border-border">
+            <SheetTitle>{currentDocument?.title || ''}</SheetTitle>
+          </SheetHeader>
+          <div className="gba:flex-1 gba:overflow-auto">
+            {documentLoading ? (
+              <div className="gba:flex gba:justify-center gba:items-center gba:h-full">
+                <div className="gba:text-center">
+                  <Spinner size="lg" />
+                  <div className="gba:mt-2">Loading document...</div>
+                </div>
+              </div>
+            ) : error ? (
+              <div className="gba:flex gba:justify-center gba:items-center gba:h-full gba:text-destructive">
+                <p>{error}</p>
+              </div>
+            ) : documentUrl ? (
+              <div className="gba:flex gba:flex-col gba:w-full">
+                {/* Document viewer - top */}
+                <div className="gba:w-full gba:min-h-[400px] gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-6">
+                  {isPdfDocument(currentDocument) ? (
+                    <div className="gba:w-full gba:overflow-hidden gba:rounded-md gba:shadow-sm">
+                      <object
+                        data={documentUrl}
+                        type="application/pdf"
+                        className="gba:w-full gba:border-0 gba:rounded-md"
+                        style={{ width: '100%', height: '500px', display: 'block', border: 'none' }}
+                        data-testid="pdf-viewer"
+                      >
+                        <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:p-4">
+                          <p className="gba:mb-4 gba:text-center">
+                            Your browser cannot display the PDF inline.
+                            <br />
+                            Please download the document to view it.
+                          </p>
+                          <Button
+                            onClick={() => {
+                              if (documentUrl && currentDocument) {
+                                const a = document.createElement('a')
+                                a.href = documentUrl
 
-                            let filename = ''
+                                let filename = ''
 
-                            if (currentDocument.file) {
-                              const filePathMatch = currentDocument.file.match(/[^\/]+$/)
-                              if (filePathMatch && filePathMatch[0]) {
-                                filename = decodeURIComponent(filePathMatch[0])
-                              }
-                            }
+                                if (currentDocument.file) {
+                                  const filePathMatch = currentDocument.file.match(/[^\/]+$/)
+                                  if (filePathMatch && filePathMatch[0]) {
+                                    filename = decodeURIComponent(filePathMatch[0])
+                                  }
+                                }
 
-                            if (!filename) {
-                              filename = currentDocument.title || 'document'
+                                if (!filename) {
+                                  filename = currentDocument.title || 'document'
 
-                              if (!filename.match(/\.[a-z0-9]+$/i)) {
-                                if (currentDocument.mimeType) {
-                                  if (currentDocument.mimeType.includes('pdf')) {
-                                    filename += '.pdf'
-                                  } else if (
-                                    currentDocument.mimeType.includes('jpeg') ||
-                                    currentDocument.mimeType.includes('jpg')
-                                  ) {
-                                    filename += '.jpg'
-                                  } else if (currentDocument.mimeType.includes('png')) {
-                                    filename += '.png'
-                                  } else if (
-                                    currentDocument.mimeType.includes('word') ||
-                                    currentDocument.mimeType.includes('doc')
-                                  ) {
-                                    filename += '.docx'
-                                  } else if (
-                                    currentDocument.mimeType.includes('excel') ||
-                                    currentDocument.mimeType.includes('sheet')
-                                  ) {
-                                    filename += '.xlsx'
-                                  } else if (currentDocument.mimeType.includes('text/plain')) {
-                                    filename += '.txt'
-                                  } else {
-                                    const fileType = currentDocument.mimeType.split('/')?.[1]
-                                    if (fileType) {
-                                      filename += '.' + fileType.split(';')[0]
+                                  if (!filename.match(/\.[a-z0-9]+$/i)) {
+                                    if (currentDocument.mimeType) {
+                                      if (currentDocument.mimeType.includes('pdf')) {
+                                        filename += '.pdf'
+                                      } else if (
+                                        currentDocument.mimeType.includes('jpeg') ||
+                                        currentDocument.mimeType.includes('jpg')
+                                      ) {
+                                        filename += '.jpg'
+                                      } else if (currentDocument.mimeType.includes('png')) {
+                                        filename += '.png'
+                                      } else if (
+                                        currentDocument.mimeType.includes('word') ||
+                                        currentDocument.mimeType.includes('doc')
+                                      ) {
+                                        filename += '.docx'
+                                      } else if (
+                                        currentDocument.mimeType.includes('excel') ||
+                                        currentDocument.mimeType.includes('sheet')
+                                      ) {
+                                        filename += '.xlsx'
+                                      } else if (currentDocument.mimeType.includes('text/plain')) {
+                                        filename += '.txt'
+                                      } else {
+                                        const fileType = currentDocument.mimeType.split('/')?.[1]
+                                        if (fileType) {
+                                          filename += '.' + fileType.split(';')[0]
+                                        }
+                                      }
+                                    } else if (isPdfDocument(currentDocument)) {
+                                      filename += '.pdf'
+                                    } else if (isImageDocument(currentDocument)) {
+                                      filename += '.jpg'
+                                    } else {
+                                      filename += '.dat'
                                     }
                                   }
-                                } else if (isPdfDocument(currentDocument)) {
-                                  filename += '.pdf'
-                                } else if (isImageDocument(currentDocument)) {
-                                  filename += '.jpg'
-                                } else {
-                                  filename += '.dat'
                                 }
-                              }
-                            }
 
-                            a.download = filename
+                                a.download = filename
+                                a.click()
+                              }
+                            }}
+                            className="gba:w-auto gba:flex gba:items-center gba:gap-2"
+                            data-testid="pdf-download-link"
+                            variant="secondary"
+                          >
+                            <Download className="gba:h-4 gba:w-4" />
+                            Download PDF
+                          </Button>
+                        </div>
+                      </object>
+                    </div>
+                  ) : isImageDocument(currentDocument) ? (
+                    <>
+                      <div className="gba:flex gba:items-center gba:justify-center gba:bg-muted gba:rounded-md gba:shadow-sm gba:p-4 gba:w-full">
+                        <img
+                          src={documentUrl}
+                          alt={currentDocument?.title || 'Document'}
+                          className="gba:max-w-full gba:object-contain gba:rounded-md"
+                          style={{ maxWidth: '100%', maxHeight: '500px' }}
+                          onError={() => {
+                            setError('The image could not be displayed. It may be in an unsupported format.')
+                          }}
+                          data-testid="image-viewer"
+                        />
+                      </div>
+                      <Button
+                        onClick={() => {
+                          if (documentUrl) {
+                            const a = document.createElement('a')
+                            a.href = documentUrl
+                            a.download = currentDocument?.title || 'document'
                             a.click()
                           }
                         }}
-                        className="gba:w-auto"
-                        data-testid="pdf-download-link"
-                        variant="secondary"
-                        iconPosition="start"
-                        icon={
+                        className="gba:mt-4 gba:flex gba:items-center gba:gap-2"
+                        data-testid="image-download-button"
+                        variant="default"
+                        size="sm"
+                      >
+                        <Download className="gba:h-4 gba:w-4" />
+                        Download Image
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:bg-muted gba:rounded-md gba:shadow-sm gba:min-h-[300px] gba:w-full">
+                        <div className="gba:mb-6">
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
-                            className="gba:h-4 gba:w-4"
-                            fill="none"
+                            className="gba:h-24 gba:w-24 gba:text-muted-foreground"
                             viewBox="0 0 24 24"
+                            fill="none"
                             stroke="currentColor"
+                            strokeWidth="1"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                            />
+                            <rect x="2" y="2" width="20" height="20" rx="2" ry="2"></rect>
+                            <path d="M7 2v20"></path>
+                            <path d="M17 2v20"></path>
+                            <path d="M2 12h20"></path>
+                            <path d="M2 7h5"></path>
+                            <path d="M2 17h5"></path>
+                            <path d="M17 17h5"></path>
+                            <path d="M17 7h5"></path>
                           </svg>
-                        }
+                        </div>
+                        <p className="gba:mb-4 gba:text-center gba:text-muted-foreground gba:text-base">
+                          This document type cannot be previewed directly.
+                        </p>
+                      </div>
+                      <Button
+                        onClick={() => {
+                          if (documentUrl) {
+                            const a = document.createElement('a')
+                            a.href = documentUrl
+                            a.download = currentDocument?.title || 'document'
+                            a.click()
+                          }
+                        }}
+                        className="gba:mt-4 gba:flex gba:items-center gba:gap-2"
+                        data-testid="document-download-button"
+                        variant="default"
+                        size="sm"
                       >
-                        Download PDF
+                        <Download className="gba:h-4 gba:w-4" />
+                        Download
                       </Button>
+                    </>
+                  )}
+                </div>
+
+                {/* Document details - bottom */}
+                <div className="gba:w-full gba:p-6 gba:bg-muted gba:border-t gba:border-border gba:mt-2">
+                  {/* Details section */}
+
+                  <div className="gba:grid gba:grid-cols-2 gba:gap-x-4 gba:gap-y-5">
+                    <div>
+                      <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">Document Name</div>
+                      <div className="gba:mt-1 gba:text-sm">{currentDocument?.title || 'N/A'}</div>
                     </div>
-                  </object>
-                </div>
-              ) : isImageDocument(currentDocument) ? (
-                <>
-                  <div className="gba:flex gba:items-center gba:justify-center gba:bg-muted gba:rounded-md gba:shadow-sm gba:p-4 gba:w-full">
-                    <img
-                      src={documentUrl}
-                      alt={currentDocument?.title || 'Document'}
-                      className="gba:max-w-full gba:object-contain gba:rounded-md"
-                      style={{ maxWidth: '100%', maxHeight: '500px' }}
-                      onError={() => {
-                        setError('The image could not be displayed. It may be in an unsupported format.')
-                      }}
-                      data-testid="image-viewer"
-                    />
-                  </div>
-                  <Button
-                    onClick={() => {
-                      if (documentUrl) {
-                        const a = document.createElement('a')
-                        a.href = documentUrl
-                        a.download = currentDocument?.title || 'document'
-                        a.click()
-                      }
-                    }}
-                    className="gba:mt-4"
-                    data-testid="image-download-button"
-                    variant="primary"
-                    size="small"
-                    iconPosition="start"
-                    icon={
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="gba:h-4 gba:w-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                        />
-                      </svg>
-                    }
-                  >
-                    Download Image
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:bg-muted gba:rounded-md gba:shadow-sm gba:min-h-[300px] gba:w-full">
-                    <div className="gba:mb-6">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="gba:h-24 gba:w-24 gba:text-muted-foreground"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <rect x="2" y="2" width="20" height="20" rx="2" ry="2"></rect>
-                        <path d="M7 2v20"></path>
-                        <path d="M17 2v20"></path>
-                        <path d="M2 12h20"></path>
-                        <path d="M2 7h5"></path>
-                        <path d="M2 17h5"></path>
-                        <path d="M17 17h5"></path>
-                        <path d="M17 7h5"></path>
-                      </svg>
+
+                    <div>
+                      <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">Document Group</div>
+                      <div className="gba:mt-1 gba:text-sm">{currentDocument?.documentGroup || 'N/A'}</div>
                     </div>
-                    <p className="gba:mb-4 gba:text-center gba:text-muted-foreground gba:text-base">
-                      This document type cannot be previewed directly.
-                    </p>
+
+                    <div>
+                      <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">Document Type</div>
+                      <div className="gba:mt-1 gba:text-sm">{currentDocument?.type || 'N/A'}</div>
+                    </div>
+
+                    <div>
+                      <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">Upload Date</div>
+                      <div className="gba:mt-1 gba:text-sm">
+                        {currentDocument?.createdAt
+                          ? dayjs(currentDocument.createdAt).format('MMM D, YYYY')
+                          : currentDocument?.uploadDate
+                            ? dayjs(currentDocument.uploadDate).format('MMM D, YYYY')
+                            : 'N/A'}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">Uploaded By</div>
+                      <div className="gba:mt-1 gba:text-sm">{currentDocument?.createdBy || 'N/A'}</div>
+                    </div>
+
+                    <div>
+                      <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">Expiration Date</div>
+                      <div className="gba:mt-1 gba:text-sm">
+                        {currentDocument?.validTo ? (
+                          <span
+                            className={`gba:px-2 gba:py-1 gba:rounded-full gba:text-xs ${currentDocument.validTo < dayjs().format('YYYY-MM-DD') ? 'gba:bg-warning-secondary gba:text-warning' : 'gba:bg-green-100 gba:text-success'}`}
+                          >
+                            {dayjs(currentDocument.validTo).format('MMM D, YYYY')}
+                          </span>
+                        ) : (
+                          'N/A'
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <Button
-                    onClick={() => {
-                      if (documentUrl) {
-                        const a = document.createElement('a')
-                        a.href = documentUrl
-                        a.download = currentDocument?.title || 'document'
-                        a.click()
-                      }
-                    }}
-                    className="gba:mt-4"
-                    data-testid="document-download-button"
-                    variant="primary"
-                    size="small"
-                    iconPosition="start"
-                    icon={
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="gba:h-4 gba:w-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                        />
-                      </svg>
-                    }
-                  >
-                    Download
-                  </Button>
-                </>
-              )}
-            </div>
 
-            {/* Document details - bottom */}
-            <div className="gba:w-full gba:p-6 gba:bg-muted gba:border-t gba:border-border gba:mt-2">
-              {/* Details section */}
-
-              <div className="gba:grid gba:grid-cols-2 gba:gap-x-4 gba:gap-y-5">
-                <div>
-                  <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">Document Name</div>
-                  <div className="gba:mt-1 gba:text-sm">{currentDocument?.title || 'N/A'}</div>
-                </div>
-
-                <div>
-                  <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">Document Group</div>
-                  <div className="gba:mt-1 gba:text-sm">{currentDocument?.documentGroup || 'N/A'}</div>
-                </div>
-
-                <div>
-                  <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">Document Type</div>
-                  <div className="gba:mt-1 gba:text-sm">{currentDocument?.type || 'N/A'}</div>
-                </div>
-
-                <div>
-                  <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">Upload Date</div>
-                  <div className="gba:mt-1 gba:text-sm">
-                    {currentDocument?.createdAt
-                      ? dayjs(currentDocument.createdAt).format('MMM D, YYYY')
-                      : currentDocument?.uploadDate
-                        ? dayjs(currentDocument.uploadDate).format('MMM D, YYYY')
-                        : 'N/A'}
-                  </div>
-                </div>
-
-                <div>
-                  <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">Uploaded By</div>
-                  <div className="gba:mt-1 gba:text-sm">{currentDocument?.createdBy || 'N/A'}</div>
-                </div>
-
-                <div>
-                  <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">Expiration Date</div>
-                  <div className="gba:mt-1 gba:text-sm">
-                    {currentDocument?.validTo ? (
-                      <span
-                        className={`gba:px-2 gba:py-1 gba:rounded-full gba:text-xs ${currentDocument.validTo < dayjs().format('YYYY-MM-DD') ? 'gba:bg-warning-secondary gba:text-warning' : 'gba:bg-green-100 gba:text-success'}`}
-                      >
-                        {dayjs(currentDocument.validTo).format('MMM D, YYYY')}
-                      </span>
-                    ) : (
-                      'N/A'
-                    )}
+                  <div className="gba:mt-6">
+                    <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">Description</div>
+                    <div className="gba:mt-1 gba:text-sm gba:bg-primary-foreground gba:p-3 gba:rounded gba:border gba:border-border">
+                      {currentDocument?.description || 'No description provided'}
+                    </div>
                   </div>
                 </div>
               </div>
-
-              <div className="gba:mt-6">
-                <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">Description</div>
-                <div className="gba:mt-1 gba:text-sm gba:bg-primary-foreground gba:p-3 gba:rounded gba:border gba:border-border">
-                  {currentDocument?.description || 'No description provided'}
-                </div>
+            ) : (
+              <div className="gba:flex gba:justify-center gba:items-center gba:h-full">
+                <p>No document content available</p>
               </div>
-            </div>
+            )}
           </div>
-        ) : (
-          <div className="gba:flex gba:justify-center gba:items-center gba:h-full">
-            <p>No document content available</p>
-          </div>
-        )}
-      </Drawer>
+          {canEditDocuments && currentDocument && (
+            <SheetFooter className="gba:px-6 gba:py-4 gba:border-t gba:border-border">
+              <Button
+                variant="destructive"
+                onClick={() => handleDeleteClick(currentDocument)}
+                className="gba:flex gba:items-center gba:gap-2"
+                data-testid="document-drawer-delete-button"
+              >
+                <Trash2 className="gba:w-4 gba:h-4" />
+                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_documents.delete_document', 'Delete Document')}
+              </Button>
+            </SheetFooter>
+          )}
+        </SheetContent>
+      </Sheet>
 
       <DeleteConfirmPopup
         isOpen={deleteConfirmOpen}
