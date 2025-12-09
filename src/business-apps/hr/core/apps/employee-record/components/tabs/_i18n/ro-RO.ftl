@@ -40,6 +40,10 @@ documents-status-valid = Valid
 # Delete Actions
 documents-delete = Șterge document
 documents-delete-title = Șterge document
+documents-delete-confirm-message = Sigur doriți să ștergeți documentul "{$documentName}"?
+documents-delete-warning = Această acțiune nu poate fi anulată.
+documents-delete-confirm-button = Șterge
+documents-delete-cancel-button = Anulează
 documents-delete-success = Document șters cu succes
 documents-delete-error = Nu s-a putut șterge documentul
 

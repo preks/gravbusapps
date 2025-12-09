@@ -40,6 +40,10 @@ documents-status-valid = Valid
 # Delete Actions
 documents-delete = Delete document
 documents-delete-title = Delete Document
+documents-delete-confirm-message = Are you sure you want to delete the document "{$documentName}"?
+documents-delete-warning = This action cannot be undone.
+documents-delete-confirm-button = Delete
+documents-delete-cancel-button = Cancel
 documents-delete-success = Document deleted successfully
 documents-delete-error = Failed to delete document
 
