@@ -62,6 +62,7 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
     const shouldRestoreFocusRef = useRef<boolean>(false)
     const focusTimeoutsRef = useRef<NodeJS.Timeout[]>([])
     const lastProcessedPrependRef = useRef<string | null>(null)
+    const isTypingRef = useRef<boolean>(false)
 
     const {
       entities,
@@ -230,6 +231,29 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
           if (selection?.rangeCount) {
             const range = selection.getRangeAt(0)
 
+            // First, check if cursor is inside a mention badge
+            let parentNode: Node | null = range.startContainer
+            while (parentNode && parentNode !== contentEditableRef.current) {
+              if (parentNode.nodeType === Node.ELEMENT_NODE) {
+                const el = parentNode as Element
+                if (el.classList?.contains('mention-badge')) {
+                  // Cursor is inside the badge - delete the entire mention
+                  const mentionId = el.getAttribute('data-mention-id')
+                  const mentionStart = parseInt(el.getAttribute('data-mention-start') || '0', 10)
+                  const mentionToRemove = selectedEntities.find(
+                    m => m.id === mentionId && m.startIndex === mentionStart
+                  )
+                  if (mentionToRemove) {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    removeMention(mentionToRemove)
+                    return
+                  }
+                }
+              }
+              parentNode = parentNode.parentNode
+            }
+
             // Check if cursor is immediately after a mention badge element (most common case)
             const containerNode = range.startContainer
             if (containerNode.nodeType === Node.TEXT_NODE && range.startOffset === 0) {
@@ -239,19 +263,39 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
                 const el = prevSibling as Element
                 if (el.classList?.contains('mention-badge')) {
                   // Find the mention that corresponds to this badge
-                  const removeBtn = el.querySelector('.mention-remove-btn') as HTMLElement
-                  if (removeBtn) {
-                    const mentionId = removeBtn.getAttribute('data-mention-id')
-                    const mentionStart = parseInt(removeBtn.getAttribute('data-mention-start') || '0', 10)
-                    const mentionToRemove = selectedEntities.find(
-                      m => m.id === mentionId && m.startIndex === mentionStart
-                    )
-                    if (mentionToRemove) {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      removeMention(mentionToRemove)
-                      return
-                    }
+                  const mentionId = el.getAttribute('data-mention-id')
+                  const mentionStart = parseInt(el.getAttribute('data-mention-start') || '0', 10)
+                  const mentionToRemove = selectedEntities.find(
+                    m => m.id === mentionId && m.startIndex === mentionStart
+                  )
+                  if (mentionToRemove) {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    removeMention(mentionToRemove)
+                    return
+                  }
+                }
+              }
+            }
+
+            // Check if cursor is right after a mention badge in an element node
+            if (containerNode.nodeType === Node.ELEMENT_NODE && range.startOffset > 0) {
+              const el = containerNode as Element
+              const childNodes = Array.from(el.childNodes)
+              const prevNode = childNodes[range.startOffset - 1]
+              if (prevNode && prevNode.nodeType === Node.ELEMENT_NODE) {
+                const prevEl = prevNode as Element
+                if (prevEl.classList?.contains('mention-badge')) {
+                  const mentionId = prevEl.getAttribute('data-mention-id')
+                  const mentionStart = parseInt(prevEl.getAttribute('data-mention-start') || '0', 10)
+                  const mentionToRemove = selectedEntities.find(
+                    m => m.id === mentionId && m.startIndex === mentionStart
+                  )
+                  if (mentionToRemove) {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    removeMention(mentionToRemove)
+                    return
                   }
                 }
               }
@@ -271,24 +315,6 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
                 // We've reached the node containing the cursor
                 if (node.nodeType === Node.TEXT_NODE) {
                   position += range.endOffset
-                } else if (node.nodeType === Node.ELEMENT_NODE) {
-                  const el = node as Element
-                  if (el.classList?.contains('mention-badge')) {
-                    // If cursor is inside a mention badge, find which mention it is
-                    const removeBtn = el.querySelector('.mention-remove-btn') as HTMLElement
-                    if (removeBtn) {
-                      const mentionId = removeBtn.getAttribute('data-mention-id')
-                      const mentionStart = parseInt(removeBtn.getAttribute('data-mention-start') || '0', 10)
-                      const mention = selectedEntities.find(m => m.id === mentionId && m.startIndex === mentionStart)
-                      if (mention) {
-                        // Cursor is within this mention - remove it
-                        e.preventDefault()
-                        e.stopPropagation()
-                        removeMention(mention)
-                        return
-                      }
-                    }
-                  }
                 }
                 break
               }
@@ -299,15 +325,12 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
                 const el = node as Element
                 if (el.classList?.contains('mention-badge')) {
                   // Mention badge represents "@name" in plain text - find its length
-                  const removeBtn = el.querySelector('.mention-remove-btn') as HTMLElement
-                  if (removeBtn) {
-                    const mentionId = removeBtn.getAttribute('data-mention-id')
-                    const mentionStart = parseInt(removeBtn.getAttribute('data-mention-start') || '0', 10)
-                    const mention = selectedEntities.find(m => m.id === mentionId && m.startIndex === mentionStart)
-                    if (mention) {
-                      // Add the length of the mention text (@name)
-                      position += mention.endIndex - mention.startIndex
-                    }
+                  const mentionId = el.getAttribute('data-mention-id')
+                  const mentionStart = parseInt(el.getAttribute('data-mention-start') || '0', 10)
+                  const mention = selectedEntities.find(m => m.id === mentionId && m.startIndex === mentionStart)
+                  if (mention) {
+                    // Add the length of the mention text (@name)
+                    position += mention.endIndex - mention.startIndex
                   }
                 }
               }
@@ -543,7 +566,7 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
 
         // Add mention badge as inline HTML
         const showAvatar = mention.type === 'employee' && mention.pictureThumbnail
-        html += `<span contenteditable="false" class="mention-badge" style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.125rem 0.375rem; border-radius: 0.375rem; font-size: 0.75rem; font-weight: 500; background-color: hsl(var(--primary) / 0.1); color: hsl(var(--primary)); margin: 0 0.125rem; vertical-align: middle;">`
+        html += `<span contenteditable="false" class="mention-badge" data-mention-id="${mention.id}" data-mention-start="${mention.startIndex}" data-mention-end="${mention.endIndex}" style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.125rem 0.375rem; border-radius: 0.375rem; font-size: 0.75rem; font-weight: 500; background-color: hsl(var(--primary) / 0.1); color: hsl(var(--primary)); margin: 0 0.125rem; vertical-align: middle; user-select: none; cursor: default;">`
         if (showAvatar) {
           html += `<img src="data:image/jpeg;base64,${mention.pictureThumbnail}" alt="${mention.name.replace(/"/g, '&quot;')}" style="width: 0.75rem; height: 0.75rem; border-radius: 9999px; object-fit: cover;" />`
         } else {
@@ -569,6 +592,9 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
     // Handle contentEditable input
     const handleContentEditableInput = useCallback(
       (e: React.FormEvent<HTMLDivElement>) => {
+        // Mark that we're actively typing to prevent sync effect interference
+        isTypingRef.current = true
+
         const element = e.currentTarget
         const newText = getTextFromContentEditable(element)
 
@@ -588,6 +614,11 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
 
         // Only re-render HTML if mentions structure changed, not on every keystroke
         // This prevents cursor jumping issues
+
+        // Clear the typing flag after a short delay to allow sync effect to run when typing stops
+        setTimeout(() => {
+          isTypingRef.current = false
+        }, 100)
 
         // Handle typing indicators
         if (newText.length > 0 && !isTyping) {
@@ -624,6 +655,12 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
     // Remove a mention entity
     const removeMention = useCallback(
       (mention: MessageEntityReference) => {
+        // Ensure typing flag is cleared so sync effect can run
+        isTypingRef.current = false
+
+        // Calculate where cursor should be (in plain text coordinates)
+        const cursorPos = mention.startIndex
+
         // Remove from selected entities in hook
         removeMentionFromHook(mention)
 
@@ -634,21 +671,51 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
 
         // Update the text - handleTextChange will automatically adjust mention positions
         setValue(newValue)
+        handleTextChange(newValue, cursorPos)
 
-        setTimeout(() => {
-          // Re-run handleTextChange to update mention positions based on new text
-          handleTextChange(newValue, beforeMention.length)
+        // Wait for the sync effect to update the HTML, then restore cursor
+        // Use longer timeout to ensure HTML has been updated
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            if (contentEditableRef.current) {
+              contentEditableRef.current.focus()
 
-          // Focus back on input
-          focusInput()
-          if (contentEditableRef.current) {
-            // For contentEditable, focus is handled by focusInput
-          } else if (inputRef.current) {
-            inputRef.current.setSelectionRange(beforeMention.length, beforeMention.length)
-          }
-        }, 0)
+              // Find the correct position by counting characters
+              const walker = document.createTreeWalker(contentEditableRef.current, NodeFilter.SHOW_TEXT, null)
+
+              let currentPos = 0
+              let targetNode: Node | null = null
+              let targetOffset = 0
+              let node
+
+              while ((node = walker.nextNode())) {
+                const textLength = node.textContent?.length || 0
+                if (currentPos + textLength >= cursorPos) {
+                  targetNode = node
+                  targetOffset = cursorPos - currentPos
+                  break
+                }
+                currentPos += textLength
+              }
+
+              if (targetNode) {
+                const selection = window.getSelection()
+                if (selection) {
+                  const range = document.createRange()
+                  range.setStart(targetNode, Math.min(targetOffset, targetNode.textContent?.length || 0))
+                  range.collapse(true)
+                  selection.removeAllRanges()
+                  selection.addRange(range)
+                }
+              }
+            } else if (inputRef.current) {
+              inputRef.current.focus()
+              inputRef.current.setSelectionRange(cursorPos, cursorPos)
+            }
+          })
+        })
       },
-      [value, setValue, handleTextChange, focusInput, removeMentionFromHook]
+      [value, setValue, handleTextChange, removeMentionFromHook]
     )
 
     // Handle contentEditable click on remove button - use event delegation
@@ -679,60 +746,131 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
       }
     }, [selectedEntities, removeMention])
 
-    // Initialize and sync contentEditable content when value or mentions change
+    // Initialize and sync contentEditable content when mentions are added/removed (not on every keystroke)
     useEffect(() => {
+      // Skip if user is actively typing - prevents cursor jumping
+      if (isTypingRef.current) return
+
       if (contentEditableRef.current && selectedEntities.length > 0) {
-        const currentText = getTextFromContentEditable(contentEditableRef.current)
         const expectedHTML = renderContentWithMentionsHTML()
-        // Only update if text changed or HTML structure changed
-        if (currentText !== value || contentEditableRef.current.innerHTML !== expectedHTML) {
+
+        // ONLY update innerHTML if it's structurally different (different HTML)
+        // Don't update just because text changed - that's handled by contentEditable input
+        if (contentEditableRef.current.innerHTML !== expectedHTML) {
           const selection = window.getSelection()
           const hadFocus = document.activeElement === contentEditableRef.current
           let cursorPosition = 0
-          if (selection?.rangeCount) {
+
+          // Calculate cursor position properly, accounting for mention badges
+          if (selection?.rangeCount && contentEditableRef.current) {
             const range = selection.getRangeAt(0)
-            const preCaretRange = range.cloneRange()
-            preCaretRange.selectNodeContents(contentEditableRef.current)
-            preCaretRange.setEnd(range.endContainer, range.endOffset)
-            cursorPosition = preCaretRange.toString().length
+            const walker = document.createTreeWalker(
+              contentEditableRef.current,
+              NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT,
+              null
+            )
+
+            let position = 0
+            let node
+            let foundCursor = false
+
+            while ((node = walker.nextNode()) && !foundCursor) {
+              if (node === range.startContainer) {
+                if (node.nodeType === Node.TEXT_NODE) {
+                  position += range.startOffset
+                }
+                foundCursor = true
+              } else if (node.nodeType === Node.TEXT_NODE) {
+                position += node.textContent?.length || 0
+              } else if (node.nodeType === Node.ELEMENT_NODE) {
+                const el = node as Element
+                if (el.classList?.contains('mention-badge')) {
+                  const mentionId = el.getAttribute('data-mention-id')
+                  const mentionStart = parseInt(el.getAttribute('data-mention-start') || '0', 10)
+                  const mention = selectedEntities.find(m => m.id === mentionId && m.startIndex === mentionStart)
+                  if (mention) {
+                    position += mention.endIndex - mention.startIndex
+                  }
+                }
+              }
+            }
+
+            cursorPosition = position
           }
 
           contentEditableRef.current.innerHTML = renderContentWithMentionsHTML()
 
-          // Restore cursor position
+          // Restore cursor position, accounting for mention badges
           if (hadFocus && selection) {
             requestAnimationFrame(() => {
               if (!contentEditableRef.current) return
 
               const range = document.createRange()
-              const walker = document.createTreeWalker(contentEditableRef.current, NodeFilter.SHOW_TEXT, null)
+              const walker = document.createTreeWalker(
+                contentEditableRef.current,
+                NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT,
+                null
+              )
               let currentPos = 0
               let targetNode: Node | null = null
               let targetOffset = 0
+              let node
 
-              while (walker.nextNode()) {
-                const node = walker.currentNode
-                const nodeLength = node.textContent?.length || 0
-                if (currentPos + nodeLength >= cursorPosition) {
-                  targetNode = node
-                  targetOffset = cursorPosition - currentPos
-                  break
+              while ((node = walker.nextNode())) {
+                if (node.nodeType === Node.TEXT_NODE) {
+                  const textLength = node.textContent?.length || 0
+                  if (currentPos + textLength >= cursorPosition) {
+                    targetNode = node
+                    targetOffset = cursorPosition - currentPos
+                    break
+                  }
+                  currentPos += textLength
+                } else if (node.nodeType === Node.ELEMENT_NODE) {
+                  const el = node as Element
+                  if (el.classList?.contains('mention-badge')) {
+                    const mentionId = el.getAttribute('data-mention-id')
+                    const mentionStart = parseInt(el.getAttribute('data-mention-start') || '0', 10)
+                    const mention = selectedEntities.find(m => m.id === mentionId && m.startIndex === mentionStart)
+                    const mentionLength = mention ? mention.endIndex - mention.startIndex : 0
+
+                    if (currentPos + mentionLength >= cursorPosition) {
+                      // Cursor should be after this badge
+                      let nextNode: Node | null = el.nextSibling
+
+                      // If next node is not a text node, create one
+                      if (!nextNode || nextNode.nodeType !== Node.TEXT_NODE) {
+                        const textNode = document.createTextNode('')
+                        if (el.parentNode) {
+                          el.parentNode.insertBefore(textNode, nextNode)
+                        }
+                        nextNode = textNode
+                      }
+
+                      targetNode = nextNode
+                      targetOffset = 0
+                      break
+                    }
+                    currentPos += mentionLength
+                  }
                 }
-                currentPos += nodeLength
               }
 
               if (targetNode) {
-                range.setStart(targetNode, Math.min(targetOffset, targetNode.textContent?.length || 0))
-                range.collapse(true)
-                selection.removeAllRanges()
-                selection.addRange(range)
+                try {
+                  range.setStart(targetNode, Math.min(targetOffset, targetNode.textContent?.length || 0))
+                  range.collapse(true)
+                  selection.removeAllRanges()
+                  selection.addRange(range)
+                  contentEditableRef.current?.focus()
+                } catch (e) {
+                  console.warn('Could not restore cursor position:', e)
+                }
               }
-              contentEditableRef.current.focus()
             })
           }
         }
       }
-    }, [selectedEntities.length, value, getTextFromContentEditable, renderContentWithMentionsHTML]) // Only depend on mention count, not every entity change
+    }, [selectedEntities.length, renderContentWithMentionsHTML]) // Only re-run when mention count changes, not on every keystroke
 
     // Track focus state and restore it after re-renders
     const handleFocus = useCallback(() => {
