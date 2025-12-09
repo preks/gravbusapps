@@ -9,7 +9,7 @@ import {
   Badge,
   Button
 } from '@newwork/nw-design-system'
-import { Building2, Users, TrendingUp } from '@phosphor-icons/react'
+import { Buildings, Users, TrendingUp } from '@phosphor-icons/react'
 import { OfficeUsageFilters, SiteLocationCapacity } from '../../types'
 import dayjs from 'dayjs'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -125,7 +125,7 @@ export const OfficeUsageFilterBar: React.FC<OfficeUsageFilterBarProps> = ({
         {/* Location Filter */}
         <div className="gba:min-w-[200px]">
           <label className="gba:text-sm gba:font-medium gba:mb-2 gba:block">
-            <Building2 className="gba:inline gba:mr-1" size={16} />
+            <Buildings className="gba:inline gba:mr-1" size={16} />
             {getTranslationFromI18nKeyAndLabel('lowcoder:office_usage.filter_locations', 'Locations')}
           </label>
           <Select
