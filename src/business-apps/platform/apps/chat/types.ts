@@ -135,7 +135,7 @@ export type EntityType =
 
 export interface EntityReference {
   id: string
-  type: EntityType
+  type: EntityType | string
   name: string
   subtitle?: string
   pictureThumbnail?: string
@@ -191,4 +191,18 @@ export const ENTITY_QUERY_PARAMS: Record<EntityType, string> = {
   employee: 'employeeId',
   campaign: 'campaignId',
   expense_request: 'expenseRequestId'
+}
+
+const SUPPORTED_ENTITY_TYPES = new Set<EntityType>(Object.keys(ENTITY_NAVIGATION_PATHS) as EntityType[])
+const LOGGED_UNSUPPORTED_TYPES = new Set<string>()
+
+export const isSupportedEntityType = (type: string): type is EntityType =>
+  SUPPORTED_ENTITY_TYPES.has(type as EntityType)
+
+export const warnOnceForUnsupportedEntityType = (type: string, payload?: unknown) => {
+  if (LOGGED_UNSUPPORTED_TYPES.has(type)) {
+    return
+  }
+  LOGGED_UNSUPPORTED_TYPES.add(type)
+  console.warn('[Chat] Unsupported entity reference type', payload ?? type)
 }
