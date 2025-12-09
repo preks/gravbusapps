@@ -14,7 +14,8 @@ export interface InvestmentLayoutProps {
   investmentInformationCustomFields?: React.ReactNode
   disableInvestmentFields?: boolean
   ownerEmployee?: any
-  account?: any
+  account?: any // Deprecated - use investmentAccounts instead
+  investmentAccounts?: any[] // Multiple accounts with types (junction table format)
   useAccounts?: {
     accounts: any[]
     total: number
@@ -39,6 +40,7 @@ export const InvestmentLayout: React.FC<InvestmentLayoutProps> = ({
   disableInvestmentFields = false,
   ownerEmployee,
   account,
+  investmentAccounts,
   useAccounts,
   businessAppContext,
   formFieldsDefinition,
@@ -136,6 +138,7 @@ export const InvestmentLayout: React.FC<InvestmentLayoutProps> = ({
           businessAppContext={businessAppContext}
           ownerEmployee={ownerEmployee || formValues.investment.ownerEmployee}
           account={account}
+          investmentAccounts={investmentAccounts}
           company={formValues.investment.company}
           useAccounts={useAccounts}
           entityId={formValues.investment.id}

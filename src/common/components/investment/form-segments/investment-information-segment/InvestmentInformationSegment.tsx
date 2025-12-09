@@ -4,8 +4,8 @@ import { useFormContext } from 'react-hook-form'
 import { CatalogSelect } from '@/components/catalog-select'
 import { EmployeeSelect } from '@/components/employee-select'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import AccountSelect from '@/common/components/common-relations/selects/account-select/AccountSelect'
-import type { SelectOption as AccountSelectOption } from '@/common/components/common-relations/selects/account-select'
+import { AccountSegment } from '@/common/components/common-relations/form-segments/account-segment'
+import type { AccountSegmentOption } from '@/common/components/common-relations/form-segments/account-segment'
 import { CompanySelect } from '@/components/company-select'
 import { CURRENCY } from '@/common/constants/commonCatalogs'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -19,7 +19,8 @@ interface InvestmentInformationSegmentProps {
   ownerEmployee?: any
 
   // Account selection props (like OpportunityInformationSegment)
-  account?: any
+  account?: any // Deprecated - use investmentAccounts instead
+  investmentAccounts?: any[] // Multiple accounts with types (junction table format)
   useAccounts?: {
     accounts: any[]
     total: number
@@ -65,7 +66,7 @@ const getInvestmentTypeName = (group: string | { id: string } | null | undefined
 const InvestmentInformationSegment: React.FC<InvestmentInformationSegmentProps> = ({
   businessAppContext,
   ownerEmployee,
-  account,
+  investmentAccounts,
   company,
   useAccounts,
   entityId,
@@ -79,18 +80,22 @@ const InvestmentInformationSegment: React.FC<InvestmentInformationSegmentProps> 
   // Get dynamic investment type name
   const investmentTypeName = getInvestmentTypeName(investmentGroup)
 
-  // Transform accounts to AccountSelectOption[] (like OpportunityInformationSegment)
-  const accountOptions = useMemo<AccountSelectOption[]>(() => {
+  // Transform accounts to AccountSegmentOption[]
+  const accountOptions = useMemo<AccountSegmentOption[]>(() => {
     if (!useAccounts?.accounts) return []
     return useAccounts.accounts.map((acc: any) => ({
       id: acc.id,
       value: acc.id,
       label: acc.name || acc.displayName || '',
-      name: acc.name || acc.displayName || ''
+      name: acc.name || acc.displayName || '',
+      pictureThumbnail: acc.pictureThumbnail,
+      extraInfo: {
+        website: acc.website
+      }
     }))
   }, [useAccounts?.accounts])
 
-  // Search function for accounts (like OpportunityInformationSegment)
+  // Search function for accounts
   const searchAccounts = useCallback(
     (searchTerm: string) => {
       if (useAccounts?.refetch) {
@@ -99,20 +104,6 @@ const InvestmentInformationSegment: React.FC<InvestmentInformationSegmentProps> 
     },
     [useAccounts?.refetch]
   )
-
-  // Helper function to get account ID from value (like OpportunityInformationSegment)
-  const getAccountIdFromValue = (value: any): string | null => {
-    if (Array.isArray(value)) {
-      return null
-    }
-    if (typeof value === 'object' && value !== null && 'id' in value) {
-      return value.id
-    }
-    if (typeof value === 'string') {
-      return value
-    }
-    return null
-  }
 
   return (
     <div data-testid={formatDataTestId(prefixDataTestId, 'Container')} className="gba:space-y-6">
@@ -231,43 +222,28 @@ const InvestmentInformationSegment: React.FC<InvestmentInformationSegmentProps> 
           </div>
         </div>
 
-        {/* Related Account */}
-        <FormField
-          control={form.control}
-          name="investment.investmentAccountId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>
-                {getTranslationFromI18nKeyAndLabel('investment.form.relatedAccount', 'Related Account')}
-              </FormLabel>
-              <FormControl>
-                <AccountSelect
-                  value={field.value || null}
-                  onChange={value => {
-                    // Type guard: ensure value is not an array (single-select mode)
-                    if (Array.isArray(value)) {
-                      return
-                    }
-
-                    // Extract ID from value (string or object)
-                    const accountId = getAccountIdFromValue(value)
-                    field.onChange(accountId || '')
-                  }}
-                  initialAccount={account}
-                  dataTestId={formatDataTestId(prefixDataTestId, 'AccountSelect')}
-                  error={useAccounts?.error || null}
-                  accounts={accountOptions}
-                  accountsLoading={useAccounts?.loading || false}
-                  accountsError={useAccounts?.error || null}
-                  searchAccounts={searchAccounts}
-                  multiple={false}
-                  disabled={disabled}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {/* Related Accounts - Multiple accounts with types */}
+        {useAccounts && (
+          <FormItem>
+            <FormLabel>
+              {getTranslationFromI18nKeyAndLabel('investment.form.relatedAccounts', 'Related Accounts')}
+            </FormLabel>
+            <FormControl>
+              <AccountSegment
+                fieldArrayName="investment.investmentAccounts"
+                accountIdFieldName="investmentAccountId"
+                accountTypeFieldName="investmentAccountTypeRef"
+                accounts={accountOptions}
+                accountsLoading={useAccounts.loading}
+                accountsError={useAccounts.error}
+                searchAccounts={searchAccounts}
+                accountContacts={investmentAccounts || []}
+                dataTestId={formatDataTestId(prefixDataTestId, 'AccountsSegment')}
+                disabled={disabled}
+              />
+            </FormControl>
+          </FormItem>
+        )}
 
         {/* Custom fields (context-specific, e.g., InvestmentReport date, scope, investmentId) */}
         {customFields}

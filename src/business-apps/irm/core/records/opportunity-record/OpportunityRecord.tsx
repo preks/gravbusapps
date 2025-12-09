@@ -905,18 +905,20 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                   component: AccountSection,
                   props: {
                     ...props,
-                    account: opportunityData?.account,
-                    accountId: opportunityData?.account?.id,
-                    recordUrl: opportunityData?.account?.id
+                    accounts: opportunityData?.opportunityAccounts?.map(a => a.account).filter(Boolean) || [],
+                    account: opportunityData?.opportunityAccounts?.[0]?.account,
+                    accountId: opportunityData?.opportunityAccounts?.[0]?.accountId,
+                    accountIds: opportunityData?.opportunityAccounts?.map(a => a.accountId).filter(Boolean),
+                    recordUrl: opportunityData?.opportunityAccounts?.[0]?.accountId
                       ? buildPlatformUrl('/platform/irm/account-record', {
-                          accountId: opportunityData.account.id,
+                          accountId: opportunityData.opportunityAccounts[0].accountId,
                           source: 'opportunity-relations',
                           fromEntity: 'opportunities'
                         })
                       : undefined,
                     actionButtonProps: {
                       contextsArray: [FlowContextName.investmentAccountEntity],
-                      externalContextData: { accountId: opportunityData?.account?.id },
+                      externalContextData: { accountId: opportunityData?.opportunityAccounts?.[0]?.accountId },
                       prefixDataTestId: 'investment-opportunity-account-action'
                     }
                   }

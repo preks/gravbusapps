@@ -38,10 +38,20 @@ import {
 export const INVESTMENT_OPPORTUNITY = `
   ${INVESTMENT_OPPORTUNITY_REF}
   
-  # Entity relations
-  accountId
-  account {
-    ${INVESTMENT_ACCOUNT_REF}
+  # Entity relations (via junction table)
+  # GraphQL field name: opportunityAccounts (not investmentOpportunityAccounts)
+  opportunityAccounts(where: { isDeleted: { _eq: false } }) {
+    id
+    version
+    opportunityId
+    accountId
+    accountTypeRef
+    accountType {
+      ${CATALOG_ENTRY}
+    }
+    account {
+      ${INVESTMENT_ACCOUNT_REF}
+    }
   }
   
   activities(where: { isDeleted: { _eq: false } }) {
@@ -266,21 +276,32 @@ export const INVESTMENT = `
         }
     }
     
-    # Entity relationships
-    investmentAccount {
-        ${INVESTMENT_ACCOUNT_REF}
-        ${InvestmentAccountFields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
-            ${COMMUNICATION_CHANNEL_REF}
+    # Entity relationships (via junction table)
+    # GraphQL field name: investmentAccounts (not investmentInvestmentAccounts)
+    investmentAccounts(where: { isDeleted: { _eq: false } }) {
+        id
+        version
+        investmentId
+        investmentAccountId
+        investmentAccountTypeRef
+        investmentAccountType {
+            ${CATALOG_ENTRY}
         }
-        ${InvestmentAccountFields.addresses}(where: { isDeleted: { _eq: false } }) {
-            ${ADDRESS_REF}
-        }
-        investmentAccountContact {
-            contactType
-            contact {
-                ${INVESTMENT_CONTACT_REF}
-                ${InvestmentContactFields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
-                    ${COMMUNICATION_CHANNEL_REF}
+        investmentAccount {
+            ${INVESTMENT_ACCOUNT_REF}
+            ${InvestmentAccountFields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
+                ${COMMUNICATION_CHANNEL_REF}
+            }
+            ${InvestmentAccountFields.addresses}(where: { isDeleted: { _eq: false } }) {
+                ${ADDRESS_REF}
+            }
+            investmentAccountContact {
+                contactType
+                contact {
+                    ${INVESTMENT_CONTACT_REF}
+                    ${InvestmentContactFields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
+                        ${COMMUNICATION_CHANNEL_REF}
+                    }
                 }
             }
         }

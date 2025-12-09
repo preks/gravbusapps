@@ -115,7 +115,10 @@ export const GET_ACCOUNTS_ANALYTICS = `
         count
       }
     }
-    accountWithOpportunities: InvestmentAccountAggregate(where: {investment: {id: {_isNull: false}}}) {
+    # Note: Cannot filter InvestmentAccount by investment field as the junction table
+    # is only accessible FROM Investment, not FROM InvestmentAccount
+    # To get accounts with investments, we would need to query from Investment side
+    accountWithOpportunities: InvestmentAccountAggregate(where: { isDeleted: { _eq: false }, investmentOpportunity: { id: { _isNull: false } } }) {
       aggregate {
         count
       }

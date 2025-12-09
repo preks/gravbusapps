@@ -11,7 +11,6 @@ import {
 } from '@/common/data/relations/types/opportunityTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
-import type { InvestmentAccount } from './investmentAccountTypes'
 import type { InvestmentAddress } from './investmentAddressTypes'
 import type { InvestmentCommunicationChannel } from './investmentCommunicationChannelTypes'
 import type { InvestmentDocument } from './investmentDocumentTypes'
@@ -21,6 +20,7 @@ import type { InvestmentActivity } from './investmentActivityTypes'
 import type { InvestmentLead } from './investmentLeadTypes'
 import type { InvestmentOpportunityContact } from './investmentRelationTypes'
 import type { Investment } from './investmentTypes'
+import type { InvestmentOpportunityAccount } from './investmentAccountAssociationTypes'
 
 /**
  * Investment Opportunity Type
@@ -28,7 +28,6 @@ import type { Investment } from './investmentTypes'
  */
 export interface InvestmentOpportunity extends Opportunity {
   // Investment-specific typed relationships
-  account?: InvestmentAccount
   activities?: InvestmentActivity[]
   addresses?: InvestmentAddress[]
   communicationChannels?: InvestmentCommunicationChannel[]
@@ -41,6 +40,10 @@ export interface InvestmentOpportunity extends Opportunity {
   opportunityStageConditions?: InvestmentOpportunityStageCondition[]
   rejectionReasons?: any[]
   tasks?: InvestmentTask[]
+
+  // Opportunity-Account Junction Table (many-to-many)
+  // GraphQL field name: opportunityAccounts
+  opportunityAccounts?: InvestmentOpportunityAccount[]
 
   // IRM-specific fields
   annualNetColdRent?: number // IRM specific
@@ -88,6 +91,8 @@ export const InvestmentOpportunityFields = {
   leads: 'investmentLead',
   opportunityContacts: 'investmentOpportunityContact',
   opportunityStageConditions: 'investmentOpportunityStageCondition',
+  // Junction table relationship
+  investmentOpportunityAccounts: 'investmentOpportunityAccount',
   // IRM-specific fields
   annualNetColdRent: 'annualNetColdRent',
   buildingYear: 'buildingYear',
@@ -220,6 +225,14 @@ export const INVESTMENT_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
   },
   { key: 'stakePercentage', searchPaths: ['stakePercentage'], sortPath: 'stakePercentage', type: 'number' },
 
+  // Junction table descriptor
+  {
+    key: 'investmentOpportunityAccounts',
+    searchPaths: ['investmentOpportunityAccount.account.name', 'investmentOpportunityAccount.account.code'],
+    sortPaths: ['investmentOpportunityAccount.account.name'],
+    type: 'text'
+  },
+
   // IRM-specific filter IDs
   { key: 'divestmentIds', path: 'divestmentId', kind: 'inIds' },
   { key: 'investmentIds', path: 'investment.id', kind: 'inIds' },
@@ -228,7 +241,8 @@ export const INVESTMENT_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
   { key: 'investmentStakeTypeIds', path: 'investmentStakeTypeRef', kind: 'inIds' },
   { key: 'investmentTypeIds', path: 'investmentTypeRef', kind: 'inIds' },
   { key: 'sizeMeasurementUnitIds', path: 'sizeMeasurementUnitRef', kind: 'inIds' },
-  { key: 'contactIds', path: 'investmentOpportunityContact.contact.id', kind: 'inIds' } // IRM uses "investmentOpportunityContact" not "opportunityContacts"
+  { key: 'contactIds', path: 'investmentOpportunityContact.contact.id', kind: 'inIds' }, // IRM uses "investmentOpportunityContact" not "opportunityContacts"
+  { key: 'accountIds', path: 'investmentOpportunityAccount.accountId', kind: 'inIds' }
 ]
 
 /**
@@ -247,6 +261,8 @@ export const INVESTMENT_OPPORTUNITY_STAGE_CONDITION_DESCRIPTORS: Descriptor[] = 
  */
 export const investmentOpportunityFormFields = {
   ...opportunityFormFields,
+  // Junction table relationship
+  opportunityAccounts: 'opportunityAccounts', // GraphQL field name
   // IRM-specific fields
   dealType: 'dealType',
   divestment: 'divestment',
@@ -289,9 +305,24 @@ export const buildInvestmentOpportunityPayload = (opportunity: Partial<Investmen
   // opportunityContacts is automatically processed by buildPayload (like accountContacts in AccountForm)
   const basePayload = buildPayload(opportunity, investmentOpportunityFormFields)
 
-  return {
+  const result: any = {
     investmentOpportunity: basePayload
   }
+
+  // Handle opportunity-account junction table associations explicitly
+  // GraphQL field name: opportunityAccounts (not investmentOpportunityAccounts)
+  if (opportunity.opportunityAccounts && opportunity.opportunityAccounts.length > 0) {
+    const accountAssociationsPayload = opportunity.opportunityAccounts.map((assoc: any) => ({
+      ...(assoc.id && { id: assoc.id }),
+      ...(assoc.version !== undefined && { version: assoc.version }),
+      accountId: assoc.accountId || assoc.account?.id,
+      ...(assoc.accountTypeRef && { accountTypeRef: assoc.accountTypeRef }),
+      ...(assoc.isDeleted !== undefined && { isDeleted: assoc.isDeleted })
+    }))
+    result.investmentOpportunity.opportunityAccounts = accountAssociationsPayload
+  }
+
+  return result
 }
 
 /**

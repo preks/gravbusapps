@@ -10,7 +10,8 @@ interface OpportunityLayoutProps {
   businessAppContext?: BusinessAppContextProps
   ownerEmployee?: any
   entityId?: string
-  account?: any
+  account?: any // Deprecated - use opportunityAccounts instead
+  opportunityAccounts?: any[] // Multiple accounts with types (junction table format)
   // Account selection hook result - raw entities and refetch function
   useAccounts?: {
     accounts: any[]
@@ -51,6 +52,7 @@ const OpportunityLayout: React.FC<OpportunityLayoutProps> = ({
   entityId,
   account,
   company,
+  opportunityAccounts,
   useAccounts,
   opportunityContacts,
   useContacts,
@@ -97,6 +99,7 @@ const OpportunityLayout: React.FC<OpportunityLayoutProps> = ({
         entityId={entityId}
         account={account}
         company={company}
+        opportunityAccounts={opportunityAccounts}
         useAccounts={useAccounts}
         opportunityContacts={opportunityContacts}
         useContacts={useContacts}

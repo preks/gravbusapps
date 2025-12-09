@@ -20,21 +20,28 @@ export interface TopAccountsQueryResult {
 
 /**
  * Query to get distinct investment accounts with their total values
+ * GraphQL field name: investmentAccounts (not investmentInvestmentAccounts)
  */
 export const GET_DISTINCT_ACCOUNTS_QUERY = `
   query GetDistinctAccounts {
     Investment(
       where: { 
         isDeleted: { _eq: false }
-        investmentAccountId: { _isNull: false }
+        investmentAccounts: {
+          isDeleted: { _eq: false }
+          investmentAccountId: { _isNull: false }
+        }
       }
-      distinctOn: investmentAccountId
       limit: 1000
     ) {
-      investmentAccountId
-      investmentAccount {
+      id
+      investmentAccounts(where: { isDeleted: { _eq: false } }) {
         id
-        name
+        investmentAccountId
+        investmentAccount {
+          id
+          name
+        }
       }
     }
   }
@@ -48,8 +55,14 @@ export const BUILD_ACCOUNT_AGGREGATE_QUERY = (accountIds: string[], currency?: s
     .map(accountId => {
       const sanitizedId = accountId.replaceAll(/\W/g, '_')
 
-      // Build where conditions
-      const conditions = ['isDeleted: { _eq: false }', `investmentAccountId: { _eq: "${accountId}" }`]
+      // Build where conditions - now using junction table
+      const conditions = [
+        'isDeleted: { _eq: false }',
+        `investmentAccounts: {
+          isDeleted: { _eq: false }
+          investmentAccountId: { _eq: "${accountId}" }
+        }`
+      ]
 
       if (currency && currency !== 'ALL') {
         conditions.push(`currency: { code: { _eq: "${currency}" } }`)
@@ -104,21 +117,36 @@ export const fetchTopAccounts = async (
   limit: number = 10,
   currency?: string
 ): Promise<TopAccountsQueryResult> => {
-  // Step 1: Get all distinct accounts
+  // Step 1: Get all distinct accounts via junction table
   const distinctResult = await graphqlClient.request<{
     Investment: Array<{
-      investmentAccountId: string
-      investmentAccount: {
+      id: string
+      investmentInvestmentAccount: Array<{
         id: string
-        name: string
-      }
+        investmentAccountId: string
+        investmentAccount: {
+          id: string
+          name: string
+        }
+      }>
     }>
   }>(GET_DISTINCT_ACCOUNTS_QUERY)
 
-  const accounts: AccountInfo[] = distinctResult.Investment.filter(inv => inv.investmentAccount).map(inv => ({
-    accountId: inv.investmentAccountId,
-    accountName: inv.investmentAccount.name || 'Unknown Account'
-  }))
+  // Flatten junction table associations and get unique accounts
+  const accountsMap = new Map<string, AccountInfo>()
+
+  distinctResult.Investment.forEach(inv => {
+    inv.investmentAccounts?.forEach(assoc => {
+      if (assoc.investmentAccount && !accountsMap.has(assoc.investmentAccountId)) {
+        accountsMap.set(assoc.investmentAccountId, {
+          accountId: assoc.investmentAccountId,
+          accountName: assoc.investmentAccount.name || 'Unknown Account'
+        })
+      }
+    })
+  })
+
+  const accounts: AccountInfo[] = Array.from(accountsMap.values())
 
   if (accounts.length === 0) {
     return { accounts: [] }

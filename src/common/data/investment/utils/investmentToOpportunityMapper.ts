@@ -63,9 +63,14 @@ export const mapInvestmentToInvestmentOpportunityValues = (
     // Owner
     ownerEmployeeId: investment.ownerEmployee?.id,
 
-    // Account (if present)
-    accountId: investment.investmentAccount?.id,
-    account: investment.investmentAccount as any
+    // Account associations (junction table)
+    // GraphQL field names: investmentAccounts and opportunityAccounts
+    opportunityAccounts:
+      investment.investmentAccounts?.map(assoc => ({
+        accountId: assoc.investmentAccountId,
+        accountTypeRef: assoc.investmentAccountTypeRef,
+        account: assoc.investmentAccount as any
+      })) || []
   }
 
   // Real Estate specific fields

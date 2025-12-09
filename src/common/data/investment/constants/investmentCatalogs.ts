@@ -18,6 +18,7 @@ export const COMPANY_SIZE = 'CompanySize:v1'
 export const ANNUAL_REVENUE = 'AccountAnnualRevenueBand:v1'
 export const OPPORTUNITY_FORECAST = 'InvestmentOpportunityForecast:v1'
 export const ACCOUNT_PRIORITY = 'InvestmentAccountPriority:v1'
+export const INVESTMENT_ACCOUNT_TYPE = 'InvestmentAccountType:v1'
 
 // Investment catalog identifiers
 export const investmentGroup = 'InvestmentGroup:v1'

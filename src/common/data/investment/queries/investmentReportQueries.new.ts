@@ -180,11 +180,15 @@ const buildInvestmentFieldFragment = (fieldSet: Set<string>): string => {
         pictureThumbnail
       }
       
-      # Investment Account relationship
-      investmentAccount {
-        ${INVESTMENT_ACCOUNT_REF}
+      # Investment Account relationship (via junction table)
+      # GraphQL field name: investmentAccounts (not investmentInvestmentAccounts)
+      investmentAccounts(where: { isDeleted: { _eq: false } }) {
+        id
+        investmentAccountId
+        investmentAccount {
+          ${INVESTMENT_ACCOUNT_REF}
+        }
       }
-      investmentAccountId
     }
     ${InvestmentReportFields.investmentId}
   `

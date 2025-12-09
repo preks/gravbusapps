@@ -28,6 +28,16 @@ const createBaseInvestmentValues = (
   opportunityData: InvestmentOpportunity,
   investmentTypeId: string | null
 ): Partial<InvestmentFormValues> => {
+  // Map opportunity account associations to investment account associations
+  // GraphQL field name: opportunityAccounts on InvestmentOpportunity
+  const investmentInvestmentAccounts =
+    opportunityData.opportunityAccounts?.map(assoc => ({
+      investmentAccountId: assoc.accountId || assoc.account?.id || '',
+      investmentAccountTypeRef: assoc.accountTypeRef,
+      // Preserve the account object for display if available
+      investmentAccount: assoc.account as any
+    })) || []
+
   const result: Partial<InvestmentFormValues> = {
     investment: {
       ownerEmployee: opportunityData.ownerEmployee as any,
@@ -35,8 +45,7 @@ const createBaseInvestmentValues = (
       name: opportunityData.investmentName || opportunityData.name || '',
       currencyRef: opportunityData.currency?.id || opportunityData.currencyRef || '',
       investmentStatus: { id: 'InvestmentStatus:v1:ACTIVE', code: 'ACTIVE' } as any,
-      investmentAccount: opportunityData.account as any,
-      investmentAccountId: opportunityData.account?.id || opportunityData.accountId || '',
+      investmentAccounts: investmentInvestmentAccounts as any, // GraphQL field name
       investmentTypeId: investmentTypeId || null
     }
   }
