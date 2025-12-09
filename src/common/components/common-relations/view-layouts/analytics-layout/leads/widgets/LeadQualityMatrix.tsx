@@ -1,11 +1,12 @@
 import React from 'react'
-import { Card, CardContent, CardHeader, CardTitle, Badge } from '@newwork/nw-design-system'
+import { Card, CardContent, CardHeader, CardTitle, Badge, Spinner } from '@newwork/nw-design-system'
 import { PercentageOutlined } from '@ant-design/icons'
 
 export interface LeadsBySourceItem {
   source: string
   count: number
   percentage: number
+  conversionRate?: number
 }
 
 export interface LeadQualityMatrixProps {
@@ -15,14 +16,32 @@ export interface LeadQualityMatrixProps {
     leadsBySource: LeadsBySourceItem[]
   }
   moduleColor?: string
+  isLoading?: boolean
 }
 
-export const LeadQualityMatrix: React.FC<LeadQualityMatrixProps> = ({ data }) => {
+export const LeadQualityMatrix: React.FC<LeadQualityMatrixProps> = ({ data, isLoading = false }) => {
+  if (isLoading) {
+    return (
+      <Card data-testid="lead-quality-matrix">
+        <CardHeader>
+          <CardTitle className="gba:flex gba:items-center gba:gap-2">
+            <PercentageOutlined />
+            Lead Quality Matrix
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="gba:flex gba:justify-center gba:items-center gba:py-12">
+            <Spinner size="large" />
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
   const realQualityScore = data?.conversionRate ? Math.round(data.conversionRate * 2.5 + 25) : 25
 
-  const sourceQualityInsights = (data?.leadsBySource || []).slice(0, 4).map(source => {
-    const volumeScore = Math.min((source.count / (data.totalLeads || 1)) * 100 * 2, 100)
-    const efficiencyScore = Math.min(source.percentage * 2, 100)
+  const sourceQualityInsights = (data?.leadsBySource || []).map(source => {
+    const volumeScore = Math.min(source.percentage * 1.5, 100) // How much of total leads this source represents
+    const efficiencyScore = Math.min((source.conversionRate || 0) * 1.2, 100) // Actual conversion rate for this source
     const qualityScore = Math.round((volumeScore + efficiencyScore) / 2)
     const quality = (score: number) =>
       score >= 85
@@ -76,15 +95,14 @@ export const LeadQualityMatrix: React.FC<LeadQualityMatrixProps> = ({ data }) =>
                     <div className={`gba:w-3 gba:h-3 gba:rounded-full gba:bg-${s.color}-500`} />
                     <div>
                       <span className="gba:text-sm gba:font-medium">{s.source}</span>
-                      <div className="gba:text-xs gba:text-gray-500">{s.qualityLevel} Quality</div>
+                      <div className="gba:text-xs gba:text-gray-500">
+                        {s.qualityLevel} Quality (Score: {s.qualityScore})
+                      </div>
                     </div>
                   </div>
-                  <div className="gba:flex gba:items-center gba:gap-2">
-                    <span className="gba:text-sm gba:font-medium">{s.qualityScore}</span>
-                    <Badge variant="outline" className="gba:text-xs">
-                      {s.count} leads ({s.percentage.toFixed(1)}%)
-                    </Badge>
-                  </div>
+                  <Badge variant="outline" className="gba:text-xs">
+                    {s.count} leads ({s.percentage.toFixed(1)}%)
+                  </Badge>
                 </div>
               ))
             ) : (

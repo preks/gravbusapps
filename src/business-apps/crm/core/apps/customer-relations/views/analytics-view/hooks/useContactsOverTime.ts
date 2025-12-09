@@ -1,207 +1,69 @@
 import { useState, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
-export interface ContactsOverTimeData {
+export interface ContactsOverTimePoint {
   date: string
-  count: number
-  cumulative: number
+  contactsCreated: number
 }
 
-export interface ContactsOverTimeMetrics {
-  total: number
-  totalLastMonth: number
-  thisMonth: number
-  lastMonth: number
-  growth: number
-  totalGrowth: number
-  data: ContactsOverTimeData[]
-}
+export type ContactsTimeFilter = 'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'
 
-export type TimeFilter = 'month' | 'quarter' | 'year' | 'historical'
-
-export interface UseContactsOverTimeProps {
-  accessToken: string
-  timeFilter?: TimeFilter
-}
-
-export const useContactsOverTime = ({ accessToken, timeFilter = 'quarter' }: UseContactsOverTimeProps) => {
-  const [data, setData] = useState<ContactsOverTimeMetrics | null>(null)
+/**
+ * Fetches Contact Lifecycle data using dynamic aggregate queries per time period
+ * Pattern: Exactly matches useLeadsOverTime
+ */
+export const useContactsOverTime = (accessToken: string, selectedTimeFilter: ContactsTimeFilter) => {
+  const [contactsOverTime, setContactsOverTime] = useState<ContactsOverTimePoint[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const graphqlClient = useGraphQLClient(accessToken)
 
   useEffect(() => {
     const fetchContactsOverTime = async () => {
-      if (!accessToken) return
+      if (!accessToken) {
+        setIsLoading(false)
+        return
+      }
 
       try {
         setIsLoading(true)
         setError(null)
 
-        // Calculate date range based on filter
-        const endDate = new Date()
-        const startDate = new Date()
+        // Generate time periods based on selected filter
+        const periods = generateTimePeriods(selectedTimeFilter)
 
-        switch (timeFilter) {
-          case 'month':
-            startDate.setMonth(endDate.getMonth() - 1)
-            break
-          case 'quarter':
-            startDate.setMonth(endDate.getMonth() - 3)
-            break
-          case 'year':
-            startDate.setFullYear(endDate.getFullYear() - 1)
-            break
-          case 'historical':
-            startDate.setFullYear(endDate.getFullYear() - 2)
-            break
-        }
-
-        // Calculate this month and last month date ranges
-        const now = new Date()
-        const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-        const thisMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
-        const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-        const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999)
+        // Build aggregate queries for each period
+        const aggregateQueries = periods
+          .map((period, index) => {
+            return `
+            period_${index}_created: ContactAggregate(
+              where: {
+                isDeleted: {_eq: false}
+                createdAt: {_gte: "${period.start}", _lt: "${period.end}"}
+              }
+            ) {
+              aggregate { count }
+            }
+          `
+          })
+          .join('\n')
 
         const query = `
-          query GetContactsOverTime(
-            $startDate: timestamptz!, 
-            $endDate: timestamptz!,
-            $thisMonthStart: timestamptz!,
-            $thisMonthEnd: timestamptz!,
-            $lastMonthStart: timestamptz!,
-            $lastMonthEnd: timestamptz!
-          ) {
-            contacts: Contact(
-              where: {
-                isDeleted: { _eq: false }
-                createdAt: { _gte: $startDate, _lte: $endDate }
-              }
-              orderBy: [{ createdAt: ASC }]
-            ) {
-              id
-              createdAt
-              firstName
-              lastName
-              email
-              accountId
-              communicationChannels {
-                id
-              }
-            }
-            totalContacts: ContactAggregate(
-              where: {
-                isDeleted: { _eq: false }
-                createdAt: { _lte: $endDate }
-              }
-            ) {
-              aggregate {
-                count
-              }
-            }
-            totalNumberOfContacts: ContactAggregate(
-              where: {
-                isDeleted: { _eq: false }
-              }
-            ) {
-              aggregate {
-                count
-              }
-            }
-            thisMonthContacts: ContactAggregate(
-              where: {
-                isDeleted: { _eq: false }
-                createdAt: { _gte: $thisMonthStart, _lte: $thisMonthEnd }
-              }
-            ) {
-              aggregate {
-                count
-              }
-            }
-            lastMonthContacts: ContactAggregate(
-              where: {
-                isDeleted: { _eq: false }
-                createdAt: { _gte: $lastMonthStart, _lte: $lastMonthEnd }
-              }
-            ) {
-              aggregate {
-                count
-              }
-            }
-            totalLastMonthContacts: ContactAggregate(
-              where: {
-                isDeleted: { _eq: false }
-                createdAt: { _lte: $lastMonthEnd }
-              }
-            ) {
-              aggregate {
-                count
-              }
-            }
+          query GetContactsOverTime {
+            ${aggregateQueries}
           }
         `
 
-        const variables = {
-          startDate: startDate.toISOString(),
-          endDate: endDate.toISOString(),
-          thisMonthStart: thisMonthStart.toISOString(),
-          thisMonthEnd: thisMonthEnd.toISOString(),
-          lastMonthStart: lastMonthStart.toISOString(),
-          lastMonthEnd: lastMonthEnd.toISOString()
-        }
+        const result = await graphqlClient.request(query)
 
-        const result = await graphqlClient.request(query, variables)
-        const contacts = result.contacts || []
+        // Process results
+        const contactsOverTimeData: ContactsOverTimePoint[] = periods.map((period, index) => ({
+          date: period.label,
+          contactsCreated: result[`period_${index}_created`]?.aggregate?.count || 0
+        }))
 
-        // Group contacts by month
-        const monthlyData = new Map<string, number>()
-        contacts.forEach((contact: any) => {
-          const date = new Date(contact.createdAt)
-          const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`
-          monthlyData.set(monthKey, (monthlyData.get(monthKey) || 0) + 1)
-        })
-
-        // Generate monthly time series data
-        const timeSeriesData: ContactsOverTimeData[] = []
-        const currentDate = new Date(startDate.getFullYear(), startDate.getMonth(), 1)
-        let cumulative = 0
-
-        while (currentDate <= endDate) {
-          const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-01`
-          const count = monthlyData.get(monthKey) || 0
-          cumulative += count
-
-          timeSeriesData.push({
-            date: monthKey,
-            count,
-            cumulative
-          })
-
-          currentDate.setMonth(currentDate.getMonth() + 1)
-        }
-
-        // Calculate metrics using aggregate results
-        const total = result.totalNumberOfContacts?.aggregate?.count || 0
-        const totalLastMonth = result.totalLastMonthContacts?.aggregate?.count || 0
-        const thisMonth = result.thisMonthContacts?.aggregate?.count || 0
-        const lastMonth = result.lastMonthContacts?.aggregate?.count || 0
-
-        const growth = lastMonth > 0 ? Math.round(((thisMonth - lastMonth) / lastMonth) * 100) : 0
-
-        const totalGrowth = totalLastMonth > 0 ? Math.round(((total - totalLastMonth) / totalLastMonth) * 100) : 0
-
-        setData({
-          total,
-          totalLastMonth,
-          thisMonth,
-          lastMonth,
-          growth,
-          totalGrowth,
-          data: timeSeriesData
-        })
+        setContactsOverTime(contactsOverTimeData)
       } catch (err) {
-        // console.error("Error fetching contacts over time:", err);
         setError(err instanceof Error ? err.message : 'Unknown error')
       } finally {
         setIsLoading(false)
@@ -209,7 +71,102 @@ export const useContactsOverTime = ({ accessToken, timeFilter = 'quarter' }: Use
     }
 
     fetchContactsOverTime()
-  }, [accessToken, timeFilter, graphqlClient])
+  }, [accessToken, selectedTimeFilter, graphqlClient])
 
-  return { data, isLoading, error }
+  return { contactsOverTime, isLoading, error }
+}
+
+/**
+ * Generate time periods based on selected filter
+ * Pattern: Matches useLeadsOverTime
+ */
+function generateTimePeriods(timeFilter: ContactsTimeFilter) {
+  const now = new Date()
+  const periods: Array<{ start: string; end: string; label: string }> = []
+
+  switch (timeFilter) {
+    case 'month': {
+      // Last 4 weeks (weekly)
+      for (let i = 3; i >= 0; i--) {
+        const end = new Date(now)
+        end.setDate(now.getDate() - i * 7)
+        const start = new Date(end)
+        start.setDate(end.getDate() - 7)
+
+        periods.push({
+          start: start.toISOString(),
+          end: end.toISOString(),
+          label: start.toISOString()
+        })
+      }
+      break
+    }
+
+    case 'quarter': {
+      // Last 3 months (monthly)
+      for (let i = 2; i >= 0; i--) {
+        const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1)
+        const start = new Date(monthDate)
+        const end = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 1)
+
+        periods.push({
+          start: start.toISOString(),
+          end: end.toISOString(),
+          label: start.toISOString()
+        })
+      }
+      break
+    }
+
+    case 'sixMonths': {
+      // Last 6 months (monthly)
+      for (let i = 5; i >= 0; i--) {
+        const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1)
+        const start = new Date(monthDate)
+        const end = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 1)
+
+        periods.push({
+          start: start.toISOString(),
+          end: end.toISOString(),
+          label: start.toISOString()
+        })
+      }
+      break
+    }
+
+    case 'year': {
+      // Last 12 months (monthly)
+      for (let i = 11; i >= 0; i--) {
+        const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1)
+        const start = new Date(monthDate)
+        const end = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 1)
+
+        periods.push({
+          start: start.toISOString(),
+          end: end.toISOString(),
+          label: start.toISOString()
+        })
+      }
+      break
+    }
+
+    case 'historical': {
+      // Last 5 years (yearly)
+      const currentYear = now.getFullYear()
+      for (let i = 4; i >= 0; i--) {
+        const year = currentYear - i
+        const start = new Date(year, 0, 1)
+        const end = new Date(year + 1, 0, 1)
+
+        periods.push({
+          start: start.toISOString(),
+          end: end.toISOString(),
+          label: start.toISOString()
+        })
+      }
+      break
+    }
+  }
+
+  return periods
 }

@@ -13,7 +13,7 @@ import {
 import type { ColumnDef } from '@tanstack/react-table'
 import { Plus } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useAvailableCurrencies } from '@/common/data/investment/hooks/useAvailableCurrencies'
+import { useAvailableCurrencies } from '@/common/data/common/hooks/useAvailableCurrencies'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -383,7 +383,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
   // Fetch available currencies efficiently using distinctOn
   const { currencies: currencyOptions } = useAvailableCurrencies(context, {
     filters: {
-      entity: 'InvestmentOpportunity',
+      entity: config.contextType === 'customer' ? 'Opportunity' : 'InvestmentOpportunity',
       ...(config.boardConfig && 'dealType' in config.boardConfig
         ? { dealType: (config.boardConfig as any).dealType }
         : {})
