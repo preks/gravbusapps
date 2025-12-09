@@ -38,6 +38,7 @@ interface DocumentsTabProps {
 
 interface EmployeeDocument {
   id: string
+  version: number
   name: string
   file: string
   type: string
@@ -172,7 +173,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
           mimeType: doc.mimeType,
           fileId: fileId,
           employeeId: doc.employeeId,
-          version: 0
+          version: doc.version
         }
       })
 

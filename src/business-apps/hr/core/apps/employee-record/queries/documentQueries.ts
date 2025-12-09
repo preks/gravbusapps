@@ -6,6 +6,7 @@ export const employeeDocumentsQuery = `
 query screenData($employeeId: uuid!, $activeUserLocale: String = "en-US") {
   EmployeeDocument(where: {isDeleted: {_eq: false}, employeeId: {_eq: $employeeId}}) {
     id
+    version
     employeeId
     name
     file
