@@ -245,38 +245,51 @@ const addFieldToParent = (
 /**
  * Creates a dynamic Zod schema based on the form fields definition from catalog
  */
-export const createDynamicInvestmentSchema = (formFieldsDefinition?: DynamicFormConfiguration) => {
-  // Separate dynamic fields by their parent object
-  const investmentFields: Record<string, z.ZodTypeAny> = {}
-  const equityInvestmentFields: Record<string, z.ZodTypeAny> = {}
-  const realEstateInvestmentFields: Record<string, z.ZodTypeAny> = {}
-  const liquidFundInvestmentFields: Record<string, z.ZodTypeAny> = {}
+/**
+ * Process form fields and populate field objects
+ */
+const processFormFields = (
+  formFieldsDefinition: DynamicFormConfiguration,
+  investmentFields: Record<string, z.ZodTypeAny>,
+  equityInvestmentFields: Record<string, z.ZodTypeAny>,
+  realEstateInvestmentFields: Record<string, z.ZodTypeAny>,
+  liquidFundInvestmentFields: Record<string, z.ZodTypeAny>
+): void => {
+  if (!formFieldsDefinition?.formFields) return
 
-  if (formFieldsDefinition?.formFields) {
-    for (const group of formFieldsDefinition.formFields) {
-      for (const field of group.fields) {
-        const fieldName = getPropertyName(field.property)
-        const parts = fieldName.split('.')
-        const parentObject = parts[0]
-        const fieldPath = parts.slice(1).join('.')
+  for (const group of formFieldsDefinition.formFields) {
+    for (const field of group.fields) {
+      const fieldName = getPropertyName(field.property)
+      const parts = fieldName.split('.')
+      const parentObject = parts[0]
+      const fieldPath = parts.slice(1).join('.')
 
-        if (!fieldPath) continue
+      if (!fieldPath) continue
 
-        const validationRule = field.required ? createRequiredFieldRule(field) : createOptionalFieldRule(field)
-        addFieldToParent(
-          parentObject,
-          fieldPath,
-          validationRule,
-          investmentFields,
-          equityInvestmentFields,
-          realEstateInvestmentFields,
-          liquidFundInvestmentFields
-        )
-      }
+      const validationRule = field.required ? createRequiredFieldRule(field) : createOptionalFieldRule(field)
+      addFieldToParent(
+        parentObject,
+        fieldPath,
+        validationRule,
+        investmentFields,
+        equityInvestmentFields,
+        realEstateInvestmentFields,
+        liquidFundInvestmentFields
+      )
     }
   }
+}
 
-  const extendedSchema = z.object({
+/**
+ * Build extended schema with dynamic fields
+ */
+const buildExtendedSchema = (
+  investmentFields: Record<string, z.ZodTypeAny>,
+  equityInvestmentFields: Record<string, z.ZodTypeAny>,
+  realEstateInvestmentFields: Record<string, z.ZodTypeAny>,
+  liquidFundInvestmentFields: Record<string, z.ZodTypeAny>
+) => {
+  return z.object({
     investment: baseInvestmentSchema.shape.investment.extend(investmentFields),
     equityInvestment:
       Object.keys(equityInvestmentFields).length > 0
@@ -291,8 +304,31 @@ export const createDynamicInvestmentSchema = (formFieldsDefinition?: DynamicForm
         ? z.object(liquidFundInvestmentFields).catchall(z.any()).optional()
         : z.any().optional()
   })
+}
 
-  return extendedSchema
+export const createDynamicInvestmentSchema = (formFieldsDefinition?: DynamicFormConfiguration) => {
+  // Separate dynamic fields by their parent object
+  const investmentFields: Record<string, z.ZodTypeAny> = {}
+  const equityInvestmentFields: Record<string, z.ZodTypeAny> = {}
+  const realEstateInvestmentFields: Record<string, z.ZodTypeAny> = {}
+  const liquidFundInvestmentFields: Record<string, z.ZodTypeAny> = {}
+
+  if (formFieldsDefinition) {
+    processFormFields(
+      formFieldsDefinition,
+      investmentFields,
+      equityInvestmentFields,
+      realEstateInvestmentFields,
+      liquidFundInvestmentFields
+    )
+  }
+
+  return buildExtendedSchema(
+    investmentFields,
+    equityInvestmentFields,
+    realEstateInvestmentFields,
+    liquidFundInvestmentFields
+  )
 }
 
 /**

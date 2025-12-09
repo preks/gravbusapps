@@ -64,7 +64,10 @@ export const InvestmentRolesField = ({
 
   // Get selected role IDs for CatalogSelect (array of strings)
   const selectedRoleIds = useMemo(() => {
-    return activeRoles.map(role => role.investmentRole?.id).filter((id): id is string => Boolean(id))
+    return activeRoles
+      .map(role => role.investmentRole?.id)
+      .filter(Boolean)
+      .filter((id): id is string => typeof id === 'string')
   }, [activeRoles])
 
   // Handle changes from CatalogSelect (both adding and removing)

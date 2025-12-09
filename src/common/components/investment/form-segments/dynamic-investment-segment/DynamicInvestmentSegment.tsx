@@ -157,7 +157,7 @@ const DynamicInvestmentSegment: React.FC<DynamicInvestmentSegmentProps> = ({
   const investmentCurrencyRefForAi = typeof watchedCurrency === 'string' ? watchedCurrency : ''
   const investmentAccountIdForAi = typeof watchedAccount === 'string' ? watchedAccount : ''
   const investmentNameForAi = typeof watchedName === 'string' ? watchedName : ''
-  
+
   const isLiquidFundForAi = investmentGroupRefForAi && investmentGroupRefForAi.split(':').pop() === 'LIQUID_FUND'
 
   // Clear dynamic fields when investmentTypeId changes (in create mode only)
@@ -383,21 +383,23 @@ const DynamicInvestmentSegment: React.FC<DynamicInvestmentSegmentProps> = ({
 
       {/* Create mode: Render type selection */}
       {!isUpdate && (
-        <>
-          <InvestmentTypeSelect
-            baseTypeId={baseTypeId}
-            investmentTypeIdFieldPath={investmentTypeIdFieldPath}
-            getTypesByLevel={getTypesByLevel}
-            getTypesByParent={getTypesByParent}
-            getPathByType={getPathByType}
-            testIdPrefix={testIdPrefix}
-          />
+        <InvestmentTypeSelect
+          baseTypeId={baseTypeId}
+          investmentTypeIdFieldPath={investmentTypeIdFieldPath}
+          getTypesByLevel={getTypesByLevel}
+          getTypesByParent={getTypesByParent}
+          getPathByType={getPathByType}
+          testIdPrefix={testIdPrefix}
+        />
+      )}
 
-          {/* AI Source Document for Autofill (only if enabled and leaf type is selected) */}
-          {enableAiAutofill && baseTypeId && !hasMoreChildren && deepestSelectedType && (
-            <InvestmentFileUploadSegment file={aiSourceFile} onFileChange={setAiSourceFile} isLoading={aiAutofillIsLoading} />
-          )}
-        </>
+      {/* AI Source Document for Autofill (available in both create and update modes) */}
+      {enableAiAutofill && baseTypeId && !hasMoreChildren && deepestSelectedType && (
+        <InvestmentFileUploadSegment
+          file={aiSourceFile}
+          onFileChange={setAiSourceFile}
+          isLoading={aiAutofillIsLoading}
+        />
       )}
 
       {/* Show dynamic fields when available */}

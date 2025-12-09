@@ -40,7 +40,7 @@ const InvestmentFileUploadSegment: React.FC<InvestmentFileUploadSegmentProps> = 
   )
 
   const handleDrop = useCallback(
-    (event: React.DragEvent<HTMLDivElement>) => {
+    (event: React.DragEvent<HTMLButtonElement>) => {
       event.preventDefault()
       event.stopPropagation()
       setDragActive(false)
@@ -51,7 +51,7 @@ const InvestmentFileUploadSegment: React.FC<InvestmentFileUploadSegmentProps> = 
   )
 
   const handleDragOver = useCallback(
-    (event: React.DragEvent<HTMLDivElement>) => {
+    (event: React.DragEvent<HTMLButtonElement>) => {
       event.preventDefault()
       event.stopPropagation()
       if (!isLoading) {
@@ -61,7 +61,7 @@ const InvestmentFileUploadSegment: React.FC<InvestmentFileUploadSegmentProps> = 
     [isLoading]
   )
 
-  const handleDragLeave = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+  const handleDragLeave = useCallback((event: React.DragEvent<HTMLButtonElement>) => {
     event.preventDefault()
     event.stopPropagation()
     setDragActive(false)
@@ -98,11 +98,11 @@ const InvestmentFileUploadSegment: React.FC<InvestmentFileUploadSegmentProps> = 
       />
 
       {/* Drag and drop area */}
-      <div
-        role="button"
-        tabIndex={0}
+      <button
+        type="button"
         aria-label="File upload drop zone. Click or drag and drop files here."
-        className={`gba:relative gba:w-full gba:max-w-full gba:overflow-hidden gba:border-2 gba:border-dashed gba:rounded-lg gba:transition-colors gba:box-border ${
+        disabled={isLoading}
+        className={`gba:relative gba:w-full gba:max-w-full gba:overflow-hidden gba:border-2 gba:border-dashed gba:rounded-lg gba:transition-colors gba:box-border gba:bg-transparent gba:p-0 ${
           dragActive
             ? 'gba:border-primary gba:bg-primary/5'
             : 'gba:border-muted-foreground/25 gba:hover:border-muted-foreground/50'
@@ -111,12 +111,6 @@ const InvestmentFileUploadSegment: React.FC<InvestmentFileUploadSegmentProps> = 
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onClick={() => !isLoading && !file && document.getElementById('investment-ai-file-input')?.click()}
-        onKeyDown={e => {
-          if ((e.key === 'Enter' || e.key === ' ') && !isLoading && !file) {
-            e.preventDefault()
-            document.getElementById('investment-ai-file-input')?.click()
-          }
-        }}
         data-testid={formatDataTestId(prefixDataTestId, 'DropZone')}
       >
         {/* Loading overlay */}
@@ -179,7 +173,7 @@ const InvestmentFileUploadSegment: React.FC<InvestmentFileUploadSegmentProps> = 
             </p>
           </div>
         )}
-      </div>
+      </button>
     </div>
   )
 }

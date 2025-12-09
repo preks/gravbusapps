@@ -5,7 +5,7 @@
  */
 
 import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments'
-import { INVESTMENT_ACCOUNT_REF, INVESTMENT_REF } from './fragments/investmentReferenceFragments'
+import { INVESTMENT_ACCOUNT_REF } from './fragments/investmentReferenceFragments'
 import { InvestmentReportFields } from '../types/investmentReportTypes'
 import type { BaseQueryVariables } from '@/common/network/graphql/commonTypes'
 
@@ -135,57 +135,156 @@ const buildEntityReferenceField = (
 
 /**
  * Build investment field fragment
+ * Manually specifies fields instead of using INVESTMENT_REF to include investmentAccount
  */
 const buildInvestmentFieldFragment = (fieldSet: Set<string>): string => {
-  return buildEntityReferenceField(
-    fieldSet,
-    'investment',
-    'investmentId',
-    InvestmentReportFields.investment,
-    INVESTMENT_REF
-  )
+  if (!fieldSet.has('investment')) {
+    return InvestmentReportFields.investmentId
+  }
+
+  return `
+    ${InvestmentReportFields.investment} {
+      ${AUDIT_FIELDS}
+      id
+      code
+      name
+      isin
+      initialInvestmentAmount
+      totalInvestmentAmount
+      investmentMarketValue
+      acquisitionDate
+      exitDate
+      plannedExitDate
+      planedExit
+      additionalProperties
+      
+      # Catalog references
+      investmentGroup {
+        ${CATALOG_ENTRY}
+      }
+      investmentType {
+        ${CATALOG_ENTRY}
+      }
+      investmentStatus {
+        ${CATALOG_ENTRY}
+      }
+      currency {
+        ${CATALOG_ENTRY}
+      }
+      
+      # Employee relationship
+      ownerEmployee {
+        id
+        firstName
+        lastName
+        pictureThumbnail
+      }
+      
+      # Investment Account relationship
+      investmentAccount {
+        ${INVESTMENT_ACCOUNT_REF}
+      }
+      investmentAccountId
+    }
+    ${InvestmentReportFields.investmentId}
+  `
+}
+
+/**
+ * Helper: Add field to array if present in field set
+ */
+const addFieldIfPresent = (fieldSet: Set<string>, fieldName: string, fieldValue: string, fields: string[]): void => {
+  if (fieldSet.has(fieldName)) {
+    fields.push(fieldValue)
+  }
+}
+
+/**
+ * Build core identification fields
+ */
+const buildCoreFields = (fieldSet: Set<string>): string[] => {
+  const fields: string[] = []
+  addFieldIfPresent(fieldSet, 'id', 'id', fields)
+  addFieldIfPresent(fieldSet, 'version', 'version', fields)
+  addFieldIfPresent(fieldSet, 'date', InvestmentReportFields.date, fields)
+  addFieldIfPresent(fieldSet, 'scope', InvestmentReportFields.scope, fields)
+  addFieldIfPresent(fieldSet, 'plannedExitDate', InvestmentReportFields.plannedExitDate, fields)
+  return fields
+}
+
+/**
+ * Build investment amount fields
+ */
+const buildAmountFields = (fieldSet: Set<string>): string[] => {
+  const fields: string[] = []
+  addFieldIfPresent(fieldSet, 'totalInvestmentAmount', InvestmentReportFields.totalInvestmentAmount, fields)
+  addFieldIfPresent(fieldSet, 'investmentMarketValue', InvestmentReportFields.investmentMarketValue, fields)
+  addFieldIfPresent(fieldSet, 'debtFinancingAmount', InvestmentReportFields.debtFinancingAmount, fields)
+  addFieldIfPresent(fieldSet, 'requiredCapitalAmount', InvestmentReportFields.requiredCapitalAmount, fields)
+  addFieldIfPresent(fieldSet, 'forecastedRevenueAmount', InvestmentReportFields.forecastedRevenueAmount, fields)
+  addFieldIfPresent(fieldSet, 'forecastedProfitAmount', InvestmentReportFields.forecastedProfitAmount, fields)
+  addFieldIfPresent(fieldSet, 'stakePercentage', InvestmentReportFields.stakePercentage, fields)
+  addFieldIfPresent(fieldSet, 'totalCommitmentAmount', InvestmentReportFields.totalCommitmentAmount, fields)
+  addFieldIfPresent(fieldSet, 'totalDistributionAmount', InvestmentReportFields.totalDistributionAmount, fields)
+  return fields
+}
+
+/**
+ * Build loan-related fields
+ */
+const buildLoanFields = (fieldSet: Set<string>): string[] => {
+  const fields: string[] = []
+  addFieldIfPresent(fieldSet, 'loanRecipientName', InvestmentReportFields.loanRecipientName, fields)
+  addFieldIfPresent(fieldSet, 'loanAmount', InvestmentReportFields.loanAmount, fields)
+  addFieldIfPresent(fieldSet, 'loanOpenCommitmentAmount', InvestmentReportFields.loanOpenCommitmentAmount, fields)
+  addFieldIfPresent(fieldSet, 'loanInterestRate', InvestmentReportFields.loanInterestRate, fields)
+  addFieldIfPresent(fieldSet, 'loanStartDate', InvestmentReportFields.loanStartDate, fields)
+  addFieldIfPresent(fieldSet, 'loanEndDate', InvestmentReportFields.loanEndDate, fields)
+  addFieldIfPresent(fieldSet, 'loanInterestClaim', InvestmentReportFields.loanInterestClaim, fields)
+  return fields
+}
+
+/**
+ * Build metadata fields
+ */
+const buildMetadataFields = (fieldSet: Set<string>): string[] => {
+  const fields: string[] = []
+  addFieldIfPresent(fieldSet, 'fundManagerName', InvestmentReportFields.fundManagerName, fields)
+  addFieldIfPresent(fieldSet, 'identification', InvestmentReportFields.identification, fields)
+  addFieldIfPresent(fieldSet, 'businessKey', InvestmentReportFields.businessKey, fields)
+  addFieldIfPresent(fieldSet, 'processInstanceId', InvestmentReportFields.processInstanceId, fields)
+  addFieldIfPresent(fieldSet, 'synchronizedAt', InvestmentReportFields.synchronizedAt, fields)
+  addFieldIfPresent(fieldSet, 'additionalProperties', 'additionalProperties', fields)
+  return fields
+}
+
+/**
+ * Build audit fields
+ */
+const buildAuditFields = (fieldSet: Set<string>): string[] => {
+  const fields: string[] = []
+  addFieldIfPresent(fieldSet, 'createdAt', 'createdAt', fields)
+  addFieldIfPresent(fieldSet, 'createdBy', 'createdBy', fields)
+  addFieldIfPresent(fieldSet, 'updatedAt', 'updatedAt', fields)
+  addFieldIfPresent(fieldSet, 'updatedBy', 'updatedBy', fields)
+  addFieldIfPresent(fieldSet, 'isDeleted', 'isDeleted', fields)
+  addFieldIfPresent(fieldSet, 'recordState', 'recordState', fields)
+  addFieldIfPresent(fieldSet, 'activeFrom', 'activeFrom', fields)
+  addFieldIfPresent(fieldSet, 'activeTo', 'activeTo', fields)
+  return fields
 }
 
 /**
  * Build basic scalar fields section
  */
 const buildBasicFields = (fieldSet: Set<string>): string => {
-  const fields: string[] = []
-  if (fieldSet.has('id')) fields.push('id')
-  if (fieldSet.has('version')) fields.push('version')
-  if (fieldSet.has('date')) fields.push(InvestmentReportFields.date)
-  if (fieldSet.has('scope')) fields.push(InvestmentReportFields.scope)
-  if (fieldSet.has('plannedExitDate')) fields.push(InvestmentReportFields.plannedExitDate)
-  if (fieldSet.has('totalInvestmentAmount')) fields.push(InvestmentReportFields.totalInvestmentAmount)
-  if (fieldSet.has('investmentMarketValue')) fields.push(InvestmentReportFields.investmentMarketValue)
-  if (fieldSet.has('debtFinancingAmount')) fields.push(InvestmentReportFields.debtFinancingAmount)
-  if (fieldSet.has('requiredCapitalAmount')) fields.push(InvestmentReportFields.requiredCapitalAmount)
-  if (fieldSet.has('forecastedRevenueAmount')) fields.push(InvestmentReportFields.forecastedRevenueAmount)
-  if (fieldSet.has('forecastedProfitAmount')) fields.push(InvestmentReportFields.forecastedProfitAmount)
-  if (fieldSet.has('stakePercentage')) fields.push(InvestmentReportFields.stakePercentage)
-  if (fieldSet.has('loanRecipientName')) fields.push(InvestmentReportFields.loanRecipientName)
-  if (fieldSet.has('loanAmount')) fields.push(InvestmentReportFields.loanAmount)
-  if (fieldSet.has('loanOpenCommitmentAmount')) fields.push(InvestmentReportFields.loanOpenCommitmentAmount)
-  if (fieldSet.has('loanInterestRate')) fields.push(InvestmentReportFields.loanInterestRate)
-  if (fieldSet.has('loanStartDate')) fields.push(InvestmentReportFields.loanStartDate)
-  if (fieldSet.has('loanEndDate')) fields.push(InvestmentReportFields.loanEndDate)
-  if (fieldSet.has('loanInterestClaim')) fields.push(InvestmentReportFields.loanInterestClaim)
-  if (fieldSet.has('totalCommitmentAmount')) fields.push(InvestmentReportFields.totalCommitmentAmount)
-  if (fieldSet.has('totalDistributionAmount')) fields.push(InvestmentReportFields.totalDistributionAmount)
-  if (fieldSet.has('fundManagerName')) fields.push(InvestmentReportFields.fundManagerName)
-  if (fieldSet.has('identification')) fields.push(InvestmentReportFields.identification)
-  if (fieldSet.has('businessKey')) fields.push(InvestmentReportFields.businessKey)
-  if (fieldSet.has('processInstanceId')) fields.push(InvestmentReportFields.processInstanceId)
-  if (fieldSet.has('synchronizedAt')) fields.push(InvestmentReportFields.synchronizedAt)
-  if (fieldSet.has('createdAt')) fields.push('createdAt')
-  if (fieldSet.has('createdBy')) fields.push('createdBy')
-  if (fieldSet.has('updatedAt')) fields.push('updatedAt')
-  if (fieldSet.has('updatedBy')) fields.push('updatedBy')
-  if (fieldSet.has('isDeleted')) fields.push('isDeleted')
-  if (fieldSet.has('recordState')) fields.push('recordState')
-  if (fieldSet.has('activeFrom')) fields.push('activeFrom')
-  if (fieldSet.has('activeTo')) fields.push('activeTo')
-  if (fieldSet.has('additionalProperties')) fields.push('additionalProperties')
+  const fields = [
+    ...buildCoreFields(fieldSet),
+    ...buildAmountFields(fieldSet),
+    ...buildLoanFields(fieldSet),
+    ...buildMetadataFields(fieldSet),
+    ...buildAuditFields(fieldSet)
+  ]
   return fields.join('\n    ')
 }
 
@@ -193,40 +292,33 @@ const buildBasicFields = (fieldSet: Set<string>): string => {
  * Build catalog reference fields section
  */
 const buildCatalogReferenceFields = (fieldSet: Set<string>): string => {
-  const fields: string[] = []
-  fields.push(
+  const fields = [
     buildCatalogReferenceField(
       fieldSet,
       'investmentStakeType',
       'investmentStakeTypeRef',
       InvestmentReportFields.investmentStakeType
-    )
-  )
-  fields.push(
+    ),
     buildCatalogReferenceField(
       fieldSet,
       'investmentPhase',
       'investmentPhaseRef',
       InvestmentReportFields.investmentPhase
-    )
-  )
-  fields.push(
+    ),
     buildCatalogReferenceField(
       fieldSet,
       'investmentStatus',
       'investmentStatusRef',
       InvestmentReportFields.investmentStatus
-    )
-  )
-  fields.push(
+    ),
     buildCatalogReferenceField(
       fieldSet,
       'investmentRiskLevel',
       'investmentRiskLevelRef',
       InvestmentReportFields.investmentRiskLevel
-    )
-  )
-  fields.push(buildCatalogReferenceField(fieldSet, 'currency', 'currencyRef', InvestmentReportFields.currency))
+    ),
+    buildCatalogReferenceField(fieldSet, 'currency', 'currencyRef', InvestmentReportFields.currency)
+  ]
   return fields.filter(f => f.trim()).join('\n    ')
 }
 
