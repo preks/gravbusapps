@@ -8,17 +8,26 @@
 import { dataRegistry } from '../core/dataRegistry'
 
 // Product data imports
-import { mockProducts, getProductById } from '../../product/mock-data/products'
+// NOTE:
+// The original implementation imported product mock data from
+// "../../product/mock-data/*" modules which are not present in this repository.
+// That breaks Vite's module resolution in local development.
+//
+// To keep the graphql-mock layer working without external dependencies,
+// we provide minimal in-file stubs. They can be extended with real mock data
+// later if needed.
 
-import {
-  mockProductInventories,
-  mockProductMovements,
-  mockInventoryProductStock
-} from '../../product/mock-data/inventory'
+const mockProducts: any[] = []
+const getProductById = (id: string) => mockProducts.find(p => (p as any).id === id)
 
-import { mockProductCompositions } from '../../product/mock-data/composition'
+const mockProductInventories: any[] = []
+const mockProductMovements: any[] = []
+const mockInventoryProductStock: any[] = []
 
-import { mockProductPrices, getProductPriceById } from '../../product/mock-data/pricing'
+const mockProductCompositions: any[] = []
+
+const mockProductPrices: any[] = []
+const getProductPriceById = (id: string) => mockProductPrices.find(p => (p as any).id === id)
 
 /**
  * Register all product-related entities
