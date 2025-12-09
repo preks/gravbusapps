@@ -4,16 +4,17 @@
  *
  * Note: IRM uses 'InvestmentOpportunity' entity and doesn't have winningChance field
  */
-import { useDealHealthData as useSharedDealHealthData } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks'
-
-export type {
-  DealHealthData,
-  DealHealthItem
+import {
+  useDealHealthData as useSharedDealHealthData,
+  type DealHealthData,
+  type DealHealthItem
 } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks'
 
 /**
  * Wrapper hook for IRM that uses 'InvestmentOpportunity' entity without winningChance
  */
-export const useDealHealthData = (accessToken: string) => {
+const useDealHealthData = (accessToken: string) => {
   return useSharedDealHealthData(accessToken, 'InvestmentOpportunity', false)
 }
+
+export { useDealHealthData, type DealHealthData, type DealHealthItem }

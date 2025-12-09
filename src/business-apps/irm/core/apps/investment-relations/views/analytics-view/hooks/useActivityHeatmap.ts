@@ -1,8 +1,5 @@
 import { useMemo } from 'react'
-import {
-  useActivityHeatmap as useSharedActivityHeatmap,
-  type ActivityHeatmapData
-} from '@/common/components/common-relations/view-layouts/analytics-layout/hooks'
+import { useActivityHeatmap as useSharedActivityHeatmap } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks'
 
 /**
  * IRM-specific wrapper for activity heatmap data.
@@ -26,4 +23,5 @@ const useActivityHeatmap = (accessToken: string) => {
   return useSharedActivityHeatmap(config)
 }
 
-export { useActivityHeatmap, type ActivityHeatmapData }
+export { useActivityHeatmap }
+export type { ActivityHeatmapData } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks'

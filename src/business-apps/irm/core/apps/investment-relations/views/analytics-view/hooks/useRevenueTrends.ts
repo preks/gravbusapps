@@ -6,18 +6,14 @@
  */
 import {
   useRevenueTrends as useSharedRevenueTrends,
-  type TimeFilter
-} from '@/common/components/common-relations/view-layouts/analytics-layout/hooks'
-
-export type {
-  RevenueTrendData,
-  TimeFilter
+  type TimeFilter,
+  type RevenueTrendData
 } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks'
 
 /**
  * Wrapper hook for IRM that uses 'InvestmentOpportunity' entity
  */
-export const useRevenueTrends = (
+const useRevenueTrends = (
   accessToken: string,
   timeFilter: TimeFilter = 'sixMonths',
   selectedPipelineId?: string,
@@ -32,3 +28,5 @@ export const useRevenueTrends = (
     'opportunityPipeline'
   )
 }
+
+export { useRevenueTrends, type RevenueTrendData, type TimeFilter }

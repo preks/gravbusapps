@@ -1,17 +1,13 @@
-import { useGenericOpportunitiesOverTime } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericOpportunitiesOverTime'
-
-export type {
-  OpportunityTimeSeriesData,
-  TimeFilter
+import {
+  useGenericOpportunitiesOverTime,
+  type OpportunityTimeSeriesData,
+  type TimeFilter
 } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericOpportunitiesOverTime'
-
-// Type imported locally for function signature
-import type { TimeFilter } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericOpportunitiesOverTime'
 
 /**
  * IRM-specific wrapper for useGenericOpportunitiesOverTime
  */
-export const useOpportunitiesOverTime = (accessToken: string, timeFilter: TimeFilter, selectedPipelineId?: string) => {
+const useOpportunitiesOverTime = (accessToken: string, timeFilter: TimeFilter, selectedPipelineId?: string) => {
   return useGenericOpportunitiesOverTime(
     accessToken,
     {
@@ -23,3 +19,5 @@ export const useOpportunitiesOverTime = (accessToken: string, timeFilter: TimeFi
     selectedPipelineId
   )
 }
+
+export { useOpportunitiesOverTime, type OpportunityTimeSeriesData, type TimeFilter }

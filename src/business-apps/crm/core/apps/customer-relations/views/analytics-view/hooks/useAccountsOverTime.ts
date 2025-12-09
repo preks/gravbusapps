@@ -2,11 +2,7 @@
  * CRM-specific wrapper for useGenericAccountsOverTime
  * Uses CRM entity names
  */
-import {
-  useGenericAccountsOverTime,
-  type AccountsTimeFilter,
-  type AccountsOverTimePoint
-} from '@/common/components/common-relations/view-layouts/analytics-layout/hooks'
+import { useGenericAccountsOverTime } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks'
 
 const CRM_ACCOUNTS_CONFIG = {
   accountEntity: 'Account',
@@ -21,4 +17,8 @@ const useAccountsOverTime = (
   return useGenericAccountsOverTime(accessToken, CRM_ACCOUNTS_CONFIG, timeFilter)
 }
 
-export { useAccountsOverTime, type AccountsTimeFilter, type AccountsOverTimePoint }
+export { useAccountsOverTime }
+export type {
+  AccountsTimeFilter,
+  AccountsOverTimePoint
+} from '@/common/components/common-relations/view-layouts/analytics-layout/hooks'

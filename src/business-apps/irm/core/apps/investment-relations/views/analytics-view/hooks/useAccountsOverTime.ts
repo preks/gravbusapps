@@ -2,11 +2,7 @@
  * IRM-specific wrapper for useGenericAccountsOverTime
  * Uses Investment entity names
  */
-import {
-  useGenericAccountsOverTime,
-  type AccountsTimeFilter,
-  type AccountsOverTimePoint
-} from '@/common/components/common-relations/view-layouts/analytics-layout/hooks'
+import { useGenericAccountsOverTime } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks'
 
 const IRM_ACCOUNTS_CONFIG = {
   accountEntity: 'InvestmentAccount',
@@ -22,4 +18,8 @@ const useAccountsOverTime = (
   return useGenericAccountsOverTime(accessToken, IRM_ACCOUNTS_CONFIG, timeFilter)
 }
 
-export { useAccountsOverTime, type AccountsTimeFilter, type AccountsOverTimePoint }
+export { useAccountsOverTime }
+export type {
+  AccountsTimeFilter,
+  AccountsOverTimePoint
+} from '@/common/components/common-relations/view-layouts/analytics-layout/hooks'

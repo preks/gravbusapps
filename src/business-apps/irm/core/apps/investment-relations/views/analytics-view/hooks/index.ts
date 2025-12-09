@@ -1,20 +1,15 @@
 export { useIrmAnalyticsData } from './useIrmAnalyticsData'
-export { useRevenueTrends } from './useRevenueTrends'
-export { usePipelineHealth } from './usePipelineHealth'
-export { useActivityHeatmap } from './useActivityHeatmap'
-export { usePipelines } from './usePipelines'
-export { useOpportunityTrendData } from './useOpportunityTrendData'
-export { useOpportunitiesOverTime } from './useOpportunitiesOverTime'
-export { useContactsOverTime } from './useContactsOverTime'
+export { useRevenueTrends, type RevenueTrendData } from './useRevenueTrends'
+export { usePipelineHealth, type PipelineHealthData } from './usePipelineHealth'
+export { useActivityHeatmap, type ActivityHeatmapData } from './useActivityHeatmap'
+export { usePipelines, type Pipeline } from './usePipelines'
+export { useOpportunityTrendData, type TimeFilter } from './useOpportunityTrendData'
+export { useOpportunitiesOverTime, type OpportunityTimeSeriesData } from './useOpportunitiesOverTime'
+export {
+  useContactsOverTime,
+  type ContactsOverTimePoint,
+  type TimeFilter as ContactsTimeFilter
+} from './useContactsOverTime'
 export { useLeadsTrendData } from './useLeadsTrendData'
-export { useLeadsStaticData } from './useLeadsStaticData'
+export { useLeadsStaticData, type LeadsStaticData } from './useLeadsStaticData'
 export { useLeadsOverTime } from './useLeadsOverTime'
-
-export type { RevenueTrendData } from './useRevenueTrends'
-export type { PipelineHealthData } from './usePipelineHealth'
-export type { ActivityHeatmapData } from './useActivityHeatmap'
-export type { Pipeline } from './usePipelines'
-export type { TimeFilter } from './useOpportunityTrendData'
-export type { OpportunityTimeSeriesData } from './useOpportunitiesOverTime'
-export type { ContactsOverTimePoint, TimeFilter as ContactsTimeFilter } from './useContactsOverTime'
-export type { LeadsStaticData } from './useLeadsStaticData'

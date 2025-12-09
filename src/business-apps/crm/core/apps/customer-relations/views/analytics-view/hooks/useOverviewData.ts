@@ -1,16 +1,14 @@
 // CRM-specific wrapper for shared generic overview data hook
-import { useGenericOverviewData } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericOverviewData'
-
-// Re-export types for backward compatibility
-export type {
-  OverviewCounts,
-  OverviewConversionMetrics,
-  OverviewTrendData,
-  GeographicDataPoint,
-  GenericOverviewData as OverviewData
+import {
+  useGenericOverviewData,
+  type OverviewCounts,
+  type OverviewConversionMetrics,
+  type OverviewTrendData,
+  type GeographicDataPoint,
+  type GenericOverviewData as OverviewData
 } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericOverviewData'
 
-export const useOverviewData = (accessToken: string, currencyCode?: string) => {
+const useOverviewData = (accessToken: string, currencyCode?: string) => {
   // Use shared generic hook with CRM-specific configuration
   return useGenericOverviewData(
     accessToken,
@@ -23,4 +21,13 @@ export const useOverviewData = (accessToken: string, currencyCode?: string) => {
     },
     currencyCode
   )
+}
+
+export {
+  useOverviewData,
+  type OverviewCounts,
+  type OverviewConversionMetrics,
+  type OverviewTrendData,
+  type GeographicDataPoint,
+  type OverviewData
 }

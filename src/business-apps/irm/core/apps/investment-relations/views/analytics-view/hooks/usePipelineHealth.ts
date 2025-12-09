@@ -1,9 +1,6 @@
 // IRM-specific wrapper for shared generic pipeline health hook
 import { useMemo } from 'react'
-import {
-  useGenericPipelineHealth,
-  type PipelineHealthData
-} from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericPipelineHealth'
+import { useGenericPipelineHealth } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericPipelineHealth'
 
 /**
  * IRM Pipeline Health hook - Uses shared generic implementation
@@ -24,4 +21,5 @@ const usePipelineHealth = (accessToken: string, selectedPipelineId?: string) => 
   return useGenericPipelineHealth(accessToken, selectedPipelineId, config)
 }
 
-export { usePipelineHealth, type PipelineHealthData }
+export { usePipelineHealth }
+export type { PipelineHealthData } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericPipelineHealth'

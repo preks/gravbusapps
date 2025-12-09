@@ -1,78 +1,83 @@
 // Shared analytics hooks for CRM and IRM
 
 // Generic hooks (configurable for any module)
-export { useGenericLeadsStaticData } from './useGenericLeadsStaticData'
-export { useGenericLeadsOverTime } from './useGenericLeadsOverTime'
-export { useGenericOverviewData } from './useGenericOverviewData'
-export { useGenericAccountsStaticData } from './useGenericAccountsStaticData'
-export { useGenericAccountsOverTime } from './useGenericAccountsOverTime'
-export { useTopAccountsByRevenue } from './useTopAccountsByRevenue'
-export { useGenericContactsStaticData } from './useGenericContactsStaticData'
-export { useGenericContactsOverTime } from './useGenericContactsOverTime'
-export { useGenericOpportunitiesStaticData } from './useGenericOpportunitiesStaticData'
-export { useGenericOpportunitiesOverTime } from './useGenericOpportunitiesOverTime'
-
-// Shared analytics hooks (used by both CRM and IRM)
-export { useActivityHeatmap } from './useActivityHeatmap'
-export { useDealHealthData } from './useDealHealthData'
-export { useLeadsTrendData } from './useLeadsTrendData'
-export { useRevenueTrends } from './useRevenueTrends'
-export { useTopDeals } from './useTopDeals'
-export { useTopRevenueEarners } from './useTopRevenueEarners'
-
-// Export types - Generic hooks
-export type {
-  LeadSourceData,
-  LeadRatingData,
-  LeadStatusData,
-  LeadVelocityDataPoint,
-  LeadOwnerData,
-  LeadCatalogEntry,
-  GenericLeadsStaticData,
-  LeadsEntityConfig
+export {
+  useGenericLeadsStaticData,
+  type LeadSourceData,
+  type LeadRatingData,
+  type LeadStatusData,
+  type LeadVelocityDataPoint,
+  type LeadOwnerData,
+  type LeadCatalogEntry,
+  type GenericLeadsStaticData,
+  type LeadsEntityConfig
 } from './useGenericLeadsStaticData'
 
-export type { LeadsOverTimePoint, LeadStatusCatalogEntry } from './useGenericLeadsOverTime'
+export {
+  useGenericLeadsOverTime,
+  type LeadsOverTimePoint,
+  type LeadStatusCatalogEntry
+} from './useGenericLeadsOverTime'
 
-export type {
-  OverviewEntityConfig,
-  OverviewCounts,
-  OverviewConversionMetrics,
-  OverviewTrendData,
-  GeographicDataPoint,
-  GenericOverviewData
+export {
+  useGenericOverviewData,
+  type OverviewEntityConfig,
+  type OverviewCounts,
+  type OverviewConversionMetrics,
+  type OverviewTrendData,
+  type GeographicDataPoint,
+  type GenericOverviewData
 } from './useGenericOverviewData'
 
-// Export types - Generic hooks (accounts)
-export type {
-  TopAccountData,
-  MonthlyGrowthPoint,
-  AccountIndustryData,
-  AccountSizeData,
-  AccountsStaticData,
-  AccountsEntityConfig
+export {
+  useGenericAccountsStaticData,
+  type TopAccountData,
+  type MonthlyGrowthPoint,
+  type AccountIndustryData,
+  type AccountSizeData,
+  type AccountsStaticData,
+  type AccountsEntityConfig
 } from './useGenericAccountsStaticData'
 
-export type { AccountsTimeFilter, AccountsOverTimePoint, AccountsOverTimeConfig } from './useGenericAccountsOverTime'
+export {
+  useGenericAccountsOverTime,
+  type AccountsTimeFilter,
+  type AccountsOverTimePoint,
+  type AccountsOverTimeConfig
+} from './useGenericAccountsOverTime'
 
-// Export types - Generic hooks (contacts)
-export type { ContactsStaticData, ContactsEntityConfig } from './useGenericContactsStaticData'
+export { useTopAccountsByRevenue } from './useTopAccountsByRevenue'
 
-export type { ContactsOverTimePoint, ContactsTimeFilter, ContactsOverTimeConfig } from './useGenericContactsOverTime'
+export {
+  useGenericContactsStaticData,
+  type ContactsStaticData,
+  type ContactsEntityConfig
+} from './useGenericContactsStaticData'
 
-// Export types - Generic hooks (opportunities)
-export type { OpportunitiesEntityConfig, GenericOpportunitiesStaticData } from './useGenericOpportunitiesStaticData'
+export {
+  useGenericContactsOverTime,
+  type ContactsOverTimePoint,
+  type ContactsTimeFilter,
+  type ContactsOverTimeConfig
+} from './useGenericContactsOverTime'
 
-export type {
-  OpportunityTimeSeriesData,
-  TimeFilter as OpportunitiesTimeFilter,
-  OpportunitiesOverTimeConfig
+export {
+  useGenericOpportunitiesStaticData,
+  type OpportunitiesEntityConfig,
+  type GenericOpportunitiesStaticData
+} from './useGenericOpportunitiesStaticData'
+
+export {
+  useGenericOpportunitiesOverTime,
+  type OpportunityTimeSeriesData,
+  type TimeFilter as OpportunitiesTimeFilter,
+  type OpportunitiesOverTimeConfig
 } from './useGenericOpportunitiesOverTime'
 
-// Export types - Shared hooks
-export type { ActivityHeatmapData } from './useActivityHeatmap'
-export type { RevenueTrendData, TimeFilter } from './useRevenueTrends'
-export type { DealHealthData } from './useDealHealthData'
-export type { TopDeal } from './useTopDeals'
-export type { TopRevenueContact } from './useTopRevenueEarners'
-export type { LeadsTrendData } from './useLeadsTrendData'
+// Shared analytics hooks (used by both CRM and IRM)
+export { useActivityHeatmap, type ActivityHeatmapData } from './useActivityHeatmap'
+export { useDealHealthData, type DealHealthData } from './useDealHealthData'
+export { useLeadsTrendData, type LeadsTrendData } from './useLeadsTrendData'
+export { useRevenueTrends, type RevenueTrendData, type TimeFilter } from './useRevenueTrends'
+export { useTopDeals, type TopDeal } from './useTopDeals'
+export { useTopRevenueEarners, type TopRevenueContact } from './useTopRevenueEarners'
