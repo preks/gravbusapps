@@ -582,7 +582,7 @@ export const addRequests = (
       setExpenseRequests([
         {
           id: '0',
-          name: t('lowcoder:create_expense_type_item.none', 'None')
+          title: t('lowcoder:create_expense_type_item.none', 'None')
         }
       ])
       return
@@ -604,7 +604,7 @@ export const addRequests = (
     setExpenseRequests([
       {
         id: '0',
-        name: t('lowcoder:create_expense_type_item.none', 'None')
+        title: t('lowcoder:create_expense_type_item.none', 'None')
       }
     ])
   }
