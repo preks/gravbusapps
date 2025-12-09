@@ -319,10 +319,10 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
   // Handles both formats: "DE" (Romanian) and "DE-DE-000" (German)
   const extractCountryCode = (code: string): string => {
     if (!code) return ''
-    // If code contains hyphens (e.g., "DE-DE-000"), extract the country part (second segment)
+    // If code contains hyphens (e.g., "DE-DE-000" or "US-KR-018"), extract the FIRST segment (country)
     if (code.includes('-')) {
       const parts = code.split('-')
-      return parts[1] || parts[0] // Return second part, or first if no second
+      return parts[0] // Return first part - this is the country code
     }
     // Otherwise return the code as-is (e.g., "DE")
     return code
