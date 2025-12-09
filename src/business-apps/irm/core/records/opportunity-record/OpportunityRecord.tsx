@@ -905,8 +905,20 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                   component: AccountSection,
                   props: {
                     ...props,
-                    accounts: opportunityData?.opportunityAccounts?.map(a => a.account).filter(Boolean) || [],
-                    account: opportunityData?.opportunityAccounts?.[0]?.account,
+                    // Transform junction table to include account type
+                    accounts:
+                      opportunityData?.opportunityAccounts
+                        ?.map(junction => ({
+                          ...junction.account,
+                          accountType: junction.accountType // Add catalog entry from junction table
+                        }))
+                        .filter(Boolean) || [],
+                    account: opportunityData?.opportunityAccounts?.[0]
+                      ? {
+                          ...opportunityData.opportunityAccounts[0].account,
+                          accountType: opportunityData.opportunityAccounts[0].accountType
+                        }
+                      : undefined,
                     accountId: opportunityData?.opportunityAccounts?.[0]?.accountId,
                     accountIds: opportunityData?.opportunityAccounts?.map(a => a.accountId).filter(Boolean),
                     recordUrl: opportunityData?.opportunityAccounts?.[0]?.accountId

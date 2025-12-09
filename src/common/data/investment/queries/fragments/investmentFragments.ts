@@ -295,7 +295,11 @@ export const INVESTMENT = `
             ${InvestmentAccountFields.addresses}(where: { isDeleted: { _eq: false } }) {
                 ${ADDRESS_REF}
             }
-            investmentAccountContact {
+            ${InvestmentAccountFields.accountContacts}(where: { isDeleted: { _eq: false } }) {
+                id
+                version
+                accountId
+                contactId
                 contactType
                 contact {
                     ${INVESTMENT_CONTACT_REF}

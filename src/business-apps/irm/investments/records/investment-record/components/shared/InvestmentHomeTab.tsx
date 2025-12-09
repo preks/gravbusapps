@@ -201,19 +201,32 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
             component: AccountSection,
             props: {
               ...context,
-              account: investment?.investmentAccount,
-              accountId: investment?.investmentAccount?.id,
-              recordUrl: investment?.investmentAccount?.id
+              // Transform junction table to include account type
+              accounts:
+                investment?.investmentAccounts
+                  ?.map(junction => ({
+                    ...junction.investmentAccount,
+                    investmentAccountType: junction.investmentAccountType // Add catalog entry from junction table
+                  }))
+                  .filter(Boolean) || [],
+              account: investment?.investmentAccounts?.[0]
+                ? {
+                    ...investment.investmentAccounts[0].investmentAccount,
+                    investmentAccountType: investment.investmentAccounts[0].investmentAccountType
+                  }
+                : undefined,
+              accountId: investment?.investmentAccounts?.[0]?.investmentAccountId,
+              recordUrl: investment?.investmentAccounts?.[0]?.investmentAccountId
                 ? buildPlatformUrl('/platform/irm/account-record', {
-                    accountId: investment.investmentAccount.id,
+                    accountId: investment.investmentAccounts[0].investmentAccountId,
                     source: 'investment-relations',
                     fromEntity: 'investments'
                   })
                 : undefined,
-              actionButtonProps: investment?.investmentAccount?.id
+              actionButtonProps: investment?.investmentAccounts?.[0]?.investmentAccountId
                 ? {
                     contextsArray: [FlowContextName.investmentAccountEntity],
-                    externalContextData: { accountId: investment.investmentAccount.id },
+                    externalContextData: { accountId: investment.investmentAccounts[0].investmentAccountId },
                     prefixDataTestId: 'investment-record-account-action'
                   }
                 : undefined
@@ -232,36 +245,73 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
             component: ContactSection,
             props: {
               ...context,
+              // Flatten contacts from all associated accounts (junction table)
+              // GraphQL field: investmentAccountContact (singular), TypeScript: accountContacts (plural)
               contacts:
-                investment?.investmentAccount?.accountContacts
-                  ?.map((iac: any) => ({
-                    id: iac.contact?.id,
-                    firstName: iac.contact?.firstName,
-                    lastName: iac.contact?.lastName,
-                    email: iac.contact?.email,
-                    phone: iac.contact?.phone,
-                    jobPosition: iac.contact?.jobPosition,
-                    department: iac.contact?.department,
-                    communicationChannels: iac.contact?.communicationChannels
-                  }))
-                  .filter(Boolean) || [],
-              contactId: investment?.investmentAccount?.accountContacts?.[0]?.contact?.id || null,
-              recordUrl: investment?.investmentAccount?.accountContacts?.[0]?.contact?.id
-                ? buildPlatformUrl('/platform/irm/contact-record', {
-                    contactId: investment.investmentAccount.accountContacts[0].contact.id,
-                    source: 'investment-relations',
-                    fromEntity: 'investments'
+                investment?.investmentAccounts
+                  ?.flatMap(junction => {
+                    // Try both field names: accountContacts (mapped) or investmentAccountContact (raw GraphQL)
+                    const contactAssociations =
+                      junction.investmentAccount?.accountContacts ||
+                      junction.investmentAccount?.investmentAccountContact ||
+                      []
+                    return contactAssociations.map((iac: any) => ({
+                      ...iac.contact,
+                      contactType: iac.contactType, // From account-contact association
+                      pictureThumbnail: iac.contact?.pictureThumbnail,
+                      communicationChannels: iac.contact?.communicationChannels
+                    }))
                   })
-                : undefined,
-              actionButtonProps: investment?.investmentAccount?.accountContacts?.[0]?.contact?.id
-                ? {
-                    contextsArray: [FlowContextName.investmentContactEntity],
-                    externalContextData: {
-                      contactId: investment.investmentAccount.accountContacts[0].contact.id
-                    },
-                    prefixDataTestId: 'investment-record-contact-action'
-                  }
-                : undefined
+                  .filter(Boolean) || [],
+              contactId: (() => {
+                const firstContactAssoc = investment?.investmentAccounts
+                  ?.flatMap(
+                    junction =>
+                      junction.investmentAccount?.accountContacts ||
+                      junction.investmentAccount?.investmentAccountContact ||
+                      []
+                  )
+                  .filter(Boolean)?.[0]
+                return firstContactAssoc?.contact?.id || null
+              })(),
+              recordUrl: (() => {
+                const firstContactAssoc = investment?.investmentAccounts
+                  ?.flatMap(
+                    junction =>
+                      junction.investmentAccount?.accountContacts ||
+                      junction.investmentAccount?.investmentAccountContact ||
+                      []
+                  )
+                  .filter(Boolean)?.[0]
+                const firstContact = firstContactAssoc?.contact
+                return firstContact?.id
+                  ? buildPlatformUrl('/platform/irm/contact-record', {
+                      contactId: firstContact.id,
+                      source: 'investment-relations',
+                      fromEntity: 'investments'
+                    })
+                  : undefined
+              })(),
+              actionButtonProps: (() => {
+                const firstContactAssoc = investment?.investmentAccounts
+                  ?.flatMap(
+                    junction =>
+                      junction.investmentAccount?.accountContacts ||
+                      junction.investmentAccount?.investmentAccountContact ||
+                      []
+                  )
+                  .filter(Boolean)?.[0]
+                const firstContact = firstContactAssoc?.contact
+                return firstContact?.id
+                  ? {
+                      contextsArray: [FlowContextName.investmentContactEntity],
+                      externalContextData: {
+                        contactId: firstContact.id
+                      },
+                      prefixDataTestId: 'investment-record-contact-action'
+                    }
+                  : undefined
+              })()
             }
           }
         ]}
