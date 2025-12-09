@@ -1,9 +1,6 @@
 // CRM-specific wrapper for shared generic leads static data hook
 import {
   useGenericLeadsStaticData,
-  type LeadSourceData,
-  type LeadRatingData,
-  type LeadStatusData,
   type LeadVelocityDataPoint,
   type LeadOwnerData,
   type LeadCatalogEntry,
@@ -16,7 +13,7 @@ export type TopLeadOwnerData = LeadOwnerData
 export type LeadStatusCatalogEntry = LeadCatalogEntry
 export type LeadsStaticData = GenericLeadsStaticData
 
-const useLeadsStaticData = (accessToken: string) => {
+export const useLeadsStaticData = (accessToken: string) => {
   // Use shared generic hook with CRM-specific configuration
   return useGenericLeadsStaticData(accessToken, {
     entityName: 'Lead',
@@ -25,4 +22,8 @@ const useLeadsStaticData = (accessToken: string) => {
   })
 }
 
-export { useLeadsStaticData, type LeadSourceData, type LeadRatingData, type LeadStatusData }
+export type {
+  LeadSourceData,
+  LeadRatingData,
+  LeadStatusData
+} from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericLeadsStaticData'

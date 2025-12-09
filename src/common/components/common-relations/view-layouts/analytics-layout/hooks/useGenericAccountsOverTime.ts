@@ -19,6 +19,28 @@ export interface AccountsOverTimeConfig {
   isJunctionTable?: boolean // true if using junction table (IRM uses opportunityAccounts)
 }
 
+// Helper function to build opportunity filter based on configuration
+const buildOpportunityFilter = (config: AccountsOverTimeConfig): string => {
+  if (config.isJunctionTable) {
+    return `${config.opportunityRelation}: {opportunity: {isDeleted: {_eq: false}}}`
+  }
+  if (config.isOpportunityRelationList) {
+    return `${config.opportunityRelation}: {isDeleted: {_eq: false}}`
+  }
+  return `${config.opportunityRelation}: {id: {_isNull: false}}`
+}
+
+// Helper function to build active opportunity filter with date range
+const buildActiveOpportunityFilter = (config: AccountsOverTimeConfig, cutoffDate: string): string => {
+  if (config.isJunctionTable) {
+    return `${config.opportunityRelation}: {opportunity: {isDeleted: {_eq: false}, updatedAt: {_gte: "${cutoffDate}"}}}`
+  }
+  if (config.isOpportunityRelationList) {
+    return `${config.opportunityRelation}: {isDeleted: {_eq: false}, updatedAt: {_gte: "${cutoffDate}"}}`
+  }
+  return `${config.opportunityRelation}: {updatedAt: {_gte: "${cutoffDate}"}}`
+}
+
 /**
  * Generic hook for fetching accounts lifecycle chart data
  * Configurable for both CRM and IRM modules
@@ -50,6 +72,7 @@ export const useGenericAccountsOverTime = (
         // Build aggregate queries for each period
         const periodAggregates = periods
           .map((period: TimePeriod, index: number) => {
+            const ninetyDaysAgo = new Date(new Date(period.end).getTime() - 90 * 24 * 60 * 60 * 1000).toISOString()
             return `
           # Accounts created in period ${index}
           accountsCreated_period${index}: ${config.accountEntity}Aggregate(
@@ -64,13 +87,7 @@ export const useGenericAccountsOverTime = (
             where: {
               isDeleted: {_eq: false}
               createdAt: {_lt: "${period.end}"}
-              ${
-                config.isJunctionTable
-                  ? `${config.opportunityRelation}: {opportunity: {isDeleted: {_eq: false}}}` // Junction table: filter through opportunity relation
-                  : config.isOpportunityRelationList
-                    ? `${config.opportunityRelation}: {isDeleted: {_eq: false}}` // List: check if array has items with isDeleted = false
-                    : `${config.opportunityRelation}: {id: {_isNull: false}}` // Singular: check if not null
-              }
+              ${buildOpportunityFilter(config)}
             }
           ) { aggregate { count } }
           
@@ -79,13 +96,7 @@ export const useGenericAccountsOverTime = (
             where: {
               isDeleted: {_eq: false}
               createdAt: {_lt: "${period.end}"}
-              ${
-                config.isJunctionTable
-                  ? `${config.opportunityRelation}: {opportunity: {isDeleted: {_eq: false}, updatedAt: {_gte: "${new Date(new Date(period.end).getTime() - 90 * 24 * 60 * 60 * 1000).toISOString()}"}}}` // Junction table: filter through opportunity relation with updatedAt
-                  : config.isOpportunityRelationList
-                    ? `${config.opportunityRelation}: {isDeleted: {_eq: false}, updatedAt: {_gte: "${new Date(new Date(period.end).getTime() - 90 * 24 * 60 * 60 * 1000).toISOString()}"}}` // List: filter by isDeleted and updatedAt
-                    : `${config.opportunityRelation}: {updatedAt: {_gte: "${new Date(new Date(period.end).getTime() - 90 * 24 * 60 * 60 * 1000).toISOString()}"}}` // Singular: filter by updatedAt
-              }
+              ${buildActiveOpportunityFilter(config, ninetyDaysAgo)}
             }
           ) { aggregate { count } }
         `

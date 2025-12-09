@@ -1,13 +1,10 @@
 import { useMemo } from 'react'
-import {
-  useGenericContactQualityData,
-  type ContactQualityData
-} from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericContactQualityData'
+import { useGenericContactQualityData } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericContactQualityData'
 
 /**
  * CRM-specific wrapper for useGenericContactQualityData
  */
-const useContactQualityData = (accessToken: string) => {
+export const useContactQualityData = (accessToken: string) => {
   const config = useMemo(
     () => ({
       contactEntity: 'Contact',
@@ -21,4 +18,4 @@ const useContactQualityData = (accessToken: string) => {
   return useGenericContactQualityData(accessToken, config)
 }
 
-export { useContactQualityData, type ContactQualityData }
+export type { ContactQualityData } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericContactQualityData'

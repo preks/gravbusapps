@@ -2,7 +2,7 @@
 import { useMemo } from 'react'
 import { useGenericPipelineHealth } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericPipelineHealth'
 
-const usePipelineHealth = (accessToken: string, selectedPipelineId?: string) => {
+export const usePipelineHealth = (accessToken: string, selectedPipelineId?: string) => {
   const config = useMemo(
     () => ({
       opportunityEntity: 'Opportunity',
@@ -16,6 +16,4 @@ const usePipelineHealth = (accessToken: string, selectedPipelineId?: string) => 
 
   return useGenericPipelineHealth(accessToken, selectedPipelineId, config)
 }
-
-export { usePipelineHealth }
 export type { PipelineHealthData } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericPipelineHealth'

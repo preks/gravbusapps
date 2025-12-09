@@ -1,12 +1,9 @@
-import {
-  useGenericOpportunitiesStaticData,
-  type GenericOpportunitiesStaticData as OpportunitiesStaticData
-} from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericOpportunitiesStaticData'
+import { useGenericOpportunitiesStaticData } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericOpportunitiesStaticData'
 
 /**
  * CRM-specific wrapper for useGenericOpportunitiesStaticData
  */
-const useOpportunitiesStaticData = (accessToken: string, currencyCode?: string) => {
+export const useOpportunitiesStaticData = (accessToken: string, currencyCode?: string) => {
   return useGenericOpportunitiesStaticData(
     accessToken,
     {
@@ -20,4 +17,4 @@ const useOpportunitiesStaticData = (accessToken: string, currencyCode?: string) 
   )
 }
 
-export { useOpportunitiesStaticData, type OpportunitiesStaticData }
+export type { GenericOpportunitiesStaticData as OpportunitiesStaticData } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericOpportunitiesStaticData'

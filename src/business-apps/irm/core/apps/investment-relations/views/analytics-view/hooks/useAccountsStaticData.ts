@@ -14,11 +14,9 @@ const IRM_ACCOUNTS_CONFIG = {
   isJunctionTable: true
 }
 
-const useAccountsStaticData = (accessToken: string) => {
+export const useAccountsStaticData = (accessToken: string) => {
   return useGenericAccountsStaticData(accessToken, IRM_ACCOUNTS_CONFIG)
 }
-
-export { useAccountsStaticData }
 export type {
   TopAccountData,
   MonthlyGrowthPoint,

@@ -10,14 +10,12 @@ const CRM_ACCOUNTS_CONFIG = {
   // isOpportunityRelationList defaults to false for CRM (singular relationship)
 }
 
-const useAccountsOverTime = (
+export const useAccountsOverTime = (
   accessToken: string,
   timeFilter: 'month' | 'quarter' | 'sixMonths' | 'year' | 'historical' = 'quarter'
 ) => {
   return useGenericAccountsOverTime(accessToken, CRM_ACCOUNTS_CONFIG, timeFilter)
 }
-
-export { useAccountsOverTime }
 export type {
   AccountsTimeFilter,
   AccountsOverTimePoint

@@ -6,7 +6,7 @@ import { useGenericPipelineHealth } from '@/common/components/common-relations/v
  * IRM Pipeline Health hook - Uses shared generic implementation
  * Optimized with aggregates for consistency and performance
  */
-const usePipelineHealth = (accessToken: string, selectedPipelineId?: string) => {
+export const usePipelineHealth = (accessToken: string, selectedPipelineId?: string) => {
   const config = useMemo(
     () => ({
       opportunityEntity: 'InvestmentOpportunity',
@@ -20,6 +20,4 @@ const usePipelineHealth = (accessToken: string, selectedPipelineId?: string) => 
 
   return useGenericPipelineHealth(accessToken, selectedPipelineId, config)
 }
-
-export { usePipelineHealth }
 export type { PipelineHealthData } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericPipelineHealth'

@@ -1,15 +1,10 @@
 import { useMemo } from 'react'
-import {
-  useGenericContactInsights,
-  type ContactInsightsData,
-  type ContactInsightAccount,
-  type ContactInsightRecent
-} from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericContactInsights'
+import { useGenericContactInsights } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericContactInsights'
 
 /**
  * CRM-specific wrapper for useGenericContactInsights
  */
-const useContactInsights = (accessToken: string) => {
+export const useContactInsights = (accessToken: string) => {
   const config = useMemo(
     () => ({
       contactEntity: 'Contact',
@@ -28,4 +23,8 @@ const useContactInsights = (accessToken: string) => {
   return useGenericContactInsights(accessToken, config)
 }
 
-export { useContactInsights, type ContactInsightsData, type ContactInsightAccount, type ContactInsightRecent }
+export type {
+  ContactInsightsData,
+  ContactInsightAccount,
+  ContactInsightRecent
+} from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericContactInsights'

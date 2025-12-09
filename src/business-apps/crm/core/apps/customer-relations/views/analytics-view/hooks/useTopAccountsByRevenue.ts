@@ -4,7 +4,7 @@
  */
 import { useTopAccountsByRevenue as useGenericTopAccounts } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks'
 
-const useTopAccountsByRevenue = (accessToken: string, currencyCode?: string) => {
+export const useTopAccountsByRevenue = (accessToken: string, currencyCode?: string) => {
   const CRM_TOP_ACCOUNTS_CONFIG = {
     accountEntity: 'Account',
     opportunityEntity: 'Opportunity',
@@ -15,6 +15,4 @@ const useTopAccountsByRevenue = (accessToken: string, currencyCode?: string) => 
 
   return useGenericTopAccounts(accessToken, CRM_TOP_ACCOUNTS_CONFIG)
 }
-
-export { useTopAccountsByRevenue }
 export type { TopAccountData } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks'

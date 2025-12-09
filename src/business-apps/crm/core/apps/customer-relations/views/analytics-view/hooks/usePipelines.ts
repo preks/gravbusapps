@@ -6,7 +6,7 @@ import { useGenericPipelines } from '@/common/components/common-relations/view-l
  * CRM Pipelines hook - Uses GraphQL distinctOn to fetch unique pipelines
  * This is more efficient than fetching from Catalog API
  */
-const usePipelines = (accessToken: string) => {
+export const usePipelines = (accessToken: string) => {
   const config = useMemo(
     () => ({
       source: 'graphql' as const,
@@ -19,6 +19,4 @@ const usePipelines = (accessToken: string) => {
 
   return useGenericPipelines(accessToken, config)
 }
-
-export { usePipelines }
 export type { Pipeline } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericPipelines'

@@ -55,15 +55,18 @@ export const AccountGrowthAnalysis: React.FC<AccountGrowthAnalysisProps> = ({
 
   // Use avgRevenuePerAccount from data if provided (aggregate calculation from backend)
   // Otherwise fallback to calculating from topAccounts (legacy approach for backward compatibility)
-  const avgRevenuePerAccount =
-    data?.avgRevenuePerAccount !== undefined
-      ? data.avgRevenuePerAccount
-      : data?.topAccounts && data.topAccounts.length > 0
-        ? Math.round(data.topAccounts.reduce((sum, account) => sum + account.totalValue, 0) / data.topAccounts.length)
-        : 0
+  const calculateFallbackRevenue = (): number => {
+    if (data?.topAccounts && data.topAccounts.length > 0) {
+      const totalValue = data.topAccounts.reduce((sum, account) => sum + account.totalValue, 0)
+      return Math.round(totalValue / data.topAccounts.length)
+    }
+    return 0
+  }
+
+  const avgRevenuePerAccount = data?.avgRevenuePerAccount ?? calculateFallbackRevenue()
 
   const accountsCount =
-    data?.avgRevenuePerAccount !== undefined
+    data?.avgRevenuePerAccount !== null && data?.avgRevenuePerAccount !== undefined
       ? 'all accounts with won opportunities'
       : `top ${data?.topAccounts?.length || 0} performing accounts`
 

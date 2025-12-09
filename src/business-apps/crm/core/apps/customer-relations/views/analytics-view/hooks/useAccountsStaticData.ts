@@ -13,11 +13,10 @@ const CRM_ACCOUNTS_CONFIG = {
   // isOpportunityRelationList defaults to false for CRM (singular relationship)
 }
 
-const useAccountsStaticData = (accessToken: string) => {
+export const useAccountsStaticData = (accessToken: string) => {
   return useGenericAccountsStaticData(accessToken, CRM_ACCOUNTS_CONFIG)
 }
 
-export { useAccountsStaticData }
 export type {
   TopAccountData,
   MonthlyGrowthPoint,

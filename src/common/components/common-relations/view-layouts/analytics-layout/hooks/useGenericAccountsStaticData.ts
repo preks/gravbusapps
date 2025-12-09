@@ -61,6 +61,39 @@ export interface AccountsEntityConfig {
   isJunctionTable?: boolean // true if using junction table (IRM uses opportunityAccounts)
 }
 
+// Helper function to build opportunity filter for accounts with opportunities
+const buildAccountOpportunityFilter = (config: AccountsEntityConfig): string => {
+  if (config.isJunctionTable) {
+    return `${config.opportunityRelation}: {opportunity: {isDeleted: {_eq: false}}}`
+  }
+  if (config.isOpportunityRelationList) {
+    return `${config.opportunityRelation}: {isDeleted: {_eq: false}}`
+  }
+  return `${config.opportunityRelation || 'opportunity'}: {id: {_isNull: false}}`
+}
+
+// Helper function to build opportunity filter with date range for active accounts
+const buildActiveAccountOpportunityFilter = (config: AccountsEntityConfig, cutoffDate: string): string => {
+  if (config.isJunctionTable) {
+    return `${config.opportunityRelation}: {opportunity: {isDeleted: {_eq: false}, updatedAt: {_gte: "${cutoffDate}"}}}`
+  }
+  if (config.isOpportunityRelationList) {
+    return `${config.opportunityRelation}: {updatedAt: {_gte: "${cutoffDate}"}}`
+  }
+  return `${config.opportunityRelation || 'opportunity'}: {updatedAt: {_gte: "${cutoffDate}"}}`
+}
+
+// Helper function to build opportunity filter for accounts with won opportunities
+const buildWonOpportunityAccountFilter = (config: AccountsEntityConfig): string => {
+  if (config.isJunctionTable) {
+    return `${config.opportunityRelation}: {opportunity: {isDeleted: {_eq: false}, opportunityStatus: {code: {_eq: "WON"}}}}`
+  }
+  if (config.isOpportunityRelationList) {
+    return `${config.opportunityRelation}: {isDeleted: {_eq: false}, opportunityStatus: {code: {_eq: "WON"}}}}`
+  }
+  return `${config.opportunityRelation || 'opportunity'}: {opportunityStatus: {code: {_eq: "WON"}}}`
+}
+
 /**
  * Generic hook for fetching account static data (KPIs, distributions, trends)
  * Configurable for both CRM and IRM modules
@@ -124,13 +157,7 @@ export const useGenericAccountsStaticData = (accessToken: string, config: Accoun
               where: {
                 isDeleted: {_eq: false}
                 createdAt: {_lt: "${monthEnd}"}
-                ${
-                  config.isJunctionTable
-                    ? `${config.opportunityRelation}: {opportunity: {isDeleted: {_eq: false}}}` // Junction table: filter through opportunity relation
-                    : config.isOpportunityRelationList
-                      ? `${config.opportunityRelation}: {isDeleted: {_eq: false}}` // List: check if array has items with isDeleted = false
-                      : `${config.opportunityRelation || 'opportunity'}: {id: {_isNull: false}}` // Singular: check if not null
-                }
+                ${buildAccountOpportunityFilter(config)}
               }
             ) { aggregate { count } }
           `
@@ -144,13 +171,7 @@ export const useGenericAccountsStaticData = (accessToken: string, config: Accoun
               where: {
                 isDeleted: {_eq: false}
                 createdAt: {_lt: "${monthEnd}"}
-                ${
-                  config.isJunctionTable
-                    ? `${config.opportunityRelation}: {opportunity: {isDeleted: {_eq: false}, updatedAt: {_gte: "${activeThreshold.toISOString()}"}}}` // Junction table: filter through opportunity relation with updatedAt
-                    : config.isOpportunityRelationList
-                      ? `${config.opportunityRelation}: {updatedAt: {_gte: "${activeThreshold.toISOString()}"}}` // List: filter by updatedAt
-                      : `${config.opportunityRelation || 'opportunity'}: {updatedAt: {_gte: "${activeThreshold.toISOString()}"}}` // Singular: filter by updatedAt
-                }
+                ${buildActiveAccountOpportunityFilter(config, activeThreshold.toISOString())}
               }
             ) { aggregate { count } }
           `)
@@ -167,13 +188,7 @@ export const useGenericAccountsStaticData = (accessToken: string, config: Accoun
           accountsWithOpportunities: ${config.accountEntity}Aggregate(
             where: {
               isDeleted: {_eq: false}
-              ${
-                config.isJunctionTable
-                  ? `${config.opportunityRelation}: {opportunity: {isDeleted: {_eq: false}}}` // Junction table: filter through opportunity relation
-                  : config.isOpportunityRelationList
-                    ? `${config.opportunityRelation}: {isDeleted: {_eq: false}}` // List: check if array has items with isDeleted = false
-                    : `${config.opportunityRelation || 'opportunity'}: {id: {_isNull: false}}` // Singular: check if not null
-              }
+              ${buildAccountOpportunityFilter(config)}
             }
           ) { aggregate { count } }
 
@@ -208,13 +223,7 @@ export const useGenericAccountsStaticData = (accessToken: string, config: Accoun
           accountsWithWonOpportunities: ${config.accountEntity}Aggregate(
             where: {
               isDeleted: {_eq: false}
-              ${
-                config.isJunctionTable
-                  ? `${config.opportunityRelation}: {opportunity: {isDeleted: {_eq: false}, opportunityStatus: {code: {_eq: "WON"}}}}` // Junction table: filter through opportunity relation
-                  : config.isOpportunityRelationList
-                    ? `${config.opportunityRelation}: {isDeleted: {_eq: false}, opportunityStatus: {code: {_eq: "WON"}}}` // List: check if array has won opportunities
-                    : `${config.opportunityRelation || 'opportunity'}: {opportunityStatus: {code: {_eq: "WON"}}}` // Singular: check for won opportunities
-              }
+              ${buildWonOpportunityAccountFilter(config)}
             }
           ) { aggregate { count } }
 
@@ -234,13 +243,7 @@ export const useGenericAccountsStaticData = (accessToken: string, config: Accoun
             where: {
               isDeleted: {_eq: false}
               createdAt: {_gte: "${last30DaysStart.toISOString()}"}
-              ${
-                config.isJunctionTable
-                  ? `${config.opportunityRelation}: {opportunity: {isDeleted: {_eq: false}}}` // Junction table: filter through opportunity relation
-                  : config.isOpportunityRelationList
-                    ? `${config.opportunityRelation}: {isDeleted: {_eq: false}}` // List: check if array has items with isDeleted = false
-                    : `${config.opportunityRelation || 'opportunity'}: {id: {_isNull: false}}` // Singular: check if not null
-              }
+              ${buildAccountOpportunityFilter(config)}
             }
           ) { aggregate { count } }
 
@@ -248,13 +251,7 @@ export const useGenericAccountsStaticData = (accessToken: string, config: Accoun
             where: {
               isDeleted: {_eq: false}
               createdAt: {_gte: "${previous30DaysStart.toISOString()}", _lt: "${previous30DaysEnd.toISOString()}"}
-              ${
-                config.isJunctionTable
-                  ? `${config.opportunityRelation}: {opportunity: {isDeleted: {_eq: false}}}` // Junction table: filter through opportunity relation
-                  : config.isOpportunityRelationList
-                    ? `${config.opportunityRelation}: {isDeleted: {_eq: false}}` // List: check if array has items with isDeleted = false
-                    : `${config.opportunityRelation || 'opportunity'}: {id: {_isNull: false}}` // Singular: check if not null
-              }
+              ${buildAccountOpportunityFilter(config)}
             }
           ) { aggregate { count } }
 

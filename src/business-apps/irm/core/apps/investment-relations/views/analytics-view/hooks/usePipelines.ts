@@ -6,7 +6,7 @@ import { useGenericPipelines } from '@/common/components/common-relations/view-l
  * IRM Pipelines hook - Uses Catalog API to fetch pipeline options
  * IRM uses the Catalog Manager for pipeline data
  */
-const usePipelines = (accessToken: string) => {
+export const usePipelines = (accessToken: string) => {
   const config = useMemo(
     () => ({
       source: 'catalog' as const,
@@ -18,6 +18,4 @@ const usePipelines = (accessToken: string) => {
 
   return useGenericPipelines(accessToken, config)
 }
-
-export { usePipelines }
 export type { Pipeline } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericPipelines'

@@ -11,14 +11,12 @@ const IRM_ACCOUNTS_CONFIG = {
   isJunctionTable: true
 }
 
-const useAccountsOverTime = (
+export const useAccountsOverTime = (
   accessToken: string,
   timeFilter: 'month' | 'quarter' | 'sixMonths' | 'year' | 'historical' = 'quarter'
 ) => {
   return useGenericAccountsOverTime(accessToken, IRM_ACCOUNTS_CONFIG, timeFilter)
 }
-
-export { useAccountsOverTime }
 export type {
   AccountsTimeFilter,
   AccountsOverTimePoint

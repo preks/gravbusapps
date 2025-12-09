@@ -9,9 +9,7 @@ const CRM_CONTACTS_CONFIG = {
   accountEntity: 'Account'
 }
 
-const useContactsStaticData = (accessToken: string) => {
+export const useContactsStaticData = (accessToken: string) => {
   return useGenericContactsStaticData(accessToken, CRM_CONTACTS_CONFIG)
 }
-
-export { useContactsStaticData }
 export type { ContactsStaticData } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks'
