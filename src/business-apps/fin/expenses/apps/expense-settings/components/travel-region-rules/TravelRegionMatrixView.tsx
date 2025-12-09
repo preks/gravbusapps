@@ -334,10 +334,11 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     return rules.some(rule =>
       rule.details?.some(detail => {
         const detailCountryCode = extractCountryCode(detail.travelRegion?.code || '')
+        // Also check if detail's full ID matches region's ID exactly
         return (
           detailCountryCode === regionCountryCode ||
           detail.travelRegion?.id === region.id ||
-          detail.travelRegion?.value === region.value
+          detail.travelRegion?.code === region.code
         )
       })
     )
