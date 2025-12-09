@@ -417,6 +417,53 @@ export const InvestmentFormComponent: React.FC = () => {
   const [lastAutofillKey, setLastAutofillKey] = useState<string | null>(null)
   const [lastAppliedFieldsKey, setLastAppliedFieldsKey] = useState<string | null>(null)
 
+  /**
+   * Normalize InvestmentRole values returned from AI autofill into the structure
+   * expected by the form and Zod schema.
+   *
+   * Backend returns: ["InvestmentRole:v1:LEAD_INVESTOR", ...]
+   * Form expects: [{ investmentRole: CatalogEntry, displayOrder: number }, ...]
+   */
+  const normalizeInvestmentRolesValue = async (value: unknown): Promise<unknown> => {
+    // If value is already an array of role objects, keep as-is
+    if (Array.isArray(value) && value.every(item => typeof item === 'object')) {
+      return value
+    }
+
+    const toArray = (val: unknown): unknown[] => {
+      if (Array.isArray(val)) return val
+      if (val == null) return []
+      return [val]
+    }
+
+    const rawItems = toArray(value)
+    const normalized: any[] = []
+
+    for (const item of rawItems) {
+      // Expected format from backend: string catalog ref, e.g. "InvestmentRole:v1:LEAD_INVESTOR"
+      if (typeof item === 'string' && item) {
+        try {
+          const entry = await catalogClient.getCatalogEntryById(item)
+          if (entry) {
+            normalized.push({
+              investmentRole: entry,
+              displayOrder: normalized.length
+            })
+          }
+        } catch (error) {
+          console.error('Error loading investment role entry for AI autofill:', error)
+        }
+      }
+    }
+
+    // If we failed to build a normalized array, fall back to original value
+    if (normalized.length === 0) {
+      return value
+    }
+
+    return normalized
+  }
+
   // Load currency entry when currency changes
   useEffect(() => {
     const loadCurrencyEntry = async () => {
@@ -506,11 +553,24 @@ export const InvestmentFormComponent: React.FC = () => {
 
         if (!isCancelled && response?.fields) {
           // Apply returned fields directly to react-hook-form using property paths
-          const fieldEntries = Object.entries(response.fields)
-          const fieldsKey = JSON.stringify(fieldEntries.map(([path, value]) => [path, value]))
+          const rawFieldEntries = Object.entries(response.fields)
+
+          // Normalize specific fields (e.g. investment.investmentRole) before applying
+          const normalizedEntries: [string, unknown][] = []
+
+          for (const [path, value] of rawFieldEntries) {
+            if (path === 'investment.investmentRole') {
+              const normalizedValue = await normalizeInvestmentRolesValue(value)
+              normalizedEntries.push([path, normalizedValue])
+            } else {
+              normalizedEntries.push([path, value])
+            }
+          }
+
+          const fieldsKey = JSON.stringify(normalizedEntries)
 
           if (fieldsKey !== lastAppliedFieldsKey) {
-            fieldEntries.forEach(([path, value]) => {
+            normalizedEntries.forEach(([path, value]) => {
               form.setValue(path as any, value as any, {
                 shouldDirty: true,
                 shouldValidate: true,
