@@ -18,7 +18,8 @@ import {
   Collapsible,
   CollapsibleTrigger,
   CollapsibleContent,
-  toast
+  toast,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { DeleteConfirmPopup } from '@/common/components/common-relations/popups/delete-confirm-popup'
 import { Search, File, FileText, Image, FileSpreadsheet, Trash2, Download, ChevronDown } from 'lucide-react'
@@ -30,10 +31,11 @@ import { useFileClient } from '@/common/network/files/useFileClient'
 import { employeeDocumentsQuery, documentTypeCatalogQuery } from '../../queries/documentQueries'
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
 import { AppAction } from '@/components/app-action/AppAction'
 import { EmployeeDocumentClient } from '../../services/employeeDocumentApi'
+import documentsI18n from './_i18n'
 
 interface DocumentsTabProps {
   employee: Employee
@@ -57,12 +59,17 @@ interface EmployeeDocument {
   createdAt: string
   validTo: string | null
   url?: string
+  employee?: {
+    firstName: string
+    lastName: string
+  }
 }
 
 interface DocumentType {
   id: string
   value: string
   code: string
+  translations?: Array<{ localeCode: string; value: string }>
 }
 
 interface Document {
@@ -72,6 +79,7 @@ interface Document {
   type: string
   typeRef: string
   typeValue: string
+  documentGroupKey?: string
   documentGroup?: string
   description?: string
   createdBy?: string
@@ -87,6 +95,7 @@ interface Document {
 }
 
 const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canEditDocuments = false }) => {
+  const { t } = useTranslation(documentsI18n)
   const [documents, setDocuments] = useState<Document[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -121,18 +130,22 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
     try {
       setLoading(true)
 
+      const activeUserLocale = getCurrentActiveUserLocale()
       const screenDataResponse = await graphQLClient.request(employeeDocumentsQuery, {
-        employeeId: employee.id
+        employeeId: employee.id,
+        activeUserLocale
       })
 
       const employeeDocuments: EmployeeDocument[] = screenDataResponse?.EmployeeDocument || []
       const documentGroups = screenDataResponse?.documentGroup || []
 
-      const documentGroupMap: Record<string, string> = {}
+      const documentGroupKeyMap: Record<string, string> = {}
+      const documentGroupTranslationMap: Record<string, string> = {}
       documentGroups.forEach((group: any) => {
         const translation =
           group.translations && group.translations.length > 0 ? group.translations[0].value : group.value
-        documentGroupMap[group.id] = translation
+        documentGroupKeyMap[group.id] = group.value
+        documentGroupTranslationMap[group.id] = translation
       })
 
       const documentTypeRefs = employeeDocuments.map(doc => doc.type).filter(Boolean)
@@ -140,7 +153,8 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
 
       if (documentTypeRefs.length > 0) {
         const catalogDataResponse = await graphQLClient.request(documentTypeCatalogQuery, {
-          documentTypeRefs
+          documentTypeRefs,
+          activeUserLocale
         })
 
         const catalogEntries: DocumentType[] = catalogDataResponse?.CatalogEntry || []
@@ -162,16 +176,27 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
           }
         }
 
+        const createdByName = doc.employee
+          ? `${doc.employee.firstName || ''} ${doc.employee.lastName || ''}`.trim()
+          : doc.createdBy
+
+        const typeEntry = typeDetailsMap[doc.type]
+        const typeTranslatedValue =
+          typeEntry?.translations && typeEntry.translations.length > 0
+            ? typeEntry.translations[0].value
+            : typeEntry?.value || 'Other'
+
         return {
           id: doc.id,
           title: doc.name,
           name: doc.name,
           type: doc.mimeType?.split('/')[1]?.toUpperCase() || 'Unknown',
           typeRef: doc.type,
-          typeValue: typeDetailsMap[doc.type]?.value || 'Other',
-          documentGroup: documentGroupMap[doc.documentGroup] || 'Other',
+          typeValue: typeTranslatedValue,
+          documentGroupKey: documentGroupKeyMap[doc.documentGroup] || 'Other',
+          documentGroup: documentGroupTranslationMap[doc.documentGroup] || t('documents-group-other'),
           description: doc.description,
-          createdBy: doc.createdBy,
+          createdBy: createdByName,
           createdAt: doc.createdAt,
           uploadDate: doc.createdAt,
           validTo: doc.validTo,
@@ -302,9 +327,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
         }
       })
 
-      toast.success(
-        getTranslationFromI18nKeyAndLabel('lowcoder:hr_documents.delete_success', 'Document deleted successfully')
-      )
+      toast.success(t('documents-delete-success'))
 
       if (currentDocument?.id === documentToDelete.id) {
         closeDocumentViewer()
@@ -313,7 +336,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
       await fetchDocuments()
     } catch (err) {
       console.error('Error deleting document:', err)
-      toast.error(getTranslationFromI18nKeyAndLabel('lowcoder:hr_documents.delete_error', 'Failed to delete document'))
+      toast.error(t('documents-delete-error'))
     } finally {
       setIsDeleting(false)
       setDeleteConfirmOpen(false)
@@ -331,9 +354,9 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
     }
 
     documents.forEach(doc => {
-      const group = doc.documentGroup
-      if (group && ['Salary', 'Expenses', 'Development', 'Personal'].includes(group)) {
-        groups[group].push(doc)
+      const groupKey = doc.documentGroupKey
+      if (groupKey && ['Salary', 'Expenses', 'Development', 'Personal'].includes(groupKey)) {
+        groups[groupKey].push(doc)
       } else {
         groups['Other'].push(doc)
       }
@@ -392,9 +415,9 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
     }
 
     filteredDocuments.forEach(doc => {
-      const group = doc.documentGroup
-      if (group && ['Salary', 'Expenses', 'Development', 'Personal'].includes(group)) {
-        groups[group].push(doc)
+      const groupKey = doc.documentGroupKey
+      if (groupKey && ['Salary', 'Expenses', 'Development', 'Personal'].includes(groupKey)) {
+        groups[groupKey].push(doc)
       } else {
         groups['Other'].push(doc)
       }
@@ -574,7 +597,9 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
                   title={document.validTo < dayjs().format('YYYY-MM-DD') ? 'Document has expired' : 'Document is valid'}
                   data-testid={`document-validity-indicator-${document.id}`}
                 >
-                  {document.validTo < dayjs().format('YYYY-MM-DD') ? 'Expired' : 'Valid'}
+                  {document.validTo < dayjs().format('YYYY-MM-DD')
+                    ? t('documents-status-expired')
+                    : t('documents-status-valid')}
                 </div>
               )}
             </div>
@@ -582,7 +607,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
               <button
                 onClick={e => handleDeleteClick(document, e)}
                 className="gba:p-2 gba:rounded-md gba:text-destructive gba:hover:bg-destructive-secondary gba:transition-colors"
-                title={getTranslationFromI18nKeyAndLabel('lowcoder:hr_documents.delete_document', 'Delete document')}
+                title={t('documents-delete')}
                 data-testid={`document-delete-button-${document.id}`}
               >
                 <Trash2 className="gba:w-4 gba:h-4" />
@@ -616,13 +641,10 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
         <div className="gba:flex gba:justify-between gba:items-start" data-testid="documents-header">
           <div className="gba:documents-header">
             <div className="gba:font-bold gba:text-2xl" data-testid="documents-title">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_documents.documents_overview', 'Documents Overview')}
+              {t('documents-title')}
             </div>
             <div className="gba:text-muted-foreground gba:text-lg" data-testid="documents-description">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:hr_documents.documents_description',
-                'View and manage employee documents'
-              )}
+              {t('documents-description')}
             </div>
           </div>
 
@@ -634,16 +656,13 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
             accessToken={accessToken}
             autoExecute={true}
           >
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:employee_profile.employee_tabs.flow_button.upload_document',
-              'Upload Document'
-            )}
+            {t('documents-upload-button')}
           </AppAction>
         </div>
 
         <div className="gba:py-10 gba:text-center gba:text-muted-foreground" data-testid="empty-documents-state">
           <File className="gba:w-12 gba:h-12 gba:mx-auto gba:mb-4 gba:opacity-50" />
-          <p>No documents available</p>
+          <p>{t('documents-empty')}</p>
         </div>
       </div>
     )
@@ -654,13 +673,10 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
       <div className="gba:flex gba:justify-between gba:items-start" data-testid="documents-header">
         <div className="gba:documents-header">
           <div className="gba:font-bold gba:text-2xl" data-testid="documents-title">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:hr_documents.documents_overview', 'Documents Overview')}
+            {t('documents-title')}
           </div>
           <div className="gba:text-muted-foreground gba:text-lg" data-testid="documents-description">
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:hr_documents.documents_description',
-              'View and manage employee documents'
-            )}
+            {t('documents-description')}
           </div>
         </div>
 
@@ -686,9 +702,9 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
               <DebouncedInput
                 value={searchQuery}
                 onChange={handleSearchChange}
-                placeholder="Search documents..."
+                placeholder={t('documents-search-placeholder')}
                 className="gba:w-full gba:py-2.5 gba:pr-3 gba:border-0 gba:focus:outline-none gba:focus:ring-0 gba:focus:shadow-none gba:text-base"
-                ariaLabel="Search documents"
+                ariaLabel={t('documents-search-placeholder')}
                 data-testid="document-search-input"
               />
             </div>
@@ -698,17 +714,17 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
               data-testid="document-search-field-select"
             >
               <SelectTrigger className="gba:w-[140px]">
-                <SelectValue placeholder="All Fields" />
+                <SelectValue placeholder={t('documents-search-all-fields')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Fields</SelectItem>
-                <SelectItem value="title">Name</SelectItem>
-                <SelectItem value="type">Type</SelectItem>
-                <SelectItem value="documentGroup">Group</SelectItem>
-                <SelectItem value="description">Description</SelectItem>
-                <SelectItem value="createdBy">Created By</SelectItem>
-                <SelectItem value="uploadDate">Upload Date</SelectItem>
-                <SelectItem value="validTo">Valid To</SelectItem>
+                <SelectItem value="all">{t('documents-search-all-fields')}</SelectItem>
+                <SelectItem value="title">{t('documents-search-name')}</SelectItem>
+                <SelectItem value="type">{t('documents-search-type')}</SelectItem>
+                <SelectItem value="documentGroup">{t('documents-search-group')}</SelectItem>
+                <SelectItem value="description">{t('documents-search-description')}</SelectItem>
+                <SelectItem value="createdBy">{t('documents-search-created-by')}</SelectItem>
+                <SelectItem value="uploadDate">{t('documents-search-upload-date')}</SelectItem>
+                <SelectItem value="validTo">{t('documents-search-valid-to')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -717,8 +733,9 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
 
       {searchQuery && (
         <div className="gba:text-sm gba:text-muted-foreground gba:mb-4">
-          Found {filteredDocuments.length} {filteredDocuments.length === 1 ? 'document' : 'documents'}
-          {searchField !== 'all' ? ` with ${searchField}` : ''} matching "{searchQuery}"
+          {t('documents-search-results-found')} {filteredDocuments.length}{' '}
+          {filteredDocuments.length === 1 ? t('documents-count-one') : t('documents-count-other')}{' '}
+          {t('documents-search-results-matching')} "{searchQuery}"
         </div>
       )}
 
@@ -732,7 +749,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
         filteredDocuments.length === 0 ? (
           <div className="gba:py-10 gba:text-center gba:text-muted-foreground">
             <Search className="gba:w-12 gba:h-12 gba:mx-auto gba:mb-4 gba:opacity-50" />
-            <p>No documents match your search</p>
+            <p>{t('documents-search-empty')}</p>
           </div>
         ) : (
           <div className="gba:space-y-2" data-testid="documents-accordion">
@@ -750,6 +767,8 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
                         ? 'gba:bg-warning-secondary'
                         : 'gba:bg-decorative-secondary'
 
+              const displayGroupName = docs[0]?.documentGroup || group
+
               return (
                 <Collapsible
                   key={group}
@@ -758,10 +777,10 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
                   data-testid={`document-group-${group.toLowerCase()}`}
                 >
                   <CollapsibleTrigger className="gba:flex gba:items-center gba:justify-between gba:w-full gba:px-4 gba:py-3 gba:cursor-pointer gba:hover:opacity-80 gba:transition-opacity [&[data-state=open]>svg]:gba:rotate-180">
-                    <span className="gba:font-medium">{group}</span>
+                    <span className="gba:font-medium">{displayGroupName}</span>
                     <div className="gba:flex gba:items-center gba:gap-2">
                       <span className="gba:text-sm gba:text-muted-foreground">
-                        {docs.length} {docs.length === 1 ? 'document' : 'documents'}
+                        {docs.length} {docs.length === 1 ? t('documents-count-one') : t('documents-count-other')}
                       </span>
                       <ChevronDown className="gba:w-4 gba:h-4 gba:transition-transform gba:duration-200" />
                     </div>
@@ -790,6 +809,8 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
                       ? 'gba:bg-warning-secondary'
                       : 'gba:bg-decorative-secondary'
 
+            const displayGroupName = docs[0]?.documentGroup || group
+
             return (
               <Collapsible
                 key={group}
@@ -798,10 +819,10 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
                 data-testid={`document-group-${group.toLowerCase()}`}
               >
                 <CollapsibleTrigger className="gba:flex gba:items-center gba:justify-between gba:w-full gba:px-4 gba:py-3 gba:cursor-pointer gba:hover:opacity-80 gba:transition-opacity [&[data-state=open]>svg]:gba:rotate-180">
-                  <span className="gba:font-medium">{group}</span>
+                  <span className="gba:font-medium">{displayGroupName}</span>
                   <div className="gba:flex gba:items-center gba:gap-2">
                     <span className="gba:text-sm gba:text-muted-foreground">
-                      {docs.length} {docs.length === 1 ? 'document' : 'documents'}
+                      {docs.length} {docs.length === 1 ? t('documents-count-one') : t('documents-count-other')}
                     </span>
                     <ChevronDown className="gba:w-4 gba:h-4 gba:transition-transform gba:duration-200" />
                   </div>
@@ -833,7 +854,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
               <div className="gba:flex gba:justify-center gba:items-center gba:h-full">
                 <div className="gba:text-center">
                   <Spinner size="lg" />
-                  <div className="gba:mt-2">Loading document...</div>
+                  <div className="gba:mt-2">{t('documents-loading')}</div>
                 </div>
               </div>
             ) : error ? (
@@ -854,11 +875,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
                         data-testid="pdf-viewer"
                       >
                         <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:p-4">
-                          <p className="gba:mb-4 gba:text-center">
-                            Your browser cannot display the PDF inline.
-                            <br />
-                            Please download the document to view it.
-                          </p>
+                          <p className="gba:mb-4 gba:text-center">{t('documents-browser-no-pdf')}</p>
                           <Button
                             onClick={() => {
                               if (documentUrl && currentDocument) {
@@ -925,7 +942,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
                             variant="secondary"
                           >
                             <Download className="gba:h-4 gba:w-4" />
-                            Download PDF
+                            {t('documents-download-pdf')}
                           </Button>
                         </div>
                       </object>
@@ -959,7 +976,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
                         size="sm"
                       >
                         <Download className="gba:h-4 gba:w-4" />
-                        Download Image
+                        {t('documents-download-image')}
                       </Button>
                     </>
                   ) : (
@@ -987,7 +1004,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
                           </svg>
                         </div>
                         <p className="gba:mb-4 gba:text-center gba:text-muted-foreground gba:text-base">
-                          This document type cannot be previewed directly.
+                          {t('documents-preview-not-available')}
                         </p>
                       </div>
                       <Button
@@ -1005,50 +1022,63 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
                         size="sm"
                       >
                         <Download className="gba:h-4 gba:w-4" />
-                        Download
+                        {t('documents-download')}
                       </Button>
                     </>
                   )}
                 </div>
 
-                {/* Document details - bottom */}
                 <div className="gba:w-full gba:p-6 gba:bg-muted gba:border-t gba:border-border gba:mt-2">
-                  {/* Details section */}
-
                   <div className="gba:grid gba:grid-cols-2 gba:gap-x-4 gba:gap-y-5">
                     <div>
-                      <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">Document Name</div>
-                      <div className="gba:mt-1 gba:text-sm">{currentDocument?.title || 'N/A'}</div>
+                      <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">
+                        {t('documents-detail-name')}
+                      </div>
+                      <div className="gba:mt-1 gba:text-sm">{currentDocument?.title || t('documents-detail-na')}</div>
                     </div>
 
                     <div>
-                      <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">Document Group</div>
-                      <div className="gba:mt-1 gba:text-sm">{currentDocument?.documentGroup || 'N/A'}</div>
+                      <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">
+                        {t('documents-detail-group')}
+                      </div>
+                      <div className="gba:mt-1 gba:text-sm">
+                        {currentDocument?.documentGroup || t('documents-detail-na')}
+                      </div>
                     </div>
 
                     <div>
-                      <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">Document Type</div>
-                      <div className="gba:mt-1 gba:text-sm">{currentDocument?.type || 'N/A'}</div>
+                      <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">
+                        {t('documents-detail-type')}
+                      </div>
+                      <div className="gba:mt-1 gba:text-sm">{currentDocument?.type || t('documents-detail-na')}</div>
                     </div>
 
                     <div>
-                      <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">Upload Date</div>
+                      <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">
+                        {t('documents-detail-upload-date')}
+                      </div>
                       <div className="gba:mt-1 gba:text-sm">
                         {currentDocument?.createdAt
                           ? dayjs(currentDocument.createdAt).format('MMM D, YYYY')
                           : currentDocument?.uploadDate
                             ? dayjs(currentDocument.uploadDate).format('MMM D, YYYY')
-                            : 'N/A'}
+                            : t('documents-detail-na')}
                       </div>
                     </div>
 
                     <div>
-                      <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">Uploaded By</div>
-                      <div className="gba:mt-1 gba:text-sm">{currentDocument?.createdBy || 'N/A'}</div>
+                      <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">
+                        {t('documents-detail-uploaded-by')}
+                      </div>
+                      <div className="gba:mt-1 gba:text-sm">
+                        {currentDocument?.createdBy || t('documents-detail-na')}
+                      </div>
                     </div>
 
                     <div>
-                      <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">Expiration Date</div>
+                      <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">
+                        {t('documents-detail-expiration-date')}
+                      </div>
                       <div className="gba:mt-1 gba:text-sm">
                         {currentDocument?.validTo ? (
                           <span
@@ -1057,23 +1087,25 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
                             {dayjs(currentDocument.validTo).format('MMM D, YYYY')}
                           </span>
                         ) : (
-                          'N/A'
+                          t('documents-detail-na')
                         )}
                       </div>
                     </div>
                   </div>
 
                   <div className="gba:mt-6">
-                    <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">Description</div>
+                    <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">
+                      {t('documents-detail-description')}
+                    </div>
                     <div className="gba:mt-1 gba:text-sm gba:bg-primary-foreground gba:p-3 gba:rounded gba:border gba:border-border">
-                      {currentDocument?.description || 'No description provided'}
+                      {currentDocument?.description || t('documents-detail-no-description')}
                     </div>
                   </div>
                 </div>
               </div>
             ) : (
               <div className="gba:flex gba:justify-center gba:items-center gba:h-full">
-                <p>No document content available</p>
+                <p>{t('documents-no-content')}</p>
               </div>
             )}
           </div>
@@ -1086,7 +1118,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
                 data-testid="document-drawer-delete-button"
               >
                 <Trash2 className="gba:w-4 gba:h-4" />
-                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_documents.delete_document', 'Delete Document')}
+                {t('documents-delete-title')}
               </Button>
             </SheetFooter>
           )}
