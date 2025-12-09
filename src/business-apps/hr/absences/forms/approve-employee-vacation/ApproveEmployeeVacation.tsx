@@ -367,7 +367,7 @@ const ApproveEmployeeVacation: React.FC<ApproveEmployeeVacationProps> = ({
       }
 
       // Build completion endpoint - match useKogitoProcess logic exactly
-      const kogitoBaseUrl = env('NEXT_PUBLIC_NEWWORK_PLATFORM_API_URL') || 'https://newwork-dev.newwork.com'
+      const kogitoBaseUrl = env('NEXT_PUBLIC_BASE_URL')
       let completionEndpoint = ''
 
       // Parse the endpoint to ensure it's a proper URL (same as useKogitoProcess)
@@ -487,7 +487,7 @@ const ApproveEmployeeVacation: React.FC<ApproveEmployeeVacationProps> = ({
       }
 
       // Build completion endpoint - match useKogitoProcess logic exactly
-      const kogitoBaseUrl = env('NEXT_PUBLIC_NEWWORK_PLATFORM_API_URL') || 'https://newwork-dev.newwork.com'
+      const kogitoBaseUrl = env('NEXT_PUBLIC_BASE_URL')
       let completionEndpoint = ''
 
       // Parse the endpoint to ensure it's a proper URL (same as useKogitoProcess)
