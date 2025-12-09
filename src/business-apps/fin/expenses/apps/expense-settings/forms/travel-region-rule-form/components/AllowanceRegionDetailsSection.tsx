@@ -1,24 +1,23 @@
-import React from 'react';
-import { Card, CardHeader, CardTitle, CardContent, Button } from '@newwork/nw-design-system';
-import { PiPlus } from 'react-icons/pi';
-import { RegionGroupCard } from './RegionGroupCard';
-import { SmartColumnGroup, CatalogOption } from '../types';
+import React from 'react'
+import { Card, CardHeader, CardTitle, CardContent, Button } from '@newwork/nw-design-system'
+import { PiPlus } from 'react-icons/pi'
+import { RegionGroupCard } from './RegionGroupCard'
+import { SmartColumnGroup, CatalogOption } from '../types'
 
 interface AllowanceRegionDetailsSectionProps {
-  groups: SmartColumnGroup[];
-  countries: CatalogOption[];
-  travelRegions: CatalogOption[];
-  currencies: CatalogOption[];
-  isLoadingMoreRegions: boolean;
-  hasMore: boolean;
-  onAddGroup: () => void;
-  onUpdateGroupDetail: (groupKey: string, field: string, value: any) => void;
-  onUpdateAmount: (groupKey: string, amountIndex: number, value: string) => void;
-  onAddAmountColumn: (groupKey: string) => void;
-  onRemoveAmount: (groupKey: string, amountIndex: number) => void;
-  onRemoveGroup: (groupKey: string) => void;
-  onScroll: (e: React.UIEvent<HTMLDivElement>) => void;
-  isUsedInTransactions?: boolean;
+  groups: SmartColumnGroup[]
+  countries: CatalogOption[]
+  travelRegions: CatalogOption[]
+  currencies: CatalogOption[]
+  isLoadingMoreRegions: boolean
+  hasMore: boolean
+  onAddGroup: () => void
+  onUpdateGroupDetail: (groupKey: string, field: string, value: any) => void
+  onUpdateAmount: (groupKey: string, amountIndex: number, value: string) => void
+  onRemoveGroup: (groupKey: string) => void
+  onScroll: (e: React.UIEvent<HTMLDivElement>) => void
+  isUsedInTransactions?: boolean
+  showValidation?: boolean
 }
 
 export const AllowanceRegionDetailsSection: React.FC<AllowanceRegionDetailsSectionProps> = ({
@@ -31,11 +30,10 @@ export const AllowanceRegionDetailsSection: React.FC<AllowanceRegionDetailsSecti
   onAddGroup,
   onUpdateGroupDetail,
   onUpdateAmount,
-  onAddAmountColumn,
-  onRemoveAmount,
   onRemoveGroup,
   onScroll,
   isUsedInTransactions = false,
+  showValidation = false
 }) => {
   return (
     <Card>
@@ -63,11 +61,10 @@ export const AllowanceRegionDetailsSection: React.FC<AllowanceRegionDetailsSecti
                 hasMore={hasMore}
                 onUpdateField={(field, value) => onUpdateGroupDetail(group.key, field, value)}
                 onUpdateAmount={(amountIndex, value) => onUpdateAmount(group.key, amountIndex, value)}
-                onAddAmount={() => onAddAmountColumn(group.key)}
-                onRemoveAmount={(amountIndex) => onRemoveAmount(group.key, amountIndex)}
                 onRemoveGroup={() => onRemoveGroup(group.key)}
                 onScroll={onScroll}
                 isUsedInTransactions={isUsedInTransactions}
+                showValidation={showValidation}
               />
             ))}
           </div>
@@ -78,7 +75,5 @@ export const AllowanceRegionDetailsSection: React.FC<AllowanceRegionDetailsSecti
         )}
       </CardContent>
     </Card>
-  );
-};
-
-
+  )
+}

@@ -32,9 +32,9 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { ExpenseSettingsClient } from '../../utils/ExpenseSettingsClient'
 import TravelRegionRuleForm from '../../forms/travel-region-rule-form/TravelRegionRuleForm'
 import TravelRegionForm from '../../forms/travel-region-form/TravelRegionForm'
-import { useGetAllowanceRegionRules, useGetTravelRegions } from '../../queries'
 import { useAllowanceRuleUsageCheck, UsageInfo } from '../../hooks'
 import MileageRulesPagination from '../mileage-rules/MileageRulesPagination'
+import { useMatrixDataLoaders } from './hooks'
 import dayjs from 'dayjs'
 import {
   DndContext,
@@ -242,13 +242,13 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
   const catalogClient = useCatalogManagerClient(accessToken)
   const graphqlClient = useGraphQLClient(accessToken)
 
-  // Initialize query hooks
-  const { fetchAllowanceRegionRules: fetchRulesQuery } = useGetAllowanceRegionRules({
-    accessToken
-  } as BusinessAppContextProps)
-  const { fetchTravelRegionCount, fetchTravelRegions: fetchRegionsQuery } = useGetTravelRegions({
-    accessToken
-  } as BusinessAppContextProps)
+  // Use data loaders hook - extracts complex loading logic
+  const {
+    loadCurrencies,
+    loadTravelRegions: loadTravelRegionsFromHook,
+    loadAllowanceRegionRules,
+    fetchTravelRegionCount
+  } = useMatrixDataLoaders({ accessToken, travelRegionSetId })
 
   // Create a function to get a fresh client with current token
   const getExpenseSettingsClient = useCallback(() => {
@@ -272,40 +272,15 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     return dayjs(dateString).format('DD/MM/YYYY')
   }
 
-  // Load currencies from catalog
-  const loadCurrencies = useCallback(async () => {
-    try {
-      const response = await catalogClient.getCatalogEntriesList(
-        { catalogIdentifier: 'Currency', version: 'v1' },
-        { limit: 100, offset: 0, returnTotalRecords: true }
-      )
-      setCurrencies(
-        response.data.map((item: any) => ({
-          id: item.id,
-          code: item.code,
-          value: item.value
-        }))
-      )
-    } catch (err) {
-      console.error('Error loading currencies:', err)
-    }
-  }, [catalogClient])
-
-  // Load travel regions with pagination and search
+  // Wrapper for loadTravelRegions that updates totalRegions state
   const loadTravelRegions = useCallback(
     async (page: number, limit: number, search: string = '') => {
       try {
         setIsLoadingRegions(true)
-        const offset = (page - 1) * limit
 
         const [totalCount, regions] = await Promise.all([
           fetchTravelRegionCount(travelRegionSetId),
-          fetchRegionsQuery({
-            parentEntryId: travelRegionSetId,
-            limit,
-            offset,
-            search
-          })
+          loadTravelRegionsFromHook(page, limit, search)
         ])
 
         setTotalRegions(totalCount)
@@ -317,7 +292,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
         setIsLoadingRegions(false)
       }
     },
-    [fetchTravelRegionCount, fetchRegionsQuery, travelRegionSetId]
+    [fetchTravelRegionCount, loadTravelRegionsFromHook, travelRegionSetId]
   )
 
   // Handle search
@@ -353,82 +328,6 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     },
     [loadTravelRegions, pageSize, allowanceRegionRules]
   )
-
-  // Load allowance region rules
-  const loadAllowanceRegionRules = useCallback(async () => {
-    try {
-      // Use the query hook to fetch rules
-      const result = await fetchRulesQuery({ travelRegionSetId })
-
-      // Extract all unique travel regions that have details
-      const regionsWithDetailsMap = new Map<string, TravelRegion>()
-      result.AllowanceRegionRule.forEach((rule: any) => {
-        rule.allowanceRegionRuleDetail?.forEach((detail: any) => {
-          if (detail.travelRegion && detail.travelRegion.id) {
-            const regionId = detail.travelRegion.id
-            if (!regionsWithDetailsMap.has(regionId)) {
-              regionsWithDetailsMap.set(regionId, {
-                id: detail.travelRegion.id,
-                code: detail.travelRegion.code,
-                value: detail.travelRegion.value
-              })
-            }
-          }
-        })
-      })
-      const regionsWithDetails = Array.from(regionsWithDetailsMap.values())
-
-      const rules: EditableAllowanceRegionRule[] = result.AllowanceRegionRule.map((rule: any) => {
-        const details = rule.allowanceRegionRuleDetail.map((detail: any) => {
-          return {
-            ...detail,
-            // Keep the travelRegion from GraphQL query (don't overwrite it!)
-            travelRegion: detail.travelRegion
-          }
-        })
-
-        // Extract validity periods from details
-        const periodMap = new Map<string, ValidityPeriod>()
-
-        details.forEach((detail: any) => {
-          const periodKey = `${detail.activeFrom}-${detail.activeTo || 'null'}`
-          if (!periodMap.has(periodKey)) {
-            periodMap.set(periodKey, {
-              id: periodKey,
-              activeFrom: detail.activeFrom,
-              activeTo: detail.activeTo,
-              currencyCode: detail.currency?.code || 'EUR',
-              hasConflict: false,
-              ruleId: rule.id
-            })
-          } else {
-            // Check for currency conflicts
-            const existing = periodMap.get(periodKey)!
-            if (existing.currencyCode !== (detail.currency?.code || 'EUR')) {
-              existing.hasConflict = true
-            }
-          }
-        })
-
-        return {
-          id: rule.id,
-          code: rule.code,
-          name: rule.name,
-          activeFrom: rule.activeFrom,
-          activeTo: rule.activeTo,
-          ruleOrder: rule.ruleOrder,
-          version: rule.version,
-          details,
-          validityPeriods: Array.from(periodMap.values())
-        }
-      })
-
-      return { rules, regionsWithDetails }
-    } catch (err) {
-      console.error('Error loading allowance region rules:', err)
-      return { rules: [], regionsWithDetails: [] }
-    }
-  }, [fetchRulesQuery, travelRegionSetId])
 
   // Helper to extract country code from travel region code
   // Handles both formats: "DE" (Romanian) and "DE-DE-000" (German)
@@ -484,19 +383,11 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
 
       rules.forEach(rule => {
         regions.forEach(region => {
-          // Extract country codes for matching (handles different travel region formats)
-          const regionCountryCode = extractCountryCode(region.code)
-
           // Find existing details for this rule-region combination
-          // Match by country code to handle different travel region set formats
+          // Match strictly by travel region ID only
           const existingDetails =
             rule.details?.filter(detail => {
-              const detailCountryCode = extractCountryCode(detail.travelRegion?.code || '')
-              return (
-                detailCountryCode === regionCountryCode ||
-                detail.travelRegion?.id === region.id ||
-                detail.travelRegion?.value === region.value
-              )
+              return detail.travelRegion?.id === region.id
             }) || []
 
           if (existingDetails.length > 0) {
@@ -568,7 +459,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     setError(null)
 
     try {
-      const [paginatedRegions, rulesData] = await Promise.all([
+      const [paginatedRegions, rulesData, currenciesData] = await Promise.all([
         loadTravelRegions(currentPage, pageSize, ''), // No search for normal load
         loadAllowanceRegionRules(),
         loadCurrencies()
@@ -576,6 +467,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
 
       const { rules, regionsWithDetails } = rulesData
       setAllowanceRegionRules(rules)
+      setCurrencies(currenciesData)
 
       // Generate cells for ALL rules and ALL regions (including those with details)
       // This ensures details are available for rendering even if region is on another page
@@ -877,8 +769,10 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
         code: formData.code.trim(),
         name: formData.name.trim(),
         description: `Allowance rule: ${formData.name.trim()}`,
-        activeFrom: formData.activeFrom || dayjs().format('YYYY-MM-DD'),
-        activeTo: formData.activeTo || null,
+        activeFrom: formData.activeFrom
+          ? `${formData.activeFrom}T00:00:00+00:00`
+          : `${dayjs().format('YYYY-MM-DD')}T00:00:00+00:00`,
+        activeTo: formData.activeTo ? `${formData.activeTo}T00:00:00+00:00` : null,
         travelRegionSetRef: travelRegionSetId,
         ruleOrder: allowanceRegionRules.length + 1,
         additionalProperties: {},
@@ -888,14 +782,34 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
       // Get a fresh client with current token
       const client = getExpenseSettingsClient()
 
-      // Send the rule data directly (like AllowanceRegionRuleForm does)
-      // The ExpenseSettingsClient will transform it to the proper API payload
-      await client.saveAllowanceRegionRule(ruleData)
+      // Save the rule first
+      const savedRule = await client.saveAllowanceRegionRule(ruleData)
 
-      // Reload data to show the new rule
+      // Save each detail if provided
+      if (formData.details && formData.details.length > 0) {
+        for (const detail of formData.details) {
+          const detailPayload = {
+            allowanceRegionRuleDetail: {
+              amount: detail.amounts?.[0] || 0,
+              currencyRef: detail.currencyRef,
+              activeFrom: detail.activeFrom ? `${detail.activeFrom}T00:00:00+00:00` : null,
+              activeTo: detail.activeTo ? `${detail.activeTo}T00:00:00+00:00` : null,
+              travelRegionRef: detail.travelRegionRef || detail.travelRegion,
+              countryRef: detail.countryRef,
+              home: detail.home || false,
+              allowanceRegionRule: savedRule.allowanceRegionRule.id
+            },
+            changeMode: 'INSERT'
+          }
+
+          await client.post('/employee-expense/saveAllowanceRegionRuleDetail', detailPayload)
+        }
+      }
+
+      // Reload data to show the new rule with details
       await loadData()
       setIsRuleModalOpen(false)
-      toast.success('Allowance rule created successfully')
+      toast.success('Allowance rule and details created successfully')
     } catch (err) {
       console.error('Error creating rule:', err)
       toast.error('Failed to create rule')

@@ -92,7 +92,7 @@ const TravelRegionForm: React.FC<TravelRegionFormProps> = ({
         code: formData.code.trim(),
         value: formData.value.trim(),
         description: formData.description?.trim() || '',
-        parentCatalogEntryId: travelRegionSetId, // Associate with parent Travel Region Set
+        parentEntryId: travelRegionSetId, // Use parentEntryId instead of parentCatalogEntryId
         translations: [
           {
             localeCode: 'en',

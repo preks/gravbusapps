@@ -181,6 +181,7 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
   // Handlers
   const handleUpdateBasicInfo = (updates: Partial<TravelRegionRuleFormData>) => {
     setFormData(prev => ({ ...prev, ...updates }))
+    setShowValidation(false) // Clear validation when user makes changes
   }
 
   const addColumnGroup = () => {
@@ -198,23 +199,7 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
       ...prev,
       details: [...prev.details, newDetail]
     }))
-  }
-
-  // Add amount column to a group
-  const addAmountColumn = (groupKey: string) => {
-    setFormData(prev => ({
-      ...prev,
-      details: prev.details.map(detail => {
-        const detailGroupKey = `${detail.countryRef}-${detail.travelRegion}-${detail.currencyRef}-${detail.home}-${detail.activeFrom}-${detail.activeTo || 'ongoing'}`
-        if (detailGroupKey === groupKey) {
-          return {
-            ...detail,
-            amounts: [...(detail.amounts || []), 0]
-          }
-        }
-        return detail
-      })
-    }))
+    setShowValidation(false) // Clear validation when adding new group
   }
 
   // Update group details
@@ -224,7 +209,6 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
       // Extract country code from format "Country:v1:BE" -> "BE"
       const parts = value.split(':')
       const countryCode = parts[parts.length - 1]
-      console.log('🌍 Country selected, loading regions for:', countryCode)
 
       // Reset pagination and load travel regions for selected country
       resetPagination()
@@ -241,6 +225,7 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
         return detail
       })
     }))
+    setShowValidation(false) // Clear validation when user makes changes
   }
 
   // Update amount in group
@@ -258,6 +243,7 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
         return detail
       })
     }))
+    setShowValidation(false) // Clear validation when user makes changes
   }
 
   // Remove group
@@ -267,22 +253,6 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
       details: prev.details.filter(detail => {
         const detailGroupKey = `${detail.countryRef}-${detail.travelRegion}-${detail.currencyRef}-${detail.home}-${detail.activeFrom}-${detail.activeTo || 'ongoing'}`
         return detailGroupKey !== groupKey
-      })
-    }))
-  }
-
-  // Remove amount from a group
-  const removeAmount = (groupKey: string, amountIndex: number) => {
-    setFormData(prev => ({
-      ...prev,
-      details: prev.details.map(detail => {
-        const detailGroupKey = `${detail.countryRef}-${detail.travelRegion}-${detail.currencyRef}-${detail.home}-${detail.activeFrom}-${detail.activeTo || 'ongoing'}`
-        if (detailGroupKey === groupKey) {
-          const newAmounts = [...(detail.amounts || [])]
-          newAmounts.splice(amountIndex, 1)
-          return { ...detail, amounts: newAmounts }
-        }
-        return detail
       })
     }))
   }
@@ -326,10 +296,10 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
 
   // Handle save
   const handleSave = async () => {
+    setShowValidation(true) // Show validation immediately
     const errors = validateForm()
 
     if (errors.length > 0) {
-      setShowValidation(true)
       setError(errors.join(', '))
       return
     }
@@ -424,7 +394,8 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
         <Alert>
           <PiWarning className="gba:h-4 gba:w-4" />
           <AlertDescription>
-            {usageMessage || 'This rule is used in expense transactions. Only the "Valid To" date can be modified. To make other changes, create a new rule.'}
+            {usageMessage ||
+              'This rule is used in expense transactions. Only the "Valid To" date can be modified. To make other changes, create a new rule.'}
           </AlertDescription>
         </Alert>
       )}
@@ -445,11 +416,10 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
         onAddGroup={addColumnGroup}
         onUpdateGroupDetail={updateGroupDetail}
         onUpdateAmount={updateAmount}
-        onAddAmountColumn={addAmountColumn}
-        onRemoveAmount={removeAmount}
         onRemoveGroup={removeGroup}
         onScroll={handleTravelRegionScroll}
         isUsedInTransactions={isUsedInTransactions}
+        showValidation={showValidation}
       />
 
       <FormActions isEditing={isEditing} isSubmitting={isSubmitting} onSave={handleSave} onCancel={onCancel} />

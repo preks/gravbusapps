@@ -12,7 +12,7 @@ import {
   Checkbox,
   DateInput
 } from '@newwork/nw-design-system'
-import { PiPlus, PiTrash } from 'react-icons/pi'
+import { PiTrash } from 'react-icons/pi'
 import { SmartColumnGroup, CatalogOption } from '../types'
 
 interface RegionGroupCardProps {
@@ -25,11 +25,10 @@ interface RegionGroupCardProps {
   hasMore: boolean
   onUpdateField: (field: string, value: any) => void
   onUpdateAmount: (amountIndex: number, value: string) => void
-  onAddAmount: () => void
-  onRemoveAmount: (amountIndex: number) => void
   onRemoveGroup: () => void
   onScroll: (e: React.UIEvent<HTMLDivElement>) => void
   isUsedInTransactions?: boolean
+  showValidation?: boolean
 }
 
 export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
@@ -42,16 +41,18 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
   hasMore,
   onUpdateField,
   onUpdateAmount,
-  onAddAmount,
-  onRemoveAmount,
   onRemoveGroup,
   onScroll,
-  isUsedInTransactions = false
+  isUsedInTransactions = false,
+  showValidation = false
 }) => {
   // Check if this is an existing detail (has real ID) or a new one (temp ID)
   const isExistingDetail = group.detailIds.length > 0 && group.detailIds.some(id => id && !id.startsWith('temp-'))
   // Only restrict editing for EXISTING details when the rule is used in transactions
   const isEditRestricted = isUsedInTransactions && isExistingDetail
+
+  // Check if any amounts are invalid (0 or empty)
+  const hasInvalidAmounts = showValidation && group.amounts.every(amt => !amt || amt <= 0)
   return (
     <div className="gba:border gba:rounded-lg gba:p-3 gba:space-y-3 gba:bg-card">
       {/* Group Header */}
@@ -186,7 +187,7 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
             <Label className="gba:text-xs gba:font-medium">Valid To</Label>
             <DateInput
               value={group.validTo || ''}
-              onChange={date => onUpdateField('activeTo', date || undefined)}
+              onChange={date => onUpdateField('activeTo', date || '')}
               data-testid={`travel-region-rule-group-valid-to-${groupIndex}`}
               max="2099-12-31"
             />
@@ -198,56 +199,19 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
 
         {/* Amounts Section */}
         <div className="gba:space-y-1.5">
-          <div className="gba:flex gba:items-center gba:justify-between">
-            <Label className="gba:text-xs gba:font-medium">
-              Allowance Amounts <span className="gba:text-destructive gba:ml-1">*</span>
-            </Label>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onAddAmount}
-              className="gba:flex gba:items-center gba:gap-1 gba:h-7 gba:text-xs"
-              disabled={isEditRestricted}
-            >
-              <PiPlus className="gba:h-3 gba:w-3" />
-              Add Amount
-            </Button>
-          </div>
-
-          {group.amounts.length > 0 ? (
-            <div className="gba:space-y-1.5">
-              {group.amounts.map((amount, amountIndex) => (
-                <div key={`${group.key}-amount-${amountIndex}`} className="gba:flex gba:items-center gba:gap-2">
-                  <Label className="gba:text-xs gba:text-muted-foreground gba:w-16">Amount {amountIndex + 1}</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={amount || ''}
-                    onChange={e => onUpdateAmount(amountIndex, e.target.value)}
-                    placeholder="0.00"
-                    className="gba:w-48 gba:h-8 gba:text-sm"
-                    data-testid={`travel-region-rule-amount-${group.key}-${amountIndex}`}
-                    disabled={isEditRestricted}
-                  />
-                  {group.amounts.length > 1 && !isEditRestricted && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onRemoveAmount(amountIndex)}
-                      className="gba:text-destructive hover:gba:text-destructive gba:h-7 gba:w-7 gba:p-0"
-                      title="Remove this amount"
-                    >
-                      <PiTrash className="gba:h-3.5 gba:w-3.5" />
-                    </Button>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="gba:text-center gba:py-3 gba:text-muted-foreground gba:text-xs gba:italic">
-              No amounts added yet. Click "Add Amount" above.
-            </div>
-          )}
+          <Label className="gba:text-xs gba:font-medium">
+            Allowance Amount <span className="gba:text-destructive gba:ml-1">*</span>
+          </Label>
+          <Input
+            type="number"
+            step="0.01"
+            value={group.amounts[0] || ''}
+            onChange={e => onUpdateAmount(0, e.target.value)}
+            placeholder="0.00"
+            className={`gba:h-8 gba:text-sm ${hasInvalidAmounts ? 'gba:border-destructive focus:gba:border-destructive' : ''}`}
+            data-testid={`travel-region-rule-amount-${group.key}`}
+            disabled={isEditRestricted}
+          />
         </div>
       </div>
     </div>
