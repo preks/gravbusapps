@@ -10,12 +10,16 @@ import {
   AvatarFallback,
   Combobox,
   Alert,
-  AlertDescription
+  AlertDescription,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from '@newwork/nw-design-system'
 import { PiX } from 'react-icons/pi'
 import { User } from 'lucide-react'
 import { useFormContext, useFieldArray } from 'react-hook-form'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
 import { ContactTypeLabels } from '@/common/data/relations/constants/contactConstants'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 
@@ -51,9 +55,6 @@ interface ContactSegmentProps {
 
   // Contact relations with full data (for display)
   contactRelations?: any[]
-
-  // Label for the segment
-  label?: string
 
   // Test ID prefix
   dataTestId?: string

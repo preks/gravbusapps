@@ -271,7 +271,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
                       junction.investmentAccount?.investmentAccountContact ||
                       []
                   )
-                  .filter(Boolean)?.[0]
+                  .find(Boolean)
                 return firstContactAssoc?.contact?.id || null
               })(),
               recordUrl: (() => {
@@ -282,7 +282,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
                       junction.investmentAccount?.investmentAccountContact ||
                       []
                   )
-                  .filter(Boolean)?.[0]
+                  .find(Boolean)
                 const firstContact = firstContactAssoc?.contact
                 return firstContact?.id
                   ? buildPlatformUrl('/platform/irm/contact-record', {
@@ -300,7 +300,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
                       junction.investmentAccount?.investmentAccountContact ||
                       []
                   )
-                  .filter(Boolean)?.[0]
+                  .find(Boolean)
                 const firstContact = firstContactAssoc?.contact
                 return firstContact?.id
                   ? {

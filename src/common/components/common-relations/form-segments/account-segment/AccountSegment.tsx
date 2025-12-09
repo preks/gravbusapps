@@ -10,13 +10,17 @@ import {
   AvatarFallback,
   Combobox,
   Alert,
-  AlertDescription
+  AlertDescription,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from '@newwork/nw-design-system'
 import { PiX } from 'react-icons/pi'
 import { Building2 } from 'lucide-react'
 import { useFormContext, useFieldArray } from 'react-hook-form'
 import { CatalogSelect } from '@/components/catalog-select'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
 import { INVESTMENT_ACCOUNT_TYPE } from '@/common/data/investment/constants/investmentCatalogs'
 import { ContactTypeLabels } from '@/common/data/relations/constants/contactConstants'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
@@ -57,9 +61,6 @@ interface AccountSegmentProps {
 
   // Account contacts with full data (for display)
   accountContacts?: any[]
-
-  // Label for the segment
-  label?: string
 
   // Test ID prefix
   dataTestId?: string

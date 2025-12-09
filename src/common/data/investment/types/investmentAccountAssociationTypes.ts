@@ -1,5 +1,4 @@
-import type { BaseEntity } from '@/common/network/graphql/commonTypes'
-import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
+import type { BaseEntity, CatalogEntry } from '@/common/network/graphql/commonTypes'
 import type { Investment } from './investmentTypes.new'
 import type { InvestmentOpportunity } from './investmentOpportunityTypes'
 import type { InvestmentAccount } from './investmentAccountTypes'

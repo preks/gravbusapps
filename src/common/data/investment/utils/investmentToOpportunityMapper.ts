@@ -69,7 +69,7 @@ export const mapInvestmentToInvestmentOpportunityValues = (
       investment.investmentAccounts?.map(assoc => ({
         accountId: assoc.investmentAccountId,
         accountTypeRef: assoc.investmentAccountTypeRef,
-        account: assoc.investmentAccount as any
+        account: assoc.investmentAccount
       })) || []
   }
 
