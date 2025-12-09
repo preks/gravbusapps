@@ -50,6 +50,7 @@ const OpportunityLayout: React.FC<OpportunityLayoutProps> = ({
   ownerEmployee,
   entityId,
   account,
+  company,
   useAccounts,
   opportunityContacts,
   useContacts,
@@ -95,6 +96,7 @@ const OpportunityLayout: React.FC<OpportunityLayoutProps> = ({
         ownerEmployee={ownerEmployee}
         entityId={entityId}
         account={account}
+        company={company}
         useAccounts={useAccounts}
         opportunityContacts={opportunityContacts}
         useContacts={useContacts}

@@ -1,11 +1,13 @@
 import { type BaseEntity, type CatalogEntry, BASE_ENTITY_DESCRIPTORS } from '@/common/network/graphql/commonTypes'
 import type { Employee } from '@/common/data/employee/types/employeeBaseTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
+import type { Company } from '@/common/data/orgchart/types/companyTypes'
 import type { InvestmentAccount } from './investmentAccountTypes'
 import type { InvestmentOpportunity } from './investmentOpportunityTypes'
-import type { EquityInvestment } from './equityInvestmentTypes'
-import type { RealEstateInvestment } from './realEstateInvestmentTypes'
-import type { LiquidFundInvestment } from './liquidFundInvestmentTypes'
+import { type EquityInvestment, EquityInvestmentFormFields } from './equityInvestmentTypes'
+import { type RealEstateInvestment, RealEstateInvestmentFormFields } from './realEstateInvestmentTypes'
+import { type LiquidFundInvestment, LiquidFundInvestmentFormFields } from './liquidFundInvestmentTypes'
+import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
 
 /**
  * Investment Type
@@ -71,12 +73,14 @@ export interface Investment extends BaseEntity {
   investmentAccount?: InvestmentAccount
   investmentOpportunity?: InvestmentOpportunity
   loanRecipientInvestmentAccount?: InvestmentAccount
+  company?: Company
 
   // Entity Reference IDs (Id fields)
   ownerEmployeeId?: string
   investmentAccountId?: string
   investmentOpportunityId?: string
   loanRecipientInvestmentAccountId?: string
+  companyId?: string
 
   // Investment Role relationships (array)
   investmentRole?: InvestmentRole[]
@@ -103,6 +107,7 @@ export interface InvestmentRole extends BaseEntity {
  * ALL fields including Ref and Id fields (BaseEntity fields NOT included - handled by BASE_ENTITY_DESCRIPTORS)
  */
 export const InvestmentFields = {
+  id: 'id',
   // Investment Core Fields
   code: 'code',
   name: 'name',
@@ -161,18 +166,20 @@ export const InvestmentFields = {
   investmentAccount: 'investmentAccount',
   investmentOpportunity: 'investmentOpportunity',
   loanRecipientInvestmentAccount: 'loanRecipientInvestmentAccount',
+  company: 'company',
 
   // Entity Reference IDs (Id fields)
   ownerEmployeeId: 'ownerEmployeeId',
   investmentAccountId: 'investmentAccountId',
   investmentOpportunityId: 'investmentOpportunityId',
   loanRecipientInvestmentAccountId: 'loanRecipientInvestmentAccountId',
+  companyId: 'companyId',
 
   // Array Relationships (not used in forms)
-  investmentRole: 'investmentRole',
   equityInvestment: 'equityInvestment',
   realEstateInvestment: 'realEstateInvestment',
-  liquidFundInvestment: 'liquidFundInvestment'
+  liquidFundInvestment: 'liquidFundInvestment',
+  investmentRole: 'investmentRole'
 } as const
 
 /**
@@ -183,14 +190,6 @@ export const InvestmentFields = {
 export const InvestmentFormFields = {
   // Base Entity Fields (for form input)
   id: 'id',
-  createdAt: 'createdAt',
-  createdBy: 'createdBy',
-  updatedAt: 'updatedAt',
-  updatedBy: 'updatedBy',
-  isDeleted: 'isDeleted',
-  recordState: 'recordState',
-  activeFrom: 'activeFrom',
-  activeTo: 'activeTo',
   version: 'version',
   additionalProperties: 'additionalProperties',
 
@@ -242,8 +241,18 @@ export const InvestmentFormFields = {
   ownerEmployeeId: 'ownerEmployee',
   investmentAccountId: 'investmentAccount',
   investmentOpportunityId: 'investmentOpportunity',
-  loanRecipientInvestmentAccountId: 'loanRecipientInvestmentAccount'
+  loanRecipientInvestmentAccountId: 'loanRecipientInvestmentAccount',
+  companyId: 'company',
+
+  investmentRole: 'investmentRoles'
 } as const
+
+/**
+ * Export Subtype Form Fields for use in payload builders
+ */
+export { EquityInvestmentFormFields } from './equityInvestmentTypes'
+export { RealEstateInvestmentFormFields } from './realEstateInvestmentTypes'
+export { LiquidFundInvestmentFormFields } from './liquidFundInvestmentTypes'
 
 /**
  * Investment Role Fields
@@ -263,15 +272,6 @@ export const InvestmentRoleFormFields = {
   // Base Entity Fields
   id: 'id',
   version: 'version',
-  createdAt: 'createdAt',
-  createdBy: 'createdBy',
-  updatedAt: 'updatedAt',
-  updatedBy: 'updatedBy',
-  isDeleted: 'isDeleted',
-  recordState: 'recordState',
-  activeFrom: 'activeFrom',
-  activeTo: 'activeTo',
-  additionalProperties: 'additionalProperties',
 
   // Investment Role Fields
   displayOrder: 'displayOrder',
@@ -464,6 +464,12 @@ export const createInvestmentDescriptors = (
     sortPath: `${fields.investmentOpportunity}.name`,
     type: 'text'
   },
+  {
+    key: 'company',
+    searchPaths: [`${fields.company}.name`, `${fields.company}.code`],
+    sortPath: `${fields.company}.name`,
+    type: 'text'
+  },
 
   // Filter IDs
   {
@@ -543,6 +549,15 @@ export const createInvestmentDescriptors = (
     kind: 'inIds'
   },
   {
+    key: 'companyIds',
+    path: fields.companyId,
+    filterLabel: 'Company',
+    optionSelectPaths: [`${fields.company}.id`, `${fields.company}.name`],
+    optionSearchPaths: [`${fields.company}.name`, `${fields.company}.code`],
+    optionDistinctOn: [fields.companyId],
+    kind: 'inIds'
+  },
+  {
     key: 'opportunityIds',
     path: fields.investmentOpportunityId,
     filterLabel: 'Opportunity',
@@ -592,3 +607,49 @@ export const createInvestmentRoleDescriptors = (
  */
 export const INVESTMENT_DESCRIPTORS = createInvestmentDescriptors()
 export const INVESTMENT_ROLE_DESCRIPTORS = createInvestmentRoleDescriptors()
+
+/**
+ * Build Investment Payload
+ * Uses buildPayload utility to transform investment data for API submission
+ * Handles nested structures (equityInvestment, realEstateInvestment, liquidFundInvestment) separately
+ */
+export const buildInvestmentPayload = (investment: Partial<Investment>) => {
+  // Build base payload using InvestmentFormFields for field mapping
+  const basePayload = buildPayload(investment, InvestmentFormFields)
+
+  const result: any = {
+    investment: basePayload
+  }
+
+  // Handle investment roles separately - investmentRole (form) → investmentRoles (API)
+  if (investment.investmentRole && investment.investmentRole.length > 0) {
+    const investmentRolesPayload = investment.investmentRole.map((role: any, index: number) => ({
+      ...(role.id && { id: role.id }),
+      ...(role.version !== undefined && { version: role.version }),
+      investmentRoleRef: role.investmentRole?.id,
+      displayOrder: role.displayOrder ?? index,
+      ...(role.isDeleted !== undefined && { isDeleted: role.isDeleted })
+    }))
+    result.investment.investmentRoles = investmentRolesPayload
+  }
+
+  // Handle nested structures separately - einfach aus dem Objekt den Payload bauen
+  if (investment.equityInvestment && investment.equityInvestment.length > 0) {
+    const equityData = investment.equityInvestment[0]
+    result.equityInvestment = buildPayload(equityData, EquityInvestmentFormFields)
+  }
+
+  if (investment.realEstateInvestment && investment.realEstateInvestment.length > 0) {
+    const realEstateData = investment.realEstateInvestment[0]
+    result.realEstateInvestment = buildPayload(realEstateData, RealEstateInvestmentFormFields)
+  }
+
+  if (investment.liquidFundInvestment && investment.liquidFundInvestment.length > 0) {
+    const liquidFundData = investment.liquidFundInvestment[0]
+    result.liquidFundInvestment = buildPayload(liquidFundData, LiquidFundInvestmentFormFields)
+  }
+
+  return {
+    investmentRequest: result
+  }
+}

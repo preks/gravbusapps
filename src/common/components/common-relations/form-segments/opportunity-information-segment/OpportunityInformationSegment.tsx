@@ -19,6 +19,7 @@ import ContactSelect, {
   type SelectOption as ContactSelectOption
 } from '@/common/components/common-relations/selects/contact-select/ContactSelect'
 import type { SelectOption as AccountSelectOption } from '@/common/components/common-relations/selects/account-select'
+import { CompanySelect } from '@/components/company-select'
 import translations from './_i18n'
 
 interface OpportunityInformationSegmentProps {
@@ -54,6 +55,8 @@ interface OpportunityInformationSegmentProps {
   opportunityForecastCatalogIdentifier?: string
   // Currency catalog identifier
   currencyCatalogIdentifier?: string
+  // Company from opportunity data (to display immediately)
+  company?: any
 }
 
 const OpportunityInformationSegment: React.FC<OpportunityInformationSegmentProps> = ({
@@ -61,6 +64,7 @@ const OpportunityInformationSegment: React.FC<OpportunityInformationSegmentProps
   ownerEmployee,
   entityId,
   account,
+  company,
   useAccounts,
   useContacts,
   customFields,
@@ -214,6 +218,29 @@ const OpportunityInformationSegment: React.FC<OpportunityInformationSegmentProps
 
   return (
     <div className="gba:space-y-6 gba:w-full gba:max-w-full gba:overflow-hidden">
+      {/* Company */}
+      <FormField
+        control={form.control}
+        name="companyId"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>{t('company-label')}</FormLabel>
+            <FormControl>
+              <CompanySelect
+                value={field.value || null}
+                onValueChange={(v: string | null) => {
+                  field.onChange(v || '')
+                }}
+                businessAppContext={businessAppContext}
+                initialCompany={company}
+                data-testid="opportunity-information-segment-company"
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
       {/* Owner */}
       <FormField
         control={form.control}
