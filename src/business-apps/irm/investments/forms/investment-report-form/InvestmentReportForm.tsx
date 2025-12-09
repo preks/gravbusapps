@@ -252,7 +252,9 @@ export const InvestmentReportForm: React.FC<InvestmentReportFormProps> = ({
         ...currentValues,
         investment: {
           ...currentValues.investment,
-          ...(dynamicFields.investment ?? {})
+          ...(dynamicFields.investment && Object.keys(dynamicFields.investment).length > 0
+            ? dynamicFields.investment
+            : {})
         },
         ...(dynamicFields.equityInvestment && {
           equityInvestment: {

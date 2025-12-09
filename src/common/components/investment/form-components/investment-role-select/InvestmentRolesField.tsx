@@ -33,7 +33,7 @@ export const InvestmentRolesField = ({
     if (value && typeof value === 'object' && !Array.isArray(value)) {
       const normalizedRoles: InvestmentRoleItem[] = [
         {
-          investmentRole: value as CatalogEntry,
+          investmentRole: value,
           displayOrder: 0
         }
       ]
@@ -49,7 +49,7 @@ export const InvestmentRolesField = ({
       // During render, just use the single object wrapped in array for display
       return [
         {
-          investmentRole: value as CatalogEntry,
+          investmentRole: value,
           displayOrder: 0
         }
       ]
@@ -64,7 +64,7 @@ export const InvestmentRolesField = ({
 
   // Get selected role IDs for CatalogSelect (array of strings)
   const selectedRoleIds = useMemo(() => {
-    return activeRoles.map(role => role.investmentRole?.id).filter(Boolean) as string[]
+    return activeRoles.map(role => role.investmentRole?.id).filter((id): id is string => Boolean(id))
   }, [activeRoles])
 
   // Handle changes from CatalogSelect (both adding and removing)

@@ -147,67 +147,95 @@ const buildInvestmentFieldFragment = (fieldSet: Set<string>): string => {
 }
 
 /**
- * Build Investment Report Fragment
- * Field names match InvestmentReport interface field names exactly
+ * Build basic scalar fields section
  */
-export const buildInvestmentReportFragment = (fields: string[]): string => {
-  const fieldSet = new Set(fields)
+const buildBasicFields = (fieldSet: Set<string>): string => {
+  const fields: string[] = []
+  if (fieldSet.has('id')) fields.push('id')
+  if (fieldSet.has('version')) fields.push('version')
+  if (fieldSet.has('date')) fields.push(InvestmentReportFields.date)
+  if (fieldSet.has('scope')) fields.push(InvestmentReportFields.scope)
+  if (fieldSet.has('plannedExitDate')) fields.push(InvestmentReportFields.plannedExitDate)
+  if (fieldSet.has('totalInvestmentAmount')) fields.push(InvestmentReportFields.totalInvestmentAmount)
+  if (fieldSet.has('investmentMarketValue')) fields.push(InvestmentReportFields.investmentMarketValue)
+  if (fieldSet.has('debtFinancingAmount')) fields.push(InvestmentReportFields.debtFinancingAmount)
+  if (fieldSet.has('requiredCapitalAmount')) fields.push(InvestmentReportFields.requiredCapitalAmount)
+  if (fieldSet.has('forecastedRevenueAmount')) fields.push(InvestmentReportFields.forecastedRevenueAmount)
+  if (fieldSet.has('forecastedProfitAmount')) fields.push(InvestmentReportFields.forecastedProfitAmount)
+  if (fieldSet.has('stakePercentage')) fields.push(InvestmentReportFields.stakePercentage)
+  if (fieldSet.has('loanRecipientName')) fields.push(InvestmentReportFields.loanRecipientName)
+  if (fieldSet.has('loanAmount')) fields.push(InvestmentReportFields.loanAmount)
+  if (fieldSet.has('loanOpenCommitmentAmount')) fields.push(InvestmentReportFields.loanOpenCommitmentAmount)
+  if (fieldSet.has('loanInterestRate')) fields.push(InvestmentReportFields.loanInterestRate)
+  if (fieldSet.has('loanStartDate')) fields.push(InvestmentReportFields.loanStartDate)
+  if (fieldSet.has('loanEndDate')) fields.push(InvestmentReportFields.loanEndDate)
+  if (fieldSet.has('loanInterestClaim')) fields.push(InvestmentReportFields.loanInterestClaim)
+  if (fieldSet.has('totalCommitmentAmount')) fields.push(InvestmentReportFields.totalCommitmentAmount)
+  if (fieldSet.has('totalDistributionAmount')) fields.push(InvestmentReportFields.totalDistributionAmount)
+  if (fieldSet.has('fundManagerName')) fields.push(InvestmentReportFields.fundManagerName)
+  if (fieldSet.has('identification')) fields.push(InvestmentReportFields.identification)
+  if (fieldSet.has('businessKey')) fields.push(InvestmentReportFields.businessKey)
+  if (fieldSet.has('processInstanceId')) fields.push(InvestmentReportFields.processInstanceId)
+  if (fieldSet.has('synchronizedAt')) fields.push(InvestmentReportFields.synchronizedAt)
+  if (fieldSet.has('createdAt')) fields.push('createdAt')
+  if (fieldSet.has('createdBy')) fields.push('createdBy')
+  if (fieldSet.has('updatedAt')) fields.push('updatedAt')
+  if (fieldSet.has('updatedBy')) fields.push('updatedBy')
+  if (fieldSet.has('isDeleted')) fields.push('isDeleted')
+  if (fieldSet.has('recordState')) fields.push('recordState')
+  if (fieldSet.has('activeFrom')) fields.push('activeFrom')
+  if (fieldSet.has('activeTo')) fields.push('activeTo')
+  if (fieldSet.has('additionalProperties')) fields.push('additionalProperties')
+  return fields.join('\n    ')
+}
 
+/**
+ * Build catalog reference fields section
+ */
+const buildCatalogReferenceFields = (fieldSet: Set<string>): string => {
+  const fields: string[] = []
+  fields.push(
+    buildCatalogReferenceField(
+      fieldSet,
+      'investmentStakeType',
+      'investmentStakeTypeRef',
+      InvestmentReportFields.investmentStakeType
+    )
+  )
+  fields.push(
+    buildCatalogReferenceField(
+      fieldSet,
+      'investmentPhase',
+      'investmentPhaseRef',
+      InvestmentReportFields.investmentPhase
+    )
+  )
+  fields.push(
+    buildCatalogReferenceField(
+      fieldSet,
+      'investmentStatus',
+      'investmentStatusRef',
+      InvestmentReportFields.investmentStatus
+    )
+  )
+  fields.push(
+    buildCatalogReferenceField(
+      fieldSet,
+      'investmentRiskLevel',
+      'investmentRiskLevelRef',
+      InvestmentReportFields.investmentRiskLevel
+    )
+  )
+  fields.push(buildCatalogReferenceField(fieldSet, 'currency', 'currencyRef', InvestmentReportFields.currency))
+  return fields.filter(f => f.trim()).join('\n    ')
+}
+
+/**
+ * Build equity investment report fragment
+ */
+const buildEquityInvestmentReportFragment = (fieldSet: Set<string>): string => {
+  if (!fieldSet.has('equityInvestmentReport')) return ''
   return `
-    ${AUDIT_FIELDS}
-    ${fieldSet.has('id') ? 'id' : ''}
-    ${fieldSet.has('version') ? 'version' : ''}
-    ${fieldSet.has('date') ? InvestmentReportFields.date : ''}
-    ${fieldSet.has('scope') ? InvestmentReportFields.scope : ''}
-    ${fieldSet.has('plannedExitDate') ? InvestmentReportFields.plannedExitDate : ''}
-    ${fieldSet.has('totalInvestmentAmount') ? InvestmentReportFields.totalInvestmentAmount : ''}
-    ${fieldSet.has('investmentMarketValue') ? InvestmentReportFields.investmentMarketValue : ''}
-    ${fieldSet.has('debtFinancingAmount') ? InvestmentReportFields.debtFinancingAmount : ''}
-    ${fieldSet.has('requiredCapitalAmount') ? InvestmentReportFields.requiredCapitalAmount : ''}
-    ${fieldSet.has('forecastedRevenueAmount') ? InvestmentReportFields.forecastedRevenueAmount : ''}
-    ${fieldSet.has('forecastedProfitAmount') ? InvestmentReportFields.forecastedProfitAmount : ''}
-    ${fieldSet.has('stakePercentage') ? InvestmentReportFields.stakePercentage : ''}
-    ${fieldSet.has('loanRecipientName') ? InvestmentReportFields.loanRecipientName : ''}
-    ${fieldSet.has('loanAmount') ? InvestmentReportFields.loanAmount : ''}
-    ${fieldSet.has('loanOpenCommitmentAmount') ? InvestmentReportFields.loanOpenCommitmentAmount : ''}
-    ${fieldSet.has('loanInterestRate') ? InvestmentReportFields.loanInterestRate : ''}
-    ${fieldSet.has('loanStartDate') ? InvestmentReportFields.loanStartDate : ''}
-    ${fieldSet.has('loanEndDate') ? InvestmentReportFields.loanEndDate : ''}
-    ${fieldSet.has('loanInterestClaim') ? InvestmentReportFields.loanInterestClaim : ''}
-    ${fieldSet.has('totalCommitmentAmount') ? InvestmentReportFields.totalCommitmentAmount : ''}
-    ${fieldSet.has('totalDistributionAmount') ? InvestmentReportFields.totalDistributionAmount : ''}
-    ${fieldSet.has('fundManagerName') ? InvestmentReportFields.fundManagerName : ''}
-    ${fieldSet.has('identification') ? InvestmentReportFields.identification : ''}
-    ${fieldSet.has('businessKey') ? InvestmentReportFields.businessKey : ''}
-    ${fieldSet.has('processInstanceId') ? InvestmentReportFields.processInstanceId : ''}
-    ${fieldSet.has('synchronizedAt') ? InvestmentReportFields.synchronizedAt : ''}
-    ${fieldSet.has('createdAt') ? 'createdAt' : ''}
-    ${fieldSet.has('createdBy') ? 'createdBy' : ''}
-    ${fieldSet.has('updatedAt') ? 'updatedAt' : ''}
-    ${fieldSet.has('updatedBy') ? 'updatedBy' : ''}
-    ${fieldSet.has('isDeleted') ? 'isDeleted' : ''}
-    ${fieldSet.has('recordState') ? 'recordState' : ''}
-    ${fieldSet.has('activeFrom') ? 'activeFrom' : ''}
-    ${fieldSet.has('activeTo') ? 'activeTo' : ''}
-    ${fieldSet.has('additionalProperties') ? 'additionalProperties' : ''}
-    
-    ${buildCatalogReferenceField(fieldSet, 'investmentStakeType', 'investmentStakeTypeRef', InvestmentReportFields.investmentStakeType)}
-    
-    ${buildCatalogReferenceField(fieldSet, 'investmentPhase', 'investmentPhaseRef', InvestmentReportFields.investmentPhase)}
-    
-    ${buildCatalogReferenceField(fieldSet, 'investmentStatus', 'investmentStatusRef', InvestmentReportFields.investmentStatus)}
-    
-    ${buildCatalogReferenceField(fieldSet, 'investmentRiskLevel', 'investmentRiskLevelRef', InvestmentReportFields.investmentRiskLevel)}
-    
-    ${buildCatalogReferenceField(fieldSet, 'currency', 'currencyRef', InvestmentReportFields.currency)}
-    
-    ${buildInvestmentFieldFragment(fieldSet)}
-    
-    ${buildEntityReferenceField(fieldSet, 'loanRecipientInvestmentAccount', 'loanRecipientInvestmentAccountId', InvestmentReportFields.loanRecipientInvestmentAccount, INVESTMENT_ACCOUNT_REF)}
-    
-    ${
-      fieldSet.has('equityInvestmentReport')
-        ? `
       ${InvestmentReportFields.equityInvestmentReport} {
         id
         version
@@ -224,12 +252,14 @@ export const buildInvestmentReportFragment = (fields: string[]): string => {
         ${AUDIT_FIELDS}
       }
     `
-        : ''
-    }
-    
-    ${
-      fieldSet.has('liquidFundInvestmentReport')
-        ? `
+}
+
+/**
+ * Build liquid fund investment report fragment
+ */
+const buildLiquidFundInvestmentReportFragment = (fieldSet: Set<string>): string => {
+  if (!fieldSet.has('liquidFundInvestmentReport')) return ''
+  return `
       ${InvestmentReportFields.liquidFundInvestmentReport} {
         id
         version
@@ -257,12 +287,14 @@ export const buildInvestmentReportFragment = (fields: string[]): string => {
         ${AUDIT_FIELDS}
       }
     `
-        : ''
-    }
-    
-    ${
-      fieldSet.has('realEstateInvestmentReport')
-        ? `
+}
+
+/**
+ * Build real estate investment report fragment
+ */
+const buildRealEstateInvestmentReportFragment = (fieldSet: Set<string>): string => {
+  if (!fieldSet.has('realEstateInvestmentReport')) return ''
+  return `
       ${InvestmentReportFields.realEstateInvestmentReport} {
         id
         version
@@ -284,12 +316,14 @@ export const buildInvestmentReportFragment = (fields: string[]): string => {
         ${AUDIT_FIELDS}
       }
     `
-        : ''
-    }
-    
-    ${
-      fieldSet.has('investmentRoleReport')
-        ? `
+}
+
+/**
+ * Build investment role report fragment
+ */
+const buildInvestmentRoleReportFragment = (fieldSet: Set<string>): string => {
+  if (!fieldSet.has('investmentRoleReport')) return ''
+  return `
       ${InvestmentReportFields.investmentRoleReport} {
         id
         version
@@ -301,8 +335,32 @@ export const buildInvestmentReportFragment = (fields: string[]): string => {
         ${AUDIT_FIELDS}
       }
     `
-        : ''
-    }
+}
+
+/**
+ * Build Investment Report Fragment
+ * Field names match InvestmentReport interface field names exactly
+ */
+export const buildInvestmentReportFragment = (fields: string[]): string => {
+  const fieldSet = new Set(fields)
+
+  return `
+    ${AUDIT_FIELDS}
+    ${buildBasicFields(fieldSet)}
+    
+    ${buildCatalogReferenceFields(fieldSet)}
+    
+    ${buildInvestmentFieldFragment(fieldSet)}
+    
+    ${buildEntityReferenceField(fieldSet, 'loanRecipientInvestmentAccount', 'loanRecipientInvestmentAccountId', InvestmentReportFields.loanRecipientInvestmentAccount, INVESTMENT_ACCOUNT_REF)}
+    
+    ${buildEquityInvestmentReportFragment(fieldSet)}
+    
+    ${buildLiquidFundInvestmentReportFragment(fieldSet)}
+    
+    ${buildRealEstateInvestmentReportFragment(fieldSet)}
+    
+    ${buildInvestmentRoleReportFragment(fieldSet)}
   `
 }
 

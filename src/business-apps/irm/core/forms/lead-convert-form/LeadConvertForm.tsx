@@ -324,6 +324,46 @@ export const ConvertInvestmentLeadForm = ({
   const previousProspectSchemaKeysRef = useRef<string[]>([])
   const previousFormFieldsDefinitionRef = useRef<typeof formFieldsDefinition>(null)
 
+  // Helper: Calculate investmentTypeId from leadData
+  const calculateInvestmentTypeIdFromLead = useCallback(
+    (formInvestmentTypeId: string | null): string | null => {
+      if (formInvestmentTypeId) return formInvestmentTypeId
+      if (!leadData) return null
+
+      const groupId = (leadData as any)?.investmentGroupRef || null
+      const typeId = (leadData as any)?.investmentTypeRef || null
+      return mapToSingleInvestmentTypeId(groupId, typeId, getPathByType)
+    },
+    [leadData, getPathByType, mapToSingleInvestmentTypeId]
+  )
+
+  // Helper: Get effective form fields definition
+  const getEffectiveFormFieldsDefinition = useCallback(
+    (investmentTypeId: string | null) => {
+      if (investmentTypeId) {
+        return getInvestmentFieldsByType(investmentTypeId)
+      }
+      return formFieldsDefinition
+    },
+    [getInvestmentFieldsByType, formFieldsDefinition]
+  )
+
+  // Helper: Map dynamic fields from form definition to updated values
+  const mapDynamicFieldsToValues = useCallback(
+    (formFieldsDef: typeof formFieldsDefinition, targetValues: any) => {
+      if (!formFieldsDef?.formFields) return
+
+      for (const group of formFieldsDef.formFields) {
+        for (const field of group.fields) {
+          const property = field.property
+          const value = leadData && property && property in leadData ? (leadData as any)[property] : undefined
+          targetValues[property] = value
+        }
+      }
+    },
+    [leadData]
+  )
+
   // Helper: Update dynamic fields from lead data
   const updateDynamicFieldsFromLeadData = useCallback(() => {
     if (!opportunityForm) return null
@@ -331,50 +371,21 @@ export const ConvertInvestmentLeadForm = ({
     const currentValues = opportunityForm.getValues()
     const updatedValues = { ...currentValues }
 
-    // Get investmentTypeId from form values first
     const formInvestmentTypeId = currentValues.investmentTypeId || null
+    const leadInvestmentTypeId = calculateInvestmentTypeIdFromLead(formInvestmentTypeId)
 
-    // Calculate investmentTypeId from leadData if not in form
-    // ALWAYS preserve investmentTypeId - it's the single source of truth
-    let leadInvestmentTypeId = formInvestmentTypeId
-    if (!leadInvestmentTypeId && leadData) {
-      const groupId = (leadData as any)?.investmentGroupRef || null
-      const typeId = (leadData as any)?.investmentTypeRef || null
-      leadInvestmentTypeId = mapToSingleInvestmentTypeId(groupId, typeId, getPathByType)
-    }
-
-    // Always set investmentTypeId in updatedValues to preserve it
     if (leadInvestmentTypeId) {
       updatedValues.investmentTypeId = leadInvestmentTypeId
     }
 
-    // Get formFieldsDefinition for this specific investmentTypeId (fallback to component-level if not available)
-    const effectiveFormFieldsDefinition = leadInvestmentTypeId
-      ? getInvestmentFieldsByType(leadInvestmentTypeId)
-      : formFieldsDefinition
-
+    const effectiveFormFieldsDefinition = getEffectiveFormFieldsDefinition(leadInvestmentTypeId)
     if (!effectiveFormFieldsDefinition) return null
 
-    if (effectiveFormFieldsDefinition.formFields) {
-      for (const group of effectiveFormFieldsDefinition.formFields) {
-        for (const field of group.fields) {
-          const property = field.property
-          const value = leadData && property && property in leadData ? (leadData as any)[property] : undefined
-          updatedValues[property] = value
-        }
-      }
-    }
+    mapDynamicFieldsToValues(effectiveFormFieldsDefinition, updatedValues)
 
     const hasChanges = JSON.stringify(currentValues) !== JSON.stringify(updatedValues)
     return hasChanges ? updatedValues : null
-  }, [
-    opportunityForm,
-    formFieldsDefinition,
-    leadData,
-    getInvestmentFieldsByType,
-    getPathByType,
-    mapToSingleInvestmentTypeId
-  ])
+  }, [opportunityForm, calculateInvestmentTypeIdFromLead, getEffectiveFormFieldsDefinition, mapDynamicFieldsToValues])
 
   useEffect(() => {
     if (!opportunityForm || !prospectSchema) return

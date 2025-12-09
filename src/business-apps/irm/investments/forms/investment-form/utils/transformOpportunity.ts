@@ -5,6 +5,98 @@ import { InvestmentType } from '@/common/data/investment/hooks/useInvestmentType
 import { mapToSingleInvestmentTypeId } from '@/common/components/investment/form-layouts/investment-layout/utils/investmentTypeMapper'
 
 /**
+ * Extract investment type ID from opportunity data
+ */
+const extractInvestmentTypeId = (
+  opportunityData: InvestmentOpportunity,
+  getPathByType?: (typeId: string | null | undefined) => InvestmentType[]
+): string | null => {
+  const groupId = opportunityData.investmentGroup?.id || opportunityData.investmentGroupRef || null
+  const typeId = opportunityData.investmentType?.id || opportunityData.investmentTypeRef || null
+
+  if (getPathByType && (groupId || typeId)) {
+    return mapToSingleInvestmentTypeId(groupId, typeId, null, getPathByType)
+  }
+
+  return typeId || groupId
+}
+
+/**
+ * Create base investment form values from opportunity static fields
+ */
+const createBaseInvestmentValues = (
+  opportunityData: InvestmentOpportunity,
+  investmentTypeId: string | null
+): Partial<InvestmentFormValues> => {
+  const result: Partial<InvestmentFormValues> = {
+    investment: {
+      ownerEmployee: opportunityData.ownerEmployee as any,
+      ownerEmployeeId: opportunityData.ownerEmployee?.id || opportunityData.ownerEmployeeId || '',
+      name: opportunityData.investmentName || opportunityData.name || '',
+      currencyRef: opportunityData.currency?.id || opportunityData.currencyRef || '',
+      investmentStatus: { id: 'InvestmentStatus:v1:ACTIVE', code: 'ACTIVE' } as any,
+      investmentAccount: opportunityData.account as any,
+      investmentAccountId: opportunityData.account?.id || opportunityData.accountId || '',
+      investmentTypeId: investmentTypeId || null
+    }
+  }
+
+  if (opportunityData.investmentRole) {
+    result.investment = { ...result.investment, investmentRole: opportunityData.investmentRole } as any
+  }
+  if (opportunityData.investmentStakeType) {
+    result.investment = { ...result.investment, investmentStakeType: opportunityData.investmentStakeType } as any
+  }
+
+  return result
+}
+
+/**
+ * Map dynamic field value to correct entity in result
+ */
+const mapDynamicFieldToEntity = (
+  result: Partial<InvestmentFormValues>,
+  entityType: string,
+  fieldPath: string,
+  opportunityValue: any
+): void => {
+  if (entityType === 'investment') {
+    result.investment = { ...result.investment, [fieldPath]: opportunityValue } as any
+  } else if (entityType === 'equityInvestment') {
+    result.equityInvestment = { ...result.equityInvestment, [fieldPath]: opportunityValue } as any
+  } else if (entityType === 'realEstateInvestment') {
+    result.realEstateInvestment = { ...result.realEstateInvestment, [fieldPath]: opportunityValue } as any
+  } else if (entityType === 'liquidFundInvestment') {
+    result.liquidFundInvestment = { ...result.liquidFundInvestment, [fieldPath]: opportunityValue } as any
+  }
+}
+
+/**
+ * Map dynamic fields from form field definitions
+ */
+const mapDynamicFields = (
+  opportunityData: InvestmentOpportunity,
+  formFieldsDefinition: DynamicFormConfiguration,
+  result: Partial<InvestmentFormValues>
+): void => {
+  for (const group of formFieldsDefinition.formFields) {
+    for (const field of group.fields) {
+      const propertyPath = field.property
+      const parts = propertyPath.split('.')
+      if (parts.length < 2) continue
+
+      const entityType = parts[0]
+      const fieldPath = parts.slice(1).join('.')
+      const opportunityValue = fieldPath.split('.').reduce((obj, key) => obj?.[key], opportunityData as any)
+
+      if (opportunityValue === undefined || opportunityValue === null) continue
+
+      mapDynamicFieldToEntity(result, entityType, fieldPath, opportunityValue)
+    }
+  }
+}
+
+/**
  * Maps investment opportunity data to investment form values
  * Maps static fields + dynamic fields based on form field definitions
  * Uses investmentTypeId instead of separate group/type refs
@@ -23,73 +115,11 @@ export const transformOpportunity = (
     return {}
   }
 
-  // Extract group/type IDs
-  const groupId = opportunityData.investmentGroup?.id || opportunityData.investmentGroupRef || null
-  const typeId = opportunityData.investmentType?.id || opportunityData.investmentTypeRef || null
+  const investmentTypeId = extractInvestmentTypeId(opportunityData, getPathByType)
+  const result = createBaseInvestmentValues(opportunityData, investmentTypeId)
 
-  // Convert to single investmentTypeId if getPathByType is available
-  const investmentTypeId =
-    getPathByType && (groupId || typeId)
-      ? mapToSingleInvestmentTypeId(groupId, typeId, null, getPathByType)
-      : typeId || groupId
-
-  // NOTE: Form state stores investmentTypeId in investment object
-  const result: Partial<InvestmentFormValues> = {
-    investment: {
-      // Static field mappings from opportunity to investment form
-      ownerEmployee: opportunityData.ownerEmployee as any,
-      ownerEmployeeId: opportunityData.ownerEmployee?.id || opportunityData.ownerEmployeeId || '',
-      name: opportunityData.investmentName || opportunityData.name || '',
-      currencyRef: opportunityData.currency?.id || opportunityData.currencyRef || '',
-      investmentStatus: { id: 'InvestmentStatus:v1:ACTIVE', code: 'ACTIVE' } as any, // Default status as object
-      investmentAccount: opportunityData.account as any,
-      investmentAccountId: opportunityData.account?.id || opportunityData.accountId || '',
-      // Investment type field (leaf InvestmentType ID)
-      investmentTypeId: investmentTypeId || null
-    }
-  }
-
-  // Map additional common investment fields to main investment object
-  if (opportunityData.investmentRole) {
-    result.investment = { ...result.investment, investmentRole: opportunityData.investmentRole } as any
-  }
-  if (opportunityData.investmentStakeType) {
-    result.investment = { ...result.investment, investmentStakeType: opportunityData.investmentStakeType } as any
-  }
-
-  // If no form fields definition provided, return static fields only
-  if (!formFieldsDefinition?.formFields?.length) {
-    return result
-  }
-
-  // Map dynamic fields based on form field definitions
-  for (const group of formFieldsDefinition.formFields) {
-    for (const field of group.fields) {
-      const propertyPath = field.property
-      const parts = propertyPath.split('.')
-      if (parts.length < 2) {
-        continue
-      }
-
-      const entityType = parts[0]
-      const fieldPath = parts.slice(1).join('.')
-      const opportunityValue = fieldPath.split('.').reduce((obj, key) => obj?.[key], opportunityData as any)
-
-      if (opportunityValue === undefined || opportunityValue === null) {
-        continue
-      }
-
-      // Map to the correct entity
-      if (entityType === 'investment') {
-        result.investment = { ...result.investment, [fieldPath]: opportunityValue } as any
-      } else if (entityType === 'equityInvestment') {
-        result.equityInvestment = { ...result.equityInvestment, [fieldPath]: opportunityValue } as any
-      } else if (entityType === 'realEstateInvestment') {
-        result.realEstateInvestment = { ...result.realEstateInvestment, [fieldPath]: opportunityValue } as any
-      } else if (entityType === 'liquidFundInvestment') {
-        result.liquidFundInvestment = { ...result.liquidFundInvestment, [fieldPath]: opportunityValue } as any
-      }
-    }
+  if (formFieldsDefinition?.formFields?.length) {
+    mapDynamicFields(opportunityData, formFieldsDefinition, result)
   }
 
   return result

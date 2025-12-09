@@ -86,6 +86,101 @@ const mapSubInvestmentReport = (reportItem: any, reportId: string | undefined): 
 }
 
 /**
+ * Extract liquidFundTypeId from merged investment data
+ */
+const extractLiquidFundTypeId = (mergedInvestmentData: Partial<Investment>): string | null => {
+  if (!mergedInvestmentData.liquidFundInvestment) return null
+
+  const liquidFund = Array.isArray(mergedInvestmentData.liquidFundInvestment)
+    ? mergedInvestmentData.liquidFundInvestment[0]
+    : mergedInvestmentData.liquidFundInvestment
+  return (liquidFund as any)?.investmentLiquidFundTypeRef || null
+}
+
+/**
+ * Set investment type ID in mapped values
+ */
+const setInvestmentTypeId = (
+  mappedValues: Partial<InvestmentFormValues>,
+  mergedInvestmentData: Partial<Investment>,
+  getPathByType?: (typeId: string | null | undefined) => InvestmentType[]
+): void => {
+  if (!getPathByType) return
+
+  const groupId = mergedInvestmentData.investmentGroupRef || null
+  const typeId = mergedInvestmentData.investmentTypeRef || null
+  const liquidFundTypeId = extractLiquidFundTypeId(mergedInvestmentData)
+  const investmentTypeId = mapToSingleInvestmentTypeId(groupId, typeId, liquidFundTypeId, getPathByType)
+
+  if (investmentTypeId && mappedValues.investment) {
+    ;(mappedValues.investment as any).investmentTypeId = investmentTypeId
+  }
+}
+
+/**
+ * Map investment role from report to form values
+ */
+const mapInvestmentRole = (
+  report: InvestmentReport | Partial<InvestmentReport>,
+  mappedValues: Partial<InvestmentFormValues>
+): void => {
+  if (report.investmentRoleReport && mappedValues.investment) {
+    ;(mappedValues.investment as any).investmentRole = report.investmentRoleReport
+  }
+}
+
+/**
+ * Map sub-investment reports to form values
+ */
+const mapSubInvestmentReports = (
+  report: InvestmentReport | Partial<InvestmentReport>,
+  reportId: string | undefined,
+  mappedValues: Partial<InvestmentFormValues>
+): void => {
+  if (report.equityInvestmentReport && report.equityInvestmentReport.length > 0) {
+    ;(mappedValues as any).equityInvestment = mapSubInvestmentReport(report.equityInvestmentReport[0], reportId)
+  }
+
+  if (report.liquidFundInvestmentReport && report.liquidFundInvestmentReport.length > 0) {
+    ;(mappedValues as any).liquidFundInvestment = mapSubInvestmentReport(report.liquidFundInvestmentReport[0], reportId)
+  }
+
+  if (report.realEstateInvestmentReport && report.realEstateInvestmentReport.length > 0) {
+    ;(mappedValues as any).realEstateInvestment = mapSubInvestmentReport(report.realEstateInvestmentReport[0], reportId)
+  }
+}
+
+/**
+ * Set investment IDs in mapped values
+ */
+const setInvestmentIds = (
+  mappedValues: Partial<InvestmentFormValues>,
+  investmentId: string | undefined,
+  reportId: string | undefined,
+  report: InvestmentReport | Partial<InvestmentReport>
+): void => {
+  if (mappedValues.investment && investmentId) {
+    ;(mappedValues.investment as any).id = investmentId
+    ;(mappedValues.investment as any).investmentId = investmentId
+  }
+
+  if (reportId && mappedValues.investment) {
+    ;(mappedValues.investment as any).reportId = reportId
+    ;(mappedValues.investment as any).reportVersion = report.version
+  }
+}
+
+/**
+ * Normalize liquid fund investment array
+ */
+const normalizeLiquidFundInvestment = (mappedValues: Partial<InvestmentFormValues>): any => {
+  const liquidFundInvestment = (mappedValues as any).liquidFundInvestment
+  if (!liquidFundInvestment) return null
+
+  return Array.isArray(liquidFundInvestment) ? liquidFundInvestment[0] : liquidFundInvestment
+}
+
+/**
  * Transforms InvestmentReport to InvestmentFormValues structure
  * Used for initializing the form with report data
  */
@@ -99,82 +194,23 @@ export const transformInvestmentReport = (
   const investmentData = extractInvestmentDataFromReport(report)
   const mergedInvestmentData = mergeInvestmentData(investmentData, fetchedInvestment)
 
-  // Create base schema for mapping
   const baseSchema = createDynamicInvestmentSchema()
-
-  // Map investment data to form values (automatic mapping of all fields)
   const mappedValues = mapToFormValues(
     { investment: mergedInvestmentData },
     baseSchema
   ) as Partial<InvestmentFormValues>
 
-  // Extract IDs - einfach die Ref-Felder nehmen, keine Fallbacks
-  const groupId = mergedInvestmentData.investmentGroupRef || null
-  const typeId = mergedInvestmentData.investmentTypeRef || null
+  setInvestmentTypeId(mappedValues, mergedInvestmentData, getPathByType)
+  mapInvestmentRole(report, mappedValues)
+  mapSubInvestmentReports(report, reportId, mappedValues)
+  setInvestmentIds(mappedValues, investmentId, reportId, report)
 
-  // Extract liquidFundTypeId from liquidFundInvestment
-  let liquidFundTypeId: string | null = null
-  if (mergedInvestmentData.liquidFundInvestment) {
-    const liquidFund = Array.isArray(mergedInvestmentData.liquidFundInvestment)
-      ? mergedInvestmentData.liquidFundInvestment[0]
-      : mergedInvestmentData.liquidFundInvestment
-    liquidFundTypeId = (liquidFund as any)?.investmentLiquidFundTypeRef || null
-  }
-
-  // Convert to single investmentTypeId
-  const investmentTypeId = getPathByType
-    ? mapToSingleInvestmentTypeId(groupId, typeId, liquidFundTypeId, getPathByType)
-    : null
-
-  if (investmentTypeId && mappedValues.investment) {
-    ;(mappedValues.investment as any).investmentTypeId = investmentTypeId
-  }
-
-  // Map investmentRoleReport (from InvestmentReport) to investmentRole (for Layout)
-  if (report.investmentRoleReport && mappedValues.investment) {
-    ;(mappedValues.investment as any).investmentRole = report.investmentRoleReport
-  }
-
-  // Map Sub-Groups (from InvestmentReport) to Layout field names (without "Report")
-  if (report.equityInvestmentReport && report.equityInvestmentReport.length > 0) {
-    ;(mappedValues as any).equityInvestment = mapSubInvestmentReport(report.equityInvestmentReport[0], reportId)
-  }
-
-  if (report.liquidFundInvestmentReport && report.liquidFundInvestmentReport.length > 0) {
-    ;(mappedValues as any).liquidFundInvestment = mapSubInvestmentReport(report.liquidFundInvestmentReport[0], reportId)
-  }
-
-  if (report.realEstateInvestmentReport && report.realEstateInvestmentReport.length > 0) {
-    ;(mappedValues as any).realEstateInvestment = mapSubInvestmentReport(report.realEstateInvestmentReport[0], reportId)
-  }
-
-  // Set investment.id and investmentId so InvestmentLayout automatically loads it
-  // IMPORTANT: investment.id should be the investmentId (for InvestmentLayout), not the report id
-  if (mappedValues.investment && investmentId) {
-    ;(mappedValues.investment as any).id = investmentId
-    ;(mappedValues.investment as any).investmentId = investmentId
-  }
-
-  // Store report id and version in form data when updating (for sanitizer to include in payload)
-  // These are separate from investment.id - investment.id is the investmentId, reportId is the report's id
-  if (reportId && mappedValues.investment) {
-    ;(mappedValues.investment as any).reportId = reportId
-    ;(mappedValues.investment as any).reportVersion = report.version
-  }
-
-  // Normalize liquidFundInvestment array if present
-  const liquidFundNormalized =
-    (mappedValues as any).liquidFundInvestment && Array.isArray((mappedValues as any).liquidFundInvestment)
-      ? (mappedValues as any).liquidFundInvestment[0]
-      : (mappedValues as any).liquidFundInvestment
+  const liquidFundNormalized = normalizeLiquidFundInvestment(mappedValues)
 
   return {
     ...mappedValues,
-    ...(liquidFundNormalized && {
-      liquidFundInvestment: liquidFundNormalized
-    }),
-    // Store report-specific fields at root level for form fields
+    ...(liquidFundNormalized && { liquidFundInvestment: liquidFundNormalized }),
     investmentReportDate: report.date || dayjs().format('YYYY-MM-DD'),
     investmentReportScope: report.scope || 'MONTHLY'
-  } as any
+  }
 }

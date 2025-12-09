@@ -275,10 +275,9 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
   const secondaryActions = useMemo(() => {
     return (
       <AppAction
-        contextsArray={[FlowContextName.investmentReportUpload]}
-        externalContextData={{}}
+        contexts={[{ context: FlowContextName.investmentReportUpload, contextData: {} }]}
         accessToken={accessToken || ''}
-        emptyStateBehavior="hide"
+        emptyState="hide"
         prefixDataTestId="report-view-upload-report"
       >
         <AiButton

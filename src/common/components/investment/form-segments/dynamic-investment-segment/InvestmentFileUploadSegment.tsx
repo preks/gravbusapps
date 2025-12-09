@@ -1,8 +1,7 @@
 import React, { useCallback, useState } from 'react'
-import { AiButton, FormLabel, Spinner } from '@newwork/nw-design-system'
+import { AiButton, Button, FormLabel, Spinner } from '@newwork/nw-design-system'
 import { File, X, Upload } from 'lucide-react'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import { Button } from '@newwork/nw-design-system'
 
 const prefixDataTestId = 'InvestmentForm-FileUpload'
 
@@ -23,32 +22,44 @@ const InvestmentFileUploadSegment: React.FC<InvestmentFileUploadSegmentProps> = 
 }) => {
   const [dragActive, setDragActive] = useState(false)
 
-  const handleFileChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = event.target.files?.[0] || null
-    onFileChange(selectedFile)
-  }, [onFileChange])
+  const handleFileChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const selectedFile = event.target.files?.[0] || null
+      onFileChange(selectedFile)
+    },
+    [onFileChange]
+  )
 
-  const handleFiles = useCallback((files: FileList | null) => {
-    if (!files || files.length === 0) return
-    const selectedFile = files[0]
-    onFileChange(selectedFile)
-  }, [onFileChange])
+  const handleFiles = useCallback(
+    (files: FileList | null) => {
+      if (!files || files.length === 0) return
+      const selectedFile = files[0]
+      onFileChange(selectedFile)
+    },
+    [onFileChange]
+  )
 
-  const handleDrop = useCallback((event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault()
-    event.stopPropagation()
-    setDragActive(false)
-    if (isLoading) return
-    handleFiles(event.dataTransfer.files)
-  }, [isLoading, handleFiles])
+  const handleDrop = useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      event.preventDefault()
+      event.stopPropagation()
+      setDragActive(false)
+      if (isLoading) return
+      handleFiles(event.dataTransfer.files)
+    },
+    [isLoading, handleFiles]
+  )
 
-  const handleDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault()
-    event.stopPropagation()
-    if (!isLoading) {
-      setDragActive(true)
-    }
-  }, [isLoading])
+  const handleDragOver = useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      event.preventDefault()
+      event.stopPropagation()
+      if (!isLoading) {
+        setDragActive(true)
+      }
+    },
+    [isLoading]
+  )
 
   const handleDragLeave = useCallback((event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault()
@@ -88,6 +99,9 @@ const InvestmentFileUploadSegment: React.FC<InvestmentFileUploadSegmentProps> = 
 
       {/* Drag and drop area */}
       <div
+        role="button"
+        tabIndex={0}
+        aria-label="File upload drop zone. Click or drag and drop files here."
         className={`gba:relative gba:w-full gba:max-w-full gba:overflow-hidden gba:border-2 gba:border-dashed gba:rounded-lg gba:transition-colors gba:box-border ${
           dragActive
             ? 'gba:border-primary gba:bg-primary/5'
@@ -97,6 +111,12 @@ const InvestmentFileUploadSegment: React.FC<InvestmentFileUploadSegmentProps> = 
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onClick={() => !isLoading && !file && document.getElementById('investment-ai-file-input')?.click()}
+        onKeyDown={e => {
+          if ((e.key === 'Enter' || e.key === ' ') && !isLoading && !file) {
+            e.preventDefault()
+            document.getElementById('investment-ai-file-input')?.click()
+          }
+        }}
         data-testid={formatDataTestId(prefixDataTestId, 'DropZone')}
       >
         {/* Loading overlay */}
@@ -127,7 +147,7 @@ const InvestmentFileUploadSegment: React.FC<InvestmentFileUploadSegmentProps> = 
                 variant="ghost"
                 size="sm"
                 className="gba:flex-shrink-0"
-                onClick={(e) => {
+                onClick={e => {
                   e.stopPropagation()
                   handleClearFile()
                 }}
@@ -145,7 +165,7 @@ const InvestmentFileUploadSegment: React.FC<InvestmentFileUploadSegmentProps> = 
               showIcon={true}
               icon={<Upload size={16} />}
               iconPosition="before"
-              onClick={(e) => {
+              onClick={e => {
                 e.stopPropagation()
                 document.getElementById('investment-ai-file-input')?.click()
               }}

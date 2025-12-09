@@ -138,7 +138,7 @@ const InvestmentForm: React.FC<InvestmentFormProps> = ({ accessToken, userInfo, 
   // Reset form when initial values change
   useEffect(() => {
     if (enhancedInitialValues) {
-      form.reset(enhancedInitialValues as any)
+      form.reset(enhancedInitialValues as Partial<InvestmentFormValues>)
     }
   }, [enhancedInitialValues, form])
 

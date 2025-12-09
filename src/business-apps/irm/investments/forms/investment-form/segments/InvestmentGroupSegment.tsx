@@ -278,22 +278,15 @@ const GroupSelectSegment: React.FC<GroupSelectSegmentProps> = ({
             data-testid={formatDataTestId(prefixDataTestId, 'investment-groups-grid')}
           >
             {groupsForDisplay.map(group => (
-              <div
+              <button
                 key={group.id}
-                role="button"
-                tabIndex={0}
+                type="button"
                 onClick={() => onGroupSelect(group.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    onGroupSelect(group.value)
-                  }
-                }}
                 data-testid={formatDataTestId(prefixDataTestId, `investment-group-button-${group.id}`)}
                 className="gba:min-h-16 gba:h-16 gba:flex gba:items-center gba:justify-center gba:text-center gba:whitespace-normal gba:px-8 gba:py-6 gba:bg-secondary gba:text-secondary-foreground gba:border gba:border-solid gba:rounded-md gba:text-base gba:font-medium gba:cursor-pointer gba:transition-all gba:duration-200 gba:ease-in-out gba:select-none gba:hover:opacity-80 gba:border-ring"
               >
                 {group.title}
-              </div>
+              </button>
             ))}
           </div>
           {groupsForDisplay.length === 0 && (

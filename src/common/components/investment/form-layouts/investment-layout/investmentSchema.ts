@@ -59,6 +59,190 @@ const getPropertyName = (property: string): string => {
 }
 
 /**
+ * Number preprocessing function for validation
+ */
+const numberPreprocess = (val: unknown): number | undefined => {
+  if (val === null || val === undefined || val === '') return undefined
+  const num = Number(val)
+  return Number.isNaN(num) ? undefined : num
+}
+
+/**
+ * Create validation rule for REF_InvestmentRole field (required)
+ */
+const createRequiredInvestmentRoleRule = (errorMessage: string): z.ZodTypeAny => {
+  return z
+    .array(
+      z.object({
+        id: z.string().optional(),
+        version: z.number().optional(),
+        investmentRole: catalogEntrySchema,
+        displayOrder: z.number(),
+        isDeleted: z.boolean().optional()
+      })
+    )
+    .min(1, errorMessage)
+}
+
+/**
+ * Create validation rule for REF_InvestmentRole field (optional)
+ */
+const createOptionalInvestmentRoleRule = (): z.ZodTypeAny => {
+  return z
+    .array(
+      z.object({
+        id: z.string().optional(),
+        version: z.number().optional(),
+        investmentRole: catalogEntrySchema,
+        displayOrder: z.number(),
+        isDeleted: z.boolean().optional()
+      })
+    )
+    .optional()
+}
+
+/**
+ * Create validation rule for REF_ field types (required)
+ */
+const createRequiredRefRule = (field: { type: string; label: string }): z.ZodTypeAny => {
+  const entityType = field.type.replace('REF_', '')
+  if (entityType === 'InvestmentRole') {
+    return createRequiredInvestmentRoleRule(`${field.label} is required`)
+  }
+  // Default: Single reference
+  return z.union([
+    z.string().min(1, `${field.label} is required`),
+    z
+      .object({
+        id: z.string().min(1, `${field.label} is required`)
+      })
+      .catchall(z.any())
+  ])
+}
+
+/**
+ * Create validation rule for REF_ field types (optional)
+ */
+const createOptionalRefRule = (): z.ZodTypeAny => {
+  return z
+    .union([
+      z.string().optional(),
+      z
+        .object({
+          id: z.string().optional()
+        })
+        .catchall(z.any())
+    ])
+    .optional()
+}
+
+/**
+ * Create validation rule for required fields
+ */
+const createRequiredFieldRule = (field: { type: string; label: string }): z.ZodTypeAny => {
+  const errorMessage = `${field.label} is required`
+
+  switch (field.type) {
+    case 'TEXT':
+    case 'TEXTAREA':
+      return z.string().min(1, errorMessage)
+    case 'AMOUNT':
+      return z.preprocess(
+        numberPreprocess,
+        z.number({ message: errorMessage }).min(0, `${field.label} must be positive`)
+      )
+    case 'PERCENTAGE':
+      return z.preprocess(
+        numberPreprocess,
+        z
+          .number({ message: errorMessage })
+          .min(0, `${field.label} must be at least 0%`)
+          .max(100, `${field.label} must be at most 100%`)
+      )
+    case 'NUMBER':
+      return z.preprocess(numberPreprocess, z.number({ message: errorMessage }))
+    case 'DATE':
+    case 'DATETIME':
+      return z.string().min(1, errorMessage)
+    default:
+      if (field.type.startsWith('CATALOG_')) {
+        return catalogEntrySchema.refine(val => val, { message: errorMessage })
+      }
+      if (field.type.startsWith('REF_')) {
+        return createRequiredRefRule(field)
+      }
+      return z.string().min(1, errorMessage)
+  }
+}
+
+/**
+ * Create validation rule for optional fields
+ */
+const createOptionalFieldRule = (field: { type: string; label: string }): z.ZodTypeAny => {
+  switch (field.type) {
+    case 'TEXT':
+    case 'TEXTAREA':
+      return z.string().optional()
+    case 'AMOUNT':
+      return z.preprocess(numberPreprocess, z.number().min(0, `${field.label} must be positive`).optional())
+    case 'PERCENTAGE':
+      return z.preprocess(
+        numberPreprocess,
+        z
+          .number()
+          .min(0, `${field.label} must be at least 0%`)
+          .max(100, `${field.label} must be at most 100%`)
+          .optional()
+      )
+    case 'NUMBER':
+      return z.preprocess(numberPreprocess, z.number().optional())
+    case 'DATE':
+    case 'DATETIME':
+      return z.string().nullable().optional()
+    default:
+      if (field.type.startsWith('CATALOG_')) {
+        return catalogEntrySchema.optional()
+      }
+      if (field.type.startsWith('REF_')) {
+        const entityType = field.type.replace('REF_', '')
+        if (entityType === 'InvestmentRole') {
+          return createOptionalInvestmentRoleRule()
+        }
+        return createOptionalRefRule()
+      }
+      return z.string().optional()
+  }
+}
+
+/**
+ * Add validation rule to appropriate parent object
+ */
+const addFieldToParent = (
+  parentObject: string,
+  fieldPath: string,
+  validationRule: z.ZodTypeAny,
+  investmentFields: Record<string, z.ZodTypeAny>,
+  equityInvestmentFields: Record<string, z.ZodTypeAny>,
+  realEstateInvestmentFields: Record<string, z.ZodTypeAny>,
+  liquidFundInvestmentFields: Record<string, z.ZodTypeAny>
+): void => {
+  switch (parentObject) {
+    case 'investment':
+      investmentFields[fieldPath] = validationRule
+      break
+    case 'equityInvestment':
+      equityInvestmentFields[fieldPath] = validationRule
+      break
+    case 'realEstateInvestment':
+      realEstateInvestmentFields[fieldPath] = validationRule
+      break
+    case 'liquidFundInvestment':
+      liquidFundInvestmentFields[fieldPath] = validationRule
+      break
+  }
+}
+
+/**
  * Creates a dynamic Zod schema based on the form fields definition from catalog
  */
 export const createDynamicInvestmentSchema = (formFieldsDefinition?: DynamicFormConfiguration) => {
@@ -71,210 +255,27 @@ export const createDynamicInvestmentSchema = (formFieldsDefinition?: DynamicForm
   if (formFieldsDefinition?.formFields) {
     for (const group of formFieldsDefinition.formFields) {
       for (const field of group.fields) {
-        // Use full property path
         const fieldName = getPropertyName(field.property)
-
-        // Determine which nested object this field belongs to
         const parts = fieldName.split('.')
-        const parentObject = parts[0] // "investment", "equityInvestment", etc.
-        const fieldPath = parts.slice(1).join('.') // rest of the path
+        const parentObject = parts[0]
+        const fieldPath = parts.slice(1).join('.')
 
-        // Skip if no field path (shouldn't happen)
         if (!fieldPath) continue
 
-        // Build validation rule based on field type and required status
-        let validationRule: z.ZodTypeAny
-
-        if (field.required) {
-          const errorMessage = `${field.label} is required`
-
-          switch (field.type) {
-            case 'TEXT':
-            case 'TEXTAREA':
-              validationRule = z.string().min(1, errorMessage)
-              break
-            case 'AMOUNT':
-              validationRule = z.preprocess(
-                val => {
-                  if (val === null || val === undefined || val === '') return undefined
-                  const num = Number(val)
-                  return Number.isNaN(num) ? undefined : num
-                },
-                z.number({ message: errorMessage }).min(0, `${field.label} must be positive`)
-              )
-              break
-            case 'PERCENTAGE':
-              validationRule = z.preprocess(
-                val => {
-                  if (val === null || val === undefined || val === '') return undefined
-                  const num = Number(val)
-                  return Number.isNaN(num) ? undefined : num
-                },
-                z
-                  .number({ message: errorMessage })
-                  .min(0, `${field.label} must be at least 0%`)
-                  .max(100, `${field.label} must be at most 100%`)
-              )
-              break
-            case 'NUMBER':
-              validationRule = z.preprocess(
-                val => {
-                  if (val === null || val === undefined || val === '') return undefined
-                  const num = Number(val)
-                  return Number.isNaN(num) ? undefined : num
-                },
-                z.number({ message: errorMessage })
-              )
-              break
-            case 'DATE':
-            case 'DATETIME':
-              validationRule = z.string().min(1, errorMessage)
-              break
-            default:
-              if (field.type.startsWith('CATALOG_')) {
-                validationRule = catalogEntrySchema.refine(val => val, { message: errorMessage })
-              } else if (field.type.startsWith('REF_')) {
-                // Handle different reference field types
-                const entityType = field.type.replace('REF_', '')
-                switch (entityType) {
-                  case 'InvestmentRole':
-                    // Array of investment roles
-                    validationRule = z
-                      .array(
-                        z.object({
-                          id: z.string().optional(),
-                          version: z.number().optional(),
-                          investmentRole: catalogEntrySchema,
-                          displayOrder: z.number(),
-                          isDeleted: z.boolean().optional()
-                        })
-                      )
-                      .min(1, errorMessage)
-                    break
-                  case 'InvestmentAccount':
-                  default:
-                    // Single reference - accepts string or object
-                    validationRule = z.union([
-                      z.string().min(1, errorMessage),
-                      z
-                        .object({
-                          id: z.string().min(1, errorMessage)
-                        })
-                        .catchall(z.any())
-                    ])
-                    break
-                }
-              } else {
-                validationRule = z.string().min(1, errorMessage)
-              }
-              break
-          }
-        } else {
-          // Optional fields
-          switch (field.type) {
-            case 'TEXT':
-            case 'TEXTAREA':
-              validationRule = z.string().optional()
-              break
-            case 'AMOUNT':
-              validationRule = z.preprocess(
-                val => {
-                  if (val === null || val === undefined || val === '') return undefined
-                  const num = Number(val)
-                  return Number.isNaN(num) ? undefined : num
-                },
-                z.number().min(0, `${field.label} must be positive`).optional()
-              )
-              break
-            case 'PERCENTAGE':
-              validationRule = z.preprocess(
-                val => {
-                  if (val === null || val === undefined || val === '') return undefined
-                  const num = Number(val)
-                  return Number.isNaN(num) ? undefined : num
-                },
-                z
-                  .number()
-                  .min(0, `${field.label} must be at least 0%`)
-                  .max(100, `${field.label} must be at most 100%`)
-                  .optional()
-              )
-              break
-            case 'NUMBER':
-              validationRule = z.preprocess(val => {
-                if (val === null || val === undefined || val === '') return undefined
-                const num = Number(val)
-                return Number.isNaN(num) ? undefined : num
-              }, z.number().optional())
-              break
-            case 'DATE':
-            case 'DATETIME':
-              validationRule = z.string().nullable().optional()
-              break
-            default:
-              if (field.type.startsWith('CATALOG_')) {
-                validationRule = catalogEntrySchema.optional()
-              } else if (field.type.startsWith('REF_')) {
-                // Handle different reference field types
-                const entityType = field.type.replace('REF_', '')
-                switch (entityType) {
-                  case 'InvestmentRole':
-                    // Array of investment roles (optional)
-                    validationRule = z
-                      .array(
-                        z.object({
-                          id: z.string().optional(),
-                          version: z.number().optional(),
-                          investmentRole: catalogEntrySchema,
-                          displayOrder: z.number(),
-                          isDeleted: z.boolean().optional()
-                        })
-                      )
-                      .optional()
-                    break
-                  case 'InvestmentAccount':
-                  default:
-                    // Single reference - accepts string or object
-                    validationRule = z
-                      .union([
-                        z.string().optional(),
-                        z
-                          .object({
-                            id: z.string().optional()
-                          })
-                          .catchall(z.any())
-                      ])
-                      .optional()
-                    break
-                }
-              } else {
-                validationRule = z.string().optional()
-              }
-              break
-          }
-        }
-
-        // Add to appropriate object based on parent
-        switch (parentObject) {
-          case 'investment':
-            investmentFields[fieldPath] = validationRule
-            break
-          case 'equityInvestment':
-            equityInvestmentFields[fieldPath] = validationRule
-            break
-          case 'realEstateInvestment':
-            realEstateInvestmentFields[fieldPath] = validationRule
-            break
-          case 'liquidFundInvestment':
-            liquidFundInvestmentFields[fieldPath] = validationRule
-            break
-        }
+        const validationRule = field.required ? createRequiredFieldRule(field) : createOptionalFieldRule(field)
+        addFieldToParent(
+          parentObject,
+          fieldPath,
+          validationRule,
+          investmentFields,
+          equityInvestmentFields,
+          realEstateInvestmentFields,
+          liquidFundInvestmentFields
+        )
       }
     }
   }
 
-  // Extend base schema with dynamic fields
-  // Note: We need to extract the base object schema before superRefine, extend it, then re-apply superRefine
   const extendedSchema = z.object({
     investment: baseInvestmentSchema.shape.investment.extend(investmentFields),
     equityInvestment:

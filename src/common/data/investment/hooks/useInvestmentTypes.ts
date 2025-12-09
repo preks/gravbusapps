@@ -291,6 +291,28 @@ const getTypePath = (allTypes: InvestmentType[], typeId: string): InvestmentType
   return path.length > 0 ? path : null
 }
 
+/**
+ * Extract form fields configuration from parsed object value
+ */
+const extractFormFieldsConfig = (parsedObjectValue: any): DynamicFormConfiguration | null => {
+  const formFields = parsedObjectValue?.formFields
+  if (formFields && Array.isArray(formFields) && formFields.length > 0) {
+    return convertFormFieldsToConfig(formFields)
+  }
+  return null
+}
+
+/**
+ * Extract reference fields configuration from parsed object value
+ */
+const extractReferenceFieldsConfig = (parsedObjectValue: any): DynamicFormConfiguration | null => {
+  const referenceFields = parsedObjectValue?.referenceFields
+  if (referenceFields && Array.isArray(referenceFields) && referenceFields.length > 0) {
+    return convertReferenceFieldsToConfig(referenceFields)
+  }
+  return null
+}
+
 const getInvestmentFieldsByType = (
   allTypes: InvestmentType[],
   typeId: string | null | undefined,
@@ -301,7 +323,6 @@ const getInvestmentFieldsByType = (
   const path = getTypePath(allTypes, typeId)
   if (!path) return null
 
-  // Traverse from deepest level up to root
   for (let i = path.length - 1; i >= 0; i--) {
     const type = path[i]
     if (!type?.objectValue) continue
@@ -309,15 +330,11 @@ const getInvestmentFieldsByType = (
     const parsedObjectValue = parseObjectValue(type.objectValue)
 
     if (fieldType === 'investment') {
-      const formFields = parsedObjectValue?.formFields
-      if (formFields && Array.isArray(formFields) && formFields.length > 0) {
-        return convertFormFieldsToConfig(formFields)
-      }
+      const config = extractFormFieldsConfig(parsedObjectValue)
+      if (config) return config
     } else if (fieldType === 'prospect') {
-      const referenceFields = parsedObjectValue?.referenceFields
-      if (referenceFields && Array.isArray(referenceFields) && referenceFields.length > 0) {
-        return convertReferenceFieldsToConfig(referenceFields)
-      }
+      const config = extractReferenceFieldsConfig(parsedObjectValue)
+      if (config) return config
     }
   }
 

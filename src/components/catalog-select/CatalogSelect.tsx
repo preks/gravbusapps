@@ -224,7 +224,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
 
   // Helper: Build merged options for multiple mode
   const buildMultipleModeOptions = React.useCallback(() => {
-    const selectedValues = new Set(Array.isArray(effectiveValue) ? effectiveValue.map(v => String(v)) : [])
+    const selectedValues = new Set(Array.isArray(effectiveValue) ? effectiveValue.map(String) : [])
     const selectedOptionsList = Array.isArray(selectedOptions) ? selectedOptions : []
     const availableOptions = wiredOptions.filter(opt => !selectedValues.has(String(opt.value)))
     const allOptions = [...selectedOptionsList, ...availableOptions]

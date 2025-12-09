@@ -78,7 +78,6 @@ export const useInvestmentAiAutofill = (accessToken: string | undefined) => {
 
         formData.append('meta_json', JSON.stringify(metaPayload))
 
-        const isLocalDev = typeof window !== 'undefined' && window.location.hostname === 'localhost'
         const baseUrl = FLOWBOT_BASE_URL
         // Backend route is defined in flowbot/src/api/routes/irm.py
         const url = `${baseUrl}/flowbot/irm/autofill_investment_form`
