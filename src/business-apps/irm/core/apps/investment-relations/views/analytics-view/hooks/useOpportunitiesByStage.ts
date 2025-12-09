@@ -4,12 +4,10 @@ import {
   type StageItem
 } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericOpportunitiesByStage'
 
-export type { StageItem }
-
 /**
  * IRM-specific wrapper for useGenericOpportunitiesByStage
  */
-export const useOpportunitiesByStage = (accessToken: string, pipelineId?: string) => {
+const useOpportunitiesByStage = (accessToken: string, pipelineId?: string) => {
   const config = useMemo(
     () => ({
       opportunityEntity: 'InvestmentOpportunity',
@@ -23,3 +21,5 @@ export const useOpportunitiesByStage = (accessToken: string, pipelineId?: string
 
   return useGenericOpportunitiesByStage(accessToken, config, pipelineId)
 }
+
+export { useOpportunitiesByStage, type StageItem }

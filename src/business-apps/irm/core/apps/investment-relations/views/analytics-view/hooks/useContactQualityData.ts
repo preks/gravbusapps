@@ -4,12 +4,10 @@ import {
   type ContactQualityData
 } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericContactQualityData'
 
-export type { ContactQualityData }
-
 /**
  * IRM-specific wrapper for useGenericContactQualityData
  */
-export const useContactQualityData = (accessToken: string) => {
+const useContactQualityData = (accessToken: string) => {
   const config = useMemo(
     () => ({
       contactEntity: 'InvestmentContact',
@@ -22,3 +20,5 @@ export const useContactQualityData = (accessToken: string) => {
 
   return useGenericContactQualityData(accessToken, config)
 }
+
+export { useContactQualityData, type ContactQualityData }

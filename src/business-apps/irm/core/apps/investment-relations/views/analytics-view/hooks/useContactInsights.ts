@@ -6,12 +6,10 @@ import {
   type ContactInsightRecent
 } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericContactInsights'
 
-export type { ContactInsightsData, ContactInsightAccount, ContactInsightRecent }
-
 /**
  * IRM-specific wrapper for useGenericContactInsights
  */
-export const useContactInsights = (accessToken: string) => {
+const useContactInsights = (accessToken: string) => {
   const config = useMemo(
     () => ({
       contactEntity: 'InvestmentContact',
@@ -29,3 +27,5 @@ export const useContactInsights = (accessToken: string) => {
 
   return useGenericContactInsights(accessToken, config)
 }
+
+export { useContactInsights, type ContactInsightsData, type ContactInsightAccount, type ContactInsightRecent }

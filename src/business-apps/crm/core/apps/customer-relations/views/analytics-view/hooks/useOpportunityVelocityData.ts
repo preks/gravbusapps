@@ -4,12 +4,10 @@ import {
   type OpportunityVelocityData
 } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericOpportunityVelocityData'
 
-export type { OpportunityVelocityData }
-
 /**
  * CRM-specific wrapper for useGenericOpportunityVelocityData
  */
-export const useOpportunityVelocityData = (accessToken: string) => {
+const useOpportunityVelocityData = (accessToken: string) => {
   const config = useMemo(
     () => ({
       opportunityEntity: 'Opportunity',
@@ -22,3 +20,5 @@ export const useOpportunityVelocityData = (accessToken: string) => {
 
   return useGenericOpportunityVelocityData(accessToken, config)
 }
+
+export { useOpportunityVelocityData, type OpportunityVelocityData }
