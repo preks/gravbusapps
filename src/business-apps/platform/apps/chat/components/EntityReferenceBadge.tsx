@@ -2,7 +2,7 @@ import React from 'react'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@newwork/nw-design-system'
 import { MessageSquare } from 'lucide-react'
 import type { MessageEntityReference } from '../types'
-import { isSupportedEntityType } from '../types'
+import { isSupportedEntityType, warnOnceForUnsupportedEntityType } from '../types'
 import { ENTITY_ICONS, navigateToEntity } from './utils/entityUtils'
 
 interface EntityReferenceBadgeProps {
@@ -20,7 +20,7 @@ export const EntityReferenceBadge: React.FC<EntityReferenceBadgeProps> = ({ refe
   const showAvatar = reference.type === 'employee' && reference.pictureThumbnail
 
   if (!supportedType) {
-    console.warn('[Chat] Unsupported entity reference type', reference)
+    warnOnceForUnsupportedEntityType(reference.type, reference)
   }
 
   return (
