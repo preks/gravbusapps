@@ -130,7 +130,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
                 {statusLabel}
               </Badge>
             )}
-            <span className={textColorClass}>
+            <span className={`${textColorClass} gba:min-w-0 gba:truncate`}>
               {formattedDate} - {title}
             </span>
           </div>
