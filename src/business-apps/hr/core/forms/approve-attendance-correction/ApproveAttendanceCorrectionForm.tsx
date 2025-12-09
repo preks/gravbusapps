@@ -52,15 +52,13 @@ export const ApproveAttendanceCorrection: React.FC<ChangeRelationshipReviewProps
   const approveLabel = t('grant-bonus-review-acknowledge')
   const cancelLabel = t('grant-bonus-review-reject')
 
-  console.log(additionalData, 'additionalData')
-
   // Fetch employee and catalog data
 
   // Detect if we're in every-box context
   const isEveryBoxContext = !!onClose
 
   // Extract correction details
-  const correction = (taskPayload as any)?.employeeAttendanceCorrectionRequest as Record<string, unknown> | undefined
+  const correction = taskPayload?.employeeAttendanceCorrectionRequest as Record<string, unknown> | undefined
   const locale = getCurrentActiveUserLocale?.() || 'en'
 
   const formatDate = (value?: string) => {
