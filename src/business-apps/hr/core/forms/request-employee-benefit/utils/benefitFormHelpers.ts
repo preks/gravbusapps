@@ -11,75 +11,94 @@ export interface DerivedValues {
   employeeMonthlyContribution?: number
 }
 
+interface BenefitObjectValue {
+  displayValue?: string | number
+  value?: string | number
+  amount?: string | number
+  yearlyAmount?: string | number
+  monthlyAmount?: string | number
+  unit?: string
+  currency?: string
+  currencyCode?: string
+  unitLabel?: string
+  period?: string | number
+  periodicity?: string | number
+  frequency?: string | number
+  interval?: string | number
+  employeeYearlyContribution?: string | number
+  yearlyContribution?: string | number
+  employeeMonthlyContribution?: string | number
+  monthlyContribution?: string | number
+}
+
 export const computeDerivedValues = (selectedBenefit: BenefitCatalogItem | null): DerivedValues => {
-  const rawObjectValue = selectedBenefit?.catalogEntry?.objectValue
-  let ov: any = null
-  if (rawObjectValue != null) {
-    try {
-      ov = typeof rawObjectValue === 'string' ? JSON.parse(rawObjectValue as string) : rawObjectValue
-    } catch {
-      ov = null
-    }
-  }
+  const objectValue = parseBenefitObjectValue(selectedBenefit?.catalogEntry?.objectValue)
 
-  let displayFromOV = undefined as string | undefined
-  let periodFromOV = undefined as string | undefined
-  let amountNumberFromOV = undefined as number | undefined
-  let employeeYearlyContribution = undefined as number | undefined
-  let employeeMonthlyContribution = undefined as number | undefined
-
-  if (ov) {
-    const amount =
-      (ov as any)?.displayValue ??
-      (ov as any)?.value ??
-      (ov as any)?.amount ??
-      (ov as any)?.yearlyAmount ??
-      (ov as any)?.monthlyAmount
-
-    const unit = (ov as any)?.unit ?? (ov as any)?.currency ?? (ov as any)?.currencyCode ?? (ov as any)?.unitLabel
-
-    if (amount != null) {
-      displayFromOV = `${amount}${unit ? ` ${unit}` : ''}`
-      const parsedAmount = typeof amount === 'number' ? amount : Number.parseFloat(String(amount).replace(',', '.'))
-      if (Number.isFinite(parsedAmount)) {
-        amountNumberFromOV = parsedAmount
-      }
-    }
-    const periodCandidate =
-      (ov as any)?.period ?? (ov as any)?.periodicity ?? (ov as any)?.frequency ?? (ov as any)?.interval
-    if (periodCandidate != null) {
-      periodFromOV = String(periodCandidate)
-    }
-
-    // Extract contribution values if available
-    const yearlyContrib = (ov as any)?.employeeYearlyContribution ?? (ov as any)?.yearlyContribution
-    if (yearlyContrib != null) {
-      const parsed =
-        typeof yearlyContrib === 'number' ? yearlyContrib : Number.parseFloat(String(yearlyContrib).replace(',', '.'))
-      if (Number.isFinite(parsed)) {
-        employeeYearlyContribution = parsed
-      }
-    }
-
-    const monthlyContrib = (ov as any)?.employeeMonthlyContribution ?? (ov as any)?.monthlyContribution
-    if (monthlyContrib != null) {
-      const parsed =
-        typeof monthlyContrib === 'number'
-          ? monthlyContrib
-          : Number.parseFloat(String(monthlyContrib).replace(',', '.'))
-      if (Number.isFinite(parsed)) {
-        employeeMonthlyContribution = parsed
-      }
+  if (!objectValue) {
+    return {
+      includedValueDisplay: '-',
+      resolvedPeriodDisplay: '',
+      derivedAmountNumber: undefined,
+      employeeYearlyContribution: undefined,
+      employeeMonthlyContribution: undefined
     }
   }
 
   return {
-    includedValueDisplay: displayFromOV ?? '-',
-    resolvedPeriodDisplay: periodFromOV || '',
-    derivedAmountNumber: amountNumberFromOV,
-    employeeYearlyContribution,
-    employeeMonthlyContribution
+    includedValueDisplay: extractDisplayValue(objectValue),
+    resolvedPeriodDisplay: extractPeriod(objectValue),
+    derivedAmountNumber: extractAmount(objectValue),
+    employeeYearlyContribution: extractYearlyContribution(objectValue),
+    employeeMonthlyContribution: extractMonthlyContribution(objectValue)
   }
+}
+
+function parseBenefitObjectValue(rawValue: unknown): BenefitObjectValue | null {
+  if (rawValue == null) return null
+
+  try {
+    return typeof rawValue === 'string' ? JSON.parse(rawValue) : (rawValue as BenefitObjectValue)
+  } catch {
+    return null
+  }
+}
+
+function extractDisplayValue(ov: BenefitObjectValue): string {
+  const amount = ov.displayValue ?? ov.value ?? ov.amount ?? ov.yearlyAmount ?? ov.monthlyAmount
+  if (amount == null) return '-'
+
+  const unit = ov.unit ?? ov.currency ?? ov.currencyCode ?? ov.unitLabel
+  const unitSuffix = unit ? ` ${unit}` : ''
+  return `${amount}${unitSuffix}`
+}
+
+function extractPeriod(ov: BenefitObjectValue): string {
+  const period = ov.period ?? ov.periodicity ?? ov.frequency ?? ov.interval
+  return period != null ? String(period) : ''
+}
+
+function extractAmount(ov: BenefitObjectValue): number | undefined {
+  const amount = ov.displayValue ?? ov.value ?? ov.amount ?? ov.yearlyAmount ?? ov.monthlyAmount
+  if (amount == null) return undefined
+
+  const parsed = typeof amount === 'number' ? amount : Number.parseFloat(String(amount).replace(',', '.'))
+  return Number.isFinite(parsed) ? parsed : undefined
+}
+
+function extractYearlyContribution(ov: BenefitObjectValue): number | undefined {
+  const value = ov.employeeYearlyContribution ?? ov.yearlyContribution
+  if (value == null) return undefined
+
+  const parsed = typeof value === 'number' ? value : Number.parseFloat(String(value).replace(',', '.'))
+  return Number.isFinite(parsed) ? parsed : undefined
+}
+
+function extractMonthlyContribution(ov: BenefitObjectValue): number | undefined {
+  const value = ov.employeeMonthlyContribution ?? ov.monthlyContribution
+  if (value == null) return undefined
+
+  const parsed = typeof value === 'number' ? value : Number.parseFloat(String(value).replace(',', '.'))
+  return Number.isFinite(parsed) ? parsed : undefined
 }
 
 export const composeValueWithCurrency = (base: string, currencyCode: string): string => {

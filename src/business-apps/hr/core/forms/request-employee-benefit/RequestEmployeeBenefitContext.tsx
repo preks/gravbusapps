@@ -3,8 +3,8 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { EMPLOYEE_DATA_QUERY, GET_COUNTRY_CURRENCY_QUERY } from './RequestEmployeeBenefitQueries'
-import { extractCurrencyCode } from '@/common/utils/numberFormatter'
 import { fetchBenefitProvidersForBenefit } from './utils/fetchBenefitProviders'
+import { fetchCountryCurrency } from './utils/fetchCountryCurrency'
 import { extractEmployeeId } from './utils/employeeIdUtils'
 import type { RequestEmployeeBenefitContextData, EmployeeDataResponse } from './types'
 
@@ -70,50 +70,25 @@ export const RequestEmployeeBenefitProvider: React.FC<ProviderProps> = ({
         selectedBenefit: selectedBenefit
       })
 
-      // Fetch benefit providers and country currency in parallel
-      try {
-        let providers: any[] = []
-        let currencyRef: string | null = null
-        let currencyCode = ''
-
-        if (selectedBenefit) {
-          // Fetch benefit providers
-          providers = await fetchBenefitProvidersForBenefit(catalogClient, selectedBenefit)
-
-          // Fetch country currency from parent country catalog entry
+      // Fetch additional data if benefit selected
+      if (selectedBenefit) {
+        try {
           const countryId = selectedBenefit?.catalogEntry?.parentEntryId
-          if (countryId) {
-            try {
-              const countryRes = await graphqlClient.request<any>(GET_COUNTRY_CURRENCY_QUERY, { id: countryId })
-              const raw = countryRes?.CatalogEntry?.[0]?.objectValue
-              if (raw) {
-                let obj: any = raw
-                if (typeof raw === 'string') {
-                  try {
-                    obj = JSON.parse(raw)
-                  } catch {
-                    obj = raw
-                  }
-                }
-                const currencyRefValue: string | undefined = obj?.currency || obj?.defaultCurrency || obj?.currencyRef
-                if (currencyRefValue && typeof currencyRefValue === 'string') {
-                  currencyRef = currencyRefValue
-                  currencyCode = extractCurrencyCode(currencyRefValue)
-                }
-              }
-            } catch {
-              // Ignore currency fetch errors
-            }
-          }
-        }
+          const [providers, currency] = await Promise.all([
+            fetchBenefitProvidersForBenefit(catalogClient, selectedBenefit),
+            countryId
+              ? fetchCountryCurrency(graphqlClient, countryId, GET_COUNTRY_CURRENCY_QUERY)
+              : Promise.resolve({ currencyRef: null, currencyCode: '' })
+          ])
 
-        setData(prev => ({
-          ...prev!,
-          benefitProviders: providers,
-          countryCurrency: { currencyRef, currencyCode }
-        }))
-      } catch (error_: any) {
-        setError(error_?.message || 'Data load failed')
+          setData(prev => ({
+            ...prev!,
+            benefitProviders: providers,
+            countryCurrency: currency
+          }))
+        } catch (error_: any) {
+          setError(error_?.message || 'Data load failed')
+        }
       }
 
       setIsLoading(false)
