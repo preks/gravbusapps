@@ -60,6 +60,15 @@ interface BankAccountData {
   notes?: string | null
 }
 
+// Helper functions for US account detection
+const getCountryCode = (ref?: string | null): string => {
+  return ref?.split(':').pop() || ''
+}
+
+const isUSAccount = (countryRef?: string | null): boolean => {
+  return getCountryCode(countryRef) === 'US'
+}
+
 const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = ({
   accessToken,
   additionalData,
@@ -212,15 +221,6 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
     )
   }
 
-  // Helper functions for US account detection
-  const getCountryCode = (ref?: string | null): string => {
-    return ref?.split(':').pop() || ''
-  }
-
-  const isUSAccount = (countryRef?: string | null): boolean => {
-    return getCountryCode(countryRef) === 'US'
-  }
-
   const displayName = employeeData
     ? `${employeeData.firstName || ''} ${employeeData.lastName || ''}`.trim() || 'Employee'
     : 'Employee'
@@ -316,11 +316,11 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
       <Alert>
         <FileText className="gba:h-4 gba:w-4" />
         <AlertDescription>
-          {changeMode === 'INSERT'
-            ? t('alert-new-account')
-            : changesCount > 0
-              ? t('alert-update-with-changes', { count: changesCount })
-              : t('alert-update-no-changes')}
+          {(() => {
+            if (changeMode === 'INSERT') return t('alert-new-account')
+            if (changesCount > 0) return t('alert-update-with-changes', { count: changesCount })
+            return t('alert-update-no-changes')
+          })()}
         </AlertDescription>
       </Alert>
 

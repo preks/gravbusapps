@@ -57,6 +57,16 @@ interface EmployeeRelationshipData {
   relationshipDocument?: string | null
 }
 
+// Helper formatter for birth date
+const formatBirthDate = (date?: string | null, locale?: string): string => {
+  if (!date) return 'N/A'
+  const d = new Date(date)
+  if (isNaN(d.getTime())) {
+    return String(date)
+  }
+  return d.toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
 const ChangeRelationshipReviewContent: React.FC<ChangeRelationshipReviewProps> = ({
   accessToken,
   additionalData,
@@ -64,7 +74,7 @@ const ChangeRelationshipReviewContent: React.FC<ChangeRelationshipReviewProps> =
   onClose
 }) => {
   // Translation hook
-  const { t } = useTranslation(translations)
+  const { t, locale } = useTranslation(translations)
 
   // Cast additionalData to extended interface for proper typing
   const extendedAdditionalData = additionalData as ExtendedAdditionalData | undefined
@@ -116,14 +126,9 @@ const ChangeRelationshipReviewContent: React.FC<ChangeRelationshipReviewProps> =
     return t('value-na')
   }
 
-  const formatBirthDate = (date?: string | null): string => {
-    if (!date) return t('value-na')
-    try {
-      const d = new Date(date)
-      return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
-    } catch {
-      return String(date)
-    }
+  const formatBirthDateWithFallback = (date?: string | null): string => {
+    const formatted = formatBirthDate(date, locale)
+    return formatted === 'N/A' ? t('value-na') : formatted
   }
 
   // Use shared hook for review form data
@@ -143,7 +148,7 @@ const ChangeRelationshipReviewContent: React.FC<ChangeRelationshipReviewProps> =
     ],
     formatters: {
       typeRef: getCatalogValue,
-      birthDate: formatBirthDate,
+      birthDate: formatBirthDateWithFallback,
       emergencyContact: formatEmergencyContact
     },
     defaultFormatter: (v: any) => String(v || t('value-na')),
@@ -258,11 +263,11 @@ const ChangeRelationshipReviewContent: React.FC<ChangeRelationshipReviewProps> =
       <Alert variant="default">
         <FileText className="gba:h-4 gba:w-4" />
         <AlertDescription>
-          {isInsertMode
-            ? t('alert-new-relationship', { name: relationshipName })
-            : hasOldRelationship && changesCount > 0
-              ? t('alert-update-with-changes', { count: changesCount })
-              : t('alert-update-no-changes')}
+          {(() => {
+            if (isInsertMode) return t('alert-new-relationship', { name: relationshipName })
+            if (hasOldRelationship && changesCount > 0) return t('alert-update-with-changes', { count: changesCount })
+            return t('alert-update-no-changes')
+          })()}
         </AlertDescription>
       </Alert>
 

@@ -65,6 +65,33 @@ const getDueDateClass = (overdue: boolean, dueSoon: boolean): string => {
   return 'gba:text-muted-foreground'
 }
 
+// Helper to get module name from process definition ID
+const getModuleName = (processDefId?: string): string | null => {
+  if (!processDefId) return null
+  return processDefId
+    .split(/[_-]/)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ')
+}
+
+// Helper to get task title based on source
+const getTaskTitle = (task: UnifiedTask, t: (key: string) => string): string => {
+  if (task.source === 'kogito') {
+    return task.referenceTaskName || task.sourceMetadata?.nodeName || task.name || t('task-card-untitled')
+  }
+  return task.title || task.name || t('task-card-untitled')
+}
+
+// Helper to get creator ID from task metadata
+const getCreatorId = (task: UnifiedTask): string | undefined => {
+  return (
+    task.sourceMetadata?.creatorUserId ||
+    task.sourceMetadata?.creatorEmployeeId ||
+    task.sourceMetadata?.createdBy ||
+    task.sourceMetadata?.initiatedBy
+  )
+}
+
 export const TaskCard: React.FC<TaskCardProps> = memo(
   ({
     task,
@@ -86,37 +113,14 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
     // Check if this is a Blink task (quick direct task from one person to another)
     const isBlinkTask = task.source === 'cflow' && task.tags?.app === 'quick-task'
 
-    // Format process/module name from processDefinitionId for Kogito tasks
-    const getModuleName = (processDefId?: string): string | null => {
-      if (!processDefId) return null
-      // Convert snake_case or kebab-case to Title Case
-      return processDefId
-        .split(/[_-]/)
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-        .join(' ')
-    }
-
     const moduleName = task.source === 'kogito' ? getModuleName(task.type) : null
     const moduleInfo = getModuleInfo(task.name, task.type)
     const ModuleIcon = moduleInfo.icon
 
-    // Get task name/title
-    // For Kogito tasks, prefer referenceName (most descriptive with context)
-    // Then fallback to nodeName, title, or name
-    // For CFlow tasks, use title or name
-    const taskTitle =
-      task.source === 'kogito'
-        ? task.referenceTaskName || task.sourceMetadata?.nodeName || task.name || t('task-card-untitled')
-        : task.title || task.name || t('task-card-untitled')
+    const taskTitle = getTaskTitle(task, t)
 
-    // Extract creator ID - both sources now use user ID:
-    // - Kogito: creatorUserId (user ID)
-    // - CFlow: creatorUserId (user ID from flowInitiatedBy)
-    const creatorId =
-      task.sourceMetadata?.creatorUserId || // Both Kogito & CFlow (userId)
-      task.sourceMetadata?.creatorEmployeeId || // Legacy fallback (employeeId)
-      task.sourceMetadata?.createdBy ||
-      task.sourceMetadata?.initiatedBy
+    // Extract creator ID - both sources now use user ID
+    const creatorId = getCreatorId(task)
 
     // Get employee data from the batch-fetched map (used for avatar only, name comes from metadata)
     const employeeData = creatorId ? employeeMap.get(creatorId) : null
@@ -161,14 +165,17 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
     // Get creator name - prefer metadata (instant, no loading), then employee data
     // Kogito provides creatorName, CFlow does not (flowInitiatedByName not sent by backend)
     // For CFlow: show empty while loading, then real name when employee data loads
-    const creatorName =
-      task.sourceMetadata?.creatorName ||
-      task.sourceMetadata?.ownerName ||
-      (areAvatarsLoading
-        ? ''
-        : employeeData
-          ? `${employeeData.firstName} ${employeeData.lastName}`.trim()
-          : t('task-card-unknown-creator'))
+    const getCreatorName = (): string => {
+      if (task.sourceMetadata?.creatorName) return task.sourceMetadata.creatorName
+      if (task.sourceMetadata?.ownerName) return task.sourceMetadata.ownerName
+      if (areAvatarsLoading) return ''
+      if (employeeData) {
+        return `${employeeData.firstName} ${employeeData.lastName}`.trim()
+      }
+      return t('task-card-unknown-creator')
+    }
+
+    const creatorName = getCreatorName()
 
     const createdAt = task.createdAt || task.scheduledAt || task.sourceMetadata?.createdAt
 

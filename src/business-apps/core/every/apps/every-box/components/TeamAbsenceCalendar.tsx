@@ -561,7 +561,12 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
                                       ? 'gba:ring-2 gba:ring-primary gba:ring-offset-2 gba:shadow-lg'
                                       : ''
                                   }`}
-                                  title={`${absence.type} - ${absence.status}${isCurrentAbsenceDay ? ` (${t('absence-calendar-pending-tooltip')})` : ''}`}
+                                  title={(() => {
+                                    const baseTitle = `${absence.type} - ${absence.status}`
+                                    return isCurrentAbsenceDay
+                                      ? `${baseTitle} (${t('absence-calendar-pending-tooltip')})`
+                                      : baseTitle
+                                  })()}
                                 >
                                   {absence.type}
                                   {isCurrentAbsenceDay && (

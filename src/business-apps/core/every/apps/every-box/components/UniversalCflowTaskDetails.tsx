@@ -149,50 +149,59 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
     return task.form.some((field: any) => field.value !== undefined)
   }, [task.form])
 
+  // Helper: Get field initial value based on priority
+  const getFieldInitialValue = React.useCallback(
+    (field: any, fieldName: string): any => {
+      // Priority 1: Use flowStepData if available (for completed tasks)
+      if (isCompleted && flowStepData?.[fieldName] !== undefined) {
+        return flowStepData[fieldName]
+      }
+      // Priority 2: Use task.inputs if available
+      if (
+        task.inputs &&
+        typeof fieldName === 'string' &&
+        Object.prototype.hasOwnProperty.call(task.inputs, fieldName)
+      ) {
+        return (task.inputs as Record<string, any>)[fieldName]
+      }
+      // Priority 3: Use field.value if available
+      if (field.value !== undefined) {
+        return field.value
+      }
+      // Priority 4: Use field default value
+      if (field.defaultValue !== undefined) {
+        return field.defaultValue
+      }
+      return undefined
+    },
+    [isCompleted, flowStepData, task.inputs]
+  )
+
+  // Helper: Check if we should wait for data before initializing
+  const shouldWaitForData = React.useCallback((): boolean => {
+    if (task.id !== currentTaskId) return true
+    if (isCompleted && !formHasDirectValues) {
+      return isLoadingFlowData || flowStepData === null
+    }
+    return false
+  }, [task.id, currentTaskId, isCompleted, formHasDirectValues, isLoadingFlowData, flowStepData])
+
   // Initialize formValues from task.inputs, field.value, or flowStepData (for completed tasks)
   React.useEffect(() => {
-    // Only initialize if we have the correct task and haven't initialized yet
-    if (task.id !== currentTaskId) {
-      return // Wait for the reset effect to run first
-    }
+    if (shouldWaitForData()) return
+    if (formInitialized || !task.form || !Array.isArray(task.form)) return
 
-    // For completed tasks that need flowStepData (no direct values in form):
-    // Wait until flowStepData is actually loaded (not null and not loading)
-    // This prevents initializing with empty/stale data
-    if (isCompleted && !formHasDirectValues) {
-      if (isLoadingFlowData || flowStepData === null) {
-        return // Wait for flowStepData to load
+    const initialValues: Record<string, any> = {}
+    task.form.forEach((field: any) => {
+      const fieldName = field.name || field.id
+      const value = getFieldInitialValue(field, fieldName)
+      if (value !== undefined) {
+        initialValues[fieldName] = value
       }
-    }
+    })
 
-    if (!formInitialized && task.form && Array.isArray(task.form)) {
-      const initialValues: Record<string, any> = {}
-
-      task.form.forEach((field: any) => {
-        const fieldName = field.name || field.id
-
-        // Priority 1: Use flowStepData if available (for completed tasks)
-        // Only use flowStepData for completed tasks to avoid mixing data
-        if (isCompleted && flowStepData?.[fieldName] !== undefined) {
-          initialValues[fieldName] = flowStepData[fieldName]
-        }
-        // Priority 2: Use task.inputs if available
-        else if (task.inputs?.[fieldName] !== undefined) {
-          initialValues[fieldName] = task.inputs[fieldName]
-        }
-        // Priority 3: Use field.value if available (for read-only fields or pre-filled values from cFlow)
-        else if (field.value !== undefined) {
-          initialValues[fieldName] = field.value
-        }
-        // Priority 4: Use field default value
-        else if (field.defaultValue !== undefined) {
-          initialValues[fieldName] = field.defaultValue
-        }
-      })
-
-      setFormValues(initialValues)
-      setFormInitialized(true)
-    }
+    setFormValues(initialValues)
+    setFormInitialized(true)
   }, [
     task.id,
     task.form,
@@ -202,7 +211,9 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
     currentTaskId,
     formInitialized,
     isLoadingFlowData,
-    formHasDirectValues
+    formHasDirectValues,
+    shouldWaitForData,
+    getFieldInitialValue
   ])
 
   const isBlinkTask = task.source === 'cflow' && task.tags?.app === 'quick-task'
@@ -224,6 +235,122 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
     return task.sourceMetadata?.creatorName || task.sourceMetadata?.flowInitiatedByName || t('task-details-unknown')
   }, [creatorEmployeeData, task.sourceMetadata, t])
 
+  // Helper: Process form field value based on type
+  const processFieldValue = (field: any, value: any): any => {
+    const isNumberType = field.type === 'NUMBER' || field.type === 'number'
+    const isFileType = field.type === 'FILE' || field.type === 'file'
+
+    if (value !== undefined && value !== null) {
+      if (isNumberType) {
+        if (value === '' || value === null) {
+          return field.required ? null : undefined
+        }
+        const numValue = typeof value === 'string' ? Number.parseFloat(value) : Number(value)
+        if (!Number.isNaN(numValue)) {
+          return numValue
+        }
+        return field.required ? null : undefined
+      }
+      if (isFileType || !isNumberType) {
+        return value
+      }
+    }
+
+    if (field.required && field.defaultValue !== undefined) {
+      return field.defaultValue
+    }
+
+    return undefined
+  }
+
+  // Helper: Process all form data
+  const processFormData = (): Record<string, any> => {
+    const processedFormData: Record<string, any> = {}
+
+    if (task.form && Array.isArray(task.form)) {
+      task.form.forEach((field: any) => {
+        const fieldName = field.name || field.id
+        const processedValue = processFieldValue(field, formValues[fieldName])
+        if (processedValue !== undefined) {
+          processedFormData[fieldName] = processedValue
+        }
+      })
+    } else {
+      Object.assign(processedFormData, formValues)
+    }
+
+    return processedFormData
+  }
+
+  // Helper: Complete task action
+  const handleCompleteTask = async (flowEngineApi: string) => {
+    const processedFormData = processFormData()
+    const completeRequestBody = {
+      userId: userId,
+      formData: processedFormData,
+      ...(showComment && comment?.trim() ? { comment: comment.trim() } : {})
+    }
+
+    const response = await fetch(`${flowEngineApi}/api/tasks/${task.id}/complete`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`
+      },
+      body: JSON.stringify(completeRequestBody)
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+      throw new Error(errorData.error || 'Failed to complete task')
+    }
+
+    message.success({
+      content: t('task-dialog-completed-success'),
+      duration: 3
+    })
+
+    if (onTaskCompleted && task.id) {
+      onTaskCompleted(task.id)
+    }
+    onTaskUpdated()
+    onClose()
+  }
+
+  // Helper: Reject task action
+  const handleRejectTask = async (flowEngineApi: string, data?: any) => {
+    const rejectRequestBody = {
+      userId: userId,
+      rejectionComment: comment || data?.comment || '',
+      comment: comment || data?.comment || ''
+    }
+
+    const response = await fetch(`${flowEngineApi}/api/tasks/${task.id}/reject`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`
+      },
+      body: JSON.stringify(rejectRequestBody)
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+      throw new Error(errorData.error || 'Failed to reject task')
+    }
+
+    message.success({
+      content: t('task-details-task-rejected'),
+      duration: 3
+    })
+
+    if (onTaskCompleted && task.id) {
+      onTaskCompleted(task.id)
+    }
+    onTaskUpdated()
+    onClose()
+  }
+
   // Unified handler for all task actions
   const handleTaskAction = async (action: string, data?: any) => {
     if (!task.id || !userId) {
@@ -237,136 +364,20 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
     try {
       switch (action) {
         case 'claim':
-          // Claim task
           message.info(t('task-details-claim-coming'))
           break
-
-        case 'complete': {
-          // Process form values: convert NUMBER types to numbers, handle empty strings
-          const processedFormData: Record<string, any> = {}
-          if (task.form && Array.isArray(task.form)) {
-            task.form.forEach((field: any) => {
-              const fieldName = field.name || field.id
-              const value = formValues[fieldName]
-
-              // Include all non-empty values (including empty strings for required fields that might be intentionally empty)
-              // Only skip undefined and null
-              if (value !== undefined && value !== null) {
-                // Convert NUMBER type fields to numbers
-                if (field.type === 'NUMBER' || field.type === 'number') {
-                  // Handle empty string for number fields
-                  if (value === '' || value === null) {
-                    // Skip empty number fields unless required
-                    if (field.required) {
-                      processedFormData[fieldName] = null
-                    }
-                  } else {
-                    const numValue = typeof value === 'string' ? Number.parseFloat(value) : Number(value)
-                    if (!Number.isNaN(numValue)) {
-                      processedFormData[fieldName] = numValue
-                    } else if (field.required) {
-                      // If required and invalid, include as null
-                      processedFormData[fieldName] = null
-                    }
-                  }
-                } else if (field.type === 'FILE' || field.type === 'file') {
-                  // FILE fields might be File objects or strings (base64/data URLs)
-                  // Include as-is - backend will handle processing
-                  processedFormData[fieldName] = value
-                } else {
-                  // For other types (TEXT, TEXTAREA, etc.), include the value
-                  processedFormData[fieldName] = value
-                }
-              } else if (field.required && field.defaultValue !== undefined) {
-                // Include default value for required fields if no value provided
-                processedFormData[fieldName] = field.defaultValue
-              }
-            })
-          } else {
-            // Fallback: use formValues as-is
-            Object.assign(processedFormData, formValues)
-          }
-
-          const completeRequestBody = {
-            userId: userId,
-            formData: processedFormData,
-            ...(showComment && comment?.trim() ? { comment: comment.trim() } : {})
-          }
-
-          const completeResponse = await fetch(`${flowEngineApi}/api/tasks/${task.id}/complete`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${accessToken}`
-            },
-            body: JSON.stringify(completeRequestBody)
-          })
-
-          if (!completeResponse.ok) {
-            const errorData = await completeResponse.json().catch(() => ({ error: 'Unknown error' }))
-            throw new Error(errorData.error || 'Failed to complete task')
-          }
-
-          message.success({
-            content: t('task-dialog-completed-success'),
-            duration: 3
-          })
-
-          if (onTaskCompleted && task.id) {
-            onTaskCompleted(task.id)
-          }
-
-          onTaskUpdated()
-          onClose()
+        case 'complete':
+          await handleCompleteTask(flowEngineApi)
           break
-        }
-
-        case 'reject': {
-          // Reject task (approval tasks only)
-          const rejectRequestBody = {
-            userId: userId,
-            rejectionComment: comment || data?.comment || '',
-            comment: comment || data?.comment || ''
-          }
-
-          const rejectResponse = await fetch(`${flowEngineApi}/api/tasks/${task.id}/reject`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${accessToken}`
-            },
-            body: JSON.stringify(rejectRequestBody)
-          })
-
-          if (!rejectResponse.ok) {
-            const errorData = await rejectResponse.json().catch(() => ({ error: 'Unknown error' }))
-            throw new Error(errorData.error || 'Failed to reject task')
-          }
-
-          message.success({
-            content: t('task-details-task-rejected'),
-            duration: 3
-          })
-
-          if (onTaskCompleted && task.id) {
-            onTaskCompleted(task.id)
-          }
-
-          onTaskUpdated()
-          onClose()
+        case 'reject':
+          await handleRejectTask(flowEngineApi, data)
           break
-        }
-
         case 'reassign':
-          // Reassign task
           message.info(t('task-details-reassign-coming'))
           break
-
         case 'unclaim':
-          // Unclaim task
           message.info(t('task-details-unclaim-coming'))
           break
-
         default:
           message.warning(t('task-details-unknown-action', { action }))
       }
@@ -633,26 +644,40 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
                   {t('task-completion-outcome')}:
                 </div>
                 <div>
-                  {task.sourceMetadata?.outcome === 'REJECTED' ? (
-                    <Badge
-                      variant="secondary"
-                      className="gba:bg-destructive/10 gba:text-destructive gba:border-destructive/20"
-                    >
-                      {t('task-completion-outcome-rejected')}
-                    </Badge>
-                  ) : isApprovalTask ? (
-                    <Badge variant="secondary" className="gba:bg-success/10 gba:text-success gba:border-success/20">
-                      {t('task-completion-outcome-approved')}
-                    </Badge>
-                  ) : isAcknowledgeTask ? (
-                    <Badge variant="secondary" className="gba:bg-success/10 gba:text-success gba:border-success/20">
-                      {t('task-completion-outcome-acknowledged')}
-                    </Badge>
-                  ) : (
-                    <Badge variant="secondary" className="gba:bg-success/10 gba:text-success gba:border-success/20">
-                      {t('task-completion-outcome-completed')}
-                    </Badge>
-                  )}
+                  {(() => {
+                    const successBadgeClass = 'gba:bg-success/10 gba:text-success gba:border-success/20'
+                    const destructiveBadgeClass = 'gba:bg-destructive/10 gba:text-destructive gba:border-destructive/20'
+
+                    if (task.sourceMetadata?.outcome === 'REJECTED') {
+                      return (
+                        <Badge variant="secondary" className={destructiveBadgeClass}>
+                          {t('task-completion-outcome-rejected')}
+                        </Badge>
+                      )
+                    }
+
+                    if (isApprovalTask) {
+                      return (
+                        <Badge variant="secondary" className={successBadgeClass}>
+                          {t('task-completion-outcome-approved')}
+                        </Badge>
+                      )
+                    }
+
+                    if (isAcknowledgeTask) {
+                      return (
+                        <Badge variant="secondary" className={successBadgeClass}>
+                          {t('task-completion-outcome-acknowledged')}
+                        </Badge>
+                      )
+                    }
+
+                    return (
+                      <Badge variant="secondary" className={successBadgeClass}>
+                        {t('task-completion-outcome-completed')}
+                      </Badge>
+                    )
+                  })()}
                 </div>
               </div>
 

@@ -14,6 +14,32 @@ dayjs.extend(relativeTime)
 dayjs.extend(calendar)
 
 /**
+ * Format working days text
+ */
+const formatDaysText = (days: number, t?: (key: string, vars?: Record<string, unknown>) => string): string => {
+  if (t) {
+    return t('working-days-format', { days })
+  }
+  return `${days} ${days === 1 ? 'day' : 'days'}`
+}
+
+/**
+ * Format working hours text
+ */
+const formatHoursText = (
+  hours: number,
+  hasPrefix: boolean,
+  t?: (key: string, vars?: Record<string, unknown>) => string
+): string => {
+  if (t) {
+    const hoursText = t('working-hours-format', { hours })
+    return hasPrefix ? ` ${hoursText}` : hoursText
+  }
+  const hoursText = `(${hours} ${hours === 1 ? 'hour' : 'hours'})`
+  return hasPrefix ? ` ${hoursText}` : hoursText
+}
+
+/**
  * Formats working days and hours into a readable string
  * @param workingDays - Number of working days
  * @param workingHours - Number of working hours
@@ -28,21 +54,12 @@ export const formatWorkingDaysAndHours = (
   const parts: string[] = []
 
   if (workingDays !== undefined) {
-    if (t) {
-      parts.push(t('working-days-format', { days: workingDays }))
-    } else {
-      parts.push(`${workingDays} ${workingDays === 1 ? 'day' : 'days'}`)
-    }
+    parts.push(formatDaysText(workingDays, t))
   }
 
   if (workingHours !== undefined) {
-    if (t) {
-      const hoursText = t('working-hours-format', { hours: workingHours })
-      parts.push(parts.length > 0 ? ` ${hoursText}` : hoursText)
-    } else {
-      const hoursText = `(${workingHours} ${workingHours === 1 ? 'hour' : 'hours'})`
-      parts.push(parts.length > 0 ? ` ${hoursText}` : hoursText)
-    }
+    const hasPrefix = parts.length > 0
+    parts.push(formatHoursText(workingHours, hasPrefix, t))
   }
 
   return parts.join('')

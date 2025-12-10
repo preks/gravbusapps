@@ -57,6 +57,16 @@ interface AddressData {
   employeeDocument?: string | null
 }
 
+// Helper functions for country-specific logic
+const getCountryCode = (ref?: string | null): string => {
+  return ref?.split(':').pop() || ''
+}
+
+const shouldShowRegion = (countryRef?: string | null): boolean => {
+  const cc = getCountryCode(countryRef)
+  return cc === 'DE' || cc === 'US' || cc === 'RO'
+}
+
 const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewProps> = ({
   accessToken,
   additionalData,
@@ -217,11 +227,7 @@ const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewPr
     )
   }
 
-  // Additional helper functions for country-specific logic
-  const getCountryCode = (ref?: string | null): string => {
-    return ref?.split(':').pop() || ''
-  }
-
+  // Helper functions using translations
   const getPostalLabel = (countryRef?: string | null): string => {
     return getCountryCode(countryRef) === 'US' ? t('label-zip-code') : t('label-postal-code')
   }
@@ -231,11 +237,6 @@ const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewPr
     if (cc === 'US') return t('label-state')
     if (cc === 'RO') return t('label-county')
     return t('label-region')
-  }
-
-  const shouldShowRegion = (countryRef?: string | null): boolean => {
-    const cc = getCountryCode(countryRef)
-    return cc === 'DE' || cc === 'US' || cc === 'RO'
   }
 
   // Get alert message based on change mode and state

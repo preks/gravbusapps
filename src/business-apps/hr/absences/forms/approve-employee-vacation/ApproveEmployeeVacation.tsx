@@ -91,58 +91,34 @@ const ApproveEmployeeVacation: React.FC<ApproveEmployeeVacationProps> = ({
     approverId: isTaskCompleted ? employeeAbsence?.approverId : null
   })
 
-  // Extract approval data from task outputs/inputs (for completed tasks)
-  const taskOutputApprovalStatus = useMemo(() => {
+  // Helper: Extract approval status from various sources
+  const getApprovalStatus = useCallback((): string | null => {
     if (!isTaskCompleted) return null
 
-    // Check outputs first (most reliable for completed tasks)
-    if (processMetadata?.outputs?.approval) {
-      return processMetadata.outputs.approval
-    }
+    return (
+      processMetadata?.outputs?.approval ||
+      processMetadata?.approval ||
+      taskPayload?.approval ||
+      extendedAdditionalData?.formData?.approval ||
+      null
+    )
+  }, [isTaskCompleted, processMetadata, taskPayload, extendedAdditionalData])
 
-    // Check if stored directly in processMetadata
-    if (processMetadata?.approval) {
-      return processMetadata.approval
-    }
-
-    // Check taskPayload
-    if (taskPayload?.approval) {
-      return taskPayload.approval
-    }
-
-    // Check formData
-    if (extendedAdditionalData?.formData?.approval) {
-      return extendedAdditionalData.formData.approval
-    }
-
-    return null
-  }, [isTaskCompleted, processMetadata, taskPayload, additionalData])
-
-  const taskOutputApprovalNote = useMemo(() => {
+  // Helper: Extract approval note from various sources
+  const getApprovalNote = useCallback((): string | null => {
     if (!isTaskCompleted) return null
 
-    // Check outputs first
-    if (processMetadata?.outputs?.approvalNote) {
-      return processMetadata.outputs.approvalNote
-    }
+    return (
+      processMetadata?.outputs?.approvalNote ||
+      processMetadata?.approvalNote ||
+      taskPayload?.approvalNote ||
+      extendedAdditionalData?.formData?.approvalNote ||
+      null
+    )
+  }, [isTaskCompleted, processMetadata, taskPayload, extendedAdditionalData])
 
-    // Check if stored directly in processMetadata
-    if (processMetadata?.approvalNote) {
-      return processMetadata.approvalNote
-    }
-
-    // Check taskPayload
-    if (taskPayload?.approvalNote) {
-      return taskPayload.approvalNote
-    }
-
-    // Check formData
-    if (extendedAdditionalData?.formData?.approvalNote) {
-      return extendedAdditionalData.formData.approvalNote
-    }
-
-    return null
-  }, [isTaskCompleted, processMetadata, taskPayload, additionalData])
+  const taskOutputApprovalStatus = useMemo(() => getApprovalStatus(), [getApprovalStatus])
+  const taskOutputApprovalNote = useMemo(() => getApprovalNote(), [getApprovalNote])
 
   const completedAt = processMetadata?.completedAt || extendedAdditionalData?.psi_taskCompletedAt || null
 

@@ -43,13 +43,57 @@ export const useApprovalData = ({
   useEffect(() => {
     let mounted = true
 
+    const handleTaskOutputData = () => {
+      if (taskOutputApprovalStatus && mounted) {
+        setActualApprovalStatus(taskOutputApprovalStatus)
+        setActualApprovalNote(taskOutputApprovalNote)
+      }
+    }
+
+    const setFallbackData = () => {
+      setActualApprovalStatus(taskOutputApprovalStatus || fallbackStatus || null)
+      setActualApprovalNote(taskOutputApprovalNote || fallbackNote || null)
+      setActualApprovalDate(completedAt || null)
+    }
+
+    const updateApprovalStatus = (absence: any) => {
+      const status = taskOutputApprovalStatus || absence.status
+      if (status) {
+        setActualApprovalStatus(status)
+      } else {
+        setActualApprovalStatus(null)
+      }
+    }
+
+    const updateApprovalNote = (absence: any) => {
+      if (taskOutputApprovalNote) {
+        setActualApprovalNote(taskOutputApprovalNote)
+      } else if (absence.approvalNote) {
+        setActualApprovalNote(absence.approvalNote)
+      } else {
+        setActualApprovalNote(null)
+      }
+    }
+
+    const updateApprovalDate = (absence: any) => {
+      if (completedAt) {
+        setActualApprovalDate(completedAt)
+      } else if (absence.updatedAt) {
+        setActualApprovalDate(absence.updatedAt)
+      } else {
+        setActualApprovalDate(null)
+      }
+    }
+
+    const processAbsenceData = (absence: any) => {
+      updateApprovalStatus(absence)
+      updateApprovalNote(absence)
+      updateApprovalDate(absence)
+    }
+
     const fetchApprovalData = async () => {
       if (!accessToken || !absenceId || !isTaskCompleted) {
-        // If we have task output data, use it
-        if (taskOutputApprovalStatus && mounted) {
-          setActualApprovalStatus(taskOutputApprovalStatus)
-          setActualApprovalNote(taskOutputApprovalNote)
-        }
+        handleTaskOutputData()
         return
       }
 
@@ -79,52 +123,14 @@ export const useApprovalData = ({
         if (!mounted) return
 
         if (response.EmployeeAbsence && response.EmployeeAbsence.length > 0) {
-          const absence = response.EmployeeAbsence[0]
-
-          // Priority order for approval status:
-          // 1. Task outputs (most reliable for completed tasks)
-          // 2. EmployeeAbsence.status
-          if (taskOutputApprovalStatus) {
-            setActualApprovalStatus(taskOutputApprovalStatus)
-          } else if (absence.status) {
-            setActualApprovalStatus(absence.status)
-          }
-
-          // Priority order for approval note:
-          // 1. Task outputs/inputs (most reliable for completed tasks)
-          // 2. EmployeeAbsence.approvalNote
-          if (taskOutputApprovalNote) {
-            setActualApprovalNote(taskOutputApprovalNote)
-          } else if (absence.approvalNote) {
-            setActualApprovalNote(absence.approvalNote)
-          } else {
-            setActualApprovalNote(null)
-          }
-
-          // Priority order for approval date:
-          // 1. Task completedAt (most reliable for completed tasks)
-          // 2. EmployeeAbsence.updatedAt (fallback)
-          if (completedAt) {
-            setActualApprovalDate(completedAt)
-          } else if (absence.updatedAt) {
-            setActualApprovalDate(absence.updatedAt)
-          } else {
-            setActualApprovalDate(null)
-          }
+          processAbsenceData(response.EmployeeAbsence[0])
         } else {
-          // Fallback to task output data if fetch fails
-          setActualApprovalStatus(taskOutputApprovalStatus || fallbackStatus || null)
-          setActualApprovalNote(taskOutputApprovalNote || fallbackNote || null)
-          setActualApprovalDate(completedAt || null)
+          setFallbackData()
         }
       } catch (error) {
         console.error('Error fetching approval data:', error)
         if (!mounted) return
-
-        // Fallback to task output data if fetch fails
-        setActualApprovalStatus(taskOutputApprovalStatus || fallbackStatus || null)
-        setActualApprovalNote(taskOutputApprovalNote || fallbackNote || null)
-        setActualApprovalDate(completedAt || null)
+        setFallbackData()
       } finally {
         if (mounted) {
           setIsLoadingApprovalData(false)
@@ -145,13 +151,14 @@ export const useApprovalData = ({
     taskOutputApprovalNote,
     completedAt,
     fallbackStatus,
-    fallbackNote
+    fallbackNote,
+    graphqlClient
   ])
 
   return {
-    approvalStatus: actualApprovalStatus !== null ? actualApprovalStatus : taskOutputApprovalStatus,
-    approvalNote: actualApprovalNote !== null ? actualApprovalNote : taskOutputApprovalNote,
-    approvalDate: actualApprovalDate !== null ? actualApprovalDate : completedAt,
+    approvalStatus: actualApprovalStatus ?? taskOutputApprovalStatus,
+    approvalNote: actualApprovalNote ?? taskOutputApprovalNote,
+    approvalDate: actualApprovalDate ?? completedAt,
     isLoadingApprovalData
   }
 }
