@@ -5,10 +5,7 @@ import { formatCurrency, extractCurrencyCode } from '@/common/utils/numberFormat
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 // Remove dependency on investmentTypeUtils - now using dynamic types
-import {
-  FormFieldsDefinition,
-  FormFieldDefinition
-} from '@/business-apps/irm/investments/forms/investment-form/queries/InvestmentCatalogQueries'
+import { FormFieldsDefinition, FormFieldDefinition } from '@/common/data/investment/hooks/useInvestmentCatalogs'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { Calendar, Flag } from 'lucide-react'

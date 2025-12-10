@@ -361,11 +361,10 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
     }
   }
 
-  // Handle contact type change
-  const handleContactTypeChange = (contactId: string, contactType: ContactType | string) => {
-    const newValue = internalValue.map(contact => {
-      const id = getContactId(contact)
-      if (id === contactId) {
+  // Handle contact type change - uses index instead of ID to avoid closure issues
+  const handleContactTypeChange = (index: number, contactType: ContactType | string) => {
+    const newValue = internalValue.map((contact, idx) => {
+      if (idx === index) {
         return typeof contact === 'object' ? { ...contact, contactType } : { id: contact, name: '', contactType }
       }
       return contact
@@ -496,7 +495,7 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
                 <div className="gba:w-48">
                   <Select
                     value={contactType || ''}
-                    onValueChange={value => handleContactTypeChange(contactId, value)}
+                    onValueChange={value => handleContactTypeChange(index, value)}
                     data-testid={formatDataTestId(dataTestId || 'contact-list', `contact-type-${index}`)}
                   >
                     <SelectTrigger className="gba:w-full">
