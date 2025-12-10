@@ -191,6 +191,11 @@ absence-calendar-more = +{$count} în plus
 absence-calendar-pending-approval = Aprobare în așteptare
 absence-calendar-pending-tooltip = Această absență așteaptă aprobare
 
+# Validation Messages
+validation-field-required = {$field} este obligatoriu
+validation-field-number-invalid = {$field} trebuie să fie un număr valid
+task-details-validation-error-title = Vă rugăm să completați toate câmpurile obligatorii
+
 # Task Formatters
 formatter-today = Astăzi
 formatter-yesterday = Ieri

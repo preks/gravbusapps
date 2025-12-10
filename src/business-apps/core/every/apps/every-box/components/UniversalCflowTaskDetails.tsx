@@ -10,6 +10,7 @@ import {
   Textarea,
   Alert,
   AlertDescription,
+  AlertTitle,
   useTranslation,
   useLocale
 } from '@newwork/nw-design-system'
@@ -96,6 +97,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
   const [comment, setComment] = useState('')
   const [formInitialized, setFormInitialized] = useState(false)
   const [currentTaskId, setCurrentTaskId] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   // Format date with Today/Yesterday support
   const formatDateTime = (date: string | Date): string => {
@@ -139,6 +141,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
       setFormInitialized(false)
       setShowComment(false)
       setComment('')
+      setFieldErrors({})
       setCurrentTaskId(task.id)
     }
   }, [task.id, currentTaskId])
@@ -277,8 +280,9 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
   }
 
   // Helper: Validate form data before submission
-  const validateFormData = (): { isValid: boolean; errors: string[] } => {
+  const validateFormData = (): { isValid: boolean; errors: string[]; fieldErrors: Record<string, string> } => {
     const errors: string[] = []
+    const fieldErrorsMap: Record<string, string> = {}
 
     if (task.form && Array.isArray(task.form)) {
       task.form.forEach((field: any) => {
@@ -289,7 +293,9 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
         // Check required fields
         if (field.required) {
           if (value === null || value === undefined || value === '') {
-            errors.push(t('validation-field-required', { field: fieldLabel }))
+            const errorMsg = t('validation-field-required', { field: fieldLabel })
+            errors.push(errorMsg)
+            fieldErrorsMap[fieldName] = errorMsg
             return
           }
 
@@ -297,14 +303,16 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
           if (isNumberType(field)) {
             const numValue = typeof value === 'string' ? Number.parseFloat(value) : Number(value)
             if (Number.isNaN(numValue)) {
-              errors.push(t('validation-field-number-invalid', { field: fieldLabel }))
+              const errorMsg = t('validation-field-number-invalid', { field: fieldLabel })
+              errors.push(errorMsg)
+              fieldErrorsMap[fieldName] = errorMsg
             }
           }
         }
       })
     }
 
-    return { isValid: errors.length === 0, errors }
+    return { isValid: errors.length === 0, errors, fieldErrors: fieldErrorsMap }
   }
 
   // Helper: Process all form data
@@ -331,13 +339,20 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
     // Validate form data before submission
     const validation = validateFormData()
     if (!validation.isValid) {
-      const errorMessage = validation.errors.join(', ')
+      // Set field errors to show visual feedback
+      setFieldErrors(validation.fieldErrors)
+
+      // Show error message with list of missing fields
+      const errorMessage = validation.errors.join('\n')
       message.error({
         content: errorMessage,
         duration: 5
       })
       return
     }
+
+    // Clear any previous field errors
+    setFieldErrors({})
 
     const processedFormData = processFormData()
     const completeRequestBody = {
@@ -862,11 +877,28 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
               </div>
             </CardHeader>
             <CardContent>
+              {/* Show validation errors summary if any */}
+              {Object.keys(fieldErrors).length > 0 && (
+                <Alert variant="destructive" className="gba:mb-4">
+                  <AlertTitle>
+                    {t('task-details-validation-error-title', { defaultValue: 'Validation Error' })}
+                  </AlertTitle>
+                  <AlertDescription>
+                    <ul className="gba:list-disc gba:list-inside gba:space-y-1">
+                      {Object.values(fieldErrors).map((error, idx) => (
+                        <li key={idx}>{error}</li>
+                      ))}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+              )}
+
               {/* Always show form fields - with empty values while loading for better UX */}
               <div className="gba:space-y-4">
                 {task.form.map((input: any, index: number) => {
                   const fieldName = input.name || input.id || `field_${index}`
                   const fieldValue = formValues[fieldName]
+                  const fieldError = fieldErrors[fieldName]
 
                   // Check if we're still loading data for this form
                   // For completed tasks without direct values, we need flowStepData to be loaded
@@ -879,21 +911,32 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
                   const isFieldReadOnly = isLoadingData || isCompleted || input.readOnly === true
 
                   return (
-                    <InputRenderer
-                      key={fieldName}
-                      input={input}
-                      index={index}
-                      readOnly={isFieldReadOnly}
-                      value={displayValue}
-                      onChange={value => {
-                        if (!isFieldReadOnly) {
-                          setFormValues({
-                            ...formValues,
-                            [fieldName]: value
-                          })
-                        }
-                      }}
-                    />
+                    <div key={fieldName}>
+                      <InputRenderer
+                        input={input}
+                        index={index}
+                        readOnly={isFieldReadOnly}
+                        value={displayValue}
+                        onChange={value => {
+                          if (!isFieldReadOnly) {
+                            // Clear field error when user starts typing
+                            if (fieldError) {
+                              setFieldErrors(prev => {
+                                const next = { ...prev }
+                                delete next[fieldName]
+                                return next
+                              })
+                            }
+                            setFormValues({
+                              ...formValues,
+                              [fieldName]: value
+                            })
+                          }
+                        }}
+                      />
+                      {/* Show field-level error message */}
+                      {fieldError && <p className="gba:text-sm gba:text-destructive gba:mt-1">{fieldError}</p>}
+                    </div>
                   )
                 })}
               </div>

@@ -191,6 +191,11 @@ absence-calendar-more = +{$count} more
 absence-calendar-pending-approval = Pending Approval
 absence-calendar-pending-tooltip = This absence is pending approval
 
+# Validation Messages
+validation-field-required = {$field} is required
+validation-field-number-invalid = {$field} must be a valid number
+task-details-validation-error-title = Please fill in all required fields
+
 # Task Formatters
 formatter-today = Today
 formatter-yesterday = Yesterday
