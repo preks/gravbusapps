@@ -14,7 +14,12 @@ import {
   Globe
 } from 'lucide-react'
 import type { EntityType, MessageEntityReference } from '../../types'
-import { ENTITY_NAVIGATION_PATHS, ENTITY_QUERY_PARAMS } from '../../types'
+import {
+  ENTITY_NAVIGATION_PATHS,
+  ENTITY_QUERY_PARAMS,
+  isSupportedEntityType,
+  warnOnceForUnsupportedEntityType
+} from '../../types'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 /**
@@ -57,6 +62,11 @@ export const CONTENT_ENTITY_TYPES: EntityType[] = [
  * Navigate to entity record page using platform navigation
  */
 export const navigateToEntity = (entity: MessageEntityReference): void => {
+  if (!isSupportedEntityType(entity.type)) {
+    warnOnceForUnsupportedEntityType(entity.type, entity)
+    return
+  }
+
   const basePath = ENTITY_NAVIGATION_PATHS[entity.type]
   const queryParam = ENTITY_QUERY_PARAMS[entity.type]
 

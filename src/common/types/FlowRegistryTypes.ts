@@ -173,6 +173,7 @@ export enum FlowContextName {
   flowInstance = 'flowInstance',
 
   documentPersonal = 'documentPersonal',
+  employeeDocumentDelete = 'employeeDocumentDelete',
   employeeAbsenceRecord = 'employeeAbsenceRecord',
   employeePerformanceGoal = 'employeePerformanceGoal',
   employeeGiveFeedback = 'employeeGiveFeedback',
