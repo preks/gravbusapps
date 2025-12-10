@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useCallback } from 'react'
+import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -10,6 +10,7 @@ import { useCreateCatalogEntries } from '@/common/data/catalog/hooks/useCreateCa
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { ContentRole } from '@/common/data/content/types/contentEnums'
 import { buildContentEntryPayload } from '@/common/data/content/payloads/contentEntryPayloads'
+import { useContentEntry } from '@/common/data/content/hooks/useContentEntry'
 import { ArticleSegment, QuestionSegment, DocumentSegment } from './segments'
 import translations from './_i18n'
 
@@ -48,6 +49,21 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
   const fileClient = useFileClient(context)
   // Extract props to mark as used
   const { contentId, contentGroupRef } = context
+
+  // Extract contentEntryId from additionalData (for update mode)
+  const contentEntryId =
+    contentId ||
+    context.additionalData?.contentEntryId ||
+    context.additionalData?.psi_taskPayload?.psi_initialParameters?.contentEntryId
+
+  // Memoize query options to prevent re-fetching
+  const queryOptions = useMemo(() => ({ config: 'detail' as const }), [])
+
+  // Load content entry data if in update mode
+  const { entry: loadedContentEntry, isLoading: contentEntryLoading } = useContentEntry(contentEntryId || '', {
+    accessToken: context.accessToken,
+    queryOptions
+  })
 
   const [image, setImage] = useState<string | null>(null)
   const [imageInfo, setImageInfo] = useState<{ name: string; size: string } | null>(null)
@@ -162,16 +178,18 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
     })
   }, [])
 
-  // Extract contentGroupRef from props or additionalData
+  // Extract contentGroupRef from props, additionalData, or loaded entry
   const extractedContentGroupRef =
     contentGroupRef ||
     context.additionalData?.contentGroupRef ||
     context.additionalData?.contentGroup ||
     context.additionalData?.psi_taskPayload?.psi_initialParameters?.contentGroupRef ||
-    context.additionalData?.psi_taskPayload?.psi_initialParameters?.contentGroup
+    context.additionalData?.psi_taskPayload?.psi_initialParameters?.contentGroup ||
+    loadedContentEntry?.contentGroupRef ||
+    null
 
-  // Use contentId prop
-  const extractedContentId = contentId
+  // Use contentEntryId (from props or additionalData)
+  const extractedContentId = contentEntryId
 
   // Author info from context
   const authorName = useMemo(() => {
@@ -192,7 +210,7 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
           title: z.string().min(1, t('title-required')),
           previewText: z.string().min(1, t('preview-required')),
           content: z.string().min(1, t('content-required')),
-          contentImage: z.string().nullable(),
+          contentImage: z.string().nullable().optional(),
           contentGroupRef: z.string().min(1, t('group-required')),
           contentTypeRef: z.string().optional(),
           role: z.string().optional(),
@@ -239,14 +257,71 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
     [t, validateField]
   )
 
-  const defaultValues = useMemo(
-    () => ({
-      id: context.contentId || '',
+  // Map loaded content entry to form values
+  const mappedFormValues = useMemo(() => {
+    if (!loadedContentEntry) {
+      return null
+    }
+
+    // Extract categories and tags IDs
+    const categories =
+      loadedContentEntry.contentEntryCategories
+        ?.map(cat => cat.contentCategoryRef || cat.contentCategory?.id)
+        .filter(Boolean) || []
+    const tags =
+      loadedContentEntry.contentEntryTags?.map(tag => tag.contentTagRef || tag.contentTag?.id).filter(Boolean) || []
+
+    // Parse picture if it's a JSON string
+    let contentImage: string | null = null
+    if (loadedContentEntry.picture) {
+      try {
+        const parsed =
+          typeof loadedContentEntry.picture === 'string'
+            ? JSON.parse(loadedContentEntry.picture)
+            : loadedContentEntry.picture
+        contentImage = typeof parsed === 'string' ? parsed : JSON.stringify(parsed)
+      } catch {
+        contentImage = typeof loadedContentEntry.picture === 'string' ? loadedContentEntry.picture : null
+      }
+    }
+
+    return {
+      id: loadedContentEntry.id || '',
+      version: loadedContentEntry.version || 0,
+      title: loadedContentEntry.title || '',
+      previewText: loadedContentEntry.preview || '',
+      content: loadedContentEntry.content || '',
+      contentGroupRef: loadedContentEntry.contentGroupRef || '',
+      contentTypeRef: loadedContentEntry.contentTypeRef || '',
+      contentImage: contentImage,
+      pictureThumbnail: loadedContentEntry.pictureThumbnail || null,
+      displayAuthor: loadedContentEntry.displayCreator ?? true,
+      allowComment: loadedContentEntry.allowComment ?? true,
+      allowReaction: loadedContentEntry.allowReaction ?? true,
+      author: authorName,
+      schedulePublication: !!(loadedContentEntry.activeFrom || loadedContentEntry.activeTo),
+      startDate: loadedContentEntry.activeFrom || null,
+      endDate: loadedContentEntry.activeTo || null,
+      categories: categories.length > 0 ? categories : [],
+      tags: tags.length > 0 ? tags : []
+    }
+  }, [loadedContentEntry, authorName])
+
+  const defaultValues = useMemo(() => {
+    // If we have mapped values from loaded entry, use those
+    if (mappedFormValues) {
+      return mappedFormValues
+    }
+
+    // Otherwise use defaults
+    return {
+      id: '',
+      version: 0,
       title: '',
       previewText: '',
       content: '',
       contentGroupRef: extractedContentGroupRef || '',
-      articleTypeRef: '',
+      contentTypeRef: '',
       tags: [],
       categories: [],
       contentImage: null,
@@ -255,14 +330,11 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
       allowComment: true,
       allowReaction: true,
       author: authorName,
-      authorId: context.userInfo?.employeeDetails?.employeeId || '',
       schedulePublication: false,
       startDate: null,
-      endDate: null,
-      status: 'draft'
-    }),
-    [extractedContentId, extractedContentGroupRef, context.userInfo, authorName]
-  )
+      endDate: null
+    }
+  }, [mappedFormValues, extractedContentGroupRef, authorName])
 
   const form = useForm<ContentEntryFormValues, any, ContentEntryFormValues>({
     resolver: zodResolver(schema) as any,
@@ -270,6 +342,85 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
     mode: 'onSubmit',
     reValidateMode: 'onSubmit'
   })
+
+  // Sync form when loaded content entry changes
+  const contentEntryIdRef = useRef<string | null>(null)
+  useEffect(() => {
+    // Only process if we have a loaded entry and it's different from what we've processed
+    if (loadedContentEntry?.id && contentEntryIdRef.current !== loadedContentEntry.id) {
+      contentEntryIdRef.current = loadedContentEntry.id
+
+      // Extract categories and tags IDs
+      const categories =
+        loadedContentEntry.contentEntryCategories
+          ?.map(cat => cat.contentCategoryRef || cat.contentCategory?.id)
+          .filter(Boolean) || []
+      const tags =
+        loadedContentEntry.contentEntryTags?.map(tag => tag.contentTagRef || tag.contentTag?.id).filter(Boolean) || []
+
+      // Parse picture if it's a JSON string
+      let contentImage: string | null = null
+      if (loadedContentEntry.picture) {
+        try {
+          const parsed =
+            typeof loadedContentEntry.picture === 'string'
+              ? JSON.parse(loadedContentEntry.picture)
+              : loadedContentEntry.picture
+          contentImage = typeof parsed === 'string' ? parsed : JSON.stringify(parsed)
+        } catch {
+          contentImage = typeof loadedContentEntry.picture === 'string' ? loadedContentEntry.picture : null
+        }
+      }
+
+      const formValues: ContentEntryFormValues = {
+        id: loadedContentEntry.id || '',
+        version: loadedContentEntry.version || 0,
+        title: loadedContentEntry.title || '',
+        previewText: loadedContentEntry.preview || '',
+        content: loadedContentEntry.content || '',
+        contentGroupRef: loadedContentEntry.contentGroupRef || '',
+        contentTypeRef: loadedContentEntry.contentTypeRef || '',
+        contentImage: contentImage,
+        pictureThumbnail: loadedContentEntry.pictureThumbnail || null,
+        displayAuthor: loadedContentEntry.displayCreator ?? true,
+        allowComment: loadedContentEntry.allowComment ?? true,
+        allowReaction: loadedContentEntry.allowReaction ?? true,
+        author: authorName,
+        schedulePublication: !!(loadedContentEntry.activeFrom || loadedContentEntry.activeTo),
+        startDate: loadedContentEntry.activeFrom || null,
+        endDate: loadedContentEntry.activeTo || null,
+        categories: categories.length > 0 ? categories : [],
+        tags: tags.length > 0 ? tags : []
+      }
+
+      form.reset(formValues)
+
+      // Set image preview if picture exists
+      if (contentImage) {
+        try {
+          const parsed = typeof contentImage === 'string' ? JSON.parse(contentImage) : contentImage
+          if (parsed?.url) {
+            setImage(parsed.url)
+            setImageInfo({
+              name: parsed.name || 'Image',
+              size: parsed.size ? `${(parsed.size / 1024 / 1024).toFixed(2)}MB` : 'Unknown'
+            })
+          } else if (typeof contentImage === 'string' && contentImage.startsWith('data:')) {
+            setImage(contentImage)
+          }
+        } catch {
+          // If parsing fails, try to use as direct URL or base64
+          if (typeof contentImage === 'string') {
+            setImage(contentImage)
+          }
+        }
+      } else {
+        // Clear image if no contentImage
+        setImage(null)
+        setImageInfo(null)
+      }
+    }
+  }, [loadedContentEntry?.id, authorName, form])
 
   const { control, watch, setValue } = form
   const watchContentGroupRef = watch('contentGroupRef')
@@ -542,9 +693,8 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
     return payload
   }
 
-  const isLoading = false
-
-  if (isLoading) {
+  // Show loading state while fetching content entry
+  if (contentEntryLoading && contentEntryId) {
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:h-screen">
         <div className="gba:animate-spin gba:rounded-full gba:h-12 gba:w-12 gba:border-b-2 gba:border-primary"></div>

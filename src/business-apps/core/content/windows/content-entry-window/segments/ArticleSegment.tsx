@@ -3,6 +3,7 @@ import { Control } from 'react-hook-form'
 import {
   FormControl,
   FormField,
+  FormFieldGroup,
   FormItem,
   FormLabel,
   FormMessage,
@@ -254,7 +255,7 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
       </div>
 
       {/* RIGHT SIDE: Editor Area (Full Width) */}
-      <div className="gba:flex-1 gba:flex gba:flex-col">
+      <div className="gba:flex-1 gba:flex gba:flex-col gba:space-y-4">
         {/* AI Text Generator Button - Only show in local development */}
         {isLocalEnvironment() && (
           <div className="gba:flex gba:justify-end gba:mb-4">
@@ -272,7 +273,7 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
         )}
 
         {/* Content Group and Content Type - Above Image Upload */}
-        <div className="gba:grid gba:grid-cols-2 gba:gap-4 gba:mb-4">
+        <FormFieldGroup>
           {/* Content Group Selection - Hidden if provided via props or additionalData */}
           {!extractedContentGroupRef && (
             <FormField
@@ -280,7 +281,7 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
               name="contentGroupRef"
               rules={{ required: t('group-required') }}
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="gba:flex-1">
                   <FormLabel>{t('content-group')}</FormLabel>
                   <FormControl>
                     <CatalogSelect
@@ -301,7 +302,7 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
             control={control as any}
             name="contentTypeRef"
             render={({ field }) => (
-              <FormItem>
+              <FormItem className="gba:flex-1">
                 <FormLabel>{t('content-type')}</FormLabel>
                 <FormControl>
                   <CatalogSelect
@@ -317,177 +318,123 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
               </FormItem>
             )}
           />
-        </div>
+        </FormFieldGroup>
 
-        {/* Image, Title, Preview - Fixed at top */}
-        <div className="gba:flex gba:flex-col gba:space-y-4">
-          {/* Image Upload - ÜBER dem Title */}
-          <div className="gba:space-y-2">
-            <div className="gba:flex gba:flex-col gba:items-center gba:gap-3 gba:p-4 gba:border gba:border-border gba:rounded-lg gba:bg-muted/20">
-              {image ? (
-                <div className="gba:relative gba:w-full">
-                  <img
-                    src={image}
-                    alt="Preview"
-                    className="gba:w-full gba:h-auto gba:rounded-lg gba:max-h-[200px] gba:object-cover"
-                  />
-                  {imageInfo && (
-                    <div className="gba:mt-2 gba:text-sm gba:text-muted-foreground gba:text-center">
-                      {imageInfo.name} ({imageInfo.size})
+        {/* Image Upload */}
+        <FormField
+          control={control as any}
+          name="contentImage"
+          render={() => (
+            <FormItem>
+              <FormLabel>{t('header-image') || 'Header Image'}</FormLabel>
+              <FormControl>
+                <div className="gba:flex gba:flex-col gba:items-center gba:gap-3 gba:p-4 gba:border gba:border-border gba:rounded-lg gba:bg-muted/20">
+                  {image ? (
+                    <div className="gba:relative gba:w-full">
+                      <img
+                        src={image}
+                        alt="Preview"
+                        className="gba:w-full gba:h-auto gba:rounded-lg gba:max-h-[200px] gba:object-cover"
+                      />
+                      {imageInfo && (
+                        <div className="gba:mt-2 gba:text-sm gba:text-muted-foreground gba:text-center">
+                          {imageInfo.name} ({imageInfo.size})
+                        </div>
+                      )}
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleImageRemove}
+                        className="gba:mt-2 gba:w-full"
+                        data-testid="content-entry-window-remove-image-button"
+                      >
+                        {t('remove-image') || 'Remove Image'}
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="gba:flex gba:flex-col gba:items-center gba:gap-2">
+                      <label className="gba:cursor-pointer">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          className="gba:hidden"
+                          data-testid="content-entry-window-image-input"
+                        />
+                        <Button type="button" variant="outline" size="sm" asChild>
+                          <span>
+                            <ImageIcon className="gba:mr-2" size={20} />
+                            {t('upload-image') || 'Upload Image'}
+                          </span>
+                        </Button>
+                      </label>
+                      <div className="gba:text-xs gba:text-muted-foreground">Max {MAX_IMAGE_SIZE_MB}MB</div>
                     </div>
                   )}
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    onClick={handleImageRemove}
-                    className="gba:mt-2 gba:w-full"
-                    data-testid="content-entry-window-remove-image-button"
-                  >
-                    {t('remove-image') || 'Remove Image'}
-                  </Button>
                 </div>
-              ) : (
-                <div className="gba:flex gba:flex-col gba:items-center gba:gap-2">
-                  <label className="gba:cursor-pointer">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      className="gba:hidden"
-                      data-testid="content-entry-window-image-input"
-                    />
-                    <Button type="button" variant="outline" size="sm" asChild>
-                      <span>
-                        <ImageIcon className="gba:mr-2" size={20} />
-                        {t('upload-image') || 'Upload Image'}
-                      </span>
-                    </Button>
-                  </label>
-                  <div className="gba:text-xs gba:text-muted-foreground">Max {MAX_IMAGE_SIZE_MB}MB</div>
-                </div>
-              )}
-            </div>
-          </div>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
-          {/* Title - ÜBER dem Editor */}
-          <FormField
-            control={control as any}
-            name="title"
-            rules={{ required: t('title-required') || 'Title is required' }}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('title') || 'Title'}</FormLabel>
-                <FormControl>
-                  <Input
-                    {...field}
-                    placeholder={t('title-placeholder') || 'Enter article title...'}
-                    className="gba:text-2xl gba:font-bold"
-                    data-testid="content-entry-window-title-input"
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        {/* Title */}
+        <FormField
+          control={control as any}
+          name="title"
+          rules={{ required: t('title-required') || 'Title is required' }}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('title') || 'Title'}</FormLabel>
+              <FormControl>
+                <Input
+                  {...field}
+                  placeholder={t('title-placeholder') || 'Enter article title...'}
+                  className="gba:text-2xl gba:font-bold"
+                  data-testid="content-entry-window-title-input"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
-          {/* Preview Text - ÜBER dem Editor */}
-          <FormField
-            control={control as any}
-            name="previewText"
-            rules={{ required: t('preview-required') || 'Preview text is required' }}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('preview-text') || 'Preview Text'}</FormLabel>
-                <FormControl>
-                  <Textarea
-                    {...field}
-                    placeholder={t('preview-text-placeholder') || 'Brief preview of the article...'}
-                    rows={3}
-                    data-testid="content-entry-window-preview-textarea"
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Categories and Tags - Below Preview Text */}
-          <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-            {/* Categories - Tags Mode */}
-            <FormField
-              control={control as any}
-              name="categories"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Categories (Optional)</FormLabel>
-                  <FormControl>
-                    <CatalogSelect
-                      catalogIdentifier="ContentCategory:v1"
-                      mode="tags"
-                      value={field.value || []}
-                      onValueChange={value => {
-                        const categories = Array.isArray(value) ? value : []
-                        field.onChange(categories)
-                        onCategoriesChange?.(categories)
-                      }}
-                      onCreateTag={async (tag: string) => {
-                        if (!onCreateCategory) {
-                          throw new Error('onCreateCategory is required for categories')
-                        }
-                        const newId = await onCreateCategory(tag)
-                        return newId
-                      }}
-                      data-testid="content-entry-window-categories-select"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Tags - Tags Mode */}
-            <FormField
-              control={control as any}
-              name="tags"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tags (Optional)</FormLabel>
-                  <FormControl>
-                    <CatalogSelect
-                      catalogIdentifier="ContentTag:v1"
-                      mode="tags"
-                      value={field.value || []}
-                      onValueChange={value => {
-                        const tags = Array.isArray(value) ? value : []
-                        field.onChange(tags)
-                        onTagsChange?.(tags)
-                      }}
-                      onCreateTag={async (tag: string) => {
-                        if (!onCreateTag) {
-                          throw new Error('onCreateTag is required for tags')
-                        }
-                        const newId = await onCreateTag(tag)
-                        return newId
-                      }}
-                      data-testid="content-entry-window-tags-select"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-        </div>
+        {/* Preview Text */}
+        <FormField
+          control={control as any}
+          name="previewText"
+          rules={{ required: t('preview-required') || 'Preview text is required' }}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('preview-text') || 'Preview Text'}</FormLabel>
+              <FormControl>
+                <Textarea
+                  {...field}
+                  placeholder={t('preview-text-placeholder') || 'Brief preview of the article...'}
+                  rows={3}
+                  data-testid="content-entry-window-preview-textarea"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         {/* Quill Editor - Takes full remaining height */}
         <div className="gba:flex-1 gba:flex gba:flex-col gba:border-t gba:border-border gba:overflow-hidden gba:min-h-0">
+          <style>{`
+            .ql-editor {
+              min-height: 50px;
+            }
+          `}</style>
           <FormField
             control={control as any}
             name="content"
             rules={{ required: t('content-required') || 'Content is required' }}
             render={({ field }) => (
               <FormItem className="gba:flex-1 gba:flex gba:flex-col gba:overflow-hidden gba:min-h-0">
+                <FormLabel>{t('content') || 'Content'}</FormLabel>
                 <FormControl className="gba:h-full gba:max-h-full gba:flex gba:flex-col gba:min-h-0">
                   <ReactQuill
                     theme="snow"
@@ -503,6 +450,73 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
             )}
           />
         </div>
+
+        {/* Categories and Tags - Below Editor */}
+        <FormFieldGroup>
+          {/* Categories - Tags Mode */}
+          <FormField
+            control={control as any}
+            name="categories"
+            render={({ field }) => (
+              <FormItem className="gba:flex-1">
+                <FormLabel>Categories</FormLabel>
+                <FormControl>
+                  <CatalogSelect
+                    catalogIdentifier="ContentCategory:v1"
+                    mode="tags"
+                    value={field.value || []}
+                    onValueChange={value => {
+                      const categories = Array.isArray(value) ? value : []
+                      field.onChange(categories)
+                      onCategoriesChange?.(categories)
+                    }}
+                    onCreateTag={async (tag: string) => {
+                      if (!onCreateCategory) {
+                        throw new Error('onCreateCategory is required for categories')
+                      }
+                      const newId = await onCreateCategory(tag)
+                      return newId
+                    }}
+                    data-testid="content-entry-window-categories-select"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Tags - Tags Mode */}
+          <FormField
+            control={control as any}
+            name="tags"
+            render={({ field }) => (
+              <FormItem className="gba:flex-1">
+                <FormLabel>Tags</FormLabel>
+                <FormControl>
+                  <CatalogSelect
+                    catalogIdentifier="ContentTag:v1"
+                    mode="tags"
+                    value={field.value || []}
+                    onValueChange={value => {
+                      const tags = Array.isArray(value) ? value : []
+                      field.onChange(tags)
+                      onTagsChange?.(tags)
+                    }}
+                    onCreateTag={async (tag: string) => {
+                      if (!onCreateTag) {
+                        throw new Error('onCreateTag is required for tags')
+                      }
+                      const newId = await onCreateTag(tag)
+                      return newId
+                    }}
+                    data-testid="content-entry-window-tags-select"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </FormFieldGroup>
       </div>
     </div>
   )
