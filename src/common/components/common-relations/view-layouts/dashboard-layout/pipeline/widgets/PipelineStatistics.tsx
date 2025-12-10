@@ -1,6 +1,6 @@
 import React from 'react'
 import { Card, CardContent } from '@newwork/nw-design-system'
-import { TrendingUp, Trophy, LineChart, Activity } from 'lucide-react'
+import { TrendingUp, Trophy, Award, Target } from 'lucide-react'
 
 const formatCurrency = (amount: number, currencyCode: string = 'EUR'): string => {
   try {
@@ -10,7 +10,7 @@ const formatCurrency = (amount: number, currencyCode: string = 'EUR'): string =>
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
     }).format(amount)
-  } catch (error) {
+  } catch {
     return `${currencyCode} ${amount.toLocaleString()}`
   }
 }
@@ -18,16 +18,17 @@ const formatCurrency = (amount: number, currencyCode: string = 'EUR'): string =>
 export interface PipelineStatisticsMetrics {
   totalValue: number
   avgDealSize: number
-  conversionRate: number
-  avgSalesCycle: number // days
+  dealsWon: number
+  winRate: number // percentage
 }
 
 export interface PipelineStatisticsProps {
   pipelineId: string
   metrics: PipelineStatisticsMetrics
+  currency?: string
 }
 
-export const PipelineStatistics: React.FC<PipelineStatisticsProps> = ({ pipelineId, metrics }) => {
+export const PipelineStatistics: React.FC<PipelineStatisticsProps> = ({ pipelineId, metrics, currency = 'EUR' }) => {
   return (
     <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:lg:grid-cols-4 gba:gap-4">
       <Card>
@@ -37,7 +38,9 @@ export const PipelineStatistics: React.FC<PipelineStatisticsProps> = ({ pipeline
               <TrendingUp className="gba:text-blue-600 gba:h-5 gba:w-5 gba:mr-2" />
               <span className="gba:text-blue-700 gba:text-sm gba:font-medium">Total Pipeline Value</span>
             </div>
-            <div className="gba:text-2xl gba:font-bold gba:text-blue-900">{formatCurrency(metrics.totalValue)}</div>
+            <div className="gba:text-2xl gba:font-bold gba:text-blue-900">
+              {formatCurrency(metrics.totalValue, currency)}
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -49,33 +52,33 @@ export const PipelineStatistics: React.FC<PipelineStatisticsProps> = ({ pipeline
               <Trophy className="gba:text-green-600 gba:h-5 gba:w-5 gba:mr-2" />
               <span className="gba:text-green-700 gba:text-sm gba:font-medium">Avg Deal Size</span>
             </div>
-            <div className="gba:text-2xl gba:font-bold gba:text-green-900">{formatCurrency(metrics.avgDealSize)}</div>
+            <div className="gba:text-2xl gba:font-bold gba:text-green-900">
+              {formatCurrency(metrics.avgDealSize, currency)}
+            </div>
           </div>
         </CardContent>
       </Card>
 
       <Card>
         <CardContent className="gba:p-6">
-          <div data-testid={`pipeline-${pipelineId}-conversion-rate`} className="gba:text-center">
+          <div data-testid={`pipeline-${pipelineId}-deals-won`} className="gba:text-center">
             <div className="gba:flex gba:items-center gba:justify-center gba:mb-2">
-              <LineChart className="gba:text-orange-600 gba:h-5 gba:w-5 gba:mr-2" />
-              <span className="gba:text-orange-700 gba:text-sm gba:font-medium">Conversion Rate</span>
+              <Award className="gba:text-orange-600 gba:h-5 gba:w-5 gba:mr-2" />
+              <span className="gba:text-orange-700 gba:text-sm gba:font-medium">Deals Won</span>
             </div>
-            <div className="gba:text-2xl gba:font-bold gba:text-orange-900">{metrics.conversionRate.toFixed(1)}%</div>
+            <div className="gba:text-2xl gba:font-bold gba:text-orange-900">{metrics.dealsWon}</div>
           </div>
         </CardContent>
       </Card>
 
       <Card>
         <CardContent className="gba:p-6">
-          <div data-testid={`pipeline-${pipelineId}-sales-cycle`} className="gba:text-center">
+          <div data-testid={`pipeline-${pipelineId}-win-rate`} className="gba:text-center">
             <div className="gba:flex gba:items-center gba:justify-center gba:mb-2">
-              <Activity className="gba:text-purple-600 gba:h-5 gba:w-5 gba:mr-2" />
-              <span className="gba:text-purple-700 gba:text-sm gba:font-medium">Avg Sales Cycle</span>
+              <Target className="gba:text-purple-600 gba:h-5 gba:w-5 gba:mr-2" />
+              <span className="gba:text-purple-700 gba:text-sm gba:font-medium">Win Rate</span>
             </div>
-            <div className="gba:text-2xl gba:font-bold gba:text-purple-900">
-              {Math.round(metrics.avgSalesCycle)} days
-            </div>
+            <div className="gba:text-2xl gba:font-bold gba:text-purple-900">{metrics.winRate.toFixed(1)}%</div>
           </div>
         </CardContent>
       </Card>

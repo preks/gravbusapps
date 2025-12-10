@@ -96,8 +96,8 @@ export const ActivitySummary: React.FC<ActivitySummaryProps> = ({ activities, so
             {activities.slice(0, 5).map(activity => (
               <Card
                 key={activity.id}
-                className={`gba:transition-colors hover:gba:shadow-md ${
-                  activity.relatedEntity ? 'gba:cursor-pointer hover:gba:bg-gray-50' : ''
+                className={`gba:transition-all gba:duration-200 gba:hover:shadow-md ${
+                  activity.relatedEntity ? 'gba:cursor-pointer gba:hover:bg-accent' : ''
                 }`}
                 onClick={() => activity.relatedEntity && handleActivityClick(activity)}
                 data-testid={`activity-item-${activity.id}`}
