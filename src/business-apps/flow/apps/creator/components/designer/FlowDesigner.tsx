@@ -746,15 +746,11 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
                             </div>
                           )}
 
-                        {/* Links - Only for User Tasks */}
-                        {selectedStep.type !== FlowStepType.FUNCTION &&
-                          selectedStep.type !== FlowStepType.AI_AGENT &&
-                          selectedStep.type !== FlowStepType.AI_TASK_EXPERT && (
-                            <div className="gba:space-y-2">
-                              <LinksTrigger step={selectedStep} testId={`${testId}-links`} onUpdateStep={updateStep} />
-                              <LinksContent step={selectedStep} testId={`${testId}-links`} onUpdateStep={updateStep} />
-                            </div>
-                          )}
+                        {/* Links - Available for all task types */}
+                        <div className="gba:space-y-2">
+                          <LinksTrigger step={selectedStep} testId={`${testId}-links`} onUpdateStep={updateStep} />
+                          <LinksContent step={selectedStep} testId={`${testId}-links`} onUpdateStep={updateStep} />
+                        </div>
                       </div>
                     </TabsContent>
                     <TabsContent value="form" className="gba:absolute gba:inset-0 gba:overflow-auto">
