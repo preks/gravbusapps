@@ -171,8 +171,9 @@ export const InvestmentReportForm: React.FC<InvestmentReportFormProps> = ({
   }, [investmentTypeId, getPathByType])
 
   // Get form fields definition using getInvestmentFieldsByType
+  // Pass 'report' scope to filter out fields with report: false
   const formFieldsDefinition = useMemo(() => {
-    return getInvestmentFieldsByType(investmentTypeId)
+    return getInvestmentFieldsByType(investmentTypeId, 'report')
   }, [getInvestmentFieldsByType, investmentTypeId])
 
   // Create dynamic schema based on formFieldsDefinition
@@ -234,7 +235,8 @@ export const InvestmentReportForm: React.FC<InvestmentReportFormProps> = ({
     }
 
     // Get form fields definition for dynamic mapping
-    const fieldsDef = getInvestmentFieldsByType(investmentTypeId)
+    // Pass 'report' scope to filter out fields with report: false
+    const fieldsDef = getInvestmentFieldsByType(investmentTypeId, 'report')
     if (!fieldsDef) {
       return
     }
@@ -293,21 +295,30 @@ export const InvestmentReportForm: React.FC<InvestmentReportFormProps> = ({
   ])
 
   // Load investments list for select
-  useEffect(() => {
-    const loadInvestments = async () => {
+  const loadInvestments = useCallback(
+    async (searchTerm?: string) => {
       if (!accessToken) return
       try {
         setIsLoadingInvestments(true)
-        const result = await fetchInvestments()
+        const result = await fetchInvestments({
+          search: searchTerm,
+          limit: 20,
+          offset: 0
+        })
         setInvestments(result?.Investment || [])
       } catch (error) {
         console.error('Error loading investments:', error)
       } finally {
         setIsLoadingInvestments(false)
       }
-    }
+    },
+    [accessToken, fetchInvestments]
+  )
+
+  // Initial load of investments
+  useEffect(() => {
     loadInvestments()
-  }, [accessToken, fetchInvestments])
+  }, [loadInvestments])
 
   // Show investment select only if no initialInvestmentId was provided
   const showInvestmentSelect = !initialInvestmentId
@@ -453,6 +464,7 @@ export const InvestmentReportForm: React.FC<InvestmentReportFormProps> = ({
           investments={investments}
           isLoadingInvestments={isLoadingInvestments}
           onInvestmentChange={handleInvestmentChange}
+          onInvestmentSearch={loadInvestments}
         />
 
         {/* Investment Information + Dynamic Segment */}

@@ -9,22 +9,97 @@ import { mapToFormValues } from '@/common/utils/formMappingUtils'
 
 /**
  * Extract investment data from report, excluding id/version
+ * Merges nested report.investment with report-level fields
  */
 const extractInvestmentDataFromReport = (report: InvestmentReport | Partial<InvestmentReport>): Partial<Investment> => {
-  if (report.investment) {
-    return {
-      ...report.investment,
-      id: undefined,
-      version: undefined,
-      ...(report.investment.code === null ? {} : { code: report.investment.code }),
-      // Explicitly preserve investmentAccounts from report
-      ...(report.investment.investmentAccounts ? { investmentAccounts: report.investment.investmentAccounts } : {})
-    }
+  // Start with nested investment object if it exists
+  const baseInvestment = report.investment
+    ? {
+        ...report.investment,
+        id: undefined,
+        version: undefined,
+        ...(report.investment.code === null ? {} : { code: report.investment.code }),
+        // Explicitly preserve investmentAccounts from report
+        ...(report.investment.investmentAccounts ? { investmentAccounts: report.investment.investmentAccounts } : {})
+      }
+    : {
+        name: (report as any).name || '',
+        ...((report as any).code === null ? {} : { code: (report as any).code })
+      }
+
+  // Merge report-level fields (these override nested investment fields for reports)
+  const result = {
+    ...baseInvestment,
+    // Catalog references
+    ...(report.investmentStakeTypeRef !== undefined && { investmentStakeTypeRef: report.investmentStakeTypeRef }),
+    ...(report.investmentPhaseRef !== undefined && { investmentPhaseRef: report.investmentPhaseRef }),
+    ...(report.investmentStatusRef !== undefined && { investmentStatusRef: report.investmentStatusRef }),
+    ...(report.investmentRiskLevelRef !== undefined && { investmentRiskLevelRef: report.investmentRiskLevelRef }),
+    ...(report.currencyRef !== undefined && { currencyRef: report.currencyRef }),
+    // Financial fields
+    ...(report.plannedExitDate !== undefined && { plannedExitDate: report.plannedExitDate }),
+    ...(report.totalInvestmentAmount !== undefined && { totalInvestmentAmount: report.totalInvestmentAmount }),
+    ...(report.investmentMarketValue !== undefined && { investmentMarketValue: report.investmentMarketValue }),
+    ...(report.debtFinancingAmount !== undefined && { debtFinancingAmount: report.debtFinancingAmount }),
+    ...(report.requiredCapitalAmount !== undefined && { requiredCapitalAmount: report.requiredCapitalAmount }),
+    ...(report.forecastedRevenueAmount !== undefined && { forecastedRevenueAmount: report.forecastedRevenueAmount }),
+    ...(report.forecastedProfitAmount !== undefined && { forecastedProfitAmount: report.forecastedProfitAmount }),
+    ...(report.stakePercentage !== undefined && { stakePercentage: report.stakePercentage }),
+    // Loan fields
+    ...(report.loanRecipientName !== undefined && { loanRecipientName: report.loanRecipientName }),
+    ...(report.loanAmount !== undefined && { loanAmount: report.loanAmount }),
+    ...(report.loanOpenCommitmentAmount !== undefined && { loanOpenCommitmentAmount: report.loanOpenCommitmentAmount }),
+    ...(report.loanInterestRate !== undefined && { loanInterestRate: report.loanInterestRate }),
+    ...(report.loanStartDate !== undefined && { loanStartDate: report.loanStartDate }),
+    ...(report.loanEndDate !== undefined && { loanEndDate: report.loanEndDate }),
+    ...(report.loanInterestClaim !== undefined && { loanInterestClaim: report.loanInterestClaim }),
+    ...(report.loanRecipientInvestmentAccountId !== undefined && {
+      loanRecipientInvestmentAccountId: report.loanRecipientInvestmentAccountId
+    }),
+    // Fund fields
+    ...(report.totalCommitmentAmount !== undefined && { totalCommitmentAmount: report.totalCommitmentAmount }),
+    ...(report.totalDistributionAmount !== undefined && { totalDistributionAmount: report.totalDistributionAmount }),
+    ...(report.fundManagerName !== undefined && { fundManagerName: report.fundManagerName }),
+    // Additional fields
+    ...(report.identification !== undefined && { identification: report.identification }),
+    ...((report as any).irr !== undefined && { irr: (report as any).irr }),
+    ...((report as any).moic !== undefined && { moic: (report as any).moic })
   }
-  return {
-    name: (report as any).name || '',
-    ...((report as any).code === null ? {} : { code: (report as any).code })
-  }
+
+  // Debug logs to investigate form prefill issue
+  console.log('[extractInvestmentDataFromReport] DEBUG - Report Input:', {
+    totalInvestmentAmount: report.totalInvestmentAmount,
+    investmentMarketValue: report.investmentMarketValue,
+    stakePercentage: report.stakePercentage,
+    investmentStakeTypeRef: report.investmentStakeTypeRef,
+    currencyRef: report.currencyRef,
+    investmentPhaseRef: report.investmentPhaseRef,
+    investmentStatusRef: report.investmentStatusRef,
+    investmentRiskLevelRef: report.investmentRiskLevelRef,
+    plannedExitDate: report.plannedExitDate
+  })
+
+  console.log('[extractInvestmentDataFromReport] DEBUG - Base Investment:', {
+    totalInvestmentAmount: (baseInvestment as any).totalInvestmentAmount,
+    investmentMarketValue: (baseInvestment as any).investmentMarketValue,
+    stakePercentage: (baseInvestment as any).stakePercentage,
+    investmentStakeTypeRef: (baseInvestment as any).investmentStakeTypeRef,
+    currencyRef: (baseInvestment as any).currencyRef
+  })
+
+  console.log('[extractInvestmentDataFromReport] DEBUG - Result:', {
+    totalInvestmentAmount: (result as any).totalInvestmentAmount,
+    investmentMarketValue: (result as any).investmentMarketValue,
+    stakePercentage: (result as any).stakePercentage,
+    investmentStakeTypeRef: (result as any).investmentStakeTypeRef,
+    currencyRef: (result as any).currencyRef,
+    investmentPhaseRef: (result as any).investmentPhaseRef,
+    investmentStatusRef: (result as any).investmentStatusRef,
+    investmentRiskLevelRef: (result as any).investmentRiskLevelRef,
+    plannedExitDate: (result as any).plannedExitDate
+  })
+
+  return result
 }
 
 /**
@@ -53,10 +128,11 @@ const mergeInvestmentData = (
   fetchedInvestment?: Investment | null | undefined
 ): Partial<Investment> => {
   if (!fetchedInvestment) {
+    console.log('[mergeInvestmentData] DEBUG - No fetched investment, returning investmentData only')
     return investmentData
   }
 
-  return {
+  const result = {
     ...fetchedInvestment,
     id: undefined,
     version: undefined,
@@ -73,6 +149,29 @@ const mergeInvestmentData = (
     ...(fetchedInvestment.investmentAccounts ? { investmentAccounts: fetchedInvestment.investmentAccounts } : {}),
     ...investmentData
   }
+
+  console.log('[mergeInvestmentData] DEBUG - Merge Details:', {
+    investmentDataValues: {
+      totalInvestmentAmount: investmentData.totalInvestmentAmount,
+      investmentMarketValue: investmentData.investmentMarketValue,
+      stakePercentage: investmentData.stakePercentage,
+      investmentStakeTypeRef: investmentData.investmentStakeTypeRef
+    },
+    fetchedInvestmentValues: {
+      totalInvestmentAmount: fetchedInvestment.totalInvestmentAmount,
+      investmentMarketValue: fetchedInvestment.investmentMarketValue,
+      stakePercentage: fetchedInvestment.stakePercentage,
+      investmentStakeTypeRef: fetchedInvestment.investmentStakeTypeRef
+    },
+    resultValues: {
+      totalInvestmentAmount: result.totalInvestmentAmount,
+      investmentMarketValue: result.investmentMarketValue,
+      stakePercentage: result.stakePercentage,
+      investmentStakeTypeRef: result.investmentStakeTypeRef
+    }
+  })
+
+  return result
 }
 
 /**
@@ -216,10 +315,37 @@ export const transformInvestmentReport = (
 
   const liquidFundNormalized = normalizeLiquidFundInvestment(mappedValues)
 
-  return {
+  const finalResult = {
     ...mappedValues,
     ...(liquidFundNormalized && { liquidFundInvestment: liquidFundNormalized }),
     investmentReportDate: report.date || dayjs().format('YYYY-MM-DD'),
     investmentReportScope: report.scope || 'MONTHLY'
   }
+
+  // Debug logs to investigate form prefill issue
+  console.log('[transformInvestmentReport] DEBUG - Final Form Values:', {
+    investmentReportDate: finalResult.investmentReportDate,
+    investmentReportScope: finalResult.investmentReportScope,
+    investment: {
+      totalInvestmentAmount: finalResult.investment?.totalInvestmentAmount,
+      investmentMarketValue: finalResult.investment?.investmentMarketValue,
+      stakePercentage: finalResult.investment?.stakePercentage,
+      investmentStakeTypeRef: finalResult.investment?.investmentStakeTypeRef,
+      currencyRef: finalResult.investment?.currencyRef,
+      investmentPhaseRef: finalResult.investment?.investmentPhaseRef,
+      investmentStatusRef: finalResult.investment?.investmentStatusRef,
+      investmentRiskLevelRef: finalResult.investment?.investmentRiskLevelRef,
+      plannedExitDate: finalResult.investment?.plannedExitDate,
+      investmentRole: (finalResult.investment as any)?.investmentRole
+    },
+    equityInvestment: finalResult.equityInvestment
+      ? {
+          marketValue: (finalResult.equityInvestment as any)?.marketValue,
+          turnoverAmount: (finalResult.equityInvestment as any)?.turnoverAmount,
+          ebitdaAmount: (finalResult.equityInvestment as any)?.ebitdaAmount
+        }
+      : undefined
+  })
+
+  return finalResult
 }

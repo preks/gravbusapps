@@ -18,6 +18,32 @@ export const sanitizeInvestment = (
   const investmentTypeId = formData.investment?.investmentTypeId ?? null
   const { groupId, typeId, liquidFundTypeId } = mapFromSingleInvestmentTypeId(investmentTypeId, getPathByType)
 
+  // Sanitize entity reference IDs - extract ID string if passed as object
+  const ownerEmployeeId =
+    typeof formData.investment?.ownerEmployeeId === 'object' && formData.investment?.ownerEmployeeId?.id
+      ? formData.investment.ownerEmployeeId.id
+      : formData.investment?.ownerEmployeeId
+
+  const companyId =
+    typeof formData.investment?.companyId === 'object' && formData.investment?.companyId?.id
+      ? formData.investment.companyId.id
+      : formData.investment?.companyId
+
+  const loanRecipientInvestmentAccountId =
+    typeof formData.investment?.loanRecipientInvestmentAccountId === 'object' &&
+    formData.investment?.loanRecipientInvestmentAccountId?.id
+      ? formData.investment.loanRecipientInvestmentAccountId.id
+      : formData.investment?.loanRecipientInvestmentAccountId
+
+  // Sanitize investmentAccounts - extract investmentAccountId from nested objects
+  const investmentAccounts = formData.investment?.investmentAccounts?.map((acc: any) => ({
+    ...(acc.id && { id: acc.id }),
+    ...(acc.version !== undefined && { version: acc.version }),
+    investmentAccountId: acc.investmentAccount?.id || acc.investmentAccountId || acc.investmentAccount,
+    ...(acc.investmentAccountTypeRef && { investmentAccountTypeRef: acc.investmentAccountTypeRef }),
+    ...(acc.isDeleted !== undefined && { isDeleted: acc.isDeleted })
+  }))
+
   // Convert to Investment format
   const mergedData: Partial<Investment> = {
     ...formData.investment,
@@ -25,6 +51,11 @@ export const sanitizeInvestment = (
     investmentTypeId: undefined,
     investmentGroupRef: groupId ?? undefined,
     investmentTypeRef: typeId ?? undefined,
+    // Sanitized entity reference IDs (extract ID string from objects)
+    ownerEmployeeId,
+    ...(companyId !== undefined && { companyId }),
+    ...(loanRecipientInvestmentAccountId !== undefined && { loanRecipientInvestmentAccountId }),
+    ...(investmentAccounts && { investmentAccounts }),
     // Include investmentOpportunityId if present (for creating investment from opportunity)
     ...(formData.investment?.investmentOpportunityId && {
       investmentOpportunityId: formData.investment.investmentOpportunityId
