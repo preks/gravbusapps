@@ -16,7 +16,7 @@ import { navigateTo } from '@/common/utils/navigationUtils'
 import { formatTime, formatFullTimestamp, getStatusIcon } from './utils/messageUtils'
 import { isPreviewable } from './utils/attachmentUtils'
 import { renderContentWithReferences } from './EntityReferenceBadge'
-import { AIResponseRenderer } from './AIResponseRenderer'
+import { EveryAIMessageRenderer } from './EveryAIMessageRenderer'
 import { MessageAttachments, type MessageAttachment } from './MessageAttachments'
 import { AttachmentPreviewDialog } from './AttachmentPreviewDialog'
 
@@ -36,15 +36,17 @@ interface MessageItemProps {
   accessToken?: string
   participants?: ConversationParticipant[]
   onReplyToAI?: () => void
+  onSendMessage?: (content: string, metadata?: Record<string, any>) => Promise<void>
 }
 
-export const MessageItem: React.FC<MessageItemProps> = ({
+const MessageItemComponent: React.FC<MessageItemProps> = ({
   message,
   currentUserId,
   isGroupChat,
   accessToken,
   participants,
-  onReplyToAI
+  onReplyToAI,
+  onSendMessage
 }) => {
   const isAIResponse = message.metadata?.isAIResponse === true
   // AI responses should never be styled as "own message" even if sent by current user
@@ -216,7 +218,13 @@ export const MessageItem: React.FC<MessageItemProps> = ({
           {message.content && (
             <div className="gba:break-words gba:text-sm gba:leading-relaxed">
               {isAIResponse ? (
-                <AIResponseRenderer content={message.content} scheduledMeeting={message.metadata?.scheduledMeeting} />
+                // Always use EveryAI renderer for consistent UI
+                // It handles both rich outputs and plain text automatically
+                <EveryAIMessageRenderer
+                  message={message}
+                  accessToken={accessToken || ''}
+                  onSendMessage={onSendMessage}
+                />
               ) : (
                 renderContentWithReferences(message.content, message.metadata, isOwnMessage)
               )}
@@ -258,3 +266,18 @@ export const MessageItem: React.FC<MessageItemProps> = ({
     </>
   )
 }
+
+// Memoize to prevent unnecessary re-renders when parent re-renders
+export const MessageItem = React.memo(MessageItemComponent, (prevProps, nextProps) => {
+  // Only re-render if these specific props change
+  return (
+    prevProps.message.id === nextProps.message.id &&
+    prevProps.message.content === nextProps.message.content &&
+    prevProps.message.status === nextProps.message.status &&
+    prevProps.message.isDeleted === nextProps.message.isDeleted &&
+    prevProps.currentUserId === nextProps.currentUserId &&
+    prevProps.isGroupChat === nextProps.isGroupChat &&
+    prevProps.accessToken === nextProps.accessToken &&
+    JSON.stringify(prevProps.message.metadata) === JSON.stringify(nextProps.message.metadata)
+  )
+})

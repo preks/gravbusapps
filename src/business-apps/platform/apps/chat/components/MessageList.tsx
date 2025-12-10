@@ -17,6 +17,7 @@ interface MessageListProps {
   accessToken?: string
   participants?: ConversationParticipant[]
   onReplyToAI?: () => void
+  onSendMessage?: (content: string, metadata?: Record<string, any>) => Promise<void>
 }
 
 export const MessageList: React.FC<MessageListProps> = ({
@@ -30,7 +31,8 @@ export const MessageList: React.FC<MessageListProps> = ({
   conversationId,
   accessToken,
   participants,
-  onReplyToAI
+  onReplyToAI,
+  onSendMessage
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
@@ -214,6 +216,7 @@ export const MessageList: React.FC<MessageListProps> = ({
                 accessToken={accessToken}
                 participants={participants}
                 onReplyToAI={message.metadata?.isAIResponse ? onReplyToAI : undefined}
+                onSendMessage={onSendMessage}
               />
             ))}
 

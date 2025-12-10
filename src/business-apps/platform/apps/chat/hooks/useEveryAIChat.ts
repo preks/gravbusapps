@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
 import { env } from '@/common/env/EnvUtils'
 import type { MessageEntityReference } from '../types'
+import type { OutputItem } from '../../every-ai/types/models'
 
 const DEFAULT_FLOWBOT_BASE_URL = 'https://newwork-dev.newwork.com'
 const LLM_MODEL = 'gpt-4.1'
@@ -32,6 +33,7 @@ export interface ScheduledMeeting {
 /**
  * Parse meeting details from AI text response as a fallback
  * Example: "The meeting \"Title\" with Person1, Person2 is scheduled for tomorrow, Dec 10, 2025 at 2:00 PM"
+ * Also handles: "A meeting will be scheduled for you and Denis on today's date at 10:00 PM"
  */
 function parseMeetingFromText(text: string, context?: ConversationContext): ScheduledMeeting | undefined {
   console.log('🔍 [EveryAI] Attempting to parse meeting from text')
@@ -40,23 +42,51 @@ function parseMeetingFromText(text: string, context?: ConversationContext): Sche
     // Normalize escaped quotes in the text first
     const normalizedText = text.replace(/\\"/g, '"')
 
-    // Look for meeting confirmation pattern
-    // Matches both patterns:
-    // 1. The meeting "Title" ... scheduled for ...
-    // 2. A "Title" meeting ... scheduled for ...
-    // Using flexible pattern to match various quote types
-    const pattern1 = /meeting\s+["""\u201C\u201D"](.+?)["""\u201C\u201D"].*?scheduled for\s+(.*?)(?:\.|$)/i
-    const pattern2 = /["""\u201C\u201D"](.+?)["""\u201C\u201D"]\s+meeting.*?scheduled for\s+(.*?)(?:\.|$)/i
+    // Look for meeting confirmation patterns:
+    // Pattern 1: The meeting "Title" ... scheduled for ...
+    // Pattern 2: A "Title" meeting ... scheduled for ...
+    // Pattern 3: A meeting will be scheduled ... on DATE at TIME
+    // Pattern 4: The meeting is being scheduled for DATE at TIME
+    const pattern1 = /meeting\s+["""\u201C\u201D"](.+?)["""\u201C\u201D"].*?(?:is\s+)?scheduled\s+for\s+(.*?)(?:\.|$)/i
+    const pattern2 = /["""\u201C\u201D"](.+?)["""\u201C\u201D"]\s+meeting.*?(?:is\s+)?scheduled\s+for\s+(.*?)(?:\.|$)/i
+    const pattern3 = /(?:a\s+)?meeting\s+will\s+be\s+scheduled.*?(?:on|for)\s+(.*?)(?:\.|$)/i
+    const pattern4 =
+      /(?:the\s+)?meeting\s+is\s+being\s+scheduled\s+for\s+(.*?)\s+(?:at|on)\s+(.*?)\s+(?:with|and).*?(?:participants?|attendees?)\s+(.*?)(?:\.|$)/i
 
-    const match = normalizedText.match(pattern1) || normalizedText.match(pattern2)
+    const match =
+      normalizedText.match(pattern1) ||
+      normalizedText.match(pattern2) ||
+      normalizedText.match(pattern3) ||
+      normalizedText.match(pattern4)
 
     if (!match) {
       console.log('📝 [EveryAI] No meeting pattern found in text:', normalizedText.substring(0, 200))
       return undefined
     }
 
-    const title = match[1]
-    const dateTimeText = match[2]
+    // Extract title and dateTimeText based on which pattern matched
+    let title = 'Meeting'
+    let dateTimeText = ''
+    let participantText = ''
+
+    if (normalizedText.match(pattern4)) {
+      // Pattern 4: "is being scheduled for DATE at TIME with participants NAME1 and NAME2"
+      title = 'Meeting'
+      dateTimeText = `${match[1]} at ${match[2]}` // Combine date and time parts
+      participantText = match[3] || ''
+    } else if (match[1]?.includes('today') || match[1]?.includes('tomorrow')) {
+      // Pattern 3: "will be scheduled for today/tomorrow at TIME"
+      title = 'Meeting'
+      dateTimeText = match[1]
+    } else if (match[2]) {
+      // Pattern 1 or 2: "meeting \"Title\" ... scheduled for ..."
+      title = match[1]
+      dateTimeText = match[2]
+    } else {
+      // Fallback
+      title = 'Meeting'
+      dateTimeText = match[1] || ''
+    }
 
     console.log('📝 [EveryAI] Parsing meeting from text:', {
       title,
@@ -143,10 +173,34 @@ function parseMeetingFromText(text: string, context?: ConversationContext): Sche
     const endDate = new Date(targetDate)
     endDate.setHours(endDate.getHours() + 1)
 
-    // Extract participant names
+    // Extract participant names from context and text
     const participants: string[] = []
+
+    // Add participants from context (chat participants)
     if (context?.participants) {
       participants.push(...context.participants.map(p => p.name))
+    }
+
+    // If we extracted participant text from pattern4, parse names from it
+    if (participantText) {
+      // Split by "and" and commas to get individual names
+      const names = participantText.split(/\s+and\s+|,\s*/).map(n => n.trim())
+      for (const name of names) {
+        if (name && !participants.includes(name)) {
+          participants.push(name)
+        }
+      }
+    }
+
+    // Also try to extract mentioned names from the full text (e.g., "you and Denis Prekrat")
+    // Pattern: "you and [Name]" or "with [Name1], [Name2]"
+    const mentionPattern = /(?:you\s+and\s+|with\s+)([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/g
+    let mentionMatch
+    while ((mentionMatch = mentionPattern.exec(normalizedText)) !== null) {
+      const mentionedName = mentionMatch[1].trim()
+      if (mentionedName && !participants.includes(mentionedName)) {
+        participants.push(mentionedName)
+      }
     }
 
     const meeting: ScheduledMeeting = {
@@ -170,6 +224,7 @@ interface EveryAIResponse {
   error?: boolean
   sessionId?: string // The session ID to store in message metadata for sharing across users
   scheduledMeeting?: ScheduledMeeting // If AI scheduled a meeting
+  outputs?: OutputItem[] // Full EveryAI output format for rich rendering
 }
 
 // Conversation context with full participant details
@@ -205,7 +260,9 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
    * Check if message contains an @Every mention
    */
   const hasEveryMention = useCallback((entityReferences?: MessageEntityReference[]): boolean => {
-    return entityReferences?.some(ref => ref.type === 'ai_assistant' && ref.id === 'every-ai-assistant') ?? false
+    return (
+      entityReferences?.some(ref => (ref.type as string) === 'ai_assistant' && ref.id === 'every-ai-assistant') ?? false
+    )
   }, [])
 
   /**
@@ -223,11 +280,18 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
 
   /**
    * Build an enhanced prompt with full participant context
+   * Only adds meeting-specific context when the prompt is about meetings/scheduling
    */
   const buildEnhancedPrompt = useCallback((prompt: string, context?: ConversationContext): string => {
     const parts: string[] = []
 
-    // Get user's timezone for meeting scheduling
+    // Check if this is a meeting-related request
+    const isMeetingRelated =
+      /\b(meeting|schedule|calendar|appointment|book|reschedule|cancel.*meeting|update.*meeting|find.*slot|find.*time)\b/i.test(
+        prompt
+      )
+
+    // Get user's timezone (needed for meetings)
     const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
     const timezoneOffset = new Date().getTimezoneOffset()
     const offsetHours = Math.abs(Math.floor(timezoneOffset / 60))
@@ -240,83 +304,80 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
       parts.push(`[Group chat: ${context.conversationName}]`)
     }
 
-    // Add participant information with both id and odId (Open Directory ID)
-    // odId is the correct ID format for calendar/meetings API
-    if (context?.participants && context.participants.length > 0) {
-      const participantList = context.participants
-        .map(p => {
-          const details = [p.name]
-          if (p.email) details.push(`<${p.email}>`)
-          // Include both id and odId - odId is the Open Directory ID needed for calendar API
-          if (p.odId) {
-            details.push(`(odId: ${p.odId})`)
-          } else if (p.id) {
-            details.push(`(id: ${p.id})`)
-          }
-          return details.join(' ')
-        })
-        .join(', ')
-      parts.push(`[Chat participants: ${participantList}]`)
+    // Only add meeting-specific context if this is a meeting-related request
+    if (isMeetingRelated) {
+      // Add participant information with both id and odId (Open Directory ID)
+      // odId is the correct ID format for calendar/meetings API
+      if (context?.participants && context.participants.length > 0) {
+        const participantList = context.participants
+          .map(p => {
+            const details = [p.name]
+            if (p.email) details.push(`<${p.email}>`)
+            // Include both id and odId - odId is the Open Directory ID needed for calendar API
+            if (p.odId) {
+              details.push(`(odId: ${p.odId})`)
+            } else if (p.id) {
+              details.push(`(id: ${p.id})`)
+            }
+            return details.join(' ')
+          })
+          .join(', ')
+        parts.push(`[Chat participants: ${participantList}]`)
 
-      // Also provide participant mapping in structured format for direct use
-      const participantMapping = context.participants
-        .map(p => {
-          const odId = p.odId || p.id
-          return `"${p.name}": "${odId}"`
-        })
-        .join(', ')
+        // Also provide participant mapping in structured format for direct use
+        const participantMapping = context.participants
+          .map(p => {
+            const odId = p.odId || p.id
+            return `"${p.name}": "${odId}"`
+          })
+          .join(', ')
+        parts.push(
+          `[PARTICIPANT_ID_MAPPING: Use these exact participant IDs when scheduling meetings: {${participantMapping}}]`
+        )
+      }
+
+      // Add mentioned users (people referenced via @ who may not be in the chat)
+      // Include odId which is the correct ID format for calendar API
+      if (context?.mentionedUsers && context.mentionedUsers.length > 0) {
+        const mentionedList = context.mentionedUsers
+          .map(p => {
+            if (p.odId) {
+              return `${p.name} (odId: ${p.odId})`
+            }
+            return `${p.name} (id: ${p.id})`
+          })
+          .join(', ')
+        parts.push(`[Mentioned users in this message: ${mentionedList}]`)
+
+        // Also provide mentioned users mapping in structured format
+        const mentionedMapping = context.mentionedUsers
+          .map(p => {
+            const odId = p.odId || p.id
+            return `"${p.name}": "${odId}"`
+          })
+          .join(', ')
+        parts.push(
+          `[MENTIONED_USER_ID_MAPPING: Use these exact participant IDs when scheduling meetings: {${mentionedMapping}}]`
+        )
+      }
+
+      // Add timezone information for meeting scheduling
       parts.push(
-        `[PARTICIPANT_ID_MAPPING: Use these exact participant IDs when scheduling meetings: {${participantMapping}}]`
+        `[TIMEZONE: User's timezone is ${userTimezone} (UTC${timezoneOffsetString}). When scheduling meetings, interpret all times in this timezone. For example, if user says "2pm", that means 2pm ${userTimezone} (UTC${timezoneOffsetString}), not UTC.]`
       )
-    }
 
-    // Add mentioned users (people referenced via @ who may not be in the chat)
-    // Include odId which is the correct ID format for calendar API
-    if (context?.mentionedUsers && context.mentionedUsers.length > 0) {
-      const mentionedList = context.mentionedUsers
-        .map(p => {
-          if (p.odId) {
-            return `${p.name} (odId: ${p.odId})`
-          }
-          return `${p.name} (id: ${p.id})`
-        })
-        .join(', ')
-      parts.push(`[Mentioned users in this message: ${mentionedList}]`)
+      // Add last scheduled meeting info so AI can update it
+      if (context?.lastScheduledMeeting) {
+        const m = context.lastScheduledMeeting
+        const meetingDate = new Date(m.startTime)
+        parts.push(
+          `[Last scheduled meeting in this chat: "${m.title}" (id: ${m.id}) on ${meetingDate.toLocaleDateString()} at ${meetingDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} with ${m.participants.join(', ')}]`
+        )
+      }
 
-      // Also provide mentioned users mapping in structured format
-      const mentionedMapping = context.mentionedUsers
-        .map(p => {
-          const odId = p.odId || p.id
-          return `"${p.name}": "${odId}"`
-        })
-        .join(', ')
+      // Add meeting capabilities hint - FlowBot has tools for this
       parts.push(
-        `[MENTIONED_USER_ID_MAPPING: Use these exact participant IDs when scheduling meetings: {${mentionedMapping}}]`
-      )
-    }
-
-    // Add current user context
-    if (context?.currentUserName) {
-      parts.push(`[You are speaking to: ${context.currentUserName}]`)
-    }
-
-    // Add timezone information for meeting scheduling
-    parts.push(
-      `[TIMEZONE: User's timezone is ${userTimezone} (UTC${timezoneOffsetString}). When scheduling meetings, interpret all times in this timezone. For example, if user says "2pm", that means 2pm ${userTimezone} (UTC${timezoneOffsetString}), not UTC.]`
-    )
-
-    // Add last scheduled meeting info so AI can update it
-    if (context?.lastScheduledMeeting) {
-      const m = context.lastScheduledMeeting
-      const meetingDate = new Date(m.startTime)
-      parts.push(
-        `[Last scheduled meeting in this chat: "${m.title}" (id: ${m.id}) on ${meetingDate.toLocaleDateString()} at ${meetingDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} with ${m.participants.join(', ')}]`
-      )
-    }
-
-    // Add meeting capabilities hint - FlowBot has tools for this
-    parts.push(
-      `[MEETING CAPABILITIES: You have access to tools for scheduling and updating meetings:
+        `[MEETING CAPABILITIES: You have access to tools for scheduling and updating meetings:
         - schedule_meeting: Create a new meeting with title, date, time, duration, timezone, and participant IDs
         - find_meeting_slot: Find available meeting slots by checking participant calendars
         - update_meeting: Update an existing meeting
@@ -332,7 +393,13 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
         2. Include ALL participant odIds from PARTICIPANT_ID_MAPPING
         3. Interpret times in ${userTimezone} timezone
         4. Use participantIds parameter (array of odId strings), not participants with names]`
-    )
+      )
+    } else {
+      // For non-meeting requests, only add current user context
+      if (context?.currentUserName) {
+        parts.push(`[You are speaking to: ${context.currentUserName}]`)
+      }
+    }
 
     parts.push(prompt)
 
@@ -421,6 +488,7 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
         let responseText = ''
         let responseSessionId = sharedSessionId // Start with existing, will be updated if new one received
         let scheduledMeeting: ScheduledMeeting | undefined
+        const collectedOutputs: OutputItem[] = [] // Collect all output items for rich rendering
         let buf = ''
 
         while (true) {
@@ -458,6 +526,11 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
               try {
                 const output = JSON.parse(data)
                 console.log('📦 [EveryAI] Received output-item:', output.type, output)
+
+                // Collect the output item for rich rendering (except loading which we handle separately)
+                if (output.type !== 'loading') {
+                  collectedOutputs.push(output)
+                }
 
                 // Check for scheduled meeting output (NEW: proper backend support)
                 if (output.type === 'scheduled_meeting' && output.meeting) {
@@ -621,7 +694,8 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
           text: responseText || "I'm sorry, I couldn't generate a response. Please try again.",
           error: !responseText,
           sessionId: responseSessionId || undefined,
-          scheduledMeeting
+          scheduledMeeting,
+          outputs: collectedOutputs.length > 0 ? collectedOutputs : undefined
         }
 
         if (onAIResponse) {

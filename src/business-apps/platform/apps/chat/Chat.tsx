@@ -529,6 +529,11 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
                   aiMetadata.scheduledMeeting = aiResponse.scheduledMeeting
                 }
 
+                // Include full outputs for rich rendering
+                if (aiResponse.outputs && aiResponse.outputs.length > 0) {
+                  aiMetadata.outputs = aiResponse.outputs
+                }
+
                 await sendMessage(activeConversationId, responseText, aiMetadata)
 
                 // Clear streaming text after message is sent
@@ -553,6 +558,93 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
       activeConversation,
       clearStreamingText,
       setDraftMessage
+    ]
+  )
+
+  // Handler for sending messages from inline EveryAI forms and interactions
+  const handleAISendMessage = useCallback(
+    async (content: string, metadata?: Record<string, any>) => {
+      if (!activeConversationId) return
+
+      try {
+        // Check if this is a form submission to EveryAI
+        if (metadata?.isFormSubmission) {
+          // Send the form submission to EveryAI and process the response
+          const conversationContext = {
+            conversationId: activeConversationId,
+            conversationName: activeConversation?.name,
+            participants: activeConversation?.participants
+              ?.filter(p => p.user)
+              .map(p => {
+                const user = p.user!
+                const name =
+                  user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || ''
+                return {
+                  id: p.userId || user.id,
+                  odId: p.userId || user.id,
+                  name,
+                  email: user.email,
+                  employeeId: user.employeeId
+                }
+              })
+              .filter(p => p.name),
+            existingSessionId: messages
+              .filter(m => m.metadata?.isAIResponse && m.metadata?.everyAiSessionId)
+              .map(m => m.metadata?.everyAiSessionId as string)
+              .pop(),
+            currentUserId: currentUser?.id,
+            currentUserName: currentUser
+              ? currentUser.displayName ||
+                `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() ||
+                currentUser.username ||
+                ''
+              : ''
+          }
+
+          // Process through EveryAI
+          const aiResponse = await processEveryAIMessage(content, [], conversationContext)
+
+          if (aiResponse && aiResponse.text && !aiResponse.error) {
+            const responseText = aiResponse.text.trim()
+
+            if (responseText) {
+              await new Promise(resolve => setTimeout(resolve, 100))
+
+              const aiMetadata: Record<string, any> = {
+                isAIResponse: true,
+                aiAssistant: 'Every',
+                originalQuestion: content,
+                everyAiSessionId: aiResponse.sessionId
+              }
+
+              if (aiResponse.scheduledMeeting) {
+                aiMetadata.scheduledMeeting = aiResponse.scheduledMeeting
+              }
+
+              if (aiResponse.outputs && aiResponse.outputs.length > 0) {
+                aiMetadata.outputs = aiResponse.outputs
+              }
+
+              await sendMessage(activeConversationId, responseText, aiMetadata)
+              clearStreamingText()
+            }
+          }
+        } else {
+          // Regular message send
+          await sendMessage(activeConversationId, content, metadata)
+        }
+      } catch (err) {
+        console.error('Error sending AI message:', err)
+      }
+    },
+    [
+      activeConversationId,
+      activeConversation,
+      messages,
+      currentUser,
+      processEveryAIMessage,
+      sendMessage,
+      clearStreamingText
     ]
   )
 
@@ -1151,6 +1243,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
                   accessToken={accessToken}
                   participants={stableActiveConversation.participants}
                   onReplyToAI={handleReplyToAI}
+                  onSendMessage={handleAISendMessage}
                 />
 
                 {/* AI Processing Indicator */}
