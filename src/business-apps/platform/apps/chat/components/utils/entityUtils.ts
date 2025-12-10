@@ -11,7 +11,8 @@ import {
   FileText,
   Newspaper,
   BookOpen,
-  Globe
+  Globe,
+  Sparkles
 } from 'lucide-react'
 import type { EntityType, MessageEntityReference } from '../../types'
 import {
@@ -26,6 +27,8 @@ import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
  * Entity type to icon mapping
  */
 export const ENTITY_ICONS: Record<EntityType, React.ElementType> = {
+  // AI Assistant
+  ai_assistant: Sparkles,
   // CRM
   account: Building2,
   contact: User,

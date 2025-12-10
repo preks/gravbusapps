@@ -12,7 +12,8 @@ import {
   Newspaper,
   BookOpen,
   Globe,
-  FileText
+  FileText,
+  Sparkles
 } from 'lucide-react'
 import type { EntityReference, EntityType } from '../types'
 
@@ -26,6 +27,8 @@ interface EntityMentionPopoverProps {
 }
 
 const ENTITY_ICONS: Record<EntityType, React.ElementType> = {
+  // AI Assistant
+  ai_assistant: Sparkles,
   // CRM
   account: Building2,
   contact: User,
@@ -49,6 +52,8 @@ const ENTITY_ICONS: Record<EntityType, React.ElementType> = {
 }
 
 const ENTITY_COLORS: Record<EntityType, string> = {
+  // AI Assistant (gradient-like accent)
+  ai_assistant: 'gba:bg-gradient-to-br gba:from-primary gba:to-accent gba:text-primary-foreground',
   // CRM (blue/green tones)
   account: 'gba:bg-info-secondary gba:text-info-secondary-foreground',
   contact: 'gba:bg-success-secondary gba:text-success-secondary-foreground',
@@ -72,6 +77,8 @@ const ENTITY_COLORS: Record<EntityType, string> = {
 }
 
 const ENTITY_LABELS: Record<EntityType, string> = {
+  // AI Assistant
+  ai_assistant: 'AI Assistant',
   // CRM
   account: 'CRM Account',
   contact: 'CRM Contact',

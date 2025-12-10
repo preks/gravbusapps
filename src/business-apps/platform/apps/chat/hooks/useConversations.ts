@@ -144,7 +144,15 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
 
       // Enrich conversations with real user data from User Management Service
       const enrichedConversations = await enrichConversations(conversationsData)
-      setConversations(enrichedConversations)
+
+      // Sort by most recent activity (lastMessage or updatedAt)
+      const sortedConversations = enrichedConversations.sort((a, b) => {
+        const aTime = a.lastMessage?.createdAt || a.updatedAt || a.createdAt
+        const bTime = b.lastMessage?.createdAt || b.updatedAt || b.createdAt
+        return new Date(bTime).getTime() - new Date(aTime).getTime()
+      })
+
+      setConversations(sortedConversations)
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to load conversations'))
       console.error('Error loading conversations:', err)
@@ -182,7 +190,18 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
   }, [apiClient, enabled, isLoadingMore, hasMore, currentPage, conversations.length, enrichConversations, LIMIT])
 
   const updateConversation = useCallback((conversationId: string, updates: Partial<Conversation>) => {
-    setConversations(prev => prev.map(conv => (conv.id === conversationId ? { ...conv, ...updates } : conv)))
+    setConversations(prev => {
+      const updated = prev.map(conv => (conv.id === conversationId ? { ...conv, ...updates } : conv))
+      // Re-sort if updatedAt changed
+      if (updates.updatedAt || updates.lastMessage) {
+        return updated.sort((a, b) => {
+          const aTime = a.lastMessage?.createdAt || a.updatedAt || a.createdAt
+          const bTime = b.lastMessage?.createdAt || b.updatedAt || b.createdAt
+          return new Date(bTime).getTime() - new Date(aTime).getTime()
+        })
+      }
+      return updated
+    })
   }, [])
 
   const addConversation = useCallback(
@@ -206,8 +225,9 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
   )
 
   const updateConversationLastMessage = useCallback((conversationId: string, message: Message) => {
-    setConversations(prev =>
-      prev.map(conv =>
+    setConversations(prev => {
+      // Update the conversation
+      const updated = prev.map(conv =>
         conv.id === conversationId
           ? {
               ...conv,
@@ -216,7 +236,14 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
             }
           : conv
       )
-    )
+
+      // Re-sort by most recent activity (move updated conversation to top)
+      return updated.sort((a, b) => {
+        const aTime = a.lastMessage?.createdAt || a.updatedAt || a.createdAt
+        const bTime = b.lastMessage?.createdAt || b.updatedAt || b.createdAt
+        return new Date(bTime).getTime() - new Date(aTime).getTime()
+      })
+    })
   }, [])
 
   const markConversationAsRead = useCallback((conversationId: string) => {
