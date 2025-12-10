@@ -43,7 +43,8 @@ export const Activity360ListTab: React.FC<Activity360ListTabProps> = ({ accessTo
     'occurredAt',
     'ownerEmployee.fullName',
     'reference',
-    'activityType.value'
+    'activityType.value',
+    'title'
   ])
   const [allEmployeeIds, setAllEmployeeIds] = useState<string[]>([])
   const [loadingEmployees, setLoadingEmployees] = useState(true)

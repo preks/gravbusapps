@@ -188,6 +188,7 @@ const handleEntityReferenceClick = (activity: TeamSalesActivity) => {
  * 2. Owner - Employee who owns the activity
  * 3. Reference - Related entity (Lead, Contact, Account, Opportunity)
  * 4. Type - Activity type (Call, Email, Meeting, Task)
+ * 5. Title - Activity title/subject
  */
 export const createActivity360Columns = (): ColumnDef<TeamSalesActivity>[] => [
   // 1. Date Column - Shows occurred date with time, hover/tap shows created date
@@ -316,6 +317,32 @@ export const createActivity360Columns = (): ColumnDef<TeamSalesActivity>[] => [
           {getActivityTypeIcon(type)}
           <span>{type}</span>
         </Badge>
+      )
+    }
+  },
+  // 5. Title Column
+  {
+    id: 'title',
+    accessorKey: 'title',
+    header: 'Title',
+    size: 250,
+    cell: ({ row }) => {
+      const title = row.original.title
+      const activityId = row.original.id
+      if (!title) {
+        return (
+          <span
+            className="gba:text-sm gba:text-muted-foreground gba:italic"
+            data-testid={`activity360-title-empty-${activityId}`}
+          >
+            No title
+          </span>
+        )
+      }
+      return (
+        <span className="gba:text-sm" data-testid={`activity360-title-${activityId}`}>
+          {title}
+        </span>
       )
     }
   }
