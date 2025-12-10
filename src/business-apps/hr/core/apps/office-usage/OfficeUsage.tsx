@@ -26,7 +26,7 @@ const OfficeUsage: React.FC<OfficeUsageProps> = ({ accessToken, prefixDataTestId
   const [selectedLocationFilter, setSelectedLocationFilter] = useState<string | undefined>(undefined)
 
   // Get structure ID
-  const structureId = getCurrentActiveStructureId() || '99b1ba64-a4d3-4dd0-8302-b1dc0c4daaaf'
+  const structureId = getCurrentActiveStructureId()
 
   // Filters state
   const { filters, updateFilters } = useOfficeUsageFilters()
