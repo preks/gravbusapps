@@ -1,10 +1,7 @@
 // Liquid Fund Report Column Transformer
 // Transforms form field definitions into table columns following the same pattern as header transformations
 
-import {
-  FormFieldsDefinition,
-  FormFieldDefinition
-} from '@/business-apps/irm/investments/forms/investment-form/queries/InvestmentCatalogQueries'
+import { FormFieldsDefinition, FormFieldDefinition } from '@/common/data/investment/hooks/useInvestmentCatalogs'
 import { formatCurrency, extractCurrencyCode } from '@/common/utils/numberFormatter'
 import { formatNumberFunction } from '@/common/utils/windowUtils'
 import { getValueByPath } from '@/common/utils/objectUtils'

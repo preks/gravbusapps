@@ -6,6 +6,7 @@ import type { Investment } from './investmentTypes.new'
  * Liquid Fund Investment Type
  */
 export interface LiquidFundInvestment extends BaseEntity {
+  id?: string
   proprietorName?: string
   bankName?: string
   bankAccountNumber?: string
@@ -24,6 +25,9 @@ export interface LiquidFundInvestment extends BaseEntity {
  * Liquid Fund Investment Fields
  */
 export const LiquidFundInvestmentFields = {
+  id: 'id',
+  version: 'version',
+  additionalProperties: 'additionalProperties',
   proprietorName: 'proprietorName',
   bankName: 'bankName',
   bankAccountNumber: 'bankAccountNumber',
@@ -45,14 +49,6 @@ export const LiquidFundInvestmentFormFields = {
   // Base Entity Fields
   id: 'id',
   version: 'version',
-  createdAt: 'createdAt',
-  createdBy: 'createdBy',
-  updatedAt: 'updatedAt',
-  updatedBy: 'updatedBy',
-  isDeleted: 'isDeleted',
-  recordState: 'recordState',
-  activeFrom: 'activeFrom',
-  activeTo: 'activeTo',
   additionalProperties: 'additionalProperties',
 
   // Liquid Fund Investment Fields

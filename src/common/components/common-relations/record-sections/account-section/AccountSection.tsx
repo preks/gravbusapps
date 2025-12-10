@@ -203,15 +203,19 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
     ? `data:image/gif;base64,${account.pictureThumbnail}`
     : account?.pictureUrl || account?.pictureThumbnailUrl
 
-  // Get contact type from extended account object (passed from parent via accountContacts)
+  // Get contact type from extended account object (passed from parent via accountContacts in Contact Records)
   const contactType = account?.contactType
+
+  // Get account type from extended account object (passed from parent via junction tables in Opportunity/Investment Records)
+  // Can be from investmentAccountType (for investments) or accountType (for opportunities)
+  const accountType = account?.investmentAccountType || account?.accountType
 
   return (
     <div className={`${cardClassName} gba:relative gba:flex gba:flex-col gba:h-full`}>
-      <div className="gba:space-y-2 gba:flex-1">
+      <div className="gba:space-y-1 gba:flex-1">
         {/* Company Name and Icon with Action Button */}
         <div className="gba:flex gba:items-center gba:gap-3">
-          <div className="gba:relative gba:shrink-0 gba:p-1">
+          <div className="gba:relative gba:shrink-0">
             {logoUrl ? (
               <Avatar className="gba:h-12 gba:w-12">
                 <AvatarImage src={logoUrl} alt="Company logo" />
@@ -222,8 +226,6 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
             ) : (
               <IconAvatar icon={BankIcon} variant="default" size="lg" title="Company" />
             )}
-
-            <ContactTypeBadge contactType={contactType} />
           </div>
           <div className="gba:flex gba:flex-col gba:gap-1 gba:min-w-0 gba:flex-1">
             <div className="gba:h-5 gba:flex gba:items-center gba:gap-2 gba:min-w-0">
@@ -253,8 +255,13 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
+              {contactType && (
+                <div className="gba:shrink-0">
+                  <ContactTypeBadge contactType={contactType} />
+                </div>
+              )}
             </div>
-            {/* Company Type and Industry - directly under name */}
+            {/* Legal Form and Account Type - directly under name */}
             <div className="gba:h-5 gba:flex gba:items-center gba:min-w-0">
               <TooltipProvider>
                 <Tooltip>
@@ -264,15 +271,14 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
                       data-testid="account-secondary-info"
                     >
                       {(() => {
-                        // Direkt aus Account-Objekt extrahieren (wie in View Layouts)
+                        // Extract legal form
                         const legalForm = account?.legalForm?.value || account?.legalForm
-                        // industryClass für IRM, industry für CRM - beide unterstützen
-                        const industry =
-                          account?.industryClass?.value ||
-                          account?.industryClass ||
-                          account?.industry?.value ||
-                          account?.industry
-                        const items = [legalForm, industry].filter(Boolean)
+
+                        // Extract account type (from junction tables for Opportunity/Investment Records)
+                        const accountTypeValue =
+                          typeof accountType === 'object' ? accountType.value || accountType.code : accountType
+
+                        const items = [legalForm, accountTypeValue].filter(Boolean)
 
                         if (items.length > 0) {
                           return items.join(' • ')
@@ -287,12 +293,9 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
                     <p className="gba:max-w-xs gba:break-words">
                       {(() => {
                         const legalForm = account?.legalForm?.value || account?.legalForm
-                        const industry =
-                          account?.industryClass?.value ||
-                          account?.industryClass ||
-                          account?.industry?.value ||
-                          account?.industry
-                        const items = [legalForm, industry].filter(Boolean)
+                        const accountTypeValue =
+                          typeof accountType === 'object' ? accountType.value || accountType.code : accountType
+                        const items = [legalForm, accountTypeValue].filter(Boolean)
 
                         if (items.length > 0) {
                           return items.join(' • ')
@@ -327,6 +330,10 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
             // Extract revenue - nur Common Field accountAnnualRevenueBand verwenden (KEINE Fallbacks)
             const revenueValue = account?.accountAnnualRevenueBand?.value
 
+            // Extract industry - moved from secondary info to detailed info section
+            const industryValue =
+              account?.industryClass?.value || account?.industryClass || account?.industry?.value || account?.industry
+
             // Extract address from account.addresses if not provided explicitly
             const accountAddress =
               address ||
@@ -359,6 +366,13 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
                 value: revenueValue,
                 render: (value: string) => value,
                 testId: 'account-revenue-value'
+              },
+              {
+                icon: BankIcon,
+                title: 'Industry',
+                value: industryValue,
+                render: (value: string) => value,
+                testId: 'account-industry-value'
               },
               {
                 icon: PiGlobe,
@@ -419,9 +433,21 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
             // Combine dynamic communication channels with static fields
             const allItems = [...communicationChannelItems, ...staticInfoItems]
 
-            return allItems.map((item, index) => {
+            // Filter to only show items with actual values
+            const itemsWithValues = allItems.filter(item => item.value)
+
+            // If no items, show placeholder
+            if (itemsWithValues.length === 0) {
+              return (
+                <div className="gba:flex gba:items-center gba:gap-2 gba:px-2 gba:py-1 gba:rounded">
+                  <span className="gba:text-sm gba:text-muted-foreground">No information available</span>
+                </div>
+              )
+            }
+
+            return itemsWithValues.map((item, index) => {
               const IconComponent = item.icon
-              const content = item.render(item.value || '')
+              const content = item.render(item.value)
 
               return (
                 <div
@@ -429,13 +455,9 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
                   className={`gba:flex gba:gap-2 gba:px-2 gba:py-1 gba:rounded ${item.title === 'Address' ? 'gba:items-start' : 'gba:items-center'}`}
                 >
                   <IconComponent className="gba:text-sm gba:text-muted-foreground" title={item.title} />
-                  {content ? (
-                    <span className="gba:text-sm gba:text-muted-foreground" data-testid={item.testId}>
-                      {content}
-                    </span>
-                  ) : (
-                    <span className="gba:text-sm gba:text-muted-foreground">-</span>
-                  )}
+                  <span className="gba:text-sm gba:text-muted-foreground" data-testid={item.testId}>
+                    {content}
+                  </span>
                 </div>
               )
             })

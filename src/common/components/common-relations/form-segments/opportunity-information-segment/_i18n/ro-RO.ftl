@@ -1,6 +1,7 @@
 # Opportunity Information Segment - Romanian
 
 # Labels
+company-label = Companie
 opportunity-owner-label = Proprietar
 opportunity-name-label = Nume oportunitate
 forecast-label = Prognoză

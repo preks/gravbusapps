@@ -99,7 +99,19 @@ const getNormalTableBodyContent = (options: TableBodyOptions): React.ReactNode =
       data-testid={report.id ? `${dataTestId}-row-${report.id}` : `${dataTestId}-row-${index + 1}`}
     >
       {visibleColumnsArray.map(column => (
-        <TableCell key={column.key} style={{ padding: 'var(--nw-spacing-3) var(--nw-spacing-4)' }}>
+        <TableCell
+          key={column.key}
+          style={{
+            padding: 'var(--nw-spacing-3) var(--nw-spacing-4)',
+            // Add sticky positioning for actions column
+            ...(column.key === 'actions' && {
+              position: 'sticky',
+              right: 0,
+              backgroundColor: 'var(--nw-color-background)',
+              zIndex: 5
+            })
+          }}
+        >
           {column.render(report)}
         </TableCell>
       ))}
@@ -486,7 +498,14 @@ export const EquityAnalyticsTable: React.FC<EquityAnalyticsTableProps> = ({
                   textAlign: 'left',
                   padding: 'var(--nw-spacing-3) var(--nw-spacing-4)',
                   width: column.width,
-                  color: 'var(--nw-color-text-primary)'
+                  color: 'var(--nw-color-text-primary)',
+                  // Add sticky positioning for actions column
+                  ...(column.key === 'actions' && {
+                    position: 'sticky',
+                    right: 0,
+                    backgroundColor: 'var(--nw-color-surface-secondary)',
+                    zIndex: 10
+                  })
                 }}
               >
                 {column.title}

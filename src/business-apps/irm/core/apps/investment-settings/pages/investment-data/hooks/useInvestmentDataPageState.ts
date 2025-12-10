@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { CatalogEntryWithConfig, TargetLevel } from '../types'
-import { InvestmentCatalogData } from '@/business-apps/irm/investments/forms/investment-form/queries/InvestmentCatalogQueries'
+import { InvestmentCatalogData } from '@/common/data/investment/hooks/useInvestmentCatalogs'
 
 export const useInvestmentDataPageState = () => {
   const [targetLevel, setTargetLevel] = useState<TargetLevel>('group')

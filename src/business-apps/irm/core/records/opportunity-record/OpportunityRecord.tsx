@@ -905,18 +905,32 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                   component: AccountSection,
                   props: {
                     ...props,
-                    account: opportunityData?.account,
-                    accountId: opportunityData?.account?.id,
-                    recordUrl: opportunityData?.account?.id
+                    // Transform junction table to include account type
+                    accounts:
+                      opportunityData?.opportunityAccounts
+                        ?.map(junction => ({
+                          ...junction.account,
+                          accountType: junction.accountType // Add catalog entry from junction table
+                        }))
+                        .filter(Boolean) || [],
+                    account: opportunityData?.opportunityAccounts?.[0]
+                      ? {
+                          ...opportunityData.opportunityAccounts[0].account,
+                          accountType: opportunityData.opportunityAccounts[0].accountType
+                        }
+                      : undefined,
+                    accountId: opportunityData?.opportunityAccounts?.[0]?.accountId,
+                    accountIds: opportunityData?.opportunityAccounts?.map(a => a.accountId).filter(Boolean),
+                    recordUrl: opportunityData?.opportunityAccounts?.[0]?.accountId
                       ? buildPlatformUrl('/platform/irm/account-record', {
-                          accountId: opportunityData.account.id,
+                          accountId: opportunityData.opportunityAccounts[0].accountId,
                           source: 'opportunity-relations',
                           fromEntity: 'opportunities'
                         })
                       : undefined,
                     actionButtonProps: {
                       contextsArray: [FlowContextName.investmentAccountEntity],
-                      externalContextData: { accountId: opportunityData?.account?.id },
+                      externalContextData: { accountId: opportunityData?.opportunityAccounts?.[0]?.accountId },
                       prefixDataTestId: 'investment-opportunity-account-action'
                     }
                   }
