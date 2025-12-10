@@ -176,6 +176,11 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
           effectiveTime: payloadObject?.effectiveTime,
           plannedTime: payloadObject?.plannedTime,
           differenceTime: payloadObject?.differenceTime
+        },
+        employeeInfo: {
+          userId: payloadObject?.userId,
+          id: requestEmployeeId,
+          employeeUserId: payloadObject?.userId
         }
       }
 
