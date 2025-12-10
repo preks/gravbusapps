@@ -3,6 +3,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getDefaultEndDate } from '@/business-apps/hr/core/apps/employee-record/utils/utils'
 import { BENEFIT_FORM_VALIDATION } from '@/business-apps/hr/core/apps/employee-record/components/tabs/compensation/constants/benefitFormValidation'
 import { extractEmployeeId } from '@/business-apps/hr/core/utils/employeeIdUtils'
+import { useTaskCancellation } from '../../hooks/useTaskCancellation'
 import { validateDeactivationForm, buildDeactivationPayload } from './utils/deactivationHelpers'
 import type { DeactivateEmployeeBenefitContextData, EmployeeDataResponse } from './types'
 import type { BenefitCatalogItem } from '@/business-apps/hr/core/apps/employee-record/components/tabs/compensation/types/benefitCatalogTypes'
@@ -29,7 +30,8 @@ interface UseDeactivateEmployeeBenefitFormReturn {
   setAdditionalDetails: (value: string) => void
   isFormValid: boolean
   validateForm: () => string[] | null
-  buildSubmitPayload: (options: { markAsSubmitted: () => void }) => Promise<any>
+  buildSubmitPayload: () => Promise<any>
+  markAsCancelled: () => void
 }
 
 export const useDeactivateEmployeeBenefitForm = ({
@@ -47,6 +49,9 @@ export const useDeactivateEmployeeBenefitForm = ({
     () => extractEmployeeId(additionalData, userInfo, employeeProfile),
     [additionalData, userInfo, employeeProfile]
   )
+
+  // Task cancellation handling
+  const { markAsSubmitted, markAsCancelled } = useTaskCancellation('pse_abort')
 
   // Form state
   const [endDate, setEndDate] = useState<string>('')
@@ -83,23 +88,20 @@ export const useDeactivateEmployeeBenefitForm = ({
     return hasEndDate && hasReason && hasDetailsIfOther
   }, [endDate, reason, additionalDetails])
 
-  const buildSubmitPayload = useCallback(
-    async ({ markAsSubmitted }: { markAsSubmitted: () => void }) => {
-      if (!selectedBenefit) {
-        throw new Error('No benefit selected')
-      }
+  const buildSubmitPayload = useCallback(async () => {
+    if (!selectedBenefit) {
+      throw new Error('No benefit selected')
+    }
 
-      return buildDeactivationPayload({
-        employeeId,
-        benefit: selectedBenefit,
-        reason,
-        additionalDetails,
-        endDate,
-        markAsSubmitted
-      })
-    },
-    [employeeId, selectedBenefit, reason, additionalDetails, endDate]
-  )
+    return buildDeactivationPayload({
+      employeeId,
+      benefit: selectedBenefit,
+      reason,
+      additionalDetails,
+      endDate,
+      markAsSubmitted
+    })
+  }, [employeeId, selectedBenefit, reason, additionalDetails, endDate, markAsSubmitted])
 
   return {
     employeeProfile,
@@ -114,6 +116,7 @@ export const useDeactivateEmployeeBenefitForm = ({
     setAdditionalDetails,
     isFormValid,
     validateForm,
-    buildSubmitPayload
+    buildSubmitPayload,
+    markAsCancelled
   }
 }

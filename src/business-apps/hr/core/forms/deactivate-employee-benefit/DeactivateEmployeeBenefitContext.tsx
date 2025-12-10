@@ -32,17 +32,6 @@ export const DeactivateEmployeeBenefitProvider: React.FC<ProviderProps> = ({
   // Extract employee ID from context using utility
   const employeeId = useMemo(() => extractEmployeeId(additionalData, userInfo), [additionalData, userInfo])
 
-  // Extract selected benefit from context or payload
-  const selectedBenefit = useMemo(() => {
-    const externalContext = (additionalData as any)?.externalContextData
-    return (
-      externalContext?.benefit ||
-      (additionalData as any)?.benefit ||
-      (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.benefit ||
-      null
-    )
-  }, [additionalData])
-
   const fetchData = useCallback(async () => {
     if (!accessToken || !employeeId) {
       setIsLoading(false)
@@ -58,10 +47,18 @@ export const DeactivateEmployeeBenefitProvider: React.FC<ProviderProps> = ({
       const empVariables = { idEmployee: employeeId }
       const employeeData = await graphqlClient.request<EmployeeDataResponse>(EMPLOYEE_DATA_QUERY, empVariables)
 
+      // Extract selected benefit from additionalData at fetch time
+      const externalContext = (additionalData as any)?.externalContextData
+      const benefit =
+        externalContext?.benefit ||
+        (additionalData as any)?.benefit ||
+        (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.benefit ||
+        null
+
       // Set data with employee and selected benefit
       setData({
         employee: employeeData,
-        selectedBenefit: selectedBenefit
+        selectedBenefit: benefit
       })
 
       setIsLoading(false)
@@ -69,7 +66,7 @@ export const DeactivateEmployeeBenefitProvider: React.FC<ProviderProps> = ({
       setError(e?.message || 'Unknown error')
       setIsLoading(false)
     }
-  }, [accessToken, employeeId, selectedBenefit, graphqlClient])
+  }, [accessToken, employeeId, graphqlClient, additionalData])
 
   useEffect(() => {
     fetchData()

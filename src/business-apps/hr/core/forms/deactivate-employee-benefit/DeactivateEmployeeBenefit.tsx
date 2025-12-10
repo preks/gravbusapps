@@ -24,7 +24,6 @@ import translations from '@/business-apps/hr/core/apps/employee-record/_i18n'
 import FormHeader from '../components/FormHeader'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { DeactivateEmployeeBenefitProvider, useDeactivateEmployeeBenefit } from './DeactivateEmployeeBenefitContext'
-import { useTaskCancellation } from '../../hooks/useTaskCancellation'
 import { useDeactivateEmployeeBenefitForm } from './useDeactivateEmployeeBenefitForm'
 
 /**
@@ -52,11 +51,9 @@ const DeactivateEmployeeBenefitContent: React.FC<BusinessAppContextProps> = ({ a
     setAdditionalDetails,
     isFormValid,
     validateForm,
-    buildSubmitPayload
+    buildSubmitPayload,
+    markAsCancelled
   } = useDeactivateEmployeeBenefitForm({ data, additionalData, userInfo, t })
-
-  // Handle task cancellation when form closes without submission
-  const { markAsSubmitted, markAsCancelled } = useTaskCancellation('pse_abort')
 
   const title = useMemo(() => t('modal-deactivate-title'), [t])
 
@@ -88,7 +85,7 @@ const DeactivateEmployeeBenefitContent: React.FC<BusinessAppContextProps> = ({ a
           processType="update"
           formData={{}}
           validateForm={validateForm}
-          onSubmit={() => buildSubmitPayload({ markAsSubmitted })}
+          onSubmit={buildSubmitPayload}
           submitEventType="pse_submit"
           cancelEventType="pse_abort"
           cancelButtonText={t('modal-deactivate-cancel-button')}
@@ -97,9 +94,7 @@ const DeactivateEmployeeBenefitContent: React.FC<BusinessAppContextProps> = ({ a
           isSubmitDisabled={!isFormValid}
           submitButtonTestId="deactivate-employee-benefit-submit-button"
           cancelButtonTestId="deactivate-employee-benefit-cancel-button"
-          onCancel={() => {
-            markAsCancelled()
-          }}
+          onCancel={markAsCancelled}
           data-testid="deactivate-employee-benefit"
         >
           <div className="gba:flex-1 gba:space-y-4" data-testid="deactivate-employee-benefit-fields">
