@@ -1,6 +1,8 @@
 import React from 'react'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@newwork/nw-design-system'
+import { MessageSquare } from 'lucide-react'
 import type { MessageEntityReference } from '../types'
+import { isSupportedEntityType, warnOnceForUnsupportedEntityType } from '../types'
 import { ENTITY_ICONS, navigateToEntity } from './utils/entityUtils'
 
 interface EntityReferenceBadgeProps {
@@ -12,23 +14,34 @@ interface EntityReferenceBadgeProps {
  * Clickable badge component for entity references in messages
  */
 export const EntityReferenceBadge: React.FC<EntityReferenceBadgeProps> = ({ reference, isOwnMessage }) => {
-  const Icon = ENTITY_ICONS[reference.type]
+  const supportedType = isSupportedEntityType(reference.type) ? reference.type : undefined
+  const Icon = supportedType ? ENTITY_ICONS[supportedType] : MessageSquare
+  const isNavigable = Boolean(supportedType)
   const showAvatar = reference.type === 'employee' && reference.pictureThumbnail
+
+  if (!supportedType) {
+    warnOnceForUnsupportedEntityType(reference.type, reference)
+  }
 
   return (
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
           <button
+            type="button"
             onClick={e => {
+              if (!isNavigable) {
+                return
+              }
               e.stopPropagation()
               navigateToEntity(reference)
             }}
+            disabled={!isNavigable}
             className={`gba:inline-flex gba:items-center gba:gap-1 gba:px-1.5 gba:py-0.5 gba:rounded gba:text-xs gba:font-medium gba:transition-colors gba:mx-0.5 ${
               isOwnMessage
                 ? 'gba:bg-primary-foreground/20 gba:text-primary-foreground gba:hover:bg-primary-foreground/30'
                 : 'gba:bg-primary/10 gba:text-primary gba:hover:bg-primary/20'
-            }`}
+            } ${isNavigable ? 'gba:cursor-pointer' : 'gba:cursor-default'}`}
             data-testid={`entity-ref-${reference.type}-${reference.id}`}
           >
             {showAvatar ? (
