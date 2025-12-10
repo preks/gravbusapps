@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import {
   Input,
   Calendar,
@@ -17,6 +17,26 @@ import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { AppActionForm } from '@/components/app-action-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+
+// Query to fetch employee header info
+const GET_EMPLOYEE_HEADER_INFO = `
+query GetEmployeeHeaderInfo($id: uuid!) {
+  Employee(where: { id: { _eq: $id } }, limit: 1) {
+    id
+    firstName
+    lastName
+    pictureThumbnail
+    employeePosition {
+      jobPosition {
+        name
+      }
+    }
+  }
+}
+`
+
+import { EmployeeInfo } from '../components/FormHeader'
 
 interface RequestCorrectionFormProps extends BusinessAppContextProps {
   employeeId: string
@@ -27,13 +47,51 @@ interface RequestCorrectionFormProps extends BusinessAppContextProps {
 export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> = ({
   employeeId,
   onSubmitted,
-  additionalData
+  additionalData,
+  accessToken
 }) => {
   const form = useForm<{ date: string; clockIn: string; clockOut: string; notes?: string }>({
     defaultValues: { date: '', clockIn: '', clockOut: '', notes: '' },
     mode: 'onChange'
   })
   const [submitting, setSubmitting] = useState(false)
+  const [employeeHeaderInfo, setEmployeeHeaderInfo] = useState<EmployeeInfo | undefined>(undefined)
+
+  // GraphQL client for fetching employee header info
+  const graphqlClient = useGraphQLClient(accessToken)
+
+  // Resolve the actual employee ID from various sources
+  const resolvedEmployeeId = useMemo(() => {
+    return (
+      employeeId ||
+      additionalData?.employeeId ||
+      additionalData?.psi_taskPayload?.employeeId ||
+      additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId
+    )
+  }, [employeeId, additionalData])
+
+  // Fetch employee header info
+  const fetchEmployeeHeaderInfo = useCallback(async () => {
+    if (!accessToken || !resolvedEmployeeId) return
+    try {
+      const res = await graphqlClient.request<any>(GET_EMPLOYEE_HEADER_INFO, { id: resolvedEmployeeId })
+      const emp = res?.Employee?.[0]
+      if (emp) {
+        setEmployeeHeaderInfo({
+          firstName: emp.firstName,
+          lastName: emp.lastName,
+          pictureThumbnail: emp.pictureThumbnail,
+          jobTitle: emp.employeePosition?.jobPosition?.name
+        })
+      }
+    } catch {
+      // Silently fail - form still works without header info
+    }
+  }, [accessToken, resolvedEmployeeId, graphqlClient])
+
+  useEffect(() => {
+    fetchEmployeeHeaderInfo()
+  }, [fetchEmployeeHeaderInfo])
 
   // Extract platform/flow-provided parameters (supports nested psi_taskPayload as well as externalContextData)
   const platformParams = React.useMemo(() => {
@@ -53,7 +111,7 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
   const formatIsoToHHMM = (iso?: string) => {
     if (!iso) return ''
     const d = new Date(iso)
-    if (isNaN(d.getTime())) return ''
+    if (Number.isNaN(d.getTime())) return ''
     const hh = String(d.getHours()).padStart(2, '0')
     const mm = String(d.getMinutes()).padStart(2, '0')
     return `${hh}:${mm}`
@@ -88,7 +146,7 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
       let year: number, monthIndex: number, day: number
       if (input.includes('T')) {
         const d = new Date(input)
-        if (isNaN(d.getTime())) return ''
+        if (Number.isNaN(d.getTime())) return ''
         // Use local calendar parts to preserve the chosen calendar date
         year = d.getFullYear()
         monthIndex = d.getMonth()
@@ -111,11 +169,29 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
   const combineDateAndTime = (baseDateIso: string, hhmm: string): string => {
     if (!baseDateIso || !hhmm) return ''
     const base = new Date(baseDateIso)
-    if (isNaN(base.getTime())) return ''
+    if (Number.isNaN(base.getTime())) return ''
     const [hh, mm] = hhmm.split(':').map(v => parseInt(v, 10))
     if (isNaN(hh) || isNaN(mm)) return ''
     const utc = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate(), hh, mm, 0, 0))
     return utc.toISOString()
+  }
+
+  // Extract YYYY-MM-DD from an ISO string (or return the date if already in that format)
+  const toDateOnly = (isoOrDate: string): string => {
+    if (!isoOrDate) return ''
+    try {
+      const d = new Date(isoOrDate)
+      if (!Number.isNaN(d.getTime())) {
+        const y = d.getUTCFullYear()
+        const m = String(d.getUTCMonth() + 1).padStart(2, '0')
+        const day = String(d.getUTCDate()).padStart(2, '0')
+        return `${y}-${m}-${day}`
+      }
+    } catch {
+      // no-op, fallback below
+    }
+    const m = String(isoOrDate).match(/^(\d{4}-\d{2}-\d{2})/)
+    return m ? m[1] : ''
   }
 
   const handleSubmit = async () => {
@@ -131,23 +207,33 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
 
       const nowIso = new Date().toISOString()
 
+      const requestEmployeeId =
+        employeeId ||
+        additionalData?.employeeId ||
+        additionalData?.psi_taskPayload?.employeeId ||
+        additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId
+
+      const payloadObject = additionalData?.psi_taskPayload?.psi_initialParameters
+
       const payload = {
+        changeMode: 'INSERT',
+        employeeid: requestEmployeeId,
         employeeAttendanceCorrectionRequest: {
-          attendanceDate: attendanceDateISO,
+          version: payloadObject?.timeEntryVersion,
+          attendanceDate: toDateOnly(attendanceDateISO),
           requestDate: nowIso,
+          decisionDate: nowIso,
           startTime: startTimeISO,
           endTime: endTimeISO,
           status: 'UNKNOWN_CORRECTION_REQUEST_STATUS',
           correctionDescription: notes,
-          employee:
-            employeeId ||
-            additionalData?.employeeId ||
-            additionalData?.psi_taskPayload?.employeeId ||
-            additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId,
-          timeEntryId:
-            additionalData?.timeEntryId ||
-            additionalData?.psi_taskPayload?.timeEntryId ||
-            additionalData?.psi_taskPayload?.psi_initialParameters?.timeEntryId
+          employee: requestEmployeeId,
+          employeeAttendance: payloadObject?.timeEntryId,
+          recordedTime: payloadObject?.recordedTime,
+          breakTime: payloadObject?.breakTime,
+          effectiveTime: payloadObject?.effectiveTime,
+          plannedTime: payloadObject?.plannedTime,
+          differenceTime: payloadObject?.differenceTime
         }
       }
 
@@ -159,13 +245,23 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
   }
 
   return (
-    <div className="gba:space-y-6" data-testid="request-correction-form">
+    <div data-testid="request-correction-form">
       <FormHeader
         title={getTranslationFromI18nKeyAndLabel(
           'lowcoder:time_tracking.actions.request_correction',
           'Request Correction'
         )}
         flowIconUrl={flowIconUrl}
+        employee={
+          employeeHeaderInfo
+            ? {
+                firstName: employeeHeaderInfo.firstName,
+                lastName: employeeHeaderInfo.lastName,
+                pictureThumbnail: employeeHeaderInfo.pictureThumbnail,
+                jobTitle: employeeHeaderInfo.jobTitle
+              }
+            : undefined
+        }
       />
 
       <AppActionForm

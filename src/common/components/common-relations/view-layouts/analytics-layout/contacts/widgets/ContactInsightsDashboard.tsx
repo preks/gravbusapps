@@ -61,7 +61,13 @@ export const ContactInsightsDashboard: React.FC<ContactInsightsDashboardProps> =
   return (
     <Card data-testid="contact-insights-analysis">
       <CardHeader className="gba:flex gba:items-center gba:gap-3">
-        <IconAvatar icon={UsersIcon} variant={moduleColor as any} size="md" iconWeight="regular" decorative={true} />
+        <IconAvatar
+          icon={UsersIcon}
+          variant={moduleColor as 'default' | 'success' | 'warning' | 'destructive' | 'info'}
+          size="md"
+          iconWeight="regular"
+          decorative={true}
+        />
         <div>
           <CardTitle>Contact Insights Dashboard</CardTitle>
           <CardDescription>Contact analytics and engagement overview</CardDescription>
@@ -111,13 +117,13 @@ export const ContactInsightsDashboard: React.FC<ContactInsightsDashboardProps> =
             <div className="gba:space-y-3 gba:max-h-80 gba:overflow-y-auto">
               {data.contactsByAccount.slice(0, 8).map((account, index) => (
                 <div
-                  key={account.accountName}
-                  className="gba:p-3 gba:bg-gray-50 gba:border gba:border-gray-200 gba:rounded-lg"
+                  key={`${account.accountName}-${index}`}
+                  className="gba:p-3 gba:bg-muted gba:border gba:border-border gba:rounded-lg"
                   data-testid={`top-account-${index}`}
                 >
                   <div className="gba:flex gba:justify-between gba:items-center">
                     <div className="gba:flex-1">
-                      <h5 className="gba:font-medium gba:text-gray-900 gba:text-sm">{account.accountName}</h5>
+                      <h5 className="gba:font-medium gba:text-foreground gba:text-sm">{account.accountName}</h5>
                     </div>
                     <div className="gba:text-right">
                       <Badge variant="outline">{account.contactCount} contacts</Badge>
@@ -135,14 +141,14 @@ export const ContactInsightsDashboard: React.FC<ContactInsightsDashboardProps> =
             {data.recentContacts.map(contact => (
               <div
                 key={contact.id}
-                className="gba:p-3 gba:bg-gray-50 gba:border gba:border-gray-200 gba:rounded-lg"
+                className="gba:p-3 gba:bg-muted gba:border gba:border-border gba:rounded-lg"
                 data-testid={`recent-contact-${contact.id}`}
               >
                 <div className="gba:flex gba:justify-between gba:items-start">
                   <div className="gba:flex-1">
-                    <h5 className="gba:font-medium gba:text-gray-900 gba:text-sm">{contact.name}</h5>
+                    <h5 className="gba:font-medium gba:text-foreground gba:text-sm">{contact.name}</h5>
                     {contact.accountName && (
-                      <p className="gba:text-xs gba:text-gray-600 gba:mt-1">{contact.accountName}</p>
+                      <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">{contact.accountName}</p>
                     )}
                   </div>
                   <div className="gba:text-right">

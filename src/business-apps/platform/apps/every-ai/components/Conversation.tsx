@@ -43,7 +43,17 @@ const UserTurnRenderer: React.FC<{ turn: UserTurn; accessToken: string; userInfo
   accessToken,
   userInfo
 }) => {
-  const textWithMentions = buildTextWithMentions(turn.text || '', turn.mentions)
+  // Parse JSON messages to show user-friendly text
+  let displayText = turn.text || ''
+  try {
+    const parsed = JSON.parse(turn.text || '')
+    if (parsed?.userMessage) {
+      displayText = parsed.userMessage
+    }
+  } catch {
+    // Not JSON, use original text
+  }
+  const textWithMentions = buildTextWithMentions(displayText, turn.mentions)
 
   return (
     <div

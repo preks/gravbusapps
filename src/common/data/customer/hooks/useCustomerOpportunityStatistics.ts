@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
@@ -146,10 +146,10 @@ export const useCustomerOpportunityStatistics = (
   props: BusinessAppContextProps,
   currencyId?: string
 ): UseCustomerOpportunityStatisticsReturn => {
-  const [trendData, setTrendData] = useState<OpportunityStatisticsTrendData | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<Error | null>(null)
   const graphqlClient = useGraphQLClient(props.accessToken)
+  const [trendData, setTrendData] = useState<OpportunityStatisticsTrendData | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
 
   const refetch = useCallback(async () => {
     if (!props.accessToken) {

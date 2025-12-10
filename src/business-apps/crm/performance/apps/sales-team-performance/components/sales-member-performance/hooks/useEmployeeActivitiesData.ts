@@ -1,15 +1,14 @@
 import { useState, useCallback, useEffect } from 'react'
 import {
   buildEmployeeActivitiesQuery,
-  EmployeeActivity as EmployeeActivityType,
-  EmployeeActivitiesResponse
+  type EmployeeActivity,
+  type EmployeeActivitiesResponse
 } from '../queries/EmployeeActivitiesQueries'
 import { enforceQueryLimit } from '@/business-apps/crm/common/utils/queryLimits'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 // Re-export EmployeeActivity type for use in other files
-export type EmployeeActivity = EmployeeActivityType
-export type { EmployeeActivity as EmployeeActivityExport } from '../queries/EmployeeActivitiesQueries'
+export type { EmployeeActivity } from '../queries/EmployeeActivitiesQueries'
 
 // Global cache for activity scores - once calculated, never changes
 const ACTIVITY_SCORE_CACHE = new Map<string, number>()

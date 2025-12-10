@@ -84,6 +84,15 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
   }
 
   const [steps, setSteps] = React.useState<FlowStep[]>(getInitialSteps)
+  const [selectedStepIndex, setSelectedStepIndex] = React.useState<number>(0)
+  const [activeTab, setActiveTab] = React.useState<'general' | 'form' | 'assignment' | 'function' | 'agent'>('general')
+  const [isSummarySelected, setIsSummarySelected] = React.useState<boolean>(false)
+
+  // Template metadata state
+  const [templateName, setTemplateName] = React.useState<string>(initialTemplate?.name || '')
+  const [templateDescription, setTemplateDescription] = React.useState<string>(initialTemplate?.description || '')
+  const [templateTags, setTemplateTags] = React.useState<FlowTags>(initialTemplate?.tags || {})
+  const [summaryFields, setSummaryFields] = React.useState<any[]>((initialTemplate as any)?.summaryFields || [])
 
   // Update steps and metadata when initialTemplate changes
   React.useEffect(() => {
@@ -92,11 +101,12 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
       setTemplateName(initialTemplate.name || '')
       setTemplateDescription(initialTemplate.description || '')
       setTemplateTags(initialTemplate.tags || {})
+      setSummaryFields((initialTemplate as any)?.summaryFields || [])
 
       // Update steps if they exist
       if (initialTemplate.steps && initialTemplate.steps.length > 0) {
         const newSteps = initialTemplate.steps.map(step => ({
-          ...step, // Preserve all fields including summaryFields
+          ...step, // Preserve all fields
           message: step.message || 'Describe the task to be performed.',
           dueInMinutes: step.dueInMinutes || 60,
           form: step.form || step.inputs || [],
@@ -107,10 +117,6 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
       }
     }
   }, [initialTemplate])
-
-  const [selectedStepIndex, setSelectedStepIndex] = React.useState<number>(0)
-  const [activeTab, setActiveTab] = React.useState<'general' | 'form' | 'assignment' | 'function' | 'agent'>('general')
-  const [isSummarySelected, setIsSummarySelected] = React.useState<boolean>(false)
 
   // Track whether we're in "User Task" or "System Task" mode
   type TaskCategory = 'user' | 'system'
@@ -148,10 +154,10 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
     return steps[selectedStepIndex] || steps[0]
   }, [isSummarySelected, selectedStepIndex, steps])
 
-  // Calculate summary fields count from step 0
+  // Calculate summary fields count from template-level summaryFields
   const summaryFieldsCount = React.useMemo(() => {
-    return steps[0]?.summaryFields?.length || 0
-  }, [steps])
+    return summaryFields?.length || 0
+  }, [summaryFields])
 
   // Handler for clicking the summary node
   const handleSelectSummary = () => {
@@ -168,11 +174,6 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
     }
     setIsSummarySelected(false)
   }
-
-  // Template metadata state
-  const [templateName, setTemplateName] = React.useState<string>(initialTemplate?.name || '')
-  const [templateDescription, setTemplateDescription] = React.useState<string>(initialTemplate?.description || '')
-  const [templateTags, setTemplateTags] = React.useState<FlowTags>(initialTemplate?.tags || {})
 
   // Editing state
   const isEditMode = Boolean(initialTemplate?.id)
@@ -257,14 +258,16 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
         description: templateDescription.trim(),
         version: initialTemplate?.version || 1,
         steps: steps.map(step => ({
-          ...step, // Preserve all fields including summaryFields
+          ...step, // Preserve all fields
           // Ensure form and inputs are properly set
           form: step.form || step.inputs || [],
           inputs: step.inputs || step.form || []
         })),
         // Include tags in the template
-        tags: Object.keys(templateTags).length > 0 ? templateTags : undefined
-      }
+        tags: Object.keys(templateTags).length > 0 ? templateTags : undefined,
+        // Include summaryFields at template level
+        ...(summaryFields.length > 0 && { summaryFields })
+      } as any
 
       if (onSave) {
         // Use the provided onSave callback
@@ -300,6 +303,11 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
             {isEditMode && initialTemplate?.id && (
               <Badge variant="outline" className="gba:text-xs">
                 ID: {initialTemplate.id}
+              </Badge>
+            )}
+            {isEditMode && initialTemplate?.version && (
+              <Badge variant="outline" className="gba:text-xs">
+                v{initialTemplate.version}
               </Badge>
             )}
           </div>
@@ -425,25 +433,29 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
                 <CardDescription>Configure fields to display in the workflow summary after completion</CardDescription>
               </CardHeader>
               <CardContent className="gba:h-[calc(75vh-80px)] gba:flex gba:flex-col">
-                {steps.length > 0 && steps[0] ? (
+                {steps.length > 0 ? (
                   <div className="gba:flex-1 gba:overflow-auto gba:pr-2 gba:pb-4">
                     <SummaryFieldsConfiguration
-                      step={steps[0]}
-                      stepIndex={0}
                       template={
                         {
                           type: initialTemplate?.type || 'TEMPLATE',
-                          name: initialTemplate?.name || templateName || 'Untitled',
+                          name: templateName || initialTemplate?.name || 'Untitled',
                           version: initialTemplate?.version || 1,
-                          description: initialTemplate?.description,
+                          description: templateDescription || initialTemplate?.description,
                           id: initialTemplate?.id,
                           initStep: initialTemplate?.initStep,
-                          steps: steps
+                          steps: steps,
+                          summaryFields: summaryFields
                         } as any
                       }
+                      context={{ accessToken, userInfo }}
                       testId={`${testId}-summary`}
-                      onUpdateStep={updates => {
-                        setSteps(prev => prev.map((s, i) => (i === 0 ? { ...s, ...updates } : s)))
+                      onUpdateTemplate={updates => {
+                        // Update the template-level summaryFields
+                        if (updates.summaryFields !== undefined) {
+                          // Store summaryFields at template level (will be saved when template is saved)
+                          setSummaryFields(updates.summaryFields)
+                        }
                       }}
                     />
                   </div>
@@ -734,15 +746,11 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
                             </div>
                           )}
 
-                        {/* Links - Only for User Tasks */}
-                        {selectedStep.type !== FlowStepType.FUNCTION &&
-                          selectedStep.type !== FlowStepType.AI_AGENT &&
-                          selectedStep.type !== FlowStepType.AI_TASK_EXPERT && (
-                            <div className="gba:space-y-2">
-                              <LinksTrigger step={selectedStep} testId={`${testId}-links`} onUpdateStep={updateStep} />
-                              <LinksContent step={selectedStep} testId={`${testId}-links`} onUpdateStep={updateStep} />
-                            </div>
-                          )}
+                        {/* Links - Available for all task types */}
+                        <div className="gba:space-y-2">
+                          <LinksTrigger step={selectedStep} testId={`${testId}-links`} onUpdateStep={updateStep} />
+                          <LinksContent step={selectedStep} testId={`${testId}-links`} onUpdateStep={updateStep} />
+                        </div>
                       </div>
                     </TabsContent>
                     <TabsContent value="form" className="gba:absolute gba:inset-0 gba:overflow-auto">

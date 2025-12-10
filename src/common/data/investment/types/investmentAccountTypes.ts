@@ -72,15 +72,12 @@ export const INVESTMENT_ACCOUNT_DESCRIPTORS: Descriptor[] = [
   ...createAccountDescriptors(InvestmentAccountFields as Record<keyof typeof AccountFields, string>),
 
   // IRM-specific fields (not in Common/CRM)
-  {
-    key: 'investments',
-    searchPaths: ['investment.name', 'investment.code'],
-    sortPath: 'investment.name',
-    type: 'text'
-  },
+  // Note: investmentInvestmentAccount is a relationship from Investment TO InvestmentAccount
+  // It does not exist as a field ON InvestmentAccount
+  // Filtering InvestmentAccount by investment data must be done via reverse relationships
+  // For now, these descriptors are commented out as they require a different approach
 
   // IRM-specific filter IDs
-  { key: 'investmentIds', path: 'investment.id', kind: 'inIds' },
   { key: 'reportIds', path: 'investmentReport.id', kind: 'inIds' }
 ]
 
@@ -138,7 +135,7 @@ export const buildInvestmentAccountPayload = (account: Partial<InvestmentAccount
 export function toInvestmentAccount(raw: any): InvestmentAccount {
   // Extract GraphQL field names to exclude from spread
   const {
-    investment,
+    investments, // GraphQL field name for junction table relationship
     investmentReport,
     investmentAccountContact,
     investmentAddress,
@@ -150,8 +147,9 @@ export function toInvestmentAccount(raw: any): InvestmentAccount {
 
   return {
     ...rest,
-    // Map only if target field doesn't already exist
-    investments: raw.investments ?? investment,
+    // Map GraphQL field names to TypeScript interface names
+    // investments field comes from GraphQL relationship, keep it as-is
+    investments: investments ?? [],
     investmentReports: raw.investmentReports ?? investmentReport,
     accountContacts: raw.accountContacts ?? investmentAccountContact,
     addresses: raw.addresses ?? investmentAddress,

@@ -1,22 +1,12 @@
 import React, { useState, useCallback, useMemo } from 'react'
-import {
-  Card,
-  Button,
-  Input,
-  Textarea,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Badge,
-  Spinner
-} from '@newwork/nw-design-system'
+import { Card, Button, Input, Textarea, Badge, Spinner } from '@newwork/nw-design-system'
 import { DynamicFormField, DynamicFormValues } from '../types/flowTemplate'
 import { CheckCircleIcon, WarningIcon, CalendarIcon, EnvelopeIcon, LinkIcon } from '@phosphor-icons/react'
 import { DateTimeField } from './DateTimeField'
 import { FileUploadField } from './FileUploadField'
 import { NumberField } from './NumberField'
+import { DataSourceSelect } from './DataSourceSelect'
+import { DataSourceMultiSelect } from './DataSourceMultiSelect'
 import type { UploadFile } from './FileUploadField'
 import { serializeUploadResults } from '../utils/fileUploadUtils'
 
@@ -410,29 +400,19 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
                 {field.required && !isReadOnly && <span className="gba:text-destructive gba:ml-1">*</span>}
               </label>
               {field.description && <p className="gba:text-xs gba:text-muted-foreground">{field.description}</p>}
-              <Select
-                value={value}
-                onValueChange={newValue => handleFieldChange(field.name, newValue)}
+              {/* Use DataSourceSelect for dynamic data sources or static options with consistent UI */}
+              <DataSourceSelect
+                id={field.name}
+                value={value || ''}
+                onChange={newValue => handleFieldChange(field.name, newValue)}
+                dataSource={field.dataSource}
+                accessToken={accessToken || ''}
+                placeholder={field.placeholder || `Select ${field.label}`}
+                required={field.required}
                 disabled={isReadOnly}
-              >
-                <SelectTrigger
-                  className={hasError ? 'gba:border-destructive' : ''}
-                  data-testid={`select-${field.name}`}
-                >
-                  <SelectValue placeholder={field.placeholder || `Select ${field.label}`} />
-                </SelectTrigger>
-                <SelectContent>
-                  {field.options?.map(option => (
-                    <SelectItem
-                      key={option.value}
-                      value={option.value}
-                      data-testid={`option-${field.name}-${option.value}`}
-                    >
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                initialOptions={field.options}
+                data-testid={`select-${field.name}`}
+              />
               {hasError && (
                 <div className="gba:flex gba:items-center gba:gap-1 gba:text-destructive gba:text-xs">
                   <WarningIcon size={12} />
@@ -589,31 +569,19 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
                 {field.required && !isReadOnly && <span className="gba:text-destructive gba:ml-1">*</span>}
               </label>
               {field.description && <p className="gba:text-xs gba:text-muted-foreground">{field.description}</p>}
-              <div className="gba:space-y-2 gba:border gba:rounded-md gba:p-3">
-                {field.options?.map(option => (
-                  <label key={option.value} className="gba:flex gba:items-center gba:space-x-2">
-                    <input
-                      type="checkbox"
-                      value={option.value}
-                      checked={Array.isArray(value) ? value.includes(option.value) : false}
-                      onChange={e => {
-                        const currentValue = Array.isArray(value) ? value : []
-                        let newValue
-                        if (e.target.checked) {
-                          newValue = [...currentValue, option.value]
-                        } else {
-                          newValue = currentValue.filter(v => v !== option.value)
-                        }
-                        handleFieldChange(field.name, newValue)
-                      }}
-                      className="gba:rounded gba:border-input"
-                      data-testid={`multiselect-${field.name}-${option.value}`}
-                      disabled={isReadOnly}
-                    />
-                    <span className="gba:text-sm">{option.label}</span>
-                  </label>
-                ))}
-              </div>
+              {/* Use DataSourceMultiSelect for dynamic data sources or static options with consistent UI */}
+              <DataSourceMultiSelect
+                id={field.name}
+                value={Array.isArray(value) ? value : []}
+                onChange={newValues => handleFieldChange(field.name, newValues)}
+                dataSource={field.dataSource}
+                accessToken={accessToken || ''}
+                placeholder={field.placeholder || `Select ${field.label}`}
+                required={field.required}
+                disabled={isReadOnly}
+                initialOptions={field.options}
+                data-testid={`multiselect-${field.name}`}
+              />
               {hasError && (
                 <div className="gba:flex gba:items-center gba:gap-1 gba:text-destructive gba:text-xs">
                   <WarningIcon size={12} />

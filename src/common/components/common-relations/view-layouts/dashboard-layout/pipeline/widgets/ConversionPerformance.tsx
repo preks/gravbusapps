@@ -15,8 +15,17 @@ export interface WinRateMetrics {
   }
 }
 
-const formatPercentage = (value: number, decimals: number = 1): string => {
+const formatPercentage = (value: number | undefined, decimals: number = 1): string => {
+  if (value === undefined || value === null || Number.isNaN(value)) {
+    return '0%'
+  }
   return `${value.toFixed(decimals)}%`
+}
+
+const getWinRateColorClass = (winRate: number): string => {
+  if (winRate >= 70) return 'gba:text-green-600'
+  if (winRate >= 50) return 'gba:text-orange-600'
+  return 'gba:text-red-600'
 }
 
 export interface ConversionPerformanceProps {
@@ -25,6 +34,20 @@ export interface ConversionPerformanceProps {
 }
 
 export const ConversionPerformance: React.FC<ConversionPerformanceProps> = ({ winRateMetrics, pipelineId }) => {
+  // Provide default values if metrics are undefined
+  const safeMetrics = {
+    monthToDate: {
+      won: winRateMetrics?.monthToDate?.won ?? 0,
+      lost: winRateMetrics?.monthToDate?.lost ?? 0,
+      winRate: winRateMetrics?.monthToDate?.winRate ?? 0
+    },
+    quarterToDate: {
+      won: winRateMetrics?.quarterToDate?.won ?? 0,
+      lost: winRateMetrics?.quarterToDate?.lost ?? 0,
+      winRate: winRateMetrics?.quarterToDate?.winRate ?? 0
+    }
+  }
+
   const getProgressColor = (winRate: number) => {
     if (winRate >= 70) return 'gba:bg-green-500'
     if (winRate >= 50) return 'gba:bg-orange-500'
@@ -53,26 +76,26 @@ export const ConversionPerformance: React.FC<ConversionPerformanceProps> = ({ wi
               <div data-testid={`win-rate-month-${pipelineId}`}>
                 <div className="gba:flex gba:justify-between gba:items-center gba:mb-2">
                   <span className="gba:font-medium gba:text-sm">Month to Date</span>
-                  {getTrendIcon(winRateMetrics.monthToDate.winRate)}
+                  {getTrendIcon(safeMetrics.monthToDate.winRate)}
                 </div>
 
                 <div className="gba:text-center gba:mb-3">
                   <div
-                    className={`gba:text-2xl gba:font-bold ${winRateMetrics.monthToDate.winRate >= 70 ? 'gba:text-green-600' : winRateMetrics.monthToDate.winRate >= 50 ? 'gba:text-orange-600' : 'gba:text-red-600'}`}
+                    className={`gba:text-2xl gba:font-bold ${getWinRateColorClass(safeMetrics.monthToDate.winRate)}`}
                   >
-                    {formatPercentage(winRateMetrics.monthToDate.winRate)}
+                    {formatPercentage(safeMetrics.monthToDate.winRate)}
                   </div>
                   <span className="gba:text-gray-600 gba:text-xs">Win Rate</span>
                 </div>
 
                 <Progress
-                  value={winRateMetrics.monthToDate.winRate}
-                  className={`gba:mb-2 ${getProgressColor(winRateMetrics.monthToDate.winRate)}`}
+                  value={safeMetrics.monthToDate.winRate}
+                  className={`gba:mb-2 ${getProgressColor(safeMetrics.monthToDate.winRate)}`}
                 />
 
                 <div className="gba:flex gba:justify-between gba:text-xs">
-                  <span className="gba:text-green-600">Won: {winRateMetrics.monthToDate.won}</span>
-                  <span className="gba:text-red-600">Lost: {winRateMetrics.monthToDate.lost}</span>
+                  <span className="gba:text-green-600">Won: {safeMetrics.monthToDate.won}</span>
+                  <span className="gba:text-red-600">Lost: {safeMetrics.monthToDate.lost}</span>
                 </div>
               </div>
             </CardContent>
@@ -84,26 +107,26 @@ export const ConversionPerformance: React.FC<ConversionPerformanceProps> = ({ wi
               <div data-testid={`win-rate-quarter-${pipelineId}`}>
                 <div className="gba:flex gba:justify-between gba:items-center gba:mb-2">
                   <span className="gba:font-medium gba:text-sm">Quarter to Date</span>
-                  {getTrendIcon(winRateMetrics.quarterToDate.winRate)}
+                  {getTrendIcon(safeMetrics.quarterToDate.winRate)}
                 </div>
 
                 <div className="gba:text-center gba:mb-3">
                   <div
-                    className={`gba:text-2xl gba:font-bold ${winRateMetrics.quarterToDate.winRate >= 70 ? 'gba:text-green-600' : winRateMetrics.quarterToDate.winRate >= 50 ? 'gba:text-orange-600' : 'gba:text-red-600'}`}
+                    className={`gba:text-2xl gba:font-bold ${getWinRateColorClass(safeMetrics.quarterToDate.winRate)}`}
                   >
-                    {formatPercentage(winRateMetrics.quarterToDate.winRate)}
+                    {formatPercentage(safeMetrics.quarterToDate.winRate)}
                   </div>
                   <span className="gba:text-gray-600 gba:text-xs">Win Rate</span>
                 </div>
 
                 <Progress
-                  value={winRateMetrics.quarterToDate.winRate}
-                  className={`gba:mb-2 ${getProgressColor(winRateMetrics.quarterToDate.winRate)}`}
+                  value={safeMetrics.quarterToDate.winRate}
+                  className={`gba:mb-2 ${getProgressColor(safeMetrics.quarterToDate.winRate)}`}
                 />
 
                 <div className="gba:flex gba:justify-between gba:text-xs">
-                  <span className="gba:text-green-600">Won: {winRateMetrics.quarterToDate.won}</span>
-                  <span className="gba:text-red-600">Lost: {winRateMetrics.quarterToDate.lost}</span>
+                  <span className="gba:text-green-600">Won: {safeMetrics.quarterToDate.won}</span>
+                  <span className="gba:text-red-600">Lost: {safeMetrics.quarterToDate.lost}</span>
                 </div>
               </div>
             </CardContent>
@@ -115,19 +138,19 @@ export const ConversionPerformance: React.FC<ConversionPerformanceProps> = ({ wi
           <div className="gba:grid gba:grid-cols-3 gba:gap-4 gba:text-center">
             <div>
               <div className="gba:text-lg gba:font-bold gba:text-blue-600">
-                {winRateMetrics.monthToDate.won + winRateMetrics.quarterToDate.won}
+                {safeMetrics.monthToDate.won + safeMetrics.quarterToDate.won}
               </div>
               <span className="gba:text-gray-600 gba:text-xs">Total Won</span>
             </div>
             <div>
               <div className="gba:text-lg gba:font-bold gba:text-red-600">
-                {winRateMetrics.monthToDate.lost + winRateMetrics.quarterToDate.lost}
+                {safeMetrics.monthToDate.lost + safeMetrics.quarterToDate.lost}
               </div>
               <span className="gba:text-gray-600 gba:text-xs">Total Lost</span>
             </div>
             <div>
               <div className="gba:text-lg gba:font-bold gba:text-green-600">
-                {((winRateMetrics.monthToDate.winRate + winRateMetrics.quarterToDate.winRate) / 2).toFixed(1)}%
+                {((safeMetrics.monthToDate.winRate + safeMetrics.quarterToDate.winRate) / 2).toFixed(1)}%
               </div>
               <span className="gba:text-gray-600 gba:text-xs">Avg Rate</span>
             </div>

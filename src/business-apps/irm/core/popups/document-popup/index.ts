@@ -1,3 +1,3 @@
-export { default as DocumentPopup } from './DocumentPopup'
-export { default } from './DocumentPopup'
-export * from './DocumentPopup'
+export { DocumentPopup as default } from './DocumentPopup'
+export { DocumentPopup } from './DocumentPopup'
+export type { DocumentPopupProps } from './DocumentPopup'
