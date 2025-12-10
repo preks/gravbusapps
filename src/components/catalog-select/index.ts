@@ -20,3 +20,6 @@ export const CatalogSelect = Object.assign(CatalogSelectComponent, {
 export { default as CatalogSelectProvider } from './CatalogSelectProvider'
 export { CatalogSelectContext } from './CatalogSelectProvider'
 export { useCatalogValidation } from './CatalogSelectProvider'
+
+// Export types
+export type { CatalogSelectProps, CatalogSelectOption } from './CatalogSelect'

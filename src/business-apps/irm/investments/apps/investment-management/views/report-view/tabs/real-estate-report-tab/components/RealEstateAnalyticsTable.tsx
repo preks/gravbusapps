@@ -92,7 +92,19 @@ const getNormalTableBodyContent = (options: TableBodyOptions): React.ReactNode =
       data-testid={`${dataTestId}-row-${report.id}`}
     >
       {visibleColumnsArray.map(column => (
-        <TableCell key={column.key} style={{ padding: 'var(--nw-spacing-3) var(--nw-spacing-4)' }}>
+        <TableCell
+          key={column.key}
+          style={{
+            padding: 'var(--nw-spacing-3) var(--nw-spacing-4)',
+            // Add sticky positioning for actions column
+            ...(column.key === 'actions' && {
+              position: 'sticky',
+              right: 0,
+              backgroundColor: 'var(--nw-color-background)',
+              zIndex: 5
+            })
+          }}
+        >
           {column.render(report)}
         </TableCell>
       ))}
@@ -476,7 +488,14 @@ export const RealEstateAnalyticsTable: React.FC<RealEstateAnalyticsTableProps> =
                   fontWeight: 'var(--nw-font-weight-semibold)',
                   fontFamily: 'var(--nw-font-family-base)',
                   color: 'var(--nw-color-text-primary)',
-                  padding: 'var(--nw-spacing-3) var(--nw-spacing-4)'
+                  padding: 'var(--nw-spacing-3) var(--nw-spacing-4)',
+                  // Add sticky positioning for actions column
+                  ...(column.key === 'actions' && {
+                    position: 'sticky',
+                    right: 0,
+                    backgroundColor: 'var(--nw-color-surface-secondary)',
+                    zIndex: 10
+                  })
                 }}
               >
                 {column.title}

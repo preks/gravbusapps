@@ -2,6 +2,8 @@ import React, { useMemo, useCallback } from 'react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Button, Alert } from '@newwork/nw-design-system'
 import { RefreshCw } from 'lucide-react'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
+import { AppAction } from '@/components/app-action/AppAction'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useLiquidFundReports } from '../hooks/useLiquidFundReports'
 import { useInvestmentLiquidFundReportCatalog } from '../hooks/useInvestmentLiquidFundReportCatalog'
 import { AnalyticsFilters } from '../types'
@@ -89,6 +91,7 @@ interface NormalTableBodyOptions {
   investmentType: string
   handleRowClick: (id: string) => void
   dataTestId: string
+  accessToken?: string
 }
 
 // Helper: Get normal table body content
@@ -103,7 +106,8 @@ const getNormalTableBodyContent = (options: NormalTableBodyOptions): React.React
     visibleDynamicColumns,
     investmentType,
     handleRowClick,
-    dataTestId
+    dataTestId,
+    accessToken
   } = options
   if (isInitialLoading) {
     return <ReportTableSkeleton rowCount={10} columnCount={skeletonColumnCount} />
@@ -149,6 +153,35 @@ const getNormalTableBodyContent = (options: NormalTableBodyOptions): React.React
             {column.getValue(row)}
           </TableCell>
         ))}
+      {accessToken && row.reportId && (
+        <TableCell
+          style={{
+            padding: 'var(--nw-spacing-3) var(--nw-spacing-4)',
+            // Add sticky positioning for actions column
+            position: 'sticky',
+            right: 0,
+            backgroundColor: 'var(--nw-color-background)',
+            zIndex: 5
+          }}
+          onClick={(e: React.MouseEvent) => e.stopPropagation()}
+        >
+          <AppAction
+            variant="table-row"
+            contexts={[
+              {
+                context: FlowContextName.investmentReportEntity,
+                contextData: { investmentReportId: row.reportId }
+              }
+            ]}
+            prefixDataTestId="liquid-fund-reports-update"
+            accessToken={accessToken}
+            emptyState="enable"
+            lazyLoad
+            onClick={(e: React.MouseEvent) => e.stopPropagation()}
+            data-testid={`liquid-fund-reports-update-button-${row.reportId}`}
+          />
+        </TableCell>
+      )}
     </TableRow>
   ))
 }
@@ -557,6 +590,24 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
                   {column.label}
                 </TableHead>
               ))}
+            {accessToken && (
+              <TableHead
+                style={{
+                  fontWeight: 'var(--nw-font-weight-semibold)',
+                  fontFamily: 'var(--nw-font-family-base)',
+                  color: 'var(--nw-color-text-primary)',
+                  padding: 'var(--nw-spacing-3) var(--nw-spacing-4)',
+                  width: '60px',
+                  // Add sticky positioning for actions column
+                  position: 'sticky',
+                  right: 0,
+                  backgroundColor: 'var(--nw-color-surface-secondary)',
+                  zIndex: 10
+                }}
+              >
+                {/* Empty title as requested */}
+              </TableHead>
+            )}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -570,7 +621,8 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
             visibleDynamicColumns,
             investmentType,
             handleRowClick,
-            dataTestId
+            dataTestId,
+            accessToken
           })}
         </TableBody>
       </Table>

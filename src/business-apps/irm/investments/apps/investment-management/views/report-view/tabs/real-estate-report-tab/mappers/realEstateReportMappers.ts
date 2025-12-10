@@ -169,7 +169,7 @@ export const toEnhancedRealEstateInvestment = (investmentData: any): EnhancedRea
 
     // Relationships
     ownerEmployee: investmentData.ownerEmployee,
-    investmentAccount: investmentData.investmentAccount,
+    investmentAccounts: investmentData.investmentAccounts, // GraphQL field name
     realEstateInvestment: investmentData.realEstateInvestment,
 
     // Computed properties for UI
