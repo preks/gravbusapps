@@ -281,6 +281,14 @@ pipelines:
             allowed-values:
               - 'true'
               - 'false'
+      - step:
+          name: Enforce develop/main branches for production publish
+          script:
+            - |
+              if [ "$BITBUCKET_BRANCH" != "develop" ] && [ "$BITBUCKET_BRANCH" != "main" ]; then
+                echo "publishing to production is restricted to develop or main branches. Current branch: $BITBUCKET_BRANCH"
+                exit 1
+              fi
       - step: *install_dependencies
       - step: *publish-manual-prod-screens
 

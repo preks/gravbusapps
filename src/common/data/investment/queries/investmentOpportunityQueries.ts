@@ -165,6 +165,22 @@ export const buildInvestmentOpportunityByIdQuery = (
       ${buildLeadFragment(InvestmentLeadFields)}
     }
     
+    # Opportunity-Account Junction Table (many-to-many)
+    # GraphQL field name: opportunityAccounts
+    ${fields.investmentOpportunityAccounts}(where: { isDeleted: { _eq: false } }) {
+      id
+      version
+      opportunityId
+      accountId
+      accountTypeRef
+      accountType {
+        ${CATALOG_ENTRY}
+      }
+      account {
+        ${buildAccountFragment(InvestmentAccountFields)}
+      }
+    }
+    
     # Divestment relation
     divestment {
       ${INVESTMENT_REF}

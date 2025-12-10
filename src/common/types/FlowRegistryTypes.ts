@@ -159,6 +159,8 @@ export enum FlowContextName {
   investmentReportUpload = 'investmentReportUpload',
   investmentReportEntity = 'investmentReportEntity', // Integrate
   investmentReportGenerate = 'investmentReportGenerate',
+  investmentReportCreate = 'investmentReportCreate',
+  investmentReportUpdate = 'investmentReportUpdate',
 
   expenseItems = 'expenseItems',
   expensePlans = 'expensePlans',
@@ -171,6 +173,7 @@ export enum FlowContextName {
   flowInstance = 'flowInstance',
 
   documentPersonal = 'documentPersonal',
+  employeeDocumentDelete = 'employeeDocumentDelete',
   employeeAbsenceRecord = 'employeeAbsenceRecord',
   employeePerformanceGoal = 'employeePerformanceGoal',
   employeeGiveFeedback = 'employeeGiveFeedback',
@@ -179,7 +182,7 @@ export enum FlowContextName {
   employeeAdditionalProperties = 'updateEmployeeAdditionalAttributes',
   employeeProfilePicture = 'employeeProfilePicture',
   employeeAttendanceCorrectionRequest = 'employeeAttendanceCorrectionRequest',
-  employeeBenefitRequest = 'employeeBenefitRequest',
+  employeeBenefitRequest = 'requestEmployeeBenefit',
 
   updateEmployeePersonalData = 'updateEmployeePersonalData',
   updateEmployeeAddress = 'updateEmployeeAddress',

@@ -147,7 +147,8 @@ export const buildInvestmentWhereCondition = (variables: InvestmentQueryVariable
 
   if (variables.accountIds?.length) {
     const accountIdsList = variables.accountIds.map(id => `"${id}"`).join(', ')
-    whereClause += `, investmentAccountId: { _in: [${accountIdsList}] }`
+    // Updated to use junction table path
+    whereClause += `, investmentAccounts: { investmentAccountId: { _in: [${accountIdsList}] } }`
   }
 
   if (variables.opportunityIds?.length) {
@@ -423,8 +424,12 @@ export const SEARCH_INVESTMENTS = (variables: InvestmentQueryVariables): string 
           id
           displayName
         }
-        investmentAccount {
-          ${INVESTMENT_ACCOUNT_REF}
+        investmentAccounts(where: { isDeleted: { _eq: false } }) {
+          id
+          investmentAccountId
+          investmentAccount {
+            ${INVESTMENT_ACCOUNT_REF}
+          }
         }
       }
     }

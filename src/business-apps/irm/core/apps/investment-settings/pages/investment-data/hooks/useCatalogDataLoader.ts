@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { CatalogEntryWithConfig } from '../types'
-import { InvestmentCatalogData } from '@/business-apps/irm/investments/forms/investment-form/queries/InvestmentCatalogQueries'
+import { InvestmentCatalogData } from '@/common/data/investment/hooks/useInvestmentCatalogs'
 import { mapCatalogEntryToTyped } from '../../../hooks'
 
 interface UseCatalogDataLoaderProps {

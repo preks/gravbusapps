@@ -272,12 +272,10 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                         const resolveSegmentBgClass = (a: any): string => {
                           // When consumer provides planned/effective minutes (e.g., DailyLog)
                           if (typeof a?.plannedMinutes === 'number' && typeof a?.effectiveMinutes === 'number') {
-                            if (a.effectiveMinutes === a.plannedMinutes) {
+                            if (a.effectiveMinutes >= a.plannedMinutes) {
                               return getBadgeVariantBackgroundClass('success')
                             }
-                            if (a.effectiveMinutes < a.plannedMinutes) {
-                              return getBadgeVariantBackgroundClass('warning')
-                            }
+                            return getBadgeVariantBackgroundClass('warning')
                           }
                           return getAbsenceStatusBackgroundClass(a.originalStatus || a.status)
                         }
