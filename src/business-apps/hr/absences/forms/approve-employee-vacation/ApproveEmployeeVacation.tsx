@@ -67,7 +67,7 @@ const extractUserIdFromToken = (accessToken: string): string => {
     const tokenParts = accessToken.split('.')
     if (tokenParts.length === 3) {
       // Convert base64url to base64 before decoding
-      const base64 = tokenParts[1].replace(/-/g, '+').replace(/_/g, '/')
+      const base64 = tokenParts[1].replaceAll('-', '+').replaceAll('_', '/')
       const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=')
       const tokenPayload = JSON.parse(atob(padded))
       return tokenPayload.sub || ''
@@ -109,7 +109,8 @@ const buildCompletionEndpoint = (endpoint: string, userId: string): string => {
 
   // Build full URL
   completionEndpoint = `${kogitoBaseUrl}${completionEndpoint}`
-  return `${completionEndpoint}?phase=complete${userId ? `&user=${userId}` : ''}`
+  const userParam = userId ? `&user=${userId}` : ''
+  return `${completionEndpoint}?phase=complete${userParam}`
 }
 
 // Helper: Submit approval to Kogito API
@@ -138,7 +139,7 @@ const submitToKogitoApi = async (
   }
 
   // Dispatch process completion event
-  window.dispatchEvent(
+  globalThis.dispatchEvent(
     new CustomEvent('com.newwork.process.processCompletion', {
       detail: { resolution: 'success' }
     })
