@@ -141,7 +141,7 @@ export const formatTag = (tagIdOrName: string, availableTags: ContentTagAPI[] = 
   }
 
   // Case 3: Fallback - create readable name from ID
-  const displayName = tagIdOrName.toString().replace(/^\d+_/, '').replaceAll(/_/g, ' ')
+  const displayName = tagIdOrName.toString().replace(/^\d+_/, '').replaceAll('_', ' ')
   return { tag: displayName, tag_id: tagIdOrName }
 }
 

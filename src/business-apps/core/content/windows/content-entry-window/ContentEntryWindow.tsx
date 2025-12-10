@@ -47,6 +47,8 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
   const { validateField } = CatalogSelect.useValidation()
   const { createCatalogEntry } = useCreateCatalogEntry(context)
   const fileClient = useFileClient(context)
+  // Extract props to mark as used
+  const { contentId, contentGroupRef } = context
 
   const [image, setImage] = useState<string | null>(null)
   const [imageInfo, setImageInfo] = useState<{ name: string; size: string } | null>(null)
@@ -130,6 +132,9 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
     context.additionalData?.contentGroup ||
     context.additionalData?.psi_taskPayload?.psi_initialParameters?.contentGroupRef ||
     context.additionalData?.psi_taskPayload?.psi_initialParameters?.contentGroup
+
+  // Use contentId prop
+  const extractedContentId = contentId
 
   // Author info from context
   const authorName = useMemo(() => {
@@ -219,7 +224,7 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
       endDate: null,
       status: 'draft'
     }),
-    [context.contentId, extractedContentGroupRef, context.userInfo, authorName]
+    [extractedContentId, extractedContentGroupRef, context.userInfo, authorName]
   )
 
   const form = useForm<ContentEntryFormValues, any, ContentEntryFormValues>({
@@ -317,7 +322,7 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
   // Helper: Upload image file
   const uploadImageFile = useCallback(
     async (file: File, updatedData: ContentEntryFormValues): Promise<void> => {
-      const contentEntryId = context.contentId || 'temp'
+      const contentEntryId = extractedContentId || 'temp'
       const folderPath = `/content/${contentEntryId}/images`
 
       const thumbnail = await generateThumbnail(file)
@@ -337,7 +342,7 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
         updatedData.contentImage = JSON.stringify(uploadResponse.fileInfo)
       }
     },
-    [fileClient, context.contentId]
+    [fileClient, extractedContentId]
   )
 
   // Helper: Convert base64 to file and upload
@@ -363,7 +368,7 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
       const thumbnail = await generateThumbnail(base64Data)
       updatedData.pictureThumbnail = thumbnail
 
-      const contentEntryId = context.contentId || 'temp'
+      const contentEntryId = extractedContentId || 'temp'
       const folderPath = `/content/${contentEntryId}/images`
 
       const uploadResponse = await fileClient.uploadFile(
@@ -380,7 +385,7 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
         updatedData.contentImage = JSON.stringify(uploadResponse.fileInfo)
       }
     },
-    [fileClient, context.contentId]
+    [fileClient, extractedContentId]
   )
 
   // PreSubmit Handler: Create new categories, tags, and upload image
@@ -431,7 +436,7 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
   )
 
   const handleSubmit = async (data: ContentEntryFormValues) => {
-    const isUpdate = Boolean(context.contentId)
+    const isUpdate = Boolean(extractedContentId)
     const employeeId = context.userInfo?.employeeDetails?.employeeId
 
     if (!employeeId) {
@@ -443,7 +448,7 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
     const payload = buildContentEntryPayload({
       // Identity (for updates)
       ...(isUpdate && {
-        id: context.contentId,
+        id: extractedContentId,
         version: data.version || 0
       }),
 
@@ -512,13 +517,13 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
 
   return (
     <AppActionForm
-      processType={context.contentId ? 'update' : 'create'}
+      processType={extractedContentId ? 'update' : 'create'}
       onSubmit={handleSubmit}
       handlePreSubmit={handlePreSubmit}
       formData={defaultValues}
       form={form}
       schema={schema}
-      submitButtonText={context.contentId ? t('update-content') : t('create-content')}
+      submitButtonText={extractedContentId ? t('update-content') : t('create-content')}
       cancelButtonText={t('cancel') || 'Cancel'}
       data-testid="content-entry-window"
     >

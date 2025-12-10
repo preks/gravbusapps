@@ -30,7 +30,7 @@ const CATALOG_IDENTIFIER = 'ContentReaction'
 
 const ContentPortal: React.FC<ContentPortalProps> = context => {
   const { t } = useTranslation(translations)
-  const { accessToken } = context
+  const { accessToken, tab } = context
   const { fetchCatalogEntriesByIdentifier } = useCatalogEntries({ accessToken })
   const [allowedReactions, setAllowedReactions] = useState<string[]>([])
   const [reactionCatalogMap, setReactionCatalogMap] = useState<Record<string, string>>({}) // unified code -> catalog ID
@@ -73,10 +73,12 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
         })
 
         // Sort emoji codes by display order
+        const getDisplayOrder = (code: string): number => {
+          const entry = result.entries.find(e => e.additionalValue2 === code)
+          return entry?.displayOrder || 0
+        }
         const sortByDisplayOrder = (a: string, b: string): number => {
-          const entryA = result.entries.find(e => e.additionalValue2 === a)
-          const entryB = result.entries.find(e => e.additionalValue2 === b)
-          return (entryA?.displayOrder || 0) - (entryB?.displayOrder || 0)
+          return getDisplayOrder(a) - getDisplayOrder(b)
         }
         const sortedCodes = [...allowedCodes].sort(sortByDisplayOrder)
 
@@ -95,8 +97,8 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
 
   // Initialize activeTab from props or URL query parameter
   const initialTab = useMemo(() => {
-    return context.tab || new URLSearchParams(globalThis.window.location.search).get('tab') || 'home'
-  }, [context.tab])
+    return tab || new URLSearchParams(globalThis.window.location.search).get('tab') || 'home'
+  }, [tab])
 
   const [activeTab, setActiveTab] = useState(initialTab)
 
@@ -294,7 +296,6 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
             userInfo={context.userInfo}
             hideBanner
             currentTab="home"
-            allowedReactions={stableAllowedReactions}
             reactionCatalogMap={stableReactionCatalogMap}
             targetLanguage={targetLanguage}
             translatedItems={stableTranslatedItems}
@@ -322,7 +323,6 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
             userInfo={context.userInfo}
             hideBanner
             currentTab="knowledge"
-            allowedReactions={stableAllowedReactions}
             reactionCatalogMap={stableReactionCatalogMap}
             targetLanguage={targetLanguage}
             translatedItems={stableTranslatedItems}
@@ -347,7 +347,6 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
             userInfo={context.userInfo}
             hideBanner
             currentTab="questions"
-            allowedReactions={stableAllowedReactions}
             reactionCatalogMap={stableReactionCatalogMap}
             targetLanguage={targetLanguage}
             translatedItems={stableTranslatedItems}

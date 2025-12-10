@@ -602,9 +602,13 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                         data-testid={`toggle-answer-comments-${answer.id}`}
                       >
                         <MessageCircle className="gba:w-4 gba:h-4" />
-                        {commentCount > 0
-                          ? `${commentCount} ${commentCount === 1 ? t('comment') : t('comments')}`
-                          : t('add_comment')}
+                        {(() => {
+                          if (commentCount > 0) {
+                            const commentText = commentCount === 1 ? t('comment') : t('comments')
+                            return `${commentCount} ${commentText}`
+                          }
+                          return t('add_comment')
+                        })()}
                         {isExpanded ? (
                           <ChevronUp className="gba:w-4 gba:h-4" />
                         ) : (

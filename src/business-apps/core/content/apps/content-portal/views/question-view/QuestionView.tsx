@@ -35,7 +35,6 @@ interface QuestionViewProps {
   userInfo?: UserInfoProps
   hideBanner?: boolean
   currentTab?: string
-  allowedReactions?: string[]
   reactionCatalogMap?: Record<string, string>
   targetLanguage?: string | null
   translatedItems?: Record<string, { id: string; title?: string; preview?: string }>
@@ -416,7 +415,16 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                   >
                     <div className="gba:flex gba:gap-3">
                       {/* Vote section */}
-                      <div onClick={e => e.stopPropagation()}>
+                      <div
+                        onClick={e => e.stopPropagation()}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.stopPropagation()
+                          }
+                        }}
+                        role="button"
+                        tabIndex={0}
+                      >
                         <VoteButtons
                           contentEntryId={question.id || ''}
                           initialVoteState={votes}
@@ -442,8 +450,8 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                           <Badge variant={getStatusVariant(question.contentType?.value || '')} className="gba:text-xs">
                             {question.contentType?.value || 'OPEN'}
                           </Badge>
-                          {tagNames.slice(0, 3).map((tag, idx) => (
-                            <Badge key={idx} variant="outline" className="gba:text-xs">
+                          {tagNames.slice(0, 3).map(tag => (
+                            <Badge key={tag} variant="outline" className="gba:text-xs">
                               {tag}
                             </Badge>
                           ))}

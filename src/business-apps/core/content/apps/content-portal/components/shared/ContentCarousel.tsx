@@ -190,11 +190,11 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
                       {/* Stats - Reactions, Comments, Share */}
                       <div className="gba:flex gba:items-center gba:gap-4 gba:pt-3 gba:border-t gba:border-border">
                         {article.allowReaction && accessToken && (
-                          <div
+                          <button
+                            type="button"
                             onClick={e => e.stopPropagation()}
                             onKeyDown={e => e.stopPropagation()}
-                            role="button"
-                            tabIndex={0}
+                            className="gba:bg-transparent gba:border-0 gba:p-0"
                           >
                             <ReactionPicker
                               contentEntryId={article.id || ''}
@@ -207,7 +207,7 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
                               reactionCatalogMap={reactionCatalogMap}
                               data-testid={`carousel-reaction-${article.id}`}
                             />
-                          </div>
+                          </button>
                         )}
                         {article.allowComment && (
                           <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground">
@@ -265,9 +265,9 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
         </button>
         {/* Dot indicators */}
         <div className="gba:flex gba:justify-center gba:gap-2 gba:my-4">
-          {carouselArticles.map((_, index) => (
+          {carouselArticles.map((article, index) => (
             <button
-              key={`article-dot-${index}`}
+              key={`article-dot-${article.id || index}`}
               className={`gba:h-2 gba:rounded-full focus:gba:outline-none gba:transition-all ${
                 index === activeIndex ? 'gba:w-6 gba:bg-primary' : 'gba:w-2 gba:bg-muted'
               }`}

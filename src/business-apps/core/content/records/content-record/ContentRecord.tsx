@@ -81,10 +81,12 @@ const ContentRecord: React.FC<ContentRecordProps> = context => {
         })
 
         // Sort emoji codes by display order
+        const getDisplayOrder = (code: string): number => {
+          const entry = entries.find((e: any) => e.additionalValue2 === code)
+          return entry?.displayOrder || 0
+        }
         const sortByDisplayOrder = (a: string, b: string): number => {
-          const entryA = entries.find((e: any) => e.additionalValue2 === a)
-          const entryB = entries.find((e: any) => e.additionalValue2 === b)
-          return (entryA?.displayOrder || 0) - (entryB?.displayOrder || 0)
+          return getDisplayOrder(a) - getDisplayOrder(b)
         }
         const sortedCodes = [...allowedCodes].sort(sortByDisplayOrder)
 

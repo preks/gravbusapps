@@ -167,7 +167,12 @@ const ContentCard: React.FC<ContentCardProps> = ({
           {/* Stats */}
           <div className="gba:flex gba:items-center gba:gap-4 gba:pt-2 gba:border-t gba:border-border">
             {item.allowReaction && (
-              <div onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()} role="button" tabIndex={0}>
+              <button
+                type="button"
+                onClick={e => e.stopPropagation()}
+                onKeyDown={e => e.stopPropagation()}
+                className="gba:bg-transparent gba:border-0 gba:p-0"
+              >
                 <ReactionPicker
                   contentEntryId={item.id || ''}
                   reactionSummary={reactionSummary}
@@ -180,7 +185,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
                   reactionCatalogMap={reactionCatalogMap}
                   data-testid={`content-card-reaction-${item.id}`}
                 />
-              </div>
+              </button>
             )}
             {item.allowComment && (
               <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground">

@@ -147,7 +147,7 @@ const CustomersDebug: React.FC<CustomersDebugProps> = context => {
   const fetchCustomerLeadById = async (leadId: string) => {
     const query = buildCustomerLeadByIdQuery()
     const result = await graphqlClient.request<{
-      LeadByPk: any | null
+      LeadByPk: Record<string, unknown> | null
       leadStatuses?: Array<{
         id: string
         code: string
