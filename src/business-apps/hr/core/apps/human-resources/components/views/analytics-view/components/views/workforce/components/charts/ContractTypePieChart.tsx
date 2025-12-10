@@ -131,7 +131,9 @@ const ContractTypePieChart: React.FC<ContractTypePieChartProps> = ({ accessToken
     <Card className="gba:w-full gba:p-6 gba:shadow-sm" data-testid={`${prefixDataTestId}-chart`}>
       <div className="gba:mb-4">
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
-          <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:m-0">{t('hr-analytics-contract-types')}</h3>
+          <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:m-0">
+            {t('hr-analytics-contract-types')}
+          </h3>
           <Badge variant="outline" className="gba:text-xs">
             {t('hr-analytics-contract-breakdown')}
           </Badge>
@@ -172,25 +174,29 @@ const ContractTypePieChart: React.FC<ContractTypePieChartProps> = ({ accessToken
                       strokeWidth={2}
                     />
                   ))}
-                  {/* Custom center label */}
-                  <text
-                    x="50%"
-                    y="47%"
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    style={{ fontSize: '20px', fill: 'var(--nw-color-foreground)', fontWeight: 600 }}
-                  >
-                    {t('hr-analytics-contract-types')}
-                  </text>
-                  <text
-                    x="50%"
-                    y="57%"
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    style={{ fontSize: '28px', fontWeight: 'bold', fill: 'var(--nw-color-foreground)' }}
-                  >
-                    {totalEmployees.toLocaleString()}
-                  </text>
+                  {/* Custom center label (hide while hovering to avoid overlap) */}
+                  {activeIndex === -1 && (
+                    <>
+                      <text
+                        x="50%"
+                        y="47%"
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        style={{ fontSize: '20px', fill: 'var(--nw-color-foreground)', fontWeight: 600 }}
+                      >
+                        {t('hr-analytics-contract-types')}
+                      </text>
+                      <text
+                        x="50%"
+                        y="57%"
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        style={{ fontSize: '28px', fontWeight: 'bold', fill: 'var(--nw-color-foreground)' }}
+                      >
+                        {totalEmployees.toLocaleString()}
+                      </text>
+                    </>
+                  )}
                 </Pie>
               </PieChart>
             </ResponsiveContainer>

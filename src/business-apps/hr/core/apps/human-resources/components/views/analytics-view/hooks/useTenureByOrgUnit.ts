@@ -133,10 +133,10 @@ export const useTenureByOrgUnit = (context: BusinessAppContextProps, structureId
         orgUnitCounts[item.orgUnitId] += item.count
       })
 
-      // Limit to top 20 organizational units with the most employees to improve chart rendering
+      // Limit to top organizational units with the most employees to improve chart rendering
       const topOrgUnitIds = Object.entries(orgUnitCounts)
         .sort((a: [string, number], b: [string, number]) => b[1] - a[1])
-        .slice(0, 20)
+        .slice(0, 50)
         .map(entry => entry[0])
 
       console.log('[useTenureByOrgUnit] Top org units by employee count:', topOrgUnitIds.slice(0, 5))
