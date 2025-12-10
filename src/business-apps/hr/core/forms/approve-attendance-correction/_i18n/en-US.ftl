@@ -1,4 +1,4 @@
-grant-bonus-review-acknowledge = Acknowledge
+grant-bonus-review-acknowledge = Approve
 grant-bonus-review-reject = Reject
 
 #Time Tracking
