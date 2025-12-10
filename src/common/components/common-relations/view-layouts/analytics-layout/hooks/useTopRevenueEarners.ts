@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 export interface TopRevenueContact {
@@ -9,6 +9,16 @@ export interface TopRevenueContact {
   accountName: string
   totalRevenue: number
   wonOpportunities: number
+}
+
+interface CachedEmployee {
+  ownerEmployeeId: string
+  ownerEmployee: {
+    id: string
+    firstName: string
+    lastName: string
+    displayName: string
+  }
 }
 
 /**
@@ -28,49 +38,74 @@ export const useTopRevenueEarners = (
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const graphqlClient = useGraphQLClient(accessToken)
 
+  // Cache employee IDs so we don't refetch them on currency change
+  const employeeCacheRef = useRef<CachedEmployee[] | null>(null)
+  const entityNameRef = useRef<string>(entityName)
+
   useEffect(() => {
     const fetchData = async () => {
+      if (!accessToken) {
+        setIsLoading(false)
+        return
+      }
+
       try {
         setIsLoading(true)
 
         // Build currency filter if provided
         const currencyFilter = currencyCode ? `, currency: { code: { _eq: "${currencyCode}" } }` : ''
 
-        // Step 1: Get distinct employee IDs who have won opportunities
-        const employeeIdsQuery = `
-          query GetEmployeeIds {
-            opportunities: ${entityName}(
-              distinctOn: [ownerEmployeeId]
-              where: { 
-                isDeleted: { _eq: false }
-                opportunityStatus: { code: { _eq: "WON" } }
-                ownerEmployeeId: { _isNull: false }${currencyFilter}
-              }
-            ) { 
-              ownerEmployeeId
-              ownerEmployee {
-                id
-                firstName
-                lastName
-                displayName
+        let employees: CachedEmployee[] = []
+
+        // Check if entity type changed - if so, clear cache
+        if (entityNameRef.current !== entityName) {
+          employeeCacheRef.current = null
+          entityNameRef.current = entityName
+        }
+
+        // Step 1: Get employee IDs (CACHED - only fetched once)
+        if (employeeCacheRef.current === null) {
+          // First time or cache cleared - fetch employee IDs
+          const employeeIdsQuery = `
+            query GetEmployeeIds {
+              employees: ${entityName}(
+                distinctOn: [ownerEmployeeId]
+                where: { 
+                  isDeleted: { _eq: false }
+                  opportunityStatus: { code: { _eq: "WON" } }
+                  ownerEmployeeId: { _isNull: false }
+                }
+              ) { 
+                ownerEmployeeId
+                ownerEmployee {
+                  id
+                  firstName
+                  lastName
+                  displayName
+                }
               }
             }
-          }
-        `
-        const employeeIdsResult = await graphqlClient.request<{
-          opportunities: Array<{
-            ownerEmployeeId: string
-            ownerEmployee: { id: string; firstName: string; lastName: string; displayName: string }
-          }>
-        }>(employeeIdsQuery)
-        const employees = employeeIdsResult.opportunities || []
+          `
+
+          const employeeResult = await graphqlClient.request<{
+            employees: CachedEmployee[]
+          }>(employeeIdsQuery)
+
+          employees = employeeResult.employees || []
+
+          // Cache the employee IDs for future currency changes
+          employeeCacheRef.current = employees
+        } else {
+          // Use cached employee IDs - no query needed!
+          employees = employeeCacheRef.current
+        }
 
         if (employees.length === 0) {
           setContacts([])
           return
         }
 
-        // Step 2: Get aggregates for each employee using separate aliases
+        // Step 2: Get aggregates for each employee with currency filter
         const aggregateQueries = employees
           .map((emp, index: number) => {
             return `
@@ -101,7 +136,7 @@ export const useTopRevenueEarners = (
             Record<string, { aggregate: { count: number; sum: { estimatedAmount: number } } }>
           >(aggregateQuery)
 
-        // Step 3: Combine employee info with aggregates
+        // Combine employee info with aggregates and filter out employees with no revenue in selected currency
         const list = employees
           .map((emp, index: number) => {
             const aggData = aggregateResult[`emp_${index}`]
@@ -115,6 +150,7 @@ export const useTopRevenueEarners = (
               wonOpportunities: aggData?.aggregate?.count || 0
             }
           })
+          .filter(emp => emp.totalRevenue > 0) // Only include employees with revenue in selected currency
           .sort((a, b) => b.totalRevenue - a.totalRevenue)
           .slice(0, 5)
 

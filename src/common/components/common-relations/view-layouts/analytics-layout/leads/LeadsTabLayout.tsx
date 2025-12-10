@@ -27,24 +27,22 @@ interface LeadsTrendData {
 
 export interface LeadsTabLayoutProps {
   title?: string
+  moduleColor?: string
+
+  // Required: Core KPIs
   totalLeads: number
   conversionRate: number
   avgTimeToConversion: number
   trendData?: LeadsTrendData | null
   trendLoading?: boolean
+
+  // Required: Lead Lifecycle Chart
   leadsOverTime: Array<{ date: string; count: number; leadsCreated: number; leadsConverted: number; leadsLost: number }>
   leadsOverTimeLoading?: boolean
   selectedTimeFilter: TimeFilter
   onTimeFilterChange: (filter: TimeFilter) => void
-  leadsBySource: Array<{ source: string; count: number; percentage?: number; conversionRate?: number }>
-  leadsBySourceLoading?: boolean
-  leadsByStatus: Array<{ status: string; count: number }>
-  leadsByStatusLoading?: boolean
-  topOwners: Array<{ employeeId: string; employeeName: string; leadCount: number; conversionRate: number }>
-  leadsByRating?: Array<{ rating: string; count: number; percentage?: number }>
-  leadsByRatingLoading?: boolean
-  highQualityPercentage?: number
-  leadHealthIndicators?: Array<{ label: string; value: number; status?: 'good' | 'warning' | 'bad' }>
+
+  // Optional: Lead Velocity Analysis (can be hidden)
   velocityData?: {
     avgTimeToConversion: number
     conversionRate: number
@@ -58,11 +56,34 @@ export interface LeadsTabLayoutProps {
     }>
   } | null
   velocityLoading?: boolean
-  moduleColor?: string
+
+  // Optional: Lead Quality Matrix (can be hidden)
+  leadQualityMatrix?: {
+    leadsBySource: Array<{ source: string; count: number; percentage?: number; conversionRate?: number }>
+    isLoading?: boolean
+  }
+
+  // Optional: Lead Engagement Insights (can be hidden)
+  leadEngagementInsights?: {
+    leadsByRating: Array<{ rating: string; count: number; percentage?: number }>
+    leadHealthIndicators: Array<{ label: string; value: number; status?: 'good' | 'warning' | 'bad' }>
+    highQualityPercentage: number
+    isLoading?: boolean
+  }
+
+  // Optional: Distribution Charts (can be hidden)
+  leadsBySource?: Array<{ source: string; count: number; percentage?: number; conversionRate?: number }>
+  leadsBySourceLoading?: boolean
+  leadsByStatus?: Array<{ status: string; count: number }>
+  leadsByStatusLoading?: boolean
+
+  // Optional: Top Lead Owners (can be hidden)
+  topOwners?: Array<{ employeeId: string; employeeName: string; leadCount: number; conversionRate: number }>
 }
 
 export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
   title = 'Leads Analytics',
+  moduleColor = 'default',
   totalLeads,
   conversionRate,
   avgTimeToConversion,
@@ -72,18 +93,15 @@ export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
   leadsOverTimeLoading = false,
   selectedTimeFilter,
   onTimeFilterChange,
+  velocityData,
+  velocityLoading = false,
+  leadQualityMatrix,
+  leadEngagementInsights,
   leadsBySource,
   leadsBySourceLoading = false,
   leadsByStatus,
   leadsByStatusLoading = false,
-  topOwners,
-  leadsByRating,
-  leadsByRatingLoading = false,
-  highQualityPercentage = 0,
-  leadHealthIndicators,
-  velocityData,
-  velocityLoading = false,
-  moduleColor = 'default'
+  topOwners
 }) => {
   // Helper function to calculate trend with total description (matching archived version)
   const calculateTrendWithTotalDescription = (currentValue: number, previousValue: number) => {
@@ -199,6 +217,7 @@ export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
         <WidgetGroup widgets={keyMetricsWidgets} isLoading={trendLoading} data-testid="leads-key-metrics" />
       </div>
 
+      {/* Required: Lead Lifecycle Chart */}
       <LeadLifecycleChart
         data={leadsOverTime}
         isLoading={leadsOverTimeLoading}
@@ -207,56 +226,74 @@ export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
         moduleColor={moduleColor}
       />
 
-      <div className="gba:grid gba:grid-cols-1 xl:gba:grid-cols-2 gba:gap-6">
-        <LeadVelocityAnalysis
-          avgTimeToConversion={velocityData?.avgTimeToConversion || avgTimeToConversion}
-          conversionRate={velocityData?.conversionRate || conversionRate}
-          volumeTrend={velocityData?.volumeTrend || 0}
-          velocityTrendData={velocityData?.velocityTrendData || []}
-          isLoading={velocityLoading}
+      {/* Optional: Velocity & Quality Analysis */}
+      {(velocityData || leadQualityMatrix) && (
+        <div className="gba:grid gba:grid-cols-1 xl:gba:grid-cols-2 gba:gap-6">
+          {velocityData && (
+            <LeadVelocityAnalysis
+              avgTimeToConversion={velocityData.avgTimeToConversion || avgTimeToConversion}
+              conversionRate={velocityData.conversionRate || conversionRate}
+              volumeTrend={velocityData.volumeTrend || 0}
+              velocityTrendData={velocityData.velocityTrendData || []}
+              isLoading={velocityLoading}
+              moduleColor={moduleColor}
+            />
+          )}
+          {leadQualityMatrix && (
+            <LeadQualityMatrix
+              data={{
+                totalLeads,
+                conversionRate,
+                leadsBySource: leadQualityMatrix.leadsBySource.map(s => ({
+                  source: s.source,
+                  count: s.count,
+                  percentage: s.percentage || 0,
+                  conversionRate: s.conversionRate || 0
+                }))
+              }}
+              isLoading={leadQualityMatrix.isLoading}
+              moduleColor={moduleColor}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Optional: Lead Engagement Insights */}
+      {leadEngagementInsights && (
+        <LeadEngagementInsights
+          leadsByRating={leadEngagementInsights.leadsByRating.map(r => ({
+            rating: r.rating,
+            count: r.count,
+            percentage: r.percentage || 0
+          }))}
+          leadHealthIndicators={leadEngagementInsights.leadHealthIndicators}
+          conversionRate={conversionRate}
+          avgTimeToConversion={avgTimeToConversion}
+          leadsOverTime={leadsOverTime}
+          highQualityPercentage={leadEngagementInsights.highQualityPercentage}
+          isLoading={leadEngagementInsights.isLoading}
           moduleColor={moduleColor}
         />
-        <LeadQualityMatrix
-          data={{
-            totalLeads,
-            conversionRate,
-            leadsBySource: leadsBySource.map(s => ({
-              source: s.source,
-              count: s.count,
-              percentage: s.percentage || 0,
-              conversionRate: s.conversionRate || 0
-            }))
-          }}
-          isLoading={leadsBySourceLoading}
-          moduleColor={moduleColor}
-        />
-      </div>
+      )}
 
-      <LeadEngagementInsights
-        leadsByRating={(leadsByRating || []).map(r => ({
-          rating: r.rating,
-          count: r.count,
-          percentage: r.percentage || 0
-        }))}
-        leadHealthIndicators={leadHealthIndicators || []}
-        conversionRate={conversionRate}
-        avgTimeToConversion={avgTimeToConversion}
-        leadsOverTime={leadsOverTime}
-        highQualityPercentage={highQualityPercentage}
-        isLoading={leadsByRatingLoading}
-        moduleColor={moduleColor}
-      />
+      {/* Optional: Distribution Pie Charts */}
+      {(leadsBySource || leadsByStatus) && (
+        <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:md:grid-cols-2">
+          {leadsBySource && (
+            <LeadsBySourcePie
+              data={leadsBySource.map(s => ({ source: s.source, count: s.count }))}
+              isLoading={leadsBySourceLoading}
+              moduleColor={moduleColor}
+            />
+          )}
+          {leadsByStatus && (
+            <LeadsByStatusPie data={leadsByStatus} isLoading={leadsByStatusLoading} moduleColor={moduleColor} />
+          )}
+        </div>
+      )}
 
-      <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:md:grid-cols-2">
-        <LeadsBySourcePie
-          data={leadsBySource.map(s => ({ source: s.source, count: s.count }))}
-          isLoading={leadsBySourceLoading}
-          moduleColor={moduleColor}
-        />
-        <LeadsByStatusPie data={leadsByStatus} isLoading={leadsByStatusLoading} moduleColor={moduleColor} />
-      </div>
-
-      <TopLeadOwners owners={topOwners} moduleColor={moduleColor} />
+      {/* Optional: Top Lead Owners */}
+      {topOwners && topOwners.length > 0 && <TopLeadOwners owners={topOwners} moduleColor={moduleColor} />}
     </div>
   )
 }

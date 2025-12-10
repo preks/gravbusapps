@@ -43,6 +43,61 @@ interface UseActivityHeatmapConfig {
  *   ]
  * })
  */
+
+// ============================================================================
+// HELPER FUNCTIONS - Reduce nesting depth
+// ============================================================================
+
+/** Build aggregate query for a single entity on a specific day */
+function buildEntityAggregateQuery(
+  entityAggregate: string,
+  dateKey: string,
+  nextDayISO: string,
+  queryAlias: string
+): string {
+  return `
+                  ${queryAlias}: ${entityAggregate}(
+                    where: {
+                      isDeleted: { _eq: false }
+                      createdAt: { _gte: "${dateKey}T00:00:00Z", _lt: "${nextDayISO}T00:00:00Z" }
+                    }
+                  ) {
+                    aggregate { count }
+                  }
+                `
+}
+
+/** Build queries for all entity aggregates for a single day */
+function buildDayQueries(dateKey: string, dayIndex: number, entityAggregates: string[]): string {
+  const nextDay = new Date(dateKey)
+  nextDay.setDate(nextDay.getDate() + 1)
+  const nextDayISO = nextDay.toISOString().split('T')[0]
+
+  return entityAggregates
+    .map((entityAggregate, entityIndex) => {
+      const queryAlias = entityAggregates.length === 1 ? `day_${dayIndex}` : `day_${dayIndex}_entity_${entityIndex}`
+      return buildEntityAggregateQuery(entityAggregate, dateKey, nextDayISO, queryAlias)
+    })
+    .join('\n')
+}
+
+/** Calculate total count for a day from all entity aggregates */
+function calculateDayTotal(
+  result: Record<string, { aggregate: { count: number } }>,
+  dayIndex: number,
+  entityAggregates: string[]
+): number {
+  if (entityAggregates.length === 1) {
+    const aggData = result[`day_${dayIndex}`]
+    return aggData?.aggregate?.count || 0
+  }
+
+  return entityAggregates.reduce((sum, _, entityIndex) => {
+    const aggData = result[`day_${dayIndex}_entity_${entityIndex}`]
+    return sum + (aggData?.aggregate?.count || 0)
+  }, 0)
+}
+
 export const useActivityHeatmap = (config: UseActivityHeatmapConfig) => {
   const { accessToken, entityAggregates, days = 30 } = config
   const [activityData, setActivityData] = useState<ActivityHeatmapData[]>([])
@@ -72,34 +127,9 @@ export const useActivityHeatmap = (config: UseActivityHeatmapConfig) => {
           dailyData.set(dateKey, 0)
         }
 
-        // Build aggregate queries for each day and entity
+        // Build aggregate queries for each day and entity using helper to reduce nesting
         const aggregateQueries = Array.from(dailyData.keys())
-          .map((dateKey, dayIndex) => {
-            const nextDay = new Date(dateKey)
-            nextDay.setDate(nextDay.getDate() + 1)
-            const nextDayISO = nextDay.toISOString().split('T')[0]
-
-            // Create queries for all entity aggregates for this day
-            return entityAggregates
-              .map((entityAggregate, entityIndex) => {
-                const queryAlias =
-                  entityAggregates.length === 1
-                    ? `day_${dayIndex}` // Single entity: simple alias
-                    : `day_${dayIndex}_entity_${entityIndex}` // Multiple entities: include entity index
-
-                return `
-                  ${queryAlias}: ${entityAggregate}(
-                    where: {
-                      isDeleted: { _eq: false }
-                      createdAt: { _gte: "${dateKey}T00:00:00Z", _lt: "${nextDayISO}T00:00:00Z" }
-                    }
-                  ) {
-                    aggregate { count }
-                  }
-                `
-              })
-              .join('\n')
-          })
+          .map((dateKey, dayIndex) => buildDayQueries(dateKey, dayIndex, entityAggregates))
           .join('\n')
 
         const query = `
@@ -110,23 +140,10 @@ export const useActivityHeatmap = (config: UseActivityHeatmapConfig) => {
 
         const result = await graphqlClient.request<Record<string, { aggregate: { count: number } }>>(query)
 
-        // Extract counts from aggregates and sum for each day
+        // Extract counts from aggregates and sum for each day using helper
         const dates = Array.from(dailyData.keys())
         dates.forEach((dateKey, dayIndex) => {
-          let dayTotal = 0
-
-          if (entityAggregates.length === 1) {
-            // Single entity: simple key
-            const aggData = result[`day_${dayIndex}`]
-            dayTotal = aggData?.aggregate?.count || 0
-          } else {
-            // Multiple entities: sum all entity counts for this day
-            entityAggregates.forEach((_, entityIndex) => {
-              const aggData = result[`day_${dayIndex}_entity_${entityIndex}`]
-              dayTotal += aggData?.aggregate?.count || 0
-            })
-          }
-
+          const dayTotal = calculateDayTotal(result, dayIndex, entityAggregates)
           dailyData.set(dateKey, dayTotal)
         })
 
