@@ -137,15 +137,16 @@ export const useCompanies = (context: BusinessAppContextProps) => {
   const fetchCompanies = useCallback(async (): Promise<Company[]> => {
     try {
       // Get structureId from additionalData or use default
-      const getStructureResponse = await restClient.get(`/structures/${structureId.current}`, {
-        params: {
-          nodeType: 'cost_center'
-        },
-        headers: {
-          Authorization: `Bearer ${context.accessToken}`
-        }
-      })
-      structureId.current = getStructureResponse.structure.structureId
+      // const getStructureResponse = await restClient.get(`/structures/${structureId.current}`, {
+      //   params: {
+      //     nodeType: 'cost_center'
+      //   },
+      //   headers: {
+      //     Authorization: `Bearer ${context.accessToken}`
+      //   }
+      // })
+      // structureId.current = getStructureResponse.structure.structureId
+      structureId.current = '4ff76a51-551d-4d5a-8e50-28ef08c6ab67'
 
       if (!structureId) {
         throw new Error('Structure ID is required to fetch companies')
