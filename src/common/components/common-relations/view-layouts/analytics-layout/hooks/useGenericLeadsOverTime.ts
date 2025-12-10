@@ -173,7 +173,7 @@ export const useGenericLeadsOverTime = (
     if (accessToken) {
       fetchLeadsOverTime()
     }
-  }, [accessToken, timeFilter, statusCatalogCodes, config.entityName, config.entityAggregate])
+  }, [accessToken, timeFilter, config.entityName, config.entityAggregate, graphqlClient])
 
   return { leadsOverTime, isLoading, error }
 }
