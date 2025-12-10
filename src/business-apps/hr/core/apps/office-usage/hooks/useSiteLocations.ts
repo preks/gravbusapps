@@ -14,14 +14,11 @@ export const useSiteLocations = (accessToken: string, structureId: string) => {
     if (!accessToken || !structureId) {
       return
     }
-
-    console.log('[useSiteLocations] Fetching site locations...', { structureId })
     setIsLoading(true)
     setError(null)
 
     try {
       const result = await graphqlClient.request(GET_SITE_LOCATIONS, { structureId })
-      console.log('[useSiteLocations] Fetched locations:', result.SiteLocation.length)
 
       const locationsWithCapacity: SiteLocationCapacity[] = result.SiteLocation.map((loc: any) => ({
         siteLocationId: loc.id,
