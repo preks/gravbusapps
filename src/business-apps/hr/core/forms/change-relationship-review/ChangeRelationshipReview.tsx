@@ -61,7 +61,7 @@ interface EmployeeRelationshipData {
 const formatBirthDate = (date?: string | null, locale?: string): string => {
   if (!date) return 'N/A'
   const d = new Date(date)
-  if (isNaN(d.getTime())) {
+  if (Number.isNaN(d.getTime())) {
     return String(date)
   }
   return d.toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' })

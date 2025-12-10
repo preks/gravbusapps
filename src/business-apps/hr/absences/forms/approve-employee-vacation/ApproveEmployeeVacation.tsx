@@ -7,7 +7,7 @@
  * - Auto-fetching: TaskDetailHeader automatically fetches employee data
  */
 
-import React, { useState, useEffect, useMemo, useRef } from 'react'
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import {
   Separator,
   Textarea,
@@ -40,6 +40,109 @@ interface ApproveEmployeeVacationProps extends BusinessAppContextProps {
   // Additional props from task payload
   onClose?: () => void // Optional callback to close the modal
   onTaskUpdated?: () => void // Optional callback to refresh the task list
+}
+
+// Helper: Extract endpoint from metadata
+const extractEndpoint = (processMetadata: any, extendedAdditionalData: any): string | null => {
+  return (
+    processMetadata?.endpoint ||
+    extendedAdditionalData?.psi_taskPayload?.endpoint ||
+    extendedAdditionalData?.endpoint ||
+    null
+  )
+}
+
+// Helper: Build approval payload
+const buildApprovalPayload = (approval: 'APPROVED' | 'REJECTED', comment: string) => {
+  return {
+    approval,
+    approvalNote: comment || '',
+    event: 'pse_submit'
+  }
+}
+
+// Helper: Extract user ID from JWT token
+const extractUserIdFromToken = (accessToken: string): string => {
+  try {
+    const tokenParts = accessToken.split('.')
+    if (tokenParts.length === 3) {
+      // Convert base64url to base64 before decoding
+      const base64 = tokenParts[1].replace(/-/g, '+').replace(/_/g, '/')
+      const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=')
+      const tokenPayload = JSON.parse(atob(padded))
+      return tokenPayload.sub || ''
+    }
+  } catch {
+    // Ignore token parsing errors
+  }
+  return ''
+}
+
+// Helper: Build completion endpoint URL
+const buildCompletionEndpoint = (endpoint: string, userId: string): string => {
+  const kogitoBaseUrl = env('NEXT_PUBLIC_BASE_URL')
+
+  // Validate kogitoBaseUrl before using it
+  if (!kogitoBaseUrl || typeof kogitoBaseUrl !== 'string') {
+    throw new Error('NEXT_PUBLIC_BASE_URL is not defined or invalid')
+  }
+
+  let completionEndpoint = ''
+
+  // Parse the endpoint to ensure it's a proper URL
+  if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) {
+    try {
+      const parsedUrl = new URL(endpoint)
+      completionEndpoint = parsedUrl.pathname
+    } catch {
+      // Fallback: treat as pathname if URL parsing fails
+      completionEndpoint = endpoint.replace(/^https?:\/\/[^/]+/, '')
+    }
+  } else {
+    completionEndpoint = endpoint
+  }
+
+  // Ensure the endpoint starts with /
+  if (!completionEndpoint.startsWith('/')) {
+    completionEndpoint = `/${completionEndpoint}`
+  }
+
+  // Build full URL
+  completionEndpoint = `${kogitoBaseUrl}${completionEndpoint}`
+  return `${completionEndpoint}?phase=complete${userId ? `&user=${userId}` : ''}`
+}
+
+// Helper: Submit approval to Kogito API
+const submitToKogitoApi = async (
+  endpoint: string,
+  accessToken: string,
+  approval: 'APPROVED' | 'REJECTED',
+  comment: string
+): Promise<void> => {
+  const userId = extractUserIdFromToken(accessToken)
+  const fullUrl = buildCompletionEndpoint(endpoint, userId)
+  const payload = buildApprovalPayload(approval, comment)
+
+  const response = await fetch(fullUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`
+    },
+    body: JSON.stringify(payload)
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`HTTP ${response.status}: ${errorText}`)
+  }
+
+  // Dispatch process completion event
+  window.dispatchEvent(
+    new CustomEvent('com.newwork.process.processCompletion', {
+      detail: { resolution: 'success' }
+    })
+  )
 }
 
 const ApproveEmployeeVacation: React.FC<ApproveEmployeeVacationProps> = ({
@@ -173,102 +276,22 @@ const ApproveEmployeeVacation: React.FC<ApproveEmployeeVacationProps> = ({
     setSuccessMessage(null)
 
     try {
-      // Extract endpoint from processMetadata or additionalData
-      const endpoint =
-        processMetadata?.endpoint ||
-        extendedAdditionalData?.psi_taskPayload?.endpoint ||
-        extendedAdditionalData?.endpoint
-      console.log('🔍 Approve - Endpoint:', endpoint)
+      const endpoint = extractEndpoint(processMetadata, extendedAdditionalData)
 
       if (!endpoint) {
         console.warn('⚠️ No endpoint found, using dispatchProcessContinueEvent fallback')
-        // Fallback to dispatchProcessContinueEvent if no endpoint
-        dispatchProcessContinueEvent('pse_submit', {
-          approval: 'APPROVED',
-          approvalNote: comment || '',
-          event: 'pse_submit'
-        })
+        dispatchProcessContinueEvent('pse_submit', buildApprovalPayload('APPROVED', comment))
         setSuccessMessage(t('success-absence-approved'))
         return
       }
 
-      // Extract userId from JWT token
-      let userId = ''
-      try {
-        const tokenParts = accessToken.split('.')
-        if (tokenParts.length === 3) {
-          const tokenPayload = JSON.parse(atob(tokenParts[1]))
-          userId = tokenPayload.sub || ''
-        }
-      } catch {
-        // Ignore token parsing errors
-      }
-
-      // Build completion endpoint - match useKogitoProcess logic exactly
-      const kogitoBaseUrl = env('NEXT_PUBLIC_BASE_URL')
-      let completionEndpoint = ''
-
-      // Parse the endpoint to ensure it's a proper URL (same as useKogitoProcess)
-      if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) {
-        // Full URL provided - use the pathname only
-        const parsedUrl = new URL(endpoint)
-        completionEndpoint = parsedUrl.pathname
-      } else {
-        // Relative path provided - use as is
-        completionEndpoint = endpoint
-      }
-
-      // Ensure the endpoint starts with /
-      if (!completionEndpoint.startsWith('/')) {
-        completionEndpoint = `/${completionEndpoint}`
-      }
-
-      // Build full URL
-      completionEndpoint = `${kogitoBaseUrl}${completionEndpoint}`
-
-      const fullUrl = `${completionEndpoint}?phase=complete${userId ? `&user=${userId}` : ''}`
-      console.log('🔍 Approve - Full URL:', fullUrl)
-
-      // Call Kogito API directly
-      const response = await fetch(fullUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`
-        },
-        body: JSON.stringify({
-          approval: 'APPROVED',
-          approvalNote: comment || '',
-          event: 'pse_submit'
-        })
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('❌ Approve - Error response:', errorText)
-        throw new Error(`HTTP ${response.status}: ${errorText}`)
-      }
-
-      const result = await response.json()
-      console.log('✅ Approve - Success:', result)
-
+      await submitToKogitoApi(endpoint, accessToken, 'APPROVED', comment)
       setSuccessMessage(t('success-absence-approved'))
-
-      // Dispatch process completion event to refresh the task list
-      window.dispatchEvent(
-        new CustomEvent('com.newwork.process.processCompletion', {
-          detail: { resolution: 'success' }
-        })
-      )
 
       // Allow time for user to see success message before closing
       setTimeout(() => {
-        if (onClose) {
-          onClose()
-        }
-        if (onTaskUpdated) {
-          onTaskUpdated()
-        }
+        onClose?.()
+        onTaskUpdated?.()
       }, 1500)
     } catch (err) {
       console.error('❌ Approve - Error:', err)
@@ -291,102 +314,17 @@ const ApproveEmployeeVacation: React.FC<ApproveEmployeeVacationProps> = ({
     setSuccessMessage(null)
 
     try {
-      // Extract endpoint from processMetadata or additionalData
-      const endpoint =
-        processMetadata?.endpoint ||
-        extendedAdditionalData?.psi_taskPayload?.endpoint ||
-        extendedAdditionalData?.endpoint
-      console.log('🔍 Reject - Endpoint:', endpoint)
-      console.log('🔍 Reject - ProcessMetadata:', processMetadata)
-      console.log('🔍 Reject - AdditionalData:', additionalData)
+      const endpoint = extractEndpoint(processMetadata, extendedAdditionalData)
 
       if (!endpoint) {
         console.warn('⚠️ No endpoint found, using dispatchProcessContinueEvent fallback')
-        // Fallback to dispatchProcessContinueEvent if no endpoint
-        dispatchProcessContinueEvent('pse_submit', {
-          approval: 'REJECTED',
-          approvalNote: comment,
-          event: 'pse_submit'
-        })
+        dispatchProcessContinueEvent('pse_submit', buildApprovalPayload('REJECTED', comment))
         setSuccessMessage(t('success-absence-rejected'))
         return
       }
 
-      // Extract userId from JWT token
-      let userId = ''
-      try {
-        const tokenParts = accessToken.split('.')
-        if (tokenParts.length === 3) {
-          const tokenPayload = JSON.parse(atob(tokenParts[1]))
-          userId = tokenPayload.sub || ''
-        }
-      } catch {
-        // Ignore token parsing errors
-      }
-
-      // Build completion endpoint - match useKogitoProcess logic exactly
-      const kogitoBaseUrl = env('NEXT_PUBLIC_BASE_URL')
-      let completionEndpoint = ''
-
-      // Parse the endpoint to ensure it's a proper URL (same as useKogitoProcess)
-      if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) {
-        // Full URL provided - use the pathname only
-        const parsedUrl = new URL(endpoint)
-        completionEndpoint = parsedUrl.pathname
-      } else {
-        // Relative path provided - use as is
-        completionEndpoint = endpoint
-      }
-
-      // Ensure the endpoint starts with /
-      if (!completionEndpoint.startsWith('/')) {
-        completionEndpoint = `/${completionEndpoint}`
-      }
-
-      // Build full URL
-      completionEndpoint = `${kogitoBaseUrl}${completionEndpoint}`
-
-      const fullUrl = `${completionEndpoint}?phase=complete${userId ? `&user=${userId}` : ''}`
-      console.log('🔍 Reject - Full URL:', fullUrl)
-      console.log('🔍 Reject - Payload:', {
-        approval: 'REJECTED',
-        approvalNote: comment,
-        event: 'pse_submit'
-      })
-
-      // Call Kogito API directly
-      const response = await fetch(fullUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`
-        },
-        body: JSON.stringify({
-          approval: 'REJECTED',
-          approvalNote: comment,
-          event: 'pse_submit'
-        })
-      })
-
-      console.log('🔍 Reject - Response status:', response.status)
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('❌ Reject - Error response:', errorText)
-        throw new Error(`HTTP ${response.status}: ${errorText}`)
-      }
-
-      const result = await response.json()
-      console.log('✅ Reject - Success:', result)
-
+      await submitToKogitoApi(endpoint, accessToken, 'REJECTED', comment)
       setSuccessMessage(t('success-absence-rejected'))
-
-      // Dispatch process completion event to refresh the task list
-      window.dispatchEvent(
-        new CustomEvent('com.newwork.process.processCompletion', {
-          detail: { resolution: 'success' }
-        })
-      )
 
       // Allow time for user to see success message before closing
       setTimeout(() => {

@@ -69,6 +69,48 @@ const isUSAccount = (countryRef?: string | null): boolean => {
   return getCountryCode(countryRef) === 'US'
 }
 
+// Helper: Check if task is completed
+const checkIfTaskCompleted = (taskStatus: string, taskCompletedAt: any): boolean => {
+  return taskStatus === 'COMPLETED' || !!taskCompletedAt
+}
+
+// Helper: Extract employee ID from various sources
+const extractEmployeeId = (taskPayload: any, userInfo: any): string | undefined => {
+  return taskPayload?.bankAccount?.employeeId || userInfo?.employeeDetails?.employeeId
+}
+
+// Helper: Create catalog value formatter
+const createCatalogValueFormatter = (catalogMap: Record<string, any>, fallbackText: string) => {
+  return (ref?: string | null): string => {
+    if (!ref) return fallbackText
+    const entry = catalogMap[ref]
+    if (!entry) return ref.split(':').pop() || ref
+    return entry.translations?.[0]?.value || entry.value || entry.code || ref
+  }
+}
+
+// Helper: Create account type formatter
+const createAccountTypeFormatter = (t: (key: string) => string) => {
+  return (type?: string | null): string => {
+    if (!type) return t('value-na')
+    if (type === 'CHECKINGS') return t('value-checkings')
+    if (type === 'SAVINGS') return t('value-savings')
+    return type
+  }
+}
+
+// Helper: Create address type formatter
+const createAddressTypeFormatter = (addressTypeMap: Record<string, string>, t: (key: string) => string) => {
+  return (addressId?: string | null): string => {
+    if (!addressId) return t('value-na')
+    const type = addressTypeMap[addressId]
+    if (!type || typeof type !== 'string') return t('value-na')
+    if (type.toUpperCase() === 'PRIMARY') return t('value-primary')
+    if (type.toUpperCase() === 'SECONDARY') return t('value-secondary')
+    return type
+  }
+}
+
 const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = ({
   accessToken,
   additionalData,
@@ -89,15 +131,14 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
   const processMetadata = additionalData?.psi_processMetadata || {}
   const taskStatus = additionalData?.psi_taskStatus || processMetadata?.status || 'IN_PROGRESS'
   const taskCompletedAt = processMetadata?.completedAt || extendedAdditionalData?.psi_taskCompletedAt
-  const isTaskCompleted = taskStatus === 'COMPLETED' || !!taskCompletedAt
+  const isTaskCompleted = checkIfTaskCompleted(taskStatus, taskCompletedAt)
   const taskTitle = t('task-title')
   const creatorName = taskPayload?.creatorName as string | undefined
 
   // Extract bank account data from payload
   const newBankAccount: BankAccountData = taskPayload?.bankAccount || {}
   const oldBankAccount: BankAccountData = taskPayload?.oldBankAccount || {}
-  const employeeIdFromPayload: string | undefined =
-    taskPayload?.bankAccount?.employeeId || userInfo?.employeeDetails?.employeeId
+  const employeeIdFromPayload = extractEmployeeId(taskPayload, userInfo)
 
   // Fetch employee and catalog data
   const { employeeData, catalogMap, addressTypeMap, loading, error, refetch } = useBankAccountReviewData({
@@ -110,29 +151,10 @@ const ChangeBankAccountReviewContent: React.FC<ChangeBankAccountReviewProps> = (
   // Detect if we're in every-box context
   const isEveryBoxContext = !!onClose
 
-  // Helper functions for formatters
-  const getCatalogValue = (ref?: string | null): string => {
-    if (!ref) return t('value-na')
-    const entry = catalogMap[ref]
-    if (!entry) return ref.split(':').pop() || ref
-    return entry.translations?.[0]?.value || entry.value || entry.code || ref
-  }
-
-  const formatAccountType = (type?: string | null): string => {
-    if (!type) return t('value-na')
-    if (type === 'CHECKINGS') return t('value-checkings')
-    if (type === 'SAVINGS') return t('value-savings')
-    return type
-  }
-
-  const formatAddressType = (addressId?: string | null): string => {
-    if (!addressId) return t('value-na')
-    const type = addressTypeMap[addressId]
-    if (!type) return t('value-na')
-    if (type.toUpperCase() === 'PRIMARY') return t('value-primary')
-    if (type.toUpperCase() === 'SECONDARY') return t('value-secondary')
-    return type
-  }
+  // Create formatters using helper functions
+  const getCatalogValue = createCatalogValueFormatter(catalogMap, t('value-na'))
+  const formatAccountType = createAccountTypeFormatter(t)
+  const formatAddressType = createAddressTypeFormatter(addressTypeMap, t)
 
   const formatCurrency = (ref?: string | null): string => {
     if (!ref) return t('value-na')

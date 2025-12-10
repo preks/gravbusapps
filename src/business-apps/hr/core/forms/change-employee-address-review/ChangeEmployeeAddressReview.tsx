@@ -67,6 +67,47 @@ const shouldShowRegion = (countryRef?: string | null): boolean => {
   return cc === 'DE' || cc === 'US' || cc === 'RO'
 }
 
+// Helper: Check if task is completed
+const checkIfTaskCompleted = (taskStatus: string, taskCompletedAt: any): boolean => {
+  return taskStatus === 'COMPLETED' || !!taskCompletedAt
+}
+
+// Helper: Determine change mode flags
+const determineChangeMode = (changeMode: string) => {
+  const mode = String(changeMode || '').toUpperCase()
+  return {
+    mode,
+    isDeleteMode: mode === 'DELETE',
+    isInsertMode: mode === 'INSERT'
+  }
+}
+
+// Helper: Extract employee ID from payload
+const extractEmployeeId = (taskPayload: any, userInfo: any): string | undefined => {
+  return taskPayload?.address?.employeeId || userInfo?.employeeDetails?.employeeId
+}
+
+// Helper: Create catalog value formatter
+const createCatalogValueFormatter = (catalogMap: Record<string, any>, fallbackText: string) => {
+  return (ref?: string | null): string => {
+    if (!ref) return fallbackText
+    const entry = catalogMap[ref]
+    if (!entry) return ref.split(':').pop() || ref
+    return entry.translations?.[0]?.value || entry.value || entry.code || ref
+  }
+}
+
+// Helper: Create address type formatter
+const createAddressTypeFormatter = (t: (key: string) => string) => {
+  return (type?: string | null): string => {
+    if (!type) return t('value-na')
+    const upperType = type.toUpperCase()
+    if (upperType === 'PRIMARY') return t('value-primary')
+    if (upperType === 'SECONDARY') return t('value-secondary')
+    return type
+  }
+}
+
 const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewProps> = ({
   accessToken,
   additionalData,
@@ -87,18 +128,15 @@ const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewPr
   const processMetadata = additionalData?.psi_processMetadata || {}
   const taskStatus = additionalData?.psi_taskStatus || processMetadata?.status || 'IN_PROGRESS'
   const taskCompletedAt = processMetadata?.completedAt || extendedAdditionalData?.psi_taskCompletedAt
-  const isTaskCompleted = taskStatus === 'COMPLETED' || !!taskCompletedAt
+  const isTaskCompleted = checkIfTaskCompleted(taskStatus, taskCompletedAt)
   const taskTitle = t('task-title')
   const creatorName = taskPayload?.creatorName as string | undefined
 
   // Extract address data from payload
   const newAddress: AddressData = taskPayload?.address || {}
   const oldAddress: AddressData = taskPayload?.oldAddressData || {}
-  const changeMode = String(taskPayload?.changeMode || '').toUpperCase()
-  const isDeleteMode = changeMode === 'DELETE'
-  const isInsertMode = changeMode === 'INSERT'
-  const employeeIdFromPayload: string | undefined =
-    taskPayload?.address?.employeeId || userInfo?.employeeDetails?.employeeId
+  const { isDeleteMode, isInsertMode } = determineChangeMode(taskPayload?.changeMode)
+  const employeeIdFromPayload = extractEmployeeId(taskPayload, userInfo)
 
   // Fetch employee and catalog data
   const { employeeData, catalogMap, docNameMap, loading, error, refetch } = useAddressReviewData({
@@ -116,20 +154,9 @@ const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewPr
       oldAddress?.countryRef
   )
 
-  // Helper functions for formatters
-  const getCatalogValue = (ref?: string | null): string => {
-    if (!ref) return t('value-na')
-    const entry = catalogMap[ref]
-    if (!entry) return ref.split(':').pop() || ref
-    return entry.translations?.[0]?.value || entry.value || entry.code || ref
-  }
-
-  const formatAddressType = (type?: string | null): string => {
-    if (!type) return t('value-na')
-    if (type.toUpperCase() === 'PRIMARY') return t('value-primary')
-    if (type.toUpperCase() === 'SECONDARY') return t('value-secondary')
-    return type
-  }
+  // Create formatters using helper functions
+  const getCatalogValue = createCatalogValueFormatter(catalogMap, t('value-na'))
+  const formatAddressType = createAddressTypeFormatter(t)
 
   const formatPoBox = (poBox?: boolean | null): string => {
     if (poBox === true) return t('value-yes')

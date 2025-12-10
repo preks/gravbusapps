@@ -235,32 +235,76 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
     return task.sourceMetadata?.creatorName || task.sourceMetadata?.flowInitiatedByName || t('task-details-unknown')
   }, [creatorEmployeeData, task.sourceMetadata, t])
 
+  // Helper: Process number type field value
+  // For required fields with invalid input, preserve the raw value so validation can catch it.
+  // For optional fields, return undefined to allow empty submission.
+  const processNumberValue = (field: any, value: any): any => {
+    if (value === '' || value === null) {
+      return field.required ? null : undefined
+    }
+    const numValue = typeof value === 'string' ? Number.parseFloat(value) : Number(value)
+    if (!Number.isNaN(numValue)) {
+      return numValue
+    }
+    // Preserve invalid input for required fields so validation can detect and reject it
+    return field.required ? value : undefined
+  }
+
+  // Helper: Check if field is number type
+  const isNumberType = (field: any): boolean => {
+    return field.type === 'NUMBER' || field.type === 'number'
+  }
+
+  // Helper: Get default value if required
+  const getDefaultValue = (field: any): any => {
+    return field.defaultValue
+  }
+
   // Helper: Process form field value based on type
   const processFieldValue = (field: any, value: any): any => {
-    const isNumberType = field.type === 'NUMBER' || field.type === 'number'
-    const isFileType = field.type === 'FILE' || field.type === 'file'
-
-    if (value !== undefined && value !== null) {
-      if (isNumberType) {
-        if (value === '' || value === null) {
-          return field.required ? null : undefined
-        }
-        const numValue = typeof value === 'string' ? Number.parseFloat(value) : Number(value)
-        if (!Number.isNaN(numValue)) {
-          return numValue
-        }
-        return field.required ? null : undefined
-      }
-      if (isFileType || !isNumberType) {
-        return value
-      }
+    // Return early if no value provided
+    if (value === undefined || value === null) {
+      return getDefaultValue(field)
     }
 
-    if (field.required && field.defaultValue !== undefined) {
-      return field.defaultValue
+    // Process number fields
+    if (isNumberType(field)) {
+      return processNumberValue(field, value)
     }
 
-    return undefined
+    // All other types (including file) return value as-is
+    return value
+  }
+
+  // Helper: Validate form data before submission
+  const validateFormData = (): { isValid: boolean; errors: string[] } => {
+    const errors: string[] = []
+
+    if (task.form && Array.isArray(task.form)) {
+      task.form.forEach((field: any) => {
+        const fieldName = field.name || field.id
+        const fieldLabel = field.label || fieldName
+        const value = formValues[fieldName]
+
+        // Check required fields
+        if (field.required) {
+          if (value === null || value === undefined || value === '') {
+            errors.push(t('validation-field-required', { field: fieldLabel }))
+            return
+          }
+
+          // For number fields, check if the value is a valid number
+          if (isNumberType(field)) {
+            const numValue = typeof value === 'string' ? Number.parseFloat(value) : Number(value)
+            if (Number.isNaN(numValue)) {
+              errors.push(t('validation-field-number-invalid', { field: fieldLabel }))
+            }
+          }
+        }
+      })
+    }
+
+    return { isValid: errors.length === 0, errors }
   }
 
   // Helper: Process all form data
@@ -284,6 +328,17 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
 
   // Helper: Complete task action
   const handleCompleteTask = async (flowEngineApi: string) => {
+    // Validate form data before submission
+    const validation = validateFormData()
+    if (!validation.isValid) {
+      const errorMessage = validation.errors.join(', ')
+      message.error({
+        content: errorMessage,
+        duration: 5
+      })
+      return
+    }
+
     const processedFormData = processFormData()
     const completeRequestBody = {
       userId: userId,

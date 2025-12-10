@@ -77,6 +77,40 @@ const updateTaskUrl = (taskId: string | null) => {
   globalThis.history.replaceState({}, '', newUrl)
 }
 
+/**
+ * Filter active tasks (non-completed)
+ */
+const filterActiveTasks = (tasks: UnifiedTask[]): UnifiedTask[] => {
+  return tasks.filter(task => {
+    if (task.status === 'COMPLETED') return false
+    // Only exclude if completedAt AND status is not active
+    if (task.completedAt) {
+      const activeStatuses = ['PENDING', 'IN_PROGRESS', 'SCHEDULED']
+      if (!activeStatuses.includes(task.status)) {
+        return false
+      }
+    }
+    return true
+  })
+}
+
+/**
+ * Filter truly completed tasks
+ */
+const filterCompletedTasks = (tasks: UnifiedTask[]): UnifiedTask[] => {
+  return tasks.filter(task => {
+    if (task.status === 'COMPLETED') return true
+    // Only consider completedAt if status is not an active status
+    if (task.completedAt) {
+      const activeStatuses = ['PENDING', 'IN_PROGRESS', 'SCHEDULED']
+      if (!activeStatuses.includes(task.status)) {
+        return true
+      }
+    }
+    return false
+  })
+}
+
 export const InboxView: React.FC<InboxViewProps> = ({
   tasks,
   totalCount,
@@ -137,31 +171,12 @@ export const InboxView: React.FC<InboxViewProps> = ({
   // Sync local tasks with props
   // Filter out completed tasks from active tasks to prevent duplicates
   useEffect(() => {
-    const activeTasks = tasks.filter(task => {
-      if (task.status === 'COMPLETED') return false
-      if (task.completedAt) return false
-      return true
-    })
-    setLocalTasks(activeTasks)
+    setLocalTasks(filterActiveTasks(tasks))
   }, [tasks])
 
   useEffect(() => {
     // Ensure completed tasks only include truly completed tasks
-    // Task is completed if:
-    // 1. status is COMPLETED, OR
-    // 2. has completedAt AND status is not an active status (PENDING, IN_PROGRESS, SCHEDULED)
-    const trulyCompletedTasks = completedTasks.filter(task => {
-      if (task.status === 'COMPLETED') return true
-      // Only consider completedAt if status is not an active status
-      if (task.completedAt) {
-        const activeStatuses = ['PENDING', 'IN_PROGRESS', 'SCHEDULED']
-        if (!activeStatuses.includes(task.status)) {
-          return true
-        }
-      }
-      return false
-    })
-    setLocalCompletedTasks(trulyCompletedTasks)
+    setLocalCompletedTasks(filterCompletedTasks(completedTasks))
   }, [completedTasks])
 
   // Initialize selected task from URL when tasks are loaded
@@ -341,6 +356,34 @@ export const InboxView: React.FC<InboxViewProps> = ({
     employeeIds
   )
 
+  // Helper: Get navigable tasks after applying all filters
+  const getNavigableTasks = useCallback((): UnifiedTask[] => {
+    // Note: localTasks and localCompletedTasks are already filtered by completion status
+    // (filterActiveTasks and filterCompletedTasks), so no additional completion check needed
+    const currentFilteredTasks = filterType === 'completed' ? localCompletedTasks : localTasks
+    let tasksToNavigate = currentFilteredTasks.filter(shouldIncludeCflowTask)
+
+    // Apply type-specific filtering (only for non-completed views)
+    if (filterType !== 'completed') {
+      tasksToNavigate = applyTypeFilter(tasksToNavigate, filterType)
+    }
+
+    // Apply search filter if active
+    if (searchQuery.trim()) {
+      tasksToNavigate = filterTasksBySearch(tasksToNavigate, searchQuery, employeeMap)
+    }
+
+    return tasksToNavigate
+  }, [localTasks, localCompletedTasks, filterType, searchQuery, employeeMap, shouldIncludeCflowTask, applyTypeFilter])
+
+  // Helper: Calculate next task index for keyboard navigation
+  const getNextTaskIndex = (currentIndex: number, direction: 'up' | 'down', maxIndex: number): number => {
+    if (direction === 'up') {
+      return currentIndex > 0 ? currentIndex - 1 : currentIndex
+    }
+    return currentIndex < maxIndex ? currentIndex + 1 : currentIndex
+  }
+
   // Keyboard navigation: Arrow keys to navigate through tasks
   useEffect(() => {
     if (!selectedTask) return
@@ -357,35 +400,14 @@ export const InboxView: React.FC<InboxViewProps> = ({
 
       e.preventDefault()
 
-      // Get current filtered tasks
-      const currentFilteredTasks = filterType === 'completed' ? localCompletedTasks : localTasks
-      let tasksToNavigate = currentFilteredTasks.filter(shouldIncludeCflowTask)
-
-      // Apply type-specific filtering (only for non-completed views)
-      if (filterType !== 'completed') {
-        tasksToNavigate = applyTypeFilter(tasksToNavigate, filterType)
-      }
-
-      // Apply search filter if active
-      if (searchQuery.trim()) {
-        tasksToNavigate = filterTasksBySearch(tasksToNavigate, searchQuery, employeeMap)
-      }
-
-      // Find current task index
+      const tasksToNavigate = getNavigableTasks()
       const currentIndex = tasksToNavigate.findIndex(t => t.id === selectedTask.id)
       if (currentIndex === -1) return
 
-      // Calculate next index based on arrow key
-      let nextIndex: number
-      if (e.key === 'ArrowUp') {
-        nextIndex = currentIndex > 0 ? currentIndex - 1 : currentIndex // Stop at top
-      } else {
-        // ArrowDown
-        nextIndex = currentIndex < tasksToNavigate.length - 1 ? currentIndex + 1 : currentIndex // Stop at bottom
-      }
-
-      // Select the next task
+      const direction = e.key === 'ArrowUp' ? 'up' : 'down'
+      const nextIndex = getNextTaskIndex(currentIndex, direction, tasksToNavigate.length - 1)
       const nextTask = tasksToNavigate[nextIndex]
+
       if (nextTask) {
         handleSelectTask(nextTask)
       }
@@ -393,28 +415,14 @@ export const InboxView: React.FC<InboxViewProps> = ({
 
     globalThis.addEventListener('keydown', handleKeyDown)
     return () => globalThis.removeEventListener('keydown', handleKeyDown)
-  }, [
-    selectedTask,
-    localTasks,
-    localCompletedTasks,
-    filterType,
-    searchQuery,
-    employeeMap,
-    handleSelectTask,
-    shouldIncludeCflowTask,
-    applyTypeFilter
-  ])
+  }, [selectedTask, handleSelectTask, getNavigableTasks])
 
   // Filter tasks (tasks are already sorted by date from the API)
   const filteredTasks = useMemo(() => {
+    // Note: currentTasks is either localTasks or localCompletedTasks, both already filtered
+    // by completion status (filterActiveTasks and filterCompletedTasks), so no additional
+    // completion check needed here
     let result = currentTasks
-
-    // Apply completion status filter
-    if (filterType !== 'completed') {
-      result = result.filter(task => !isTaskCompleted(task))
-    } else {
-      result = result.filter(isTaskCompleted)
-    }
 
     // Filter cFlow tasks: only show tasks assigned to current user
     result = result.filter(shouldIncludeCflowTask)
@@ -433,7 +441,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
     // No additional sorting needed here
 
     return result
-  }, [currentTasks, searchQuery, filterType, employeeMap, isTaskCompleted, shouldIncludeCflowTask, applyTypeFilter])
+  }, [currentTasks, searchQuery, filterType, employeeMap, shouldIncludeCflowTask, applyTypeFilter])
 
   // Count tasks by type for badges
   // Note: Shows counts from loaded tasks. Adds "+" suffix if more tasks exist
