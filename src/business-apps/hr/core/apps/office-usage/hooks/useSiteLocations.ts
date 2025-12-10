@@ -11,13 +11,18 @@ export const useSiteLocations = (accessToken: string, structureId: string) => {
   const graphqlClient = useGraphQLClient(accessToken)
 
   const fetchLocations = useCallback(async () => {
-    if (!accessToken || !structureId) return
+    if (!accessToken || !structureId) {
+      console.log('[useSiteLocations] Missing required params:', { hasToken: !!accessToken, structureId })
+      return
+    }
 
+    console.log('[useSiteLocations] Fetching site locations...', { structureId })
     setIsLoading(true)
     setError(null)
 
     try {
       const result = await graphqlClient.request(GET_SITE_LOCATIONS, { structureId })
+      console.log('[useSiteLocations] Fetched locations:', result.SiteLocation.length)
 
       const locationsWithCapacity: SiteLocationCapacity[] = result.SiteLocation.map((loc: any) => ({
         siteLocationId: loc.id,
@@ -26,7 +31,7 @@ export const useSiteLocations = (accessToken: string, structureId: string) => {
         locality: loc.locality,
         country: loc.country,
         region: loc.region,
-        capacity: loc.desk_capacity ?? 0 // Use desk_capacity from schema
+        capacity: loc.deskCapacity ?? 0 // Use deskCapacity from GraphQL (camelCase)
       }))
 
       setLocations(locationsWithCapacity)

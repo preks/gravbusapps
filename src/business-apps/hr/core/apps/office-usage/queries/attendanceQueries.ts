@@ -29,27 +29,25 @@ export const GET_OFFICE_ATTENDANCE = `
         lastName
         displayName
         businessKey
-        employeeSiteLocation(where: { structureId: { _eq: $structureId } }) {
-          siteLocationId
-          siteLocation {
-            id
-            name
-            locality
-          }
-        }
+        pictureThumbnail
         employeePosition {
           jobPosition {
             id
             name
           }
-          organizationalUnitEmployee {
-            organizationalUnit {
-              id
-              name
-            }
+          organizationalUnit {
+            id
+            name
           }
         }
       }
+    }
+    
+    EmployeeSiteLocation(
+      where: { structureId: { _eq: $structureId } }
+    ) {
+      employeeId
+      siteLocationId
     }
   }
 `
@@ -78,25 +76,23 @@ export const GET_LIVE_PRESENCE = `
         lastName
         displayName
         businessKey
-        pictureUrl
-        employeeSiteLocation(where: { structureId: { _eq: $structureId } }) {
-          siteLocationId
-          siteLocation {
-            id
-            name
-          }
-        }
+        pictureThumbnail
         employeePosition {
           jobPosition {
             name
           }
-          organizationalUnitEmployee {
-            organizationalUnit {
-              name
-            }
+          organizationalUnit {
+            name
           }
         }
       }
+    }
+    
+    EmployeeSiteLocation(
+      where: { structureId: { _eq: $structureId } }
+    ) {
+      employeeId
+      siteLocationId
     }
   }
 `

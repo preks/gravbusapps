@@ -62,6 +62,13 @@ export const getWeekIdentifier = (date: Date | string): string => {
 }
 
 /**
+ * Format date for display (e.g., "Dec 9, 2025")
+ */
+export const formatDate = (date: Date | string): string => {
+  return dayjs(date).format('MMM D, YYYY')
+}
+
+/**
  * Get day of week name
  */
 export const getDayOfWeekName = (date: Date | string): string => {

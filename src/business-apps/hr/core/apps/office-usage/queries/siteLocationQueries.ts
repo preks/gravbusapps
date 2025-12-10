@@ -15,7 +15,7 @@ export const GET_SITE_LOCATIONS = `
       name
       code
       locality
-      desk_capacity
+      deskCapacity
       country {
         id
         code

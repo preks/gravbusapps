@@ -13,6 +13,8 @@ import {
 import { ChartBar, Users } from '@phosphor-icons/react'
 import { OfficeUsageProps } from './types'
 import { OfficeUsageFilterBar } from './components/filters/OfficeUsageFilterBar'
+import { UsageOverviewTab } from './components/tabs/UsageOverviewTab'
+import { LivePresenceTab } from './components/tabs/LivePresenceTab'
 import { useOfficeUsageFilters } from './hooks/useOfficeUsageFilters'
 import { useSiteLocations } from './hooks/useSiteLocations'
 import { useOfficeAttendance } from './hooks/useOfficeAttendance'
@@ -21,6 +23,7 @@ import { getCurrentActiveStructureId, getTranslationFromI18nKeyAndLabel } from '
 
 const OfficeUsage: React.FC<OfficeUsageProps> = ({ accessToken, prefixDataTestId = 'office-usage' }) => {
   const [activeTab, setActiveTab] = useState<'usage-overview' | 'live-presence'>('usage-overview')
+  const [selectedLocationFilter, setSelectedLocationFilter] = useState<string | undefined>(undefined)
 
   // Get structure ID
   const structureId = getCurrentActiveStructureId() || '99b1ba64-a4d3-4dd0-8302-b1dc0c4daaaf'
@@ -66,6 +69,27 @@ const OfficeUsage: React.FC<OfficeUsageProps> = ({ accessToken, prefixDataTestId
       fetchPresence()
     }
   }, [activeTab, accessToken, fetchPresence])
+
+  // Handler to switch to live presence tab with optional location filter
+  const handleSwitchToLivePresence = (locationId?: string) => {
+    setSelectedLocationFilter(locationId)
+    setActiveTab('live-presence')
+  }
+
+  // Check if we have access token
+  if (!accessToken) {
+    return (
+      <div
+        className="gba:flex gba:items-center gba:justify-center gba:min-h-screen"
+        data-testid={`${prefixDataTestId}-no-auth`}
+      >
+        <Spinner size="lg" />
+        <span className="gba:ml-3 gba:text-muted-foreground">
+          {getTranslationFromI18nKeyAndLabel('lowcoder:office_usage.loading', 'Loading...')}
+        </span>
+      </div>
+    )
+  }
 
   // Handle location errors
   if (locationsError) {
@@ -147,85 +171,31 @@ const OfficeUsage: React.FC<OfficeUsageProps> = ({ accessToken, prefixDataTestId
 
         {/* Usage Overview Tab */}
         <TabsContent value="usage-overview">
-          <div data-testid={`${prefixDataTestId}-usage-overview-content`}>
-            {attendanceLoading ? (
-              <div className="gba:flex gba:items-center gba:justify-center gba:py-12">
-                <Spinner size="lg" />
-                <span className="gba:ml-3 gba:text-muted-foreground">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:office_usage.loading', 'Loading...')}
-                </span>
-              </div>
-            ) : attendanceError ? (
-              <Alert variant="destructive">
-                <AlertTitle>
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:office_usage.error_loading_attendance',
-                    'Failed to load attendance data'
-                  )}
-                </AlertTitle>
-                <AlertDescription>{attendanceError.message}</AlertDescription>
-              </Alert>
-            ) : (
-              <div className="gba:space-y-6">
-                {/* KPI Cards - Coming soon */}
-                <div className="gba:p-8 gba:bg-muted gba:rounded-lg gba:text-center">
-                  <p className="gba:text-muted-foreground">
-                    Usage Overview: {attendance.length} attendance records found
-                  </p>
-                  <p className="gba:text-sm gba:text-muted-foreground gba:mt-2">
-                    {filters.granularity === 'day' ? 'Daily' : 'Weekly'} view for{' '}
-                    {filters.selectedLocations.length === 0
-                      ? 'all locations'
-                      : `${filters.selectedLocations.length} location(s)`}
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
+          <UsageOverviewTab
+            attendance={attendance}
+            locations={locations}
+            filters={filters}
+            isLoading={attendanceLoading}
+            error={attendanceError}
+            onRetry={() => fetchAttendance(filters.dateFrom, filters.dateTo)}
+            onSwitchToLivePresence={handleSwitchToLivePresence}
+            prefixDataTestId={`${prefixDataTestId}-usage-overview`}
+          />
         </TabsContent>
 
         {/* Live Presence Tab */}
         <TabsContent value="live-presence">
-          <div data-testid={`${prefixDataTestId}-live-presence-content`}>
-            {presenceLoading ? (
-              <div className="gba:flex gba:items-center gba:justify-center gba:py-12">
-                <Spinner size="lg" />
-                <span className="gba:ml-3 gba:text-muted-foreground">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:office_usage.loading', 'Loading...')}
-                </span>
-              </div>
-            ) : presenceError ? (
-              <Alert variant="destructive">
-                <AlertTitle>
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:office_usage.error_loading_data',
-                    'Error loading office usage data'
-                  )}
-                </AlertTitle>
-                <AlertDescription>{presenceError.message}</AlertDescription>
-              </Alert>
-            ) : (
-              <div className="gba:space-y-6">
-                {/* Live Presence Cards - Coming soon */}
-                <div className="gba:p-8 gba:bg-muted gba:rounded-lg gba:text-center">
-                  <p className="gba:text-muted-foreground">
-                    Live Presence: {presence.length} people currently in office
-                  </p>
-                  <p className="gba:text-sm gba:text-muted-foreground gba:mt-2">
-                    Last refreshed: {lastRefresh.toLocaleTimeString()}
-                  </p>
-                  <Button
-                    onClick={fetchPresence}
-                    className="gba:mt-4"
-                    variant="outline"
-                    data-testid={`${prefixDataTestId}-refresh-button`}
-                  >
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:office_usage.presence_refresh', 'Refresh')}
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
+          <LivePresenceTab
+            presence={presence}
+            locations={locations}
+            isLoading={presenceLoading}
+            error={presenceError}
+            lastRefresh={lastRefresh}
+            onRefresh={fetchPresence}
+            onRetry={fetchPresence}
+            selectedLocationFilter={selectedLocationFilter}
+            prefixDataTestId={`${prefixDataTestId}-live-presence`}
+          />
         </TabsContent>
       </Tabs>
     </div>

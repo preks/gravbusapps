@@ -37,6 +37,7 @@ export interface OfficeAttendanceRecord {
     siteLocationName?: string
     jobTitle?: string
     organizationalUnit?: string
+    pictureUrl?: string
   }
   attendanceDate: string
   startTime: string

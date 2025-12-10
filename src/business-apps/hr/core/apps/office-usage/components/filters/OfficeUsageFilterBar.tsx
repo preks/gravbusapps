@@ -9,7 +9,7 @@ import {
   Badge,
   Button
 } from '@newwork/nw-design-system'
-import { Buildings, Users, TrendingUp } from '@phosphor-icons/react'
+import { Buildings, Users, ChartLine } from '@phosphor-icons/react'
 import { OfficeUsageFilters, SiteLocationCapacity } from '../../types'
 import dayjs from 'dayjs'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -199,7 +199,7 @@ export const OfficeUsageFilterBar: React.FC<OfficeUsageFilterBarProps> = ({
         {/* View Mode Indicator */}
         <div className="gba:ml-auto">
           <Badge variant="secondary">
-            <TrendingUp className="gba:mr-1" size={14} />
+            <ChartLine className="gba:mr-1" size={14} />
             Office presence vs capacity
           </Badge>
         </div>
