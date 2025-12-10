@@ -222,7 +222,12 @@ export interface BaseInvestment {
   ownerEmployee?: EmployeeRef | null
 
   // Entity relationships
-  investmentAccount?: any
+  investmentAccounts?: Array<{
+    // GraphQL field name
+    id?: string
+    investmentAccountId?: string
+    investmentAccount?: any
+  }>
   investmentOpportunity?: any
   loanRecipientInvestmentAccount?: any
 
@@ -331,7 +336,13 @@ const transformBaseInvestmentData = (investment: BaseInvestment) => {
     currencyRef: extractCurrencyRef(investment.currency),
     fundManagerName: investment.fundManagerName || '',
     identification: investment.identification || {},
-    investmentAccount: investment.investmentAccount?.id || null,
+    investmentAccounts:
+      investment.investmentAccounts?.map(assoc => ({
+        // GraphQL field name
+        id: assoc.id,
+        investmentAccountId: assoc.investmentAccountId,
+        investmentAccount: assoc.investmentAccount?.id || null
+      })) || [],
     investmentOpportunity: investment.investmentOpportunity?.id || null,
     ownerEmployee: investment.ownerEmployee?.id || null,
     loanRecipientInvestmentAccount: investment.loanRecipientInvestmentAccount?.id || null

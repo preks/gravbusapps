@@ -45,12 +45,17 @@ export interface EnhancedRealEstateInvestment {
 
   // Relationships
   ownerEmployee?: EmployeeRef | null
-  investmentAccount?: {
+  investmentAccounts?: Array<{
+    // GraphQL field name
     id: string
-    name?: string
-    code?: string
-    email?: string
-  } | null
+    investmentAccountId: string
+    investmentAccount?: {
+      id: string
+      name?: string
+      code?: string
+      email?: string
+    }
+  }> | null
 
   // Real estate specific information
   realEstateInvestment?: RealEstateInvestmentDetail[] | null

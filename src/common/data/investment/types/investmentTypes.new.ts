@@ -8,6 +8,7 @@ import { type EquityInvestment, EquityInvestmentFormFields } from './equityInves
 import { type RealEstateInvestment, RealEstateInvestmentFormFields } from './realEstateInvestmentTypes'
 import { type LiquidFundInvestment, LiquidFundInvestmentFormFields } from './liquidFundInvestmentTypes'
 import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
+import type { InvestmentInvestmentAccount } from './investmentAccountAssociationTypes'
 
 /**
  * Investment Type
@@ -70,20 +71,22 @@ export interface Investment extends BaseEntity {
 
   // Entity References (objects)
   ownerEmployee?: Employee
-  investmentAccount?: InvestmentAccount
   investmentOpportunity?: InvestmentOpportunity
   loanRecipientInvestmentAccount?: InvestmentAccount
   company?: Company
 
   // Entity Reference IDs (Id fields)
   ownerEmployeeId?: string
-  investmentAccountId?: string
   investmentOpportunityId?: string
   loanRecipientInvestmentAccountId?: string
   companyId?: string
 
   // Investment Role relationships (array)
   investmentRole?: InvestmentRole[]
+
+  // Investment-Account Junction Table (many-to-many)
+  // GraphQL field name: investmentAccounts
+  investmentAccounts?: InvestmentInvestmentAccount[]
 
   // Investment specialization relationships (array)
   equityInvestment?: EquityInvestment[]
@@ -163,19 +166,18 @@ export const InvestmentFields = {
 
   // Entity References (objects)
   ownerEmployee: 'ownerEmployee',
-  investmentAccount: 'investmentAccount',
   investmentOpportunity: 'investmentOpportunity',
   loanRecipientInvestmentAccount: 'loanRecipientInvestmentAccount',
   company: 'company',
 
   // Entity Reference IDs (Id fields)
   ownerEmployeeId: 'ownerEmployeeId',
-  investmentAccountId: 'investmentAccountId',
   investmentOpportunityId: 'investmentOpportunityId',
   loanRecipientInvestmentAccountId: 'loanRecipientInvestmentAccountId',
   companyId: 'companyId',
 
   // Array Relationships (not used in forms)
+  investmentInvestmentAccounts: 'investmentInvestmentAccount',
   equityInvestment: 'equityInvestment',
   realEstateInvestment: 'realEstateInvestment',
   liquidFundInvestment: 'liquidFundInvestment',
@@ -239,10 +241,12 @@ export const InvestmentFormFields = {
 
   // Entity Reference IDs (Id fields) - mapped to object fields in forms
   ownerEmployeeId: 'ownerEmployee',
-  investmentAccountId: 'investmentAccount',
   investmentOpportunityId: 'investmentOpportunity',
   loanRecipientInvestmentAccountId: 'loanRecipientInvestmentAccount',
   companyId: 'company',
+
+  // Junction table relationships
+  investmentAccounts: 'investmentAccounts', // GraphQL field name
 
   investmentRole: 'investmentRoles'
 } as const
@@ -453,9 +457,12 @@ export const createInvestmentDescriptors = (
     type: 'text'
   },
   {
-    key: 'investmentAccount',
-    searchPaths: [`${fields.investmentAccount}.name`, `${fields.investmentAccount}.code`],
-    sortPath: `${fields.investmentAccount}.name`,
+    key: 'investmentAccounts', // GraphQL field name
+    searchPaths: [
+      `${fields.investmentAccounts}.investmentAccount.name`,
+      `${fields.investmentAccounts}.investmentAccount.code`
+    ],
+    sortPaths: [`${fields.investmentAccounts}.investmentAccount.name`],
     type: 'text'
   },
   {
@@ -540,12 +547,9 @@ export const createInvestmentDescriptors = (
     kind: 'inIds'
   },
   {
-    key: 'accountIds',
-    path: fields.investmentAccountId,
+    key: 'investmentAccountIds',
+    path: `${fields.investmentAccounts}.investmentAccountId`, // GraphQL field name
     filterLabel: 'Account',
-    optionSelectPaths: [`${fields.investmentAccount}.id`, `${fields.investmentAccount}.name`],
-    optionSearchPaths: [`${fields.investmentAccount}.name`, `${fields.investmentAccount}.code`],
-    optionDistinctOn: [fields.investmentAccountId],
     kind: 'inIds'
   },
   {
@@ -632,6 +636,8 @@ export const buildInvestmentPayload = (investment: Partial<Investment>) => {
     }))
     result.investment.investmentRoles = investmentRolesPayload
   }
+
+  // investmentAccounts handled automatically by buildPayload (applies transformIdFields)
 
   // Handle nested structures separately - einfach aus dem Objekt den Payload bauen
   if (investment.equityInvestment && investment.equityInvestment.length > 0) {

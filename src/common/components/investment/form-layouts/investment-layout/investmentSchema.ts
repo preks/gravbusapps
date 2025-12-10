@@ -28,7 +28,19 @@ const baseInvestmentSchema = z.object({
       investmentStatus: catalogEntrySchema.optional(),
       code: z.string().nullable().optional(),
       currencyRef: z.string().min(1, 'Currency is required'),
-      investmentAccountId: z.string().min(1, 'Related account is required'),
+      investmentAccountId: z.string().nullable().optional(), // Deprecated - use investmentAccounts instead
+      // Investment-Account Junction Table (many-to-many)
+      investmentAccounts: z
+        .array(
+          z.object({
+            id: z.string().optional(),
+            version: z.number().optional(),
+            investmentAccountId: z.string().optional(),
+            investmentAccountType: z.string().nullable().optional(),
+            investmentAccountTypeRef: z.string().nullable().optional()
+          })
+        )
+        .optional(),
       // Investment type field (leaf InvestmentType ID)
       investmentTypeId: z.string().min(1, 'Investment type is required'),
       // Optional opportunity ID (when creating investment from opportunity)

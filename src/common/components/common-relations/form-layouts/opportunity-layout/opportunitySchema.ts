@@ -54,6 +54,17 @@ export const opportunitySchema = z.object({
         contactType: z.string().nullable().optional()
       })
     )
+    .optional(),
+  opportunityAccounts: z
+    .array(
+      z.object({
+        id: z.string().optional(),
+        version: z.number().optional(),
+        accountId: z.string().optional(),
+        accountType: z.string().nullable().optional(),
+        accountTypeRef: z.string().nullable().optional()
+      })
+    )
     .optional()
 })
 

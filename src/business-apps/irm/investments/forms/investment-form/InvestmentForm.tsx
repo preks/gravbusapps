@@ -397,7 +397,7 @@ const InvestmentForm: React.FC<InvestmentFormProps> = ({ accessToken, userInfo, 
         <InvestmentLayout
           investmentInformationCustomFields={undefined}
           ownerEmployee={fetchedInvestment?.ownerEmployee || formValues.investment.ownerEmployee}
-          account={fetchedInvestment?.investmentAccount || formValues.investment.investmentAccount}
+          investmentAccounts={fetchedInvestment?.investmentAccounts || formValues.investment.investmentAccounts}
           useAccounts={useAccounts}
           businessAppContext={businessAppContext}
           formFieldsDefinition={formFieldsDefinition}

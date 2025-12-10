@@ -66,8 +66,7 @@ export const INVESTMENT_QUERY_CONFIGS: Record<string, string[]> = {
     'fundManagerName',
     'id',
     'initialInvestmentAmount',
-    'investmentAccount',
-    'investmentAccountId',
+    'investmentAccounts', // Junction table (replaces investmentAccount)
     'investmentGroup',
     'investmentGroupRef',
     'investmentMarketValue',
@@ -319,7 +318,7 @@ export const buildInvestmentFragment = (fields: string[]): string => {
     
     ${buildEntityReferenceField(fieldSet, 'ownerEmployee', 'ownerEmployeeId', InvestmentFields.ownerEmployee, EMPLOYEE_REF)}
     
-    ${buildEntityReferenceField(fieldSet, 'investmentAccount', 'investmentAccountId', InvestmentFields.investmentAccount, INVESTMENT_ACCOUNT_REF)}
+    # investmentAccount removed - now uses investmentAccounts junction table (see INVESTMENT fragment)
     
     ${buildEntityReferenceField(fieldSet, 'investmentOpportunity', 'investmentOpportunityId', InvestmentFields.investmentOpportunity, INVESTMENT_OPPORTUNITY_REF)}
     
