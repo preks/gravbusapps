@@ -184,7 +184,7 @@ export function buildBenefitDetails(params: {
     monthlyValue: formatCurrencyString(benefitData.monthlyAmount || 0, { currency: currencyCode, locale }),
     period: benefitData.period || '-',
     startDate: startDateFormatted,
-    justification: String(benefitData.notes ?? '').trim() || undefined,
+    justification: benefitData.notes?.trim() || undefined,
     employeeYearlyContribution:
       benefitData.employeeYearlyContribution && benefitData.employeeYearlyContribution > 0
         ? formatCurrencyString(benefitData.employeeYearlyContribution, { currency: currencyCode, locale })
