@@ -4,13 +4,12 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { buildWhere, buildOrderBy } from '@/common/network/graphql/queryHelpers'
-import { INVESTMENT_DESCRIPTORS } from '../types/investmentTypes.new'
+import { INVESTMENT_DESCRIPTORS, type Investment } from '../types/investmentTypes.new'
 import {
   buildInvestmentFragment,
   INVESTMENT_QUERY_CONFIGS,
   type InvestmentQueryVariables
 } from '../queries/investmentQueries.new'
-import type { Investment } from '../types/investmentTypes.new'
 
 export interface UseInvestmentsResult {
   investments: Investment[]
@@ -172,7 +171,7 @@ export function useInvestments(
 
         // Execute query
         const result = await graphqlClient.request<{
-          Investment: Investment[]
+          Investment: any[]
           InvestmentAggregate: {
             aggregate: {
               count: number
@@ -181,7 +180,7 @@ export function useInvestments(
         }>(query, graphQLVariables)
 
         setState({
-          investments: result.Investment || [],
+          investments: (result.Investment || []) as Investment[],
           total: result.InvestmentAggregate?.aggregate?.count || 0,
           loading: false,
           error: null

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useGetInvestmentCatalogData } from '@/business-apps/irm/investments/forms/investment-form/queries/InvestmentCatalogQueries'
+import { useGetInvestmentCatalogData } from '@/common/data/investment/hooks/useInvestmentCatalogs'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 export interface RealEstateInvestmentType {

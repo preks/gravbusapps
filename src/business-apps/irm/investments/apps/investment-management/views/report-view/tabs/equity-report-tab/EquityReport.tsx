@@ -1,12 +1,16 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react'
-import { DataDisplay, Spinner } from '@newwork/nw-design-system'
+import { DataDisplay, Spinner, AiButton } from '@newwork/nw-design-system'
+import { Upload } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { EquityAnalyticsFilters } from './types'
 import { EquityAnalyticsTable } from './components/EquityAnalyticsTable'
 import { useEquityInvestmentTypes } from './hooks/useEquityInvestmentTypes'
-import { useGetInvestmentCatalogData } from '@/business-apps/irm/investments/forms/investment-form/queries/InvestmentCatalogQueries'
+import { useGetInvestmentCatalogData } from '@/common/data/investment/hooks/useInvestmentCatalogs'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { UseReportFiltersReturn, ColumnConfig, useReportFilters } from '../../hooks'
+import { AppAction } from '@/components/app-action/AppAction'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface EquityReportProps extends BusinessAppContextProps {
   'data-testid'?: string
@@ -249,6 +253,48 @@ export const EquityReport: React.FC<EquityReportProps> = ({
     [localReportFilters]
   )
 
+  // Primary action for "Add Report" - memoized to prevent reload on tab change
+  const primaryActions = useMemo(() => {
+    return (
+      <AppAction
+        variant="create-primary"
+        contexts={[
+          {
+            context: FlowContextName.investmentReportCreate,
+            contextData: {}
+          }
+        ]}
+        accessToken={accessToken || ''}
+        data-testid="report-view-add-report-action"
+      >
+        {getTranslationFromI18nKeyAndLabel('investment.reports.addReport', 'Add Report')}
+      </AppAction>
+    )
+  }, [accessToken])
+
+  // Secondary action for "Upload Report" - using AiButton like in record
+  const secondaryActions = useMemo(() => {
+    return (
+      <AppAction
+        contexts={[{ context: FlowContextName.investmentReportUpload, contextData: {} }]}
+        accessToken={accessToken || ''}
+        emptyState="hide"
+        prefixDataTestId="report-view-upload-report"
+      >
+        <AiButton
+          variant="default"
+          size="default"
+          showIcon={true}
+          icon={<Upload style={{ height: '1rem', width: '1rem' }} />}
+          iconPosition="before"
+          data-testid="report-view-upload-report-button"
+        >
+          {getTranslationFromI18nKeyAndLabel('investment.reports.uploadReport', 'Upload Report')}
+        </AiButton>
+      </AppAction>
+    )
+  }, [accessToken])
+
   // Don't render filter-dependent content until filters are initialized
   if (!localReportFilters.filtersInitialized) {
     return (
@@ -278,6 +324,8 @@ export const EquityReport: React.FC<EquityReportProps> = ({
         availableColumns={availableColumns}
         visibleColumns={visibleColumns}
         onVisibleColumnsChange={handleVisibleColumnsChange}
+        primaryAction={primaryActions}
+        secondaryActions={secondaryActions}
         toolbarDensity="default"
       >
         {effectiveInvestmentTypes.map(type => (

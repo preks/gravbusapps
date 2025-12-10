@@ -6,6 +6,7 @@
 
 import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments'
 import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments'
+import { COMPANY_REF } from '@/common/data/orgchart/queries/fragments/companyFragments'
 import { INVESTMENT_ACCOUNT_REF, INVESTMENT_OPPORTUNITY_REF } from './fragments/investmentReferenceFragments'
 import { InvestmentFields } from '../types/investmentTypes.new'
 import { EquityInvestmentFields } from '../types/equityInvestmentTypes'
@@ -65,8 +66,7 @@ export const INVESTMENT_QUERY_CONFIGS: Record<string, string[]> = {
     'fundManagerName',
     'id',
     'initialInvestmentAmount',
-    'investmentAccount',
-    'investmentAccountId',
+    'investmentAccounts', // Junction table (replaces investmentAccount)
     'investmentGroup',
     'investmentGroupRef',
     'investmentMarketValue',
@@ -204,6 +204,93 @@ export const INVESTMENT_QUERY_CONFIGS: Record<string, string[]> = {
 }
 
 /**
+ * Build scalar fields fragment
+ */
+const buildScalarFields = (fieldSet: Set<string>): string => {
+  const scalarFields = [
+    { key: 'id', value: 'id' },
+    { key: 'version', value: 'version' },
+    { key: 'code', value: InvestmentFields.code },
+    { key: 'name', value: InvestmentFields.name },
+    { key: 'isin', value: InvestmentFields.isin },
+    { key: 'acquisitionDate', value: InvestmentFields.acquisitionDate },
+    { key: 'planedExit', value: InvestmentFields.planedExit },
+    { key: 'plannedExitDate', value: InvestmentFields.plannedExitDate },
+    { key: 'exitDate', value: InvestmentFields.exitDate },
+    { key: 'initialInvestmentAmount', value: InvestmentFields.initialInvestmentAmount },
+    { key: 'totalInvestmentAmount', value: InvestmentFields.totalInvestmentAmount },
+    { key: 'investmentMarketValue', value: InvestmentFields.investmentMarketValue },
+    { key: 'debtFinancingAmount', value: InvestmentFields.debtFinancingAmount },
+    { key: 'requiredCapitalAmount', value: InvestmentFields.requiredCapitalAmount },
+    { key: 'forecastedRevenueAmount', value: InvestmentFields.forecastedRevenueAmount },
+    { key: 'forecastedProfitAmount', value: InvestmentFields.forecastedProfitAmount },
+    { key: 'stakePercentage', value: InvestmentFields.stakePercentage },
+    { key: 'loanRecipientName', value: InvestmentFields.loanRecipientName },
+    { key: 'loanAmount', value: InvestmentFields.loanAmount },
+    { key: 'loanOpenCommitmentAmount', value: InvestmentFields.loanOpenCommitmentAmount },
+    { key: 'loanInterestRate', value: InvestmentFields.loanInterestRate },
+    { key: 'loanStartDate', value: InvestmentFields.loanStartDate },
+    { key: 'loanEndDate', value: InvestmentFields.loanEndDate },
+    { key: 'loanInterestClaim', value: InvestmentFields.loanInterestClaim },
+    { key: 'totalCommitmentAmount', value: InvestmentFields.totalCommitmentAmount },
+    { key: 'totalDistributionAmount', value: InvestmentFields.totalDistributionAmount },
+    { key: 'fundManagerName', value: InvestmentFields.fundManagerName },
+    { key: 'irr', value: InvestmentFields.irr },
+    { key: 'moic', value: InvestmentFields.moic },
+    { key: 'createdAt', value: 'createdAt' },
+    { key: 'createdBy', value: 'createdBy' },
+    { key: 'updatedAt', value: 'updatedAt' },
+    { key: 'updatedBy', value: 'updatedBy' },
+    { key: 'isDeleted', value: 'isDeleted' },
+    { key: 'recordState', value: 'recordState' },
+    { key: 'activeFrom', value: 'activeFrom' },
+    { key: 'activeTo', value: 'activeTo' },
+    { key: 'additionalProperties', value: 'additionalProperties' }
+  ]
+
+  return scalarFields.map(field => (fieldSet.has(field.key) ? field.value : '')).join('\n    ')
+}
+
+/**
+ * Build catalog reference field fragment
+ */
+const buildCatalogReferenceField = (
+  fieldSet: Set<string>,
+  fieldName: string,
+  fieldRefName: string,
+  fieldKey: string
+): string => {
+  if (!fieldSet.has(fieldName) && !fieldSet.has(fieldRefName)) {
+    return ''
+  }
+  const hasObject = fieldSet.has(fieldName)
+  return `
+      ${hasObject ? `${fieldKey} { ${CATALOG_ENTRY} }` : ''}
+      ${InvestmentFields[fieldRefName as keyof typeof InvestmentFields]}
+    `
+}
+
+/**
+ * Build entity reference field fragment
+ */
+const buildEntityReferenceField = (
+  fieldSet: Set<string>,
+  fieldName: string,
+  fieldRefName: string,
+  fieldKey: string,
+  refFragment: string
+): string => {
+  if (!fieldSet.has(fieldName) && !fieldSet.has(fieldRefName)) {
+    return ''
+  }
+  const hasObject = fieldSet.has(fieldName)
+  return `
+      ${hasObject ? `${fieldKey} { ${refFragment} }` : ''}
+      ${InvestmentFields[fieldRefName as keyof typeof InvestmentFields]}
+    `
+}
+
+/**
  * Build Investment Query Fragment from field array
  * Uses InvestmentFields to map field keys to GraphQL field names
  * When an object field is requested, its corresponding ID/Ref is automatically included
@@ -213,140 +300,49 @@ export const buildInvestmentFragment = (fields: string[]): string => {
 
   return `
     ${AUDIT_FIELDS}
-    ${fieldSet.has('id') ? 'id' : ''}
-    ${fieldSet.has('version') ? 'version' : ''}
-    ${fieldSet.has('code') ? InvestmentFields.code : ''}
-    ${fieldSet.has('name') ? InvestmentFields.name : ''}
-    ${fieldSet.has('isin') ? InvestmentFields.isin : ''}
-    ${fieldSet.has('acquisitionDate') ? InvestmentFields.acquisitionDate : ''}
-    ${fieldSet.has('planedExit') ? InvestmentFields.planedExit : ''}
-    ${fieldSet.has('plannedExitDate') ? InvestmentFields.plannedExitDate : ''}
-    ${fieldSet.has('exitDate') ? InvestmentFields.exitDate : ''}
-    ${fieldSet.has('initialInvestmentAmount') ? InvestmentFields.initialInvestmentAmount : ''}
-    ${fieldSet.has('totalInvestmentAmount') ? InvestmentFields.totalInvestmentAmount : ''}
-    ${fieldSet.has('investmentMarketValue') ? InvestmentFields.investmentMarketValue : ''}
-    ${fieldSet.has('debtFinancingAmount') ? InvestmentFields.debtFinancingAmount : ''}
-    ${fieldSet.has('requiredCapitalAmount') ? InvestmentFields.requiredCapitalAmount : ''}
-    ${fieldSet.has('forecastedRevenueAmount') ? InvestmentFields.forecastedRevenueAmount : ''}
-    ${fieldSet.has('forecastedProfitAmount') ? InvestmentFields.forecastedProfitAmount : ''}
-    ${fieldSet.has('stakePercentage') ? InvestmentFields.stakePercentage : ''}
-    ${fieldSet.has('loanRecipientName') ? InvestmentFields.loanRecipientName : ''}
-    ${fieldSet.has('loanAmount') ? InvestmentFields.loanAmount : ''}
-    ${fieldSet.has('loanOpenCommitmentAmount') ? InvestmentFields.loanOpenCommitmentAmount : ''}
-    ${fieldSet.has('loanInterestRate') ? InvestmentFields.loanInterestRate : ''}
-    ${fieldSet.has('loanStartDate') ? InvestmentFields.loanStartDate : ''}
-    ${fieldSet.has('loanEndDate') ? InvestmentFields.loanEndDate : ''}
-    ${fieldSet.has('loanInterestClaim') ? InvestmentFields.loanInterestClaim : ''}
-    ${fieldSet.has('totalCommitmentAmount') ? InvestmentFields.totalCommitmentAmount : ''}
-    ${fieldSet.has('totalDistributionAmount') ? InvestmentFields.totalDistributionAmount : ''}
-    ${fieldSet.has('fundManagerName') ? InvestmentFields.fundManagerName : ''}
-    ${fieldSet.has('irr') ? InvestmentFields.irr : ''}
-    ${fieldSet.has('moic') ? InvestmentFields.moic : ''}
-    ${fieldSet.has('createdAt') ? 'createdAt' : ''}
-    ${fieldSet.has('createdBy') ? 'createdBy' : ''}
-    ${fieldSet.has('updatedAt') ? 'updatedAt' : ''}
-    ${fieldSet.has('updatedBy') ? 'updatedBy' : ''}
-    ${fieldSet.has('isDeleted') ? 'isDeleted' : ''}
-    ${fieldSet.has('recordState') ? 'recordState' : ''}
-    ${fieldSet.has('activeFrom') ? 'activeFrom' : ''}
-    ${fieldSet.has('activeTo') ? 'activeTo' : ''}
-    ${fieldSet.has('additionalProperties') ? 'additionalProperties' : ''}
+    ${buildScalarFields(fieldSet)}
+    
+    ${buildCatalogReferenceField(fieldSet, 'investmentGroup', 'investmentGroupRef', InvestmentFields.investmentGroup)}
+    
+    ${buildCatalogReferenceField(fieldSet, 'investmentType', 'investmentTypeRef', InvestmentFields.investmentType)}
+    
+    ${buildCatalogReferenceField(fieldSet, 'investmentStakeType', 'investmentStakeTypeRef', InvestmentFields.investmentStakeType)}
+    
+    ${buildCatalogReferenceField(fieldSet, 'investmentPhase', 'investmentPhaseRef', InvestmentFields.investmentPhase)}
+    
+    ${buildCatalogReferenceField(fieldSet, 'investmentStatus', 'investmentStatusRef', InvestmentFields.investmentStatus)}
+    
+    ${buildCatalogReferenceField(fieldSet, 'investmentRiskLevel', 'investmentRiskLevelRef', InvestmentFields.investmentRiskLevel)}
+    
+    ${buildCatalogReferenceField(fieldSet, 'currency', 'currencyRef', InvestmentFields.currency)}
+    
+    ${buildEntityReferenceField(fieldSet, 'ownerEmployee', 'ownerEmployeeId', InvestmentFields.ownerEmployee, EMPLOYEE_REF)}
+    
+    # investmentAccount removed - now uses investmentAccounts junction table (see INVESTMENT fragment)
+    
+    ${buildEntityReferenceField(fieldSet, 'investmentOpportunity', 'investmentOpportunityId', InvestmentFields.investmentOpportunity, INVESTMENT_OPPORTUNITY_REF)}
+    
+    ${buildEntityReferenceField(fieldSet, 'company', 'companyId', InvestmentFields.company, COMPANY_REF)}
+    
+    ${buildEntityReferenceField(fieldSet, 'loanRecipientInvestmentAccount', 'loanRecipientInvestmentAccountId', InvestmentFields.loanRecipientInvestmentAccount, INVESTMENT_ACCOUNT_REF)}
     
     ${
-      fieldSet.has('investmentGroup') || fieldSet.has('investmentGroupRef')
+      fieldSet.has('investmentAccounts')
         ? `
-      ${fieldSet.has('investmentGroup') ? `${InvestmentFields.investmentGroup} { ${CATALOG_ENTRY} }` : ''}
-      ${InvestmentFields.investmentGroupRef}
-    `
-        : ''
-    }
-    
-    ${
-      fieldSet.has('investmentType') || fieldSet.has('investmentTypeRef')
-        ? `
-      ${fieldSet.has('investmentType') ? `${InvestmentFields.investmentType} { ${CATALOG_ENTRY} }` : ''}
-      ${InvestmentFields.investmentTypeRef}
-    `
-        : ''
-    }
-    
-    ${
-      fieldSet.has('investmentStakeType') || fieldSet.has('investmentStakeTypeRef')
-        ? `
-      ${fieldSet.has('investmentStakeType') ? `${InvestmentFields.investmentStakeType} { ${CATALOG_ENTRY} }` : ''}
-      ${InvestmentFields.investmentStakeTypeRef}
-    `
-        : ''
-    }
-    
-    ${
-      fieldSet.has('investmentPhase') || fieldSet.has('investmentPhaseRef')
-        ? `
-      ${fieldSet.has('investmentPhase') ? `${InvestmentFields.investmentPhase} { ${CATALOG_ENTRY} }` : ''}
-      ${InvestmentFields.investmentPhaseRef}
-    `
-        : ''
-    }
-    
-    ${
-      fieldSet.has('investmentStatus') || fieldSet.has('investmentStatusRef')
-        ? `
-      ${fieldSet.has('investmentStatus') ? `${InvestmentFields.investmentStatus} { ${CATALOG_ENTRY} }` : ''}
-      ${InvestmentFields.investmentStatusRef}
-    `
-        : ''
-    }
-    
-    ${
-      fieldSet.has('investmentRiskLevel') || fieldSet.has('investmentRiskLevelRef')
-        ? `
-      ${fieldSet.has('investmentRiskLevel') ? `${InvestmentFields.investmentRiskLevel} { ${CATALOG_ENTRY} }` : ''}
-      ${InvestmentFields.investmentRiskLevelRef}
-    `
-        : ''
-    }
-    
-    ${
-      fieldSet.has('currency') || fieldSet.has('currencyRef')
-        ? `
-      ${fieldSet.has('currency') ? `${InvestmentFields.currency} { ${CATALOG_ENTRY} }` : ''}
-      ${InvestmentFields.currencyRef}
-    `
-        : ''
-    }
-    
-    ${
-      fieldSet.has('ownerEmployee') || fieldSet.has('ownerEmployeeId')
-        ? `
-      ${fieldSet.has('ownerEmployee') ? `${InvestmentFields.ownerEmployee} { ${EMPLOYEE_REF} }` : ''}
-      ${InvestmentFields.ownerEmployeeId}
-    `
-        : ''
-    }
-    
-    ${
-      fieldSet.has('investmentAccount') || fieldSet.has('investmentAccountId')
-        ? `
-      ${fieldSet.has('investmentAccount') ? `${InvestmentFields.investmentAccount} { ${INVESTMENT_ACCOUNT_REF} }` : ''}
-      ${InvestmentFields.investmentAccountId}
-    `
-        : ''
-    }
-    
-    ${
-      fieldSet.has('investmentOpportunity') || fieldSet.has('investmentOpportunityId')
-        ? `
-      ${fieldSet.has('investmentOpportunity') ? `${InvestmentFields.investmentOpportunity} { ${INVESTMENT_OPPORTUNITY_REF} }` : ''}
-      ${InvestmentFields.investmentOpportunityId}
-    `
-        : ''
-    }
-    
-    ${
-      fieldSet.has('loanRecipientInvestmentAccount') || fieldSet.has('loanRecipientInvestmentAccountId')
-        ? `
-      ${fieldSet.has('loanRecipientInvestmentAccount') ? `${InvestmentFields.loanRecipientInvestmentAccount} { ${INVESTMENT_ACCOUNT_REF} }` : ''}
-      ${InvestmentFields.loanRecipientInvestmentAccountId}
+      ${InvestmentFields.investmentAccounts}(where: { isDeleted: { _eq: false } }) {
+        id
+        version
+        investmentId
+        investmentAccountId
+        investmentAccountTypeRef
+        investmentAccountType {
+          ${CATALOG_ENTRY}
+        }
+        investmentAccount {
+          ${INVESTMENT_ACCOUNT_REF}
+        }
+        ${AUDIT_FIELDS}
+      }
     `
         : ''
     }
@@ -426,6 +422,7 @@ export const buildInvestmentFragment = (fields: string[]): string => {
         ${LiquidFundInvestmentFields.earlyTerminationAllowed}
         ${LiquidFundInvestmentFields.interestRate}
         ${LiquidFundInvestmentFields.maturityDate}
+        ${LiquidFundInvestmentFields.additionalProperties}
         ${LiquidFundInvestmentFields.investmentLiquidFundType} {
           ${CATALOG_ENTRY}
         }

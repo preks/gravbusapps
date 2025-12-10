@@ -85,9 +85,9 @@ export const ContactLifecycleChart: React.FC<ContactLifecycleChartProps> = ({
     if (!chartData || chartData.length === 0) {
       return (
         <div className="gba:text-center gba:p-8" data-testid="ContactLifecycleChart-empty-state">
-          <ChartLineIcon className="gba:mx-auto gba:h-12 gba:w-12 gba:text-gray-400" />
-          <h3 className="gba:mt-2 gba:text-sm gba:font-medium gba:text-gray-900">No data available</h3>
-          <p className="gba:mt-1 gba:text-sm gba:text-gray-500">
+          <ChartLineIcon className="gba:mx-auto gba:h-12 gba:w-12 gba:text-muted-foreground" />
+          <h3 className="gba:mt-2 gba:text-sm gba:font-medium gba:text-foreground">No data available</h3>
+          <p className="gba:mt-1 gba:text-sm gba:text-muted-foreground">
             No contact lifecycle data found for the selected time period.
           </p>
         </div>
@@ -129,7 +129,7 @@ export const ContactLifecycleChart: React.FC<ContactLifecycleChartProps> = ({
             Contact Lifecycle Overview
           </CardTitle>
           <div className="gba:flex gba:items-center gba:gap-2">
-            <CalendarIcon size={16} className="gba:text-gray-500" />
+            <CalendarIcon size={16} className="gba:text-muted-foreground" />
             <div className="gba:flex gba:gap-1" data-testid="ContactLifecycleChart-time-filters">
               {timeFilterOptions.map(option => (
                 <Button
