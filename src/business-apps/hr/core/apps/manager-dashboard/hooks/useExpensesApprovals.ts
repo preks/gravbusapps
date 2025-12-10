@@ -19,7 +19,7 @@ export interface ExpenseApproval {
     lastName?: string
     pictureThumbnail?: string
   }
-  type: 'expense-request' | 'expense-plan'
+  type: 'expense-request' | 'expense-plan' | 'advance-payment'
   requestType?: string
   startDate?: string
   endDate?: string
@@ -48,7 +48,6 @@ export const useExpensesApprovals = ({
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
   const [hasLoaded, setHasLoaded] = useState<boolean>(false)
-  const [previousDirectReportsLength, setPreviousDirectReportsLength] = useState<number>(0)
 
   // Flow execution tasks for expense plans
   const expensePlanResult = useFlowExecutionTasks(
@@ -72,6 +71,17 @@ export const useExpensesApprovals = ({
     }
   )
 
+  // Flow execution tasks for advance payments
+  const advancePaymentResult = useFlowExecutionTasks(
+    { userInfo: undefined, accessToken },
+    {
+      currentPage: 1,
+      pageSize: 1000,
+      searchTerm: '',
+      filterTaskName: 'approveAdvancePayment'
+    }
+  )
+
   // Extract values
   const {
     tasks: expensePlanTasks,
@@ -87,6 +97,13 @@ export const useExpensesApprovals = ({
     refresh: refreshExpenseRequests
   } = expenseRequestResult
 
+  const {
+    tasks: advancePaymentTasks,
+    isLoading: advancePaymentLoading,
+    error: advancePaymentError,
+    refresh: refreshAdvancePayments
+  } = advancePaymentResult
+
   // Load all expense data
   const loadExpenseData = useCallback(async () => {
     if (hasLoaded) return
@@ -95,19 +112,8 @@ export const useExpensesApprovals = ({
     setError(null)
 
     try {
-      // Helper function to filter tasks by direct reports
-      const filterTasksByDirectReports = (tasks: FlowExecutionTask[]) => {
-        if (!directReports || directReports.length === 0) {
-          return tasks
-        }
-
-        const directReportUserIds = directReports.map(report => report.userId)
-        return tasks.filter(task => {
-          return task.creatorUserId && directReportUserIds.includes(task.creatorUserId)
-        })
-      }
-
       // Process expense plan tasks from flow
+      // Note: No filtering by directReports - the flow API returns tasks assigned to the current user
       const processExpensePlanTasks = (tasks: FlowExecutionTask[]): ExpenseApproval[] => {
         return tasks
           .filter(task => {
@@ -119,7 +125,7 @@ export const useExpensesApprovals = ({
             const creatorName = task.creatorName || ''
             const nameParts = creatorName.split(' ')
 
-            // Find the direct report data for this creator
+            // Try to find the direct report data for this creator (for picture)
             const directReport = directReports.find(report => report.userId === task.creatorUserId)
 
             return {
@@ -198,35 +204,75 @@ export const useExpensesApprovals = ({
           })
       }
 
-      // Filter both task types by direct reports
-      const filteredExpensePlanTasks = filterTasksByDirectReports(expensePlanTasks)
-      const filteredExpenseRequestTasks = filterTasksByDirectReports(expenseRequestTasks)
+      // Process advance payment tasks from flow
+      const processAdvancePaymentTasks = (tasks: FlowExecutionTask[]): ExpenseApproval[] => {
+        return tasks
+          .filter(task => {
+            const advancePayment = task.inputs?.advancePayment
+            return advancePayment && advancePayment.status === 'PENDING'
+          })
+          .map(task => {
+            const advancePayment = task.inputs?.advancePayment
+            const creatorName = task.creatorName || ''
+            const nameParts = creatorName.split(' ')
 
-      // Process both task types
-      const expensePlans = processExpensePlanTasks(filteredExpensePlanTasks)
-      const expenseRequests = processExpenseRequestTasks(filteredExpenseRequestTasks)
+            // Find the direct report data for this creator
+            const directReport = directReports.find(report => report.userId === task.creatorUserId)
+
+            return {
+              id: task.id,
+              title:
+                advancePayment?.code ||
+                getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:backoffice_expense_landing_page.advance_title',
+                  'Advance Payment'
+                ),
+              description: advancePayment?.description || null,
+              totalAmount: advancePayment?.amount || 0,
+              status: getTranslationFromI18nKeyAndLabel(
+                'lowcoder:backoffice_expense_landing_page.action_required',
+                'Action Required'
+              ),
+              requestDate: advancePayment?.transactionDate || task.started,
+              createdAt: task.started || new Date().toISOString(),
+              employee: {
+                id: task.creatorUserId || '',
+                fullName: directReport?.displayName || creatorName,
+                firstName: nameParts[0] || '',
+                lastName: nameParts.slice(1).join(' ') || '',
+                pictureThumbnail: directReport?.pictureThumbnail
+              },
+              type: 'advance-payment' as const,
+              requestType: 'ADVANCE_PAYMENT',
+              endpoint: task.endpoint
+            }
+          })
+      }
+
+      // Process all task types - no filtering by directReports
+      // The flow API returns tasks assigned to the current user (manager)
+      const expensePlans = processExpensePlanTasks(expensePlanTasks)
+      const expenseRequests = processExpenseRequestTasks(expenseRequestTasks)
+      const advancePayments = processAdvancePaymentTasks(advancePaymentTasks)
 
       // Combine and sort all expense approvals
-      const allExpenseApprovals = [...expenseRequests, ...expensePlans].sort(
+      const allExpenseApprovals = [...expenseRequests, ...expensePlans, ...advancePayments].sort(
         (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       )
 
       setExpenseApprovals(allExpenseApprovals)
       setTotalCount(allExpenseApprovals.length)
-      setPreviousDirectReportsLength(directReports?.length || 0)
-
-      // Only set hasLoaded to true if we have data
-      if (allExpenseApprovals.length > 0) {
-        setHasLoaded(true)
-      }
+      // Always set hasLoaded to true after processing
+      setHasLoaded(true)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load expense approvals'
       setError(errorMessage)
       console.error('Error loading expense data:', err)
+      setHasLoaded(true) // Mark as loaded even on error
     } finally {
       setIsLoading(false)
     }
-  }, [hasLoaded, expensePlanTasks, expenseRequestTasks, directReports])
+  }, [hasLoaded, expensePlanTasks, expenseRequestTasks, advancePaymentTasks, directReports])
 
   // Refetch function
   const refetch = useCallback(() => {
@@ -234,25 +280,26 @@ export const useExpensesApprovals = ({
     loadExpenseData()
     refreshExpensePlans?.()
     refreshExpenseRequests?.()
-  }, [loadExpenseData, refreshExpensePlans, refreshExpenseRequests])
+    refreshAdvancePayments?.()
+  }, [loadExpenseData, refreshExpensePlans, refreshExpenseRequests, refreshAdvancePayments])
 
   // Simple data processing - no complex useEffect
   const processData = useCallback(() => {
     if (hasLoaded) return
 
-    // Only process when both tasks are loaded (not loading)
-    if (expensePlanLoading || expenseRequestLoading) return
+    // Only process when all tasks are loaded (not loading)
+    if (expensePlanLoading || expenseRequestLoading || advancePaymentLoading) return
 
-    // Process data if we have tasks
-    if (expensePlanTasks.length > 0 || expenseRequestTasks.length > 0) {
-      loadExpenseData()
-    }
+    // Process data once loading is complete (even if 0 tasks)
+    loadExpenseData()
   }, [
     hasLoaded,
     expensePlanLoading,
     expenseRequestLoading,
+    advancePaymentLoading,
     expensePlanTasks.length,
     expenseRequestTasks.length,
+    advancePaymentTasks.length,
     loadExpenseData
   ])
 
@@ -261,32 +308,18 @@ export const useExpensesApprovals = ({
     processData()
   }, [processData])
 
-  // Reset hasLoaded when directReports becomes available (was empty before)
-  useEffect(() => {
-    const currentLength = directReports?.length || 0
-    if (
-      currentLength > 0 &&
-      previousDirectReportsLength === 0 &&
-      hasLoaded &&
-      (expensePlanTasks.length > 0 || expenseRequestTasks.length > 0)
-    ) {
-      // If we already loaded but directReports was empty, re-process now that it's available
-      setHasLoaded(false)
-    }
-  }, [directReports, previousDirectReportsLength, hasLoaded, expensePlanTasks.length, expenseRequestTasks.length])
-
   // Update error state
   useEffect(() => {
-    if (expensePlanError || expenseRequestError) {
-      setError(expensePlanError || expenseRequestError)
+    if (expensePlanError || expenseRequestError || advancePaymentError) {
+      setError(expensePlanError || expenseRequestError || advancePaymentError)
     }
-  }, [expensePlanError, expenseRequestError])
+  }, [expensePlanError, expenseRequestError, advancePaymentError])
 
   return {
     expenseApprovals,
     totalCount,
-    isLoading: isLoading || expensePlanLoading || expenseRequestLoading,
-    error: error || expensePlanError || expenseRequestError,
+    isLoading: isLoading || expensePlanLoading || expenseRequestLoading || advancePaymentLoading,
+    error: error || expensePlanError || expenseRequestError || advancePaymentError,
     refetch
   }
 }

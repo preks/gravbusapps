@@ -192,12 +192,16 @@ const MyTeammatesTable = ({
                   <div className="gba:text-sm gba:text-neutral-600">{employee.organizationalUnit || '-'}</div>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="outline" size="sm">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'master-data:forms.capability.fields.status.options.active',
-                      'Active'
-                    )}
-                  </Badge>
+                  {employee.status === 'On Leave' ? (
+                    <Badge variant="destructive" size="sm">
+                      {employee.currentAbsence?.type ||
+                        getTranslationFromI18nKeyAndLabel('master-data:manager_dashboard.on_leave', 'On Leave')}
+                    </Badge>
+                  ) : (
+                    <Badge variant="success" size="sm">
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.available', 'Available')}
+                    </Badge>
+                  )}
                 </TableCell>
                 <TableCell className="gba:py-4 gba:px-6">
                   {accessToken ? (
@@ -338,12 +342,16 @@ const MyTeammatesTable = ({
                   <div className="gba:text-sm gba:text-neutral-600">{employee.organizationalUnit || '-'}</div>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="outline" size="sm">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'master-data:forms.capability.fields.status.options.active',
-                      'Active'
-                    )}
-                  </Badge>
+                  {employee.status === 'On Leave' ? (
+                    <Badge variant="destructive" size="sm">
+                      {employee.currentAbsence?.type ||
+                        getTranslationFromI18nKeyAndLabel('master-data:manager_dashboard.on_leave', 'On Leave')}
+                    </Badge>
+                  ) : (
+                    <Badge variant="success" size="sm">
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.available', 'Available')}
+                    </Badge>
+                  )}
                 </TableCell>
                 <TableCell className="gba:py-4 gba:px-6">
                   {accessToken ? (

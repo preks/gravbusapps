@@ -185,6 +185,7 @@ const RequestsToApproveTable = ({
                   {expenseRequests.map(request => {
                     const isTrip = request.requestType === 'ExpenseRequestType:v1:TRIP'
                     const isRequestType = request.type === 'expense-request'
+                    const isAdvancePayment = request.type === 'advance-payment'
                     return (
                       <TableRow key={request.id}>
                         <TableCell>
@@ -218,7 +219,15 @@ const RequestsToApproveTable = ({
                         <TableCell>
                           <div className="gba:flex gba:flex-col gba:gap-0.5">
                             <div className="gba:font-medium gba:w-full gba:truncate">
-                              {isRequestType ? (
+                              {isAdvancePayment ? (
+                                <div className="gba:flex gba:items-center gba:gap-1">
+                                  <WalletIcon size={16} />
+                                  {getTranslationFromI18nKeyAndLabel(
+                                    'lowcoder:backoffice_expense_landing_page.advance_title',
+                                    'Advance Payment'
+                                  )}
+                                </div>
+                              ) : isRequestType ? (
                                 <div className="gba:flex gba:items-center gba:gap-1">
                                   <MoneyWavyIcon size={16} />
                                   {isTrip
