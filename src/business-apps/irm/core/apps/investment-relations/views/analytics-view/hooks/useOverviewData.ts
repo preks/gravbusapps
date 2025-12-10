@@ -1,14 +1,7 @@
 // IRM-specific wrapper for shared generic overview data hook
-import {
-  useGenericOverviewData,
-  type OverviewCounts,
-  type OverviewConversionMetrics,
-  type OverviewTrendData,
-  type GeographicDataPoint,
-  type GenericOverviewData as OverviewData
-} from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericOverviewData'
+import { useGenericOverviewData } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericOverviewData'
 
-const useOverviewData = (accessToken: string, currencyCode?: string) => {
+export const useOverviewData = (accessToken: string, currencyCode?: string) => {
   // Use shared generic hook with IRM-specific configuration
   return useGenericOverviewData(
     accessToken,
@@ -23,11 +16,10 @@ const useOverviewData = (accessToken: string, currencyCode?: string) => {
   )
 }
 
-export {
-  useOverviewData,
-  type OverviewCounts,
-  type OverviewConversionMetrics,
-  type OverviewTrendData,
-  type GeographicDataPoint,
-  type OverviewData
-}
+export type {
+  OverviewCounts,
+  OverviewConversionMetrics,
+  OverviewTrendData,
+  GeographicDataPoint,
+  GenericOverviewData as OverviewData
+} from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericOverviewData'

@@ -8,7 +8,7 @@ import { enforceQueryLimit } from '@/business-apps/crm/common/utils/queryLimits'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 // Re-export EmployeeActivity type for use in other files
-export type { EmployeeActivity }
+export type { EmployeeActivity } from '../queries/EmployeeActivitiesQueries'
 
 // Global cache for activity scores - once calculated, never changes
 const ACTIVITY_SCORE_CACHE = new Map<string, number>()
