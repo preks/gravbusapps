@@ -232,7 +232,7 @@ export interface DocumentSectionProps extends BusinessAppContextProps {
   'data-testid'?: string
 }
 
-const DocumentSection: React.FC<DocumentSectionProps> = ({
+export const DocumentSection: React.FC<DocumentSectionProps> = ({
   entityId,
   documents = [],
   isLoading = false,

@@ -1,84 +1,95 @@
 import React from 'react'
-import { useTranslation } from 'react-i18next'
-import { Badge } from '@newwork/nw-design-system'
-import { Content } from '@/business-apps/core/content/apps/content-hub/types/content.types'
-import { CommentSection } from '@/business-apps/core/content/components/interactions'
-import ContentInfoSection from './ContentInfoSection'
+import { ContentEntry } from '@/common/data/content/types/contentTypes'
+import { ContentGroup } from '@/common/data/content/types/contentEnums'
+import ArticleView from './ArticleView'
+import QuestionView from './QuestionView'
+import KnowledgeArticleView from './KnowledgeArticleView'
+import type { DetectedLanguage, TranslatedTexts } from '@/common/components/content'
 
 interface ContentPageProps {
-  item: Content
+  item: ContentEntry
   accessToken: string
   userId: string | undefined
+  employeeId: string | undefined
+  allowedReactions?: string[]
+  reactionCatalogMap?: Record<string, string>
+  detectedLanguage?: DetectedLanguage | null
+  targetLanguage?: string | null
+  translatedTexts?: TranslatedTexts | null
+  isTranslating?: boolean
+  isDetecting?: boolean
+  onTranslateComments?: (commentTexts: string[], targetLanguage: string) => Promise<string[]>
 }
 
-const ContentPage: React.FC<ContentPageProps> = ({ item, accessToken, userId }) => {
-  const { t } = useTranslation('content')
+/**
+ * ContentPage Router - Routes to appropriate view based on content type
+ */
+const ContentPage: React.FC<ContentPageProps> = ({
+  item,
+  accessToken,
+  userId,
+  employeeId,
+  allowedReactions,
+  reactionCatalogMap,
+  detectedLanguage,
+  targetLanguage,
+  translatedTexts,
+  isTranslating,
+  isDetecting,
+  onTranslateComments
+}) => {
+  // Determine which view to render based on contentGroupRef
+  const isQuestion = item.contentGroupRef === ContentGroup.QUESTION
+  const isKnowledge = item.contentGroupRef === ContentGroup.KNOWLEDGE
 
+  const translationProps = {
+    detectedLanguage,
+    targetLanguage,
+    translatedTexts,
+    isTranslating,
+    isDetecting,
+    onTranslateComments
+  }
+
+  if (isQuestion) {
+    return (
+      <QuestionView
+        item={item}
+        accessToken={accessToken}
+        userId={userId}
+        employeeId={employeeId}
+        allowedReactions={allowedReactions}
+        reactionCatalogMap={reactionCatalogMap}
+        {...translationProps}
+      />
+    )
+  }
+
+  if (isKnowledge) {
+    return (
+      <KnowledgeArticleView
+        item={item}
+        accessToken={accessToken}
+        userId={userId}
+        employeeId={employeeId}
+        allowedReactions={allowedReactions}
+        reactionCatalogMap={reactionCatalogMap}
+        {...translationProps}
+      />
+    )
+  }
+
+  // Default to ArticleView for News, Documents, Intranet, etc.
   return (
-    <div className="gba:overflow-y-auto gba:mb-6" data-testid="content-page">
-      <div className="gba:flex gba:flex-col gba:mt-6 gba:max-w-[1000px] gba:mx-auto gba:px-4">
-        {/* Tags */}
-        {item.tags && item.tags.length > 0 && (
-          <div className="gba:flex gba:flex-row gba:flex-wrap gba:gap-2 gba:mb-4">
-            {item.tags.map(tag => (
-              <Badge key={tag.tag_id} variant="secondary">
-                #{tag.tag || tag.name}
-              </Badge>
-            ))}
-          </div>
-        )}
-
-        {/* Title */}
-        <h1 className="gba:text-5xl gba:mt-4 gba:leading-tight gba:font-bold gba:mb-9 gba:text-foreground">
-          {item.title}
-        </h1>
-
-        {/* Featured Image */}
-        {item.contentImage ? (
-          <img
-            src={item.contentImage}
-            alt={t('content_image')}
-            className="gba:w-full gba:h-auto gba:max-h-[562px] gba:object-cover gba:rounded-lg"
-          />
-        ) : (
-          <div className="gba:bg-muted gba:w-full gba:h-[562px] gba:rounded-lg gba:flex gba:items-center gba:justify-center">
-            <span className="gba:text-muted-foreground gba:text-2xl">{t('no_image')}</span>
-          </div>
-        )}
-
-        {/* Preview Text */}
-        {item.previewText && (
-          <p className="gba:text-lg gba:leading-8 gba:font-bold gba:mt-10 gba:px-4 gba:text-foreground">
-            {item.previewText}
-          </p>
-        )}
-
-        {/* Content */}
-        {item.content && (
-          <div
-            className="gba:text-lg gba:leading-8 gba:mt-10 gba:px-4 gba:text-foreground 
-                       [&>h1]:gba:text-4xl [&>h1]:gba:font-bold 
-                       [&>h2]:gba:text-3xl [&>h2]:gba:font-bold 
-                       [&>h3]:gba:text-2xl [&>h3]:gba:font-bold"
-            dangerouslySetInnerHTML={{ __html: item.content }}
-          />
-        )}
-
-        {/* Article Info Section */}
-        <ContentInfoSection item={item} accessToken={accessToken} userId={userId} />
-
-        {/* Comment Section */}
-        {item.allowComment && (
-          <CommentSection
-            articleId={item.articleId}
-            allowComment={item.allowComment}
-            accessToken={accessToken}
-            currentUserId={userId}
-            data-testid="content-page-comments"
-          />
-        )}
-      </div>
-    </div>
+    <ArticleView
+      item={item}
+      accessToken={accessToken}
+      userId={userId}
+      employeeId={employeeId}
+      allowedReactions={allowedReactions}
+      reactionCatalogMap={reactionCatalogMap}
+      {...translationProps}
+    />
   )
 }
 
