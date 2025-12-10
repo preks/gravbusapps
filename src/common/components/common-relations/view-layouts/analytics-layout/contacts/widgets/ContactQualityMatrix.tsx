@@ -9,7 +9,9 @@ import {
   ChartConfig,
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent
 } from '@newwork/nw-design-system'
 import { PieChart, Pie, BarChart, XAxis, YAxis, Bar } from 'recharts'
 import { ExclamationCircleOutlined, WarningOutlined, InfoCircleOutlined } from '@ant-design/icons'
@@ -35,6 +37,7 @@ const toKey = (value: string): string =>
 
 export const ContactQualityMatrix: React.FC<ContactQualityMatrixProps> = ({ data, moduleColor = 'default' }) => {
   const pieChartConfig = useMemo(() => {
+    if (!data.qualityDistribution || data.qualityDistribution.length === 0) return {} as ChartConfig
     const config: Record<string, { label?: string }> = {}
     data.qualityDistribution.forEach(item => {
       const key = toKey(item.category)
@@ -44,10 +47,12 @@ export const ContactQualityMatrix: React.FC<ContactQualityMatrixProps> = ({ data
   }, [data.qualityDistribution])
 
   const pieChartData = useMemo(() => {
+    if (!data.qualityDistribution || data.qualityDistribution.length === 0) return []
     return data.qualityDistribution.map(item => {
       const key = toKey(item.category)
       return {
-        ...item,
+        category: key,
+        contacts: item.count,
         fill: `var(--color-${key})`
       }
     })
@@ -79,24 +84,25 @@ export const ContactQualityMatrix: React.FC<ContactQualityMatrixProps> = ({ data
       </CardHeader>
       <CardContent>
         <div className="gba:text-center gba:mb-6">
-          <div className="gba:text-4xl gba:font-bold gba:text-blue-600 gba:mb-2">{data.overallScore}%</div>
-          <div className="gba:text-lg gba:text-gray-600">Overall Data Quality Score</div>
+          <div className="gba:text-4xl gba:font-bold gba:text-primary gba:mb-2">{data.overallScore}%</div>
+          <div className="gba:text-lg gba:text-muted-foreground">Overall Data Quality Score</div>
         </div>
 
         <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6 gba:mb-6">
           <div>
             <h4 className="gba:text-lg gba:font-semibold gba:mb-4">Quality Distribution</h4>
-            <ChartContainer config={pieChartConfig} className="gba:w-full gba:h-[200px]">
+            <ChartContainer
+              config={pieChartConfig}
+              className="[&_.recharts-pie-label-text]:fill-foreground gba:mx-auto gba:aspect-square gba:max-h-[200px] gba:pb-0"
+            >
               <PieChart>
-                <Pie
-                  data={pieChartData}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                  dataKey="count"
-                  label={({ category, percentage }) => `${category}: ${percentage}%`}
+                <Pie data={pieChartData} cx="50%" cy="50%" outerRadius={75} dataKey="contacts" nameKey="category" />
+                <ChartTooltip content={<ChartTooltipContent hideLabel labelKey="contacts" nameKey="category" />} />
+                <ChartLegend
+                  content={
+                    <ChartLegendContent className="gba:-translate-y-2 gba:flex-wrap gba:gap-2 gba:*:basis-1/4 gba:*:justify-center" />
+                  }
                 />
-                <ChartTooltip content={<ChartTooltipContent />} />
               </PieChart>
             </ChartContainer>
           </div>

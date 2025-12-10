@@ -12,15 +12,16 @@ import {
   GeographicChart,
   GeographicData
 } from '@/common/components/common-relations/view-layouts/analytics-layout/overview/widgets/GeographicChart'
-import {
-  ActivityHeatmapChart,
-  ActivityHeatmapData
-} from '@/common/components/common-relations/view-layouts/analytics-layout/overview/widgets/ActivityHeatmapChart'
+import { ActivityHeatmapChart } from '@/common/components/common-relations/view-layouts/analytics-layout/overview/widgets/ActivityHeatmapChart'
 import {
   TopPerformers,
   TopPerformerItem
 } from '@/common/components/common-relations/view-layouts/analytics-layout/overview/widgets/TopPerformers'
-import OverviewMetricsWidgets from '@/common/components/common-relations/view-layouts/analytics-layout/overview/widgets/OverviewMetricsWidgets'
+import OverviewMetricsWidgets, {
+  KpiLabels,
+  KpiVisibility
+} from '@/common/components/common-relations/view-layouts/analytics-layout/overview/widgets/OverviewMetricsWidgets'
+import type { ActivityHeatmapData, OverviewTrendData } from '../hooks'
 
 export interface OverviewCounts {
   leads: number
@@ -33,40 +34,26 @@ export interface ConversionMetrics {
   leadToOpportunityRate: number
   opportunityWinRate: number
   avgDealSize: number
-  salesCycleLength: number
-}
-
-export interface TrendData {
-  totalLeadsThisMonth: number
-  totalLeadsLastMonth: number
-  totalAccountsThisMonth: number
-  totalAccountsLastMonth: number
-  totalOpportunitiesThisMonth: number
-  totalOpportunitiesLastMonth: number
-  totalContactsThisMonth: number
-  totalContactsLastMonth: number
-  currentMonthWonOpportunities: number
-  previousMonthWonOpportunities: number
-  // New trend metrics for conversion rates and performance indicators
-  currentMonthLeadConversionRate: number
-  previousMonthLeadConversionRate: number
-  currentMonthAvgDealSize: number
-  previousMonthAvgDealSize: number
-  currentMonthSalesCycleLength: number
-  previousMonthSalesCycleLength: number
+  totalWonRevenue: number
+  salesCycleLength?: number // Optional: not always used
 }
 
 export interface OverviewTabLayoutProps {
   title?: string
   moduleColor?: string
+
+  // Required: Core KPI metrics
   counts: OverviewCounts
   conversionMetrics: ConversionMetrics
-  trendData?: TrendData | null
+  trendData?: OverviewTrendData | null
   trendLoading?: boolean
 
-  pipelines: Array<{ id: string; name: string }>
+  // Optional: Customize KPI labels and visibility
+  kpiLabels?: KpiLabels
+  kpiVisibility?: KpiVisibility
 
-  // Revenue Trends specific pipeline filter
+  // Required: Revenue trends
+  pipelines: Array<{ id: string; name: string }>
   revenuePipelineId?: string
   onRevenuePipelineChange?: (pipelineId: string | undefined) => void
   revenueTimeFilter?: TimeFilter
@@ -74,35 +61,39 @@ export interface OverviewTabLayoutProps {
   revenueTrends: RevenueTrendData[]
   revenueLoading?: boolean
 
-  // Pipeline Health specific pipeline filter
-  healthPipelineId?: string
-  onHealthPipelineChange?: (pipelineId: string | undefined) => void
-  pipelineHealth: {
+  // Optional: Pipeline Health chart (can be hidden)
+  pipelineHealth?: {
     data?: PipelineHealthMetrics | null
     isLoading?: boolean
     error?: string | null
   }
+  healthPipelineId?: string
+  onHealthPipelineChange?: (pipelineId: string | undefined) => void
 
-  geographicDistribution: {
+  // Optional: Geographic distribution chart (can be hidden)
+  geographicDistribution?: {
     data: GeographicData[]
     isLoading?: boolean
   }
 
-  activityHeatmap: {
+  // Optional: Activity timeline chart (can be hidden)
+  activityHeatmap?: {
     data: ActivityHeatmapData[]
     isLoading?: boolean
   }
 
-  topPerformers: TopPerformerItem[]
+  // Optional: Top performers table (can be hidden)
+  topPerformers?: TopPerformerItem[]
+  topPerformersLoading?: boolean
+  topPerformersCurrency?: string
+  onTopPerformersCurrencyChange?: (currency: string) => void
 
-  // Currency filters
+  // Currency filters for KPIs and charts
   kpiCurrency?: string
   onKpiCurrencyChange?: (currency: string) => void
   availableCurrencies?: string[]
   revenueCurrency?: string
   onRevenueCurrencyChange?: (currency: string) => void
-  topPerformersCurrency?: string
-  onTopPerformersCurrencyChange?: (currency: string) => void
 }
 
 export const OverviewTabLayout: React.FC<OverviewTabLayoutProps> = ({
@@ -111,6 +102,8 @@ export const OverviewTabLayout: React.FC<OverviewTabLayoutProps> = ({
   conversionMetrics,
   trendData,
   trendLoading = false,
+  kpiLabels,
+  kpiVisibility,
   pipelines,
   revenuePipelineId,
   onRevenuePipelineChange,
@@ -124,6 +117,7 @@ export const OverviewTabLayout: React.FC<OverviewTabLayoutProps> = ({
   geographicDistribution,
   activityHeatmap,
   topPerformers,
+  topPerformersLoading = false,
   moduleColor = 'default',
   kpiCurrency = 'EUR',
   onKpiCurrencyChange,
@@ -145,9 +139,12 @@ export const OverviewTabLayout: React.FC<OverviewTabLayoutProps> = ({
           selectedCurrency={kpiCurrency}
           onCurrencyChange={onKpiCurrencyChange}
           availableCurrencies={availableCurrencies}
+          kpiLabels={kpiLabels}
+          kpiVisibility={kpiVisibility}
         />
       </div>
 
+      {/* Revenue Trends - Always shown */}
       <RevenueTrendChart
         moduleColor={moduleColor as any}
         data={revenueTrends}
@@ -162,42 +159,59 @@ export const OverviewTabLayout: React.FC<OverviewTabLayoutProps> = ({
         availableCurrencies={availableCurrencies}
       />
 
-      <div className="gba:flex gba:gap-6" data-testid="analytics-charts-container">
-        <div className="gba:min-w-0 gba:w-full lg:gba:w-2/3" data-testid="pipeline-health-container">
-          <PipelineHealthOverview
-            isLoading={pipelineHealth?.isLoading}
-            error={pipelineHealth?.error ?? null}
-            data={pipelineHealth?.data ?? null}
-            moduleColor={moduleColor}
-            pipelines={pipelines}
-            selectedPipelineId={healthPipelineId}
-            onPipelineChange={onHealthPipelineChange}
-          />
+      {/* Optional: Pipeline Health & Geographic Distribution */}
+      {(pipelineHealth || geographicDistribution) && (
+        <div className="gba:flex gba:gap-6" data-testid="analytics-charts-container">
+          {pipelineHealth && (
+            <div className="gba:min-w-0 gba:w-full lg:gba:w-2/3" data-testid="pipeline-health-container">
+              <PipelineHealthOverview
+                isLoading={pipelineHealth.isLoading}
+                error={pipelineHealth.error ?? null}
+                data={pipelineHealth.data ?? null}
+                moduleColor={moduleColor}
+                pipelines={pipelines}
+                selectedPipelineId={healthPipelineId}
+                onPipelineChange={onHealthPipelineChange}
+              />
+            </div>
+          )}
+          {geographicDistribution && (
+            <div
+              className={`gba:min-w-0 gba:w-full ${pipelineHealth ? 'lg:gba:w-1/3' : ''}`}
+              data-testid="geographic-chart-container"
+            >
+              <GeographicChart
+                data={geographicDistribution.data}
+                isLoading={geographicDistribution.isLoading}
+                moduleColor={moduleColor}
+              />
+            </div>
+          )}
         </div>
-        <div className="gba:min-w-0 gba:w-full lg:gba:w-1/3" data-testid="geographic-chart-container">
-          <GeographicChart
-            data={geographicDistribution.data}
-            isLoading={geographicDistribution?.isLoading}
-            moduleColor={moduleColor}
-          />
-        </div>
-      </div>
+      )}
 
-      <div className="gba:grid gba:grid-cols-1 gba:gap-6">
-        <ActivityHeatmapChart
-          data={activityHeatmap.data}
-          isLoading={activityHeatmap?.isLoading}
+      {/* Optional: Activity Timeline */}
+      {activityHeatmap && (
+        <div className="gba:grid gba:grid-cols-1 gba:gap-6">
+          <ActivityHeatmapChart
+            data={activityHeatmap.data}
+            isLoading={activityHeatmap.isLoading}
+            moduleColor={moduleColor}
+          />
+        </div>
+      )}
+
+      {/* Optional: Top Performers */}
+      {topPerformers !== undefined && (
+        <TopPerformers
+          performers={topPerformers}
+          isLoading={topPerformersLoading}
           moduleColor={moduleColor}
+          selectedCurrency={topPerformersCurrency}
+          onCurrencyChange={onTopPerformersCurrencyChange}
+          availableCurrencies={availableCurrencies}
         />
-      </div>
-
-      <TopPerformers
-        performers={topPerformers}
-        moduleColor={moduleColor}
-        selectedCurrency={topPerformersCurrency}
-        onCurrencyChange={onTopPerformersCurrencyChange}
-        availableCurrencies={availableCurrencies}
-      />
+      )}
     </div>
   )
 }

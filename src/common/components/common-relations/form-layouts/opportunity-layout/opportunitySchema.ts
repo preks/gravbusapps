@@ -5,7 +5,8 @@ export const opportunitySchema = z.object({
   ownerEmployeeId: z.string().min(1, 'Owner is required'),
   name: z.string().min(1, 'Opportunity name is required'),
   accountId: z.string().nullable().optional(),
-  estimatedAmount: z.string().nullable().optional(),
+  companyId: z.string().nullable().optional(),
+  estimatedAmount: z.coerce.number().nullable().optional(),
   currencyRef: z.string().nullable().optional(),
   closeDate: z.string().nullable().optional(),
   opportunityPipelineRef: z.string().min(1, 'Pipeline is required'),
@@ -51,6 +52,17 @@ export const opportunitySchema = z.object({
         version: z.number().optional(),
         contactId: z.string().optional(),
         contactType: z.string().nullable().optional()
+      })
+    )
+    .optional(),
+  opportunityAccounts: z
+    .array(
+      z.object({
+        id: z.string().optional(),
+        version: z.number().optional(),
+        accountId: z.string().optional(),
+        accountType: z.string().nullable().optional(),
+        accountTypeRef: z.string().nullable().optional()
       })
     )
     .optional()

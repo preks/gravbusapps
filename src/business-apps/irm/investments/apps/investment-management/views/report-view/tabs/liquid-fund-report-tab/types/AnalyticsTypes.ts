@@ -104,6 +104,7 @@ export interface AnalyticsRowData {
   portfolioId: string
   investmentType: string
   reportCount: number
+  reportId?: string // InvestmentReport ID for actions column
 
   // IMPORTANT: Full data structures for dynamic column access
   // These ensure the getValue functions in dynamic columns can access all nested data
