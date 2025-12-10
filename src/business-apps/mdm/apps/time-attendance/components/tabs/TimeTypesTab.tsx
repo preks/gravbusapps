@@ -463,7 +463,7 @@ export const TimeTypesTab: React.FC<TimeTypesProps> = ({ accessToken, prefixData
                 >
                   <PlusIcon size={16} />
                   {getTranslationFromI18nKeyAndLabel(
-                    'master-data:hr.time_attendance.time_types.actions.create_system_types',
+                    'master-data:hr.time_attendance.time_types.actions.create_system_time_types',
                     'Create System Time Types'
                   )}
                 </Button>
@@ -514,7 +514,7 @@ export const TimeTypesTab: React.FC<TimeTypesProps> = ({ accessToken, prefixData
               {`${filteredTimeTypes.length} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} ${timeTypes.length} ${getTranslationFromI18nKeyAndLabel(
                 'master-data:hr.time_attendance.time_types.title',
                 'time types'
-              ).toLowerCase()}`}
+              )}`}
             </div>
           </div>
           {renderTimeTypesTable()}
@@ -548,7 +548,7 @@ export const TimeTypesTab: React.FC<TimeTypesProps> = ({ accessToken, prefixData
               <DialogDescription>
                 {systemTimeTypes.length > 1
                   ? getTranslationFromI18nKeyAndLabel(
-                      'master-data:hr.time_attendance.time_types.actions.create_system_time_types_confirmation_one',
+                      'master-data:hr.time_attendance.time_types.create_system_time_types_confirmation_one',
                       `Are you sure you want to create the missing system time type?`
                     )
                   : getTranslationFromI18nKeyAndLabel(
