@@ -16,6 +16,7 @@ import translations from '../_i18n'
 
 interface QuestionSegmentProps {
   control: Control<ContentEntryFormValues>
+  extractedContentGroupRef?: string
 }
 
 /**
@@ -23,11 +24,59 @@ interface QuestionSegmentProps {
  * Features: Simple title, summary, detailed description, tags, categories
  * Similar to Stack Overflow, Quora question forms
  */
-export const QuestionSegment: React.FC<QuestionSegmentProps> = ({ control }) => {
+export const QuestionSegment: React.FC<QuestionSegmentProps> = ({ control, extractedContentGroupRef }) => {
   const { t } = useTranslation(translations)
 
   return (
     <div className="gba:space-y-6">
+      {/* Content Group and Content Type - Above Question Title */}
+      <div className="gba:grid gba:grid-cols-2 gba:gap-4 gba:mb-4">
+        {/* Content Group Selection - Hidden if provided via props or additionalData */}
+        {!extractedContentGroupRef && (
+          <FormField
+            control={control as any}
+            name="contentGroupRef"
+            rules={{ required: t('group-required') }}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('content-group')}</FormLabel>
+                <FormControl>
+                  <CatalogSelect
+                    catalogIdentifier="ContentGroup:v1"
+                    value={field.value || ''}
+                    onValueChange={field.onChange}
+                    data-testid="content-entry-window-group-select"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
+
+        {/* Content Type Selection */}
+        <FormField
+          control={control as any}
+          name="contentTypeRef"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('content-type')}</FormLabel>
+              <FormControl>
+                <CatalogSelect
+                  catalogIdentifier="ContentType:v1"
+                  parentField="contentGroupRef"
+                  requireSourceForEnable={true}
+                  value={field.value || null}
+                  onValueChange={field.onChange}
+                  data-testid="question-segment-type-select"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
+
       {/* Question Title */}
       <FormField
         control={control as any}
@@ -95,28 +144,6 @@ export const QuestionSegment: React.FC<QuestionSegmentProps> = ({ control }) => 
             <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
               {t('question-details-hint') || 'Provide enough context so others can understand and answer.'}
             </div>
-          </FormItem>
-        )}
-      />
-
-      {/* Content Type Selection */}
-      <FormField
-        control={control as any}
-        name="contentTypeRef"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>{t('content-type')}</FormLabel>
-            <FormControl>
-              <CatalogSelect
-                catalogIdentifier="ContentType:v1"
-                parentField="contentGroupRef"
-                requireSourceForEnable={true}
-                value={field.value || null}
-                onValueChange={field.onChange}
-                data-testid="question-segment-type-select"
-              />
-            </FormControl>
-            <FormMessage />
           </FormItem>
         )}
       />

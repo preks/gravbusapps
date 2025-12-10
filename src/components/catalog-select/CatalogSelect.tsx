@@ -36,13 +36,18 @@ export interface CatalogSelectProps {
 
   // UI props
   variant?: Variant // optional; auto-detected when using provider
+  mode?: 'default' | 'multiple' | 'tags'
   value?: string | string[] | null
   onValueChange?: (value: string | string[]) => void // ✅ Always returns empty string/array instead of null
+  onCreateTag?: (tag: string) => void | Promise<string | void> // required when mode="tags", can be async to return new entry ID
   className?: string
   ['data-testid']?: string
   allowClear?: boolean // default: true
   autoSelectFirst?: boolean // auto-select first entry when value is empty and options are available
-  multiple?: boolean // enable multiple selection mode
+  /**
+   * @deprecated Use mode="multiple" or mode="tags" instead
+   */
+  multiple?: boolean
 
   // Pre-selected option data (from account query) - ensures immediate display without loading
   selectedOption?: CatalogSelectOption
@@ -106,14 +111,16 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
   filterField,
   // UI props
   variant,
+  mode: propMode,
   value,
   onValueChange,
+  onCreateTag,
   className,
   'data-testid': dataTestId,
   selectedOption: propSelectedOption,
   allowClear = true,
   autoSelectFirst = false,
-  multiple = false,
+  multiple,
   ...props
 }) => {
   // Get registration API from context
@@ -173,7 +180,9 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
 
   // Wire up via provider
   const controller = useCatalogSelectController(fieldName || '')
-  const wiredVariant = variant ?? controller?.variant ?? 'combobox'
+  const mode = propMode ?? (multiple ? 'multiple' : 'default')
+  const baseVariant = variant ?? controller?.variant ?? 'combobox'
+  const wiredVariant = mode !== 'default' ? 'combobox' : baseVariant
   const wiredOptions = controller?.options ?? []
   const wiredLoading = controller?.loading ?? false
   const wiredHasMore = controller?.hasMore ?? false
@@ -185,42 +194,55 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
   // Normalize value for multiple mode
   const normalizedValue = React.useMemo(() => {
     if (value === undefined) {
-      return multiple ? [] : wiredControllerValue || ''
+      return mode !== 'default' ? [] : wiredControllerValue || ''
     }
-    if (multiple) {
+    if (mode !== 'default') {
       if (Array.isArray(value)) {
         return value
       }
       return value ? [value] : []
     }
     return Array.isArray(value) ? value[0] || '' : value || ''
-  }, [value, multiple, wiredControllerValue])
+  }, [value, mode, wiredControllerValue])
 
   const effectiveValue = normalizedValue
 
   // Get selected options for multiple mode or single option for single mode
   const selectedOptions = React.useMemo(() => {
-    if (multiple) {
+    if (mode !== 'default') {
       const values = Array.isArray(effectiveValue) ? effectiveValue : []
       return values
         .map(val => {
+          const valStr = String(val)
+
           // Check propSelectedOption first
-          if (propSelectedOption && String(propSelectedOption.value) === String(val)) {
+          if (propSelectedOption && String(propSelectedOption.value) === valStr) {
             return propSelectedOption
           }
-          // Otherwise find in wiredOptions
-          return wiredOptions.find(opt => String(opt.value) === String(val))
+
+          // Find in wiredOptions
+          const found = wiredOptions.find(opt => String(opt.value) === valStr)
+          if (found) {
+            return found
+          }
+
+          // If not found, create synthetic option (for newly created tags/categories)
+          // This ensures Combobox can display the tag even if it's not in the catalog yet
+          return {
+            value: valStr,
+            label: valStr
+          }
         })
         .filter((opt): opt is CatalogSelectOption => opt !== undefined)
     } else {
-      // Single mode
+      // Single mode - no synthetic options needed
       const singleValue = Array.isArray(effectiveValue) ? effectiveValue[0] : effectiveValue
       if (propSelectedOption && String(propSelectedOption.value) === String(singleValue)) {
         return propSelectedOption
       }
       return wiredOptions.find(opt => String(opt.value) === String(singleValue))
     }
-  }, [wiredOptions, effectiveValue, propSelectedOption, multiple])
+  }, [wiredOptions, effectiveValue, propSelectedOption, mode])
 
   // Helper: Build merged options for multiple mode
   const buildMultipleModeOptions = React.useCallback(() => {
@@ -252,26 +274,26 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
   // For options list: Use wiredOptions (filtered by dependencies)
   // In multiple mode, we need to INCLUDE selected options so Combobox can display their labels
   const mergedOptions = React.useMemo(() => {
-    return multiple ? buildMultipleModeOptions() : buildSingleModeOptions()
-  }, [multiple, buildMultipleModeOptions, buildSingleModeOptions])
+    return mode !== 'default' ? buildMultipleModeOptions() : buildSingleModeOptions()
+  }, [mode, buildMultipleModeOptions, buildSingleModeOptions])
 
   // Initial sync: Set controller value from form's initial value (only once on mount)
   const hasInitializedRef = React.useRef(false)
   React.useEffect(() => {
-    if (!hasInitializedRef.current && controller?.setValue && !multiple) {
+    if (!hasInitializedRef.current && controller?.setValue && mode === 'default') {
       const singleValue = Array.isArray(effectiveValue) ? effectiveValue[0] : effectiveValue
       if (singleValue) {
         controller.setValue(String(singleValue))
         hasInitializedRef.current = true
       }
     }
-  }, [controller, effectiveValue, fieldName, multiple])
+  }, [controller, effectiveValue, fieldName, mode])
 
   // Auto-select first entry when value is empty and options are available (single mode only)
   const hasAutoSelectedRef = React.useRef(false)
   React.useEffect(() => {
     if (
-      !multiple &&
+      mode === 'default' &&
       autoSelectFirst &&
       !hasAutoSelectedRef.current &&
       !effectiveValue &&
@@ -288,7 +310,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
         onValueChange?.(firstValue)
       }
     }
-  }, [multiple, autoSelectFirst, effectiveValue, mergedOptions, wiredLoading, controller, onValueChange])
+  }, [mode, autoSelectFirst, effectiveValue, mergedOptions, wiredLoading, controller, onValueChange])
 
   // If parent passes a controlled value but provider updates internally (e.g., bi-directional auto-select),
   // sync the controlled prop back by invoking onValueChange to keep external state in sync.
@@ -298,7 +320,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
   const lastControllerValueRef = React.useRef<string>(wiredControllerValue)
 
   React.useEffect(() => {
-    if (!isControlled || !onValueChange || multiple) return
+    if (!isControlled || !onValueChange || mode !== 'default') return
 
     // Only sync if CONTROLLER changed (not if form changed)
     const ctrl = wiredControllerValue
@@ -319,7 +341,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
     if (normalizedCtrl !== normalizedControlled) {
       onValueChange(normalizedCtrl)
     }
-  }, [isControlled, onValueChange, wiredControllerValue, value, multiple])
+  }, [isControlled, onValueChange, wiredControllerValue, value, mode])
   const testId = dataTestId || `catalog-select-${fieldName}-${wiredVariant}`
 
   // Helper: Find nearest scrollable parent element
@@ -454,7 +476,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
 
   const handleExternalValueChange = React.useCallback(
     (v: string | string[] | null | undefined) => {
-      if (multiple) {
+      if (mode !== 'default') {
         // Multiple mode: Combobox returns array directly
         const normalized = Array.isArray(v) ? v : []
         onValueChange?.(normalized)
@@ -474,7 +496,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
         onValueChange?.(normalized)
       }
     },
-    [controller, onValueChange, multiple]
+    [controller, onValueChange, mode]
   )
 
   // Trigger validation when field becomes disabled (if form context available)
@@ -489,43 +511,100 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
   }, [wiredDisabled, fieldName, formContext, formState?.isSubmitted])
 
   if (wiredVariant === 'combobox') {
+    const baseProps = {
+      key: stableKey,
+      className:
+        'gba:w-full gba:max-w-full gba:h-auto gba:[&_button]:max-w-full gba:[&_button]:min-w-0 gba:[&_button]:overflow-hidden gba:[&_button_span]:truncate',
+      options: comboboxOptions,
+      placeholder: 'Select...',
+      searchPlaceholder: 'Type to search...',
+      emptyText: wiredLoading ? 'Loading...' : 'No results',
+      onSearch: handleSearch,
+      searchDebounce: 300,
+      loading: Boolean(wiredLoading),
+      onLoadMore: handleLoadMore,
+      hasMore: Boolean(wiredHasMore),
+      'data-testid': testId,
+      align: 'start' as const,
+      disabled: wiredDisabled,
+      allowClear,
+      ...props
+    }
+
+    if (mode === 'tags') {
+      if (!onCreateTag) {
+        throw new Error('onCreateTag is required when mode="tags"')
+      }
+      const tagsValue: string[] = Array.isArray(effectiveValue) ? effectiveValue : []
+
+      // Wrap async onCreateTag to handle both sync and async cases
+      const handleCreateTag = (tag: string): void => {
+        const result = onCreateTag(tag)
+        if (result instanceof Promise) {
+          result
+            .then(newId => {
+              if (newId && typeof newId === 'string') {
+                // Add the new ID to the current value
+                const currentValues = Array.isArray(effectiveValue) ? effectiveValue : []
+                if (!currentValues.includes(newId)) {
+                  handleExternalValueChange([...currentValues, newId])
+                }
+              }
+            })
+            .catch(error => {
+              console.error('Error creating tag:', error)
+            })
+        }
+      }
+
+      return (
+        <div className="gba:w-full gba:max-w-full gba:overflow-hidden">
+          <Combobox
+            {...baseProps}
+            mode="tags"
+            value={tagsValue}
+            onValueChange={(v: string[]) => handleExternalValueChange(v)}
+            onCreateTag={handleCreateTag}
+          />
+        </div>
+      )
+    }
+
+    if (mode === 'multiple') {
+      const multipleValue: string[] = Array.isArray(effectiveValue) ? effectiveValue : []
+      return (
+        <div className="gba:w-full gba:max-w-full gba:overflow-hidden">
+          <Combobox
+            {...baseProps}
+            mode="multiple"
+            value={multipleValue}
+            onValueChange={(v: string[]) => handleExternalValueChange(v)}
+          />
+        </div>
+      )
+    }
+
+    const defaultValue: string = Array.isArray(effectiveValue) ? effectiveValue[0] || '' : effectiveValue || ''
     return (
       <div className="gba:w-full gba:max-w-full gba:overflow-hidden">
         <Combobox
-          key={stableKey}
-          className="gba:w-full gba:max-w-full gba:h-auto gba:[&_button]:max-w-full gba:[&_button]:min-w-0 gba:[&_button]:overflow-hidden gba:[&_button_span]:truncate"
-          mode={multiple ? 'multiple' : 'default'}
-          options={comboboxOptions}
-          value={(() => {
-            if (multiple) {
-              return Array.isArray(effectiveValue) ? effectiveValue : []
-            }
-            return Array.isArray(effectiveValue) ? effectiveValue[0] || '' : effectiveValue || ''
-          })()}
-          onValueChange={v => handleExternalValueChange(v)}
-          placeholder="Select..."
-          searchPlaceholder="Type to search..."
-          emptyText={wiredLoading ? 'Loading...' : 'No results'}
-          onSearch={handleSearch}
-          searchDebounce={300}
-          loading={Boolean(wiredLoading)}
-          onLoadMore={handleLoadMore}
-          hasMore={Boolean(wiredHasMore)}
-          data-testid={testId}
-          align="start"
-          disabled={wiredDisabled}
-          allowClear={allowClear}
-          {...props}
+          {...baseProps}
+          mode="default"
+          value={defaultValue}
+          onValueChange={(v: string) => handleExternalValueChange(v)}
         />
       </div>
     )
   }
 
+  // Select only supports single values, so normalize to string
+  const selectValue = Array.isArray(effectiveValue) ? effectiveValue[0] || '' : effectiveValue || ''
+
   return (
     <Select
       key={stableKey}
-      value={effectiveValue || ''}
-      onValueChange={v => handleExternalValueChange(v)}
+      value={selectValue}
+      onValueChange={(v: string) => handleExternalValueChange(v)}
       disabled={wiredDisabled}
       allowClear={allowClear}
     >

@@ -12,6 +12,7 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import { ImageIcon } from '@phosphor-icons/react'
+import { CatalogSelect } from '@/components/catalog-select'
 import { ContentEntryFormValues } from '../ContentEntryWindow'
 import translations from '../_i18n'
 
@@ -24,6 +25,7 @@ interface DocumentSegmentProps {
   imageInfo: { name: string; size: string } | null
   setImageInfo: (info: { name: string; size: string } | null) => void
   setImageFile: (file: File | null) => void
+  extractedContentGroupRef?: string
 }
 
 const MAX_IMAGE_SIZE_MB = 5
@@ -38,7 +40,8 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
   setImage,
   imageInfo,
   setImageInfo,
-  setImageFile
+  setImageFile,
+  extractedContentGroupRef
 }) => {
   const { t } = useTranslation(translations)
 
@@ -88,6 +91,54 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
 
   return (
     <div className="gba:space-y-6">
+      {/* Content Group and Content Type - Above Header Image */}
+      <div className="gba:grid gba:grid-cols-2 gba:gap-4 gba:mb-4">
+        {/* Content Group Selection - Hidden if provided via props or additionalData */}
+        {!extractedContentGroupRef && (
+          <FormField
+            control={control as any}
+            name="contentGroupRef"
+            rules={{ required: t('group-required') }}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('content-group')}</FormLabel>
+                <FormControl>
+                  <CatalogSelect
+                    catalogIdentifier="ContentGroup:v1"
+                    value={field.value || ''}
+                    onValueChange={field.onChange}
+                    data-testid="content-entry-window-group-select"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
+
+        {/* Content Type Selection */}
+        <FormField
+          control={control as any}
+          name="contentTypeRef"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('content-type')}</FormLabel>
+              <FormControl>
+                <CatalogSelect
+                  catalogIdentifier="ContentType:v1"
+                  parentField="contentGroupRef"
+                  requireSourceForEnable={true}
+                  value={field.value || null}
+                  onValueChange={field.onChange}
+                  data-testid="document-segment-type-select"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
+
       {/* Optional Header Image */}
       <div className="gba:space-y-2">
         <FormLabel>

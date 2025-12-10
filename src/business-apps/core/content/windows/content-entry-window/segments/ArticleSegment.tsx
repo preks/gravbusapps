@@ -41,6 +41,8 @@ interface ArticleSegmentProps {
   extractedContentGroupRef?: string
   onCreateCategory?: (label: string) => Promise<string>
   onCreateTag?: (label: string) => Promise<string>
+  onCategoriesChange?: (categories: string[]) => void
+  onTagsChange?: (tags: string[]) => void
 }
 
 const MAX_IMAGE_SIZE_MB = 5
@@ -62,7 +64,11 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
   watchSchedulePublication,
   setValue,
   context,
-  extractedContentGroupRef
+  extractedContentGroupRef,
+  onCreateCategory,
+  onCreateTag,
+  onCategoriesChange,
+  onTagsChange
 }) => {
   const { t } = useTranslation(translations)
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -418,11 +424,19 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
                   <FormControl>
                     <CatalogSelect
                       catalogIdentifier="ContentCategory:v1"
-                      variant="combobox"
-                      multiple={true}
+                      mode="tags"
                       value={field.value || []}
                       onValueChange={value => {
-                        field.onChange(Array.isArray(value) ? value : [])
+                        const categories = Array.isArray(value) ? value : []
+                        field.onChange(categories)
+                        onCategoriesChange?.(categories)
+                      }}
+                      onCreateTag={async (tag: string) => {
+                        if (!onCreateCategory) {
+                          throw new Error('onCreateCategory is required for categories')
+                        }
+                        const newId = await onCreateCategory(tag)
+                        return newId
                       }}
                       data-testid="content-entry-window-categories-select"
                     />
@@ -442,11 +456,19 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
                   <FormControl>
                     <CatalogSelect
                       catalogIdentifier="ContentTag:v1"
-                      variant="combobox"
-                      multiple={true}
+                      mode="tags"
                       value={field.value || []}
                       onValueChange={value => {
-                        field.onChange(Array.isArray(value) ? value : [])
+                        const tags = Array.isArray(value) ? value : []
+                        field.onChange(tags)
+                        onTagsChange?.(tags)
+                      }}
+                      onCreateTag={async (tag: string) => {
+                        if (!onCreateTag) {
+                          throw new Error('onCreateTag is required for tags')
+                        }
+                        const newId = await onCreateTag(tag)
+                        return newId
                       }}
                       data-testid="content-entry-window-tags-select"
                     />

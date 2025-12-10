@@ -6,7 +6,7 @@ import * as z from 'zod'
 import { useTranslation } from '@newwork/nw-design-system'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { CatalogSelect } from '@/components/catalog-select'
-import { useCreateCatalogEntry } from '@/common/data/catalog/hooks/useCreateCatalogEntry'
+import { useCreateCatalogEntries } from '@/common/data/catalog/hooks/useCreateCatalogEntries'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { ContentRole } from '@/common/data/content/types/contentEnums'
 import { buildContentEntryPayload } from '@/common/data/content/payloads/contentEntryPayloads'
@@ -44,7 +44,7 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
   const { t } = useTranslation(translations)
   const catalogContext = CatalogSelect.useContext()
   const { validateField } = CatalogSelect.useValidation()
-  const { createCatalogEntry } = useCreateCatalogEntry(context)
+  const { createCatalogEntries } = useCreateCatalogEntries(context)
   const fileClient = useFileClient(context)
   // Extract props to mark as used
   const { contentId, contentGroupRef } = context
@@ -52,6 +52,10 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
   const [image, setImage] = useState<string | null>(null)
   const [imageInfo, setImageInfo] = useState<{ name: string; size: string } | null>(null)
   const [imageFile, setImageFile] = useState<File | null>(null)
+
+  // Track tags/categories that need to be created (labels, not IDs)
+  const [categoriesToCreate, setCategoriesToCreate] = useState<Set<string>>(new Set())
+  const [tagsToCreate, setTagsToCreate] = useState<Set<string>>(new Set())
 
   // Helper function to generate thumbnail from image file or base64
   const generateThumbnail = useCallback(
@@ -116,40 +120,47 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
     []
   )
 
-  // Helper functions to create catalog entries on demand
-  const onCreateCategory = useCallback(
-    async (label: string): Promise<string> => {
-      try {
-        const response = await createCatalogEntry('ContentCategory', 'v1', {
-          code: label.toUpperCase().replaceAll(/\s+/g, '_'),
-          value: label,
-          translations: []
-        })
-        return response.id
-      } catch (error) {
-        console.error('Error creating category:', error)
-        throw new Error(`Failed to create category: ${label}`)
-      }
-    },
-    [createCatalogEntry]
-  )
+  // Handler for when a new category tag is created - add to tracking set
+  const onCreateCategory = useCallback((label: string): Promise<string> => {
+    setCategoriesToCreate(prev => new Set([...prev, label]))
+    // Return a promise that resolves to the label (will be replaced with ID in handlePreSubmit)
+    return Promise.resolve(label)
+  }, [])
 
-  const onCreateTag = useCallback(
-    async (label: string): Promise<string> => {
-      try {
-        const response = await createCatalogEntry('ContentTag', 'v1', {
-          code: label.toUpperCase().replaceAll(/\s+/g, '_'),
-          value: label,
-          translations: []
-        })
-        return response.id
-      } catch (error) {
-        console.error('Error creating tag:', error)
-        throw new Error(`Failed to create tag: ${label}`)
-      }
-    },
-    [createCatalogEntry]
-  )
+  // Handler for when a new tag is created - add to tracking set
+  const onCreateTag = useCallback((label: string): Promise<string> => {
+    setTagsToCreate(prev => new Set([...prev, label]))
+    // Return a promise that resolves to the label (will be replaced with ID in handlePreSubmit)
+    return Promise.resolve(label)
+  }, [])
+
+  // Handler to sync categoriesToCreate with form value changes
+  const handleCategoriesChange = useCallback((newCategories: string[]) => {
+    setCategoriesToCreate(prev => {
+      const updated = new Set(prev)
+      // Remove any categories that are no longer in the form value
+      prev.forEach(label => {
+        if (!newCategories.includes(label)) {
+          updated.delete(label)
+        }
+      })
+      return updated
+    })
+  }, [])
+
+  // Handler to sync tagsToCreate with form value changes
+  const handleTagsChange = useCallback((newTags: string[]) => {
+    setTagsToCreate(prev => {
+      const updated = new Set(prev)
+      // Remove any tags that are no longer in the form value
+      prev.forEach(label => {
+        if (!newTags.includes(label)) {
+          updated.delete(label)
+        }
+      })
+      return updated
+    })
+  }, [])
 
   // Extract contentGroupRef from props or additionalData
   const extractedContentGroupRef =
@@ -369,6 +380,72 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
     async (data: ContentEntryFormValues): Promise<ContentEntryFormValues> => {
       const updatedData = { ...data }
 
+      // Create new categories
+      if (categoriesToCreate.size > 0) {
+        const categoryLabels = Array.from(categoriesToCreate)
+        const categoryEntries = categoryLabels.map(label => ({
+          code: label.toUpperCase().replaceAll(/\s+/g, '_'),
+          value: label,
+          translations: []
+        }))
+
+        try {
+          const createResult = await createCatalogEntries('ContentCategory', 'v1', categoryEntries)
+
+          // Create mapping from label to ID
+          const labelToIdMap = new Map<string, string>()
+          createResult.results.forEach((result, index) => {
+            if (result.success && result.createdEntry) {
+              labelToIdMap.set(categoryLabels[index], result.createdEntry.id)
+            }
+          })
+
+          // Replace labels with IDs in categories array
+          if (updatedData.categories) {
+            updatedData.categories = updatedData.categories.map(cat => labelToIdMap.get(cat) || cat)
+          }
+
+          // Clear the set after creation
+          setCategoriesToCreate(new Set())
+        } catch (error) {
+          console.error('Error creating categories:', error)
+          throw new Error('Failed to create new categories')
+        }
+      }
+
+      // Create new tags
+      if (tagsToCreate.size > 0) {
+        const tagLabels = Array.from(tagsToCreate)
+        const tagEntries = tagLabels.map(label => ({
+          code: label.toUpperCase().replaceAll(/\s+/g, '_'),
+          value: label,
+          translations: []
+        }))
+
+        try {
+          const createResult = await createCatalogEntries('ContentTag', 'v1', tagEntries)
+
+          // Create mapping from label to ID
+          const labelToIdMap = new Map<string, string>()
+          createResult.results.forEach((result, index) => {
+            if (result.success && result.createdEntry) {
+              labelToIdMap.set(tagLabels[index], result.createdEntry.id)
+            }
+          })
+
+          // Replace labels with IDs in tags array
+          if (updatedData.tags) {
+            updatedData.tags = updatedData.tags.map(tag => labelToIdMap.get(tag) || tag)
+          }
+
+          // Clear the set after creation
+          setTagsToCreate(new Set())
+        } catch (error) {
+          console.error('Error creating tags:', error)
+          throw new Error('Failed to create new tags')
+        }
+      }
+
       // Upload image
       if (imageFile && data.contentImage) {
         try {
@@ -392,7 +469,7 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
 
       return updatedData
     },
-    [uploadImageFile, uploadBase64Image, imageFile]
+    [uploadImageFile, uploadBase64Image, imageFile, createCatalogEntries, categoriesToCreate, tagsToCreate]
   )
 
   const handleSubmit = async (data: ContentEntryFormValues) => {
@@ -501,12 +578,18 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
             watchContent={watchContent}
             watchSchedulePublication={watchSchedulePublication}
             setValue={setValue}
-            context={{ ...context, onCreateCategory, onCreateTag }}
+            context={context}
             extractedContentGroupRef={extractedContentGroupRef}
+            onCreateCategory={onCreateCategory}
+            onCreateTag={onCreateTag}
+            onCategoriesChange={handleCategoriesChange}
+            onTagsChange={handleTagsChange}
           />
         )}
 
-        {currentSegment === 'question' && <QuestionSegment control={control} />}
+        {currentSegment === 'question' && (
+          <QuestionSegment control={control} extractedContentGroupRef={extractedContentGroupRef} />
+        )}
 
         {currentSegment === 'document' && (
           <DocumentSegment
@@ -518,6 +601,7 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
             imageInfo={imageInfo}
             setImageInfo={setImageInfo}
             setImageFile={setImageFile}
+            extractedContentGroupRef={extractedContentGroupRef}
           />
         )}
       </div>
