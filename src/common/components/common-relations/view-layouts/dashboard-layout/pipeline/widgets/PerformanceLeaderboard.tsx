@@ -10,6 +10,7 @@ export interface SalesRepPerformance {
   displayName: string
   dealsWon: number
   dealsLost: number
+  totalDeals?: number
   totalValue: number
   winRate: number
   activitiesCount: number
@@ -23,7 +24,7 @@ const formatCurrency = (amount: number, currencyCode: string = 'EUR'): string =>
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
     }).format(amount)
-  } catch (error) {
+  } catch {
     return `${currencyCode} ${amount.toLocaleString()}`
   }
 }
@@ -35,9 +36,14 @@ const formatPercentage = (value: number, decimals: number = 1): string => {
 export interface PerformanceLeaderboardProps {
   leaderboard: SalesRepPerformance[]
   pipelineId: string
+  currency?: string
 }
 
-export const PerformanceLeaderboard: React.FC<PerformanceLeaderboardProps> = ({ leaderboard, pipelineId }) => {
+export const PerformanceLeaderboard: React.FC<PerformanceLeaderboardProps> = ({
+  leaderboard,
+  pipelineId,
+  currency = 'EUR'
+}) => {
   const getRankIcon = (index: number) => {
     switch (index) {
       case 0:
@@ -86,8 +92,8 @@ export const PerformanceLeaderboard: React.FC<PerformanceLeaderboardProps> = ({ 
     )
   }
 
-  // Take top 5 performers
-  const topPerformers = leaderboard.slice(0, 5)
+  // Take top 3 performers
+  const topPerformers = leaderboard.slice(0, 3)
   const maxValue = Math.max(...topPerformers.map(rep => rep.totalValue))
 
   return (
@@ -126,12 +132,14 @@ export const PerformanceLeaderboard: React.FC<PerformanceLeaderboardProps> = ({ 
                     <div>
                       <div className="gba:font-medium gba:text-sm">{rep.displayName}</div>
                       <div className="gba:text-xs gba:text-gray-500">
-                        {rep.dealsWon + rep.dealsLost} deals • {rep.activitiesCount} activities
+                        {rep.totalDeals ?? rep.dealsWon + rep.dealsLost} deals • {rep.activitiesCount} activities
                       </div>
                     </div>
                   </div>
                   <div className="gba:text-right">
-                    <div className="gba:text-sm gba:font-bold gba:text-blue-600">{formatCurrency(rep.totalValue)}</div>
+                    <div className="gba:text-sm gba:font-bold gba:text-blue-600">
+                      {formatCurrency(rep.totalValue, currency)}
+                    </div>
                     <div className={`gba:text-xs ${getPerformanceColor(rep.winRate)}`}>
                       {formatPercentage(rep.winRate)} win rate
                     </div>
@@ -148,7 +156,9 @@ export const PerformanceLeaderboard: React.FC<PerformanceLeaderboardProps> = ({ 
                   <span>
                     Won: {rep.dealsWon} | Lost: {rep.dealsLost}
                   </span>
-                  <span>Avg Deal: {formatCurrency(rep.dealsWon > 0 ? rep.totalValue / rep.dealsWon : 0)}</span>
+                  <span>
+                    Avg Deal: {formatCurrency(rep.dealsWon > 0 ? rep.totalValue / rep.dealsWon : 0, currency)}
+                  </span>
                 </div>
               </div>
             )
@@ -163,7 +173,10 @@ export const PerformanceLeaderboard: React.FC<PerformanceLeaderboardProps> = ({ 
           <div className="gba:grid gba:grid-cols-3 gba:gap-4 gba:text-center">
             <div>
               <div className="gba:font-bold gba:text-blue-600 gba:text-sm">
-                {formatCurrency(topPerformers.reduce((sum, rep) => sum + rep.totalValue, 0))}
+                {formatCurrency(
+                  topPerformers.reduce((sum, rep) => sum + rep.totalValue, 0),
+                  currency
+                )}
               </div>
               <span className="gba:text-gray-600 gba:text-xs">Total Value</span>
             </div>

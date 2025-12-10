@@ -88,7 +88,7 @@ export const IDERenderer: React.FC<IDERendererProps> = ({
 
   // Update dialog visibility when selectedApp changes
   React.useEffect(() => {
-    if (selectedApp && (selectedApp.type === 'form' || selectedApp.type === 'popup')) {
+    if (selectedApp && (selectedApp.type === 'form' || selectedApp.type === 'popup' || selectedApp.type === 'window')) {
       setDialogVisible(true)
     } else {
       setDialogVisible(false)
@@ -120,15 +120,19 @@ export const IDERenderer: React.FC<IDERendererProps> = ({
   }
 
   // Render forms and popups in dialog
-  if (selectedApp && (selectedApp.type === 'form' || selectedApp.type === 'popup')) {
+  if (selectedApp && (selectedApp.type === 'form' || selectedApp.type === 'popup' || selectedApp.type === 'window')) {
+    // Window type has wider max-width (553px < window <= 1200px)
+    const maxWidth = selectedApp.type === 'window' ? 'gba:max-w-[1200px]' : 'gba:max-w-[553px]'
+    const width = selectedApp.type === 'window' ? 'gba:w-[1200px]' : 'gba:w-[553px]'
+
     return (
       <Dialog open={dialogVisible} onOpenChange={open => !open && handleDialogClose()}>
         <DialogContent
           aria-describedby={undefined}
-          className="gba:max-w-[553px] gba:w-[553px] gba:flex gba:flex-col gba:bg-background"
+          className={`${maxWidth} ${width} gba:flex gba:flex-col gba:bg-background`}
           style={{
-            height: selectedApp.type === 'form' ? 'calc(100vh - 120px)' : 'auto',
-            overflow: selectedApp.type === 'form' ? 'auto' : 'visible',
+            height: selectedApp.type === 'form' || selectedApp.type === 'window' ? 'calc(100vh - 120px)' : 'auto',
+            overflow: selectedApp.type === 'form' || selectedApp.type === 'window' ? 'auto' : 'visible',
             justifyContent: 'flex-start'
           }}
         >

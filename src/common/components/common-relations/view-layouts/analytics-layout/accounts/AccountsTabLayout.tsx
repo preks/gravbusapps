@@ -22,6 +22,7 @@ export interface AccountsTabLayoutProps {
   totalAccounts: number
   accountsWithOpportunities: number
   avgOpportunitiesPerAccount: number
+  avgRevenuePerAccount?: number // Average revenue per account with won opportunities (aggregate calculation)
   trendData?: AccountsTrendData | null
   trendLoading?: boolean
   accountsOverTime: Array<{
@@ -38,7 +39,7 @@ export interface AccountsTabLayoutProps {
   // Relationship data
   accountsByIndustry: Array<{ industry: string; count: number; percentage: number }>
   accountsBySize: Array<{ sizeRange: string; count: number; percentage: number }>
-  topAccounts: Array<{
+  topAccounts?: Array<{
     id: string
     name: string
     industry: string
@@ -46,6 +47,7 @@ export interface AccountsTabLayoutProps {
     wonOpportunities?: number
     totalValue: number
   }>
+  topAccountsLoading?: boolean
   monthlyGrowthTrend?: Array<{
     month: string
     date: string
@@ -57,10 +59,13 @@ export interface AccountsTabLayoutProps {
   healthLoading?: boolean
   moduleColor?: string
 
-  // Currency filter props
+  // Currency filter props (only used with topAccounts)
   selectedCurrency?: string
   onCurrencyChange?: (currency: string) => void
   availableCurrencies?: string[]
+
+  // Optional sections
+  showTopAccounts?: boolean // Control visibility of Top Accounts by Revenue section
 }
 
 const calculateTrend = (
@@ -87,6 +92,7 @@ export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
   totalAccounts,
   accountsWithOpportunities,
   avgOpportunitiesPerAccount,
+  avgRevenuePerAccount,
   trendData,
   trendLoading = false,
   accountsOverTime,
@@ -95,14 +101,16 @@ export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
   onTimeFilterChange,
   accountsByIndustry,
   accountsBySize,
-  topAccounts,
+  topAccounts = [],
+  topAccountsLoading = false,
   monthlyGrowthTrend = [],
   growthLoading = false,
   healthLoading = false,
   moduleColor = 'default',
   selectedCurrency = 'EUR',
   onCurrencyChange,
-  availableCurrencies = ['EUR', 'USD']
+  availableCurrencies = ['EUR', 'USD'],
+  showTopAccounts = true
 }) => {
   const [visibleLines, setVisibleLines] = useState({
     accountsCreated: true,
@@ -213,8 +221,15 @@ export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
 
       <div className="gba:grid gba:grid-cols-1 xl:gba:grid-cols-2 gba:gap-6">
         <AccountGrowthAnalysis
-          data={{ totalAccounts, accountsWithOpportunities, topAccounts, monthlyGrowthTrend }}
+          data={{
+            totalAccounts,
+            accountsWithOpportunities,
+            avgRevenuePerAccount, // Pass aggregate calculation if available
+            topAccounts, // Legacy fallback
+            monthlyGrowthTrend
+          }}
           isLoading={growthLoading}
+          topAccountsLoading={topAccountsLoading}
           moduleColor={moduleColor}
         />
         <AccountHealthMatrix
@@ -236,13 +251,16 @@ export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
         moduleColor={moduleColor}
       />
 
-      <TopAccountsByRevenue
-        topAccounts={topAccounts}
-        moduleColor={moduleColor}
-        selectedCurrency={selectedCurrency}
-        onCurrencyChange={onCurrencyChange}
-        availableCurrencies={availableCurrencies}
-      />
+      {showTopAccounts && (
+        <TopAccountsByRevenue
+          topAccounts={topAccounts}
+          isLoading={topAccountsLoading}
+          moduleColor={moduleColor}
+          selectedCurrency={selectedCurrency}
+          onCurrencyChange={onCurrencyChange}
+          availableCurrencies={availableCurrencies}
+        />
+      )}
     </div>
   )
 }

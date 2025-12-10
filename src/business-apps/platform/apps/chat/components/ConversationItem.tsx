@@ -13,7 +13,7 @@ import {
 } from '@newwork/nw-design-system'
 import type { Conversation } from '../types'
 import type { UserPresence } from '../hooks/usePresence'
-import { UserIcon } from 'lucide-react'
+import { UserIcon, UsersIcon } from 'lucide-react'
 import { SignOut } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
@@ -113,6 +113,31 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
   // Only show presence for direct messages (default to offline if no presence data)
   const showPresence = conversation.type === 'direct'
   const presenceStatus = otherUserPresence?.status || 'offline'
+  const hasActiveCall = conversation.type === 'group' && !!conversation.activeCall
+
+  // Get names of participants currently in the call
+  const getParticipantsInCall = (): string[] => {
+    if (!hasActiveCall || !conversation.activeCall?.participantIds || !conversation.participants) {
+      return []
+    }
+
+    const participantIds = conversation.activeCall.participantIds
+    return conversation.participants
+      .filter(p => {
+        const odId = p.userId || p.user?.id
+        return odId && participantIds.includes(odId)
+      })
+      .map(p => {
+        const user = p.user
+        if (!user) return 'Unknown'
+        const firstName = user.firstName || ''
+        const lastName = user.lastName || ''
+        const fullName = `${firstName} ${lastName}`.trim()
+        return fullName || user.displayName || user.username || 'Unknown'
+      })
+  }
+
+  const participantsInCall = hasActiveCall ? getParticipantsInCall() : []
 
   const handleRemoveClick = (e: React.MouseEvent) => {
     e.stopPropagation() // Prevent conversation selection
@@ -147,11 +172,16 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
         }}
       >
         <div className="gba:relative gba:flex-shrink-0">
-          {avatarUrl ? (
+          {conversation.type === 'group' ? (
+            // Group chat: always show group icon
+            <IconAvatar className={avatarSize} label={name} icon={UsersIcon} />
+          ) : avatarUrl ? (
+            // Direct chat with avatar
             <Avatar className={`${avatarSize} gba:ring-2 gba:ring-background`}>
               <img src={avatarUrl} alt={name} className="gba:w-full gba:h-full gba:object-cover gba:rounded-full" />
             </Avatar>
           ) : (
+            // Direct chat without avatar
             <IconAvatar className={avatarSize} label={name} icon={UserIcon} />
           )}
           {showPresence && <PresenceIndicator status={presenceStatus} />}
@@ -164,6 +194,11 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
             >
               {name}
             </span>
+            {hasActiveCall && (
+              <span className="gba:text-[10px] gba:text-success gba:uppercase">
+                {getTranslationFromI18nKeyAndLabel('chat.activeCallShort', 'In Call')}
+              </span>
+            )}
             {unreadCount > 0 && (
               <Badge
                 variant="default"
@@ -174,11 +209,15 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
               </Badge>
             )}
           </div>
-          {conversation.lastMessage && !compact && (
+          {hasActiveCall && participantsInCall.length > 0 && !compact ? (
+            <p className="gba:text-xs gba:text-success gba:truncate gba:max-w-[180px]">
+              {participantsInCall.join(', ')}
+            </p>
+          ) : conversation.lastMessage && !compact ? (
             <p className="gba:text-xs gba:text-muted-foreground gba:truncate gba:max-w-[180px]">
               {conversation.lastMessage.content}
             </p>
-          )}
+          ) : null}
         </div>
 
         <div className="gba:flex gba:items-center">

@@ -1,79 +1,22 @@
-import { useState, useEffect, useCallback } from 'react'
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+// CRM-specific wrapper for shared generic pipelines hook
+import { useMemo } from 'react'
+import { useGenericPipelines } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericPipelines'
 
-export interface Pipeline {
-  id: string
-  name: string
-  value: string
-}
-
+/**
+ * CRM Pipelines hook - Uses GraphQL distinctOn to fetch unique pipelines
+ * This is more efficient than fetching from Catalog API
+ */
 export const usePipelines = (accessToken: string) => {
-  const [pipelines, setPipelines] = useState<Pipeline[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const graphqlClient = useGraphQLClient(accessToken)
+  const config = useMemo(
+    () => ({
+      source: 'graphql' as const,
+      opportunityEntity: 'Opportunity',
+      pipelineField: 'salesPipelineRef',
+      pipelineRelation: 'salesPipeline'
+    }),
+    []
+  )
 
-  const loadPipelines = useCallback(async () => {
-    if (!accessToken) {
-      setIsLoading(false)
-      return
-    }
-
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      // Fetch unique pipelines using distinctOn - much more efficient!
-      const query = `
-        query GetDistinctPipelines {
-          Opportunity(
-            where: {
-              isDeleted: {_eq: false}
-              salesPipelineRef: {_isNull: false}
-            }
-            distinctOn: [salesPipelineRef]
-            limit: 20
-          ) {
-            salesPipeline {
-              id
-              value
-              code
-            }
-          }
-        }
-      `
-
-      const response = await graphqlClient.request<{
-        Opportunity: Array<{ salesPipeline: { id: string; value?: string; code?: string } | null }>
-      }>(query)
-
-      // Map to Pipeline format (filter ensures salesPipeline is not null)
-      const uniquePipelines = response.Opportunity.filter(opp => opp.salesPipeline?.id).map(opp => {
-        const pipeline = opp.salesPipeline!
-        return {
-          id: pipeline.id,
-          name: pipeline.value || pipeline.code || pipeline.id,
-          value: pipeline.value || pipeline.code || pipeline.id
-        }
-      })
-
-      setPipelines(uniquePipelines)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load pipelines')
-      setPipelines([])
-    } finally {
-      setIsLoading(false)
-    }
-  }, [graphqlClient, accessToken])
-
-  useEffect(() => {
-    loadPipelines()
-  }, [loadPipelines])
-
-  return {
-    pipelines,
-    isLoading,
-    error,
-    refetch: loadPipelines
-  }
+  return useGenericPipelines(accessToken, config)
 }
+export type { Pipeline } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericPipelines'

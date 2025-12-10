@@ -222,13 +222,16 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
     loadTasksAndApprovals()
   }, [opportunityId])
 
+  // Memoized callback for process completion
+  const handleProcessSuccess = useCallback(() => {
+    refetch()
+    loadActivities()
+    loadNotes()
+    loadTasksAndApprovals()
+  }, [refetch])
+
   useProcessCompletion({
-    onSuccess: () => {
-      refetch()
-      loadActivities()
-      loadNotes()
-      loadTasksAndApprovals()
-    }
+    onSuccess: handleProcessSuccess
   })
 
   // Memoize stage condition action props to prevent recreation

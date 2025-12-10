@@ -13,6 +13,7 @@ import { Users, FileText, User, CurrencyDollar } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
@@ -155,52 +156,16 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
     loadSectionData()
   }, [loadSectionData])
 
+  // Memoized callback for process completion
+  const handleProcessSuccess = useCallback(() => {
+    refetchContactData()
+    loadSectionData()
+  }, [refetchContactData, loadSectionData])
+
   // Listen for process completion events to refresh contact data
-  useEffect(() => {
-    const handleProcessCompletion = (event: any) => {
-      try {
-        // Check for successful completion
-        if (event.detail?.resolution === 'success') {
-          refetchContactData()
-          loadSectionData() // Also refresh section data
-          return
-        }
-
-        // Also check for different event structure
-        const response = event.detail?.response
-        if (response?.detail?.resolution === 'success' || response?.contact) {
-          refetchContactData()
-          loadSectionData() // Also refresh section data
-        }
-      } catch (err) {
-        console.error('Error handling process completion in ContactRecord:', err)
-      }
-    }
-
-    // Listen to multiple possible event names for contact updates
-    const eventNames = [
-      'com.newwork.process.taskCompletion',
-      'com.newwork.process.completion',
-      'com.newwork.process.continue',
-      'com.newwork.process.processCompletion',
-      'processCompletion',
-      'taskCompletion',
-      'taskCompleted',
-      'processCompleted',
-      'task-completion',
-      'process-completion'
-    ]
-
-    eventNames.forEach(eventName => {
-      window.addEventListener(eventName, handleProcessCompletion as EventListener)
-    })
-
-    return () => {
-      eventNames.forEach(eventName => {
-        window.removeEventListener(eventName, handleProcessCompletion as EventListener)
-      })
-    }
-  }, [contactId, refetchContactData, loadSectionData])
+  useProcessCompletion({
+    onSuccess: handleProcessSuccess
+  })
 
   // Get source from URL parameters to determine back navigation text
   const source = useMemo(() => {

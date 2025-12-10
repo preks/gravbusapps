@@ -10,7 +10,7 @@ import {
 } from '@newwork/nw-design-system'
 import { PiDatabase, PiTrendUp } from 'react-icons/pi'
 import { CatalogEntryWithConfig } from '../types'
-import { InvestmentCatalogData } from '@/business-apps/irm/investments/forms/investment-form/queries/InvestmentCatalogQueries'
+import { InvestmentCatalogData } from '@/common/data/investment/hooks/useInvestmentCatalogs'
 
 interface GroupTypeSelectorProps {
   catalogData: InvestmentCatalogData | null

@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { Spinner } from '@newwork/nw-design-system'
 import { MessageItem } from './MessageItem'
 import { TypingIndicatorComponent } from './TypingIndicator'
-import type { Message, TypingIndicator } from '../types'
+import type { Message, TypingIndicator, ConversationParticipant } from '../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface MessageListProps {
@@ -15,6 +15,8 @@ interface MessageListProps {
   onLoadMore?: () => void
   conversationId: string
   accessToken?: string
+  participants?: ConversationParticipant[]
+  onReplyToAI?: () => void
 }
 
 export const MessageList: React.FC<MessageListProps> = ({
@@ -26,7 +28,9 @@ export const MessageList: React.FC<MessageListProps> = ({
   hasMore = false,
   onLoadMore,
   conversationId,
-  accessToken
+  accessToken,
+  participants,
+  onReplyToAI
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
@@ -208,6 +212,8 @@ export const MessageList: React.FC<MessageListProps> = ({
                 currentUserId={currentUserId}
                 isGroupChat={isGroupChat}
                 accessToken={accessToken}
+                participants={participants}
+                onReplyToAI={message.metadata?.isAIResponse ? onReplyToAI : undefined}
               />
             ))}
 
