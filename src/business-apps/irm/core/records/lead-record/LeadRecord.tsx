@@ -301,6 +301,16 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
     [leadData?.investmentType, leadData?.investmentGroup]
   )
 
+  // Header meta with badges
+  const headerMeta = useMemo(() => {
+    return (
+      <div className="gba:flex gba:items-center gba:gap-2">
+        {/* Rejection Reasons Badge */}
+        {rejectionReasonsBadge}
+      </div>
+    )
+  }, [rejectionReasonsBadge])
+
   // Prepare header content for RecordLayout - MUST be before conditional returns
   const headerTitle = (
     <div className="gba:flex gba:items-center gba:gap-2">
@@ -327,7 +337,6 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
           </Tooltip>
         </TooltipProvider>
       )}
-      {rejectionReasonsBadge}
     </div>
   )
 
@@ -679,6 +688,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
         headerCategory={getTranslationFromI18nKeyAndLabel('crm.lead.category', 'LEAD')}
         onBack={onBack}
         headerTitle={headerTitle}
+        headerMeta={headerMeta}
         headerDetailGroups={headerDetailGroups}
         headerActions={headerActions}
         headerActionButton={headerActionButton}

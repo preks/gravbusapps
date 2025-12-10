@@ -19,7 +19,7 @@ import type { InvestmentTask } from './investmentTaskTypes'
 import type { InvestmentActivity } from './investmentActivityTypes'
 import type { InvestmentLead } from './investmentLeadTypes'
 import type { InvestmentOpportunityContact } from './investmentRelationTypes'
-import type { Investment } from './investmentTypes'
+import type { Investment, EquityInvestmentRound } from './investmentTypes'
 import type { InvestmentOpportunityAccount } from './investmentAccountAssociationTypes'
 
 /**
@@ -33,6 +33,7 @@ export interface InvestmentOpportunity extends Opportunity {
   communicationChannels?: InvestmentCommunicationChannel[]
   divestment?: Investment
   documents?: InvestmentDocument[]
+  equityInvestmentRound?: EquityInvestmentRound
   investments?: Investment[]
   leads?: InvestmentLead[]
   notes?: InvestmentNote[]
@@ -91,6 +92,8 @@ export const InvestmentOpportunityFields = {
   leads: 'investmentLead',
   opportunityContacts: 'investmentOpportunityContact',
   opportunityStageConditions: 'investmentOpportunityStageCondition',
+  investments: 'investment',
+  equityInvestmentRound: 'equityInvestmentRound',
   // Junction table relationship - GraphQL field name is 'opportunityAccounts'
   investmentOpportunityAccounts: 'opportunityAccounts',
   // IRM-specific fields
@@ -160,6 +163,8 @@ export const INVESTMENT_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
     sortPath: 'investment.name',
     type: 'text'
   },
+  // Note: equityInvestmentRound removed from descriptors - not available in InvestmentOpportunityBoolExp for filtering
+  // The relationship exists for data retrieval but is not exposed as a filterable field in the GraphQL schema
   {
     key: 'investmentGroup',
     searchPaths: ['investmentGroup.value', 'investmentGroup.code'],
@@ -337,6 +342,8 @@ export const buildInvestmentOpportunityContacts = (contactIds: string[] = [], op
  * - investmentOpportunityContact → opportunityContacts
  * - investmentOpportunityStageCondition → opportunityStageConditions
  * - investmentTask → tasks
+ *
+ * Note: equityInvestmentRound is fetched separately via a second query in useInvestmentOpportunity hook
  */
 export function toInvestmentOpportunity(raw: any): InvestmentOpportunity {
   // Extract incorrectly named fields to exclude from spread

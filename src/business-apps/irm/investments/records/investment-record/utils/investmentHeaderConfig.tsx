@@ -508,15 +508,19 @@ export const createHeaderMeta = (
       {investment?.investmentOpportunity?.id && (
         <button
           type="button"
-          onClick={() =>
-            navigateTo(
-              buildPlatformUrl('/platform/irm/opportunity-record', {
-                opportunityId: investment.investmentOpportunity.id
-              })
-            )
-          }
+          onClick={() => {
+            const opportunityId = investment?.investmentOpportunity?.id
+            if (opportunityId) {
+              navigateTo(
+                buildPlatformUrl('/platform/irm/opportunity-record', {
+                  opportunityId
+                })
+              )
+            }
+          }}
           className="gba:bg-transparent gba:border-0 gba:p-0"
           data-testid="investment-source-opportunity-link"
+          aria-label={`${getTranslationFromI18nKeyAndLabel('investment.sourceOpportunity.ariaLabel', 'Navigate to source opportunity')}: ${investment.investmentOpportunity.name}`}
         >
           <Badge variant="outline" className="gba:cursor-pointer gba:hover:opacity-80">
             {getTranslationFromI18nKeyAndLabel('investment.sourceOpportunity.label', 'Source Opportunity')}:{' '}
