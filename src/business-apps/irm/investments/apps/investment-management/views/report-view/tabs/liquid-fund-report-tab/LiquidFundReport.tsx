@@ -1,10 +1,14 @@
 import React, { useState, useMemo, useCallback } from 'react'
-import { DataDisplay, Spinner } from '@newwork/nw-design-system'
+import { DataDisplay, Spinner, AiButton } from '@newwork/nw-design-system'
+import { Upload } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AnalyticsFilters } from './types'
 import { AnalyticsTable } from './components/LiquidFundReportTable'
 import { UseReportFiltersReturn, ColumnConfig, useReportFilters } from '../../hooks'
 import { useInvestmentLiquidFundReportCatalog } from './hooks/useInvestmentLiquidFundReportCatalog'
+import { AppAction } from '@/components/app-action/AppAction'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface LiquidFundReportProps extends BusinessAppContextProps {
   'data-testid'?: string
@@ -206,6 +210,48 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
     [localReportFilters]
   )
 
+  // Primary action for "Add Report" - memoized to prevent reload on tab change
+  const primaryActions = useMemo(() => {
+    return (
+      <AppAction
+        variant="create-primary"
+        contexts={[
+          {
+            context: FlowContextName.investmentReportCreate,
+            contextData: {}
+          }
+        ]}
+        accessToken={accessToken || ''}
+        data-testid="report-view-add-report-action"
+      >
+        {getTranslationFromI18nKeyAndLabel('investment.reports.addReport', 'Add Report')}
+      </AppAction>
+    )
+  }, [accessToken])
+
+  // Secondary action for "Upload Report" - using AiButton like in record
+  const secondaryActions = useMemo(() => {
+    return (
+      <AppAction
+        contexts={[{ context: FlowContextName.investmentReportUpload, contextData: {} }]}
+        accessToken={accessToken || ''}
+        emptyState="hide"
+        prefixDataTestId="report-view-upload-report"
+      >
+        <AiButton
+          variant="default"
+          size="default"
+          showIcon={true}
+          icon={<Upload style={{ height: '1rem', width: '1rem' }} />}
+          iconPosition="before"
+          data-testid="report-view-upload-report-button"
+        >
+          {getTranslationFromI18nKeyAndLabel('investment.reports.uploadReport', 'Upload Report')}
+        </AiButton>
+      </AppAction>
+    )
+  }, [accessToken])
+
   // Don't render filter-dependent content until filters are initialized
   if (!localReportFilters.filtersInitialized) {
     return (
@@ -253,6 +299,8 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
         availableColumns={availableColumns}
         visibleColumns={visibleColumns}
         onVisibleColumnsChange={handleVisibleColumnsChange}
+        primaryAction={primaryActions}
+        secondaryActions={secondaryActions}
         toolbarDensity="default"
       >
         {/* Render all sections to load data in parallel, but only show active one */}

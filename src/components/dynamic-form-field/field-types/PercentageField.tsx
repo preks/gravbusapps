@@ -1,53 +1,45 @@
-import { Input, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@newwork/nw-design-system'
-import { Control, FieldValues, Path } from 'react-hook-form'
+import React from 'react'
+import { Input } from '@newwork/nw-design-system'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import { DynamicFieldDefinition } from '../DynamicFormField'
 
-interface PercentageFieldProps<TFieldValues extends FieldValues = FieldValues> {
-  field: DynamicFieldDefinition
+type PercentageFieldProps = React.ComponentProps<typeof Input> & {
   fieldName: string
-  control: Control<TFieldValues>
   testIdPrefix: string
 }
 
-export function PercentageField<TFieldValues extends FieldValues = FieldValues>({
-  field,
+export function PercentageField({
   fieldName,
-  control,
-  testIdPrefix
-}: PercentageFieldProps<TFieldValues>) {
+  testIdPrefix,
+  type = 'number',
+  step = '0.01',
+  min = '0',
+  max = '100',
+  placeholder = '0',
+  value,
+  onChange,
+  ...props
+}: PercentageFieldProps) {
   return (
-    <FormField
-      key={fieldName}
-      control={control}
-      name={fieldName as Path<TFieldValues>}
-      render={({ field: formField }) => (
-        <FormItem>
-          <FormLabel>
-            {field.label} {field.required && <span className="gba:text-destructive">*</span>}
-          </FormLabel>
-          <FormControl>
-            <Input
-              {...formField}
-              value={formField.value ?? ''}
-              onChange={e => {
-                const value = e.target.value
-                // Preserve 0 as valid value, but allow empty string for clearing
-                // The preprocessNumber in schema will handle empty string → undefined
-                formField.onChange(value === '' ? '' : value)
-              }}
-              type="number"
-              step="0.01"
-              min="0"
-              max="100"
-              placeholder="0"
-              endAddOn={<span className="gba:text-muted-foreground">%</span>}
-              data-testid={formatDataTestId(testIdPrefix, `${fieldName}Input`)}
-            />
-          </FormControl>
-          <FormMessage />
-        </FormItem>
-      )}
+    <Input
+      {...props}
+      type={type}
+      step={step}
+      min={min}
+      max={max}
+      placeholder={placeholder}
+      value={value ?? ''}
+      onChange={e => {
+        const newValue = e.target.value
+        // Preserve 0 as valid value, but allow empty string for clearing
+        // The preprocessNumber in schema will handle empty string → undefined
+        const syntheticEvent = {
+          ...e,
+          target: { ...e.target, value: newValue === '' ? '' : newValue }
+        } as React.ChangeEvent<HTMLInputElement>
+        onChange?.(syntheticEvent)
+      }}
+      endAddOn={<span className="gba:text-muted-foreground">%</span>}
+      data-testid={formatDataTestId(testIdPrefix, `${fieldName}Input`)}
     />
   )
 }

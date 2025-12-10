@@ -1,6 +1,6 @@
 // Investment Report Column Definitions Factory
 import React from 'react'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import {
@@ -9,10 +9,7 @@ import {
   formatFieldValue
 } from '../../utils/investmentHeaderConfig'
 import { getValueByPath } from '@/common/utils/objectUtils'
-import {
-  FormFieldsDefinition,
-  FormFieldDefinition
-} from '@/business-apps/irm/investments/forms/investment-form/queries/InvestmentCatalogQueries'
+import { FormFieldsDefinition, FormFieldDefinition } from '@/common/data/investment/hooks/useInvestmentCatalogs'
 
 export interface ColumnDefinition {
   key: string
@@ -209,24 +206,22 @@ export const createInvestmentReportColumns = (
   if (accessToken) {
     columns.push({
       key: 'actions',
-      title: 'ACTIONS',
-      width: '60px',
+      title: '', // Empty title as requested
       render: (record: any) =>
-        React.createElement(
-          'div',
-          { className: 'gba:flex gba:justify-start gba:gap-2' },
-          React.createElement(AppActionButton, {
-            'data-testid': `investment-reports-update-button-${record.id}`,
-            size: 'icon' as const,
-            contextsArray: [FlowContextName.investmentEntity],
-            externalContextData: { entityId: record.id },
-            prefixDataTestId: 'investment-reports-update',
-            accessToken: accessToken,
-            emptyStateBehavior: 'enable' as const,
-            deferMainContextRequestsUntilClick: true,
-            onClick: (e: React.MouseEvent) => e.stopPropagation()
-          })
-        )
+        React.createElement(AppAction, {
+          variant: 'table-row',
+          contexts: [
+            {
+              context: FlowContextName.investmentReportEntity,
+              contextData: { investmentReportId: record.id }
+            }
+          ],
+          prefixDataTestId: 'investment-reports-update',
+          accessToken: accessToken,
+          lazyLoad: true,
+          onClick: (e: React.MouseEvent) => e.stopPropagation(),
+          'data-testid': `investment-reports-update-button-${record.id}`
+        })
     })
   }
 
