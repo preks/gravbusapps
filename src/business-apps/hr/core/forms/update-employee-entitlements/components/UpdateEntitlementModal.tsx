@@ -17,12 +17,7 @@ export interface EntitlementRowLike {
   total?: number
 }
 
-export interface EmployeeHeaderInfo {
-  firstName?: string
-  lastName?: string
-  pictureThumbnail?: string
-  jobTitle?: string
-}
+import { EmployeeInfo } from '../../components/FormHeader'
 
 interface UpdateEntitlementModalProps {
   isOpen: boolean
@@ -34,7 +29,7 @@ interface UpdateEntitlementModalProps {
   year: number
   onSuccess: () => Promise<void>
   existingEntitlementTypeIds?: string[]
-  employeeHeaderInfo?: EmployeeHeaderInfo
+  employeeHeaderInfo?: EmployeeInfo
 }
 
 const normalizeInteger = (value: string): string => {

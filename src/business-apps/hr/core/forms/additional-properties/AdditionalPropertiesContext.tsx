@@ -3,12 +3,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EMPLOYEE_ADDITIONAL_PROPS } from './AdditionalPropertiesQueries'
 
-export interface EmployeeHeaderInfo {
-  firstName?: string
-  lastName?: string
-  pictureThumbnail?: string
-  jobTitle?: string
-}
+import { EmployeeInfo } from '../components/FormHeader'
 
 interface AdditionalPropertiesContextValue {
   isLoading: boolean
@@ -18,7 +13,7 @@ interface AdditionalPropertiesContextValue {
   existingProps: string[]
   existingPropsMap: Record<string, string>
   employeeVersion?: number
-  employeeHeaderInfo?: EmployeeHeaderInfo
+  employeeHeaderInfo?: EmployeeInfo
 }
 
 const AdditionalPropertiesContext = createContext<AdditionalPropertiesContextValue | undefined>(undefined)
@@ -39,7 +34,7 @@ export const AdditionalPropertiesProvider: React.FC<ProviderProps> = ({
   const [existingProps, setExistingProps] = useState<string[]>([])
   const [existingPropsMap, setExistingPropsMap] = useState<Record<string, string>>({})
   const [employeeVersion, setEmployeeVersion] = useState<number | undefined>(undefined)
-  const [employeeHeaderInfo, setEmployeeHeaderInfo] = useState<EmployeeHeaderInfo | undefined>(undefined)
+  const [employeeHeaderInfo, setEmployeeHeaderInfo] = useState<EmployeeInfo | undefined>(undefined)
 
   const employeeId: string | undefined = useMemo(() => {
     return (

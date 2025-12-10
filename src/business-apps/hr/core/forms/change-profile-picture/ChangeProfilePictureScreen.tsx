@@ -23,19 +23,14 @@ type AvatarUploadValue = {
   thumbnail: string | null
 }
 
-interface EmployeeHeaderInfo {
-  firstName?: string
-  lastName?: string
-  pictureThumbnail?: string
-  jobTitle?: string
-}
+import { EmployeeInfo } from '../components/FormHeader'
 
 const ChangeProfilePictureScreen: React.FC<BusinessAppContextProps> = ({ additionalData, userInfo, accessToken }) => {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [isImageLoading, setIsImageLoading] = useState<boolean>(true)
   const [currentVersion, setCurrentVersion] = useState<number | null>(null)
   const [changedFile, setChangedFile] = useState<AvatarUploadValue | null>(null)
-  const [employeeHeaderInfo, setEmployeeHeaderInfo] = useState<EmployeeHeaderInfo | undefined>(undefined)
+  const [employeeHeaderInfo, setEmployeeHeaderInfo] = useState<EmployeeInfo | undefined>(undefined)
   const onChangeExecutionsRef = useRef<number>(0)
 
   const currentImageUrl = useMemo(() => {

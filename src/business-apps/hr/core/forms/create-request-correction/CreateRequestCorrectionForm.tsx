@@ -36,12 +36,7 @@ query GetEmployeeHeaderInfo($id: uuid!) {
 }
 `
 
-interface EmployeeHeaderInfo {
-  firstName?: string
-  lastName?: string
-  pictureThumbnail?: string
-  jobTitle?: string
-}
+import { EmployeeInfo } from '../components/FormHeader'
 
 interface RequestCorrectionFormProps extends BusinessAppContextProps {
   employeeId: string
@@ -60,7 +55,7 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
     mode: 'onChange'
   })
   const [submitting, setSubmitting] = useState(false)
-  const [employeeHeaderInfo, setEmployeeHeaderInfo] = useState<EmployeeHeaderInfo | undefined>(undefined)
+  const [employeeHeaderInfo, setEmployeeHeaderInfo] = useState<EmployeeInfo | undefined>(undefined)
 
   // GraphQL client for fetching employee header info
   const graphqlClient = useGraphQLClient(accessToken)

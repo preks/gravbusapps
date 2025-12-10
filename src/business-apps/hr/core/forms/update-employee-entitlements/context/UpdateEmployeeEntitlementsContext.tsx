@@ -7,18 +7,12 @@ import {
   getCurrentActiveUserLocale,
   getTranslationFromI18nKeyAndLabel
 } from '@/common/utils/windowUtils'
+import { EmployeeInfo } from '../../components/FormHeader'
 
 export interface EmployeeLite {
   id: string
   firstName?: string
   lastName?: string
-}
-
-export interface EmployeeHeaderInfo {
-  firstName?: string
-  lastName?: string
-  pictureThumbnail?: string
-  jobTitle?: string
 }
 
 export interface UpdateEmployeeEntitlementsContextState {
@@ -28,7 +22,7 @@ export interface UpdateEmployeeEntitlementsContextState {
   activeEmployeeId: string
   isFixedEmployeeId: boolean
   fixedEmployeeName?: string
-  employeeHeaderInfo?: EmployeeHeaderInfo
+  employeeHeaderInfo?: EmployeeInfo
   entitlements: any[]
   absenceTypes: Array<{ id: string; value?: string; code?: string; translations?: any[] }>
   loading: boolean
@@ -64,7 +58,7 @@ export function UpdateEmployeeEntitlementsProvider({
   const [employees, setEmployees] = useState<EmployeeLite[]>([])
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('')
   const [fixedEmployeeName, setFixedEmployeeName] = useState<string>('')
-  const [employeeHeaderInfo, setEmployeeHeaderInfo] = useState<EmployeeHeaderInfo | undefined>(undefined)
+  const [employeeHeaderInfo, setEmployeeHeaderInfo] = useState<EmployeeInfo | undefined>(undefined)
   const [entitlements, setEntitlements] = useState<any[]>([])
   const [absenceTypes, setAbsenceTypes] = useState<
     Array<{ id: string; value?: string; code?: string; translations?: any[] }>
