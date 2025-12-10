@@ -104,5 +104,5 @@ export const getWeeksInRange = (dateFrom: string, dateTo: string): string[] => {
     current = current.add(1, 'day')
   }
 
-  return Array.from(weeks).sort()
+  return Array.from(weeks).sort((a, b) => a.localeCompare(b))
 }

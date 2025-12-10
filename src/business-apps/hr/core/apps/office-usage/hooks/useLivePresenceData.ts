@@ -25,7 +25,6 @@ export const useLivePresenceData = (presence: LivePresenceRecord[], locations: S
         expectedEndTime: record.expectedEndTime
       }))
 
-      // TODO: Implement "due later today" logic when we have scheduled presence data
       const peopleDueLater: LivePresenceEmployee[] = []
 
       return {

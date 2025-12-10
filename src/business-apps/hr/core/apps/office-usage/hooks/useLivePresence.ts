@@ -57,7 +57,7 @@ export const useLivePresence = (accessToken: string, structureId: string) => {
       setLastRefresh(new Date())
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to fetch live presence'))
-      console.error('Error fetching live presence:', err)
+      console.error('Error fetching live presence!')
     } finally {
       setIsLoading(false)
     }

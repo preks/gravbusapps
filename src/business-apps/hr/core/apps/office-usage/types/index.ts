@@ -113,6 +113,9 @@ export interface LocationUsageStats {
 // FILTER TYPES
 // ========================================
 
+// Shared granularity type for charts and filters
+export type Granularity = 'day' | 'week'
+
 export interface OfficeUsageFilters {
   // Date range
   dateFrom: string // YYYY-MM-DD
@@ -120,7 +123,7 @@ export interface OfficeUsageFilters {
   datePreset?: 'today' | 'this-week' | 'last-week' | 'last-30-days' | 'custom'
 
   // Granularity
-  granularity: 'day' | 'week'
+  granularity: Granularity
 
   // Location filter
   selectedLocations: string[] // Site location IDs (empty = all)
@@ -175,4 +178,30 @@ export interface LocationDetailDrawerProps {
   filters: OfficeUsageFilters
   accessToken: string
   prefixDataTestId?: string
+}
+
+// ========================================
+// LIVE PRESENCE VIEW TYPES
+// ========================================
+
+export interface LivePresenceEmployee {
+  employeeId: string
+  displayName: string
+  pictureUrl?: string
+  jobTitle?: string
+  organizationalUnit?: string
+  siteLocationName: string
+  startTime: string
+  expectedStartTime?: string
+  expectedEndTime?: string
+}
+
+export interface LivePresenceLocationCard {
+  siteLocationId: string
+  siteLocationName: string
+  capacity: number
+  currentOccupied: number
+  currentOccupancyPercentage: number
+  peopleInOfficeNow: LivePresenceEmployee[]
+  peopleDueLater: LivePresenceEmployee[]
 }

@@ -12,7 +12,6 @@ export const useSiteLocations = (accessToken: string, structureId: string) => {
 
   const fetchLocations = useCallback(async () => {
     if (!accessToken || !structureId) {
-      console.log('[useSiteLocations] Missing required params:', { hasToken: !!accessToken, structureId })
       return
     }
 

@@ -55,11 +55,15 @@ export const getOccupancyBgColorClass = (status: OccupancyStatus): string => {
 }
 
 /**
- * Get badge variant for occupancy status
+ * Get badge variant for occupancy status or percentage
+ * Accepts either an OccupancyStatus or a numeric percentage (0-100+)
  */
 export const getOccupancyBadgeVariant = (
-  status: OccupancyStatus
+  statusOrPercentage: OccupancyStatus | number
 ): 'default' | 'secondary' | 'destructive' | 'outline' | 'success' | 'warning' | 'info' => {
+  const status: OccupancyStatus =
+    typeof statusOrPercentage === 'number' ? getOccupancyStatus(statusOrPercentage) : statusOrPercentage
+
   switch (status) {
     case 'low':
       return 'secondary'
