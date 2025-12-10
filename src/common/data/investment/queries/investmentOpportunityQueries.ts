@@ -338,3 +338,34 @@ export const GET_INVESTMENT_OPPORTUNITY_STAGE_CONDITION_BY_ID = (id: string): st
     }
   `
 }
+
+// Get Equity Investment Round by Opportunity ID
+export const GET_EQUITY_INVESTMENT_ROUND_BY_OPPORTUNITY_ID = (opportunityId: string): string => {
+  return `
+    query GetEquityInvestmentRoundByOpportunityId {
+      EquityInvestmentRound(
+        where: { 
+          investmentOpportunityId: { _eq: "${opportunityId}" }
+          isDeleted: { _eq: false }
+        }
+        limit: 1
+      ) {
+        id
+        name
+        year
+        version
+        equityInvestmentId
+        equityInvestment {
+          investmentId
+          investment {
+            id
+          }
+        }
+        createdAt
+        createdBy
+        updatedAt
+        updatedBy
+      }
+    }
+  `
+}

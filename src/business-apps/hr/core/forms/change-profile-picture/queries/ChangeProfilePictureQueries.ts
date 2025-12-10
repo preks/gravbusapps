@@ -9,18 +9,28 @@ export interface EmployeePictureResponse {
     lastName?: string
     pictureThumbnail: string | null
     picture: string | null
+    employeePosition?: Array<{
+      jobPosition?: {
+        name?: string
+      }
+    }>
   }>
 }
 
 export const GET_EMPLOYEE_PICTURE = `
   query GetEmployeePicture($employeeId: uuid!) {
-    Employee(where: { id: { _eq: $employeeId } }, limit: 1) {
+    Employee(where: { employeePosition: { employeeId: { _eq: $employeeId } } }, limit: 1) {
       id
       version
       firstName
       lastName
       pictureThumbnail
       picture
+      employeePosition {
+        jobPosition {
+          name
+        }
+      }
     }
   }
 `
@@ -39,7 +49,13 @@ export const useGetEmployeePicture = (context: BusinessAppContextProps) => {
 
   const fetchEmployeePicture = async (
     employeeId: string
-  ): Promise<{ thumbnail: string | null; version: number | null; firstName?: string; lastName?: string }> => {
+  ): Promise<{
+    thumbnail: string | null
+    version: number | null
+    firstName?: string
+    lastName?: string
+    jobTitle?: string
+  }> => {
     const response = await graphqlClient.request<EmployeePictureResponse>(GET_EMPLOYEE_PICTURE, { employeeId })
 
     const employee = response?.Employee?.[0]
@@ -59,11 +75,16 @@ export const useGetEmployeePicture = (context: BusinessAppContextProps) => {
     }
 
     const parsed = thumbnail ? toDataUrl(thumbnail) : null
+    // Get job title from first employee position
+    const position = Array.isArray(employee.employeePosition) ? employee.employeePosition[0] : undefined
+    const jobTitle = position?.jobPosition?.name
+
     return {
       thumbnail: parsed,
       version: employee.version ?? null,
       firstName: employee.firstName,
-      lastName: employee.lastName
+      lastName: employee.lastName,
+      jobTitle
     }
   }
 

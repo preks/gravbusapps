@@ -40,6 +40,19 @@ export const ChatWithCalendar: React.FC<ChatWithCalendarProps> = ({
     }
   }, [])
 
+  // Listen for custom event to switch to calendar (e.g., from MeetingCard click)
+  useEffect(() => {
+    const handleSwitchToCalendar = () => {
+      setActiveTab('calendar')
+      // The Calendar component will handle the date/meetingId from URL params
+    }
+
+    window.addEventListener('switchToCalendar', handleSwitchToCalendar as EventListener)
+    return () => {
+      window.removeEventListener('switchToCalendar', handleSwitchToCalendar as EventListener)
+    }
+  }, [])
+
   // Update URL when tab changes
   const handleTabChange = (value: string) => {
     setActiveTab(value as TabValue)
@@ -86,7 +99,12 @@ export const ChatWithCalendar: React.FC<ChatWithCalendarProps> = ({
         </div>
 
         {/* Tab content - ensure proper height for mobile web views */}
-        <TabsContent value="chat" className="gba:flex-1 gba:m-0 gba:h-full gba:min-h-0 gba:overflow-hidden">
+        {/* Use forceMount to keep both tabs mounted for call persistence */}
+        <TabsContent
+          value="chat"
+          forceMount
+          className={`gba:flex-1 gba:m-0 gba:h-full gba:min-h-0 gba:overflow-hidden ${activeTab !== 'chat' ? 'gba:hidden' : ''}`}
+        >
           <Chat
             accessToken={accessToken}
             userInfo={userInfo}
@@ -95,7 +113,11 @@ export const ChatWithCalendar: React.FC<ChatWithCalendarProps> = ({
           />
         </TabsContent>
 
-        <TabsContent value="calendar" className="gba:flex-1 gba:m-0 gba:h-full gba:min-h-0 gba:overflow-hidden">
+        <TabsContent
+          value="calendar"
+          forceMount
+          className={`gba:flex-1 gba:m-0 gba:h-full gba:min-h-0 gba:overflow-hidden ${activeTab !== 'calendar' ? 'gba:hidden' : ''}`}
+        >
           <Calendar
             accessToken={accessToken}
             userInfo={userInfo}
