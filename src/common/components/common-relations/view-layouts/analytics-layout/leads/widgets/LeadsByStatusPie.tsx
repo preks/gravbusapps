@@ -10,7 +10,8 @@ import {
   ChartTooltip,
   ChartTooltipContent,
   ChartLegend,
-  ChartLegendContent
+  ChartLegendContent,
+  Spinner
 } from '@newwork/nw-design-system'
 import { PieChart, Pie } from 'recharts'
 
@@ -22,6 +23,7 @@ export interface LeadsByStatusItem {
 export interface LeadsByStatusPieProps {
   data: LeadsByStatusItem[]
   moduleColor?: string
+  isLoading?: boolean
 }
 
 const toKey = (value: string): string =>
@@ -30,7 +32,7 @@ const toKey = (value: string): string =>
     .replace(/\s+/g, '-')
     .replace(/[^a-z0-9-]/g, '')
 
-export const LeadsByStatusPie: React.FC<LeadsByStatusPieProps> = ({ data }) => {
+export const LeadsByStatusPie: React.FC<LeadsByStatusPieProps> = ({ data, isLoading = false }) => {
   const dataKey = 'leads'
   const nameKey = 'status'
 
@@ -48,15 +50,31 @@ export const LeadsByStatusPie: React.FC<LeadsByStatusPieProps> = ({ data }) => {
 
   const chartConfig = useMemo(() => {
     if (!data || data.length === 0) return {} as ChartConfig
-    const config: Record<string, { label?: string }> = {
-      [dataKey]: {}
-    }
+    const config: Record<string, { label?: string }> = {}
     data.forEach(item => {
       const key = toKey(item.status)
       config[key] = { label: item.status }
     })
     return config as ChartConfig
   }, [data])
+
+  if (isLoading) {
+    return (
+      <Card data-testid="leads-by-status-chart" className="gba:flex gba:flex-col">
+        <CardHeader className="gba:flex gba:items-center gba:gap-3">
+          <div>
+            <CardTitle>Leads by Status</CardTitle>
+            <CardDescription>Distribution by status</CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent className="gba:flex-1 gba:pb-0">
+          <div className="gba:flex gba:justify-center gba:items-center gba:py-12">
+            <Spinner size="lg" />
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <Card data-testid="leads-by-status-chart" className="gba:flex gba:flex-col">

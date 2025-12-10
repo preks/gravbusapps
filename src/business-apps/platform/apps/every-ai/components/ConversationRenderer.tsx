@@ -59,7 +59,17 @@ export const ConversationRenderer: React.FC<ConversationRendererProps> = ({
         const turnKey = `turn-${idx}-${turn.side}`
 
         if (turn.side === 'user') {
-          const textWithMentions = buildTextWithMentions(turn.text || '', turn.mentions)
+          // Parse JSON messages to show user-friendly text
+          let displayText = turn.text || ''
+          try {
+            const parsed = JSON.parse(turn.text || '')
+            if (parsed?.userMessage) {
+              displayText = parsed.userMessage
+            }
+          } catch {
+            // Not JSON, use original text
+          }
+          const textWithMentions = buildTextWithMentions(displayText, turn.mentions)
 
           return (
             <div key={turnKey} className="gba:flex gba:flex-col gba:items-end gba:gap-2" data-testid="chat-user-turn">

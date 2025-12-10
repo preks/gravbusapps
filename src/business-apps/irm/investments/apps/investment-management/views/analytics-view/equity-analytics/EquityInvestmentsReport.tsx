@@ -40,7 +40,7 @@ interface InvestmentWithSpecializations extends Investment {
   }>
 }
 import { useEquityKPIIntegration } from './hooks'
-import { useAvailableCurrencies } from '@/common/data/investment/hooks/useAvailableCurrencies'
+import { useAvailableCurrencies } from '@/common/data/common/hooks/useAvailableCurrencies'
 import { safeCurrencyExtraction } from '@/common/utils/numberFormatter'
 import { formatDuration } from '../shared/utils/dateUtils'
 import type { EquityInvestmentSummary } from '../shared/types'

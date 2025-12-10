@@ -757,7 +757,7 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
               <TabsTrigger value="skills" className="gba:py-2.5 gba:px-2 gba:h-auto">
                 <div className="gba:flex gba:flex-col gba:items-center gba:gap-1.5">
                   <FileCheck className="gba:w-5 gba:h-5 gba:flex-shrink-0" />
-                  <span className="gba:text-xs gba:leading-tight gba:font-medium">Skills</span>
+                  <span className="gba:text-xs gba:leading-tight gba:font-medium">Capabilities</span>
                 </div>
               </TabsTrigger>
             </TabsList>

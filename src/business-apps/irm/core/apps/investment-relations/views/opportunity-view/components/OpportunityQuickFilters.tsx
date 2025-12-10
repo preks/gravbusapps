@@ -2,7 +2,7 @@ import React from 'react'
 import { Button } from '@newwork/nw-design-system'
 import type { StatusItem } from '../hooks/useInvestmentOpportunityFilters'
 
-export type QuickFilterType = 'all' | 'qualified' | 'unqualified'
+export type QuickFilterType = 'all' | 'qualified' | 'unqualified' | 'converted'
 
 export interface OpportunityQuickFiltersProps {
   statuses: StatusItem[]
@@ -15,6 +15,7 @@ export interface OpportunityQuickFiltersProps {
  * - All: Shows all opportunities (no status filter)
  * - Qualified: Shows opportunities with status code 'WON'
  * - Unqualified: Shows opportunities with status codes 'OPEN' or 'LOST'
+ * - Converted: Shows opportunities with status code 'CONVERTED'
  */
 export const OpportunityQuickFilters: React.FC<OpportunityQuickFiltersProps> = ({
   statuses,
@@ -37,6 +38,9 @@ export const OpportunityQuickFilters: React.FC<OpportunityQuickFiltersProps> = (
           return code === 'OPEN' || code === 'LOST'
         })
         .map(s => s.id)
+    } else if (filter === 'converted') {
+      // Filter for CONVERTED status
+      statusIds = statuses.filter(s => s.code?.toUpperCase() === 'CONVERTED').map(s => s.id)
     } else {
       // 'all' filter - no status filter
       statusIds = undefined
@@ -70,6 +74,14 @@ export const OpportunityQuickFilters: React.FC<OpportunityQuickFiltersProps> = (
         data-testid="opportunity-quick-filter-qualified"
       >
         Qualified
+      </Button>
+      <Button
+        variant={activeFilter === 'converted' ? 'default' : 'outline'}
+        size="sm"
+        onClick={() => handleFilterClick('converted')}
+        data-testid="opportunity-quick-filter-converted"
+      >
+        Converted
       </Button>
     </div>
   )
