@@ -16,7 +16,9 @@ const extractInvestmentDataFromReport = (report: InvestmentReport | Partial<Inve
       ...report.investment,
       id: undefined,
       version: undefined,
-      ...(report.investment.code === null ? {} : { code: report.investment.code })
+      ...(report.investment.code === null ? {} : { code: report.investment.code }),
+      // Explicitly preserve investmentAccounts from report
+      ...(report.investment.investmentAccounts ? { investmentAccounts: report.investment.investmentAccounts } : {})
     }
   }
   return {
@@ -67,6 +69,8 @@ const mergeInvestmentData = (
     ...(fetchedInvestment.realEstateInvestment
       ? { realEstateInvestment: removeIdVersionFromSubInvestment(fetchedInvestment.realEstateInvestment) }
       : {}),
+    // Explicitly preserve investmentAccounts from fetched investment
+    ...(fetchedInvestment.investmentAccounts ? { investmentAccounts: fetchedInvestment.investmentAccounts } : {}),
     ...investmentData
   }
 }
@@ -204,6 +208,11 @@ export const transformInvestmentReport = (
   mapInvestmentRole(report, mappedValues)
   mapSubInvestmentReports(report, reportId, mappedValues)
   setInvestmentIds(mappedValues, investmentId, reportId, report)
+
+  // Explicitly preserve investmentAccounts in mapped values
+  if (mergedInvestmentData.investmentAccounts && mappedValues.investment) {
+    ;(mappedValues.investment as any).investmentAccounts = mergedInvestmentData.investmentAccounts
+  }
 
   const liquidFundNormalized = normalizeLiquidFundInvestment(mappedValues)
 
