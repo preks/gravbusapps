@@ -18,6 +18,9 @@ export interface AllowanceRegionRuleDetail {
     id: string
     code: string
     value: string
+    objectValue?: {
+      destination_country_ref?: string
+    }
     childEntries?: Array<{
       code: string
     }>
@@ -84,6 +87,7 @@ export const GET_ALLOWANCE_REGION_RULES_WITH_DETAILS = `
           id
           code
           value
+          objectValue
           parentEntryId
           childEntries {
             code

@@ -79,8 +79,9 @@ interface TravelRegionMatrixViewProps extends BusinessAppContextProps {
 const SortableColumnHeader: React.FC<{
   rule: EditableAllowanceRegionRule
   onAddDetailForRule: (ruleId: string) => void
+  onDeleteRule: (rule: EditableAllowanceRegionRule) => void
   children: React.ReactNode
-}> = ({ rule, onAddDetailForRule, children }) => {
+}> = ({ rule, onAddDetailForRule, onDeleteRule, children }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: rule.id })
 
   const style = {
@@ -88,6 +89,9 @@ const SortableColumnHeader: React.FC<{
     transition,
     opacity: isDragging ? 0.5 : 1
   }
+
+  // Check if rule has any details
+  const hasDetails = rule.details && rule.details.length > 0
 
   return (
     <TableHead ref={setNodeRef} style={style} className="gba:w-48 gba:min-w-48 gba:relative gba:border gba:p-0">
@@ -100,15 +104,28 @@ const SortableColumnHeader: React.FC<{
           >
             <PiDotsSixVertical className="gba:w-4 gba:h-4" />
           </div>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => onAddDetailForRule(rule.id)}
-            className="gba:h-6 gba:w-6 gba:p-0"
-            title="Add new detail for this rule"
-          >
-            <PiPlus className="gba:w-3 gba:h-3" />
-          </Button>
+          <div className="gba:flex gba:gap-1">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => onAddDetailForRule(rule.id)}
+              className="gba:h-6 gba:w-6 gba:p-0"
+              title="Add new detail for this rule"
+            >
+              <PiPlus className="gba:w-3 gba:h-3" />
+            </Button>
+            {!hasDetails && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => onDeleteRule(rule)}
+                className="gba:h-6 gba:w-6 gba:p-0 gba:text-destructive hover:gba:text-destructive hover:gba:bg-destructive-secondary"
+                title="Delete this rule"
+              >
+                <PiTrash className="gba:w-3 gba:h-3" />
+              </Button>
+            )}
+          </div>
         </div>
         {children}
       </div>
@@ -802,6 +819,29 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     }
   }
 
+  // Handle deleting an allowance region rule
+  const handleDeleteRule = async (rule: EditableAllowanceRegionRule) => {
+    // Check if rule has any details
+    if (rule.details && rule.details.length > 0) {
+      toast.error('Cannot delete rule with existing details')
+      return
+    }
+
+    if (!confirm(`Are you sure you want to delete the rule "${rule.name}"?`)) {
+      return
+    }
+
+    try {
+      const client = getExpenseSettingsClient()
+      await client.deleteAllowanceRegionRule(rule.id, rule.version)
+      toast.success('Rule deleted successfully')
+      await loadData()
+    } catch (err) {
+      console.error('Error deleting rule:', err)
+      toast.error('Failed to delete rule')
+    }
+  }
+
   // Open rule creation modal
   const handleAddRule = () => {
     setIsRuleModalOpen(true)
@@ -1116,7 +1156,12 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                       strategy={horizontalListSortingStrategy}
                     >
                       {allowanceRegionRules.map(rule => (
-                        <SortableColumnHeader key={rule.id} rule={rule} onAddDetailForRule={handleAddDetailForRule}>
+                        <SortableColumnHeader
+                          key={rule.id}
+                          rule={rule}
+                          onAddDetailForRule={handleAddDetailForRule}
+                          onDeleteRule={handleDeleteRule}
+                        >
                           <div className="gba:text-center">
                             <div className="gba:font-medium gba:text-sm">{rule.name}</div>
                             <div className="gba:text-xs gba:text-muted-foreground gba:mb-1">{rule.code}</div>
@@ -1470,8 +1515,8 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                               </Button>
                                             </div>
                                           ) : (
-                                            /* Done button for editing existing cells - saves immediately */
-                                            <div className="gba:flex gba:gap-1">
+                                            /* Done and Delete buttons for editing existing cells */
+                                            <div className="gba:flex gba:gap-1 gba:w-full">
                                               <Button
                                                 variant="outline"
                                                 size="sm"
@@ -1498,6 +1543,58 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                               >
                                                 {isSavingCell ? 'Saving...' : 'Save'}
                                               </Button>
+                                              {!editingCellUsageInfo?.isUsed && (
+                                                <Button
+                                                  variant="destructive"
+                                                  size="sm"
+                                                  onClick={async e => {
+                                                    e.stopPropagation()
+                                                    if (confirm('Are you sure you want to delete this detail?')) {
+                                                      try {
+                                                        console.log('🗑️ Deleting detail:', {
+                                                          id: cell.id,
+                                                          version: cell.version,
+                                                          travelRegionId: cell.travelRegionId,
+                                                          allowanceRegionRuleId: cell.allowanceRegionRuleId,
+                                                          amount: cell.amount,
+                                                          currencyRef: cell.currencyRef,
+                                                          countryRef: cell.countryRef
+                                                        })
+                                                        const client = getExpenseSettingsClient()
+                                                        const result = await client.deleteAllowanceRegionRuleDetail({
+                                                          id: cell.id!,
+                                                          version: cell.version,
+                                                          allowanceRegionRuleId: cell.allowanceRegionRuleId,
+                                                          travelRegionRef: cell.travelRegionId,
+                                                          currencyRef: cell.currencyRef,
+                                                          countryRef: cell.countryRef,
+                                                          amount: cell.amount,
+                                                          activeFrom: cell.activeFrom,
+                                                          activeTo: cell.activeTo
+                                                        })
+                                                        console.log('✅ Delete result:', result)
+                                                        toast.success('Detail deleted successfully')
+                                                        setEditingCellId(null)
+                                                        setEditingCellUsageInfo(null)
+                                                        await loadData()
+                                                      } catch (err: any) {
+                                                        console.error('❌ Error deleting detail:', err)
+                                                        console.error('❌ Error response:', err.response?.data)
+                                                        const errorMsg =
+                                                          err.response?.data?.message ||
+                                                          err.message ||
+                                                          'Failed to delete detail'
+                                                        toast.error(`Failed to delete detail: ${errorMsg}`)
+                                                      }
+                                                    }
+                                                  }}
+                                                  className="gba:h-7 gba:px-2"
+                                                  disabled={isSavingCell || isCheckingCellUsage}
+                                                  title="Delete this detail"
+                                                >
+                                                  <PiTrash className="gba:w-4 gba:h-4" />
+                                                </Button>
+                                              )}
                                             </div>
                                           )}
                                         </div>
@@ -1560,11 +1657,8 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                     )
                                   )
 
-                                  // Derive countryRef from region.id
-                                  const regionParts = region.id.split(':')
-                                  const regionCode = regionParts.length >= 3 ? regionParts[regionParts.length - 1] : ''
-                                  const countryCode = regionCode.substring(0, 2)
-                                  const countryRef = countryCode ? `Country:v1:${countryCode}` : undefined
+                                  // Get countryRef from region's objectValue (already populated)
+                                  const countryRef = region.objectValue?.destination_country_ref || undefined
 
                                   // Find EUR currency ref
                                   const eurCurrency = currencies.find(c => c.code === 'EUR')

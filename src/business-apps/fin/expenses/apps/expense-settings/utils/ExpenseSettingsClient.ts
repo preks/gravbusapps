@@ -205,14 +205,32 @@ export class ExpenseSettingsClient extends RestClient {
     return this.post(`/${BASE_PATH}/saveAllowanceRegionRuleDetail`, payload)
   }
 
-  async deleteAllowanceRegionRuleDetail(id: string, version?: number): Promise<any> {
+  async deleteAllowanceRegionRuleDetail(detailData: {
+    id: string
+    version?: number
+    allowanceRegionRuleId?: string
+    travelRegionRef?: string
+    currencyRef?: string
+    countryRef?: string
+    amount?: number
+    activeFrom?: string
+    activeTo?: string
+  }): Promise<any> {
     const payload = {
       allowanceRegionRuleDetail: {
-        id,
-        ...(version !== undefined && { version })
+        id: detailData.id,
+        ...(detailData.version !== undefined && { version: detailData.version }),
+        ...(detailData.allowanceRegionRuleId && { allowanceRegionRuleId: detailData.allowanceRegionRuleId }),
+        ...(detailData.travelRegionRef && { travelRegionRef: detailData.travelRegionRef }),
+        ...(detailData.currencyRef && { currencyRef: detailData.currencyRef }),
+        ...(detailData.countryRef && { countryRef: detailData.countryRef }),
+        ...(detailData.amount !== undefined && { amount: detailData.amount }),
+        ...(detailData.activeFrom && { activeFrom: detailData.activeFrom }),
+        ...(detailData.activeTo && { activeTo: detailData.activeTo })
       },
       changeMode: 'DELETE'
     }
+    console.log('🗑️ Delete payload:', JSON.stringify(payload, null, 2))
     return this.post(`/${BASE_PATH}/saveAllowanceRegionRuleDetail`, payload)
   }
 

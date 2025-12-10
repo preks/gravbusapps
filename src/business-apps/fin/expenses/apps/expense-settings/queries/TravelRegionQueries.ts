@@ -1,33 +1,36 @@
-import { useCallback } from 'react';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useCallback } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 export interface TravelRegionQueryVariables {
-  parentEntryId: string;
-  limit: number;
-  offset: number;
-  search?: string;
+  parentEntryId: string
+  limit: number
+  offset: number
+  search?: string
 }
 
 export interface TravelRegion {
-  id: string;
-  code: string;
-  value: string;
+  id: string
+  code: string
+  value: string
+  objectValue?: {
+    destination_country_ref?: string
+  }
 }
 
 export interface TravelRegionCountResponse {
   CatalogEntry: Array<{
-    id: string;
+    id: string
     childEntriesAggregate: {
       aggregate: {
-        count: number;
-      };
-    };
-  }>;
+        count: number
+      }
+    }
+  }>
 }
 
 export interface TravelRegionListResponse {
-  CatalogEntry: TravelRegion[];
+  CatalogEntry: TravelRegion[]
 }
 
 /**
@@ -61,7 +64,7 @@ export const GET_TRAVEL_REGION_COUNT = `
       }
     }
   }
-`;
+`
 
 /**
  * GraphQL query to get travel regions with search
@@ -88,9 +91,10 @@ export const GET_TRAVEL_REGIONS_WITH_SEARCH = `
       id
       code
       value
+      objectValue
     }
   }
-`;
+`
 
 /**
  * GraphQL query to get travel regions without search
@@ -113,57 +117,60 @@ export const GET_TRAVEL_REGIONS = `
       id
       code
       value
+      objectValue
     }
   }
-`;
+`
 
 /**
  * Hook to fetch travel regions with pagination and search
  */
 export const useGetTravelRegions = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
-  const fetchTravelRegionCount = useCallback(async (parentEntryId: string) => {
-    try {
-      const result = await graphqlClient.request<TravelRegionCountResponse>(
-        GET_TRAVEL_REGION_COUNT,
-        { parentEntryId }
-      );
-      return result.CatalogEntry[0]?.childEntriesAggregate?.aggregate?.count || 0;
-    } catch (error) {
-      console.error('Error fetching travel region count:', error);
-      throw error;
-    }
-  }, [graphqlClient]);
+  const fetchTravelRegionCount = useCallback(
+    async (parentEntryId: string) => {
+      try {
+        const result = await graphqlClient.request<TravelRegionCountResponse>(GET_TRAVEL_REGION_COUNT, {
+          parentEntryId
+        })
+        return result.CatalogEntry[0]?.childEntriesAggregate?.aggregate?.count || 0
+      } catch (error) {
+        console.error('Error fetching travel region count:', error)
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
 
-  const fetchTravelRegions = useCallback(async (variables: TravelRegionQueryVariables) => {
-    try {
-      // Use search query only if search term is provided and not empty
-      const hasSearch = variables.search && variables.search.trim().length > 0;
-      const query = hasSearch ? GET_TRAVEL_REGIONS_WITH_SEARCH : GET_TRAVEL_REGIONS;
-      const queryVariables = hasSearch
-        ? { ...variables, search: `%${variables.search}%` }
-        : { parentEntryId: variables.parentEntryId, limit: variables.limit, offset: variables.offset };
+  const fetchTravelRegions = useCallback(
+    async (variables: TravelRegionQueryVariables) => {
+      try {
+        // Use search query only if search term is provided and not empty
+        const hasSearch = variables.search && variables.search.trim().length > 0
+        const query = hasSearch ? GET_TRAVEL_REGIONS_WITH_SEARCH : GET_TRAVEL_REGIONS
+        const queryVariables = hasSearch
+          ? { ...variables, search: `%${variables.search}%` }
+          : { parentEntryId: variables.parentEntryId, limit: variables.limit, offset: variables.offset }
 
-      const result = await graphqlClient.request<TravelRegionListResponse>(
-        query,
-        queryVariables
-      );
-      
-      return result.CatalogEntry.map((item) => ({
-        id: item.id,
-        code: item.code,
-        value: item.value,
-      }));
-    } catch (error) {
-      console.error('Error fetching travel regions:', error);
-      throw error;
-    }
-  }, [graphqlClient]);
+        const result = await graphqlClient.request<TravelRegionListResponse>(query, queryVariables)
 
-  return { 
-    fetchTravelRegionCount, 
-    fetchTravelRegions 
-  };
-};
+        return result.CatalogEntry.map(item => ({
+          id: item.id,
+          code: item.code,
+          value: item.value,
+          objectValue: item.objectValue
+        }))
+      } catch (error) {
+        console.error('Error fetching travel regions:', error)
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
 
+  return {
+    fetchTravelRegionCount,
+    fetchTravelRegions
+  }
+}

@@ -21,6 +21,7 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import TravelRegionSetModal from './TravelRegionSetModal'
+import { expenseSettingsClient } from '../../utils/ExpenseSettingsClient'
 
 // Custom toast function
 const toast = (message: string, type: 'success' | 'error' = 'success') => {
@@ -63,6 +64,9 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
 
   const graphqlClient = useGraphQLClient(accessToken)
   const catalogClient = useCatalogManagerClient(accessToken)
+
+  // Initialize expense settings client with access token
+  expenseSettingsClient.setAccessToken(accessToken)
 
   const loadTravelRegionSets = useCallback(async () => {
     setIsLoading(true)
@@ -280,27 +284,140 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
     setIsDeleting(true)
     try {
       const { set } = deleteConfirmation
-      const childRegionCount = set.childRegionIds?.length || 0
+      const childCount = set.childCount || 0
 
-      // Delete all child travel regions first (if any)
-      if (childRegionCount > 0) {
-        console.log(`🗑️ Deleting ${childRegionCount} child travel regions...`)
+      console.log('🗑️ Starting delete for set:', {
+        setId: set.id,
+        setCode: set.code,
+        childCount,
+        hasDetails: set.hasDetails
+      })
 
-        // Delete all child regions in parallel
-        await Promise.all(
-          (set.childRegionIds || []).map(regionId => catalogClient.deleteCatalogEntry('TravelRegion', 'v1', regionId))
+      // Step 1: Check for AllowanceRegionRule records that reference this set (including soft-deleted ones)
+      console.log(`🔍 Fetching ALL AllowanceRegionRule records (including soft-deleted) for set ${set.id}...`)
+
+      const allRulesQuery = `
+        query GetAllRulesForSet($setId: String!) {
+          AllowanceRegionRule(where: { travelRegionSetRef: { _eq: $setId } }) {
+            id
+            version
+            travelRegionSetRef
+            isDeleted
+          }
+        }
+      `
+
+      const allRulesResult = await graphqlClient.request<any>(allRulesQuery, {
+        setId: set.id
+      })
+
+      const allRules = allRulesResult.AllowanceRegionRule || []
+      console.log(
+        `📊 Found ${allRules.length} total rules (${allRules.filter((r: any) => r.isDeleted).length} soft-deleted)`
+      )
+
+      // Step 2: For each rule, hard delete all its details first, then delete the rule
+      for (const rule of allRules) {
+        console.log(`🔍 Processing rule ${rule.id}...`)
+
+        // Get all details for this rule (including soft-deleted ones)
+        const allDetailsQuery = `
+          query GetAllDetailsForRule($ruleId: uuid!) {
+            AllowanceRegionRuleDetail(where: { allowanceRegionRuleId: { _eq: $ruleId } }) {
+              id
+              version
+              allowanceRegionRuleId
+              isDeleted
+            }
+          }
+        `
+
+        const allDetailsResult = await graphqlClient.request<any>(allDetailsQuery, {
+          ruleId: rule.id
+        })
+
+        const allDetails = allDetailsResult.AllowanceRegionRuleDetail || []
+        console.log(
+          `📊 Rule ${rule.id} has ${allDetails.length} details (${allDetails.filter((d: any) => d.isDeleted).length} soft-deleted)`
         )
 
-        console.log(`✅ Deleted ${childRegionCount} child travel regions`)
+        // Hard delete all details
+        for (const detail of allDetails) {
+          console.log(`🗑️ Hard deleting detail ${detail.id}...`)
+          try {
+            await expenseSettingsClient.deleteAllowanceRegionRuleDetail({
+              id: detail.id,
+              version: detail.version
+            })
+            console.log(`✅ Hard deleted detail ${detail.id}`)
+          } catch (err: any) {
+            console.error(`❌ Failed to hard delete detail ${detail.id}:`, err)
+            throw new Error(`Failed to hard delete detail ${detail.id}: ${err?.message || 'Unknown error'}`)
+          }
+        }
+
+        // Hard delete the rule
+        console.log(`🗑️ Hard deleting rule ${rule.id}...`)
+        try {
+          await expenseSettingsClient.deleteAllowanceRegionRule(rule.id, rule.version)
+          console.log(`✅ Hard deleted rule ${rule.id}`)
+        } catch (err: any) {
+          console.error(`❌ Failed to hard delete rule ${rule.id}:`, err)
+          throw new Error(`Failed to hard delete rule ${rule.id}: ${err?.message || 'Unknown error'}`)
+        }
       }
 
-      // Then delete the travel region set
-      console.log('🗑️ Deleting travel region set...')
-      await catalogClient.deleteCatalogEntry('TravelRegionSet', 'v1', set.id)
+      if (allRules.length > 0) {
+        console.log(`✅ Hard deleted ${allRules.length} rules and their details`)
+      } else {
+        console.log('✅ No rules to delete')
+      }
+
+      // Step 3: Hard delete all child travel regions (DELETE endpoint will physically remove them)
+      if (childCount > 0 && set.childRegionIds && set.childRegionIds.length > 0) {
+        console.log(`🗑️ Hard deleting ${set.childRegionIds.length} child travel regions...`)
+        console.log('Child region IDs:', set.childRegionIds)
+
+        for (const regionId of set.childRegionIds) {
+          console.log(`🗑️ Hard deleting child region: ${regionId}`)
+          try {
+            // Extract the short ID for the DELETE endpoint
+            // Format: "TravelRegion:v1:02" -> use "02"
+            const entryIdParts = regionId.split(':')
+            const shortId = entryIdParts.length >= 3 ? entryIdParts[2] : regionId
+
+            console.log(`  Hard deleting with ID: ${shortId}`)
+            const result = await catalogClient.deleteCatalogEntry('TravelRegion', 'v1', shortId)
+            console.log(`✅ Hard deleted region ${regionId}:`, result)
+          } catch (err: any) {
+            console.error(`❌ Failed to hard delete region ${regionId}:`, {
+              error: err,
+              message: err?.message,
+              status: err?.status,
+              response: err?.response,
+              data: err?.response?.data
+            })
+            throw new Error(`Failed to hard delete child region ${regionId}: ${err?.message || 'Unknown error'}`)
+          }
+        }
+
+        console.log(`✅ Hard deleted ${set.childRegionIds.length} child travel regions`)
+      }
+
+      // Step 4: Hard delete the travel region set (DELETE endpoint will physically remove it)
+      console.log('🗑️ Hard deleting travel region set:', set.id)
+      // Extract the short ID for the DELETE endpoint
+      // Format: "TravelRegionSet:v1:Miahela Test" -> use "Miahela Test"
+      const setIdParts = set.id.split(':')
+      const shortSetId = setIdParts.length >= 3 ? setIdParts.slice(2).join(':') : set.id
+
+      console.log(`  Hard deleting set with ID: ${shortSetId}`)
+      const setDeleteResult = await catalogClient.deleteCatalogEntry('TravelRegionSet', 'v1', shortSetId)
+      console.log('✅ Hard deleted travel region set:', setDeleteResult)
 
       const message =
-        childRegionCount > 0
-          ? `Travel Region Set "${set.value}" and ${childRegionCount} travel region${childRegionCount > 1 ? 's' : ''} deleted successfully`
+        childCount > 0
+          ? `Travel Region Set "${set.value}" and ${childCount} travel region${childCount > 1 ? 's' : ''} deleted successfully`
           : `Travel Region Set "${set.value}" deleted successfully`
 
       toast(message, 'success')
@@ -309,7 +426,7 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
       setDeleteConfirmation({ isOpen: false, set: null })
       loadTravelRegionSets()
     } catch (err) {
-      console.error('Error deleting travel region set:', err)
+      console.error('❌ Error deleting travel region set:', err)
       toast(`Failed to delete Travel Region Set: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error')
     } finally {
       setIsDeleting(false)

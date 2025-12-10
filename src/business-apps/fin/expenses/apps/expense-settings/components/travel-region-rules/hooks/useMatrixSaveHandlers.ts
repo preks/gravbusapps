@@ -75,23 +75,13 @@ export const useMatrixSaveHandlers = ({
               const currency = currencies.find(c => c.code === cell.currencyCode)
               const currencyRef = cell.currencyRef || currency?.id
 
-              // For countryRef: use stored value, or derive from travel region code
-              let countryRef = cell.countryRef
-              if (!countryRef && cell.travelRegionId) {
-                // Try to extract country code from travel region ID (e.g., "TravelRegion:v1:DE-01" -> "Country:v1:DE")
-                const regionParts = cell.travelRegionId.split(':')
-                if (regionParts.length >= 3) {
-                  const regionCode = regionParts[regionParts.length - 1]
-                  // Extract first 2 chars as country code and ensure uppercase
-                  const countryCode = regionCode.substring(0, 2).toUpperCase()
-                  countryRef = `Country:v1:${countryCode}`
-                }
-              }
+              // For countryRef: must be provided in cell (from TravelRegion objectValue)
+              const countryRef = cell.countryRef
 
               // Validation: countryRef is required
               if (!countryRef) {
                 console.error('❌ Missing countryRef for cell:', cell.travelRegionId)
-                toast.error('Country reference is missing for some details')
+                toast.error('Country reference is missing. Please ensure travel regions have country data.')
                 return null // Skip this cell
               }
 

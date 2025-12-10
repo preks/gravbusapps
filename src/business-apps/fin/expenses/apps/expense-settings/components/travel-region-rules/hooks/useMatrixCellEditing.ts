@@ -151,21 +151,12 @@ export const useMatrixCellEditing = ({
         const currency = currencies.find(c => c.code === cell.currencyCode)
         const currencyRef = cell.currencyRef || currency?.id
 
-        // For countryRef: use stored value, or derive from travel region code
-        let countryRef = cell.countryRef
-        if (!countryRef && cell.travelRegionId) {
-          const regionParts = cell.travelRegionId.split(':')
-          if (regionParts.length >= 3) {
-            const regionCode = regionParts[regionParts.length - 1]
-            // Extract first 2 chars as country code and ensure uppercase
-            const countryCode = regionCode.substring(0, 2).toUpperCase()
-            countryRef = `Country:v1:${countryCode}`
-          }
-        }
+        // For countryRef: must be provided in cell (from TravelRegion objectValue)
+        const countryRef = cell.countryRef
 
         // Validation: countryRef is required
         if (!countryRef) {
-          toast.error('Country reference is missing. Cannot save detail.')
+          toast.error('Country reference is missing. Please ensure travel regions have country data.')
           setIsSavingCell(false)
           return
         }

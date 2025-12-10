@@ -7,6 +7,9 @@ interface TravelRegion {
   id: string
   code: string
   value: string
+  objectValue?: {
+    destination_country_ref?: string
+  }
 }
 
 interface ValidityPeriod {
@@ -103,7 +106,8 @@ export const useMatrixDataLoaders = ({ accessToken, travelRegionSetId }: UseMatr
               regionsWithDetailsMap.set(regionId, {
                 id: detail.travelRegion.id,
                 code: detail.travelRegion.code,
-                value: detail.travelRegion.value
+                value: detail.travelRegion.value,
+                objectValue: detail.travelRegion.objectValue
               })
             }
           }
