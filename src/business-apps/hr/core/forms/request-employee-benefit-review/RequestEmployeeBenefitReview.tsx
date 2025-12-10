@@ -35,7 +35,10 @@ export const RequestEmployeeBenefitReview: React.FC<BusinessAppContextProps> = (
         className="gba:flex gba:justify-center gba:items-center gba:min-h-[400px]"
         data-testid="request-employee-benefit-review-loading"
       >
-        <Spinner size="lg" srText="Loading benefit review data..." />
+        <Spinner
+          size="lg"
+          srText={t('request-benefit-review-loading', { defaultValue: 'Loading benefit review data...' })}
+        />
       </div>
     )
   }
@@ -45,8 +48,10 @@ export const RequestEmployeeBenefitReview: React.FC<BusinessAppContextProps> = (
     return (
       <div className="gba:max-w-[1200px] gba:mx-auto gba:p-6" data-testid="request-employee-benefit-review-error">
         <Alert variant="destructive">
-          <AlertTitle>Unable to Load Data</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
+          <AlertTitle>{t('request-benefit-review-error-title', { defaultValue: 'Unable to Load Data' })}</AlertTitle>
+          <AlertDescription>
+            {t('request-benefit-review-error-description', { defaultValue: 'Failed to load employee benefit data' })}
+          </AlertDescription>
         </Alert>
       </div>
     )
@@ -55,14 +60,14 @@ export const RequestEmployeeBenefitReview: React.FC<BusinessAppContextProps> = (
   // Build title with employee name
   const titleText = t('request-benefit-review-title', {
     employeeName: employeeName || '',
-    defaultValue: `Employee Benefit Review for ${employeeName || ''}`
+    defaultValue: 'Employee Benefit Review for {employeeName}'
   })
 
   // Build initiator subtitle
   const initiatorText = initiatorName
     ? t('request-benefit-review-initiated-by', {
         initiatorName,
-        defaultValue: `Initiated by ${initiatorName}`
+        defaultValue: 'Initiated by {initiatorName}'
       })
     : ''
 

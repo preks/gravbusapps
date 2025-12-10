@@ -159,3 +159,6 @@ request-benefit-review-financial-details = Financial Details
 request-benefit-review-employee-contributions = Employee Contributions
 request-benefit-review-approve = Approve
 request-benefit-review-reject = Reject
+request-benefit-review-loading = Loading benefit review data...
+request-benefit-review-error-title = Unable to Load Data
+request-benefit-review-error-description = Failed to load employee benefit data

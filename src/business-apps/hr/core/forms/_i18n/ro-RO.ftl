@@ -159,3 +159,6 @@ request-benefit-review-financial-details = Detalii financiare
 request-benefit-review-employee-contributions = Contribuții angajat
 request-benefit-review-approve = Aprobă
 request-benefit-review-reject = Respinge
+request-benefit-review-loading = Se încarcă datele despre beneficiu...
+request-benefit-review-error-title = Nu se pot încărca datele
+request-benefit-review-error-description = Eroare la încărcarea datelor despre beneficiile angajatului

@@ -159,3 +159,6 @@ request-benefit-review-financial-details = Finanzielle Details
 request-benefit-review-employee-contributions = Mitarbeiterbeiträge
 request-benefit-review-approve = Genehmigen
 request-benefit-review-reject = Ablehnen
+request-benefit-review-loading = Lade Zusatzleistungsdaten...
+request-benefit-review-error-title = Daten können nicht geladen werden
+request-benefit-review-error-description = Fehler beim Laden der Mitarbeiter-Zusatzleistungsdaten
