@@ -66,7 +66,7 @@ export const useKogitoProcess = ({ task, accessToken, onSuccess, onError }: UseK
         const tokenParts = accessToken.split('.')
         if (tokenParts.length === 3) {
           // Convert base64url to base64 before decoding
-          const base64 = tokenParts[1].replaceAll('-', '+').replaceAll('_', '/')
+          const base64 = tokenParts[1].replace(/-/g, '+').replace(/_/g, '/')
           const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=')
           const tokenPayload = JSON.parse(atob(padded))
           userId = tokenPayload.sub || ''

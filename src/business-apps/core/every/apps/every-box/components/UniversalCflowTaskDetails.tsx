@@ -160,7 +160,11 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
         return flowStepData[fieldName]
       }
       // Priority 2: Use task.inputs if available
-      if (task.inputs && typeof fieldName === 'string' && Object.hasOwn(task.inputs, fieldName)) {
+      if (
+        task.inputs &&
+        typeof fieldName === 'string' &&
+        Object.prototype.hasOwnProperty.call(task.inputs, fieldName)
+      ) {
         return (task.inputs as Record<string, any>)[fieldName]
       }
       // Priority 3: Use field.value if available
