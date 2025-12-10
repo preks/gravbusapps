@@ -27,10 +27,6 @@ interface BenefitCatalogCardProps extends BusinessAppContextProps {
    */
   locale: string
   /**
-   * Callback when user requests to activate benefit
-   */
-  onRequest?: (benefitCatalogId: string) => void
-  /**
    * Callback when user requests to deactivate benefit
    */
   onDeactivate?: (employeeBenefitId: string) => void
