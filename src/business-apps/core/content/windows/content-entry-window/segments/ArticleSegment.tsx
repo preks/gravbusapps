@@ -15,7 +15,6 @@ import {
 import { ImageIcon, CaretLeftIcon, CaretRightIcon } from '@phosphor-icons/react'
 import ReactQuill from 'react-quill'
 import { CatalogSelect } from '@/components/catalog-select'
-import { CatalogMultiSelect, CatalogMultiSelectOption } from '@/components/catalog-multi-select'
 import { ContentEntryFormValues } from '../ContentEntryWindow'
 import { ContentAiTextGenerator } from '../components/ContentAiTextGenerator'
 import translations from '../_i18n'
@@ -40,10 +39,8 @@ interface ArticleSegmentProps {
   setValue: (name: keyof ContentEntryFormValues, value: any) => void
   context: any
   extractedContentGroupRef?: string
-  setNewCategories: (items: CatalogMultiSelectOption[]) => void
-  setNewTags: (items: CatalogMultiSelectOption[]) => void
-  categoriesRef: React.RefObject<any>
-  tagsRef: React.RefObject<any>
+  onCreateCategory?: (label: string) => Promise<string>
+  onCreateTag?: (label: string) => Promise<string>
 }
 
 const MAX_IMAGE_SIZE_MB = 5
@@ -65,11 +62,7 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
   watchSchedulePublication,
   setValue,
   context,
-  extractedContentGroupRef,
-  setNewCategories,
-  setNewTags,
-  categoriesRef,
-  tagsRef
+  extractedContentGroupRef
 }) => {
   const { t } = useTranslation(translations)
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -286,7 +279,7 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
                   <FormControl>
                     <CatalogSelect
                       catalogIdentifier="ContentGroup:v1"
-                      value={field.value || null}
+                      value={field.value || ''}
                       onValueChange={field.onChange}
                       data-testid="content-entry-window-group-select"
                     />
@@ -309,7 +302,7 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
                     catalogIdentifier="ContentType:v1"
                     parentField="contentGroupRef"
                     requireSourceForEnable={true}
-                    value={field.value || null}
+                    value={field.value || ''}
                     onValueChange={field.onChange}
                     data-testid="content-entry-window-type-select"
                   />
@@ -423,18 +416,14 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
                 <FormItem>
                   <FormLabel>Categories (Optional)</FormLabel>
                   <FormControl>
-                    <CatalogMultiSelect
-                      ref={categoriesRef}
-                      catalogIdentifier="ContentCategory"
-                      catalogVersion="v1"
+                    <CatalogSelect
+                      catalogIdentifier="ContentCategory:v1"
+                      variant="combobox"
+                      multiple={true}
                       value={field.value || []}
                       onValueChange={value => {
-                        field.onChange(value)
+                        field.onChange(Array.isArray(value) ? value : [])
                       }}
-                      onNewItemsChange={items => setNewCategories(items)}
-                      placeholder="Select or create categories..."
-                      allowCreate={true}
-                      accessToken={context.accessToken}
                       data-testid="content-entry-window-categories-select"
                     />
                   </FormControl>
@@ -451,18 +440,14 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
                 <FormItem>
                   <FormLabel>Tags (Optional)</FormLabel>
                   <FormControl>
-                    <CatalogMultiSelect
-                      ref={tagsRef}
-                      catalogIdentifier="ContentTag"
-                      catalogVersion="v1"
+                    <CatalogSelect
+                      catalogIdentifier="ContentTag:v1"
+                      variant="combobox"
+                      multiple={true}
                       value={field.value || []}
                       onValueChange={value => {
-                        field.onChange(value)
+                        field.onChange(Array.isArray(value) ? value : [])
                       }}
-                      onNewItemsChange={items => setNewTags(items)}
-                      placeholder="Select or create tags..."
-                      allowCreate={true}
-                      accessToken={context.accessToken}
                       data-testid="content-entry-window-tags-select"
                     />
                   </FormControl>

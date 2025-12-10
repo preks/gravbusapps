@@ -10,7 +10,6 @@ import {
   DESCENDANT_COMMENT_COUNT_FRAGMENT,
   CHILD_ANSWER_COUNT_FRAGMENT
 } from './fragments/contentFragments'
-import { getCatalogEntryRef } from '@/common/data/catalog/queries/catalogFragments'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
 // =====================================================
@@ -155,7 +154,50 @@ const buildOrderByClause = (params: ContentEntryQueryParams): any[] => {
 export const buildContentEntriesQuery = (_params: ContentEntryQueryParams = {}, useChildCount = false): string => {
   const commentCountFragment = useChildCount ? CHILD_ANSWER_COUNT_FRAGMENT : DESCENDANT_COMMENT_COUNT_FRAGMENT
   const localeCode = getCurrentActiveUserLocale()
-  const catalogFragment = getCatalogEntryRef(localeCode)
+  const catalogFields = `
+  id
+  code
+  value
+  alternativeCode
+  description
+  additionalValue1
+  additionalValue2
+  additionalValue3
+  ${
+    localeCode
+      ? `translations(where: { localeCode: { _eq: "${localeCode}" } }) {
+    id
+    localeCode
+    value
+    additionalValue1
+    additionalValue2
+    additionalValue3
+    objectValue
+  }`
+      : `translations {
+    id
+    localeCode
+    value
+    additionalValue1
+    additionalValue2
+    additionalValue3
+    objectValue
+  }`
+  }
+  type
+  displayOrder
+  objectValue
+  activeFrom
+  activeTo
+  catalogId
+  parentEntryId
+  isDeleted
+  recordState
+  createdAt
+  createdBy
+  updatedAt
+  updatedBy
+`
 
   return `
     query getContentEntries(
@@ -175,21 +217,21 @@ export const buildContentEntriesQuery = (_params: ContentEntryQueryParams = {}, 
           id
           contentCategoryRef
           contentCategory {
-            ${catalogFragment}
+            ${catalogFields}
           }
         }
         contentEntryTags {
           id
           contentTagRef
           contentTag {
-            ${catalogFragment}
+            ${catalogFields}
           }
         }
         contentEntryReactionCounts {
           contentReactionRef
           count
           contentReaction {
-            ${catalogFragment}
+            ${catalogFields}
           }
         }
         ${commentCountFragment}
@@ -229,7 +271,50 @@ export const buildContentEntriesVariables = (params: ContentEntryQueryParams = {
 export const buildContentEntryQuery = (id: string, useChildCount = false): string => {
   const commentCountFragment = useChildCount ? CHILD_ANSWER_COUNT_FRAGMENT : DESCENDANT_COMMENT_COUNT_FRAGMENT
   const localeCode = getCurrentActiveUserLocale()
-  const catalogFragment = getCatalogEntryRef(localeCode)
+  const catalogFields = `
+  id
+  code
+  value
+  alternativeCode
+  description
+  additionalValue1
+  additionalValue2
+  additionalValue3
+  ${
+    localeCode
+      ? `translations(where: { localeCode: { _eq: "${localeCode}" } }) {
+    id
+    localeCode
+    value
+    additionalValue1
+    additionalValue2
+    additionalValue3
+    objectValue
+  }`
+      : `translations {
+    id
+    localeCode
+    value
+    additionalValue1
+    additionalValue2
+    additionalValue3
+    objectValue
+  }`
+  }
+  type
+  displayOrder
+  objectValue
+  activeFrom
+  activeTo
+  catalogId
+  parentEntryId
+  isDeleted
+  recordState
+  createdAt
+  createdBy
+  updatedAt
+  updatedBy
+`
 
   return `
     query getContentEntry {
@@ -244,14 +329,14 @@ export const buildContentEntryQuery = (id: string, useChildCount = false): strin
           id
           contentCategoryRef
           contentCategory {
-            ${catalogFragment}
+            ${catalogFields}
           }
         }
         contentEntryTags {
           id
           contentTagRef
           contentTag {
-            ${catalogFragment}
+            ${catalogFields}
           }
         }
         contentDocuments {

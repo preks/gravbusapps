@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react'
+import React, { useMemo, useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -6,7 +6,6 @@ import * as z from 'zod'
 import { useTranslation } from '@newwork/nw-design-system'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { CatalogSelect } from '@/components/catalog-select'
-import { CatalogMultiSelectOption } from '@/components/catalog-multi-select'
 import { useCreateCatalogEntry } from '@/common/data/catalog/hooks/useCreateCatalogEntry'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { ContentRole } from '@/common/data/content/types/contentEnums'
@@ -117,13 +116,40 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
     []
   )
 
-  // Store new items that need to be created in PreSubmit
-  const [newCategories, setNewCategories] = useState<CatalogMultiSelectOption[]>([])
-  const [newTags, setNewTags] = useState<CatalogMultiSelectOption[]>([])
+  // Helper functions to create catalog entries on demand
+  const onCreateCategory = useCallback(
+    async (label: string): Promise<string> => {
+      try {
+        const response = await createCatalogEntry('ContentCategory', 'v1', {
+          code: label.toUpperCase().replaceAll(/\s+/g, '_'),
+          value: label,
+          translations: []
+        })
+        return response.id
+      } catch (error) {
+        console.error('Error creating category:', error)
+        throw new Error(`Failed to create category: ${label}`)
+      }
+    },
+    [createCatalogEntry]
+  )
 
-  // Refs to access CatalogMultiSelect methods
-  const categoriesRef = useRef<any>(null)
-  const tagsRef = useRef<any>(null)
+  const onCreateTag = useCallback(
+    async (label: string): Promise<string> => {
+      try {
+        const response = await createCatalogEntry('ContentTag', 'v1', {
+          code: label.toUpperCase().replaceAll(/\s+/g, '_'),
+          value: label,
+          translations: []
+        })
+        return response.id
+      } catch (error) {
+        console.error('Error creating tag:', error)
+        throw new Error(`Failed to create tag: ${label}`)
+      }
+    },
+    [createCatalogEntry]
+  )
 
   // Extract contentGroupRef from props or additionalData
   const extractedContentGroupRef =
@@ -269,56 +295,6 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
     }
   }, [authorName, form])
 
-  // Helper: Create new categories
-  const createNewCategories = useCallback(
-    async (categoriesToCreate: string[]): Promise<string[]> => {
-      const createdCategoryIds: string[] = []
-      for (const tempId of categoriesToCreate) {
-        const item = newCategories.find(c => c.id === tempId)
-        if (item) {
-          try {
-            const response = await createCatalogEntry('ContentCategory', 'v1', {
-              code: item.label.toUpperCase().replaceAll(/\s+/g, '_'),
-              value: item.label,
-              translations: []
-            })
-            createdCategoryIds.push(response.id)
-          } catch (error) {
-            console.error('Error creating category:', error)
-            throw new Error(`Failed to create category: ${item.label}`)
-          }
-        }
-      }
-      return createdCategoryIds
-    },
-    [createCatalogEntry, newCategories]
-  )
-
-  // Helper: Create new tags
-  const createNewTags = useCallback(
-    async (tagsToCreate: string[]): Promise<string[]> => {
-      const createdTagIds: string[] = []
-      for (const tempId of tagsToCreate) {
-        const item = newTags.find(t => t.id === tempId)
-        if (item) {
-          try {
-            const response = await createCatalogEntry('ContentTag', 'v1', {
-              code: item.label.toUpperCase().replaceAll(/\s+/g, '_'),
-              value: item.label,
-              translations: []
-            })
-            createdTagIds.push(response.id)
-          } catch (error) {
-            console.error('Error creating tag:', error)
-            throw new Error(`Failed to create tag: ${item.label}`)
-          }
-        }
-      }
-      return createdTagIds
-    },
-    [createCatalogEntry, newTags]
-  )
-
   // Helper: Upload image file
   const uploadImageFile = useCallback(
     async (file: File, updatedData: ContentEntryFormValues): Promise<void> => {
@@ -388,22 +364,10 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
     [fileClient, extractedContentId]
   )
 
-  // PreSubmit Handler: Create new categories, tags, and upload image
+  // PreSubmit Handler: Upload image
   const handlePreSubmit = useCallback(
     async (data: ContentEntryFormValues): Promise<ContentEntryFormValues> => {
       const updatedData = { ...data }
-
-      // Identify new categories and tags
-      const categoriesToCreate = (data.categories || []).filter(id => id.startsWith('new-'))
-      const existingCategories = (data.categories || []).filter(id => !id.startsWith('new-'))
-      const tagsToCreate = (data.tags || []).filter(id => id.startsWith('new-'))
-      const existingTags = (data.tags || []).filter(id => !id.startsWith('new-'))
-
-      // Create new categories and tags in parallel
-      const [createdCategoryIds, createdTagIds] = await Promise.all([
-        createNewCategories(categoriesToCreate),
-        createNewTags(tagsToCreate)
-      ])
 
       // Upload image
       if (imageFile && data.contentImage) {
@@ -426,13 +390,9 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
         }
       }
 
-      // Update categories and tags with created IDs
-      updatedData.categories = [...existingCategories, ...createdCategoryIds]
-      updatedData.tags = [...existingTags, ...createdTagIds]
-
       return updatedData
     },
-    [createNewCategories, createNewTags, uploadImageFile, uploadBase64Image, imageFile]
+    [uploadImageFile, uploadBase64Image, imageFile]
   )
 
   const handleSubmit = async (data: ContentEntryFormValues) => {
@@ -541,25 +501,12 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
             watchContent={watchContent}
             watchSchedulePublication={watchSchedulePublication}
             setValue={setValue}
-            context={context}
+            context={{ ...context, onCreateCategory, onCreateTag }}
             extractedContentGroupRef={extractedContentGroupRef}
-            setNewCategories={setNewCategories}
-            setNewTags={setNewTags}
-            categoriesRef={categoriesRef}
-            tagsRef={tagsRef}
           />
         )}
 
-        {currentSegment === 'question' && (
-          <QuestionSegment
-            control={control}
-            setNewCategories={setNewCategories}
-            setNewTags={setNewTags}
-            categoriesRef={categoriesRef}
-            tagsRef={tagsRef}
-            accessToken={context.accessToken || ''}
-          />
-        )}
+        {currentSegment === 'question' && <QuestionSegment control={control} />}
 
         {currentSegment === 'document' && (
           <DocumentSegment

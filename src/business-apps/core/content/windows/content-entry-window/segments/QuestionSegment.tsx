@@ -10,18 +10,12 @@ import {
   Textarea,
   useTranslation
 } from '@newwork/nw-design-system'
-import { CatalogMultiSelect, CatalogMultiSelectOption } from '@/components/catalog-multi-select'
 import { CatalogSelect } from '@/components/catalog-select'
 import { ContentEntryFormValues } from '../ContentEntryWindow'
 import translations from '../_i18n'
 
 interface QuestionSegmentProps {
   control: Control<ContentEntryFormValues>
-  setNewCategories: (items: CatalogMultiSelectOption[]) => void
-  setNewTags: (items: CatalogMultiSelectOption[]) => void
-  categoriesRef: React.RefObject<any>
-  tagsRef: React.RefObject<any>
-  accessToken: string
 }
 
 /**
@@ -29,14 +23,7 @@ interface QuestionSegmentProps {
  * Features: Simple title, summary, detailed description, tags, categories
  * Similar to Stack Overflow, Quora question forms
  */
-export const QuestionSegment: React.FC<QuestionSegmentProps> = ({
-  control,
-  setNewCategories,
-  setNewTags,
-  categoriesRef,
-  tagsRef,
-  accessToken
-}) => {
+export const QuestionSegment: React.FC<QuestionSegmentProps> = ({ control }) => {
   const { t } = useTranslation(translations)
 
   return (
@@ -144,18 +131,14 @@ export const QuestionSegment: React.FC<QuestionSegmentProps> = ({
             <FormItem>
               <FormLabel>Categories (Optional)</FormLabel>
               <FormControl>
-                <CatalogMultiSelect
-                  ref={categoriesRef}
-                  catalogIdentifier="ContentCategory"
-                  catalogVersion="v1"
+                <CatalogSelect
+                  catalogIdentifier="ContentCategory:v1"
+                  multiple={true}
                   value={field.value || []}
                   onValueChange={value => {
                     field.onChange(value)
                   }}
-                  onNewItemsChange={items => setNewCategories(items)}
                   placeholder="Select or create categories..."
-                  allowCreate={true}
-                  accessToken={accessToken}
                   data-testid="question-segment-categories-select"
                 />
               </FormControl>
@@ -172,18 +155,14 @@ export const QuestionSegment: React.FC<QuestionSegmentProps> = ({
             <FormItem>
               <FormLabel>Tags (Optional)</FormLabel>
               <FormControl>
-                <CatalogMultiSelect
-                  ref={tagsRef}
-                  catalogIdentifier="ContentTag"
-                  catalogVersion="v1"
+                <CatalogSelect
+                  catalogIdentifier="ContentTag:v1"
+                  multiple={true}
                   value={field.value || []}
                   onValueChange={value => {
                     field.onChange(value)
                   }}
-                  onNewItemsChange={items => setNewTags(items)}
                   placeholder="Select or create tags..."
-                  allowCreate={true}
-                  accessToken={accessToken}
                   data-testid="question-segment-tags-select"
                 />
               </FormControl>

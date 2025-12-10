@@ -32,8 +32,7 @@ export const appActionPropsComparison = (prevProps: any, nextProps: any): boolea
     'prefixDataTestId',
     'emptyStateBehavior',
     'deferMainContextRequestsUntilClick',
-    'blinkContext',
-    'disabled'
+    'blinkContext'
   ] as const
 
   for (const key of propsToCompare) {
@@ -48,18 +47,6 @@ export const appActionPropsComparison = (prevProps: any, nextProps: any): boolea
         return false
       }
     } else if (prevValue !== nextValue) {
-      return false
-    }
-  }
-
-  // Compare children prop (important for translations)
-  // We compare the children's key and type, and if it's a simple element, its props.children (the text content)
-  if (prevProps.children !== nextProps.children) {
-    const prevChild = prevProps.children
-    const nextChild = nextProps.children
-
-    // If children are different references, check if their content is different
-    if (prevChild?.props?.children !== nextChild?.props?.children) {
       return false
     }
   }

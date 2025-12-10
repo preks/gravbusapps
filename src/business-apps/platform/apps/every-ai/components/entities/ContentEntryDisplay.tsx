@@ -1,6 +1,7 @@
-import React from 'react'
+import React, { useMemo } from 'react'
+import dayjs from 'dayjs'
 import { EntityCard } from './EntityCard'
-import { useContentEntry } from '@/common/data/content/hooks'
+import { useContentEntry } from '@/common/data/content/hooks/useContentEntry'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { getOperationBadge } from './utils/displayUtils'
 
@@ -12,8 +13,10 @@ interface ContentEntryDisplayProps {
 
 export const ContentEntryDisplay: React.FC<ContentEntryDisplayProps> = ({ contentEntryId, accessToken, operation }) => {
   const { entry, isLoading, error } = useContentEntry(contentEntryId, {
-    includeChildren: false,
-    accessToken
+    accessToken,
+    queryOptions: {
+      config: 'full' // Includes contentEntryCategories but not childContentEntries
+    }
   })
 
   const operationBadge = getOperationBadge(operation)
@@ -44,10 +47,24 @@ export const ContentEntryDisplay: React.FC<ContentEntryDisplayProps> = ({ conten
     </div>
   )
 
-  const createdField =
-    entry?.formattedCreatedAt != null ? [{ label: 'Created', value: entry.formattedCreatedAt }] : undefined
+  // Compute formatted date from createdAt
+  const formattedCreatedAt = useMemo(() => {
+    return entry?.createdAt ? dayjs(entry.createdAt).format('MMM DD, YYYY') : null
+  }, [entry?.createdAt])
 
-  const categories = entry?.categoryNames && entry.categoryNames.length > 0 ? entry.categoryNames.join(', ') : undefined
+  // Compute category names from contentEntryCategories
+  const categoryNames = useMemo(() => {
+    if (!entry?.contentEntryCategories || entry.contentEntryCategories.length === 0) {
+      return []
+    }
+    return entry.contentEntryCategories
+      .map(cat => cat.contentCategory?.value)
+      .filter((value): value is string => Boolean(value))
+  }, [entry?.contentEntryCategories])
+
+  const createdField = formattedCreatedAt != null ? [{ label: 'Created', value: formattedCreatedAt }] : undefined
+
+  const categories = categoryNames.length > 0 ? categoryNames.join(', ') : undefined
 
   return (
     <EntityCard
