@@ -185,7 +185,7 @@ const ChangeProfilePictureScreen: React.FC<BusinessAppContextProps> = ({ additio
           }
         />
 
-        <div className="gba:p-6 gba:flex gba:flex-col gba:items-center gba:gap-6 gba:overflow-y-auto gba:max-h-[calc(90vh-160px)]">
+        <div className="gba:px-6 gba:pb-6 gba:flex gba:flex-col gba:items-center gba:gap-6 gba:overflow-y-auto gba:max-h-[calc(90vh-160px)]">
           <div className="gba:w-full gba:flex gba:justify-center">
             {isImageLoading ? (
               <Spinner size="lg" />
