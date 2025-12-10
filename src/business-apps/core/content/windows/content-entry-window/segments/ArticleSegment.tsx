@@ -12,7 +12,7 @@ import {
   Switch,
   useTranslation
 } from '@newwork/nw-design-system'
-import { ImageSquare, CaretLeft, CaretRight } from '@phosphor-icons/react'
+import { ImageIcon, CaretLeftIcon, CaretRightIcon } from '@phosphor-icons/react'
 import ReactQuill from 'react-quill'
 import { CatalogSelect } from '@/components/catalog-select'
 import { CatalogMultiSelect, CatalogMultiSelectOption } from '@/components/catalog-multi-select'
@@ -244,7 +244,7 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
           className="gba:h-full"
           data-testid="content-entry-window-sidebar-toggle"
         >
-          {sidebarOpen ? <CaretLeft size={20} /> : <CaretRight size={20} />}
+          {sidebarOpen ? <CaretLeftIcon size={20} /> : <CaretRightIcon size={20} />}
         </Button>
       </div>
 
@@ -352,7 +352,7 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
                     />
                     <Button type="button" variant="outline" size="sm" asChild>
                       <span>
-                        <ImageSquare className="gba:mr-2" size={20} />
+                        <ImageIcon className="gba:mr-2" size={20} />
                         {t('upload-image') || 'Upload Image'}
                       </span>
                     </Button>

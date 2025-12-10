@@ -106,7 +106,7 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
 
   // Update URL when tab changes
   useEffect(() => {
-    if (typeof globalThis.window !== 'undefined') {
+    if (globalThis.window !== undefined) {
       const url = new URL(globalThis.window.location.href)
       url.searchParams.set('tab', activeTab)
       globalThis.window.history.replaceState({}, '', url.toString())

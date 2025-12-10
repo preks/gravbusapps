@@ -97,7 +97,11 @@ const HomeView: React.FC<HomeViewProps> = ({
   // Memoize item IDs to prevent unnecessary re-renders (sorted for consistency)
   const allItemsIds = useMemo(() => {
     const ids = allItems.map(item => item.id).filter(Boolean)
-    return ids.sort().join(',')
+    const sortedIds = ids.toSorted((a, b) => {
+      if (!a || !b) return 0
+      return a.localeCompare(b)
+    })
+    return sortedIds.join(',')
   }, [allItems])
 
   // Trigger translation when targetLanguage is set

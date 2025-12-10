@@ -317,13 +317,15 @@ const ContentDocumentPopupContent: React.FC<ContentDocumentPopupProps> = context
                   >
                     <SelectTrigger data-testid="content-document-popup-parent-select">
                       <SelectValue
-                        placeholder={
-                          watchContentEntryId
-                            ? isLoadingFolders
-                              ? 'Loading folders...'
-                              : 'Root level (no parent)'
-                            : 'Select area first...'
-                        }
+                        placeholder={(() => {
+                          if (!watchContentEntryId) {
+                            return 'Select area first...'
+                          }
+                          if (isLoadingFolders) {
+                            return 'Loading folders...'
+                          }
+                          return 'Root level (no parent)'
+                        })()}
                       />
                     </SelectTrigger>
                     <SelectContent>

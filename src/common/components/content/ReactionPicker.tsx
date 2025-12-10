@@ -134,6 +134,17 @@ export const ReactionPicker: React.FC<ReactionPickerProps> = ({
     setReactionSummary(previousState)
   }, [])
 
+  // Handler for reaction button click
+  const handleReactionClick = useCallback(
+    (emoji: string, catalogEntryId: string, executeAction: () => Promise<void>) => {
+      const previousState = { ...reactionSummary }
+      const newState = getOptimisticReactionState(emoji, catalogEntryId)
+      setReactionSummary(newState)
+      executeAction().catch(() => handleReactionError(previousState))
+    },
+    [reactionSummary, getOptimisticReactionState, handleReactionError]
+  )
+
   if (!allowReaction) {
     return null
   }
@@ -182,15 +193,7 @@ export const ReactionPicker: React.FC<ReactionPickerProps> = ({
                         ? 'gba:bg-primary gba:text-primary-foreground gba:hover:bg-primary/90'
                         : 'gba:bg-muted gba:text-foreground gba:hover:bg-accent'
                     }`}
-                    onClick={() => {
-                      // Optimistic update
-                      const previousState = { ...reactionSummary }
-                      const newState = getOptimisticReactionState(emoji, reaction.catalogEntryId!)
-                      setReactionSummary(newState)
-
-                      // Call backend
-                      executeAction({}).catch(() => handleReactionError(previousState))
-                    }}
+                    onClick={() => handleReactionClick(emoji, reaction.catalogEntryId!, executeAction)}
                     disabled={isLoading}
                     data-testid={`${dataTestId}-${emoji}`}
                   >

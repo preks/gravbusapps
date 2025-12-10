@@ -427,25 +427,26 @@ export const CatalogMultiSelect = React.forwardRef<any, CatalogMultiSelectProps>
 
               {/* Infinite scroll trigger */}
               {hasMore && (
-                <div
+                <output
                   ref={observerTarget}
                   className="gba:px-3 gba:py-2 gba:text-sm gba:text-muted-foreground gba:text-center"
-                  role="status"
                   aria-live="polite"
                 >
                   {loading ? 'Loading more...' : ''}
-                </div>
+                </output>
               )}
 
               {/* Create new option - always at the bottom */}
               {allowCreate && inputValue.trim() && !searchMatchesExisting && (
-                <div
+                <button
+                  type="button"
                   className={cn(
                     'gba:px-3 gba:py-2 gba:text-sm gba:cursor-pointer gba:rounded-sm',
                     'hover:gba:bg-accent hover:gba:text-accent-foreground',
                     'gba:flex gba:items-center gba:gap-2',
                     'gba:text-primary gba:font-medium',
                     'gba:border-t gba:border-border gba:mt-1 gba:pt-2',
+                    'gba:w-full gba:text-left gba:bg-transparent gba:border-0',
                     highlightedIndex === filteredOptions.length && 'gba:bg-accent gba:text-accent-foreground'
                   )}
                   onMouseDown={e => {
@@ -453,12 +454,13 @@ export const CatalogMultiSelect = React.forwardRef<any, CatalogMultiSelectProps>
                     createNewOption()
                   }}
                   onMouseEnter={() => setHighlightedIndex(filteredOptions.length)}
+                  onClick={() => createNewOption()}
                 >
                   <Plus className="gba:h-4 gba:w-4" />
                   <span>
                     {createNewLabel} "{inputValue.trim()}"
                   </span>
-                </div>
+                </button>
               )}
 
               {/* Total count info */}

@@ -7,6 +7,7 @@ import type { BaseEntity, CatalogEntry } from '@/common/network/graphql/commonTy
 import type { FileInfo } from '@/common/types/FileTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import { BASE_ENTITY_DESCRIPTORS } from '@/common/network/graphql/commonTypes'
+import type { ContentEntry } from './contentEntryTypes'
 
 // =====================================================
 // CONTENT DOCUMENT
@@ -27,7 +28,7 @@ export interface ContentDocument extends BaseEntity {
 
   // Relations from GraphQL
   parentDocument?: ContentDocument | null
-  contentEntry?: unknown | null // ContentEntry (avoid circular dependency)
+  contentEntry?: ContentEntry | null
   documentGroup?: CatalogEntry | null
   documentType?: CatalogEntry | null
   childDocuments?: ContentDocument[]

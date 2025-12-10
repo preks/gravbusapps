@@ -13,7 +13,6 @@ interface MainFeaturedArticleProps {
   currentTab?: string
   reactionSummary?: { [emoji: string]: { emoji: string; count: number; userReacted: boolean } }
   accessToken?: string
-  userInfo?: { id?: string }
 }
 
 const MainFeaturedArticle: React.FC<MainFeaturedArticleProps> = ({
@@ -69,12 +68,6 @@ const MainFeaturedArticle: React.FC<MainFeaturedArticleProps> = ({
           }
         }}
         className="gba:cursor-pointer gba:w-full gba:text-left gba:bg-transparent gba:border-0 gba:p-0"
-        onKeyDown={e => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault()
-            handleClick()
-          }
-        }}
       >
         <div className="gba:h-[280px] gba:overflow-hidden gba:relative">
           {item.picture ? (

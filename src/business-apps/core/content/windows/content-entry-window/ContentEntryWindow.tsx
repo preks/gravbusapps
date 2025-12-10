@@ -125,7 +125,7 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
 
   // Extract contentGroupRef from props or additionalData
   const extractedContentGroupRef =
-    context.contentGroupRef ||
+    contentGroupRef ||
     context.additionalData?.contentGroupRef ||
     context.additionalData?.contentGroup ||
     context.additionalData?.psi_taskPayload?.psi_initialParameters?.contentGroupRef ||

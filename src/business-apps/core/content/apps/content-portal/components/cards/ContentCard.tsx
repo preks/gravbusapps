@@ -78,8 +78,9 @@ const ContentCard: React.FC<ContentCardProps> = ({
     item.descendantContentEntriesAggregate?.aggregate?.count || item.childContentEntriesAggregate?.aggregate?.count || 0
 
   return (
-    <div
-      className={`gba:w-full gba:flex gba:flex-col gba:h-full gba:bg-card gba:rounded-lg gba:overflow-hidden gba:border gba:border-border gba:shadow-lg gba:hover:shadow-xl gba:hover:translate-y-[-4px] gba:transition-all gba:duration-300 gba:cursor-pointer ${
+    <button
+      type="button"
+      className={`gba:w-full gba:flex gba:flex-col gba:h-full gba:bg-card gba:rounded-lg gba:overflow-hidden gba:border gba:border-border gba:shadow-lg gba:hover:shadow-xl gba:hover:translate-y-[-4px] gba:transition-all gba:duration-300 gba:cursor-pointer gba:text-left ${
         featured ? 'featured' : ''
       } ${className}`}
       data-testid={`content-card-${item.id}`}
@@ -90,8 +91,6 @@ const ContentCard: React.FC<ContentCardProps> = ({
           handleClick()
         }
       }}
-      role="button"
-      tabIndex={0}
     >
       {/* Image */}
       <div className="gba:w-full gba:h-[200px] gba:overflow-hidden gba:relative">
@@ -168,7 +167,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
           {/* Stats */}
           <div className="gba:flex gba:items-center gba:gap-4 gba:pt-2 gba:border-t gba:border-border">
             {item.allowReaction && (
-              <div onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
+              <div onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()} role="button" tabIndex={0}>
                 <ReactionPicker
                   contentEntryId={item.id || ''}
                   reactionSummary={reactionSummary}
@@ -212,7 +211,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </button>
   )
 }
 

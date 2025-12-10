@@ -401,10 +401,17 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                 const tagNames = question.contentEntryTags?.map(t => t.contentTag?.value).filter(Boolean) || []
 
                 return (
-                  <div
+                  <button
+                    type="button"
                     key={question.id}
-                    className="gba:bg-card gba:rounded-lg gba:shadow-sm hover:gba:shadow-md gba:transition gba:border gba:border-border gba:p-4 gba:cursor-pointer"
+                    className="gba:bg-card gba:rounded-lg gba:shadow-sm hover:gba:shadow-md gba:transition gba:border gba:border-border gba:p-4 gba:cursor-pointer gba:w-full gba:text-left gba:bg-transparent"
                     onClick={() => handleQuestionClick(question)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        handleQuestionClick(question)
+                      }
+                    }}
                     data-testid={`question-item-${question.id}`}
                   >
                     <div className="gba:flex gba:gap-3">
@@ -487,7 +494,7 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </button>
                 )
               })
             )}

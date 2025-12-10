@@ -110,11 +110,10 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
   }
 
   return (
-    <div
+    <section
       className={`gba:bg-card gba:rounded-lg gba:shadow-md gba:mb-10 gba:overflow-hidden ${className}`}
       onMouseEnter={pauseAutoplay}
       onTouchStart={pauseAutoplay}
-      role="region"
       aria-label="Content carousel"
     >
       <div className="gba:relative">
@@ -132,8 +131,9 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
 
               return (
                 <div key={article.id} className="gba:min-w-full">
-                  <div
-                    className="gba:relative gba:flex gba:flex-row gba:py-6 gba:px-14 gba:gap-6 gba:cursor-pointer gba:w-full gba:text-left"
+                  <button
+                    type="button"
+                    className="gba:relative gba:flex gba:flex-row gba:py-6 gba:px-14 gba:gap-6 gba:cursor-pointer gba:w-full gba:text-left gba:bg-transparent gba:border-0 gba:p-0"
                     onClick={() => handleArticleClick(article)}
                     onKeyDown={e => {
                       if (e.key === 'Enter' || e.key === ' ') {
@@ -141,8 +141,6 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
                         handleArticleClick(article)
                       }
                     }}
-                    role="button"
-                    tabIndex={0}
                   >
                     <div className="gba:w-2/5 gba:h-64 gba:overflow-hidden gba:rounded-lg gba:shrink-0 gba:relative">
                       {article.picture ? (
@@ -192,7 +190,12 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
                       {/* Stats - Reactions, Comments, Share */}
                       <div className="gba:flex gba:items-center gba:gap-4 gba:pt-3 gba:border-t gba:border-border">
                         {article.allowReaction && accessToken && (
-                          <div onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
+                          <div
+                            onClick={e => e.stopPropagation()}
+                            onKeyDown={e => e.stopPropagation()}
+                            role="button"
+                            tabIndex={0}
+                          >
                             <ReactionPicker
                               contentEntryId={article.id || ''}
                               reactionSummary={buildReactionSummaryFromCounts(article, userInfo?.id)}
@@ -234,7 +237,7 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
                         )}
                       </div>
                     </div>
-                  </div>
+                  </button>
                 </div>
               )
             })}
@@ -277,7 +280,7 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
           ))}
         </div>
       </div>
-    </div>
+    </section>
   )
 }
 

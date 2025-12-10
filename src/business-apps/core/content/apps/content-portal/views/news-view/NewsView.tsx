@@ -145,7 +145,11 @@ const NewsView: React.FC<NewsViewProps> = ({
   // Memoize item IDs to prevent unnecessary re-renders (sorted for consistency)
   const allItemsIds = useMemo(() => {
     const ids = allItems.map(item => item.id).filter(Boolean)
-    return ids.sort().join(',')
+    const sortedIds = ids.toSorted((a, b) => {
+      if (!a || !b) return 0
+      return a.localeCompare(b)
+    })
+    return sortedIds.join(',')
   }, [allItems])
 
   // Trigger translation when targetLanguage is set
@@ -247,34 +251,42 @@ const NewsView: React.FC<NewsViewProps> = ({
           </div>
         )}
 
-        {isLoading ? (
-          <div className="gba:grid gba:grid-cols-2 gba:gap-6 gba:mb-10">
-            <ContentCardSkeleton variant="featured" count={2} />
-          </div>
-        ) : featuredArticles.length > 0 ? (
-          <div className="gba:grid gba:grid-cols-2 gba:gap-6 gba:mb-10">
-            {featuredArticles.map((item, index) => {
-              const translated = translatedItems?.[item.id || '']
-              return (
-                <ContentCard
-                  key={item.id || `featured-${index}`}
-                  item={item}
-                  variant="news"
-                  featured={true}
-                  currentTab={currentTab}
-                  accessToken={accessToken}
-                  userInfo={userInfo}
-                  allowedReactions={allowedReactions}
-                  reactionCatalogMap={reactionCatalogMap}
-                  onReactionsRefetch={refetch}
-                  authorLabel="Author"
-                  translatedTitle={translated?.title}
-                  translatedPreview={translated?.preview}
-                />
-              )
-            })}
-          </div>
-        ) : null}
+        {(() => {
+          if (isLoading) {
+            return (
+              <div className="gba:grid gba:grid-cols-2 gba:gap-6 gba:mb-10">
+                <ContentCardSkeleton variant="featured" count={2} />
+              </div>
+            )
+          }
+          if (featuredArticles.length > 0) {
+            return (
+              <div className="gba:grid gba:grid-cols-2 gba:gap-6 gba:mb-10">
+                {featuredArticles.map((item, index) => {
+                  const translated = translatedItems?.[item.id || '']
+                  return (
+                    <ContentCard
+                      key={item.id || `featured-${index}`}
+                      item={item}
+                      variant="news"
+                      featured={true}
+                      currentTab={currentTab}
+                      accessToken={accessToken}
+                      userInfo={userInfo}
+                      allowedReactions={allowedReactions}
+                      reactionCatalogMap={reactionCatalogMap}
+                      onReactionsRefetch={refetch}
+                      authorLabel="Author"
+                      translatedTitle={translated?.title}
+                      translatedPreview={translated?.preview}
+                    />
+                  )
+                })}
+              </div>
+            )
+          }
+          return null
+        })()}
 
         {/* Category Filter */}
         <div className="gba:w-full gba:mb-6">

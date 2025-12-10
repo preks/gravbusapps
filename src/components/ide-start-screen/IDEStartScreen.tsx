@@ -1,6 +1,15 @@
 import React from 'react'
 import { Card, CardContent, Button, Badge } from '@newwork/nw-design-system'
-import { Play, Folder, SquaresFour, Article, ChatCircle, Clock, CaretDown, CaretRight } from '@phosphor-icons/react'
+import {
+  PlayIcon,
+  FolderIcon,
+  SquaresFourIcon,
+  ArticleIcon,
+  ChatCircleIcon,
+  ClockIcon,
+  CaretDownIcon,
+  CaretRightIcon
+} from '@phosphor-icons/react'
 
 import { PageLayout } from '../layout/pageLayout'
 
@@ -136,15 +145,15 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
   const getTypeIcon = (type: BusinessAppType) => {
     switch (type) {
       case 'app':
-        return <Play />
+        return <PlayIcon />
       case 'form':
-        return <Article />
+        return <ArticleIcon />
       case 'popup':
-        return <ChatCircle />
+        return <ChatCircleIcon />
       case 'window':
-        return <SquaresFour />
+        return <SquaresFourIcon />
       default:
-        return <Play />
+        return <PlayIcon />
     }
   }
 
@@ -251,11 +260,11 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                 className="gba:w-full gba:justify-between gba:px-4 gba:py-2 gba:text-left"
               >
                 <div className="gba:flex gba:items-center gba:gap-2">
-                  <Folder className="gba:text-blue-500" />
+                  <FolderIcon className="gba:text-blue-500" />
                   <span className="gba:text-sm gba:font-medium">{formatSubModuleName(subModule)}</span>
                   <Badge variant="secondary">{apps.length}</Badge>
                 </div>
-                {isExpanded ? <CaretDown size={16} /> : <CaretRight size={16} />}
+                {isExpanded ? <CaretDownIcon size={16} /> : <CaretRightIcon size={16} />}
               </Button>
               {isExpanded && (
                 <div className="gba:px-4 gba:pb-2 gba:space-y-1 gba:text-left">{apps.map(renderAppButton)}</div>
@@ -281,7 +290,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
     <div data-testid="IDE-StartScreen" className="gba:min-h-full gba:bg-gradient-decorative-1">
       <PageLayout
         variant="display"
-        headerIcon={<SquaresFour className="gba:text-foreground" />}
+        headerIcon={<SquaresFourIcon className="gba:text-foreground" />}
         headerLabel="Business Applications"
         headerLabelClassName="gba:!text-black"
         className="gba:h-full gba:!bg-transparent gba:!shadow-none gba:!rounded-none"
@@ -291,7 +300,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
             {exampleItems.items.length > 0 && (
               <div className="gba:mb-8" data-testid="IDE-Examples-Section">
                 <h4 className="gba:mb-4 gba:flex gba:items-center gba:gap-2 gba:text-black gba:text-lg gba:font-semibold">
-                  <SquaresFour className="gba:text-foreground" />
+                  <SquaresFourIcon className="gba:text-foreground" />
                   Examples
                 </h4>
                 <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-4 gba:md:grid-cols-8 gba:lg:grid-cols-12 gba:auto-cols-fr gba:auto-rows-min gba:gap-6">
@@ -307,7 +316,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                       >
                         <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
                           <span className="gba:flex gba:items-center gba:gap-2 gba:font-semibold">
-                            <Play className="gba:text-blue-600" />
+                            <PlayIcon className="gba:text-blue-600" />
                             Apps
                           </span>
                           <Badge variant="secondary">{exampleItems.apps.length}</Badge>
@@ -330,7 +339,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                       >
                         <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
                           <span className="gba:flex gba:items-center gba:gap-2 gba:font-semibold">
-                            <Article className="gba:text-green-600" />
+                            <ArticleIcon className="gba:text-green-600" />
                             Forms
                           </span>
                           <Badge variant="secondary">{exampleItems.forms.length}</Badge>
@@ -353,7 +362,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                       >
                         <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
                           <span className="gba:flex gba:items-center gba:gap-2 gba:font-semibold">
-                            <ChatCircle className="gba:text-orange-600" />
+                            <ChatCircleIcon className="gba:text-orange-600" />
                             Popups
                           </span>
                           <Badge variant="secondary">{exampleItems.popups.length}</Badge>
@@ -376,7 +385,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                       >
                         <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
                           <span className="gba:flex gba:items-center gba:gap-2 gba:font-semibold">
-                            <SquaresFour className="gba:text-purple-600" />
+                            <SquaresFourIcon className="gba:text-purple-600" />
                             Windows
                           </span>
                           <Badge variant="secondary">{exampleItems.windows.length}</Badge>
@@ -394,7 +403,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
             {recentlyUsedApps.length > 0 && (
               <div className="gba:mb-8">
                 <h4 className="gba:mb-4 gba:flex gba:items-center gba:gap-2 gba:text-black gba:text-lg gba:font-semibold">
-                  <Clock className="gba:text-foreground" />
+                  <ClockIcon className="gba:text-foreground" />
                   Recently Used
                 </h4>
                 <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-4 gba:md:grid-cols-8 gba:lg:grid-cols-12 gba:auto-cols-fr gba:auto-rows-min gba:gap-4">
@@ -442,7 +451,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
             {/* Module Cards */}
             <div className="gba:mb-4">
               <h4 className="gba:mb-4 gba:flex gba:items-center gba:gap-2 gba:text-black gba:text-lg gba:font-semibold">
-                <SquaresFour className="gba:text-foreground" />
+                <SquaresFourIcon className="gba:text-foreground" />
                 All Applications
               </h4>
               {Object.keys(groupedApps).length === 0 ? (
@@ -462,7 +471,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                         <CardContent className="gba:p-3 gba:flex gba:flex-col gba:flex-1 gba:min-h-0 gba:h-full">
                           <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
                             <span className="gba:flex gba:items-center gba:gap-2 gba:font-semibold">
-                              <SquaresFour className="gba:text-blue-600" />
+                              <SquaresFourIcon className="gba:text-blue-600" />
                               {formatModuleName(module)}
                             </span>
                             <Badge variant="secondary">{totalApps}</Badge>

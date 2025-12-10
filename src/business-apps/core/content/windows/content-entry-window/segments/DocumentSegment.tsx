@@ -11,7 +11,7 @@ import {
   Button,
   useTranslation
 } from '@newwork/nw-design-system'
-import { ImageSquare } from '@phosphor-icons/react'
+import { ImageIcon } from '@phosphor-icons/react'
 import { ContentEntryFormValues } from '../ContentEntryWindow'
 import translations from '../_i18n'
 
@@ -129,7 +129,7 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
                 />
                 <Button type="button" variant="outline" size="sm" asChild>
                   <span>
-                    <ImageSquare className="gba:mr-2" size={20} />
+                    <ImageIcon className="gba:mr-2" size={20} />
                     {t('upload-image') || 'Upload Image'}
                   </span>
                 </Button>

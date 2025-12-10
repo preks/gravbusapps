@@ -23,10 +23,41 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 // Import customer data hooks
 import { useCustomerTasks } from '@/common/data/customer/hooks/useCustomerTasks'
 import { useCustomerActivities } from '@/common/data/customer/hooks/useCustomerActivities'
-import { useCustomerAccounts } from '@/common/data/customer/hooks/useCustomerAccounts'
-import { useCustomerContacts } from '@/common/data/customer/hooks/useCustomerContacts'
-import { useCustomerLeads } from '@/common/data/customer/hooks/useCustomerLeads'
-import { useCustomerOpportunities } from '@/common/data/customer/hooks/useCustomerOpportunities'
+// Import GraphQL client and query builders directly (avoiding deprecated hooks)
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import {
+  buildCustomerAccountQuery,
+  buildCustomerAccountWhereCondition,
+  buildCustomerAccountOrderBy,
+  type CustomerAccountQueryVariables
+} from '@/common/data/customer/queries/customerAccountQueries'
+import {
+  buildCustomerContactQuery,
+  buildCustomerContactWhereCondition,
+  buildCustomerContactOrderBy,
+  type CustomerContactQueryVariables
+} from '@/common/data/customer/queries/customerContactQueries'
+import {
+  buildCustomerLeadQuery,
+  buildCustomerLeadByIdQuery,
+  buildCustomerLeadWhereCondition,
+  buildCustomerLeadOrderBy,
+  type CustomerLeadQueryVariables
+} from '@/common/data/customer/queries/customerLeadQueries'
+import {
+  buildCustomerOpportunityQuery,
+  buildCustomerOpportunityWhereCondition,
+  buildCustomerOpportunityOrderBy,
+  type CustomerOpportunityQueryVariables
+} from '@/common/data/customer/queries/customerOpportunityQueries'
+import type { Descriptor } from '@/common/network/graphql/queryHelpers'
+import { toCustomerAccount } from '@/common/data/customer/types/customerAccountTypes'
+import { toCustomerContact } from '@/common/data/customer/types/customerContactTypes'
+import { toCustomerLead } from '@/common/data/customer/types/customerLeadTypes'
+import { toCustomerOpportunity } from '@/common/data/customer/types/customerOpportunityTypes'
+import type { CustomerAccountListQueryResponse } from '@/common/data/customer/hooks/useCustomerAccounts'
+import type { CustomerContactListQueryResponse } from '@/common/data/customer/hooks/useCustomerContacts'
+import type { CustomerLeadListQueryResponse } from '@/common/data/customer/hooks/useCustomerLeads'
 
 // NOTE: Mappers are already applied in hooks!
 // Raw data is not exposed by hooks - they return pre-mapped types
@@ -54,10 +85,117 @@ const CustomersDebug: React.FC<CustomersDebugProps> = context => {
   // Hooks
   const { fetchCustomerTasks } = useCustomerTasks(context)
   const { fetchCustomerActivities } = useCustomerActivities(context)
-  const { fetchCustomerAccounts } = useCustomerAccounts(context)
-  const { fetchCustomerContacts } = useCustomerContacts(context)
-  const { fetchCustomerLeads, fetchCustomerLeadById } = useCustomerLeads(context)
-  const { fetchCustomerOpportunities } = useCustomerOpportunities(context)
+  const graphqlClient = useGraphQLClient(context.accessToken)
+
+  // Fetch functions using GraphQL client directly (replacing deprecated hooks)
+  const fetchCustomerAccounts = async (variables: CustomerAccountQueryVariables = {}) => {
+    const query = buildCustomerAccountQuery()
+    const whereCondition = buildCustomerAccountWhereCondition(variables)
+    const orderBy = buildCustomerAccountOrderBy(variables.orderBy || [])
+    const graphQLVariables: Record<string, any> = {
+      limit: Math.min(variables.limit || 50, 100),
+      offset: variables.offset || 0,
+      where: whereCondition,
+      orderBy: orderBy
+    }
+    const result = await graphqlClient.request<CustomerAccountListQueryResponse>(query, graphQLVariables)
+    const accounts = result.Account.map(toCustomerAccount)
+    const total = result.AccountAggregate?.aggregate?.count || 0
+    return { accounts, total }
+  }
+
+  const fetchCustomerContacts = async (variables: CustomerContactQueryVariables = {}) => {
+    const query = buildCustomerContactQuery()
+    const customConditions: Record<string, any>[] = []
+    if (variables.hasEmail) customConditions.push({ email: { _isNull: false, _neq: '' } })
+    if (variables.missingEmail) customConditions.push({ _or: [{ email: { _isNull: true } }, { email: { _eq: '' } }] })
+    if (variables.hasPhone) customConditions.push({ phone: { _isNull: false, _neq: '' } })
+    if (variables.missingPhone) customConditions.push({ _or: [{ phone: { _isNull: true } }, { phone: { _eq: '' } }] })
+    const whereCondition = buildCustomerContactWhereCondition(variables, [], customConditions)
+    const orderBy = buildCustomerContactOrderBy(variables.orderBy || [])
+    const graphQLVariables: Record<string, any> = {
+      limit: Math.min(variables.limit || 50, 100),
+      offset: variables.offset || 0,
+      where: whereCondition,
+      orderBy: orderBy
+    }
+    const result = await graphqlClient.request<CustomerContactListQueryResponse>(query, graphQLVariables)
+    const contacts = result.Contact.map(toCustomerContact)
+    const total = result.ContactAggregate?.aggregate?.count || 0
+    return { contacts, total }
+  }
+
+  const fetchCustomerLeads = async (variables: CustomerLeadQueryVariables = {}) => {
+    const query = buildCustomerLeadQuery()
+    const whereCondition = buildCustomerLeadWhereCondition(variables)
+    const orderBy = buildCustomerLeadOrderBy(variables.orderBy || [])
+    if (orderBy.length === 0) {
+      orderBy.push({ field: 'createdAt', direction: 'DESC_NULLS_LAST' })
+    }
+    const graphQLVariables: Record<string, any> = {
+      limit: Math.min(variables.limit || 50, 100),
+      offset: variables.offset || 0,
+      where: whereCondition,
+      orderBy: orderBy
+    }
+    const result = await graphqlClient.request<CustomerLeadListQueryResponse>(query, graphQLVariables)
+    const leads = result.Lead.map(toCustomerLead)
+    const total = result.LeadAggregate?.aggregate?.count || 0
+    return { leads, total }
+  }
+
+  const fetchCustomerLeadById = async (leadId: string) => {
+    const query = buildCustomerLeadByIdQuery()
+    const result = await graphqlClient.request<{
+      LeadByPk: any | null
+      leadStatuses?: Array<{
+        id: string
+        code: string
+        value: string
+        alternativeCode?: string
+      }>
+    }>(query, { id: leadId })
+    if (!result.LeadByPk) {
+      throw new Error(`Lead with ID ${leadId} not found`)
+    }
+    const lead = toCustomerLead(result.LeadByPk)
+    return { ...lead, leadStatuses: result.leadStatuses || [] }
+  }
+
+  const fetchCustomerOpportunities = async (variables: CustomerOpportunityQueryVariables = {}) => {
+    const query = buildCustomerOpportunityQuery()
+    const customConditions: Record<string, any>[] = []
+    if (variables.currencyCode) {
+      customConditions.push({
+        currency: { code: { _eq: variables.currencyCode } }
+      })
+    }
+    if ((variables as any).stageValues?.length) {
+      customConditions.push({
+        _or: [
+          { stage: { _in: (variables as any).stageValues } },
+          { salesPipelineStage: { value: { _in: (variables as any).stageValues } } }
+        ]
+      })
+    }
+    const whereCondition = buildCustomerOpportunityWhereCondition(variables, [] as Descriptor[], customConditions)
+    const orderBy = buildCustomerOpportunityOrderBy(variables.orderBy || [])
+    const graphQLVariables: Record<string, any> = {
+      limit: Math.min(variables.limit || 50, 100),
+      offset: variables.offset || 0,
+      where: whereCondition,
+      orderBy: orderBy
+    }
+    const result = await graphqlClient.request<{
+      Opportunity: any[]
+      OpportunityAggregate: {
+        aggregate: { count: number }
+      }
+    }>(query, graphQLVariables)
+    const opportunities = result.Opportunity.map(toCustomerOpportunity)
+    const total = result.OpportunityAggregate?.aggregate?.count || 0
+    return { opportunities, total }
+  }
 
   // Helper executor with mapper support
   const executeTest = async (testName: string, testFunction: () => Promise<any>, query?: string, variables?: any) => {

@@ -94,37 +94,40 @@ const ContentDebug: React.FC<ContentDebugProps> = context => {
     }
   }
 
+  // Helper to get status info
+  const getStatusInfo = (status: string, duration?: number) => {
+    if (status === 'loading') {
+      return { color: 'processing' as const, text: 'Loading...' }
+    }
+    if (status === 'success') {
+      return { color: 'success' as const, text: `Success (${duration}ms)` }
+    }
+    if (status === 'error') {
+      return { color: 'error' as const, text: `Error (${duration}ms)` }
+    }
+    return { color: 'default' as const, text: 'Idle' }
+  }
+
+  // Helper to derive item count
+  const getItemCount = (data: any): number => {
+    if (!data) return 0
+    if (Array.isArray(data)) return data.length
+    if (typeof data === 'object') {
+      const arrayValues = Object.values(data).find(v => Array.isArray(v))
+      if (Array.isArray(arrayValues)) return arrayValues.length
+      if ('total' in data && typeof data.total === 'number') return data.total
+    }
+    return 0
+  }
+
   // Results renderer (compact)
   const getResultComponent = (testKey: string) => {
     const result = testResults[testKey]
     if (!result) return null
     const { status, data, error, timestamp, duration, query, variables } = result
 
-    let statusColor: 'default' | 'processing' | 'success' | 'error' = 'default'
-    let statusText = 'Idle'
-    if (status === 'loading') {
-      statusColor = 'processing'
-      statusText = 'Loading...'
-    }
-    if (status === 'success') {
-      statusColor = 'success'
-      statusText = `Success (${duration}ms)`
-    }
-    if (status === 'error') {
-      statusColor = 'error'
-      statusText = `Error (${duration}ms)`
-    }
-
-    // Attempt to derive counts
-    let itemCount = 0
-    if (data) {
-      if (Array.isArray(data)) itemCount = data.length
-      if (typeof data === 'object') {
-        const arrayValues = Object.values(data).find(v => Array.isArray(v))
-        if (Array.isArray(arrayValues)) itemCount = arrayValues.length
-        if (typeof data === 'object' && 'total' in data && typeof data.total === 'number') itemCount = data.total
-      }
-    }
+    const { color: statusColor, text: statusText } = getStatusInfo(status, duration)
+    const itemCount = getItemCount(data)
 
     return (
       <Card size="small" data-testid={`content-debug-result-${testKey}`}>
