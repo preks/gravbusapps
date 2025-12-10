@@ -5,7 +5,7 @@ import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogMan
 import { EMPLOYEE_DATA_QUERY, GET_COUNTRY_CURRENCY_QUERY } from './RequestEmployeeBenefitQueries'
 import { fetchBenefitProvidersForBenefit } from './utils/fetchBenefitProviders'
 import { fetchCountryCurrency } from './utils/fetchCountryCurrency'
-import { extractEmployeeId } from './utils/employeeIdUtils'
+import { extractEmployeeId } from '@/business-apps/hr/core/utils/employeeIdUtils'
 import type { RequestEmployeeBenefitContextData, EmployeeDataResponse } from './types'
 
 interface RequestEmployeeBenefitContextValue {

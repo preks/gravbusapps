@@ -16,14 +16,19 @@ interface AdditionalDataWithContext {
 }
 
 /**
- * Extracts employee ID with priority:
+ * Extracts employee ID from business app context with priority:
  * 1. externalContextData (from AppAction) - highest priority
  * 2. process payload (psi_taskPayload.employeeId)
- * 3. process initial parameters (psi_taskPayload.initialParameters.employeeId)
+ * 3. process initial parameters (psi_taskPayload.psi_initialParameters.employeeId)
  * 4. direct additionalData.employeeId
  * 5. userInfo.employeeDetails.employeeId
  * 6. employee.code or employee.id (if employee object provided)
  * 7. empty string (fallback)
+ *
+ * @param additionalData - Additional data from BusinessAppContext
+ * @param userInfo - User information from BusinessAppContext
+ * @param employee - Optional employee object with code or id
+ * @returns Employee ID string or empty string if not found
  */
 export const extractEmployeeId = (
   additionalData: BusinessAppContextProps['additionalData'],
