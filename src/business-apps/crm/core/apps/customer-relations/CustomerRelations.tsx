@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Button, Alert, AlertTitle, AlertDescription, Spinner, PageLayout } from '@newwork/nw-design-system'
 import {
   HandshakeIcon,
@@ -27,7 +27,31 @@ import { MODULE_COLORS } from '@/common/constants/ui'
 export type CustomerRelationsProps = BusinessAppContextProps
 
 const moduleColor = MODULE_COLORS.CRM
+const CUSTOMER_VIEW_KEYS = [
+  'dashboard',
+  'tasks',
+  'leads',
+  'accounts',
+  'contacts',
+  'opportunities',
+  'campaigns',
+  'analytics'
+] as const
+type CustomerViewKey = (typeof CUSTOMER_VIEW_KEYS)[number]
+const isValidCustomerView = (value?: string | null): value is CustomerViewKey =>
+  Boolean(value && (CUSTOMER_VIEW_KEYS as readonly string[]).includes(value))
+
+const getViewFromUrl = (): CustomerViewKey | null => {
+  if (typeof window === 'undefined') {
+    return null
+  }
+  const params = new URLSearchParams(window.location.search)
+  const viewFromUrl = params.get('view')
+  return isValidCustomerView(viewFromUrl) ? viewFromUrl : null
+}
 export const CustomerRelations: React.FC<CustomerRelationsProps> = context => {
+  const hostViewParam = typeof context.additionalData?.view === 'string' ? context.additionalData.view : undefined
+  const contextView = isValidCustomerView(hostViewParam) ? hostViewParam : null
   const viewOptions = [
     {
       key: 'dashboard',
@@ -71,21 +95,28 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = context => {
     }
   ]
 
-  // Get initial view from URL or default to first view
+  // Get initial view from context or URL or default to first view
   const getInitialView = () => {
-    const urlParams = new URLSearchParams(window.location.search)
-    const viewFromUrl = urlParams.get('view')
-
-    // Validate that the view exists in our options
-    if (viewFromUrl && viewOptions.some(option => option.key === viewFromUrl)) {
-      return viewFromUrl
+    if (contextView) {
+      return contextView
     }
-
-    // Default to first view
-    return viewOptions[0].key
+    const urlView = getViewFromUrl()
+    if (urlView) {
+      return urlView
+    }
+    const defaultView = viewOptions[0].key as CustomerViewKey
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      if (!params.has('view')) {
+        params.set('view', defaultView)
+        const newUrl = `${window.location.pathname}?${params.toString()}`
+        window.history.replaceState({}, '', newUrl)
+      }
+    }
+    return defaultView
   }
 
-  const [activeTab, setActiveTab] = useState<string>(getInitialView())
+  const [activeTab, setActiveTab] = useState<CustomerViewKey>(getInitialView())
   // Sub-view is now handled inside OpportunityView
   const [dateRange] = useState<DateRange>({
     startDate: new Date(new Date().getFullYear() - 2, 0, 1),
@@ -94,33 +125,35 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = context => {
   const { pipelines, isLoading, error, refetch } = useSalesDashboard(context)
 
   // Update URL when view changes
-  const updateUrl = (view: string, subView?: string) => {
+  const updateUrl = useCallback((view: CustomerViewKey, subView?: string) => {
+    if (typeof window === 'undefined') {
+      return
+    }
     const urlParams = new URLSearchParams(window.location.search)
+    const currentView = urlParams.get('view')
+    let changed = false
 
-    // Always set the view parameter (including for default)
-    urlParams.set('view', view)
-
-    // Handle subView parameter for opportunities
-    if (view === 'opportunities' && subView) {
-      // Map internal tab values to URL subView values
-      if (subView === 'board') {
-        urlParams.set('subView', 'pipeline')
-      } else if (subView === 'list') {
-        urlParams.set('subView', 'list')
-      }
-    } else {
-      // Clear subView parameter when not in opportunities view
-      if (urlParams.has('subView')) {
-        urlParams.delete('subView')
-      }
+    if (currentView !== view) {
+      urlParams.set('view', view)
+      changed = true
     }
 
-    // Clear leadStatus parameter when switching away from leads view
+    if (view === 'opportunities' && subView) {
+      const encodedSubView = subView === 'board' ? 'pipeline' : subView
+      if (urlParams.get('subView') !== encodedSubView) {
+        urlParams.set('subView', encodedSubView)
+        changed = true
+      }
+    } else if (urlParams.has('subView')) {
+      urlParams.delete('subView')
+      changed = true
+    }
+
     if (view !== 'leads' && urlParams.has('leadStatus')) {
       urlParams.delete('leadStatus')
+      changed = true
     }
 
-    // Clear campaign-specific parameters when switching away from campaigns view
     if (
       view !== 'campaigns' &&
       (urlParams.has('campaignId') || urlParams.has('mainTab') || urlParams.has('recordTab'))
@@ -128,40 +161,60 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = context => {
       urlParams.delete('campaignId')
       urlParams.delete('mainTab')
       urlParams.delete('recordTab')
+      changed = true
+    }
+
+    if (!changed && currentView === view) {
+      return
     }
 
     const newUrl = `${window.location.pathname}?${urlParams.toString()}`
     window.history.replaceState({}, '', newUrl)
-  }
+  }, [])
 
   const handleTabChange = (key: string) => {
-    // Allow all valid tab changes including clicking the same tab to ensure proper highlighting
-    if (!key) {
+    if (!isValidCustomerView(key) || key === activeTab) {
       return
     }
     setActiveTab(key)
-
     updateUrl(key)
   }
 
   // Ensure URL always has view parameter on initial load
   useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
     const urlParams = new URLSearchParams(window.location.search)
     if (!urlParams.has('view')) {
       updateUrl(activeTab)
     }
-  }, [])
+  }, [activeTab, updateUrl])
 
   // Listen for browser back/forward navigation
   useEffect(() => {
     const handlePopState = () => {
-      const newView = getInitialView()
+      const newView = getViewFromUrl() ?? (viewOptions[0].key as CustomerViewKey)
       setActiveTab(newView)
     }
 
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
   }, [])
+
+  // Sync with external context view updates
+  useEffect(() => {
+    if (!contextView) {
+      return
+    }
+    setActiveTab(previous => {
+      if (previous === contextView) {
+        return previous
+      }
+      updateUrl(contextView)
+      return contextView
+    })
+  }, [contextView, updateUrl])
 
   const renderDashboardContent = () => {
     if (isLoading) {

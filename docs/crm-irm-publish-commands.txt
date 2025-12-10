@@ -29,7 +29,7 @@ npm run publish:screen -- "crm/core/apps/customer-launcher" --no-interaction ; n
 - crm/core/forms/sales-task-form
 
 #### Popups (4)
-- crm/core/popups/document-creation-popup
+- crm/core/popups/document-popup
 - crm/core/popups/note-delete-popup
 - crm/core/popups/stage-condition-popup
 - crm/core/popups/stage-transition-popup
@@ -66,11 +66,10 @@ npm run publish:screen -- "crm/core/apps/customer-launcher" --no-interaction ; n
 - irm/investments/forms/investment-report-form
 - irm/investments/forms/investment-report-upload-form
 
-#### Popups (12)
+#### Popups (11)
 - irm/core/popups/activity-delete-popup
 - irm/core/popups/document-delete-popup
-- irm/core/popups/document-popup
-- irm/core/popups/document-update-popup
+- irm/core/popups/document-popup (handles both create and update)
 - irm/core/popups/note-delete-popup
 - irm/core/popups/stage-condition-popup
 - irm/core/popups/stage-transition-popup
@@ -87,5 +86,6 @@ npm run publish:screen -- "crm/core/apps/customer-launcher" --no-interaction ; n
 - irm/core/records/opportunity-record
 - irm/investments/records/investment-record
 
-### Total: 57 components (24 CRM + 33 IRM)
+### Total: 55 components (24 CRM + 31 IRM)
+### Note: document-popup now handles both create and update modes (following ActivityForm/NoteForm pattern)
 

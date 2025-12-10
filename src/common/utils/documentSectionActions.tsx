@@ -124,6 +124,7 @@ export function createDocumentSectionActions(config: DocumentSectionActionsConfi
       label: getTranslation('document.action.update', 'Update'),
       icon: <Edit className="gba:h-4 gba:w-4" />,
       onClick: (documentId: string, document: any, entityId: string) => {
+        // Pass the complete document object to pre-fill the form
         startProcess({
           domain,
           processName: updateProcessName,
@@ -131,15 +132,37 @@ export function createDocumentSectionActions(config: DocumentSectionActionsConfi
             documentId,
             [`${entityType}Id`]: entityId,
             [documentFieldName]: {
+              // Core document fields
               id: documentId,
               version: document.version,
               name: document.name,
-              documentGroupRef: document.documentGroup?.id,
-              documentTypeRef: document.documentType?.id,
-              expirationDate: document.expirationDate,
               description: document.description,
               folder: document.folder || false,
               parentDocument: document.parentDocument,
+              format: document.format,
+
+              // Catalog references
+              documentGroupRef: document.documentGroup?.id,
+              documentTypeRef: document.documentType?.id,
+
+              // File information (essential for update mode)
+              file: document.file,
+              fileInfo: document.fileInfo,
+              fileSize: document.fileSize,
+              mimeType: document.mimeType,
+
+              // Date fields
+              expirationDate: document.expirationDate,
+              createdAt: document.createdAt,
+
+              // Additional metadata
+              verified: document.verified,
+              verificationDate: document.verificationDate,
+              authenticated: document.authenticated,
+              authenticationDate: document.authenticationDate,
+              mandatory: document.mandatory,
+
+              // Entity relationship
               [entityType]: entityId
             }
           },
