@@ -8,6 +8,7 @@ import { useGetEmployeePicture } from './queries/ChangeProfilePictureQueries'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import AppActionForm from '@/components/app-action-form/AppActionForm'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
+import FormHeader from '../components/FormHeader'
 
 const prefixDataTestId = 'ChangeProfilePictureScreen'
 
@@ -22,11 +23,19 @@ type AvatarUploadValue = {
   thumbnail: string | null
 }
 
+interface EmployeeHeaderInfo {
+  firstName?: string
+  lastName?: string
+  pictureThumbnail?: string
+  jobTitle?: string
+}
+
 const ChangeProfilePictureScreen: React.FC<BusinessAppContextProps> = ({ additionalData, userInfo, accessToken }) => {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [isImageLoading, setIsImageLoading] = useState<boolean>(true)
   const [currentVersion, setCurrentVersion] = useState<number | null>(null)
   const [changedFile, setChangedFile] = useState<AvatarUploadValue | null>(null)
+  const [employeeHeaderInfo, setEmployeeHeaderInfo] = useState<EmployeeHeaderInfo | undefined>(undefined)
   const onChangeExecutionsRef = useRef<number>(0)
 
   const currentImageUrl = useMemo(() => {
@@ -54,6 +63,18 @@ const ChangeProfilePictureScreen: React.FC<BusinessAppContextProps> = ({ additio
             setPreviewUrl(res.thumbnail)
           }
           if (typeof res.version === 'number') setCurrentVersion(res.version)
+          // Store employee header info - extract base64 data without data URL prefix for FormHeader
+          const rawThumbnail = res.thumbnail
+            ? res.thumbnail.includes(',')
+              ? res.thumbnail.split(',')[1]
+              : res.thumbnail
+            : undefined
+          setEmployeeHeaderInfo({
+            firstName: res.firstName,
+            lastName: res.lastName,
+            pictureThumbnail: rawThumbnail,
+            jobTitle: res.jobTitle
+          })
         }
       } catch (error) {
         console.error('Failed to upload profile picture:', error)
@@ -161,28 +182,20 @@ const ChangeProfilePictureScreen: React.FC<BusinessAppContextProps> = ({ additio
     >
       <div className="gba:bg-white gba:w-full gba:max-w-xl gba:max-h-[90vh] gba:overflow-hidden">
         {/* Header */}
-        <div className="gba:flex gba:items-center gba:justify-between gba:p-6">
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <img
-              src={flowSmall}
-              alt="Flow Small"
-              data-testid={formatDataTestId(prefixDataTestId, 'FlowIcon')}
-              className="gba:w-6 gba:h-6"
-              style={{
-                filter: 'brightness(0)'
-              }}
-            />
-            <h2
-              className="gba:text-xl gba:font-semibold gba:text-foreground"
-              data-testid={formatDataTestId(prefixDataTestId, 'Title')}
-            >
-              {getTranslationFromI18nKeyAndLabel('lowcoder:profile_picture_form.title', 'Change Profile Picture')}
-            </h2>
-          </div>
-        </div>
-
-        {/* Divider */}
-        <div className="gba:border-t gba:border-border" />
+        <FormHeader
+          title={getTranslationFromI18nKeyAndLabel('lowcoder:profile_picture_form.title', 'Change Profile Picture')}
+          flowIconUrl={flowSmall}
+          employee={
+            employeeHeaderInfo?.firstName || employeeHeaderInfo?.lastName
+              ? {
+                  firstName: employeeHeaderInfo.firstName,
+                  lastName: employeeHeaderInfo.lastName,
+                  pictureThumbnail: employeeHeaderInfo.pictureThumbnail,
+                  jobTitle: employeeHeaderInfo.jobTitle
+                }
+              : undefined
+          }
+        />
 
         {/* Content */}
         <div className="gba:p-6 gba:flex gba:flex-col gba:items-center gba:gap-6 gba:overflow-y-auto gba:max-h-[calc(90vh-160px)]">

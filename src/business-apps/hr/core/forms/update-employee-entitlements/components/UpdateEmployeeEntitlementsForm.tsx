@@ -37,6 +37,7 @@ const UpdateEmployeeEntitlementsForm: React.FC<UpdateEmployeeEntitlementsFormPro
     isFixedEmployeeId,
     activeEmployeeId,
     fixedEmployeeName,
+    employeeHeaderInfo,
     entitlements,
     absenceTypes,
     reload,
@@ -255,6 +256,7 @@ const UpdateEmployeeEntitlementsForm: React.FC<UpdateEmployeeEntitlementsFormPro
                   accessToken={accessToken}
                   year={currentYear}
                   existingEntitlementTypeIds={(entitlements || []).map((e: any) => e?.type?.id).filter(Boolean)}
+                  employeeHeaderInfo={employeeHeaderInfo}
                   onSuccess={async () => {
                     await reload()
                     setHasChanges(true)

@@ -14,6 +14,13 @@ export interface EmployeeLite {
   lastName?: string
 }
 
+export interface EmployeeHeaderInfo {
+  firstName?: string
+  lastName?: string
+  pictureThumbnail?: string
+  jobTitle?: string
+}
+
 export interface UpdateEmployeeEntitlementsContextState {
   employees: EmployeeLite[]
   selectedEmployeeId: string
@@ -21,6 +28,7 @@ export interface UpdateEmployeeEntitlementsContextState {
   activeEmployeeId: string
   isFixedEmployeeId: boolean
   fixedEmployeeName?: string
+  employeeHeaderInfo?: EmployeeHeaderInfo
   entitlements: any[]
   absenceTypes: Array<{ id: string; value?: string; code?: string; translations?: any[] }>
   loading: boolean
@@ -56,6 +64,7 @@ export function UpdateEmployeeEntitlementsProvider({
   const [employees, setEmployees] = useState<EmployeeLite[]>([])
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('')
   const [fixedEmployeeName, setFixedEmployeeName] = useState<string>('')
+  const [employeeHeaderInfo, setEmployeeHeaderInfo] = useState<EmployeeHeaderInfo | undefined>(undefined)
   const [entitlements, setEntitlements] = useState<any[]>([])
   const [absenceTypes, setAbsenceTypes] = useState<
     Array<{ id: string; value?: string; code?: string; translations?: any[] }>
@@ -103,13 +112,19 @@ export function UpdateEmployeeEntitlementsProvider({
       })
       setEntitlements(res?.EmployeeAbsenceEntitlement || [])
       setAbsenceTypes(res?.absenceType || [])
-      // Capture fixed employee name if available
-      if (isFixedEmployeeId) {
-        const emp = res?.Employee?.[0]
-        if (emp) {
-          const fullName = `${emp.firstName ?? ''} ${emp.lastName ?? ''}`.trim()
-          ;(setFixedEmployeeName as any)?.(fullName)
-        }
+      // Capture employee header info
+      const emp = res?.Employee?.[0]
+      if (emp) {
+        const fullName = `${emp.firstName ?? ''} ${emp.lastName ?? ''}`.trim()
+        setFixedEmployeeName(fullName)
+        // employeePosition is an array, get the first one
+        const position = Array.isArray(emp.employeePosition) ? emp.employeePosition[0] : emp.employeePosition
+        setEmployeeHeaderInfo({
+          firstName: emp.firstName,
+          lastName: emp.lastName,
+          pictureThumbnail: emp.pictureThumbnail,
+          jobTitle: position?.jobPosition?.name
+        })
       }
     } catch (e: any) {
       setError(
@@ -163,6 +178,7 @@ export function UpdateEmployeeEntitlementsProvider({
         activeEmployeeId,
         isFixedEmployeeId,
         fixedEmployeeName,
+        employeeHeaderInfo,
         entitlements,
         absenceTypes,
         loading,

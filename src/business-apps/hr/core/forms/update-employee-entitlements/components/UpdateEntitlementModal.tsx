@@ -17,6 +17,13 @@ export interface EntitlementRowLike {
   total?: number
 }
 
+export interface EmployeeHeaderInfo {
+  firstName?: string
+  lastName?: string
+  pictureThumbnail?: string
+  jobTitle?: string
+}
+
 interface UpdateEntitlementModalProps {
   isOpen: boolean
   onClose: () => void
@@ -27,6 +34,7 @@ interface UpdateEntitlementModalProps {
   year: number
   onSuccess: () => Promise<void>
   existingEntitlementTypeIds?: string[]
+  employeeHeaderInfo?: EmployeeHeaderInfo
 }
 
 const normalizeInteger = (value: string): string => {
@@ -46,7 +54,8 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
   accessToken,
   year,
   onSuccess,
-  existingEntitlementTypeIds
+  existingEntitlementTypeIds,
+  employeeHeaderInfo
 }) => {
   const isFromTable = Boolean(selectedLine && selectedLine.id)
 
@@ -170,7 +179,21 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
       data-testid="hcm_createHrAbsence_mainContainer"
       className="gba:!bg-card gba:!border-0 gba:!shadow-none gba:flex gba:flex-col gba:gap-4  gba:px-6"
     >
-      <FormHeader title={headerTitle} flowIconUrl={flowIconUrl} className="gba:px-0" />
+      <FormHeader
+        title={headerTitle}
+        flowIconUrl={flowIconUrl}
+        className="gba:px-0"
+        employee={
+          employeeHeaderInfo
+            ? {
+                firstName: employeeHeaderInfo.firstName,
+                lastName: employeeHeaderInfo.lastName,
+                pictureThumbnail: employeeHeaderInfo.pictureThumbnail,
+                jobTitle: employeeHeaderInfo.jobTitle
+              }
+            : undefined
+        }
+      />
 
       {!isFromTable && (
         <div data-testid="flw_updateEntitlementModal_addByType" className="gba:text-sm">

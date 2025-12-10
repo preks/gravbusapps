@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import {
   Input,
   Calendar,
@@ -17,6 +17,31 @@ import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { AppActionForm } from '@/components/app-action-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+
+// Query to fetch employee header info
+const GET_EMPLOYEE_HEADER_INFO = `
+query GetEmployeeHeaderInfo($id: uuid!) {
+  Employee(where: { id: { _eq: $id } }, limit: 1) {
+    id
+    firstName
+    lastName
+    pictureThumbnail
+    employeePosition {
+      jobPosition {
+        name
+      }
+    }
+  }
+}
+`
+
+interface EmployeeHeaderInfo {
+  firstName?: string
+  lastName?: string
+  pictureThumbnail?: string
+  jobTitle?: string
+}
 
 interface RequestCorrectionFormProps extends BusinessAppContextProps {
   employeeId: string
@@ -27,13 +52,51 @@ interface RequestCorrectionFormProps extends BusinessAppContextProps {
 export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> = ({
   employeeId,
   onSubmitted,
-  additionalData
+  additionalData,
+  accessToken
 }) => {
   const form = useForm<{ date: string; clockIn: string; clockOut: string; notes?: string }>({
     defaultValues: { date: '', clockIn: '', clockOut: '', notes: '' },
     mode: 'onChange'
   })
   const [submitting, setSubmitting] = useState(false)
+  const [employeeHeaderInfo, setEmployeeHeaderInfo] = useState<EmployeeHeaderInfo | undefined>(undefined)
+
+  // GraphQL client for fetching employee header info
+  const graphqlClient = useGraphQLClient(accessToken)
+
+  // Resolve the actual employee ID from various sources
+  const resolvedEmployeeId = useMemo(() => {
+    return (
+      employeeId ||
+      additionalData?.employeeId ||
+      additionalData?.psi_taskPayload?.employeeId ||
+      additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId
+    )
+  }, [employeeId, additionalData])
+
+  // Fetch employee header info
+  const fetchEmployeeHeaderInfo = useCallback(async () => {
+    if (!accessToken || !resolvedEmployeeId) return
+    try {
+      const res = await graphqlClient.request<any>(GET_EMPLOYEE_HEADER_INFO, { id: resolvedEmployeeId })
+      const emp = res?.Employee?.[0]
+      if (emp) {
+        setEmployeeHeaderInfo({
+          firstName: emp.firstName,
+          lastName: emp.lastName,
+          pictureThumbnail: emp.pictureThumbnail,
+          jobTitle: emp.employeePosition?.jobPosition?.name
+        })
+      }
+    } catch {
+      // Silently fail - form still works without header info
+    }
+  }, [accessToken, resolvedEmployeeId, graphqlClient])
+
+  useEffect(() => {
+    fetchEmployeeHeaderInfo()
+  }, [fetchEmployeeHeaderInfo])
 
   // Extract platform/flow-provided parameters (supports nested psi_taskPayload as well as externalContextData)
   const platformParams = React.useMemo(() => {
@@ -187,13 +250,23 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
   }
 
   return (
-    <div className="gba:space-y-6" data-testid="request-correction-form">
+    <div data-testid="request-correction-form">
       <FormHeader
         title={getTranslationFromI18nKeyAndLabel(
           'lowcoder:time_tracking.actions.request_correction',
           'Request Correction'
         )}
         flowIconUrl={flowIconUrl}
+        employee={
+          employeeHeaderInfo
+            ? {
+                firstName: employeeHeaderInfo.firstName,
+                lastName: employeeHeaderInfo.lastName,
+                pictureThumbnail: employeeHeaderInfo.pictureThumbnail,
+                jobTitle: employeeHeaderInfo.jobTitle
+              }
+            : undefined
+        }
       />
 
       <AppActionForm
