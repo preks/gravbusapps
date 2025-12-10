@@ -36,6 +36,7 @@ import ContentEntryDisplay from './entities/ContentEntryDisplay'
 import EntityLink, { markdownUrlTransform } from './links/EntityLink'
 import NavigationDisplay from './displays/NavigationDisplay'
 import { ReminderDisplay } from './displays/ReminderDisplay'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface FlowProposalBoundaryProps {
   data: FlowProposalOutput
@@ -289,6 +290,11 @@ export const TextBlockDisplay: React.FC<{ data: TextBlockData; accessToken: stri
         className="gba:absolute gba:top-2 gba:right-2 gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity gba:h-7 gba:w-7 gba:p-0 gba:z-10"
         onClick={handleCopy}
         data-testid="text-block-copy-button"
+        aria-label={
+          copied
+            ? getTranslationFromI18nKeyAndLabel('everyAI.textBlock.copy.copied', 'Text copied')
+            : getTranslationFromI18nKeyAndLabel('everyAI.textBlock.copy.label', 'Copy text')
+        }
       >
         {copied ? (
           <Check className="gba:h-4 gba:w-4 gba:text-success" weight="bold" />
@@ -1018,6 +1024,11 @@ export const AnswerOutputRenderer: React.FC<{ data: AnswerOutput; accessToken: s
           className="gba:absolute gba:top-2 gba:right-2 gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity gba:h-7 gba:w-7 gba:p-0 gba:z-10"
           onClick={handleCopy}
           data-testid="agent-message-copy-button"
+          aria-label={
+            copied
+              ? getTranslationFromI18nKeyAndLabel('everyAI.message.copy.copied', 'Message copied')
+              : getTranslationFromI18nKeyAndLabel('everyAI.message.copy.label', 'Copy message')
+          }
         >
           {copied ? (
             <Check className="gba:h-4 gba:w-4 gba:text-success" weight="bold" />
