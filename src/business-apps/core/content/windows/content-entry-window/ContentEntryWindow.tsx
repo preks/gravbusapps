@@ -202,7 +202,7 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
     return null
   }, [context.userInfo])
 
-  // Zod Schema with conditional validation for contentTypeRef
+  // Zod Schema with conditional validation for contentTypeRef and version
   const schema = useMemo(
     () =>
       z
@@ -227,6 +227,14 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
           tags: z.array(z.string()).optional()
         })
         .superRefine((data, ctx) => {
+          // Version is required when id is present (update mode)
+          if (data.id && (data.version === undefined || data.version === null)) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: t('version-required') || 'Version is required for updates',
+              path: ['version']
+            })
+          }
           // Conditional validation: contentTypeRef required only when it has options
           if (validateField('contentTypeRef')) {
             if (!data.contentTypeRef || data.contentTypeRef.trim() === '') {
@@ -289,7 +297,7 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
 
     return {
       id: loadedContentEntry.id || '',
-      version: loadedContentEntry.version || 0,
+      version: loadedContentEntry.version,
       title: loadedContentEntry.title || '',
       previewText: loadedContentEntry.preview || '',
       content: loadedContentEntry.content || '',
@@ -376,7 +384,7 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
 
       const formValues: ContentEntryFormValues = {
         id: loadedContentEntry.id || '',
-        version: loadedContentEntry.version || 0,
+        version: loadedContentEntry.version,
         title: loadedContentEntry.title || '',
         previewText: loadedContentEntry.preview || '',
         content: loadedContentEntry.content || '',
@@ -687,12 +695,22 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
       throw new Error('Employee ID is required')
     }
 
+    // Validate version is present for updates
+    if (isUpdate) {
+      if (!extractedContentId) {
+        throw new Error('Content entry ID is required for updates')
+      }
+      if (data.version === undefined || data.version === null) {
+        throw new Error('Version is required for updates. Please reload the content entry.')
+      }
+    }
+
     // Use centralized payload builder
     const payload = buildContentEntryPayload({
       // Identity (for updates)
       ...(isUpdate && {
         id: extractedContentId,
-        version: data.version || 0
+        version: data.version
       }),
 
       // Core fields
