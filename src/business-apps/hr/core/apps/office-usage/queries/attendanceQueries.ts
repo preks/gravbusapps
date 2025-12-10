@@ -13,7 +13,6 @@ export const GET_OFFICE_ATTENDANCE = `
         attendanceDate: { _gte: $dateFrom, _lte: $dateTo }
         isDeleted: { _eq: false }
         attendanceLocation: { _eq: "IS_NEAR_OFFICE" }
-        endTime: { _isNull: false }
       }
       orderBy: { attendanceDate: DESC, startTime: DESC }
     ) {
