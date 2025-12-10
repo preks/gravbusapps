@@ -419,16 +419,19 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     loadRejectionReasons()
   }, [loadRejectionReasons])
 
+  // Memoized callback for process completion
+  const handleProcessSuccess = useCallback(() => {
+    refetchOpportunityData()
+    fetchOpportunityStages() // Refetch stages and catalog conditions after stage transition
+    loadActivities()
+    loadNotes()
+    loadTasksAndApprovals()
+    loadDocuments()
+    loadRejectionReasons() // Refresh rejection reasons after process completion
+  }, [refetchOpportunityData, fetchOpportunityStages, loadRejectionReasons])
+
   useProcessCompletion({
-    onSuccess: () => {
-      refetchOpportunityData()
-      fetchOpportunityStages() // Refetch stages and catalog conditions after stage transition
-      loadActivities()
-      loadNotes()
-      loadTasksAndApprovals()
-      loadDocuments()
-      loadRejectionReasons() // Refresh rejection reasons after process completion
-    }
+    onSuccess: handleProcessSuccess
   })
 
   // Memoize stage condition action props to prevent recreation

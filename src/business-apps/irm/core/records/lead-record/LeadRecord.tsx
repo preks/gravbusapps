@@ -14,6 +14,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { StatusProgression } from './components/StatusProgression'
 import { useInvestmentLead } from '@/common/data/investment/hooks/useInvestmentLead'
 import { buildLeadStatusesQuery } from '@/common/data/relations/queries/leadQueries'
@@ -225,50 +226,17 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
     return 'Back to Investment Leads'
   }
 
+  // Memoized callback for process completion
+  const handleProcessSuccess = useCallback(() => {
+    fetchLeadData()
+    loadSectionData()
+    loadRejectionReasons()
+  }, [fetchLeadData, loadSectionData, loadRejectionReasons])
+
   // Listen for process completion events to refresh lead data (including status updates)
-  useEffect(() => {
-    const handleProcessCompletion = async (event: any) => {
-      try {
-        // Check for successful completion
-        if (event.detail?.resolution === 'success') {
-          await Promise.all([fetchLeadData(), loadSectionData(), loadRejectionReasons()])
-          return
-        }
-
-        // Also check for different event structure
-        const response = event.detail?.response
-        if (response?.detail?.resolution === 'success' || response?.lead) {
-          await Promise.all([fetchLeadData(), loadSectionData(), loadRejectionReasons()])
-        }
-      } catch (err) {
-        console.error('Error handling process completion in LeadRecord:', err)
-      }
-    }
-
-    // Listen to multiple possible event names for lead updates
-    const eventNames = [
-      'com.newwork.process.taskCompletion',
-      'com.newwork.process.completion',
-      'com.newwork.process.continue',
-      'com.newwork.process.processCompletion',
-      'processCompletion',
-      'taskCompletion',
-      'taskCompleted',
-      'processCompleted',
-      'task-completion',
-      'process-completion'
-    ]
-
-    eventNames.forEach(eventName => {
-      window.addEventListener(eventName, handleProcessCompletion as EventListener)
-    })
-
-    return () => {
-      eventNames.forEach(eventName => {
-        window.removeEventListener(eventName, handleProcessCompletion as EventListener)
-      })
-    }
-  }, [leadId, fetchLeadData, loadSectionData, loadRejectionReasons])
+  useProcessCompletion({
+    onSuccess: handleProcessSuccess
+  })
 
   // Rejection reasons badge - MUST be defined before headerTitle
   const rejectionReasonsBadge = useMemo(() => {
