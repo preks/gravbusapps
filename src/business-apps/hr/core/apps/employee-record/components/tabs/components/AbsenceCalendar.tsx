@@ -1,5 +1,6 @@
 import React from 'react'
 import dayjs from 'dayjs'
+import isBetween from 'dayjs/plugin/isBetween'
 import { Button } from '@newwork/nw-design-system'
 import { Spin, Tooltip } from 'antd'
 import { LeftOutlined, RightOutlined } from '@ant-design/icons'
@@ -9,7 +10,8 @@ import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@
 import {
   getAbsenceStatusLabel,
   getAllAbsenceStatusConfigs,
-  getAbsenceStatusBackgroundClass
+  getAbsenceStatusBackgroundClass,
+  getBadgeVariantBackgroundClass
 } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 
 // Import dayjs locale
@@ -17,8 +19,11 @@ import 'dayjs/locale/ro'
 import 'dayjs/locale/en'
 import 'dayjs/locale/de'
 
+// Extend plugins
+dayjs.extend(isBetween)
+
 // Function to generate tooltip content for absence segments
-const getAbsenceTooltipContent = (absence: any) => {
+const getAbsenceTooltipContent = (absence: any, opts?: { showStatus?: boolean; showDuration?: boolean }) => {
   const startDate = dayjs(absence.startDate)
   const endDate = dayjs(absence.endDate)
   const duration = endDate.diff(startDate, 'day') + 1
@@ -33,14 +38,16 @@ const getAbsenceTooltipContent = (absence: any) => {
         {absence.type}
       </div>
       <div className="gba:space-y-1 gba:text-xs">
-        <div className="gba:flex gba:justify-between">
-          <span className="gba:font-medium">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')}:
-          </span>
-          <span className="gba:font-medium" style={{ color: absence.statusColor || 'var(--nw-offline)' }}>
-            {getAbsenceStatusLabel(absence.originalStatus || absence.status)}
-          </span>
-        </div>
+        {opts?.showStatus && (
+          <div className="gba:flex gba:justify-between">
+            <span className="gba:font-medium">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')}:
+            </span>
+            <span className="gba:font-medium" style={{ color: absence.statusColor || 'var(--nw-offline)' }}>
+              {getAbsenceStatusLabel(absence.originalStatus || absence.status)}
+            </span>
+          </div>
+        )}
         <div className="gba:flex gba:justify-between">
           <span className="gba:font-medium">
             {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_detailed_view.start', 'Start')}:
@@ -53,17 +60,19 @@ const getAbsenceTooltipContent = (absence: any) => {
           </span>
           <span>{endDate.format('MMM DD, YYYY')}</span>
         </div>
-        <div className="gba:flex gba:justify-between">
-          <span className="gba:font-medium">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.duration', 'Duration')}:
-          </span>
-          <span>
-            {duration}{' '}
-            {duration === 1
-              ? getTranslationFromI18nKeyAndLabel('lowcoder:absence_module.limited_pending_days_text.day', 'day')
-              : getTranslationFromI18nKeyAndLabel('lowcoder:absence_module.limited_pending_days_text.days', 'days')}
-          </span>
-        </div>
+        {opts?.showDuration && (
+          <div className="gba:flex gba:justify-between">
+            <span className="gba:font-medium">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.duration', 'Duration')}:
+            </span>
+            <span>
+              {duration}{' '}
+              {duration === 1
+                ? getTranslationFromI18nKeyAndLabel('lowcoder:absence_module.limited_pending_days_text.day', 'day')
+                : getTranslationFromI18nKeyAndLabel('lowcoder:absence_module.limited_pending_days_text.days', 'days')}
+            </span>
+          </div>
+        )}
         {absence.description && (
           <div className="gba:mt-2 gba:pt-2 gba:border-t gba:border-border">
             <div className="gba:font-medium gba:mb-1">
@@ -90,7 +99,14 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
   selectedStartDate,
   setSelectedStartDate,
   selectedEndDate,
-  setSelectedEndDate
+  setSelectedEndDate,
+  showToday = true,
+  showPrevNext = true,
+  enableSelection = true,
+  showFooter = true,
+  showStatusInTooltip = true,
+  showDurationInTooltip = true,
+  customLegend
 }) => {
   if (loading) {
     return (
@@ -123,32 +139,38 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
             })()}
           </div>
           <div className="gba:calendar-nav gba:flex gba:gap-2">
-            <Button
-              variant="secondary"
-              className="gba:px-3 gba:py-1"
-              data-testid="calendar-prev-month"
-              onClick={() => setCurrentDate(dayjs(currentDate).subtract(1, 'month'))}
-            >
-              <LeftOutlined className="gba:mr-1" />
-              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.previous', 'Previous')}
-            </Button>
-            <Button
-              variant="secondary"
-              className="gba:px-3 gba:py-1"
-              data-testid="calendar-today"
-              onClick={() => setCurrentDate(dayjs())}
-            >
-              {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.today', 'Today')}
-            </Button>
-            <Button
-              variant="secondary"
-              className="gba:px-3 gba:py-1"
-              data-testid="calendar-next-month"
-              onClick={() => setCurrentDate(dayjs(currentDate).add(1, 'month'))}
-            >
-              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.next', 'Next')}
-              <RightOutlined className="gba:ml-1" />
-            </Button>
+            {showPrevNext && (
+              <Button
+                variant="secondary"
+                className="gba:px-3 gba:py-1"
+                data-testid="calendar-prev-month"
+                onClick={() => setCurrentDate(dayjs(currentDate).subtract(1, 'month'))}
+              >
+                <LeftOutlined className="gba:mr-1" />
+                {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.previous', 'Previous')}
+              </Button>
+            )}
+            {showToday && (
+              <Button
+                variant="secondary"
+                className="gba:px-3 gba:py-1"
+                data-testid="calendar-today"
+                onClick={() => setCurrentDate(dayjs())}
+              >
+                {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.today', 'Today')}
+              </Button>
+            )}
+            {showPrevNext && (
+              <Button
+                variant="secondary"
+                className="gba:px-3 gba:py-1"
+                data-testid="calendar-next-month"
+                onClick={() => setCurrentDate(dayjs(currentDate).add(1, 'month'))}
+              >
+                {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.next', 'Next')}
+                <RightOutlined className="gba:ml-1" />
+              </Button>
+            )}
           </div>
         </div>
 
@@ -191,10 +213,12 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                 const isCurrentMonth = currentDay.month() === currentDate.month()
                 const isToday = currentDay.format('YYYY-MM-DD') === dayjs().format('YYYY-MM-DD')
 
-                const isSelectedStart = selectedStartDate ? currentDay.isSame(selectedStartDate, 'day') : false
-                const isSelectedEnd = selectedEndDate ? currentDay.isSame(selectedEndDate, 'day') : false
+                const isSelectedStart =
+                  enableSelection && selectedStartDate ? currentDay.isSame(selectedStartDate, 'day') : false
+                const isSelectedEnd =
+                  enableSelection && selectedEndDate ? currentDay.isSame(selectedEndDate, 'day') : false
                 const isInSelectedRange =
-                  selectedStartDate && selectedEndDate
+                  enableSelection && selectedStartDate && selectedEndDate
                     ? currentDay.isAfter(selectedStartDate, 'day') && currentDay.isBefore(selectedEndDate, 'day')
                     : false
 
@@ -203,9 +227,10 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                     key={idx}
                     className={`gba:calendar-day gba:p-2 gba:h-16 gba:border gba:border-border gba:rounded 
                       ${isSelectedStart || isSelectedEnd ? 'gba:bg-info-secondary gba:border-info' : isInSelectedRange ? 'gba:bg-info-secondary/20' : isToday ? 'gba:bg-info-secondary gba:border-info' : 'gba:bg-card'} 
-                      ${!isCurrentMonth ? 'gba:opacity-40' : 'gba:cursor-pointer'}`}
+                      ${!isCurrentMonth ? 'gba:opacity-40' : enableSelection ? 'gba:cursor-pointer' : ''}`}
                     data-testid={`calendar-day-${currentDay.date()}`}
                     onClick={() => {
+                      if (!enableSelection) return
                       if (!isCurrentMonth) return
                       if (!selectedStartDate || (selectedStartDate && selectedEndDate)) {
                         setSelectedStartDate(currentDay.startOf('day'))
@@ -244,18 +269,32 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                         const segments = overlappingAbsences.slice(0, maxSegments)
                         const segmentWidth = `${100 / segments.length}%`
 
+                        const resolveSegmentBgClass = (a: any): string => {
+                          // When consumer provides planned/effective minutes (e.g., DailyLog)
+                          if (typeof a?.plannedMinutes === 'number' && typeof a?.effectiveMinutes === 'number') {
+                            if (a.effectiveMinutes >= a.plannedMinutes) {
+                              return getBadgeVariantBackgroundClass('success')
+                            }
+                            return getBadgeVariantBackgroundClass('warning')
+                          }
+                          return getAbsenceStatusBackgroundClass(a.originalStatus || a.status)
+                        }
+
                         return (
                           <div className="gba:flex gba:gap-1 gba:mt-1">
                             {segments.map((a: any, idx: number) => (
                               <Tooltip
                                 key={`seg-${idx}`}
-                                title={getAbsenceTooltipContent(a)}
+                                title={getAbsenceTooltipContent(a, {
+                                  showStatus: showStatusInTooltip,
+                                  showDuration: showDurationInTooltip
+                                })}
                                 placement="top"
                                 mouseEnterDelay={0.3}
                                 overlayStyle={{ zIndex: 9999 }}
                               >
                                 <div
-                                  className={`gba:flex gba:items-center gba:justify-center gba:rounded-full gba:cursor-help gba:transition-all gba:duration-200 hover:gba:h-6 gba:min-h-4 gba:px-1 ${getAbsenceStatusBackgroundClass(a.originalStatus || a.status)}`}
+                                  className={`gba:flex gba:items-center gba:justify-center gba:rounded-full gba:cursor-help gba:transition-all gba:duration-200 hover:gba:h-6 gba:min-h-4 gba:px-1 ${resolveSegmentBgClass(a)}`}
                                   style={{
                                     width: segmentWidth
                                   }}
@@ -276,43 +315,49 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
           </div>
         </div>
 
-        {/* Status Legend */}
+        {/* Legend */}
         <div className="gba:calendar-legend gba:px-4 gba:py-3 gba:border-t gba:border-border gba:bg-muted">
-          <div className="gba:flex gba:items-center gba:gap-6 gba:flex-wrap">
-            {getAllAbsenceStatusConfigs()
-              .filter(statusConfig => ['APPROVED', 'PENDING', 'REJECTED', 'CANCELLED'].includes(statusConfig.status))
-              .map(statusConfig => (
-                <div key={statusConfig.status} className="gba:flex gba:items-center gba:gap-2">
-                  <div
-                    className={`gba:w-3 gba:h-3 gba:rounded-full ${getAbsenceStatusBackgroundClass(statusConfig.status)}`}
-                  />
-                  <span className="gba:text-xs">{statusConfig.label}</span>
-                </div>
-              ))}
-          </div>
-        </div>
-
-        <div className="gba:calendar-footer gba:p-4 gba:border-t gba:border-border gba:text-center gba:text-sm gba:text-muted-foreground">
-          {selectedStartDate && selectedEndDate ? (
-            <span data-testid="selected-range">
-              {(() => {
-                const locale = getCurrentActiveUserLocale()
-                const startFormatted = selectedStartDate.locale(locale).format('MMM D, YYYY')
-                const endFormatted = selectedEndDate.locale(locale).format('MMM D, YYYY')
-                return `${startFormatted} - ${endFormatted}`
-              })()}
-            </span>
-          ) : selectedStartDate ? (
-            <span data-testid="select-end-prompt">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.select_end_date', 'Select an end date')}
-            </span>
+          {customLegend ? (
+            customLegend
           ) : (
-            getTranslationFromI18nKeyAndLabel(
-              'lowcoder:absence_hub.calendar_note',
-              'Click on a day to view or add absences'
-            )
+            <div className="gba:flex gba:items-center gba:gap-6 gba:flex-wrap">
+              {getAllAbsenceStatusConfigs()
+                .filter(statusConfig => ['APPROVED', 'PENDING', 'REJECTED', 'CANCELLED'].includes(statusConfig.status))
+                .map(statusConfig => (
+                  <div key={statusConfig.status} className="gba:flex gba:items-center gba:gap-2">
+                    <div
+                      className={`gba:w-3 gba:h-3 gba:rounded-full ${getAbsenceStatusBackgroundClass(statusConfig.status)}`}
+                    />
+                    <span className="gba:text-xs">{statusConfig.label}</span>
+                  </div>
+                ))}
+            </div>
           )}
         </div>
+
+        {showFooter && (
+          <div className="gba:calendar-footer gba:p-4 gba:border-t gba:border-border gba:text-center gba:text-sm gba:text-muted-foreground">
+            {selectedStartDate && selectedEndDate ? (
+              <span data-testid="selected-range">
+                {(() => {
+                  const locale = getCurrentActiveUserLocale()
+                  const startFormatted = selectedStartDate.locale(locale).format('MMM D, YYYY')
+                  const endFormatted = selectedEndDate.locale(locale).format('MMM D, YYYY')
+                  return `${startFormatted} - ${endFormatted}`
+                })()}
+              </span>
+            ) : selectedStartDate ? (
+              <span data-testid="select-end-prompt">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.select_end_date', 'Select an end date')}
+              </span>
+            ) : (
+              getTranslationFromI18nKeyAndLabel(
+                'lowcoder:absence_hub.calendar_note',
+                'Click on a day to view or add absences'
+              )
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

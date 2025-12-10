@@ -148,20 +148,20 @@ export function groupInvestmentsByField<T, K>(
   }
 
   // Calculate aggregated values
-  for (const group of groups) {
+  for (const [, groupData] of groups) {
     switch (aggregation) {
       case 'count':
-        group.value = group.items.length
+        groupData.value = groupData.items.length
         break
       case 'sum':
         if (valueGetter) {
-          group.value = group.items.reduce((sum, item) => sum + valueGetter(item), 0)
+          groupData.value = groupData.items.reduce((sum: number, item: T) => sum + valueGetter(item), 0)
         }
         break
       case 'average':
-        if (valueGetter && group.items.length > 0) {
-          const sum = group.items.reduce((acc, item) => acc + valueGetter(item), 0)
-          group.value = sum / group.items.length
+        if (valueGetter && groupData.items.length > 0) {
+          const sum = groupData.items.reduce((acc: number, item: T) => acc + valueGetter(item), 0)
+          groupData.value = sum / groupData.items.length
         }
         break
     }

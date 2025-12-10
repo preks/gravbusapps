@@ -31,6 +31,7 @@ import IrmNoteDisplay from './entities/IrmNoteDisplay'
 import IrmDocumentDisplay from './entities/IrmDocumentDisplay'
 import SalesActivityDisplay from './entities/SalesActivityDisplay'
 import WorkflowDisplay from './entities/WorkflowDisplay'
+import ContentEntryDisplay from './entities/ContentEntryDisplay'
 import EntityLink, { markdownUrlTransform } from './links/EntityLink'
 import NavigationDisplay from './displays/NavigationDisplay'
 import { ReminderDisplay } from './displays/ReminderDisplay'
@@ -100,12 +101,12 @@ class FlowProposalBoundary extends React.Component<FlowProposalBoundaryProps, Fl
     if (hasError) {
       return (
         <Card
-          className="gba:border-2 gba:border-warning/40 gba:bg-warning-secondary/40 gba:shadow-lg"
+          className="gba:border-2 gba:border-ai/40 gba:bg-ai-secondary/40 gba:shadow-lg"
           data-testid="flow-proposal-fallback"
         >
           <CardHeader>
             <div className="gba:flex gba:items-center gba:gap-2">
-              <svg className="gba:h-5 gba:w-5 gba:text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="gba:h-5 gba:w-5 gba:text-ai" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -113,7 +114,7 @@ class FlowProposalBoundary extends React.Component<FlowProposalBoundaryProps, Fl
                   d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                 />
               </svg>
-              <CardTitle className="gba:text-warning">Form temporarily unavailable</CardTitle>
+              <CardTitle className="gba:text-ai">Form temporarily unavailable</CardTitle>
             </div>
           </CardHeader>
           <CardContent className="gba:space-y-4">
@@ -154,13 +155,13 @@ export const LoadingDisplay: React.FC = () => {
       data-testid="loading-display"
     >
       <div className="gba:flex gba:items-center gba:gap-2">
-        <div className="gba:h-2.5 gba:w-2.5 gba:rounded-full gba:bg-gradient-to-br gba:from-primary gba:to-info gba:animate-pulse gba:shadow-lg" />
+        <div className="gba:h-2.5 gba:w-2.5 gba:rounded-full gba:bg-gradient-to-br gba:from-ai gba:to-ai-secondary gba:animate-pulse gba:shadow-lg" />
         <div
-          className="gba:h-2.5 gba:w-2.5 gba:rounded-full gba:bg-gradient-to-br gba:from-info gba:to-success gba:animate-pulse gba:shadow-lg"
+          className="gba:h-2.5 gba:w-2.5 gba:rounded-full gba:bg-gradient-to-br gba:from-ai-secondary gba:to-success gba:animate-pulse gba:shadow-lg"
           style={{ animationDelay: '0.2s' }}
         />
         <div
-          className="gba:h-2.5 gba:w-2.5 gba:rounded-full gba:bg-gradient-to-br gba:from-success gba:to-primary gba:animate-pulse gba:shadow-lg"
+          className="gba:h-2.5 gba:w-2.5 gba:rounded-full gba:bg-gradient-to-br gba:from-success gba:to-ai gba:animate-pulse gba:shadow-lg"
           style={{ animationDelay: '0.4s' }}
         />
       </div>
@@ -218,9 +219,9 @@ export const ToolOutput: React.FC<{ name: string; reason?: string }> = ({ name, 
       className="gba:flex gba:items-center gba:gap-3 gba:px-4 gba:py-2.5 gba:bg-gradient-to-r gba:from-muted/50 gba:to-muted/30 gba:rounded-xl gba:text-sm gba:border gba:border-border/50"
       data-testid="tool-output"
     >
-      <div className="gba:h-6 gba:w-6 gba:rounded-full gba:bg-gradient-to-br gba:from-primary gba:to-info gba:flex gba:items-center gba:justify-center gba:shadow-md">
+      <div className="gba:h-6 gba:w-6 gba:rounded-full gba:bg-gradient-to-br gba:from-ai gba:to-ai-secondary gba:flex gba:items-center gba:justify-center gba:shadow-md">
         <svg
-          className="gba:h-3.5 gba:w-3.5 gba:text-primary-foreground"
+          className="gba:h-3.5 gba:w-3.5 gba:text-ai-foreground"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -276,7 +277,7 @@ export const TableDisplay: React.FC<{ data: TableData }> = ({ data }) => {
     <Card className="gba:border-2 gba:shadow-lg gba:overflow-hidden" data-testid="table-display">
       {data.title && (
         <CardHeader className="gba:bg-gradient-to-r gba:from-muted/50 gba:to-muted/30 gba:border-b-2">
-          <CardTitle className="gba:text-lg gba:font-bold gba:bg-gradient-to-r gba:from-primary gba:to-info gba:bg-clip-text gba:text-transparent">
+          <CardTitle className="gba:text-lg gba:font-bold gba:bg-gradient-to-r gba:from-ai gba:to-ai-secondary gba:bg-clip-text gba:text-transparent">
             {data.title}
           </CardTitle>
           {data.description && <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">{data.description}</p>}
@@ -321,7 +322,7 @@ export const BarGraphDisplay: React.FC<{ data: BarGraphData }> = ({ data }) => {
     <Card className="gba:border-2 gba:shadow-lg gba:overflow-hidden" data-testid="bar-graph-display">
       {data.title && (
         <CardHeader className="gba:bg-gradient-to-r gba:from-muted/50 gba:to-muted/30 gba:border-b-2">
-          <CardTitle className="gba:text-lg gba:font-bold gba:bg-gradient-to-r gba:from-primary gba:to-info gba:bg-clip-text gba:text-transparent">
+          <CardTitle className="gba:text-lg gba:font-bold gba:bg-gradient-to-r gba:from-ai gba:to-ai-secondary gba:bg-clip-text gba:text-transparent">
             {data.title}
           </CardTitle>
           {data.description && <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">{data.description}</p>}
@@ -342,10 +343,10 @@ export const BarGraphDisplay: React.FC<{ data: BarGraphData }> = ({ data }) => {
                     </span>
                     <div className="gba:flex-1 gba:h-8 gba:bg-muted gba:rounded-lg gba:overflow-hidden gba:relative">
                       <div
-                        className="gba:h-full gba:bg-gradient-to-r gba:from-primary gba:to-info gba:rounded-lg gba:flex gba:items-center gba:justify-end gba:pr-3 gba:transition-all gba:shadow-md group-hover:gba:shadow-lg"
+                        className="gba:h-full gba:bg-gradient-to-r gba:from-ai gba:to-ai-secondary gba:rounded-lg gba:flex gba:items-center gba:justify-end gba:pr-3 gba:transition-all gba:shadow-md group-hover:gba:shadow-lg"
                         style={{ width: `${percentage}%` }}
                       >
-                        <span className="gba:text-xs gba:text-primary-foreground gba:font-bold">{point.y}</span>
+                        <span className="gba:text-xs gba:text-ai-foreground gba:font-bold">{point.y}</span>
                       </div>
                     </div>
                   </div>
@@ -422,6 +423,15 @@ function renderEntity(item: EntityData, accessToken: string) {
           operation={item.operation}
         />
       )
+    case 'content_entry':
+      return (
+        <ContentEntryDisplay
+          key={item.id}
+          contentEntryId={item.id}
+          accessToken={accessToken}
+          operation={item.operation}
+        />
+      )
     case 'crm_note':
       return <CrmNoteDisplay key={item.id} noteId={item.id} accessToken={accessToken} operation={item.operation} />
     case 'crm_document':
@@ -477,22 +487,300 @@ function renderEntity(item: EntityData, accessToken: string) {
 
 // Scatter Graph Display
 export const ScatterGraphDisplay: React.FC<{ data: ScatterGraphData }> = ({ data }) => {
+  // Helper to resolve CSS variables for SVG (client-side only)
+  const resolveCssVar = (cssVar: string, fallback: string): string => {
+    if (!cssVar.startsWith('var(')) return cssVar
+    if (typeof window === 'undefined' || typeof document === 'undefined') return fallback
+
+    const varName = cssVar.substring(4, cssVar.length - 1).trim()
+    const resolved = window.getComputedStyle(document.documentElement).getPropertyValue(varName).trim()
+    return resolved || fallback
+  }
+
+  // Resolve design token colors for SVG
+  const gridColor = resolveCssVar('var(--nw-muted)', '#e5e7eb')
+  const axisColor = resolveCssVar('var(--nw-foreground)', '#374151')
+
+  // Calculate bounds for all series
+  const allPoints = data.series.flatMap(series => series.data)
+  const xValues = allPoints.map(p => p.x)
+  const yValues = allPoints.map(p => p.y)
+
+  const minX = Math.min(...xValues)
+  const maxX = Math.max(...xValues)
+  const minY = Math.min(...yValues)
+  const maxY = Math.max(...yValues)
+
+  // Add padding (10% on each side)
+  const xRange = maxX - minX || 1
+  const yRange = maxY - minY || 1
+  const xPadding = xRange * 0.1
+  const yPadding = yRange * 0.1
+
+  const xMin = minX - xPadding
+  const xMax = maxX + xPadding
+  const yMin = minY - yPadding
+  const yMax = maxY + yPadding
+
+  // SVG dimensions
+  const width = 800
+  const height = 500
+  const padding = { top: 40, right: 40, bottom: 60, left: 60 }
+  const plotWidth = width - padding.left - padding.right
+  const plotHeight = height - padding.top - padding.bottom
+
+  // Scale functions
+  const scaleX = (x: number) => ((x - xMin) / (xMax - xMin)) * plotWidth + padding.left
+  const scaleY = (y: number) => plotHeight - ((y - yMin) / (yMax - yMin)) * plotHeight + padding.top
+
+  // Color mapping
+  const colorMap: Record<string, string> = {
+    red: '#ef4444',
+    green: '#22c55e',
+    blue: '#3b82f6',
+    yellow: '#eab308',
+    purple: '#a855f7',
+    orange: '#f97316',
+    pink: '#ec4899',
+    gray: '#6b7280',
+    black: '#000000',
+    white: '#ffffff'
+  }
+
+  // Get color for series
+  const getColor = (color: string | null) => {
+    if (!color) return '#3b82f6' // default blue
+    return colorMap[color] || '#3b82f6'
+  }
+
+  // Generate tick marks
+  const xTicks = 8
+  const yTicks = 6
+  const xTickStep = (xMax - xMin) / xTicks
+  const yTickStep = (yMax - yMin) / yTicks
+
   return (
-    <Card data-testid="scatter-graph-display">
+    <Card data-testid="scatter-graph-display" className="gba:border-2 gba:shadow-lg gba:overflow-hidden">
       {data.title && (
         <CardHeader>
-          <CardTitle className="gba:text-base">{data.title}</CardTitle>
-          {data.description && <p className="gba:text-sm gba:text-muted-foreground">{data.description}</p>}
+          <CardTitle className="gba:text-lg gba:font-bold">{data.title}</CardTitle>
+          {data.description && <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">{data.description}</p>}
         </CardHeader>
       )}
-      <CardContent>
-        <div className="gba:space-y-4">
-          {data.series.map((series, idx) => (
-            <div key={idx}>
-              <p className="gba:text-sm gba:font-medium gba:mb-2">{series.name}</p>
-              <div className="gba:text-xs gba:text-muted-foreground">{series.data.length} data points</div>
-            </div>
-          ))}
+      <CardContent className="gba:p-6">
+        <div className="gba:overflow-x-auto">
+          <svg width={width} height={height} className="gba:w-full gba:h-auto" viewBox={`0 0 ${width} ${height}`}>
+            {/* Grid lines - vertical */}
+            {Array.from({ length: xTicks + 1 }, (_, i) => {
+              const x = scaleX(xMin + i * xTickStep)
+              return (
+                <line
+                  key={`grid-v-${i}`}
+                  x1={x}
+                  y1={padding.top}
+                  x2={x}
+                  y2={padding.top + plotHeight}
+                  stroke={gridColor}
+                  strokeWidth="1"
+                />
+              )
+            })}
+
+            {/* Grid lines - horizontal */}
+            {Array.from({ length: yTicks + 1 }, (_, i) => {
+              const y = scaleY(yMin + i * yTickStep)
+              return (
+                <line
+                  key={`grid-h-${i}`}
+                  x1={padding.left}
+                  y1={y}
+                  x2={padding.left + plotWidth}
+                  y2={y}
+                  stroke={gridColor}
+                  strokeWidth="1"
+                />
+              )
+            })}
+
+            {/* X-axis */}
+            <line
+              x1={padding.left}
+              y1={padding.top + plotHeight}
+              x2={padding.left + plotWidth}
+              y2={padding.top + plotHeight}
+              stroke={axisColor}
+              strokeWidth="2"
+            />
+
+            {/* Y-axis */}
+            <line
+              x1={padding.left}
+              y1={padding.top}
+              x2={padding.left}
+              y2={padding.top + plotHeight}
+              stroke={axisColor}
+              strokeWidth="2"
+            />
+
+            {/* X-axis ticks and labels */}
+            {Array.from({ length: xTicks + 1 }, (_, i) => {
+              const xValue = xMin + i * xTickStep
+              const x = scaleX(xValue)
+              return (
+                <g key={`x-tick-${i}`}>
+                  <line
+                    x1={x}
+                    y1={padding.top + plotHeight}
+                    x2={x}
+                    y2={padding.top + plotHeight + 5}
+                    stroke={axisColor}
+                    strokeWidth="2"
+                  />
+                  <text
+                    x={x}
+                    y={padding.top + plotHeight + 20}
+                    textAnchor="middle"
+                    className="gba:text-xs gba:fill-foreground"
+                    fontSize="12"
+                  >
+                    {xValue.toFixed(1)}
+                  </text>
+                </g>
+              )
+            })}
+
+            {/* Y-axis ticks and labels */}
+            {Array.from({ length: yTicks + 1 }, (_, i) => {
+              const yValue = yMin + i * yTickStep
+              const y = scaleY(yValue)
+              return (
+                <g key={`y-tick-${i}`}>
+                  <line x1={padding.left} y1={y} x2={padding.left - 5} y2={y} stroke={axisColor} strokeWidth="2" />
+                  <text
+                    x={padding.left - 10}
+                    y={y + 4}
+                    textAnchor="end"
+                    className="gba:text-xs gba:fill-foreground"
+                    fontSize="12"
+                  >
+                    {yValue.toFixed(1)}
+                  </text>
+                </g>
+              )
+            })}
+
+            {/* Plot series */}
+            {data.series.map((series, seriesIdx) => {
+              const color = getColor(series.color)
+              const points = series.data.map(p => ({ x: scaleX(p.x), y: scaleY(p.y) }))
+
+              return (
+                <g key={`series-${seriesIdx}`}>
+                  {/* Draw line if lineStyle is specified */}
+                  {series.lineStyle && series.lineStyle !== null && points.length > 1 && (
+                    <polyline
+                      points={points.map(p => `${p.x},${p.y}`).join(' ')}
+                      fill="none"
+                      stroke={color}
+                      strokeWidth="2"
+                      strokeDasharray={
+                        series.lineStyle === 'dashed' ? '5,5' : series.lineStyle === 'dotted' ? '2,2' : 'none'
+                      }
+                      opacity={0.8}
+                    />
+                  )}
+
+                  {/* Draw markers */}
+                  {points.map((point, pointIdx) => {
+                    const markerSize = 6
+                    const markerStyle = series.markerStyle || '.'
+
+                    if (markerStyle === '.') {
+                      // Circle dot
+                      return (
+                        <circle
+                          key={`point-${pointIdx}`}
+                          cx={point.x}
+                          cy={point.y}
+                          r={markerSize / 2}
+                          fill={color}
+                          stroke={color}
+                          strokeWidth="1"
+                        />
+                      )
+                    } else if (markerStyle === '+') {
+                      // Plus sign
+                      return (
+                        <g key={`point-${pointIdx}`}>
+                          <line
+                            x1={point.x - markerSize}
+                            y1={point.y}
+                            x2={point.x + markerSize}
+                            y2={point.y}
+                            stroke={color}
+                            strokeWidth="2"
+                          />
+                          <line
+                            x1={point.x}
+                            y1={point.y - markerSize}
+                            x2={point.x}
+                            y2={point.y + markerSize}
+                            stroke={color}
+                            strokeWidth="2"
+                          />
+                        </g>
+                      )
+                    } else if (markerStyle === '*') {
+                      // Star
+                      return (
+                        <g key={`point-${pointIdx}`}>
+                          <circle
+                            cx={point.x}
+                            cy={point.y}
+                            r={markerSize / 2}
+                            fill={color}
+                            stroke={color}
+                            strokeWidth="1"
+                          />
+                          <line
+                            x1={point.x - markerSize}
+                            y1={point.y}
+                            x2={point.x + markerSize}
+                            y2={point.y}
+                            stroke={color}
+                            strokeWidth="1"
+                          />
+                          <line
+                            x1={point.x}
+                            y1={point.y - markerSize}
+                            x2={point.x}
+                            y2={point.y + markerSize}
+                            stroke={color}
+                            strokeWidth="1"
+                          />
+                        </g>
+                      )
+                    }
+                    return null
+                  })}
+                </g>
+              )
+            })}
+          </svg>
+        </div>
+
+        {/* Legend */}
+        <div className="gba:flex gba:flex-wrap gba:gap-4 gba:mt-4 gba:justify-center">
+          {data.series.map((series, idx) => {
+            const color = getColor(series.color)
+            return (
+              <div key={`legend-${idx}`} className="gba:flex gba:items-center gba:gap-2">
+                <div className="gba:w-4 gba:h-4 gba:rounded-full" style={{ backgroundColor: color }} />
+                <span className="gba:text-sm gba:text-foreground">{series.name}</span>
+                <span className="gba:text-xs gba:text-muted-foreground">({series.data.length} points)</span>
+              </div>
+            )
+          })}
         </div>
       </CardContent>
     </Card>
@@ -593,7 +881,7 @@ export const FileDisplay: React.FC<{ data: { filename: string; mimeType: string;
             <a
               href={`data:${data.mimeType};base64,${data.content}`}
               download={data.filename}
-              className="gba:inline-flex gba:items-center gba:gap-2 gba:px-4 gba:py-2 gba:rounded-xl gba:bg-gradient-to-r gba:from-primary gba:to-info gba:text-primary-foreground gba:font-semibold gba:shadow-md hover:gba:shadow-lg gba:transition-all gba:text-sm"
+              className="gba:inline-flex gba:items-center gba:gap-2 gba:px-4 gba:py-2 gba:rounded-xl gba:bg-gradient-to-r gba:from-ai gba:to-ai-secondary gba:text-ai-foreground gba:font-semibold gba:shadow-md hover:gba:shadow-lg gba:transition-all gba:text-sm"
             >
               <svg className="gba:h-5 gba:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path

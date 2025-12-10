@@ -78,21 +78,24 @@ export const getStatusColor = (
   switch (alternativeCode.toUpperCase()) {
     case 'ACTIVE':
     case 'IN_PROGRESS':
-    case 'OPEN':
       return 'info'
+    case 'OPEN':
+      return 'secondary'
     case 'WON':
     case 'CLOSED_WON':
     case 'SUCCESS':
+    case 'CONVERTED':
       return 'success'
     case 'LOST':
     case 'CLOSED_LOST':
     case 'FAILED':
+    case 'REJECTED':
       return 'destructive'
     case 'ON_HOLD':
     case 'PAUSED':
       return 'warning'
     case 'QUALIFIED':
-      return 'secondary'
+      return 'info'
     default:
       return 'outline'
   }

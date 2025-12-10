@@ -1,5 +1,18 @@
 import React from 'react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, IconAvatar } from '@newwork/nw-design-system'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  IconAvatar,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Label
+} from '@newwork/nw-design-system'
 import { TrophyIcon } from '@phosphor-icons/react'
 
 export interface TopPerformerItem {
@@ -12,17 +25,54 @@ export interface TopPerformerItem {
 export interface TopPerformersProps {
   performers: TopPerformerItem[]
   moduleColor?: string
+  selectedCurrency?: string
+  onCurrencyChange?: (currency: string) => void
+  availableCurrencies?: string[]
 }
 
-export const TopPerformers: React.FC<TopPerformersProps> = ({ performers, moduleColor = 'default' }) => {
+export const TopPerformers: React.FC<TopPerformersProps> = ({
+  performers,
+  moduleColor = 'default',
+  selectedCurrency = 'EUR',
+  onCurrencyChange,
+  availableCurrencies = ['EUR', 'USD']
+}) => {
+  // Currency formatter
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: selectedCurrency,
+      notation: 'standard',
+      maximumFractionDigits: 0
+    }).format(value)
+  }
+
   return (
     <Card data-testid="top-performers-section">
       <CardHeader className="gba:flex gba:items-center gba:gap-3">
         <IconAvatar icon={TrophyIcon} variant={moduleColor as any} size="md" iconWeight="regular" decorative={true} />
-        <div>
+        <div className="gba:flex-1">
           <CardTitle>Top Performers</CardTitle>
           <CardDescription>Best performing team members</CardDescription>
         </div>
+        {/* Currency Filter */}
+        {availableCurrencies && availableCurrencies.length > 1 && onCurrencyChange && (
+          <div className="gba:flex gba:items-center gba:gap-2 gba:ml-auto" data-testid="top-performers-currency-filter">
+            <Label className="gba:text-sm gba:font-medium gba:whitespace-nowrap">Currency</Label>
+            <Select value={selectedCurrency} onValueChange={onCurrencyChange}>
+              <SelectTrigger className="gba:w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {availableCurrencies.map(currency => (
+                  <SelectItem key={currency} value={currency}>
+                    {currency}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </CardHeader>
       <CardContent>
         {performers.length > 0 ? (
@@ -43,7 +93,7 @@ export const TopPerformers: React.FC<TopPerformersProps> = ({ performers, module
                   </div>
                 </div>
                 <div className="gba:text-right">
-                  <div className="gba:font-bold gba:text-lg">${performer.totalValue.toLocaleString()}</div>
+                  <div className="gba:font-bold gba:text-lg">{formatCurrency(performer.totalValue)}</div>
                   <div className="gba:text-sm gba:text-gray-600">Total Value</div>
                 </div>
               </div>

@@ -1,9 +1,12 @@
 import { useState, useCallback, useMemo } from 'react'
 import { Card, CardContent, DataDisplay } from '@newwork/nw-design-system'
+import type { ColumnDef } from '@tanstack/react-table'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { OpportunityListLayout } from '@/common/components/common-relations/view-layouts/opportunity-layout'
 import { createOpportunityColumns } from '@/common/components/common-relations/view-layouts/opportunity-layout/config/opportunityColumns'
 import type { GenericOpportunity, OpportunitySectionProps } from './types'
+
+const BASE_VISIBLE_COLUMNS = ['opportunity', 'amount', 'account', 'stage', 'status', 'owner', 'closeDate', 'created']
 
 export const OpportunitySection = <T extends GenericOpportunity = GenericOpportunity>({
   opportunities,
@@ -12,22 +15,28 @@ export const OpportunitySection = <T extends GenericOpportunity = GenericOpportu
   recordUrlBuilder,
   accountUrlBuilder,
   className = '',
-  'data-testid': dataTestId = 'opportunity-section'
+  'data-testid': dataTestId = 'opportunity-section',
+  additionalColumns = [],
+  extendVisibleColumns = []
 }: Omit<OpportunitySectionProps<T>, 'onRetry'>) => {
   // State for DataTable
   const [searchTerm, setSearchTerm] = useState('')
   const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([{ id: 'created', desc: true }])
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 })
-  const [visibleColumns, setVisibleColumns] = useState<string[]>([
-    'opportunity',
-    'amount',
-    'account',
-    'stage',
-    'status',
-    'owner',
-    'closeDate',
-    'created'
-  ])
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
+    // Insert extended columns after 'amount' if present
+    if (extendVisibleColumns.length === 0) return BASE_VISIBLE_COLUMNS
+
+    const amountIndex = BASE_VISIBLE_COLUMNS.indexOf('amount')
+    if (amountIndex >= 0) {
+      return [
+        ...BASE_VISIBLE_COLUMNS.slice(0, amountIndex + 1),
+        ...extendVisibleColumns,
+        ...BASE_VISIBLE_COLUMNS.slice(amountIndex + 1)
+      ]
+    }
+    return [...BASE_VISIBLE_COLUMNS, ...extendVisibleColumns]
+  })
 
   // Handle row click
   const handleRowClick = useCallback(
@@ -120,11 +129,31 @@ export const OpportunitySection = <T extends GenericOpportunity = GenericOpportu
     return sortedOpportunities.slice(start, end)
   }, [sortedOpportunities, pagination])
 
-  // Use central columns
-  const columns = useMemo(() => createOpportunityColumns(accountUrlBuilder || (() => '')), [accountUrlBuilder])
+  // Use central columns merged with additional columns
+  const columns = useMemo(() => {
+    const baseColumns = createOpportunityColumns(accountUrlBuilder || (() => '')) as ColumnDef<T>[]
+    if (additionalColumns.length === 0) return baseColumns
 
-  const availableColumns = useMemo(
-    () => [
+    // Insert additional columns after 'amount' column
+    const amountIndex = baseColumns.findIndex(col => col.id === 'amount')
+    if (amountIndex >= 0) {
+      return [...baseColumns.slice(0, amountIndex + 1), ...additionalColumns, ...baseColumns.slice(amountIndex + 1)]
+    }
+    return [...baseColumns, ...additionalColumns]
+  }, [accountUrlBuilder, additionalColumns])
+
+  // Derive additional column metadata for available/sortable columns
+  const additionalColumnsMeta = useMemo(
+    () =>
+      additionalColumns.map(col => ({
+        id: col.id as string,
+        label: typeof col.header === 'string' ? col.header : (col.id as string)
+      })),
+    [additionalColumns]
+  )
+
+  const availableColumns = useMemo(() => {
+    const baseAvailable = [
       { id: 'opportunity', label: 'Opportunity Name' },
       { id: 'amount', label: 'Value' },
       { id: 'account', label: 'Account' },
@@ -133,12 +162,23 @@ export const OpportunitySection = <T extends GenericOpportunity = GenericOpportu
       { id: 'owner', label: 'Owner' },
       { id: 'closeDate', label: 'Close Date' },
       { id: 'created', label: 'Created' }
-    ],
-    []
-  )
+    ]
+    if (additionalColumnsMeta.length === 0) return baseAvailable
 
-  const sortableColumns = useMemo(
-    () => [
+    // Insert after 'amount'
+    const amountIndex = baseAvailable.findIndex(col => col.id === 'amount')
+    if (amountIndex >= 0) {
+      return [
+        ...baseAvailable.slice(0, amountIndex + 1),
+        ...additionalColumnsMeta,
+        ...baseAvailable.slice(amountIndex + 1)
+      ]
+    }
+    return [...baseAvailable, ...additionalColumnsMeta]
+  }, [additionalColumnsMeta])
+
+  const sortableColumns = useMemo(() => {
+    const baseSortable = [
       { id: 'opportunity', label: 'Opportunity Name' },
       { id: 'amount', label: 'Value' },
       { id: 'account', label: 'Account' },
@@ -147,9 +187,20 @@ export const OpportunitySection = <T extends GenericOpportunity = GenericOpportu
       { id: 'owner', label: 'Owner' },
       { id: 'closeDate', label: 'Close Date' },
       { id: 'created', label: 'Created' }
-    ],
-    []
-  )
+    ]
+    if (additionalColumnsMeta.length === 0) return baseSortable
+
+    // Insert after 'amount'
+    const amountIndex = baseSortable.findIndex(col => col.id === 'amount')
+    if (amountIndex >= 0) {
+      return [
+        ...baseSortable.slice(0, amountIndex + 1),
+        ...additionalColumnsMeta,
+        ...baseSortable.slice(amountIndex + 1)
+      ]
+    }
+    return [...baseSortable, ...additionalColumnsMeta]
+  }, [additionalColumnsMeta])
 
   return (
     <Card className={`gba:w-full ${className}`} data-testid={dataTestId}>

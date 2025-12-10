@@ -1,6 +1,7 @@
 import React from 'react'
 import { EntityCard } from './EntityCard'
 import { env } from '@/common/env/EnvUtils'
+import { getOperationBadge } from './utils/displayUtils'
 
 interface WorkflowDisplayProps {
   workflowId: string
@@ -16,20 +17,7 @@ export const WorkflowDisplay: React.FC<WorkflowDisplayProps> = ({
   operation,
   flowProposal
 }) => {
-  const getOperationBadge = () => {
-    switch (operation) {
-      case 'create':
-        return { text: 'Created', variant: 'success' as const }
-      case 'update':
-        return { text: 'Updated', variant: 'default' as const }
-      case 'delete':
-        return { text: 'Deleted', variant: 'destructive' as const }
-      default:
-        return undefined
-    }
-  }
-
-  const operationBadge = getOperationBadge()
+  const operationBadge = getOperationBadge(operation)
 
   // Format the workflow name for display (e.g., "flow_onestep_workflow" -> "Flow Onestep Workflow")
   const formatWorkflowName = (id: string): string => {
@@ -43,8 +31,8 @@ export const WorkflowDisplay: React.FC<WorkflowDisplayProps> = ({
   }
 
   const icon = (
-    <div className="gba:h-12 gba:w-12 gba:rounded-full gba:bg-gradient-to-br gba:from-primary/20 gba:to-info/20 gba:flex gba:items-center gba:justify-center">
-      <svg className="gba:h-6 gba:w-6 gba:text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div className="gba:h-12 gba:w-12 gba:rounded-full gba:bg-gradient-to-br gba:from-ai/20 gba:to-ai-secondary/20 gba:flex gba:items-center gba:justify-center">
+      <svg className="gba:h-6 gba:w-6 gba:text-ai" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
           strokeLinecap="round"
           strokeLinejoin="round"

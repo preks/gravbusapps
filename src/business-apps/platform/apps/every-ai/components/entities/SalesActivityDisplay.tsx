@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { EntityCard } from './EntityCard'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
+import { getOperationBadge } from './utils/displayUtils'
 
 interface SalesActivityDisplayProps {
   activityId: string
@@ -42,11 +43,7 @@ interface SalesActivity {
   }
 }
 
-export const SalesActivityDisplay: React.FC<SalesActivityDisplayProps> = ({
-  activityId,
-  accessToken,
-  operation
-}) => {
+export const SalesActivityDisplay: React.FC<SalesActivityDisplayProps> = ({ activityId, accessToken, operation }) => {
   const [activity, setActivity] = useState<SalesActivity | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -119,20 +116,7 @@ export const SalesActivityDisplay: React.FC<SalesActivityDisplayProps> = ({
     }
   }, [activityId, accessToken, graphqlClient])
 
-  const getOperationBadge = () => {
-    switch (operation) {
-      case 'create':
-        return { text: 'Created', variant: 'success' as const }
-      case 'update':
-        return { text: 'Updated', variant: 'default' as const }
-      case 'delete':
-        return { text: 'Deleted', variant: 'destructive' as const }
-      default:
-        return undefined
-    }
-  }
-
-  const operationBadge = getOperationBadge()
+  const operationBadge = getOperationBadge(operation)
 
   // Determine where to navigate based on the associated entity
   const handleClick = () => {
@@ -208,12 +192,7 @@ export const SalesActivityDisplay: React.FC<SalesActivityDisplayProps> = ({
   // Activity icon (calendar/task style)
   const icon = (
     <div className="gba:h-12 gba:w-12 gba:rounded-full gba:bg-success-secondary gba:flex gba:items-center gba:justify-center">
-      <svg
-        className="gba:h-6 gba:w-6 gba:text-success"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
+      <svg className="gba:h-6 gba:w-6 gba:text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -229,7 +208,7 @@ export const SalesActivityDisplay: React.FC<SalesActivityDisplayProps> = ({
 
   // Build fields array
   const fields = activity
-    ? [
+    ? ([
         associatedEntity && entityType && { label: entityType, value: associatedEntity },
         activity.activityType?.value && { label: 'Type', value: activity.activityType.value },
         activity.occurredAt && { label: 'Date', value: formatDate(activity.occurredAt) },
@@ -238,7 +217,7 @@ export const SalesActivityDisplay: React.FC<SalesActivityDisplayProps> = ({
           value: `${activity.ownerEmployee.firstName} ${activity.ownerEmployee.lastName}`
         },
         activity.description && { label: 'Description', value: activity.description }
-      ].filter(Boolean) as { label: string; value: string | undefined }[]
+      ].filter(Boolean) as { label: string; value: string | undefined }[])
     : undefined
 
   return (
@@ -257,4 +236,3 @@ export const SalesActivityDisplay: React.FC<SalesActivityDisplayProps> = ({
 }
 
 export default SalesActivityDisplay
-

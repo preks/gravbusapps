@@ -66,6 +66,7 @@ adjust-salary-review-annual-gross-salary = Salariu brut anual
 adjust-salary-review-monthly-gross-salary = Salariu brut lunar
 adjust-salary-review-hourly-gross-salary = Salariu brut pe oră
 adjust-salary-review-increase-text = { $percentage }% creștere
+adjust-salary-review-hourly-suffix = /h
 
 # Assign Employee Salary Review Form (new employee without existing salary)
 assign-salary-review-title = Revizuire atribuire inițială salariu pentru { $employeeName }

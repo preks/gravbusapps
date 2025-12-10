@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { EntityCard } from './EntityCard'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
+import { getOperationBadge } from './utils/displayUtils'
 
 interface OpportunityDisplayProps {
   opportunityId: string
@@ -69,20 +70,7 @@ export const OpportunityDisplay: React.FC<OpportunityDisplayProps> = ({ opportun
     }
   }, [opportunityId, accessToken, graphqlClient])
 
-  const getOperationBadge = () => {
-    switch (operation) {
-      case 'create':
-        return { text: 'Created', variant: 'success' as const }
-      case 'update':
-        return { text: 'Updated', variant: 'default' as const }
-      case 'delete':
-        return { text: 'Deleted', variant: 'destructive' as const }
-      default:
-        return undefined
-    }
-  }
-
-  const operationBadge = getOperationBadge()
+  const operationBadge = getOperationBadge(operation)
 
   const handleClick = () => {
     if (opportunityId) {
@@ -100,8 +88,8 @@ export const OpportunityDisplay: React.FC<OpportunityDisplayProps> = ({ opportun
   }
 
   const icon = (
-    <div className="gba:h-12 gba:w-12 gba:rounded-full gba:bg-warning-secondary gba:flex gba:items-center gba:justify-center">
-      <svg className="gba:h-6 gba:w-6 gba:text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div className="gba:h-12 gba:w-12 gba:rounded-full gba:bg-ai-secondary gba:flex gba:items-center gba:justify-center">
+      <svg className="gba:h-6 gba:w-6 gba:text-ai" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
           strokeLinecap="round"
           strokeLinejoin="round"

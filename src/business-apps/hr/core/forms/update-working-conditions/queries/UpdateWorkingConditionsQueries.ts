@@ -175,7 +175,7 @@ export const useWorkingConditionsLookups = (context: BusinessAppContextProps) =>
           }
         : null
       setCurrent(wc)
-      const jt = res?.Employee?.[0]?.employeePosition?.[0]?.jobPosition?.name || ''
+      const jt = res?.Employee?.[0]?.employeePosition?.jobPosition?.name || ''
       setJobTitle(jt)
       setFirstName(res?.Employee?.[0]?.firstName || '')
       setLastName(res?.Employee?.[0]?.lastName || '')

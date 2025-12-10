@@ -13,6 +13,8 @@ import {
 } from '@newwork/nw-design-system'
 import { Users, User } from 'lucide-react'
 import { mockUsers } from '../../../data/mockUsers'
+import { useOrgUsersSearch } from '@/common/network/org-directory/useOrgUsersSearch'
+import EmployeeSelect, { type EmployeeOption } from '@/components/employee-select/EmployeeSelect'
 import { ExecutionAssignment } from '../types'
 
 interface AssignmentConfigurationProps {
@@ -20,14 +22,31 @@ interface AssignmentConfigurationProps {
   onChange: (assignments: ExecutionAssignment[]) => void
   compact?: boolean
   'data-testid'?: string
+  accessToken: string
 }
 
 export const AssignmentConfiguration: React.FC<AssignmentConfigurationProps> = ({
   assignments,
   onChange,
   compact = false,
-  'data-testid': testId
+  'data-testid': testId,
+  accessToken
 }) => {
+  const [employeeQuery, setEmployeeQuery] = React.useState('')
+  const [pageOffset, setPageOffset] = React.useState(0)
+  const {
+    users,
+    loading: usersLoading,
+    hasMore
+  } = useOrgUsersSearch(accessToken, {
+    search: employeeQuery,
+    limit: 20,
+    offset: pageOffset
+  })
+  const employees: EmployeeOption[] = React.useMemo(() => {
+    return (users || []).map(u => ({ id: u.id, displayName: u.name }))
+  }, [users])
+
   const handleAssignmentChange = (index: number, selectedUsers: string[]) => {
     const updatedAssignments = [...assignments]
     updatedAssignments[index] = {
@@ -80,41 +99,40 @@ export const AssignmentConfiguration: React.FC<AssignmentConfigurationProps> = (
                 >
                   Assign to users:
                 </Label>
-                <Select
+                <EmployeeSelect
                   value={assignment.assignedUsers.length > 0 ? assignment.assignedUsers[0] : ''}
-                  onValueChange={value => {
-                    handleAssignmentChange(index, value ? [value] : [])
+                  employees={
+                    employeeQuery.length >= 2 ? employees : mockUsers.map(u => ({ id: u.id, displayName: u.name }))
+                  }
+                  loading={employeeQuery.length >= 2 ? usersLoading : false}
+                  onSearch={q => {
+                    setPageOffset(0)
+                    setEmployeeQuery(q)
                   }}
-                >
-                  <SelectTrigger id={`assignment-${assignment.stepIndex}`} className="gba:w-full gba:mt-1">
-                    <SelectValue placeholder="Select users for this task" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {mockUsers.map(user => (
-                      <SelectItem key={user.id} value={user.id}>
-                        <div className="gba:flex gba:items-center gba:gap-2">
-                          <User className="gba:h-4 gba:w-4 gba:text-gray-500" />
-                          <span>{user.name}</span>
-                          <span className="gba:text-xs gba:text-gray-500">({user.role})</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  hasMore={employeeQuery.length >= 2 ? hasMore : false}
+                  onLoadMore={() => {
+                    if (employeeQuery.length >= 2 && hasMore) setPageOffset(prev => prev + 20)
+                  }}
+                  onValueChange={val => handleAssignmentChange(index, val ? [val] : [])}
+                  placeholder="Select users for this task"
+                  searchPlaceholder="Type at least 2 characters to search..."
+                  data-testid={`${testId}-employee-select-${assignment.stepIndex}`}
+                />
               </div>
               {assignment.assignedUsers.length > 0 && (
                 <div>
                   <p className="gba:text-xs gba:font-medium gba:text-gray-700 gba:mb-2">Selected users:</p>
                   <div className="gba:flex gba:gap-2 gba:flex-wrap">
                     {assignment.assignedUsers.map(userId => {
-                      const user = mockUsers.find(u => u.id === userId)
+                      const user =
+                        employees.find(e => e.id === userId)?.displayName || mockUsers.find(u => u.id === userId)?.name
                       return user ? (
                         <Badge
                           key={userId}
                           variant="secondary"
                           className="gba:bg-blue-100 gba:text-blue-800 gba:text-xs"
                         >
-                          {user.name}
+                          {user}
                         </Badge>
                       ) : null
                     })}

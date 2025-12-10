@@ -7,6 +7,10 @@ interface SimpleItem {
   label: string
 }
 
+export interface StatusItem extends SimpleItem {
+  code?: string
+}
+
 export const useInvestmentOpportunityFilters = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken)
 
@@ -14,7 +18,7 @@ export const useInvestmentOpportunityFilters = (context: BusinessAppContextProps
   const [stages, setStages] = useState<SimpleItem[]>([])
   const [pipelines, setPipelines] = useState<SimpleItem[]>([])
   const [accounts, setAccounts] = useState<SimpleItem[]>([])
-  const [statuses, setStatuses] = useState<SimpleItem[]>([])
+  const [statuses, setStatuses] = useState<StatusItem[]>([])
   const [forecasts, setForecasts] = useState<SimpleItem[]>([])
   const [amountRange, setAmountRange] = useState<{ min: number; max: number }>({ min: 0, max: 1000000 })
 
@@ -128,12 +132,18 @@ export const useInvestmentOpportunityFilters = (context: BusinessAppContextProps
           }
         }
       `)
-      const map = new Map<string, string>()
+      const map = new Map<string, StatusItem>()
       ;(res?.InvestmentOpportunity || []).forEach(r => {
         const s = r.opportunityStatus
-        if (s?.id) map.set(s.id, s.value || s.code || s.id)
+        if (s?.id) {
+          map.set(s.id, {
+            id: s.id,
+            label: s.value || s.code || s.id,
+            code: s.code
+          })
+        }
       })
-      setStatuses(Array.from(map.entries()).map(([id, label]) => ({ id, label })))
+      setStatuses(Array.from(map.values()))
     } catch {
       setStatuses([])
     }
