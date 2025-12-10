@@ -208,7 +208,7 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
           id: z.string().optional(),
           version: z.number().optional(),
           title: z.string().min(1, t('title-required')),
-          previewText: z.string().min(1, t('preview-required')),
+          previewText: z.string().optional(),
           content: z.string().min(1, t('content-required')),
           contentImage: z.string().nullable().optional(),
           contentGroupRef: z.string().min(1, t('group-required')),

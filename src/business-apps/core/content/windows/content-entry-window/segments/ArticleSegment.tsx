@@ -404,7 +404,6 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
         <FormField
           control={control as any}
           name="previewText"
-          rules={{ required: t('preview-required') || 'Preview text is required' }}
           render={({ field }) => (
             <FormItem>
               <FormLabel>{t('preview-text') || 'Preview Text'}</FormLabel>

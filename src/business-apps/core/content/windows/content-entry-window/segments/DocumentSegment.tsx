@@ -215,7 +215,6 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
       <FormField
         control={control as any}
         name="previewText"
-        rules={{ required: t('preview-required') || 'Short description is required' }}
         render={({ field }) => (
           <FormItem>
             <FormLabel>{t('short-description') || 'Short Description'}</FormLabel>
