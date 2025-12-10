@@ -5,6 +5,7 @@ import { OfficeAttendanceRecord, SiteLocationCapacity, OfficeUsageFilters } from
 import { KpiCards } from '../usage-overview/KpiCards'
 import { LocationUsageCards } from '../usage-overview/LocationUsageCards'
 import { LocationDetailPanel } from '../usage-overview/LocationDetailPanel'
+import { CapacityUsageChart } from '../usage-overview/CapacityUsageChart'
 import { useUsageOverviewData } from '../../hooks/useUsageOverviewData'
 import { useLocationDetail } from '../../hooks/useLocationDetail'
 
@@ -100,7 +101,7 @@ export const UsageOverviewTab: React.FC<UsageOverviewTabProps> = ({
       {/* KPI Cards */}
       <KpiCards kpis={kpis} prefixDataTestId={`${prefixDataTestId}-kpis`} />
 
-      {/* Capacity vs Usage Chart Placeholder */}
+      {/* Capacity vs Usage Chart */}
       <div className="gba:mb-6 gba:bg-card gba:rounded-lg gba:border gba:border-border gba:p-6">
         <div className="gba:mb-4">
           <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">
@@ -114,14 +115,12 @@ export const UsageOverviewTab: React.FC<UsageOverviewTabProps> = ({
             )}
           </p>
         </div>
-        <div className="gba:h-64 gba:bg-gradient-to-br gba:from-primary/5 gba:to-primary/10 gba:rounded gba:flex gba:items-center gba:justify-center">
-          <p className="gba:text-sm gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:office_usage.chart_coming_soon',
-              'Chart visualization coming soon'
-            )}
-          </p>
-        </div>
+        <CapacityUsageChart
+          attendance={attendance}
+          locations={locations}
+          granularity={filters.granularity}
+          prefixDataTestId={`${prefixDataTestId}-chart`}
+        />
       </div>
 
       {/* Location Usage Cards */}
