@@ -74,7 +74,10 @@ function extractDisplayValue(ov: BenefitObjectValue): string {
 
 function extractPeriod(ov: BenefitObjectValue): string {
   const period = ov.period ?? ov.periodicity ?? ov.frequency ?? ov.interval
-  return period != null ? String(period) : ''
+  if (period == null) {
+    return ''
+  }
+  return String(period)
 }
 
 function extractAmount(ov: BenefitObjectValue): number | undefined {
