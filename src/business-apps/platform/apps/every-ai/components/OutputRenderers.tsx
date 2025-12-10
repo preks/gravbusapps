@@ -1,5 +1,6 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Button } from '@newwork/nw-design-system'
+import { CopySimple, Check } from '@phosphor-icons/react'
 import type {
   OutputItem,
   AnswerOutput,
@@ -250,23 +251,51 @@ const normalizeLinkSpacing = (input: string): string => {
 
 export const TextBlockDisplay: React.FC<{ data: TextBlockData; accessToken: string }> = ({ data, accessToken }) => {
   const content = normalizeLinkSpacing(data.text)
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      await navigator.clipboard.writeText(data.text)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch (err) {
+      console.error('Failed to copy text:', err)
+    }
+  }
+
   return (
-    <div className="gba:prose gba:prose-sm gba:max-w-none gba:text-foreground" data-testid="text-block-display">
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-          ul: ({ ...props }) => <ul className="gba:list-disc gba:ml-6" {...props} />,
-          ol: ({ ...props }) => <ol className="gba:list-decimal gba:ml-6" {...props} />,
-          a: ({ href, children, ...props }) => (
-            <EntityLink href={href} accessToken={accessToken} {...props}>
-              {children}
-            </EntityLink>
-          )
-        }}
-        urlTransform={markdownUrlTransform}
+    <div className="gba:relative gba:group" data-testid="text-block-display">
+      <div className="gba:prose gba:prose-sm gba:max-w-none gba:text-foreground">
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={{
+            ul: ({ ...props }) => <ul className="gba:list-disc gba:ml-6" {...props} />,
+            ol: ({ ...props }) => <ol className="gba:list-decimal gba:ml-6" {...props} />,
+            a: ({ href, children, ...props }) => (
+              <EntityLink href={href} accessToken={accessToken} {...props}>
+                {children}
+              </EntityLink>
+            )
+          }}
+          urlTransform={markdownUrlTransform}
+        >
+          {content}
+        </ReactMarkdown>
+      </div>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="gba:absolute gba:top-2 gba:right-2 gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity gba:h-7 gba:w-7 gba:p-0 gba:z-10"
+        onClick={handleCopy}
+        data-testid="text-block-copy-button"
       >
-        {content}
-      </ReactMarkdown>
+        {copied ? (
+          <Check className="gba:h-4 gba:w-4 gba:text-success" weight="bold" />
+        ) : (
+          <CopySimple className="gba:h-4 gba:w-4" />
+        )}
+      </Button>
     </div>
   )
 }
@@ -928,8 +957,21 @@ function renderDisplayData(item: DisplayData, idx: number, accessToken: string) 
   }
 }
 
+// Extract text from answer output for copying
+function extractTextFromAnswerOutput(data: AnswerOutput): string {
+  const textParts: string[] = []
+  data.displayData.forEach(item => {
+    if (item.type === 'textBlock' && item.text) {
+      textParts.push(item.text)
+    }
+  })
+  return textParts.join('\n\n')
+}
+
 // Answer Output Renderer
 export const AnswerOutputRenderer: React.FC<{ data: AnswerOutput; accessToken: string }> = ({ data, accessToken }) => {
+  const [copied, setCopied] = useState(false)
+
   // Deduplicate reminder entities to prevent double display
   const deduplicatedData = data.displayData.filter((item, idx, arr) => {
     // If this is a reminder entity, check if it's a duplicate
@@ -944,13 +986,46 @@ export const AnswerOutputRenderer: React.FC<{ data: AnswerOutput; accessToken: s
     return true
   })
 
+  const textToCopy = extractTextFromAnswerOutput(data)
+  const hasTextToCopy = textToCopy.trim().length > 0
+
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!hasTextToCopy) return
+    try {
+      await navigator.clipboard.writeText(textToCopy)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch (err) {
+      console.error('Failed to copy text:', err)
+    }
+  }
+
   return (
-    <div className="gba:flex gba:flex-col gba:gap-6 gba:w-full" data-testid="answer-output-renderer">
+    <div
+      className="gba:relative gba:group gba:flex gba:flex-col gba:gap-6 gba:w-full"
+      data-testid="answer-output-renderer"
+    >
       {deduplicatedData.map((item, idx) => (
         <div key={idx} className="gba:pt-1">
           {renderDisplayData(item, idx, accessToken)}
         </div>
       ))}
+      {hasTextToCopy && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gba:absolute gba:top-2 gba:right-2 gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity gba:h-7 gba:w-7 gba:p-0 gba:z-10"
+          onClick={handleCopy}
+          data-testid="agent-message-copy-button"
+        >
+          {copied ? (
+            <Check className="gba:h-4 gba:w-4 gba:text-success" weight="bold" />
+          ) : (
+            <CopySimple className="gba:h-4 gba:w-4" />
+          )}
+        </Button>
+      )}
     </div>
   )
 }

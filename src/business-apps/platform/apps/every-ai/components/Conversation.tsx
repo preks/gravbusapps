@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState } from 'react'
 import type { ConversationTurn, UserTurn, AgentTurn, OutputItem } from '../types/models'
 import { OutputItemRenderer } from './OutputRenderers'
 import ReactMarkdown from 'react-markdown'
@@ -6,7 +6,8 @@ import remarkGfm from 'remark-gfm'
 import EntityLink, { markdownUrlTransform } from './links/EntityLink'
 import { AvatarWithInitials } from './shared/AvatarWithInitials'
 import { UserInfoProps } from '@/common/BusinessAppContext'
-import { Sparkle } from '@phosphor-icons/react'
+import { Sparkle, CopySimple, Check } from '@phosphor-icons/react'
+import { Button } from '@newwork/nw-design-system'
 
 interface ConversationProps {
   turns: ConversationTurn[]
@@ -43,6 +44,8 @@ const UserTurnRenderer: React.FC<{ turn: UserTurn; accessToken: string; userInfo
   accessToken,
   userInfo
 }) => {
+  const [copied, setCopied] = useState(false)
+
   // Parse JSON messages to show user-friendly text
   let displayText = turn.text || ''
   try {
@@ -54,6 +57,17 @@ const UserTurnRenderer: React.FC<{ turn: UserTurn; accessToken: string; userInfo
     // Not JSON, use original text
   }
   const textWithMentions = buildTextWithMentions(displayText, turn.mentions)
+
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      await navigator.clipboard.writeText(displayText)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch (err) {
+      console.error('Failed to copy text:', err)
+    }
+  }
 
   return (
     <div
@@ -91,7 +105,7 @@ const UserTurnRenderer: React.FC<{ turn: UserTurn; accessToken: string; userInfo
         <div className="gba:flex gba:items-end gba:gap-2 gba:justify-end">
           <div className="gba:relative gba:group">
             {/* Subtle glow effect */}
-            <div className="gba:absolute gba:inset-0 gba:bg-gradient-to-br gba:from-muted gba:to-muted/80 gba:rounded-[20px] gba:blur-md gba:opacity-0 group-hover:gba:opacity-30 gba:transition-opacity" />
+            <div className="gba:absolute gba:inset-0 gba:bg-gradient-to-br gba:from-muted gba:to-muted/80 gba:rounded-[20px] gba:blur-md gba:opacity-0 gba:group-hover:opacity-30 gba:transition-opacity" />
 
             <div className="gba:max-w-md gba:rounded-[20px] gba:px-5 gba:py-3 gba:bg-gradient-to-br gba:from-muted gba:to-muted/80 gba:text-foreground gba:shadow-lg gba:relative">
               <div className="gba:prose gba:max-w-none gba:text-sm">
@@ -118,6 +132,19 @@ const UserTurnRenderer: React.FC<{ turn: UserTurn; accessToken: string; userInfo
                   {textWithMentions}
                 </ReactMarkdown>
               </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gba:absolute gba:top-2 gba:right-2 gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity gba:h-7 gba:w-7 gba:p-0 gba:z-10"
+                onClick={handleCopy}
+                data-testid="user-message-copy-button"
+              >
+                {copied ? (
+                  <Check className="gba:h-4 gba:w-4 gba:text-success" weight="bold" />
+                ) : (
+                  <CopySimple className="gba:h-4 gba:w-4" />
+                )}
+              </Button>
             </div>
           </div>
 
