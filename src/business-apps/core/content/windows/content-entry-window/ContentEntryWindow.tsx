@@ -11,6 +11,7 @@ import { useFileClient } from '@/common/network/files/useFileClient'
 import { ContentRole } from '@/common/data/content/types/contentEnums'
 import { buildContentEntryPayload } from '@/common/data/content/payloads/contentEntryPayloads'
 import { useContentEntry } from '@/common/data/content/hooks/useContentEntry'
+import { buildFileUrl } from '@/common/utils/fileUtils'
 import { ArticleSegment, QuestionSegment, DocumentSegment } from './segments'
 import translations from './_i18n'
 
@@ -68,6 +69,7 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
   const [image, setImage] = useState<string | null>(null)
   const [imageInfo, setImageInfo] = useState<{ name: string; size: string } | null>(null)
   const [imageFile, setImageFile] = useState<File | null>(null)
+  const imageBlobUrlRef = useRef<string | null>(null)
 
   // Track tags/categories that need to be created (labels, not IDs)
   const [categoriesToCreate, setCategoriesToCreate] = useState<Set<string>>(new Set())
@@ -394,33 +396,86 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
       }
 
       form.reset(formValues)
-
-      // Set image preview if picture exists
-      if (contentImage) {
-        try {
-          const parsed = typeof contentImage === 'string' ? JSON.parse(contentImage) : contentImage
-          if (parsed?.url) {
-            setImage(parsed.url)
-            setImageInfo({
-              name: parsed.name || 'Image',
-              size: parsed.size ? `${(parsed.size / 1024 / 1024).toFixed(2)}MB` : 'Unknown'
-            })
-          } else if (typeof contentImage === 'string' && contentImage.startsWith('data:')) {
-            setImage(contentImage)
-          }
-        } catch {
-          // If parsing fails, try to use as direct URL or base64
-          if (typeof contentImage === 'string') {
-            setImage(contentImage)
-          }
-        }
-      } else {
-        // Clear image if no contentImage
-        setImage(null)
-        setImageInfo(null)
-      }
     }
   }, [loadedContentEntry?.id, authorName, form])
+
+  // Separate useEffect for image loading (following ArticleView pattern)
+  useEffect(() => {
+    // Clean up previous blob URL if it exists
+    if (imageBlobUrlRef.current && imageBlobUrlRef.current.startsWith('blob:')) {
+      URL.revokeObjectURL(imageBlobUrlRef.current)
+      imageBlobUrlRef.current = null
+    }
+
+    if (!loadedContentEntry?.picture || !context.accessToken) {
+      setImage(null)
+      setImageInfo(null)
+      return
+    }
+
+    let fileInfo: any = null
+    try {
+      fileInfo =
+        typeof loadedContentEntry.picture === 'string'
+          ? JSON.parse(loadedContentEntry.picture)
+          : loadedContentEntry.picture
+    } catch {
+      // If it's not JSON, check if it's a data URL (base64) - use directly
+      if (typeof loadedContentEntry.picture === 'string' && loadedContentEntry.picture.startsWith('data:')) {
+        setImage(loadedContentEntry.picture)
+        setImageInfo(null)
+        return
+      }
+      // Otherwise try to use as direct URL (old format)
+      setImage(loadedContentEntry.picture)
+      setImageInfo(null)
+      return
+    }
+
+    if (!fileInfo?.path) {
+      setImage(null)
+      setImageInfo(null)
+      return
+    }
+
+    // Fetch image with authentication using buildFileUrl
+    let isCancelled = false
+
+    const fetchImage = async () => {
+      try {
+        const blobUrl = await buildFileUrl(fileInfo, context.accessToken!)
+        if (!isCancelled) {
+          imageBlobUrlRef.current = blobUrl
+          setImage(blobUrl)
+          setImageInfo({
+            name: fileInfo.fileMetadata?.originalFileName || 'Image',
+            size: fileInfo.fileMetadata?.size ? `${(fileInfo.fileMetadata.size / 1024 / 1024).toFixed(2)}MB` : 'Unknown'
+          })
+        } else {
+          // Clean up blob if fetch completed but component already unmounted/changed
+          URL.revokeObjectURL(blobUrl)
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          console.error('[ContentEntryWindow] Error fetching image:', error)
+          setImage(null)
+          setImageInfo(null)
+        }
+      }
+    }
+
+    fetchImage()
+
+    // Cleanup function
+    return () => {
+      isCancelled = true
+      // Clean up blob URL on unmount or when dependencies change
+      if (imageBlobUrlRef.current && imageBlobUrlRef.current.startsWith('blob:')) {
+        URL.revokeObjectURL(imageBlobUrlRef.current)
+        imageBlobUrlRef.current = null
+      }
+    }
+  }, [loadedContentEntry?.picture, context.accessToken])
 
   const { control, watch, setValue } = form
   const watchContentGroupRef = watch('contentGroupRef')
@@ -738,7 +793,14 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
         )}
 
         {currentSegment === 'question' && (
-          <QuestionSegment control={control} extractedContentGroupRef={extractedContentGroupRef} />
+          <QuestionSegment
+            control={control}
+            extractedContentGroupRef={extractedContentGroupRef}
+            onCreateCategory={onCreateCategory}
+            onCreateTag={onCreateTag}
+            onCategoriesChange={handleCategoriesChange}
+            onTagsChange={handleTagsChange}
+          />
         )}
 
         {currentSegment === 'document' && (
@@ -752,6 +814,10 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
             setImageInfo={setImageInfo}
             setImageFile={setImageFile}
             extractedContentGroupRef={extractedContentGroupRef}
+            onCreateCategory={onCreateCategory}
+            onCreateTag={onCreateTag}
+            onCategoriesChange={handleCategoriesChange}
+            onTagsChange={handleTagsChange}
           />
         )}
       </div>

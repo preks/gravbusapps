@@ -1,8 +1,9 @@
-import React from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useTranslation, Badge } from '@newwork/nw-design-system'
 import { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
 import { CommentSection } from '@/business-apps/core/content/records/content-record/components/interactions'
 import ContentInfoSection from './ContentInfoSection'
+import { buildFileUrl } from '@/common/utils/fileUtils'
 import type { TranslatedTexts } from '@/common/components/content'
 import translations from '../_i18n'
 
@@ -39,6 +40,78 @@ const ArticleView: React.FC<ArticleViewProps> = ({
   const displayPreview = translatedTexts?.preview || item.preview
   const displayContent = translatedTexts?.content || item.content
 
+  // State for image blob URL
+  const [imageBlobUrl, setImageBlobUrl] = useState<string | null>(null)
+  const blobUrlRef = useRef<string | null>(null)
+
+  // Fetch image with authentication
+  useEffect(() => {
+    // Clean up previous blob URL if it exists
+    if (blobUrlRef.current && blobUrlRef.current.startsWith('blob:')) {
+      URL.revokeObjectURL(blobUrlRef.current)
+      blobUrlRef.current = null
+    }
+
+    if (!item.picture || !accessToken) {
+      return
+    }
+
+    let fileInfo: any = null
+    try {
+      fileInfo = typeof item.picture === 'string' ? JSON.parse(item.picture) : item.picture
+    } catch {
+      // If it's not JSON, check if it's a data URL (base64) - use directly
+      if (typeof item.picture === 'string' && item.picture.startsWith('data:')) {
+        setImageBlobUrl(item.picture)
+        return
+      }
+      // Otherwise try to use as direct URL (old format)
+      console.log('[ArticleView] Picture is not JSON, using directly:', item.picture)
+      setImageBlobUrl(item.picture)
+      return
+    }
+
+    if (!fileInfo?.path) {
+      console.log('[ArticleView] No picture available or invalid fileInfo')
+      return
+    }
+
+    console.log('[ArticleView] Picture JSON parsed, fileInfo:', fileInfo)
+
+    // Fetch image with authentication using buildFileUrl
+    let isCancelled = false
+
+    const fetchImage = async () => {
+      try {
+        const blobUrl = await buildFileUrl(fileInfo, accessToken)
+        if (!isCancelled) {
+          blobUrlRef.current = blobUrl
+          setImageBlobUrl(blobUrl)
+          console.log('[ArticleView] Image fetched and blob URL created:', blobUrl)
+        } else {
+          // Clean up blob if fetch completed but component already unmounted/changed
+          URL.revokeObjectURL(blobUrl)
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          console.error('[ArticleView] Error fetching image:', error)
+        }
+      }
+    }
+
+    fetchImage()
+
+    // Cleanup function
+    return () => {
+      isCancelled = true
+      // Clean up blob URL on unmount
+      if (blobUrlRef.current && blobUrlRef.current.startsWith('blob:')) {
+        URL.revokeObjectURL(blobUrlRef.current)
+        blobUrlRef.current = null
+      }
+    }
+  }, [item.picture, accessToken])
+
   return (
     <div className="gba:overflow-y-auto gba:mb-6" data-testid="article-view">
       <div className="gba:flex gba:flex-col gba:mt-6 gba:max-w-[1000px] gba:mx-auto gba:px-4">
@@ -62,9 +135,9 @@ const ArticleView: React.FC<ArticleViewProps> = ({
         </h1>
 
         {/* Featured Image */}
-        {item.picture ? (
+        {imageBlobUrl ? (
           <img
-            src={item.picture}
+            src={imageBlobUrl}
             alt={t('content_image')}
             className="gba:w-full gba:h-auto gba:max-h-[562px] gba:object-cover gba:rounded-lg"
           />

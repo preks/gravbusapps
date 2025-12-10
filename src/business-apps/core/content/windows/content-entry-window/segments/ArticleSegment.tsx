@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useState } from 'react'
+import React, { useMemo, useCallback, useState, useRef } from 'react'
 import { Control } from 'react-hook-form'
 import {
   FormControl,
@@ -11,9 +11,12 @@ import {
   Textarea,
   Button,
   Switch,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
   useTranslation
 } from '@newwork/nw-design-system'
-import { ImageIcon, CaretLeftIcon, CaretRightIcon } from '@phosphor-icons/react'
+import { ImageIcon, CaretLeftIcon, CaretRightIcon, Folder, Link } from '@phosphor-icons/react'
 import ReactQuill from 'react-quill'
 import { CatalogSelect } from '@/components/catalog-select'
 import { ContentEntryFormValues } from '../ContentEntryWindow'
@@ -73,12 +76,16 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
 }) => {
   const { t } = useTranslation(translations)
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [dragActive, setDragActive] = useState(false)
+  const [uploadMenuOpen, setUploadMenuOpen] = useState(false)
+  const [urlPopoverOpen, setUrlPopoverOpen] = useState(false)
+  const [urlInput, setUrlInput] = useState('')
+  const [isLoadingUrl, setIsLoadingUrl] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const handleImageUpload = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0]
-      if (!file) return
-
+  // Process file (used by both file upload and drag & drop)
+  const processFile = useCallback(
+    (file: File) => {
       const fileSizeMB = file.size / (1024 * 1024)
       if (fileSizeMB > MAX_IMAGE_SIZE_MB) {
         alert(`Image size must be less than ${MAX_IMAGE_SIZE_MB}MB`)
@@ -107,6 +114,80 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
     },
     [setImage, setImageInfo, setImageFile, setValue]
   )
+
+  const handleImageUpload = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0]
+      if (!file) return
+      processFile(file)
+      // Clear input so same file can be selected again
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    },
+    [processFile]
+  )
+
+  // Drag and drop handlers
+  const handleDrop = useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      event.preventDefault()
+      event.stopPropagation()
+      setDragActive(false)
+
+      const file = event.dataTransfer.files?.[0]
+      if (file) {
+        processFile(file)
+      }
+    },
+    [processFile]
+  )
+
+  const handleDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    event.stopPropagation()
+    setDragActive(true)
+  }, [])
+
+  const handleDragLeave = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    event.stopPropagation()
+    setDragActive(false)
+  }, [])
+
+  // URL fetch handler
+  const handleUrlFetch = useCallback(async () => {
+    if (!urlInput.trim()) return
+
+    setIsLoadingUrl(true)
+    try {
+      const response = await fetch(urlInput.trim(), { mode: 'cors' })
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`)
+      }
+
+      const blob = await response.blob()
+      if (!blob.type.startsWith('image/')) {
+        throw new Error('URL does not point to an image')
+      }
+
+      // Convert blob to File
+      const fileName = urlInput.split('/').pop()?.split('?')[0] || 'image.jpg'
+      const fileExtension = fileName.split('.').pop() || 'jpg'
+      const mimeType = blob.type || `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`
+      const file = new File([blob], fileName, { type: mimeType })
+
+      // Process as regular file upload
+      processFile(file)
+      setUrlInput('')
+      setUrlPopoverOpen(false)
+      setUploadMenuOpen(false)
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to fetch image from URL')
+    } finally {
+      setIsLoadingUrl(false)
+    }
+  }, [urlInput, processFile])
 
   const handleImageRemove = useCallback(() => {
     setImage(null)
@@ -328,7 +409,14 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
             <FormItem>
               <FormLabel>{t('header-image') || 'Header Image'}</FormLabel>
               <FormControl>
-                <div className="gba:flex gba:flex-col gba:items-center gba:gap-3 gba:p-4 gba:border gba:border-border gba:rounded-lg gba:bg-muted/20">
+                <div
+                  className={`gba:flex gba:flex-col gba:items-center gba:gap-3 gba:p-4 gba:border-2 gba:border-dashed gba:rounded-lg gba:transition-colors ${
+                    dragActive ? 'gba:border-primary gba:bg-primary/5' : 'gba:border-border gba:bg-muted/20'
+                  }`}
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                >
                   {image ? (
                     <div className="gba:relative gba:w-full">
                       <img
@@ -353,22 +441,97 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
                       </Button>
                     </div>
                   ) : (
-                    <div className="gba:flex gba:flex-col gba:items-center gba:gap-2">
-                      <label className="gba:cursor-pointer">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleImageUpload}
-                          className="gba:hidden"
-                          data-testid="content-entry-window-image-input"
-                        />
-                        <Button type="button" variant="outline" size="sm" asChild>
-                          <span>
+                    <div className="gba:flex gba:flex-col gba:items-center gba:gap-3 gba:w-full">
+                      <div className="gba:flex gba:flex-col gba:items-center gba:gap-2 gba:text-center">
+                        <ImageIcon size={32} className="gba:text-muted-foreground" />
+                        <div className="gba:text-sm gba:text-muted-foreground">
+                          {dragActive ? 'Drop image here' : 'Drag and drop an image here, or'}
+                        </div>
+                      </div>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        className="gba:hidden"
+                        data-testid="content-entry-window-image-input"
+                      />
+                      <Popover open={uploadMenuOpen} onOpenChange={setUploadMenuOpen}>
+                        <PopoverTrigger asChild>
+                          <Button type="button" variant="outline" size="sm">
                             <ImageIcon className="gba:mr-2" size={20} />
                             {t('upload-image') || 'Upload Image'}
-                          </span>
-                        </Button>
-                      </label>
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="gba:w-48 gba:p-2" align="start" sideOffset={8}>
+                          <div className="gba:flex gba:flex-col gba:gap-1">
+                            <button
+                              onClick={() => {
+                                fileInputRef.current?.click()
+                                setUploadMenuOpen(false)
+                              }}
+                              className="gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:text-foreground hover:gba:bg-accent gba:transition-colors gba:w-full gba:text-left"
+                            >
+                              <Folder className="gba:h-4 gba:w-4 gba:text-muted-foreground" weight="bold" />
+                              <span>From storage</span>
+                            </button>
+                            <Popover open={urlPopoverOpen} onOpenChange={setUrlPopoverOpen}>
+                              <PopoverTrigger asChild>
+                                <button
+                                  className="gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:text-foreground hover:gba:bg-accent gba:transition-colors gba:w-full gba:text-left"
+                                  onClick={e => {
+                                    e.stopPropagation()
+                                    setUrlPopoverOpen(true)
+                                  }}
+                                >
+                                  <Link className="gba:h-4 gba:w-4 gba:text-muted-foreground" weight="bold" />
+                                  <span>From URL</span>
+                                </button>
+                              </PopoverTrigger>
+                              <PopoverContent className="gba:w-80 gba:p-4" align="start" sideOffset={8}>
+                                <div className="gba:space-y-3">
+                                  <div className="gba:space-y-2">
+                                    <label className="gba:text-sm gba:font-medium">Enter image URL</label>
+                                    <Input
+                                      value={urlInput}
+                                      onChange={e => setUrlInput(e.target.value)}
+                                      placeholder="https://example.com/image.jpg"
+                                      onKeyDown={e => {
+                                        if (e.key === 'Enter' && !isLoadingUrl) {
+                                          handleUrlFetch()
+                                        }
+                                      }}
+                                      data-testid="content-entry-window-url-input"
+                                    />
+                                  </div>
+                                  <div className="gba:flex gba:gap-2 gba:justify-end">
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        setUrlInput('')
+                                        setUrlPopoverOpen(false)
+                                      }}
+                                    >
+                                      Cancel
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      onClick={handleUrlFetch}
+                                      disabled={!urlInput.trim() || isLoadingUrl}
+                                      data-testid="content-entry-window-fetch-url-button"
+                                    >
+                                      {isLoadingUrl ? 'Loading...' : 'Fetch Image'}
+                                    </Button>
+                                  </div>
+                                </div>
+                              </PopoverContent>
+                            </Popover>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                       <div className="gba:text-xs gba:text-muted-foreground">Max {MAX_IMAGE_SIZE_MB}MB</div>
                     </div>
                   )}

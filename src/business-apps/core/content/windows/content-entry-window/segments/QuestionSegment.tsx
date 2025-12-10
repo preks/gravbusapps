@@ -3,6 +3,7 @@ import { Control } from 'react-hook-form'
 import {
   FormControl,
   FormField,
+  FormFieldGroup,
   FormItem,
   FormLabel,
   FormMessage,
@@ -17,6 +18,10 @@ import translations from '../_i18n'
 interface QuestionSegmentProps {
   control: Control<ContentEntryFormValues>
   extractedContentGroupRef?: string
+  onCreateCategory?: (label: string) => Promise<string>
+  onCreateTag?: (label: string) => Promise<string>
+  onCategoriesChange?: (categories: string[]) => void
+  onTagsChange?: (tags: string[]) => void
 }
 
 /**
@@ -24,7 +29,14 @@ interface QuestionSegmentProps {
  * Features: Simple title, summary, detailed description, tags, categories
  * Similar to Stack Overflow, Quora question forms
  */
-export const QuestionSegment: React.FC<QuestionSegmentProps> = ({ control, extractedContentGroupRef }) => {
+export const QuestionSegment: React.FC<QuestionSegmentProps> = ({
+  control,
+  extractedContentGroupRef,
+  onCreateCategory,
+  onCreateTag,
+  onCategoriesChange,
+  onTagsChange
+}) => {
   const { t } = useTranslation(translations)
 
   return (
@@ -149,23 +161,31 @@ export const QuestionSegment: React.FC<QuestionSegmentProps> = ({ control, extra
       />
 
       {/* Categories and Tags - Below Question Details */}
-      <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+      <FormFieldGroup>
         {/* Categories - Tags Mode */}
         <FormField
           control={control as any}
           name="categories"
           render={({ field }) => (
-            <FormItem>
-              <FormLabel>Categories (Optional)</FormLabel>
+            <FormItem className="gba:flex-1">
+              <FormLabel>Categories</FormLabel>
               <FormControl>
                 <CatalogSelect
                   catalogIdentifier="ContentCategory:v1"
-                  multiple={true}
+                  mode="tags"
                   value={field.value || []}
                   onValueChange={value => {
-                    field.onChange(value)
+                    const categories = Array.isArray(value) ? value : []
+                    field.onChange(categories)
+                    onCategoriesChange?.(categories)
                   }}
-                  placeholder="Select or create categories..."
+                  onCreateTag={async (tag: string) => {
+                    if (!onCreateCategory) {
+                      throw new Error('onCreateCategory is required for categories')
+                    }
+                    const newId = await onCreateCategory(tag)
+                    return newId
+                  }}
                   data-testid="question-segment-categories-select"
                 />
               </FormControl>
@@ -179,17 +199,25 @@ export const QuestionSegment: React.FC<QuestionSegmentProps> = ({ control, extra
           control={control as any}
           name="tags"
           render={({ field }) => (
-            <FormItem>
-              <FormLabel>Tags (Optional)</FormLabel>
+            <FormItem className="gba:flex-1">
+              <FormLabel>Tags</FormLabel>
               <FormControl>
                 <CatalogSelect
                   catalogIdentifier="ContentTag:v1"
-                  multiple={true}
+                  mode="tags"
                   value={field.value || []}
                   onValueChange={value => {
-                    field.onChange(value)
+                    const tags = Array.isArray(value) ? value : []
+                    field.onChange(tags)
+                    onTagsChange?.(tags)
                   }}
-                  placeholder="Select or create tags..."
+                  onCreateTag={async (tag: string) => {
+                    if (!onCreateTag) {
+                      throw new Error('onCreateTag is required for tags')
+                    }
+                    const newId = await onCreateTag(tag)
+                    return newId
+                  }}
                   data-testid="question-segment-tags-select"
                 />
               </FormControl>
@@ -197,7 +225,7 @@ export const QuestionSegment: React.FC<QuestionSegmentProps> = ({ control, extra
             </FormItem>
           )}
         />
-      </div>
+      </FormFieldGroup>
 
       {/* Hidden fields - Answers and Voting always enabled for questions */}
       <input type="hidden" {...(control as any).register('allowComment')} value="true" />
