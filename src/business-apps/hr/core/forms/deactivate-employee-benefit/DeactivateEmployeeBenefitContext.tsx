@@ -3,6 +3,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { EMPLOYEE_DATA_QUERY } from './DeactivateEmployeeBenefitQueries'
 import { extractEmployeeId } from '@/business-apps/hr/core/utils/employeeIdUtils'
+import { extractSelectedBenefit } from '@/business-apps/hr/core/utils/benefitExtractionUtils'
 import type { DeactivateEmployeeBenefitContextData, EmployeeDataResponse } from './types'
 
 interface DeactivateEmployeeBenefitContextValue {
@@ -47,13 +48,8 @@ export const DeactivateEmployeeBenefitProvider: React.FC<ProviderProps> = ({
       const empVariables = { idEmployee: employeeId }
       const employeeData = await graphqlClient.request<EmployeeDataResponse>(EMPLOYEE_DATA_QUERY, empVariables)
 
-      // Extract selected benefit from additionalData at fetch time
-      const externalContext = (additionalData as any)?.externalContextData
-      const benefit =
-        externalContext?.benefit ||
-        (additionalData as any)?.benefit ||
-        (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.benefit ||
-        null
+      // Extract selected benefit using utility
+      const benefit = extractSelectedBenefit(additionalData)
 
       // Set data with employee and selected benefit
       setData({
