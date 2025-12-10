@@ -102,7 +102,7 @@ export const useInvestmentOpportunityFilters = (context: BusinessAppContextProps
     try {
       const res = await graphqlClient.request<{
         InvestmentOpportunity: Array<{
-          investmentOpportunityAccount?: Array<{
+          opportunityAccounts?: Array<{
             accountId: string
             account?: { id: string; name: string } | null
           }> | null

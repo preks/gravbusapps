@@ -637,18 +637,7 @@ export const buildInvestmentPayload = (investment: Partial<Investment>) => {
     result.investment.investmentRoles = investmentRolesPayload
   }
 
-  // Handle investment-account junction table associations
-  // GraphQL field name: investmentAccounts (not investmentInvestmentAccounts)
-  if (investment.investmentAccounts && investment.investmentAccounts.length > 0) {
-    const accountAssociationsPayload = investment.investmentAccounts.map((assoc: any) => ({
-      ...(assoc.id && { id: assoc.id }),
-      ...(assoc.version !== undefined && { version: assoc.version }),
-      investmentAccountId: assoc.investmentAccountId || assoc.investmentAccount?.id,
-      ...(assoc.investmentAccountTypeRef && { investmentAccountTypeRef: assoc.investmentAccountTypeRef }),
-      ...(assoc.isDeleted !== undefined && { isDeleted: assoc.isDeleted })
-    }))
-    result.investment.investmentAccounts = accountAssociationsPayload
-  }
+  // investmentAccounts handled automatically by buildPayload (applies transformIdFields)
 
   // Handle nested structures separately - einfach aus dem Objekt den Payload bauen
   if (investment.equityInvestment && investment.equityInvestment.length > 0) {

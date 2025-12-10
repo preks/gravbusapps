@@ -31,6 +31,8 @@ interface OpportunityInformationSegmentProps {
   // Account selection props
   account?: any // Deprecated - use opportunityAccounts instead
   opportunityAccounts?: any[] // Multiple accounts with types (junction table format)
+  // Contact selection props
+  opportunityContacts?: any[] // Multiple contacts with types (junction table format)
   // Account selection hook result - raw entities and refetch function
   useAccounts?: {
     accounts: any[]
@@ -65,6 +67,7 @@ const OpportunityInformationSegment: React.FC<OpportunityInformationSegmentProps
   entityId,
   company,
   opportunityAccounts,
+  opportunityContacts,
   useAccounts,
   useContacts,
   customFields,
