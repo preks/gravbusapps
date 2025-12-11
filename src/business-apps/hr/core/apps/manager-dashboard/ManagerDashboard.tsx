@@ -62,7 +62,7 @@ import MyTeammatesTable from './components/MyTeammatesTable'
 type ApprovalTab = 'expenses' | 'absences' | 'personal-changes'
 type TeamTab = 'my-team' | 'my-teams'
 type InsightsTab = 'birthdays' | 'anniversaries' | 'open-positions'
-type CurrentView = 'dashboard' | 'teammates' | 'approvals' | 'insights'
+type CurrentView = 'dashboard' | 'teammates' | 'filtered-teammates' | 'approvals' | 'insights'
 
 /**
  * Manager Dashboard
@@ -104,13 +104,13 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
   const handleNavigateToAbsentTeammates = () => {
     setFilterAbsentOnly(true)
     setFilterUnallocatedOnly(false)
-    setCurrentView('teammates')
+    setCurrentView('filtered-teammates')
   }
 
   const handleNavigateToUnallocatedTeammates = () => {
     setFilterAbsentOnly(false)
     setFilterUnallocatedOnly(true)
-    setCurrentView('teammates')
+    setCurrentView('filtered-teammates')
   }
 
   const handleNavigateToApprovals = () => {
@@ -724,13 +724,26 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
 
           {/* Team Availability & Project Allocation Row */}
           <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4">
-            {/* Team Availability Card */}
-            <Card data-testid="manager-dashboard-team-availability-card">
+            {/* Team Availability Card - Clickable to see absent members */}
+            <Card
+              data-testid="manager-dashboard-team-availability-card"
+              className={onLeaveCount > 0 ? 'gba:cursor-pointer hover:gba:shadow-md gba:transition-shadow' : ''}
+              onClick={onLeaveCount > 0 ? handleNavigateToAbsentTeammates : undefined}
+            >
               <CardHeader className="gba:pb-3">
-                <CardTitle className="gba:text-base gba:font-semibold">
+                <CardTitle className="gba:text-base gba:font-semibold gba:flex gba:items-center gba:justify-between">
                   {getTranslationFromI18nKeyAndLabel(
                     'master-data:hr.manager_dashboard.team_availability',
                     'Team Availability'
+                  )}
+                  {onLeaveCount > 0 && (
+                    <span className="gba:text-xs gba:text-primary gba:font-normal">
+                      {getTranslationFromI18nKeyAndLabel(
+                        'master-data:hr.manager_dashboard.view_details',
+                        'View details'
+                      )}{' '}
+                      →
+                    </span>
                   )}
                 </CardTitle>
               </CardHeader>
@@ -778,13 +791,26 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
               </CardContent>
             </Card>
 
-            {/* Team Project Allocation Card */}
-            <Card data-testid="manager-dashboard-project-allocation-card">
+            {/* Team Project Allocation Card - Clickable to see unallocated members */}
+            <Card
+              data-testid="manager-dashboard-project-allocation-card"
+              className={unallocatedCount > 0 ? 'gba:cursor-pointer hover:gba:shadow-md gba:transition-shadow' : ''}
+              onClick={unallocatedCount > 0 ? handleNavigateToUnallocatedTeammates : undefined}
+            >
               <CardHeader className="gba:pb-3">
-                <CardTitle className="gba:text-base gba:font-semibold">
+                <CardTitle className="gba:text-base gba:font-semibold gba:flex gba:items-center gba:justify-between">
                   {getTranslationFromI18nKeyAndLabel(
                     'master-data:hr.manager_dashboard.project_allocation',
                     'Team Project Allocation'
+                  )}
+                  {unallocatedCount > 0 && (
+                    <span className="gba:text-xs gba:text-primary gba:font-normal">
+                      {getTranslationFromI18nKeyAndLabel(
+                        'master-data:hr.manager_dashboard.view_details',
+                        'View details'
+                      )}{' '}
+                      →
+                    </span>
                   )}
                 </CardTitle>
               </CardHeader>
@@ -1018,6 +1044,204 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
             accessToken={accessToken || ''}
           />
         </div>
+      </div>
+    )
+  }
+
+  // Filtered teammates view - simplified view without tabs for filtered results
+  if (currentView === 'filtered-teammates') {
+    // Filter direct reports based on active filter
+    const filteredDirectReports = filterAbsentOnly
+      ? directReports.filter(report => report.status === 'On Leave')
+      : filterUnallocatedOnly
+        ? directReports.filter(report => unallocatedEmployeeIds.includes(report.id))
+        : directReports
+
+    // Transform DirectReport data to Employee interface format
+    const transformedFilteredReports: Employee[] = filteredDirectReports.map(report => ({
+      id: report.id,
+      userId: undefined,
+      supervisorEmployeeId: employeeId,
+      firstName: report.firstName,
+      lastName: report.lastName,
+      jobTitle: report.jobPositionName || '',
+      organizationalUnit: report.organizationalUnitName || '',
+      email: '',
+      profilePicture: report.pictureThumbnail || '',
+      employmentType: '',
+      contractType: '',
+      matrixTeams: [],
+      status: report.status === 'Away' ? 'On Leave' : report.status,
+      currentAbsence: report.currentAbsence
+        ? {
+            type: report.currentAbsence.type,
+            parentEntryId: report.currentAbsence.parentEntryId,
+            startDate: report.currentAbsence.startDate,
+            endDate: report.currentAbsence.endDate,
+            status: report.currentAbsence.status
+          }
+        : undefined
+    }))
+
+    const handleSelectEmployee = (employee: Employee) => {
+      handleNavigateToEmployee(employee.id)
+    }
+
+    return (
+      <div className="gba:p-6 gba:h-full gba:flex gba:flex-col">
+        {/* Header section */}
+        <div className="gba:flex gba:items-center gba:justify-between gba:mb-6">
+          <div className="gba:flex gba:items-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleNavigateBackToDashboard}
+              className="gba:mr-4"
+              data-testid="manager-dashboard-filtered-teammates-back-button"
+            >
+              <CaretLeftIcon size={16} className="gba:mr-1" />
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:absence_management_hub_backoffice.absence_details.back_to_dashboard',
+                'Back to Dashboard'
+              )}
+            </Button>
+            <h1 className="gba:text-xl gba:font-semibold">
+              {filterAbsentOnly
+                ? getTranslationFromI18nKeyAndLabel(
+                    'master-data:hr.manager_dashboard.absent_teammates',
+                    'Absent Team Members'
+                  )
+                : filterUnallocatedOnly
+                  ? getTranslationFromI18nKeyAndLabel(
+                      'master-data:hr.manager_dashboard.unallocated_teammates',
+                      'Unallocated Team Members'
+                    )
+                  : getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.my_teammates', 'My Teammates')}
+            </h1>
+            <Badge variant={filterAbsentOnly ? 'warning' : 'info'} className="gba:ml-3">
+              {filterAbsentOnly
+                ? `${transformedFilteredReports.length} ${getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.out_of_office', 'out of office')}`
+                : filterUnallocatedOnly
+                  ? `${transformedFilteredReports.length} ${getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.not_allocated', 'not allocated')}`
+                  : `${transformedFilteredReports.length} ${getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.total_teammates', 'team members').toLowerCase()}`}
+            </Badge>
+          </div>
+        </div>
+
+        {/* Loading State */}
+        {loadingDirectReports && (
+          <div className="gba:flex gba:items-center gba:justify-center gba:py-12">
+            <Spinner size="lg" />
+          </div>
+        )}
+
+        {/* Error State */}
+        {directReportsError && (
+          <div className="gba:text-center gba:py-12">
+            <div className="gba:text-destructive gba:mb-4">
+              {getTranslationFromI18nKeyAndLabel(
+                'master-data:hr.manager_dashboard.status.failed_load_team',
+                'Failed to load team members'
+              )}
+            </div>
+            <Button onClick={() => globalThis.location.reload()} variant="outline">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.try_again', 'Try Again')}
+            </Button>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!loadingDirectReports && !directReportsError && transformedFilteredReports.length === 0 && (
+          <div className="gba:text-center gba:py-12 gba:text-muted-foreground">
+            {filterAbsentOnly
+              ? getTranslationFromI18nKeyAndLabel(
+                  'master-data:hr.manager_dashboard.no_absent_members',
+                  'No team members are currently out of office'
+                )
+              : filterUnallocatedOnly
+                ? getTranslationFromI18nKeyAndLabel(
+                    'master-data:hr.manager_dashboard.no_unallocated_members',
+                    'All team members are allocated to projects'
+                  )
+                : getTranslationFromI18nKeyAndLabel(
+                    'master-data:hr.manager_dashboard.no_team_members',
+                    'No team members found'
+                  )}
+          </div>
+        )}
+
+        {/* Team Members Table */}
+        {!loadingDirectReports && !directReportsError && transformedFilteredReports.length > 0 && (
+          <div className="gba:flex-1 gba:overflow-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>
+                    {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.team_member', 'Team Member')}
+                  </TableHead>
+                  <TableHead>
+                    {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.position', 'Position')}
+                  </TableHead>
+                  <TableHead>
+                    {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.department', 'Department')}
+                  </TableHead>
+                  <TableHead>
+                    {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.status', 'Status')}
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {transformedFilteredReports.map(employee => (
+                  <TableRow
+                    key={employee.id}
+                    className="gba:cursor-pointer hover:gba:bg-muted/50"
+                    onClick={() => handleSelectEmployee(employee)}
+                  >
+                    <TableCell>
+                      <div className="gba:flex gba:items-center gba:gap-3">
+                        <Avatar className="gba:h-10 gba:w-10">
+                          <AvatarImage
+                            src={
+                              employee.profilePicture && !employee.profilePicture.startsWith('{')
+                                ? `data:image/jpeg;base64,${employee.profilePicture}`
+                                : undefined
+                            }
+                            alt={`${employee.firstName} ${employee.lastName}`}
+                          />
+                          <AvatarFallback>
+                            {employee.firstName?.[0]}
+                            {employee.lastName?.[0]}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className="gba:font-medium">
+                            {employee.firstName} {employee.lastName}
+                          </div>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>{employee.jobTitle || '-'}</TableCell>
+                    <TableCell>{employee.organizationalUnit || '-'}</TableCell>
+                    <TableCell>
+                      {employee.status === 'On Leave' ? (
+                        <Badge variant="warning">
+                          {employee.currentAbsence?.type ||
+                            getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.on_leave', 'On Leave')}
+                        </Badge>
+                      ) : employee.status === 'Available' ? (
+                        <Badge variant="success">
+                          {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.available', 'Available')}
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary">{employee.status || '-'}</Badge>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </div>
     )
   }
