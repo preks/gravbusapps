@@ -12,11 +12,17 @@ interface ContentEntryDisplayProps {
 }
 
 export const ContentEntryDisplay: React.FC<ContentEntryDisplayProps> = ({ contentEntryId, accessToken, operation }) => {
+  // Memoize queryOptions to prevent infinite re-renders
+  const queryOptions = useMemo(
+    () => ({
+      config: 'full' as const // Includes contentEntryCategories but not childContentEntries
+    }),
+    []
+  )
+
   const { entry, isLoading, error } = useContentEntry(contentEntryId, {
     accessToken,
-    queryOptions: {
-      config: 'full' // Includes contentEntryCategories but not childContentEntries
-    }
+    queryOptions
   })
 
   const operationBadge = getOperationBadge(operation)

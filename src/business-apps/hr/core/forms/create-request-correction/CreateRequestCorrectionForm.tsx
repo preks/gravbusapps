@@ -39,7 +39,7 @@ query GetEmployeeHeaderInfo($id: uuid!) {
 import { EmployeeInfo } from '../components/FormHeader'
 
 interface RequestCorrectionFormProps extends BusinessAppContextProps {
-  employeeId: string
+  employeeId?: string
   onSubmitted?: () => void
   additionalData: any
 }
@@ -207,13 +207,8 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
 
       const nowIso = new Date().toISOString()
 
-      const requestEmployeeId =
-        employeeId ||
-        additionalData?.employeeId ||
-        additionalData?.psi_taskPayload?.employeeId ||
-        additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId
-
       const payloadObject = additionalData?.psi_taskPayload?.psi_initialParameters
+      const requestEmployeeId = payloadObject?.employeeId
 
       const payload = {
         changeMode: 'INSERT',
@@ -234,6 +229,11 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
           effectiveTime: payloadObject?.effectiveTime,
           plannedTime: payloadObject?.plannedTime,
           differenceTime: payloadObject?.differenceTime
+        },
+        employeeInfo: {
+          userId: payloadObject?.userId,
+          id: requestEmployeeId,
+          employeeUserId: payloadObject?.userId
         }
       }
 

@@ -17,7 +17,8 @@ import {
   ChartTooltip,
   ChartTooltipContent,
   ChartLegend,
-  ChartLegendContent
+  ChartLegendContent,
+  Spinner
 } from '@newwork/nw-design-system'
 import { AreaChart, Area, XAxis, YAxis } from 'recharts'
 import { ChartLineIcon, CalendarIcon, EyeIcon } from '@phosphor-icons/react'
@@ -69,8 +70,8 @@ export const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="gba:flex gba:items-center gba:justify-center gba:h-80">
-            <div className="gba:animate-pulse gba:text-gray-500">Loading revenue trends...</div>
+          <div className="gba:flex gba:items-center gba:justify-center gba:h-[400px]">
+            <Spinner size="lg" />
           </div>
         </CardContent>
       </Card>
@@ -121,12 +122,18 @@ export const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({
   }
 
   const formatXAxisLabel = (value: string) => {
+    const date = new Date(value)
+
     if (selectedTimeFilter === 'historical') {
-      // For historical view, try to extract year from the value
-      const date = new Date(value)
-      return date.getFullYear().toString() // Show only year for historical view
+      return date.getFullYear().toString() // "2024"
     }
-    return value // For other views, return as is (already formatted in data)
+
+    if (selectedTimeFilter === 'month') {
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) // "Nov 1"
+    }
+
+    // For quarter, sixMonths, and year: show month + year
+    return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) // "Nov 2025"
   }
 
   const currentFilterLabel =

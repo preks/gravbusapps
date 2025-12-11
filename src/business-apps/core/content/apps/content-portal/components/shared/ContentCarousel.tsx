@@ -5,8 +5,13 @@ import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { ReactionPicker } from '@/common/components/content'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppAction } from '@/components/app-action'
-import { getEntityTypeFromTab, buildContentRecordUrl } from '@/business-apps/core/content/utils/shareUtils'
+import {
+  getEntityTypeFromTab,
+  getEntityTypeFromContentGroup,
+  buildContentRecordUrl
+} from '@/business-apps/core/content/utils/shareUtils'
 import { buildReactionSummaryFromCounts } from '@/common/data/content/utils/reactionUtils'
+import { buildFileUrl } from '@/common/utils/fileUtils'
 
 interface ContentCarouselProps extends Pick<BusinessAppContextProps, 'accessToken' | 'userInfo'> {
   articles: ContentEntry[]
@@ -143,19 +148,33 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
                     }}
                   >
                     <div className="gba:w-2/5 gba:h-64 gba:overflow-hidden gba:rounded-lg gba:shrink-0 gba:relative">
-                      {article.picture ? (
-                        <img
-                          src={article.picture}
-                          alt={article.title || ''}
-                          className="gba:w-full gba:h-full gba:object-cover gba:transition-transform gba:hover:scale-105 gba:duration-300"
-                        />
-                      ) : (
-                        <div className="gba:w-full gba:h-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:bg-gradient-to-r gba:from-[#376399] gba:to-[#648eca]">
-                          <span className="gba:text-4xl gba:font-bold gba:text-white gba:mb-2">
-                            {getInitials(article.creatorEmployee)}
-                          </span>
-                        </div>
-                      )}
+                      {(() => {
+                        let imageUrl: string | null = null
+                        if (article.picture) {
+                          try {
+                            const fileInfo =
+                              typeof article.picture === 'string' ? JSON.parse(article.picture) : article.picture
+                            if (fileInfo?.path) {
+                              imageUrl = buildFileUrl(fileInfo)
+                            }
+                          } catch {
+                            imageUrl = article.picture // Old format: direct URL or base64
+                          }
+                        }
+                        return imageUrl ? (
+                          <img
+                            src={imageUrl}
+                            alt={article.title || ''}
+                            className="gba:w-full gba:h-full gba:object-cover gba:transition-transform gba:hover:scale-105 gba:duration-300"
+                          />
+                        ) : (
+                          <div className="gba:w-full gba:h-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:bg-gradient-to-r gba:from-[#376399] gba:to-[#648eca]">
+                            <span className="gba:text-4xl gba:font-bold gba:text-white gba:mb-2">
+                              {getInitials(article.creatorEmployee)}
+                            </span>
+                          </div>
+                        )
+                      })()}
                     </div>
                     <div className="gba:flex gba:flex-col gba:w-3/5 gba:justify-between">
                       <div>
@@ -215,26 +234,30 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
                             <span>{commentCount}</span>
                           </div>
                         )}
-                        {getEntityTypeFromTab(currentTab) && (
-                          <AppAction
-                            variant="custom"
-                            mode="button"
-                            buttonSize="sm"
-                            buttonVariant="ghost"
-                            shareContext={{
-                              entityType: getEntityTypeFromTab(currentTab)!,
-                              entityId: article.id || '',
-                              entityName: article.title || '',
-                              entityUrl: buildContentRecordUrl(article.id || '', currentTab)
-                            }}
-                            accessToken={accessToken}
-                            className="gba:ml-auto gba:p-1 gba:h-auto"
-                            onClick={e => e.stopPropagation()}
-                            data-testid={`carousel-share-${article.id}`}
-                          >
-                            <Share2 className="gba:w-4 gba:h-4" />
-                          </AppAction>
-                        )}
+                        {(() => {
+                          const entityType =
+                            getEntityTypeFromContentGroup(article.contentGroupRef) || getEntityTypeFromTab(currentTab)
+                          return entityType ? (
+                            <AppAction
+                              variant="custom"
+                              mode="button"
+                              buttonSize="sm"
+                              buttonVariant="ghost"
+                              shareContext={{
+                                entityType,
+                                entityId: article.id || '',
+                                entityName: article.title || '',
+                                entityUrl: buildContentRecordUrl(article.id || '', currentTab)
+                              }}
+                              accessToken={accessToken}
+                              className="gba:ml-auto gba:p-1 gba:h-auto"
+                              onClick={e => e.stopPropagation()}
+                              data-testid={`carousel-share-${article.id}`}
+                            >
+                              <Share2 className="gba:w-4 gba:h-4" />
+                            </AppAction>
+                          ) : null
+                        })()}
                       </div>
                     </div>
                   </button>

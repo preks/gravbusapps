@@ -57,6 +57,7 @@ const CONFIGS: Record<string, Array<keyof ContentEntry>> = {
   ],
   detail: [
     'id',
+    'version',
     'title',
     'preview',
     'content',

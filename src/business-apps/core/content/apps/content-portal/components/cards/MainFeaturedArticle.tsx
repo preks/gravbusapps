@@ -1,8 +1,9 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import type { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
 import { useTranslation, Badge } from '@newwork/nw-design-system'
 import { MessageSquare, Share2 } from 'lucide-react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { buildFileUrl } from '@/common/utils/fileUtils'
 import { AppAction } from '@/components/app-action'
 import { getEntityTypeFromTab, buildContentRecordUrl } from '@/business-apps/core/content/utils/shareUtils'
 import translations from '../../_i18n'
@@ -40,6 +41,20 @@ const MainFeaturedArticle: React.FC<MainFeaturedArticleProps> = ({
   const entityType = getEntityTypeFromTab(currentTab)
   const entityDisplayUrl = buildContentRecordUrl(item.id || '', currentTab)
 
+  // Parse picture JSON and build URL, with fallback for old format
+  const imageUrl = useMemo(() => {
+    if (!item.picture) return null
+    try {
+      const fileInfo = typeof item.picture === 'string' ? JSON.parse(item.picture) : item.picture
+      if (fileInfo?.path) {
+        return buildFileUrl(fileInfo)
+      }
+    } catch {
+      // Not JSON, fall through
+    }
+    return item.picture // Old format: direct URL or base64
+  }, [item.picture])
+
   const handleClick = () => {
     if (onClick) {
       onClick(item)
@@ -70,8 +85,8 @@ const MainFeaturedArticle: React.FC<MainFeaturedArticleProps> = ({
         className="gba:cursor-pointer gba:w-full gba:text-left gba:bg-transparent gba:border-0 gba:p-0"
       >
         <div className="gba:h-[280px] gba:overflow-hidden gba:relative">
-          {item.picture ? (
-            <img src={item.picture} alt={t('knowledge_image')} className="gba:w-full gba:h-full gba:object-cover" />
+          {imageUrl ? (
+            <img src={imageUrl} alt={t('knowledge_image')} className="gba:w-full gba:h-full gba:object-cover" />
           ) : (
             <div className="gba:w-full gba:h-full gba:bg-muted gba:flex gba:items-center gba:justify-center">
               <span className="gba:text-muted-foreground gba:text-2xl gba:font-bold">KB</span>
