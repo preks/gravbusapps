@@ -1,10 +1,6 @@
-import type {
-  BenefitDisplayItem,
-  EmployeeBenefitBaseData,
-  BenefitReviewBasePayload
-} from '../employee-benefit-review/types'
+import type { EmployeeBenefitBaseData, BenefitReviewBasePayload } from '../employee-benefit-review/types'
 
-export type { BenefitDisplayItem }
+export type { BenefitDisplayItem } from '../employee-benefit-review/types'
 
 export type EmployeeBenefitData = EmployeeBenefitBaseData
 

@@ -6,7 +6,7 @@ import {
   type TranslationFunction
 } from '../employee-benefit-review/utils'
 
-export type { CatalogEntry, TranslationFunction }
+export type { CatalogEntry, TranslationFunction } from '../employee-benefit-review/utils'
 
 /**
  * Build benefit display items for the deactivation review form

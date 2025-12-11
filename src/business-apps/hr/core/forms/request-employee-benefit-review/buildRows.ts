@@ -9,7 +9,7 @@ import {
   type TranslationFunction
 } from '../employee-benefit-review/utils'
 
-export type { CatalogEntry, TranslationFunction }
+export type { CatalogEntry, TranslationFunction } from '../employee-benefit-review/utils'
 
 export interface BenefitDetails {
   benefitType: string
