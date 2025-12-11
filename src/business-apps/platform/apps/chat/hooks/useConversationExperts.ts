@@ -28,11 +28,29 @@ export const useConversationExperts = (
 
   // Load active experts from backend when conversation changes
   useEffect(() => {
-    if (!conversationId || !apiClient) return
+    // Clear experts immediately when conversation changes or becomes null
+    // This prevents showing experts from previous conversation
+    if (!conversationId || !apiClient) {
+      setActiveExperts([])
+      return
+    }
+
+    // Clear experts immediately when switching to a new conversation
+    setActiveExperts([])
+
+    // Track if this effect is still relevant (prevent race conditions)
+    let isCurrent = true
 
     apiClient
       .getActiveExperts(conversationId)
       .then(expertIds => {
+        // Only update state if this conversation is still active
+        // This prevents race condition where old API call finishes after new one
+        if (!isCurrent) {
+          console.log('[useConversationExperts] Discarding stale experts response')
+          return
+        }
+
         // Enrich IDs with full expert data from available experts
         const enriched: ActiveExpert[] = expertIds
           .map(id => {
@@ -55,7 +73,16 @@ export const useConversationExperts = (
       })
       .catch(err => {
         console.error('Failed to load active experts:', err)
+        // Only clear experts if this request is still current
+        if (isCurrent) {
+          setActiveExperts([])
+        }
       })
+
+    // Cleanup: mark this effect as stale when conversation changes
+    return () => {
+      isCurrent = false
+    }
   }, [conversationId, apiClient, availableExperts])
 
   /**
