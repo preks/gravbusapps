@@ -19,8 +19,14 @@ import { UsersThreeIcon, TreeStructureIcon } from '@phosphor-icons/react'
 import { Employee } from '@/business-apps/hr/core/hooks/useGetEmployees'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { memo } from 'react'
+import { memo, useMemo } from 'react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+
+// Type for grouped matrix team members
+interface GroupedMatrixTeam {
+  matrixTeamName: string
+  members: Employee[]
+}
 
 // Memoized AppActionButton to prevent unnecessary re-renders and API calls
 const MemoizedAppActionButton = memo<{
@@ -79,6 +85,29 @@ const MyTeammatesTable = ({
   const handleRetry = () => {
     globalThis.location.reload()
   }
+
+  // Group matrix team members by their matrix team name
+  const groupedMatrixTeams = useMemo((): GroupedMatrixTeam[] => {
+    const grouped: Record<string, Employee[]> = {}
+
+    matrixTeamMembers.forEach(member => {
+      const teamName = member.organizationalUnit || 'Other'
+      if (!grouped[teamName]) {
+        grouped[teamName] = []
+      }
+      grouped[teamName].push(member)
+    })
+
+    // Convert to array and sort by team name
+    return Object.entries(grouped)
+      .map(([matrixTeamName, members]) => ({
+        matrixTeamName,
+        members: members.sort((a, b) =>
+          `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)
+        )
+      }))
+      .sort((a, b) => a.matrixTeamName.localeCompare(b.matrixTeamName))
+  }, [matrixTeamMembers])
 
   // Helper function to render direct reports content
   const renderDirectReportsContent = () => {
@@ -284,97 +313,111 @@ const MyTeammatesTable = ({
         </div>
       )
     }
+
+    // Render grouped matrix teams
     return (
-      <div className="gba:border gba:rounded-lg gba:overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>
-                {getTranslationFromI18nKeyAndLabel('master-data:forms.capability.fields.name.label', 'Name')}
-              </TableHead>
-              <TableHead>
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:employee_list.search_employee_list.recent_employees_table.job_title',
-                  'Job Title'
-                )}
-              </TableHead>
-              <TableHead>
-                {getTranslationFromI18nKeyAndLabel('orgchart:overview.fields.matrix_team', 'Matrix Team')}
-              </TableHead>
-              <TableHead>
-                {' '}
-                {getTranslationFromI18nKeyAndLabel('master-data:forms.capability.fields.status.label', 'Status')}
-              </TableHead>
-              <TableHead>
-                {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.actions', 'Actions')}
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {matrixTeamMembers.map(employee => (
-              <TableRow
-                key={employee.id}
-                className="gba:cursor-pointer hover:gba:bg-gray-50"
-                onClick={() => onSelectEmployee(employee)}
-              >
-                <TableCell>
-                  <div className="gba:flex gba:items-center gba:space-x-3">
-                    <Avatar size="sm" className="gba:h-8 gba:w-8">
-                      <AvatarImage
-                        src={
-                          employee.profilePicture && !employee.profilePicture.startsWith('{')
-                            ? `data:image/jpeg;base64,${employee.profilePicture}`
-                            : undefined
-                        }
-                        alt={`${employee.firstName} ${employee.lastName}`}
-                      />
-                      <AvatarFallback>{`${employee.firstName[0]}${employee.lastName[0]}`.toUpperCase()}</AvatarFallback>
-                    </Avatar>
-                    <span className="gba:font-medium">
-                      {employee.firstName} {employee.lastName}
-                    </span>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="gba:text-sm gba:text-neutral-600">{employee.jobTitle || '-'}</div>
-                </TableCell>
-                <TableCell>
-                  <div className="gba:text-sm gba:text-neutral-600">{employee.organizationalUnit || '-'}</div>
-                </TableCell>
-                <TableCell>
-                  {employee.status === 'On Leave' ? (
-                    <Badge variant="destructive" size="sm">
-                      {employee.currentAbsence?.type ||
-                        getTranslationFromI18nKeyAndLabel('master-data:manager_dashboard.on_leave', 'On Leave')}
-                    </Badge>
-                  ) : (
-                    <Badge variant="success" size="sm">
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.available', 'Available')}
-                    </Badge>
-                  )}
-                </TableCell>
-                <TableCell className="gba:py-4 gba:px-6">
-                  {accessToken ? (
-                    <button
-                      type="button"
-                      onClick={e => e.stopPropagation()}
-                      className="gba:bg-transparent gba:border-0 gba:p-0"
-                    >
-                      <MemoizedAppActionButton
-                        employeeId={employee.id}
-                        userId={employee.userId}
-                        supervisorEmployeeId={employee.supervisorEmployeeId}
-                        organizationalUnitId={employee.organizationalUnitId}
-                        accessToken={accessToken}
-                        dataTestIdPrefix="my-teams"
-                      />
-                    </button>
-                  ) : null}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+      <div className="gba:space-y-6">
+        {groupedMatrixTeams.map(group => (
+          <div key={group.matrixTeamName} className="gba:border gba:rounded-lg gba:overflow-hidden">
+            {/* Matrix Team Header */}
+            <div className="gba:bg-muted/50 gba:px-4 gba:py-3 gba:border-b gba:flex gba:items-center gba:gap-2">
+              <TreeStructureIcon size={18} className="gba:text-primary" />
+              <h3 className="gba:font-semibold gba:text-foreground">{group.matrixTeamName}</h3>
+              <Badge variant="secondary" size="sm" className="gba:ml-2">
+                {group.members.length}{' '}
+                {group.members.length === 1
+                  ? getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.member', 'member')
+                  : getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.members', 'members')}
+              </Badge>
+            </div>
+
+            {/* Team Members Table */}
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>
+                    {getTranslationFromI18nKeyAndLabel('master-data:forms.capability.fields.name.label', 'Name')}
+                  </TableHead>
+                  <TableHead>
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:employee_list.search_employee_list.recent_employees_table.job_title',
+                      'Job Title'
+                    )}
+                  </TableHead>
+                  <TableHead>
+                    {getTranslationFromI18nKeyAndLabel('master-data:forms.capability.fields.status.label', 'Status')}
+                  </TableHead>
+                  <TableHead>
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.actions', 'Actions')}
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {group.members.map(employee => (
+                  <TableRow
+                    key={employee.id}
+                    className="gba:cursor-pointer hover:gba:bg-gray-50"
+                    onClick={() => onSelectEmployee(employee)}
+                  >
+                    <TableCell>
+                      <div className="gba:flex gba:items-center gba:space-x-3">
+                        <Avatar size="sm" className="gba:h-8 gba:w-8">
+                          <AvatarImage
+                            src={
+                              employee.profilePicture && !employee.profilePicture.startsWith('{')
+                                ? `data:image/jpeg;base64,${employee.profilePicture}`
+                                : undefined
+                            }
+                            alt={`${employee.firstName} ${employee.lastName}`}
+                          />
+                          <AvatarFallback>
+                            {`${employee.firstName[0]}${employee.lastName[0]}`.toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="gba:font-medium">
+                          {employee.firstName} {employee.lastName}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="gba:text-sm gba:text-neutral-600">{employee.jobTitle || '-'}</div>
+                    </TableCell>
+                    <TableCell>
+                      {employee.status === 'On Leave' ? (
+                        <Badge variant="destructive" size="sm">
+                          {employee.currentAbsence?.type ||
+                            getTranslationFromI18nKeyAndLabel('master-data:manager_dashboard.on_leave', 'On Leave')}
+                        </Badge>
+                      ) : (
+                        <Badge variant="success" size="sm">
+                          {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.available', 'Available')}
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="gba:py-4 gba:px-6">
+                      {accessToken ? (
+                        <button
+                          type="button"
+                          onClick={e => e.stopPropagation()}
+                          className="gba:bg-transparent gba:border-0 gba:p-0"
+                        >
+                          <MemoizedAppActionButton
+                            employeeId={employee.id}
+                            userId={employee.userId}
+                            supervisorEmployeeId={employee.supervisorEmployeeId}
+                            organizationalUnitId={employee.organizationalUnitId}
+                            accessToken={accessToken}
+                            dataTestIdPrefix="my-teams"
+                          />
+                        </button>
+                      ) : null}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        ))}
       </div>
     )
   }

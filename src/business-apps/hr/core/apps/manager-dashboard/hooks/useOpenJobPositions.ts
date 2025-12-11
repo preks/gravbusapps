@@ -1,7 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import { JobPosition } from '@/business-apps/hr/core/apps/human-resources/components/views/job-position-view/hooks/useJobPositionListData'
 
+// Re-export JobPosition for use in ManagerDashboard
+export type { JobPosition }
+
+// Legacy interface for backwards compatibility (simplified display)
 export interface OpenJobPosition {
   id: string
   name: string
@@ -15,6 +20,8 @@ export interface OpenJobPosition {
 
 export interface UseOpenJobPositionsResult {
   openPositions: OpenJobPosition[]
+  /** Full JobPosition data for use with JobPositionDetails component */
+  fullPositions: JobPosition[]
   loading: boolean
   error: Error | null
   refetch: () => void
@@ -35,6 +42,7 @@ export const useOpenJobPositions = ({
   managerId
 }: UseOpenJobPositionsProps): UseOpenJobPositionsResult => {
   const [openPositions, setOpenPositions] = useState<OpenJobPosition[]>([])
+  const [fullPositions, setFullPositions] = useState<JobPosition[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<Error | null>(null)
 
@@ -96,6 +104,7 @@ export const useOpenJobPositions = ({
 
       // Step 2: Query vacant positions using the SAME pattern as human-resources
       // Key: employeeId: { _isNull: true } means vacant positions
+      // Fetching all fields needed by JobPositionDetails component
       const vacantPositionsQuery = `
         query GetVacantPositions(
           $structureId: uuid!,
@@ -129,15 +138,71 @@ export const useOpenJobPositions = ({
           ) {
             id
             name
-            jobFunction { name }
-            jobLevel { name }
-            contractType { value }
-            employmentType { value }
+            activeTo
+            jobFunction { 
+              id
+              name 
+              jobFamily {
+                id
+                code
+                value
+                catalogId
+                translations {
+                  id
+                  value
+                  localeCode
+                }
+              }
+            }
+            jobLevel { 
+              id
+              name 
+            }
+            jobProfile {
+              id
+              name
+            }
+            contractType { 
+              id
+              code
+              value
+              catalogId
+              translations {
+                id
+                value
+                localeCode
+              }
+            }
+            employmentType { 
+              id
+              code
+              value
+              catalogId
+              translations {
+                id
+                value
+                localeCode
+              }
+            }
             organizationalUnitEmployees {
               organizationalUnitId
               organizationalUnit { 
                 id 
                 name 
+              }
+            }
+            employeePositions {
+              firstName
+              lastName
+              employeeId
+              employee {
+                pictureThumbnail
+              }
+              supervisor {
+                id
+                firstName
+                lastName
+                pictureThumbnail
               }
             }
           }
@@ -150,6 +215,22 @@ export const useOpenJobPositions = ({
       })
 
       if (positionsResponse?.JobPosition) {
+        // Store full positions for JobPositionDetails component
+        const fullPositionsData: JobPosition[] = positionsResponse.JobPosition.map((pos: any) => ({
+          id: pos.id,
+          name: pos.name,
+          activeTo: pos.activeTo || null,
+          jobFunction: pos.jobFunction || null,
+          jobLevel: pos.jobLevel || null,
+          jobProfile: pos.jobProfile || null,
+          contractType: pos.contractType || null,
+          employmentType: pos.employmentType || null,
+          organizationalUnitEmployees: pos.organizationalUnitEmployees || [],
+          employeePositions: pos.employeePositions || []
+        }))
+        setFullPositions(fullPositionsData)
+
+        // Create simplified positions for table display
         const positions: OpenJobPosition[] = positionsResponse.JobPosition.map((pos: any) => {
           // Find the org unit that matches the manager's org units
           const matchingOrgUnit = pos.organizationalUnitEmployees?.find((oue: any) =>
@@ -173,6 +254,7 @@ export const useOpenJobPositions = ({
         setOpenPositions(positions)
       } else {
         setOpenPositions([])
+        setFullPositions([])
       }
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to fetch open job positions'))
@@ -188,6 +270,7 @@ export const useOpenJobPositions = ({
 
   return {
     openPositions,
+    fullPositions,
     loading,
     error,
     refetch: fetchOpenPositions

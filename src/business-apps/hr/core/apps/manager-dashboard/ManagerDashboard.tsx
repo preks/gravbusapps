@@ -13,6 +13,8 @@ import { useAbsencesApprovals } from './hooks/useAbsencesApprovals'
 import { usePersonalDataApprovals } from './hooks/usePersonalDataApprovals'
 import { useTeamAvailability } from './hooks/useTeamAvailability'
 import { useTeamProjectAllocation } from './hooks/useTeamProjectAllocation'
+import { useTeamPerformance } from './hooks/useTeamPerformance'
+import { useTeamAttendance } from './hooks/useTeamAttendance'
 import { useAIInsights } from './hooks/useAIInsights'
 import { getCurrentActiveStructureId, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -62,7 +64,7 @@ import MyTeammatesTable from './components/MyTeammatesTable'
 type ApprovalTab = 'expenses' | 'absences' | 'personal-changes'
 type TeamTab = 'my-team' | 'my-teams'
 type InsightsTab = 'birthdays' | 'anniversaries' | 'open-positions'
-type CurrentView = 'dashboard' | 'teammates' | 'filtered-teammates' | 'approvals' | 'insights'
+type CurrentView = 'dashboard' | 'teammates' | 'filtered-teammates' | 'approvals' | 'insights' | 'team-performance' | 'not-clocked-in'
 
 /**
  * Manager Dashboard
@@ -111,6 +113,14 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
     setFilterAbsentOnly(false)
     setFilterUnallocatedOnly(true)
     setCurrentView('filtered-teammates')
+  }
+
+  const handleNavigateToTeamPerformance = () => {
+    setCurrentView('team-performance')
+  }
+
+  const handleNavigateToNotClockedIn = () => {
+    setCurrentView('not-clocked-in')
   }
 
   const handleNavigateToApprovals = () => {
@@ -220,6 +230,39 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
     managerId: employeeId || ''
   })
 
+  // Fetch team performance
+  const {
+    teamPerformance,
+    averageTeamProgress,
+    totalGoals: totalPerformanceGoals,
+    goalsOnTrack,
+    goalsAtRisk,
+    goalsBehindTarget,
+    loading: loadingTeamPerformance
+  } = useTeamPerformance({
+    accessToken: accessToken || '',
+    managerId: employeeId || ''
+  })
+
+  // Calculate available employee IDs for attendance check (not on leave)
+  const availableEmployeeIds = useMemo(() => {
+    return directReports
+      .filter(report => report.status === 'Available')
+      .map(report => report.id)
+  }, [directReports])
+
+  // Fetch team attendance/time tracking
+  const {
+    teamAttendance,
+    remoteCount,
+    notClockedInCount,
+    loading: loadingAttendance
+  } = useTeamAttendance({
+    accessToken: accessToken || '',
+    managerId: employeeId || '',
+    availableEmployeeIds
+  })
+
   // Fetch AI insights
   const { insight: aiInsight, isLoading: loadingAI } = useAIInsights({
     accessToken: accessToken || '',
@@ -322,6 +365,11 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
   const onLeaveCount = useMemo(() => {
     return directReports.filter(report => report.status === 'On Leave').length
   }, [directReports])
+
+  // Calculate employees without goals
+  const employeesWithoutGoals = useMemo(() => {
+    return teamPerformance.filter(member => member.totalGoals === 0).length
+  }, [teamPerformance])
 
   // Parse AI insights into bullet points
   const aiInsightItems = useMemo(() => {
@@ -501,9 +549,6 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
                             >
                               {`${onLeaveCount} team ${onLeaveCount === 1 ? 'member is' : 'members are'} out of office today`}
                             </button>
-                            <span className="gba:text-sm gba:text-muted-foreground">
-                              {`(${directReports.length - onLeaveCount}/${directReports.length} available)`}
-                            </span>
                             {sickLeavesCount > 0 && (
                               <span className="gba:text-sm gba:text-muted-foreground gba:mt-1 gba:pl-2 gba:border-l-2 gba:border-destructive">
                                 {`Out of which ${sickLeavesCount} ${sickLeavesCount === 1 ? 'is' : 'are'} on sick leave`}
@@ -528,6 +573,53 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
                         >
                           {`${unallocatedCount} team ${unallocatedCount === 1 ? 'member is' : 'members are'} not allocated to projects`}
                         </button>
+                      </li>
+                    )}
+                    {employeesWithoutGoals > 0 && (
+                      <li className="gba:flex gba:items-start gba:gap-2">
+                        <span className="gba:mt-1.5 gba:h-2 gba:w-2 gba:rounded-full gba:flex-shrink-0 gba:bg-warning" />
+                        <button
+                          type="button"
+                          onClick={handleNavigateToTeamPerformance}
+                          className="gba:text-sm gba:text-primary gba:underline gba:text-left gba:p-0 gba:bg-transparent gba:border-0 gba:cursor-pointer hover:gba:opacity-80"
+                          data-testid="manager-dashboard-ai-no-goals-link"
+                        >
+                          {`${employeesWithoutGoals} team ${employeesWithoutGoals === 1 ? 'member has' : 'members have'} no performance goals set`}
+                        </button>
+                      </li>
+                    )}
+                    {goalsBehindTarget > 0 && (
+                      <li className="gba:flex gba:items-start gba:gap-2">
+                        <span className="gba:mt-1.5 gba:h-2 gba:w-2 gba:rounded-full gba:flex-shrink-0 gba:bg-destructive" />
+                        <button
+                          type="button"
+                          onClick={handleNavigateToTeamPerformance}
+                          className="gba:text-sm gba:text-primary gba:underline gba:text-left gba:p-0 gba:bg-transparent gba:border-0 gba:cursor-pointer hover:gba:opacity-80"
+                          data-testid="manager-dashboard-ai-goals-behind-link"
+                        >
+                          {`${goalsBehindTarget} performance ${goalsBehindTarget === 1 ? 'goal is' : 'goals are'} behind target`}
+                        </button>
+                      </li>
+                    )}
+                    {notClockedInCount > 0 && (
+                      <li className="gba:flex gba:items-start gba:gap-2">
+                        <span className="gba:mt-1.5 gba:h-2 gba:w-2 gba:rounded-full gba:flex-shrink-0 gba:bg-info" />
+                        <button
+                          type="button"
+                          onClick={handleNavigateToNotClockedIn}
+                          className="gba:text-sm gba:text-primary gba:underline gba:text-left gba:p-0 gba:bg-transparent gba:border-0 gba:cursor-pointer hover:gba:opacity-80"
+                          data-testid="manager-dashboard-ai-not-clocked-in-link"
+                        >
+                          {`${notClockedInCount} available team ${notClockedInCount === 1 ? 'member has' : 'members have'} not clocked in yet`}
+                        </button>
+                      </li>
+                    )}
+                    {remoteCount > 0 && (
+                      <li className="gba:flex gba:items-start gba:gap-2">
+                        <span className="gba:mt-1.5 gba:h-2 gba:w-2 gba:rounded-full gba:flex-shrink-0 gba:bg-info" />
+                        <span className="gba:text-sm gba:text-foreground">
+                          {`${remoteCount} team ${remoteCount === 1 ? 'member is' : 'members are'} working remotely today`}
+                        </span>
                       </li>
                     )}
                     {upcomingAnniversaries.length > 0 && (
@@ -566,7 +658,7 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
         <Card data-testid="manager-dashboard-my-team-card">
           <CardHeader className="gba:pb-2">
             <CardTitle className="gba:text-base gba:font-semibold">
-              {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.my_team', 'My Team')}
+              {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.my_team', 'My Team')} ({directReports.length - onLeaveCount}/{directReports.length})
             </CardTitle>
             <CardAction>
               <Button
@@ -596,40 +688,81 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
                 )}
               </p>
             ) : (
-              <div className="gba:flex gba:flex-wrap gba:gap-2" data-testid="manager-dashboard-team-avatars">
-                {directReports.slice(0, 8).map(report => {
-                  // Use status directly from directReports which includes current absence data
-                  const isAvailable = report.status === 'Available'
-                  const absenceType = report.currentAbsence?.type || ''
-                  return (
-                    <button
-                      key={report.id}
-                      type="button"
-                      onClick={() => handleNavigateToEmployee(report.id)}
-                      className="gba:relative gba:p-0 gba:bg-transparent gba:border-0 gba:cursor-pointer gba:transition-transform gba:hover:scale-110"
-                      title={`${report.firstName} ${report.lastName}${!isAvailable ? ` - ${absenceType || getTranslationFromI18nKeyAndLabel('master-data:manager_dashboard.on_leave', 'On Leave')}` : ''}`}
-                      data-testid={`manager-dashboard-team-avatar-${report.id}`}
-                    >
-                      <Avatar size="default" className={`gba:h-10 gba:w-10 ${!isAvailable ? 'gba:opacity-50' : ''}`}>
-                        <AvatarImage
-                          src={
-                            report.pictureThumbnail && !report.pictureThumbnail.startsWith('{')
-                              ? `data:image/jpeg;base64,${report.pictureThumbnail}`
-                              : undefined
-                          }
-                          alt={`${report.firstName} ${report.lastName}`}
-                        />
-                        <AvatarFallback>{`${report.firstName[0]}${report.lastName[0]}`.toUpperCase()}</AvatarFallback>
-                      </Avatar>
-                      <span
-                        className={`gba:absolute gba:bottom-0 gba:right-0 gba:h-3 gba:w-3 gba:rounded-full gba:border-2 gba:border-background ${isAvailable ? 'gba:bg-success' : 'gba:bg-destructive'}`}
-                      />
-                    </button>
-                  )
-                })}
-                {directReports.length > 8 && (
-                  <div className="gba:h-10 gba:w-10 gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:text-xs gba:text-muted-foreground gba:font-medium">
-                    +{directReports.length - 8}
+              <div className="gba:space-y-3">
+                {/* Main Team Avatars */}
+                <div className="gba:flex gba:flex-wrap gba:gap-2" data-testid="manager-dashboard-team-avatars">
+                  {directReports.map(report => {
+                    const isAvailable = report.status === 'Available'
+                    const absenceType = report.currentAbsence?.type || ''
+                    
+                    return (
+                      <button
+                        key={report.id}
+                        type="button"
+                        onClick={() => handleNavigateToEmployee(report.id)}
+                        className="gba:p-0 gba:bg-transparent gba:border-0 gba:cursor-pointer gba:transition-transform gba:hover:scale-110"
+                        title={`${report.firstName} ${report.lastName}${!isAvailable ? ` - ${absenceType || getTranslationFromI18nKeyAndLabel('master-data:manager_dashboard.on_leave', 'On Leave')}` : ''}`}
+                        data-testid={`manager-dashboard-team-avatar-${report.id}`}
+                      >
+                        <Avatar 
+                          size="default" 
+                          className={`gba:h-10 gba:w-10 ${!isAvailable ? 'gba:opacity-50 gba:ring-2 gba:ring-purple-500' : ''}`}
+                        >
+                          <AvatarImage
+                            src={
+                              report.pictureThumbnail && !report.pictureThumbnail.startsWith('{')
+                                ? `data:image/jpeg;base64,${report.pictureThumbnail}`
+                                : undefined
+                            }
+                            alt={`${report.firstName} ${report.lastName}`}
+                          />
+                          <AvatarFallback>{`${report.firstName[0]}${report.lastName[0]}`.toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* Working Remote Section */}
+                {remoteCount > 0 && (
+                  <div className="gba:pt-2 gba:border-t gba:border-muted">
+                    <div className="gba:text-xs gba:text-muted-foreground gba:mb-2">
+                      {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.working_remote', 'Working remote')} ({remoteCount})
+                    </div>
+                    <div className="gba:flex gba:flex-wrap gba:gap-2">
+                      {teamAttendance
+                        .filter(member => member.isRemote)
+                        .map(member => {
+                          const report = directReports.find(r => r.id === member.employeeId)
+                          if (!report) return null
+                          
+                          return (
+                            <button
+                              key={member.employeeId}
+                              type="button"
+                              onClick={() => handleNavigateToEmployee(member.employeeId)}
+                              className="gba:p-0 gba:bg-transparent gba:border-0 gba:cursor-pointer gba:transition-transform gba:hover:scale-110"
+                              title={`${member.firstName} ${member.lastName} - ${getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.working_remote', 'Working remote')}`}
+                              data-testid={`manager-dashboard-remote-avatar-${member.employeeId}`}
+                            >
+                              <Avatar size="default" className="gba:h-10 gba:w-10 gba:ring-2 gba:ring-info">
+                                <AvatarImage
+                                  src={
+                                    member.pictureThumbnail && !member.pictureThumbnail.startsWith('{')
+                                      ? `data:image/jpeg;base64,${member.pictureThumbnail}`
+                                      : undefined
+                                  }
+                                  alt={`${member.firstName} ${member.lastName}`}
+                                />
+                                <AvatarFallback>
+                                  {member.firstName?.[0]}
+                                  {member.lastName?.[0]}
+                                </AvatarFallback>
+                              </Avatar>
+                            </button>
+                          )
+                        })}
+                    </div>
                   </div>
                 )}
               </div>
@@ -849,6 +982,83 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
               </CardContent>
             </Card>
           </div>
+
+          {/* Team Performance Card */}
+          <Card
+            data-testid="manager-dashboard-team-performance-card"
+            className={totalPerformanceGoals > 0 ? 'gba:cursor-pointer hover:gba:shadow-md gba:transition-shadow' : ''}
+            onClick={totalPerformanceGoals > 0 ? handleNavigateToTeamPerformance : undefined}
+          >
+            <CardHeader className="gba:pb-3">
+              <CardTitle className="gba:text-base gba:font-semibold gba:flex gba:items-center gba:justify-between">
+                {getTranslationFromI18nKeyAndLabel(
+                  'master-data:hr.manager_dashboard.team_performance',
+                  'Team Performance'
+                )}
+                {totalPerformanceGoals > 0 && (
+                  <span className="gba:text-xs gba:text-primary gba:font-normal">
+                    {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.view_details', 'View details')} →
+                  </span>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loadingTeamPerformance ? (
+                <div className="gba:space-y-2">
+                  <div className="gba:h-4 gba:bg-muted gba:rounded gba:animate-pulse" />
+                  <div className="gba:h-3 gba:bg-muted gba:rounded gba:animate-pulse gba:w-1/2" />
+                </div>
+              ) : totalPerformanceGoals === 0 ? (
+                <div className="gba:text-sm gba:text-muted-foreground">
+                  {getTranslationFromI18nKeyAndLabel(
+                    'master-data:hr.manager_dashboard.no_performance_goals',
+                    'No performance goals set'
+                  )}
+                </div>
+              ) : (
+                <>
+                  <div className="gba:text-2xl gba:font-bold gba:text-foreground gba:mb-2">
+                    {averageTeamProgress}%
+                    <span className="gba:text-sm gba:font-normal gba:text-muted-foreground gba:ml-1">
+                      {getTranslationFromI18nKeyAndLabel(
+                        'master-data:hr.manager_dashboard.avg_progress',
+                        'avg. progress'
+                      )}
+                    </span>
+                  </div>
+                  <div className="gba:relative gba:mb-2">
+                    <div className="gba:h-3 gba:bg-muted gba:rounded-full gba:overflow-hidden">
+                      <div
+                        className={`gba:h-full gba:rounded-full gba:transition-all gba:duration-500 ${
+                          averageTeamProgress >= 70 ? 'gba:bg-success' : averageTeamProgress >= 40 ? 'gba:bg-warning' : 'gba:bg-destructive'
+                        }`}
+                        style={{ width: `${averageTeamProgress}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div className="gba:flex gba:justify-between gba:text-xs gba:text-muted-foreground">
+                    <span>0%</span>
+                    <span>
+                      {goalsOnTrack > 0 && (
+                        <span className="gba:text-success">{goalsOnTrack} on track</span>
+                      )}
+                      {goalsAtRisk > 0 && (
+                        <span className={goalsOnTrack > 0 ? 'gba:ml-2' : ''}>
+                          <span className="gba:text-warning">{goalsAtRisk} at risk</span>
+                        </span>
+                      )}
+                      {goalsBehindTarget > 0 && (
+                        <span className={(goalsOnTrack > 0 || goalsAtRisk > 0) ? 'gba:ml-2' : ''}>
+                          <span className="gba:text-destructive">{goalsBehindTarget} behind</span>
+                        </span>
+                      )}
+                    </span>
+                    <span>100%</span>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* Right Column - 1/3 width */}
@@ -1235,6 +1445,323 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
                       ) : (
                         <Badge variant="secondary">{employee.status || '-'}</Badge>
                       )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Team Performance detailed view
+  if (currentView === 'team-performance') {
+    return (
+      <div className="gba:p-6 gba:h-full gba:flex gba:flex-col">
+        {/* Header section */}
+        <div className="gba:flex gba:items-center gba:justify-between gba:mb-6">
+          <div className="gba:flex gba:items-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleNavigateBackToDashboard}
+              className="gba:mr-4"
+              data-testid="manager-dashboard-team-performance-back-button"
+            >
+              <CaretLeftIcon size={16} className="gba:mr-1" />
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:absence_management_hub_backoffice.absence_details.back_to_dashboard',
+                'Back to Dashboard'
+              )}
+            </Button>
+            <h1 className="gba:text-xl gba:font-semibold">
+              {getTranslationFromI18nKeyAndLabel(
+                'master-data:hr.manager_dashboard.team_performance',
+                'Team Performance'
+              )}
+            </h1>
+            <Badge variant="info" className="gba:ml-3">
+              {`${totalPerformanceGoals} ${getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.goals', 'goals')}`}
+            </Badge>
+          </div>
+        </div>
+
+        {/* Summary Stats */}
+        <div className="gba:grid gba:grid-cols-4 gba:gap-4 gba:mb-6">
+          <Card className="gba:p-4">
+            <div className="gba:text-2xl gba:font-bold gba:text-foreground">{averageTeamProgress}%</div>
+            <div className="gba:text-sm gba:text-muted-foreground">
+              {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.avg_progress', 'Avg. Progress')}
+            </div>
+          </Card>
+          <Card className="gba:p-4">
+            <div className="gba:text-2xl gba:font-bold gba:text-success">{goalsOnTrack}</div>
+            <div className="gba:text-sm gba:text-muted-foreground">
+              {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.on_track', 'On Track')}
+            </div>
+          </Card>
+          <Card className="gba:p-4">
+            <div className="gba:text-2xl gba:font-bold gba:text-warning">{goalsAtRisk}</div>
+            <div className="gba:text-sm gba:text-muted-foreground">
+              {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.at_risk', 'At Risk')}
+            </div>
+          </Card>
+          <Card className="gba:p-4">
+            <div className="gba:text-2xl gba:font-bold gba:text-destructive">{goalsBehindTarget}</div>
+            <div className="gba:text-sm gba:text-muted-foreground">
+              {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.behind_target', 'Behind Target')}
+            </div>
+          </Card>
+        </div>
+
+        {/* Loading State */}
+        {loadingTeamPerformance && (
+          <div className="gba:flex gba:items-center gba:justify-center gba:py-12">
+            <Spinner size="lg" />
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!loadingTeamPerformance && teamPerformance.length === 0 && (
+          <div className="gba:text-center gba:py-12 gba:text-muted-foreground">
+            {getTranslationFromI18nKeyAndLabel(
+              'master-data:hr.manager_dashboard.no_performance_data',
+              'No performance data available for your team'
+            )}
+          </div>
+        )}
+
+        {/* Team Members Performance List */}
+        {!loadingTeamPerformance && teamPerformance.length > 0 && (
+          <div className="gba:flex-1 gba:overflow-auto">
+            <div className="gba:space-y-4">
+              {teamPerformance.map(member => (
+                <Card key={member.employeeId} className="gba:p-4">
+                  <div className="gba:flex gba:items-start gba:gap-4">
+                    {/* Employee Info */}
+                    <button
+                      type="button"
+                      onClick={() => handleNavigateToEmployee(member.employeeId)}
+                      className="gba:flex gba:items-center gba:gap-3 gba:p-0 gba:bg-transparent gba:border-0 gba:cursor-pointer hover:gba:opacity-80"
+                    >
+                      <Avatar className="gba:h-12 gba:w-12">
+                        <AvatarImage
+                          src={
+                            member.pictureThumbnail && !member.pictureThumbnail.startsWith('{')
+                              ? `data:image/jpeg;base64,${member.pictureThumbnail}`
+                              : undefined
+                          }
+                          alt={`${member.firstName} ${member.lastName}`}
+                        />
+                        <AvatarFallback>
+                          {member.firstName?.[0]}
+                          {member.lastName?.[0]}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="gba:text-left">
+                        <div className="gba:font-medium">{member.firstName} {member.lastName}</div>
+                        <div className="gba:text-sm gba:text-muted-foreground">{member.jobPositionName || '-'}</div>
+                      </div>
+                    </button>
+
+                    {/* Progress Overview */}
+                    <div className="gba:flex-1 gba:ml-4">
+                      <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
+                        <span className="gba:text-sm gba:text-muted-foreground">
+                          {member.totalGoals} {member.totalGoals === 1 ? 'goal' : 'goals'}
+                        </span>
+                        <span className="gba:text-sm gba:font-medium">{member.averageProgress}% avg.</span>
+                      </div>
+                      <div className="gba:h-2 gba:bg-muted gba:rounded-full gba:overflow-hidden">
+                        <div
+                          className={`gba:h-full gba:rounded-full gba:transition-all gba:duration-500 ${
+                            member.averageProgress >= 70 ? 'gba:bg-success' : member.averageProgress >= 40 ? 'gba:bg-warning' : 'gba:bg-destructive'
+                          }`}
+                          style={{ width: `${member.averageProgress}%` }}
+                        />
+                      </div>
+                      <div className="gba:flex gba:gap-3 gba:mt-2">
+                        {member.goalsOnTrack > 0 && (
+                          <Badge variant="success" className="gba:text-xs">
+                            {member.goalsOnTrack} on track
+                          </Badge>
+                        )}
+                        {member.goalsAtRisk > 0 && (
+                          <Badge variant="warning" className="gba:text-xs">
+                            {member.goalsAtRisk} at risk
+                          </Badge>
+                        )}
+                        {member.goalsBehindTarget > 0 && (
+                          <Badge variant="destructive" className="gba:text-xs">
+                            {member.goalsBehindTarget} behind
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Goals Details (expandable) */}
+                  {member.goals.length > 0 && (
+                    <div className="gba:mt-4 gba:pt-4 gba:border-t gba:border-muted">
+                      <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-3">
+                        {member.goals.map(goal => {
+                          const statusColors: Record<string, string> = {
+                            ON_TRACK: 'gba:bg-success-secondary gba:text-success',
+                            ACHIEVED: 'gba:bg-info-secondary gba:text-info',
+                            AT_RISK: 'gba:bg-warning-secondary gba:text-warning',
+                            BEHIND_TARGET: 'gba:bg-destructive-secondary gba:text-destructive',
+                            NOT_ACHIEVED: 'gba:bg-muted gba:text-muted-foreground'
+                          }
+                          const statusLabels: Record<string, string> = {
+                            ON_TRACK: 'On Track',
+                            ACHIEVED: 'Achieved',
+                            AT_RISK: 'At Risk',
+                            BEHIND_TARGET: 'Behind Target',
+                            NOT_ACHIEVED: 'Not Achieved'
+                          }
+
+                          return (
+                            <div
+                              key={goal.id}
+                              className="gba:p-3 gba:bg-muted/30 gba:rounded-lg"
+                            >
+                              <div className="gba:flex gba:items-start gba:justify-between gba:mb-2">
+                                <span className="gba:text-sm gba:font-medium gba:flex-1 gba:mr-2">{goal.title}</span>
+                                <span className={`gba:text-xs gba:px-2 gba:py-0.5 gba:rounded-full gba:whitespace-nowrap ${statusColors[goal.status] || 'gba:bg-muted gba:text-muted-foreground'}`}>
+                                  {statusLabels[goal.status] || goal.status}
+                                </span>
+                              </div>
+                              <div className="gba:h-1.5 gba:bg-muted gba:rounded-full gba:overflow-hidden gba:mb-2">
+                                <div
+                                  className="gba:h-full gba:bg-primary gba:rounded-full"
+                                  style={{ width: `${goal.progressPercent}%` }}
+                                />
+                              </div>
+                              <div className="gba:flex gba:justify-between gba:text-xs gba:text-muted-foreground">
+                                <span>{goal.progressPercent}%</span>
+                                <span>Due: {dayjs(goal.dueDate).format('MMM D, YYYY')}</span>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Not Clocked In view - shows available employees who haven't clocked in
+  if (currentView === 'not-clocked-in') {
+    // Filter to only show available employees who are not clocked in
+    const notClockedInMembers = teamAttendance.filter(
+      member => !member.isClockedIn && availableEmployeeIds.includes(member.employeeId)
+    )
+
+    return (
+      <div className="gba:p-6 gba:h-full gba:flex gba:flex-col">
+        {/* Header section */}
+        <div className="gba:flex gba:items-center gba:justify-between gba:mb-6">
+          <div className="gba:flex gba:items-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleNavigateBackToDashboard}
+              className="gba:mr-4"
+              data-testid="manager-dashboard-not-clocked-in-back-button"
+            >
+              <CaretLeftIcon size={16} className="gba:mr-1" />
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:absence_management_hub_backoffice.absence_details.back_to_dashboard',
+                'Back to Dashboard'
+              )}
+            </Button>
+            <h1 className="gba:text-xl gba:font-semibold">
+              {getTranslationFromI18nKeyAndLabel(
+                'master-data:hr.manager_dashboard.not_clocked_in_title',
+                'Team Members Not Clocked In'
+              )}
+            </h1>
+            <Badge variant="warning" className="gba:ml-3">
+              {`${notClockedInCount} ${getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.available_not_clocked_in', 'available but not clocked in')}`}
+            </Badge>
+          </div>
+        </div>
+
+        {/* Loading State */}
+        {loadingAttendance && (
+          <div className="gba:flex gba:items-center gba:justify-center gba:py-12">
+            <Spinner size="lg" />
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!loadingAttendance && notClockedInMembers.length === 0 && (
+          <div className="gba:text-center gba:py-12 gba:text-muted-foreground">
+            {getTranslationFromI18nKeyAndLabel(
+              'master-data:hr.manager_dashboard.all_clocked_in',
+              'All available team members have clocked in'
+            )}
+          </div>
+        )}
+
+        {/* Team Members Table */}
+        {!loadingAttendance && notClockedInMembers.length > 0 && (
+          <div className="gba:flex-1 gba:overflow-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>
+                    {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.team_member', 'Team Member')}
+                  </TableHead>
+                  <TableHead>
+                    {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.position', 'Position')}
+                  </TableHead>
+                  <TableHead>
+                    {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.status', 'Status')}
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {notClockedInMembers.map(member => (
+                  <TableRow
+                    key={member.employeeId}
+                    className="gba:cursor-pointer hover:gba:bg-muted/50"
+                    onClick={() => handleNavigateToEmployee(member.employeeId)}
+                  >
+                    <TableCell>
+                      <div className="gba:flex gba:items-center gba:gap-3">
+                        <Avatar className="gba:h-10 gba:w-10">
+                          <AvatarImage
+                            src={
+                              member.pictureThumbnail && !member.pictureThumbnail.startsWith('{')
+                                ? `data:image/jpeg;base64,${member.pictureThumbnail}`
+                                : undefined
+                            }
+                            alt={`${member.firstName} ${member.lastName}`}
+                          />
+                          <AvatarFallback>
+                            {member.firstName?.[0]}
+                            {member.lastName?.[0]}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className="gba:font-medium">{member.firstName} {member.lastName}</div>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>{member.jobPositionName || '-'}</TableCell>
+                    <TableCell>
+                      <Badge variant="warning">
+                        {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.not_clocked_in', 'Not Clocked In')}
+                      </Badge>
                     </TableCell>
                   </TableRow>
                 ))}
