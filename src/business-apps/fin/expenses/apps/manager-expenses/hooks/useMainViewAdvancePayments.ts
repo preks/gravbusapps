@@ -24,6 +24,10 @@ export interface AdvancePayment {
     startDate: string
     endDate: string
     currencyRef: string
+    expenseRequest?: Array<{
+      id: string
+      code?: string
+    }>
     employee: {
       id: string
       displayName?: string

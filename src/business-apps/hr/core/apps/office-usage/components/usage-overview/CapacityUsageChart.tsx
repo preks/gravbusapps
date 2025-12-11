@@ -2,12 +2,14 @@ import React, { useMemo } from 'react'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@newwork/nw-design-system'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts'
 import { OfficeAttendanceRecord, SiteLocationCapacity, Granularity } from '../../types'
-import { formatDate, getWeekIdentifier } from '../../utils/dateUtils'
+import { formatDate, getWeekIdentifier, getDatesInRange, getWeeksInRange } from '../../utils/dateUtils'
 
 interface CapacityUsageChartProps {
   attendance: OfficeAttendanceRecord[]
   locations: SiteLocationCapacity[]
   granularity: Granularity
+  dateFrom: string
+  dateTo: string
   prefixDataTestId?: string
 }
 
@@ -15,11 +17,13 @@ export const CapacityUsageChart: React.FC<CapacityUsageChartProps> = ({
   attendance,
   locations,
   granularity,
+  dateFrom,
+  dateTo,
   prefixDataTestId = 'capacity-usage-chart'
 }) => {
   // Calculate chart data based on granularity
   const chartData = useMemo(() => {
-    if (attendance.length === 0 || locations.length === 0) return []
+    if (locations.length === 0) return []
 
     const totalCapacity = locations.reduce((sum, loc) => sum + loc.capacity, 0)
 
@@ -35,21 +39,23 @@ export const CapacityUsageChart: React.FC<CapacityUsageChartProps> = ({
       groupedData.get(key)!.add(record.employeeId)
     })
 
-    // Convert to chart format
-    const data = Array.from(groupedData.entries())
-      .map(([dateKey, employees]) => {
-        const occupancyPercentage = totalCapacity > 0 ? (employees.size / totalCapacity) * 100 : 0
+    // Ensure every day/week in range is present (fill zeros)
+    const keysInRange = granularity === 'day' ? getDatesInRange(dateFrom, dateTo) : getWeeksInRange(dateFrom, dateTo)
 
-        return {
-          date: granularity === 'day' ? formatDate(dateKey) : dateKey,
-          occupancy: Math.round(occupancyPercentage),
-          capacity: 100
-        }
-      })
-      .sort((a, b) => a.date.localeCompare(b.date))
+    const data = keysInRange.map(dateKey => {
+      const employees = groupedData.get(dateKey)
+      const occupiedCount = employees ? employees.size : 0
+      const occupancyPercentage = totalCapacity > 0 ? (occupiedCount / totalCapacity) * 100 : 0
+
+      return {
+        date: granularity === 'day' ? formatDate(dateKey) : dateKey,
+        occupancy: Math.round(occupancyPercentage),
+        capacity: 100
+      }
+    })
 
     return data
-  }, [attendance, locations, granularity])
+  }, [attendance, locations, granularity, dateFrom, dateTo])
 
   const chartConfig = {
     occupancy: {
@@ -75,7 +81,7 @@ export const CapacityUsageChart: React.FC<CapacityUsageChartProps> = ({
 
   return (
     <div data-testid={prefixDataTestId}>
-      <ChartContainer config={chartConfig} className="gba:h-64">
+      <ChartContainer config={chartConfig} className="gba:w-full gba:max-w-none gba:h-64 md:gba:h-80">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" className="gba:stroke-muted" />

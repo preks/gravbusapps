@@ -8,11 +8,14 @@ import { LocationDetailPanel } from '../usage-overview/LocationDetailPanel'
 import { CapacityUsageChart } from '../usage-overview/CapacityUsageChart'
 import { useUsageOverviewData } from '../../hooks/useUsageOverviewData'
 import { useLocationDetail } from '../../hooks/useLocationDetail'
+import { OfficeUsageFilterBar } from '../filters/OfficeUsageFilterBar'
 
 interface UsageOverviewTabProps {
   attendance: OfficeAttendanceRecord[]
   locations: SiteLocationCapacity[]
   filters: OfficeUsageFilters
+  onFiltersChange: (updates: Partial<OfficeUsageFilters>) => void
+  filtersLoading?: boolean
   isLoading: boolean
   error: Error | null
   onRetry: () => void
@@ -24,6 +27,8 @@ export const UsageOverviewTab: React.FC<UsageOverviewTabProps> = ({
   attendance,
   locations,
   filters,
+  onFiltersChange,
+  filtersLoading = false,
   isLoading,
   error,
   onRetry,
@@ -35,6 +40,20 @@ export const UsageOverviewTab: React.FC<UsageOverviewTabProps> = ({
   // Calculate aggregated data
   const { kpis, locationUsageCards } = useUsageOverviewData(attendance, locations, filters.granularity)
   const locationDetail = useLocationDetail(selectedLocationId, attendance, locations)
+
+  // Apply optional location filter for the chart (graph-only as requested)
+  const selectedLocationIdForChart = filters.selectedLocations?.[0]
+  const filteredAttendanceForChart =
+    selectedLocationIdForChart && selectedLocationIdForChart.length > 0
+      ? attendance.filter(a => a.siteLocationId === selectedLocationIdForChart)
+      : attendance
+  const filteredLocationsForChart =
+    selectedLocationIdForChart && selectedLocationIdForChart.length > 0
+      ? locations.filter(l => l.siteLocationId === selectedLocationIdForChart)
+      : locations
+  const selectedLocationForLabel = selectedLocationIdForChart
+    ? locations.find(l => l.siteLocationId === selectedLocationIdForChart)
+    : undefined
 
   const handleLocationClick = (locationId: string) => {
     setSelectedLocationId(locationId)
@@ -101,6 +120,15 @@ export const UsageOverviewTab: React.FC<UsageOverviewTabProps> = ({
       {/* KPI Cards */}
       <KpiCards kpis={kpis} prefixDataTestId={`${prefixDataTestId}-kpis`} />
 
+      {/* Filters under KPI cards */}
+      <OfficeUsageFilterBar
+        filters={filters}
+        onFiltersChange={onFiltersChange}
+        locations={locations}
+        isLoading={filtersLoading}
+        prefixDataTestId={`${prefixDataTestId}-filter-bar`}
+      />
+
       {/* Capacity vs Usage Chart */}
       <div className="gba:mb-6 gba:bg-card gba:rounded-lg gba:border gba:border-border gba:p-6">
         <div className="gba:mb-4">
@@ -109,16 +137,22 @@ export const UsageOverviewTab: React.FC<UsageOverviewTabProps> = ({
           </h3>
           <p className="gba:text-sm gba:text-muted-foreground">
             —{' '}
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:office_usage.all_locations_combined',
-              'All locations combined'
-            )}
+            {selectedLocationForLabel
+              ? `${selectedLocationForLabel.name}${
+                  selectedLocationForLabel.locality ? ` (${selectedLocationForLabel.locality})` : ''
+                }`
+              : getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:office_usage.all_locations_combined',
+                  'All locations combined'
+                )}
           </p>
         </div>
         <CapacityUsageChart
-          attendance={attendance}
-          locations={locations}
+          attendance={filteredAttendanceForChart}
+          locations={filteredLocationsForChart}
           granularity={filters.granularity}
+          dateFrom={filters.dateFrom}
+          dateTo={filters.dateTo}
           prefixDataTestId={`${prefixDataTestId}-chart`}
         />
       </div>

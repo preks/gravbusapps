@@ -75,7 +75,7 @@ export const LocationUsageCards: React.FC<LocationUsageCardsProps> = ({
                   <span className="gba:text-muted-foreground">
                     {getTranslationFromI18nKeyAndLabel('lowcoder:office_usage.office_days', 'Office days logged')}
                   </span>
-                  <span className="gba:font-medium">{location.peakDate && `(${location.peakDate})`}</span>
+                  <span className="gba:font-medium">{location.officeDays}</span>
                 </div>
               </div>
             </Card>

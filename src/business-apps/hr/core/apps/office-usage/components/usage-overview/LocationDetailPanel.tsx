@@ -18,6 +18,7 @@ import { MapPin, TrendUp } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { LocationDetail, DailyOccupancyData } from '../../types'
 import { getOccupancyBadgeVariant } from '../../utils/occupancyCalculations'
+import dayjs from 'dayjs'
 
 interface LocationDetailPanelProps {
   location: LocationDetail | null
@@ -39,9 +40,12 @@ export const LocationDetailPanel: React.FC<LocationDetailPanelProps> = ({
   const badgeVariant = getOccupancyBadgeVariant(location.averageOccupancy)
 
   return (
-    <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent className="gba:w-full sm:gba:max-w-2xl" data-testid={prefixDataTestId}>
-        <SheetHeader>
+    <Sheet open={isOpen} onOpenChange={onClose} title={location.siteLocationName}>
+      <SheetContent
+        className="gba:w-full sm:gba:max-w-xl gba:p-2 gba:border-l gba:border-border gba:overflow-y-auto gba:overflow-x-hidden"
+        data-testid={prefixDataTestId}
+      >
+        <SheetHeader className="gba:!px-0">
           <SheetTitle className="gba:flex gba:items-center gba:gap-2">
             <MapPin className="gba:w-5 gba:h-5" />
             {location.siteLocationName}
@@ -111,9 +115,6 @@ export const LocationDetailPanel: React.FC<LocationDetailPanelProps> = ({
                   <TableRow>
                     <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:office_usage.date', 'Date')}</TableHead>
                     <TableHead>
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:office_usage.occupancy', 'Occupancy')}
-                    </TableHead>
-                    <TableHead>
                       {getTranslationFromI18nKeyAndLabel('lowcoder:office_usage.people_in_office', 'People in Office')}
                     </TableHead>
                     <TableHead>
@@ -124,7 +125,7 @@ export const LocationDetailPanel: React.FC<LocationDetailPanelProps> = ({
                 <TableBody>
                   {location.dailyData.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={4} className="gba:text-center gba:text-muted-foreground">
+                      <TableCell colSpan={3} className="gba:text-center gba:text-muted-foreground">
                         {getTranslationFromI18nKeyAndLabel('lowcoder:office_usage.no_data', 'No data')}
                       </TableCell>
                     </TableRow>
@@ -133,12 +134,14 @@ export const LocationDetailPanel: React.FC<LocationDetailPanelProps> = ({
                     const dayBadgeVariant = getOccupancyBadgeVariant(day.occupancyPercentage)
                     return (
                       <TableRow key={day.date}>
-                        <TableCell className="gba:font-medium">{day.date}</TableCell>
+                        <TableCell className="gba:font-medium">{dayjs(day.date).format('MMM D')}</TableCell>
                         <TableCell>
-                          <Badge variant={dayBadgeVariant}>{day.occupancyPercentage.toFixed(0)}%</Badge>
-                        </TableCell>
-                        <TableCell>
-                          {day.occupied} / {day.capacity}
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <span>
+                              {day.occupied} / {day.capacity}
+                            </span>
+                            <Badge variant={dayBadgeVariant}>{day.occupancyPercentage.toFixed(0)}%</Badge>
+                          </div>
                         </TableCell>
                         <TableCell>
                           {day.overCapacity ? (

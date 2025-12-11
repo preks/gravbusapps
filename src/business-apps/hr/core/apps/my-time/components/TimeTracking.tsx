@@ -61,28 +61,6 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({ employee, employeeId, acces
     return `${h}:${String(m).padStart(2, '0')}`
   }
 
-  const employeeName = employee?.firstName || getTranslationFromI18nKeyAndLabel('lowcoder:common.employee', 'Employee')
-
-  // Secondary helper message for hero card (avoid nested ternary)
-  const isClockedOutWithWork = !isClockedIn && todayRecordedMinutes > 0
-  let headerSecondary = ''
-  if (isClockedIn) {
-    headerSecondary = getTranslationFromI18nKeyAndLabel(
-      'lowcoder:time_tracking.summary.header.clock_IN_secondary',
-      "Let's make this day count."
-    )
-  } else if (isClockedOutWithWork) {
-    headerSecondary = getTranslationFromI18nKeyAndLabel(
-      'lowcoder:time_tracking.summary.header.clock_OUT_secondary',
-      'Great work today — see you tomorrow, fresh and focused.'
-    )
-  } else {
-    headerSecondary = getTranslationFromI18nKeyAndLabel(
-      'lowcoder:time_tracking.summary.header.welcome_secondary',
-      'Let’s set things in motion — your hours start with a single click.'
-    )
-  }
-
   const workedHm = `${formatHm(todayRecordedMinutes)}h`
   const plannedHm = `${formatHm(todaysPlannedMinutes)}h`
   const workProgressPct = React.useMemo(() => {
@@ -172,15 +150,6 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({ employee, employeeId, acces
               <Icon icon={ClockIcon} className="gba:text-5xl" />
             </div>
             <HeroLiveClock className="gba:flex gba:flex-col gba:items-center gba:justify-center" />
-            <div className="gba:text-base gba:opacity-90 gba:max-w-xl">
-              {isClockedIn
-                ? headerSecondary
-                : getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:time_tracking.summary.header.clock_out',
-                    `Clocked out — time to recharge, ${employeeName}.`,
-                    { employeeName }
-                  )}
-            </div>
             <div className="gba:w-full">
               {isClockedIn ? (
                 <Button

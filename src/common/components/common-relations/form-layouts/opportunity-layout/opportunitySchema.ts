@@ -47,23 +47,26 @@ export const opportunitySchema = z.object({
     .optional(),
   opportunityContacts: z
     .array(
-      z.object({
-        id: z.string().optional(),
-        version: z.number().optional(),
-        contactId: z.string().optional(),
-        contactType: z.string().nullable().optional()
-      })
+      z
+        .object({
+          id: z.string().optional(),
+          version: z.number().optional(),
+          contactId: z.string().optional(),
+          contactType: z.string().nullable().optional()
+        })
+        .strict() // Only allow defined fields - prevents nested objects
     )
     .optional(),
   opportunityAccounts: z
     .array(
-      z.object({
-        id: z.string().optional(),
-        version: z.number().optional(),
-        accountId: z.string().optional(),
-        accountType: z.string().nullable().optional(),
-        accountTypeRef: z.string().nullable().optional()
-      })
+      z
+        .object({
+          id: z.string().optional(),
+          version: z.number().optional(),
+          accountId: z.string().optional(),
+          accountTypeRef: z.string().nullable().optional()
+        })
+        .strict() // Only allow defined fields - prevents nested objects
     )
     .optional()
 })

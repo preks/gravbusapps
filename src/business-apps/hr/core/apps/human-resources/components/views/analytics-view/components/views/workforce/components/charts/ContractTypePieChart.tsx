@@ -46,40 +46,36 @@ const ContractTypePieChart: React.FC<ContractTypePieChartProps> = ({ accessToken
     return chartData.reduce((sum, item) => sum + item.value, 0)
   }, [chartData])
 
-  // Custom active shape for the pie chart when hovering
-  const renderActiveShape = (props: any) => {
-    const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, payload, value } = props
+  // Shape renderer using local hover state (no deprecated props)
+  const renderShape = (props: any) => {
+    const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, index } = props
+    const isActive = index === activeIndex
+    const adjustedOuter = isActive ? outerRadius + 10 : outerRadius
+    const adjustedInner = isActive ? innerRadius - 6 : innerRadius
 
     return (
       <g>
         <Sector
           cx={cx}
           cy={cy}
-          innerRadius={innerRadius}
-          outerRadius={outerRadius + 10}
+          innerRadius={adjustedInner}
+          outerRadius={adjustedOuter}
           startAngle={startAngle}
           endAngle={endAngle}
           fill={fill}
-          opacity={0.8}
+          opacity={isActive ? 0.9 : 1}
         />
-        <Sector
-          cx={cx}
-          cy={cy}
-          startAngle={startAngle}
-          endAngle={endAngle}
-          innerRadius={innerRadius - 6}
-          outerRadius={innerRadius - 2}
-          fill={fill}
-        />
-        <text x={cx} y={cy - 20} textAnchor="middle" fill="var(--nw-color-foreground)" fontSize={20} fontWeight="600">
-          {payload.name}
-        </text>
-        <text x={cx} y={cy + 10} textAnchor="middle" fill="var(--nw-color-muted-foreground)" fontSize={16}>
-          {value.toLocaleString()} {t('hr-analytics-employees')}
-        </text>
-        <text x={cx} y={cy + 35} textAnchor="middle" fill="var(--nw-color-primary)" fontSize={16} fontWeight="600">
-          {payload.percentage}%
-        </text>
+        {isActive && (
+          <Sector
+            cx={cx}
+            cy={cy}
+            startAngle={startAngle}
+            endAngle={endAngle}
+            innerRadius={adjustedInner - 2}
+            outerRadius={adjustedInner}
+            fill={fill}
+          />
+        )}
       </g>
     )
   }
@@ -131,7 +127,9 @@ const ContractTypePieChart: React.FC<ContractTypePieChartProps> = ({ accessToken
     <Card className="gba:w-full gba:p-6 gba:shadow-sm" data-testid={`${prefixDataTestId}-chart`}>
       <div className="gba:mb-4">
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
-          <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:m-0">{t('hr-analytics-contract-types')}</h3>
+          <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:m-0">
+            {t('hr-analytics-contract-types')}
+          </h3>
           <Badge variant="outline" className="gba:text-xs">
             {t('hr-analytics-contract-breakdown')}
           </Badge>
@@ -146,16 +144,15 @@ const ContractTypePieChart: React.FC<ContractTypePieChartProps> = ({ accessToken
       ) : (
         <>
           {/* Chart container */}
-          <div className="gba:h-96">
+          <div className="gba:h-96" onMouseLeave={() => setActiveIndex(-1)}>
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart data-testid={`${prefixDataTestId}-rendered`}>
+              <PieChart data-testid={`${prefixDataTestId}-rendered`} onMouseLeave={() => setActiveIndex(-1)}>
                 <Pie
                   data={chartData}
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  activeIndex={activeIndex}
-                  activeShape={renderActiveShape}
+                  shape={renderShape}
                   innerRadius="60%"
                   outerRadius="80%"
                   dataKey="value"
@@ -172,25 +169,59 @@ const ContractTypePieChart: React.FC<ContractTypePieChartProps> = ({ accessToken
                       strokeWidth={2}
                     />
                   ))}
-                  {/* Custom center label */}
-                  <text
-                    x="50%"
-                    y="47%"
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    style={{ fontSize: '20px', fill: 'var(--nw-color-foreground)', fontWeight: 600 }}
-                  >
-                    {t('hr-analytics-contract-types')}
-                  </text>
-                  <text
-                    x="50%"
-                    y="57%"
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    style={{ fontSize: '28px', fontWeight: 'bold', fill: 'var(--nw-color-foreground)' }}
-                  >
-                    {totalEmployees.toLocaleString()}
-                  </text>
+                  {/* Custom center label: totals or active slice details */}
+                  {activeIndex === -1 ? (
+                    <>
+                      <text
+                        x="50%"
+                        y="47%"
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        style={{ fontSize: '20px', fill: 'var(--nw-color-foreground)', fontWeight: 600 }}
+                      >
+                        {t('hr-analytics-contract-types')}
+                      </text>
+                      <text
+                        x="50%"
+                        y="57%"
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        style={{ fontSize: '28px', fontWeight: 'bold', fill: 'var(--nw-color-foreground)' }}
+                      >
+                        {totalEmployees.toLocaleString()}
+                      </text>
+                    </>
+                  ) : (
+                    <>
+                      <text
+                        x="50%"
+                        y="45%"
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        style={{ fontSize: '18px', fill: 'var(--nw-color-foreground)', fontWeight: 600 }}
+                      >
+                        {chartData[activeIndex]?.name}
+                      </text>
+                      <text
+                        x="50%"
+                        y="56%"
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        style={{ fontSize: '22px', fontWeight: 'bold', fill: 'var(--nw-color-foreground)' }}
+                      >
+                        {chartData[activeIndex]?.value.toLocaleString()} {t('hr-analytics-employees')}
+                      </text>
+                      <text
+                        x="50%"
+                        y="66%"
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        style={{ fontSize: '16px', fontWeight: 600, fill: 'var(--nw-color-primary)' }}
+                      >
+                        {chartData[activeIndex]?.percentage}%
+                      </text>
+                    </>
+                  )}
                 </Pie>
               </PieChart>
             </ResponsiveContainer>
