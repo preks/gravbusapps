@@ -17,6 +17,7 @@ import { formatTime, formatFullTimestamp, getStatusIcon } from './utils/messageU
 import { isPreviewable } from './utils/attachmentUtils'
 import { renderContentWithReferences } from './EntityReferenceBadge'
 import { AIResponseRenderer } from './AIResponseRenderer'
+import { ExpertResponseRenderer } from './ExpertResponseRenderer'
 import { MessageAttachments, type MessageAttachment } from './MessageAttachments'
 import { AttachmentPreviewDialog } from './AttachmentPreviewDialog'
 
@@ -47,8 +48,9 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   onReplyToAI
 }) => {
   const isAIResponse = message.metadata?.isAIResponse === true
-  // AI responses should never be styled as "own message" even if sent by current user
-  const isOwnMessage = message.senderId === currentUserId && !isAIResponse
+  const isExpertResponse = message.metadata?.isEveryExpertResponse === true
+  // AI/Expert responses should never be styled as "own message" even if sent by current user
+  const isOwnMessage = message.senderId === currentUserId && !isAIResponse && !isExpertResponse
   const sender = message.sender
 
   // Look up avatar and employeeId from conversation participants if not in sender
@@ -116,9 +118,19 @@ export const MessageItem: React.FC<MessageItemProps> = ({
         data-testid={`message-${message.id}`}
       >
         {/* Avatar for AI responses - shown in all chat types */}
-        {isAIResponse && (
+        {isAIResponse && !isExpertResponse && (
           <div className="gba:w-7 gba:h-7 gba:flex-shrink-0 gba:mt-0.5 gba:rounded-full gba:bg-gradient-to-br gba:from-primary gba:to-accent gba:flex gba:items-center gba:justify-center">
             <span className="gba:text-[10px] gba:text-primary-foreground gba:font-bold">AI</span>
+          </div>
+        )}
+
+        {/* Avatar for Expert responses - custom color and avatar */}
+        {isExpertResponse && (
+          <div
+            className="gba:w-7 gba:h-7 gba:flex-shrink-0 gba:mt-0.5 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:text-white gba:font-bold gba:text-[10px]"
+            style={{ backgroundColor: message.metadata?.expertColor || '#1890ff' }}
+          >
+            {message.metadata?.expertAvatar || message.metadata?.expertName?.charAt(0).toUpperCase() || 'E'}
           </div>
         )}
 
@@ -152,15 +164,43 @@ export const MessageItem: React.FC<MessageItemProps> = ({
         {/* Message bubble */}
         <div
           className={`gba:max-w-[80%] gba:px-3 gba:py-2 gba:shadow-sm ${
-            isAIResponse
-              ? 'gba:bg-gradient-to-br gba:from-muted gba:to-accent/10 gba:text-foreground gba:rounded-2xl gba:rounded-bl-md gba:border gba:border-primary/20'
-              : isOwnMessage
-                ? 'gba:bg-primary gba:text-primary-foreground gba:rounded-2xl gba:rounded-br-md'
-                : 'gba:bg-card gba:text-card-foreground gba:rounded-2xl gba:rounded-bl-md gba:border gba:border-border/50'
+            isExpertResponse
+              ? 'gba:bg-gradient-to-br gba:from-muted/50 gba:to-accent/5 gba:text-foreground gba:rounded-2xl gba:rounded-bl-md gba:border-2'
+              : isAIResponse
+                ? 'gba:bg-gradient-to-br gba:from-muted gba:to-accent/10 gba:text-foreground gba:rounded-2xl gba:rounded-bl-md gba:border gba:border-primary/20'
+                : isOwnMessage
+                  ? 'gba:bg-primary gba:text-primary-foreground gba:rounded-2xl gba:rounded-br-md'
+                  : 'gba:bg-card gba:text-card-foreground gba:rounded-2xl gba:rounded-bl-md gba:border gba:border-border/50'
           }`}
+          style={
+            isExpertResponse && message.metadata?.expertColor
+              ? { borderColor: message.metadata.expertColor }
+              : undefined
+          }
         >
-          {/* Sender name for AI responses */}
-          {isAIResponse && (
+          {/* Sender name for Expert responses */}
+          {isExpertResponse && (
+            <div className="gba:text-[11px] gba:font-semibold gba:mb-0.5 gba:flex gba:items-center gba:justify-between">
+              <div className="gba:flex gba:items-center gba:gap-1.5">
+                <span className="gba:text-xs">🎓</span>
+                <span style={{ color: message.metadata?.expertColor || '#1890ff' }}>
+                  {message.metadata?.expertName || 'Expert'}
+                </span>
+                <div
+                  className="gba:inline-flex gba:items-center gba:justify-center gba:rounded-full gba:text-[9px] gba:px-1.5 gba:py-0.5 gba:font-medium"
+                  style={{
+                    backgroundColor: message.metadata?.expertColor ? `${message.metadata.expertColor}20` : '#f0f0f0',
+                    color: message.metadata?.expertColor || '#666'
+                  }}
+                >
+                  Expert
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Sender name for generic AI responses */}
+          {isAIResponse && !isExpertResponse && (
             <div className="gba:text-[11px] gba:font-semibold gba:mb-0.5 gba:text-primary gba:flex gba:items-center gba:justify-between">
               <div className="gba:flex gba:items-center gba:gap-1">
                 <span className="gba:text-xs">✨</span>
@@ -215,7 +255,14 @@ export const MessageItem: React.FC<MessageItemProps> = ({
           {/* Text content */}
           {message.content && (
             <div className="gba:break-words gba:text-sm gba:leading-relaxed">
-              {isAIResponse ? (
+              {isExpertResponse ? (
+                <ExpertResponseRenderer
+                  content={message.content}
+                  expertColor={message.metadata?.expertColor}
+                  citations={message.metadata?.citations}
+                  confidence={message.metadata?.confidence}
+                />
+              ) : isAIResponse ? (
                 <AIResponseRenderer content={message.content} scheduledMeeting={message.metadata?.scheduledMeeting} />
               ) : (
                 renderContentWithReferences(message.content, message.metadata, isOwnMessage)

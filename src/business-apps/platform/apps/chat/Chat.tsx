@@ -1,11 +1,15 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
-import { Alert, AlertDescription, Spinner } from '@newwork/nw-design-system'
+import { Alert, AlertDescription, Spinner, Button } from '@newwork/nw-design-system'
+import { UserPlus } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useChatClient } from './hooks/useChatClient'
 import { useCall } from './hooks/useCall'
 import { useGroupCall } from './hooks/useGroupCall'
 import { useEveryAIChat } from './hooks/useEveryAIChat'
+import { useChatExperts } from './hooks/useChatExperts'
 import { ConversationList } from './components/ConversationList'
+import { ExpertSelectorPanel } from './components/ExpertSelectorPanel.tsx'
+import { ActiveExpertsBar } from './components/ActiveExpertsBar.tsx'
 import { ConversationHeader, type ActiveCallInfo } from './components/ConversationHeader'
 import { MessageList } from './components/MessageList'
 import { MessageInput } from './components/MessageInput'
@@ -271,6 +275,23 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
     accessToken
   })
 
+  // Every Experts integration
+  const {
+    availableExperts,
+    expertsLoading,
+    activeExperts,
+    addExpert,
+    removeExpert,
+    processExpertMention,
+    showExpertSelector,
+    setShowExpertSelector
+  } = useChatExperts({
+    accessToken,
+    conversationId: activeConversationId,
+    currentUserId: currentUser?.id || null,
+    apiClient
+  })
+
   // Call handlers for both direct (1:1) and group conversations
   const handleAudioCall = () => {
     if (!activeConversation) return
@@ -437,6 +458,26 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
         await sendMessage(activeConversationId, content, Object.keys(metadata).length > 0 ? metadata : undefined)
         setDraftMessage('') // clear draft after successful send
 
+        // Check for expert mention FIRST (before @Every)
+        const expertResult = await processExpertMention(content, entityReferences)
+
+        if (expertResult.isExpertMention && expertResult.expertResponse) {
+          // Expert handled the message, send expert's response
+          await new Promise(resolve => setTimeout(resolve, 100))
+
+          await sendMessage(activeConversationId, expertResult.expertResponse.text, {
+            isEveryExpertResponse: true,
+            expertId: expertResult.expertResponse.expertId,
+            expertName: expertResult.expertResponse.expertName,
+            expertColor: expertResult.expertResponse.expertColor,
+            citations: expertResult.expertResponse.citations,
+            confidence: expertResult.expertResponse.confidence
+          })
+
+          clearStreamingText()
+          return // Stop here, don't process with generic Every
+        }
+
         // Check if message contains @Every mention and process it
         if (hasEveryMention(entityReferences) && activeConversation) {
           try {
@@ -550,6 +591,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
       apiClient,
       hasEveryMention,
       processEveryAIMessage,
+      processExpertMention,
       activeConversation,
       clearStreamingText,
       setDraftMessage
@@ -1119,9 +1161,25 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
 
         {/* Active Conversation */}
         {showChatView && (
-          <div className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:h-full gba:max-h-full gba:overflow-hidden">
+          <div className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:h-full gba:max-h-full gba:overflow-hidden gba:relative">
             {stableActiveConversation ? (
               <>
+                {/* Add Expert Button (for group chats only) */}
+                {stableActiveConversation.type === 'group' && (
+                  <div className="gba:absolute gba:top-4 gba:right-4 gba:z-30">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowExpertSelector(true)}
+                      className="gba:flex gba:items-center gba:gap-1.5 gba:shadow-md gba:bg-background/95 gba:backdrop-blur-sm"
+                      data-testid={`${prefixDataTestId}-add-expert-button`}
+                    >
+                      <UserPlus className="gba:w-4 gba:h-4" />
+                      <span>Add Expert</span>
+                    </Button>
+                  </div>
+                )}
+
                 <ConversationHeader
                   conversation={stableActiveConversation}
                   onBack={isSingleViewMode ? handleBack : undefined}
@@ -1139,6 +1197,16 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
                   isInCall={isInAnyCall}
                   activeCall={activeCallInfo}
                 />
+
+                {/* Active Experts Bar */}
+                {activeExperts.length > 0 && (
+                  <ActiveExpertsBar
+                    experts={activeExperts}
+                    onRemoveExpert={expertId => removeExpert(expertId, sendMessage)}
+                    data-testid={`${prefixDataTestId}-active-experts`}
+                  />
+                )}
+
                 <MessageList
                   messages={messages}
                   currentUserId={currentUser?.id || null}
@@ -1217,6 +1285,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
                 onFocusReady={focusFn => {
                   focusInputRef.current = focusFn
                 }}
+                activeExperts={activeExperts}
               />
             )}
           </div>
@@ -1242,6 +1311,17 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
         apiClient={apiClient}
         onRefresh={refreshConversations}
         prefixDataTestId={`${prefixDataTestId}-group-settings-modal`}
+      />
+
+      {/* Expert Selector Panel */}
+      <ExpertSelectorPanel
+        isOpen={showExpertSelector}
+        onClose={() => setShowExpertSelector(false)}
+        experts={availableExperts}
+        activeExpertIds={activeExperts.map(e => e.expertId)}
+        isLoading={expertsLoading}
+        onAddExpert={expert => addExpert(expert, sendMessage)}
+        data-testid={`${prefixDataTestId}-expert-selector`}
       />
 
       {/* Call Components */}

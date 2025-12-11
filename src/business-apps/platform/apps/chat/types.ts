@@ -122,8 +122,9 @@ export interface PresenceStatus {
 
 // Entity Reference Types for @ mentions
 export type EntityType =
-  // AI Assistant
+  // AI Assistants
   | 'ai_assistant'
+  | 'every_expert' // NEW: Specialized Every Experts
   // CRM entities
   | 'lead'
   | 'contact'

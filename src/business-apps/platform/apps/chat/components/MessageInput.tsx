@@ -5,6 +5,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useEntityMentions } from '../hooks/useEntityMentions'
 import { EntityMentionPopover } from './EntityMentionPopover'
 import type { EntityReference, MessageEntityReference } from '../types'
+import type { ActiveExpert } from '../hooks/useConversationExperts'
 
 // Persist focus state across unmounts caused by parent re-renders
 let lastHadFocus = false
@@ -32,6 +33,8 @@ interface MessageInputProps {
     registerFn: (entity: EntityReference, text: string, startIndex: number) => MessageEntityReference
   ) => void
   onFocusReady?: (focusFn: () => void) => void
+  // Every Experts active in conversation
+  activeExperts?: ActiveExpert[]
 }
 
 export const MessageInput: React.FC<MessageInputProps> = memo(
@@ -46,7 +49,8 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
     value: controlledValue,
     onChange,
     onRegisterMentionReady,
-    onFocusReady
+    onFocusReady,
+    activeExperts = []
   }) => {
     const [uncontrolledValue, setUncontrolledValue] = useState('')
     const value = controlledValue !== undefined ? controlledValue : uncontrolledValue
@@ -75,7 +79,7 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
       removeMention: removeMentionFromHook,
       closeMention,
       registerMentionEntity
-    } = useEntityMentions(accessToken)
+    } = useEntityMentions(accessToken, activeExperts)
 
     // Helper to update value (works for both controlled and uncontrolled)
     const setValue = useCallback(
