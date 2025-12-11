@@ -40,14 +40,10 @@ import {
   TableCell,
   Spinner,
   Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-  Separator
+  SheetContent
 } from '@newwork/nw-design-system'
-import { OpenJobPosition } from './hooks/useOpenJobPositions'
-import { PiBriefcase, PiTag, PiUser, PiBuilding, PiCalendar } from 'react-icons/pi'
+import { JobPosition } from './hooks/useOpenJobPositions'
+import { JobPositionDetails } from '@/business-apps/hr/core/apps/human-resources/components/views/job-position-view/components/JobPositionDetails'
 import dayjs from 'dayjs'
 import { Employee } from '@/business-apps/hr/core/hooks/useGetEmployees'
 import {
@@ -58,7 +54,7 @@ import {
   CakeIcon,
   TrophyIcon,
   EnvelopeSimpleOpenIcon,
-  SmileyIcon
+  Sparkle
 } from '@phosphor-icons/react'
 import RequestsToApproveTable from './components/RequestsToApproveTable'
 import MyTeammatesTable from './components/MyTeammatesTable'
@@ -87,8 +83,12 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
   // State for current view (dashboard or detailed pages)
   const [currentView, setCurrentView] = useState<CurrentView>('dashboard')
 
+  // State for filtering teammates by status
+  const [filterAbsentOnly, setFilterAbsentOnly] = useState(false)
+  const [filterUnallocatedOnly, setFilterUnallocatedOnly] = useState(false)
+
   // State for job position detail sheet
-  const [selectedPosition, setSelectedPosition] = useState<OpenJobPosition | null>(null)
+  const [selectedPosition, setSelectedPosition] = useState<JobPosition | null>(null)
   const [isPositionSheetOpen, setIsPositionSheetOpen] = useState(false)
 
   // Get the current structure ID for matrix team queries
@@ -96,6 +96,20 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
 
   // Navigation handlers
   const handleNavigateToTeammates = () => {
+    setFilterAbsentOnly(false)
+    setFilterUnallocatedOnly(false)
+    setCurrentView('teammates')
+  }
+
+  const handleNavigateToAbsentTeammates = () => {
+    setFilterAbsentOnly(true)
+    setFilterUnallocatedOnly(false)
+    setCurrentView('teammates')
+  }
+
+  const handleNavigateToUnallocatedTeammates = () => {
+    setFilterAbsentOnly(false)
+    setFilterUnallocatedOnly(true)
     setCurrentView('teammates')
   }
 
@@ -111,19 +125,18 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
   }
 
   const handleNavigateBackToDashboard = () => {
+    setFilterAbsentOnly(false)
+    setFilterUnallocatedOnly(false)
     setCurrentView('dashboard')
   }
 
-  // Handler to open position detail sheet
-  const handleOpenPositionSheet = (position: OpenJobPosition) => {
-    setSelectedPosition(position)
-    setIsPositionSheetOpen(true)
-  }
-
-  // Handler to close position detail sheet
-  const handleClosePositionSheet = () => {
-    setIsPositionSheetOpen(false)
-    setSelectedPosition(null)
+  // Handler to open position detail sheet - finds full position by ID
+  const handleOpenPositionSheet = (positionId: string) => {
+    const fullPosition = fullPositions.find(p => p.id === positionId)
+    if (fullPosition) {
+      setSelectedPosition(fullPosition)
+      setIsPositionSheetOpen(true)
+    }
   }
 
   // Navigation handler for employee records
@@ -182,6 +195,7 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
   // Fetch employees with missing job profiles for Team Insights
   const {
     openPositions,
+    fullPositions,
     loading: loadingOpenPositions
     // error: openPositionsError,
   } = useOpenJobPositions({
@@ -199,6 +213,7 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
   const {
     averageAllocationPercentage,
     unallocatedCount,
+    unallocatedEmployeeIds,
     loading: loadingProjectAllocation
   } = useTeamProjectAllocation({
     accessToken: accessToken || '',
@@ -391,25 +406,28 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
 
       {/* AI Insights + My Team Row */}
       <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-3 gba:gap-6 gba:mb-6">
-        {/* AI Insights - EveryAI Assistant Style */}
-        <Card
-          className="gba:lg:col-span-2 gba:bg-gradient-to-r gba:from-primary/5 gba:to-info/5"
-          data-testid="manager-dashboard-ai-says-card"
-        >
+        {/* AI Insights - EveryAI Assistant Style (matching InterventionsTable design) */}
+        <Card className="gba:lg:col-span-2" data-testid="manager-dashboard-ai-says-card">
           <CardContent className="gba:p-5">
             <div className="gba:flex gba:items-start gba:gap-4">
-              <div className="gba:flex-shrink-0 gba:h-10 gba:w-10 gba:bg-primary gba:rounded-full gba:flex gba:items-center gba:justify-center">
-                <SmileyIcon size={24} className="gba:text-primary-foreground" weight="fill" />
-              </div>
+              {/* Orange circle with Sparkle icon - matching EveryAI platform icon */}
+              <span className="gba:inline-flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-full gba:bg-warning gba:flex-shrink-0">
+                <Sparkle size={24} weight="fill" className="gba:text-warning-foreground" />
+              </span>
               <div className="gba:flex-1">
-                <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                  <span className="gba:text-xs gba:font-semibold gba:text-primary gba:uppercase gba:tracking-wide">
-                    NEWWORK
+                {/* Header with gradient text - matching InterventionsTable design */}
+                <div className="gba:text-lg gba:font-semibold gba:mb-2">
+                  <span>NEWWORK </span>
+                  <span className="gba:bg-gradient-to-r gba:from-primary gba:via-info gba:to-success gba:bg-clip-text gba:text-transparent">
+                    EveryAI{' '}
                   </span>
-                  <span className="gba:text-sm gba:font-semibold gba:text-foreground">
+                  <span className="gba:bg-gradient-to-r gba:from-primary gba:via-info gba:to-success gba:bg-clip-text gba:text-transparent">
+                    Assistant
+                  </span>
+                  <span>
                     {getTranslationFromI18nKeyAndLabel(
                       'master-data:hr.manager_dashboard.every_ai_noticed',
-                      'EveryAI Assistant noticed ...'
+                      ' noticed data that need your attention!'
                     )}
                   </span>
                 </div>
@@ -472,26 +490,44 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
                       <span
                         className={`gba:mt-1.5 gba:h-2 gba:w-2 gba:rounded-full gba:flex-shrink-0 ${onLeaveCount > 0 ? 'gba:bg-warning' : 'gba:bg-success'}`}
                       />
-                      <span className="gba:text-sm gba:text-foreground">
-                        {onLeaveCount > 0
-                          ? `${onLeaveCount} team ${onLeaveCount === 1 ? 'member is' : 'members are'} out of office today (${directReports.length - onLeaveCount}/${directReports.length} available)`
-                          : `Your team is 100% available today (${directReports.length}/${directReports.length})`}
-                      </span>
+                      <div className="gba:flex gba:flex-col gba:gap-1">
+                        {onLeaveCount > 0 ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={handleNavigateToAbsentTeammates}
+                              className="gba:text-sm gba:text-primary gba:underline gba:text-left gba:p-0 gba:bg-transparent gba:border-0 gba:cursor-pointer hover:gba:opacity-80"
+                              data-testid="manager-dashboard-ai-absent-link"
+                            >
+                              {`${onLeaveCount} team ${onLeaveCount === 1 ? 'member is' : 'members are'} out of office today`}
+                            </button>
+                            <span className="gba:text-sm gba:text-muted-foreground">
+                              {`(${directReports.length - onLeaveCount}/${directReports.length} available)`}
+                            </span>
+                            {sickLeavesCount > 0 && (
+                              <span className="gba:text-sm gba:text-muted-foreground gba:mt-1 gba:pl-2 gba:border-l-2 gba:border-destructive">
+                                {`Out of which ${sickLeavesCount} ${sickLeavesCount === 1 ? 'is' : 'are'} on sick leave`}
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          <span className="gba:text-sm gba:text-foreground">
+                            {`Your team is 100% available today (${directReports.length}/${directReports.length})`}
+                          </span>
+                        )}
+                      </div>
                     </li>
-                    {sickLeavesCount > 0 && (
-                      <li className="gba:flex gba:items-start gba:gap-2">
-                        <span className="gba:mt-1.5 gba:h-2 gba:w-2 gba:rounded-full gba:flex-shrink-0 gba:bg-destructive" />
-                        <span className="gba:text-sm gba:text-foreground">
-                          {`${sickLeavesCount} team ${sickLeavesCount === 1 ? 'member is' : 'members are'} on sick leave`}
-                        </span>
-                      </li>
-                    )}
                     {unallocatedCount > 0 && (
                       <li className="gba:flex gba:items-start gba:gap-2">
                         <span className="gba:mt-1.5 gba:h-2 gba:w-2 gba:rounded-full gba:flex-shrink-0 gba:bg-warning" />
-                        <span className="gba:text-sm gba:text-foreground">
+                        <button
+                          type="button"
+                          onClick={handleNavigateToUnallocatedTeammates}
+                          className="gba:text-sm gba:text-primary gba:underline gba:text-left gba:p-0 gba:bg-transparent gba:border-0 gba:cursor-pointer hover:gba:opacity-80"
+                          data-testid="manager-dashboard-ai-unallocated-link"
+                        >
                           {`${unallocatedCount} team ${unallocatedCount === 1 ? 'member is' : 'members are'} not allocated to projects`}
-                        </span>
+                        </button>
                       </li>
                     )}
                     {upcomingAnniversaries.length > 0 && (
@@ -855,8 +891,15 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
 
   // Teammates detailed view - using the same header structure as "Requests to Approve"
   if (currentView === 'teammates') {
+    // Filter direct reports based on active filter
+    const filteredDirectReports = filterAbsentOnly
+      ? directReports.filter(report => report.status === 'On Leave')
+      : filterUnallocatedOnly
+        ? directReports.filter(report => unallocatedEmployeeIds.includes(report.id))
+        : directReports
+
     // Transform DirectReport data to Employee interface format with proper data mapping
-    const transformedDirectReports: Employee[] = directReports.map(report => ({
+    const transformedDirectReports: Employee[] = filteredDirectReports.map(report => ({
       id: report.id,
       userId: undefined, // DirectReport doesn't have userId
       supervisorEmployeeId: employeeId, // Current user is the supervisor
@@ -869,8 +912,8 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
       employmentType: '', // DirectReport doesn't have employment type - leave empty
       contractType: '', // DirectReport doesn't have contract type - leave empty
       matrixTeams: [], // DirectReport doesn't have matrix teams
-      // Include availability status
-      status: report.status,
+      // Include availability status - map 'Away' to 'On Leave' for Employee type compatibility
+      status: report.status === 'Away' ? 'On Leave' : report.status,
       currentAbsence: report.currentAbsence
         ? {
             type: report.currentAbsence.type,
@@ -921,11 +964,42 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
               )}
             </Button>
             <h1 className="gba:text-xl gba:font-semibold">
-              {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.my_teammates', 'My Teammates')}
+              {filterAbsentOnly
+                ? getTranslationFromI18nKeyAndLabel(
+                    'master-data:hr.manager_dashboard.absent_teammates',
+                    'Absent Team Members'
+                  )
+                : filterUnallocatedOnly
+                  ? getTranslationFromI18nKeyAndLabel(
+                      'master-data:hr.manager_dashboard.unallocated_teammates',
+                      'Unallocated Team Members'
+                    )
+                  : getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.my_teammates', 'My Teammates')}
             </h1>
-            <Badge variant="info" className="gba:ml-3">
-              {`${directReports.length + matrixTeamMembers.length} ${getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.total_teammates', 'total teammates').toLowerCase()}`}
+            <Badge
+              variant={filterAbsentOnly ? 'warning' : filterUnallocatedOnly ? 'info' : 'info'}
+              className="gba:ml-3"
+            >
+              {filterAbsentOnly
+                ? `${filteredDirectReports.length} ${getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.out_of_office', 'out of office')}`
+                : filterUnallocatedOnly
+                  ? `${filteredDirectReports.length} ${getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.not_allocated', 'not allocated')}`
+                  : `${directReports.length + matrixTeamMembers.length} ${getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.total_teammates', 'total teammates').toLowerCase()}`}
             </Badge>
+            {(filterAbsentOnly || filterUnallocatedOnly) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setFilterAbsentOnly(false)
+                  setFilterUnallocatedOnly(false)
+                }}
+                className="gba:ml-2"
+                data-testid="manager-dashboard-clear-filter"
+              >
+                {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.show_all', 'Show All')}
+              </Button>
+            )}
           </div>
         </div>
 
@@ -1350,7 +1424,7 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
                             <TableRow
                               key={position.id}
                               className="gba:cursor-pointer hover:gba:bg-gray-50"
-                              onClick={() => handleOpenPositionSheet(position)}
+                              onClick={() => handleOpenPositionSheet(position.id)}
                             >
                               <TableCell>
                                 <div className="gba:flex gba:flex-col">
@@ -1386,7 +1460,7 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
                                   size="sm"
                                   onClick={e => {
                                     e.stopPropagation()
-                                    handleOpenPositionSheet(position)
+                                    handleOpenPositionSheet(position.id)
                                   }}
                                 >
                                   {getTranslationFromI18nKeyAndLabel(
@@ -1407,168 +1481,17 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
           </Card>
         </div>
 
-        {/* Job Position Detail Sheet - Also in insights view */}
+        {/* Job Position Detail Sheet - Reusing JobPositionDetails from human-resources */}
         <Sheet open={isPositionSheetOpen} onOpenChange={setIsPositionSheetOpen} title="">
-          <SheetContent className="gba:w-full sm:gba:max-w-xl gba:overflow-y-auto gba:p-6">
-            {selectedPosition && (
-              <div className="gba:space-y-6">
-                {/* Header */}
-                <SheetHeader>
-                  <div className="gba:flex gba:items-center gba:gap-3">
-                    <PiBriefcase className="gba:text-primary gba:text-xl" />
-                    <div>
-                      <SheetTitle className="gba:text-lg gba:font-semibold">{selectedPosition.name}</SheetTitle>
-                      <SheetDescription>
-                        {getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:human_resources_page.job_positions_section.position_details',
-                          'Position Details'
-                        )}
-                      </SheetDescription>
-                    </div>
-                  </div>
-                </SheetHeader>
-
-                <Separator />
-
-                {/* Status */}
-                <div className="gba:space-y-4">
-                  <Badge variant="warning" size="sm">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:human_resources_page.job_positions_section.vacant',
-                      'Vacant'
-                    )}
-                  </Badge>
-                </div>
-
-                {/* Job Information */}
-                <div className="gba:space-y-4">
-                  <h3 className="gba:text-md gba:font-medium gba:text-foreground">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:human_resources_page.job_positions_section.job_information',
-                      'Job Information'
-                    )}
-                  </h3>
-
-                  <div className="gba:space-y-3">
-                    <div className="gba:flex gba:items-start gba:gap-3">
-                      <PiTag className="gba:text-muted-foreground gba:mt-1" />
-                      <div>
-                        <p className="gba:text-sm gba:font-medium gba:text-foreground">
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:human_resources_page.job_positions_section.job_function',
-                            'Job Function'
-                          )}
-                        </p>
-                        <p className="gba:text-sm gba:text-foreground">
-                          {selectedPosition.jobFunctionName ||
-                            getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:human_resources_page.job_positions_section.not_specified',
-                              'Not specified'
-                            )}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="gba:flex gba:items-start gba:gap-3">
-                      <PiTag className="gba:text-muted-foreground gba:mt-1" />
-                      <div>
-                        <p className="gba:text-sm gba:font-medium gba:text-foreground">
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:human_resources_page.job_positions_section.job_level',
-                            'Job Level'
-                          )}
-                        </p>
-                        <p className="gba:text-sm gba:text-foreground">
-                          {selectedPosition.jobLevelName ||
-                            getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:human_resources_page.job_positions_section.not_specified',
-                              'Not specified'
-                            )}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Organizational Information */}
-                <div className="gba:space-y-4">
-                  <h3 className="gba:text-md gba:font-medium gba:text-foreground">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:human_resources_page.job_positions_section.organizational_information',
-                      'Organizational Information'
-                    )}
-                  </h3>
-
-                  <div className="gba:space-y-3">
-                    <div className="gba:flex gba:items-start gba:gap-3">
-                      <PiBuilding className="gba:text-muted-foreground gba:mt-1" />
-                      <div>
-                        <p className="gba:text-sm gba:font-medium gba:text-foreground">
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:human_resources_page.job_positions_section.department',
-                            'Department'
-                          )}
-                        </p>
-                        <p className="gba:text-sm gba:text-foreground">
-                          {selectedPosition.organizationalUnitName ||
-                            getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:human_resources_page.job_positions_section.not_specified',
-                              'Not specified'
-                            )}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Current Employee */}
-                <div className="gba:space-y-4">
-                  <h3 className="gba:text-md gba:font-medium gba:text-foreground">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:human_resources_page.job_positions_section.current_employee',
-                      'Current Employee'
-                    )}
-                  </h3>
-
-                  <div className="gba:space-y-3">
-                    <div className="gba:flex gba:items-start gba:gap-3">
-                      <PiUser className="gba:text-muted-foreground gba:mt-1" />
-                      <div>
-                        <p className="gba:text-sm gba:font-medium gba:text-foreground">
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:human_resources_page.job_positions_section.employee',
-                            'Employee'
-                          )}
-                        </p>
-                        <p className="gba:text-sm gba:text-foreground">
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:human_resources_page.job_positions_section.vacant',
-                            'Vacant'
-                          )}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="gba:flex gba:gap-2 gba:pt-4">
-                  <Button
-                    variant="default"
-                    className="gba:flex-1"
-                    onClick={() => {
-                      handleClosePositionSheet()
-                      navigateTo(buildPlatformUrl('/platform/hr/human-resources', { view: 'positions' }))
-                    }}
-                  >
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:human_resources_page.job_positions_section.view_in_hr',
-                      'View in HR Management'
-                    )}
-                  </Button>
-                </div>
-              </div>
-            )}
+          <SheetContent className="gba:w-full sm:gba:max-w-xl gba:flex gba:flex-col gba:p-0">
+            {/* Top spacing to avoid close button overlap */}
+            <div className="gba:h-10 gba:flex-shrink-0" />
+            {/* Scrollable content area */}
+            <div className="gba:flex-1 gba:overflow-y-auto">
+              {selectedPosition && accessToken && (
+                <JobPositionDetails jobPosition={selectedPosition} accessToken={accessToken} />
+              )}
+            </div>
           </SheetContent>
         </Sheet>
       </>
@@ -1579,218 +1502,17 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
     <>
       <div className="gba:flex gba:flex-col gba:h-full">{mainContent}</div>
 
-      {/* Job Position Detail Sheet */}
+      {/* Job Position Detail Sheet - Reusing JobPositionDetails from human-resources */}
       <Sheet open={isPositionSheetOpen} onOpenChange={setIsPositionSheetOpen} title="">
-        <SheetContent className="gba:w-full sm:gba:max-w-xl gba:overflow-y-auto gba:p-6">
-          {selectedPosition && (
-            <div className="gba:space-y-6">
-              {/* Header */}
-              <SheetHeader>
-                <div className="gba:flex gba:items-center gba:gap-3">
-                  <PiBriefcase className="gba:text-primary gba:text-xl" />
-                  <div>
-                    <SheetTitle className="gba:text-lg gba:font-semibold">{selectedPosition.name}</SheetTitle>
-                    <SheetDescription>
-                      {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:human_resources_page.job_positions_section.position_details',
-                        'Position Details'
-                      )}
-                    </SheetDescription>
-                  </div>
-                </div>
-              </SheetHeader>
-
-              <Separator />
-
-              {/* Status */}
-              <div className="gba:space-y-4">
-                <Badge variant="warning" size="sm">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:human_resources_page.job_positions_section.vacant',
-                    'Vacant'
-                  )}
-                </Badge>
-              </div>
-
-              {/* Job Information */}
-              <div className="gba:space-y-4">
-                <h3 className="gba:text-md gba:font-medium gba:text-foreground">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:human_resources_page.job_positions_section.job_information',
-                    'Job Information'
-                  )}
-                </h3>
-
-                <div className="gba:space-y-3">
-                  <div className="gba:flex gba:items-start gba:gap-3">
-                    <PiTag className="gba:text-muted-foreground gba:mt-1" />
-                    <div>
-                      <p className="gba:text-sm gba:font-medium gba:text-foreground">
-                        {getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:human_resources_page.job_positions_section.job_function',
-                          'Job Function'
-                        )}
-                      </p>
-                      <p className="gba:text-sm gba:text-foreground">
-                        {selectedPosition.jobFunctionName ||
-                          getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:human_resources_page.job_positions_section.not_specified',
-                            'Not specified'
-                          )}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="gba:flex gba:items-start gba:gap-3">
-                    <PiTag className="gba:text-muted-foreground gba:mt-1" />
-                    <div>
-                      <p className="gba:text-sm gba:font-medium gba:text-foreground">
-                        {getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:human_resources_page.job_positions_section.job_level',
-                          'Job Level'
-                        )}
-                      </p>
-                      <p className="gba:text-sm gba:text-foreground">
-                        {selectedPosition.jobLevelName ||
-                          getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:human_resources_page.job_positions_section.not_specified',
-                            'Not specified'
-                          )}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Employment Information */}
-              <div className="gba:space-y-4">
-                <h3 className="gba:text-md gba:font-medium gba:text-foreground">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:human_resources_page.job_positions_section.employment_information',
-                    'Employment Information'
-                  )}
-                </h3>
-
-                <div className="gba:space-y-3">
-                  <div className="gba:flex gba:items-start gba:gap-3">
-                    <PiCalendar className="gba:text-muted-foreground gba:mt-1" />
-                    <div>
-                      <p className="gba:text-sm gba:font-medium gba:text-foreground">
-                        {getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:human_resources_page.employees_section.employment_type',
-                          'Employment Type'
-                        )}
-                      </p>
-                      <p className="gba:text-sm gba:text-foreground">
-                        {selectedPosition.employmentType ||
-                          getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:human_resources_page.job_positions_section.not_specified',
-                            'Not specified'
-                          )}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="gba:flex gba:items-start gba:gap-3">
-                    <PiCalendar className="gba:text-muted-foreground gba:mt-1" />
-                    <div>
-                      <p className="gba:text-sm gba:font-medium gba:text-foreground">
-                        {getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:human_resources_page.employees_section.contract_type',
-                          'Contract Type'
-                        )}
-                      </p>
-                      <p className="gba:text-sm gba:text-foreground">
-                        {selectedPosition.contractType ||
-                          getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:human_resources_page.job_positions_section.not_specified',
-                            'Not specified'
-                          )}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Organizational Information */}
-              <div className="gba:space-y-4">
-                <h3 className="gba:text-md gba:font-medium gba:text-foreground">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:human_resources_page.job_positions_section.organizational_information',
-                    'Organizational Information'
-                  )}
-                </h3>
-
-                <div className="gba:space-y-3">
-                  <div className="gba:flex gba:items-start gba:gap-3">
-                    <PiBuilding className="gba:text-muted-foreground gba:mt-1" />
-                    <div>
-                      <p className="gba:text-sm gba:font-medium gba:text-foreground">
-                        {getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:human_resources_page.job_positions_section.department',
-                          'Department'
-                        )}
-                      </p>
-                      <p className="gba:text-sm gba:text-foreground">
-                        {selectedPosition.organizationalUnitName ||
-                          getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:human_resources_page.job_positions_section.not_specified',
-                            'Not specified'
-                          )}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Current Employee */}
-              <div className="gba:space-y-4">
-                <h3 className="gba:text-md gba:font-medium gba:text-foreground">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:human_resources_page.job_positions_section.current_employee',
-                    'Current Employee'
-                  )}
-                </h3>
-
-                <div className="gba:space-y-3">
-                  <div className="gba:flex gba:items-start gba:gap-3">
-                    <PiUser className="gba:text-muted-foreground gba:mt-1" />
-                    <div>
-                      <p className="gba:text-sm gba:font-medium gba:text-foreground">
-                        {getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:human_resources_page.job_positions_section.employee',
-                          'Employee'
-                        )}
-                      </p>
-                      <p className="gba:text-sm gba:text-foreground">
-                        {getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:human_resources_page.job_positions_section.vacant',
-                          'Vacant'
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="gba:flex gba:gap-2 gba:pt-4">
-                <Button
-                  variant="default"
-                  className="gba:flex-1"
-                  onClick={() => {
-                    handleClosePositionSheet()
-                    navigateTo(buildPlatformUrl('/platform/hr/human-resources', { view: 'positions' }))
-                  }}
-                >
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:human_resources_page.job_positions_section.view_in_hr',
-                    'View in HR Management'
-                  )}
-                </Button>
-              </div>
-            </div>
-          )}
+        <SheetContent className="gba:w-full sm:gba:max-w-xl gba:flex gba:flex-col gba:p-0">
+          {/* Top spacing to avoid close button overlap */}
+          <div className="gba:h-10 gba:flex-shrink-0" />
+          {/* Scrollable content area */}
+          <div className="gba:flex-1 gba:overflow-y-auto">
+            {selectedPosition && accessToken && (
+              <JobPositionDetails jobPosition={selectedPosition} accessToken={accessToken} />
+            )}
+          </div>
         </SheetContent>
       </Sheet>
     </>

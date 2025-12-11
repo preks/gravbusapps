@@ -14,6 +14,8 @@ export interface TeamProjectAllocationResult {
   totalAllocatedPercentage: number
   averageAllocationPercentage: number
   unallocatedCount: number
+  /** List of employee IDs that have no project allocation */
+  unallocatedEmployeeIds: string[]
   totalEmployees: number
   loading: boolean
   error: Error | null
@@ -39,6 +41,7 @@ export const useTeamProjectAllocation = ({
   const [totalAllocatedPercentage, setTotalAllocatedPercentage] = useState(0)
   const [averageAllocationPercentage, setAverageAllocationPercentage] = useState(0)
   const [unallocatedCount, setUnallocatedCount] = useState(0)
+  const [unallocatedEmployeeIds, setUnallocatedEmployeeIds] = useState<string[]>([])
   const [totalEmployees, setTotalEmployees] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
@@ -78,6 +81,7 @@ export const useTeamProjectAllocation = ({
         setTotalAllocatedPercentage(0)
         setAverageAllocationPercentage(0)
         setUnallocatedCount(0)
+        setUnallocatedEmployeeIds([])
         setTotalEmployees(0)
         setLoading(false)
         return
@@ -152,11 +156,13 @@ export const useTeamProjectAllocation = ({
       // Sum all employee allocations and divide by number of employees
       let totalEmployeeAllocation = 0
       let notAllocatedCount = 0
+      const notAllocatedIds: string[] = []
 
-      for (const [, allocation] of employeeAllocationMap) {
+      for (const [employeeId, allocation] of employeeAllocationMap) {
         totalEmployeeAllocation += allocation
         if (allocation === 0) {
           notAllocatedCount++
+          notAllocatedIds.push(employeeId)
         }
       }
 
@@ -164,6 +170,7 @@ export const useTeamProjectAllocation = ({
 
       setAverageAllocationPercentage(avgAllocation)
       setUnallocatedCount(notAllocatedCount)
+      setUnallocatedEmployeeIds(notAllocatedIds)
 
       // Build team breakdown
       const aggregatedAllocations: TeamAllocationData[] = Array.from(teamAllocationMap.entries()).map(
@@ -197,6 +204,7 @@ export const useTeamProjectAllocation = ({
     totalAllocatedPercentage,
     averageAllocationPercentage,
     unallocatedCount,
+    unallocatedEmployeeIds,
     totalEmployees,
     loading,
     error,
