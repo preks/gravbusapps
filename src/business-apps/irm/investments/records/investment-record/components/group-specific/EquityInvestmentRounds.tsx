@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useCallback } from 'react'
 import {
   Card,
   CardContent,
@@ -144,19 +144,23 @@ const EquityInvestmentRounds: React.FC<EquityInvestmentRoundsProps> = ({
           </div>
           {accessToken && actionContextId ? (
             <AppAction
-              contextsArray={[FlowContextName.investmentEquityInvestmentRoundCreate]}
-              externalContextData={{
-                equityInvestmentId: actionContextId,
-                targetEquityInvestmentId: actionContextId,
-                customEquityId: actionContextId,
-                investmentId: mainInvestmentId,
-                mainInvestmentId: mainInvestmentId,
-                entityId: actionContextId,
-                parentEntityId: actionContextId,
-                equityInvestment: actionContextId
-              }}
+              contexts={[
+                {
+                  context: FlowContextName.investmentEquityInvestmentRoundCreate,
+                  contextData: {
+                    equityInvestmentId: actionContextId,
+                    targetEquityInvestmentId: actionContextId,
+                    customEquityId: actionContextId,
+                    investmentId: mainInvestmentId,
+                    mainInvestmentId: mainInvestmentId,
+                    entityId: actionContextId,
+                    parentEntityId: actionContextId,
+                    equityInvestment: actionContextId
+                  }
+                }
+              ]}
               accessToken={accessToken}
-              emptyStateBehavior="enable"
+              emptyState="enable"
               prefixDataTestId="equity-round-add"
             >
               <Button
