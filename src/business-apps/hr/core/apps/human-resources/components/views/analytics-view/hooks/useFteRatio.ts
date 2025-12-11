@@ -1,27 +1,14 @@
 import { useState, useEffect } from 'react'
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { GET_FTE_DATA } from '../queries/getFteData'
 import { useEmployeeCount } from './useEmployeeCount'
+import { QueryType, Services, useQueryExecutionClient } from '@/common/network/dataset'
 
 /**
  * Response type for FTE data query
  */
-interface FteDataResponse {
-  EmployeeWorkingHours: Array<{
-    id: string
-    fullTimeEquivalent: number
-    employee: {
-      id: string
-    }
-  }>
-  EmployeeWorkingHoursAggregate: {
-    aggregate: {
-      sum: {
-        fullTimeEquivalent: number
-      }
-      count: number
-    }
-  }
+type DatasetRow = { category: string; value: number }
+interface DatasetResponse {
+  categories?: string[]
+  data?: DatasetRow[]
 }
 
 /**
@@ -35,32 +22,28 @@ export function useFteRatio(accessToken: string) {
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<Error | null>(null)
 
-  // Get GraphQL client
-  const graphqlClient = useGraphqlClient(accessToken)
+  // Dataset client
+  const datasetClient = useQueryExecutionClient(accessToken, Services.EMPLOYEE)
 
   // Get employee count
   const { count: employeeCount, loading: countLoading, error: countError } = useEmployeeCount(accessToken)
 
   // Fetch FTE data
   useEffect(() => {
-    if (!graphqlClient || countLoading) return
+    if (!datasetClient || countLoading) return
 
     setLoading(true)
     setError(null)
 
-    graphqlClient
-      .request<FteDataResponse>(GET_FTE_DATA)
+    datasetClient
+      .executeQuery('fteDataCurrentEmployees', QueryType.DATASET, {})
       .then(response => {
-        // Extract FTE sum from response
-        const fteSumData = response?.EmployeeWorkingHoursAggregate?.aggregate?.sum?.fullTimeEquivalent
-        const fteSum = typeof fteSumData === 'number' ? fteSumData : 0
+        const data = (response as unknown as DatasetResponse)?.data || []
+        const averageRow = data.find(r => String(r.category).toLowerCase() === 'average_fte')
+        const averageFte = typeof averageRow?.value === 'number' ? averageRow.value : 0
 
-        // Calculate FTE to Employee ratio
-        const totalEmployees = Math.max(employeeCount, 1) // Avoid division by zero
-        const calculatedRatio = fteSum / totalEmployees
-
-        setTotalFte(fteSum)
-        setRatio(calculatedRatio)
+        setTotalFte(averageFte)
+        setRatio(averageFte)
         setLoading(false)
       })
       .catch(err => {
@@ -68,7 +51,7 @@ export function useFteRatio(accessToken: string) {
         setError(err instanceof Error ? err : new Error('Failed to fetch FTE data'))
         setLoading(false)
       })
-  }, [graphqlClient, employeeCount, countLoading])
+  }, [datasetClient, countLoading])
 
   // Combine errors
   useEffect(() => {

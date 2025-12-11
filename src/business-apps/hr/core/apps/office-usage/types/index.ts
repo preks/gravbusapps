@@ -90,6 +90,28 @@ export interface WeeklyOccupancy {
   peakOccupancyPercentage: number
 }
 
+// Detail panel daily entry
+export interface DailyOccupancyData {
+  date: string // display-ready date
+  occupancyPercentage: number
+  occupied: number
+  capacity: number
+  overCapacity: boolean
+}
+
+// Detail panel aggregate
+export interface LocationDetail {
+  siteLocationId: string
+  siteLocationName: string
+  capacity: number
+  averageOccupancy: number
+  peakOccupancy: number
+  peakDate: string
+  averageOccupied: number
+  peakOccupied: number
+  dailyData: DailyOccupancyData[]
+}
+
 export interface LocationUsageStats {
   siteLocationId: string
   siteLocationName: string
