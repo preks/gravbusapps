@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 interface UseGraphQLFetchOptions<T> {
@@ -42,6 +42,19 @@ export function useGraphQLFetch<T = any>({
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<unknown>(null)
 
+  // Use refs to store callbacks to avoid them being dependencies
+  const onSuccessRef = useRef(onSuccess)
+  const onErrorRef = useRef(onError)
+
+  // Update refs when callbacks change
+  useEffect(() => {
+    onSuccessRef.current = onSuccess
+  }, [onSuccess])
+
+  useEffect(() => {
+    onErrorRef.current = onError
+  }, [onError])
+
   useEffect(() => {
     let cancelled = false
 
@@ -58,15 +71,15 @@ export function useGraphQLFetch<T = any>({
         if (cancelled) return
 
         setData(result)
-        if (onSuccess) {
-          onSuccess(result)
+        if (onSuccessRef.current) {
+          onSuccessRef.current(result)
         }
       } catch (err) {
         if (cancelled) return
 
         setError(err)
-        if (onError) {
-          onError(err)
+        if (onErrorRef.current) {
+          onErrorRef.current(err)
         }
       } finally {
         if (!cancelled) {
@@ -80,7 +93,7 @@ export function useGraphQLFetch<T = any>({
     return () => {
       cancelled = true
     }
-  }, [accessToken, query, variables, enabled, graphqlClient, onSuccess, onError])
+  }, [accessToken, query, JSON.stringify(variables), enabled, graphqlClient])
 
   return { data, isLoading, error }
 }
