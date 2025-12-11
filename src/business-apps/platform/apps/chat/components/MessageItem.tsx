@@ -55,6 +55,59 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
   const isOwnMessage = message.senderId === currentUserId && !isAIResponse && !isExpertResponse
   const sender = message.sender
 
+  // DEBUG: Log ALL AI messages to understand the data structure
+  if (isAIResponse) {
+    console.log('🤖 [MessageItem] AI Response message:', {
+      messageId: message.id,
+      senderId: message.senderId,
+      currentUserId,
+      isGroupChat,
+      sender: message.sender,
+      metadata: message.metadata,
+      fullMessage: message
+    })
+  }
+
+  // Check if AI message was initiated by current user
+  // IMPORTANT: We need to check if senderId matches, but the backend might be changing it!
+  // The metadata.originalQuestion might give us a clue, or we need a dedicated field
+  const isAIMessageInitiatedByCurrentUser = isAIResponse && message.senderId === currentUserId
+
+  // Check if message has form outputs (outputs with forms/inputs)
+  // Forms can appear as:
+  // 1. flow_proposal type (FlowBot forms)
+  // 2. answer type with displayData containing form/dynamicForm/input
+  const hasFormOutputs =
+    isAIResponse &&
+    message.metadata?.outputs?.some((output: any) => {
+      // Check for flow_proposal type (common for FlowBot forms)
+      if (output.type === 'flow_proposal') {
+        return true
+      }
+      // Check for forms in answer displayData
+      if (output.type === 'answer' && output.displayData) {
+        return output.displayData.some(
+          (data: any) => data.type === 'form' || data.type === 'dynamicForm' || data.type === 'input'
+        )
+      }
+      return false
+    })
+
+  // DEBUG: Log form visibility decision
+  if (isAIResponse && hasFormOutputs) {
+    console.log('🔍 [MessageItem] Form visibility decision:', {
+      messageId: message.id,
+      senderId: message.senderId,
+      currentUserId,
+      senderEqualsCurrentUser: message.senderId === currentUserId,
+      isGroupChat,
+      isAIMessageInitiatedByCurrentUser,
+      hasFormOutputs,
+      willHideForm: hasFormOutputs && !isAIMessageInitiatedByCurrentUser,
+      willShowForm: !hasFormOutputs || isAIMessageInitiatedByCurrentUser
+    })
+  }
+
   // Look up avatar and employeeId from conversation participants if not in sender
   const participantData = useMemo(() => {
     if (!participants) return null
@@ -265,13 +318,26 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
                   confidence={message.metadata?.confidence}
                 />
               ) : isAIResponse ? (
-                // Always use EveryAI renderer for consistent UI
-                // It handles both rich outputs and plain text automatically
-                <EveryAIMessageRenderer
-                  message={message}
-                  accessToken={accessToken || ''}
-                  onSendMessage={onSendMessage}
-                />
+                // Show full AI response with forms only to the person who initiated it
+                // Others see a simplified message when forms are present (applies to all chat types)
+                hasFormOutputs && !isAIMessageInitiatedByCurrentUser ? (
+                  <div className="gba:text-sm gba:italic gba:text-muted-foreground gba:flex gba:items-center gba:gap-2">
+                    <span>✨</span>
+                    <span>
+                      {isGroupChat
+                        ? `${sender?.firstName || 'Someone'} is interacting with ${message.metadata?.aiAssistant || 'Every AI'}`
+                        : `${message.metadata?.aiAssistant || 'Every AI'} is preparing a form for the other user`}
+                    </span>
+                  </div>
+                ) : (
+                  // Always use EveryAI renderer for consistent UI
+                  // It handles both rich outputs and plain text automatically
+                  <EveryAIMessageRenderer
+                    message={message}
+                    accessToken={accessToken || ''}
+                    onSendMessage={onSendMessage}
+                  />
+                )
               ) : (
                 renderContentWithReferences(message.content, message.metadata, isOwnMessage)
               )}
