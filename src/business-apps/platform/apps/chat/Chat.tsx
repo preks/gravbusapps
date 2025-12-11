@@ -604,10 +604,12 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
           // Process through EveryAI
           const aiResponse = await processEveryAIMessage(content, [], conversationContext)
 
-          if (aiResponse && aiResponse.text && !aiResponse.error) {
-            const responseText = aiResponse.text.trim()
+          if (aiResponse && !aiResponse.error) {
+            // Check if we have any content to display (text OR outputs)
+            const responseText = aiResponse.text?.trim() || ''
+            const hasOutputs = aiResponse.outputs && aiResponse.outputs.length > 0
 
-            if (responseText) {
+            if (responseText || hasOutputs) {
               await new Promise(resolve => setTimeout(resolve, 100))
 
               const aiMetadata: Record<string, any> = {
@@ -621,11 +623,14 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
                 aiMetadata.scheduledMeeting = aiResponse.scheduledMeeting
               }
 
-              if (aiResponse.outputs && aiResponse.outputs.length > 0) {
+              if (hasOutputs) {
                 aiMetadata.outputs = aiResponse.outputs
               }
 
-              await sendMessage(activeConversationId, responseText, aiMetadata)
+              // If we have outputs but no text, use a default message
+              const messageText = responseText || 'Processing your request...'
+
+              await sendMessage(activeConversationId, messageText, aiMetadata)
               clearStreamingText()
             }
           }

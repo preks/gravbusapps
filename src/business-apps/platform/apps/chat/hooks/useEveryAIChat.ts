@@ -1,13 +1,60 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useRef, useState, useMemo } from 'react'
 import { env } from '@/common/env/EnvUtils'
 import type { MessageEntityReference } from '../types'
 import type { OutputItem } from '../../every-ai/types/models'
+import { getCurrentPageContext } from '../../every-ai/utils/pageContext'
+import { usePageAnalytics } from '@/page-analitics/hooks/usePageAnalytics'
+import { prepareCurrentPageContext } from '@/page-analitics/send/page-analytics'
 
 const DEFAULT_FLOWBOT_BASE_URL = 'https://newwork-dev.newwork.com'
 const LLM_MODEL = 'gpt-4.1'
 
 function resolveFlowbotBaseUrl(): string {
   return env('NEXT_PUBLIC_FLOWBOT_ENDPOINT') || env('NEXT_PUBLIC_BASE_URL') || DEFAULT_FLOWBOT_BASE_URL
+}
+
+// Type for analytics entity
+type AnalyticsEntityInput = {
+  type: string
+  id: string
+  name?: string
+}
+
+// Map entity names to analytics entity types
+const ANALYTICS_ENTITY_MAP: Record<string, string> = {
+  // IRM entities
+  investment: 'investment',
+  investment_account: 'investment_account',
+  investment_contact: 'investment_contact',
+  // CRM entities
+  account: 'account',
+  contact: 'contact',
+  lead: 'lead',
+  opportunity: 'opportunity',
+  // HR entities
+  employee: 'employee'
+  // Add other entities as needed
+}
+
+/**
+ * Convert page context to analytics entity format
+ */
+function resolveAnalyticsEntity(pageContext: ReturnType<typeof getCurrentPageContext>): AnalyticsEntityInput | null {
+  if (pageContext.type !== 'entity' || !pageContext.id) {
+    return null
+  }
+
+  const mappedType = ANALYTICS_ENTITY_MAP[pageContext.entity_name ?? ''] || pageContext.entity_name || 'unknown'
+
+  if (!mappedType || mappedType === 'unknown') {
+    return null
+  }
+
+  return {
+    type: mappedType,
+    id: pageContext.id,
+    name: pageContext.entity_name
+  }
 }
 
 // Participant details for AI context
@@ -256,6 +303,21 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
   const inFlightRef = useRef(false)
   const conversationContextRef = useRef<ConversationContext | null>(null)
 
+  // Get current page context for analytics
+  const pageContext = useMemo(() => getCurrentPageContext(), [])
+  const analyticsEntity = useMemo(() => resolveAnalyticsEntity(pageContext), [pageContext])
+  const analyticsHookEntity = useMemo<AnalyticsEntityInput>(
+    () => analyticsEntity ?? { type: 'unknown', id: '' },
+    [analyticsEntity]
+  )
+
+  // Initialize page analytics hook
+  const { getPageAnalyticsContext } = usePageAnalytics({
+    entity: analyticsHookEntity,
+    accessToken,
+    sessionId: conversationContextRef.current?.existingSessionId
+  })
+
   /**
    * Check if message contains an @Every mention
    */
@@ -408,10 +470,23 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
 
   /**
    * Send a message to FlowBot and get the AI response
-   * @param existingSessionId - Session ID from previous AI messages in this conversation (for shared context)
+   * @param content - The message text to send
+   * @param conversationContext - Context about the conversation and participants
+   * @param mentions - Entity mentions in the message (for structured data)
    */
   const sendToEveryAI = useCallback(
-    async (content: string, conversationContext?: ConversationContext): Promise<EveryAIResponse> => {
+    async (
+      content: string,
+      conversationContext?: ConversationContext,
+      mentions?: Array<{
+        id: string
+        type: string
+        display: string
+        data?: any
+        start?: number
+        end?: number
+      }>
+    ): Promise<EveryAIResponse> => {
       if (inFlightRef.current) {
         return { text: '', error: true }
       }
@@ -425,7 +500,11 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
         inFlightRef.current = true
         setIsProcessing(true)
 
-        const prompt = extractPromptFromMessage(content)
+        // For form submissions, send the raw JSON content without modification
+        // For regular messages, extract the prompt by removing @Every mentions
+        const isFormSubmission = content.includes('"action": "form_submission"')
+        const prompt = isFormSubmission ? content : extractPromptFromMessage(content)
+
         if (!prompt) {
           return { text: "I'm here to help! What would you like to know?", error: false }
         }
@@ -453,18 +532,58 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
         const currentPageUrl = typeof window !== 'undefined' ? window.location.href : ''
         const currentPageRoute = typeof window !== 'undefined' ? window.location.pathname : ''
 
-        // Build enhanced prompt with full participant context
-        const enhancedPrompt = buildEnhancedPrompt(prompt, conversationContext)
+        // For form submissions, send raw JSON without enhancement (like standalone EveryAI)
+        // For regular messages, enhance with participant context
+        const enhancedPrompt = isFormSubmission ? prompt : buildEnhancedPrompt(prompt, conversationContext)
         form.append('user_input_text', enhancedPrompt)
 
-        // Use 'unknown' type since we're in a chat context, not an entity page
-        // Format matches prepareCurrentPageContext output: flat object with type at root
-        const contextPayload = {
-          type: 'unknown' as const,
+        // FIX 1: Use page context detection with analytics enrichment (like EveryAI)
+        // This gives the AI proper context about what page/entity the user is viewing
+        // AND includes KPI/performance data from page analytics
+        const baseCurrentPage = {
           url: currentPageUrl,
-          route: currentPageRoute
+          route: currentPageRoute,
+          view: undefined as string | undefined,
+          type: pageContext.type,
+          entity_name:
+            pageContext.type === 'entity' || pageContext.type === 'overview' ? pageContext.entity_name : undefined,
+          id: pageContext.type === 'entity' ? pageContext.id : undefined
         }
+
+        // Enrich with page analytics data if available
+        let contextPayload: any
+        if (analyticsEntity?.id && analyticsEntity.type !== 'unknown') {
+          try {
+            // Add timeout to prevent blocking (2 seconds max)
+            const analyticsPromise = getPageAnalyticsContext(baseCurrentPage)
+            const timeoutPromise = new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('Analytics timeout')), 2000)
+            )
+
+            contextPayload = await Promise.race([analyticsPromise, timeoutPromise])
+          } catch {
+            contextPayload = prepareCurrentPageContext({ currentPage: baseCurrentPage })
+          }
+        } else {
+          contextPayload = prepareCurrentPageContext({ currentPage: baseCurrentPage })
+        }
+
         form.append('current_page_context', JSON.stringify(contextPayload))
+
+        // FIX 2: Send structured mentions data (like EveryAI does)
+        // This allows the backend to directly access entity IDs and data
+        // instead of parsing from text
+        if (mentions && mentions.length > 0) {
+          const enrichedMentions = mentions.map(m => ({
+            id: m.id,
+            type: m.type,
+            display: m.display,
+            data: m.data,
+            offsets:
+              typeof m.start === 'number' && typeof m.end === 'number' ? { start: m.start, end: m.end } : undefined
+          }))
+          form.append('mentions', JSON.stringify(enrichedMentions))
+        }
 
         const res = await fetch(url, {
           method: 'POST',
@@ -718,12 +837,21 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
         setIsProcessing(false)
       }
     },
-    [accessToken, extractPromptFromMessage, onAIResponse, onStreamingUpdate, buildEnhancedPrompt]
+    [
+      accessToken,
+      extractPromptFromMessage,
+      onAIResponse,
+      onStreamingUpdate,
+      buildEnhancedPrompt,
+      pageContext,
+      analyticsEntity,
+      getPageAnalyticsContext
+    ]
   )
 
   /**
-   * Process a chat message that may contain @Every mention
-   * Returns the AI response if @Every was mentioned, null otherwise
+   * Process a chat message that may contain @Every mention OR a form submission
+   * Returns the AI response if @Every was mentioned or if it's a form submission, null otherwise
    * @param conversationContext - Full context including participants and session ID
    */
   const processMessage = useCallback(
@@ -732,11 +860,34 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
       entityReferences?: MessageEntityReference[],
       conversationContext?: ConversationContext
     ): Promise<EveryAIResponse | null> => {
-      if (!hasEveryMention(entityReferences)) {
+      // Check if this is a form submission (which doesn't have @Every mention)
+      const isFormSubmission = content.includes('"action": "form_submission"')
+
+      // Only process if we have @Every mention OR it's a form submission
+      if (!isFormSubmission && !hasEveryMention(entityReferences)) {
         return null
       }
 
-      return sendToEveryAI(content, conversationContext)
+      // Extract mentions from entity references (excluding @Every AI itself)
+      const mentions = entityReferences
+        ?.filter(ref => (ref.type as string) !== 'ai_assistant')
+        .map(ref => ({
+          id: ref.id,
+          type: ref.type as string,
+          display: ref.name,
+          data: {
+            id: ref.id,
+            name: ref.name,
+            type: ref.type,
+            subtitle: ref.subtitle,
+            userId: 'userId' in ref ? (ref as any).userId : undefined, // For employees (Open Directory ID)
+            pictureThumbnail: ref.pictureThumbnail
+          },
+          start: ref.startIndex,
+          end: ref.endIndex
+        }))
+
+      return sendToEveryAI(content, conversationContext, mentions)
     },
     [hasEveryMention, sendToEveryAI]
   )
