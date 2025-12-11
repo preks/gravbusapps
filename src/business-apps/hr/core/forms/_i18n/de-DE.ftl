@@ -138,7 +138,7 @@ grant-bonus-review-fiscal-year = Geschäftsjahr
 grant-bonus-review-additional-info = Zusätzliche Informationen
 grant-bonus-review-description = Beschreibung
 grant-bonus-review-notes = Notizen
-grant-bonus-review-acknowledge = Bestätigen
+grant-bonus-review-acknowledge = Genehmigen
 grant-bonus-review-reject = Ablehnen
 
 # Request Employee Benefit Review Form

@@ -1,8 +1,9 @@
-import React from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Badge } from '@newwork/nw-design-system'
 import { ContentEntry } from '@/common/data/content/types/contentTypes'
 import { CommentSection } from '@/business-apps/core/content/records/content-record/components/interactions'
 import ContentInfoSection from './ContentInfoSection'
+import { buildFileUrl } from '@/common/utils/fileUtils'
 import type { TranslatedTexts } from '@/common/components/content'
 
 interface KnowledgeArticleViewProps {
@@ -36,6 +37,78 @@ const KnowledgeArticleView: React.FC<KnowledgeArticleViewProps> = ({
   const displayTitle = translatedTexts?.title || item.title
   const displayPreview = translatedTexts?.preview || item.preview
   const displayContent = translatedTexts?.content || item.content
+
+  // State for image blob URL
+  const [imageBlobUrl, setImageBlobUrl] = useState<string | null>(null)
+  const blobUrlRef = useRef<string | null>(null)
+
+  // Fetch image with authentication
+  useEffect(() => {
+    // Clean up previous blob URL if it exists
+    if (blobUrlRef.current && blobUrlRef.current.startsWith('blob:')) {
+      URL.revokeObjectURL(blobUrlRef.current)
+      blobUrlRef.current = null
+    }
+
+    if (!item.picture || !accessToken) {
+      return
+    }
+
+    let fileInfo: any = null
+    try {
+      fileInfo = typeof item.picture === 'string' ? JSON.parse(item.picture) : item.picture
+    } catch {
+      // If it's not JSON, check if it's a data URL (base64) - use directly
+      if (typeof item.picture === 'string' && item.picture.startsWith('data:')) {
+        setImageBlobUrl(item.picture)
+        return
+      }
+      // Otherwise try to use as direct URL (old format)
+      console.log('[KnowledgeArticleView] Picture is not JSON, using directly:', item.picture)
+      setImageBlobUrl(item.picture)
+      return
+    }
+
+    if (!fileInfo?.path) {
+      console.log('[KnowledgeArticleView] No picture available or invalid fileInfo')
+      return
+    }
+
+    console.log('[KnowledgeArticleView] Picture JSON parsed, fileInfo:', fileInfo)
+
+    // Fetch image with authentication using buildFileUrl
+    let isCancelled = false
+
+    const fetchImage = async () => {
+      try {
+        const blobUrl = await buildFileUrl(fileInfo, accessToken)
+        if (!isCancelled) {
+          blobUrlRef.current = blobUrl
+          setImageBlobUrl(blobUrl)
+          console.log('[KnowledgeArticleView] Image fetched and blob URL created:', blobUrl)
+        } else {
+          // Clean up blob if fetch completed but component already unmounted/changed
+          URL.revokeObjectURL(blobUrl)
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          console.error('[KnowledgeArticleView] Error fetching image:', error)
+        }
+      }
+    }
+
+    fetchImage()
+
+    // Cleanup function
+    return () => {
+      isCancelled = true
+      // Clean up blob URL on unmount
+      if (blobUrlRef.current && blobUrlRef.current.startsWith('blob:')) {
+        URL.revokeObjectURL(blobUrlRef.current)
+        blobUrlRef.current = null
+      }
+    }
+  }, [item.picture, accessToken])
 
   return (
     <div className="gba:overflow-y-auto gba:mb-6" data-testid="knowledge-article-view">
@@ -73,14 +146,14 @@ const KnowledgeArticleView: React.FC<KnowledgeArticleViewProps> = ({
         )}
 
         {/* Featured Image */}
-        {item.picture && (
+        {imageBlobUrl ? (
           <img
-            src={item.picture}
+            src={imageBlobUrl}
             alt={item.title}
             className="gba:w-full gba:h-auto gba:max-h-[500px] gba:object-cover gba:rounded-lg gba:mb-8"
             data-testid="knowledge-article-image"
           />
-        )}
+        ) : null}
 
         {/* Article Info Section */}
         <ContentInfoSection

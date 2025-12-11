@@ -2,6 +2,7 @@ import React from 'react'
 import { Card } from '@newwork/nw-design-system'
 import { Eye } from 'lucide-react'
 import { extractTextFromHTML } from '../../../../../utils/translationUtils'
+import { buildFileUrl } from '@/common/utils/fileUtils'
 import type { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
 
 interface FeaturedArticlesSectionProps {
@@ -33,11 +34,24 @@ const FeaturedArticlesSection: React.FC<FeaturedArticlesSectionProps> = ({
             data-testid={`featured-article-${entry.id}`}
           >
             <div className="gba:flex gba:gap-6">
-              {entry.picture && (
-                <div className="gba:w-48 gba:h-32 gba:rounded-lg gba:overflow-hidden gba:shrink-0">
-                  <img src={entry.picture} alt={entry.title || ''} className="gba:w-full gba:h-full gba:object-cover" />
-                </div>
-              )}
+              {(() => {
+                let imageUrl: string | null = null
+                if (entry.picture) {
+                  try {
+                    const fileInfo = typeof entry.picture === 'string' ? JSON.parse(entry.picture) : entry.picture
+                    if (fileInfo?.path) {
+                      imageUrl = buildFileUrl(fileInfo)
+                    }
+                  } catch {
+                    imageUrl = entry.picture // Old format: direct URL or base64
+                  }
+                }
+                return imageUrl ? (
+                  <div className="gba:w-48 gba:h-32 gba:rounded-lg gba:overflow-hidden gba:shrink-0">
+                    <img src={imageUrl} alt={entry.title || ''} className="gba:w-full gba:h-full gba:object-cover" />
+                  </div>
+                ) : null
+              })()}
               <div className="gba:flex-1">
                 <h3 className="gba:text-2xl gba:font-bold gba:mb-2 gba:text-foreground gba:hover:text-primary gba:transition-colors">
                   {entry.title}
