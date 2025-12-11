@@ -24,6 +24,8 @@ interface ConversationListProps {
   getUserPresence?: (userId: string) => UserPresence
   // Pass presenceMap to trigger re-renders when presence changes via WebSocket
   presenceMap?: Map<string, UserPresence>
+  // Map of conversation IDs to active expert counts
+  conversationExpertCounts?: Map<string, number>
 }
 
 // Helper to get the other participant's user ID from a direct conversation
@@ -52,7 +54,8 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   accessToken,
   compact = false,
   getUserPresence,
-  presenceMap // Used to trigger re-renders when presence changes - the actual lookup uses getUserPresence
+  presenceMap, // Used to trigger re-renders when presence changes - the actual lookup uses getUserPresence
+  conversationExpertCounts
 }) => {
   // Log presence map changes for debugging (can be removed after verification)
   // The presenceMap prop ensures this component re-renders when any user's presence changes
@@ -218,6 +221,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
               {filteredConversations.map(conversation => {
                 const otherUserId = getOtherParticipantUserId(conversation, currentUserId)
                 const otherUserPresence = otherUserId && getUserPresence ? getUserPresence(otherUserId) : undefined
+                const activeExpertCount = conversationExpertCounts?.get(conversation.id) || 0
 
                 return (
                   <ConversationItem
@@ -229,6 +233,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                     currentUserId={currentUserId}
                     compact={compact}
                     otherUserPresence={otherUserPresence}
+                    activeExpertCount={activeExpertCount}
                   />
                 )
               })}

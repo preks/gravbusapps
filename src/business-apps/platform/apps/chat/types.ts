@@ -59,6 +59,7 @@ export interface Conversation {
   lastMessage?: Message
   unreadCount?: number
   activeCall?: ActiveCall | null
+  activeExperts?: string[] // Array of Every Expert prompt IDs
 }
 
 export interface ConversationParticipant {

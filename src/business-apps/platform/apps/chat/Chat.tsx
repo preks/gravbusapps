@@ -1,6 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
-import { Alert, AlertDescription, Spinner, Button } from '@newwork/nw-design-system'
-import { UserPlus } from 'lucide-react'
+import { Alert, AlertDescription, Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useChatClient } from './hooks/useChatClient'
 import { useCall } from './hooks/useCall'
@@ -45,6 +44,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
   const urlContextProcessed = useRef(false)
   const conversationIdFromUrlProcessed = useRef(false)
   const activeConversationIdRef = useRef<string | null>(null)
+  const presenceInitializedUsersRef = useRef<Set<string>>(new Set())
 
   // Reset URL processing refs on mount to allow restoration after hard refresh
   useEffect(() => {
@@ -162,6 +162,14 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
   useEffect(() => {
     console.debug('[Chat] stableActiveConversation', stableActiveConversation?.id)
   }, [stableActiveConversation?.id])
+
+  // Clear presence initialization tracking when connection drops
+  // This allows presence to be re-initialized from API when reconnecting
+  useEffect(() => {
+    if (!isConnected) {
+      presenceInitializedUsersRef.current.clear()
+    }
+  }, [isConnected])
 
   // Convert current user to CallParticipant format
   const currentUserAsParticipant: CallParticipant | null = useMemo(() => {
@@ -292,6 +300,20 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
     apiClient
   })
 
+  // Track active experts count for all conversations
+  // Use data directly from conversation.activeExperts (no API calls needed!)
+  const conversationExpertCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+
+    conversations.forEach(conv => {
+      if (conv.type === 'group' && conv.activeExperts && conv.activeExperts.length > 0) {
+        counts.set(conv.id, conv.activeExperts.length)
+      }
+    })
+
+    return counts
+  }, [conversations])
+
   // Call handlers for both direct (1:1) and group conversations
   const handleAudioCall = () => {
     if (!activeConversation) return
@@ -407,26 +429,39 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
   }
 
   // Initialize presence status from conversation participants' user data
+  // Only initialize each user once from API data, then rely on WebSocket updates
   useEffect(() => {
-    if (!conversations || conversations.length === 0 || !updatePresenceFromUser) return
+    try {
+      if (!conversations || conversations.length === 0 || !updatePresenceFromUser) return
 
-    // Extract all users from conversations and update their presence
-    conversations.forEach(conv => {
-      conv.participants?.forEach(p => {
-        if (p.user && p.userId !== currentUser?.id && p.user.id !== currentUser?.id) {
-          // The API returns isOnline (boolean) and lastSeen on user object
-          const lastSeen = p.user.lastSeen || p.user.lastSeenAt
+      // Extract all users from conversations and initialize their presence
+      conversations.forEach(conv => {
+        conv.participants?.forEach(p => {
+          if (p.user && p.userId !== currentUser?.id && p.user.id !== currentUser?.id) {
+            const userId = p.user.id
 
-          // If we have isOnline directly from API, use it
-          if (typeof p.user.isOnline === 'boolean') {
-            updatePresenceFromUser(p.user.id, lastSeen, p.user.isOnline)
-          } else {
-            // Fallback to calculating from lastSeen/lastSeenAt
-            updatePresenceFromUser(p.user.id, lastSeen, p.user.isActive)
+            // Only initialize this user's presence once from API data
+            // After that, WebSocket events will keep it updated
+            if (!presenceInitializedUsersRef.current.has(userId)) {
+              presenceInitializedUsersRef.current.add(userId)
+
+              // The API returns isOnline (boolean) and lastSeen on user object
+              const lastSeen = p.user.lastSeen || p.user.lastSeenAt
+
+              // If we have isOnline directly from API, use it
+              if (typeof p.user.isOnline === 'boolean') {
+                updatePresenceFromUser(userId, lastSeen, p.user.isOnline)
+              } else {
+                // Fallback to calculating from lastSeen/lastSeenAt
+                updatePresenceFromUser(userId, lastSeen, p.user.isActive)
+              }
+            }
           }
-        }
+        })
       })
-    })
+    } catch (error) {
+      console.error('[Chat] Error initializing presence:', error)
+    }
   }, [conversations, currentUser?.id, updatePresenceFromUser])
 
   const handleSendMessage = useCallback(
@@ -1155,6 +1190,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
               compact={viewMode === 'compact'}
               getUserPresence={getUserPresence}
               presenceMap={presenceMap}
+              conversationExpertCounts={conversationExpertCounts}
             />
           </div>
         )}
@@ -1164,28 +1200,15 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
           <div className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:h-full gba:max-h-full gba:overflow-hidden gba:relative">
             {stableActiveConversation ? (
               <>
-                {/* Add Expert Button (for group chats only) */}
-                {stableActiveConversation.type === 'group' && (
-                  <div className="gba:absolute gba:top-4 gba:right-4 gba:z-30">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowExpertSelector(true)}
-                      className="gba:flex gba:items-center gba:gap-1.5 gba:shadow-md gba:bg-background/95 gba:backdrop-blur-sm"
-                      data-testid={`${prefixDataTestId}-add-expert-button`}
-                    >
-                      <UserPlus className="gba:w-4 gba:h-4" />
-                      <span>Add Expert</span>
-                    </Button>
-                  </div>
-                )}
-
                 <ConversationHeader
                   conversation={stableActiveConversation}
                   onBack={isSingleViewMode ? handleBack : undefined}
                   onClose={handleCloseConversation}
                   onRemove={handleRemoveConversation}
                   onGroupSettings={handleShowGroupSettings}
+                  onAddExpert={
+                    stableActiveConversation.type === 'group' ? () => setShowExpertSelector(true) : undefined
+                  }
                   onAudioCall={handleAudioCall}
                   onVideoCall={handleVideoCall}
                   onJoinCall={handleJoinActiveCall}
