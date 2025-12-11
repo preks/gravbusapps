@@ -106,9 +106,7 @@ export const ContactView: React.FC<ContactViewProps> = context => {
       contactsThisYear: contactStatistics.trendData.contactsThisYear,
       isLoading: contactStatistics.isLoading,
       error: contactStatistics.error,
-      refetch: () => {
-        // Refetch will be handled by process completion
-      }
+      refetch: contactStatistics.refetch
     }
   }, [contactStatistics])
 
@@ -161,7 +159,6 @@ export const ContactView: React.FC<ContactViewProps> = context => {
       },
       buildRecordUrl: (id: string) => buildPlatformUrl('/platform/crm/contact-record', { contactId: id }),
       contactStatistics: contactStatisticsData,
-      processCompletionEvents: ['taskCompletion', 'contactCompletion'],
       rowActionsContextArray: [FlowContextName.customerContactEntity],
       buildRowActionsExternalContextData: (row: { original: Contact }) => ({
         contactId: row.original.id || ''

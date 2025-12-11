@@ -126,7 +126,6 @@ export const ContactView: React.FC<ContactViewProps> = context => {
       },
       buildRecordUrl: (id: string) => buildPlatformUrl('/platform/irm/contact-record', { contactId: id }),
       contactStatistics: contactStatisticsData,
-      processCompletionEvents: ['taskCompletion', 'contactCompletion'],
       rowActionsContextArray: [FlowContextName.investmentContactEntity],
       buildRowActionsExternalContextData: (row: { original: Contact }) => ({
         contactId: row.original.id
