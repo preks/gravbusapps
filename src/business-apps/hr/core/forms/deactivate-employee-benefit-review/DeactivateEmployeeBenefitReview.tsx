@@ -100,20 +100,12 @@ export const DeactivateEmployeeBenefitReview: React.FC<BusinessAppContextProps> 
           form={form}
           formData={{}}
           submitEventType="pse_submit"
-          cancelEventType="pse_cancel"
-          submitButtonText={t('deactivate-benefit-review-approve', { defaultValue: 'Approve Deactivation' })}
-          cancelButtonText={t('deactivate-benefit-review-reject', { defaultValue: 'Reject' })}
+          submitButtonText={t('deactivate-benefit-review-submit', { defaultValue: 'Deactivate Benefit' })}
           submitButtonVariant="destructive"
-          submitButtonTestId="deactivate-employee-benefit-review-approve-button"
-          cancelButtonTestId="deactivate-employee-benefit-review-reject-button"
+          submitButtonTestId="deactivate-employee-benefit-review-submit-button"
           onSubmit={async () => {
             return {
               approval: 'approved'
-            }
-          }}
-          onCancel={async () => {
-            return {
-              approval: 'rejected'
             }
           }}
           data-testid="deactivate-employee-benefit-review"
