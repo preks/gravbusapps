@@ -1,4 +1,4 @@
-import { formatDate, getCatalogValue } from '@/common/utils/windowUtils'
+import * as windowUtils from '@/common/utils/windowUtils'
 import { formatCurrencyString } from '@/common/utils/numberFormatter'
 import type { EmployeeBenefitData, BenefitDisplayItem } from './types'
 
@@ -32,54 +32,44 @@ export interface BenefitDetails {
   employeeMonthlyContribution?: string
 }
 
+/**
+ * Extract the last part from a reference string (e.g., "Currency:v1:EUR" -> "EUR")
+ */
+function extractLastPartFromRef(ref: string, fallback: string = '-'): string {
+  const parts = ref.split(':')
+  return parts[parts.length - 1] || fallback
+}
+
+/**
+ * Extract currency code from reference format
+ */
 const extractCurrencyCode = (currencyRef: string | null): string => {
   if (!currencyRef) return 'EUR'
-  // Extract currency code from reference format like "Currency:v1:EUR" or just "EUR"
-  const parts = currencyRef.split(':')
-  return parts[parts.length - 1] || 'EUR'
+  return extractLastPartFromRef(currencyRef, 'EUR')
 }
 
 /**
- * Extract and format benefit type display from catalog entry
+ * Extract and format catalog entry display value with fallback
  */
-function extractBenefitTypeDisplay(
-  benefitTypeRef: string | null | undefined,
-  benefitTypeEntry: CatalogEntry | null
-): string {
-  if (!benefitTypeRef) return '-'
+function extractCatalogDisplay(catalogRef: string | null | undefined, catalogEntry: CatalogEntry | null): string {
+  if (!catalogRef) return '-'
 
-  if (benefitTypeEntry) {
-    return getCatalogValue(benefitTypeEntry) ?? benefitTypeEntry.value ?? '-'
+  if (catalogEntry) {
+    return windowUtils.getCatalogValue(catalogEntry) ?? catalogEntry.value ?? '-'
   }
 
   // Fallback: extract code from catalog reference format
-  const parts = benefitTypeRef.split(':')
-  return parts[parts.length - 1] || '-'
+  return extractLastPartFromRef(catalogRef)
 }
 
 /**
- * Extract provider display from catalog entry
+ * Format date
  */
-function extractProviderDisplay(providerRef: string | null | undefined, providerEntry: CatalogEntry | null): string {
-  if (!providerRef) return '-'
-
-  if (providerEntry) {
-    return getCatalogValue(providerEntry) ?? providerEntry.value ?? '-'
-  }
-
-  // Fallback: extract code from catalog reference format
-  const parts = providerRef.split(':')
-  return parts[parts.length - 1] || '-'
-}
-
-/**
- * Format start date
- */
-function formatStartDate(startDate: string | null | undefined): string {
-  if (!startDate) {
+function formatDateValue(date: string | null | undefined): string {
+  if (!date) {
     return '-'
   }
-  return formatDate(startDate, 'date.short') ?? startDate
+  return windowUtils.formatDate(date, 'date.short') ?? date
 }
 
 /**
@@ -94,8 +84,8 @@ export function buildBenefitDisplayItems(params: {
 }): BenefitDisplayItem[] {
   const { benefitData, locale, benefitTypeEntry = null, providerEntry = null, t } = params
   const currencyCode = extractCurrencyCode(benefitData.currencyRef)
-  const benefitTypeDisplay = extractBenefitTypeDisplay(benefitData.benefitTypeRef, benefitTypeEntry)
-  const providerDisplay = extractProviderDisplay(benefitData.benefitProviderRef, providerEntry)
+  const benefitTypeDisplay = extractCatalogDisplay(benefitData.benefitTypeRef, benefitTypeEntry)
+  const providerDisplay = extractCatalogDisplay(benefitData.benefitProviderRef, providerEntry)
 
   const items: BenefitDisplayItem[] = [
     {
@@ -133,7 +123,7 @@ export function buildBenefitDisplayItems(params: {
   items.push({
     key: 'startDate',
     label: t('request-benefit-review-start-date', { defaultValue: 'Preferred Start Date' }),
-    value: formatStartDate(benefitData.startDate)
+    value: formatDateValue(benefitData.startDate)
   })
 
   // Add employee contributions if available
@@ -173,9 +163,9 @@ export function buildBenefitDetails(params: {
   const { benefitData, locale, benefitTypeEntry = null, providerEntry = null } = params
 
   const currencyCode = extractCurrencyCode(benefitData.currencyRef)
-  const benefitTypeDisplay = extractBenefitTypeDisplay(benefitData.benefitTypeRef, benefitTypeEntry)
-  const providerDisplay = extractProviderDisplay(benefitData.benefitProviderRef, providerEntry)
-  const startDateFormatted = formatStartDate(benefitData.startDate)
+  const benefitTypeDisplay = extractCatalogDisplay(benefitData.benefitTypeRef, benefitTypeEntry)
+  const providerDisplay = extractCatalogDisplay(benefitData.benefitProviderRef, providerEntry)
+  const startDateFormatted = formatDateValue(benefitData.startDate)
 
   return {
     benefitType: benefitTypeDisplay,
