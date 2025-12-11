@@ -63,7 +63,7 @@ export const OfficeUsageFilterBar: React.FC<OfficeUsageFilterBarProps> = ({
 
   return (
     <Card className="gba:p-4 gba:mb-6" data-testid={prefixDataTestId}>
-      <div className="gba:flex gba:flex-wrap gba:gap-4 gba:items-center">
+      <div className="gba:flex gba:flex-wrap gba:gap-4 gba:items-start">
         {/* Date Range Preset Selector */}
         <div className="gba:min-w-[200px]">
           <label className="gba:text-sm gba:font-medium gba:mb-2 gba:block">
@@ -96,7 +96,7 @@ export const OfficeUsageFilterBar: React.FC<OfficeUsageFilterBarProps> = ({
         </div>
 
         {/* Granularity Toggle */}
-        <div>
+        <div className="gba:min-w-[200px]">
           <label className="gba:text-sm gba:font-medium gba:mb-2 gba:block">
             {getTranslationFromI18nKeyAndLabel('lowcoder:office_usage.filter_granularity', 'View By')}
           </label>
