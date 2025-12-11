@@ -43,6 +43,9 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
   const messagesHookRef = useRef<any>(null)
   const typingHookRef = useRef<any>(null)
   const currentUserRef = useRef<User | null>(null)
+  const nudgeCallbackRef = useRef<
+    ((data: { conversationId: string; fromUserId: string; fromUserName: string }) => void) | null
+  >(null)
 
   // Track processed message IDs to prevent duplicate processing
   const processedMessageIdsRef = useRef<Set<string>>(new Set())

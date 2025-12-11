@@ -172,14 +172,6 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
     console.debug('[Chat] stableActiveConversation', stableActiveConversation?.id)
   }, [stableActiveConversation?.id])
 
-  // Clear presence initialization tracking when connection drops
-  // This allows presence to be re-initialized from API when reconnecting
-  useEffect(() => {
-    if (!isConnected) {
-      presenceInitializedUsersRef.current.clear()
-    }
-  }, [isConnected])
-
   // Register nudge callback to handle incoming nudges
   useEffect(() => {
     if (!registerNudgeCallback) return
@@ -202,6 +194,14 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
       }
     })
   }, [registerNudgeCallback, activeConversationId, sendMessage])
+
+  // Clear presence initialization tracking when connection drops
+  // This allows presence to be re-initialized from API when reconnecting
+  useEffect(() => {
+    if (!isConnected) {
+      presenceInitializedUsersRef.current.clear()
+    }
+  }, [isConnected])
 
   // Convert current user to CallParticipant format
   const currentUserAsParticipant: CallParticipant | null = useMemo(() => {
