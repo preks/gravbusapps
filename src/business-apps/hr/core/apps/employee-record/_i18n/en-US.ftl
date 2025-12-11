@@ -258,9 +258,3 @@ payslip-download-tooltip = Download Payslip
 modal-request-benefit-type-label = Benefit Type
 modal-character-count = {$current} / {$max} characters
 modal-character-minimum = (minimum {$min} characters)
-
-# Deactivation Reasons
-modal-deactivate-reason-no_longer_needed = No longer needed
-modal-deactivate-reason-found_alternative = Found alternative
-modal-deactivate-reason-cost_reduction = Cost reduction
-modal-deactivate-reason-other = Other (please specify)
