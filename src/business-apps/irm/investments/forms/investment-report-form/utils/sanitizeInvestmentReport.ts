@@ -24,9 +24,15 @@ export const sanitizeInvestmentReport = (
     ...formData.investment
   }
 
-  // Get liquidFundTypeId for liquid fund reports
+  // Convert investmentTypeId back to group/type/liquidFundType for payload
   const investmentTypeId: string | null = formData.investment?.investmentTypeId ?? null
-  const { liquidFundTypeId } = mapFromSingleInvestmentTypeId(investmentTypeId, getPathByType)
+  const { groupId, typeId, liquidFundTypeId } = mapFromSingleInvestmentTypeId(investmentTypeId, getPathByType)
+
+  // Remove investmentTypeId from payload (not part of API)
+  delete (mergedData as any).investmentTypeId
+  // Add group/type/liquidFundType for payload
+  mergedData.investmentGroupRef = groupId ?? undefined
+  mergedData.investmentTypeRef = typeId ?? undefined
 
   // Get report-specific fields directly from formData (no fallbacks)
   const reportDate = (formData as any).investmentReportDate
@@ -36,138 +42,58 @@ export const sanitizeInvestmentReport = (
   // Map investment.investmentRole (from Layout) to investmentRoleReport (for Report)
   // Map Sub-Groups (from Layout) to Report field names (with "Report")
   // IMPORTANT: Exclude investment id and version - these belong to the investment, not the report
-  // IMPORTANT: Only include fields that match InvestmentReport API schema
   // Extract reportId and reportVersion (custom properties added during transform, not part of Investment type)
   const reportId = (mergedData as any).reportId
   const reportVersion = (mergedData as any).reportVersion
+  const { investmentRole, ...investmentDataWithoutSubGroups } = mergedData
 
-  // Extract investmentRoles (form field name is 'investmentRoles', but type has 'investmentRole')
-  const investmentRoles = (mergedData as any).investmentRoles || mergedData.investmentRole
+  // Determine which sub-investment type is active based on investment group
+  // Only save the sub-investment report that matches the current investment group
+  const groupCode = groupId?.includes(':') ? groupId.split(':').pop() : groupId
 
   const reportPayload: Partial<InvestmentReport> = {
+    ...investmentDataWithoutSubGroups,
     // Include report id and version when updating (from reportId/reportVersion stored in form)
     ...(reportId && { id: reportId }),
     ...(reportVersion !== undefined && { version: reportVersion }),
-
-    // BaseEntity fields
-    businessKey: (mergedData as any).businessKey,
-    additionalProperties: mergedData.additionalProperties,
-
-    // Report-specific fields from form state
+    // Add report-specific fields from form state
     date: reportDate,
     scope: reportScope as ReportScope | undefined,
     investmentId: finalInvestmentId,
+    // Map investmentRole (from Layout) to investmentRoleReport (for Report)
+    ...(investmentRole && {
+      investmentRoleReport: investmentRole
+    })
+  }
 
-    // Catalog References (only report-level)
-    investmentStakeTypeRef: mergedData.investmentStakeTypeRef,
-    investmentPhaseRef: mergedData.investmentPhaseRef,
-    investmentStatusRef: mergedData.investmentStatusRef,
-    investmentRiskLevelRef: mergedData.investmentRiskLevelRef,
-    currencyRef: mergedData.currencyRef,
-
-    // Report Amount Fields (snapshot at report time)
-    plannedExitDate: mergedData.plannedExitDate,
-    totalInvestmentAmount: mergedData.totalInvestmentAmount,
-    investmentMarketValue: mergedData.investmentMarketValue,
-    debtFinancingAmount: mergedData.debtFinancingAmount,
-    requiredCapitalAmount: mergedData.requiredCapitalAmount,
-    forecastedRevenueAmount: mergedData.forecastedRevenueAmount,
-    forecastedProfitAmount: mergedData.forecastedProfitAmount,
-    stakePercentage: mergedData.stakePercentage,
-
-    // Loan Fields
-    loanRecipientName: mergedData.loanRecipientName,
-    loanAmount: mergedData.loanAmount,
-    loanOpenCommitmentAmount: mergedData.loanOpenCommitmentAmount,
-    loanInterestRate: mergedData.loanInterestRate,
-    loanStartDate: mergedData.loanStartDate,
-    loanEndDate: mergedData.loanEndDate,
-    loanInterestClaim: mergedData.loanInterestClaim,
-    loanRecipientInvestmentAccountId: mergedData.loanRecipientInvestmentAccountId,
-
-    // Fund Fields
-    totalCommitmentAmount: mergedData.totalCommitmentAmount,
-    totalDistributionAmount: mergedData.totalDistributionAmount,
-    fundManagerName: mergedData.fundManagerName,
-    identification: (mergedData as any).identification,
-
-    // Custom fields to keep (IRR and MOIC)
-    irr: mergedData.irr,
-    moic: mergedData.moic,
-    // Map investmentRoles (from Layout) to investmentRoleReport (for Report)
-    ...(investmentRoles && {
-      investmentRoleReport: investmentRoles
-    }),
-    // Map Sub-Groups (from Layout) to Report field names (with "Report")
-    // IMPORTANT: Add date and scope to each sub-report
-    // IMPORTANT: Exclude BaseEntity fields from loaded investment data (they shouldn't be in report)
-    ...(formData.equityInvestment
-      ? {
-          equityInvestmentReport: [
-            {
-              // Only include equity report fields that match API schema
-              ...(formData.equityInvestment.id && { id: formData.equityInvestment.id }),
-              ...(formData.equityInvestment.version !== undefined && { version: formData.equityInvestment.version }),
-              marketValue: formData.equityInvestment.marketValue,
-              turnoverAmount: formData.equityInvestment.turnoverAmount,
-              ebitdaAmount: formData.equityInvestment.ebitdaAmount,
-              additionalProperties: formData.equityInvestment.additionalProperties,
-              date: reportDate,
-              scope: reportScope as ReportScope | undefined
-            }
-          ] as any[]
-        }
-      : {}),
-    ...(formData.liquidFundInvestment
-      ? {
-          liquidFundInvestmentReport: [
-            {
-              // Only include liquid fund-specific fields, not BaseEntity fields from loaded data
-              ...(formData.liquidFundInvestment.id && { id: formData.liquidFundInvestment.id }),
-              ...(formData.liquidFundInvestment.version !== undefined && {
-                version: formData.liquidFundInvestment.version
-              }),
-              proprietorName: formData.liquidFundInvestment.proprietorName,
-              bankName: formData.liquidFundInvestment.bankName,
-              bankAccountNumber: formData.liquidFundInvestment.bankAccountNumber,
-              earlyTerminationAllowed: formData.liquidFundInvestment.earlyTerminationAllowed,
-              interestRate: formData.liquidFundInvestment.interestRate,
-              maturityDate: formData.liquidFundInvestment.maturityDate,
-              interestPaymentFrequencyRef: formData.liquidFundInvestment.interestPaymentFrequencyRef,
-              additionalProperties: formData.liquidFundInvestment.additionalProperties,
-              date: reportDate,
-              scope: reportScope as ReportScope | undefined,
-              // Add liquidFundTypeId if present
-              ...(liquidFundTypeId ? { investmentLiquidFundTypeRef: liquidFundTypeId } : {})
-            } as any
-          ]
-        }
-      : {}),
-    ...(formData.realEstateInvestment
-      ? {
-          realEstateInvestmentReport: [
-            {
-              // Only include real estate report fields that match API schema
-              ...(formData.realEstateInvestment.id && { id: formData.realEstateInvestment.id }),
-              ...(formData.realEstateInvestment.version !== undefined && {
-                version: formData.realEstateInvestment.version
-              }),
-              numberOfUnits: formData.realEstateInvestment.numberOfUnits,
-              annualNetColdRent: formData.realEstateInvestment.annualNetColdRent,
-              actualAnnualExpenses: formData.realEstateInvestment.actualAnnualExpenses,
-              targetAnnualExpenses: formData.realEstateInvestment.targetAnnualExpenses,
-              funding: formData.realEstateInvestment.funding,
-              occupancyPercent: formData.realEstateInvestment.occupancyPercent,
-              size: formData.realEstateInvestment.size,
-              sizeMeasurementUnitRef: formData.realEstateInvestment.sizeMeasurementUnitRef,
-              liquidityForecast: formData.realEstateInvestment.liquidityForecast,
-              additionalProperties: formData.realEstateInvestment.additionalProperties,
-              date: reportDate,
-              scope: reportScope as ReportScope | undefined
-            }
-          ] as any[]
-        }
-      : {})
+  // Map Sub-Groups (from Layout) to Report field names (with "Report")
+  // Only include the sub-investment that matches the current investment group
+  if (groupCode === 'EQUITY' && formData.equityInvestment) {
+    reportPayload.equityInvestmentReport = [
+      {
+        ...formData.equityInvestment,
+        date: reportDate,
+        scope: reportScope as ReportScope | undefined
+      }
+    ] as any[]
+  } else if (groupCode === 'LIQUID_FUND' && formData.liquidFundInvestment) {
+    reportPayload.liquidFundInvestmentReport = [
+      {
+        ...formData.liquidFundInvestment,
+        date: reportDate,
+        scope: reportScope as ReportScope | undefined,
+        // Add liquidFundTypeId if present
+        ...(liquidFundTypeId ? { investmentLiquidFundTypeRef: liquidFundTypeId } : {})
+      } as any
+    ]
+  } else if (groupCode === 'REAL_ESTATE' && formData.realEstateInvestment) {
+    reportPayload.realEstateInvestmentReport = [
+      {
+        ...formData.realEstateInvestment,
+        date: reportDate,
+        scope: reportScope as ReportScope | undefined
+      }
+    ] as any[]
   }
 
   return reportPayload
