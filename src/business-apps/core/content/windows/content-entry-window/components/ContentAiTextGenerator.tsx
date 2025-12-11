@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react'
+import React, { useState, useCallback, useMemo, useEffect } from 'react'
 import {
   AiButton,
   Input,
@@ -23,66 +23,12 @@ import {
   TranslateIcon,
   ArrowLeftIcon,
   MagnifyingGlassIcon,
-  PaperPlaneTiltIcon
+  PaperPlaneTiltIcon,
+  XIcon,
+  ArrowClockwiseIcon
 } from '@phosphor-icons/react'
-import { AiResponsePopover } from './AiResponsePopover'
 import type { ContentAiTextGeneratorProps, AiActionType, AiResponse } from './aiTextGeneratorTypes'
-
-// Mock API function - to be replaced with real endpoint later
-const mockAiApiCall = async (
-  actionType: AiActionType,
-  title: string,
-  previewText: string,
-  content: string,
-  options?: { tone?: string; language?: string; prompt?: string }
-): Promise<AiResponse> => {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 1500))
-
-  // Mock responses based on action type
-  const mockResponses: Record<
-    AiActionType,
-    (original: { title: string; previewText: string; content: string }) => AiResponse
-  > = {
-    generate: () => ({
-      title: 'AI Generated Title: The Future of Technology',
-      previewText: 'This is an AI-generated preview text that provides a compelling introduction to the topic.',
-      content: '<p>This is AI-generated content that explores the fascinating world of technology and innovation.</p>'
-    }),
-    improve: original => ({
-      title: `[Improved] ${original.title}`,
-      previewText: `[Enhanced] ${original.previewText}`,
-      content: `<p>[Refined] ${original.content}</p>`
-    }),
-    summarize: original => ({
-      title: `Summary: ${original.title}`,
-      previewText: `Key points: ${original.previewText.substring(0, 100)}...`,
-      content: `<p>Summary: ${original.content.substring(0, 200)}...</p>`
-    }),
-    fixSpelling: original => ({
-      title: original.title, // Assuming title is already correct
-      previewText: original.previewText, // Assuming preview is already correct
-      content: `<p>${original.content} [Grammar and spelling corrected]</p>`
-    }),
-    shorten: original => ({
-      title: original.title,
-      previewText: original.previewText.substring(0, Math.min(original.previewText.length, 50)) + '...',
-      content: `<p>${original.content.substring(0, Math.min(original.content.length, 150))}...</p>`
-    }),
-    changeTone: original => ({
-      title: `[${options?.tone || 'Professional'}] ${original.title}`,
-      previewText: `[${options?.tone || 'Professional'}] ${original.previewText}`,
-      content: `<p>[${options?.tone || 'Professional'} tone] ${original.content}</p>`
-    }),
-    translate: original => ({
-      title: `[Translated to ${options?.language || 'German'}] ${original.title}`,
-      previewText: `[Translated to ${options?.language || 'German'}] ${original.previewText}`,
-      content: `<p>[Translated to ${options?.language || 'German'}] ${original.content}</p>`
-    })
-  }
-
-  return mockResponses[actionType]({ title, previewText, content })
-}
+import { flowbotClient } from '@/common/network/flowbot'
 
 export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
   title,
@@ -93,9 +39,8 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
   onContentChange,
   context
 }) => {
-  const [isMainPopoverOpen, setIsMainPopoverOpen] = useState(false)
-  const [isResponsePopoverOpen, setIsResponsePopoverOpen] = useState(false)
-  const [view, setView] = useState<'main' | 'generate' | 'translate' | 'changeTone'>('main')
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false)
+  const [view, setView] = useState<'main' | 'generate' | 'translate' | 'changeTone' | 'loading' | 'response'>('main')
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -108,32 +53,202 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
   const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null)
   const buttonRef = React.useRef<HTMLDivElement>(null)
 
+  // Debug: Track isPopoverOpen changes
+  useEffect(() => {
+    console.log('[AI Text Generator] isPopoverOpen changed', {
+      isPopoverOpen,
+      isLoading,
+      activeAction,
+      currentView: view,
+      stackTrace: new Error().stack
+    })
+  }, [isPopoverOpen, isLoading, activeAction, view])
+
   const handleAction = useCallback(
     async (actionType: AiActionType, options?: { tone?: string; language?: string; prompt?: string }) => {
+      console.log('[AI Text Generator] handleAction called', {
+        actionType,
+        options,
+        isPopoverOpenBefore: isPopoverOpen,
+        currentViewBefore: view,
+        hasResponse: !!response
+      })
+
+      // Use response values if available (for refining), otherwise use props
+      const inputTitle = response?.title || title
+      const inputPreviewText = response?.previewText || previewText
+      const inputContent = response?.content || content
+
       setActiveAction(actionType)
       setIsLoading(true)
       setError(null)
-      // Main-Popover OFFEN lassen, um Loading-State zu zeigen
       setPendingOptions(options || null)
-      setView('main')
+      setView('loading') // Switch to loading view
       setSearchQuery('')
 
       try {
-        const result = await mockAiApiCall(actionType, title, previewText, content, options)
+        // Map UI action types to API action types
+        const actionMap: Record<
+          AiActionType,
+          | 'improve_description'
+          | 'summarize'
+          | 'improve_writing'
+          | 'fix_spelling_grammar'
+          | 'make_shorter'
+          | 'change_tone'
+          | 'translate'
+        > = {
+          generate: 'improve_description',
+          improve: 'improve_writing',
+          summarize: 'summarize',
+          fixSpelling: 'fix_spelling_grammar',
+          shorten: 'make_shorter',
+          changeTone: 'change_tone',
+          translate: 'translate'
+        }
+
+        // Map tone values to API format
+        const toneMap: Record<string, 'professional' | 'empathetic' | 'casual' | 'neutral' | 'educational'> = {
+          Professional: 'professional',
+          Empathetic: 'empathetic',
+          Casual: 'casual',
+          Neutral: 'neutral',
+          Educational: 'educational',
+          Formal: 'professional',
+          Creative: 'casual',
+          Technical: 'professional'
+        }
+
+        const apiAction = actionMap[actionType]
+
+        // Prepare texts array
+        const textsToProcess: string[] = []
+        const fieldOrder: Array<'title' | 'previewText' | 'content'> = []
+
+        // For generate action, use the prompt if provided
+        if (actionType === 'generate' && options?.prompt) {
+          const prompt = options.prompt
+
+          // Add title generation if title is empty
+          if (!inputTitle.trim()) {
+            textsToProcess.push(`Generate a Title for: ${prompt}`)
+            fieldOrder.push('title')
+          }
+
+          // Add preview text generation if previewText is empty
+          if (!inputPreviewText.trim()) {
+            textsToProcess.push(`Generate a short preview text for: ${prompt}`)
+            fieldOrder.push('previewText')
+          }
+
+          // Always add content generation
+          textsToProcess.push(`Generate a full styled content text for: ${prompt}`)
+          fieldOrder.push('content')
+        } else {
+          // For other actions, use existing fields (from response if refining, otherwise from props)
+          if (inputTitle.trim()) {
+            textsToProcess.push(inputTitle)
+            fieldOrder.push('title')
+          }
+          if (inputPreviewText.trim()) {
+            textsToProcess.push(inputPreviewText)
+            fieldOrder.push('previewText')
+          }
+          if (inputContent.trim()) {
+            // Strip HTML tags from content for processing
+            const textContent = inputContent.replace(/<[^>]*>/g, '').trim()
+            if (textContent) {
+              textsToProcess.push(textContent)
+              fieldOrder.push('content')
+            }
+          }
+        }
+
+        // If no text to process, show error
+        if (textsToProcess.length === 0) {
+          throw new Error('Please provide at least one text field to process')
+        }
+
+        console.log('[AI Text Generator] Texts to process:', {
+          actionType,
+          textsToProcess,
+          textsCount: textsToProcess.length,
+          fieldOrder
+        })
+
+        // Set up request options
+        const requestOptions: {
+          tone?: 'professional' | 'empathetic' | 'casual' | 'neutral' | 'educational' | null
+          target_language?: string | null
+        } = {}
+
+        if (actionType === 'changeTone' && options?.tone) {
+          requestOptions.tone = toneMap[options.tone] || 'professional'
+        }
+
+        if (actionType === 'translate' && options?.language) {
+          requestOptions.target_language = options.language
+        }
+
+        // Set access token
+        flowbotClient.setAccessToken(context.accessToken || '')
+
+        // Call the API
+        const response = await flowbotClient.generateText(textsToProcess, apiAction, requestOptions)
+
+        // Map response back to AiResponse format
+        // Response generated_texts array corresponds to input texts array order
+        // Start with existing values (preserve what's already filled)
+        const result: AiResponse = {
+          title: inputTitle || '',
+          previewText: inputPreviewText || '',
+          content: inputContent || ''
+        }
+
+        // Map responses based on field order
+        response.generated_texts.forEach((generatedText, index) => {
+          const field = fieldOrder[index]
+          if (!field || !generatedText) return
+
+          if (field === 'title') {
+            result.title = generatedText
+          } else if (field === 'previewText') {
+            result.previewText = generatedText
+          } else if (field === 'content') {
+            // Format content with HTML paragraphs
+            result.content = `<p>${generatedText.replace(/\n/g, '</p><p>')}</p>`
+          }
+        })
+
+        console.log('[AI Text Generator] Mapped response:', {
+          fieldOrder,
+          responseCount: response.generated_texts.length,
+          result
+        })
+
         setResponse(result)
-        // Erst NACH erfolgreicher Antwort das Main-Popover schließen und Response-Popover öffnen
-        setIsMainPopoverOpen(false)
-        setIsResponsePopoverOpen(true)
+        console.log('[AI Text Generator] API call successful, switching to response view', {
+          result,
+          actionType
+        })
+
+        // Switch to response view in the same popover
+        setView('response')
       } catch (err) {
+        console.error('[AI Text Generator] API call failed', err)
         setError(err instanceof Error ? err.message : 'An error occurred')
-        // Bei Fehler auch Main-Popover schließen und Response-Popover öffnen
-        setIsMainPopoverOpen(false)
-        setIsResponsePopoverOpen(true)
+        console.log('[AI Text Generator] Error occurred, switching to response view', {
+          error: err instanceof Error ? err.message : 'An error occurred'
+        })
+
+        // Switch to response view to show error
+        setView('response')
       } finally {
+        console.log('[AI Text Generator] handleAction finally block, setting isLoading to false')
         setIsLoading(false)
       }
     },
-    [title, previewText, content]
+    [title, previewText, content, context.accessToken, response]
   )
 
   const handleLanguageSelect = useCallback(
@@ -146,12 +261,28 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
     [handleAction]
   )
 
-  const handleGenerateWithPrompt = useCallback(() => {
-    if (generatePrompt.trim()) {
-      handleAction('generate', { prompt: generatePrompt.trim() })
-      setGeneratePrompt('')
-    }
-  }, [generatePrompt, handleAction])
+  const handleGenerateWithPrompt = useCallback(
+    (e?: React.MouseEvent | React.KeyboardEvent) => {
+      console.log('[AI Text Generator] handleGenerateWithPrompt called', {
+        hasEvent: !!e,
+        eventType: e?.type,
+        generatePrompt: generatePrompt.trim(),
+        isPopoverOpen,
+        currentView: view
+      })
+      if (e) {
+        e.preventDefault()
+        e.stopPropagation()
+        console.log('[AI Text Generator] Event prevented and stopped')
+      }
+      if (generatePrompt.trim()) {
+        console.log('[AI Text Generator] Calling handleAction with generate')
+        handleAction('generate', { prompt: generatePrompt.trim() })
+        setGeneratePrompt('')
+      }
+    },
+    [generatePrompt, handleAction]
+  )
 
   const handleToneSelect = useCallback(
     (tone: string) => {
@@ -161,14 +292,31 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
   )
 
   const handleDiscard = useCallback(() => {
-    setIsResponsePopoverOpen(false)
+    setView('main')
     setResponse(null)
     setActiveAction(null)
     setPendingOptions(null)
+    setIsPopoverOpen(false)
   }, [])
 
   const handleRefine = useCallback(() => {
-    if (activeAction) {
+    if (!activeAction) return
+
+    // Navigate to the appropriate view based on action type to allow selecting new options
+    if (activeAction === 'generate') {
+      // Go back to generate view to enter a new prompt
+      setView('generate')
+      setGeneratePrompt('')
+    } else if (activeAction === 'translate') {
+      // Go back to translate view to select a different language
+      setView('translate')
+      setSelectedLanguage(null)
+    } else if (activeAction === 'changeTone') {
+      // Go back to changeTone view to select a different tone
+      setView('changeTone')
+    } else {
+      // For other actions (improve, summarize, etc.), re-run directly with same options
+      // This will use the response values as input (handled in handleAction)
       handleAction(activeAction, pendingOptions || undefined)
     }
   }, [activeAction, pendingOptions, handleAction])
@@ -178,10 +326,11 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
       onTitleChange(response.title)
       onPreviewTextChange(response.previewText)
       onContentChange(response.content)
-      setIsResponsePopoverOpen(false)
+      setView('main')
       setResponse(null)
       setActiveAction(null)
       setPendingOptions(null)
+      setIsPopoverOpen(false)
     }
   }, [response, onTitleChange, onPreviewTextChange, onContentChange])
 
@@ -252,23 +401,93 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
     )
   }, [searchQuery])
 
-  const renderMainView = () => {
-    // Wenn eine Action läuft, zeige Loading-State
-    if (isLoading && activeAction) {
-      return (
-        <div
-          className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8"
-          data-testid="ai-loading-state"
-        >
-          <Spinner className="gba:w-8 gba:h-8" />
-          <div className="gba:mt-4 gba:text-sm gba:font-medium">Generating AI content...</div>
-          <div className="gba:mt-1.5 gba:text-xs gba:text-muted-foreground">
-            Please wait while we process your request
-          </div>
-        </div>
-      )
-    }
+  const renderLoadingView = () => (
+    <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8" data-testid="ai-loading-state">
+      <Spinner className="gba:w-8 gba:h-8" />
+      <div className="gba:mt-4 gba:text-sm gba:font-medium">Generating AI content...</div>
+      <div className="gba:mt-1.5 gba:text-xs gba:text-muted-foreground">Please wait while we process your request</div>
+    </div>
+  )
 
+  const renderResponseView = () => (
+    <div className="gba:flex gba:flex-col" data-testid="ai-response-view">
+      {/* Header with Back Button */}
+      <div className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:pt-3 gba:pb-2 gba:border-b gba:border-border">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => {
+            setView('main')
+            setResponse(null)
+            setActiveAction(null)
+            setPendingOptions(null)
+          }}
+          className="gba:h-8 gba:w-8"
+          data-testid="ai-response-back-button"
+        >
+          <ArrowLeftIcon size={16} />
+        </Button>
+        <div className="gba:text-sm gba:font-medium">AI Response</div>
+      </div>
+
+      {/* Content */}
+      <div className="gba:p-3 gba:max-h-[500px] gba:overflow-y-auto">
+        {isLoading && renderLoadingView()}
+
+        {error && (
+          <div className="gba:text-center">
+            <div className="gba:text-sm gba:text-destructive gba:mb-3">Error generating content</div>
+            <div className="gba:text-xs gba:text-muted-foreground gba:mb-4">{error}</div>
+            <Button variant="ghost" size="sm" onClick={handleRefine} data-testid="ai-response-retry-btn">
+              Try Again
+            </Button>
+          </div>
+        )}
+
+        {!isLoading && !error && response && (
+          <>
+            {/* Show response content */}
+            {response.title && (
+              <div className="gba:mb-4">
+                <div className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-1">Title</div>
+                <div className="gba:text-sm">{response.title}</div>
+              </div>
+            )}
+            {response.previewText && (
+              <div className="gba:mb-4">
+                <div className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-1">Preview</div>
+                <div className="gba:text-sm">{response.previewText}</div>
+              </div>
+            )}
+            {response.content && (
+              <div className="gba:mb-4">
+                <div className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-1">Content</div>
+                <div className="gba:text-sm" dangerouslySetInnerHTML={{ __html: response.content }} />
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="gba:flex gba:items-center gba:justify-end gba:gap-2 gba:pt-2 gba:border-t gba:border-border gba:mt-4">
+              <Button variant="ghost" size="sm" onClick={handleDiscard} data-testid="ai-response-discard-btn">
+                <XIcon className="gba:mr-2" size={16} />
+                Discard
+              </Button>
+              <Button variant="ghost" size="sm" onClick={handleRefine} data-testid="ai-response-refine-btn">
+                <ArrowClockwiseIcon className="gba:mr-2" size={16} />
+                Refine
+              </Button>
+              <Button variant="default" size="sm" onClick={handleInsert} data-testid="ai-response-insert-btn">
+                <CheckCircleIcon className="gba:mr-2" size={16} />
+                Insert
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+
+  const renderMainView = () => {
     return (
       <div className="gba:flex gba:flex-col" data-testid="ai-main-popover-view">
         {/* Search Input */}
@@ -356,8 +575,10 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
             placeholder="Tell me the topic..."
             onKeyDown={e => {
               if (e.key === 'Enter' && !e.shiftKey && generatePrompt.trim()) {
+                console.log('[AI Text Generator] Enter key pressed in textarea')
                 e.preventDefault()
-                handleGenerateWithPrompt()
+                e.stopPropagation()
+                handleGenerateWithPrompt(e)
               }
             }}
             data-testid="ai-generate-prompt-input"
@@ -368,9 +589,19 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
               variant="default"
               className="gba:rounded-full"
               size="iconXs"
-              onClick={handleGenerateWithPrompt}
+              onClick={e => {
+                console.log('[AI Text Generator] Send button clicked', {
+                  isPopoverOpen,
+                  currentView: view,
+                  generatePrompt: generatePrompt.trim()
+                })
+                e.preventDefault()
+                e.stopPropagation()
+                handleGenerateWithPrompt(e)
+              }}
               disabled={!generatePrompt.trim()}
               data-testid="ai-generate-submit-button"
+              type="button"
             >
               <PaperPlaneTiltIcon size={16} />
               <span className="gba:sr-only">Generate</span>
@@ -456,7 +687,29 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
 
   return (
     <div className="gba:relative">
-      <Popover open={isMainPopoverOpen} onOpenChange={setIsMainPopoverOpen}>
+      <Popover
+        open={isPopoverOpen}
+        onOpenChange={open => {
+          console.log('[AI Text Generator] Popover onOpenChange called', {
+            open,
+            isPopoverOpen,
+            isLoading,
+            activeAction,
+            currentView: view,
+            stackTrace: new Error().stack
+          })
+          // Don't close if we're loading
+          if (!open && isLoading) {
+            console.log('[AI Text Generator] Ignoring popover close during loading')
+            return
+          }
+          setIsPopoverOpen(open)
+          // Reset to main view when closing
+          if (!open) {
+            setView('main')
+          }
+        }}
+      >
         <PopoverAnchor asChild>
           <div ref={buttonRef}>
             <AiButton
@@ -466,7 +719,7 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
               icon={<SparkleIcon size={16} />}
               autoExecuteSingleAction={false}
               emptyStateBehavior="enable"
-              onClick={() => setIsMainPopoverOpen(true)}
+              onClick={() => setIsPopoverOpen(true)}
               data-testid="content-ai-text-generator-button"
             >
               AI Assist
@@ -478,21 +731,10 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
           {view === 'generate' && renderGenerateView()}
           {view === 'translate' && renderTranslateView()}
           {view === 'changeTone' && renderChangeToneView()}
+          {view === 'loading' && renderLoadingView()}
+          {view === 'response' && renderResponseView()}
         </PopoverContent>
       </Popover>
-
-      <AiResponsePopover
-        isOpen={isResponsePopoverOpen}
-        onOpenChange={setIsResponsePopoverOpen}
-        response={response}
-        isLoading={isLoading}
-        error={error}
-        onDiscard={handleDiscard}
-        onRefine={handleRefine}
-        onInsert={handleInsert}
-        actionType={activeAction}
-        anchorRef={buttonRef}
-      />
     </div>
   )
 }

@@ -23,12 +23,6 @@ import { ContentEntryFormValues } from '../ContentEntryWindow'
 import { ContentAiTextGenerator } from '../components/ContentAiTextGenerator'
 import translations from '../_i18n'
 
-// Check if running in local development environment
-const isLocalEnvironment = (): boolean => {
-  if (typeof window === 'undefined') return false
-  return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-}
-
 interface ArticleSegmentProps {
   control: Control<ContentEntryFormValues>
   image: string | null
@@ -337,21 +331,19 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
 
       {/* RIGHT SIDE: Editor Area (Full Width) */}
       <div className="gba:flex-1 gba:flex gba:flex-col gba:space-y-4">
-        {/* AI Text Generator Button - Only show in local development */}
-        {isLocalEnvironment() && (
-          <div className="gba:flex gba:justify-end gba:mb-4">
-            <ContentAiTextGenerator
-              title={watchTitle || ''}
-              previewText={watchPreviewText || ''}
-              content={watchContent || ''}
-              onTitleChange={value => setValue('title', value)}
-              onPreviewTextChange={value => setValue('previewText', value)}
-              onContentChange={value => setValue('content', value)}
-              accessToken={context.accessToken || ''}
-              context={context}
-            />
-          </div>
-        )}
+        {/* AI Text Generator Button */}
+        <div className="gba:flex gba:justify-end gba:mb-4">
+          <ContentAiTextGenerator
+            title={watchTitle || ''}
+            previewText={watchPreviewText || ''}
+            content={watchContent || ''}
+            onTitleChange={value => setValue('title', value)}
+            onPreviewTextChange={value => setValue('previewText', value)}
+            onContentChange={value => setValue('content', value)}
+            accessToken={context.accessToken || ''}
+            context={context}
+          />
+        </div>
 
         {/* Content Group and Content Type - Above Image Upload */}
         <FormFieldGroup>
