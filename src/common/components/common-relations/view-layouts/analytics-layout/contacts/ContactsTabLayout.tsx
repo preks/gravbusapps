@@ -27,7 +27,6 @@ export interface ContactsTabLayoutProps {
   selectedTimeFilter: TimeFilter
   onTimeFilterChange: (filter: TimeFilter) => void
   contactsOverTime: ContactsOverTimePoint[]
-  contactsOverTimeLoading?: boolean
   topAccountsByContacts: Array<{ accountName: string; contactCount: number }>
   recentContacts: Array<{
     id: string
@@ -55,7 +54,6 @@ export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
   selectedTimeFilter,
   onTimeFilterChange,
   contactsOverTime,
-  contactsOverTimeLoading,
   topAccountsByContacts,
   recentContacts,
   insightsData,
@@ -156,8 +154,9 @@ export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
       </div>
 
       <ContactLifecycleChart
+        key={`contact-lifecycle-${selectedTimeFilter}`}
         data={contactsOverTime}
-        isLoading={contactsOverTimeLoading}
+        isLoading={trendLoading}
         selectedTimeFilter={selectedTimeFilter}
         onTimeFilterChange={onTimeFilterChange}
         moduleColor={moduleColor}

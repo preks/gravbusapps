@@ -77,7 +77,7 @@ export function buildOverviewProps(data: OverviewBuilderData, config: OverviewBu
       salesCycleLength: data.overviewData?.overview?.conversionMetrics?.salesCycleLength || 0
     },
     trendData: data.kpiTrendData || null,
-    trendLoading: false,
+    trendLoading: data.revenueLoading || data.pipelineHealthLoading || data.geographicLoading || data.activityLoading,
 
     // Optional: Custom KPI labels and visibility (IRM uses this)
     ...(config.kpiLabels && { kpiLabels: config.kpiLabels }),
@@ -90,7 +90,7 @@ export function buildOverviewProps(data: OverviewBuilderData, config: OverviewBu
     revenueTimeFilter: data.revenueTimeFilter,
     onRevenueTimeFilterChange: data.onRevenueTimeFilterChange,
     revenueTrends: data.revenueTrends || [],
-    revenueLoading: data.revenueLoading,
+    revenueLoading: data.revenueLoading || data.pipelineHealthLoading || data.geographicLoading || data.activityLoading,
     ...(config.revenueCurrency && { revenueCurrency: config.revenueCurrency }),
     ...(config.onRevenueCurrencyChange && { onRevenueCurrencyChange: config.onRevenueCurrencyChange }),
 
@@ -200,13 +200,13 @@ export function buildLeadsProps(data: LeadsBuilderData, config: LeadsBuilderConf
           velocityTrendData: data.leadsStaticData.velocityData || []
         }
       : null,
-    velocityLoading: data.leadsStaticLoading,
+    velocityLoading: data.leadsStaticLoading || data.leadsOverTimeLoading,
 
     // Lead Quality Matrix - includes leadsBySource for CRM
     leadQualityMatrix: data.leadsStaticData
       ? {
           leadsBySource: data.leadsStaticData.leadsBySource || [],
-          isLoading: data.leadsStaticLoading
+          isLoading: data.leadsStaticLoading || data.leadsOverTimeLoading
         }
       : undefined,
 
@@ -231,7 +231,7 @@ export function buildLeadsProps(data: LeadsBuilderData, config: LeadsBuilderConf
             }
           ],
           highQualityPercentage: data.leadsStaticData.highQualityPercentage || 0,
-          isLoading: data.leadsStaticLoading
+          isLoading: data.leadsStaticLoading || data.leadsOverTimeLoading
         }
       : undefined,
 
@@ -242,9 +242,9 @@ export function buildLeadsProps(data: LeadsBuilderData, config: LeadsBuilderConf
       percentage: x.percentage,
       conversionRate: x.conversionRate
     })),
-    leadsBySourceLoading: data.leadsStaticLoading,
+    leadsBySourceLoading: data.leadsStaticLoading || data.leadsOverTimeLoading,
     leadsByStatus: (data.leadsStaticData?.leadsByStatus || []).map(x => ({ status: x.status, count: x.count })),
-    leadsByStatusLoading: data.leadsStaticLoading,
+    leadsByStatusLoading: data.leadsStaticLoading || data.leadsOverTimeLoading,
     topOwners: (data.leadsStaticData?.topOwners || []).map(o => ({
       employeeId: o.employeeId,
       employeeName: o.employeeName,
@@ -313,8 +313,8 @@ export function buildAccountsProps(data: AccountsBuilderData, config: AccountsBu
     accountsByIndustry: data.accountsStaticData?.accountsByIndustry || [],
     accountsBySize: data.accountsStaticData?.accountsBySize || [],
     monthlyGrowthTrend: data.accountsStaticData?.monthlyGrowthTrend || [],
-    growthLoading: data.accountsStaticLoading,
-    healthLoading: data.accountsStaticLoading,
+    growthLoading: data.accountsStaticLoading || data.accountsOverTimeLoading,
+    healthLoading: data.accountsStaticLoading || data.accountsOverTimeLoading,
 
     // Optional: Top Accounts (CRM only)
     ...(config.showTopAccounts !== false &&
@@ -364,18 +364,22 @@ export interface OpportunitiesBuilderData {
   opportunitiesStaticLoading: boolean
   oppTrendData?: any // IRM uses dedicated trend hook
   oppLifecycleData: any[]
+  oppLifecycleLoading?: boolean
   oppTimeFilter: TimeFilter
   onOppTimeFilterChange: (filter: TimeFilter) => void
   pipelines: Array<{ id: string; name: string }>
   selectedPipelineId?: string
   onPipelineChange: (id: string) => void
   oppStageData: Array<{ stage: string; count: number; value: number }>
+  oppStageLoading?: boolean
   selectedStagePipelineId?: string
   onStagePipelineChange?: (id: string | undefined) => void
   topDeals?: any[]
   topDealsLoading?: boolean
   velocityData?: any
+  velocityLoading?: boolean
   dealHealthData?: any
+  dealHealthLoading?: boolean
   kpiCurrency?: string
   onKpiCurrencyChange?: (currency: string) => void
   topDealsCurrency?: string
@@ -436,7 +440,12 @@ export function buildOpportunitiesProps(data: OpportunitiesBuilderData, config: 
 
     // Trend data
     trendData,
-    trendLoading: data.opportunitiesStaticLoading,
+    trendLoading:
+      data.opportunitiesStaticLoading ||
+      data.oppLifecycleLoading ||
+      data.velocityLoading ||
+      data.dealHealthLoading ||
+      data.oppStageLoading,
 
     // Lifecycle chart
     lifecycleData: (data.oppLifecycleData || []).map(d => ({
@@ -444,6 +453,7 @@ export function buildOpportunitiesProps(data: OpportunitiesBuilderData, config: 
       opportunitiesCreated: d.opportunitiesCreated,
       opportunitiesWon: d.opportunitiesWon
     })),
+    lifecycleLoading: data.oppLifecycleLoading || false,
 
     // Pipelines
     pipelines: data.pipelines,
@@ -504,7 +514,9 @@ export interface ContactsBuilderData {
     contactsByType?: any[]
     recentContacts?: any[]
   }
+  contactInsightsLoading?: boolean
   contactQuality?: any
+  contactQualityLoading?: boolean
 }
 
 export function buildContactsProps(data: ContactsBuilderData, config: ContactsBuilderConfig) {
@@ -530,7 +542,11 @@ export function buildContactsProps(data: ContactsBuilderData, config: ContactsBu
             100
         )
       : 0,
-    trendLoading: data.contactsStaticLoading,
+    trendLoading:
+      data.contactsStaticLoading ||
+      data.contactsOverTimeLoading ||
+      data.contactInsightsLoading ||
+      data.contactQualityLoading,
 
     // Lifecycle chart
     selectedTimeFilter: data.contactsTimeFilter,
