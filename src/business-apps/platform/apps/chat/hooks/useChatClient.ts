@@ -385,22 +385,23 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       // Create updated message with correct status
       const messageWithStatus = { ...message, status: messageStatus }
 
-      // Batch message and conversation updates to reduce flickering
-      startTransition(() => {
-        // Always add message if it's for the active conversation
-        if (message.conversationId === currentActiveConversationId) {
-          console.log('[Chat] Adding message to active conversation:', message.id)
-          messagesHookRef.current?.addMessage(messageWithStatus)
-        } else {
-          console.log(
-            '[Chat] NOT adding message - conversation mismatch (message:',
-            message.conversationId,
-            'active:',
-            currentActiveConversationId,
-            ')'
-          )
-        }
+      // Add message immediately (not in startTransition) to prevent race conditions
+      // The addMessage function has proper deduplication logic that works with the latest state
+      if (message.conversationId === currentActiveConversationId) {
+        console.log('[Chat] Adding message to active conversation:', message.id)
+        messagesHookRef.current?.addMessage(messageWithStatus)
+      } else {
+        console.log(
+          '[Chat] NOT adding message - conversation mismatch (message:',
+          message.conversationId,
+          'active:',
+          currentActiveConversationId,
+          ')'
+        )
+      }
 
+      // Update conversation in a transition to avoid blocking message rendering
+      startTransition(() => {
         // Always update conversation last message (this updates the conversation list)
         conversationsHookRef.current?.updateConversationLastMessage(message.conversationId, messageWithStatus)
 
