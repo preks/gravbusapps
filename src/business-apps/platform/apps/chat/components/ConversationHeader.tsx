@@ -15,7 +15,7 @@ import {
   DialogTitle
 } from '@newwork/nw-design-system'
 import { ArrowLeft, DotsThreeVertical, SignOut, X, Info, Users } from '@phosphor-icons/react'
-import { UserIcon, Phone, Video, PhoneCall, UserPlus } from 'lucide-react'
+import { UserIcon, Phone, Video, PhoneCall, UserPlus, Bell } from 'lucide-react'
 import type { Conversation } from '../types'
 import type { UserPresence } from '../hooks/usePresence'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -35,6 +35,7 @@ interface ConversationHeaderProps {
   onRemove?: () => void
   onGroupSettings?: () => void
   onAddExpert?: () => void
+  onNudge?: () => void
   onAudioCall?: () => void
   onVideoCall?: () => void
   onJoinCall?: () => void
@@ -177,6 +178,7 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
   onRemove,
   onGroupSettings,
   onAddExpert,
+  onNudge,
   onAudioCall,
   onVideoCall,
   onJoinCall,
@@ -294,6 +296,20 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
         </div>
 
         <div className="gba:flex gba:items-center gba:gap-1">
+          {/* Nudge button - only for direct chats */}
+          {isDirectChat && onNudge && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onNudge}
+              className="gba:h-8 gba:w-8 gba:flex-shrink-0"
+              data-testid="conversation-nudge-button"
+              title={getTranslationFromI18nKeyAndLabel('chat.sendNudge', 'Send nudge')}
+            >
+              <Bell className="gba:w-4 gba:h-4" />
+            </Button>
+          )}
+
           {/* Call controls - show join button for active calls, or call buttons otherwise */}
           {isCallEnabled && !isInCall && (
             <>

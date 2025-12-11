@@ -15,6 +15,7 @@ import { MessageInput } from './components/MessageInput'
 import { CreateGroupModal } from './components/CreateGroupModal'
 import { GroupSettingsModal } from './components/GroupSettingsModal'
 import { AIThinkingIndicator, AIResponseRenderer } from './components/AIResponseRenderer'
+import { playNudgeSound, applyShakeAnimation, injectNudgeStyles } from './utils/nudgeUtils'
 import { IncomingCallDialog } from './components/IncomingCallDialog'
 import { IncomingGroupCallDialog } from './components/IncomingGroupCallDialog'
 import { CallModal } from './components/CallModal'
@@ -33,6 +34,7 @@ interface ChatProps extends BusinessAppContextProps {
 
 export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefixDataTestId = 'chat' }) => {
   const containerRef = useRef<HTMLDivElement>(null)
+  const chatViewRef = useRef<HTMLDivElement>(null)
   const [showConversationList, setShowConversationList] = useState(true)
   const [viewMode, setViewMode] = useState<ViewMode>('full')
   const [showCreateGroupModal, setShowCreateGroupModal] = useState(false)
@@ -45,6 +47,11 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
   const conversationIdFromUrlProcessed = useRef(false)
   const activeConversationIdRef = useRef<string | null>(null)
   const presenceInitializedUsersRef = useRef<Set<string>>(new Set())
+
+  // Inject nudge animation styles on mount
+  useEffect(() => {
+    injectNudgeStyles()
+  }, [])
 
   // Reset URL processing refs on mount to allow restoration after hard refresh
   useEffect(() => {
@@ -140,6 +147,8 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
     refreshConversations,
     startTyping,
     stopTyping,
+    sendNudge,
+    registerNudgeCallback,
     apiClient,
     wsClient,
     activeCalls
@@ -170,6 +179,29 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
       presenceInitializedUsersRef.current.clear()
     }
   }, [isConnected])
+
+  // Register nudge callback to handle incoming nudges
+  useEffect(() => {
+    if (!registerNudgeCallback) return
+
+    registerNudgeCallback(data => {
+      // Play sound
+      playNudgeSound()
+
+      // Shake animation
+      if (chatViewRef.current) {
+        applyShakeAnimation(chatViewRef.current)
+      }
+
+      // Add system message to chat
+      if (data.conversationId === activeConversationId && sendMessage) {
+        sendMessage(data.conversationId, `${data.fromUserName} sent you a nudge! 👋`, {
+          isSystemMessage: true,
+          nudgeFromUserId: data.fromUserId
+        })
+      }
+    })
+  }, [registerNudgeCallback, activeConversationId, sendMessage])
 
   // Convert current user to CallParticipant format
   const currentUserAsParticipant: CallParticipant | null = useMemo(() => {
@@ -764,6 +796,37 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
     setShowGroupSettingsModal(true)
   }, [])
 
+  const handleNudge = useCallback(() => {
+    if (!activeConversation || activeConversation.type !== 'direct' || !currentUser) return
+
+    // Get the other participant
+    const otherParticipant = activeConversation.participants?.find(
+      p => p.userId !== currentUser.id && p.user?.id !== currentUser.id
+    )
+
+    if (!otherParticipant?.userId) {
+      console.error('[Chat] Cannot send nudge: other participant not found')
+      return
+    }
+
+    // Send nudge via WebSocket
+    const success = sendNudge(activeConversation.id, otherParticipant.userId)
+
+    if (success) {
+      // Add local system message for the sender
+      const senderName =
+        currentUser.displayName ||
+        `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() ||
+        currentUser.username ||
+        'You'
+
+      sendMessage(activeConversation.id, `${senderName} sent a nudge! 👋`, {
+        isSystemMessage: true,
+        nudgeFromUserId: currentUser.id
+      })
+    }
+  }, [activeConversation, currentUser, sendNudge, sendMessage])
+
   const handleCloseGroupSettings = useCallback(() => {
     setShowGroupSettingsModal(false)
     // Refresh conversations to get updated participant data
@@ -1197,7 +1260,10 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
 
         {/* Active Conversation */}
         {showChatView && (
-          <div className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:h-full gba:max-h-full gba:overflow-hidden gba:relative">
+          <div
+            ref={chatViewRef}
+            className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:h-full gba:max-h-full gba:overflow-hidden gba:relative"
+          >
             {stableActiveConversation ? (
               <>
                 <ConversationHeader
@@ -1209,6 +1275,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
                   onAddExpert={
                     stableActiveConversation.type === 'group' ? () => setShowExpertSelector(true) : undefined
                   }
+                  onNudge={stableActiveConversation.type === 'direct' ? handleNudge : undefined}
                   onAudioCall={handleAudioCall}
                   onVideoCall={handleVideoCall}
                   onJoinCall={handleJoinActiveCall}

@@ -610,6 +610,15 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       setActiveCalls(map)
     }
 
+    const handleNudgeReceived = (data: { conversationId: string; fromUserId: string; fromUserName: string }) => {
+      console.log('[Chat] Received nudge from:', data.fromUserName, 'in conversation:', data.conversationId)
+
+      // Trigger nudge notification callback if registered
+      if (nudgeCallbackRef.current) {
+        nudgeCallbackRef.current(data)
+      }
+    }
+
     // Register listeners
     wsClient.onNewMessage(handleNewMessage)
     wsClient.onMessageUpdated(handleMessageUpdated)
@@ -623,6 +632,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     wsClient.onConversationCallStarted(handleConversationCallStarted)
     wsClient.onConversationCallEnded(handleConversationCallEnded)
     wsClient.onConversationActiveCalls(handleConversationActiveCalls)
+    wsClient.onNudgeReceived(handleNudgeReceived)
 
     // Request initial active calls snapshot
     wsClient.requestActiveCalls()
@@ -639,6 +649,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       wsClient.off('conversation:call-started', handleConversationCallStarted)
       wsClient.off('conversation:call-ended', handleConversationCallEnded)
       wsClient.off('conversation:active-calls', handleConversationActiveCalls)
+      wsClient.off('nudge:received', handleNudgeReceived)
     }
   }, [isConnected]) // Only re-register when connection changes, all other values accessed via refs
 
@@ -999,6 +1010,23 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     [conversationsHook, currentUser, activeConversationId]
   )
 
+  const sendNudge = useCallback((conversationId: string, toUserId: string) => {
+    if (!wsClientRef.current || !wsClientRef.current.isConnected()) {
+      console.error('[useChatClient] Cannot send nudge: WebSocket not connected')
+      return false
+    }
+
+    wsClientRef.current.sendNudge(conversationId, toUserId)
+    return true
+  }, [])
+
+  const registerNudgeCallback = useCallback(
+    (callback: (data: { conversationId: string; fromUserId: string; fromUserName: string }) => void) => {
+      nudgeCallbackRef.current = callback
+    },
+    []
+  )
+
   return {
     // State
     isConnected,
@@ -1039,6 +1067,8 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     refreshMessages: messagesHook.refresh,
     startTyping: typingHook.startTyping,
     stopTyping: typingHook.stopTyping,
+    sendNudge,
+    registerNudgeCallback,
     // Clients (for advanced usage)
     apiClient: apiClientRef.current,
     wsClient: wsClientRef.current,
