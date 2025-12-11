@@ -20,10 +20,6 @@ export const useTemplateComparison = (accessToken: string) => {
       setError(null)
 
       try {
-        console.log(
-          `Comparing templates: ${sourceInstance.name} → ${targetInstance.name}${retryCount > 0 ? ` (retry ${retryCount}/${maxRetries})` : ''}`
-        )
-
         // Use accessToken for instances without apiKey (current platform)
         const sourceApiKey = sourceInstance.apiKey || accessToken
         const targetApiKey = targetInstance.apiKey || accessToken
@@ -34,13 +30,10 @@ export const useTemplateComparison = (accessToken: string) => {
           templateApi.getTemplates(targetInstance.baseUrl, targetApiKey)
         ])
 
-        console.log(`Fetched ${sourceTemplates.length} templates from source, ${targetTemplates.length} from target`)
-
         // Compare templates using frontend logic
         const comparisonResults = comparisonEngine.compareTemplateLists(sourceTemplates, targetTemplates)
 
         setComparisons(comparisonResults)
-        console.log(`Comparison complete: ${comparisonResults.length} templates analyzed`)
 
         return comparisonResults
       } catch (err) {

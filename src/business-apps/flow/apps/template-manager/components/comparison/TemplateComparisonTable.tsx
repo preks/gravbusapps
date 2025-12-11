@@ -22,12 +22,13 @@ import {
 } from '@newwork/nw-design-system'
 import { TemplateComparison, ComparisonStatus } from '../../types/comparison'
 import { StatusBadge } from '../common/StatusBadge'
-import { FileCode } from 'lucide-react'
+import { FileCode, Download } from 'lucide-react'
 
 interface TemplateComparisonTableProps {
   comparisons: TemplateComparison[]
   onSyncClick: (comparison: TemplateComparison) => void
   onDiffClick: (comparison: TemplateComparison) => void
+  onExportClick?: (comparison: TemplateComparison, instanceType: 'source' | 'target') => void
   selectedTemplateIds?: Set<string>
   onSelectionChange?: (templateId: string, selected: boolean) => void
   bulkMode?: boolean
@@ -37,6 +38,7 @@ export const TemplateComparisonTable: React.FC<TemplateComparisonTableProps> = (
   comparisons,
   onSyncClick,
   onDiffClick,
+  onExportClick,
   selectedTemplateIds = new Set(),
   onSelectionChange,
   bulkMode = false
@@ -165,6 +167,17 @@ export const TemplateComparisonTable: React.FC<TemplateComparisonTableProps> = (
                         {comparison.source.isDraft && (
                           <span className="gba:text-xs gba:text-muted-foreground">(Draft)</span>
                         )}
+                        {onExportClick && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => onExportClick(comparison, 'source')}
+                            className="gba:h-6 gba:w-6 gba:p-0"
+                            title="Download from source"
+                          >
+                            <Download className="gba:h-3 gba:w-3" />
+                          </Button>
+                        )}
                       </div>
                     ) : (
                       <span className="gba:text-muted-foreground">N/A</span>
@@ -176,6 +189,17 @@ export const TemplateComparisonTable: React.FC<TemplateComparisonTableProps> = (
                         <span>v{comparison.target.version}</span>
                         {comparison.target.isDraft && (
                           <span className="gba:text-xs gba:text-muted-foreground">(Draft)</span>
+                        )}
+                        {onExportClick && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => onExportClick(comparison, 'target')}
+                            className="gba:h-6 gba:w-6 gba:p-0"
+                            title="Download from target"
+                          >
+                            <Download className="gba:h-3 gba:w-3" />
+                          </Button>
                         )}
                       </div>
                     ) : (

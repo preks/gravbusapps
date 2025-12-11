@@ -49,7 +49,8 @@ export const useTemplateSync = (accessToken: string) => {
       sourceInstance: FlowEngineInstance,
       targetInstance: FlowEngineInstance,
       mode: SyncMode,
-      options: SyncOptions
+      options: SyncOptions,
+      templateName?: string
     ): Promise<SyncResult> => {
       const startTime = Date.now()
 
@@ -109,7 +110,7 @@ export const useTemplateSync = (accessToken: string) => {
 
         const duration = Date.now() - startTime
 
-        return {
+        const result: SyncResult = {
           templateId,
           success: true,
           action: mode === 'create_version' ? 'created' : 'updated',
@@ -117,9 +118,35 @@ export const useTemplateSync = (accessToken: string) => {
           message: `Successfully synced to v${targetTemplate.version}`,
           duration
         }
+
+        // Create and save sync operation to history
+        const syncOp: SyncOperation = {
+          id: uuidv4(),
+          timestamp: new Date(),
+          sourceInstance,
+          targetInstance,
+          templates: [
+            {
+              templateId,
+              name: templateName || sourceTemplate.name,
+              sourceVersion: sourceTemplate.version,
+              targetVersion: targetTemplate.version,
+              mode,
+              status: 'success'
+            }
+          ],
+          options,
+          status: 'completed',
+          results: [result]
+        }
+
+        saveSyncToHistory(syncOp)
+
+        return result
       } catch (err) {
         const error = err instanceof Error ? err.message : 'Unknown error'
-        return {
+
+        const result: SyncResult = {
           templateId,
           success: false,
           action: 'skipped',
@@ -127,9 +154,35 @@ export const useTemplateSync = (accessToken: string) => {
           duration: Date.now() - startTime,
           error
         }
+
+        // Create and save failed sync operation to history
+        const syncOp: SyncOperation = {
+          id: uuidv4(),
+          timestamp: new Date(),
+          sourceInstance,
+          targetInstance,
+          templates: [
+            {
+              templateId,
+              name: templateName || 'Unknown Template',
+              sourceVersion: 0,
+              targetVersion: undefined,
+              mode,
+              status: 'failed',
+              error
+            }
+          ],
+          options,
+          status: 'completed',
+          results: [result]
+        }
+
+        saveSyncToHistory(syncOp)
+
+        return result
       }
     },
-    [accessToken]
+    [accessToken, saveSyncToHistory]
   )
 
   const syncMultiple = useCallback(
@@ -156,7 +209,6 @@ export const useTemplateSync = (accessToken: string) => {
 
       for (const template of templates) {
         // Update template status to 'syncing'
-        console.log(`[Bulk Sync] Starting template: ${template.name}`)
         setCurrentSync(prev =>
           prev
             ? {
@@ -175,7 +227,6 @@ export const useTemplateSync = (accessToken: string) => {
           const result = await syncTemplate(template.templateId, sourceInstance, targetInstance, template.mode, options)
 
           results.push(result)
-          console.log(`[Bulk Sync] Completed template: ${template.name} - ${result.success ? 'SUCCESS' : 'FAILED'}`)
 
           // Update template status to 'success' or 'failed'
           setCurrentSync(prev =>
@@ -217,12 +268,7 @@ export const useTemplateSync = (accessToken: string) => {
         }
       }
 
-      // Complete sync operation
-      console.log(
-        `[Bulk Sync] All templates completed. Success: ${results.filter(r => r.success).length}, Failed: ${results.filter(r => !r.success).length}`
-      )
-
-      // Use functional update to preserve the updated template statuses
+      // Complete sync operation - use functional update to preserve the updated template statuses
       let completedSync: SyncOperation | null = null
       setCurrentSync(prev => {
         if (!prev) return null

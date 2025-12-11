@@ -3,13 +3,16 @@
  * Manages flow templates across multiple instances
  */
 
-import React from 'react'
+import React, { useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ComparisonDashboard } from './components/comparison/ComparisonDashboard'
-import { Card, CardContent } from '@newwork/nw-design-system'
-import { Workflow, GitCompare, ArrowLeftRight } from 'lucide-react'
+import { SyncHistoryPage } from './components/history/SyncHistoryPage'
+import { InstanceManagementPage } from './components/instances/InstanceManagementPage'
+import { Card, CardContent, Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system'
+import { Workflow, GitCompare, ArrowLeftRight, History, Settings } from 'lucide-react'
 
 export const TemplateManager: React.FC<BusinessAppContextProps> = context => {
+  const [activeTab, setActiveTab] = useState<string>('comparison')
   return (
     <div className="gba:min-h-screen gba:bg-background">
       <div className="gba:container gba:mx-auto gba:p-6 gba:max-w-7xl gba:space-y-6">
@@ -52,8 +55,41 @@ export const TemplateManager: React.FC<BusinessAppContextProps> = context => {
           </CardContent>
         </Card>
 
-        {/* Main Dashboard */}
-        <ComparisonDashboard context={context} />
+        {/* Main Content with Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="gba:w-full gba:justify-start gba:bg-muted gba:p-1">
+            <TabsTrigger value="comparison">
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <GitCompare className="gba:h-4 gba:w-4" />
+                <span>Template Comparison</span>
+              </div>
+            </TabsTrigger>
+            <TabsTrigger value="history">
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <History className="gba:h-4 gba:w-4" />
+                <span>Sync History</span>
+              </div>
+            </TabsTrigger>
+            <TabsTrigger value="instances">
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <Settings className="gba:h-4 gba:w-4" />
+                <span>Instances</span>
+              </div>
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="comparison" className="gba:mt-6">
+            <ComparisonDashboard context={context} />
+          </TabsContent>
+
+          <TabsContent value="history" className="gba:mt-6">
+            <SyncHistoryPage context={context} />
+          </TabsContent>
+
+          <TabsContent value="instances" className="gba:mt-6">
+            <InstanceManagementPage context={context} />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   )

@@ -4,8 +4,9 @@
  */
 
 import axios from 'axios'
+import { createEnhancedError } from '../utils/errorHandler'
 
-interface FlowTemplate {
+export interface FlowTemplate {
   id?: string
   name: string
   description?: string
@@ -23,12 +24,9 @@ export const templateApi = {
    */
   async getTemplates(baseUrl: string, apiKey: string): Promise<FlowTemplate[]> {
     try {
-      console.log(`Fetching templates from: ${baseUrl}/api/templates`)
       const response = await axios.get(`${baseUrl}/api/templates`, {
         headers: { Authorization: `Bearer ${apiKey}` }
       })
-
-      console.log('Template API response:', response.data)
 
       // Handle different response formats
       let templates: FlowTemplate[]
@@ -47,14 +45,14 @@ export const templateApi = {
         throw new Error(`Unexpected response format. Expected array of templates, got: ${typeof response.data}`)
       }
 
-      console.log(`Successfully fetched ${templates.length} templates`)
       return templates
     } catch (error) {
-      if (axios.isAxiosError(error)) {
-        console.error('Axios error:', error.response?.status, error.response?.data)
-        throw new Error(`Failed to fetch templates: ${error.message}`)
-      }
-      throw error
+      console.error('Error fetching templates:', error)
+      const enhancedError = createEnhancedError(error, {
+        operation: 'Fetch Templates',
+        url: `${baseUrl}/api/templates`
+      })
+      throw enhancedError
     }
   },
 
@@ -63,32 +61,29 @@ export const templateApi = {
    */
   async getTemplateById(baseUrl: string, templateId: string, apiKey: string): Promise<FlowTemplate> {
     try {
-      console.log(`Fetching template by ID from: ${baseUrl}/api/templates/${templateId}`)
       const response = await axios.get(`${baseUrl}/api/templates/${templateId}`, {
         headers: { Authorization: `Bearer ${apiKey}` }
       })
-      console.log('Template fetched successfully:', response.data)
 
       // Handle different response formats
       // Format 1: { status: 'success', data: { template } }
       if (response.data.status === 'success' && response.data.data) {
-        console.log('Extracting template from response.data.data:', response.data.data)
         return response.data.data
       }
       // Format 2: { template: { ... } }
       if (response.data.template) {
-        console.log('Extracting template from response.data.template')
         return response.data.template
       }
       // Format 3: Direct template object { id, name, steps, ... }
-      console.log('Using response.data directly as template')
       return response.data
     } catch (error) {
       console.error(`Failed to fetch template ${templateId}:`, error)
-      if (axios.isAxiosError(error)) {
-        throw new Error(`Failed to fetch template ${templateId}: ${error.response?.status} ${error.message}`)
-      }
-      throw error
+      const enhancedError = createEnhancedError(error, {
+        operation: 'Fetch Template by ID',
+        templateId,
+        url: `${baseUrl}/api/templates/${templateId}`
+      })
+      throw enhancedError
     }
   },
 
@@ -97,20 +92,12 @@ export const templateApi = {
    */
   async createOrUpdateTemplate(baseUrl: string, template: FlowTemplate, apiKey: string): Promise<FlowTemplate> {
     try {
-      console.log(`Syncing template to: ${baseUrl}/api/templates`, {
-        templateName: template.name,
-        version: template.version,
-        isDraft: template.isDraft
-      })
-
       const response = await axios.post(`${baseUrl}/api/templates`, template, {
         headers: {
           Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json'
         }
       })
-
-      console.log('Template synced successfully:', response.data)
 
       // Handle different response formats
       if (response.data.template) {
@@ -119,13 +106,14 @@ export const templateApi = {
       return response.data
     } catch (error) {
       console.error('Failed to sync template:', error)
-      if (axios.isAxiosError(error)) {
-        const status = error.response?.status
-        const errorData = error.response?.data
-        console.error('Sync error details:', { status, errorData })
-        throw new Error(`Failed to sync template: ${status} - ${error.message}`)
-      }
-      throw error
+      const enhancedError = createEnhancedError(error, {
+        operation: 'Sync Template',
+        templateName: template.name,
+        templateId: template.id,
+        url: `${baseUrl}/api/templates`,
+        statusCode: axios.isAxiosError(error) ? error.response?.status : undefined
+      })
+      throw enhancedError
     }
   },
 

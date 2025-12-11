@@ -119,17 +119,23 @@ export const DiffViewerModal: React.FC<DiffViewerModalProps> = ({
 
         <Tabs defaultValue="clean" className="gba:flex gba:flex-col gba:flex-1 gba:overflow-hidden">
           <TabsList className="gba:w-full gba:justify-start">
-            <TabsTrigger value="clean" className="gba:flex gba:items-center gba:gap-2">
-              <Code className="gba:h-4 gba:w-4" />
-              Clean Diff (No Metadata)
+            <TabsTrigger value="clean">
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <Code className="gba:h-4 gba:w-4" />
+                <span>Clean Diff (No Metadata)</span>
+              </div>
             </TabsTrigger>
-            <TabsTrigger value="full" className="gba:flex gba:items-center gba:gap-2">
-              <FileJson className="gba:h-4 gba:w-4" />
-              Full Diff (With Metadata)
+            <TabsTrigger value="full">
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <FileJson className="gba:h-4 gba:w-4" />
+                <span>Full Diff (With Metadata)</span>
+              </div>
             </TabsTrigger>
-            <TabsTrigger value="preview" className="gba:flex gba:items-center gba:gap-2">
-              <Eye className="gba:h-4 gba:w-4" />
-              Side-by-Side Preview
+            <TabsTrigger value="preview">
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <Eye className="gba:h-4 gba:w-4" />
+                <span>Side-by-Side Preview</span>
+              </div>
             </TabsTrigger>
           </TabsList>
 

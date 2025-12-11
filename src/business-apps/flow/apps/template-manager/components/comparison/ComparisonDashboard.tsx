@@ -31,11 +31,14 @@ import { SyncProgressModal } from '../sync/SyncProgressModal'
 import { BulkSyncDialog } from '../sync/BulkSyncDialog'
 import { BulkSyncProgress } from '../sync/BulkSyncProgress'
 import { DiffViewerModal } from './DiffViewerModal'
+import { TemplateExportImport, exportTemplateToJson } from './TemplateExportImport'
+import { EnhancedErrorAlert } from '../error/EnhancedErrorAlert'
 import { TemplateComparison } from '../../types/comparison'
 import { SyncMode, SyncOptions, TemplateSyncItem } from '../../types/sync'
-import { FlowTemplate } from '@/business-apps/flow/apps/creator/types/template'
-import { templateApi } from '../../services/templateApi'
-import { Loader2, AlertCircle, ArrowRight, HelpCircle, Check } from 'lucide-react'
+import { EnhancedError } from '../../types/error'
+import { templateApi, FlowTemplate } from '../../services/templateApi'
+import { createEnhancedError } from '../../utils/errorHandler'
+import { Loader2, AlertCircle, ArrowRight, HelpCircle, Check, ArrowLeftRight } from 'lucide-react'
 
 export const ComparisonDashboard: React.FC<{ context: BusinessAppContextProps }> = ({ context }) => {
   const [sourceInstanceId, setSourceInstanceId] = useState<string>('')
@@ -43,7 +46,7 @@ export const ComparisonDashboard: React.FC<{ context: BusinessAppContextProps }>
   const [selectedComparison, setSelectedComparison] = useState<TemplateComparison | null>(null)
   const [showSyncDialog, setShowSyncDialog] = useState(false)
   const [showProgressModal, setShowProgressModal] = useState(false)
-  const [syncError, setSyncError] = useState<string | null>(null)
+  const [syncError, setSyncError] = useState<EnhancedError | null>(null)
   const [syncSuccess, setSyncSuccess] = useState<string | null>(null)
 
   // Bulk sync state
@@ -88,6 +91,38 @@ export const ComparisonDashboard: React.FC<{ context: BusinessAppContextProps }>
     }
   }
 
+  const handleSwapInstances = () => {
+    // Swap source and target
+    const tempSource = sourceInstanceId
+    setSourceInstanceId(targetInstanceId)
+    setTargetInstanceId(tempSource)
+
+    // Clear any existing comparison and selections since direction changed
+    setSelectedTemplateIds(new Set())
+    // Note: User will need to click "Compare Templates" again after swapping
+  }
+
+  const handleExport = async (comparison: TemplateComparison, instanceType: 'source' | 'target') => {
+    try {
+      const instance = instanceType === 'source' ? sourceInstance : targetInstance
+      if (!instance) {
+        console.error(`No ${instanceType} instance available for export`)
+        return
+      }
+
+      await exportTemplateToJson(comparison.templateId, comparison.name, instance, context.accessToken)
+    } catch (err) {
+      console.error('Export failed:', err)
+      setSyncError(
+        createEnhancedError(err as Error, {
+          operation: 'Export Template',
+          templateName: comparison.name,
+          instanceType
+        })
+      )
+    }
+  }
+
   const handleSyncClick = (comparison: TemplateComparison) => {
     setSelectedComparison(comparison)
     setShowSyncDialog(true)
@@ -95,7 +130,11 @@ export const ComparisonDashboard: React.FC<{ context: BusinessAppContextProps }>
 
   const handleDiffClick = async (comparison: TemplateComparison) => {
     if (!sourceInstance || !targetInstance) {
-      setSyncError('Source and target instances must be selected to view diff.')
+      setSyncError(
+        createEnhancedError(new Error('Source and target instances must be selected'), {
+          operation: 'View Template Diff'
+        })
+      )
       return
     }
 
@@ -124,14 +163,27 @@ export const ComparisonDashboard: React.FC<{ context: BusinessAppContextProps }>
       setDiffTargetTemplate(targetTemplate)
     } catch (err) {
       console.error('Failed to fetch templates for diff:', err)
-      setSyncError(err instanceof Error ? err.message : 'Failed to fetch templates for diff')
+      // If it's already an EnhancedError from templateApi, use it; otherwise create one
+      const enhancedError =
+        err && typeof err === 'object' && 'category' in err
+          ? (err as EnhancedError)
+          : createEnhancedError(err, {
+              operation: 'Fetch Templates for Diff',
+              templateId: comparison.templateId,
+              templateName: comparison.name
+            })
+      setSyncError(enhancedError)
       setShowDiffModal(false)
     }
   }
 
   const handleSync = async (mode: SyncMode, options: SyncOptions) => {
     if (!selectedComparison || !sourceInstance || !targetInstance) {
-      setSyncError('Missing required selection. Please ensure source, target, and template are selected.')
+      setSyncError(
+        createEnhancedError(new Error('Missing required selection'), {
+          operation: 'Sync Template'
+        })
+      )
       return
     }
 
@@ -141,34 +193,48 @@ export const ComparisonDashboard: React.FC<{ context: BusinessAppContextProps }>
     setSyncSuccess(null)
 
     try {
-      console.log('Starting sync:', {
-        template: selectedComparison.name,
-        source: sourceInstance.name,
-        target: targetInstance.name,
+      const result = await syncTemplate(
+        selectedComparison.templateId,
+        sourceInstance,
+        targetInstance,
         mode,
-        options
-      })
-
-      const result = await syncTemplate(selectedComparison.templateId, sourceInstance, targetInstance, mode, options)
-
-      console.log('Sync result:', result)
+        options,
+        selectedComparison.name
+      )
 
       if (result.success) {
-        console.log('✅ Sync successful!')
         setSyncSuccess(`Template "${selectedComparison.name}" synced successfully to ${targetInstance.name}!`)
 
-        // Close single sync modal automatically after showing success
+        // Close single sync modal and refresh comparison
         setTimeout(() => {
           setShowProgressModal(false)
+
+          // Refresh comparison to show updated state
+          setTimeout(() => {
+            handleCompare()
+          }, 500)
         }, 2000)
       } else {
-        console.log('❌ Sync failed:', result.error || result.message)
-        setSyncError(result.error || result.message || 'Sync failed for unknown reason')
+        setSyncError(
+          createEnhancedError(new Error(result.error || result.message || 'Sync failed'), {
+            operation: 'Sync Template',
+            templateName: selectedComparison.name,
+            templateId: selectedComparison.templateId
+          })
+        )
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Sync operation failed'
       console.error('Sync failed with error:', err)
-      setSyncError(errorMessage)
+      // If it's already an EnhancedError, use it; otherwise create one
+      const enhancedError =
+        err && typeof err === 'object' && 'category' in err
+          ? (err as EnhancedError)
+          : createEnhancedError(err, {
+              operation: 'Sync Template',
+              templateName: selectedComparison.name,
+              templateId: selectedComparison.templateId
+            })
+      setSyncError(enhancedError)
 
       // Keep modal open to show error
       setTimeout(() => {
@@ -207,7 +273,11 @@ export const ComparisonDashboard: React.FC<{ context: BusinessAppContextProps }>
 
   const handleBulkSync = async (mode: SyncMode, options: SyncOptions) => {
     if (!sourceInstance || !targetInstance || selectedTemplateIds.size === 0) {
-      setSyncError('Missing required selection for bulk sync.')
+      setSyncError(
+        createEnhancedError(new Error('Missing required selection for bulk sync'), {
+          operation: 'Bulk Sync Templates'
+        })
+      )
       return
     }
 
@@ -218,14 +288,6 @@ export const ComparisonDashboard: React.FC<{ context: BusinessAppContextProps }>
 
     try {
       const selectedComparisons = comparisons.filter(c => selectedTemplateIds.has(c.templateId))
-
-      console.log('Starting bulk sync:', {
-        count: selectedComparisons.length,
-        source: sourceInstance.name,
-        target: targetInstance.name,
-        mode,
-        options
-      })
 
       const syncItems: TemplateSyncItem[] = selectedComparisons.map(c => ({
         templateId: c.templateId,
@@ -238,8 +300,6 @@ export const ComparisonDashboard: React.FC<{ context: BusinessAppContextProps }>
 
       const result = await syncMultiple(syncItems, sourceInstance, targetInstance, options)
 
-      console.log('Bulk sync completed:', result)
-
       const successCount = result.results?.filter(r => r.success).length || 0
       const failedCount = result.results?.filter(r => !r.success).length || 0
 
@@ -249,12 +309,22 @@ export const ComparisonDashboard: React.FC<{ context: BusinessAppContextProps }>
         // Clear selection - modal stays open for user to review and manually close
         setSelectedTemplateIds(new Set())
       } else {
-        setSyncError('All templates failed to sync. Check individual errors for details.')
+        setSyncError(
+          createEnhancedError(new Error('All templates failed to sync'), {
+            operation: 'Bulk Sync Templates'
+          })
+        )
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Bulk sync operation failed'
       console.error('Bulk sync failed with error:', err)
-      setSyncError(errorMessage)
+      // If it's already an EnhancedError, use it; otherwise create one
+      const enhancedError =
+        err && typeof err === 'object' && 'category' in err
+          ? (err as EnhancedError)
+          : createEnhancedError(err, {
+              operation: 'Bulk Sync Templates'
+            })
+      setSyncError(enhancedError)
 
       setTimeout(() => {
         setShowProgressModal(false)
@@ -304,7 +374,7 @@ export const ComparisonDashboard: React.FC<{ context: BusinessAppContextProps }>
               {currentInstance && (
                 <div className="gba:bg-success-secondary gba:p-3 gba:rounded">
                   <p className="gba:text-success-secondary-foreground">
-                    ✅ Current platform detected: <strong>{currentInstance.name}</strong>
+                    Current platform detected: <strong>{currentInstance.name}</strong>
                   </p>
                   <p className="gba:text-xs gba:mt-1">{currentInstance.baseUrl}</p>
                 </div>
@@ -313,7 +383,7 @@ export const ComparisonDashboard: React.FC<{ context: BusinessAppContextProps }>
               {hasCatalogError && (
                 <div className="gba:bg-destructive-secondary gba:p-3 gba:rounded">
                   <p className="gba:text-destructive-secondary-foreground">
-                    ❌ External instances not loaded from catalog
+                    External instances not loaded from catalog
                   </p>
                   <p className="gba:text-xs gba:mt-1">Check browser console for GraphQL errors</p>
                 </div>
@@ -380,9 +450,9 @@ export const ComparisonDashboard: React.FC<{ context: BusinessAppContextProps }>
             </div>
           </CardHeader>
           <CardContent className="gba:space-y-6">
-            <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-6">
+            <div className="gba:flex gba:flex-col gba:md:flex-row gba:gap-6 gba:items-start gba:md:items-center">
               {/* Source Instance */}
-              <div className="gba:space-y-3">
+              <div className="gba:flex-1 gba:space-y-3 gba:w-full">
                 <div className="gba:flex gba:items-center gba:gap-2">
                   <div className="gba:h-2 gba:w-2 gba:rounded-full gba:bg-primary"></div>
                   <span className="gba:text-sm gba:font-medium gba:text-muted-foreground">Source</span>
@@ -399,8 +469,29 @@ export const ComparisonDashboard: React.FC<{ context: BusinessAppContextProps }>
                 )}
               </div>
 
+              {/* Swap Button */}
+              <div className="gba:flex gba:items-center gba:justify-center gba:pt-0 gba:md:pt-6">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={handleSwapInstances}
+                      disabled={!sourceInstanceId || !targetInstanceId || comparing}
+                      data-testid="swap-instances-button"
+                      className="gba:h-10 gba:w-10 gba:rotate-90 gba:md:rotate-0"
+                    >
+                      <ArrowLeftRight className="gba:h-4 gba:w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Swap source and target instances</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+
               {/* Target Instance */}
-              <div className="gba:space-y-3">
+              <div className="gba:flex-1 gba:space-y-3 gba:w-full">
                 <div className="gba:flex gba:items-center gba:gap-2">
                   <div className="gba:h-2 gba:w-2 gba:rounded-full gba:bg-success"></div>
                   <span className="gba:text-sm gba:font-medium gba:text-muted-foreground">Target</span>
@@ -418,8 +509,18 @@ export const ComparisonDashboard: React.FC<{ context: BusinessAppContextProps }>
               </div>
             </div>
 
-            {/* Compare Button */}
-            <div className="gba:flex gba:justify-end gba:pt-2">
+            {/* Compare and Import Buttons */}
+            <div className="gba:flex gba:justify-between gba:gap-2 gba:pt-2">
+              <TemplateExportImport
+                instances={instances}
+                accessToken={context.accessToken}
+                onImportSuccess={() => {
+                  // Refresh comparison after import
+                  if (sourceInstanceId && targetInstanceId) {
+                    setTimeout(() => handleCompare(), 1000)
+                  }
+                }}
+              />
               <Button onClick={handleCompare} disabled={!sourceInstanceId || !targetInstanceId || comparing} size="lg">
                 {comparing ? (
                   <>
@@ -438,24 +539,21 @@ export const ComparisonDashboard: React.FC<{ context: BusinessAppContextProps }>
         </Card>
 
         {/* Comparison Error */}
-        {/* Error Messages */}
         {comparisonError && (
-          <Alert variant="destructive">
-            <AlertCircle className="gba:h-4 gba:w-4" />
-            <AlertDescription>
-              <strong>Comparison Error:</strong> {comparisonError}
-            </AlertDescription>
-          </Alert>
+          <EnhancedErrorAlert
+            error={
+              typeof comparisonError === 'string'
+                ? createEnhancedError(new Error(comparisonError), { operation: 'Template Comparison' })
+                : comparisonError
+            }
+            onDismiss={() => {
+              // Comparison error is managed by the hook, cannot dismiss
+            }}
+          />
         )}
 
-        {syncError && (
-          <Alert variant="destructive">
-            <AlertCircle className="gba:h-4 gba:w-4" />
-            <AlertDescription>
-              <strong>Sync Error:</strong> {syncError}
-            </AlertDescription>
-          </Alert>
-        )}
+        {/* Sync Error */}
+        {syncError && <EnhancedErrorAlert error={syncError} onDismiss={() => setSyncError(null)} />}
 
         {syncSuccess && (
           <Alert variant="default" className="gba:border-success gba:bg-success-secondary">
@@ -489,6 +587,7 @@ export const ComparisonDashboard: React.FC<{ context: BusinessAppContextProps }>
               comparisons={comparisons}
               onSyncClick={handleSyncClick}
               onDiffClick={handleDiffClick}
+              onExportClick={handleExport}
               selectedTemplateIds={selectedTemplateIds}
               onSelectionChange={handleSelectionChange}
               bulkMode={true}
@@ -529,14 +628,12 @@ export const ComparisonDashboard: React.FC<{ context: BusinessAppContextProps }>
               // Refresh comparison when user closes the modal
               if (currentSync?.status === 'completed') {
                 setTimeout(() => {
-                  console.log('🔄 Refreshing comparison after modal close...')
                   handleCompare()
                 }, 500)
               }
             }}
             syncOperation={currentSync}
             onRefreshComparison={() => {
-              console.log('🔄 Manual refresh comparison...')
               handleCompare()
             }}
           />

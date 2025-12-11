@@ -115,8 +115,6 @@ export const useFlowInstances = (accessToken: string) => {
     setError(null)
 
     try {
-      console.log('useFlowInstances: Starting fetch with accessToken:', accessToken ? 'present' : 'missing')
-
       const allInstances: FlowEngineInstance[] = []
 
       // Check if local development instance is configured (NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL)
@@ -124,20 +122,16 @@ export const useFlowInstances = (accessToken: string) => {
       if (localDev) {
         // Use local development instance when custom URL is set
         allInstances.push(localDev)
-        console.log('useFlowInstances: Local development instance:', localDev.name, localDev.baseUrl)
       } else {
         // Use current platform instance when custom URL is NOT set (BASE_URL + "/flow-engine")
         const currentPlatform = getCurrentPlatformInstance()
         if (currentPlatform) {
           allInstances.push(currentPlatform)
-          console.log('useFlowInstances: Current platform instance:', currentPlatform.name)
         }
       }
 
       // Fetch external instances from catalog using GraphQL (avoids 401 errors)
       try {
-        console.log('useFlowInstances: Fetching from catalog via GraphQL...')
-
         const query = `
           query GetFlowEngineInstances {
             CatalogEntry(
@@ -157,7 +151,6 @@ export const useFlowInstances = (accessToken: string) => {
         `
 
         const response = await graphqlClient.request(query)
-        console.log('Catalog GraphQL response:', response)
 
         // GraphQL response structure: { CatalogEntry: [...] }
         const catalogEntries = response.CatalogEntry || []
@@ -180,7 +173,6 @@ export const useFlowInstances = (accessToken: string) => {
         })
 
         allInstances.push(...catalogInstances)
-        console.log(`Loaded ${catalogInstances.length} instances from catalog via GraphQL:`, catalogInstances)
       } catch (catalogErr) {
         // If catalog doesn't exist yet, just use current platform
         console.error('Catalog GraphQL fetch error:', catalogErr)
@@ -195,7 +187,6 @@ export const useFlowInstances = (accessToken: string) => {
       const sortedInstances = allInstances.sort((a, b) => a.order - b.order)
 
       setInstances(sortedInstances)
-      console.log(`Total ${sortedInstances.length} flow engine instances available`)
 
       return sortedInstances
     } catch (err) {
@@ -209,7 +200,6 @@ export const useFlowInstances = (accessToken: string) => {
   }, [graphqlClient])
 
   useEffect(() => {
-    console.log('useFlowInstances: useEffect triggered, accessToken:', accessToken ? 'exists' : 'missing')
     if (accessToken) {
       fetchInstances().catch(err => {
         console.error('useFlowInstances: fetchInstances failed:', err)
