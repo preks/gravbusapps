@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState } from 'react'
 import {
   Card,
   CardContent,
@@ -15,8 +15,12 @@ import {
 } from '@newwork/nw-design-system'
 import { AreaChart, Area, XAxis, YAxis } from 'recharts'
 import { ChartLineIcon, CalendarIcon, EyeIcon } from '@phosphor-icons/react'
+import { TIME_FILTER_OPTIONS, formatLifecycleXAxisLabel, getCurrentFilterLabel } from '../../shared/lifecycleChartUtils'
+import type { TimeFilter } from '../../shared/lifecycleChartUtils'
+import { LifecycleChartLoadingState } from '../../shared/LifecycleChartLoadingState'
 
-export type TimeFilter = 'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'
+// Re-export TimeFilter for backward compatibility
+export type { TimeFilter } from '../../shared/lifecycleChartUtils'
 
 interface AccountLifecycleChartProps {
   data: Array<{
@@ -29,10 +33,6 @@ interface AccountLifecycleChartProps {
   isLoading?: boolean
   selectedTimeFilter: TimeFilter
   onTimeFilterChange: (filter: TimeFilter) => void
-  visibleLines: { accountsCreated: boolean; accountsWithOpportunities: boolean; accountsActive: boolean }
-  onToggleLineVisibility: (key: 'accountsCreated' | 'accountsWithOpportunities' | 'accountsActive') => void
-  formatXAxisLabel: (value: string) => string
-  formatTooltip: (value: any, name: string, props: any) => any[]
   moduleColor?: string
 }
 
@@ -43,29 +43,15 @@ export const AccountLifecycleChart: React.FC<AccountLifecycleChartProps> = ({
   isLoading = false,
   selectedTimeFilter,
   onTimeFilterChange,
-  visibleLines,
-  onToggleLineVisibility,
-  formatXAxisLabel,
   moduleColor = 'primary'
 }) => {
-  const timeFilterOptions = [
-    { key: 'month' as TimeFilter, label: 'Last Month' },
-    { key: 'quarter' as TimeFilter, label: 'Last Quarter' },
-    { key: 'sixMonths' as TimeFilter, label: 'Last 6 Months' },
-    { key: 'year' as TimeFilter, label: 'Last Year' },
-    { key: 'historical' as TimeFilter, label: 'Historical' }
-  ]
+  const [visibleLines, setVisibleLines] = useState({
+    accountsCreated: true,
+    accountsWithOpportunities: true,
+    accountsActive: true
+  })
 
-  const lineOptions = [
-    { key: 'accountsCreated' as const, label: 'Accounts Created', dataKey: 'accountsCreated' },
-    {
-      key: 'accountsWithOpportunities' as const,
-      label: 'Accounts with Opportunities',
-      dataKey: 'accountsWithOpportunities'
-    },
-    { key: 'accountsActive' as const, label: 'Active Accounts', dataKey: 'accountsActive' }
-  ]
-
+  // Chart configuration - must be called before early return
   const chartConfig = useMemo(
     () => ({
       accountsCreated: { label: 'Accounts Created' },
@@ -75,23 +61,38 @@ export const AccountLifecycleChart: React.FC<AccountLifecycleChartProps> = ({
     []
   )
 
+  // Non-hook logic can come after hooks but before early returns
+  const lineOptions: Array<{ key: keyof typeof visibleLines; label: string }> = [
+    { key: 'accountsCreated', label: 'Accounts Created' },
+    { key: 'accountsWithOpportunities', label: 'Accounts with Opportunities' },
+    { key: 'accountsActive', label: 'Active Accounts' }
+  ]
+
+  const toggleLineVisibility = (lineKey: keyof typeof visibleLines) => {
+    setVisibleLines(prev => ({
+      ...prev,
+      [lineKey]: !prev[lineKey]
+    }))
+  }
+
+  const currentFilterLabel = getCurrentFilterLabel(selectedTimeFilter)
+
+  // Early return AFTER all hooks
+  if (isLoading) {
+    return (
+      <LifecycleChartLoadingState
+        title="Account Lifecycle Overview"
+        selectedTimeFilter={selectedTimeFilter}
+        lineOptions={lineOptions}
+        moduleColor={moduleColor}
+        dataTestIdPrefix={DATA_TEST_ID_PREFIX}
+      />
+    )
+  }
+
   const chartData = data
 
   const renderChartContent = () => {
-    if (isLoading) {
-      return (
-        <div
-          className="gba:flex gba:justify-center gba:items-center gba:h-[320px]"
-          data-testid={`${DATA_TEST_ID_PREFIX}-loading`}
-        >
-          <div className="gba:text-center">
-            <div className="gba:animate-spin gba:rounded-full gba:h-12 gba:w-12 gba:border-b-2 gba:border-primary gba:mx-auto" />
-            <p className="gba:mt-4 gba:text-sm gba:text-muted-foreground">Loading chart data...</p>
-          </div>
-        </div>
-      )
-    }
-
     if (chartData.length === 0) {
       return (
         <div className="gba:text-center gba:p-8" data-testid={`${DATA_TEST_ID_PREFIX}-empty-state`}>
@@ -107,12 +108,16 @@ export const AccountLifecycleChart: React.FC<AccountLifecycleChartProps> = ({
     return (
       <ChartContainer
         config={chartConfig}
-        className="gba:h-[320px] gba:w-full"
+        className="gba:h-[400px] gba:w-full gba:aspect-auto"
         data-testid={`${DATA_TEST_ID_PREFIX}-chart`}
       >
-        <AreaChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-          <XAxis dataKey="date" tick={{ fontSize: 12 }} tickFormatter={formatXAxisLabel} />
-          <YAxis tick={{ fontSize: 12 }} />
+        <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+          <XAxis
+            dataKey="date"
+            tickLine={false}
+            tickFormatter={value => formatLifecycleXAxisLabel(value, selectedTimeFilter)}
+          />
+          <YAxis tickLine={false} />
           <ChartTooltip content={<ChartTooltipContent labelKey="date" />} />
           <ChartLegend content={<ChartLegendContent />} />
           {visibleLines.accountsCreated && (
@@ -122,9 +127,8 @@ export const AccountLifecycleChart: React.FC<AccountLifecycleChartProps> = ({
               name="accountsCreated"
               stroke={`var(--color-accountsCreated)`}
               fill={`var(--color-accountsCreated)`}
-              fillOpacity={0.12}
+              fillOpacity={0.2}
               strokeWidth={2}
-              dot={false}
             />
           )}
           {visibleLines.accountsWithOpportunities && (
@@ -134,9 +138,8 @@ export const AccountLifecycleChart: React.FC<AccountLifecycleChartProps> = ({
               name="accountsWithOpportunities"
               stroke={`var(--color-accountsWithOpportunities)`}
               fill={`var(--color-accountsWithOpportunities)`}
-              fillOpacity={0.12}
+              fillOpacity={0.2}
               strokeWidth={2}
-              dot={false}
             />
           )}
           {visibleLines.accountsActive && (
@@ -146,9 +149,8 @@ export const AccountLifecycleChart: React.FC<AccountLifecycleChartProps> = ({
               name="accountsActive"
               stroke={`var(--color-accountsActive)`}
               fill={`var(--color-accountsActive)`}
-              fillOpacity={0.12}
+              fillOpacity={0.2}
               strokeWidth={2}
-              dot={false}
             />
           )}
         </AreaChart>
@@ -162,12 +164,12 @@ export const AccountLifecycleChart: React.FC<AccountLifecycleChartProps> = ({
         <div className="gba:flex gba:items-center gba:justify-between">
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
             <IconAvatar icon={ChartLineIcon} variant={moduleColor as any} size="md" decorative />
-            Account Lifecycle Overview
+            Account Lifecycle Overview ({currentFilterLabel})
           </CardTitle>
           <div className="gba:flex gba:items-center gba:gap-2">
             <CalendarIcon size={16} className="gba:text-gray-500" />
             <div className="gba:flex gba:gap-1" data-testid={`${DATA_TEST_ID_PREFIX}-time-filters`}>
-              {timeFilterOptions.map(option => (
+              {TIME_FILTER_OPTIONS.map(option => (
                 <Button
                   key={option.key}
                   variant={selectedTimeFilter === option.key ? 'default' : 'outline'}
@@ -185,7 +187,7 @@ export const AccountLifecycleChart: React.FC<AccountLifecycleChartProps> = ({
           <div className="gba:flex gba:items-center gba:gap-6">
             <div className="gba:flex gba:items-center gba:gap-2">
               <EyeIcon size={16} className="gba:text-gray-500" />
-              <span className="gba:text-sm gba:font-medium gba:text-gray-700">Show Lines:</span>
+              <span className="gba:text-sm gba:font-medium gba:text-gray-700">Show Data:</span>
             </div>
             <div className="gba:flex gba:flex-wrap gba:gap-4" data-testid={`${DATA_TEST_ID_PREFIX}-line-filters`}>
               {lineOptions.map(line => (
@@ -194,10 +196,10 @@ export const AccountLifecycleChart: React.FC<AccountLifecycleChartProps> = ({
                   className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer"
                   data-testid={`${DATA_TEST_ID_PREFIX}-line-filter-${line.key}`}
                 >
-                  <Checkbox checked={visibleLines[line.key]} onCheckedChange={() => onToggleLineVisibility(line.key)} />
+                  <Checkbox checked={visibleLines[line.key]} onCheckedChange={() => toggleLineVisibility(line.key)} />
                   <div
                     className="gba:w-3 gba:h-3 gba:rounded"
-                    style={{ backgroundColor: `var(--color-${line.dataKey})` }}
+                    style={{ backgroundColor: `var(--color-${line.key})` }}
                   />
                   <span className="gba:text-sm gba:text-gray-700">{line.label}</span>
                 </label>
