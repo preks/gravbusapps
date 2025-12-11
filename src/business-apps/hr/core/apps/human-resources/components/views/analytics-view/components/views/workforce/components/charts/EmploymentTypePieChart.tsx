@@ -45,41 +45,36 @@ const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({ data, l
     return chartData.reduce((sum, item) => sum + item.value, 0)
   }, [chartData])
 
-  // Custom active shape for the pie chart when hovering
-  const renderActiveShape = (props: any) => {
-    const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, payload, value } = props
-    if (!payload) return null
+  // Shape renderer using local hover state (no deprecated props)
+  const renderShape = (props: any) => {
+    const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, index } = props
+    const isActive = index === activeIndex
+    const adjustedOuter = isActive ? outerRadius + 10 : outerRadius
+    const adjustedInner = isActive ? innerRadius - 6 : innerRadius
 
     return (
       <g>
         <Sector
           cx={cx}
           cy={cy}
-          innerRadius={innerRadius}
-          outerRadius={outerRadius + 10}
+          innerRadius={adjustedInner}
+          outerRadius={adjustedOuter}
           startAngle={startAngle}
           endAngle={endAngle}
           fill={fill}
-          opacity={0.8}
+          opacity={isActive ? 0.9 : 1}
         />
-        <Sector
-          cx={cx}
-          cy={cy}
-          startAngle={startAngle}
-          endAngle={endAngle}
-          innerRadius={innerRadius - 6}
-          outerRadius={innerRadius - 2}
-          fill={fill}
-        />
-        <text x={cx} y={cy - 20} textAnchor="middle" fill="var(--nw-color-foreground)" fontSize={20} fontWeight="600">
-          {payload.name}
-        </text>
-        <text x={cx} y={cy + 10} textAnchor="middle" fill="var(--nw-color-muted-foreground)" fontSize={16}>
-          {value.toLocaleString()} {t('hr-analytics-employees')}
-        </text>
-        <text x={cx} y={cy + 35} textAnchor="middle" fill="var(--nw-color-primary)" fontSize={16} fontWeight="600">
-          {payload.percentage}%
-        </text>
+        {isActive && (
+          <Sector
+            cx={cx}
+            cy={cy}
+            startAngle={startAngle}
+            endAngle={endAngle}
+            innerRadius={adjustedInner - 2}
+            outerRadius={adjustedInner}
+            fill={fill}
+          />
+        )}
       </g>
     )
   }
@@ -156,8 +151,7 @@ const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({ data, l
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  activeIndex={activeIndex}
-                  activeShape={activeIndex >= 0 ? renderActiveShape : undefined}
+                  shape={renderShape}
                   innerRadius="60%"
                   outerRadius="80%"
                   dataKey="value"
@@ -174,8 +168,8 @@ const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({ data, l
                       strokeWidth={2}
                     />
                   ))}
-                  {/* Custom center label (hide while hovering to avoid overlap) */}
-                  {activeIndex === -1 && (
+                  {/* Custom center label: totals or active slice details */}
+                  {activeIndex === -1 ? (
                     <>
                       <text
                         x="50%"
@@ -198,6 +192,42 @@ const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({ data, l
                         fill="var(--nw-color-foreground)"
                       >
                         {totalEmployees.toLocaleString()}
+                      </text>
+                    </>
+                  ) : (
+                    <>
+                      <text
+                        x="50%"
+                        y="45%"
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        fontSize="18"
+                        fontWeight="600"
+                        fill="var(--nw-color-foreground)"
+                      >
+                        {chartData[activeIndex]?.name}
+                      </text>
+                      <text
+                        x="50%"
+                        y="56%"
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        fontSize="22"
+                        fontWeight="bold"
+                        fill="var(--nw-color-foreground)"
+                      >
+                        {chartData[activeIndex]?.value.toLocaleString()} {t('hr-analytics-employees')}
+                      </text>
+                      <text
+                        x="50%"
+                        y="66%"
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        fontSize="16"
+                        fontWeight="600"
+                        fill="var(--nw-color-primary)"
+                      >
+                        {chartData[activeIndex]?.percentage}%
                       </text>
                     </>
                   )}
