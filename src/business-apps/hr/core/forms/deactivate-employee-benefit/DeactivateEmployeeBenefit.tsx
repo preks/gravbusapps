@@ -92,7 +92,6 @@ const DeactivateEmployeeBenefitContent: React.FC<BusinessAppContextProps> = ({
           onSubmit={handleSubmit}
           submitEventType="pse_submit"
           cancelEventType="pse_abort"
-          showCancelButton={true}
           submitButtonText={t('modal-deactivate-submit-button')}
           submitButtonVariant="destructive"
           isSubmitDisabled={!isFormValid}

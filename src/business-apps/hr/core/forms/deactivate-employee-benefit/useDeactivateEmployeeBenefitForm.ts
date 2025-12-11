@@ -4,6 +4,7 @@ import { getDefaultEndDate } from '@/business-apps/hr/core/apps/employee-record/
 import { extractEmployeeId } from '@/business-apps/hr/core/utils/employeeIdUtils'
 import { useTaskCancellation } from '../../hooks/useTaskCancellation'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { FETCH_BENEFIT_VERSION_QUERY } from './DeactivateEmployeeBenefitQueries'
 import type { DeactivateEmployeeBenefitContextData, EmployeeDataResponse } from './types'
 import type { BenefitCatalogItem } from '@/business-apps/hr/core/apps/employee-record/components/tabs/compensation/types/benefitCatalogTypes'
 
@@ -39,6 +40,11 @@ export const useDeactivateEmployeeBenefitForm = ({
   accessToken,
   t
 }: UseDeactivateEmployeeBenefitFormParams): UseDeactivateEmployeeBenefitFormReturn => {
+  // Validate accessToken before initializing GraphQL client
+  if (!accessToken || accessToken.trim().length === 0) {
+    throw new Error('Access token is required for form initialization')
+  }
+
   const graphqlClient = useGraphQLClient(accessToken)
   const employeeProfile = useMemo(() => data?.employee?.EmployeeByPk ?? null, [data])
   const employeePosition = useMemo(() => data?.employee?.EmployeePosition?.[0], [data])
@@ -140,14 +146,6 @@ export const useDeactivateEmployeeBenefitForm = ({
     // Fetch current version from database for optimistic locking
     let benefitVersion: number
     try {
-      const FETCH_BENEFIT_VERSION_QUERY = `
-        query FetchBenefitVersion($benefitId: uuid!) {
-          EmployeeBenefit(where: { id: { _eq: $benefitId } }) {
-            id
-            version
-          }
-        }
-      `
       const response = await graphqlClient.request<{
         EmployeeBenefit: Array<{ id: string; version: number }>
       }>(FETCH_BENEFIT_VERSION_QUERY, { benefitId: selectedBenefit.employeeBenefitId })
@@ -159,10 +157,10 @@ export const useDeactivateEmployeeBenefitForm = ({
       benefitVersion = response.EmployeeBenefit[0].version
 
       if (typeof benefitVersion !== 'number') {
-        throw new Error('Benefit version is invalid or missing')
+        throw new TypeError('Benefit version is invalid or missing')
       }
     } catch (error) {
-      console.error('Error fetching benefit version:', error)
+      console.error('Error fetching benefit version: ' + (error instanceof Error ? error.message : 'Unknown error'))
       throw new Error(
         `Failed to fetch current benefit version: ${error instanceof Error ? error.message : 'Unknown error'}`
       )
