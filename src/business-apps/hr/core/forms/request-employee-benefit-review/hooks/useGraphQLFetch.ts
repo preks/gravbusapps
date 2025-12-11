@@ -13,7 +13,7 @@ interface UseGraphQLFetchOptions<T> {
 interface UseGraphQLFetchReturn<T> {
   data: T | null
   isLoading: boolean
-  error: unknown | null
+  error: unknown
 }
 
 /**
@@ -40,7 +40,7 @@ export function useGraphQLFetch<T = any>({
   const graphqlClient = useGraphQLClient(accessToken)
   const [data, setData] = useState<T | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<unknown | null>(null)
+  const [error, setError] = useState<unknown>(null)
 
   useEffect(() => {
     let cancelled = false

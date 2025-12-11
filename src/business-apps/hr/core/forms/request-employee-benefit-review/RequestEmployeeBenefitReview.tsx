@@ -123,7 +123,7 @@ export const RequestEmployeeBenefitReview: React.FC<BusinessAppContextProps> = (
           </div>
 
           {/* Additional Information Section - Justification */}
-          {benefitDetails && benefitDetails.justification && (
+          {benefitDetails?.justification && (
             <div className="gba:mb-4 gba:space-y-3" data-testid="request-employee-benefit-review-info-section">
               <h3 className="gba:text-lg gba:font-semibold gba:mb-4">
                 {t('request-benefit-review-additional-info', { defaultValue: 'Additional Information' })}
