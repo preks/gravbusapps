@@ -156,15 +156,6 @@ export const LeadView: React.FC<LeadViewProps> = context => {
       },
       buildRecordUrl: (id: string) => buildPlatformUrl('/platform/irm/lead-record', { leadId: id }),
       leadStatistics: leadStatisticsData,
-      processCompletionEvents: [
-        'com.newwork.process.taskCompletion',
-        'com.newwork.process.completion',
-        'com.newwork.process.continue',
-        'com.newwork.process.processCompletion',
-        'processCompletion',
-        'leadCompletion',
-        'leadCompleted'
-      ],
       rowActionsContextArray: [FlowContextName.investmentLeadEntity],
       buildRowActionsExternalContextData: (row: { original: InvestmentLead }) => ({
         leadId: row.original.id
