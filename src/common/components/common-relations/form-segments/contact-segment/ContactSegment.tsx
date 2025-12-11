@@ -257,24 +257,11 @@ const ContactSegment: React.FC<ContactSegmentProps> = ({
       const selectedContact = contacts.find(c => c.id === contactId)
       if (!selectedContact) return
 
-      // Create new contact association with nested contact object for display
-      // The nested object matches the structure from GraphQL fragments
-      const contactObject = {
-        id: selectedContact.id,
-        displayName: selectedContact.name,
-        fullName: selectedContact.name,
-        pictureThumbnail: selectedContact.pictureThumbnail,
-        jobPosition: selectedContact.extraInfo?.jobPosition,
-        department: selectedContact.extraInfo?.department,
-        email: selectedContact.extraInfo?.email,
-        phone: selectedContact.extraInfo?.phone
-      }
-
+      // Create new contact association - only store IDs, not nested objects
+      // Display data comes from contactRelations prop (from GraphQL) or contacts search results
       const newContact: any = {
         [contactIdFieldName]: contactId,
-        [contactTypeFieldName]: null,
-        // Add nested contact object for display (matches GraphQL structure)
-        contact: contactObject
+        [contactTypeFieldName]: null
       }
 
       append(newContact)

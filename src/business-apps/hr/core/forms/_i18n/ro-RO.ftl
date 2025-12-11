@@ -162,3 +162,25 @@ deactivate-benefit-review-employee-monthly-contribution = Contribuție lunară a
 deactivate-benefit-review-employee-contributions = Contribuții angajat
 deactivate-benefit-review-end-date = Dată de încheiere solicitată
 deactivate-benefit-review-reason = Motiv dezactivare
+
+# Request Employee Benefit Review Form
+request-benefit-review-title = Revizuire beneficiu pentru { $employeeName }
+request-benefit-review-initiated-by = Inițiat de { $initiatorName }
+request-benefit-review-benefit-details = Detalii beneficiu
+request-benefit-review-benefit-type = Tipul beneficiului
+request-benefit-review-provider = Furnizor
+request-benefit-review-yearly-value = Valoare anuală
+request-benefit-review-monthly-value = Valoare lunară
+request-benefit-review-period = Perioadă
+request-benefit-review-start-date = Dată de început preferată
+request-benefit-review-employee-yearly-contribution = Contribuție anuală angajat
+request-benefit-review-employee-monthly-contribution = Contribuție lunară angajat
+request-benefit-review-additional-info = Informații suplimentare
+request-benefit-review-justification = Justificare
+request-benefit-review-financial-details = Detalii financiare
+request-benefit-review-employee-contributions = Contribuții angajat
+request-benefit-review-approve = Aprobă
+request-benefit-review-reject = Respinge
+request-benefit-review-loading = Se încarcă datele despre beneficiu...
+request-benefit-review-error-title = Nu se pot încărca datele
+request-benefit-review-error-description = Eroare la încărcarea datelor despre beneficiile angajatului

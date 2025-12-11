@@ -12,9 +12,10 @@ import { PencilIcon } from '@phosphor-icons/react'
 interface TimeHistoryProps {
   employeeId: string
   accessToken: string
+  userId?: string
 }
 
-const TimeHistory: React.FC<TimeHistoryProps> = ({ employeeId, accessToken }) => {
+const TimeHistory: React.FC<TimeHistoryProps> = ({ employeeId, accessToken, userId }) => {
   const locale = getCurrentActiveUserLocale()
   const { currentMonth, prevMonth, nextMonth, entries, pageSize, setPageSize, error } = useTimeTrackingData({
     employeeId,
@@ -75,6 +76,7 @@ const TimeHistory: React.FC<TimeHistoryProps> = ({ employeeId, accessToken }) =>
           onPageSizeChange={setPageSize}
           accessToken={accessToken}
           employeeId={employeeId}
+          userId={userId}
         />
       </Card>
     </div>

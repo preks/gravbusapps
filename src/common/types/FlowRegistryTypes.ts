@@ -183,6 +183,7 @@ export enum FlowContextName {
   employeeProfilePicture = 'employeeProfilePicture',
   employeeAttendanceCorrectionRequest = 'employeeAttendanceCorrectionRequest',
   employeeBenefitRequest = 'requestEmployeeBenefit',
+  employeeBenefitDeactivate = 'deactivateEmployeeBenefit',
 
   updateEmployeePersonalData = 'updateEmployeePersonalData',
   updateEmployeeAddress = 'updateEmployeeAddress',

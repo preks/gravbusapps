@@ -6,6 +6,7 @@ import { EMPLOYEE_DATA_QUERY, GET_COUNTRY_CURRENCY_QUERY } from './RequestEmploy
 import { fetchBenefitProvidersForBenefit } from './utils/fetchBenefitProviders'
 import { fetchCountryCurrency } from './utils/fetchCountryCurrency'
 import { extractEmployeeId } from '@/business-apps/hr/core/utils/employeeIdUtils'
+import { extractSelectedBenefit } from '@/business-apps/hr/core/utils/benefitExtractionUtils'
 import type { RequestEmployeeBenefitContextData, EmployeeDataResponse } from './types'
 
 interface RequestEmployeeBenefitContextValue {
@@ -36,16 +37,8 @@ export const RequestEmployeeBenefitProvider: React.FC<ProviderProps> = ({
   // Extract employee ID from context using utility
   const employeeId = useMemo(() => extractEmployeeId(additionalData, userInfo), [additionalData, userInfo])
 
-  // Extract selected benefit from context or payload
-  const selectedBenefit = useMemo(() => {
-    const externalContext = (additionalData as any)?.externalContextData
-    return (
-      externalContext?.benefit ||
-      (additionalData as any)?.benefit ||
-      (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.benefit ||
-      null
-    )
-  }, [additionalData])
+  // Extract selected benefit using utility
+  const selectedBenefit = useMemo(() => extractSelectedBenefit(additionalData), [additionalData])
 
   const fetchData = useCallback(async () => {
     if (!accessToken || !employeeId) {

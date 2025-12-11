@@ -11,9 +11,10 @@ interface TimeTrackingTabProps extends BusinessAppContextProps {
   employee: any
   employeeId: string
   isSelfView: boolean
+  userId: string
 }
 
-const TimeTrackingTab: React.FC<TimeTrackingTabProps> = ({ employee, accessToken, employeeId }) => {
+const TimeTrackingTab: React.FC<TimeTrackingTabProps> = ({ employee, accessToken, employeeId, userId }) => {
   const {
     monthlyRequiredUntilYesterdayMinutes,
     monthlyWorkedUntilYesterdayMinutes,
@@ -52,7 +53,7 @@ const TimeTrackingTab: React.FC<TimeTrackingTabProps> = ({ employee, accessToken
 
       {/* Render only History content (no sub tabs) */}
       <div className="gba:mt-4" data-testid="history-content">
-        <TimeHistory employeeId={employeeId} accessToken={accessToken} />
+        <TimeHistory employeeId={employeeId} accessToken={accessToken} userId={userId} />
       </div>
     </div>
   )

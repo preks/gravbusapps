@@ -1,8 +1,9 @@
-import React, { useMemo, useCallback, useState } from 'react'
+import React, { useMemo, useCallback, useState, useRef } from 'react'
 import { Control } from 'react-hook-form'
 import {
   FormControl,
   FormField,
+  FormFieldGroup,
   FormItem,
   FormLabel,
   FormMessage,
@@ -10,9 +11,12 @@ import {
   Textarea,
   Button,
   Switch,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
   useTranslation
 } from '@newwork/nw-design-system'
-import { ImageIcon, CaretLeftIcon, CaretRightIcon } from '@phosphor-icons/react'
+import { ImageIcon, CaretLeftIcon, CaretRightIcon, Folder, Link } from '@phosphor-icons/react'
 import ReactQuill from 'react-quill'
 import { CatalogSelect } from '@/components/catalog-select'
 import { ContentEntryFormValues } from '../ContentEntryWindow'
@@ -41,6 +45,8 @@ interface ArticleSegmentProps {
   extractedContentGroupRef?: string
   onCreateCategory?: (label: string) => Promise<string>
   onCreateTag?: (label: string) => Promise<string>
+  onCategoriesChange?: (categories: string[]) => void
+  onTagsChange?: (tags: string[]) => void
 }
 
 const MAX_IMAGE_SIZE_MB = 5
@@ -62,16 +68,24 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
   watchSchedulePublication,
   setValue,
   context,
-  extractedContentGroupRef
+  extractedContentGroupRef,
+  onCreateCategory,
+  onCreateTag,
+  onCategoriesChange,
+  onTagsChange
 }) => {
   const { t } = useTranslation(translations)
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [dragActive, setDragActive] = useState(false)
+  const [uploadMenuOpen, setUploadMenuOpen] = useState(false)
+  const [urlPopoverOpen, setUrlPopoverOpen] = useState(false)
+  const [urlInput, setUrlInput] = useState('')
+  const [isLoadingUrl, setIsLoadingUrl] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const handleImageUpload = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0]
-      if (!file) return
-
+  // Process file (used by both file upload and drag & drop)
+  const processFile = useCallback(
+    (file: File) => {
       const fileSizeMB = file.size / (1024 * 1024)
       if (fileSizeMB > MAX_IMAGE_SIZE_MB) {
         alert(`Image size must be less than ${MAX_IMAGE_SIZE_MB}MB`)
@@ -100,6 +114,80 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
     },
     [setImage, setImageInfo, setImageFile, setValue]
   )
+
+  const handleImageUpload = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0]
+      if (!file) return
+      processFile(file)
+      // Clear input so same file can be selected again
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    },
+    [processFile]
+  )
+
+  // Drag and drop handlers
+  const handleDrop = useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      event.preventDefault()
+      event.stopPropagation()
+      setDragActive(false)
+
+      const file = event.dataTransfer.files?.[0]
+      if (file) {
+        processFile(file)
+      }
+    },
+    [processFile]
+  )
+
+  const handleDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    event.stopPropagation()
+    setDragActive(true)
+  }, [])
+
+  const handleDragLeave = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    event.stopPropagation()
+    setDragActive(false)
+  }, [])
+
+  // URL fetch handler
+  const handleUrlFetch = useCallback(async () => {
+    if (!urlInput.trim()) return
+
+    setIsLoadingUrl(true)
+    try {
+      const response = await fetch(urlInput.trim(), { mode: 'cors' })
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`)
+      }
+
+      const blob = await response.blob()
+      if (!blob.type.startsWith('image/')) {
+        throw new Error('URL does not point to an image')
+      }
+
+      // Convert blob to File
+      const fileName = urlInput.split('/').pop()?.split('?')[0] || 'image.jpg'
+      const fileExtension = fileName.split('.').pop() || 'jpg'
+      const mimeType = blob.type || `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`
+      const file = new File([blob], fileName, { type: mimeType })
+
+      // Process as regular file upload
+      processFile(file)
+      setUrlInput('')
+      setUrlPopoverOpen(false)
+      setUploadMenuOpen(false)
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to fetch image from URL')
+    } finally {
+      setIsLoadingUrl(false)
+    }
+  }, [urlInput, processFile])
 
   const handleImageRemove = useCallback(() => {
     setImage(null)
@@ -248,7 +336,7 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
       </div>
 
       {/* RIGHT SIDE: Editor Area (Full Width) */}
-      <div className="gba:flex-1 gba:flex gba:flex-col">
+      <div className="gba:flex-1 gba:flex gba:flex-col gba:space-y-4">
         {/* AI Text Generator Button - Only show in local development */}
         {isLocalEnvironment() && (
           <div className="gba:flex gba:justify-end gba:mb-4">
@@ -266,7 +354,7 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
         )}
 
         {/* Content Group and Content Type - Above Image Upload */}
-        <div className="gba:grid gba:grid-cols-2 gba:gap-4 gba:mb-4">
+        <FormFieldGroup>
           {/* Content Group Selection - Hidden if provided via props or additionalData */}
           {!extractedContentGroupRef && (
             <FormField
@@ -274,7 +362,7 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
               name="contentGroupRef"
               rules={{ required: t('group-required') }}
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="gba:flex-1">
                   <FormLabel>{t('content-group')}</FormLabel>
                   <FormControl>
                     <CatalogSelect
@@ -295,7 +383,7 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
             control={control as any}
             name="contentTypeRef"
             render={({ field }) => (
-              <FormItem>
+              <FormItem className="gba:flex-1">
                 <FormLabel>{t('content-type')}</FormLabel>
                 <FormControl>
                   <CatalogSelect
@@ -311,161 +399,204 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
               </FormItem>
             )}
           />
-        </div>
+        </FormFieldGroup>
 
-        {/* Image, Title, Preview - Fixed at top */}
-        <div className="gba:flex gba:flex-col gba:space-y-4">
-          {/* Image Upload - ÜBER dem Title */}
-          <div className="gba:space-y-2">
-            <div className="gba:flex gba:flex-col gba:items-center gba:gap-3 gba:p-4 gba:border gba:border-border gba:rounded-lg gba:bg-muted/20">
-              {image ? (
-                <div className="gba:relative gba:w-full">
-                  <img
-                    src={image}
-                    alt="Preview"
-                    className="gba:w-full gba:h-auto gba:rounded-lg gba:max-h-[200px] gba:object-cover"
-                  />
-                  {imageInfo && (
-                    <div className="gba:mt-2 gba:text-sm gba:text-muted-foreground gba:text-center">
-                      {imageInfo.name} ({imageInfo.size})
+        {/* Image Upload */}
+        <FormField
+          control={control as any}
+          name="contentImage"
+          render={() => (
+            <FormItem>
+              <FormLabel>{t('header-image') || 'Header Image'}</FormLabel>
+              <FormControl>
+                <div
+                  className={`gba:flex gba:flex-col gba:items-center gba:gap-3 gba:p-4 gba:border-2 gba:border-dashed gba:rounded-lg gba:transition-colors ${
+                    dragActive ? 'gba:border-primary gba:bg-primary/5' : 'gba:border-border gba:bg-muted/20'
+                  }`}
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                >
+                  {image ? (
+                    <div className="gba:relative gba:w-full">
+                      <img
+                        src={image}
+                        alt="Preview"
+                        className="gba:w-full gba:h-auto gba:rounded-lg gba:max-h-[200px] gba:object-cover"
+                      />
+                      {imageInfo && (
+                        <div className="gba:mt-2 gba:text-sm gba:text-muted-foreground gba:text-center">
+                          {imageInfo.name} ({imageInfo.size})
+                        </div>
+                      )}
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleImageRemove}
+                        className="gba:mt-2 gba:w-full"
+                        data-testid="content-entry-window-remove-image-button"
+                      >
+                        {t('remove-image') || 'Remove Image'}
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="gba:flex gba:flex-col gba:items-center gba:gap-3 gba:w-full">
+                      <div className="gba:flex gba:flex-col gba:items-center gba:gap-2 gba:text-center">
+                        <ImageIcon size={32} className="gba:text-muted-foreground" />
+                        <div className="gba:text-sm gba:text-muted-foreground">
+                          {dragActive ? 'Drop image here' : 'Drag and drop an image here, or'}
+                        </div>
+                      </div>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        className="gba:hidden"
+                        data-testid="content-entry-window-image-input"
+                      />
+                      <Popover open={uploadMenuOpen} onOpenChange={setUploadMenuOpen}>
+                        <PopoverTrigger asChild>
+                          <Button type="button" variant="outline" size="sm">
+                            <ImageIcon className="gba:mr-2" size={20} />
+                            {t('upload-image') || 'Upload Image'}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="gba:w-48 gba:p-2" align="start" sideOffset={8}>
+                          <div className="gba:flex gba:flex-col gba:gap-1">
+                            <button
+                              onClick={() => {
+                                fileInputRef.current?.click()
+                                setUploadMenuOpen(false)
+                              }}
+                              className="gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:text-foreground hover:gba:bg-accent gba:transition-colors gba:w-full gba:text-left"
+                            >
+                              <Folder className="gba:h-4 gba:w-4 gba:text-muted-foreground" weight="bold" />
+                              <span>From storage</span>
+                            </button>
+                            <Popover open={urlPopoverOpen} onOpenChange={setUrlPopoverOpen}>
+                              <PopoverTrigger asChild>
+                                <button
+                                  className="gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:text-foreground hover:gba:bg-accent gba:transition-colors gba:w-full gba:text-left"
+                                  onClick={e => {
+                                    e.stopPropagation()
+                                    setUrlPopoverOpen(true)
+                                  }}
+                                >
+                                  <Link className="gba:h-4 gba:w-4 gba:text-muted-foreground" weight="bold" />
+                                  <span>From URL</span>
+                                </button>
+                              </PopoverTrigger>
+                              <PopoverContent className="gba:w-80 gba:p-4" align="start" sideOffset={8}>
+                                <div className="gba:space-y-3">
+                                  <div className="gba:space-y-2">
+                                    <label className="gba:text-sm gba:font-medium">Enter image URL</label>
+                                    <Input
+                                      value={urlInput}
+                                      onChange={e => setUrlInput(e.target.value)}
+                                      placeholder="https://example.com/image.jpg"
+                                      onKeyDown={e => {
+                                        if (e.key === 'Enter' && !isLoadingUrl) {
+                                          handleUrlFetch()
+                                        }
+                                      }}
+                                      data-testid="content-entry-window-url-input"
+                                    />
+                                  </div>
+                                  <div className="gba:flex gba:gap-2 gba:justify-end">
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        setUrlInput('')
+                                        setUrlPopoverOpen(false)
+                                      }}
+                                    >
+                                      Cancel
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      onClick={handleUrlFetch}
+                                      disabled={!urlInput.trim() || isLoadingUrl}
+                                      data-testid="content-entry-window-fetch-url-button"
+                                    >
+                                      {isLoadingUrl ? 'Loading...' : 'Fetch Image'}
+                                    </Button>
+                                  </div>
+                                </div>
+                              </PopoverContent>
+                            </Popover>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                      <div className="gba:text-xs gba:text-muted-foreground">Max {MAX_IMAGE_SIZE_MB}MB</div>
                     </div>
                   )}
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    onClick={handleImageRemove}
-                    className="gba:mt-2 gba:w-full"
-                    data-testid="content-entry-window-remove-image-button"
-                  >
-                    {t('remove-image') || 'Remove Image'}
-                  </Button>
                 </div>
-              ) : (
-                <div className="gba:flex gba:flex-col gba:items-center gba:gap-2">
-                  <label className="gba:cursor-pointer">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      className="gba:hidden"
-                      data-testid="content-entry-window-image-input"
-                    />
-                    <Button type="button" variant="outline" size="sm" asChild>
-                      <span>
-                        <ImageIcon className="gba:mr-2" size={20} />
-                        {t('upload-image') || 'Upload Image'}
-                      </span>
-                    </Button>
-                  </label>
-                  <div className="gba:text-xs gba:text-muted-foreground">Max {MAX_IMAGE_SIZE_MB}MB</div>
-                </div>
-              )}
-            </div>
-          </div>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
-          {/* Title - ÜBER dem Editor */}
-          <FormField
-            control={control as any}
-            name="title"
-            rules={{ required: t('title-required') || 'Title is required' }}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('title') || 'Title'}</FormLabel>
-                <FormControl>
-                  <Input
-                    {...field}
-                    placeholder={t('title-placeholder') || 'Enter article title...'}
-                    className="gba:text-2xl gba:font-bold"
-                    data-testid="content-entry-window-title-input"
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        {/* Title */}
+        <FormField
+          control={control as any}
+          name="title"
+          rules={{ required: t('title-required') || 'Title is required' }}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('title') || 'Title'}</FormLabel>
+              <FormControl>
+                <Input
+                  {...field}
+                  placeholder={t('title-placeholder') || 'Enter article title...'}
+                  className="gba:text-2xl gba:font-bold"
+                  data-testid="content-entry-window-title-input"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
-          {/* Preview Text - ÜBER dem Editor */}
-          <FormField
-            control={control as any}
-            name="previewText"
-            rules={{ required: t('preview-required') || 'Preview text is required' }}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('preview-text') || 'Preview Text'}</FormLabel>
-                <FormControl>
-                  <Textarea
-                    {...field}
-                    placeholder={t('preview-text-placeholder') || 'Brief preview of the article...'}
-                    rows={3}
-                    data-testid="content-entry-window-preview-textarea"
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Categories and Tags - Below Preview Text */}
-          <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-            {/* Categories - Tags Mode */}
-            <FormField
-              control={control as any}
-              name="categories"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Categories (Optional)</FormLabel>
-                  <FormControl>
-                    <CatalogSelect
-                      catalogIdentifier="ContentCategory:v1"
-                      variant="combobox"
-                      multiple={true}
-                      value={field.value || []}
-                      onValueChange={value => {
-                        field.onChange(Array.isArray(value) ? value : [])
-                      }}
-                      data-testid="content-entry-window-categories-select"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Tags - Tags Mode */}
-            <FormField
-              control={control as any}
-              name="tags"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tags (Optional)</FormLabel>
-                  <FormControl>
-                    <CatalogSelect
-                      catalogIdentifier="ContentTag:v1"
-                      variant="combobox"
-                      multiple={true}
-                      value={field.value || []}
-                      onValueChange={value => {
-                        field.onChange(Array.isArray(value) ? value : [])
-                      }}
-                      data-testid="content-entry-window-tags-select"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-        </div>
+        {/* Preview Text */}
+        <FormField
+          control={control as any}
+          name="previewText"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('preview-text') || 'Preview Text'}</FormLabel>
+              <FormControl>
+                <Textarea
+                  {...field}
+                  placeholder={t('preview-text-placeholder') || 'Brief preview of the article...'}
+                  rows={3}
+                  data-testid="content-entry-window-preview-textarea"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         {/* Quill Editor - Takes full remaining height */}
         <div className="gba:flex-1 gba:flex gba:flex-col gba:border-t gba:border-border gba:overflow-hidden gba:min-h-0">
+          <style>{`
+            .ql-editor {
+              min-height: 50px;
+            }
+          `}</style>
           <FormField
             control={control as any}
             name="content"
             rules={{ required: t('content-required') || 'Content is required' }}
             render={({ field }) => (
               <FormItem className="gba:flex-1 gba:flex gba:flex-col gba:overflow-hidden gba:min-h-0">
+                <FormLabel>{t('content') || 'Content'}</FormLabel>
                 <FormControl className="gba:h-full gba:max-h-full gba:flex gba:flex-col gba:min-h-0">
                   <ReactQuill
                     theme="snow"
@@ -481,6 +612,73 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
             )}
           />
         </div>
+
+        {/* Categories and Tags - Below Editor */}
+        <FormFieldGroup>
+          {/* Categories - Tags Mode */}
+          <FormField
+            control={control as any}
+            name="categories"
+            render={({ field }) => (
+              <FormItem className="gba:flex-1">
+                <FormLabel>Categories</FormLabel>
+                <FormControl>
+                  <CatalogSelect
+                    catalogIdentifier="ContentCategory:v1"
+                    mode="tags"
+                    value={field.value || []}
+                    onValueChange={value => {
+                      const categories = Array.isArray(value) ? value : []
+                      field.onChange(categories)
+                      onCategoriesChange?.(categories)
+                    }}
+                    onCreateTag={async (tag: string) => {
+                      if (!onCreateCategory) {
+                        throw new Error('onCreateCategory is required for categories')
+                      }
+                      const newId = await onCreateCategory(tag)
+                      return newId
+                    }}
+                    data-testid="content-entry-window-categories-select"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Tags - Tags Mode */}
+          <FormField
+            control={control as any}
+            name="tags"
+            render={({ field }) => (
+              <FormItem className="gba:flex-1">
+                <FormLabel>Tags</FormLabel>
+                <FormControl>
+                  <CatalogSelect
+                    catalogIdentifier="ContentTag:v1"
+                    mode="tags"
+                    value={field.value || []}
+                    onValueChange={value => {
+                      const tags = Array.isArray(value) ? value : []
+                      field.onChange(tags)
+                      onTagsChange?.(tags)
+                    }}
+                    onCreateTag={async (tag: string) => {
+                      if (!onCreateTag) {
+                        throw new Error('onCreateTag is required for tags')
+                      }
+                      const newId = await onCreateTag(tag)
+                      return newId
+                    }}
+                    data-testid="content-entry-window-tags-select"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </FormFieldGroup>
       </div>
     </div>
   )

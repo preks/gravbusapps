@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { useTranslation, Badge } from '@newwork/nw-design-system'
 import { MessageCircle, Share2 } from 'lucide-react'
 import type { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
@@ -10,6 +10,7 @@ import { AppAction } from '@/components/app-action'
 import { getEntityTypeFromVariant, buildContentRecordUrl } from '@/business-apps/core/content/utils/shareUtils'
 import { buildReactionSummaryFromCounts } from '@/common/data/content/utils/reactionUtils'
 import { EmployeeHoverCard } from '@/common/components/employee'
+import { buildFileUrl } from '@/common/utils/fileUtils'
 import dayjs from 'dayjs'
 import translations from '../../_i18n'
 
@@ -77,6 +78,20 @@ const ContentCard: React.FC<ContentCardProps> = ({
   const commentCount =
     item.descendantContentEntriesAggregate?.aggregate?.count || item.childContentEntriesAggregate?.aggregate?.count || 0
 
+  // Parse picture JSON and build URL, with fallback for old format
+  const imageUrl = useMemo(() => {
+    if (!item.picture) return null
+    try {
+      const fileInfo = typeof item.picture === 'string' ? JSON.parse(item.picture) : item.picture
+      if (fileInfo?.path) {
+        return buildFileUrl(fileInfo)
+      }
+    } catch {
+      // Not JSON, fall through
+    }
+    return item.picture // Old format: direct URL or base64
+  }, [item.picture])
+
   return (
     <button
       type="button"
@@ -94,8 +109,8 @@ const ContentCard: React.FC<ContentCardProps> = ({
     >
       {/* Image */}
       <div className="gba:w-full gba:h-[200px] gba:overflow-hidden gba:relative">
-        {item.picture ? (
-          <img src={item.picture} alt={t(`${variant}_image`)} className="gba:w-full gba:h-full gba:object-cover" />
+        {imageUrl ? (
+          <img src={imageUrl} alt={t(`${variant}_image`)} className="gba:w-full gba:h-full gba:object-cover" />
         ) : (
           <div className="gba:w-full gba:h-full gba:flex gba:items-center gba:justify-center gba:bg-muted">
             <span className="gba:text-muted-foreground gba:text-xl gba:font-bold">{t('no_image')}</span>

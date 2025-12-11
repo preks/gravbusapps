@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useCallback } from 'react'
+import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -6,10 +6,12 @@ import * as z from 'zod'
 import { useTranslation } from '@newwork/nw-design-system'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { CatalogSelect } from '@/components/catalog-select'
-import { useCreateCatalogEntry } from '@/common/data/catalog/hooks/useCreateCatalogEntry'
+import { useCreateCatalogEntries } from '@/common/data/catalog/hooks/useCreateCatalogEntries'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { ContentRole } from '@/common/data/content/types/contentEnums'
 import { buildContentEntryPayload } from '@/common/data/content/payloads/contentEntryPayloads'
+import { useContentEntry } from '@/common/data/content/hooks/useContentEntry'
+import { buildFileUrl } from '@/common/utils/fileUtils'
 import { ArticleSegment, QuestionSegment, DocumentSegment } from './segments'
 import translations from './_i18n'
 
@@ -44,14 +46,34 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
   const { t } = useTranslation(translations)
   const catalogContext = CatalogSelect.useContext()
   const { validateField } = CatalogSelect.useValidation()
-  const { createCatalogEntry } = useCreateCatalogEntry(context)
+  const { createCatalogEntries } = useCreateCatalogEntries(context)
   const fileClient = useFileClient(context)
   // Extract props to mark as used
   const { contentId, contentGroupRef } = context
 
+  // Extract contentEntryId from additionalData (for update mode)
+  const contentEntryId =
+    contentId ||
+    context.additionalData?.contentEntryId ||
+    context.additionalData?.psi_taskPayload?.psi_initialParameters?.contentEntryId
+
+  // Memoize query options to prevent re-fetching
+  const queryOptions = useMemo(() => ({ config: 'detail' as const }), [])
+
+  // Load content entry data if in update mode
+  const { entry: loadedContentEntry, isLoading: contentEntryLoading } = useContentEntry(contentEntryId || '', {
+    accessToken: context.accessToken,
+    queryOptions
+  })
+
   const [image, setImage] = useState<string | null>(null)
   const [imageInfo, setImageInfo] = useState<{ name: string; size: string } | null>(null)
   const [imageFile, setImageFile] = useState<File | null>(null)
+  const imageBlobUrlRef = useRef<string | null>(null)
+
+  // Track tags/categories that need to be created (labels, not IDs)
+  const [categoriesToCreate, setCategoriesToCreate] = useState<Set<string>>(new Set())
+  const [tagsToCreate, setTagsToCreate] = useState<Set<string>>(new Set())
 
   // Helper function to generate thumbnail from image file or base64
   const generateThumbnail = useCallback(
@@ -116,51 +138,60 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
     []
   )
 
-  // Helper functions to create catalog entries on demand
-  const onCreateCategory = useCallback(
-    async (label: string): Promise<string> => {
-      try {
-        const response = await createCatalogEntry('ContentCategory', 'v1', {
-          code: label.toUpperCase().replaceAll(/\s+/g, '_'),
-          value: label,
-          translations: []
-        })
-        return response.id
-      } catch (error) {
-        console.error('Error creating category:', error)
-        throw new Error(`Failed to create category: ${label}`)
-      }
-    },
-    [createCatalogEntry]
-  )
+  // Handler for when a new category tag is created - add to tracking set
+  const onCreateCategory = useCallback((label: string): Promise<string> => {
+    setCategoriesToCreate(prev => new Set([...prev, label]))
+    // Return a promise that resolves to the label (will be replaced with ID in handlePreSubmit)
+    return Promise.resolve(label)
+  }, [])
 
-  const onCreateTag = useCallback(
-    async (label: string): Promise<string> => {
-      try {
-        const response = await createCatalogEntry('ContentTag', 'v1', {
-          code: label.toUpperCase().replaceAll(/\s+/g, '_'),
-          value: label,
-          translations: []
-        })
-        return response.id
-      } catch (error) {
-        console.error('Error creating tag:', error)
-        throw new Error(`Failed to create tag: ${label}`)
-      }
-    },
-    [createCatalogEntry]
-  )
+  // Handler for when a new tag is created - add to tracking set
+  const onCreateTag = useCallback((label: string): Promise<string> => {
+    setTagsToCreate(prev => new Set([...prev, label]))
+    // Return a promise that resolves to the label (will be replaced with ID in handlePreSubmit)
+    return Promise.resolve(label)
+  }, [])
 
-  // Extract contentGroupRef from props or additionalData
+  // Handler to sync categoriesToCreate with form value changes
+  const handleCategoriesChange = useCallback((newCategories: string[]) => {
+    setCategoriesToCreate(prev => {
+      const updated = new Set(prev)
+      // Remove any categories that are no longer in the form value
+      prev.forEach(label => {
+        if (!newCategories.includes(label)) {
+          updated.delete(label)
+        }
+      })
+      return updated
+    })
+  }, [])
+
+  // Handler to sync tagsToCreate with form value changes
+  const handleTagsChange = useCallback((newTags: string[]) => {
+    setTagsToCreate(prev => {
+      const updated = new Set(prev)
+      // Remove any tags that are no longer in the form value
+      prev.forEach(label => {
+        if (!newTags.includes(label)) {
+          updated.delete(label)
+        }
+      })
+      return updated
+    })
+  }, [])
+
+  // Extract contentGroupRef from props, additionalData, or loaded entry
   const extractedContentGroupRef =
     contentGroupRef ||
     context.additionalData?.contentGroupRef ||
     context.additionalData?.contentGroup ||
     context.additionalData?.psi_taskPayload?.psi_initialParameters?.contentGroupRef ||
-    context.additionalData?.psi_taskPayload?.psi_initialParameters?.contentGroup
+    context.additionalData?.psi_taskPayload?.psi_initialParameters?.contentGroup ||
+    loadedContentEntry?.contentGroupRef ||
+    null
 
-  // Use contentId prop
-  const extractedContentId = contentId
+  // Use contentEntryId (from props or additionalData)
+  const extractedContentId = contentEntryId
 
   // Author info from context
   const authorName = useMemo(() => {
@@ -171,7 +202,7 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
     return null
   }, [context.userInfo])
 
-  // Zod Schema with conditional validation for contentTypeRef
+  // Zod Schema with conditional validation for contentTypeRef and version
   const schema = useMemo(
     () =>
       z
@@ -179,9 +210,9 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
           id: z.string().optional(),
           version: z.number().optional(),
           title: z.string().min(1, t('title-required')),
-          previewText: z.string().min(1, t('preview-required')),
+          previewText: z.string().optional(),
           content: z.string().min(1, t('content-required')),
-          contentImage: z.string().nullable(),
+          contentImage: z.string().nullable().optional(),
           contentGroupRef: z.string().min(1, t('group-required')),
           contentTypeRef: z.string().optional(),
           role: z.string().optional(),
@@ -196,6 +227,14 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
           tags: z.array(z.string()).optional()
         })
         .superRefine((data, ctx) => {
+          // Version is required when id is present (update mode)
+          if (data.id && (data.version === undefined || data.version === null)) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: t('version-required') || 'Version is required for updates',
+              path: ['version']
+            })
+          }
           // Conditional validation: contentTypeRef required only when it has options
           if (validateField('contentTypeRef')) {
             if (!data.contentTypeRef || data.contentTypeRef.trim() === '') {
@@ -228,14 +267,71 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
     [t, validateField]
   )
 
-  const defaultValues = useMemo(
-    () => ({
-      id: context.contentId || '',
+  // Map loaded content entry to form values
+  const mappedFormValues = useMemo(() => {
+    if (!loadedContentEntry) {
+      return null
+    }
+
+    // Extract categories and tags IDs
+    const categories =
+      loadedContentEntry.contentEntryCategories
+        ?.map(cat => cat.contentCategoryRef || cat.contentCategory?.id)
+        .filter(Boolean) || []
+    const tags =
+      loadedContentEntry.contentEntryTags?.map(tag => tag.contentTagRef || tag.contentTag?.id).filter(Boolean) || []
+
+    // Parse picture if it's a JSON string
+    let contentImage: string | null = null
+    if (loadedContentEntry.picture) {
+      try {
+        const parsed =
+          typeof loadedContentEntry.picture === 'string'
+            ? JSON.parse(loadedContentEntry.picture)
+            : loadedContentEntry.picture
+        contentImage = typeof parsed === 'string' ? parsed : JSON.stringify(parsed)
+      } catch {
+        contentImage = typeof loadedContentEntry.picture === 'string' ? loadedContentEntry.picture : null
+      }
+    }
+
+    return {
+      id: loadedContentEntry.id || '',
+      version: loadedContentEntry.version,
+      title: loadedContentEntry.title || '',
+      previewText: loadedContentEntry.preview || '',
+      content: loadedContentEntry.content || '',
+      contentGroupRef: loadedContentEntry.contentGroupRef || '',
+      contentTypeRef: loadedContentEntry.contentTypeRef || '',
+      contentImage: contentImage,
+      pictureThumbnail: loadedContentEntry.pictureThumbnail || null,
+      displayAuthor: loadedContentEntry.displayCreator ?? true,
+      allowComment: loadedContentEntry.allowComment ?? true,
+      allowReaction: loadedContentEntry.allowReaction ?? true,
+      author: authorName,
+      schedulePublication: !!(loadedContentEntry.activeFrom || loadedContentEntry.activeTo),
+      startDate: loadedContentEntry.activeFrom || null,
+      endDate: loadedContentEntry.activeTo || null,
+      categories: categories.length > 0 ? categories : [],
+      tags: tags.length > 0 ? tags : []
+    }
+  }, [loadedContentEntry, authorName])
+
+  const defaultValues = useMemo(() => {
+    // If we have mapped values from loaded entry, use those
+    if (mappedFormValues) {
+      return mappedFormValues
+    }
+
+    // Otherwise use defaults
+    return {
+      id: '',
+      version: 0,
       title: '',
       previewText: '',
       content: '',
       contentGroupRef: extractedContentGroupRef || '',
-      articleTypeRef: '',
+      contentTypeRef: '',
       tags: [],
       categories: [],
       contentImage: null,
@@ -244,14 +340,11 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
       allowComment: true,
       allowReaction: true,
       author: authorName,
-      authorId: context.userInfo?.employeeDetails?.employeeId || '',
       schedulePublication: false,
       startDate: null,
-      endDate: null,
-      status: 'draft'
-    }),
-    [extractedContentId, extractedContentGroupRef, context.userInfo, authorName]
-  )
+      endDate: null
+    }
+  }, [mappedFormValues, extractedContentGroupRef, authorName])
 
   const form = useForm<ContentEntryFormValues, any, ContentEntryFormValues>({
     resolver: zodResolver(schema) as any,
@@ -259,6 +352,138 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
     mode: 'onSubmit',
     reValidateMode: 'onSubmit'
   })
+
+  // Sync form when loaded content entry changes
+  const contentEntryIdRef = useRef<string | null>(null)
+  useEffect(() => {
+    // Only process if we have a loaded entry and it's different from what we've processed
+    if (loadedContentEntry?.id && contentEntryIdRef.current !== loadedContentEntry.id) {
+      contentEntryIdRef.current = loadedContentEntry.id
+
+      // Extract categories and tags IDs
+      const categories =
+        loadedContentEntry.contentEntryCategories
+          ?.map(cat => cat.contentCategoryRef || cat.contentCategory?.id)
+          .filter(Boolean) || []
+      const tags =
+        loadedContentEntry.contentEntryTags?.map(tag => tag.contentTagRef || tag.contentTag?.id).filter(Boolean) || []
+
+      // Parse picture if it's a JSON string
+      let contentImage: string | null = null
+      if (loadedContentEntry.picture) {
+        try {
+          const parsed =
+            typeof loadedContentEntry.picture === 'string'
+              ? JSON.parse(loadedContentEntry.picture)
+              : loadedContentEntry.picture
+          contentImage = typeof parsed === 'string' ? parsed : JSON.stringify(parsed)
+        } catch {
+          contentImage = typeof loadedContentEntry.picture === 'string' ? loadedContentEntry.picture : null
+        }
+      }
+
+      const formValues: ContentEntryFormValues = {
+        id: loadedContentEntry.id || '',
+        version: loadedContentEntry.version,
+        title: loadedContentEntry.title || '',
+        previewText: loadedContentEntry.preview || '',
+        content: loadedContentEntry.content || '',
+        contentGroupRef: loadedContentEntry.contentGroupRef || '',
+        contentTypeRef: loadedContentEntry.contentTypeRef || '',
+        contentImage: contentImage,
+        pictureThumbnail: loadedContentEntry.pictureThumbnail || null,
+        displayAuthor: loadedContentEntry.displayCreator ?? true,
+        allowComment: loadedContentEntry.allowComment ?? true,
+        allowReaction: loadedContentEntry.allowReaction ?? true,
+        author: authorName,
+        schedulePublication: !!(loadedContentEntry.activeFrom || loadedContentEntry.activeTo),
+        startDate: loadedContentEntry.activeFrom || null,
+        endDate: loadedContentEntry.activeTo || null,
+        categories: categories.length > 0 ? categories : [],
+        tags: tags.length > 0 ? tags : []
+      }
+
+      form.reset(formValues)
+    }
+  }, [loadedContentEntry?.id, authorName, form])
+
+  // Separate useEffect for image loading (following ArticleView pattern)
+  useEffect(() => {
+    // Clean up previous blob URL if it exists
+    if (imageBlobUrlRef.current && imageBlobUrlRef.current.startsWith('blob:')) {
+      URL.revokeObjectURL(imageBlobUrlRef.current)
+      imageBlobUrlRef.current = null
+    }
+
+    if (!loadedContentEntry?.picture || !context.accessToken) {
+      setImage(null)
+      setImageInfo(null)
+      return
+    }
+
+    let fileInfo: any = null
+    try {
+      fileInfo =
+        typeof loadedContentEntry.picture === 'string'
+          ? JSON.parse(loadedContentEntry.picture)
+          : loadedContentEntry.picture
+    } catch {
+      // If it's not JSON, check if it's a data URL (base64) - use directly
+      if (typeof loadedContentEntry.picture === 'string' && loadedContentEntry.picture.startsWith('data:')) {
+        setImage(loadedContentEntry.picture)
+        setImageInfo(null)
+        return
+      }
+      // Otherwise try to use as direct URL (old format)
+      setImage(loadedContentEntry.picture)
+      setImageInfo(null)
+      return
+    }
+
+    if (!fileInfo?.path) {
+      setImage(null)
+      setImageInfo(null)
+      return
+    }
+
+    // Fetch image with authentication using buildFileUrl
+    let isCancelled = false
+
+    const fetchImage = async () => {
+      try {
+        const blobUrl = await buildFileUrl(fileInfo, context.accessToken!)
+        if (!isCancelled) {
+          imageBlobUrlRef.current = blobUrl
+          setImage(blobUrl)
+          setImageInfo({
+            name: fileInfo.fileMetadata?.originalFileName || 'Image',
+            size: fileInfo.fileMetadata?.size ? `${(fileInfo.fileMetadata.size / 1024 / 1024).toFixed(2)}MB` : 'Unknown'
+          })
+        } else {
+          // Clean up blob if fetch completed but component already unmounted/changed
+          URL.revokeObjectURL(blobUrl)
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          console.error('[ContentEntryWindow] Error fetching image:', error)
+          setImage(null)
+          setImageInfo(null)
+        }
+      }
+    }
+
+    fetchImage()
+
+    // Cleanup function
+    return () => {
+      isCancelled = true
+      // Clean up blob URL on unmount or when dependencies change
+      if (imageBlobUrlRef.current && imageBlobUrlRef.current.startsWith('blob:')) {
+        URL.revokeObjectURL(imageBlobUrlRef.current)
+        imageBlobUrlRef.current = null
+      }
+    }
+  }, [loadedContentEntry?.picture, context.accessToken])
 
   const { control, watch, setValue } = form
   const watchContentGroupRef = watch('contentGroupRef')
@@ -369,6 +594,72 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
     async (data: ContentEntryFormValues): Promise<ContentEntryFormValues> => {
       const updatedData = { ...data }
 
+      // Create new categories
+      if (categoriesToCreate.size > 0) {
+        const categoryLabels = Array.from(categoriesToCreate)
+        const categoryEntries = categoryLabels.map(label => ({
+          code: label.toUpperCase().replaceAll(/\s+/g, '_'),
+          value: label,
+          translations: []
+        }))
+
+        try {
+          const createResult = await createCatalogEntries('ContentCategory', 'v1', categoryEntries)
+
+          // Create mapping from label to ID
+          const labelToIdMap = new Map<string, string>()
+          createResult.results.forEach((result, index) => {
+            if (result.success && result.createdEntry) {
+              labelToIdMap.set(categoryLabels[index], result.createdEntry.id)
+            }
+          })
+
+          // Replace labels with IDs in categories array
+          if (updatedData.categories) {
+            updatedData.categories = updatedData.categories.map(cat => labelToIdMap.get(cat) || cat)
+          }
+
+          // Clear the set after creation
+          setCategoriesToCreate(new Set())
+        } catch (error) {
+          console.error('Error creating categories:', error)
+          throw new Error('Failed to create new categories')
+        }
+      }
+
+      // Create new tags
+      if (tagsToCreate.size > 0) {
+        const tagLabels = Array.from(tagsToCreate)
+        const tagEntries = tagLabels.map(label => ({
+          code: label.toUpperCase().replaceAll(/\s+/g, '_'),
+          value: label,
+          translations: []
+        }))
+
+        try {
+          const createResult = await createCatalogEntries('ContentTag', 'v1', tagEntries)
+
+          // Create mapping from label to ID
+          const labelToIdMap = new Map<string, string>()
+          createResult.results.forEach((result, index) => {
+            if (result.success && result.createdEntry) {
+              labelToIdMap.set(tagLabels[index], result.createdEntry.id)
+            }
+          })
+
+          // Replace labels with IDs in tags array
+          if (updatedData.tags) {
+            updatedData.tags = updatedData.tags.map(tag => labelToIdMap.get(tag) || tag)
+          }
+
+          // Clear the set after creation
+          setTagsToCreate(new Set())
+        } catch (error) {
+          console.error('Error creating tags:', error)
+          throw new Error('Failed to create new tags')
+        }
+      }
+
       // Upload image
       if (imageFile && data.contentImage) {
         try {
@@ -392,7 +683,7 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
 
       return updatedData
     },
-    [uploadImageFile, uploadBase64Image, imageFile]
+    [uploadImageFile, uploadBase64Image, imageFile, createCatalogEntries, categoriesToCreate, tagsToCreate]
   )
 
   const handleSubmit = async (data: ContentEntryFormValues) => {
@@ -404,12 +695,22 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
       throw new Error('Employee ID is required')
     }
 
+    // Validate version is present for updates
+    if (isUpdate) {
+      if (!extractedContentId) {
+        throw new Error('Content entry ID is required for updates')
+      }
+      if (data.version === undefined || data.version === null) {
+        throw new Error('Version is required for updates. Please reload the content entry.')
+      }
+    }
+
     // Use centralized payload builder
     const payload = buildContentEntryPayload({
       // Identity (for updates)
       ...(isUpdate && {
         id: extractedContentId,
-        version: data.version || 0
+        version: data.version
       }),
 
       // Core fields
@@ -465,9 +766,8 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
     return payload
   }
 
-  const isLoading = false
-
-  if (isLoading) {
+  // Show loading state while fetching content entry
+  if (contentEntryLoading && contentEntryId) {
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:h-screen">
         <div className="gba:animate-spin gba:rounded-full gba:h-12 gba:w-12 gba:border-b-2 gba:border-primary"></div>
@@ -501,12 +801,25 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
             watchContent={watchContent}
             watchSchedulePublication={watchSchedulePublication}
             setValue={setValue}
-            context={{ ...context, onCreateCategory, onCreateTag }}
+            context={context}
             extractedContentGroupRef={extractedContentGroupRef}
+            onCreateCategory={onCreateCategory}
+            onCreateTag={onCreateTag}
+            onCategoriesChange={handleCategoriesChange}
+            onTagsChange={handleTagsChange}
           />
         )}
 
-        {currentSegment === 'question' && <QuestionSegment control={control} />}
+        {currentSegment === 'question' && (
+          <QuestionSegment
+            control={control}
+            extractedContentGroupRef={extractedContentGroupRef}
+            onCreateCategory={onCreateCategory}
+            onCreateTag={onCreateTag}
+            onCategoriesChange={handleCategoriesChange}
+            onTagsChange={handleTagsChange}
+          />
+        )}
 
         {currentSegment === 'document' && (
           <DocumentSegment
@@ -518,6 +831,11 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
             imageInfo={imageInfo}
             setImageInfo={setImageInfo}
             setImageFile={setImageFile}
+            extractedContentGroupRef={extractedContentGroupRef}
+            onCreateCategory={onCreateCategory}
+            onCreateTag={onCreateTag}
+            onCategoriesChange={handleCategoriesChange}
+            onTagsChange={handleTagsChange}
           />
         )}
       </div>

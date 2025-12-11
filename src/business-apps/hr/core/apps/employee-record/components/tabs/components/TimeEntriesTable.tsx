@@ -24,10 +24,11 @@ export interface TimeEntriesTableProps {
   onPageSizeChange: (s: number) => void
   accessToken: string
   employeeId: string
+  userId?: string
 }
 
 export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
-  const { entries, locale, pageSize, onPageSizeChange, accessToken, employeeId } = props
+  const { entries, locale, pageSize, onPageSizeChange, accessToken, employeeId, userId } = props
   const { t } = useTranslation(hrI18n)
 
   const statusToVariant: Record<string, any> = {
@@ -146,6 +147,7 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
                         plannedTime: e.plannedTime,
                         differenceTime: e.differenceTime,
                         changeMode: 'INSERT',
+                        userId: userId,
                         employeeAttendanceCorrectionRequest: {
                           timeEntryVersion: e.version,
                           timeEntryId: e.id

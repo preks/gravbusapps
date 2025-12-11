@@ -3,6 +3,7 @@ import { useTranslation } from '@newwork/nw-design-system'
 import { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
 import { MessageSquare, TrendingUp } from 'lucide-react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { buildFileUrl } from '@/common/utils/fileUtils'
 import { useTrendingContent } from '../../hooks/useTrendingContent'
 import translations from '../../_i18n'
 
@@ -52,13 +53,26 @@ const TrendingNow: React.FC<TrendingNowProps> = ({ entries, className = '', curr
           data-testid={`trending-article-${entry.id}`}
         >
           <div className="gba:w-16 gba:h-16 gba:rounded-md gba:overflow-hidden gba:shrink-0">
-            {entry.picture ? (
-              <img src={entry.picture} alt={entry.title || ''} className="gba:w-full gba:h-full gba:object-cover" />
-            ) : (
-              <div className="gba:w-full gba:h-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:text-xs gba:text-muted-foreground">
-                {t('no_image')}
-              </div>
-            )}
+            {(() => {
+              let imageUrl: string | null = null
+              if (entry.picture) {
+                try {
+                  const fileInfo = typeof entry.picture === 'string' ? JSON.parse(entry.picture) : entry.picture
+                  if (fileInfo?.path) {
+                    imageUrl = buildFileUrl(fileInfo)
+                  }
+                } catch {
+                  imageUrl = entry.picture // Old format: direct URL or base64
+                }
+              }
+              return imageUrl ? (
+                <img src={imageUrl} alt={entry.title || ''} className="gba:w-full gba:h-full gba:object-cover" />
+              ) : (
+                <div className="gba:w-full gba:h-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:text-xs gba:text-muted-foreground">
+                  {t('no_image')}
+                </div>
+              )
+            })()}
           </div>
 
           <div className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0">
