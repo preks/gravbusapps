@@ -35,6 +35,7 @@ const DeactivateEmployeeBenefitContent: React.FC<BusinessAppContextProps> = ({
     selectedBenefit,
     endDate,
     setEndDate,
+    minEndDate,
     isFormValid,
     validateForm,
     buildSubmitPayload,
@@ -112,7 +113,7 @@ const DeactivateEmployeeBenefitContent: React.FC<BusinessAppContextProps> = ({
                 type="date"
                 value={endDate}
                 onChange={e => setEndDate(e.target.value)}
-                min={new Date().toISOString().split('T')[0]}
+                min={minEndDate}
                 data-testid="deactivate-employee-benefit-end-date-input"
               />
             </div>

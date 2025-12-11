@@ -24,6 +24,7 @@ interface UseDeactivateEmployeeBenefitFormReturn {
   employeeId: string
   endDate: string
   setEndDate: (value: string) => void
+  minEndDate: string
   isFormValid: boolean
   validateForm: () => string[] | null
   buildSubmitPayload: () => Promise<any>
@@ -55,6 +56,16 @@ export const useDeactivateEmployeeBenefitForm = ({
   // Form state
   const [endDate, setEndDate] = useState<string>('')
 
+  // Calculate minimum allowed end date (later of today or benefit start date)
+  const minEndDate = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0]
+    if (!selectedBenefit?.startDate) {
+      return today
+    }
+    const benefitStart = selectedBenefit.startDate
+    return benefitStart > today ? benefitStart : today
+  }, [selectedBenefit])
+
   // Initialize end date on mount
   useEffect(() => {
     if (!endDate) {
@@ -72,26 +83,50 @@ export const useDeactivateEmployeeBenefitForm = ({
       const selectedDate = new Date(endDate)
       const today = new Date()
       today.setHours(0, 0, 0, 0)
+
+      // Validate end date is not before today
       if (selectedDate < today) {
         errors.push(t('error-end-date-today-or-later'))
+      }
+
+      // Validate end date is not before benefit start date
+      if (selectedBenefit?.startDate) {
+        const benefitStartDate = new Date(selectedBenefit.startDate)
+        benefitStartDate.setHours(0, 0, 0, 0)
+        if (selectedDate < benefitStartDate) {
+          errors.push(t('error-end-date-after-start-date'))
+        }
       }
     }
 
     return errors.length > 0 ? errors : null
-  }, [endDate, t])
+  }, [endDate, selectedBenefit, t])
 
   const isFormValid = useMemo(() => {
     if (!endDate || endDate.length === 0) {
       return false
     }
 
-    // Validate date is today or later
     const selectedDate = new Date(endDate)
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
-    return selectedDate >= today
-  }, [endDate])
+    // Validate date is today or later
+    if (selectedDate < today) {
+      return false
+    }
+
+    // Validate date is not before benefit start date
+    if (selectedBenefit?.startDate) {
+      const benefitStartDate = new Date(selectedBenefit.startDate)
+      benefitStartDate.setHours(0, 0, 0, 0)
+      if (selectedDate < benefitStartDate) {
+        return false
+      }
+    }
+
+    return true
+  }, [endDate, selectedBenefit])
 
   const buildSubmitPayload = useCallback(async () => {
     if (!selectedBenefit) {
@@ -151,6 +186,7 @@ export const useDeactivateEmployeeBenefitForm = ({
     employeeId,
     endDate,
     setEndDate,
+    minEndDate,
     isFormValid,
     validateForm,
     buildSubmitPayload,
