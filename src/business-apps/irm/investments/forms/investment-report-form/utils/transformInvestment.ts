@@ -107,6 +107,11 @@ export const transformInvestment = (
     delete (mappedValues.investment as any).code
   }
 
+  // Explicitly preserve investmentAccounts array if it exists
+  if (investment.investmentAccounts && mappedValues.investment) {
+    ;(mappedValues.investment as any).investmentAccounts = investment.investmentAccounts
+  }
+
   return {
     ...mappedValues,
     investmentReportDate: dayjs().format('YYYY-MM-DD'),

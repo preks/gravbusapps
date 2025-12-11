@@ -184,11 +184,14 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
     loadData()
   }, [loadData])
 
+  // Memoized callback for process completion
+  const handleProcessSuccess = useCallback(() => {
+    loadData()
+  }, [loadData])
+
   // Refresh on process completion success using shared hook
   useProcessCompletion({
-    onSuccess: () => {
-      loadData()
-    }
+    onSuccess: handleProcessSuccess
   })
 
   // Determine investment type and type-specific data using dynamic approach

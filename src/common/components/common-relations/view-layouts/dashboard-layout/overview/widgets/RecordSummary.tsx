@@ -139,7 +139,7 @@ export const RecordSummary: React.FC<RecordSummaryProps> = ({
               <Card
                 key={record.id}
                 data-testid={`recent-record-item-${record.id}`}
-                className="gba:transition-all gba:duration-200 hover:gba:shadow-md hover:gba:bg-gray-50 gba:cursor-pointer gba:border-l-4 gba:relative"
+                className="gba:transition-all gba:duration-200 gba:hover:shadow-md gba:hover:bg-accent gba:cursor-pointer gba:border-l-4 gba:relative"
                 style={{ borderLeftColor: entityInfo.color }}
                 onClick={() => handleRecordClick(record)}
               >

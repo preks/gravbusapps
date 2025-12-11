@@ -327,6 +327,27 @@ export const buildInvestmentFragment = (fields: string[]): string => {
     ${buildEntityReferenceField(fieldSet, 'loanRecipientInvestmentAccount', 'loanRecipientInvestmentAccountId', InvestmentFields.loanRecipientInvestmentAccount, INVESTMENT_ACCOUNT_REF)}
     
     ${
+      fieldSet.has('investmentAccounts')
+        ? `
+      ${InvestmentFields.investmentAccounts}(where: { isDeleted: { _eq: false } }) {
+        id
+        version
+        investmentId
+        investmentAccountId
+        investmentAccountTypeRef
+        investmentAccountType {
+          ${CATALOG_ENTRY}
+        }
+        investmentAccount {
+          ${INVESTMENT_ACCOUNT_REF}
+        }
+        ${AUDIT_FIELDS}
+      }
+    `
+        : ''
+    }
+    
+    ${
       fieldSet.has('investmentRole')
         ? `
       ${InvestmentFields.investmentRole}(where: { isDeleted: { _eq: false } }, orderBy: { displayOrder: ASC_NULLS_LAST }) {

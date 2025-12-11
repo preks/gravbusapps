@@ -2,7 +2,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { toInvestmentOpportunity, type InvestmentOpportunity } from '../types/investmentOpportunityTypes'
-import { buildInvestmentOpportunityByIdQuery } from '../queries/investmentOpportunityQueries'
+import {
+  buildInvestmentOpportunityByIdQuery,
+  GET_EQUITY_INVESTMENT_ROUND_BY_OPPORTUNITY_ID
+} from '../queries/investmentOpportunityQueries'
+import type { EquityInvestmentRound } from '../types/investmentTypes'
 
 export interface UseInvestmentOpportunityResult {
   opportunity: InvestmentOpportunity | null
@@ -66,7 +70,28 @@ export function useInvestmentOpportunity(accessToken: string, id: string | undef
       })
 
       const raw = result.InvestmentOpportunityByPk
-      const opportunity = raw ? toInvestmentOpportunity(raw) : null
+      let opportunity = raw ? toInvestmentOpportunity(raw) : null
+
+      // Fetch equity investment round separately if opportunity exists
+      if (opportunity) {
+        try {
+          const roundQuery = GET_EQUITY_INVESTMENT_ROUND_BY_OPPORTUNITY_ID(id)
+          const roundResult = await graphqlClient.request<{ EquityInvestmentRound: EquityInvestmentRound[] }>(
+            roundQuery
+          )
+
+          // Attach the round to the opportunity if found
+          if (roundResult.EquityInvestmentRound && roundResult.EquityInvestmentRound.length > 0) {
+            opportunity = {
+              ...opportunity,
+              equityInvestmentRound: roundResult.EquityInvestmentRound[0]
+            }
+          }
+        } catch (roundError) {
+          // Log but don't fail the entire query if round fetch fails
+          console.warn('Failed to fetch equity investment round:', roundError)
+        }
+      }
 
       setState({ opportunity, loading: false, error: null })
     } catch (error) {

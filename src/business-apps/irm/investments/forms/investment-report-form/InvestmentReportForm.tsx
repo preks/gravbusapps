@@ -460,7 +460,9 @@ export const InvestmentReportForm: React.FC<InvestmentReportFormProps> = ({
           <InvestmentLayout
             investmentInformationCustomFields={null}
             ownerEmployee={currentFetchedInvestment?.ownerEmployee || formValues.investment.ownerEmployee}
-            account={currentFetchedInvestment?.investmentAccount || formValues.investment.investmentAccount}
+            investmentAccounts={
+              currentFetchedInvestment?.investmentAccounts || formValues.investment.investmentAccounts
+            }
             useAccounts={useAccounts}
             businessAppContext={businessAppContext}
             formFieldsDefinition={formFieldsDefinition}

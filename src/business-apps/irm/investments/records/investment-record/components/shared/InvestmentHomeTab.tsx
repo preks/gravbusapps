@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useGetInvestmentTasksByInvestmentId } from '../../hooks/useInvestmentTasksByInvestmentId'
 import { useGetInvestmentActivitiesByInvestmentId } from '../../hooks/useInvestmentActivitiesByInvestmentId'
@@ -111,54 +112,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
     }
   }, [investmentId, fetchInvestmentTasksByInvestmentId])
 
-  // Handle process events
-  const handleProcessEvent = useCallback(
-    (event: Event) => {
-      try {
-        const customEvent = event as CustomEvent
-
-        // Check for successful completion
-        if (customEvent.detail?.resolution === 'success') {
-          loadTasks()
-          loadActivities()
-          loadNotes()
-          loadApprovals()
-          return
-        }
-
-        // Check for different event structures
-        const response = customEvent.detail?.response
-        if (response?.detail?.resolution === 'success' || response?.investment) {
-          loadTasks()
-          loadActivities()
-          loadNotes()
-          loadApprovals()
-          return
-        }
-
-        // Check for continue events with payload (task/activity/note creation/update)
-        if (customEvent.type === 'com.newwork.process.continue' && customEvent.detail?.payload) {
-          loadTasks()
-          loadActivities()
-          loadNotes()
-          loadApprovals()
-          return
-        }
-
-        // Handle process completion events by investmentId (legacy support)
-        if (customEvent.detail?.investmentId === investmentId) {
-          loadTasks()
-          loadActivities()
-          loadNotes()
-          loadApprovals()
-        }
-      } catch (err) {
-        console.error('Error handling process event in InvestmentHomeTab:', err)
-      }
-    },
-    [investmentId, loadTasks, loadActivities, loadNotes, loadApprovals]
-  )
-
+  // Load section data on mount
   useEffect(() => {
     loadTasks()
     loadActivities()
@@ -166,29 +120,18 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
     loadApprovals()
   }, [loadTasks, loadActivities, loadNotes, loadApprovals])
 
-  // Listen for process events to refresh data
-  useEffect(() => {
-    const eventTypes = [
-      'com.newwork.process.continue',
-      'com.newwork.process.processCompletion',
-      'com.newwork.process.taskCompletion',
-      'com.newwork.process.completion',
-      'processCompletion',
-      'taskCompletion',
-      'taskCompleted',
-      'processCompleted'
-    ]
+  // Memoized callback for process completion
+  const handleProcessSuccess = useCallback(() => {
+    loadTasks()
+    loadActivities()
+    loadNotes()
+    loadApprovals()
+  }, [loadTasks, loadActivities, loadNotes, loadApprovals])
 
-    eventTypes.forEach(eventType => {
-      window.addEventListener(eventType, handleProcessEvent)
-    })
-
-    return () => {
-      eventTypes.forEach(eventType => {
-        window.removeEventListener(eventType, handleProcessEvent)
-      })
-    }
-  }, [handleProcessEvent])
+  // Listen for process completion events to refresh section data
+  useProcessCompletion({
+    onSuccess: handleProcessSuccess
+  })
 
   return (
     <>
