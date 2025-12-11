@@ -1,5 +1,6 @@
 import React from 'react'
-import { SectionKpiCards, KpiCardData, useTranslation } from '@newwork/nw-design-system'
+import { SectionKpiCards, KpiCardData, useTranslation, Icon } from '@newwork/nw-design-system'
+import { UsersIcon, CalendarIcon } from '@phosphor-icons/react'
 import type { HeadcountStatistics } from '../../../../../hooks/useHeadcountTrendsData'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
@@ -16,7 +17,7 @@ const HeadcountStatistics: React.FC<HeadcountStatisticsProps> = ({ statistics, i
       id: 'monthly-hires',
       title: t('hr-analytics-monthly-hires'),
       value: statistics.monthlyHires,
-      icon: 'users',
+      icon: <Icon icon={UsersIcon} size="sm" decorative />,
       iconColor: 'var(--nw-success)',
       footer: t('hr-analytics-new-hires-this-month')
     },
@@ -24,7 +25,7 @@ const HeadcountStatistics: React.FC<HeadcountStatisticsProps> = ({ statistics, i
       id: 'monthly-departures',
       title: t('hr-analytics-monthly-departures'),
       value: statistics.monthlyExits,
-      icon: 'users',
+      icon: <Icon icon={UsersIcon} size="sm" decorative />,
       iconColor: 'var(--nw-destructive)',
       footer: t('hr-analytics-departures-this-month')
     },
@@ -32,7 +33,7 @@ const HeadcountStatistics: React.FC<HeadcountStatisticsProps> = ({ statistics, i
       id: 'net-change',
       title: t('hr-analytics-net-change'),
       value: statistics.netChange > 0 ? `+${statistics.netChange}` : statistics.netChange.toString(),
-      icon: 'users',
+      icon: <Icon icon={UsersIcon} size="sm" decorative />,
       iconColor: statistics.netChange >= 0 ? 'var(--nw-success)' : 'var(--nw-destructive)',
       footer: t('hr-analytics-monthly-headcount-change')
     },
@@ -40,7 +41,7 @@ const HeadcountStatistics: React.FC<HeadcountStatisticsProps> = ({ statistics, i
       id: 'growth-rate',
       title: t('hr-analytics-growth-rate'),
       value: `${statistics.growthRate > 0 ? '+' : ''}${statistics.growthRate.toFixed(2)}%`,
-      icon: 'calendar',
+      icon: <Icon icon={CalendarIcon} size="sm" decorative />,
       iconColor: statistics.growthRate >= 0 ? 'var(--nw-success)' : 'var(--nw-destructive)',
       footer: t('hr-analytics-monthly-growth-percentage')
     }

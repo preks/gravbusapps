@@ -97,3 +97,54 @@ export const GET_BENEFIT_TYPES_WITH_TRANSLATIONS_EXCLUDE_HR_BACKOFFICE = /*sql*/
     }
   }
 `
+
+/**
+ * Employment region lookup for an employee to obtain region id
+ */
+export const GET_EMPLOYEE_REGION_ID = /*sql*/ `
+  query GetEmployeeRegionId($employeeId: uuid!) {
+    Employee(where: { isDeleted: { _eq: false }, id: { _eq: $employeeId } }) {
+      id
+      workingCondition {
+        region {
+          id
+        }
+      }
+    }
+  }
+`
+
+/**
+ * Resolve the country id for a given EmploymentRegion entry.
+ * Convention: EmploymentRegion.additionalValue3 stores the Country catalog entry id.
+ */
+export const GET_REGION_COUNTRY_ID = /*sql*/ `
+  query GetRegionCountryId($regionId: String!) {
+    CatalogEntry(where: { id: { _eq: $regionId } }) {
+      id
+      additionalValue3
+    }
+  }
+`
+
+/**
+ * BenefitType catalog entries filtered by parent country (Country catalog entry id)
+ */
+export const GET_BENEFIT_TYPES_FOR_COUNTRY_WITH_TRANSLATIONS = /*sql*/ `
+  query GetBenefitTypesForCountry($catalogIdentifier: String!, $catalogVersion: String!, $countryId: String!) {
+    CatalogEntry(
+      where: {
+        catalog: { identifier: { _eq: $catalogIdentifier }, version: { _eq: $catalogVersion } }
+        isDeleted: { _eq: false }
+        parentEntryId: { _eq: $countryId }
+      }
+      orderBy: { displayOrder: ASC }
+      limit: 100
+    ) {
+      ${CATALOG_ENTRY_REF}
+      childEntries(where: { isDeleted: { _eq: false } }) {
+        ${CATALOG_ENTRY_REF}
+      }
+    }
+  }
+`

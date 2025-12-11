@@ -8,41 +8,48 @@ import {
   Input,
   Textarea,
   FileUpload,
-  type FileMetadata
+  type FileMetadata,
+  DateInput,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { useFormContext } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { EntitySelect } from '../shared/components'
+import { EntitySelect } from '../../selects/reference-select'
+import {
+  applyInitialCommonEntityFromContext,
+  createCommonEntitySelectHandler,
+  type CommonEntityContext
+} from '../../selects/reference-select/entityHandlingUtils'
+import translations from './_i18n'
 
 export interface NoteSegmentProps {
-  // Entity selection
+  // Entity selection (still needs entities array until EntitySelect is refactored)
   showEntitySelection?: boolean
-  entities?: Array<{ id: string; name: string; type: 'account' | 'contact' | 'opportunity' | 'lead' }>
+  entities?: Array<{ id: string; name: string; type: 'account' | 'contact' | 'opportunity' | 'lead' | 'investment' }>
   entitiesLoading?: boolean
   onEntitySearch?: (searchTerm: string) => void
   entitiesHasMore?: boolean
   onEntityLoadMore?: () => void
-  initialEntityFromContext?: { accountId?: string; contactId?: string; opportunityId?: string; leadId?: string }
+  initialEntityFromContext?: {
+    accountId?: string
+    contactId?: string
+    opportunityId?: string
+    leadId?: string
+    investmentId?: string
+  }
 
-  // Labels
-  titleLabel: React.ReactNode
-  textLabel: React.ReactNode
-  reminderLabel?: React.ReactNode
-  entityLabel?: React.ReactNode
-  uploadFileLabel?: React.ReactNode
-
-  // Placeholders (optional)
-  titlePlaceholder?: string
-  textPlaceholder?: string
-  reminderPlaceholder?: string
+  // Handler for additional entity types (injected by parent forms, e.g. IRM NoteForm for investment)
+  onAdditionalEntityChange?: (type: string, entityId: string | null) => void
 
   // File upload callbacks
   onFilesChange?: (files: File[]) => void
   existingDocuments?: Array<{ id: string; name?: string; version?: number }>
   onDocumentRemove?: (documentId: string) => void
 
-  // TestId prefix for container
+  // Custom fields
+  customFields?: React.ReactNode
+
   ['data-testid']?: string
 }
 
@@ -84,26 +91,15 @@ const NoteSegment: React.FC<NoteSegmentProps> = ({
   entitiesHasMore,
   onEntityLoadMore,
   initialEntityFromContext,
-  titleLabel,
-  textLabel,
-  reminderLabel,
-  entityLabel,
-  uploadFileLabel,
-  titlePlaceholder,
-  textPlaceholder,
-  reminderPlaceholder,
+  onAdditionalEntityChange,
   onFilesChange,
   existingDocuments = [],
   onDocumentRemove,
+  customFields,
   'data-testid': dataTestId = 'note-segment'
 }) => {
   const form = useFormContext()
-
-  const normalizeDateTimeLocalValue = React.useCallback((v: string | undefined | null) => {
-    if (!v) return ''
-    const s = v.replace('Z', '')
-    return s.length >= 16 ? s.slice(0, 16) : s
-  }, [])
+  const { t } = useTranslation(translations)
 
   React.useEffect(() => {
     if (showEntitySelection && onEntitySearch && (!entities || entities.length === 0)) {
@@ -111,25 +107,30 @@ const NoteSegment: React.FC<NoteSegmentProps> = ({
     }
   }, [showEntitySelection, onEntitySearch, entities])
 
+  // Apply initial entity from context when none is set yet
   React.useEffect(() => {
-    if (!showEntitySelection || !initialEntityFromContext) return
-    const hasEntity = Boolean(
-      form.getValues('account') || form.getValues('contact') || form.getValues('opportunity') || form.getValues('lead')
-    )
-    if (hasEntity) return
+    if (!initialEntityFromContext) return
 
-    const { accountId, contactId, opportunityId, leadId } = initialEntityFromContext
-    const map: Array<{ key: 'account' | 'contact' | 'opportunity' | 'lead'; id?: string }> = [
-      { key: 'account', id: accountId },
-      { key: 'contact', id: contactId },
-      { key: 'opportunity', id: opportunityId },
-      { key: 'lead', id: leadId }
-    ]
-    const found = map.find(m => m.id)
-    if (found?.id) {
-      form.setValue(found.key, { id: found.id })
+    // Handle common entity types (account, contact, opportunity, lead)
+    const commonEntityApplied = applyInitialCommonEntityFromContext(initialEntityFromContext as CommonEntityContext, {
+      form,
+      useIdFields: false
+    })
+
+    // If no common entity was applied, handle additional entity types (e.g. investmentId) via handler
+    if (!commonEntityApplied && onAdditionalEntityChange) {
+      const standardEntityKeys = new Set(['accountId', 'contactId', 'opportunityId', 'leadId'])
+      for (const [key, value] of Object.entries(initialEntityFromContext)) {
+        if (value && !standardEntityKeys.has(key)) {
+          // Extract type from field name (e.g. 'investmentId' -> 'investment')
+          const type = key.replace(/Id$/, '').toLowerCase()
+          onAdditionalEntityChange(type, value)
+          form.setValue('relatedEntityId', value)
+          break // Only set first additional entity
+        }
+      }
     }
-  }, [showEntitySelection, initialEntityFromContext, form])
+  }, [initialEntityFromContext, form, onAdditionalEntityChange])
 
   // Helper: Convert existing documents to FileMetadata format
   const initialFiles = React.useMemo<FileMetadata[]>(
@@ -189,9 +190,14 @@ const NoteSegment: React.FC<NoteSegmentProps> = ({
         name="title"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>{titleLabel}</FormLabel>
+            <FormLabel>{t('note-title-label')}</FormLabel>
             <FormControl>
-              <Input data-testid={`${dataTestId}-title`} maxLength={100} placeholder={titlePlaceholder} {...field} />
+              <Input
+                data-testid={`${dataTestId}-title`}
+                maxLength={100}
+                placeholder={t('note-title-placeholder')}
+                {...field}
+              />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -204,9 +210,9 @@ const NoteSegment: React.FC<NoteSegmentProps> = ({
         name="text"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>{textLabel}</FormLabel>
+            <FormLabel>{t('note-text-label')}</FormLabel>
             <FormControl>
-              <Textarea data-testid={`${dataTestId}-text`} placeholder={textPlaceholder} {...field} />
+              <Textarea data-testid={`${dataTestId}-text`} placeholder={t('note-text-placeholder')} {...field} />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -214,27 +220,27 @@ const NoteSegment: React.FC<NoteSegmentProps> = ({
       />
 
       {/* Reminder Date */}
-      {reminderLabel && (
-        <FormField
-          control={form.control}
-          name="reminderDate"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{reminderLabel}</FormLabel>
-              <FormControl>
-                <Input
-                  type="datetime-local"
-                  data-testid={`${dataTestId}-reminder-date`}
-                  value={normalizeDateTimeLocalValue(field.value)}
-                  onChange={field.onChange}
-                  placeholder={reminderPlaceholder}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      )}
+      <FormField
+        control={form.control}
+        name="reminderDate"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>{t('note-reminder-label')}</FormLabel>
+            <FormControl>
+              <DateInput
+                type="datetime-local"
+                value={field.value || ''}
+                onChange={value => field.onChange(value || '')}
+                placeholder={t('note-reminder-placeholder')}
+                data-testid={`${dataTestId}-reminder-date`}
+                captionLayout="dropdown"
+                outputFormat="iso"
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
 
       {/* Related Entity */}
       {showEntitySelection && (
@@ -243,23 +249,21 @@ const NoteSegment: React.FC<NoteSegmentProps> = ({
           name="relatedEntityId"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{entityLabel || 'Related Entity'}</FormLabel>
+              <FormLabel>{t('note-entity-label')}</FormLabel>
               <FormControl>
                 <EntitySelect
                   className="gba:w-full gba:h-auto"
                   entities={entities}
                   value={field.value || ''}
                   onValueChange={(v: string | null) => {
-                    field.onChange(v)
-                    const id = String(v || '')
-                    const e = (entities || []).find(x => x.id === id)
-                    form.setValue('account', undefined)
-                    form.setValue('contact', undefined)
-                    form.setValue('opportunity', undefined)
-                    form.setValue('lead', undefined)
-                    if (e) {
-                      form.setValue(e.type, { id: e.id })
-                    }
+                    field.onChange(v || '')
+                    const handleEntityChange = createCommonEntitySelectHandler({
+                      form,
+                      useIdFields: false,
+                      entities: entities || [],
+                      onAdditionalEntityChange
+                    })
+                    handleEntityChange(v)
                   }}
                   onSearch={onEntitySearch}
                   loading={Boolean(entitiesLoading)}
@@ -275,13 +279,13 @@ const NoteSegment: React.FC<NoteSegmentProps> = ({
       )}
 
       {/* File Upload Section */}
-      {uploadFileLabel && onFilesChange && (
+      {onFilesChange && (
         <FormField
           control={form.control}
           name="files"
           render={() => (
             <FormItem>
-              <FormLabel>{uploadFileLabel}</FormLabel>
+              <FormLabel>{t('note-upload-label')}</FormLabel>
               <FormControl>
                 <FileUpload
                   key={fileUploadKey}
@@ -292,7 +296,7 @@ const NoteSegment: React.FC<NoteSegmentProps> = ({
                   multiple={true}
                   accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.jpg,.jpeg,.png"
                   initialFiles={initialFiles}
-                  onFilesChange={handleFilesChange}
+                  onChange={handleFilesChange}
                   data-testid={`${dataTestId}-file-upload`}
                 />
               </FormControl>
@@ -301,6 +305,9 @@ const NoteSegment: React.FC<NoteSegmentProps> = ({
           )}
         />
       )}
+
+      {/* Custom fields */}
+      {customFields}
     </>
   )
 }

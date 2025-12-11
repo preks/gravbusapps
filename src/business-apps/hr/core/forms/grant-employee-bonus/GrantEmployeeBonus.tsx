@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { formatDateToISO, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import FormHeader from '../components/FormHeader'
 import { LocalizationProvider, useTranslation, type SupportedLocale } from '@newwork/nw-design-system'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
@@ -9,8 +9,8 @@ import { useForm } from 'react-hook-form'
 import type { GrantEmployeeBonusFormValues, CatalogEntry } from './types'
 import BonusDetailsGroup from './components/BonusDetailsGroup'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
-import { CompensationStatus } from '../../apps/employee-record/components/tabs/compensation/types/compensationEnums'
-import { extractEmployeeId } from './utils/employeeIdUtils'
+import { extractEmployeeId } from '@/business-apps/hr/core/utils/employeeIdUtils'
+import { useTaskCancellation } from '../../hooks/useTaskCancellation'
 import translations from '../_i18n'
 
 const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ additionalData, userInfo }) => {
@@ -18,25 +18,34 @@ const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ addition
   const { t } = useTranslation(translations)
 
   const employee = useMemo(() => data?.employee?.EmployeeByPk, [data])
+  const employeePosition = useMemo(() => data?.employee?.EmployeePosition?.[0], [data])
   const catalogs = useMemo(
     () => ({
-      bonusType: data?.catalogs?.bonusType || [],
-      currency: data?.catalogs?.currency || []
+      bonusType: data?.catalogs?.bonusType || []
     }),
     [data]
   )
+
+  // Get currency from employee bank account - memoize to prevent form resets
+  const employeeCurrency = useMemo(() => data?.employeeCurrency, [data])
+  const currencyRef = useMemo(() => employeeCurrency?.currencyRef || '', [employeeCurrency?.currencyRef])
+  const currencyDisplay = useMemo(() => {
+    if (!currencyRef) return ''
+    // Extract currency code from ref (e.g., "Currency:v1:USD" -> "USD")
+    const parts = currencyRef.split(':')
+    return parts[parts.length - 1] || ''
+  }, [currencyRef])
 
   const defaultValues: GrantEmployeeBonusFormValues = useMemo(
     () => ({
       employeeBonusTypeRef: '',
       amount: null,
-      currencyRef: '',
-      paymentDate: '',
+      currencyRef: currencyRef,
+      paymentMonth: new Date().getMonth() + 1, // 1-12 for Jan-Dec
       fiscalYear: new Date().getFullYear(),
-      description: '',
       notes: ''
     }),
-    []
+    [currencyRef]
   )
 
   const form = useForm<GrantEmployeeBonusFormValues>({
@@ -61,10 +70,12 @@ const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ addition
 
     return {
       ...defaultValues,
-      employeeBonusTypeRef: findId(catalogs.bonusType, defaultValues.employeeBonusTypeRef),
-      currencyRef: findId(catalogs.currency, defaultValues.currencyRef)
+      employeeBonusTypeRef: findId(catalogs.bonusType, defaultValues.employeeBonusTypeRef)
     } as GrantEmployeeBonusFormValues
   }, [defaultValues, catalogs])
+
+  // Handle task cancellation when form closes without submission
+  const { markAsSubmitted, markAsCancelled } = useTaskCancellation('pse_abort')
 
   // Reset to normalized defaults whenever catalogs change
   useEffect(() => {
@@ -84,9 +95,8 @@ const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ addition
     employeeBonusTypeRef: v.employeeBonusTypeRef || '',
     amount: v.amount || null,
     currencyRef: v.currencyRef || '',
-    paymentDate: v.paymentDate || '',
+    paymentMonth: v.paymentMonth || new Date().getMonth() + 1,
     fiscalYear: v.fiscalYear || new Date().getFullYear(),
-    description: v.description || '',
     notes: v.notes || ''
   })
 
@@ -114,10 +124,23 @@ const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ addition
       className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-full gba:max-w-[800px]"
       data-testid="flw_grantEmployeeBonus_screenContentLayout"
     >
-      <FormHeader title={title} flowIconUrl={flowIconUrl} className="gba:px-6" />
+      <FormHeader
+        title={title}
+        flowIconUrl={flowIconUrl}
+        employee={
+          employee
+            ? {
+                firstName: employee.firstName,
+                lastName: employee.lastName,
+                pictureThumbnail: employee.pictureThumbnail,
+                jobTitle: employeePosition?.jobPosition?.name
+              }
+            : undefined
+        }
+      />
 
       <div
-        className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='grant-employee-bonus']]:pt-0!"
+        className="gba:flex gba:flex-col gba:[&>div[data-testid='grant-employee-bonus']]:pt-0!"
         data-testid="grant-employee-bonus-form-content"
       >
         <AppActionForm
@@ -129,7 +152,14 @@ const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ addition
           cancelButtonText={t('action-cancel')}
           submitButtonText={t('action-submit')}
           isSubmitDisabled={!form.formState.isValid || isUnchangedNow}
+          // Shows cancel button - default cancelEventType="pse_abort" handles process abort
+          onCancel={() => {
+            markAsCancelled()
+          }}
           onSubmit={async (values: GrantEmployeeBonusFormValues) => {
+            // Mark as submitted to prevent abort on cleanup
+            markAsSubmitted()
+
             const payload = {
               // Manager context for Kogito flow
               employeeIdManager: managerEmployeeId,
@@ -140,11 +170,9 @@ const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ addition
                 employeeBonusTypeRef:
                   values.employeeBonusTypeRef && values.employeeBonusTypeRef !== '' ? values.employeeBonusTypeRef : '',
                 amount: values.amount || 0,
-                currencyRef: values.currencyRef && values.currencyRef !== '' ? values.currencyRef : '',
-                paymentDate: values.paymentDate ? formatDateToISO(new Date(values.paymentDate)) : '',
+                currencyRef: currencyRef || null,
+                paymentDate: `${values.fiscalYear || new Date().getFullYear()}-${String(values.paymentMonth || 1).padStart(2, '0')}-01`,
                 fiscalYear: values.fiscalYear || new Date().getFullYear(),
-                status: CompensationStatus.APPROVED, // Set to APPROVED_COMPENSATION until approval process is implemented
-                description: values.description || '',
                 notes: values.notes || ''
               }
             }
@@ -155,7 +183,7 @@ const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ addition
         >
           <div className="gba:flex-1 gba:space-y-4" data-testid="grant-employee-bonus-groups">
             {/* Bonus Details Group */}
-            <BonusDetailsGroup control={form.control} catalogs={catalogs} t={t} />
+            <BonusDetailsGroup control={form.control} catalogs={catalogs} currencyDisplay={currencyDisplay} t={t} />
           </div>
         </AppActionForm>
       </div>

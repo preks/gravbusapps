@@ -13,6 +13,7 @@ import {
 import { UseFormReturn } from 'react-hook-form'
 import { QuickTaskFileUpload } from './QuickTaskFileUpload'
 import { SearchableEmployeeCombobox } from './SearchableEmployeeCombobox'
+import { SearchableEntityCombobox } from './SearchableEntityCombobox'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { QuickTaskFormConfig, QuickTaskFormData, AssigneeOption } from './types'
 import { cn } from '@/common/utils/cn'
@@ -62,6 +63,7 @@ export interface QuickTaskFormFieldsProps {
   onSubmit: (data: QuickTaskFormData) => Promise<void>
   onCancel?: () => void
   config?: QuickTaskFormConfig
+  accessToken: string
   // For employee search mode
   employeeOptions?: AssigneeOption[]
   employeesLoading?: boolean
@@ -77,6 +79,7 @@ export const QuickTaskFormFields: React.FC<QuickTaskFormFieldsProps> = ({
   onSubmit,
   onCancel,
   config = {},
+  accessToken,
   employeeOptions = [],
   employeesLoading = false,
   onEmployeeSearch,
@@ -155,6 +158,51 @@ export const QuickTaskFormFields: React.FC<QuickTaskFormFieldsProps> = ({
           )}
         />
 
+        {/* Entity Reference Field - Optional */}
+        <FormField
+          control={form.control}
+          name="entityId"
+          render={() => (
+            <FormItem>
+              <FormLabel>
+                {getLabel(labels.entityReference, 'quickTask.field.entityReference.label', 'Related To (Optional)')}
+              </FormLabel>
+              <FormControl>
+                <SearchableEntityCombobox
+                  accessToken={accessToken}
+                  value={form.watch('entityId')}
+                  onChange={(entityId, entityData) => {
+                    if (entityData) {
+                      form.setValue('entityId', entityData.id)
+                      form.setValue('entityType', entityData.type)
+                      form.setValue('entityName', entityData.name)
+                      form.setValue('entityDisplayUrl', entityData.displayUrl)
+                      form.setValue('entityMetadata', entityData.metadata)
+                    } else {
+                      form.setValue('entityId', undefined)
+                      form.setValue('entityType', undefined)
+                      form.setValue('entityName', undefined)
+                      form.setValue('entityDisplayUrl', undefined)
+                      form.setValue('entityMetadata', undefined)
+                    }
+                  }}
+                  placeholder="Search for any entity (account, employee, expense...)"
+                  disabled={isSubmitting}
+                  data-testid="blink-task-entity-reference"
+                />
+              </FormControl>
+              <p className="gba:text-xs gba:text-gray-500 gba:mt-1">
+                {getLabel(
+                  labels.entityReferenceHint,
+                  'quickTask.field.entityReference.hint',
+                  'Link this task to a specific entity (account, contact, employee, absence, expense, investment, etc.)'
+                )}
+              </p>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
         {/* Documents Field - Conditional */}
         {enableFileUpload && (
           <FormField
@@ -184,10 +232,19 @@ export const QuickTaskFormFields: React.FC<QuickTaskFormFieldsProps> = ({
         {/* Assignee Selector - Conditional based on mode */}
         <FormField
           control={form.control}
-          name="assignedUserId"
+          name="assignedUserIds"
           rules={{
             required: assigneeSelector.required
-              ? getLabel(labels.assignee, 'quickTask.field.assignee.required', 'Please select an employee to assign')
+              ? value => {
+                  if (!value || (Array.isArray(value) && value.length === 0)) {
+                    return getLabel(
+                      labels.assignee,
+                      'quickTask.field.assignee.required',
+                      'Please select at least one employee to assign'
+                    )
+                  }
+                  return true
+                }
               : false
           }}
           render={({ field }) => (
@@ -215,6 +272,7 @@ export const QuickTaskFormFields: React.FC<QuickTaskFormFieldsProps> = ({
                       'No results found.'
                     )}
                     loading={employeesLoading}
+                    multiple={true}
                   />
                 ) : (
                   <SearchableEmployeeCombobox
@@ -225,7 +283,7 @@ export const QuickTaskFormFields: React.FC<QuickTaskFormFieldsProps> = ({
                     placeholder={getLabel(
                       labels.assigneePlaceholder,
                       'quickTask.field.assignee.placeholder',
-                      'Search and select employee...'
+                      'Search and select employees...'
                     )}
                     searchPlaceholder={getLabel(
                       labels.assigneeSearchPlaceholder,
@@ -238,10 +296,21 @@ export const QuickTaskFormFields: React.FC<QuickTaskFormFieldsProps> = ({
                       'No employees found.'
                     )}
                     disabled={employeesLoading || isSubmitting}
+                    multiple={true}
                     loading={employeesLoading}
+                    showTeammatesHint={true}
                   />
                 )}
               </FormControl>
+              {assigneeSelector.mode === 'employee-search' && (
+                <p className="gba:text-xs gba:text-gray-500 gba:mt-1">
+                  {getLabel(
+                    labels.assigneeHint,
+                    'quickTask.field.assignee.hint',
+                    'Type to search employees by name (max 20 results).'
+                  )}
+                </p>
+              )}
               <FormMessage />
             </FormItem>
           )}
@@ -253,7 +322,17 @@ export const QuickTaskFormFields: React.FC<QuickTaskFormFieldsProps> = ({
             control={form.control}
             name="dueDate"
             rules={{
-              required: getLabel(labels.dueDate, 'quickTask.field.dueDate.required', 'Due date is required')
+              required: getLabel(labels.dueDate, 'quickTask.field.dueDate.required', 'Due date is required'),
+              validate: value => {
+                if (!value) return true
+                const selectedDate = new Date(value)
+                const today = new Date()
+                today.setHours(0, 0, 0, 0)
+                if (selectedDate < today) {
+                  return getLabel(undefined, 'quickTask.field.dueDate.pastDateError', 'Due date cannot be in the past')
+                }
+                return true
+              }
             }}
             render={({ field }) => (
               <FormItem>
@@ -261,6 +340,7 @@ export const QuickTaskFormFields: React.FC<QuickTaskFormFieldsProps> = ({
                 <FormControl>
                   <Input
                     type="date"
+                    min={new Date().toISOString().split('T')[0]}
                     placeholder={getLabel(
                       labels.dueDatePlaceholder,
                       'quickTask.field.dueDate.placeholder',
@@ -275,27 +355,42 @@ export const QuickTaskFormFields: React.FC<QuickTaskFormFieldsProps> = ({
             )}
           />
         )}
-
-        {/* Submit Buttons */}
-        <div className="gba:flex gba:justify-end gba:gap-3 gba:pt-4 gba:border-t">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              if (onCancel) {
-                onCancel()
-              } else {
-                form.reset()
-              }
-            }}
-          >
-            {getLabel(labels.cancelButton, 'quickTask.button.cancel', 'Cancel')}
-          </Button>
-          <Button type="submit" variant="default" disabled={isSubmitting || isUploadingFiles}>
-            {getSubmitButtonText(isUploadingFiles, uploadProgress, isSubmitting, taskName, labels.submitButton)}
-          </Button>
-        </div>
       </form>
+
+      {/* Submit Buttons - Outside scrollable area for sticky footer */}
+      <div
+        className="gba:flex gba:justify-end gba:gap-3 gba:pt-4 gba:border-t gba:bg-background gba:sticky gba:bottom-0"
+        style={{
+          marginTop: '16px',
+          marginLeft: '-24px',
+          marginRight: '-24px',
+          marginBottom: '-24px',
+          padding: '16px 24px',
+          borderTop: '1px solid rgb(229, 231, 235)'
+        }}
+      >
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => {
+            if (onCancel) {
+              onCancel()
+            } else {
+              form.reset()
+            }
+          }}
+        >
+          {getLabel(labels.cancelButton, 'quickTask.button.cancel', 'Cancel')}
+        </Button>
+        <Button
+          type="submit"
+          variant="default"
+          disabled={isSubmitting || isUploadingFiles}
+          onClick={form.handleSubmit(onSubmit)}
+        >
+          {getSubmitButtonText(isUploadingFiles, uploadProgress, isSubmitting, taskName, labels.submitButton)}
+        </Button>
+      </div>
     </Form>
   )
 }

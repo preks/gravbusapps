@@ -1,7 +1,9 @@
 import React from 'react'
 import { Card } from 'antd'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from './_i18n'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useDepartmentMonthlySalaryStack } from '../../../../../hooks/useDepartmentMonthlySalaryStack'
 
@@ -9,6 +11,10 @@ const DepartmentSalaryStackedBarChart: React.FC<BusinessAppContextProps> = props
   const year = new Date().getFullYear()
   const { data, loading } = useDepartmentMonthlySalaryStack(props, year)
   const departments = data.length > 0 ? data[0].departments : []
+  const { t } = useTranslation(translations)
+  const millionSuffix = t('suffix-million')
+  const thousandSuffix = t('suffix-thousand')
+  const locale = getCurrentActiveUserLocale() ?? 'en-US'
 
   // Prepare recharts data format
   const chartData = data.map(month => {
@@ -35,13 +41,21 @@ const DepartmentSalaryStackedBarChart: React.FC<BusinessAppContextProps> = props
       >
         <div className="gba:font-semibold gba:text-base gba:mb-2">
           {monthData.month &&
-            new Date(monthData.month + '-01').toLocaleString(undefined, { month: 'short', year: 'numeric' })}
+            new Date(monthData.month + '-01').toLocaleString(locale, { month: 'short', year: 'numeric' })}
         </div>
         <div className="gba:mb-2">
-          <span className="gba:font-medium">{getTranslationFromI18nKeyAndLabel('total_salary', 'Total Salary')}: </span>
-          <span className="gba:font-bold gba:text-lg">${(monthData.totalSalary / 1e6).toFixed(2)}M</span>
+          <span className="gba:font-medium">{t('total-salary')}: </span>
+          <span className="gba:font-bold gba:text-lg">
+            {(monthData.totalSalary / 1e6).toLocaleString(locale, {
+              maximumFractionDigits: 2,
+              minimumFractionDigits: 2
+            })}
+            {millionSuffix}
+          </span>
           <span className="gba:text-destructive gba:ml-2 gba:text-base">
-            {totalChange < 0 ? `↓$${Math.abs(totalChange / 1e3).toFixed(0)}K (${totalChangePct.toFixed(1)}%)` : ''}
+            {totalChange < 0
+              ? `↓${Math.abs(totalChange / 1e3).toLocaleString(locale, { maximumFractionDigits: 0 })}${thousandSuffix} (${totalChangePct.toFixed(1)}%)`
+              : ''}
           </span>
         </div>
         {monthData.departments.map(dep => {
@@ -53,10 +67,15 @@ const DepartmentSalaryStackedBarChart: React.FC<BusinessAppContextProps> = props
                 style={{ background: dep.color }}
               ></span>
               <span className="gba:font-medium gba:mr-2">{dep.name}:</span>
-              <span className="gba:mr-2">${(dep.salary / 1e3).toFixed(0)}K</span>
+              <span className="gba:mr-2">
+                {(dep.salary / 1e3).toLocaleString(locale, { maximumFractionDigits: 0 })}
+                {thousandSuffix}
+              </span>
               <span className="gba:text-muted-foreground gba:text-xs gba:mr-2">{dep.percent.toFixed(1)}%</span>
               <span className="gba:text-destructive gba:text-xs">
-                {depChange < 0 ? `↓$${Math.abs(depChange / 1e3).toFixed(0)}K` : ''}
+                {depChange < 0
+                  ? `↓${Math.abs(depChange / 1e3).toLocaleString(locale, { maximumFractionDigits: 0 })}${thousandSuffix}`
+                  : ''}
               </span>
             </div>
           )
@@ -69,10 +88,7 @@ const DepartmentSalaryStackedBarChart: React.FC<BusinessAppContextProps> = props
     <Card
       className="gba:shadow gba:rounded gba:p-4 gba:mb-6"
       data-testid="department-salary-stacked-bar-chart"
-      title={getTranslationFromI18nKeyAndLabel(
-        'department_salary_stacked_bar_chart',
-        'Department Salary Stacked Bar Chart'
-      )}
+      title={t('department-salary-stacked-bar-chart-title')}
       loading={loading}
     >
       <div className="gba:w-full gba:h-80">
@@ -80,7 +96,10 @@ const DepartmentSalaryStackedBarChart: React.FC<BusinessAppContextProps> = props
           <BarChart data={chartData} margin={{ top: 16, right: 24, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="month" className="gba:text-xs" />
-            <YAxis className="gba:text-xs" tickFormatter={v => `$${(v / 1e6).toFixed(1)}M`} />
+            <YAxis
+              className="gba:text-xs"
+              tickFormatter={v => `${(v / 1e6).toLocaleString(locale, { maximumFractionDigits: 1 })}${millionSuffix}`}
+            />
             <Tooltip content={<CustomTooltip />} />
             {departments.map(dep => (
               <Bar key={dep.id} dataKey={dep.id} stackId="a" fill={dep.color} name={dep.name} />

@@ -51,7 +51,7 @@ export const AppActionButton: React.FC<AppActionButtonProps> = React.memo(props 
   const { appActionConfig, cleanProps } = extractAppActionProps(props)
 
   // Use shared logic for data fetching and state management
-  const { combinedData, handleDeferredFetch, translations, shouldShowLoading } = useAppActionData(
+  const { combinedData, handleDeferredFetch, shouldShowLoading } = useAppActionData(
     appActionConfig,
     DATA_TEST_ID_PREFIX
   )
@@ -73,8 +73,6 @@ export const AppActionButton: React.FC<AppActionButtonProps> = React.memo(props 
     <ActionButton
       {...actionButtonProps}
       data-testid={buttonTestId}
-      noActionsText={translations.noActions}
-      loadingText={translations.loading}
       emptyStateBehavior={appActionConfig.emptyStateBehavior}
       actionsLoading={shouldShowLoading}
       actions={combinedData}

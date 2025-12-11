@@ -9,43 +9,20 @@ import {
   ChartConfig,
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
+  ChartTooltipContent
 } from '@newwork/nw-design-system'
 import { BarChart, Bar, XAxis, YAxis } from 'recharts'
 import { ChartBarIcon } from '@phosphor-icons/react'
+import { OpportunitiesStageChartProps } from './types'
+import { PipelineSelector } from './PipelineSelector'
 
-export interface StageItem {
-  stage: string
-  count: number
-  value: number
-}
-
-interface OpportunitiesByStageBarProps {
-  data: StageItem[]
-  moduleColor?: string
-  pipelines?: Array<{ id: string; name: string }>
-  selectedPipelineId?: string
-  onPipelineChange?: (pipelineId: string) => void
-}
-
-export const OpportunitiesByStageBar: React.FC<OpportunitiesByStageBarProps> = ({
+export const OpportunitiesByStageBar: React.FC<OpportunitiesStageChartProps> = ({
   data,
   moduleColor = 'default',
   pipelines = [],
   selectedPipelineId,
   onPipelineChange
 }) => {
-  const handlePipelineChange = (value: string) => {
-    onPipelineChange?.(value)
-  }
-
   // Format large numbers for Y-axis
   const formatYAxis = (value: number): string => {
     if (value >= 1000000) {
@@ -62,9 +39,6 @@ export const OpportunitiesByStageBar: React.FC<OpportunitiesByStageBarProps> = (
       ({
         count: {
           label: 'Opportunities'
-        },
-        value: {
-          label: 'Total Value'
         }
       }) satisfies ChartConfig,
     []
@@ -86,22 +60,12 @@ export const OpportunitiesByStageBar: React.FC<OpportunitiesByStageBarProps> = (
               <CardDescription>Stage progression analysis</CardDescription>
             </div>
           </div>
-          {pipelines.length > 0 && onPipelineChange && (
-            <div className="gba:min-w-48">
-              <Select value={selectedPipelineId} onValueChange={handlePipelineChange}>
-                <SelectTrigger data-testid="opportunities-stage-pipeline-selector">
-                  <SelectValue placeholder="Select pipeline" />
-                </SelectTrigger>
-                <SelectContent>
-                  {pipelines.map(pipeline => (
-                    <SelectItem key={pipeline.id} value={pipeline.id}>
-                      {pipeline.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+          <PipelineSelector
+            pipelines={pipelines}
+            selectedPipelineId={selectedPipelineId}
+            onPipelineChange={onPipelineChange}
+            dataTestId="opportunities-stage-pipeline-selector"
+          />
         </div>
       </CardHeader>
       <CardContent>
@@ -110,18 +74,9 @@ export const OpportunitiesByStageBar: React.FC<OpportunitiesByStageBarProps> = (
             <XAxis dataKey="stage" angle={-45} textAnchor="end" height={80} tick={{ fontSize: 11 }} interval={0} />
             <YAxis tick={{ fontSize: 11 }} tickFormatter={formatYAxis} width={60} />
             <ChartTooltip
-              content={
-                <ChartTooltipContent
-                  formatter={(value: number, name: string) => [
-                    name === 'count' ? `${value}` : `€${Number(value).toLocaleString()}`,
-                    name === 'count' ? 'Opportunities' : 'Total Value'
-                  ]}
-                />
-              }
+              content={<ChartTooltipContent formatter={(value: number) => [`${value}`, 'Opportunities']} />}
             />
-            <ChartLegend content={<ChartLegendContent />} />
             <Bar dataKey="count" fill="var(--color-count)" radius={[2, 2, 0, 0]} />
-            <Bar dataKey="value" fill="var(--color-value)" radius={[2, 2, 0, 0]} />
           </BarChart>
         </ChartContainer>
       </CardContent>

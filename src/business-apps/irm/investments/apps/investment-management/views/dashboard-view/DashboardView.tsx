@@ -1,16 +1,5 @@
 import React from 'react'
-import {
-  Button,
-  Alert,
-  AlertTitle,
-  AlertDescription,
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem
-} from '@newwork/nw-design-system'
-import { Spinner } from '@newwork/nw-design-system'
+import { Button, Alert, AlertTitle, AlertDescription, Spinner } from '@newwork/nw-design-system'
 import { BarChart3, Home, Banknote } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -18,7 +7,9 @@ import { InvestmentStatistics } from './components/InvestmentStatistics'
 import InvestmentBreakdownCard, { type InvestmentGroup, type TrendData } from './components/InvestmentBreakdownCard'
 import { useGetInvestments } from '@/common/data/investment/hooks/useInvestments'
 import { Investment } from '@/common/data/investment/types/investmentTypes'
+import { useAvailableCurrencies } from '@/common/data/common/hooks/useAvailableCurrencies'
 import { useInvestmentGroupsAndTypes } from './hooks/useInvestmentGroupsAndTypes'
+import { CurrencyFilter } from '../analytics-view/shared/components'
 
 interface DashboardViewProps extends BusinessAppContextProps {
   moduleColor?: string
@@ -52,20 +43,20 @@ const getIconComponent = (groupName: string) => {
 }
 
 // Helper function to calculate trend data
-// Compares current total investment vs total investment 30 days ago (based on createdAt)
+// Compares current total investment vs total investment 91 days ago (based on createdAt)
 const calculateTrendData = (investments: Investment[]): TrendData => {
   const now = new Date()
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+  const quarterAgo = new Date(now.getTime() - 91 * 24 * 60 * 60 * 1000)
 
   // Current total: all investments
   const currentTotal = investments.reduce((sum, inv) => sum + (inv.totalInvestmentAmount || 0), 0)
 
-  // Previous total: investments that existed 30 days ago (created before 30 days ago)
+  // Previous total: investments that existed 91 days ago (created before 91 days ago)
   const previousTotal = investments
     .filter(inv => {
       if (!inv.createdAt) return true // Include if no createdAt (assume old)
       const createdDate = new Date(inv.createdAt)
-      return createdDate < thirtyDaysAgo
+      return createdDate < quarterAgo
     })
     .reduce((sum, inv) => sum + (inv.totalInvestmentAmount || 0), 0)
 
@@ -120,73 +111,16 @@ const DashboardView: React.FC<DashboardViewProps> = ({
   const [investments, setInvestments] = React.useState<Investment[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
-  const [masterCurrency, setMasterCurrency] = React.useState<string>('Currency:v1:EUR')
-  const [availableCurrencies, setAvailableCurrencies] = React.useState<Array<{ id: string; code: string }>>([
-    { id: 'Currency:v1:EUR', code: 'EUR' }
-  ])
+  const [masterCurrency, setMasterCurrency] = React.useState<string>('EUR')
 
-  // Fetch all investments once to get available currencies
-  React.useEffect(() => {
-    let mounted = true
-    ;(async () => {
-      try {
-        // Fetch ALL investments without currency filter to get available currencies
-        const result = await fetchInvestments({ limit: 1000 })
-        if (!mounted) return
-
-        // Extract unique currencies with both ID and code
-        const currencyMap = new Map<string, { id: string; code: string }>()
-        result?.Investment?.forEach((inv: Investment) => {
-          if (inv.currency) {
-            const currency = inv.currency as any
-            let currencyId: string | null = null
-            let currencyCode: string | null = null
-
-            if (typeof currency === 'string') {
-              currencyId = currency
-              const parts = currency.split(':')
-              currencyCode = parts[parts.length - 1] || null
-            } else if (typeof currency === 'object' && currency !== null) {
-              currencyId = currency.id || null
-              const codeStr = currency.code || currency.value
-              if (codeStr) {
-                const parts = String(codeStr).split(':')
-                currencyCode = parts[parts.length - 1] || null
-              }
-            }
-
-            if (currencyId && currencyCode && !currencyMap.has(currencyId)) {
-              currencyMap.set(currencyId, { id: currencyId, code: currencyCode })
-            }
-          }
-        })
-
-        const currencyArray = Array.from(currencyMap.values())
-        // Sort with EUR first, then alphabetically by code
-        const sorted = currencyArray.toSorted((a, b) => {
-          if (a.code === 'EUR') return -1
-          if (b.code === 'EUR') return 1
-          return a.code.localeCompare(b.code)
-        })
-
-        if (mounted) {
-          setAvailableCurrencies(sorted.length > 0 ? sorted : [{ id: 'Currency:v1:EUR', code: 'EUR' }])
-        }
-      } catch (err) {
-        console.error('Error fetching available currencies:', err)
-        if (mounted) {
-          setAvailableCurrencies([
-            { id: 'Currency:v1:EUR', code: 'EUR' },
-            { id: 'Currency:v1:USD', code: 'USD' },
-            { id: 'Currency:v1:GBP', code: 'GBP' }
-          ])
-        }
-      }
-    })()
-    return () => {
-      mounted = false
+  // Fetch available currencies efficiently using distinctOn (code-only format)
+  const { currencies: availableCurrencies } = useAvailableCurrencies(
+    { accessToken, userInfo },
+    {
+      filters: { entity: 'Investment' },
+      returnFormat: 'codes'
     }
-  }, [fetchInvestments])
+  )
 
   // Use centralized groups and types data
   const { data: groupsData, error: groupsError, isLoading: groupsLoading } = useInvestmentGroupsAndTypes(accessToken)
@@ -339,30 +273,17 @@ const DashboardView: React.FC<DashboardViewProps> = ({
 
   return (
     <div data-testid="dashboard-content">
-      {/* Header with Currency Selector */}
+      {/* Header with Currency Filter */}
       <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
-        <div className="gba:flex gba:items-center gba:gap-4">
-          <h1 className="gba:text-3xl gba:font-bold gba:text-gray-900 gba:m-0">
-            {getTranslationFromI18nKeyAndLabel('dashboard.title', 'Investment Dashboard')}
-          </h1>
-        </div>
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-            {getTranslationFromI18nKeyAndLabel('currency.filter', 'Currency:')}
-          </span>
-          <Select value={masterCurrency} onValueChange={setMasterCurrency}>
-            <SelectTrigger className="gba:w-24 gba:h-8" data-testid="dashboard-master-currency-selector">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {availableCurrencies.map(currency => (
-                <SelectItem key={currency.id} value={currency.id}>
-                  {currency.code}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <h1 className="gba:text-3xl gba:font-bold gba:text-gray-900 gba:m-0">
+          {getTranslationFromI18nKeyAndLabel('dashboard.title', 'Investment Dashboard')}
+        </h1>
+        <CurrencyFilter
+          value={masterCurrency}
+          onChange={setMasterCurrency}
+          currencies={availableCurrencies}
+          dataTestId="dashboard-master-currency-filter"
+        />
       </div>
 
       {/* Key Metrics Cards */}

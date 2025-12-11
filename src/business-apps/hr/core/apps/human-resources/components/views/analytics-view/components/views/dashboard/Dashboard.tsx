@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react'
 import { Typography, Spin } from 'antd'
-import { SectionKpiCards, KpiCardData, useTranslation } from '@newwork/nw-design-system'
+import { SectionKpiCards, KpiCardData, useTranslation, Icon } from '@newwork/nw-design-system'
+import { UsersIcon, CurrencyDollarIcon } from '@phosphor-icons/react'
 import { DashboardProps, AnalyticsKpiData } from './types/analyticsTypes'
 import { useEmployeeCount } from '../../../hooks/useEmployeeCount'
 import { useNewHiresCount } from '../../../hooks/useNewHiresCount'
@@ -21,13 +22,13 @@ const { Title, Text } = Typography
 const Dashboard: React.FC<DashboardProps> = ({ accessToken }) => {
   const { t } = useTranslation(hrTranslations)
   // Get data from custom hooks
-  const { count: employeeCount, loading: employeeLoading } = useEmployeeCount(accessToken)
-  const { count: newHiresCount, loading: hiresLoading } = useNewHiresCount(accessToken)
   const {
-    rate: turnoverRate,
-    change: turnoverChange,
-    loading: turnoverLoading
-  } = useTurnoverRate(accessToken, employeeCount)
+    count: employeeCount,
+    diffYoY: employeeCountDiffYoY,
+    loading: employeeLoading
+  } = useEmployeeCount(accessToken)
+  const { count: newHiresCount, loading: hiresLoading } = useNewHiresCount(accessToken)
+  const { rate: turnoverRate, change: turnoverChange, loading: turnoverLoading } = useTurnoverRate(accessToken)
   const { averageSalary, loading: salaryLoading } = useAverageSalary(accessToken)
   const { hiresData, loading: hiresYearlyLoading, error: hiresYearlyError } = useHiresPerYear(accessToken)
   const {
@@ -72,28 +73,28 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken }) => {
           id: 'total-employees',
           title: analyticsData.employeeCount.label,
           value: t('hr-data-filter-loading'),
-          icon: 'users',
+          icon: <Icon icon={UsersIcon} size="sm" decorative />,
           iconColor: 'var(--nw-info)'
         },
         {
           id: 'new-hires',
           title: analyticsData.newHires.label,
           value: t('hr-data-filter-loading'),
-          icon: 'users',
+          icon: <Icon icon={UsersIcon} size="sm" decorative />,
           iconColor: 'var(--nw-success)'
         },
         {
           id: 'turnover-rate',
           title: analyticsData.turnoverRate.label,
           value: t('hr-data-filter-loading'),
-          icon: 'users',
+          icon: <Icon icon={UsersIcon} size="sm" decorative />,
           iconColor: 'var(--nw-warning)'
         },
         {
           id: 'average-salary',
           title: analyticsData.averageSalary.label,
           value: t('hr-data-filter-loading'),
-          icon: 'mail', // Using mail as currency icon mapping
+          icon: <Icon icon={CurrencyDollarIcon} size="sm" decorative />,
           iconColor: 'var(--nw-decorative)'
         }
       ]
@@ -104,11 +105,11 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken }) => {
         id: 'total-employees',
         title: analyticsData.employeeCount.label,
         value: analyticsData.employeeCount.value.toLocaleString(),
-        icon: 'users',
+        icon: <Icon icon={UsersIcon} size="sm" decorative />,
         iconColor: 'var(--nw-info)',
         trend: {
-          value: analyticsData.newHires.value.toString(),
-          positive: analyticsData.newHires.value > 0 ? true : false,
+          value: `${employeeCountDiffYoY > 0 ? '+' : ''}${employeeCountDiffYoY}`,
+          positive: employeeCountDiffYoY > 0 ? true : false,
           description: t('hr-analytics-this-year')
         },
         footer: t('hr-analytics-active-employees')
@@ -117,7 +118,7 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken }) => {
         id: 'turnover-rate',
         title: analyticsData.turnoverRate.label,
         value: `${analyticsData.turnoverRate.value.toFixed(1)}%`,
-        icon: 'users',
+        icon: <Icon icon={UsersIcon} size="sm" decorative />,
         iconColor: analyticsData.turnoverRate.change < 0 ? 'var(--nw-success)' : 'var(--nw-warning)',
         trend: {
           value: `${analyticsData.turnoverRate.change > 0 ? '+' : ''}${analyticsData.turnoverRate.change.toFixed(1)}%`,
@@ -128,8 +129,8 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken }) => {
       {
         id: 'average-salary',
         title: analyticsData.averageSalary.label,
-        value: `$${analyticsData.averageSalary.value}K`,
-        icon: 'mail', // Using mail as currency icon mapping
+        value: `${analyticsData.averageSalary.value}K`,
+        icon: <Icon icon={CurrencyDollarIcon} size="sm" decorative />,
         iconColor: 'var(--nw-info)',
         footer: t('hr-analytics-annual-average')
       }

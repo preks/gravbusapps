@@ -9,12 +9,12 @@ import {
   PiUser,
   PiMapPin,
   PiCalendar,
-  PiPencilSimple,
   PiVideoCamera,
   PiChat,
   PiCurrencyDollar,
   PiGlobeHemisphereWest,
-  PiBookmarks
+  PiBookmarks,
+  PiCameraFill
 } from 'react-icons/pi'
 import { Avatar } from '@newwork/gravity-ui-catalog'
 import { Employee } from '../hooks/useEmployeeData'
@@ -27,7 +27,9 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { notification } from 'antd'
 import { StarIcon } from 'lucide-react'
 import { TeamOutlined } from '@ant-design/icons'
-import AppActionMenu from '@/components/app-action-menu/AppActionMenu'
+import AppAction from '@/components/app-action/AppAction'
+import { useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 // Team item type
 interface MatrixUnitEmployee {
@@ -56,7 +58,6 @@ interface EmployeeSkill {
 
 interface ProfileHeaderProps {
   employee: Employee
-  isSelfView?: boolean
 }
 
 interface ProfileInfoItemProps {
@@ -140,14 +141,10 @@ const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({
   )
 }
 
-const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
-  userInfo,
-  employee,
-  accessToken,
-  isSelfView
-}) => {
+const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({ userInfo, employee, accessToken }) => {
   // Translation helper
   const t = (key: string) => getTranslationFromI18nKeyAndLabel(key, key)
+  const { t: tDesign } = useTranslation(hrTranslations)
   const [employeeEmail, setEmployeeEmail] = useState<string | undefined>()
 
   // Use the openChat hook for direct Teams integration
@@ -260,7 +257,7 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
               <div className="gba:relative">
                 <div className="gba:relative">
                   {/* Use the Avatar component */}
-                  <div className="gba:relative gba:group">
+                  <div className="gba:relative gba:group" style={{ width: '144px', height: '144px' }}>
                     <Avatar
                       src={employee.pictureThumbnail ? `data:image/gif;base64,${employee.pictureThumbnail}` : undefined}
                       initials={`${employee.firstName?.[0] || ''}${employee.lastName?.[0] || ''}`}
@@ -281,30 +278,25 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                     />
 
                     {/* Edit button overlay */}
-                    {isSelfView && (
-                      <div
-                        className="
-                          gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center
-                          gba:opacity-0 gba:pointer-events-none gba:transition-opacity
-                          gba:group-hover:opacity-100 gba:group-hover:pointer-events-auto
-                        "
-                        aria-label={'Edit profile picture'}
-                      >
-                        <AppActionMenu
-                          data-testid="employee-profile-picture-edit-button"
-                          contextsArray={[FlowContextName.employeeProfilePicture]}
-                          externalContextData={{
-                            employeeId: employee?.id
-                          }}
-                          prefixDataTestId="employee-profile-picture-edit"
-                          accessToken={accessToken}
-                          autoExecuteSingleAction={true}
-                          emptyStateBehavior="hide"
-                        >
-                          <PiPencilSimple className="gba:h-5 gba:w-5" />
-                        </AppActionMenu>
+                    <AppAction
+                      mode="trigger"
+                      data-testid="employee-profile-picture-edit-button"
+                      contexts={[
+                        { context: FlowContextName.employeeProfilePicture, contextData: { employeeId: employee?.id } }
+                      ]}
+                      prefixDataTestId="employee-profile-picture-edit"
+                      autoExecute={true}
+                      accessToken={accessToken}
+                      emptyState="hide"
+                      className="gba:absolute gba:inset-0 gba:rounded-xl gba:flex gba:items-center gba:justify-center gba:opacity-0 gba:bg-black/60 gba:text-white gba:group-hover:opacity-100 gba:transition-opacity gba:transition-duration-200 gba:transition-ease-in-out gba:cursor-pointer"
+                    >
+                      <div className="gba:p-4 gba:flex gba:flex-col gba:items-center gba:gap-2">
+                        <PiCameraFill className="gba:h-6 gba:w-6" />
+                        <span className="gba:text-xs gba:font-semibold gba:uppercase gba:text-center">
+                          {tDesign('employee-edit-picture')}
+                        </span>
                       </div>
-                    )}
+                    </AppAction>
                   </div>
                 </div>
 

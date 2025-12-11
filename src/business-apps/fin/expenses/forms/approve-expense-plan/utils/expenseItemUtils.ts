@@ -1,4 +1,4 @@
-import { ExpensePlanItem } from '../types/expensePlanTypes'
+import { ExpensePlanItem } from '../types/expensePlanV2Types'
 
 export interface SplitExpenseItemsResult {
   itemData: ExpensePlanItem[]

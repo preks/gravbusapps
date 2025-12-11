@@ -210,8 +210,6 @@ export const useInvestmentEntities = (context: BusinessAppContextProps) => {
         inFlightRef.current = { key, promise }
         const result = await promise
 
-        console.log('🔍 Investment entities search result:', result)
-
         const nextEntities: EntityOption[] = []
 
         ;(result.InvestmentAccount || []).forEach(account => {
@@ -255,21 +253,17 @@ export const useInvestmentEntities = (context: BusinessAppContextProps) => {
             subtitle: lead.companyName && leadName !== lead.companyName ? lead.companyName : lead.email
           })
         })
-
-        console.log('💰 Raw Investment data:', result.Investment)
         ;(result.Investment || []).forEach(investment => {
           const currencyValue = investment.currency?.value ? ` (${investment.currency.value})` : ''
           // Use totalInvestmentAmount or investmentMarketValue for display
           const value = investment.totalInvestmentAmount || investment.investmentMarketValue
           const totalValueText = value ? `${value.toLocaleString()}${currencyValue}` : ''
-          const investmentEntity = {
+          nextEntities.push({
             id: investment.id,
             name: investment.name || investment.code || 'Investment',
             type: 'investment',
             subtitle: totalValueText || investment.code
-          }
-          console.log('💰 Adding investment entity:', investmentEntity)
-          nextEntities.push(investmentEntity)
+          })
         })
 
         // Merge previous (when appending) + current page with pinned
@@ -312,7 +306,6 @@ export const useInvestmentEntities = (context: BusinessAppContextProps) => {
   const searchEntities = useCallback(
     async (q: string) => {
       if (!context.accessToken) {
-        console.warn('No access token provided to useInvestmentEntities')
         return
       }
       const trimmed = q?.trim() || ''

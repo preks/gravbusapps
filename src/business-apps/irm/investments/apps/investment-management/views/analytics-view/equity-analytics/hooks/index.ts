@@ -1,7 +1,5 @@
 export { useEquityChartData } from './useEquityChartData'
 export { useEquityKPIIntegration } from './useEquityKPIIntegration'
-export { useEquityAvailableCurrencies } from './useEquityAvailableCurrencies'
-export type { CurrencyOption } from './useEquityAvailableCurrencies'
 
 // Combined hooks with GraphQL aliases - optimized to avoid N+1 queries
 export { useEquityRoleDistributionCombined } from './useEquityRoleDistributionCombined'

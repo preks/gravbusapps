@@ -3,6 +3,100 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { toISOFormat } from '@/common/utils/dateFormatter'
 import type { NoteSegmentSchema } from '@/common/components/common-relations/form-segments/note-segment/NoteSegment'
 
+// Helper to extract entity ID from object or string
+const getEntityId = (entity: any): string | undefined => {
+  if (!entity) return undefined
+  if (typeof entity === 'string') return entity
+  return entity.id
+}
+
+// Helper to extract investment ID from additional data
+const extractInvestmentId = (additionalDataRecord: Record<string, any>): string | undefined => {
+  const external = additionalDataRecord.externalContextData || {}
+  return (
+    external.investmentId ||
+    external.investment?.id ||
+    external.investment ||
+    additionalDataRecord.investmentId ||
+    additionalDataRecord.investment?.id ||
+    additionalDataRecord.investment
+  )
+}
+
+// Helper to extract account ID from additional data
+const extractAccountId = (additionalDataRecord: Record<string, any>): string | undefined => {
+  const external = additionalDataRecord.externalContextData || {}
+  return (
+    additionalDataRecord.accountId || additionalDataRecord.account?.id || external.accountId || external.account?.id
+  )
+}
+
+// Helper to extract contact ID from additional data
+const extractContactId = (additionalDataRecord: Record<string, any>): string | undefined => {
+  const external = additionalDataRecord.externalContextData || {}
+  return (
+    additionalDataRecord.contactId || additionalDataRecord.contact?.id || external.contactId || external.contact?.id
+  )
+}
+
+// Helper to extract opportunity ID from additional data
+const extractOpportunityId = (additionalDataRecord: Record<string, any>): string | undefined => {
+  const external = additionalDataRecord.externalContextData || {}
+  return (
+    additionalDataRecord.opportunityId ||
+    additionalDataRecord.opportunity?.id ||
+    external.opportunityId ||
+    external.opportunity?.id
+  )
+}
+
+// Helper to add investment and account from context
+const addInvestmentAndAccountFromContext = (
+  refs: Record<string, any>,
+  additionalDataRecord: Record<string, any>
+): void => {
+  const investmentId = extractInvestmentId(additionalDataRecord)
+  if (investmentId) {
+    refs.investment = investmentId
+    const accountIdFromContext = extractAccountId(additionalDataRecord)
+    if (accountIdFromContext && !refs.account) {
+      refs.account = accountIdFromContext
+    }
+  }
+}
+
+// Helper to add entities from context as fallback
+const addEntitiesFromContextFallback = (refs: Record<string, any>, additionalDataRecord: Record<string, any>): void => {
+  if (!refs.account) {
+    const accountIdFromContext = extractAccountId(additionalDataRecord)
+    if (accountIdFromContext) {
+      refs.account = accountIdFromContext
+    }
+  }
+  if (!refs.contact) {
+    const contactIdFromContext = extractContactId(additionalDataRecord)
+    if (contactIdFromContext) {
+      refs.contact = contactIdFromContext
+    }
+  }
+  if (!refs.opportunity) {
+    const opportunityIdFromContext = extractOpportunityId(additionalDataRecord)
+    if (opportunityIdFromContext) {
+      refs.opportunity = opportunityIdFromContext
+    }
+  }
+}
+
+// Helper to add lead from context
+const addLeadFromContext = (refs: Record<string, any>, additionalDataRecord: Record<string, any>): void => {
+  if (refs.lead) return
+  const external = additionalDataRecord.externalContextData || {}
+  const leadId = additionalDataRecord.leadId || additionalDataRecord.lead?.id || external.leadId || external.lead?.id
+  if (leadId) {
+    refs.lead = leadId
+  }
+}
+
 export const buildActivityPayload = (
   activity: Activity,
   businessAppContext: BusinessAppContextProps,
@@ -11,53 +105,23 @@ export const buildActivityPayload = (
   // Helper to build entity references
   const getEntityRef = () => {
     const refs: Record<string, any> = {}
-    if (activity.account) refs.account = activity.account.id
-    if (activity.contact) refs.contact = activity.contact.id
-    if (activity.opportunity) refs.opportunity = activity.opportunity.id
-    if (activity.lead) refs.lead = activity.lead.id
+    const accountId = getEntityId(activity.account)
+    const contactId = getEntityId(activity.contact)
+    const opportunityId = getEntityId(activity.opportunity)
+    const leadId = getEntityId(activity.lead)
+
+    if (accountId) refs.account = accountId
+    if (contactId) refs.contact = contactId
+    if (opportunityId) refs.opportunity = opportunityId
+    if (leadId) refs.lead = leadId
 
     // Always include parent investment when provided via additional/external context
-    const additional: any = (businessAppContext as any)?.additionalData || {}
-    const external: any = additional.externalContextData || {}
-    const investmentId =
-      external.investmentId ||
-      external.investment?.id ||
-      external.investment ||
-      additional.investmentId ||
-      additional.investment?.id ||
-      additional.investment
-    if (investmentId) {
-      refs.investment = investmentId
-      // Also include the investment's account if available and not already set
-      const accountId = additional.accountId || external.accountId || external.account?.id || additional.account?.id
-      if (accountId && !refs.account) {
-        refs.account = accountId
-      }
-    }
-
-    // If related entity was not set via ActivitySegment, try to infer from additional/external context
-    if (
-      !refs.account &&
-      (additional.accountId || additional.account?.id || external.accountId || external.account?.id)
-    ) {
-      refs.account = additional.accountId || additional.account?.id || external.accountId || external.account?.id
-    }
-    if (
-      !refs.contact &&
-      (additional.contactId || additional.contact?.id || external.contactId || external.contact?.id)
-    ) {
-      refs.contact = additional.contactId || additional.contact?.id || external.contactId || external.contact?.id
-    }
-    if (
-      !refs.opportunity &&
-      (additional.opportunityId || additional.opportunity?.id || external.opportunityId || external.opportunity?.id)
-    ) {
-      refs.opportunity =
-        additional.opportunityId || additional.opportunity?.id || external.opportunityId || external.opportunity?.id
-    }
-    if (!refs.lead && (additional.leadId || additional.lead?.id || external.leadId || external.lead?.id)) {
-      refs.lead = additional.leadId || additional.lead?.id || external.leadId || external.lead?.id
-    }
+    const additionalData = (businessAppContext as any)?.additionalData || {}
+    const initialParameters = additionalData?.psi_taskPayload?.psi_initialParameters
+    const additionalDataRecord = initialParameters ? { ...additionalData, ...initialParameters } : additionalData
+    addInvestmentAndAccountFromContext(refs, additionalDataRecord)
+    addEntitiesFromContextFallback(refs, additionalDataRecord)
+    addLeadFromContext(refs, additionalDataRecord)
     return refs
   }
 
@@ -158,11 +222,17 @@ export const buildInvestmentTaskPayload = (
   const getEntityRef = () => {
     const refs: Record<string, any> = {}
     // Check task object first for all entity types
-    if (task.investment) refs.investment = task.investment.id
-    if (task.account) refs.account = task.account.id
-    if (task.contact) refs.contact = task.contact.id
-    if (task.opportunity) refs.opportunity = task.opportunity.id
-    if (task.lead) refs.lead = task.lead.id
+    const investmentId = getEntityId(task.investment)
+    const accountId = getEntityId(task.account)
+    const contactId = getEntityId(task.contact)
+    const opportunityId = getEntityId(task.opportunity)
+    const leadId = getEntityId(task.lead)
+
+    if (investmentId) refs.investment = investmentId
+    if (accountId) refs.account = accountId
+    if (contactId) refs.contact = contactId
+    if (opportunityId) refs.opportunity = opportunityId
+    if (leadId) refs.lead = leadId
 
     // Fallback: Always include parent investment when provided via additionalData/externalContextData
     // This handles cases where the form doesn't have the investment object but context does
@@ -246,56 +316,23 @@ export const buildInvestmentNotePayload = (
   // Helper to build entity references (same pattern as activity)
   const getEntityRef = () => {
     const refs: Record<string, any> = {}
-    if (note.account) refs.account = note.account.id
-    if (note.contact) refs.contact = note.contact.id
-    if (note.opportunity) refs.opportunity = note.opportunity.id
-    if (note.lead) refs.lead = note.lead.id
+    const accountId = getEntityId(note.account)
+    const contactId = getEntityId(note.contact)
+    const opportunityId = getEntityId(note.opportunity)
+    const leadId = getEntityId(note.lead)
+
+    if (accountId) refs.account = accountId
+    if (contactId) refs.contact = contactId
+    if (opportunityId) refs.opportunity = opportunityId
+    if (leadId) refs.lead = leadId
 
     // Always include parent investment when provided via additionalData or externalContextData
-    const additional: any = (businessAppContext as any)?.additionalData || {}
-    const external: any = additional.externalContextData || {}
-
-    const investmentId =
-      external.investmentId ||
-      external.investment?.id ||
-      external.investment ||
-      additional.investmentId ||
-      additional.investment?.id ||
-      additional.investment
-
-    if (investmentId) {
-      refs.investment = investmentId
-
-      // Include the investment's account to satisfy backend validation when available
-      const accountId = additional.accountId || additional.account?.id || external.accountId || external.account?.id
-      if (accountId && !refs.account) {
-        refs.account = accountId
-      }
-    }
-
-    // If related entity was not set via NoteSegment, try to infer from additional/external context
-    if (
-      !refs.account &&
-      (additional.accountId || additional.account?.id || external.accountId || external.account?.id)
-    ) {
-      refs.account = additional.accountId || additional.account?.id || external.accountId || external.account?.id
-    }
-    if (
-      !refs.contact &&
-      (additional.contactId || additional.contact?.id || external.contactId || external.contact?.id)
-    ) {
-      refs.contact = additional.contactId || additional.contact?.id || external.contactId || external.contact?.id
-    }
-    if (
-      !refs.opportunity &&
-      (additional.opportunityId || additional.opportunity?.id || external.opportunityId || external.opportunity?.id)
-    ) {
-      refs.opportunity =
-        additional.opportunityId || additional.opportunity?.id || external.opportunityId || external.opportunity?.id
-    }
-    if (!refs.lead && (additional.leadId || additional.lead?.id || external.leadId || external.lead?.id)) {
-      refs.lead = additional.leadId || additional.lead?.id || external.leadId || external.lead?.id
-    }
+    const additionalData = (businessAppContext as any)?.additionalData || {}
+    const initialParameters = additionalData?.psi_taskPayload?.psi_initialParameters
+    const additionalDataRecord = initialParameters ? { ...additionalData, ...initialParameters } : additionalData
+    addInvestmentAndAccountFromContext(refs, additionalDataRecord)
+    addEntitiesFromContextFallback(refs, additionalDataRecord)
+    addLeadFromContext(refs, additionalDataRecord)
     return refs
   }
 

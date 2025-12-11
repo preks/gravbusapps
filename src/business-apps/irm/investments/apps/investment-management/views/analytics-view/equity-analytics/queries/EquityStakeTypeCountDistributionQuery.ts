@@ -11,7 +11,7 @@ export interface StakeTypeCountDistributionData {
 }
 
 /**
- * Query for Stake Type Count Distribution (supports "All Currencies")
+ * Query for Stake Type Count Distribution (supports "All")
  * Uses shared distinct stake types query to avoid duplication
  */
 
@@ -20,10 +20,7 @@ export interface StakeTypeCountDistributionData {
  */
 const BUILD_ALL_STAKE_TYPES_COUNT_QUERY = (stakeTypes: StakeTypeInfo[], currency?: string): string => {
   const countConditions = (stakeTypeRef: string) => {
-    const currencyCondition =
-      currency && currency !== 'All' && currency !== 'All Currencies'
-        ? `currency: { code: { _eq: "${currency}" } }`
-        : ''
+    const currencyCondition = currency && currency !== 'All' ? `currency: { code: { _eq: "${currency}" } }` : ''
 
     const conditions = [
       'isDeleted: { _eq: false }',

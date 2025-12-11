@@ -82,7 +82,30 @@ export const DocumentFields = {
   verified: 'verified'
 } as const
 
-export type DocumentFieldName = (typeof DocumentFields)[keyof typeof DocumentFields]
+export const DocumentFormFields = {
+  accountId: 'account',
+  activityId: 'activity',
+  authenticated: 'authenticated',
+  authenticationDate: 'authenticationDate',
+  contactId: 'contact',
+  description: 'description',
+  documentGroupRef: 'documentGroupRef',
+  documentTypeRef: 'documentTypeRef',
+  expirationDate: 'expirationDate',
+  fileInfo: 'fileInfo',
+  folder: 'folder',
+  id: 'id',
+  leadId: 'lead',
+  mandatory: 'mandatory',
+  name: 'name',
+  noteId: 'note',
+  opportunityId: 'opportunity',
+  parentDocumentId: 'parentDocument',
+  source: 'source',
+  taskId: 'task',
+  verificationDate: 'verificationDate',
+  verified: 'verified'
+}
 
 /**
  * Create Common Document Descriptors with fields mapping

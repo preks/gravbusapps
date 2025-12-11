@@ -10,13 +10,25 @@ import {
   TooltipContent
 } from '@newwork/nw-design-system'
 import { Select } from 'antd'
-import { FormInput, Trash2, GripVertical, Info, Database, ChevronDown, ChevronUp, Settings } from 'lucide-react'
+import {
+  FormInput,
+  Trash2,
+  GripVertical,
+  Info,
+  Database,
+  ChevronDown,
+  ChevronUp,
+  Settings,
+  AlertCircle
+} from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { InputType } from '@/common/network/flows/FlowTemplateClient'
 import { FlowTemplate } from '../../types/flowTemplate'
 import { ExpressionInput } from '../shared/ExpressionInput'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogDiscovery } from '../../hooks/useCatalogDiscovery'
+import { env } from '@/common/env/EnvUtils'
+import { EntityPreview } from './EntityPreview'
 
 interface InputFieldsConfigurationProps {
   step: any
@@ -92,6 +104,13 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({
   const [advancedModeEnabled, setAdvancedModeEnabled] = useState<Record<number, boolean>>({})
   const hasFetchedCatalogs = useRef(false)
 
+  // Entity data source state
+  const [availableEntities, setAvailableEntities] = useState<any[]>([])
+  const [isLoadingEntities, setIsLoadingEntities] = useState(false)
+  const [advancedEntityModeEnabled, setAdvancedEntityModeEnabled] = useState<Record<number, boolean>>({})
+  const [expandedEntityPreviews, setExpandedEntityPreviews] = useState<Record<string, boolean>>({})
+  const hasFetchedEntities = useRef(false)
+
   // Fetch catalogs when accessToken becomes available
   useEffect(() => {
     // Reset and fetch when accessToken changes
@@ -119,6 +138,32 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({
 
     loadCatalogs()
   }, [context?.accessToken]) // Only depend on accessToken to prevent infinite loop
+
+  // Fetch available entities on mount
+  useEffect(() => {
+    if (hasFetchedEntities.current) return
+
+    const fetchEntities = async () => {
+      setIsLoadingEntities(true)
+      hasFetchedEntities.current = true
+      try {
+        const apiUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
+        const response = await fetch(`${apiUrl}/api/entities?includeFields=true`)
+        if (!response.ok) {
+          throw new Error(`Failed to fetch entities: ${response.statusText}`)
+        }
+        const data = await response.json()
+        setAvailableEntities(Object.values(data.entities || {}))
+      } catch (error) {
+        console.error('Failed to fetch entities:', error)
+        setAvailableEntities([])
+      } finally {
+        setIsLoadingEntities(false)
+      }
+    }
+
+    fetchEntities()
+  }, [])
 
   // Fetch catalog preview when catalog is selected or expanded
   const fetchCatalogPreview = useCallback(
@@ -177,6 +222,73 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({
   const toggleAdvancedMode = useCallback((index: number) => {
     setAdvancedModeEnabled(prev => ({ ...prev, [index]: !prev[index] }))
   }, [])
+
+  const toggleAdvancedEntityMode = useCallback((index: number) => {
+    setAdvancedEntityModeEnabled(prev => ({ ...prev, [index]: !prev[index] }))
+  }, [])
+
+  const toggleEntityPreviewExpansion = useCallback((index: number, entityType: string) => {
+    const key = `${index}-${entityType}`
+    setExpandedEntityPreviews(prev => ({ ...prev, [key]: !prev[key] }))
+  }, [])
+
+  // Validation helper for entity data source configuration
+  const validateEntityDataSource = useCallback(
+    (input: any): { isValid: boolean; errors: string[]; warnings: string[] } => {
+      const errors: string[] = []
+      const warnings: string[] = []
+
+      if (input.dataSource?.type === 'ENTITY') {
+        if (!input.dataSource.entity) {
+          errors.push('Entity type is required')
+        }
+        if (!input.dataSource.valueField) {
+          errors.push('Value field is required')
+        }
+        if (!input.dataSource.labelField) {
+          errors.push('Label field is required')
+        }
+
+        // Field existence validation (if entity is selected and fields are specified)
+        if (input.dataSource.entity && availableEntities.length > 0) {
+          const entitySchema = availableEntities.find((e: any) => e.type === input.dataSource.entity)
+
+          if (entitySchema && entitySchema.fields && Array.isArray(entitySchema.fields)) {
+            const fieldNames = entitySchema.fields.map((f: any) => f.name)
+
+            // Check valueField existence
+            if (
+              input.dataSource.valueField &&
+              !fieldNames.includes(input.dataSource.valueField) &&
+              input.dataSource.valueField !== 'id'
+            ) {
+              warnings.push(
+                `Field "${input.dataSource.valueField}" not found in ${entitySchema.displayName} schema. Available: ${fieldNames.join(', ')}`
+              )
+            }
+
+            // Check labelField existence
+            if (
+              input.dataSource.labelField &&
+              !fieldNames.includes(input.dataSource.labelField) &&
+              input.dataSource.labelField !== 'displayName'
+            ) {
+              warnings.push(
+                `Field "${input.dataSource.labelField}" not found in ${entitySchema.displayName} schema. Available: ${fieldNames.join(', ')}`
+              )
+            }
+          }
+        }
+      }
+
+      return {
+        isValid: errors.length === 0,
+        errors,
+        warnings
+      }
+    },
+    [availableEntities]
+  )
 
   const handleAddInput = () => {
     const newInputs = [
@@ -406,57 +518,124 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({
                   )}
                 </div>
 
-                {/* Catalog Data Source Configuration */}
+                {/* Dynamic Data Source Configuration */}
                 {[InputType.SELECT, InputType.MULTISELECT].includes(input.type) && (
-                  <div className="gba:pl-8 gba:space-y-2 gba:border-l-2 gba:border-blue-200">
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <Checkbox
-                        checked={input.dataSource?.type === 'CATALOG'}
-                        onCheckedChange={checked => {
-                          const newInputs = [...inputs]
-                          if (checked) {
-                            // Enable catalog mode with default values
-                            newInputs[index] = {
-                              ...newInputs[index],
-                              dataSource: {
-                                type: 'CATALOG',
-                                catalog: '',
-                                valueField: 'value',
-                                labelField: 'value'
-                              }
-                            }
-                            // Clear manual options when enabling catalog
-                            delete newInputs[index].options
-                          } else {
-                            // Disable catalog mode
-                            const updated = { ...newInputs[index] }
-                            delete updated.dataSource
-                            newInputs[index] = updated
-                          }
-                          onUpdateStep({ form: newInputs })
-                        }}
-                        data-testid={`${testId}-enable-catalog-${index}`}
-                      />
-                      <Database className="gba:h-4 gba:w-4 gba:text-blue-600" />
-                      <label className="gba:text-sm gba:text-gray-700 gba:font-medium">
-                        Use Catalog as Data Source
-                      </label>
-                      <Badge variant="secondary" className="gba:text-xs gba:bg-blue-100 gba:text-blue-800">
-                        Dynamic
+                  <div className="gba:pl-8 gba:space-y-3">
+                    <div className="gba:flex gba:items-center gba:gap-2 gba:pb-1">
+                      <label className="gba:text-sm gba:font-medium gba:text-gray-700">Dynamic Data Source</label>
+                      <Badge variant="secondary" className="gba:text-xs">
+                        Optional
                       </Badge>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Info className="gba:h-4 gba:w-4 gba:text-gray-400 gba:cursor-help" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="gba:text-xs gba:max-w-xs">
-                              Automatically populate dropdown options from a catalog. Options stay up-to-date without
-                              template changes.
-                            </p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                    </div>
+
+                    <div className="gba:space-y-3">
+                      {/* Catalog Checkbox */}
+                      <div className="gba:space-y-2 gba:border-l-2 gba:border-blue-200 gba:pl-3">
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <Checkbox
+                            checked={input.dataSource?.type === 'CATALOG'}
+                            disabled={input.dataSource?.type === 'ENTITY'}
+                            onCheckedChange={checked => {
+                              const newInputs = [...inputs]
+                              if (checked) {
+                                newInputs[index] = {
+                                  ...newInputs[index],
+                                  dataSource: {
+                                    type: 'CATALOG',
+                                    catalog: '',
+                                    valueField: 'value',
+                                    labelField: 'value'
+                                  }
+                                }
+                                delete newInputs[index].options
+                              } else {
+                                const updated = { ...newInputs[index] }
+                                delete updated.dataSource
+                                newInputs[index] = updated
+                              }
+                              onUpdateStep({ form: newInputs })
+                            }}
+                            data-testid={`${testId}-enable-catalog-${index}`}
+                          />
+                          <Database className="gba:h-4 gba:w-4 gba:text-blue-600" />
+                          <label className="gba:text-sm gba:text-gray-700 gba:font-medium">Catalog</label>
+                          <Badge variant="secondary" className="gba:text-xs gba:bg-blue-100 gba:text-blue-800">
+                            Dynamic
+                          </Badge>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Info className="gba:h-4 gba:w-4 gba:text-gray-400 gba:cursor-help" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p className="gba:text-xs gba:max-w-xs">
+                                  Automatically populate dropdown options from a catalog. Options stay up-to-date
+                                  without template changes.
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                        {input.dataSource?.type === 'ENTITY' && (
+                          <div className="gba:text-xs gba:text-gray-500 gba:italic gba:pl-6">
+                            Disabled (Entity data source is active)
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Entity Checkbox */}
+                      <div className="gba:space-y-2 gba:border-l-2 gba:border-purple-200 gba:pl-3">
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <Checkbox
+                            checked={input.dataSource?.type === 'ENTITY'}
+                            disabled={input.dataSource?.type === 'CATALOG'}
+                            onCheckedChange={checked => {
+                              const newInputs = [...inputs]
+                              if (checked) {
+                                newInputs[index] = {
+                                  ...newInputs[index],
+                                  dataSource: {
+                                    type: 'ENTITY',
+                                    entity: '',
+                                    valueField: 'id',
+                                    labelField: 'displayName'
+                                  }
+                                }
+                                delete newInputs[index].options
+                              } else {
+                                const updated = { ...newInputs[index] }
+                                delete updated.dataSource
+                                newInputs[index] = updated
+                              }
+                              onUpdateStep({ form: newInputs })
+                            }}
+                            data-testid={`${testId}-enable-entity-${index}`}
+                          />
+                          <Database className="gba:h-4 gba:w-4 gba:text-purple-600" />
+                          <label className="gba:text-sm gba:text-gray-700 gba:font-medium">Entity</label>
+                          <Badge variant="secondary" className="gba:text-xs gba:bg-purple-100 gba:text-purple-800">
+                            Dynamic
+                          </Badge>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Info className="gba:h-4 gba:w-4 gba:text-gray-400 gba:cursor-help" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p className="gba:text-xs gba:max-w-xs">
+                                  Automatically populate dropdown options from entities. Options stay up-to-date without
+                                  template changes.
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                        {input.dataSource?.type === 'CATALOG' && (
+                          <div className="gba:text-xs gba:text-gray-500 gba:italic gba:pl-6">
+                            Disabled (Catalog data source is active)
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     {input.dataSource?.type === 'CATALOG' && (
@@ -694,9 +873,178 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({
                   </div>
                 )}
 
+                {/* Entity Configuration (shown when ENTITY is selected in radio group) */}
+                {[InputType.SELECT, InputType.MULTISELECT].includes(input.type) &&
+                  input.dataSource?.type === 'ENTITY' && (
+                    <div className="gba:pl-8 gba:space-y-3 gba:pt-2">
+                      {/* Validation Errors and Warnings */}
+                      {(() => {
+                        const validation = validateEntityDataSource(input)
+                        const hasErrors = !validation.isValid
+                        const hasWarnings = validation.warnings && validation.warnings.length > 0
+
+                        if (!hasErrors && !hasWarnings) return null
+
+                        return (
+                          <div className="gba:space-y-2">
+                            {/* Errors */}
+                            {hasErrors && (
+                              <div className="gba:p-2 gba:bg-destructive-secondary gba:border gba:border-destructive gba:rounded gba:text-xs">
+                                <div className="gba:flex gba:items-start gba:gap-2">
+                                  <AlertCircle className="gba:h-4 gba:w-4 gba:text-destructive gba:flex-shrink-0 gba:mt-0.5" />
+                                  <div className="gba:space-y-1">
+                                    <div className="gba:font-medium gba:text-destructive">
+                                      Invalid Entity Configuration
+                                    </div>
+                                    <ul className="gba:list-disc gba:list-inside gba:text-destructive-secondary-foreground">
+                                      {validation.errors.map((error, idx) => (
+                                        <li key={idx}>{error}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Warnings */}
+                            {hasWarnings && (
+                              <div className="gba:p-2 gba:bg-warning-secondary gba:border gba:border-warning gba:rounded gba:text-xs">
+                                <div className="gba:flex gba:items-start gba:gap-2">
+                                  <AlertCircle className="gba:h-4 gba:w-4 gba:text-warning gba:flex-shrink-0 gba:mt-0.5" />
+                                  <div className="gba:space-y-1">
+                                    <div className="gba:font-medium gba:text-warning">Field Validation Warnings</div>
+                                    <ul className="gba:list-disc gba:list-inside gba:text-warning-secondary-foreground">
+                                      {validation.warnings.map((warning, idx) => (
+                                        <li key={idx}>{warning}</li>
+                                      ))}
+                                    </ul>
+                                    <div className="gba:text-warning-secondary-foreground gba:italic gba:mt-1">
+                                      These fields may not exist on the entity. The system will fallback to default
+                                      fields (id/displayName) at runtime.
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })()}
+
+                      {/* Entity Type Selector */}
+                      <div className="gba:space-y-1">
+                        <label className="gba:text-xs gba:font-medium gba:text-gray-700">
+                          Entity Type
+                          <span className="gba:text-destructive gba:ml-1">*</span>
+                        </label>
+                        <Select
+                          value={input.dataSource.entity || undefined}
+                          onChange={value => {
+                            handleUpdateInput(index, 'dataSource', {
+                              ...input.dataSource,
+                              entity: value
+                            })
+                          }}
+                          placeholder={isLoadingEntities ? 'Loading entities...' : 'Select entity type'}
+                          style={{ width: '100%' }}
+                          showSearch
+                          filterOption={(input, option) => {
+                            const children = option?.children
+                            const childStr = typeof children === 'string' ? children : String(children || '')
+                            return childStr.toLowerCase().includes(input.toLowerCase())
+                          }}
+                          data-testid={`${testId}-entity-select-${index}`}
+                          loading={isLoadingEntities}
+                        >
+                          {availableEntities.map((entity: any) => (
+                            <Select.Option key={entity.type} value={entity.type}>
+                              {entity.displayName}
+                              {entity.description && (
+                                <span className="gba:text-xs gba:text-gray-500 gba:ml-2">({entity.description})</span>
+                              )}
+                            </Select.Option>
+                          ))}
+                        </Select>
+                      </div>
+
+                      {/* Advanced Mode Toggle */}
+                      <div className="gba:flex gba:justify-end">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => toggleAdvancedEntityMode(index)}
+                          className="gba:text-xs gba:h-7"
+                          data-testid={`${testId}-entity-advanced-toggle-${index}`}
+                        >
+                          <Settings className="gba:h-3 gba:w-3 gba:mr-1" />
+                          {advancedEntityModeEnabled[index] ? 'Hide' : 'Show'} Advanced Settings
+                          {advancedEntityModeEnabled[index] ? (
+                            <ChevronUp className="gba:h-3 gba:w-3 gba:ml-1" />
+                          ) : (
+                            <ChevronDown className="gba:h-3 gba:w-3 gba:ml-1" />
+                          )}
+                        </Button>
+                      </div>
+
+                      {/* Field Mapping (Advanced Settings) */}
+                      {advancedEntityModeEnabled[index] && (
+                        <div className="gba:grid gba:grid-cols-2 gba:gap-2">
+                          <div className="gba:space-y-1">
+                            <label className="gba:text-xs gba:font-medium gba:text-gray-700">
+                              Value Field
+                              <span className="gba:text-destructive gba:ml-1">*</span>
+                            </label>
+                            <Input
+                              value={input.dataSource.valueField || 'id'}
+                              onChange={e => {
+                                handleUpdateInput(index, 'dataSource', {
+                                  ...input.dataSource,
+                                  valueField: e.target.value
+                                })
+                              }}
+                              placeholder="id"
+                              className={`gba:text-xs ${!input.dataSource.valueField ? 'gba:border-destructive' : ''}`}
+                              data-testid={`${testId}-entity-value-field-${index}`}
+                            />
+                          </div>
+                          <div className="gba:space-y-1">
+                            <label className="gba:text-xs gba:font-medium gba:text-gray-700">
+                              Label Field
+                              <span className="gba:text-destructive gba:ml-1">*</span>
+                            </label>
+                            <Input
+                              value={input.dataSource.labelField || 'displayName'}
+                              onChange={e => {
+                                handleUpdateInput(index, 'dataSource', {
+                                  ...input.dataSource,
+                                  labelField: e.target.value
+                                })
+                              }}
+                              placeholder="displayName"
+                              className={`gba:text-xs ${!input.dataSource.labelField ? 'gba:border-destructive' : ''}`}
+                              data-testid={`${testId}-entity-label-field-${index}`}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Entity Preview with Search */}
+                      {input.dataSource.entity && (
+                        <EntityPreview
+                          entityType={input.dataSource.entity}
+                          valueField={input.dataSource.valueField || 'id'}
+                          labelField={input.dataSource.labelField || 'displayName'}
+                          isExpanded={expandedEntityPreviews[`${index}-${input.dataSource.entity}`] || false}
+                          onToggle={() => toggleEntityPreviewExpansion(index, input.dataSource.entity)}
+                          data-testid={`${testId}-entity-preview-${index}`}
+                        />
+                      )}
+                    </div>
+                  )}
+
                 {/* Options for multi-value inputs (manual mode only) */}
                 {[InputType.SELECT, InputType.MULTISELECT, InputType.CHECKBOX].includes(input.type) &&
-                  input.dataSource?.type !== 'CATALOG' && (
+                  input.dataSource?.type !== 'CATALOG' &&
+                  input.dataSource?.type !== 'ENTITY' && (
                     <div className="gba:space-y-2">
                       <div className="gba:flex gba:items-center gba:justify-between">
                         <span className="gba:text-xs gba:text-gray-600">Options:</span>

@@ -10,7 +10,7 @@ import { useCompensationHistory } from './useCompensationHistory'
  * - useCompensationHistory: Historical salary records, bonus history, and payslip history
  *
  * ✅ CONNECTED TO DATABASE:
- * - Fetches salary data from EmployeeWorkingCondition table
+ * - Fetches salary data from EmployeeSalary table (latest active approved salary, or most recent approved as fallback)
  * - Fetches compensation bands from CompensationBand table
  * - Fetches bonuses from EmployeeBonus table (with CompensationStatus enum)
  * - Fetches benefits from EmployeeBenefit table (with BenefitStatus enum)

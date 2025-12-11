@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react'
 import { Typography } from 'antd'
-import { SectionKpiCards, KpiCardData, useTranslation } from '@newwork/nw-design-system'
+import { SectionKpiCards, KpiCardData, useTranslation, Icon } from '@newwork/nw-design-system'
+import { UsersIcon, CalendarIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { WorkingConditionKpi } from '../../../../../hooks/useWorkingConditionForecast'
 import { useWorkingConditionForecast } from '../../../../../hooks/useWorkingConditionForecast'
@@ -59,42 +60,42 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props =
           id: 'current-headcount',
           title: t('hr-analytics-forecasting-kpi-headcount'),
           value: t('hr-data-filter-loading'),
-          icon: 'users',
+          icon: <Icon icon={UsersIcon} size="sm" decorative />,
           iconColor: 'var(--nw-chart-1)'
         },
         {
           id: 'ytd-hires',
           title: t('hr-analytics-forecasting-kpi-ytd-hires'),
           value: t('hr-data-filter-loading'),
-          icon: 'users',
+          icon: <Icon icon={UsersIcon} size="sm" decorative />,
           iconColor: 'var(--nw-chart-2)'
         },
         {
           id: 'ytd-departures',
           title: t('hr-analytics-forecasting-kpi-ytd-departures'),
           value: t('hr-data-filter-loading'),
-          icon: 'users',
+          icon: <Icon icon={UsersIcon} size="sm" decorative />,
           iconColor: 'var(--nw-chart-3)'
         },
         {
           id: 'net-change',
           title: t('hr-analytics-forecasting-kpi-net-change'),
           value: t('hr-data-filter-loading'),
-          icon: 'users',
+          icon: <Icon icon={UsersIcon} size="sm" decorative />,
           iconColor: 'var(--nw-chart-4)'
         },
         {
           id: 'turnover-rate',
           title: t('hr-analytics-forecasting-kpi-turnover-rate'),
           value: t('hr-data-filter-loading'),
-          icon: 'calendar',
+          icon: <Icon icon={CalendarIcon} size="sm" decorative />,
           iconColor: 'var(--nw-chart-5)'
         },
         {
           id: 'growth-rate',
           title: t('hr-analytics-forecasting-kpi-growth-rate'),
           value: t('hr-data-filter-loading'),
-          icon: 'calendar',
+          icon: <Icon icon={CalendarIcon} size="sm" decorative />,
           iconColor: 'var(--nw-chart-6)'
         }
       ]
@@ -124,7 +125,7 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props =
         id: 'current-headcount',
         title: t('hr-analytics-forecasting-kpi-headcount'),
         value: headcount,
-        icon: 'users',
+        icon: <Icon icon={UsersIcon} size="sm" decorative />,
         iconColor: 'var(--nw-chart-1)',
         footer: t('hr-analytics-active-employees-authoritative')
       },
@@ -132,7 +133,7 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props =
         id: 'ytd-hires',
         title: t('hr-analytics-forecasting-kpi-ytd-hires'),
         value: `+${ytdHires}`,
-        icon: 'users',
+        icon: <Icon icon={UsersIcon} size="sm" decorative />,
         iconColor: 'var(--nw-chart-2)',
         footer: t('hr-analytics-year-to-date-hires')
       },
@@ -140,7 +141,7 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props =
         id: 'ytd-departures',
         title: t('hr-analytics-forecasting-kpi-ytd-departures'),
         value: `-${ytdDepartures}`,
-        icon: 'users',
+        icon: <Icon icon={UsersIcon} size="sm" decorative />,
         iconColor: 'var(--nw-chart-3)',
         footer: t('hr-analytics-year-to-date-departures')
       },
@@ -148,7 +149,7 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props =
         id: 'net-change',
         title: t('hr-analytics-forecasting-kpi-net-change'),
         value: netChange > 0 ? `+${netChange}` : netChange.toString(),
-        icon: 'users',
+        icon: <Icon icon={UsersIcon} size="sm" decorative />,
         iconColor: netChange >= 0 ? 'var(--nw-chart-2)' : 'var(--nw-chart-3)',
         footer: t('hr-analytics-net-headcount-change')
       },
@@ -156,7 +157,7 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props =
         id: 'turnover-rate',
         title: t('hr-analytics-forecasting-kpi-turnover-rate'),
         value: `${turnoverRate.toFixed(1)}%`,
-        icon: 'calendar',
+        icon: <Icon icon={CalendarIcon} size="sm" decorative />,
         iconColor:
           turnoverRate > 15 ? 'var(--nw-chart-3)' : turnoverRate > 10 ? 'var(--nw-chart-5)' : 'var(--nw-chart-2)',
         footer: t('hr-analytics-year-to-date-turnover')
@@ -165,7 +166,7 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props =
         id: 'growth-rate',
         title: t('hr-analytics-forecasting-kpi-growth-rate'),
         value: `${growthRate > 0 ? '+' : ''}${growthRate.toFixed(1)}%`,
-        icon: 'calendar',
+        icon: <Icon icon={CalendarIcon} size="sm" decorative />,
         iconColor: growthRate >= 0 ? 'var(--nw-chart-2)' : 'var(--nw-chart-3)',
         footer: t('hr-analytics-year-to-date-growth')
       }
@@ -177,10 +178,10 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props =
       {/* Header */}
       <div className="gba:flex gba:justify-between gba:items-center">
         <div>
-          <Title level={4} className="gba:m-0 gba:text-foreground">{t('hr-analytics-workforce-forecasting')}</Title>
-          <Text className="gba:text-muted-foreground">
-            {t('hr-analytics-workforce-forecasting-description')}
-          </Text>
+          <Title level={4} className="gba:m-0 gba:text-foreground">
+            {t('hr-analytics-workforce-forecasting')}
+          </Title>
+          <Text className="gba:text-muted-foreground">{t('hr-analytics-workforce-forecasting-description')}</Text>
         </div>
       </div>
 

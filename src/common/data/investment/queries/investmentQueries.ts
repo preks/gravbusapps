@@ -19,6 +19,7 @@ export interface InvestmentQueryVariables {
   investmentPhaseIds?: string[]
   investmentRiskLevelIds?: string[]
   currencyIds?: string[]
+  currencyCode?: string // Simple currency code like 'EUR', 'USD' - convenience parameter
   ownerEmployeeIds?: string[]
   accountIds?: string[]
   opportunityIds?: string[]
@@ -109,6 +110,9 @@ export const buildInvestmentWhereCondition = (variables: InvestmentQueryVariable
 
   if (variables.currencyIds?.length) {
     whereClause += `, currency: { id: { _in: [${variables.currencyIds.map(id => `"${id}"`).join(', ')}] } }`
+  } else if (variables.currencyCode?.trim()) {
+    // Simple currency code filter - uses currency.code instead of currency.id
+    whereClause += `, currency: { code: { _eq: "${variables.currencyCode.trim()}" } }`
   }
 
   // Text contains filters
@@ -143,7 +147,8 @@ export const buildInvestmentWhereCondition = (variables: InvestmentQueryVariable
 
   if (variables.accountIds?.length) {
     const accountIdsList = variables.accountIds.map(id => `"${id}"`).join(', ')
-    whereClause += `, investmentAccountId: { _in: [${accountIdsList}] }`
+    // Updated to use junction table path
+    whereClause += `, investmentAccounts: { investmentAccountId: { _in: [${accountIdsList}] } }`
   }
 
   if (variables.opportunityIds?.length) {
@@ -419,8 +424,12 @@ export const SEARCH_INVESTMENTS = (variables: InvestmentQueryVariables): string 
           id
           displayName
         }
-        investmentAccount {
-          ${INVESTMENT_ACCOUNT_REF}
+        investmentAccounts(where: { isDeleted: { _eq: false } }) {
+          id
+          investmentAccountId
+          investmentAccount {
+            ${INVESTMENT_ACCOUNT_REF}
+          }
         }
       }
     }

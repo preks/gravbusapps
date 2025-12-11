@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import {
   FormField,
   FormItem,
@@ -16,22 +16,49 @@ import {
 } from '@newwork/nw-design-system'
 import type { Control, Path } from 'react-hook-form'
 import type { AdjustEmployeeSalaryFormValues } from '../types'
+import { getCatalogValue } from '@/common/utils/windowUtils'
 import translations from '../../_i18n'
+
+interface SalaryAdjustReasonEntry {
+  id: string
+  code: string
+  value: string
+  displayOrder: number | null
+  translations: Array<{
+    localeCode: string
+    value: string
+  }>
+  catalog: {
+    identifier: string
+    version: string
+    defaultLocale: string
+  }
+}
 
 interface SalaryAdjustmentFieldsProps {
   control: Control<AdjustEmployeeSalaryFormValues>
+  salaryAdjustReasonEntries?: SalaryAdjustReasonEntry[]
 }
-const SalaryAdjustmentFields: React.FC<SalaryAdjustmentFieldsProps> = ({ control }) => {
+
+const SalaryAdjustmentFields: React.FC<SalaryAdjustmentFieldsProps> = ({ control, salaryAdjustReasonEntries = [] }) => {
   const { t } = useTranslation(translations)
   const placeholderSelect = t('action-select-placeholder', { defaultValue: 'Please Select' })
   const placeholderEnter = t('action-enter-placeholder', { defaultValue: 'Please Enter' })
 
-  const adjustmentReasons = [
-    { value: 'promotion', label: t('adjust-salary-reason-promotion') },
-    { value: 'merit_increase', label: t('adjust-salary-reason-merit-increase') },
-    { value: 'market_adjustment', label: t('adjust-salary-reason-market-adjustment') },
-    { value: 'other', label: t('adjust-salary-reason-other') }
-  ]
+  // Build adjustment reasons from catalog entries
+  const adjustmentReasons = useMemo(() => {
+    const sortedEntries = [...salaryAdjustReasonEntries].sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
+    return sortedEntries.map(entry => {
+      // Build catalog reference format: SalaryAdjustReason:v1:promotion
+      const catalogRef = `${entry.catalog.identifier}:${entry.catalog.version}:${entry.code}`
+      const displayValue = getCatalogValue(entry) || entry.value || entry.code
+
+      return {
+        value: catalogRef, // Store full catalog reference
+        label: displayValue
+      }
+    })
+  }, [salaryAdjustReasonEntries])
 
   return (
     <>
@@ -85,10 +112,7 @@ const SalaryAdjustmentFields: React.FC<SalaryAdjustmentFieldsProps> = ({ control
               onValueChange={v => field.onChange(v || '')}
             >
               <FormControl>
-                <SelectTrigger
-                  className="gba:block gba:w-full! gba:min-w-0 gba:max-w-none!"
-                  data-testid="adjust-employee-salary-reason-select"
-                >
+                <SelectTrigger className="gba:w-full" data-testid="adjust-employee-salary-reason-select">
                   <SelectValue placeholder={placeholderSelect} />
                 </SelectTrigger>
               </FormControl>

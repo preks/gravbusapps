@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -113,49 +114,11 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
   }, [loadSectionData])
 
   // Listen for process completion events to refresh section data
-  useEffect(() => {
-    const handleProcessCompletion = (event: any) => {
-      try {
-        // Check for successful completion
-        if (event.detail?.resolution === 'success') {
-          loadSectionData()
-          return
-        }
-
-        // Also check for different event structure
-        const response = event.detail?.response
-        if (response?.detail?.resolution === 'success' || response?.account) {
-          loadSectionData()
-        }
-      } catch (err) {
-        console.error('Error handling process completion in HomeView:', err)
-      }
+  useProcessCompletion({
+    onSuccess: () => {
+      loadSectionData()
     }
-
-    // Listen to multiple possible event names
-    const eventNames = [
-      'com.newwork.process.taskCompletion',
-      'com.newwork.process.completion',
-      'com.newwork.process.continue',
-      'com.newwork.process.processCompletion',
-      'processCompletion',
-      'taskCompletion',
-      'taskCompleted',
-      'processCompleted',
-      'task-completion',
-      'process-completion'
-    ]
-
-    eventNames.forEach(eventName => {
-      window.addEventListener(eventName, handleProcessCompletion as EventListener)
-    })
-
-    return () => {
-      eventNames.forEach(eventName => {
-        window.removeEventListener(eventName, handleProcessCompletion as EventListener)
-      })
-    }
-  }, [loadSectionData])
+  })
 
   // Action props for sections - MUST be fully memoized to prevent infinite loops
   const activityActionProps = useMemo(
@@ -285,7 +248,8 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
                 accountData?.accountContacts
                   ?.map((ac: any) => ({
                     ...ac.contact,
-                    jobPosition: ac.contact?.jobTitle // Map CRM jobTitle to jobPosition for ContactSection
+                    jobPosition: ac.contact?.jobTitle, // Map CRM jobTitle to jobPosition for ContactSection
+                    contactType: ac.contactType
                   }))
                   .filter(Boolean) || [],
               contactId: accountData?.accountContacts?.[0]?.contact?.id || undefined,

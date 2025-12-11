@@ -41,32 +41,21 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
             )}
           </div>
           {(() => {
-            // Find annual leave entitlement by catalog ID or fallback to type name
             const annualLeaveEntitlement = Array.isArray(entitlements)
               ? entitlements.find(e => {
-                  // Try to find by common annual leave catalog IDs first
-                  if (e?.typeId?.includes('A001') || e?.typeId?.includes('Annual') || e?.typeId?.includes('Vacation')) {
-                    return true
-                  }
-
-                  // Fallback to type name matching (for different languages)
-                  const typeLower = e?.type?.toLowerCase() || ''
+                  const typeId = e?.typeId || ''
                   return (
-                    typeLower.includes('annual') ||
-                    typeLower.includes('vacation') ||
-                    typeLower.includes('leave') ||
-                    typeLower.includes('concediu') || // Romanian
-                    typeLower.includes('urlaub') || // German
-                    typeLower.includes('ferie')
-                  ) // Another Romanian term
+                    typeId.includes('A001') ||
+                    typeId.includes('AbsenceType:v1:A001') ||
+                    typeId.toLowerCase().includes('annual') ||
+                    typeId.toLowerCase().includes('vacation')
+                  )
                 })
               : undefined
 
-            const approved = annualLeaveEntitlement?.used || 0
-            const pending = annualLeaveEntitlement?.pending || 0
-            const used = approved + pending
             const total = annualLeaveEntitlement?.total || 0
-            const remaining = total - used
+            const remaining = annualLeaveEntitlement?.available || 0
+            const used = total - remaining
 
             const chartColors = ['var(--nw-success)', 'var(--nw-warning)']
 
@@ -121,7 +110,9 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
                   <div className="gba:flex gba:items-center gba:gap-1.5">
                     <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-warning"></div>
                     <span className="gba:text-sm">
-                      {used} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.used_annual_leave', 'Used')}
+                      {used} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.used_annual_leave', 'Used')} (
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.pending', 'Pending')} +{' '}
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.approved', 'Approved')})
                     </span>
                   </div>
                 </div>
@@ -165,8 +156,8 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
                     color: 'var(--nw-color-chart-3)'
                   }
                 }
-                const durationMatch = absence.duration?.match(/(\d+)/)
-                const duration = durationMatch ? parseInt(durationMatch[1]) : 0
+                const durationMatch = absence.duration?.match(/(\d+\.?\d*)/)
+                const duration = durationMatch ? parseFloat(durationMatch[1]) : 0
                 absenceByTypeId[typeId].count += duration
 
                 let color = absence.typeColor || 'var(--nw-color-chart-3)'
@@ -247,8 +238,8 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
               if (!absenceByStatus[translatedStatus]) {
                 absenceByStatus[translatedStatus] = 0
               }
-              const durationMatch = absence.duration?.match(/(\d+)/)
-              const duration = durationMatch ? parseInt(durationMatch[1]) : 0
+              const durationMatch = absence.duration?.match(/(\d+\.?\d*)/)
+              const duration = durationMatch ? parseFloat(durationMatch[1]) : 0
               absenceByStatus[translatedStatus] += duration
             })
             const chartColors = [
@@ -286,8 +277,8 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
                 statusGroups[originalStatus] = { count: 0, translatedStatus }
               }
 
-              const durationMatch = absence.duration?.match(/(\d+)/)
-              const duration = durationMatch ? parseInt(durationMatch[1]) : 0
+              const durationMatch = absence.duration?.match(/(\d+\.?\d*)/)
+              const duration = durationMatch ? parseFloat(durationMatch[1]) : 0
               statusGroups[originalStatus].count += duration
             })
 

@@ -5,19 +5,31 @@ import { Button } from '@newwork/nw-design-system'
 import { Trash2, ChevronDown, ChevronUp } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useFlowTemplateStore } from '../../hooks/useFlowTemplateStore'
+import { FlowStepType } from '../../types/flowTemplate'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 import { BasicConfiguration } from './BasicConfiguration'
 import { AssignmentContent } from './AssignmentConfiguration'
 import { LinksContent } from './LinksConfiguration'
 import { InputFieldsContent } from './InputFieldsConfiguration'
+import { FunctionConfiguration } from './FunctionConfiguration'
+import { AgentConfiguration } from './AgentConfiguration'
 
 interface StepItemProps {
   step: any
   stepIndex: number
+  accessToken?: string
+  context?: BusinessAppContextProps
   'data-testid'?: string
 }
 
-export const StepItem: React.FC<StepItemProps> = ({ step, stepIndex, 'data-testid': testId = 'step-item' }) => {
+export const StepItem: React.FC<StepItemProps> = ({
+  step,
+  stepIndex,
+  accessToken,
+  context,
+  'data-testid': testId = 'step-item'
+}) => {
   const [isExpanded, setIsExpanded] = useState(stepIndex === 0) // First step always expanded
   const { removeStep, updateStep } = useFlowTemplateStore()
 
@@ -106,6 +118,56 @@ export const StepItem: React.FC<StepItemProps> = ({ step, stepIndex, 'data-testi
                       />
                     )
                   },
+                  // Function Configuration (only for FUNCTION step type)
+                  ...(normalizedStep.type === FlowStepType.FUNCTION
+                    ? [
+                        {
+                          id: 'function-config',
+                          title: getTranslationFromI18nKeyAndLabel(
+                            'flow.creator.functionConfig',
+                            'Function Configuration'
+                          ),
+                          badgeText: normalizedStep.functionConfig?.functionId
+                            ? getTranslationFromI18nKeyAndLabel('flow.creator.configured', 'Configured')
+                            : undefined,
+                          badgeVariant: normalizedStep.functionConfig?.functionId ? 'success' : undefined,
+                          content: (
+                            <FunctionConfiguration
+                              step={normalizedStep}
+                              stepIndex={stepIndex}
+                              testId={testId}
+                              onUpdateStep={handleUpdateStep}
+                            />
+                          )
+                        }
+                      ]
+                    : []),
+                  // Agent Configuration (only for AGENT step type)
+                  ...(normalizedStep.type === FlowStepType.AGENT
+                    ? [
+                        {
+                          id: 'agent-config',
+                          title: getTranslationFromI18nKeyAndLabel('flow.creator.agentConfig', 'Agent Configuration'),
+                          badgeText: normalizedStep.agentConfig?.promptId
+                            ? getTranslationFromI18nKeyAndLabel('flow.creator.configured', 'Configured')
+                            : undefined,
+                          badgeVariant: normalizedStep.agentConfig?.promptId ? 'success' : undefined,
+                          content: accessToken ? (
+                            <AgentConfiguration
+                              step={normalizedStep}
+                              stepIndex={stepIndex}
+                              testId={testId}
+                              onUpdateStep={handleUpdateStep}
+                              accessToken={accessToken}
+                            />
+                          ) : (
+                            <div className="gba:text-center gba:text-muted-foreground gba:p-4">
+                              Access token required for agent configuration
+                            </div>
+                          )
+                        }
+                      ]
+                    : []),
                   {
                     id: 'links',
                     title: getTranslationFromI18nKeyAndLabel('flow.creator.links', 'Links'),
@@ -115,17 +177,28 @@ export const StepItem: React.FC<StepItemProps> = ({ step, stepIndex, 'data-testi
                         : undefined,
                     content: <LinksContent step={normalizedStep} testId={testId} onUpdateStep={handleUpdateStep} />
                   },
-                  {
-                    id: 'inputs',
-                    title: getTranslationFromI18nKeyAndLabel('flow.creator.inputFields', 'Input Fields'),
-                    badgeText:
-                      normalizedStep.inputs && normalizedStep.inputs.length > 0
-                        ? `${normalizedStep.inputs.length}`
-                        : undefined,
-                    content: (
-                      <InputFieldsContent step={normalizedStep} testId={testId} onUpdateStep={handleUpdateStep} />
-                    )
-                  },
+                  // Input Fields (not shown for FUNCTION or AGENT types)
+                  ...(normalizedStep.type !== FlowStepType.FUNCTION && normalizedStep.type !== FlowStepType.AGENT
+                    ? [
+                        {
+                          id: 'inputs',
+                          title: getTranslationFromI18nKeyAndLabel('flow.creator.inputFields', 'Input Fields'),
+                          badgeText:
+                            normalizedStep.inputs && normalizedStep.inputs.length > 0
+                              ? `${normalizedStep.inputs.length}`
+                              : undefined,
+                          content: (
+                            <InputFieldsContent
+                              step={normalizedStep}
+                              stepIndex={stepIndex}
+                              context={context}
+                              testId={testId}
+                              onUpdateStep={handleUpdateStep}
+                            />
+                          )
+                        }
+                      ]
+                    : []),
                   {
                     id: 'assignment',
                     title: getTranslationFromI18nKeyAndLabel('flow.creator.assignment', 'Assignment'),

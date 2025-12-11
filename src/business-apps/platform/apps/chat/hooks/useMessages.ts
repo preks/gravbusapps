@@ -172,16 +172,29 @@ export function useMessages({
     })
   }, [])
 
+  // Track previous conversation ID to detect conversation changes
+  const prevConversationIdRef = useRef<string | null>(null)
+
   // Load messages when conversation changes or API client becomes available
   useEffect(() => {
     if (conversationId && enabled && apiClient && typeof apiClient.getMessages === 'function') {
-      // Don't clear messages immediately - let new messages replace them
-      // This prevents flicker when switching conversations
+      // Clear messages immediately when switching to a different conversation
+      // This prevents showing the wrong conversation's messages
+      const isConversationChange =
+        prevConversationIdRef.current !== null && prevConversationIdRef.current !== conversationId
+
+      if (isConversationChange) {
+        // Clear old messages immediately to prevent showing wrong conversation's messages
+        setMessages([])
+      }
+
+      prevConversationIdRef.current = conversationId
+
       startTransition(() => {
         setPage(1)
         setHasMore(true)
       })
-      // Load new messages which will replace old ones once loaded
+      // Load new messages
       loadMessages(1, false)
     }
   }, [conversationId, enabled, apiClient, loadMessages]) // Removed 'conversation' to prevent reload on metadata changes

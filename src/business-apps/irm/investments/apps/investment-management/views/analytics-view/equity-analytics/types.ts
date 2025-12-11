@@ -1,7 +1,7 @@
-import type { Investment, EquityInvestment } from '@/common/data/investment'
+import type { Investment, EquityInvestment } from '@/common/data/investment/types/investmentTypes'
 
 // Re-export the centralized types for convenience
-export type { Investment, EquityInvestment } from '@/common/data/investment'
+export type { Investment, EquityInvestment } from '@/common/data/investment/types/investmentTypes'
 
 export interface EquityInvestmentSummary {
   id: string

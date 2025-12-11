@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
@@ -12,7 +12,7 @@ interface TrendData {
 
 interface OpportunityStatisticsTrendData {
   recentOpportunities: TrendData
-  opportunityValue: TrendData
+  totalOpportunities: TrendData
   winRate: TrendData
   opportunitiesThisYear: TrendData
 }
@@ -24,7 +24,10 @@ export interface UseCustomerOpportunityStatisticsReturn {
   refetch: () => Promise<void>
 }
 
-const GET_ALL_CUSTOMER_OPPORTUNITY_STATISTICS_WITH_TREND = `
+const GET_ALL_CUSTOMER_OPPORTUNITY_STATISTICS_WITH_TREND = (currencyId?: string) => {
+  const currencyFilter = currencyId ? `, currencyRef: { _eq: "${currencyId}" }` : ''
+
+  return `
   query GetAllCustomerOpportunityStatisticsWithTrend(
     $currentStart: timestamptz!,
     $previousStart: timestamptz!,
@@ -36,7 +39,7 @@ const GET_ALL_CUSTOMER_OPPORTUNITY_STATISTICS_WITH_TREND = `
   ) {
     recentOpportunitiesCurrent: OpportunityAggregate(where: {
       createdAt: {_gte: $currentStart},
-      isDeleted: {_eq: false}
+      isDeleted: {_eq: false}${currencyFilter}
     }) {
       aggregate {
         count
@@ -44,37 +47,31 @@ const GET_ALL_CUSTOMER_OPPORTUNITY_STATISTICS_WITH_TREND = `
     }
     recentOpportunitiesPrevious: OpportunityAggregate(where: {
       createdAt: {_gte: $previousStart, _lt: $previousEnd},
-      isDeleted: {_eq: false}
+      isDeleted: {_eq: false}${currencyFilter}
     }) {
       aggregate {
         count
       }
     }
-    opportunityValueCurrent: OpportunityAggregate(where: {
-      isDeleted: {_eq: false},
-      estimatedAmount: {_isNull: false}
+    totalOpportunitiesCurrent: OpportunityAggregate(where: {
+      isDeleted: {_eq: false}${currencyFilter}
     }) {
       aggregate {
-        sum {
-          estimatedAmount
-        }
+        count
       }
     }
-    opportunityValuePrevious: OpportunityAggregate(where: {
+    totalOpportunitiesPrevious: OpportunityAggregate(where: {
       isDeleted: {_eq: false},
-      estimatedAmount: {_isNull: false},
-      createdAt: {_lt: $lastQuarter}
+      createdAt: {_lt: $lastQuarter}${currencyFilter}
     }) {
       aggregate {
-        sum {
-          estimatedAmount
-        }
+        count
       }
     }
     winRateCurrentWon: OpportunityAggregate(where: {
       createdAt: {_gte: $thisYearStart},
       isDeleted: {_eq: false},
-      opportunityStatus: {code: {_eq: "WON"}}
+      opportunityStatus: {code: {_eq: "WON"}}${currencyFilter}
     }) {
       aggregate {
         count
@@ -83,7 +80,7 @@ const GET_ALL_CUSTOMER_OPPORTUNITY_STATISTICS_WITH_TREND = `
     winRateCurrentClosed: OpportunityAggregate(where: {
       createdAt: {_gte: $thisYearStart},
       isDeleted: {_eq: false},
-      opportunityStatus: {code: {_in: ["WON", "LOST"]}}
+      opportunityStatus: {code: {_in: ["WON", "LOST"]}}${currencyFilter}
     }) {
       aggregate {
         count
@@ -92,7 +89,7 @@ const GET_ALL_CUSTOMER_OPPORTUNITY_STATISTICS_WITH_TREND = `
     winRatePreviousWon: OpportunityAggregate(where: {
       createdAt: {_gte: $lastYearStart, _lt: $lastYearEnd},
       isDeleted: {_eq: false},
-      opportunityStatus: {code: {_eq: "WON"}}
+      opportunityStatus: {code: {_eq: "WON"}}${currencyFilter}
     }) {
       aggregate {
         count
@@ -101,7 +98,7 @@ const GET_ALL_CUSTOMER_OPPORTUNITY_STATISTICS_WITH_TREND = `
     winRatePreviousClosed: OpportunityAggregate(where: {
       createdAt: {_gte: $lastYearStart, _lt: $lastYearEnd},
       isDeleted: {_eq: false},
-      opportunityStatus: {code: {_in: ["WON", "LOST"]}}
+      opportunityStatus: {code: {_in: ["WON", "LOST"]}}${currencyFilter}
     }) {
       aggregate {
         count
@@ -109,7 +106,7 @@ const GET_ALL_CUSTOMER_OPPORTUNITY_STATISTICS_WITH_TREND = `
     }
     opportunitiesThisYearCurrent: OpportunityAggregate(where: {
       createdAt: {_gte: $thisYearStart},
-      isDeleted: {_eq: false}
+      isDeleted: {_eq: false}${currencyFilter}
     }) {
       aggregate {
         count
@@ -117,7 +114,7 @@ const GET_ALL_CUSTOMER_OPPORTUNITY_STATISTICS_WITH_TREND = `
     }
     opportunitiesThisYearPrevious: OpportunityAggregate(where: {
       createdAt: {_gte: $lastYearStart, _lt: $lastYearEnd},
-      isDeleted: {_eq: false}
+      isDeleted: {_eq: false}${currencyFilter}
     }) {
       aggregate {
         count
@@ -125,6 +122,7 @@ const GET_ALL_CUSTOMER_OPPORTUNITY_STATISTICS_WITH_TREND = `
     }
   }
 `
+}
 
 // Helper function outside component to prevent recreation
 const calculateTrend = (current: number, previous: number): TrendData => {
@@ -145,12 +143,13 @@ const calculateTrend = (current: number, previous: number): TrendData => {
 }
 
 export const useCustomerOpportunityStatistics = (
-  props: BusinessAppContextProps
+  props: BusinessAppContextProps,
+  currencyId?: string
 ): UseCustomerOpportunityStatisticsReturn => {
-  const [trendData, setTrendData] = useState<OpportunityStatisticsTrendData | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<Error | null>(null)
   const graphqlClient = useGraphQLClient(props.accessToken)
+  const [trendData, setTrendData] = useState<OpportunityStatisticsTrendData | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
 
   const refetch = useCallback(async () => {
     if (!props.accessToken) {
@@ -171,18 +170,19 @@ export const useCustomerOpportunityStatistics = (
       const lastYearStart = new Date(now.getFullYear() - 1, 0, 1)
       const lastYearEnd = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999)
 
+      const query = GET_ALL_CUSTOMER_OPPORTUNITY_STATISTICS_WITH_TREND(currencyId)
       const result = await graphqlClient.request<{
         recentOpportunitiesCurrent: { aggregate: { count: number } }
         recentOpportunitiesPrevious: { aggregate: { count: number } }
-        opportunityValueCurrent: { aggregate: { sum: { estimatedAmount: number } } }
-        opportunityValuePrevious: { aggregate: { sum: { estimatedAmount: number } } }
+        totalOpportunitiesCurrent: { aggregate: { count: number } }
+        totalOpportunitiesPrevious: { aggregate: { count: number } }
         winRateCurrentWon: { aggregate: { count: number } }
         winRateCurrentClosed: { aggregate: { count: number } }
         winRatePreviousWon: { aggregate: { count: number } }
         winRatePreviousClosed: { aggregate: { count: number } }
         opportunitiesThisYearCurrent: { aggregate: { count: number } }
         opportunitiesThisYearPrevious: { aggregate: { count: number } }
-      }>(GET_ALL_CUSTOMER_OPPORTUNITY_STATISTICS_WITH_TREND, {
+      }>(query, {
         currentStart: currentStart.toISOString(),
         previousStart: previousStart.toISOString(),
         previousEnd: previousEnd.toISOString(),
@@ -205,9 +205,9 @@ export const useCustomerOpportunityStatistics = (
           result.recentOpportunitiesCurrent.aggregate.count,
           result.recentOpportunitiesPrevious.aggregate.count
         ),
-        opportunityValue: calculateTrend(
-          result.opportunityValueCurrent.aggregate.sum?.estimatedAmount || 0,
-          result.opportunityValuePrevious.aggregate.sum?.estimatedAmount || 0
+        totalOpportunities: calculateTrend(
+          result.totalOpportunitiesCurrent.aggregate.count,
+          result.totalOpportunitiesPrevious.aggregate.count
         ),
         winRate: calculateTrend(currentRate, previousRate),
         opportunitiesThisYear: calculateTrend(
@@ -221,14 +221,14 @@ export const useCustomerOpportunityStatistics = (
     } finally {
       setIsLoading(false)
     }
-  }, [props.accessToken, graphqlClient])
+  }, [props.accessToken, currencyId, graphqlClient])
 
-  // Fetch statistics on mount and when access token changes
+  // Fetch statistics on mount and when access token or currency changes
   useEffect(() => {
     if (props.accessToken) {
       refetch()
     }
-  }, [props.accessToken, refetch])
+  }, [props.accessToken, currencyId, refetch])
 
   return {
     trendData,

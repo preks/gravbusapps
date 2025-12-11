@@ -16,6 +16,7 @@ export interface CreateEmployeeAttendancePayload {
     differenceTime?: string
     manualOverride?: boolean
     notes?: string
+    attendanceLocation?: string
     employee: string
   }
 }
@@ -56,6 +57,7 @@ export class EmployeeTimeClient extends RestClient {
       plannedTime?: string
       differenceTime?: string
       notes?: string
+      attendanceLocation?: string
     }
   }): Promise<CreateEmployeeAttendanceResponse> {
     return this.post<CreateEmployeeAttendanceResponse>('/processes/employee-time/updateEmployeeAttendance', payload, {

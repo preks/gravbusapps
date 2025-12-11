@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
-import { ActivityStatistics, ActivityType, ActivityEntityType, SalesActivity } from '../types/activitiesTypes'
-import { useEmployeeActivitiesData } from './useEmployeeActivitiesData'
+import { ActivityStatistics, ActivityType, ActivityEntityType } from '../types/activitiesTypes'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import dayjs from 'dayjs'
 
 interface UseEmployeeActivitiesStatisticsProps {
   employeeId: string
@@ -13,161 +16,233 @@ interface UseEmployeeActivitiesStatisticsReturn {
   statistics: ActivityStatistics | null
   loading: boolean
   error: Error | null
+  totalCount: number
   refetch: () => void
-}
-
-// Calculate statistics from the same transformed activities data used in the table
-const calculateStatistics = (
-  activities: SalesActivity[],
-  periodInMonths: number = 1,
-  total: number
-): ActivityStatistics => {
-  const totalCount = total
-  const periodLabel = periodInMonths === 1 ? 'This month' : `Last ${periodInMonths} months`
-
-  if (totalCount === 0) {
-    return {
-      totalActivities: { count: 0, period: periodLabel },
-      mostCommonActivity: { type: 'Task', count: 0, percentage: 0 },
-      mostWorkedEntity: { entityType: 'Contact', count: 0, percentage: 0 },
-      averageActivityScore: { score: 0, trend: 0 }
-    }
-  }
-
-  // Count activity types from raw API data (same as table/calendar)
-  const activityTypeCounts: Record<string, number> = {}
-  activities.forEach(activity => {
-    if (!activity) return
-    const type = activity.activityType?.value || 'Task'
-    activityTypeCounts[type] = (activityTypeCounts[type] || 0) + 1
-  })
-
-  // Find most common activity type
-  const mostCommonActivityType = Object.keys(activityTypeCounts).reduce((a, b) =>
-    activityTypeCounts[a] > activityTypeCounts[b] ? a : b
-  ) as ActivityType
-  const mostCommonCount = activityTypeCounts[mostCommonActivityType] || 0
-
-  // Helper function to get entity type from raw API data (same as table/calendar)
-  const getEntityType = (activity: any): ActivityEntityType => {
-    // Check if it's an account
-    if (activity.account?.name) {
-      return 'Account'
-    }
-
-    // Check if it's a contact
-    if (activity.contact?.firstName || activity.contact?.lastName) {
-      return 'Contact'
-    }
-
-    // Check if it's a lead
-    if (activity.lead?.name || activity.lead?.contact) {
-      return 'Lead'
-    }
-
-    // Check if it's an opportunity
-    if (activity.opportunity?.name) {
-      return 'Opportunity'
-    }
-
-    return 'Contact' // Default fallback
-  }
-
-  // Count entity types from raw API data
-  const entityTypeCounts: Record<ActivityEntityType, number> = {
-    Contact: 0,
-    Lead: 0,
-    Account: 0,
-    Opportunity: 0
-  }
-
-  activities.forEach(activity => {
-    if (!activity) return
-    const entityType = getEntityType(activity)
-    entityTypeCounts[entityType]++
-  })
-
-  // Find most worked entity type
-  const mostWorkedEntityType = (Object.keys(entityTypeCounts) as ActivityEntityType[]).reduce((a, b) =>
-    entityTypeCounts[a] > entityTypeCounts[b] ? a : b
-  )
-  const mostWorkedCount = entityTypeCounts[mostWorkedEntityType] || 0
-
-  // Activity score is not available in the real data, so we'll use a simplified metric
-  // Based on completion rate and activity volume
-  const completedActivities = activities.filter(activity => activity.occurredAt).length
-  const completionRate = totalCount > 0 ? (completedActivities / totalCount) * 100 : 0
-
-  // Simple score based on completion rate and volume
-  const averageScore = Math.round(completionRate)
-
-  // Calculate trend based on completion rate
-  const trend = completionRate >= 80 ? 5.2 : completionRate >= 60 ? 2.8 : completionRate >= 40 ? 0.5 : -1.2
-
-  return {
-    totalActivities: {
-      count: totalCount,
-      period: periodLabel
-    },
-    mostCommonActivity: {
-      type: mostCommonActivityType,
-      count: mostCommonCount,
-      percentage: totalCount > 0 ? Math.round((mostCommonCount / totalCount) * 100) : 0
-    },
-    mostWorkedEntity: {
-      entityType: mostWorkedEntityType,
-      count: mostWorkedCount,
-      percentage: totalCount > 0 ? Math.round((mostWorkedCount / totalCount) * 100) : 0
-    },
-    averageActivityScore: {
-      score: averageScore,
-      trend: trend
-    }
-  }
 }
 
 export const useEmployeeActivitiesStatistics = ({
   employeeId,
   accessToken,
-  userInfo,
   periodInMonths = 1
 }: UseEmployeeActivitiesStatisticsProps): UseEmployeeActivitiesStatisticsReturn => {
   const [statistics, setStatistics] = useState<ActivityStatistics | null>(null)
+  const [totalCount, setTotalCount] = useState(0)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<Error | null>(null)
 
-  // Use the same data as the main activities table
-  const { activities, total, loading, error, loadPage } = useEmployeeActivitiesData({
-    employeeId,
-    accessToken,
-    search: '', // No search filter for statistics
-    sortField: 'createdAt',
-    sortOrder: 'DESC',
-    userInfo // Now passing real userInfo for proper createdBy filtering
-  })
+  const graphqlClient = useGraphQLClient(accessToken)
+  const catalogClient = useCatalogManagerClient(accessToken)
+  const userLocale = getCurrentActiveUserLocale() ?? 'en-US'
 
-  // Calculate statistics whenever activities data changes
-  useEffect(() => {
-    if (!loading && !error) {
-      const calculatedStatistics = calculateStatistics(activities, periodInMonths, total)
-      setStatistics(calculatedStatistics)
+  const fetchStatistics = useCallback(async () => {
+    if (!employeeId || !accessToken) return
+
+    setLoading(true)
+    setError(null)
+
+    try {
+      // Fetch activity types from catalog first
+      const catalogResponse = await catalogClient.getCatalogEntriesList(
+        {
+          catalogIdentifier: 'SalesActivityType',
+          version: 'v1'
+        },
+        {
+          limit: 100, // Get all activity types
+          offset: 0,
+          returnTotalRecords: true,
+          localeCode: userLocale
+        }
+      )
+
+      const activityTypes = catalogResponse?.data?.map((entry: any) => entry.value || entry.code || entry.id) || []
+
+      // Calculate date ranges
+      const now = dayjs()
+      const currentMonthStart = now.startOf('month').format('YYYY-MM-DDTHH:mm:ss')
+
+      // Build dynamic aggregate queries for each activity type
+      const activityTypeQueries = activityTypes
+        .map((type: string) => {
+          const fieldName = `${type.toLowerCase().replaceAll(/[^a-z0-9]/g, '')}Activities`
+          return `
+          ${fieldName}: SalesActivityAggregate(
+            where: {
+              ownerEmployeeId: { _eq: $employeeId }
+              isDeleted: { _eq: false }
+              activityType: { value: { _eq: "${type}" } }
+            }
+          ) {
+            aggregate {
+              count
+            }
+          }
+        `
+        })
+        .join('\n')
+
+      // Build aggregate query to get statistics with dynamic activity types
+      const query = `
+        query GetActivityStatistics($employeeId: uuid!) {
+          # Total count
+          totalActivities: SalesActivityAggregate(
+            where: {
+              ownerEmployeeId: { _eq: $employeeId }
+              isDeleted: { _eq: false }
+            }
+          ) {
+            aggregate {
+              count
+            }
+          }
+          
+          # Current month activities
+          currentMonthActivities: SalesActivityAggregate(
+            where: {
+              ownerEmployeeId: { _eq: $employeeId }
+              createdAt: { _gte: "${currentMonthStart}" }
+              isDeleted: { _eq: false }
+            }
+          ) {
+            aggregate {
+              count
+            }
+          }
+          
+          # Activity type counts using aggregates (dynamically generated)
+          ${activityTypeQueries}
+          
+          # Entity type counts using aggregates
+          contactActivities: SalesActivityAggregate(
+            where: {
+              ownerEmployeeId: { _eq: $employeeId }
+              isDeleted: { _eq: false }
+              contactId: { _isNull: false }
+            }
+          ) {
+            aggregate {
+              count
+            }
+          }
+          
+          leadActivities: SalesActivityAggregate(
+            where: {
+              ownerEmployeeId: { _eq: $employeeId }
+              isDeleted: { _eq: false }
+              leadId: { _isNull: false }
+            }
+          ) {
+            aggregate {
+              count
+            }
+          }
+          
+          opportunityActivities: SalesActivityAggregate(
+            where: {
+              ownerEmployeeId: { _eq: $employeeId }
+              isDeleted: { _eq: false }
+              opportunityId: { _isNull: false }
+            }
+          ) {
+            aggregate {
+              count
+            }
+          }
+          
+          accountActivities: SalesActivityAggregate(
+            where: {
+              ownerEmployeeId: { _eq: $employeeId }
+              isDeleted: { _eq: false }
+              accountId: { _isNull: false }
+            }
+          ) {
+            aggregate {
+              count
+            }
+          }
+        }
+      `
+
+      const result: any = await graphqlClient.request(query, { employeeId })
+
+      const total = result.totalActivities.aggregate.count
+      const currentMonth = result.currentMonthActivities.aggregate.count
+
+      // Get activity type counts from aggregates (server-side counting) - dynamically process based on catalog
+      const activityTypeCounts: Record<string, number> = {}
+      activityTypes.forEach((type: string) => {
+        const fieldName = `${type.toLowerCase().replaceAll(/[^a-z0-9]/g, '')}Activities`
+        activityTypeCounts[type] = result[fieldName]?.aggregate?.count || 0
+      })
+
+      // Find most common activity type
+      const activityTypeKeys = Object.keys(activityTypeCounts)
+      const mostCommonActivityType: ActivityType =
+        activityTypeKeys.length > 0
+          ? (activityTypeKeys.reduce(
+              (a, b) => (activityTypeCounts[a] > activityTypeCounts[b] ? a : b),
+              activityTypeKeys[0]
+            ) as ActivityType)
+          : ('Task' as ActivityType)
+      const mostCommonCount = activityTypeCounts[mostCommonActivityType] || 0
+
+      // Get entity type counts from aggregates (server-side counting)
+      const entityTypeCounts: Record<string, number> = {
+        Contact: result.contactActivities.aggregate.count,
+        Lead: result.leadActivities.aggregate.count,
+        Opportunity: result.opportunityActivities.aggregate.count,
+        Account: result.accountActivities.aggregate.count
+      }
+
+      // Find most worked entity type
+      const entityTypeKeys = Object.keys(entityTypeCounts)
+      const mostWorkedEntityType: ActivityEntityType =
+        entityTypeKeys.length > 0
+          ? (entityTypeKeys.reduce(
+              (a, b) => (entityTypeCounts[a] > entityTypeCounts[b] ? a : b),
+              entityTypeKeys[0]
+            ) as ActivityEntityType)
+          : ('Contact' as ActivityEntityType)
+      const mostWorkedCount = entityTypeCounts[mostWorkedEntityType] || 0
+
+      // Build statistics
+      const periodLabel = periodInMonths === 1 ? 'This month' : `Last ${periodInMonths} months`
+
+      setStatistics({
+        totalActivities: { count: currentMonth, period: periodLabel },
+        mostCommonActivity: {
+          type: mostCommonActivityType,
+          count: mostCommonCount,
+          percentage: total > 0 ? Math.round((mostCommonCount / total) * 100) : 0
+        },
+        mostWorkedEntity: {
+          entityType: mostWorkedEntityType,
+          count: mostWorkedCount,
+          percentage: total > 0 ? Math.round((mostWorkedCount / total) * 100) : 0
+        },
+        averageActivityScore: { score: 0, trend: 0 } // Not calculated in aggregate
+      })
+
+      setTotalCount(total)
+    } catch (err) {
+      console.error('Error fetching activity statistics:', err)
+      setError(err instanceof Error ? err : new Error('Failed to fetch statistics'))
+    } finally {
+      setLoading(false)
     }
-  }, [activities, loading, error, periodInMonths])
+  }, [employeeId, accessToken, periodInMonths, graphqlClient, catalogClient, userLocale])
 
-  // Refetch function - load same data as table for consistency
-  const refetch = useCallback(() => {
-    loadPage(1, 20) // Load same page size as table for consistency
-  }, [loadPage])
-
-  // Load initial data
   useEffect(() => {
-    if (employeeId && accessToken) {
-      refetch()
-    }
-  }, [employeeId, accessToken, refetch])
+    fetchStatistics()
+  }, [fetchStatistics])
 
   return {
     statistics,
     loading,
     error,
-    refetch
+    totalCount,
+    refetch: () => {
+      fetchStatistics()
+    }
   }
 }

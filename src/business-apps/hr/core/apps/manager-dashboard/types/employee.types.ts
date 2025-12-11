@@ -36,17 +36,17 @@ export interface AbsenceType {
 
 // Base Employee type from GraphQL responses
 export interface Employee {
-  id?: string
-  fullName?: string
+  id: string
   firstName: string
   lastName: string
   birthDate?: string
   userId?: string
   pictureThumbnail?: string
   picture?: string
-  employeePosition?: EmployeePosition[]
+  employeePosition?: EmployeePosition
   workingCondition?: WorkingCondition[]
   workCommunications?: WorkCommunication[]
+  displayName?: string
 }
 
 // GraphQL response wrapper types
@@ -80,10 +80,7 @@ export interface ExpensePlan {
   description?: string
   status?: string
   employeeId?: string
-  employee?: Employee
-  createdAt?: string
-  totalAmount?: number
-  planDate?: string
+  requestType?: string
 }
 
 export interface LeaveRequest {
@@ -96,8 +93,7 @@ export interface LeaveRequest {
   type?: AbsenceType
   reason?: string
   comments?: string
-  employee?: Employee
-  createdAt?: string
+  parentEntryId?: string
 }
 
 // Approval Request Response Types
@@ -109,41 +105,75 @@ export interface ApprovalResponse {
 
 // Personal Data Change Types
 export interface ProcessVariable {
-  [key: string]: any // This can be refined based on actual variable types
+  [key: string]: unknown // This can be refined based on actual variable types
 }
 
+// Address structure from flow execution task inputs
+export interface AddressData {
+  id?: string | null
+  version?: number | null
+  businessKey?: string | null
+  recordState?: string | null
+  activeTo?: string | null
+  additionalProperties?: unknown | null
+  employeeId?: string | null
+  type?: string | null
+  addressLine?: string[] | null
+  poBox?: boolean | null
+  postalCode?: string | null
+  locality?: string | null
+  regionRef?: string | null
+  countryRef?: string | null
+  attachment?: unknown | null
+  notes?: string | null
+  employeeDocument?: unknown | null
+}
+
+// Inputs structure from flow execution task
+export interface PersonalDataChangeInputs {
+  creatorUserId?: string
+  address?: AddressData
+  employeeDocumentObject?: unknown | null
+  TaskName?: string
+  NodeName?: string
+  oldAddressData?: AddressData | null
+  creatorName?: string
+  changeMode?: string
+  Skippable?: string
+  ActorId?: string
+  // Legacy fields for backward compatibility
+  personalInformation?: unknown
+  oldPersonalInformation?: unknown
+  employeeId?: string
+  employeeName?: string
+  fullName?: string
+  firstName?: string
+  lastName?: string
+  pictureThumbnail?: string
+  [key: string]: unknown // Allow additional properties
+}
+
+// Personal Data Change Task Raw from flow-metrics API
+// Based on actual API response structure
 export interface PersonalDataChangeTaskRaw {
   id: string
   name?: string
-  taskName?: string
-  taskDefinitionKey?: string
-  processVariables?: ProcessVariable
-  variables?: ProcessVariable
-  created?: string
-  due?: string
-  assignee?: string
-  processInstanceId?: string
-  creatorName?: string
-  createdDate?: string
-  startDate?: string
-  started?: string
-  lastUpdate?: string
-  creatorUserId?: string
-  creator?: string
-  createdBy?: string
-  dueDate?: string
-  description?: string
-  processId?: string
   referenceName?: string
-  processDefinitionName?: string
-  processDefinitionKey?: string
-  processName?: string
-  taskId?: string
-  taskDescription?: string
-  actualOwner?: string
+  completed?: string | null
+  actualOwner?: string | null
+  state?: string
+  lastUpdate?: string
+  priority?: number | null
+  started?: string
+  ownerName?: string
+  dueDate?: string | null
+  creatorUserId?: string
+  creatorName?: string
+  potentialUsers?: string[]
   assigneeNames?: string[]
-  priority?: number
-  instanceId?: string
+  endpoint?: string
+  customFlowId?: string | null
+  inputs?: PersonalDataChangeInputs
 }
 
 // Employee Absence Types
@@ -203,5 +233,5 @@ export interface UserInfo {
   email?: string
   role?: string
   department?: string
-  [key: string]: any // Allow additional properties
+  [key: string]: unknown // Allow additional properties
 }

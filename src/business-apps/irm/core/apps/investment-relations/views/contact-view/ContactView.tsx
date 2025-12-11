@@ -45,7 +45,10 @@ export const ContactView: React.FC<ContactViewProps> = context => {
   const config: ContactViewConfig<Contact, InvestmentContactQueryVariables> = useMemo(
     () => ({
       fetchContacts: fetchInvestmentContacts,
-      createColumns: () => commonContactColumns(),
+      createColumns: () =>
+        commonContactColumns({
+          buildAccountRecordUrl: accountId => buildPlatformUrl('/platform/irm/account-record', { accountId })
+        }),
       descriptors: INVESTMENT_CONTACT_DESCRIPTORS,
       entityName: 'InvestmentContact',
       columnLabels: {
@@ -123,7 +126,6 @@ export const ContactView: React.FC<ContactViewProps> = context => {
       },
       buildRecordUrl: (id: string) => buildPlatformUrl('/platform/irm/contact-record', { contactId: id }),
       contactStatistics: contactStatisticsData,
-      processCompletionEvents: ['taskCompletion', 'contactCompletion'],
       rowActionsContextArray: [FlowContextName.investmentContactEntity],
       buildRowActionsExternalContextData: (row: { original: Contact }) => ({
         contactId: row.original.id

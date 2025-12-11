@@ -135,9 +135,9 @@ const generateChartConfig = (data: any[], typeKey: string) => {
 export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionChartsProps> = props => {
   const { masterCurrency, availableCurrencies } = props
 
-  // Currency state for count-based charts - start with "All Currencies", then sync with master
-  const [investmentTypeCountCurrency, setInvestmentTypeCountCurrency] = useState<string>('All Currencies')
-  const [liquidFundTypeCountCurrency, setLiquidFundTypeCountCurrency] = useState<string>('All Currencies')
+  // Currency state for count-based charts - start with "All", then sync with master
+  const [investmentTypeCountCurrency, setInvestmentTypeCountCurrency] = useState<string>('All')
+  const [liquidFundTypeCountCurrency, setLiquidFundTypeCountCurrency] = useState<string>('All')
 
   const prevMasterCurrencyForCount = useRef<string>(masterCurrency)
 
@@ -146,7 +146,7 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
   const [liquidFundTypeAmountCurrency, setLiquidFundTypeAmountCurrency] = useCurrencySync(masterCurrency)
 
   // Fetch Investment Type distribution data
-  // Count chart: uses selected currency (can be "All Currencies" = null, or specific currency)
+  // Count chart: uses selected currency (can be "All" = null, or specific currency)
   // Amount chart: uses selected currency (specific currency only, no "All" option)
   const {
     countData: investmentTypeCountDataRaw,
@@ -154,7 +154,7 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
     error: investmentTypeCountError
   } = useLiquidFundInvestmentTypeDistribution(
     props,
-    investmentTypeCountCurrency === 'All Currencies' ? null : investmentTypeCountCurrency
+    investmentTypeCountCurrency === 'All' ? null : investmentTypeCountCurrency
   )
 
   const {
@@ -164,16 +164,13 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
   } = useLiquidFundInvestmentTypeDistribution(props, investmentTypeAmountCurrency)
 
   // Fetch Liquid Fund Type distribution data
-  // Count chart: uses selected currency (can be "All Currencies" = null, or specific currency)
+  // Count chart: uses selected currency (can be "All" = null, or specific currency)
   // Amount chart: uses selected currency (specific currency only, no "All" option)
   const {
     countData: liquidFundTypeCountDataRaw,
     isLoading: liquidFundTypeCountLoading,
     error: liquidFundTypeCountError
-  } = useLiquidFundTypeDistribution(
-    props,
-    liquidFundTypeCountCurrency === 'All Currencies' ? null : liquidFundTypeCountCurrency
-  )
+  } = useLiquidFundTypeDistribution(props, liquidFundTypeCountCurrency === 'All' ? null : liquidFundTypeCountCurrency)
 
   const {
     amountData: liquidFundTypeAmountDataRaw,
@@ -191,8 +188,8 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
     prevMasterCurrencyForCount.current = masterCurrency
   }, [masterCurrency])
 
-  // Enhanced currency options with "All Currencies" option for count charts
-  const currencyOptionsWithAll = ['All Currencies', ...availableCurrencies]
+  // Enhanced currency options with "All" option for count charts
+  const currencyOptionsWithAll = ['All', ...availableCurrencies]
 
   // Transform data using helpers
   const investmentTypeCountData = useMemo(
@@ -275,10 +272,7 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
               <div className="gba:flex gba:items-center gba:gap-3">
                 <IconAvatar icon={ChartPieSliceIcon} variant="default" size="md" decorative />
                 <div>
-                  <CardTitle>
-                    Type Distribution by Count (
-                    {investmentTypeCountCurrency === 'All Currencies' ? 'All' : investmentTypeCountCurrency})
-                  </CardTitle>
+                  <CardTitle>Type Distribution by Count ({investmentTypeCountCurrency})</CardTitle>
                   <CardDescription>Number per type</CardDescription>
                 </div>
               </div>
@@ -421,10 +415,7 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
               <div className="gba:flex gba:items-center gba:gap-3">
                 <IconAvatar icon={ChartDonutIcon} variant="default" size="md" decorative />
                 <div>
-                  <CardTitle>
-                    Liquid Fund Type Distribution by Count (
-                    {liquidFundTypeCountCurrency === 'All Currencies' ? 'All' : liquidFundTypeCountCurrency})
-                  </CardTitle>
+                  <CardTitle>Liquid Fund Type Distribution by Count ({liquidFundTypeCountCurrency})</CardTitle>
                   <CardDescription>Number per type</CardDescription>
                 </div>
               </div>

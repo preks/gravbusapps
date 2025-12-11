@@ -1,4 +1,2 @@
-import { ChangeEmployeeAddressReview } from './ChangeEmployeeAddressReview'
-
-export { ChangeEmployeeAddressReview }
-export default ChangeEmployeeAddressReview
+export { default as ChangeEmployeeAddressReview } from './ChangeEmployeeAddressReview'
+export { default } from './ChangeEmployeeAddressReview'

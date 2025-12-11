@@ -1,5 +1,6 @@
 import React from 'react'
-import { SectionKpiCards, KpiCardData, useTranslation } from '@newwork/nw-design-system'
+import { SectionKpiCards, KpiCardData, useTranslation, Icon } from '@newwork/nw-design-system'
+import { UsersIcon, CalendarIcon, EnvelopeIcon } from '@phosphor-icons/react'
 import type { DemographicsStatistics } from '../../../../hooks/useDemographicsDataIntegration'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
@@ -15,8 +16,8 @@ const DemographicsStatistics: React.FC<DemographicsStatisticsProps> = ({ statist
     {
       id: 'gender-diversity',
       title: t('hr-analytics-gender-diversity'),
-      value: `${statistics.genderDiversity.toFixed(1)}%`,
-      icon: 'users',
+      value: statistics.genderRatio || t('hr-analytics-not-available'),
+      icon: <Icon icon={UsersIcon} size="sm" decorative />,
       iconColor: 'var(--nw-chart-1)',
       footer: t('hr-analytics-gender-distribution-balance')
     },
@@ -24,15 +25,17 @@ const DemographicsStatistics: React.FC<DemographicsStatisticsProps> = ({ statist
       id: 'common-gender',
       title: t('hr-analytics-most-common-gender'),
       value: statistics.mostCommonGender || t('hr-analytics-not-available'),
-      icon: 'users',
+      icon: <Icon icon={UsersIcon} size="sm" decorative />,
       iconColor: 'var(--nw-chart-2)',
       footer: t('hr-analytics-most-frequent-gender')
     },
     {
       id: 'average-age',
       title: t('hr-analytics-average-age'),
-      value: statistics.averageAge ? `${statistics.averageAge.toFixed(1)} ${t('hr-analytics-years')}` : t('hr-analytics-not-available'),
-      icon: 'calendar',
+      value: statistics.averageAge
+        ? `${Math.round(statistics.averageAge)} ${t('hr-analytics-years')}`
+        : t('hr-analytics-not-available'),
+      icon: <Icon icon={CalendarIcon} size="sm" decorative />,
       iconColor: 'var(--nw-chart-3)',
       footer: t('hr-analytics-average-employee-age')
     },
@@ -40,7 +43,7 @@ const DemographicsStatistics: React.FC<DemographicsStatisticsProps> = ({ statist
       id: 'nationality-overview',
       title: t('hr-analytics-nationality-distribution'),
       value: statistics.mostCommonNationality || t('hr-analytics-not-available'),
-      icon: 'mail',
+      icon: <Icon icon={EnvelopeIcon} size="sm" decorative />,
       iconColor: 'var(--nw-chart-4)',
       footer: `${t('hr-analytics-most-common')} • ${statistics.nationalityDiversity} ${t('hr-analytics-different-nationalities')}`
     }

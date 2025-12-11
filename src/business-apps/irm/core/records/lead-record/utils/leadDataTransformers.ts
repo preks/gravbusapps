@@ -6,7 +6,10 @@
  * to avoid generating unnecessary data before conversion.
  */
 
-import type { InvestmentAccount, InvestmentContact, InvestmentLead, Investment } from '@/common/data/investment/types'
+import type { InvestmentAccount } from '@/common/data/investment/types/investmentAccountTypes'
+import type { InvestmentContact } from '@/common/data/investment/types/investmentContactTypes'
+import type { InvestmentLead } from '@/common/data/investment/types/investmentLeadTypes'
+import type { Investment } from '@/common/data/investment/types/investmentTypes'
 import {
   type Address,
   type CommunicationChannel,
@@ -133,7 +136,7 @@ export function buildInvestmentContactFromLead(lead: InvestmentLead | any): Inve
     firstName: lead.firstName || '',
     lastName: lead.lastName || '',
     // IRM field names already match Contact standard
-    jobPosition: lead.position,
+    jobPosition: lead.jobPosition,
     type: lead.type,
     academicTitle: lead.academicTitle,
     academicTitleRef: lead.academicTitleRef,

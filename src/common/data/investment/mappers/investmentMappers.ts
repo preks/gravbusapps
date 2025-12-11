@@ -9,8 +9,7 @@ import {
   RealEstateInvestment,
   BaseLiquidFundInvestment,
   LiquidFundInvestment
-} from '../types'
-import { toInvestmentAccount } from '@/common/data/investment/mappers/investmentAccountMappers'
+} from '../types/investmentTypes'
 
 /**
  * Transform BaseInvestment (GraphQL response) to Investment (enhanced with computed fields)
@@ -21,7 +20,6 @@ export function toInvestment(base: BaseInvestment): Investment {
   const investmentTypeLabel = base.investmentType?.value || base.investmentType?.code
   const investmentStatusLabel = base.investmentStatus?.value || base.investmentStatus?.code
   const currencyLabel = base.currency?.value || base.currency?.code
-  const investmentAccount = base.investmentAccount ? toInvestmentAccount(base.investmentAccount) : undefined
 
   // Employee label
   const ownerDisplayName =
@@ -40,8 +38,7 @@ export function toInvestment(base: BaseInvestment): Investment {
     investmentTypeLabel,
     investmentStatusLabel,
     currencyLabel,
-    ownerDisplayName,
-    investmentAccount
+    ownerDisplayName
   }
 }
 

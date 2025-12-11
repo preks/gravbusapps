@@ -23,14 +23,18 @@
 
 @import '@newwork/nw-design-system/index.css';
 
-@import 'tailwindcss' prefix(gba);
-@import 'tw-animate-css';
+@import 'react-quill/dist/quill.snow.css';
 
 @import '@newwork/nw-design-system/core';
 @import '@newwork/nw-design-system/layout';
 @import '@newwork/nw-design-system/colors';
 @import '@newwork/nw-design-system/effects';
 @import '@newwork/nw-design-system/spacing';
+
+@import 'tailwindcss/theme' layer(gravity-business-apps-theme) prefix(gba);
+@import 'tailwindcss/preflight' layer(gravity-business-apps-base) prefix(gba);
+@import 'tailwindcss/utilities' layer(all-newwork-tw-utilities) prefix(gba);
+@import 'tw-animate-css';
 
 @import './business-apps/hr/absences/apps/personal-absences/components/absence-calendar/styles/AbsenceCalendar.css';
 
@@ -112,6 +116,22 @@
   :root {
     --font-primary: 'Roboto Flex', sans-serif;
     --font-secondary: 'Roboto Flex', sans-serif;
+
+    /* AI Color Tokens - Orange theme for EveryAI */
+    --nw-ai: #f59e0b; /* Orange - main AI color */
+    --nw-ai-foreground: #ffffff; /* White text on AI backgrounds */
+    --nw-ai-secondary: #fbbf24; /* Lighter orange for secondary elements */
+    --nw-ai-secondary-foreground: #000000; /* Dark text on secondary AI backgrounds */
+  }
+}
+
+@layer gravity-business-apps-theme {
+  @theme {
+    /* AI Color Tokens - Proper Tailwind color definitions */
+    --color-ai: var(--nw-ai);
+    --color-ai-foreground: var(--nw-ai-foreground);
+    --color-ai-secondary: var(--nw-ai-secondary);
+    --color-ai-secondary-foreground: var(--nw-ai-secondary-foreground);
   }
 }
 

@@ -14,7 +14,7 @@ interface AccountStatisticsTrendData {
   recentAccounts: TrendData
   activeAccounts: TrendData
   accountsThisYear: TrendData
-  revenue: TrendData
+  totalAccounts: TrendData
 }
 
 export interface UseAccountStatisticsWithTrendReturn {
@@ -30,10 +30,12 @@ const GET_ALL_CUSTOMER_ACCOUNT_STATISTICS_WITH_TREND = `
     $previousStart: timestamptz!,
     $previousEnd: timestamptz!,
     $lastMonth: timestamptz!,
-    $lastQuarter: timestamptz!,
     $thisYearStart: timestamptz!,
     $lastYearStart: timestamptz!,
-    $lastYearEnd: timestamptz!
+    $lastYearEnd: timestamptz!,
+    $currentEnd: timestamptz!,
+    $previousTotalStart: timestamptz!,
+    $previousTotalEnd: timestamptz!
   ) {
     recentAccountsCurrent: AccountAggregate(where: {
       createdAt: {_gte: $currentStart},
@@ -68,25 +70,6 @@ const GET_ALL_CUSTOMER_ACCOUNT_STATISTICS_WITH_TREND = `
         count
       }
     }
-    revenueCurrent: Account(where: {
-      isDeleted: {_eq: false},
-      annualRevenueRef: {_isNull: false}
-    }) {
-      annualRevenue {
-        value
-        code
-      }
-    }
-    revenuePrevious: Account(where: {
-      isDeleted: {_eq: false},
-      annualRevenueRef: {_isNull: false},
-      createdAt: {_lt: $lastQuarter}
-    }) {
-      annualRevenue {
-        value
-        code
-      }
-    }
     accountsThisYearCurrent: AccountAggregate(where: {
       createdAt: {_gte: $thisYearStart},
       isDeleted: {_eq: false}
@@ -98,6 +81,22 @@ const GET_ALL_CUSTOMER_ACCOUNT_STATISTICS_WITH_TREND = `
     accountsThisYearPrevious: AccountAggregate(where: {
       createdAt: {_gte: $lastYearStart, _lt: $lastYearEnd},
       isDeleted: {_eq: false}
+    }) {
+      aggregate {
+        count
+      }
+    }
+    totalAccountsCurrent: AccountAggregate(where: {
+      isDeleted: {_eq: false},
+      createdAt: {_lt: $currentEnd}
+    }) {
+      aggregate {
+        count
+      }
+    }
+    totalAccountsPrevious: AccountAggregate(where: {
+      isDeleted: {_eq: false},
+      createdAt: {_gte: $previousTotalStart, _lt: $previousTotalEnd}
     }) {
       aggregate {
         count
@@ -126,17 +125,6 @@ const calculateTrend = (current: number, previous: number): TrendData => {
   }
 }
 
-const calculateRevenue = (accounts: Array<{ annualRevenue: { value: string; code: string } | null }>): number => {
-  let totalRevenue = 0
-  accounts.forEach(account => {
-    const revenueValue = account.annualRevenue?.value
-    if (revenueValue && !Number.isNaN(Number(revenueValue))) {
-      totalRevenue += Number(revenueValue)
-    }
-  })
-  return totalRevenue
-}
-
 export const useCustomerAccountStatistics = (context: BusinessAppContextProps): UseAccountStatisticsWithTrendReturn => {
   const [trendData, setTrendData] = useState<AccountStatisticsTrendData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -159,29 +147,33 @@ export const useCustomerAccountStatistics = (context: BusinessAppContextProps): 
       const previousEnd = currentStart
       const previousStart = new Date(currentStart.getTime() - 14 * 24 * 60 * 60 * 1000)
       const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate())
-      const lastQuarter = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate())
       const thisYearStart = new Date(now.getFullYear(), 0, 1)
       const lastYearStart = new Date(now.getFullYear() - 1, 0, 1)
       const lastYearEnd = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate())
+      const currentEnd = now
+      const previousTotalEnd = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+      const previousTotalStart = new Date(previousTotalEnd.getTime() - 30 * 24 * 60 * 60 * 1000)
 
       const result = await graphqlClient.request<{
         recentAccountsCurrent: { aggregate: { count: number } }
         recentAccountsPrevious: { aggregate: { count: number } }
         activeAccountsCurrent: { aggregate: { count: number } }
         activeAccountsPrevious: { aggregate: { count: number } }
-        revenueCurrent: Array<{ annualRevenue: { value: string; code: string } | null }>
-        revenuePrevious: Array<{ annualRevenue: { value: string; code: string } | null }>
         accountsThisYearCurrent: { aggregate: { count: number } }
         accountsThisYearPrevious: { aggregate: { count: number } }
+        totalAccountsCurrent: { aggregate: { count: number } }
+        totalAccountsPrevious: { aggregate: { count: number } }
       }>(GET_ALL_CUSTOMER_ACCOUNT_STATISTICS_WITH_TREND, {
         currentStart: currentStart.toISOString(),
         previousStart: previousStart.toISOString(),
         previousEnd: previousEnd.toISOString(),
         lastMonth: lastMonth.toISOString(),
-        lastQuarter: lastQuarter.toISOString(),
         thisYearStart: thisYearStart.toISOString(),
         lastYearStart: lastYearStart.toISOString(),
-        lastYearEnd: lastYearEnd.toISOString()
+        lastYearEnd: lastYearEnd.toISOString(),
+        currentEnd: currentEnd.toISOString(),
+        previousTotalStart: previousTotalStart.toISOString(),
+        previousTotalEnd: previousTotalEnd.toISOString()
       })
 
       setTrendData({
@@ -193,10 +185,13 @@ export const useCustomerAccountStatistics = (context: BusinessAppContextProps): 
           result.activeAccountsCurrent.aggregate.count,
           result.activeAccountsPrevious.aggregate.count
         ),
-        revenue: calculateTrend(calculateRevenue(result.revenueCurrent), calculateRevenue(result.revenuePrevious)),
         accountsThisYear: calculateTrend(
           result.accountsThisYearCurrent.aggregate.count,
           result.accountsThisYearPrevious.aggregate.count
+        ),
+        totalAccounts: calculateTrend(
+          result.totalAccountsCurrent.aggregate.count,
+          result.totalAccountsPrevious.aggregate.count
         )
       })
     } catch (err) {

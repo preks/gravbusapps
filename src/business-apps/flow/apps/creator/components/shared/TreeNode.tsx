@@ -1,5 +1,5 @@
-import React from 'react'
-import { Button, Badge, Tooltip, TooltipContent, TooltipTrigger } from '@newwork/nw-design-system'
+import React, { useState } from 'react'
+import { Button, Badge, Tooltip, TooltipContent, TooltipTrigger, Input } from '@newwork/nw-design-system'
 import {
   ChevronRight,
   ChevronDown,
@@ -18,7 +18,8 @@ import {
   Link,
   Info,
   Tag,
-  Plus
+  Plus,
+  Search
 } from 'lucide-react'
 import { TreeNode as TreeNodeType } from '../../types/expressionTree'
 
@@ -26,6 +27,7 @@ interface TreeNodeProps {
   node: TreeNodeType
   onSelect: (node: TreeNodeType) => void
   onToggle: (nodeId: string) => void
+  onEntitySearch?: (nodeId: string, search: string) => void
   level?: number
   'data-testid'?: string
 }
@@ -59,10 +61,19 @@ const dataTypeBadgeColors: Record<string, string> = {
   array: 'gba:bg-gray-100 gba:text-gray-800'
 }
 
-export const TreeNode: React.FC<TreeNodeProps> = ({ node, onSelect, onToggle, level = 0, 'data-testid': testId }) => {
+export const TreeNode: React.FC<TreeNodeProps> = ({
+  node,
+  onSelect,
+  onToggle,
+  onEntitySearch,
+  level = 0,
+  'data-testid': testId
+}) => {
   const hasChildren = node.children && node.children.length > 0
   const isExpandable = hasChildren
   const paddingLeft = level * 12
+  const [showEntitySearch, setShowEntitySearch] = useState(false)
+  const [entitySearchValue, setEntitySearchValue] = useState(node.metadata?.search || '')
 
   const handleToggle = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -72,6 +83,20 @@ export const TreeNode: React.FC<TreeNodeProps> = ({ node, onSelect, onToggle, le
   }
 
   const handleSelect = () => {
+    // For entity-browser nodes:
+    // - If it has children (already loaded), toggle expansion
+    // - If it has no children, show search input
+    if (node.type === 'entity-browser' && onEntitySearch) {
+      if (hasChildren) {
+        // Already has results, just toggle
+        onToggle(node.id)
+      } else {
+        // No results yet, show search input
+        setShowEntitySearch(true)
+      }
+      return
+    }
+
     // If node has children, toggle expansion
     if (hasChildren) {
       onToggle(node.id)
@@ -148,8 +173,57 @@ export const TreeNode: React.FC<TreeNodeProps> = ({ node, onSelect, onToggle, le
           </Badge>
         )}
 
-        {/* Add button (for fields) */}
-        {(node.type === 'field' || node.type === 'catalog-field' || node.type === 'catalog-container') && (
+        {/* Search badge with clear button (for entity-browser nodes with search results) */}
+        {node.type === 'entity-browser' && hasChildren && node.metadata?.search && onEntitySearch && (
+          <div className="gba:flex gba:items-center gba:gap-1">
+            <Badge
+              variant="secondary"
+              className="gba:text-xs gba:bg-purple-100 gba:text-purple-800 gba:border-purple-200 gba:flex gba:items-center gba:gap-1 gba:px-2 gba:py-0.5"
+            >
+              <Search className="gba:h-3 gba:w-3" />
+              <span>{node.metadata.search}</span>
+              <button
+                onClick={e => {
+                  e.stopPropagation()
+                  setShowEntitySearch(true)
+                }}
+                className="gba:ml-1 gba:text-purple-600 hover:gba:text-purple-900 gba:font-semibold"
+                data-testid={`${testId}-change-search`}
+              >
+                ×
+              </button>
+            </Badge>
+          </div>
+        )}
+
+        {/* Search again button (for entity-browser nodes with results but no search term) */}
+        {node.type === 'entity-browser' && hasChildren && !node.metadata?.search && onEntitySearch && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gba:h-6 gba:w-6 gba:p-0 gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity"
+                onClick={e => {
+                  e.stopPropagation()
+                  setShowEntitySearch(true)
+                }}
+                data-testid={`${testId}-search-again`}
+              >
+                <Search className="gba:h-3 gba:w-3" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Search</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
+
+        {/* Add button (for insertable nodes) */}
+        {(node.expressionTemplate ||
+          node.type === 'field' ||
+          node.type === 'catalog-field' ||
+          node.type === 'catalog-container') && (
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -172,6 +246,63 @@ export const TreeNode: React.FC<TreeNodeProps> = ({ node, onSelect, onToggle, le
         )}
       </div>
 
+      {/* Entity Search Input (for entity-browser nodes) */}
+      {showEntitySearch && node.type === 'entity-browser' && onEntitySearch && (
+        <div className="gba:mt-2 gba:ml-6 gba:mr-2 gba:p-2 gba:bg-purple-50 gba:rounded gba:border gba:border-purple-200">
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <Search className="gba:h-4 gba:w-4 gba:text-purple-600 gba:shrink-0" />
+            <Input
+              type="text"
+              placeholder={`Search ${node.metadata?.entityType || 'entities'}...`}
+              value={entitySearchValue}
+              onChange={e => setEntitySearchValue(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  console.log('Enter pressed for search', { nodeId: node.id, search: entitySearchValue })
+                  onEntitySearch(node.id, entitySearchValue)
+                  setShowEntitySearch(false)
+                } else if (e.key === 'Escape') {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setShowEntitySearch(false)
+                  setEntitySearchValue(node.metadata?.search || '')
+                }
+              }}
+              className="gba:flex-1 gba:text-sm"
+              autoFocus
+              data-testid={`${testId}-entity-search`}
+            />
+            <Button
+              size="sm"
+              onClick={e => {
+                e.stopPropagation()
+                console.log('Search button clicked', { nodeId: node.id, search: entitySearchValue })
+                onEntitySearch(node.id, entitySearchValue)
+                setShowEntitySearch(false)
+              }}
+              data-testid={`${testId}-search-button`}
+            >
+              Search
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={e => {
+                e.stopPropagation()
+                setShowEntitySearch(false)
+                setEntitySearchValue(node.metadata?.search || '')
+              }}
+              data-testid={`${testId}-cancel-button`}
+            >
+              Cancel
+            </Button>
+          </div>
+          <p className="gba:text-xs gba:text-gray-600 gba:mt-1 gba:ml-6">Press Enter to search, Escape to cancel</p>
+        </div>
+      )}
+
       {/* Render children */}
       {isExpandable && node.isExpanded && node.children && (
         <div className="gba:mt-0.5">
@@ -181,6 +312,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({ node, onSelect, onToggle, le
               node={child}
               onSelect={onSelect}
               onToggle={onToggle}
+              onEntitySearch={onEntitySearch}
               level={level + 1}
               data-testid={`${testId}-child-${child.id}`}
             />

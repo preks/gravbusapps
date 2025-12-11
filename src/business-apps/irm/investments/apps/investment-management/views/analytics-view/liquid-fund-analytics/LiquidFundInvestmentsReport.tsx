@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState } from 'react'
 import {
   Alert,
   AlertTitle,
@@ -20,11 +20,11 @@ import { PieChart, TrendingUp, BarChart } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { useAvailableCurrencies } from '@/common/data/common/hooks/useAvailableCurrencies'
 import { useLiquidFundDataIntegration } from './hooks/useLiquidFundDataIntegration'
 import { useLiquidFundKPIIntegration } from './hooks/useLiquidFundKPIIntegration'
 import { LiquidFundKPICards } from './components/LiquidFundKPICards'
 import { LiquidFundDistributionCharts, LiquidFundTimelineCharts, LiquidFundAnalyticsCharts } from './components'
-import { safeCurrencyExtraction } from '@/common/utils/numberFormatter'
 
 // Interface definition moved to shared/types.ts - keeping legacy export for compatibility
 
@@ -52,26 +52,13 @@ export const LiquidFundInvestmentsReport: React.FC<LiquidFundInvestmentsReportPr
   const [selectedCurrency, setSelectedCurrency] = useState<string>('EUR')
 
   // Use optimized liquid fund data integration hook (only fetches investments)
-  const { investments, isLoading, error, refetch } = useLiquidFundDataIntegration(context)
+  const { isLoading, error, refetch } = useLiquidFundDataIntegration(context)
 
-  // Filter for liquid fund investments only (using type assertion for relationship)
-  const liquidFundInvestments = investments.filter(
-    inv => (inv as any).liquidFundInvestment && (inv as any).liquidFundInvestment.length > 0
-  )
-
-  // Extract unique currencies from liquid fund investments
-  const availableCurrencies = useMemo(() => {
-    const currencies = new Set<string>()
-    for (const inv of liquidFundInvestments) {
-      const currencyCode = safeCurrencyExtraction(inv.currency)
-      if (currencyCode) {
-        currencies.add(currencyCode)
-      }
-    }
-    const currencyArray = Array.from(currencies).sort((a, b) => a.localeCompare(b))
-    // Ensure at least the default currency is available
-    return currencyArray.length > 0 ? currencyArray : ['EUR']
-  }, [liquidFundInvestments])
+  // Fetch available currencies efficiently using distinctOn
+  const { currencies: availableCurrencies } = useAvailableCurrencies(context, {
+    filters: { entity: 'Investment', investmentGroupId: 'InvestmentGroup:v1:LIQUID_FUND' },
+    returnFormat: 'codes'
+  })
 
   // Use KPI integration hook with currency filter (matches working pattern)
   const {
@@ -162,6 +149,7 @@ export const LiquidFundInvestmentsReport: React.FC<LiquidFundInvestmentsReportPr
       {/* KPI Cards */}
       <LiquidFundKPICards
         kpis={kpis}
+        currency={selectedCurrency}
         isLoading={kpiLoading}
         error={kpiError ? new Error(kpiError) : null}
         onRetry={refetchKpis}

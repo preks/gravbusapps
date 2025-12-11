@@ -15,6 +15,8 @@ export interface Account extends BaseEntity {
   accountAnnualRevenueBand?: CatalogEntry // IRM | TODO (annualRevenue in CRM)
   accountAnnualRevenueBandRef?: string // IRM | TODO (annualRevenueRef in CRM)
   accountContacts?: CommonAccountContact[] // IRM | TODO (accountContacts in CRM)
+  accountPriority?: CatalogEntry // IRM | CRM
+  accountPriorityRef?: string // IRM | CRM
   activities?: Activity[] // IRM | TODO (CRM missing)
   addresses?: Address[] // IRM | CRM
   code?: string // IRM | CRM
@@ -42,13 +44,15 @@ export interface Account extends BaseEntity {
   tasks?: Task[] // IRM | CRM
   timeZone?: CatalogEntry // IRM | CRM
   timeZoneRef?: string // IRM | CRM
-  wesbite?: string // IRM | CRM
+  website?: string // IRM | CRM (fixed typo: was 'wesbite')
 }
 
 export const AccountFields = {
   accountAnnualRevenueBand: 'accountAnnualRevenueBand',
   accountAnnualRevenueBandRef: 'accountAnnualRevenueBandRef',
   accountContacts: 'accountContacts',
+  accountPriority: 'accountPriority',
+  accountPriorityRef: 'accountPriorityRef',
   activities: 'activities',
   addresses: 'addresses',
   code: 'code',
@@ -79,14 +83,30 @@ export const AccountFields = {
   website: 'website'
 } as const
 
-// Type helper
-export type AccountFieldName = (typeof AccountFields)[keyof typeof AccountFields]
+export const AccountFormFields = {
+  accountAnnualRevenueBandRef: 'accountAnnualRevenueBandRef',
+  accountContacts: 'accountContacts',
+  accountPriorityRef: 'accountPriorityRef',
+  additionalProperties: 'additionalProperties',
+  addresses: 'addresses',
+  code: 'code',
+  communicationChannels: 'communicationChannels',
+  companySizeRef: 'companySizeRef',
+  foundationDate: 'foundationDate',
+  id: 'id',
+  industryClassRef: 'industryClassRef',
+  legalFormRef: 'legalFormRef',
+  liquidationDate: 'liquidationDate',
+  name: 'name',
+  notesSummary: 'notesSummary',
+  ownerEmployeeId: 'ownerEmployee',
+  picture: 'picture',
+  pictureThumbnail: 'pictureThumbnail',
+  timeZoneRef: 'timeZoneRef',
+  version: 'version',
+  website: 'website'
+} as const
 
-/**
- * Create Common Account Descriptors with fields mapping
- * @param fields - AccountFields mapping (default: AccountFields)
- * @returns Descriptor array with field paths using the provided mapping
- */
 export const createAccountDescriptors = (
   fields: Record<keyof typeof AccountFields, string> = AccountFields
 ): Descriptor[] => [
@@ -97,6 +117,16 @@ export const createAccountDescriptors = (
     key: 'accountAnnualRevenueBand',
     searchPaths: [`${fields.accountAnnualRevenueBand}.value`, `${fields.accountAnnualRevenueBand}.code`],
     sortPath: `${fields.accountAnnualRevenueBand}.value`,
+    type: 'text'
+  },
+  {
+    key: 'accountPriority',
+    searchPaths: [
+      `${fields.accountPriority}.value`,
+      `${fields.accountPriority}.code`,
+      `${fields.accountPriority}.additionalValue1`
+    ],
+    sortPath: `${fields.accountPriority}.value`,
     type: 'text'
   },
   {
@@ -204,7 +234,7 @@ export const createAccountDescriptors = (
     sortPath: `${fields.timeZone}.value`,
     type: 'text'
   },
-  { key: 'wesbite', searchPaths: [fields.website], sortPath: fields.website, type: 'text' },
+  { key: 'website', searchPaths: [fields.website], sortPath: fields.website, type: 'text' },
 
   // Filter IDs for Refs
   {
@@ -273,6 +303,23 @@ export const createAccountDescriptors = (
     optionDistinctOn: [fields.ownerEmployeeId],
     kind: 'inIds'
   },
+  {
+    key: 'accountPriorityIds',
+    path: fields.accountPriorityRef,
+    filterLabel: 'Account Priority',
+    optionSelectPaths: [
+      `${fields.accountPriority}.id`,
+      `${fields.accountPriority}.value`,
+      `${fields.accountPriority}.code`
+    ],
+    optionSearchPaths: [
+      `${fields.accountPriority}.value`,
+      `${fields.accountPriority}.code`,
+      `${fields.accountPriority}.additionalValue1`
+    ],
+    optionDistinctOn: [fields.accountPriorityRef],
+    kind: 'inIds'
+  },
   { key: 'timeZoneIds', path: fields.timeZoneRef, kind: 'inIds' },
 
   // Date range filters
@@ -281,53 +328,3 @@ export const createAccountDescriptors = (
   { key: 'liquidationDateFrom', path: fields.liquidationDate, kind: 'dateFrom' },
   { key: 'liquidationDateTo', path: fields.liquidationDate, kind: 'dateTo' }
 ]
-
-// Deprecated - remove later
-interface FilterOption {
-  id: string
-  label: string
-}
-
-export interface CommonAccountFilters {
-  // Standard catalog-based filters
-  owners: FilterOption[]
-  industries: FilterOption[]
-  legalForms: FilterOption[]
-  companySizes: FilterOption[]
-  revenueBands: FilterOption[]
-
-  // Geography filters
-  countries: FilterOption[]
-
-  // Loading state
-  isLoading: boolean
-
-  // Total counts for pagination
-  totalCounts?: {
-    owners?: number
-    industries?: number
-    legalForms?: number
-    companySizes?: number
-    revenueBands?: number
-    countries?: number
-  }
-
-  // Lifecycle functions
-  prefetchFilters?: () => Promise<void>
-
-  // Search functions (individual per filter group)
-  searchOwners?: (query: string) => Promise<FilterOption[]>
-  searchIndustries?: (query: string) => Promise<FilterOption[]>
-  searchLegalForms?: (query: string) => Promise<FilterOption[]>
-  searchCompanySizes?: (query: string) => Promise<FilterOption[]>
-  searchRevenueBands?: (query: string) => Promise<FilterOption[]>
-  searchCountries?: (query: string) => Promise<FilterOption[]>
-
-  // Load more functions (pagination)
-  loadMoreOwners?: () => Promise<void>
-  loadMoreIndustries?: () => Promise<void>
-  loadMoreLegalForms?: () => Promise<void>
-  loadMoreCompanySizes?: () => Promise<void>
-  loadMoreRevenueBands?: () => Promise<void>
-  loadMoreCountries?: () => Promise<void>
-}

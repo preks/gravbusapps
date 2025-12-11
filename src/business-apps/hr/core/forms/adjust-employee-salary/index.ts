@@ -6,5 +6,9 @@ export type {
   CatalogEntry,
   EmployeeDataResponse,
   EmployeeCompensationResponse,
-  CatalogsDataResponse
+  EmployeeWorkingConditionResponse,
+  CatalogsDataResponse,
+  FormMode,
+  SalaryType,
+  CurrencyOption
 } from './types'

@@ -1,19 +1,24 @@
-import { type Document, DocumentFields, createDocumentDescriptors } from '@/common/data/relations/types/documentTypes'
+import {
+  type Document,
+  DocumentFields,
+  DocumentFormFields,
+  createDocumentDescriptors
+} from '@/common/data/relations/types/documentTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { SourceTable } from './customerEnums'
-import type {
-  CustomerAccount,
-  CustomerActivity,
-  CustomerLead,
-  CustomerNote,
-  CustomerOpportunity,
-  CustomerTask
-} from './'
+import type { CustomerAccount } from './customerAccountTypes'
+import type { CustomerActivity } from './customerActivityTypes'
+import type { CustomerContact } from './customerContactTypes'
+import type { CustomerLead } from './customerLeadTypes'
+import type { CustomerNote } from './customerNoteTypes'
+import type { CustomerOpportunity } from './customerOpportunityTypes'
+import type { CustomerTask } from './customerTaskTypes'
 
 export interface CustomerDocument extends Document {
   account?: CustomerAccount
   activity?: CustomerActivity // Mapped by salesActivity
   childDocuments?: CustomerDocument[]
+  contact?: CustomerContact
   note?: CustomerNote
   opportunity?: CustomerOpportunity
   lead?: CustomerLead
@@ -41,8 +46,11 @@ export const CustomerDocumentFields = {
   taskId: 'salesTaskId'
 } as const
 
-export type CustomerDocumentFieldName = (typeof CustomerDocumentFields)[keyof typeof CustomerDocumentFields]
-
+export const CustomerDocumentFormFields = {
+  ...DocumentFormFields,
+  activityId: 'salesActivity',
+  taskId: 'salesTask'
+}
 /**
  * Customer Document Descriptors
  * Uses createDocumentDescriptors with CustomerDocumentFields mapping

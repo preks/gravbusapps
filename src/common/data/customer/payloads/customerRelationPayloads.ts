@@ -48,15 +48,27 @@ export const buildCustomerTaskPayload = (
   businessAppContext: BusinessAppContextProps,
   options: { isUpdate?: boolean } = {}
 ) => {
+  // Helper to extract entity ID from object or string
+  const getEntityId = (entity: any): string | undefined => {
+    if (!entity) return undefined
+    if (typeof entity === 'string') return entity
+    return entity.id
+  }
+
   // Helper to build entity references from task or context
   const getEntityRef = () => {
     const refs: Record<string, any> = {}
 
     // Priority 1: Entity from task form
-    if (task.account?.id) refs.account = task.account.id
-    if (task.contact?.id) refs.contact = task.contact.id
-    if (task.opportunity?.id) refs.opportunity = task.opportunity.id
-    if (task.lead?.id) refs.lead = task.lead.id
+    const accountId = getEntityId(task.account)
+    const contactId = getEntityId(task.contact)
+    const opportunityId = getEntityId(task.opportunity)
+    const leadId = getEntityId(task.lead)
+
+    if (accountId) refs.account = accountId
+    if (contactId) refs.contact = contactId
+    if (opportunityId) refs.opportunity = opportunityId
+    if (leadId) refs.lead = leadId
 
     // Priority 2: Entity from additionalData (fallback)
     const additional: any = (businessAppContext as any)?.additionalData || {}

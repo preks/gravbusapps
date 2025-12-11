@@ -13,19 +13,19 @@ import { Users, FileText, User, CurrencyDollar } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
+import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { getContactTypeDisplayValue, getContactFullName } from './utils'
 import { useContactAiSummary } from './hooks/useContactAiSummary'
 import { Bot } from 'lucide-react'
+import { useInvestmentContact } from '@/common/data/investment/hooks/useInvestmentContact'
 import {
-  useGetInvestmentContactById,
   useGetInvestmentActivitiesByContactId,
   useGetInvestmentNotesByContactId,
   useGetInvestmentTasksByContactId
 } from '@/common/data/investment/hooks/useInvestmentContacts'
-import type { InvestmentContact } from '@/common/data/investment/types'
 import { HomeView } from './views/home-view/HomeView'
 import { OpportunityView } from './views/opportunity-view/OpportunityView'
 import { DocumentView } from './views/document-view/DocumentView'
@@ -43,29 +43,19 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
   fromEntity,
   ...props
 }) => {
-  const [contactData, setContactData] = useState<InvestmentContact | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<string>(() => {
     if (typeof window === 'undefined') return 'overview'
     const params = new URLSearchParams(window.location.search)
     return params.get('tab') || 'overview'
   })
 
-  const { fetchInvestmentContactById } = useGetInvestmentContactById(props)
-
-  // Refetch function for process completion events
-  const refetchContactData = useCallback(async () => {
-    if (!contactId || !props.accessToken) return
-    try {
-      const result = await fetchInvestmentContactById(contactId)
-      if (result?.contact) {
-        setContactData(result.contact)
-      }
-    } catch (err) {
-      console.error('Error refreshing contact:', err)
-    }
-  }, [contactId, props.accessToken, fetchInvestmentContactById])
+  // Use new declarative hook for contact data
+  const {
+    contact: contactData,
+    loading,
+    error,
+    refetch: refetchContactData
+  } = useInvestmentContact(props.accessToken, contactId)
 
   // AI Summary hook - must be called before any conditional returns
   const aiSummaryHook = useContactAiSummary(contactId, props.accessToken)
@@ -161,82 +151,21 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
     fetchInvestmentTasksByContactId
   ])
 
-  // Fetch contact data
-  useEffect(() => {
-    const loadContactData = async () => {
-      if (!contactId || !props.accessToken) return
-
-      try {
-        setLoading(true)
-        setError(null)
-        const result = await fetchInvestmentContactById(contactId)
-        if (result?.contact) {
-          setContactData(result.contact)
-        } else {
-          setError('Contact not found')
-        }
-      } catch (err) {
-        console.error('Error fetching contact:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load contact')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadContactData()
-  }, [contactId, props.accessToken, fetchInvestmentContactById])
-
   // Load section data on mount
   useEffect(() => {
     loadSectionData()
   }, [loadSectionData])
 
+  // Memoized callback for process completion
+  const handleProcessSuccess = useCallback(() => {
+    refetchContactData()
+    loadSectionData()
+  }, [refetchContactData, loadSectionData])
+
   // Listen for process completion events to refresh contact data
-  useEffect(() => {
-    const handleProcessCompletion = (event: any) => {
-      try {
-        // Check for successful completion
-        if (event.detail?.resolution === 'success') {
-          refetchContactData()
-          loadSectionData() // Also refresh section data
-          return
-        }
-
-        // Also check for different event structure
-        const response = event.detail?.response
-        if (response?.detail?.resolution === 'success' || response?.contact) {
-          refetchContactData()
-          loadSectionData() // Also refresh section data
-        }
-      } catch (err) {
-        console.error('Error handling process completion in ContactRecord:', err)
-      }
-    }
-
-    // Listen to multiple possible event names for contact updates
-    const eventNames = [
-      'com.newwork.process.taskCompletion',
-      'com.newwork.process.completion',
-      'com.newwork.process.continue',
-      'com.newwork.process.processCompletion',
-      'processCompletion',
-      'taskCompletion',
-      'taskCompleted',
-      'processCompleted',
-      'task-completion',
-      'process-completion'
-    ]
-
-    eventNames.forEach(eventName => {
-      window.addEventListener(eventName, handleProcessCompletion as EventListener)
-    })
-
-    return () => {
-      eventNames.forEach(eventName => {
-        window.removeEventListener(eventName, handleProcessCompletion as EventListener)
-      })
-    }
-  }, [contactId, refetchContactData, loadSectionData])
+  useProcessCompletion({
+    onSuccess: handleProcessSuccess
+  })
 
   // Get source from URL parameters to determine back navigation text
   const source = useMemo(() => {
@@ -334,22 +263,31 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
     )
   }, [aiSummaryHook, contactId])
 
+  // Calculate fullName early for use in headerActionButton
+  const fullName = getContactFullName(contactData, null)
+
   const headerActionButton = useMemo(
     () => (
-      <AppActionButton
+      <AppAction
         data-testid="investment-contact-record-action-button"
-        size="icon"
-        contextsArray={[FlowContextName.investmentContactEntity]}
-        externalContextData={{
-          contactId: contactId
+        variant="header"
+        contexts={[
+          {
+            context: FlowContextName.investmentContactEntity,
+            contextData: { contactId }
+          }
+        ]}
+        shareContext={{
+          entityType: 'investment-contact',
+          entityId: contactId,
+          entityName: fullName,
+          entityUrl: `/platform/irm/contact-record?contactId=${contactId}`
         }}
         prefixDataTestId="investment-contact-record-action"
         accessToken={props.accessToken}
-        emptyStateBehavior="hide"
-        deferMainContextRequestsUntilClick={false}
       />
     ),
-    [contactId, props.accessToken]
+    [contactId, fullName, props.accessToken]
   )
 
   // Action props for sections - must be defined before subViewsConfig
@@ -491,8 +429,6 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
       </div>
     )
   }
-
-  const fullName = getContactFullName(contactData, null)
 
   // Create header title with contact type badge
   const contactType = contactData?.type

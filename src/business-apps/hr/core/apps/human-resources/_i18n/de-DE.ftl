@@ -349,7 +349,7 @@ hr-analytics-categories = { $count } Kategorien
 hr-analytics-top-8-of-nationalities = Top 8 von { $total } Nationalitäten
 hr-analytics-total-data-points = Gesamte Datenpunkte: { $count }
 hr-analytics-gender-diversity = Geschlechterdiversität
-hr-analytics-gender-distribution-balance = Ausgewogene Geschlechterverteilung
+hr-analytics-gender-distribution-balance = Geschlechterverteilung (weiblich:männlich)
 hr-analytics-most-common-gender = Häufigstes Geschlecht
 hr-analytics-most-frequent-gender = Am häufigsten vorkommendes Geschlecht
 hr-analytics-average-age = Durchschnittsalter
@@ -362,9 +362,9 @@ hr-analytics-new-hires-this-month = Neueinstellungen in diesem Monat
 hr-analytics-monthly-departures = Monatliche Abgänge
 hr-analytics-departures-this-month = Abgänge in diesem Monat
 hr-analytics-net-change = Nettoveränderung
-hr-analytics-monthly-headcount-change = Monatliche Headcount-Veränderung
+hr-analytics-monthly-headcount-change = Headcount‑Veränderung (dieser Monat)
 hr-analytics-growth-rate = Wachstumsrate
-hr-analytics-monthly-growth-percentage = Monatliche Wachstumsrate
+hr-analytics-monthly-growth-percentage = Wachstum (dieser Monat)
 hr-analytics-workforce-analytics = Workforce-Analytik
 hr-analytics-loading-workforce = Workforce-Daten und Analysen werden geladen...
 hr-analytics-failed-to-load-workforce = Laden der Workforce-Daten fehlgeschlagen
@@ -417,4 +417,5 @@ hr-pagination-prev-page-sr = Zur vorherigen Seite
 hr-pagination-next-page-sr = Zur nächsten Seite
 hr-pagination-last-page-sr = Zur letzten Seite
 
-
+#Picture
+employee-edit-picture = BILD BEARBEITEN

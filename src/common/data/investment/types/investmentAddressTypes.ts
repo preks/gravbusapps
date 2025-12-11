@@ -2,27 +2,19 @@
  * Investment Address Types
  */
 
-import type { BaseEntity, CatalogEntry } from '@/common/network/graphql/commonTypes'
+import type { BaseEntity } from '@/common/network/graphql/commonTypes'
+import type { Address } from '@/common/data/common/types/commonTypes'
 import type { AddressType, SourceTable } from './investmentEnums'
 import { AUDIT_FIELDS, CATALOG_ENTRY } from '@/common/network/graphql/commonFragments'
 
 /**
  * InvestmentAddress
  * Address entity for IRM
+ * Extends Address from common types
  */
-export interface InvestmentAddress extends BaseEntity {
-  id: string
+export interface InvestmentAddress extends BaseEntity, Address {
   source?: SourceTable
   addressType?: AddressType
-  addressLine?: any // Jsonb
-  postalCode?: string
-  locality?: string
-
-  // Catalog references
-  region?: CatalogEntry
-  regionRef?: string
-  country?: CatalogEntry
-  countryRef?: string
 
   // Entity references
   account?: any // InvestmentAccount

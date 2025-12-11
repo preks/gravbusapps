@@ -83,6 +83,7 @@ export const buildCustomerOpportunityQuery = (
     salesCampaign {
       ${CUSTOMER_CAMPAIGN_REF}
     }
+    salesCampaignId
   `
   return buildOpportunityQuery('Opportunity', fields, entityFields)
 }
@@ -91,8 +92,7 @@ export const buildCustomerOpportunityQuery = (
  * Build Customer Opportunity by ID query
  */
 export const buildCustomerOpportunityByIdQuery = (
-  fields: typeof CustomerOpportunityFields = CustomerOpportunityFields,
-  id: string
+  fields: typeof CustomerOpportunityFields = CustomerOpportunityFields
 ): string => {
   // Build relation builders and fields for common relations
   const relationBuilders: OpportunityRelationBuilders = {
@@ -141,9 +141,10 @@ export const buildCustomerOpportunityByIdQuery = (
     salesCampaign {
       ${CUSTOMER_CAMPAIGN_REF}
     }
+    salesCampaignId
   `
 
-  return buildOpportunityByIdQuery('Opportunity', id, fields, relationBuilders, relationFields, entityFields)
+  return buildOpportunityByIdQuery('Opportunity', fields, relationBuilders, relationFields, entityFields)
 }
 
 /**

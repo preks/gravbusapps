@@ -3,6 +3,7 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EMPLOYEE_ABSENCES } from '../queries/graphql'
 import { EnhancedAbsence } from '../types/enhancedAbsence'
 import { getCurrentActiveUserLocale, getCatalogValue } from '@/common/utils/windowUtils'
+import dayjs from 'dayjs'
 
 export interface UseAbsenceDataProps {
   accessToken: string
@@ -107,14 +108,32 @@ export const useAbsenceData = ({ accessToken, employeeId, filters }: UseAbsenceD
         } else {
           orderBy.push({ [sortField]: graphqlSortOrder })
         }
-      } else {
-        orderBy.push({ createdAt: 'DESC' })
       }
+
+      const shouldFetchForDefaultSort = !sortField || !sortOrder
+
+      let totalCount = 0
+      if (shouldFetchForDefaultSort) {
+        const countResult = await graphQLClient.request<any>(GET_EMPLOYEE_ABSENCES, {
+          where: conditions,
+          offset: 0,
+          limit: 1,
+          activeUserLocale: getCurrentActiveUserLocale()
+        })
+        totalCount = countResult.EmployeeAbsenceAggregate?.aggregate?.count || 0
+      }
+
+      const maxReasonableLimit = 2000
+      const fetchLimit = shouldFetchForDefaultSort
+        ? totalCount > 0 && totalCount < maxReasonableLimit
+          ? totalCount
+          : maxReasonableLimit
+        : pageSize
 
       const variables: any = {
         where: conditions,
-        offset: (currentPage - 1) * pageSize,
-        limit: pageSize,
+        offset: shouldFetchForDefaultSort ? 0 : (currentPage - 1) * pageSize,
+        limit: fetchLimit,
         activeUserLocale: getCurrentActiveUserLocale()
       }
 
@@ -124,7 +143,11 @@ export const useAbsenceData = ({ accessToken, employeeId, filters }: UseAbsenceD
 
       const result = await graphQLClient.request<any>(GET_EMPLOYEE_ABSENCES, variables)
 
-      const enhancedAbsences: EnhancedAbsence[] = (result.EmployeeAbsence || []).map((absence: any) => {
+      if (!shouldFetchForDefaultSort) {
+        totalCount = result.EmployeeAbsenceAggregate?.aggregate?.count || 0
+      }
+
+      let enhancedAbsences: EnhancedAbsence[] = (result.EmployeeAbsence || []).map((absence: any) => {
         const employee = absence.employee || {}
         const employeeName =
           employee.firstName || employee.lastName
@@ -157,8 +180,37 @@ export const useAbsenceData = ({ accessToken, employeeId, filters }: UseAbsenceD
         }
       })
 
-      setAbsences(enhancedAbsences)
-      setTotal(result.EmployeeAbsenceAggregate?.aggregate?.count || 0)
+      if (shouldFetchForDefaultSort) {
+        const now = dayjs()
+        const upcoming = enhancedAbsences
+          .filter(absence => absence.endDate && dayjs(absence.endDate).isSameOrAfter(now, 'day'))
+          .sort((a, b) => {
+            const aStart = dayjs(a.startDate).valueOf()
+            const bStart = dayjs(b.startDate).valueOf()
+            return aStart - bStart
+          })
+
+        const past = enhancedAbsences
+          .filter(absence => !absence.endDate || dayjs(absence.endDate).isBefore(now, 'day'))
+          .sort((a, b) => {
+            const aEnd = a.endDate ? dayjs(a.endDate).valueOf() : 0
+            const bEnd = b.endDate ? dayjs(b.endDate).valueOf() : 0
+            return bEnd - aEnd
+          })
+
+        enhancedAbsences = [...upcoming, ...past]
+
+        const sortedTotalCount = enhancedAbsences.length
+        const startIndex = (currentPage - 1) * pageSize
+        const endIndex = startIndex + pageSize
+        enhancedAbsences = enhancedAbsences.slice(startIndex, endIndex)
+
+        setAbsences(enhancedAbsences)
+        setTotal(totalCount > 0 ? totalCount : sortedTotalCount)
+      } else {
+        setAbsences(enhancedAbsences)
+        setTotal(result.EmployeeAbsenceAggregate?.aggregate?.count || 0)
+      }
     } catch (error) {
       console.error('Error fetching absences:', error)
       setError(error instanceof Error ? error : new Error('Failed to fetch absences'))
@@ -290,7 +342,14 @@ export const useAbsenceData = ({ accessToken, employeeId, filters }: UseAbsenceD
   const handleSort = useCallback(
     (field: string) => {
       if (sortField === field) {
-        setSortOrder(sortOrder === 'ASC' ? 'DESC' : 'ASC')
+        if (sortOrder === 'ASC') {
+          setSortOrder('DESC')
+        } else if (sortOrder === 'DESC') {
+          setSortField('')
+          setSortOrder('')
+        } else {
+          setSortOrder('ASC')
+        }
       } else {
         setSortField(field)
         setSortOrder('ASC')

@@ -13,14 +13,14 @@ import { Users, FileText, User, DollarSign } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { useCustomerContacts } from '@/common/data/customer/hooks/useCustomerContacts'
+import { useCustomerContact } from '@/common/data/customer/hooks/useCustomerContact'
 import { useCustomerActivities } from '@/common/data/customer/hooks/useCustomerActivities'
 import { useCustomerTasks } from '@/common/data/customer/hooks/useCustomerTasks'
 import { useCustomerNotes } from '@/common/data/customer/hooks/useCustomerNotes'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
+import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { HomeView } from './views/home-view/HomeView'
-import type { CustomerContact } from '@/common/data/customer/types'
 import { OpportunityView } from './views/opportunity-view/OpportunityView'
 import { DocumentView } from './views/document-view/DocumentView'
 import { getEmailChannel, getPhoneChannel } from '@/common/data/common/utils/communicationChannelHelpers'
@@ -32,16 +32,19 @@ interface ContactRecordContentProps extends BusinessAppContextProps {
 }
 
 const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, onBack, fromEntity, ...props }) => {
-  const [contactData, setContactData] = useState<CustomerContact | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<string>(() => {
     if (typeof window === 'undefined') return 'overview'
     const params = new URLSearchParams(window.location.search)
     return params.get('tab') || 'overview'
   })
 
-  const { fetchCustomerContactById } = useCustomerContacts(props)
+  // Use new declarative hook for contact data
+  const {
+    contact: contactData,
+    loading,
+    error,
+    refetch: refetchContactData
+  } = useCustomerContact(props.accessToken, contactId)
 
   // Data fetching hooks for sections - using central hooks
   const { fetchCustomerActivitiesByContactId } = useCustomerActivities(props)
@@ -142,78 +145,19 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
 
   // Fetch contact data
   const fetchContactData = useCallback(async () => {
-    if (!contactId || !props.accessToken) {
-      setLoading(false)
-      return
-    }
+    await refetchContactData()
+  }, [refetchContactData])
 
-    try {
-      setLoading(true)
-      setError(null)
-      const contact = await fetchCustomerContactById(contactId)
-      if (contact) {
-        setContactData(contact)
-      } else {
-        setError('Contact not found')
-      }
-    } catch (err) {
-      console.error('Error fetching contact:', err)
-      setError(err instanceof Error ? err.message : 'Failed to load contact')
-    } finally {
-      setLoading(false)
-    }
-  }, [contactId, props.accessToken, fetchCustomerContactById])
-
-  useEffect(() => {
+  // Memoized callback for process completion
+  const handleProcessSuccess = useCallback(() => {
     fetchContactData()
-  }, [fetchContactData])
+    loadSectionData()
+  }, [fetchContactData, loadSectionData])
 
   // Listen for process completion events to refresh contact data
-  useEffect(() => {
-    const handleProcessCompletion = async (event: any) => {
-      try {
-        // Check for successful completion
-        if (event.detail?.resolution === 'success') {
-          await fetchContactData()
-          await loadSectionData() // Also refresh section data
-          return
-        }
-
-        // Also check for different event structure
-        const response = event.detail?.response
-        if (response?.detail?.resolution === 'success' || response?.contact) {
-          await fetchContactData()
-          await loadSectionData() // Also refresh section data
-        }
-      } catch (err) {
-        console.error('Error handling process completion in ContactRecord:', err)
-      }
-    }
-
-    // Listen to multiple possible event names for contact updates
-    const eventNames = [
-      'com.newwork.process.taskCompletion',
-      'com.newwork.process.completion',
-      'com.newwork.process.continue',
-      'com.newwork.process.processCompletion',
-      'processCompletion',
-      'taskCompletion',
-      'taskCompleted',
-      'processCompleted',
-      'task-completion',
-      'process-completion'
-    ]
-
-    eventNames.forEach(eventName => {
-      window.addEventListener(eventName, handleProcessCompletion as EventListener)
-    })
-
-    return () => {
-      eventNames.forEach(eventName => {
-        window.removeEventListener(eventName, handleProcessCompletion as EventListener)
-      })
-    }
-  }, [contactId, fetchContactData, loadSectionData])
+  useProcessCompletion({
+    onSuccess: handleProcessSuccess
+  })
 
   const getBackButtonText = () => {
     if (fromEntity === 'leads') {
@@ -280,22 +224,33 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
     return null
   }, [contactId])
 
+  // Calculate fullName early for use in headerActionButton
+  const fullName =
+    `${contactData?.firstName || ''} ${contactData?.lastName || ''}`.trim() ||
+    getTranslationFromI18nKeyAndLabel('crm.common.unnamedContact', 'Unnamed Contact')
+
   const headerActionButton = useMemo(
     () => (
-      <AppActionButton
+      <AppAction
         data-testid="customer-contact-record-action-button"
-        size="icon"
-        contextsArray={[FlowContextName.customerContactEntity]}
-        externalContextData={{
-          contactId: contactId
+        variant="header"
+        contexts={[
+          {
+            context: FlowContextName.customerContactEntity,
+            contextData: { contactId }
+          }
+        ]}
+        shareContext={{
+          entityType: 'contact',
+          entityId: contactId,
+          entityName: fullName,
+          entityUrl: `/platform/crm/contact-record?contactId=${contactId}`
         }}
         prefixDataTestId="customer-contact-record-action"
         accessToken={props.accessToken}
-        emptyStateBehavior="hide"
-        deferMainContextRequestsUntilClick={false}
       />
     ),
-    [contactId, props.accessToken]
+    [contactId, fullName, props.accessToken]
   )
 
   // Action props for sections - must be defined before subViews
@@ -453,10 +408,6 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
       .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
       .join(' ')
   }
-
-  const fullName =
-    `${contactData?.firstName || ''} ${contactData?.lastName || ''}`.trim() ||
-    getTranslationFromI18nKeyAndLabel('crm.common.unnamedContact', 'Unnamed Contact')
 
   const contactType = contactData?.contactType || contactData?.type
   const contactTypeDisplay = getContactTypeDisplayValue(contactType)

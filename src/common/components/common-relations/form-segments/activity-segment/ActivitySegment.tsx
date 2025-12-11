@@ -7,34 +7,25 @@ import {
   FormMessage,
   Input,
   Textarea,
-  Select,
-  SelectTrigger,
-  SelectContent,
-  SelectItem,
-  SelectValue,
-  Spinner,
   FileUpload,
-  type FileMetadata
+  type FileMetadata,
+  DateInput,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { useFormContext } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useCatalogOptions } from '../shared/hooks/useCatalogOptions'
-import EntitySelect from '../shared/components/EntitySelect'
+import { CatalogSelect } from '@/components/catalog-select'
+import EntitySelect from '../../selects/reference-select/EntitySelect'
 import { EmployeeSelect } from '@/components/employee-select'
-
-export interface ActivityTypeOption {
-  value: string
-  label: string
-}
-
-export interface EntityOption {
-  id: string
-  name: string
-  type: 'account' | 'contact' | 'opportunity' | 'lead' | 'investment'
-  subtitle?: string
-  pictureThumbnail?: string
-}
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import type { Employee } from '@/common/data/employee/types/employeeBaseTypes'
+import {
+  applyInitialCommonEntityFromContext,
+  createCommonEntitySelectHandler,
+  type CommonEntityContext
+} from '../../selects/reference-select/entityHandlingUtils'
+import translations from './_i18n'
 
 // Base Activity interface with all common fields
 export interface Activity {
@@ -61,46 +52,42 @@ export interface Activity {
 }
 
 export interface ActivitySegmentProps {
-  // Type options for the select field (or let the segment load them)
-  typeOptions?: ActivityTypeOption[]
-  typeLoading?: boolean
-  accessToken?: string
-  typeCatalog?: { identifier: string; version: string }
-  fetchTypeOptions?: () => Promise<ActivityTypeOption[]>
-  onTypeSearch?: (searchTerm: string) => void
+  // Context
+  accessToken: string
+  businessAppContext?: BusinessAppContextProps
 
-  // Entity selection
+  // Owner employee from activity entity (to display without extra request)
+  ownerEmployee?: Employee | null
+
+  // Entity ID to determine if new entity (for auto-select)
+  entityId?: string
+
+  // Type catalog
+  typeCatalog?: string
+
+  // Entity selection (still needs entities array until EntitySelect is refactored)
   showEntitySelection?: boolean
-  entities?: EntityOption[]
+  entities?: Array<{
+    id: string
+    name: string
+    type: 'account' | 'contact' | 'opportunity' | 'lead' | 'investment'
+    subtitle?: string
+    pictureThumbnail?: string
+  }>
   entitiesLoading?: boolean
   onEntitySearch?: (searchTerm: string) => void
   entitiesHasMore?: boolean
   onEntityLoadMore?: () => void
-  initialEntityFromContext?: { accountId?: string; contactId?: string; opportunityId?: string; leadId?: string }
+  initialEntityFromContext?: {
+    accountId?: string
+    contactId?: string
+    opportunityId?: string
+    leadId?: string
+    investmentId?: string
+  }
 
-  // Assignees (owner employee)
-  // Toggle owner/assignee selection visibility; default is true
-  showOwnerSelection?: boolean
-  assignees?: Array<{
-    id: string
-    displayName: string
-    userId?: string
-    pictureThumbnail?: string
-    organizationalUnitName?: string
-    jobPositionName?: string
-  }>
-  assigneesLoading?: boolean
-  onAssigneeSearch?: (q: string) => void
-  assigneesHasMore?: boolean
-  onAssigneeLoadMore?: () => void
-
-  // Labels
-  titleLabel: React.ReactNode
-  typeLabel: React.ReactNode
-  dateLabel: React.ReactNode
-  descriptionLabel: React.ReactNode
-  uploadFileLabel?: React.ReactNode
-  entityLabel?: React.ReactNode
+  // Handler for additional entity types (injected by parent forms, e.g. IRM ActivityForm for investment)
+  onAdditionalEntityChange?: (type: string, entityId: string | null) => void
 
   // Callbacks
   onFilesChange?: (files: File[]) => void
@@ -114,47 +101,18 @@ export interface ActivitySegmentProps {
   }>
   onDocumentRemove?: (documentId: string) => void
 
-  // Render props for Ant Design compatibility
-  renderTextField?: (props: {
-    name: string
-    label: React.ReactNode
-    required?: boolean
-    'data-testid'?: string
-  }) => React.ReactNode
-  renderSelectField?: (props: {
-    name: string
-    label: React.ReactNode
-    options: ActivityTypeOption[]
-    loading?: boolean
-    onSearch?: (searchTerm: string) => void
-    required?: boolean
-    'data-testid'?: string
-  }) => React.ReactNode
-  renderDateField?: (props: {
-    name: string
-    label: React.ReactNode
-    required?: boolean
-    'data-testid'?: string
-  }) => React.ReactNode
-  renderTextareaField?: (props: {
-    name: string
-    label: React.ReactNode
-    required?: boolean
-    'data-testid'?: string
-  }) => React.ReactNode
-  renderFileField?: (props: { 'data-testid'?: string }) => React.ReactNode
+  // Custom fields
+  customFields?: React.ReactNode
 
-  // TestId prefix for container
   ['data-testid']?: string
 }
 
 const ActivitySegment: React.FC<ActivitySegmentProps> = ({
-  typeOptions,
-  typeLoading = false,
   accessToken,
+  businessAppContext,
+  ownerEmployee,
+  entityId,
   typeCatalog,
-  fetchTypeOptions,
-  onTypeSearch,
   showEntitySelection = false,
   entities = [],
   entitiesLoading = false,
@@ -162,49 +120,32 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
   entitiesHasMore,
   onEntityLoadMore,
   initialEntityFromContext,
-  showOwnerSelection = true,
-  assignees = [],
-  assigneesLoading = false,
-  onAssigneeSearch,
-  assigneesHasMore,
-  onAssigneeLoadMore,
-  titleLabel,
-  typeLabel,
-  dateLabel,
-  descriptionLabel,
-  uploadFileLabel,
-  entityLabel,
+  onAdditionalEntityChange,
   onFilesChange,
   existingDocuments = [],
   onDocumentRemove,
-  renderTextField,
-  renderSelectField,
-  renderDateField,
-  renderTextareaField,
-  renderFileField,
+  customFields,
   'data-testid': dataTestId = 'activity-segment'
 }) => {
-  // Always call hooks unconditionally at the top level (Rules of Hooks)
   const form = useFormContext()
+  const { t } = useTranslation(translations)
 
-  // Check if we're in render props mode (Ant Design)
-  const isRenderPropsMode = Boolean(
-    renderTextField || renderSelectField || renderDateField || renderTextareaField || renderFileField
-  )
+  // Determine if new entity (for auto-select)
+  const isNewEntity = !entityId
 
-  const typeOptionsState = useCatalogOptions({
-    accessToken,
-    catalog: typeCatalog,
-    providedOptions: typeOptions,
-    providedLoading: typeLoading,
-    fetchOptions: fetchTypeOptions
-  })
+  // Track if we've already initialized occurredAt to prevent re-setting
+  const hasInitializedDate = React.useRef(false)
 
-  const normalizeDateTimeLocalValue = React.useCallback((v: string | undefined | null) => {
-    if (!v) return ''
-    const s = v.replace('Z', '')
-    return s.length >= 16 ? s.slice(0, 16) : s
-  }, [])
+  // Auto-populate current date/time for new activities
+  React.useEffect(() => {
+    if (isNewEntity && !hasInitializedDate.current) {
+      const currentOccurredAt = form.getValues('occurredAt')
+      if (!currentOccurredAt) {
+        hasInitializedDate.current = true
+        form.setValue('occurredAt', new Date().toISOString())
+      }
+    }
+  }, [isNewEntity, form])
 
   // Prime entity search on mount if needed
   React.useEffect(() => {
@@ -215,32 +156,28 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
 
   // Apply initial entity from context when none is set yet
   React.useEffect(() => {
-    if (!showEntitySelection || !initialEntityFromContext || !form) return
-    const hasEntity = Boolean(
-      form.getValues('account') || form.getValues('contact') || form.getValues('opportunity') || form.getValues('lead')
-    )
-    if (hasEntity) return
+    if (!initialEntityFromContext) return
 
-    const { accountId, contactId, opportunityId, leadId } = initialEntityFromContext
-    const map: Array<{ key: 'account' | 'contact' | 'opportunity' | 'lead'; id?: string }> = [
-      { key: 'account', id: accountId },
-      { key: 'contact', id: contactId },
-      { key: 'opportunity', id: opportunityId },
-      { key: 'lead', id: leadId }
-    ]
-    const found = map.find(m => m.id)
-    if (found?.id) {
-      form.setValue(found.key, { id: found.id })
-      form.setValue('relatedEntityId', found.id)
-    }
-  }, [showEntitySelection, initialEntityFromContext, form])
+    // Handle common entity types (account, contact, opportunity, lead)
+    const commonEntityApplied = applyInitialCommonEntityFromContext(initialEntityFromContext as CommonEntityContext, {
+      form,
+      useIdFields: false
+    })
 
-  // Prime assignee search when empty (similar to TaskSegment)
-  React.useEffect(() => {
-    if (showOwnerSelection && onAssigneeSearch && assignees.length === 0) {
-      onAssigneeSearch('')
+    // If no common entity was applied, handle additional entity types (e.g. investmentId) via handler
+    if (!commonEntityApplied && onAdditionalEntityChange) {
+      const standardEntityKeys = new Set(['accountId', 'contactId', 'opportunityId', 'leadId'])
+      for (const [key, value] of Object.entries(initialEntityFromContext)) {
+        if (value && !standardEntityKeys.has(key)) {
+          // Extract type from field name (e.g. 'investmentId' -> 'investment')
+          const type = key.replace(/Id$/, '').toLowerCase()
+          onAdditionalEntityChange(type, value)
+          form.setValue('relatedEntityId', value)
+          break // Only set first additional entity
+        }
+      }
     }
-  }, [showOwnerSelection, onAssigneeSearch, assignees.length])
+  }, [initialEntityFromContext, form, onAdditionalEntityChange])
 
   // Helper: Convert existing documents to FileMetadata format
   const initialFiles = React.useMemo<FileMetadata[]>(
@@ -292,59 +229,6 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
     [onFilesChange, onDocumentRemove, initialFiles, extractNewFiles, isFileIdInSet]
   )
 
-  // Render in Ant Design mode using render props
-  if (isRenderPropsMode) {
-    return (
-      <>
-        {/* Title Field */}
-        {renderTextField?.({
-          name: 'title',
-          label: titleLabel,
-          required: true,
-          'data-testid': `${dataTestId}-title`
-        })}
-
-        {/* Type Field */}
-        {renderSelectField?.({
-          name: 'activityTypeRef',
-          label: typeLabel,
-          options: typeOptionsState.options,
-          loading: typeOptionsState.loading,
-          onSearch: onTypeSearch,
-          required: true,
-          'data-testid': `${dataTestId}-type`
-        })}
-
-        {/* Date Field */}
-        {renderDateField?.({
-          name: 'date',
-          label: dateLabel,
-          required: true,
-          'data-testid': `${dataTestId}-date`
-        })}
-
-        {/* Description Field */}
-        {renderTextareaField?.({
-          name: 'description',
-          label: descriptionLabel,
-          required: true,
-          'data-testid': `${dataTestId}-description`
-        })}
-
-        {/* File Upload Field */}
-        {uploadFileLabel &&
-          renderFileField?.({
-            'data-testid': `${dataTestId}-file`
-          })}
-      </>
-    )
-  }
-
-  // Original React Hook Form mode
-  if (!form?.control) {
-    return <div>Error: Form context not available. Please use render props or provide form context.</div>
-  }
-
   return (
     <div className="gba:space-y-4">
       {/* Title */}
@@ -353,11 +237,14 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
         name="title"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>
-              {titleLabel} <span className="gba:text-destructive gba:font-bold">*</span>
-            </FormLabel>
+            <FormLabel>{t('activity-title-label')}</FormLabel>
             <FormControl>
-              <Input data-testid={`${dataTestId}-title`} maxLength={100} {...field} />
+              <Input
+                data-testid={`${dataTestId}-title`}
+                maxLength={100}
+                placeholder={t('activity-title-placeholder')}
+                {...field}
+              />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -365,33 +252,26 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
       />
 
       {/* Type */}
-      <FormField
-        control={form.control}
-        name="activityTypeRef"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>
-              {typeLabel} <span className="gba:text-destructive gba:font-bold">*</span>
-            </FormLabel>
-            <Select onValueChange={field.onChange} value={field.value}>
+      {typeCatalog && (
+        <FormField
+          control={form.control}
+          name="activityTypeRef"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('activity-type-label')}</FormLabel>
               <FormControl>
-                <SelectTrigger data-testid={`${dataTestId}-type`}>
-                  <SelectValue placeholder="Select type..." />
-                </SelectTrigger>
+                <CatalogSelect
+                  catalogIdentifier={typeCatalog}
+                  value={field.value || ''}
+                  onValueChange={field.onChange}
+                  data-testid={`${dataTestId}-type`}
+                />
               </FormControl>
-              <SelectContent>
-                {typeOptionsState.options.map(opt => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {typeOptionsState.loading && <Spinner size="sm" />}
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
 
       {/* Occurred At */}
       <FormField
@@ -399,15 +279,16 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
         name="occurredAt"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>
-              {dateLabel} <span className="gba:text-destructive gba:font-bold">*</span>
-            </FormLabel>
+            <FormLabel>{t('activity-date-label')}</FormLabel>
             <FormControl>
-              <Input
+              <DateInput
                 type="datetime-local"
+                value={field.value || ''}
+                onChange={value => field.onChange(value || '')}
+                placeholder={t('activity-date-placeholder')}
                 data-testid={`${dataTestId}-date`}
-                value={normalizeDateTimeLocalValue(field.value)}
-                onChange={field.onChange}
+                captionLayout="dropdown"
+                outputFormat="iso"
               />
             </FormControl>
             <FormMessage />
@@ -422,26 +303,21 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
           name="relatedEntityId"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>
-                {entityLabel || 'Related Entity'} <span className="gba:text-destructive gba:font-bold">*</span>
-              </FormLabel>
+              <FormLabel>{t('activity-entity-label')}</FormLabel>
               <FormControl>
                 <EntitySelect
                   entities={entities}
                   value={field.value || ''}
                   onValueChange={(v: string | null) => {
-                    field.onChange(v)
+                    field.onChange(v || '')
                     if (form) {
-                      const id = String(v || '')
-                      const e = (entities || []).find(x => x.id === id)
-                      form.setValue('account', undefined)
-                      form.setValue('contact', undefined)
-                      form.setValue('opportunity', undefined)
-                      form.setValue('lead', undefined)
-                      if (e) {
-                        form.setValue(e.type, { id: e.id })
-                        form.setValue('relatedEntityId', e.id)
-                      }
+                      const handleEntityChange = createCommonEntitySelectHandler({
+                        form,
+                        useIdFields: false,
+                        entities: entities || [],
+                        onAdditionalEntityChange
+                      })
+                      handleEntityChange(v)
                     }
                   }}
                   placeholder="Search leads, contacts, accounts, or opportunities..."
@@ -465,11 +341,13 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
         name="description"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>
-              {descriptionLabel} <span className="gba:text-destructive gba:font-bold">*</span>
-            </FormLabel>
+            <FormLabel>{t('activity-description-label')}</FormLabel>
             <FormControl>
-              <Textarea data-testid={`${dataTestId}-description`} {...field} />
+              <Textarea
+                data-testid={`${dataTestId}-description`}
+                placeholder={t('activity-description-placeholder')}
+                {...field}
+              />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -477,43 +355,37 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
       />
 
       {/* Owner Employee */}
-      {showOwnerSelection !== false && (
-        <FormField
-          control={form.control}
-          name="ownerEmployeeId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Owner</FormLabel>
-              <FormControl>
-                <EmployeeSelect
-                  className="gba:w-full gba:h-auto"
-                  employees={assignees as any}
-                  value={field.value || ''}
-                  onValueChange={(v: string | null) => {
-                    field.onChange(v)
-                    // Optionally set owner user id if provided later
-                  }}
-                  onSearch={onAssigneeSearch}
-                  loading={Boolean(assigneesLoading)}
-                  onLoadMore={onAssigneeLoadMore}
-                  hasMore={Boolean(assigneesHasMore)}
-                  data-testid={`${dataTestId}-owner`}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      )}
+      <FormField
+        control={form.control}
+        name="ownerEmployeeId"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>{t('activity-owner-label')}</FormLabel>
+            <FormControl>
+              <EmployeeSelect
+                className="gba:w-full gba:h-auto"
+                accessToken={accessToken}
+                businessAppContext={businessAppContext}
+                initialEmployee={ownerEmployee}
+                autoSelect={isNewEntity ? 'current-user' : undefined}
+                value={field.value || ''}
+                onValueChange={(v: string | null) => field.onChange(v || '')}
+                data-testid={`${dataTestId}-owner`}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
 
       {/* Attach Documents */}
-      {uploadFileLabel && onFilesChange && (
+      {onFilesChange && (
         <FormField
           control={form.control}
           name="files"
           render={() => (
             <FormItem>
-              <FormLabel>{uploadFileLabel}</FormLabel>
+              <FormLabel>{t('activity-upload-label')}</FormLabel>
               <FormControl>
                 <FileUpload
                   key={fileUploadKey}
@@ -524,7 +396,7 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
                   multiple={true}
                   accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.jpg,.jpeg,.png"
                   initialFiles={initialFiles}
-                  onFilesChange={handleFilesChange}
+                  onChange={handleFilesChange}
                   data-testid={`${dataTestId}-file-upload`}
                 />
               </FormControl>
@@ -533,6 +405,9 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
           )}
         />
       )}
+
+      {/* Custom fields */}
+      {customFields}
     </div>
   )
 }

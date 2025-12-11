@@ -4,7 +4,7 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 // Types
-import type { CustomerTask } from '../types'
+import type { CustomerTask } from '../types/customerTaskTypes'
 
 // Use the new query builder functions
 import {
@@ -20,7 +20,7 @@ import {
 } from '../queries/customerTaskQueries'
 
 // Mapper
-import { toCustomerTask } from '../mappers'
+import { toCustomerTask } from '../mappers/customerTaskMappers'
 import { CustomerTaskFields } from '../types/customerTaskTypes'
 
 export interface CustomerTaskListQueryResponse {

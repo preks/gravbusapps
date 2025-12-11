@@ -1,0 +1,86 @@
+// Customer Contact hook - single contact by ID with automatic state management
+import { useState, useEffect, useCallback } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { toCustomerContact, type CustomerContact } from '../types/customerContactTypes'
+import { buildCustomerContactByIdQuery } from '../queries/customerContactQueries'
+
+export interface UseCustomerContactResult {
+  contact: CustomerContact | null
+  loading: boolean
+  error: string | null
+  refetch: () => Promise<void>
+}
+
+/**
+ * Declarative hook for fetching a single customer contact by ID.
+ * Automatically fetches data when component mounts or ID changes.
+ *
+ * @param accessToken - Access token for authentication
+ * @param id - Contact ID to fetch
+ *
+ * @example
+ * // Basic usage
+ * const { contact, loading, error } = useCustomerContact(accessToken, contactId)
+ *
+ * if (loading) return <Spinner />
+ * if (error) return <Alert>{error}</Alert>
+ *
+ * return <div>{contact?.firstName} {contact?.lastName}</div>
+ *
+ * @example
+ * // With refetch
+ * const { contact, loading, refetch } = useCustomerContact(accessToken, contactId)
+ *
+ * return (
+ *   <div>
+ *     <div>{contact?.firstName} {contact?.lastName}</div>
+ *     <Button onClick={refetch}>Refresh</Button>
+ *   </div>
+ * )
+ */
+export function useCustomerContact(accessToken: string, id: string | undefined): UseCustomerContactResult {
+  const graphqlClient = useGraphQLClient(accessToken)
+
+  const [state, setState] = useState<Omit<UseCustomerContactResult, 'refetch'>>({
+    contact: null,
+    loading: true,
+    error: null
+  })
+
+  const fetchContact = useCallback(async () => {
+    // Don't fetch if no ID or no access token
+    if (!id || !accessToken) {
+      setState(prev => ({ ...prev, loading: false }))
+      return
+    }
+
+    setState(prev => ({ ...prev, loading: true, error: null }))
+
+    try {
+      // Build query
+      const query = buildCustomerContactByIdQuery()
+
+      // Execute query with ID as GraphQL variable
+      const result = await graphqlClient.request<{ ContactByPk: CustomerContact | null }>(query, { id })
+
+      const raw = result.ContactByPk
+      const contact = raw ? toCustomerContact(raw) : null
+
+      setState({ contact, loading: false, error: null })
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch customer contact'
+      console.error('Error fetching customer contact:', error)
+      setState({ contact: null, loading: false, error: errorMessage })
+    }
+  }, [id, accessToken, graphqlClient])
+
+  // Auto-fetch on mount and when dependencies change
+  useEffect(() => {
+    fetchContact()
+  }, [fetchContact])
+
+  return {
+    ...state,
+    refetch: fetchContact
+  }
+}

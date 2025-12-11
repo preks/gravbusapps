@@ -1,5 +1,7 @@
 import React from 'react'
 
+import { navigateTo } from '@/common/utils/navigationUtils'
+
 interface DebugViewProps {
   componentName?: string
   [key: string]: any // Allows any other props
@@ -16,7 +18,7 @@ export const DebugView: React.FC<DebugViewProps> = props => {
     <div
       style={{
         width: '100%',
-        height: '100vh',
+        height: '100%',
         margin: 0,
         backgroundColor: 'var(--nw-card)',
         border: '1px solid var(--nw-border)',
@@ -47,6 +49,7 @@ export const DebugView: React.FC<DebugViewProps> = props => {
           padding: '24px'
         }}
       >
+        <button onClick={() => navigateTo('/platform/mobile/every-ai')}>Navigate to EveryAI</button>
         <h2 style={{ color: 'var(--nw-card-foreground)' }}>Props:</h2>
         <pre
           style={{

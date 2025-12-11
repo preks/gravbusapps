@@ -6,7 +6,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import PlannedExits from './tabs/planned-exits'
 import { ExitOpportunitiesTab } from './tabs/exit-opportunities'
-import { SalesTab } from './tabs/sales'
+import { ExitsTab } from './tabs/exits'
 
 export type DivestmentViewProps = BusinessAppContextProps
 
@@ -23,9 +23,9 @@ export const DivestmentView: React.FC<DivestmentViewProps> = context => {
       label: getTranslationFromI18nKeyAndLabel('exit_opportunities', 'Exit Opportunities')
     },
     {
-      key: 'sales',
+      key: 'exits',
       icon: <DollarSign />,
-      label: getTranslationFromI18nKeyAndLabel('sales', 'Sales')
+      label: getTranslationFromI18nKeyAndLabel('exits', 'Exits')
     }
   ]
 
@@ -93,6 +93,14 @@ export const DivestmentView: React.FC<DivestmentViewProps> = context => {
 
   return (
     <div data-testid="divestment-relations-tabs" className="gba:h-full gba:flex gba:flex-col">
+      {/* Header */}
+      <div className="gba:mb-6">
+        <div className="gba:mb-4">
+          <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900">Divestment Management</h1>
+          <p className="gba:text-gray-600">Track and manage planned exits, opportunities, and completed exits</p>
+        </div>
+      </div>
+
       <Tabs value={activeTab} onValueChange={handleTabChange} className="gba:h-full gba:flex gba:flex-col">
         <TabsList className="gba:grid gba:w-full gba:grid-cols-3 gba:mb-4">
           {tabOptions.map(option => (
@@ -127,9 +135,9 @@ export const DivestmentView: React.FC<DivestmentViewProps> = context => {
           </div>
         </TabsContent>
 
-        <TabsContent value="sales" className="gba:flex-1 gba:overflow-auto gba:mt-0" data-testid="sales-tab-content">
+        <TabsContent value="exits" className="gba:flex-1 gba:overflow-auto gba:mt-0" data-testid="exits-tab-content">
           <div className="gba:p-6">
-            <SalesTab {...context} />
+            <ExitsTab {...context} />
           </div>
         </TabsContent>
       </Tabs>

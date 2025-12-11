@@ -31,16 +31,13 @@ export const TypingIndicatorComponent: React.FC<TypingIndicatorProps> = ({ typin
   }
 
   return (
-    <div
-      className="gba:flex gba:items-center gba:gap-2 gba:px-4 gba:py-2 gba:text-sm gba:text-muted-foreground"
-      data-testid="typing-indicator"
-    >
-      <div className="gba:flex gba:gap-1">
-        <span className="gba:inline-block gba:w-1 gba:h-1 gba:bg-muted-foreground gba:rounded-full gba:animate-bounce [animation-delay:0ms]"></span>
-        <span className="gba:inline-block gba:w-1 gba:h-1 gba:bg-muted-foreground gba:rounded-full gba:animate-bounce [animation-delay:150ms]"></span>
-        <span className="gba:inline-block gba:w-1 gba:h-1 gba:bg-muted-foreground gba:rounded-full gba:animate-bounce [animation-delay:300ms]"></span>
+    <div className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-1.5" data-testid="typing-indicator">
+      <div className="gba:flex gba:items-center gba:gap-0.5 gba:bg-muted/50 gba:px-2.5 gba:py-1.5 gba:rounded-full">
+        <span className="gba:inline-block gba:w-1.5 gba:h-1.5 gba:bg-muted-foreground/70 gba:rounded-full gba:animate-bounce [animation-delay:0ms]"></span>
+        <span className="gba:inline-block gba:w-1.5 gba:h-1.5 gba:bg-muted-foreground/70 gba:rounded-full gba:animate-bounce [animation-delay:150ms]"></span>
+        <span className="gba:inline-block gba:w-1.5 gba:h-1.5 gba:bg-muted-foreground/70 gba:rounded-full gba:animate-bounce [animation-delay:300ms]"></span>
       </div>
-      <span>{getTypingText()}</span>
+      <span className="gba:text-xs gba:text-muted-foreground">{getTypingText()}</span>
     </div>
   )
 }

@@ -6,8 +6,8 @@ import {
   buildInvestmentTaskWhereCondition,
   buildInvestmentTaskOrderBy
 } from '@/common/data/investment/queries/investmentTaskQueries'
-import type { InvestmentTask } from '@/common/data/investment/types'
-import { toInvestmentTask } from '@/common/data/investment/mappers'
+import type { InvestmentTask } from '@/common/data/investment/types/investmentTaskTypes'
+import { toInvestmentTask } from '@/common/data/investment/mappers/investmentTaskMappers'
 
 interface InvestmentTasksByInvestmentIdResponse {
   InvestmentTask: InvestmentTask[]

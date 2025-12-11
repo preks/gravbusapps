@@ -2,7 +2,6 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { Badge } from '@newwork/nw-design-system'
 import { Calendar, Tag } from 'lucide-react'
 import type { SalesCampaign } from '../components/campaign-list/types/SalesCampaignTypes'
-import { formatDate } from '@/common/utils/windowUtils'
 import dayjs from 'dayjs'
 
 // Helper to safely convert values to strings
@@ -104,12 +103,24 @@ export const createCampaignColumns = (): ColumnDef<SalesCampaign>[] => [
     maxSize: 160,
     enableResizing: false,
     enableSorting: true,
-    cell: ({ row }) => (
-      <div className="gba:flex gba:items-center gba:gap-2" data-testid={`campaign-start-date-cell-${row.original.id}`}>
-        <Calendar className="gba:h-4 gba:w-4 gba:text-gray-400 gba:shrink-0" />
-        <span className="gba:text-sm">{formatDate(row.original.startDate)}</span>
-      </div>
-    )
+    cell: ({ row }) => {
+      const formattedDate = row.original.startDate
+        ? new Date(row.original.startDate).toLocaleDateString(undefined, {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+          })
+        : '-'
+      return (
+        <div
+          className="gba:flex gba:items-center gba:gap-2"
+          data-testid={`campaign-start-date-cell-${row.original.id}`}
+        >
+          <Calendar className="gba:h-4 gba:w-4 gba:text-gray-400 gba:shrink-0" />
+          <span className="gba:text-sm">{formattedDate}</span>
+        </div>
+      )
+    }
   },
   {
     id: 'endDate',
@@ -120,12 +131,21 @@ export const createCampaignColumns = (): ColumnDef<SalesCampaign>[] => [
     maxSize: 160,
     enableResizing: false,
     enableSorting: true,
-    cell: ({ row }) => (
-      <div className="gba:flex gba:items-center gba:gap-2" data-testid={`campaign-end-date-cell-${row.original.id}`}>
-        <Calendar className="gba:h-4 gba:w-4 gba:text-gray-400 gba:shrink-0" />
-        <span className="gba:text-sm">{formatDate(row.original.endDate)}</span>
-      </div>
-    )
+    cell: ({ row }) => {
+      const formattedDate = row.original.endDate
+        ? new Date(row.original.endDate).toLocaleDateString(undefined, {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+          })
+        : '-'
+      return (
+        <div className="gba:flex gba:items-center gba:gap-2" data-testid={`campaign-end-date-cell-${row.original.id}`}>
+          <Calendar className="gba:h-4 gba:w-4 gba:text-gray-400 gba:shrink-0" />
+          <span className="gba:text-sm">{formattedDate}</span>
+        </div>
+      )
+    }
   },
   {
     id: 'status',
@@ -154,12 +174,21 @@ export const createCampaignColumns = (): ColumnDef<SalesCampaign>[] => [
     maxSize: 160,
     enableResizing: false,
     enableSorting: true,
-    cell: ({ row }) => (
-      <div className="gba:flex gba:items-center gba:gap-2" data-testid={`campaign-created-cell-${row.original.id}`}>
-        <Calendar className="gba:h-4 gba:w-4 gba:text-gray-400 gba:shrink-0" />
-        <span className="gba:text-sm">{formatDate(row.original.createdAt)}</span>
-      </div>
-    )
+    cell: ({ row }) => {
+      const formattedDate = row.original.createdAt
+        ? new Date(row.original.createdAt).toLocaleDateString(undefined, {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+          })
+        : '-'
+      return (
+        <div className="gba:flex gba:items-center gba:gap-2" data-testid={`campaign-created-cell-${row.original.id}`}>
+          <Calendar className="gba:h-4 gba:w-4 gba:text-gray-400 gba:shrink-0" />
+          <span className="gba:text-sm">{formattedDate}</span>
+        </div>
+      )
+    }
   }
 ]
 

@@ -11,7 +11,7 @@ export interface StatusCountDistributionData {
 }
 
 /**
- * Query for Status Count Distribution (supports "All Currencies")
+ * Query for Status Count Distribution (supports "All")
  * Uses shared distinct statuses query to avoid duplication
  */
 
@@ -20,10 +20,7 @@ export interface StatusCountDistributionData {
  */
 const BUILD_ALL_STATUSES_COUNT_QUERY = (statuses: StatusInfo[], currency?: string): string => {
   const countConditions = (statusRef: string) => {
-    const currencyCondition =
-      currency && currency !== 'All' && currency !== 'All Currencies'
-        ? `currency: { code: { _eq: "${currency}" } }`
-        : ''
+    const currencyCondition = currency && currency !== 'All' ? `currency: { code: { _eq: "${currency}" } }` : ''
 
     const conditions = [
       'isDeleted: { _eq: false }',

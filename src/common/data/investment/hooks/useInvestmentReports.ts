@@ -58,7 +58,7 @@ import {
 } from '@/common/data/investment-report/queries'
 
 // Use the mapper functions
-import { toInvestmentReport } from '../mappers'
+import { toInvestmentReport } from '../mappers/investmentReportMappers'
 
 // =============================================================================
 // INVESTMENT REPORT HOOKS (MIGRATED TO CENTRALIZED APPROACH)

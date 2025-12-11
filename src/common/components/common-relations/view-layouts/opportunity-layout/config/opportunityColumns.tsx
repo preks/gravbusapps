@@ -5,6 +5,7 @@ import { navigateTo } from '@/common/utils/navigationUtils'
 import { deriveSortableColumns } from '@/common/network/graphql/descriptorUtils'
 import { createOpportunityDescriptors, OpportunityFields } from '@/common/data/relations/types/opportunityTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
+import { getOpportunityForecastBadgeVariant } from '@/common/utils/badgeUtils'
 
 // Generic opportunity interface that both Investment and Customer opportunities implement
 export interface GenericOpportunityForColumns {
@@ -22,6 +23,7 @@ export interface GenericOpportunityForColumns {
   salesPipelineStageLabel?: string
   opportunityStatus?: { id: string; code?: string; value?: string; alternativeCode?: string } | null
   opportunityStatusLabel?: string
+  opportunityForecast?: { id: string; code?: string; value?: string; additionalValue1?: string } | null
   closeDate?: string | null
   account?: { id: string; name: string; pictureThumbnail?: string | null; pictureThumbnailUrl?: string | null } | null
   ownerEmployee?: {
@@ -76,21 +78,24 @@ export const getStatusColor = (
   switch (alternativeCode.toUpperCase()) {
     case 'ACTIVE':
     case 'IN_PROGRESS':
-    case 'OPEN':
       return 'info'
+    case 'OPEN':
+      return 'secondary'
     case 'WON':
     case 'CLOSED_WON':
     case 'SUCCESS':
+    case 'CONVERTED':
       return 'success'
     case 'LOST':
     case 'CLOSED_LOST':
     case 'FAILED':
+    case 'REJECTED':
       return 'destructive'
     case 'ON_HOLD':
     case 'PAUSED':
       return 'warning'
     case 'QUALIFIED':
-      return 'secondary'
+      return 'info'
     default:
       return 'outline'
   }
@@ -300,6 +305,38 @@ export function createOpportunityColumns<T extends GenericOpportunityForColumns>
       }
     },
     {
+      id: 'opportunityForecast',
+      accessorFn: row => {
+        const forecast = row.opportunityForecast
+        if (!forecast) return ''
+        const value = forecast.value || forecast.code || ''
+        const additionalValue1 = forecast.additionalValue1 || ''
+        return additionalValue1 ? `${value}: ${additionalValue1}` : value
+      },
+      header: 'Forecast',
+      size: 140,
+      minSize: 120,
+      maxSize: 180,
+      cell: ({ row }) => {
+        if (!row.original.opportunityForecast) {
+          return <span className="gba:text-sm gba:text-muted-foreground">No forecast</span>
+        }
+        const forecast = row.original.opportunityForecast
+        const value = forecast.value || forecast.code || ''
+        const additionalValue1 = forecast.additionalValue1 || ''
+        const displayValue = additionalValue1 ? `${value}: ${additionalValue1}` : value
+        return (
+          <Badge
+            variant={getOpportunityForecastBadgeVariant(forecast)}
+            className="gba:text-sm"
+            data-testid={`opportunity-forecast-cell-${row.original.id}`}
+          >
+            {displayValue}
+          </Badge>
+        )
+      }
+    },
+    {
       id: 'closeDate',
       accessorKey: 'closeDate',
       header: 'Close Date',
@@ -442,6 +479,7 @@ const OPPORTUNITY_COLUMN_LABELS: Record<string, string> = {
   opportunityPipeline: 'Pipeline',
   opportunityPipelineStage: 'Stage',
   opportunityStatus: 'Status',
+  opportunityForecast: 'Forecast',
   closeDate: 'Close Date',
   account: 'Account',
   owner: 'Owner',

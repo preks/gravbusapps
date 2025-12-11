@@ -22,6 +22,18 @@ export interface DetailedEmployee {
   id: string
   firstName: string
   lastName: string
+  pictureThumbnail?: string
+  employeePosition?:
+    | Array<{
+        jobPosition?: {
+          name?: string
+        }
+      }>
+    | {
+        jobPosition?: {
+          name?: string
+        }
+      }
   skills: EmployeeSkillLink[]
 }
 
@@ -54,8 +66,9 @@ export const AddSkillProvider: React.FC<ProviderProps> = ({ children, accessToke
 
   const employeeId: string | undefined = useMemo(() => {
     return (
+      additionalData?.employeeId ||
       additionalData?.psi_taskPayload?.employeeId ||
-      additionalData?.psi_taskPayload?.initialParameters?.employeeId ||
+      additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId ||
       userInfo?.employeeDetails?.employeeId
     )
   }, [additionalData, userInfo])

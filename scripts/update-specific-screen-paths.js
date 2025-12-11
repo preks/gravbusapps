@@ -8,9 +8,9 @@
  *   node scripts/update-screen-paths.js --validate  # Only validate paths exist
  */
 
-import path, { dirname } from 'path'
-import fs from 'fs'
-import { fileURLToPath } from 'url'
+import path, { dirname } from 'node:path'
+import fs from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import dotenv from '@dotenvx/dotenvx'
 import yargs from 'yargs'
 import { hideBin } from 'yargs/helpers'
@@ -82,7 +82,6 @@ const componentPathMappings = {
   '/crm/investments/popups/activity-delete-popup': '/irm/core/popups/activity-delete-popup',
   '/crm/investments/popups/document-delete-popup': '/irm/core/popups/document-delete-popup',
   '/crm/investments/popups/document-popup': '/irm/core/popups/document-popup',
-  '/crm/investments/popups/document-update-popup': '/irm/core/popups/document-update-popup',
   '/crm/investments/popups/note-delete-popup': '/irm/core/popups/note-delete-popup',
   '/crm/investments/popups/stage-condition-popup': '/irm/core/popups/stage-condition-popup',
   '/crm/investments/popups/stage-transition-popup': '/irm/core/popups/stage-transition-popup',

@@ -1,9 +1,10 @@
 import React from 'react'
+import { Card, CardContent, CardHeader, CardTitle, Label, Separator } from '@newwork/nw-design-system'
+import { PiWallet } from 'react-icons/pi'
 import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface ExpenseRequestTotalsSectionProps {
   totalAmount: number
-  reimbursableAmount: number
   nonReimbursableAmount: number
   advancePaymentAmount: number
   currencyCode: string
@@ -11,6 +12,7 @@ interface ExpenseRequestTotalsSectionProps {
   expensePlanTotalAmount?: number
   isExpensePlan: boolean
   remainingAmount: number
+  reimbursableAmount?: number
 }
 
 const ExpenseRequestTotalsSection: React.FC<ExpenseRequestTotalsSectionProps> = ({
@@ -21,7 +23,8 @@ const ExpenseRequestTotalsSection: React.FC<ExpenseRequestTotalsSectionProps> = 
   formatCurrency,
   expensePlanTotalAmount,
   isExpensePlan,
-  remainingAmount
+  remainingAmount,
+  reimbursableAmount
 }) => {
   // Calculate plan comparison if plan data is available
   const getPlanComparison = () => {
@@ -32,22 +35,21 @@ const ExpenseRequestTotalsSection: React.FC<ExpenseRequestTotalsSectionProps> = 
 
     if (difference === 0) {
       return {
-        description:
-          window?.lowcoder?.translate?.(
-            'lowcoder:approve_expense_request.comparison_with_plan_equal',
-            'Equals planned amount'
-          ) || 'Equals planned amount',
-        color: '#0ab874'
+        description: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:approve_expense_request.comparison_with_plan_equal',
+          'Equals planned amount'
+        ),
+        isPositive: true
       }
     } else if (difference < 0) {
       return {
-        description: `${absDifference} ${currencyCode} ${window?.lowcoder?.translate?.('lowcoder:approve_expense_request.comparison_with_plan_less', 'Less than planned') || 'Less than planned'}`,
-        color: '#0ab874'
+        description: `${absDifference} ${currencyCode} ${getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.comparison_with_plan_less', 'less than planned')}`,
+        isPositive: true
       }
     } else if (difference > 0) {
       return {
-        description: `${absDifference} ${currencyCode} ${window?.lowcoder?.translate?.('lowcoder:approve_expense_request.comparison_with_plan_more', 'More than planned') || 'More than planned'}`,
-        color: '#ffc61a'
+        description: `${absDifference} ${currencyCode} ${getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.comparison_with_plan_more', 'more than planned')}`,
+        isPositive: false
       }
     }
 
@@ -55,75 +57,105 @@ const ExpenseRequestTotalsSection: React.FC<ExpenseRequestTotalsSectionProps> = 
   }
 
   const planComparison = getPlanComparison()
+  const calculatedReimbursable = reimbursableAmount ?? totalAmount - nonReimbursableAmount
 
   return (
-    <>
-      {/* Delimiting gray section */}
-      <div
-        className="gba:h-[20px] gba:bg-gray-100 gba:mb-3 gba:rounded-sm"
-        data-testid="approve-expense-request-delimiter-section"
-      />
-
-      {/* Total Expenses */}
-      <div className="gba:mb-6 gba:pl-6" data-testid="approve-expense-request-total">
+    <Card data-testid="approve-expense-request-v2-financial-overview">
+      <CardHeader>
+        <CardTitle className="gba:flex gba:items-center gba:gap-2">
+          <PiWallet className="gba:h-5 gba:w-5" />
+          {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.financial_overview', 'Financial Overview')}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="gba:space-y-3">
+        {/* Total Amount */}
         <div className="gba:flex gba:justify-between gba:items-center">
-          <div className="gba:text-md gba:text-foreground">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.planned_expenses_header', 'Expenses')}
-          </div>
-          <div className="gba:text-lg gba:font-semibold gba:text-foreground">
-            {formatCurrency(totalAmount, currencyCode)}
+          <Label className="gba:text-sm gba:text-muted-foreground">
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expense_request_list.expense_plan_table.total_amount',
+              'Total Amount'
+            )}
+          </Label>
+          <div className="gba:text-right">
+            <p className="gba:text-lg gba:font-bold">{formatCurrency(totalAmount, currencyCode)}</p>
+            {/* Plan comparison if available */}
+            {planComparison && (
+              <p
+                className={`gba:text-xs gba:font-medium ${planComparison.isPositive ? 'gba:text-success' : 'gba:text-warning'}`}
+                data-testid="approve-expense-request-v2-plan-comparison"
+              >
+                {planComparison.description}
+              </p>
+            )}
           </div>
         </div>
 
-        {/* Plan comparison if available */}
-        {planComparison && (
-          <div className="gba:flex gba:justify-between gba:items-center gba:mt-1">
-            <div className="gba:text-sm gba:text-muted-foreground">{/* Empty space to align with the amount */}</div>
-            <div
-              className="gba:text-sm gba:font-medium"
-              style={{ color: planComparison.color }}
-              data-testid="approve-expense-request-plan-comparison"
-            >
-              {planComparison.description}
-            </div>
-          </div>
-        )}
+        <Separator />
 
-        {isExpensePlan && advancePaymentAmount !== 0 && (
-          <div className="gba:flex gba:justify-between gba:items-center gba:mt-2">
-            <div className="gba:text-md gba:text-foreground">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.advance_payment', 'Advance Payment')}
-            </div>
-            <div className="gba:text-md gba:font-semibold gba:text-primary">
-              {formatCurrency(advancePaymentAmount, currencyCode)}
-            </div>
+        {/* Reimbursable and Non-Reimbursable */}
+        <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+          <div>
+            <Label className="gba:text-sm gba:text-muted-foreground">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.reimbursable', 'Reimbursable')}
+            </Label>
+            <p className="gba:text-sm gba:font-medium gba:text-success">
+              {formatCurrency(calculatedReimbursable, currencyCode)}
+            </p>
           </div>
-        )}
-        {nonReimbursableAmount !== 0 && (
-          <div className="gba:flex gba:justify-between gba:items-center gba:mt-2">
-            <div className="gba:text-md gba:text-foreground">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:approve_expense_request.non_reimbursable',
-                'Not Reimbursable Amount'
+          <div>
+            <Label className="gba:text-sm gba:text-muted-foreground">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.non-reimbursable', 'Non-Reimbursable')}
+            </Label>
+            <p className="gba:text-sm gba:font-medium gba:text-destructive">
+              {formatCurrency(nonReimbursableAmount, currencyCode)}
+            </p>
+          </div>
+        </div>
+
+        {/* Advance Payment and Remaining (if expense plan) */}
+        {isExpensePlan && (advancePaymentAmount > 0 || remainingAmount !== totalAmount) && (
+          <>
+            <Separator />
+            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+              {advancePaymentAmount > 0 && (
+                <div>
+                  <Label className="gba:text-sm gba:text-muted-foreground">
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:approve_expense_request.advance_payment',
+                      'Advance Payment'
+                    )}
+                  </Label>
+                  <p className="gba:text-sm gba:font-medium">{formatCurrency(advancePaymentAmount, currencyCode)}</p>
+                </div>
+              )}
+              {remainingAmount !== totalAmount && (
+                <div>
+                  <Label className="gba:text-sm gba:text-muted-foreground">
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.remaining', 'Remaining')}
+                  </Label>
+                  <p className="gba:text-sm gba:font-medium gba:text-success">
+                    {formatCurrency(remainingAmount, currencyCode)}
+                  </p>
+                </div>
               )}
             </div>
-            <div className="gba:text-md gba:font-semibold gba:text-primary">
-              {formatCurrency(nonReimbursableAmount, currencyCode)}
-            </div>
-          </div>
+          </>
         )}
-        {remainingAmount !== totalAmount && (
-          <div className="gba:flex gba:justify-between gba:items-center gba:mt-2">
-            <div className="gba:text-md gba:text-foreground">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.remaining', 'Remaining amount')}
+
+        {/* Plan Total (if linked to expense plan) */}
+        {expensePlanTotalAmount !== undefined && expensePlanTotalAmount > 0 && (
+          <>
+            <Separator />
+            <div className="gba:flex gba:justify-between gba:items-center">
+              <Label className="gba:text-sm gba:text-muted-foreground">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.planned_amount', 'Planned Amount')}
+              </Label>
+              <p className="gba:text-sm gba:font-medium">{formatCurrency(expensePlanTotalAmount, currencyCode)}</p>
             </div>
-            <div className="gba:text-md gba:font-semibold gba:text-success">
-              {formatCurrency(remainingAmount, currencyCode)}
-            </div>
-          </div>
+          </>
         )}
-      </div>
-    </>
+      </CardContent>
+    </Card>
   )
 }
 

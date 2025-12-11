@@ -1,6 +1,6 @@
 import React from 'react'
 import { Card, Spin } from 'antd'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { WorkingConditionKpi, WorkingConditionKpiResult } from '../../../../../hooks/useWorkingConditionForecast'
 
@@ -29,9 +29,9 @@ const KpiCardsRow: React.FC<KpiCardsRowProps> = ({ kpiData, accessToken }) => {
 
   const formatSalary = (value: number) => {
     if (value >= 1_000_000) {
-      return `${(value / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 })}M`
+      return `${(value / 1_000_000).toLocaleString(getCurrentActiveUserLocale() ?? 'en-US', { maximumFractionDigits: 2 })}M`
     }
-    return value.toLocaleString(undefined, { maximumFractionDigits: 0 })
+    return value.toLocaleString(getCurrentActiveUserLocale() ?? 'en-US', { maximumFractionDigits: 0 })
   }
 
   const currentYear = today.getFullYear()

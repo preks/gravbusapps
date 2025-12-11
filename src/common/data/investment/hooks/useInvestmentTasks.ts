@@ -4,7 +4,7 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 // Types
-import type { InvestmentTask } from '../types'
+import type { InvestmentTask } from '../types/investmentTaskTypes'
 
 // Queries
 import {
@@ -16,7 +16,7 @@ import {
 } from '../queries/investmentTaskQueries'
 
 // Mapper
-import { toInvestmentTask } from '../mappers'
+import { toInvestmentTask } from '../mappers/investmentTaskMappers'
 
 export interface InvestmentTaskListQueryResponse {
   InvestmentTask: InvestmentTask[]

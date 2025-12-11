@@ -15,8 +15,21 @@ export const useAbsenceData = (
   const [entitlements, setEntitlements] = useState<Entitlement[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [currentLocale, setCurrentLocale] = useState(getCurrentActiveUserLocale())
 
   const client = useGraphqlClient(accessToken)
+
+  useEffect(() => {
+    const checkLocale = () => {
+      const newLocale = getCurrentActiveUserLocale()
+      if (newLocale !== currentLocale) {
+        setCurrentLocale(newLocale)
+      }
+    }
+
+    const interval = setInterval(checkLocale, 1000)
+    return () => clearInterval(interval)
+  }, [currentLocale])
 
   const fetchData = async () => {
     if (!employeeId) {
@@ -45,7 +58,7 @@ export const useAbsenceData = (
 
   useEffect(() => {
     fetchData()
-  }, [employeeId, accessToken, employeeAbsenceEntitlement, client])
+  }, [employeeId, accessToken, employeeAbsenceEntitlement, client, currentLocale])
 
   return {
     absenceList,

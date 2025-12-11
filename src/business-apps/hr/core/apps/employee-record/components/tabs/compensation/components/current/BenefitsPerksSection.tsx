@@ -8,8 +8,6 @@ import { useBenefitsCatalog } from '../../hooks/useBenefitsCatalog'
 import BenefitCatalogCard from './BenefitCatalogCard'
 import { BenefitCatalogItem } from '../../types/benefitCatalogTypes'
 import { DebouncedInput } from '@/components/debounced-input'
-import BenefitRequestScreen from '@/business-apps/hr/core/forms/benefit-request-form'
-import BenefitDeactivateScreen from '@/business-apps/hr/core/forms/benefit-deactivate-form'
 import BenefitDetailsModal from './BenefitDetailsModal'
 
 interface BenefitsPerksProps extends BusinessAppContextProps {
@@ -63,8 +61,6 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
 }) => {
   // State
   const [searchQuery, setSearchQuery] = useState('')
-  const [requestModalOpen, setRequestModalOpen] = useState(false)
-  const [deactivateModalOpen, setDeactivateModalOpen] = useState(false)
   const [detailsModalOpen, setDetailsModalOpen] = useState(false)
   const [selectedBenefit, setSelectedBenefit] = useState<BenefitCatalogItem | null>(null)
 
@@ -101,34 +97,40 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
       )
     }
 
+    // Eligibility filter based on catalogEntry.objectValue.groups
+    const hasHrBackoffice = hrBackofficeHasPermission === true
+    const isEligibleByGroups = (b: BenefitCatalogItem): boolean => {
+      const raw = b.catalogEntry?.objectValue as any
+      let obj: any = raw
+      if (raw && typeof raw === 'string') {
+        try {
+          obj = JSON.parse(raw)
+        } catch {
+          obj = null
+        }
+      }
+      const groups: string[] = Array.isArray(obj?.groups) ? obj.groups.filter((g: any) => typeof g === 'string') : []
+      if (groups.length === 0) return true
+
+      // Require that ALL groups are satisfied
+      const satisfies = (g: string): boolean => {
+        if (g === 'all-employees') return true
+        if (g === 'all-hr-backoffice') return hasHrBackoffice
+        // Unknown or unsupported groups are not satisfied
+        return false
+      }
+
+      return groups.every(satisfies)
+    }
+
+    benefits = benefits.filter(isEligibleByGroups)
+
     // Split into active and available
     const active = benefits.filter(b => b.isActive)
     const available = benefits.filter(b => !b.isActive)
 
     return { activeBenefits: active, availableBenefits: available }
-  }, [catalogData, searchQuery])
-
-  /**
-   * Handle benefit request action
-   */
-  const handleRequestBenefit = (benefitCatalogId: string) => {
-    const benefit = catalogData?.catalogBenefits.find(b => b.catalogId === benefitCatalogId)
-    if (benefit) {
-      setSelectedBenefit(benefit)
-      setRequestModalOpen(true)
-    }
-  }
-
-  /**
-   * Handle benefit deactivation action
-   */
-  const handleDeactivateBenefit = (employeeBenefitId: string) => {
-    const benefit = catalogData?.catalogBenefits.find(b => b.employeeBenefitId === employeeBenefitId)
-    if (benefit) {
-      setSelectedBenefit(benefit)
-      setDeactivateModalOpen(true)
-    }
-  }
+  }, [catalogData, searchQuery, hrBackofficeHasPermission])
 
   /**
    * Handle view benefit details action
@@ -136,13 +138,6 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
   const handleViewDetails = (benefit: BenefitCatalogItem) => {
     setSelectedBenefit(benefit)
     setDetailsModalOpen(true)
-  }
-
-  /**
-   * Handle modal success - refresh data
-   */
-  const handleSuccess = () => {
-    refetch()
   }
 
   return (
@@ -254,8 +249,6 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
                     benefit={benefit}
                     currencyCode={currencyCode}
                     locale={locale}
-                    onRequest={handleRequestBenefit}
-                    onDeactivate={handleDeactivateBenefit}
                     onViewDetails={handleViewDetails}
                     accessToken={accessToken}
                     userInfo={userInfo}
@@ -283,8 +276,6 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
                     benefit={benefit}
                     currencyCode={currencyCode}
                     locale={locale}
-                    onRequest={handleRequestBenefit}
-                    onDeactivate={handleDeactivateBenefit}
                     onViewDetails={handleViewDetails}
                     accessToken={accessToken}
                     userInfo={userInfo}
@@ -300,32 +291,6 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
       {/* Modals */}
       {selectedBenefit && (
         <>
-          {/* Benefit Request Form */}
-          <BenefitRequestScreen
-            t={t}
-            isOpen={requestModalOpen}
-            onClose={() => setRequestModalOpen(false)}
-            benefit={selectedBenefit}
-            employeeId={employeeId}
-            accessToken={accessToken}
-            userInfo={userInfo}
-            additionalData={additionalData}
-            onSuccess={handleSuccess}
-          />
-
-          {/* Benefit Deactivate Form */}
-          <BenefitDeactivateScreen
-            t={t}
-            isOpen={deactivateModalOpen}
-            onClose={() => setDeactivateModalOpen(false)}
-            benefit={selectedBenefit}
-            employeeId={employeeId}
-            accessToken={accessToken}
-            userInfo={userInfo}
-            additionalData={additionalData}
-            onSuccess={handleSuccess}
-          />
-
           {/* Benefit Details Modal (Read-only) */}
           <BenefitDetailsModal
             t={t}

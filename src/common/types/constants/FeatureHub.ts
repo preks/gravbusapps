@@ -56,11 +56,16 @@ const PlatformFeature = {
   Cloud: { Key: 'platform.create.cloud.enabled' },
   GlobalManagement: { Key: 'platform.global.manage.enabled' },
   FlowBot: { Key: 'platform.ai.flowbot.enabled' },
-  DashboardLayout: { Key: 'platform.dashboard-layout.mode', Values: PlatformFeatureDashboardLayoutValue }
+  DashboardLayout: { Key: 'platform.dashboard-layout.mode', Values: PlatformFeatureDashboardLayoutValue },
+  EveryAI: { Key: 'everyai.enabled' }
 }
 
 const DevFeature = {
   Enabled: { Key: 'dev.enabled' }
+}
+
+const PreviewFeature = {
+  Enabled: { Key: 'preview.enabled' }
 }
 
 export const Feature = {
@@ -71,5 +76,6 @@ export const Feature = {
   Services: ServicesFeature,
   FLOW: FLOWFeature,
   Platform: PlatformFeature,
-  Dev: DevFeature
+  Dev: DevFeature,
+  Preview: PreviewFeature
 }

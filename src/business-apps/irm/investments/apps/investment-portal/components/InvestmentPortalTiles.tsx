@@ -5,7 +5,7 @@ import { Card, CardContent, Button } from '@newwork/nw-design-system'
 import { LayoutGrid, FileText, TrendingUp, Table, PieChart } from 'lucide-react'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import type { Investment } from '@/common/data/investment'
+import type { Investment } from '@/common/data/investment/types/investmentTypes'
 import {
   loadTilesFromInvestment,
   TILE_TYPES,

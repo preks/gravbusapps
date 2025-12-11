@@ -6,7 +6,7 @@ import {
   buildInvestmentDocumentWhereCondition,
   type InvestmentDocumentQueryVariables
 } from '@/common/data/investment/queries/investmentDocumentQueries'
-import type { InvestmentDocument } from '@/common/data/investment/types'
+import type { InvestmentDocument } from '@/common/data/investment/types/investmentDocumentTypes'
 
 interface UseGetInvestmentDocumentsByInvestmentIdResult {
   documents: InvestmentDocument[]

@@ -24,6 +24,11 @@ export interface PlannedExitInvestment {
     value: string
     description: string
   }
+  currency?: {
+    id: string
+    code: string
+    value: string
+  }
   ownerEmployee?: {
     id: string
     displayName: string
@@ -40,6 +45,7 @@ export interface UsePlannedExitsDataParams {
   sortDirection?: 'asc' | 'desc'
   limit?: number
   offset?: number
+  currencyCode?: string
   filters?: {
     investmentGroupIds?: string[]
     ownerEmployeeIds?: string[]
@@ -97,6 +103,11 @@ const PLANNED_EXITS_QUERY = `
         value
         description
       }
+      currency {
+        id
+        code
+        value
+      }
       ownerEmployee {
         id
         displayName
@@ -144,6 +155,11 @@ export const usePlannedExitsData = (params: UsePlannedExitsDataParams): UsePlann
             }
           }
         ]
+      }
+
+      // Apply currency filter if provided
+      if (params.currencyCode) {
+        where.currency = { code: { _eq: params.currencyCode } }
       }
 
       // Apply filters
@@ -242,6 +258,7 @@ export const usePlannedExitsData = (params: UsePlannedExitsDataParams): UsePlann
     params.sortDirection,
     params.limit,
     params.offset,
+    params.currencyCode,
     JSON.stringify(params.filters)
   ])
 

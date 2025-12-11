@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { InvestmentContact } from '@/common/data/investment/types'
+import { InvestmentContact } from '@/common/data/investment/types/investmentContactTypes'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
 import {
@@ -10,7 +11,7 @@ import {
   useGetInvestmentNotesByContactId,
   useGetInvestmentTasksByContactId
 } from '@/common/data/investment/hooks/useInvestmentContacts'
-import { useGetInvestmentsByContactId } from '@/common/data/investment'
+import { useGetInvestmentsByContactId } from '@/common/data/investment/hooks/useInvestments'
 import AccountSection from '@/common/components/common-relations/record-sections/account-section/AccountSection'
 import ContactSection from '@/common/components/common-relations/record-sections/contact-section/ContactSection'
 import InvestmentSection from '@/common/components/common-relations/record-sections/investment-section/InvestmentSection'
@@ -131,49 +132,11 @@ const HomeView: React.FC<HomeViewProps> = ({ contactId, contactData, ...props })
   }, [loadSectionData])
 
   // Listen for process completion events to refresh section data
-  useEffect(() => {
-    const handleProcessCompletion = async (event: any) => {
-      try {
-        // Check for successful completion
-        if (event.detail?.resolution === 'success') {
-          await loadSectionData()
-          return
-        }
-
-        // Also check for different event structure
-        const response = event.detail?.response
-        if (response?.detail?.resolution === 'success' || response?.contact) {
-          await loadSectionData()
-        }
-      } catch (err) {
-        console.error('Error handling process completion in HomeView:', err)
-      }
+  useProcessCompletion({
+    onSuccess: () => {
+      loadSectionData()
     }
-
-    // Listen to multiple possible event names
-    const eventNames = [
-      'com.newwork.process.taskCompletion',
-      'com.newwork.process.completion',
-      'com.newwork.process.continue',
-      'com.newwork.process.processCompletion',
-      'processCompletion',
-      'taskCompletion',
-      'taskCompleted',
-      'processCompleted',
-      'task-completion',
-      'process-completion'
-    ]
-
-    for (const eventName of eventNames) {
-      globalThis.addEventListener(eventName, handleProcessCompletion as EventListener)
-    }
-
-    return () => {
-      for (const eventName of eventNames) {
-        globalThis.removeEventListener(eventName, handleProcessCompletion as EventListener)
-      }
-    }
-  }, [loadSectionData])
+  })
 
   return (
     <>
@@ -186,7 +149,13 @@ const HomeView: React.FC<HomeViewProps> = ({ contactId, contactData, ...props })
             component: AccountSection,
             props: {
               ...props,
-              accounts: contactData?.accountContacts?.map((ac: any) => ac.account).filter(Boolean) || [],
+              accounts:
+                contactData?.accountContacts
+                  ?.map((ac: any) => ({
+                    ...ac.account,
+                    contactType: ac.contactType
+                  }))
+                  .filter(Boolean) || [],
               accountId: contactData?.accountContacts?.[0]?.account?.id,
               recordUrl: contactData?.accountContacts?.[0]?.account?.id
                 ? buildPlatformUrl('/platform/irm/account-record', {
@@ -253,55 +222,6 @@ const HomeView: React.FC<HomeViewProps> = ({ contactId, contactData, ...props })
         data-testid="contact-investment-section-wrapper"
       />
 
-      {/* Activities & Notes - 1/2 width, spans 2 rows - EXACT MATCH TO LEAD */}
-      <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2"
-        sections={[
-          {
-            id: 'activities-section',
-            component: ActivitySection,
-            props: {
-              ...props,
-              activities: activities,
-              activitiesLoading: sectionsLoading,
-              activitiesError: sectionsError,
-              onReloadActivities: loadSectionData,
-              activitySectionActionProps: {
-                contextsArray: [FlowContextName.investmentActivityCreate],
-                externalContextData: { contactId },
-                prefixDataTestId: 'contact-activities'
-              },
-              activityEntityActionProps: {
-                contextsArray: [FlowContextName.investmentActivityEntity],
-                externalContextData: { contactId },
-                prefixDataTestId: 'contact-activity-entity'
-              }
-            }
-          },
-          {
-            id: 'notes-section',
-            component: NoteSection as React.ComponentType<any>,
-            props: {
-              ...props,
-              notes: notes,
-              noteActionProps: {
-                contextsArray: [FlowContextName.investmentNoteCreate],
-                externalContextData: { contactId },
-                prefixDataTestId: 'contact-notes',
-                emptyStateBehavior: 'enable'
-              },
-              noteEntityActionProps: {
-                contextsArray: [FlowContextName.investmentNoteEntity],
-                externalContextData: { contactId },
-                prefixDataTestId: 'contact-note-entity',
-                emptyStateBehavior: 'enable'
-              }
-            }
-          }
-        ]}
-        data-testid="contact-activities-notes-section-wrapper"
-      />
-
       {/* Tasks & Approvals - 1/2 width, spans 2 rows - EXACT MATCH TO LEAD */}
       <SectionWrapper
         className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2"
@@ -356,6 +276,55 @@ const HomeView: React.FC<HomeViewProps> = ({ contactId, contactData, ...props })
           }
         ]}
         data-testid="contact-tasks-approvals-section-wrapper"
+      />
+
+      {/* Activities & Notes - 1/2 width, spans 2 rows - EXACT MATCH TO LEAD */}
+      <SectionWrapper
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2"
+        sections={[
+          {
+            id: 'activities-section',
+            component: ActivitySection,
+            props: {
+              ...props,
+              activities: activities,
+              activitiesLoading: sectionsLoading,
+              activitiesError: sectionsError,
+              onReloadActivities: loadSectionData,
+              activitySectionActionProps: {
+                contextsArray: [FlowContextName.investmentActivityCreate],
+                externalContextData: { contactId },
+                prefixDataTestId: 'contact-activities'
+              },
+              activityEntityActionProps: {
+                contextsArray: [FlowContextName.investmentActivityEntity],
+                externalContextData: { contactId },
+                prefixDataTestId: 'contact-activity-entity'
+              }
+            }
+          },
+          {
+            id: 'notes-section',
+            component: NoteSection as React.ComponentType<any>,
+            props: {
+              ...props,
+              notes: notes,
+              noteActionProps: {
+                contextsArray: [FlowContextName.investmentNoteCreate],
+                externalContextData: { contactId },
+                prefixDataTestId: 'contact-notes',
+                emptyStateBehavior: 'enable'
+              },
+              noteEntityActionProps: {
+                contextsArray: [FlowContextName.investmentNoteEntity],
+                externalContextData: { contactId },
+                prefixDataTestId: 'contact-note-entity',
+                emptyStateBehavior: 'enable'
+              }
+            }
+          }
+        ]}
+        data-testid="contact-activities-notes-section-wrapper"
       />
     </>
   )

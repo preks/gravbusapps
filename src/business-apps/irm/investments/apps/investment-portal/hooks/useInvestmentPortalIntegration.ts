@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useGetInvestments, useGetInvestmentContacts } from '@/common/data/investment'
-import type { Investment, InvestmentAccount, InvestmentContact } from '@/common/data/investment'
+import { useGetInvestments } from '@/common/data/investment/hooks/useInvestments'
+import { useGetInvestmentContacts } from '@/common/data/investment/hooks/useInvestmentContacts'
+import type { Investment } from '@/common/data/investment/types/investmentTypes'
+import type { InvestmentAccount } from '@/common/data/investment/types/investmentAccountTypes'
+import type { InvestmentContact } from '@/common/data/investment/types/investmentContactTypes'
 
 export const useInvestmentPortalIntegration = (context: BusinessAppContextProps) => {
   const [investments, setInvestments] = useState<Investment[]>([])

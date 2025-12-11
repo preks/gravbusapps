@@ -55,7 +55,7 @@ export const useTurnoverRetentionData = (context: BusinessAppContextProps): UseT
   const [error, setError] = useState<string | null>(null)
 
   // Use existing GraphQL hooks from Dashboard
-  const { rate: currentTurnoverRate, loading: turnoverLoading } = useTurnoverRate(context.accessToken, 100) // Pass a placeholder employee count
+  const { rate: currentTurnoverRate, loading: turnoverLoading } = useTurnoverRate(context.accessToken)
 
   const { formattedTenure, loading: tenureLoading } = useAverageTenure(context.accessToken)
 

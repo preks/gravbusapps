@@ -61,9 +61,7 @@ const BUILD_ALL_STAKE_TYPES_AGGREGATE_QUERY = (
 ): string => {
   const countConditions = (stakeTypeRef: string) => {
     const currencyCondition =
-      countCurrency && countCurrency !== 'All' && countCurrency !== 'All Currencies'
-        ? `currency: { code: { _eq: "${countCurrency}" } }`
-        : ''
+      countCurrency && countCurrency !== 'All' ? `currency: { code: { _eq: "${countCurrency}" } }` : ''
 
     const conditions = [
       'isDeleted: { _eq: false }',

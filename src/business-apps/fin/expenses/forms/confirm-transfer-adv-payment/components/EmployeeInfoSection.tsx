@@ -1,24 +1,13 @@
 import React, { useState } from 'react'
-import { Avatar, AvatarImage, AvatarFallback, Badge } from '@newwork/nw-design-system'
+import { Badge } from '@newwork/nw-design-system'
 import { RightOutlined, FileTextOutlined } from '@ant-design/icons'
-import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
-import { getAdvancePaymentStatusDisplay } from '@/business-apps/fin/expenses/apps/backoffice-expenses/utils/utils'
+import dayjs from 'dayjs'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import DocumentPdfModal from './DocumentPdfModal'
 
 interface EmployeeInfoSectionProps {
   employee: {
     id: string
-    firstName?: string
-    lastName?: string
-    pictureThumbnail?: string
-    employeePosition: {
-      jobPosition: {
-        name?: string
-      }
-      organizationalUnit: {
-        name?: string
-      }
-    }
   }
   amount: number
   currency: {
@@ -86,64 +75,16 @@ const EmployeeInfoSection: React.FC<EmployeeInfoSectionProps> = ({
 
   return (
     <>
-      <div className="gba:mb-6 gba:p-3" data-testid="confirm-transfer-adv-payment-employee-section">
-        {/* Request Details Header */}
-        <h3
-          className="gba:text-lg gba:font-semibold gba:mb-3 gba:text-foreground"
-          data-testid="confirm-transfer-adv-payment-request-details-title"
-        >
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:confirm_transfer_advance_payment.request_details',
-            'Request Details'
-          )}
-        </h3>
-
-        {/* Employee details */}
-        <div
-          className="gba:flex gba:items-center gba:gap-3 gba:mb-4"
-          data-testid="confirm-transfer-adv-payment-employee-details"
-        >
-          <Avatar className="gba:w-10 gba:h-10" data-testid="confirm-transfer-adv-payment-employee-avatar">
-            {employee.pictureThumbnail ? (
-              <AvatarImage src={`data:image/jpeg;base64,${employee.pictureThumbnail}`} />
-            ) : (
-              <AvatarFallback>
-                {employee.firstName?.[0]}
-                {employee.lastName?.[0]}
-              </AvatarFallback>
-            )}
-          </Avatar>
-          <div>
-            <div
-              className="gba:text-sm gba:font-semibold gba:text-foreground"
-              data-testid="confirm-transfer-adv-payment-employee-name"
-            >
-              {employee.firstName} {employee.lastName}
-            </div>
-            <div
-              className="gba:text-xs gba:font-normal gba:text-muted-foreground"
-              data-testid="confirm-transfer-adv-payment-employee-role"
-            >
-              {employee.employeePosition?.jobPosition?.name}
-            </div>
-            <div
-              className="gba:text-xs gba:font-normal gba:text-muted-foreground"
-              data-testid="confirm-transfer-adv-payment-employee-unit"
-            >
-              {employee.employeePosition?.organizationalUnit?.name}
-            </div>
-          </div>
-        </div>
-
+      <div data-testid="confirm-transfer-adv-payment-v2-employee-section">
         {/* Payment details - now in 3-column layout */}
-        <div className="gba:mb-4" data-testid="confirm-transfer-adv-payment-payment-details">
+        <div className="gba:mb-4" data-testid="confirm-transfer-adv-payment-v2-payment-details">
           {/* First row: Amount, Request Date, Status */}
           <div className="gba:grid gba:grid-cols-3 gba:gap-4 gba:mb-4">
             <div className="gba:flex gba:flex-col">
               <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.amount', 'Amount')}
               </span>
-              <span className="gba:text-lg gba:font-semibold gba:text-foreground">
+              <span className="gba:text-sm gba:font-semibold gba:text-foreground">
                 {formatCurrency(amount, currency.code)}
               </span>
             </div>
@@ -155,26 +96,33 @@ const EmployeeInfoSection: React.FC<EmployeeInfoSectionProps> = ({
                   'Request Date'
                 )}
               </span>
-              <span className="gba:text-lg gba:font-semibold gba:text-foreground">
-                {formatDate(expensePlan.decisionDate, 'date.short')}
+              <span className="gba:text-sm gba:font-semibold gba:text-foreground">
+                {(() => {
+                  if (!expensePlan.decisionDate) {
+                    return '-'
+                  }
+                  try {
+                    const parsed = dayjs(expensePlan.decisionDate)
+                    if (parsed.isValid()) {
+                      // Format date in a user-friendly format (e.g., "Nov 18, 2025")
+                      return parsed.format('MMM D, YYYY')
+                    }
+                    return expensePlan.decisionDate
+                  } catch {
+                    return expensePlan.decisionDate
+                  }
+                })()}
               </span>
             </div>
 
             <div className="gba:flex gba:flex-col">
-              <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')}
-              </span>
-              {(() => {
-                const statusConfig = getAdvancePaymentStatusDisplay(status)
-                return (
-                  <Badge
-                    variant={(statusConfig as any).badgeVariant || 'outline'}
-                    className="gba:px-2 gba:py-1 gba:rounded-full gba:text-xs gba:w-fit"
-                  >
-                    {statusConfig.label}
-                  </Badge>
-                )
-              })()}
+              <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">Status</span>
+              <Badge
+                variant="secondary"
+                className="gba:bg-warning-100 gba:text-warning-700 gba:px-2 gba:py-1 gba:rounded-full gba:text-xs gba:w-fit"
+              >
+                {status}
+              </Badge>
             </div>
           </div>
 

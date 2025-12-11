@@ -70,7 +70,6 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
     return () => clearInterval(interval)
   }, [currentLocale])
 
-  // Fetch user groups/roles to detect all-hr-backoffice, should be replaced with roles in the future
   useEffect(() => {
     const fetchUserGroups = async () => {
       try {
@@ -82,7 +81,6 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
         const has = arr.some((g: any) => String(g?.name || '').toLowerCase() === 'all-hr-backoffice')
         setHasHrBackoffice(has)
       } catch {
-        // ignore errors, default to false
       } finally {
         setIsFetchingGroups(false)
       }
@@ -220,7 +218,6 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
           </div>
 
           <div className="gba:flex gba:gap-4 gba:items-center gba:self-center">
-            {/* Request Absence - always visible */}
             <AppAction
               variant="update-primary"
               data-testid="employee-absence-request-button"
@@ -242,7 +239,6 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
               {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.request_absence', 'Request Absence')}
             </AppAction>
 
-            {/* Add Entitlement - shown for HR backoffice, hidden on self view */}
             {!isFetchingGroups && hasHrBackoffice && !isSelfView && (
               <div
                 data-testid="employee-entitlements-update-button"
@@ -317,7 +313,6 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
         )}
       </div>
 
-      {/* Entitlements Modal for HR Backoffice */}
       <Dialog open={isEntitlementsModalOpen} onOpenChange={open => setIsEntitlementsModalOpen(open)}>
         <DialogContent
           className="gba:h-screen gba:max-h-screen gba:!rounded-none gba:!bg-card"

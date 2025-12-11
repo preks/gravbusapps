@@ -11,7 +11,7 @@ export interface RoleCountDistributionData {
 }
 
 /**
- * Query for Role Count Distribution (supports "All Currencies")
+ * Query for Role Count Distribution (supports "All")
  * Uses shared distinct roles query to avoid duplication
  */
 
@@ -20,10 +20,7 @@ export interface RoleCountDistributionData {
  */
 const BUILD_ALL_ROLES_COUNT_QUERY = (roles: RoleInfo[], currency?: string): string => {
   const countConditions = (roleRef: string) => {
-    const currencyCondition =
-      currency && currency !== 'All' && currency !== 'All Currencies'
-        ? `currency: { code: { _eq: "${currency}" } }`
-        : ''
+    const currencyCondition = currency && currency !== 'All' ? `currency: { code: { _eq: "${currency}" } }` : ''
 
     const conditions = [
       'isDeleted: { _eq: false }',

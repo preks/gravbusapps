@@ -21,12 +21,12 @@ import {
   PiCalendarX,
   PiCheckCircle,
   PiSignIn,
-  PiSignOut,
-  PiDotsThreeVertical
+  PiSignOut
 } from 'react-icons/pi'
 import { ArrowCircleLeftIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { UserInfoProps } from '@/common/BusinessAppContext'
+import { AppAction } from '@/components/app-action/AppAction'
 import { AppActionMenu } from '@/components/app-action-menu'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { Button, Tooltip } from 'antd'
@@ -169,30 +169,37 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
         {/* Action Button */}
         {useMemo(
           () => (
-            <div>
-              <AppActionMenu
-                data-testid="employee-actions-button"
-                contextsArray={[FlowContextName.employeeEntity]}
-                externalContextData={{
-                  employeeId: employee?.id,
-                  managerId: employee?.employeePosition?.supervisor?.id,
-                  organizationalUnitId: employee?.employeePosition?.organizationalUnitId
-                }}
-                prefixDataTestId="employee-actions"
-                accessToken={accessToken}
-                autoExecuteSingleAction={false}
-                deferMainContextRequestsUntilClick={false}
-                emptyStateBehavior="hide"
-              >
-                <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
-                  <PiDotsThreeVertical className="gba:h-4 gba:w-4" />
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_employee.action', 'Actions')}
-                </div>
-              </AppActionMenu>
-            </div>
+            <AppAction
+              variant="header"
+              data-testid="employee-actions-button"
+              contexts={[
+                {
+                  context: FlowContextName.employeeEntity,
+                  contextData: {
+                    employeeId: employee?.id,
+                    managerId: employee?.employeePosition?.supervisor?.id,
+                    organizationalUnitId: employee?.employeePosition?.organizationalUnitId
+                  }
+                }
+              ]}
+              shareContext={{
+                entityType: 'employee',
+                entityId: employee?.id || '',
+                entityName:
+                  employee?.displayName ||
+                  `${employee?.firstName || ''} ${employee?.lastName || ''}`.trim() ||
+                  'Employee',
+                entityUrl: `/platform/hr/employee-record?employeeId=${employee?.id}`
+              }}
+              prefixDataTestId="employee-actions"
+              accessToken={accessToken}
+            />
           ),
           [
             employee?.id,
+            employee?.displayName,
+            employee?.firstName,
+            employee?.lastName,
             employee?.employeePosition?.supervisor?.id,
             employee?.employeePosition?.organizationalUnitId,
             accessToken
@@ -462,14 +469,14 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                   </div>
                 )}
 
-                {/* SAP Number from additional properties */}
-                {employee?.additionalProperties?.SAPNumber && (
+                {/* External ID (fallback to SAP Number) */}
+                {(employee?.externalId || employee?.additionalProperties?.SAPNumber) && (
                   <div className="gba:flex gba:items-center">
                     <PiListNumbers className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
                     <div>
                       <div className="gba:text-sm gba:font-medium gba:text-foreground">SAP Number</div>
                       <div className="gba:text-sm gba:text-muted-foreground">
-                        {String(employee.additionalProperties.SAPNumber)}
+                        {String(employee.externalId ?? employee.additionalProperties?.SAPNumber)}
                       </div>
                     </div>
                   </div>

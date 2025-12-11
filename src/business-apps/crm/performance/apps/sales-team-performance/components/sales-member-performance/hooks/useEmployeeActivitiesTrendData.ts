@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
+export type TrendDirection = 'up' | 'down' | 'stable'
+
 export interface ActivityTrendData {
   currentValue: number
   previousValue: number
-  trend: 'up' | 'down' | 'stable'
+  trend: TrendDirection
   trendPercentage: number
 }
 
@@ -71,7 +73,15 @@ export const useEmployeeActivitiesTrendData = (accessToken: string, employeeId: 
     if (previous === 0 && current === 0) return { trend: 'stable', percentage: 0 }
 
     const percentage = ((current - previous) / previous) * 100
-    const trend = percentage > 3 ? 'up' : percentage < -3 ? 'down' : 'stable'
+
+    let trend: 'up' | 'down' | 'stable'
+    if (percentage > 3) {
+      trend = 'up'
+    } else if (percentage < -3) {
+      trend = 'down'
+    } else {
+      trend = 'stable'
+    }
 
     return { trend, percentage }
   }
@@ -92,15 +102,17 @@ export const useEmployeeActivitiesTrendData = (accessToken: string, employeeId: 
   const fetchActivitiesTrends = async () => {
     const { currentStart, previousStart, previousEnd } = getCurrentAndPreviousMonthDates()
 
-    // All activities (like team implementation)
-    const allActivitiesQuery = `
-      query GetAllActivities($employeeId: uuid!) {
-        SalesActivity(
+    // Combined query using aggregates for better performance
+    const combinedQuery = `
+      query GetActivityTrends($employeeId: uuid!) {
+        # Current month activities
+        currentMonthActivities: SalesActivity(
           where: {
             ownerEmployeeId: { _eq: $employeeId }
+            createdAt: { _gte: "${currentStart}" }
             isDeleted: { _eq: false }
           }
-          limit: 2000
+          limit: 1000
         ) {
           id
           title
@@ -114,13 +126,9 @@ export const useEmployeeActivitiesTrendData = (accessToken: string, employeeId: 
           account { id }
           opportunity { id }
         }
-      }
-    `
-
-    // Keep previous month query for trend comparison
-    const previousActivitiesQuery = `
-      query GetPreviousMonthActivities($employeeId: uuid!) {
-        SalesActivity(
+        
+        # Previous month activities
+        previousMonthActivities: SalesActivity(
           where: {
             ownerEmployeeId: { _eq: $employeeId }
             createdAt: { _gte: "${previousStart}", _lte: "${previousEnd}" }
@@ -139,32 +147,39 @@ export const useEmployeeActivitiesTrendData = (accessToken: string, employeeId: 
           account { id }
           opportunity { id }
         }
+        
+        # Aggregates for counts
+        currentMonthCount: SalesActivityAggregate(
+          where: {
+            ownerEmployeeId: { _eq: $employeeId }
+            createdAt: { _gte: "${currentStart}" }
+            isDeleted: { _eq: false }
+          }
+        ) {
+          aggregate {
+            count
+          }
+        }
+        
+        previousMonthCount: SalesActivityAggregate(
+          where: {
+            ownerEmployeeId: { _eq: $employeeId }
+            createdAt: { _gte: "${previousStart}", _lte: "${previousEnd}" }
+            isDeleted: { _eq: false }
+          }
+        ) {
+          aggregate {
+            count
+          }
+        }
       }
     `
 
     try {
-      const [allActivitiesResult, previousResult] = await Promise.all([
-        graphqlClient.request(allActivitiesQuery, { employeeId }),
-        graphqlClient.request(previousActivitiesQuery, { employeeId })
-      ])
+      const result: any = await graphqlClient.request(combinedQuery, { employeeId })
 
-      const allActivities = (allActivitiesResult as any).SalesActivity
-      const previousActivities = (previousResult as any).SalesActivity
-
-      // Filter all activities to get current month for trend comparison
-      const currentMonthActivities = allActivities.filter((activity: any) => {
-        if (!activity.createdAt) return false
-        const activityDate = new Date(activity.createdAt)
-        const currentMonthStart = new Date(currentStart)
-        return activityDate >= currentMonthStart
-      })
-
-      console.log(
-        'useEmployeeActivitiesTrendData: Loaded',
-        allActivities?.length || 0,
-        'total activities for employee',
-        employeeId
-      )
+      const currentMonthActivities = result.currentMonthActivities || []
+      const previousActivities = result.previousMonthActivities || []
 
       // Calculate total activities trend (current month vs previous month)
       const currentTotal = currentMonthActivities.length
@@ -184,11 +199,12 @@ export const useEmployeeActivitiesTrendData = (accessToken: string, employeeId: 
           typeCounts[type] = (typeCounts[type] || 0) + 1
         })
 
-        if (Object.keys(typeCounts).length === 0) {
+        const typeKeys = Object.keys(typeCounts)
+        if (typeKeys.length === 0) {
           return { type: 'Task', count: 0, percentage: 0 }
         }
 
-        const mostCommonType = Object.keys(typeCounts).reduce((a, b) => (typeCounts[a] > typeCounts[b] ? a : b))
+        const mostCommonType = typeKeys.reduce((a, b) => (typeCounts[a] > typeCounts[b] ? a : b), typeKeys[0])
 
         const result = {
           type: mostCommonType,
@@ -215,7 +231,12 @@ export const useEmployeeActivitiesTrendData = (accessToken: string, employeeId: 
           else if (activity.opportunity?.id) entityCounts['Opportunity']++
         })
 
-        const mostWorkedEntity = Object.keys(entityCounts).reduce((a, b) => (entityCounts[a] > entityCounts[b] ? a : b))
+        const entityKeys = Object.keys(entityCounts)
+        if (entityKeys.length === 0) {
+          return { entityType: 'Contact', count: 0, percentage: 0 }
+        }
+
+        const mostWorkedEntity = entityKeys.reduce((a, b) => (entityCounts[a] > entityCounts[b] ? a : b), entityKeys[0])
 
         const result = {
           entityType: mostWorkedEntity,
@@ -240,11 +261,11 @@ export const useEmployeeActivitiesTrendData = (accessToken: string, employeeId: 
           trendPercentage: completedTrend.percentage
         },
         mostCommonActivityType: {
-          current: getActivityTypeBreakdown(allActivities),
+          current: getActivityTypeBreakdown(currentMonthActivities),
           previous: getActivityTypeBreakdown(previousActivities)
         },
         mostWorkedEntityType: {
-          current: getEntityTypeBreakdown(allActivities),
+          current: getEntityTypeBreakdown(currentMonthActivities),
           previous: getEntityTypeBreakdown(previousActivities)
         }
       }

@@ -6,11 +6,11 @@
 export {
   normalizeCurrency,
   transformCompensationBand,
-  transformWorkingConditionToCompensation,
+  transformEmployeeSalaryToCompensation,
+  transformEmployeeSalaryToHistory,
   transformBonus,
   transformBenefit,
-  transformPayslip,
-  transformWorkingConditionToHistory
+  transformPayslip
 } from './compensationTransformers'
 
 export {

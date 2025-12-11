@@ -6,11 +6,6 @@ import {
   CardTitle,
   CardDescription,
   IconAvatar,
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
   ChartConfig,
   ChartContainer,
   ChartTooltip,
@@ -18,6 +13,7 @@ import {
 } from '@newwork/nw-design-system'
 import { FunnelChart, Funnel, LabelList } from 'recharts'
 import { FunnelSimpleIcon } from '@phosphor-icons/react'
+import { CurrencyFilter } from '@/business-apps/irm/investments/apps/investment-management/views/analytics-view/shared/components/CurrencyFilter'
 
 export interface AggregatedFunnelStage {
   stage: string
@@ -67,33 +63,68 @@ const toKey = (value: string): string =>
     .replace(/\s+/g, '-')
     .replace(/[^a-z0-9-]/g, '')
 
-// Custom label renderer for funnel elements
-// Uses a closure to access chartData and match by multiple methods
-const renderCustomLabel = (chartData: any[], currencyCode: string) => (props: any) => {
-  const { x, y, width, height, name, value, index } = props
+// Design system chart colors
+const CHART_COLORS = [
+  'var(--nw-chart-1)',
+  'var(--nw-chart-2)',
+  'var(--nw-chart-3)',
+  'var(--nw-chart-4)',
+  'var(--nw-chart-5)',
+  'var(--nw-chart-6)',
+  'var(--nw-chart-7)',
+  'var(--nw-chart-8)'
+]
 
-  // Try multiple ways to find the matching data item
-  let dataItem = null
+// Helper to find data item from chart data
+const findDataItem = (chartData: any[], props: any) => {
+  const { name, value, index, payload } = props
 
   // Method 1: Match by name (stage key)
-  if (name && !dataItem) {
-    dataItem = chartData.find(item => item.stage === name)
+  if (name) {
+    const byName = chartData.find(item => item.stage === name)
+    if (byName) return byName
   }
 
   // Method 2: Match by index (most reliable for FunnelChart)
-  if (index !== undefined && !dataItem) {
-    dataItem = chartData[index]
+  if (index !== undefined && chartData[index]) {
+    return chartData[index]
   }
 
   // Method 3: Match by value as fallback
-  if (value && !dataItem) {
-    dataItem = chartData.find(item => item.value === value)
+  if (value) {
+    const byValue = chartData.find(item => item.value === value)
+    if (byValue) return byValue
   }
 
-  // If we still can't find the data, don't render anything
-  if (!dataItem) {
-    return null
+  // Method 4: Try payload
+  if (payload) {
+    return chartData.find(item => item.stage === payload.stage || item.originalValue === payload.originalValue)
   }
+
+  return null
+}
+
+// Helper to calculate center position
+const calculateCenterPosition = (props: any): { centerX: number; centerY: number } => {
+  const { y, height, cx, cy, index, trapezoids } = props
+
+  if (typeof cx === 'number' && typeof cy === 'number') {
+    return { centerX: cx, centerY: cy }
+  }
+
+  if (trapezoids?.[index]) {
+    const trap = trapezoids[index]
+    return { centerX: trap.x + trap.upperWidth / 2, centerY: trap.y + trap.height / 2 }
+  }
+
+  // Fallback: chart is 400px wide, center is 200
+  return { centerX: 200, centerY: y + height / 2 }
+}
+
+// Custom label renderer for funnel elements
+const renderCustomLabel = (chartData: any[], currencyCode: string) => (props: any) => {
+  const dataItem = findDataItem(chartData, props)
+  if (!dataItem) return null
 
   const count = dataItem.count || 0
   const originalValue = dataItem.originalValue || 0
@@ -103,11 +134,13 @@ const renderCustomLabel = (chartData: any[], currencyCode: string) => (props: an
     return null
   }
 
+  const { centerX, centerY } = calculateCenterPosition(props)
+
   return (
     <g>
       <text
-        x={x + width / 2}
-        y={y + height / 2 - 8}
+        x={centerX}
+        y={centerY - 8}
         textAnchor="middle"
         dominantBaseline="middle"
         className="gba:fill-white gba:text-sm gba:font-bold"
@@ -121,8 +154,8 @@ const renderCustomLabel = (chartData: any[], currencyCode: string) => (props: an
         {formatCurrency(originalValue, currencyCode)}
       </text>
       <text
-        x={x + width / 2}
-        y={y + height / 2 + 8}
+        x={centerX}
+        y={centerY + 8}
         textAnchor="middle"
         dominantBaseline="middle"
         className="gba:fill-white gba:text-xs gba:opacity-90"
@@ -183,7 +216,7 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
         count: stage.count,
         originalValue: stage.value, // Keep original for labels
         originalIndex: index, // Preserve original order
-        fill: `var(--color-${key})`,
+        fill: CHART_COLORS[index % CHART_COLORS.length],
         // Add payload data for the label renderer
         payload: {
           originalValue: stage.value,
@@ -198,9 +231,9 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
     const config: Record<string, { label?: string; color?: string }> = {
       [dataKey]: {}
     }
-    aggregatedFunnel.forEach(stage => {
+    aggregatedFunnel.forEach((stage, index) => {
       const key = toKey(stage.stage)
-      config[key] = { label: stage.stage, color: stage.color }
+      config[key] = { label: stage.stage, color: CHART_COLORS[index % CHART_COLORS.length] }
     })
     return config as ChartConfig
   }, [aggregatedFunnel])
@@ -213,25 +246,20 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
           <CardTitle>{title}</CardTitle>
           <CardDescription>{description}</CardDescription>
         </div>
-        {availableCurrencies && availableCurrencies.length > 1 && onCurrencyChange && (
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <span className="gba:text-sm gba:text-muted-foreground">Currency:</span>
-            <Select value={selectedCurrency} onValueChange={onCurrencyChange}>
-              <SelectTrigger className="gba:w-[100px]">
-                <SelectValue placeholder="Select currency" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableCurrencies.map(currency => (
-                  <SelectItem key={currency} value={currency}>
-                    {currency}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
       </CardHeader>
       <CardContent>
+        {availableCurrencies && availableCurrencies.length > 1 && onCurrencyChange && (
+          <div className="gba:mb-4">
+            <CurrencyFilter
+              value={selectedCurrency || 'EUR'}
+              onChange={onCurrencyChange}
+              currencies={availableCurrencies}
+              showLabel={true}
+              label="Currency:"
+              dataTestId="pipeline-funnel-currency-filter"
+            />
+          </div>
+        )}
         {aggregatedFunnel && aggregatedFunnel.length > 0 ? (
           <div className="gba:space-y-4">
             {/* Funnel Chart */}
@@ -256,31 +284,16 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
             {/* Stage legend */}
             <div className="gba:space-y-2 gba:mt-4">
               {aggregatedFunnel.map((stage, index) => {
-                // Check if normalization was applied
-                const isNormalized =
-                  chartData.length > 0 &&
-                  chartData.some(item => item.originalValue !== undefined && item.originalValue !== item[dataKey])
-
                 return (
                   <div key={stage.stage} className="gba:flex gba:items-center gba:justify-between gba:text-sm">
                     <div className="gba:flex gba:items-center gba:gap-2">
                       <div
                         className="gba:w-3 gba:h-3 gba:rounded-sm"
                         style={{
-                          backgroundColor: stage.color || `hsl(${index * 60}, 70%, 50%)`
+                          backgroundColor: CHART_COLORS[index % CHART_COLORS.length]
                         }}
                       />
-                      <span className="gba:text-gray-700">
-                        {stage.stage}
-                        {isNormalized && (
-                          <span
-                            className="gba:text-xs gba:text-blue-500 gba:ml-1"
-                            title="Funnel sizes adjusted for visibility"
-                          >
-                            *
-                          </span>
-                        )}
-                      </span>
+                      <span className="gba:text-gray-700">{stage.stage}</span>
                     </div>
                     <div className="gba:text-right">
                       <div className="gba:font-medium gba:text-gray-900">
@@ -293,13 +306,6 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
                   </div>
                 )
               })}
-              {/* Show normalization note if applied */}
-              {chartData.length > 0 &&
-                chartData.some(item => item.originalValue !== undefined && item.originalValue !== item[dataKey]) && (
-                  <div className="gba:text-xs gba:text-gray-500 gba:italic gba:mt-2">
-                    * Funnel sizes adjusted for visibility. Values show actual amounts.
-                  </div>
-                )}
             </div>
 
             {/* Total summary */}

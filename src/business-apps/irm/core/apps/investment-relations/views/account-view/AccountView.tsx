@@ -96,7 +96,7 @@ export const AccountView: React.FC<AccountViewProps> = context => {
         industryClass: 'Industry',
         legalForm: 'Legal Form',
         companySize: 'Size',
-        accountAnnualRevenueBand: 'Revenue',
+        accountAnnualRevenueBand: 'Revenue Band',
         ownerEmployee: 'Owner',
         createdAt: 'Created Date',
         updatedAt: 'Updated Date'
@@ -151,15 +151,6 @@ export const AccountView: React.FC<AccountViewProps> = context => {
       buildRecordUrl: (id: string) => buildPlatformUrl('/platform/irm/account-record', { accountId: id }),
       accountStatistics: accountStatisticsData,
       variant: 'investment',
-      processCompletionEvents: [
-        'com.newwork.process.taskCompletion',
-        'com.newwork.process.completion',
-        'com.newwork.process.continue',
-        'com.newwork.process.processCompletion',
-        'processCompletion',
-        'accountCompletion',
-        'accountCompleted'
-      ],
       rowActionsContextArray: [FlowContextName.investmentAccountEntity],
       buildRowActionsExternalContextData: (row: { original: Account }) => ({
         accountId: row.original.id || ''

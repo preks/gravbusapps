@@ -1,188 +1,647 @@
-import React, { useEffect, useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
-import { AppActionForm } from '@/components/app-action-form/AppActionForm'
-import FormHeader from '../components/FormHeader'
-import flowIconUrl from '@/assets/icons/flowSmall.svg'
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import React, { useState, useMemo } from 'react'
 import {
-  GET_EMPLOYEE_NAME,
-  GET_CATALOG_ENTRIES_BY_IDS,
-  GET_EMPLOYEE_DOCUMENT_BY_ID
-} from './ChangeEmployeeAddressReviewQueries'
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Badge,
+  Separator,
+  Label,
+  Spinner,
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent
+} from '@newwork/nw-design-system'
+import { Landmark, CheckCircle, ArrowRight, Globe, MapPin, FileText, Home, ChevronDown } from 'lucide-react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
+import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/components/TaskDetailHeader'
+import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
+import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
+import { useAddressReviewData } from './hooks/useAddressReviewData'
 
-import ReviewRows from '../components/ReviewRows'
-import { buildAddressReviewRows } from './buildRows'
-import { Alert } from '@newwork/nw-design-system'
+/**
+ * Extended interface for additionalData with form-specific properties
+ */
+interface ExtendedAdditionalData {
+  [k: string]: unknown
+  psi_taskCompletedAt?: string
+  psi_taskPayload?: {
+    [k: string]: unknown
+  }
+  psi_processMetadata?: {
+    [k: string]: unknown
+  }
+  psi_taskStatus?: string
+}
 
-export const ChangeEmployeeAddressReview: React.FC<BusinessAppContextProps> = ({
+interface ChangeEmployeeAddressReviewProps extends BusinessAppContextProps {
+  onClose?: () => void
+}
+
+interface AddressData {
+  type?: string | null
+  addressLine?: string[] | null
+  poBox?: boolean | null
+  postalCode?: string | null
+  locality?: string | null
+  regionRef?: string | null
+  countryRef?: string | null
+  notes?: string | null
+  employeeDocument?: string | null
+}
+
+const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewProps> = ({
   accessToken,
+  additionalData,
   userInfo,
-  additionalData
+  onClose
 }) => {
-  const form = useForm({
-    defaultValues: {},
-    mode: 'onChange'
+  // Cast additionalData to extended interface for proper typing
+  const extendedAdditionalData = additionalData as ExtendedAdditionalData | undefined
+
+  const [isAcknowledging, setIsAcknowledging] = useState(false)
+  const [isUnchangedExpanded, setIsUnchangedExpanded] = useState(false)
+
+  // Extract task metadata
+  const taskPayload = additionalData?.psi_taskPayload || {}
+  const processMetadata = additionalData?.psi_processMetadata || {}
+  const taskStatus = additionalData?.psi_taskStatus || processMetadata?.status || 'IN_PROGRESS'
+  const taskCompletedAt = processMetadata?.completedAt || extendedAdditionalData?.psi_taskCompletedAt
+  const isTaskCompleted = taskStatus === 'COMPLETED' || !!taskCompletedAt
+  const taskTitle = processMetadata?.referenceTaskName || processMetadata?.nodeName || 'Review Address Change'
+  const taskSource: 'kogito' | 'cflow' = processMetadata?.source || (processMetadata?.endpoint ? 'kogito' : 'kogito')
+  const creatorName = taskPayload?.creatorName as string | undefined
+
+  // Extract address data from payload
+  const newAddress: AddressData = taskPayload?.address || {}
+  const oldAddress: AddressData = taskPayload?.oldAddressData || {}
+  const changeMode = String(taskPayload?.changeMode || '').toUpperCase()
+  const isDeleteMode = changeMode === 'DELETE'
+  const isInsertMode = changeMode === 'INSERT'
+  const employeeIdFromPayload: string | undefined =
+    taskPayload?.address?.employeeId || userInfo?.employeeDetails?.employeeId
+
+  // Fetch employee and catalog data
+  const { employeeData, catalogMap, docNameMap, loading, error, refetch } = useAddressReviewData({
+    accessToken,
+    employeeId: employeeIdFromPayload,
+    newAddress,
+    oldAddress
   })
 
-  const graphqlClient = useGraphQLClient(accessToken as any)
-  const [employeeName, setEmployeeName] = useState<string>('')
-
-  const employeeIdFromPayload: string | undefined =
-    (additionalData as any)?.psi_taskPayload?.address?.employeeId || userInfo?.employeeDetails?.employeeId
-
-  useEffect(() => {
-    const fetchName = async () => {
-      try {
-        if (!accessToken || !employeeIdFromPayload) return
-        const result = await graphqlClient.request<{ employee: { firstName: string; lastName: string } }>(
-          GET_EMPLOYEE_NAME,
-          { employeeId: employeeIdFromPayload }
-        )
-        const emp = result?.employee
-        if (emp) {
-          setEmployeeName(`${emp.firstName || ''} ${emp.lastName || ''}`.trim())
-        }
-      } catch {
-        // ignore
-      }
-    }
-    fetchName()
-  }, [accessToken, employeeIdFromPayload, graphqlClient])
-
-  const payload = (additionalData as any)?.psi_taskPayload || {}
-  const newAddr = payload?.address || {}
-  const oldAddr = payload?.oldAddressData || {}
-  const isDeleteMode = String(payload?.changeMode || '').toUpperCase() === 'DELETE'
-
-  const [catalogMap, setCatalogMap] = useState<Record<string, any>>({})
-  const [docNameMap, setDocNameMap] = useState<Record<string, string>>({})
-
-  useEffect(() => {
-    const fetchCatalogs = async () => {
-      try {
-        if (!accessToken) return
-        const ids = Array.from(
-          new Set(
-            [newAddr?.countryRef, oldAddr?.countryRef, newAddr?.regionRef, oldAddr?.regionRef]
-              .filter(Boolean)
-              .map(String)
-          )
-        )
-        if (!ids.length) return
-        const result = await graphqlClient.request<{ entries: any[] }>(GET_CATALOG_ENTRIES_BY_IDS, {
-          ids,
-          activeUserLocale: getCurrentActiveUserLocale()
-        })
-        const map: Record<string, any> = {}
-        for (const e of result?.entries || []) {
-          map[String(e.id)] = e
-        }
-        setCatalogMap(map)
-      } catch {
-        // ignore failures – we will fall back to codes
-      }
-    }
-    fetchCatalogs()
-  }, [accessToken, graphqlClient, newAddr?.countryRef, oldAddr?.countryRef, newAddr?.regionRef, oldAddr?.regionRef])
-
-  // Fetch employee document names if IDs provided
-  useEffect(() => {
-    const fetchDocs = async () => {
-      try {
-        if (!accessToken) return
-        const ids = Array.from(
-          new Set(
-            [String((oldAddr as any)?.employeeDocument ?? ''), String((newAddr as any)?.employeeDocument ?? '')]
-              .map(s => s?.trim())
-              .filter(Boolean)
-          )
-        )
-        if (!ids.length) return
-        const results = await Promise.all(
-          ids.map(id =>
-            graphqlClient
-              .request<{ doc: { id: string; name?: string | null } | null }>(GET_EMPLOYEE_DOCUMENT_BY_ID, { id })
-              .then(res => ({ id, name: res?.doc?.name || '' }))
-              .catch(() => ({ id, name: '' }))
-          )
-        )
-        const map: Record<string, string> = {}
-        for (const r of results) {
-          map[r.id] = r.name
-        }
-        setDocNameMap(prev => ({ ...prev, ...map }))
-      } catch {
-        // ignore
-      }
-    }
-    fetchDocs()
-  }, [accessToken, graphqlClient, oldAddr?.employeeDocument, newAddr?.employeeDocument])
-
-  const rows = buildAddressReviewRows({ oldAddr, newAddr, catalogMap, docNameMap })
-  const titleText = getTranslationFromI18nKeyAndLabel(
-    'lowcoder:review_forms.employee_address_change_title',
-    `Employee Address Change for ${employeeName ? employeeName : ''}`,
-    { employeeName: employeeName ? employeeName : '', interpolation: { escapeValue: false } }
+  // Helper: check if old address exists
+  const hasOldAddress = Boolean(
+    oldAddress?.addressLine?.some(line => line?.trim()) ||
+      oldAddress?.postalCode ||
+      oldAddress?.locality ||
+      oldAddress?.countryRef
   )
 
-  return (
-    <div
-      className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-[100%] gba:max-w-[1200px]"
-      data-testid="change-employee-address-review-form-container"
-    >
-      <FormHeader title={titleText} flowIconUrl={flowIconUrl} className="gba:px-6" />
+  // Count total changes - MUST BE BEFORE CONDITIONAL RETURNS
+  const changesCount = useMemo(() => {
+    if (!hasOldAddress || isInsertMode) return 0
 
+    const fields: (keyof AddressData)[] = [
+      'type',
+      'postalCode',
+      'locality',
+      'regionRef',
+      'countryRef',
+      'poBox',
+      'notes',
+      'employeeDocument'
+    ]
+
+    const compareField = (newVal: unknown, oldVal: unknown): boolean => {
+      const format = (v: unknown) => String(v || 'N/A')
+      return format(newVal) !== format(oldVal)
+    }
+
+    let count = fields.reduce((acc, field) => {
+      return compareField(newAddress[field], oldAddress[field]) ? acc + 1 : acc
+    }, 0)
+
+    // Check address lines
+    for (let i = 0; i < 4; i++) {
+      const oldLine = String((oldAddress.addressLine || [])[i] || '').trim()
+      const newLine = String((newAddress.addressLine || [])[i] || '').trim()
+      if (oldLine !== newLine) count++
+    }
+
+    return count
+  }, [newAddress, oldAddress, hasOldAddress, isInsertMode])
+
+  // Detect if we're in every-box context
+  const isEveryBoxContext = !!onClose
+
+  const handleClose = () => {
+    if (onClose) {
+      onClose()
+    } else {
+      dispatchProcessContinueEvent('pse_abort', {
+        event: 'pse_abort'
+      })
+    }
+  }
+
+  const handleAcknowledge = async () => {
+    setIsAcknowledging(true)
+    try {
+      dispatchProcessContinueEvent('pse_submit', {
+        acknowledge: 'acknowledged'
+      })
+    } catch (err) {
+      console.error('Error acknowledging address change:', err)
+    } finally {
+      setIsAcknowledging(false)
+    }
+  }
+
+  if (loading) {
+    return (
       <div
-        className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='change-employee-address-review']]:!pt-0 gba:[&_[data-testid='change-employee-address-review-form']]:!max-w-none"
-        data-testid="change-employee-address-review-form-content"
+        className="gba:flex gba:justify-center gba:items-center gba:min-h-[400px]"
+        data-testid="change-employee-address-review-loading"
       >
-        <AppActionForm
-          processType="update"
-          form={form as any}
-          showCancelButton={false}
-          formData={{}}
-          submitEventType="pse_submit"
-          submitButtonText={getTranslationFromI18nKeyAndLabel(
-            'lowcoder:review_forms.acknowledge_button',
-            'Acknowledge'
-          )}
-          cancelButtonText={getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.btn_cancel', 'Cancel')}
-          submitButtonTestId="change-employee-address-review-confirm-button"
-          cancelButtonTestId="change-employee-address-review-cancel-button"
-          onSubmit={async () => {
-            return { acknowledge: 'acknowledged' }
-          }}
-          onCancel={() => {
-            console.log('Cancel clicked')
-          }}
-          data-testid="change-employee-address-review"
-        >
-          <ReviewRows
-            rows={isDeleteMode ? rows.map(r => ({ ...r, newValue: '' })) : rows}
-            dataTestIdPrefix="change-employee-address-review-row"
-            oldDataText={getTranslationFromI18nKeyAndLabel('lowcoder:review_forms.old_data_text', 'Old Data')}
-            currentDataText={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:review_forms.current_data_text',
-              'Current Data'
-            )}
-            mode={isDeleteMode ? 'delete' : 'diff'}
-          />
-          {isDeleteMode ? (
-            <Alert
-              variant="destructive"
-              className="gba:mt-2 gba:w-full gba:whitespace-nowrap gba:border-destructive gba:text-destructive gba:border gba:border-error-ring gba:rounded-md"
-              data-testid="change-employee-address-review-delete-alert"
-            >
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:review_forms.delete_address_text',
-                'The selected address was deleted by the employee.'
-              )}
-            </Alert>
-          ) : null}
-        </AppActionForm>
+        <Spinner size="lg" />
       </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <Alert variant="destructive" data-testid="change-employee-address-review-error">
+        <AlertTitle>Error Loading Address Data</AlertTitle>
+        <AlertDescription>
+          {error}
+          <button
+            onClick={refetch}
+            className="gba:mt-2 gba:px-3 gba:py-1 gba:bg-destructive gba:text-destructive-foreground gba:rounded gba:text-sm"
+          >
+            Retry
+          </button>
+        </AlertDescription>
+      </Alert>
+    )
+  }
+
+  // Helper functions
+  const getCatalogValue = (ref?: string | null): string => {
+    if (!ref) return 'N/A'
+    const entry = catalogMap[ref]
+    if (!entry) return ref.split(':').pop() || ref
+
+    // Use translation if available, otherwise use default value
+    return entry.translations?.[0]?.value || entry.value || entry.code || ref
+  }
+
+  const getCountryCode = (ref?: string | null): string => {
+    return ref?.split(':').pop() || ''
+  }
+
+  const getPostalLabel = (countryRef?: string | null): string => {
+    return getCountryCode(countryRef) === 'US' ? 'ZIP Code' : 'Postal Code'
+  }
+
+  const getRegionLabel = (countryRef?: string | null): string => {
+    const cc = getCountryCode(countryRef)
+    if (cc === 'US') return 'State'
+    if (cc === 'RO') return 'County'
+    return 'Region'
+  }
+
+  const shouldShowRegion = (countryRef?: string | null): boolean => {
+    const cc = getCountryCode(countryRef)
+    return cc === 'DE' || cc === 'US' || cc === 'RO'
+  }
+
+  // Get badge variant based on change mode
+  const getChangeModeBadgeVariant = (): 'success' | 'destructive' | 'info' => {
+    if (isInsertMode) return 'success'
+    if (isDeleteMode) return 'destructive'
+    return 'info'
+  }
+
+  // Get badge label based on change mode
+  const getChangeModeBadgeLabel = (): string => {
+    if (isInsertMode) return 'New Address'
+    if (isDeleteMode) return 'Delete Address'
+    return 'Address Update'
+  }
+
+  // Get alert message based on change mode and state
+  const getAlertMessage = (): string => {
+    if (isInsertMode) {
+      return 'This is a new address being added to the employee record.'
+    }
+    if (isDeleteMode) {
+      return 'The selected address was deleted by the employee.'
+    }
+    if (hasOldAddress && changesCount > 0) {
+      return `This is an update with ${changesCount} ${changesCount === 1 ? 'change' : 'changes'} to the existing address. Changed fields are highlighted below.`
+    }
+    return 'This is an update to an existing address in the employee record.'
+  }
+
+  // Get card title based on change mode
+  const getCardTitle = (): string => {
+    if (isInsertMode) return 'New Address Details'
+    if (isDeleteMode) return 'Deleted Address'
+    return 'Address Changes'
+  }
+
+  // Field comparison
+  interface FieldComparison {
+    changed: boolean
+    oldValue: string
+    newValue: string
+  }
+
+  const compareField = (newVal: any, oldVal: any, formatter?: (val: any) => string): FieldComparison => {
+    const format = formatter || ((v: any) => String(v || 'N/A'))
+    const newFormatted = format(newVal)
+    const oldFormatted = format(oldVal)
+
+    return {
+      changed: newFormatted !== oldFormatted,
+      oldValue: oldFormatted,
+      newValue: newFormatted
+    }
+  }
+
+  const displayName = employeeData
+    ? `${employeeData.firstName || ''} ${employeeData.lastName || ''}`.trim() || 'Employee'
+    : 'Employee'
+
+  // Render comparison field - Show ONLY changed fields with old → new
+  const renderComparisonField = (label: string, comparison: FieldComparison, icon?: React.ReactNode) => {
+    // Only show changed fields
+    if (!comparison.changed) return null
+
+    const isNewAddress = !hasOldAddress || isInsertMode
+    // Display "Not set" if old value was empty/null/N/A
+    const displayOldValue = comparison.oldValue === 'N/A' || !comparison.oldValue ? 'Not set' : comparison.oldValue
+
+    return (
+      <div className="gba:space-y-2">
+        <Label className="gba:text-muted-foreground gba:flex gba:items-center gba:gap-2">
+          {icon}
+          {label}
+          <Badge variant={isNewAddress ? 'success' : 'warning'} className="gba:ml-2">
+            {isNewAddress ? 'New' : 'Changed'}
+          </Badge>
+        </Label>
+
+        {/* Always show old → new for changed fields */}
+        <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
+          {!isNewAddress && (
+            <>
+              <div className="gba:px-3 gba:py-2 gba:bg-destructive/10 gba:text-destructive gba:rounded gba:text-sm gba:line-through">
+                {displayOldValue}
+              </div>
+              <ArrowRight className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+            </>
+          )}
+          <div className="gba:px-3 gba:py-2 gba:bg-success/10 gba:text-success gba:rounded gba:text-sm gba:font-medium">
+            {comparison.newValue}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Render unchanged field - Show current value for unchanged fields
+  const renderUnchangedField = (label: string, value: string, icon?: React.ReactNode) => {
+    // Skip empty values
+    if (!value || value === 'N/A') return null
+
+    return (
+      <div className="gba:space-y-2">
+        <Label className="gba:text-muted-foreground gba:flex gba:items-center gba:gap-2">
+          {icon}
+          {label}
+        </Label>
+        <div className="gba:px-3 gba:py-2 gba:bg-muted gba:rounded gba:text-sm">{value}</div>
+      </div>
+    )
+  }
+
+  return (
+    <TaskFormLayout
+      data-testid="change-employee-address-review-container"
+      header={
+        <TaskDetailHeader
+          title={taskTitle}
+          status={taskStatus}
+          source={taskSource}
+          showEmployeeInfo={true}
+          employeeData={
+            employeeData
+              ? {
+                  displayName,
+                  firstName: employeeData.firstName,
+                  lastName: employeeData.lastName,
+                  avatarUrl: employeeData.pictureThumbnail
+                    ? `data:image/jpeg;base64,${employeeData.pictureThumbnail}`
+                    : undefined,
+                  position: employeeData.employeePosition?.jobPosition?.name
+                }
+              : undefined
+          }
+          isLoadingEmployee={loading}
+          creatorName={creatorName}
+          onClose={isEveryBoxContext ? handleClose : undefined}
+          customBadges={
+            <Badge variant={getChangeModeBadgeVariant()} data-testid="address-change-mode-badge">
+              {getChangeModeBadgeLabel()}
+            </Badge>
+          }
+        />
+      }
+      footer={
+        !isTaskCompleted ? (
+          <TaskDetailFooter
+            data-testid="change-employee-address-review-actions"
+            actions={[
+              {
+                label: 'Acknowledge',
+                onClick: handleAcknowledge,
+                variant: 'default' as const,
+                disabled: isAcknowledging,
+                loading: isAcknowledging,
+                icon: CheckCircle,
+                className: 'gba:bg-success gba:text-success-foreground hover:gba:bg-success/90',
+                testId: 'acknowledge-button'
+              }
+            ]}
+          />
+        ) : undefined
+      }
+      contentClassName="gba:space-y-4"
+    >
+      {/* Change Mode Alert */}
+      <Alert variant={isDeleteMode ? 'destructive' : 'default'}>
+        <FileText className="gba:h-4 gba:w-4" />
+        <AlertDescription>{getAlertMessage()}</AlertDescription>
+      </Alert>
+
+      {/* Address Comparison Card */}
+      <Card>
+        <CardHeader>
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-lg">
+              <Home className="gba:h-5 gba:w-5" />
+              {getCardTitle()}
+            </CardTitle>
+            {hasOldAddress && changesCount > 0 && !isDeleteMode && (
+              <Badge variant="warning">
+                {changesCount} {changesCount === 1 ? 'Change' : 'Changes'}
+              </Badge>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="gba:space-y-4">
+          {/* Address Lines */}
+          {[0, 1, 2, 3].map(i => {
+            const oldLine = String((oldAddress.addressLine || [])[i] || '').trim()
+            const newLine = String((newAddress.addressLine || [])[i] || '').trim()
+            if (i === 0 || oldLine || newLine) {
+              return (
+                <React.Fragment key={`address-line-${i}`}>
+                  {renderComparisonField(
+                    `Address Line ${i + 1}`,
+                    compareField(newLine, oldLine),
+                    <MapPin className="gba:h-4 gba:w-4" />
+                  )}
+                </React.Fragment>
+              )
+            }
+            return null
+          })}
+
+          <Separator />
+
+          {/* Postal Code */}
+          {renderComparisonField(
+            getPostalLabel(newAddress.countryRef),
+            compareField(newAddress.postalCode, oldAddress.postalCode)
+          )}
+
+          {/* City */}
+          {renderComparisonField(
+            'City',
+            compareField(newAddress.locality, oldAddress.locality),
+            <Landmark className="gba:h-4 gba:w-4" />
+          )}
+
+          {/* Region - Only show if country requires it */}
+          {(shouldShowRegion(newAddress.countryRef) || shouldShowRegion(oldAddress.countryRef)) &&
+            renderComparisonField(
+              getRegionLabel(newAddress.countryRef),
+              compareField(newAddress.regionRef, oldAddress.regionRef, getCatalogValue)
+            )}
+
+          {/* Country */}
+          {renderComparisonField(
+            'Country',
+            compareField(newAddress.countryRef, oldAddress.countryRef, getCatalogValue),
+            <Globe className="gba:h-4 gba:w-4" />
+          )}
+
+          {/* PO Box - only if present */}
+          {(newAddress.poBox || oldAddress.poBox) &&
+            renderComparisonField(
+              'PO Box',
+              compareField(String(newAddress.poBox || false), String(oldAddress.poBox || false))
+            )}
+
+          {/* Notes - only if present */}
+          {(newAddress.notes?.trim() || oldAddress.notes?.trim()) && (
+            <>
+              <Separator />
+              {renderComparisonField('Notes', compareField(newAddress.notes, oldAddress.notes))}
+            </>
+          )}
+
+          {/* Document - only if present */}
+          {(newAddress.employeeDocument || oldAddress.employeeDocument) && (
+            <>
+              <Separator />
+              {renderComparisonField(
+                'Attachment',
+                compareField(
+                  docNameMap[String(newAddress.employeeDocument)] ||
+                    (newAddress.employeeDocument ? 'New Attachment' : ''),
+                  docNameMap[String(oldAddress.employeeDocument)] ||
+                    (oldAddress.employeeDocument ? 'Old Attachment' : '')
+                )
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Unchanged Fields - Collapsible Section */}
+      {!isInsertMode && hasOldAddress && (
+        <Card>
+          <Collapsible open={isUnchangedExpanded} onOpenChange={setIsUnchangedExpanded}>
+            <CollapsibleTrigger asChild>
+              <CardHeader className="gba:cursor-pointer hover:gba:bg-muted/50 gba:transition-colors">
+                <div className="gba:flex gba:items-center gba:justify-between">
+                  <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-lg">
+                    <Home className="gba:h-5 gba:w-5" />
+                    All Other Fields
+                    <Badge variant="secondary" className="gba:ml-2">
+                      Unchanged
+                    </Badge>
+                  </CardTitle>
+                  <ChevronDown
+                    className={`gba:h-5 gba:w-5 gba:transition-transform ${
+                      isUnchangedExpanded ? 'gba:rotate-180' : ''
+                    }`}
+                  />
+                </div>
+              </CardHeader>
+            </CollapsibleTrigger>
+
+            <CollapsibleContent>
+              <CardContent className="gba:space-y-4 gba:pt-0">
+                {/* Address Lines */}
+                {[0, 1, 2, 3].map(i => {
+                  const oldLine = String((oldAddress.addressLine || [])[i] || '').trim()
+                  const newLine = String((newAddress.addressLine || [])[i] || '').trim()
+                  const comparison = compareField(newLine, oldLine)
+
+                  // Only show if field exists and is NOT changed
+                  if ((i === 0 || oldLine || newLine) && !comparison.changed) {
+                    return (
+                      <React.Fragment key={`unchanged-address-line-${i}`}>
+                        {renderUnchangedField(
+                          `Address Line ${i + 1}`,
+                          newLine || 'Not set',
+                          <MapPin className="gba:h-4 gba:w-4" />
+                        )}
+                      </React.Fragment>
+                    )
+                  }
+                  return null
+                })}
+
+                <Separator />
+
+                {/* Postal Code */}
+                {(() => {
+                  const comparison = compareField(newAddress.postalCode, oldAddress.postalCode)
+                  return (
+                    !comparison.changed &&
+                    renderUnchangedField(getPostalLabel(newAddress.countryRef), comparison.newValue)
+                  )
+                })()}
+
+                {/* City */}
+                {(() => {
+                  const comparison = compareField(newAddress.locality, oldAddress.locality)
+                  return (
+                    !comparison.changed &&
+                    renderUnchangedField('City', comparison.newValue, <Landmark className="gba:h-4 gba:w-4" />)
+                  )
+                })()}
+
+                {/* Region - Only if country requires it */}
+                {(shouldShowRegion(newAddress.countryRef) || shouldShowRegion(oldAddress.countryRef)) &&
+                  (() => {
+                    const comparison = compareField(newAddress.regionRef, oldAddress.regionRef, getCatalogValue)
+                    return (
+                      !comparison.changed &&
+                      renderUnchangedField(getRegionLabel(newAddress.countryRef), comparison.newValue)
+                    )
+                  })()}
+
+                {/* Country */}
+                {(() => {
+                  const comparison = compareField(newAddress.countryRef, oldAddress.countryRef, getCatalogValue)
+                  return (
+                    !comparison.changed &&
+                    renderUnchangedField('Country', comparison.newValue, <Globe className="gba:h-4 gba:w-4" />)
+                  )
+                })()}
+
+                {/* PO Box */}
+                {(newAddress.poBox || oldAddress.poBox) &&
+                  (() => {
+                    const comparison = compareField(
+                      String(newAddress.poBox || false),
+                      String(oldAddress.poBox || false)
+                    )
+                    return !comparison.changed && renderUnchangedField('PO Box', comparison.newValue)
+                  })()}
+
+                {/* Notes */}
+                {(newAddress.notes?.trim() || oldAddress.notes?.trim()) &&
+                  (() => {
+                    const comparison = compareField(newAddress.notes, oldAddress.notes)
+                    if (!comparison.changed) {
+                      return (
+                        <>
+                          <Separator />
+                          {renderUnchangedField('Notes', comparison.newValue)}
+                        </>
+                      )
+                    }
+                    return null
+                  })()}
+
+                {/* Document */}
+                {(newAddress.employeeDocument || oldAddress.employeeDocument) &&
+                  (() => {
+                    const comparison = compareField(
+                      docNameMap[String(newAddress.employeeDocument)] ||
+                        (newAddress.employeeDocument ? 'New Attachment' : ''),
+                      docNameMap[String(oldAddress.employeeDocument)] ||
+                        (oldAddress.employeeDocument ? 'Old Attachment' : '')
+                    )
+                    if (!comparison.changed) {
+                      return (
+                        <>
+                          <Separator />
+                          {renderUnchangedField('Attachment', comparison.newValue)}
+                        </>
+                      )
+                    }
+                    return null
+                  })()}
+              </CardContent>
+            </CollapsibleContent>
+          </Collapsible>
+        </Card>
+      )}
+    </TaskFormLayout>
+  )
+}
+
+const ChangeEmployeeAddressReview: React.FC<ChangeEmployeeAddressReviewProps> = props => {
+  const { accessToken, additionalData, userInfo, onClose } = props
+
+  // Fallback additional data for testing
+  const fallbackAdditionalData = additionalData || {
+    psi_taskPayload: {
+      address: {},
+      oldAddressData: {}
+    }
+  }
+
+  return (
+    <div className="gba:h-full" data-testid="change-employee-address-review-wrapper">
+      <ChangeEmployeeAddressReviewContent
+        accessToken={accessToken}
+        additionalData={fallbackAdditionalData}
+        userInfo={userInfo}
+        onClose={onClose}
+      />
     </div>
   )
 }

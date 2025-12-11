@@ -21,7 +21,6 @@ export interface AccountStatisticsData {
   // Customer Relations format
   recentAccounts?: TrendData
   activeAccounts?: TrendData
-  revenue?: TrendData
   accountsThisYear?: TrendData
   // Investment Relations format
   totalAccounts?: TrendData
@@ -41,17 +40,7 @@ export const AccountStatisticsLayout: React.FC<AccountStatisticsLayoutProps> = (
   variant = 'customer',
   'data-testid': dataTestId = 'account-statistics'
 }) => {
-  const { recentAccounts, activeAccounts, revenue, accountsThisYear, totalAccounts, isLoading, error, refetch } =
-    statistics
-
-  const formatCurrency = (amount: number): string => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      notation: 'compact',
-      maximumFractionDigits: 1
-    }).format(amount)
-  }
+  const { recentAccounts, activeAccounts, accountsThisYear, totalAccounts, isLoading, error, refetch } = statistics
 
   const formatTrendPercent = (changePercent: number): string => {
     const sign = changePercent >= 0 ? '+' : ''
@@ -135,31 +124,30 @@ export const AccountStatisticsLayout: React.FC<AccountStatisticsLayoutProps> = (
       trend: createTrend(activeAccounts, 'vs last month')
     },
     {
-      key: 'total-revenue',
-      title: 'Total Revenue',
-      value: revenue ? formatCurrency(revenue.current) : '0',
-      prefix: <DollarOutlined />,
-      color: '#fa8c16',
-      valueIsString: true,
-      span: { xs: 24, sm: 12, lg: 6 },
-      description: 'Estimated total',
-      trend: createTrend(revenue, 'vs last quarter')
-    },
-    {
       key: 'this-year',
       title: 'This Year',
       value: accountsThisYear?.current || 0,
       prefix: <TrophyOutlined />,
-      color: '#eb2f96',
+      color: '#fa8c16',
       span: { xs: 24, sm: 12, lg: 6 },
       description: 'New accounts',
       trend: createTrend(accountsThisYear, 'vs same period last year')
+    },
+    {
+      key: 'total-accounts',
+      title: 'Total Accounts',
+      value: totalAccounts?.current || 0,
+      prefix: <DollarOutlined />,
+      color: '#722ed1',
+      span: { xs: 24, sm: 12, lg: 6 },
+      description: 'All accounts',
+      trend: createTrend(totalAccounts, 'vs previous 30 days')
     }
   ]
 
   const widgets: WidgetItem[] = useMemo(() => {
     return variant === 'investment' ? createInvestmentWidgets() : createCustomerWidgets()
-  }, [variant, recentAccounts, activeAccounts, revenue, accountsThisYear, totalAccounts])
+  }, [variant, recentAccounts, activeAccounts, accountsThisYear, totalAccounts])
 
   return (
     <div data-testid={`${dataTestId}-container`}>

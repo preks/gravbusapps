@@ -2,7 +2,7 @@ import React from 'react'
 import { HomeOutlined, BarChartOutlined, DollarOutlined, BuildOutlined } from '@ant-design/icons'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { formatNumber, formatPercentage } from '@/common/data/investment'
+import { formatNumber, formatPercentage } from '@/common/data/investment/utils/formatters'
 import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
 
 interface RealEstateKPICardsProps {
@@ -38,10 +38,7 @@ export const RealEstateKPICards: React.FC<RealEstateKPICardsProps> = ({ kpis, pr
       color: 'var(--nw-color-success-500)',
       valueIsString: true,
       span: { xs: 24, sm: 12, lg: 6 },
-      description: getTranslationFromI18nKeyAndLabel(
-        'kpi.averageOccupancyRate.description',
-        'Average occupancy across all properties'
-      )
+      description: getTranslationFromI18nKeyAndLabel('kpi.averageOccupancyRate.description', 'Portfolio avg')
     },
     {
       key: 'total-units',
@@ -51,7 +48,7 @@ export const RealEstateKPICards: React.FC<RealEstateKPICardsProps> = ({ kpis, pr
       color: 'var(--nw-color-primary-500)',
       valueIsString: true,
       span: { xs: 24, sm: 12, lg: 6 },
-      description: getTranslationFromI18nKeyAndLabel('kpi.totalUnits.description', 'Total number of property units')
+      description: getTranslationFromI18nKeyAndLabel('kpi.totalUnits.description', 'All units')
     },
     {
       key: 'total-annual-expenses',
@@ -61,10 +58,7 @@ export const RealEstateKPICards: React.FC<RealEstateKPICardsProps> = ({ kpis, pr
       color: 'var(--nw-color-purple-500)',
       valueIsString: true,
       span: { xs: 24, sm: 12, lg: 6 },
-      description: getTranslationFromI18nKeyAndLabel(
-        'kpi.totalAnnualExpenses.description',
-        'Total annual property expenses'
-      )
+      description: getTranslationFromI18nKeyAndLabel('kpi.totalAnnualExpenses.description', 'Annual total')
     }
   ]
 

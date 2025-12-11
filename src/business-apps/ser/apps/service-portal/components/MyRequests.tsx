@@ -143,7 +143,17 @@ const RequestTimeline: React.FC<RequestTimelineProps> = ({ request: initialReque
   })
 
   // Fetch flow summary for completed requests
-  const isCompleted = request.status === 'completed'
+  // Check for completed status case-insensitively to handle API variations
+  const isCompleted = request.status?.toLowerCase() === 'completed'
+
+  // Enhanced logging for debugging status checks
+  console.log(`[RequestTimeline] Status check for request ${request.id}:`, {
+    rawStatus: request.status,
+    normalizedStatus: request.status?.toLowerCase(),
+    isCompleted,
+    willFetchSummary: isCompleted
+  })
+
   const {
     summaryData,
     isLoading: isSummaryLoading,
@@ -1007,15 +1017,19 @@ export const MyRequests: React.FC<MyRequestsProps> = ({ workflowEngine, onBack, 
       requests.map(r => ({ id: r.id, status: r.status }))
     )
 
-    // Check for request status values
-    const activeRequests = requests.filter(r => r.status === 'open' || r.status === 'in_progress').length
+    // Check for request status values (case-insensitive to handle API variations)
+    const activeRequests = requests.filter(
+      r => r.status?.toLowerCase() === 'open' || r.status?.toLowerCase() === 'in_progress'
+    ).length
 
-    const completedRequests = requests.filter(r => r.status === 'completed').length
+    const completedRequests = requests.filter(r => r.status?.toLowerCase() === 'completed').length
 
-    const rejectedRequests = requests.filter(r => r.status === 'canceled').length
+    const rejectedRequests = requests.filter(r => r.status?.toLowerCase() === 'canceled').length
 
     // Calculate average progress percentage for active requests
-    const activeRequestsWithProgress = requests.filter(r => r.status === 'open' || r.status === 'in_progress')
+    const activeRequestsWithProgress = requests.filter(
+      r => r.status?.toLowerCase() === 'open' || r.status?.toLowerCase() === 'in_progress'
+    )
 
     console.log(
       '[MyRequests] Debug - Active requests with progress:',
@@ -1049,7 +1063,7 @@ export const MyRequests: React.FC<MyRequestsProps> = ({ workflowEngine, onBack, 
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
 
     const longRunningRequests = requests.filter(r => {
-      const isActive = r.status === 'open' || r.status === 'in_progress'
+      const isActive = r.status?.toLowerCase() === 'open' || r.status?.toLowerCase() === 'in_progress'
 
       if (!isActive) return false
 
@@ -1321,7 +1335,7 @@ export const MyRequests: React.FC<MyRequestsProps> = ({ workflowEngine, onBack, 
             data-testid="back-button"
           >
             <ArrowLeftIcon className="gba:mr-2" />
-            <span>Back to Catalog</span>
+            <span>Back to Portal</span>
           </button>
         </div>
 
@@ -1359,7 +1373,7 @@ export const MyRequests: React.FC<MyRequestsProps> = ({ workflowEngine, onBack, 
           data-testid="back-button"
         >
           <ArrowLeftIcon className="gba:mr-2" />
-          <span>Back to Catalog</span>
+          <span>Back to Portal</span>
         </button>
       </div>
 

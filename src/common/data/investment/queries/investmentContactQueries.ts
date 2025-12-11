@@ -91,8 +91,7 @@ export const buildInvestmentContactQuery = (
  * Build Investment Contact by ID query
  */
 export const buildInvestmentContactByIdQuery = (
-  fields: typeof InvestmentContactFields = InvestmentContactFields,
-  id: string
+  fields: typeof InvestmentContactFields = InvestmentContactFields
 ): string => {
   // Build relation builders and fields for common relations
   const relationBuilders: ContactRelationBuilders = {
@@ -128,7 +127,7 @@ export const buildInvestmentContactByIdQuery = (
     }
   `
 
-  return buildContactByIdQuery('InvestmentContact', id, fields, relationBuilders, relationFields, entityFields)
+  return buildContactByIdQuery('InvestmentContact', fields, relationBuilders, relationFields, entityFields)
 }
 
 /**

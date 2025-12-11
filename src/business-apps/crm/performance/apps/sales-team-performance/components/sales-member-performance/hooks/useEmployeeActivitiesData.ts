@@ -1,11 +1,14 @@
-import { useState, useCallback } from 'react'
-import { SalesActivity, ActivityEntityType } from '../types/activitiesTypes'
+import { useState, useCallback, useEffect } from 'react'
 import {
-  useEmployeeActivitiesQueries,
-  EmployeeActivitiesQueryVariables,
-  EmployeeActivity
+  buildEmployeeActivitiesQuery,
+  type EmployeeActivity,
+  type EmployeeActivitiesResponse
 } from '../queries/EmployeeActivitiesQueries'
 import { enforceQueryLimit } from '@/business-apps/crm/common/utils/queryLimits'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+
+// Re-export EmployeeActivity type for use in other files
+export type { EmployeeActivity } from '../queries/EmployeeActivitiesQueries'
 
 // Global cache for activity scores - once calculated, never changes
 const ACTIVITY_SCORE_CACHE = new Map<string, number>()
@@ -82,251 +85,189 @@ export const getCachedActivityScore = (activityId: string, createdAt: string): n
   return score
 }
 
-// Transform API activity data to component format
-const transformActivityData = (apiActivity: EmployeeActivity): SalesActivity => {
-  // Determine entity type and name from the activity's relationships
-  let entityType: ActivityEntityType = 'Contact'
-  let entityId = ''
-  let entityName = ''
-
-  if (apiActivity.contactId && apiActivity.contact) {
-    entityType = 'Contact'
-    entityId = apiActivity.contactId
-    entityName = `${apiActivity.contact.firstName || ''} ${apiActivity.contact.lastName || ''}`.trim()
-  } else if (apiActivity.leadId && apiActivity.lead) {
-    entityType = 'Lead'
-    entityId = apiActivity.leadId
-    entityName =
-      apiActivity.lead.name ||
-      `${apiActivity.lead.contact?.firstName || ''} ${apiActivity.lead.contact?.lastName || ''}`.trim()
-  } else if (apiActivity.opportunityId && apiActivity.opportunity) {
-    entityType = 'Opportunity'
-    entityId = apiActivity.opportunityId
-    entityName = apiActivity.opportunity.name || ''
-  } else if (apiActivity.accountId && apiActivity.account) {
-    entityType = 'Account'
-    entityId = apiActivity.accountId
-    entityName = apiActivity.account.name || ''
-  }
-
-  // Get cached activity score (calculated once and locked)
-  const activityId = apiActivity.id || 'unknown-activity'
-  const createdAtValue = apiActivity.createdAt || new Date().toISOString()
-  const activityScore = getCachedActivityScore(activityId, createdAtValue)
-
-  // Generate consistent occurred at date for display
-  const createdAt = new Date(createdAtValue)
-  const occurredAt = generateOccurredAt(createdAt, activityId)
-
-  return {
-    id: apiActivity.id || '',
-    title: apiActivity.title || apiActivity.description || 'Untitled Activity',
-    activityType: apiActivity.activityType || { value: 'Unknown' },
-    reference: {
-      entityType,
-      entityId,
-      entityName: entityName || 'Unknown'
-    },
-    occurredAt: occurredAt,
-    createdAt: createdAtValue,
-    activityScore: activityScore,
-    description: apiActivity.description,
-    ownerEmployee: {
-      id: apiActivity.ownerEmployeeId,
-      firstName: apiActivity.ownerEmployee?.fullName?.split(' ')[0] || '',
-      lastName: apiActivity.ownerEmployee?.fullName?.split(' ').slice(1).join(' ') || '',
-      displayName: apiActivity.ownerEmployee?.fullName || ''
-    },
-    type: apiActivity.activityType?.value || 'Unknown',
-    source: apiActivity.activityType?.value || 'Unknown'
-  }
-}
-
 interface UseEmployeeActivitiesDataProps {
   employeeId: string
-  search?: string
-  sortField?: string
-  sortOrder?: 'ASC' | 'DESC'
   accessToken: string
+  queryVariables: any
 }
 
 interface UseEmployeeActivitiesDataReturn {
-  activities: SalesActivity[]
-  total: number
+  activities: EmployeeActivity[]
+  totalCount: number
   loading: boolean
   error: Error | null
-  hasMore: boolean
-  loadMore: () => void
-  loadPage: (page: number, pageSize?: number, additionalFilters?: any) => Promise<void>
-  retry: () => void
+  refetch: () => void
 }
 
 export const useEmployeeActivitiesData = ({
   employeeId,
-  search = '',
-  sortField = 'createdAt',
-  sortOrder = 'DESC',
-  accessToken
+  accessToken,
+  queryVariables
 }: UseEmployeeActivitiesDataProps): UseEmployeeActivitiesDataReturn => {
-  const [activities, setActivities] = useState<SalesActivity[]>([])
-  const [total, setTotal] = useState(0)
+  const [activities, setActivities] = useState<EmployeeActivity[]>([])
+  const [totalCount, setTotalCount] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
-  const [hasMore, setHasMore] = useState(true)
 
-  const { fetchEmployeeActivities } = useEmployeeActivitiesQueries({
-    accessToken,
-    userInfo: undefined,
-    additionalData: undefined
-  })
+  const graphqlClient = useGraphQLClient(accessToken)
 
-  const loadPage = useCallback(
-    async (targetPage: number, newPageSize: number = pageSize, additionalFilters: any = {}) => {
-      if (!employeeId) {
-        setError(new Error('Employee ID is required'))
-        return
+  // Build orderBy clause as string to avoid enum serialization issues
+  const buildOrderByClause = useCallback((vars: any): string => {
+    if (vars.orderBy && vars.orderBy.length > 0) {
+      // Convert from DataTable format to GraphQL format
+      const orderByItem = vars.orderBy[0]
+      const field = orderByItem.field || 'createdAt'
+      const direction = orderByItem.direction || 'DESC_NULLS_LAST'
+
+      // Keep the full direction including NULLS_LAST or NULLS_FIRST
+      // GraphQL enum values: ASC, DESC, ASC_NULLS_FIRST, ASC_NULLS_LAST, DESC_NULLS_FIRST, DESC_NULLS_LAST
+      const graphqlDirection = direction
+
+      // Handle nested fields (e.g., 'activityType.value', 'ownerEmployee.fullName')
+      if (field.includes('.')) {
+        const [parent, child] = field.split('.')
+        return `orderBy: [{ ${parent}: { ${child}: ${graphqlDirection} } }]`
       }
 
-      setLoading(true)
-      setError(null)
+      return `orderBy: [{ ${field}: ${graphqlDirection} }]`
+    }
 
-      try {
-        // Enforce query limit to ensure optimal performance
-        const safePageSize = enforceQueryLimit(newPageSize)
-        const offset = (targetPage - 1) * safePageSize
+    // Default orderBy with nulls last
+    return 'orderBy: [{ createdAt: DESC_NULLS_LAST }]'
+  }, [])
 
-        // Build where clause for additional filters
-        const conditions: any[] = []
+  // Helper: Build search conditions
+  const buildSearchConditions = useCallback((search: string) => {
+    return {
+      _or: [
+        { title: { _ilike: `%${search}%` } },
+        { activityType: { value: { _ilike: `%${search}%` } } },
+        { contact: { firstName: { _ilike: `%${search}%` } } },
+        { contact: { lastName: { _ilike: `%${search}%` } } },
+        { lead: { name: { _ilike: `%${search}%` } } },
+        { account: { name: { _ilike: `%${search}%` } } },
+        { opportunity: { name: { _ilike: `%${search}%` } } }
+      ]
+    }
+  }, [])
 
-        // Add search conditions
-        if (search) {
-          const searchConditions = [
-            { title: { _ilike: `%${search}%` } },
-            { activityType: { value: { _ilike: `%${search}%` } } },
-            { contact: { firstName: { _ilike: `%${search}%` } } },
-            { contact: { lastName: { _ilike: `%${search}%` } } },
-            { lead: { name: { _ilike: `%${search}%` } } },
-            { account: { name: { _ilike: `%${search}%` } } },
-            { opportunity: { name: { _ilike: `%${search}%` } } }
-          ]
-          conditions.push({ _or: searchConditions })
-        }
+  // Helper: Build reference type conditions
+  const buildReferenceTypeConditions = useCallback((referenceTypes: string[]) => {
+    const referenceConditions: any[] = []
+    if (referenceTypes.includes('account')) referenceConditions.push({ accountId: { _isNull: false } })
+    if (referenceTypes.includes('contact')) referenceConditions.push({ contactId: { _isNull: false } })
+    if (referenceTypes.includes('lead')) referenceConditions.push({ leadId: { _isNull: false } })
+    if (referenceTypes.includes('opportunity')) referenceConditions.push({ opportunityId: { _isNull: false } })
+    return referenceConditions.length > 0 ? { _or: referenceConditions } : null
+  }, [])
 
-        // Add additional filters
-        if (Object.keys(additionalFilters).length > 0) {
-          conditions.push(additionalFilters)
-        }
+  // Helper: Build date range conditions
+  const buildDateRangeConditions = useCallback((vars: any) => {
+    const conditions: any[] = []
+    if (vars.createdAtFrom) conditions.push({ createdAt: { _gte: vars.createdAtFrom } })
+    if (vars.createdAtTo) conditions.push({ createdAt: { _lte: vars.createdAtTo } })
+    if (vars.occurredAtFrom) conditions.push({ occurredAt: { _gte: vars.occurredAtFrom } })
+    if (vars.occurredAtTo) conditions.push({ occurredAt: { _lte: vars.occurredAtTo } })
+    return conditions
+  }, [])
 
-        const where =
-          conditions.length === 0
-            ? undefined
-            : {
-                _and: conditions
-              }
+  // Build where clause from query variables (stable function)
+  const buildWhereClause = useCallback(
+    (vars: any) => {
+      const conditions: any[] = []
 
-        // Build orderBy based on sortField and sortOrder
-        const orderBy: any = {}
-
-        if (sortField && sortField !== '') {
-          switch (sortField) {
-            case 'title':
-              orderBy.title = sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST'
-              break
-            case 'type':
-              // Sort by nested activityType.value field
-              orderBy.activityType = {
-                value: sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST'
-              }
-              break
-            case 'occurredAt':
-            case 'createdAt':
-              orderBy.createdAt = sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST'
-              break
-            case 'activityScore':
-              // Activity score is computed, so sort by createdAt and handle locally after transformation
-              orderBy.createdAt = sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST'
-              break
-            default:
-              orderBy.createdAt = 'DESC_NULLS_LAST'
-          }
-        } else {
-          // No sorting - use natural order (by createdAt)
-          orderBy.createdAt = 'DESC_NULLS_LAST'
-        }
-
-        const variables: EmployeeActivitiesQueryVariables = {
-          employeeId,
-          // userId: userInfo?.id, // Remove this to only show activities for the selected employee
-          offset,
-          limit: safePageSize,
-          orderBy: [orderBy],
-          where
-        }
-
-        const result = await fetchEmployeeActivities(variables)
-
-        // Debug logging for activity loading
-
-        // Filter out activities with null createdAt before transformation
-        // const validActivities = (result.SalesActivity || []).filter(
-        //   (activity) => activity.createdAt !== null
-        // );
-
-        // // Transform API data to component format
-        // let transformedActivities = validActivities.map(transformActivityData);
-
-        // // Handle local sorting for computed fields
-        // if (sortField === "activityScore") {
-        //   transformedActivities.sort((a, b) => {
-        //     const aScore = a.activityScore;
-        //     const bScore = b.activityScore;
-
-        //     if (sortOrder === "ASC") {
-        //       return aScore - bScore;
-        //     } else {
-        //       return bScore - aScore;
-        //     }
-        //   });
-        // }
-
-        // Transform the activities using the helper function
-        const transformedActivities = (result?.SalesActivity || []).map(transformActivityData)
-        setActivities(transformedActivities)
-        // Use the filtered count for accurate pagination
-        setTotal(result.SalesActivityAggregate.aggregate.count)
-        setCurrentPage(targetPage)
-        setPageSize(safePageSize)
-        setHasMore(result.SalesActivityAggregate.aggregate.count === safePageSize)
-      } catch (err) {
-        setError(err instanceof Error ? err : new Error('Failed to load employee activities'))
-        setActivities([])
-        setTotal(0)
-      } finally {
-        setLoading(false)
+      // Add search conditions
+      if (vars.search) {
+        conditions.push(buildSearchConditions(vars.search))
       }
+
+      // Add activity type filter
+      if (vars.activityTypeRef && vars.activityTypeRef.length > 0) {
+        conditions.push({ activityType: { id: { _in: vars.activityTypeRef } } })
+      }
+
+      // Add reference type filter
+      if (vars.referenceType && vars.referenceType.length > 0) {
+        const refCondition = buildReferenceTypeConditions(vars.referenceType)
+        if (refCondition) {
+          conditions.push(refCondition)
+        }
+      }
+
+      // Add date range conditions
+      conditions.push(...buildDateRangeConditions(vars))
+
+      return conditions.length === 0 ? undefined : { _and: conditions }
     },
-    [employeeId, fetchEmployeeActivities, search, pageSize, sortField, sortOrder]
+    [buildSearchConditions, buildReferenceTypeConditions, buildDateRangeConditions]
   )
 
-  const loadMore = useCallback(() => {
-    if (!hasMore || loading) return
-    loadPage(currentPage + 1)
-  }, [hasMore, loading, currentPage, loadPage])
+  // Stabilize queryVariables to prevent infinite loops (stringify for stable reference)
+  const queryVariablesString = JSON.stringify(queryVariables || {})
 
-  const retry = useCallback(() => {
-    loadPage(currentPage)
-  }, [currentPage, loadPage])
+  // Load data function
+  const loadData = useCallback(async () => {
+    if (!employeeId) {
+      setError(new Error('Employee ID is required'))
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+
+    try {
+      // Parse back to object (with fallback to empty object)
+      const vars = queryVariablesString ? JSON.parse(queryVariablesString) : {}
+
+      // Build orderBy clause as string
+      const orderByClause = buildOrderByClause(vars)
+
+      // Build query with orderBy as part of the string (not a variable)
+      const query = buildEmployeeActivitiesQuery(orderByClause)
+
+      // Build where clause - always include employeeId filter
+      const baseWhere = {
+        _and: [{ ownerEmployeeId: { _eq: employeeId } }, { isDeleted: { _eq: false } }]
+      }
+
+      // Merge with additional where conditions
+      const additionalWhere = buildWhereClause(vars)
+      const where = additionalWhere ? { _and: [baseWhere, additionalWhere] } : baseWhere
+
+      // Execute GraphQL query
+      const result = await graphqlClient.request<EmployeeActivitiesResponse>(query, {
+        where,
+        offset: vars.offset || 0,
+        limit: enforceQueryLimit(vars.limit || 20)
+      })
+
+      // Return raw activities without transformation
+      setActivities(result?.SalesActivity || [])
+      setTotalCount(result.SalesActivityAggregate.aggregate.count)
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Failed to load employee activities'))
+      setActivities([])
+      setTotalCount(0)
+    } finally {
+      setLoading(false)
+    }
+  }, [employeeId, graphqlClient, queryVariablesString, buildOrderByClause, buildWhereClause])
+
+  // Load data when queryVariables change
+  useEffect(() => {
+    loadData()
+  }, [loadData])
+
+  // Stable refetch function
+  const refetch = useCallback(() => {
+    loadData()
+  }, [loadData])
 
   return {
     activities,
-    total,
+    totalCount,
     loading,
     error,
-    hasMore,
-    loadMore,
-    loadPage,
-    retry
+    refetch
   }
 }

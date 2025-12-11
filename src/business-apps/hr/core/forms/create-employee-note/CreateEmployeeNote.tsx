@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
@@ -8,6 +8,8 @@ import { useForm } from 'react-hook-form'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { Textarea, Label, FormItem, FormField, Button, Form } from '@newwork/nw-design-system'
 import { useEmployeeNoteApi } from '@/business-apps/hr/core/apps/employee-record/hooks/useEmployeeNoteApi'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { GET_EMPLOYEE_DETAILS } from './queries/getEmployeeDetails'
 
 interface CreateEmployeeNoteFormValues {
   notes: string
@@ -15,7 +17,15 @@ interface CreateEmployeeNoteFormValues {
 }
 
 const CreateEmployeeNoteContent: React.FC<BusinessAppContextProps> = (context: BusinessAppContextProps) => {
-  const { additionalData } = context
+  const { additionalData, accessToken } = context
+  const graphqlClient = useGraphQLClient(accessToken)
+  const [employee, setEmployee] = useState<{
+    firstName?: string
+    lastName?: string
+    pictureThumbnail?: string
+    jobTitle?: string
+  } | null>(null)
+
   const employeeId =
     additionalData?.employeeId ||
     additionalData?.psi_taskPayload?.employeeId ||
@@ -79,6 +89,25 @@ const CreateEmployeeNoteContent: React.FC<BusinessAppContextProps> = (context: B
       })
     }
   }, [isEditMode, existingNotes, employeeId, form])
+
+  useEffect(() => {
+    if (!accessToken || !employeeId) return
+    graphqlClient
+      .request(GET_EMPLOYEE_DETAILS, {
+        idEmployee: employeeId
+      })
+      .then((res: any) => {
+        setEmployee({
+          firstName: res?.EmployeeByPk?.firstName,
+          lastName: res?.EmployeeByPk?.lastName,
+          pictureThumbnail: res?.EmployeeByPk?.pictureThumbnail,
+          jobTitle: res?.EmployeePosition?.[0]?.jobPosition?.name
+        })
+      })
+      .catch(() => {
+        // Silently fail if employee details can't be fetched
+      })
+  }, [accessToken, employeeId, graphqlClient])
 
   const defaultValues: CreateEmployeeNoteFormValues = useMemo(
     () => ({
@@ -215,10 +244,23 @@ const CreateEmployeeNoteContent: React.FC<BusinessAppContextProps> = (context: B
       className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-full"
       data-testid="create-employee-note-container"
     >
-      <FormHeader title={title} flowIconUrl={flowIconUrl} className="gba:px-6" />
+      <FormHeader
+        title={title}
+        flowIconUrl={flowIconUrl}
+        employee={
+          employee
+            ? {
+                firstName: employee.firstName,
+                lastName: employee.lastName,
+                pictureThumbnail: employee.pictureThumbnail,
+                jobTitle: employee.jobTitle
+              }
+            : undefined
+        }
+      />
 
       <div
-        className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='create-employee-note-form']]:!py-0"
+        className="gba:flex gba:flex-col gba:[&>div[data-testid='create-employee-note-form']]:!py-0"
         data-testid="create-employee-note-form-content"
       >
         {isEditMode ? (

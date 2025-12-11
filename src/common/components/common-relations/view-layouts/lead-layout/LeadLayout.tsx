@@ -47,8 +47,6 @@ export interface LeadViewConfig<TLead extends Lead = Lead, TQueryVariables = any
 
   leadStatistics?: LeadStatisticsData
 
-  processCompletionEvents?: string[]
-
   rowActionsContextArray: FlowContextName[]
   buildRowActionsExternalContextData: (row: { original: TLead }) => Record<string, string>
 
@@ -189,24 +187,11 @@ function ConfigLeadLayout<TLead extends Lead = Lead, TQueryVariables = any>(
   // Process Completion Handlers
   const handleProcessComplete = useCallback(() => {
     loadData(false)
-  }, [loadData])
+    // Also refresh statistics when process completes
+    config.leadStatistics?.refetch?.()
+  }, [loadData, config.leadStatistics?.refetch])
 
   useProcessCompletion({ onSuccess: handleProcessComplete })
-
-  useEffect(() => {
-    const events = config.processCompletionEvents || ['taskCompletion', 'leadCompletion']
-    const handlers = events.map(eventName => {
-      const handler = () => handleProcessComplete()
-      globalThis.addEventListener(eventName, handler)
-      return { eventName, handler }
-    })
-
-    return () => {
-      for (const { eventName, handler } of handlers) {
-        globalThis.removeEventListener(eventName, handler)
-      }
-    }
-  }, [handleProcessComplete, config.processCompletionEvents])
 
   // Event Handlers
   const handleSearch = useCallback((value: string) => {
@@ -245,12 +230,16 @@ function ConfigLeadLayout<TLead extends Lead = Lead, TQueryVariables = any>(
   }, [availableColumns, visibleColumns.length])
 
   // Row actions - rendered internally
-  const rowActions = useMemo(
-    () => (row: { original: TLead }) => (
+  // Row actions - rendered internally (only if actions are configured)
+  const rowActions = useMemo(() => {
+    // Hide actions column if no actions are configured
+    if (!config.rowActionsContextArray || config.rowActionsContextArray.length === 0) {
+      return undefined
+    }
+    return (row: { original: TLead }) => (
       <LeadRowActions row={row} config={config} accessToken={context?.accessToken || ''} />
-    ),
-    [config, context?.accessToken]
-  )
+    )
+  }, [config, context?.accessToken])
 
   if (!context) {
     console.error('LeadLayout: context is required')

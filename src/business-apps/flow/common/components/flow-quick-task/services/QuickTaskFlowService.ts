@@ -16,6 +16,11 @@ export interface QuickTaskFlowData {
   dueDate?: string // ISO date string
   // Additional metadata
   priority?: 'low' | 'medium' | 'high'
+  // Entity reference (to be added to links)
+  entityType?: string
+  entityId?: string
+  entityName?: string
+  entityDisplayUrl?: string
 }
 
 export interface ExecuteQuickTaskOptions {
@@ -69,12 +74,29 @@ export class QuickTaskFlowService {
         downloadUrl = `/files/api/v1/tenant/downloads/quick-task/${fileInfo?.fileId}`
       }
 
-      return {
+      const link = {
         name: fileMetadata?.originalFileName || fileInfo?.fileName || 'Attachment',
         url: downloadUrl || `/files/api/v1/tenant/downloads/unknown`,
         type: `document:${fileInfo?.fileId || 'unknown'}` // Include fileId in type for reference
       }
+
+      return link
     })
+
+    // Add entity reference as a special link (if provided)
+    const allLinks: Link[] = [...documentLinks]
+    if (data.entityType && data.entityId && data.entityName && data.entityDisplayUrl) {
+      const entityLink: Link = {
+        name: data.entityName,
+        url: data.entityDisplayUrl,
+        type: `entity:${data.entityType}`,
+        metadata: {
+          entityType: data.entityType,
+          entityId: data.entityId
+        }
+      }
+      allLinks.push(entityLink)
+    }
 
     // Calculate due date/time
     const dueConfig = this.calculateDueConfig(data)
@@ -85,7 +107,7 @@ export class QuickTaskFlowService {
       title: data.title,
       message: data.message,
       form: [], // No form inputs - just a simple task to complete
-      links: documentLinks, // Add document links for reference
+      links: allLinks, // Add all links (documents + entity reference)
       assignment: data.assignments,
       ...dueConfig // Either dueInMinutes or dueDate
     }
@@ -112,23 +134,9 @@ export class QuickTaskFlowService {
    */
   private static calculateDueConfig(data: QuickTaskFlowData): { dueDate?: string; dueInMinutes?: number } {
     if (data.dueDate && data.dueDate.trim() !== '') {
-      // Validate YYYY-MM-DD format
-      const dateFormatRegex = /^\d{4}-\d{2}-\d{2}$/
-      if (!dateFormatRegex.test(data.dueDate)) {
-        const dueMinutes = this.calculateDueMinutes(data.priority || 'medium')
-        return { dueInMinutes: dueMinutes }
-      }
-
       // Convert YYYY-MM-DD to ISO date string with end of day time
-      const date = new Date(data.dueDate + 'T23:59:59.999Z')
-
-      // Validate the date is valid
-      if (isNaN(date.getTime())) {
-        const dueMinutes = this.calculateDueMinutes(data.priority || 'medium')
-        return { dueInMinutes: dueMinutes }
-      }
-
-      return { dueDate: date.toISOString() }
+      const formattedDueDate = new Date(data.dueDate + 'T23:59:59.999Z').toISOString()
+      return { dueDate: formattedDueDate }
     } else {
       // Fall back to priority-based minutes
       const dueMinutes = this.calculateDueMinutes(data.priority || 'medium')
@@ -183,54 +191,97 @@ export class QuickTaskFlowService {
   /**
    * Execute a Quick Task - creates and submits the workflow
    * This method encapsulates the common logic for creating and executing quick tasks
+   * Supports multiple assignees by creating separate workflow instances grouped together
    */
   static async executeQuickTask(options: ExecuteQuickTaskOptions): Promise<any> {
     const { formData, uploadResults = [], accessToken, initiatorId, apiBaseUrl } = options
 
-    const actualUserId = formData.assignedUserId
-    if (!actualUserId) {
-      throw new Error('Invalid employee selection')
+    const userIds = formData.assignedUserIds || []
+    if (!userIds || userIds.length === 0) {
+      throw new Error('Invalid employee selection - at least one employee must be selected')
     }
 
-    // Generate dynamic workflow template
-    const flowTemplate = this.generateFlowTemplate({
-      ...formData,
-      uploadResults,
-      priority: 'medium',
-      assignments: {
-        assignmentMode: AssignmentMode.ASSIGN,
-        targets: null,
-        allowReassignment: false
+    // Generate a unique group ID for this multi-assignee blink
+    const blinkGroupId = `blink_group_${Date.now()}_${initiatorId}`
+
+    // Create one workflow instance for each assignee, all tagged with the same group ID
+    const workflowPromises = userIds.map(async userId => {
+      // Generate dynamic workflow template for this assignee
+      const flowTemplate = this.generateFlowTemplate({
+        ...formData,
+        uploadResults,
+        priority: 'medium',
+        assignments: {
+          assignmentMode: AssignmentMode.ASSIGN,
+          targets: null,
+          allowReassignment: false
+        }
+      })
+
+      // Add the group ID, assigned user ID, and entity references to the template tags
+      // NOTE: Entity references are stored in BOTH links (for inbox) and tags (for outbox list view)
+      const tagsWithGroup = {
+        ...(flowTemplate.tags || {}),
+        app: 'quick-task',
+        blinkGroupId, // Group ID to link all workflows from the same blink
+        assignedUserId: userId, // User ID to identify who this workflow is for
+        // Entity reference fields (for outbox - list API doesn't return links)
+        ...(formData.entityType &&
+          formData.entityId && {
+            entityType: formData.entityType,
+            entityId: formData.entityId,
+            entityName: formData.entityName,
+            entityDisplayUrl: formData.entityDisplayUrl
+          })
+      }
+
+      // Execute the workflow for this assignee
+      const response = await fetch(`${apiBaseUrl}/api/templates/execute-dynamic`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({
+          templateDefinition: {
+            ...flowTemplate,
+            tags: tagsWithGroup
+          },
+          initiatorId,
+          stepAssignments: {
+            step_0: {
+              assignment: {
+                assignmentMode: AssignmentMode.ASSIGN,
+                targets: createAssignmentTargets([userId]),
+                allowReassignment: false
+              }
+            }
+          }
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(`Failed to create Quick Task for user ${userId}: ${errorData.message || 'Unknown error'}`)
+      }
+
+      const result = await response.json()
+      return {
+        ...result,
+        assignedUserId: userId // Track which user this workflow is for
       }
     })
 
-    // Execute the workflow
-    const response = await fetch(`${apiBaseUrl}/api/templates/execute-dynamic`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`
-      },
-      body: JSON.stringify({
-        templateDefinition: flowTemplate,
-        initiatorId,
-        stepAssignments: {
-          step_0: {
-            assignment: {
-              assignmentMode: AssignmentMode.ASSIGN,
-              targets: createAssignmentTargets([actualUserId]),
-              allowReassignment: false
-            }
-          }
-        }
-      })
-    })
+    // Wait for all workflows to be created
+    const results = await Promise.all(workflowPromises)
 
-    if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(errorData.message || 'Failed to create Quick Task')
+    // Return summary of created workflows
+    return {
+      success: true,
+      count: results.length,
+      workflows: results,
+      blinkGroupId, // Return the group ID so we can track it
+      assigneeCount: userIds.length
     }
-
-    return await response.json()
   }
 }

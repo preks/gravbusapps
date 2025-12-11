@@ -2,13 +2,13 @@ import { useState, useCallback, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EMPLOYEE_COMPENSATION_HISTORY } from '../queries/compensationQueries'
 import { CompensationHistoryData } from '../types/compensationTypes'
-import { transformWorkingConditionToHistory, transformBonus, transformPayslip } from '../utils/compensationTransformers'
+import { transformEmployeeSalaryToHistory, transformBonus, transformPayslip } from '../utils/compensationTransformers'
 
 /**
  * Hook to fetch and manage employee compensation history
  *
  * Fetches:
- * - Historical salary records from EmployeeWorkingCondition
+ * - Historical salary records from EmployeeSalary
  * - All bonuses from EmployeeBonus
  * - All payslips from EmployeePayslip
  *
@@ -51,9 +51,9 @@ export const useCompensationHistory = (employeeId: string, accessToken: string, 
         throw new Error('No history data received from server')
       }
 
-      // Transform working conditions to compensation history
-      const compensationHistory = (result?.EmployeeWorkingCondition || []).map((wc: any) =>
-        transformWorkingConditionToHistory(wc)
+      // Transform employee salaries to compensation history
+      const compensationHistory = (result?.AllEmployeeSalaries || []).map((salary: any) =>
+        transformEmployeeSalaryToHistory(salary)
       )
 
       // Transform bonus history

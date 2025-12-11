@@ -225,7 +225,7 @@ export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps>
               )
             }
             return (
-              <ChartContainer config={occupancyConfig}>
+              <ChartContainer config={occupancyConfig} className="gba:h-[400px] gba:w-full">
                 <ComposedChart data={occupancyData}>
                   <XAxis dataKey="range" />
                   <YAxis yAxisId="left" />
@@ -296,6 +296,7 @@ export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps>
                     <XAxis dataKey="propertyValue" name="Property Value" type="number" />
                     <YAxis dataKey="annualExpenses" name="Annual Net Cold Rent" type="number" />
                     <ChartTooltip content={renderPropertyValueTooltip} />
+                    <ChartLegend content={<ChartLegendContent />} />
                     <Scatter dataKey="annualExpenses" fill="var(--color-annualExpenses)" />
                   </ScatterChart>
                 </ChartContainer>

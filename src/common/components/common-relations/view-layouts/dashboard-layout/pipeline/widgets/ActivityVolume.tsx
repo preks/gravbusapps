@@ -23,6 +23,22 @@ export interface ActivityVolumeProps {
 }
 
 export const ActivityVolume: React.FC<ActivityVolumeProps> = ({ activityVolume, pipelineId }) => {
+  // Provide default values if metrics are undefined
+  const safeVolume = {
+    last7Days: {
+      total: activityVolume?.last7Days?.total ?? 0,
+      calls: activityVolume?.last7Days?.calls ?? 0,
+      emails: activityVolume?.last7Days?.emails ?? 0,
+      meetings: activityVolume?.last7Days?.meetings ?? 0
+    },
+    last30Days: {
+      total: activityVolume?.last30Days?.total ?? 0,
+      calls: activityVolume?.last30Days?.calls ?? 0,
+      emails: activityVolume?.last30Days?.emails ?? 0,
+      meetings: activityVolume?.last30Days?.meetings ?? 0
+    }
+  }
+
   const getTrendIcon = (current: number, previous: number) => {
     if (current > previous) {
       return <TrendingUp className="gba:h-4 gba:w-4 gba:text-green-500" />
@@ -75,16 +91,13 @@ export const ActivityVolume: React.FC<ActivityVolumeProps> = ({ activityVolume, 
               <div data-testid={`activity-7days-${pipelineId}`}>
                 <span className="gba:text-gray-600 gba:text-xs">Last 7 Days</span>
                 <div className="gba:text-2xl gba:font-bold gba:text-blue-600 gba:my-1">
-                  {activityVolume.last7Days.total}
+                  {safeVolume.last7Days.total}
                 </div>
                 <div className="gba:flex gba:items-center gba:justify-center gba:gap-1">
-                  {getTrendIcon(activityVolume.last7Days.total, Math.round(activityVolume.last30Days.total / 4.3))}
+                  {getTrendIcon(safeVolume.last7Days.total, Math.round(safeVolume.last30Days.total / 4.3))}
                   <span className="gba:text-xs">
-                    {getTrendPercentage(
-                      activityVolume.last7Days.total,
-                      Math.round(activityVolume.last30Days.total / 4.3)
-                    )}
-                    % vs avg
+                    {getTrendPercentage(safeVolume.last7Days.total, Math.round(safeVolume.last30Days.total / 4.3))}% vs
+                    avg
                   </span>
                 </div>
               </div>
@@ -96,9 +109,9 @@ export const ActivityVolume: React.FC<ActivityVolumeProps> = ({ activityVolume, 
               <div data-testid={`activity-30days-${pipelineId}`}>
                 <span className="gba:text-gray-600 gba:text-xs">Last 30 Days</span>
                 <div className="gba:text-2xl gba:font-bold gba:text-green-600 gba:my-1">
-                  {activityVolume.last30Days.total}
+                  {safeVolume.last30Days.total}
                 </div>
-                <span className="gba:text-xs">Daily Avg: {Math.round(activityVolume.last30Days.total / 30)}</span>
+                <span className="gba:text-xs">Daily Avg: {Math.round(safeVolume.last30Days.total / 30)}</span>
               </div>
             </CardContent>
           </Card>
@@ -109,8 +122,8 @@ export const ActivityVolume: React.FC<ActivityVolumeProps> = ({ activityVolume, 
           <span className="gba:font-medium gba:text-sm gba:mb-3 gba:block">Activity Breakdown (7 vs 30 days)</span>
 
           {(['calls', 'emails', 'meetings'] as const).map(activityType => {
-            const current7Days = activityVolume.last7Days[activityType]
-            const total30Days = activityVolume.last30Days[activityType]
+            const current7Days = safeVolume.last7Days[activityType]
+            const total30Days = safeVolume.last30Days[activityType]
             const avg30Days = Math.round(total30Days / 4.3) // 30 days / 7 days
             const maxValue = Math.max(current7Days, avg30Days)
             const progress7Days = maxValue > 0 ? (current7Days / maxValue) * 100 : 0
@@ -155,19 +168,19 @@ export const ActivityVolume: React.FC<ActivityVolumeProps> = ({ activityVolume, 
           <div className="gba:grid gba:grid-cols-3 gba:gap-2 gba:text-center">
             <div>
               <div className="gba:text-sm gba:font-bold gba:text-blue-600">
-                {Math.round((activityVolume.last7Days.total / 7) * 10) / 10}
+                {Math.round((safeVolume.last7Days.total / 7) * 10) / 10}
               </div>
               <span className="gba:text-gray-600 gba:text-xs">Daily Avg (7d)</span>
             </div>
             <div>
               <div className="gba:text-sm gba:font-bold gba:text-green-600">
-                {Math.round((activityVolume.last30Days.total / 30) * 10) / 10}
+                {Math.round((safeVolume.last30Days.total / 30) * 10) / 10}
               </div>
               <span className="gba:text-gray-600 gba:text-xs">Daily Avg (30d)</span>
             </div>
             <div>
               <div className="gba:text-sm gba:font-bold gba:text-orange-600">
-                {getTrendPercentage(activityVolume.last7Days.total, Math.round(activityVolume.last30Days.total / 4.3))}%
+                {getTrendPercentage(safeVolume.last7Days.total, Math.round(safeVolume.last30Days.total / 4.3))}%
               </div>
               <span className="gba:text-gray-600 gba:text-xs">Change</span>
             </div>

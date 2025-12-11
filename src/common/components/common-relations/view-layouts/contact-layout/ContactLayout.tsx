@@ -47,8 +47,6 @@ export interface ContactViewConfig<TContact extends Contact = Contact, TQueryVar
 
   contactStatistics?: ContactStatisticsData
 
-  processCompletionEvents?: string[]
-
   rowActionsContextArray: FlowContextName[]
   buildRowActionsExternalContextData: (row: { original: TContact }) => Record<string, string>
 
@@ -189,24 +187,11 @@ function ConfigContactLayout<TContact extends Contact = Contact, TQueryVariables
   // Process Completion Handlers
   const handleProcessComplete = useCallback(() => {
     loadData(false)
-  }, [loadData])
+    // Also refresh statistics when process completes
+    config.contactStatistics?.refetch?.()
+  }, [loadData, config.contactStatistics?.refetch])
 
   useProcessCompletion({ onSuccess: handleProcessComplete })
-
-  useEffect(() => {
-    const events = config.processCompletionEvents || ['taskCompletion', 'contactCompletion']
-    const handlers = events.map(eventName => {
-      const handler = () => handleProcessComplete()
-      globalThis.addEventListener(eventName, handler)
-      return { eventName, handler }
-    })
-
-    return () => {
-      for (const { eventName, handler } of handlers) {
-        globalThis.removeEventListener(eventName, handler)
-      }
-    }
-  }, [handleProcessComplete, config.processCompletionEvents])
 
   // Event Handlers
   const handleSearch = useCallback((value: string) => {
@@ -245,12 +230,16 @@ function ConfigContactLayout<TContact extends Contact = Contact, TQueryVariables
   }, [availableColumns, visibleColumns.length])
 
   // Row actions - rendered internally
-  const rowActions = useMemo(
-    () => (row: { original: TContact }) => (
+  // Row actions - rendered internally (only if actions are configured)
+  const rowActions = useMemo(() => {
+    // Hide actions column if no actions are configured
+    if (!config.rowActionsContextArray || config.rowActionsContextArray.length === 0) {
+      return undefined
+    }
+    return (row: { original: TContact }) => (
       <ContactRowActions row={row} config={config} accessToken={context?.accessToken || ''} />
-    ),
-    [config, context?.accessToken]
-  )
+    )
+  }, [config, context?.accessToken])
 
   if (!context) {
     console.error('ContactLayout: context is required')

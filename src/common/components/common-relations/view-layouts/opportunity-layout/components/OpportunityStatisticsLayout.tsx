@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { DollarOutlined, TrophyOutlined, RiseOutlined, ClockCircleOutlined } from '@ant-design/icons'
-import { formatCompactCurrency, formatCurrencyCompact } from '@/common/utils/numberFormatter'
 
 interface TrendData {
   current: number
@@ -13,8 +12,8 @@ interface TrendData {
 
 export interface OpportunityStatisticsData {
   recentOpportunities: TrendData
-  opportunityValue: TrendData
-  winRate: TrendData
+  totalOpportunities: TrendData
+  opportunitiesThisQuarter: TrendData
   opportunitiesThisYear: TrendData
   isLoading: boolean
   error: Error | null
@@ -30,18 +29,15 @@ export const OpportunityStatisticsLayout: React.FC<OpportunityStatisticsLayoutPr
   statistics,
   'data-testid': dataTestId = 'opportunity-statistics'
 }) => {
-  const { recentOpportunities, opportunityValue, winRate, opportunitiesThisYear, isLoading, error, refetch } =
-    statistics
-
-  const formatCurrency = (amount: number): string => {
-    try {
-      // Try formatCurrencyCompact first (for Investment)
-      return formatCurrencyCompact(amount, 'USD', undefined, 1, true)
-    } catch {
-      // Fallback to formatCompactCurrency (for Customer)
-      return formatCompactCurrency(amount, 'USD')
-    }
-  }
+  const {
+    recentOpportunities,
+    totalOpportunities,
+    opportunitiesThisQuarter,
+    opportunitiesThisYear,
+    isLoading,
+    error,
+    refetch
+  } = statistics
 
   const formatTrendPercent = (changePercent: number): string => {
     const sign = changePercent >= 0 ? '+' : ''
@@ -65,33 +61,31 @@ export const OpportunityStatisticsLayout: React.FC<OpportunityStatisticsLayoutPr
         }
       },
       {
-        key: 'total-pipeline-value',
-        title: 'Total Pipeline Value',
-        value: formatCurrency(opportunityValue.current),
+        key: 'total-opportunities',
+        title: 'Total Opportunities',
+        value: totalOpportunities.current,
         prefix: <DollarOutlined />,
         color: '#52c41a',
-        valueIsString: true,
         span: { xs: 24, sm: 12, lg: 6 },
         description: 'All opportunities',
         trend: {
-          value: formatTrendPercent(opportunityValue.changePercent),
-          positive: opportunityValue.isPositive,
+          value: formatTrendPercent(totalOpportunities.changePercent),
+          positive: totalOpportunities.isPositive,
           description: 'vs last quarter'
         }
       },
       {
-        key: 'average-win-rate',
-        title: 'Average Win Rate',
-        value: winRate.current,
+        key: 'this-quarter',
+        title: 'This Quarter',
+        value: opportunitiesThisQuarter.current,
         prefix: <TrophyOutlined />,
         color: '#fa8c16',
-        suffix: '%',
         span: { xs: 24, sm: 12, lg: 6 },
-        description: 'Winning chance',
+        description: 'New opportunities',
         trend: {
-          value: formatTrendPercent(winRate.changePercent),
-          positive: winRate.isPositive,
-          description: 'vs last year'
+          value: formatTrendPercent(opportunitiesThisQuarter.changePercent),
+          positive: opportunitiesThisQuarter.isPositive,
+          description: 'vs same period last year'
         }
       },
       {
@@ -109,7 +103,7 @@ export const OpportunityStatisticsLayout: React.FC<OpportunityStatisticsLayoutPr
         }
       }
     ],
-    [recentOpportunities, opportunityValue, winRate, opportunitiesThisYear]
+    [recentOpportunities, totalOpportunities, opportunitiesThisQuarter, opportunitiesThisYear]
   )
 
   return (

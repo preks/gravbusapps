@@ -6,6 +6,7 @@ export const employeeDocumentsQuery = `
 query screenData($employeeId: uuid!, $activeUserLocale: String = "en-US") {
   EmployeeDocument(where: {isDeleted: {_eq: false}, employeeId: {_eq: $employeeId}}) {
     id
+    version
     employeeId
     name
     file
@@ -54,11 +55,15 @@ query screenData($employeeId: uuid!, $activeUserLocale: String = "en-US") {
 `
 
 export const documentTypeCatalogQuery = `
-query catalogData($documentTypeRefs: [String!]!) {
+query catalogData($documentTypeRefs: [String!]!, $activeUserLocale: String = "en-US") {
   CatalogEntry(where: {id: {_in: $documentTypeRefs}}) {
     id
     value
     code
+    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+      localeCode
+      value
+    }
   }
 }
 `

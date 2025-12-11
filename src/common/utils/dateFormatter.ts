@@ -21,7 +21,7 @@ export const toISOFormat = (dateString: string | undefined | null): string | und
   if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(trimmed)) {
     try {
       const date = new Date(trimmed)
-      if (isNaN(date.getTime())) {
+      if (Number.isNaN(date.getTime())) {
         console.error('Invalid datetime-local string:', trimmed)
         return undefined
       }
@@ -37,7 +37,7 @@ export const toISOFormat = (dateString: string | undefined | null): string | und
     if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
       // Interpret as local midnight and convert to UTC
       const date = new Date(`${trimmed}T00:00`)
-      if (isNaN(date.getTime())) {
+      if (Number.isNaN(date.getTime())) {
         console.error('Invalid date string:', trimmed)
         return undefined
       }
@@ -47,7 +47,7 @@ export const toISOFormat = (dateString: string | undefined | null): string | und
     const date = new Date(trimmed)
 
     // Check if the date is valid
-    if (isNaN(date.getTime())) {
+    if (Number.isNaN(date.getTime())) {
       console.error('Invalid date string:', trimmed)
       return undefined
     }
@@ -80,7 +80,7 @@ export const toISOFormatWithTime = (
     const date = new Date(`${dateString}T${timeString}:00.000Z`)
 
     // Check if the date is valid
-    if (isNaN(date.getTime())) {
+    if (Number.isNaN(date.getTime())) {
       console.error('Invalid date string:', dateString)
       return undefined
     }
@@ -104,7 +104,7 @@ export const formatForDisplay = (dateString: string | Date | undefined | null, l
   try {
     const date = typeof dateString === 'string' ? new Date(dateString) : dateString
 
-    if (isNaN(date.getTime())) {
+    if (Number.isNaN(date.getTime())) {
       return ''
     }
 
@@ -129,7 +129,7 @@ export const isValidDate = (dateString: string | undefined | null): boolean => {
 
   try {
     const date = new Date(dateString)
-    return !isNaN(date.getTime())
+    return !Number.isNaN(date.getTime())
   } catch {
     return false
   }

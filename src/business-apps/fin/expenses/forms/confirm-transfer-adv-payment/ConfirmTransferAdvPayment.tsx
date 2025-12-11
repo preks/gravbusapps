@@ -1,22 +1,63 @@
-import React, { useState, useEffect } from 'react'
-import { Spinner, Alert, AlertTitle, AlertDescription, Button } from '@newwork/nw-design-system'
-
-import { useGetAdvancePaymentForApproval } from './queries'
-import { AdvancePaymentData } from './types'
+import React, { useState, useEffect, useMemo } from 'react'
+import {
+  Spinner,
+  Alert,
+  AlertTitle,
+  AlertDescription,
+  Badge,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle
+} from '@newwork/nw-design-system'
+import { CheckCircle } from 'lucide-react'
+import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
+dayjs.extend(utc)
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/components/TaskDetailHeader'
+import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
+import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
+import { useGetAdvancePaymentForApproval } from './queries'
+import { AdvancePaymentData } from './types'
+
 // Component imports
-import PaymentHeader from './components/PaymentHeader'
 import EmployeeInfoSection from './components/EmployeeInfoSection'
 import SupervisorInfoSection from './components/SupervisorInfoSection'
 import TransactionSection from './components/TransactionSection'
-import ActionButtons from './components/ActionButtons'
+import TransactionConfirmationDetailsSection from './components/TransactionConfirmationDetailsSection'
 
-const ConfirmTransferAdvPaymentContent: React.FC<BusinessAppContextProps> = ({
+/**
+ * Extended interface for additionalData with form-specific properties
+ */
+interface ExtendedAdditionalData {
+  [k: string]: unknown
+  psi_taskCompletedAt?: string
+  psi_taskPayload?: {
+    [k: string]: unknown
+  }
+  psi_processMetadata?: {
+    [k: string]: unknown
+  }
+  psi_taskStatus?: string
+}
+
+interface ConfirmTransferAdvPaymentProps extends BusinessAppContextProps {
+  onClose?: () => void
+}
+
+const ConfirmTransferAdvPaymentContent: React.FC<ConfirmTransferAdvPaymentProps> = ({
   additionalData,
   accessToken,
-  userInfo
+  userInfo,
+  onClose
 }) => {
+  // Cast additionalData to extended interface for proper typing
+  const extendedAdditionalData = additionalData as ExtendedAdditionalData | undefined
+
   const [paymentData, setPaymentData] = useState<AdvancePaymentData | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -24,30 +65,37 @@ const ConfirmTransferAdvPaymentContent: React.FC<BusinessAppContextProps> = ({
   const [transactionId, setTransactionId] = useState<string>('')
   const [confirmationChecked, setConfirmationChecked] = useState(false)
   const [extractedPaymentId, setExtractedPaymentId] = useState<string>('')
+  const [isConfirming, setIsConfirming] = useState(false)
 
   const { fetchAdvancePaymentData } = useGetAdvancePaymentForApproval(accessToken)
 
+  // Extract task metadata
+  const processMetadata = additionalData?.psi_processMetadata || {}
+  const taskStatus = additionalData?.psi_taskStatus || processMetadata?.status || 'IN_PROGRESS'
+  const taskCompletedAt = processMetadata?.completedAt || extendedAdditionalData?.psi_taskCompletedAt
+  const isTaskCompleted = taskStatus === 'COMPLETED' || !!taskCompletedAt
+  const taskTitle =
+    processMetadata?.referenceTaskName || processMetadata?.nodeName || 'Confirm Advance Payment Transfer'
+  const taskSource: 'kogito' | 'cflow' = processMetadata?.source || 'kogito'
+
   const formatDateToISO = (dateString: string): string => {
     if (!dateString) {
-      return new Date().toISOString()
+      return dayjs().utc().startOf('day').toISOString()
     }
 
     try {
-      const dateRegex = /^\d{4}-\d{2}-\d{2}$/
-      if (!dateRegex.test(dateString)) {
-        return new Date().toISOString()
+      // Parse the date string (should be YYYY-MM-DD format from date input)
+      const parsed = dayjs(dateString)
+
+      if (!parsed.isValid()) {
+        return dayjs().utc().startOf('day').toISOString()
       }
 
-      const dateWithTime = dateString + 'T00:00:00'
-      const date = new Date(dateWithTime)
-
-      if (isNaN(date.getTime())) {
-        return new Date().toISOString()
-      }
-
-      return date.toISOString()
+      // Return ISO format string with time set to start of day in UTC
+      // This ensures consistent date handling regardless of user's timezone
+      return parsed.utc().startOf('day').toISOString()
     } catch {
-      return new Date().toISOString()
+      return dayjs().utc().startOf('day').toISOString()
     }
   }
 
@@ -94,8 +142,8 @@ const ConfirmTransferAdvPaymentContent: React.FC<BusinessAppContextProps> = ({
   }
 
   useEffect(() => {
-    const today = new Date()
-    const todayString = today.toISOString().split('T')[0]
+    // Set today's date in YYYY-MM-DD format for the date input
+    const todayString = dayjs().format('YYYY-MM-DD')
     setTransactionDate(todayString)
   }, [])
 
@@ -121,7 +169,7 @@ const ConfirmTransferAdvPaymentContent: React.FC<BusinessAppContextProps> = ({
     }
 
     try {
-      setIsLoading(true)
+      setIsConfirming(true)
       setError(null)
 
       const formattedTransactionDate = formatDateToISO(transactionDate)
@@ -138,63 +186,125 @@ const ConfirmTransferAdvPaymentContent: React.FC<BusinessAppContextProps> = ({
         }
       }
 
-      window.dispatchEvent(
-        new CustomEvent('com.newwork.process.continue', {
-          detail: {
-            event: 'pse_approve',
-            payload
-          }
-        })
-      )
+      dispatchProcessContinueEvent('pse_approve', payload)
     } catch {
       setError('Failed to confirm payment. Please try again.')
     } finally {
-      setIsLoading(false)
+      setIsConfirming(false)
     }
   }
 
+  const handleClose = () => {
+    if (onClose) {
+      onClose()
+    } else {
+      dispatchProcessContinueEvent('pse_abort', {
+        event: 'pse_abort'
+      })
+    }
+  }
+
+  // Detect if we're in every-box context (has onClose callback)
+  const isEveryBoxContext = !!onClose
+
+  // Prepare employee data for header
+  const employeeDataForHeader = useMemo(() => {
+    if (!paymentData?.expensePlan?.employee) {
+      return undefined
+    }
+
+    const employee = paymentData.expensePlan.employee
+
+    return {
+      displayName: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'Employee',
+      firstName: employee.firstName,
+      lastName: employee.lastName,
+      avatarUrl: employee.pictureThumbnail ? `data:image/jpeg;base64,${employee.pictureThumbnail}` : undefined,
+      position: employee.employeePosition?.jobPosition?.name
+    }
+  }, [paymentData])
+
+  // Get status display
+  const getStatusDisplay = (status?: string) => {
+    if (!status) return { label: 'Pending', variant: 'default' as const }
+    const statusUpper = status.toUpperCase()
+    if (statusUpper === 'BOOKED' || statusUpper === 'APPROVED') {
+      return { label: status, variant: 'default' as const }
+    }
+    return { label: status, variant: 'default' as const }
+  }
+
+  const statusDisplay = useMemo(() => getStatusDisplay(paymentData?.status), [paymentData?.status])
+
   if (isLoading) {
     return (
-      <div
-        className="gba:flex gba:justify-center gba:items-center gba:min-h-[400px]"
-        data-testid="confirm-transfer-adv-payment-loading"
-      >
-        <Spinner size="lg" />
+      <div className="gba:flex gba:flex-col gba:h-full gba:px-6" data-testid="confirm-transfer-adv-payment-container">
+        <TaskDetailHeader
+          title={taskTitle}
+          status={taskStatus}
+          source={taskSource}
+          onClose={isEveryBoxContext ? handleClose : undefined}
+        />
+        <div
+          className="gba:flex gba:justify-center gba:items-center gba:min-h-[400px] gba:flex-1"
+          data-testid="confirm-transfer-adv-payment-loading"
+        >
+          <Spinner size="lg" />
+        </div>
       </div>
     )
   }
 
   if (error) {
     return (
-      <Alert variant="destructive" data-testid="confirm-transfer-adv-payment-error">
-        <AlertTitle>Error Loading Payment Data</AlertTitle>
-        <AlertDescription>
-          {error}
-          {error.includes('rate limit') && (
-            <div style={{ marginTop: 'var(--nw-spacing-md)' }}>
-              <Button
-                onClick={() => {
-                  fetchPaymentData()
-                }}
-                variant="outline"
-                size="sm"
-                data-testid="retry-button"
-              >
-                Retry
-              </Button>
-            </div>
-          )}
-        </AlertDescription>
-      </Alert>
+      <div className="gba:flex gba:flex-col gba:h-full gba:px-6" data-testid="confirm-transfer-adv-payment-container">
+        <TaskDetailHeader
+          title={taskTitle}
+          status={taskStatus}
+          source={taskSource}
+          onClose={isEveryBoxContext ? handleClose : undefined}
+        />
+        <div className="gba:flex-1 gba:overflow-y-auto gba:py-6">
+          <Alert variant="destructive" data-testid="confirm-transfer-adv-payment-error">
+            <AlertTitle>Error Loading Payment Data</AlertTitle>
+            <AlertDescription>
+              {error}
+              {error.includes('rate limit') && (
+                <div style={{ marginTop: 'var(--nw-spacing-md)' }}>
+                  <button
+                    onClick={() => {
+                      fetchPaymentData()
+                    }}
+                    className="gba:px-3 gba:py-1 gba:bg-destructive gba:text-destructive-foreground gba:rounded gba:text-sm"
+                    data-testid="retry-button"
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
+            </AlertDescription>
+          </Alert>
+        </div>
+      </div>
     )
   }
 
   if (!paymentData) {
     return (
-      <Alert data-testid="confirm-transfer-adv-payment-no-data">
-        <AlertTitle>No Payment Data</AlertTitle>
-        <AlertDescription>Unable to load payment information. Please try refreshing the page.</AlertDescription>
-      </Alert>
+      <div className="gba:flex gba:flex-col gba:h-full gba:px-6" data-testid="confirm-transfer-adv-payment-container">
+        <TaskDetailHeader
+          title={taskTitle}
+          status={taskStatus}
+          source={taskSource}
+          onClose={isEveryBoxContext ? handleClose : undefined}
+        />
+        <div className="gba:flex-1 gba:overflow-y-auto gba:flex gba:items-center gba:justify-center gba:py-6">
+          <Alert data-testid="confirm-transfer-adv-payment-no-data">
+            <AlertTitle>No Payment Data</AlertTitle>
+            <AlertDescription>Unable to load payment information. Please try refreshing the page.</AlertDescription>
+          </Alert>
+        </div>
+      </div>
     )
   }
 
@@ -214,31 +324,141 @@ const ConfirmTransferAdvPaymentContent: React.FC<BusinessAppContextProps> = ({
   }
 
   return (
-    <div className="gba:border-0" data-testid="confirm-transfer-adv-payment-container">
-      <PaymentHeader />
+    <TaskFormLayout
+      data-testid="confirm-transfer-adv-payment-container"
+      header={
+        <TaskDetailHeader
+          title={taskTitle}
+          status={taskStatus}
+          source={taskSource}
+          showEmployeeInfo={true}
+          employeeData={employeeDataForHeader}
+          isLoadingEmployee={isLoading}
+          onClose={isEveryBoxContext ? handleClose : undefined}
+          customBadges={
+            <Badge variant={statusDisplay.variant} data-testid="payment-status-badge">
+              {statusDisplay.label}
+            </Badge>
+          }
+        />
+      }
+      footer={
+        isTaskCompleted ? undefined : (
+          <TaskDetailFooter
+            data-testid="confirm-transfer-adv-payment-actions"
+            actions={[
+              {
+                label: 'Confirm',
+                onClick: handleConfirm,
+                variant: 'default' as const,
+                disabled: isConfirming || !confirmationChecked,
+                loading: isConfirming,
+                icon: CheckCircle,
+                className: 'gba:bg-success gba:text-success-foreground hover:gba:bg-success/90',
+                testId: 'confirm-button'
+              }
+            ]}
+          />
+        )
+      }
+      contentClassName="gba:space-y-4"
+    >
+      {/* Error Messages */}
+      {error && (
+        <Alert variant="destructive" data-testid="error-message">
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
-      <EmployeeInfoSection
-        employee={employee}
-        amount={paymentData.amount}
-        currency={paymentData.currency}
-        status={paymentData.status}
-        expensePlan={expensePlan}
-        accessToken={accessToken}
-      />
+      {/* Request Details Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:confirm_transfer_advance_payment.request_details',
+              'Request Details'
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <EmployeeInfoSection
+            employee={employee}
+            amount={paymentData.amount}
+            currency={paymentData.currency}
+            status={paymentData.status}
+            expensePlan={expensePlan}
+            accessToken={accessToken}
+          />
+        </CardContent>
+      </Card>
 
-      <SupervisorInfoSection supervisor={employee.employeePosition.supervisor} />
+      {/* Approved By Section */}
+      {employee.employeePosition?.supervisor && (
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:confirm_transfer_advance_payment.approved_by',
+                'Approved By'
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <SupervisorInfoSection supervisor={employee.employeePosition.supervisor} />
+          </CardContent>
+        </Card>
+      )}
 
-      <TransactionSection
-        transactionDate={transactionDate}
-        transactionId={transactionId}
-        confirmationChecked={confirmationChecked}
-        onTransactionDateChange={handleTransactionDateChange}
-        onTransactionIdChange={handleTransactionIdChange}
-        onConfirmationChange={handleConfirmationChange}
-      />
+      {/* Transaction Confirmation Section - Only for non-completed tasks */}
+      {!isTaskCompleted && (
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:confirm_transfer_advance_payment.transaction_confirmation_text',
+                'Transaction Confirmation'
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <TransactionSection
+              transactionDate={transactionDate}
+              transactionId={transactionId}
+              confirmationChecked={confirmationChecked}
+              onTransactionDateChange={handleTransactionDateChange}
+              onTransactionIdChange={handleTransactionIdChange}
+              onConfirmationChange={handleConfirmationChange}
+            />
+          </CardContent>
+        </Card>
+      )}
 
-      <ActionButtons onConfirm={handleConfirm} isLoading={isLoading} confirmationChecked={confirmationChecked} />
-    </div>
+      {/* Transaction Confirmation Details - Only for completed tasks */}
+      {isTaskCompleted && paymentData.transactionDate && (
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:confirm_transfer_advance_payment.transaction_confirmation_details',
+                'Transaction Confirmation Details'
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <TransactionConfirmationDetailsSection
+              transactionDate={paymentData.transactionDate}
+              transactionId={paymentData.transactionNumber}
+              transactionConfirmedBy={
+                paymentData.transactionConfirmedByEmployee
+                  ? `${paymentData.transactionConfirmedByEmployee.firstName} ${paymentData.transactionConfirmedByEmployee.lastName}`
+                  : undefined
+              }
+            />
+          </CardContent>
+        </Card>
+      )}
+    </TaskFormLayout>
   )
 }
 
@@ -247,7 +467,7 @@ const ConfirmTransferAdvPaymentContent: React.FC<BusinessAppContextProps> = ({
  * @param props - Business app context props
  * @returns Confirm Transfer Advance Payment component
  */
-const ConfirmTransferAdvPayment: React.FC<BusinessAppContextProps> = props => {
+const ConfirmTransferAdvPayment: React.FC<ConfirmTransferAdvPaymentProps> = props => {
   return (
     <div data-testid="confirm-transfer-adv-payment-wrapper">
       <ConfirmTransferAdvPaymentContent {...props} />

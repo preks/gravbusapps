@@ -13,7 +13,7 @@ export interface GroupAmountDistributionIntegration {
  * Hook that fetches Portfolio group amount distribution using server-side queries
  *
  * @param context - Business app context with access token
- * @param currency - Currency filter (required, no "All Currencies" option)
+ * @param currency - Currency filter (required, no "All" option)
  * @returns Group amount distribution data with loading/error states
  */
 export const usePortfolioGroupAmountDistribution = (

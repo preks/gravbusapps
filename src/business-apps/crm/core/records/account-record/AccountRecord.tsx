@@ -1,17 +1,18 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import { Button, Spinner, RecordLayout } from '@newwork/nw-design-system'
+import { Button, Spinner, RecordLayout, Badge } from '@newwork/nw-design-system'
 import { UsersIcon, TrendUpIcon, FileTextIcon, BankIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
+import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { useCustomerAccounts } from '@/common/data/customer/hooks/useCustomerAccounts'
+import { useCustomerAccount } from '@/common/data/customer/hooks/useCustomerAccount'
 import { OpportunityView } from './views/opportunity-view/OpportunityView'
 import { DocumentView } from './views/document-view/DocumentView'
 import { HomeView } from './views/home-view/HomeView'
-import type { CustomerAccount } from '@/common/data/customer/types'
 import { getEmailChannel, getPhoneChannel } from '@/common/data/common/utils/communicationChannelHelpers'
+import { getAccountPriorityBadgeVariant } from '@/common/utils/badgeUtils'
 
 interface AccountRecordContentProps extends BusinessAppContextProps {
   accountId: string
@@ -19,9 +20,6 @@ interface AccountRecordContentProps extends BusinessAppContextProps {
 }
 
 const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, onBack, ...props }) => {
-  const [accountData, setAccountData] = useState<CustomerAccount | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const ALLOWED_TABS = ['overview', 'opportunities', 'documents'] as const
   type TabKey = (typeof ALLOWED_TABS)[number]
   const [activeTab, setActiveTab] = useState<TabKey>(() => {
@@ -52,7 +50,7 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
 
-  const { fetchCustomerAccountById } = useCustomerAccounts(props)
+  const { account: accountData, loading, error, refetch } = useCustomerAccount(props.accessToken, accountId)
 
   const handleTabChange = useCallback((value: string) => {
     if ((ALLOWED_TABS as readonly string[]).includes(value)) {
@@ -65,78 +63,15 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
     }
   }, [])
 
-  // Fetch account data
-  const fetchAccountData = useCallback(async () => {
-    if (!accountId || !props.accessToken) {
-      setLoading(false)
-      return
-    }
-
-    try {
-      setLoading(true)
-      setError(null)
-      const account = await fetchCustomerAccountById(accountId)
-      if (account) {
-        setAccountData(account)
-      } else {
-        setError('Account not found')
-      }
-    } catch (err) {
-      console.error('Error fetching account:', err)
-      setError(err instanceof Error ? err.message : 'Failed to load account')
-    } finally {
-      setLoading(false)
-    }
-  }, [accountId, props.accessToken, fetchCustomerAccountById])
-
-  useEffect(() => {
-    fetchAccountData()
-  }, [fetchAccountData])
+  // Memoized callback for process completion
+  const handleProcessSuccess = useCallback(() => {
+    refetch()
+  }, [refetch])
 
   // Listen for process completion events to refresh account data
-  useEffect(() => {
-    const handleProcessCompletion = async (event: any) => {
-      try {
-        // Check for successful completion
-        if (event.detail?.resolution === 'success') {
-          await fetchAccountData()
-          return
-        }
-
-        // Also check for different event structure
-        const response = event.detail?.response
-        if (response?.detail?.resolution === 'success' || response?.account) {
-          await fetchAccountData()
-        }
-      } catch (err) {
-        console.error('Error handling process completion in AccountRecord:', err)
-      }
-    }
-
-    // Listen to multiple possible event names for account updates
-    const eventNames = [
-      'com.newwork.process.taskCompletion',
-      'com.newwork.process.completion',
-      'com.newwork.process.continue',
-      'com.newwork.process.processCompletion',
-      'processCompletion',
-      'taskCompletion',
-      'taskCompleted',
-      'processCompleted',
-      'task-completion',
-      'process-completion'
-    ]
-
-    eventNames.forEach(eventName => {
-      window.addEventListener(eventName, handleProcessCompletion as EventListener)
-    })
-
-    return () => {
-      eventNames.forEach(eventName => {
-        window.removeEventListener(eventName, handleProcessCompletion as EventListener)
-      })
-    }
-  }, [fetchAccountData])
+  useProcessCompletion({
+    onSuccess: handleProcessSuccess
+  })
 
   // Memoize header data - must be called before conditional returns
   const headerDetailGroups = useMemo(
@@ -174,22 +109,47 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
     [accountData?.communicationChannels, accountData?.foundationDate, accountData?.ownerEmployee]
   )
 
+  const headerMeta = useMemo(() => {
+    if (!accountData?.accountPriority) {
+      return null
+    }
+
+    const priority = accountData.accountPriority
+    const value = priority.value || priority.code || ''
+    const additionalValue1 = priority.additionalValue1 || ''
+    const displayValue = additionalValue1 ? `${value}: ${additionalValue1}` : value
+
+    return (
+      <div className="gba:flex gba:items-center gba:gap-2">
+        <Badge variant={getAccountPriorityBadgeVariant(priority)} data-testid="account-priority-badge">
+          {displayValue}
+        </Badge>
+      </div>
+    )
+  }, [accountData?.accountPriority])
+
   const headerActionButton = useMemo(
     () => (
-      <AppActionButton
+      <AppAction
         data-testid="customer-account-record-action-button"
-        size="icon"
-        contextsArray={[FlowContextName.customerAccountEntity]}
-        externalContextData={{
-          accountId: accountId
+        variant="header"
+        contexts={[
+          {
+            context: FlowContextName.customerAccountEntity,
+            contextData: { accountId }
+          }
+        ]}
+        shareContext={{
+          entityType: 'account',
+          entityId: accountId,
+          entityName: accountData?.name || 'Account',
+          entityUrl: `/platform/crm/account-record?accountId=${accountId}`
         }}
         prefixDataTestId="customer-account-record-action"
         accessToken={props.accessToken}
-        emptyStateBehavior="hide"
-        deferMainContextRequestsUntilClick={false}
       />
     ),
-    [accountId, props.accessToken]
+    [accountId, accountData?.name, props.accessToken]
   )
 
   const subViewsConfig = useMemo(
@@ -264,6 +224,7 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
         headerCategory={getTranslationFromI18nKeyAndLabel('crm.common.account', 'ACCOUNT')}
         onBack={onBack}
         headerTitle={accountData.name || 'Unknown Account'}
+        headerMeta={headerMeta}
         headerDetailGroups={headerDetailGroups}
         headerActionButton={headerActionButton}
         subViews={subViewsConfig}

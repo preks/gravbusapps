@@ -1,10 +1,19 @@
 import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { EMPLOYEE_DATA_QUERY, CATALOG_DATA_QUERY } from './GrantEmployeeBonusQueries'
+import {
+  EMPLOYEE_DATA_QUERY,
+  CATALOG_DATA_QUERY,
+  EMPLOYEE_BANK_ACCOUNT_CURRENCY_QUERY
+} from './GrantEmployeeBonusQueries'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
-import { extractEmployeeId } from './utils/employeeIdUtils'
-import type { GrantEmployeeBonusContextData, EmployeeDataResponse, CatalogsDataResponse } from './types'
+import { extractEmployeeId } from '@/business-apps/hr/core/utils/employeeIdUtils'
+import type {
+  GrantEmployeeBonusContextData,
+  EmployeeDataResponse,
+  CatalogsDataResponse,
+  EmployeeBankAccountCurrency
+} from './types'
 
 interface GrantEmployeeBonusContextValue {
   data: GrantEmployeeBonusContextData | null
@@ -48,14 +57,30 @@ export const GrantEmployeeBonusProvider: React.FC<ProviderProps> = ({
     try {
       const empVariables = { idEmployee: employeeId }
       const employeeData = await graphqlClient.request<EmployeeDataResponse>(EMPLOYEE_DATA_QUERY, empVariables)
-      setData({ employee: employeeData, catalogs: null })
+      setData({ employee: employeeData, catalogs: null, employeeCurrency: null })
 
+      // Fetch catalogs and employee bank account currency in parallel
       try {
         const catalogVariables = { activeUserLocale }
-        const catalogData = await graphqlClient.request<CatalogsDataResponse>(CATALOG_DATA_QUERY, catalogVariables)
-        setData(prev => ({ employee: prev?.employee ?? null, catalogs: catalogData }))
+        const bankAccountVariables = { idEmployee: employeeId }
+
+        const [catalogData, bankAccountData] = await Promise.all([
+          graphqlClient.request<CatalogsDataResponse>(CATALOG_DATA_QUERY, catalogVariables),
+          graphqlClient.request<{ EmployeeBankAccount: EmployeeBankAccountCurrency[] }>(
+            EMPLOYEE_BANK_ACCOUNT_CURRENCY_QUERY,
+            bankAccountVariables
+          )
+        ])
+
+        const employeeCurrency = bankAccountData?.EmployeeBankAccount?.[0] ?? null
+
+        setData(prev => ({
+          employee: prev?.employee ?? null,
+          catalogs: catalogData,
+          employeeCurrency
+        }))
       } catch (error_: any) {
-        setError(error_?.message || 'Catalogs load failed')
+        setError(error_?.message || 'Data load failed')
       }
       setIsLoading(false)
     } catch (e: any) {

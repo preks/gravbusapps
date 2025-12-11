@@ -191,7 +191,6 @@ export const buildInvestmentReportWhereCondition = (variables: InvestmentReportQ
       orConditions.push(
         `{ loanRecipientName: ${searchPattern} }`,
         `{ fundManagerName: ${searchPattern} }`,
-        `{ identification: ${searchPattern} }`,
         `{ investment: { name: ${searchPattern} } }`,
         `{ investment: { code: ${searchPattern} } }`,
         `{ investment: { isin: ${searchPattern} } }`

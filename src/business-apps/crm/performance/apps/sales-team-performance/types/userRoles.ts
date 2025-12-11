@@ -9,12 +9,23 @@ export interface UserRoleContext {
   managedTeamName?: string
 }
 
+export interface TeamMember {
+  employeeId: string
+  firstName: string
+  lastName: string
+  fullName: string
+}
+
 export interface TeamInfo {
   id: string
   name: string
-  managerId: string
+  code?: string
+  type?: string
+  description?: string
+  managerId?: string // Optional for backwards compatibility
   memberCount: number
   memberIds: string[]
+  members?: TeamMember[] // Optional: Full member details
 }
 
 export interface UserPermissions {

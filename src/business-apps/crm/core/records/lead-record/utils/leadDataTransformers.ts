@@ -6,7 +6,9 @@
  * to avoid generating unnecessary data before conversion.
  */
 
-import type { CustomerAccount, CustomerContact, CustomerLead } from '@/common/data/customer/types'
+import type { CustomerAccount } from '@/common/data/customer/types/customerAccountTypes'
+import type { CustomerContact } from '@/common/data/customer/types/customerContactTypes'
+import type { CustomerLead } from '@/common/data/customer/types/customerLeadTypes'
 import {
   type Address,
   type CommunicationChannel,
@@ -29,7 +31,7 @@ const buildAddressesFromLead = (lead: any): Address[] | undefined => {
       {
         id: lead.addressId || `lead-address-${Date.now()}`,
         addressLine:
-          lead.addressLine || (typeof lead.addressLine === 'object' ? lead.addressLine.lines?.join(', ') : ''),
+          typeof lead.addressLine === 'string' ? lead.addressLine : (lead.addressLine?.lines?.join(', ') ?? ''),
         postalCode: lead.postalCode || '',
         locality: lead.locality || lead.city || '',
         country: typeof lead.country === 'string' ? lead.country : lead.country?.value || lead.country,

@@ -7,6 +7,13 @@ export const GET_ADVANCE_PAYMENT_FOR_APPROVAL = `
       expensePlanId
       status
       version
+      transactionDate
+      transactionNumber
+      transactionConfirmedByEmployee {
+        id
+        firstName
+        lastName
+      }
       expensePlan {
         planDate
         decisionDate

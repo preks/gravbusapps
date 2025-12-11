@@ -61,9 +61,7 @@ const BUILD_ALL_STATUSES_AGGREGATE_QUERY = (
 ): string => {
   const countConditions = (statusRef: string) => {
     const currencyCondition =
-      countCurrency && countCurrency !== 'All' && countCurrency !== 'All Currencies'
-        ? `currency: { code: { _eq: "${countCurrency}" } }`
-        : ''
+      countCurrency && countCurrency !== 'All' ? `currency: { code: { _eq: "${countCurrency}" } }` : ''
 
     const conditions = [
       'isDeleted: { _eq: false }',

@@ -3,7 +3,7 @@
  */
 
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import type { RejectionReasonEntityType } from '@/common/data/investment/payloads'
+import type { RejectionReasonEntityType } from '@/common/data/investment/payloads/rejectionReasonPayloads'
 
 /**
  * Generic rejection reason popup props

@@ -1,5 +1,8 @@
-﻿import React, { useState, useEffect } from 'react'
+﻿import React, { useState, useEffect, useMemo } from 'react'
 import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
   Button,
   Command,
   CommandEmpty,
@@ -7,27 +10,18 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-  Avatar,
-  AvatarImage,
-  AvatarFallback
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle
 } from '@newwork/nw-design-system'
-import { Check, ChevronsUpDown } from 'lucide-react'
+import { Check, ChevronsUpDown, X } from 'lucide-react'
 import { cn } from '@/common/utils/cn'
 
 export interface SearchableEmployeeComboboxProps {
-  options: Array<{
-    value: string
-    label: string
-    avatarUrl?: string
-    email?: string
-    firstName?: string
-    lastName?: string
-  }>
-  value?: string
-  onValueChange?: (value: string) => void
+  options: Array<{ value: string; label: string; displayName?: string; avatar?: string }>
+  value?: string | string[]
+  onValueChange?: (value: string | string[]) => void
   onSearchChange: (query: string) => void
   placeholder?: string
   searchPlaceholder?: string
@@ -35,11 +29,37 @@ export interface SearchableEmployeeComboboxProps {
   disabled?: boolean
   loading?: boolean
   className?: string
+  multiple?: boolean
+  showTeammatesHint?: boolean
+}
+
+// Helper to convert base64 to Object URL (for browser caching)
+const base64ToObjectURL = (base64Data: string): string | undefined => {
+  try {
+    // Skip if data is JSON or invalid
+    if (base64Data.startsWith('{')) return undefined
+
+    // Convert base64 to blob
+    const byteCharacters = atob(base64Data)
+    const byteNumbers = new Array(byteCharacters.length)
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.codePointAt(i) ?? 0
+    }
+    const byteArray = new Uint8Array(byteNumbers)
+    const blob = new Blob([byteArray], { type: 'image/jpeg' })
+
+    // Create Object URL (this will be cached by the browser!)
+    return URL.createObjectURL(blob)
+  } catch (error) {
+    console.error('[SearchableEmployeeCombobox] Failed to create Object URL:', error)
+    return undefined
+  }
 }
 
 /**
  * Custom searchable combobox for employee selection
  * Manually handles search to avoid bugs in the default Combobox onSearch implementation
+ * Supports both single and multi-select modes
  */
 export const SearchableEmployeeCombobox: React.FC<SearchableEmployeeComboboxProps> = ({
   options,
@@ -51,39 +71,107 @@ export const SearchableEmployeeCombobox: React.FC<SearchableEmployeeComboboxProp
   emptyText = 'No employees found.',
   disabled = false,
   loading = false,
-  className
+  className,
+  multiple = false,
+  showTeammatesHint = false
 }) => {
   const [open, setOpen] = useState(false)
   const [searchValue, setSearchValue] = useState('')
 
-  // Trigger search when search value changes
+  // Store all options we've seen to maintain data for selected employees
+  // even when they're filtered out by search (includes avatarUrl)
+  const allSeenOptionsRef = React.useRef<Map<string, (typeof options)[0] & { avatarUrl?: string }>>(new Map())
+
+  // Trigger search when search value changes (debounced by parent)
   useEffect(() => {
     onSearchChange(searchValue)
   }, [searchValue, onSearchChange])
 
-  // Trigger initial search when dropdown opens
+  // No longer trigger search on dropdown open - let the parent component handle initial load
+  // The parent (useQuickTaskForm) already fetches on mount, so we don't need to refetch when opening
+
+  // Process current options and update cache synchronously
+  const optionsWithAvatarUrls = useMemo(() => {
+    return options.map(option => {
+      const existing = allSeenOptionsRef.current.get(option.value)
+
+      // Check if we can reuse existing cached avatar URL
+      if (existing && existing.avatar === option.avatar && existing.avatarUrl) {
+        // Avatar data hasn't changed, reuse existing avatarUrl
+        return existing
+      }
+
+      // Create new avatar URL
+      const avatarUrl = option.avatar && !option.avatar.startsWith('{') ? base64ToObjectURL(option.avatar) : undefined
+
+      const optionWithAvatar = {
+        ...option,
+        avatarUrl
+      }
+
+      // Update cache
+      allSeenOptionsRef.current.set(option.value, optionWithAvatar)
+
+      return optionWithAvatar
+    })
+  }, [options])
+
+  // Cleanup Object URLs on unmount ONLY to prevent memory leaks
   useEffect(() => {
-    if (open && searchValue === '') {
-      onSearchChange('')
+    return () => {
+      // Cleanup all cached options on final unmount only
+      allSeenOptionsRef.current.forEach(option => {
+        if (option.avatarUrl) {
+          URL.revokeObjectURL(option.avatarUrl)
+        }
+      })
     }
-  }, [open, searchValue, onSearchChange])
+  }, []) // Empty dependency array = cleanup only on unmount
 
   const handleSelect = (selectedValue: string) => {
-    const newValue = selectedValue === value ? '' : selectedValue
-    onValueChange?.(newValue)
-    setOpen(false)
-  }
+    if (multiple) {
+      // Multi-select mode
+      const currentValues = Array.isArray(value) ? value : []
+      const isSelected = currentValues.includes(selectedValue)
 
-  const selectedOption = options.find(opt => opt.value === value)
+      const newValues = isSelected ? currentValues.filter(v => v !== selectedValue) : [...currentValues, selectedValue]
 
-  // Get initials for avatar fallback
-  const getInitials = (option: (typeof options)[0]): string => {
-    if (option.firstName && option.lastName) {
-      return `${option.firstName.charAt(0)}${option.lastName.charAt(0)}`.toUpperCase()
+      onValueChange?.(newValues)
+
+      // Clear search after selection to make it easy to type next name
+      setSearchValue('')
+
+      // Don't close popover in multi-select mode - keep it open for more selections
+      // Focus will automatically stay on the search input
+    } else {
+      // Single-select mode
+      const newValue = selectedValue === value ? '' : selectedValue
+      onValueChange?.(newValue)
+      setOpen(false)
     }
-    // Fallback to first two letters of label
-    return option.label.substring(0, 2).toUpperCase()
   }
+
+  const selectedOptionsWithAvatar = useMemo(() => {
+    if (multiple) {
+      const selectedValues = Array.isArray(value) ? value : []
+      // Get selected employees, prioritizing current options (which might have updated avatar data)
+      // This ensures avatars are always fresh if available
+      return selectedValues
+        .map(val => {
+          // First check if employee is in current options (might have fresh avatar data)
+          const currentOption = optionsWithAvatarUrls.find(opt => opt.value === val)
+          if (currentOption) {
+            return currentOption
+          }
+          // Fall back to cache if not in current options (e.g., doesn't match current search)
+          return allSeenOptionsRef.current.get(val)
+        })
+        .filter((opt): opt is NonNullable<typeof opt> => opt !== null && opt !== undefined)
+    } else {
+      const selected = optionsWithAvatarUrls.find(opt => opt.value === value)
+      return selected ? [selected] : []
+    }
+  }, [value, optionsWithAvatarUrls, multiple])
 
   // Render empty state message based on loading and options
   const renderEmptyState = () => {
@@ -96,73 +184,200 @@ export const SearchableEmployeeCombobox: React.FC<SearchableEmployeeComboboxProp
     return null
   }
 
+  // Get initials for avatar fallback (like TaskCard)
+  const getInitials = (label: string) => {
+    const parts = label.trim().split(/\s+/)
+    if (parts.length >= 2) {
+      return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
+    }
+    return label.substring(0, 2).toUpperCase()
+  }
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          aria-expanded={open}
-          className={cn('gba:w-full gba:justify-between gba:h-auto gba:py-2', className)}
-          disabled={disabled}
+    <>
+      {/* Trigger Button */}
+      <Button
+        variant="outline"
+        onClick={() => setOpen(true)}
+        className={cn('gba:w-full gba:justify-between', className)}
+        disabled={disabled}
+      >
+        {selectedOptionsWithAvatar.length > 0 ? (
+          <div className="gba:flex gba:items-center gba:gap-3 gba:flex-1 gba:min-w-0">
+            {multiple ? (
+              <>
+                <div className="gba:flex gba:-space-x-2 gba:py-1">
+                  {selectedOptionsWithAvatar.slice(0, 3).map(option => (
+                    <Avatar
+                      key={option.value}
+                      className="gba:h-7 gba:w-7 gba:flex-shrink-0 gba:border-2 gba:border-background"
+                    >
+                      {option.avatarUrl && <AvatarImage src={option.avatarUrl} alt={option.label} />}
+                      <AvatarFallback className="gba:text-xs gba:font-medium gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
+                        {getInitials(option.label)}
+                      </AvatarFallback>
+                    </Avatar>
+                  ))}
+                </div>
+                <span className="gba:truncate gba:font-medium">
+                  {selectedOptionsWithAvatar.length === 1
+                    ? selectedOptionsWithAvatar[0].displayName || selectedOptionsWithAvatar[0].label
+                    : `${selectedOptionsWithAvatar.length} employees selected`}
+                </span>
+              </>
+            ) : (
+              <>
+                <Avatar className="gba:h-6 gba:w-6 gba:flex-shrink-0">
+                  {selectedOptionsWithAvatar[0].avatarUrl && (
+                    <AvatarImage
+                      src={selectedOptionsWithAvatar[0].avatarUrl}
+                      alt={selectedOptionsWithAvatar[0].label}
+                    />
+                  )}
+                  <AvatarFallback className="gba:text-xs gba:font-medium gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
+                    {getInitials(selectedOptionsWithAvatar[0].label)}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="gba:truncate">
+                  {selectedOptionsWithAvatar[0].displayName || selectedOptionsWithAvatar[0].label}
+                </span>
+              </>
+            )}
+          </div>
+        ) : (
+          <span className="gba:text-muted-foreground">{placeholder}</span>
+        )}
+        <ChevronsUpDown className="gba:opacity-50 gba:ml-2 gba:shrink-0" />
+      </Button>
+
+      {/* Selection Dialog */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent
+          className="gba:flex gba:flex-col gba:p-0 gba:w-full"
+          style={{
+            maxWidth: '672px',
+            minWidth: '672px',
+            width: '672px',
+            maxHeight: '90vh',
+            minHeight: '80vh',
+            height: '90vh'
+          }}
         >
-          {selectedOption ? (
-            <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1 gba:min-w-0">
-              <Avatar className="gba:h-6 gba:w-6 gba:shrink-0">
-                {selectedOption.avatarUrl && <AvatarImage src={selectedOption.avatarUrl} alt={selectedOption.label} />}
-                <AvatarFallback className="gba:text-xs">{getInitials(selectedOption)}</AvatarFallback>
-              </Avatar>
-              <div className="gba:flex gba:flex-col gba:items-start gba:min-w-0">
-                <span className="gba:text-sm gba:font-medium gba:truncate gba:max-w-full">{selectedOption.label}</span>
-                {selectedOption.email && (
-                  <span className="gba:text-xs gba:text-muted-foreground gba:truncate gba:max-w-full">
-                    {selectedOption.email}
-                  </span>
-                )}
+          <DialogHeader className="gba:px-6 gba:pt-6 gba:pb-4 gba:flex-shrink-0">
+            <DialogTitle>Select Employees</DialogTitle>
+            {showTeammatesHint && !searchValue && options.length > 0 && (
+              <p className="gba:text-sm gba:text-muted-foreground gba:mt-2">
+                Showing your teammates. Type to search all employees.
+              </p>
+            )}
+          </DialogHeader>
+
+          {/* Selected Employees Section (Multi-select only) */}
+          {multiple && selectedOptionsWithAvatar.length > 0 && (
+            <div className="gba:flex gba:flex-col gba:gap-2 gba:px-6 gba:pb-4 gba:flex-shrink-0">
+              <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">
+                Selected ({selectedOptionsWithAvatar.length})
+              </div>
+              <div className="gba:flex gba:flex-wrap gba:gap-2">
+                {selectedOptionsWithAvatar.map(option => (
+                  <div
+                    key={option.value}
+                    className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:bg-secondary gba:rounded-md"
+                  >
+                    <Avatar className="gba:h-6 gba:w-6 gba:flex-shrink-0">
+                      {option.avatarUrl && <AvatarImage src={option.avatarUrl} alt={option.label} />}
+                      <AvatarFallback className="gba:text-xs gba:font-medium gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
+                        {getInitials(option.label)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="gba:text-sm">{option.displayName || option.label}</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gba:h-5 gba:w-5 gba:p-0"
+                      onClick={() => handleSelect(option.value)}
+                    >
+                      <X className="gba:h-3 gba:w-3" />
+                    </Button>
+                  </div>
+                ))}
               </div>
             </div>
-          ) : (
-            <span className="gba:text-muted-foreground">{placeholder}</span>
           )}
-          <ChevronsUpDown className="gba:ml-2 gba:h-4 gba:w-4 gba:shrink-0 gba:opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="gba:w-[var(--radix-popover-trigger-width)] gba:p-0" align="start">
-        <Command shouldFilter={false}>
-          <CommandInput
-            placeholder={searchPlaceholder}
-            value={searchValue}
-            onValueChange={setSearchValue}
-            className="gba:h-9"
-          />
-          <CommandList>
-            {renderEmptyState()}
-            <CommandGroup>
-              {options.map(option => (
-                <CommandItem key={option.value} value={option.value} onSelect={handleSelect} className="gba:py-2">
-                  <div className="gba:flex gba:items-center gba:gap-3 gba:flex-1 gba:min-w-0">
-                    <Avatar className="gba:h-8 gba:w-8 gba:shrink-0">
-                      {option.avatarUrl && <AvatarImage src={option.avatarUrl} alt={option.label} />}
-                      <AvatarFallback className="gba:text-xs">{getInitials(option)}</AvatarFallback>
-                    </Avatar>
-                    <div className="gba:flex gba:flex-col gba:flex-1 gba:min-w-0">
-                      <span className="gba:text-sm gba:font-medium gba:truncate">{option.label}</span>
-                      {option.email && (
-                        <span className="gba:text-xs gba:text-muted-foreground gba:truncate">{option.email}</span>
-                      )}
-                    </div>
-                  </div>
-                  <Check
-                    className={cn(
-                      'gba:ml-auto gba:h-4 gba:w-4 gba:shrink-0',
-                      value === option.value ? 'gba:opacity-100' : 'gba:opacity-0'
-                    )}
-                  />
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+
+          {/* Search and List - This should fill remaining space */}
+          <div className="gba:flex-1 gba:min-h-0 gba:px-6">
+            <Command shouldFilter={false} className="gba:h-full gba:border gba:rounded-lg gba:flex gba:flex-col">
+              <CommandInput
+                placeholder={searchPlaceholder}
+                value={searchValue}
+                onValueChange={setSearchValue}
+                className="gba:h-11 gba:flex-shrink-0"
+              />
+              <CommandList className="gba:flex-1 gba:min-h-0 gba:max-h-full gba:overflow-y-auto gba:pb-4">
+                {renderEmptyState()}
+
+                <CommandGroup className="gba:pb-2">
+                  {optionsWithAvatarUrls
+                    .filter(option => {
+                      // In multi-select mode, exclude already selected employees
+                      if (multiple && Array.isArray(value)) {
+                        return !value.includes(option.value)
+                      }
+                      return true
+                    })
+                    .map(option => {
+                      const isSelected = multiple ? false : value === option.value
+
+                      return (
+                        <CommandItem
+                          key={option.value}
+                          value={option.value}
+                          onSelect={handleSelect}
+                          className="gba:cursor-pointer"
+                        >
+                          <div className="gba:flex gba:items-center gba:gap-3 gba:flex-1 gba:min-w-0">
+                            <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0">
+                              {option.avatarUrl && <AvatarImage src={option.avatarUrl} alt={option.label} />}
+                              <AvatarFallback className="gba:text-xs gba:font-medium gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
+                                {getInitials(option.label)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="gba:flex gba:flex-col gba:flex-1 gba:min-w-0">
+                              <span className="gba:truncate gba:font-medium">{option.displayName || option.label}</span>
+                              {option.displayName && option.displayName !== option.label && (
+                                <span className="gba:text-xs gba:text-muted-foreground gba:truncate">
+                                  {option.label}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          {!multiple && isSelected && <Check className="gba:ml-2 gba:shrink-0" />}
+                        </CommandItem>
+                      )
+                    })}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </div>
+
+          {/* Sticky Footer */}
+          <div className="gba:border-t gba:bg-background gba:px-6 gba:py-5 gba:flex gba:justify-end gba:gap-3 gba:flex-shrink-0">
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => setOpen(false)}
+              disabled={multiple && (!value || (Array.isArray(value) && value.length === 0))}
+            >
+              Done
+              {multiple && Array.isArray(value) && value.length > 0 && (
+                <span className="gba:ml-2">({value.length})</span>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }

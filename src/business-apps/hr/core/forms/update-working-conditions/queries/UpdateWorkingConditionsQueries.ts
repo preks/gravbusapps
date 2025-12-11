@@ -116,7 +116,10 @@ export const useWorkingConditionsLookups = (context: BusinessAppContextProps) =>
     (arr || []).map((e: any) => ({ id: e.id, value: e.value, label: e.translations?.[0]?.value || e.value }))
 
   const load = useCallback(async () => {
-    const employeeId = context.userInfo?.employeeDetails?.employeeId
+    const employeeId =
+      (context as any)?.additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId ||
+      context.userInfo?.employeeDetails?.employeeId
+
     if (!employeeId) return
     setLoading(true)
     setError(null)
@@ -172,7 +175,7 @@ export const useWorkingConditionsLookups = (context: BusinessAppContextProps) =>
           }
         : null
       setCurrent(wc)
-      const jt = res?.Employee?.[0]?.employeePosition?.[0]?.jobPosition?.name || ''
+      const jt = res?.Employee?.[0]?.employeePosition?.jobPosition?.name || ''
       setJobTitle(jt)
       setFirstName(res?.Employee?.[0]?.firstName || '')
       setLastName(res?.Employee?.[0]?.lastName || '')
@@ -182,7 +185,11 @@ export const useWorkingConditionsLookups = (context: BusinessAppContextProps) =>
     } finally {
       setLoading(false)
     }
-  }, [context.userInfo?.employeeDetails?.employeeId, graphqlClient])
+  }, [
+    (context as any)?.additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId,
+    context.userInfo?.employeeDetails?.employeeId,
+    graphqlClient
+  ])
 
   useEffect(() => {
     if (context.accessToken) load()

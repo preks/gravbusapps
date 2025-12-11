@@ -1,7 +1,6 @@
 import React from 'react'
 import { TableHead, TableCell, Button } from '@newwork/nw-design-system'
 import { PiCalendar, PiArrowUp, PiArrowDown } from 'react-icons/pi'
-import { formatDate } from '@/common/utils/windowUtils'
 
 /**
  * Shared table helper components for customer-related tables
@@ -80,14 +79,24 @@ export interface DateCellProps {
   testId: string
 }
 
-export const DateCell: React.FC<DateCellProps> = ({ dateString, testId }) => (
-  <TableCell className="gba:py-4 gba:px-6" data-testid={testId}>
-    <div className="gba:flex gba:items-center gba:gap-2">
-      <PiCalendar size={14} style={{ color: 'var(--color-text-secondary)' }} />
-      <span className="gba:text-sm">{formatDate(dateString)}</span>
-    </div>
-  </TableCell>
-)
+export const DateCell: React.FC<DateCellProps> = ({ dateString, testId }) => {
+  const formattedDate = dateString
+    ? new Date(dateString).toLocaleDateString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      })
+    : '-'
+
+  return (
+    <TableCell className="gba:py-4 gba:px-6" data-testid={testId}>
+      <div className="gba:flex gba:items-center gba:gap-2">
+        <PiCalendar size={14} style={{ color: 'var(--color-text-secondary)' }} />
+        <span className="gba:text-sm">{formattedDate}</span>
+      </div>
+    </TableCell>
+  )
+}
 
 // Pagination button component
 export interface PaginationButtonProps {

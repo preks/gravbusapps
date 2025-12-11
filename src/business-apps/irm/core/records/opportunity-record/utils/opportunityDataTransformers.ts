@@ -6,7 +6,8 @@
  * to avoid generating unnecessary data before conversion.
  */
 
-import type { Investment, InvestmentOpportunity } from '@/common/data/investment/types'
+import type { Investment } from '@/common/data/investment/types/investmentTypes'
+import type { InvestmentOpportunity } from '@/common/data/investment/types/investmentOpportunityTypes'
 
 /**
  * Build Investment from Opportunity data

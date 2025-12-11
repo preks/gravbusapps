@@ -2,6 +2,9 @@ import { useState, useEffect, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import {
   GET_EMPLOYEE_BENEFITS_FOR_CATALOG,
+  GET_EMPLOYEE_REGION_ID,
+  GET_REGION_COUNTRY_ID,
+  GET_BENEFIT_TYPES_FOR_COUNTRY_WITH_TRANSLATIONS,
   GET_BENEFIT_TYPES_WITH_TRANSLATIONS,
   GET_BENEFIT_TYPES_WITH_TRANSLATIONS_EXCLUDE_HR_BACKOFFICE
 } from '../queries/benefitCatalogQueries'
@@ -45,6 +48,26 @@ export const useBenefitsCatalog = (
   const [error, setError] = useState<string | null>(null)
 
   const graphqlClient = useGraphQLClient(accessToken)
+
+  /**
+   * Resolve employee employment region's country id (Country catalog entry id).
+   * Flow:
+   * 1) Get employee workingCondition.region.id
+   * 2) Resolve region CatalogEntry.additionalValue3 (countryId)
+   */
+  const getEmployeeCountryId = useCallback(async (): Promise<string | null> => {
+    try {
+      const regionRes = await graphqlClient.request<any>(GET_EMPLOYEE_REGION_ID, { employeeId })
+      const regionId: string | undefined = regionRes?.Employee?.[0]?.workingCondition?.[0]?.region?.id || undefined
+      if (!regionId) return null
+
+      const countryRes = await graphqlClient.request<any>(GET_REGION_COUNTRY_ID, { regionId })
+      const countryId: string | undefined = countryRes?.CatalogEntry?.[0]?.additionalValue3 || undefined
+      return countryId || null
+    } catch {
+      return null
+    }
+  }, [employeeId, graphqlClient])
 
   /**
    * Transform GraphQL employee benefit response to EmployeeBenefit interface
@@ -99,6 +122,7 @@ export const useBenefitsCatalog = (
           parentEntryId: catalogEntry.parentEntryId,
           availableProviders: catalogEntry.childEntries || [], // Available providers for this benefit type
           catalogEntry: catalogEntry, // Store full entry with translations for runtime translation
+          type: catalogEntry.type,
 
           // Employee benefit data (if exists)
           isActive,
@@ -140,22 +164,39 @@ export const useBenefitsCatalog = (
       setLoading(true)
       setError(null)
 
-      // Choose catalog query based on HR backoffice permission
-      const catalogQuery = options?.excludeHrBackoffice
-        ? GET_BENEFIT_TYPES_WITH_TRANSLATIONS_EXCLUDE_HR_BACKOFFICE
-        : GET_BENEFIT_TYPES_WITH_TRANSLATIONS
+      // Start fetching employee-specific benefits immediately
+      const employeeBenefitsPromise = graphqlClient.request<GraphQLEmployeeBenefitsResponse>(
+        GET_EMPLOYEE_BENEFITS_FOR_CATALOG,
+        { employeeId }
+      )
 
-      // Fetch catalog benefits and employee benefits in parallel
+      // Resolve employee country from employment region
+      const countryId = await getEmployeeCountryId()
+
+      // Choose catalog query: prefer country-filtered when available
+      const catalogQuery =
+        countryId != null
+          ? GET_BENEFIT_TYPES_FOR_COUNTRY_WITH_TRANSLATIONS
+          : options?.excludeHrBackoffice
+            ? GET_BENEFIT_TYPES_WITH_TRANSLATIONS_EXCLUDE_HR_BACKOFFICE
+            : GET_BENEFIT_TYPES_WITH_TRANSLATIONS
+
+      const catalogVariables =
+        countryId != null
+          ? {
+              catalogIdentifier: BENEFIT_TYPE_CATALOG,
+              catalogVersion: BENEFIT_TYPE_VERSION,
+              countryId
+            }
+          : {
+              catalogIdentifier: BENEFIT_TYPE_CATALOG,
+              catalogVersion: BENEFIT_TYPE_VERSION
+            }
+
+      // Fetch catalog entries (filtered by country when available) in parallel with employee benefits
       const [catalogResult, employeeResult] = await Promise.all([
-        // Use GraphQL to fetch BenefitType catalog with translations
-        graphqlClient.request<GraphQLBenefitTypesResponse>(catalogQuery, {
-          catalogIdentifier: BENEFIT_TYPE_CATALOG,
-          catalogVersion: BENEFIT_TYPE_VERSION
-        }),
-        // Use GraphQL for employee-specific benefits
-        graphqlClient.request<GraphQLEmployeeBenefitsResponse>(GET_EMPLOYEE_BENEFITS_FOR_CATALOG, {
-          employeeId
-        })
+        graphqlClient.request<GraphQLBenefitTypesResponse>(catalogQuery, catalogVariables),
+        employeeBenefitsPromise
       ])
 
       // Transform GraphQL catalog response to match expected structure
@@ -168,9 +209,13 @@ export const useBenefitsCatalog = (
           description: entry.description,
           displayOrder: entry.displayOrder || 0,
           parentEntryId: entry.parentEntryId,
+          type: entry.type,
           additionalValue1: entry.additionalValue1,
           additionalValue2: entry.additionalValue2,
           additionalValue3: entry.additionalValue3,
+          // Prefer translation.objectValue when present, fallback to entry.objectValue
+          objectValue:
+            entry.objectValue ?? (entry.translations || []).find((tr: any) => tr?.objectValue != null)?.objectValue,
           translations: entry.translations || [], // GraphQL includes translations
           childEntries: (entry.childEntries || []).map((child: GraphQLCatalogEntry) => ({
             id: child.id,

@@ -43,6 +43,7 @@ import { InvestmentDocumentFields } from '../types/investmentDocumentTypes'
 import { InvestmentLeadFields } from '../types/investmentLeadTypes'
 import { InvestmentNoteFields } from '../types/investmentNoteTypes'
 import { InvestmentTaskFields } from '../types/investmentTaskTypes'
+import { INVESTMENT_REF } from './fragments/investmentReferenceFragments'
 
 /**
  * Investment Opportunity Query Variables Interface
@@ -51,6 +52,7 @@ import { InvestmentTaskFields } from '../types/investmentTaskTypes'
 export interface InvestmentOpportunityQueryVariables extends CommonOpportunityQueryVariables {
   // IRM-specific filters
   dealType?: string
+  currencyCode?: string // Simple currency code like 'EUR', 'USD' - convenience parameter
   divestmentIds?: string[]
   investmentIds?: string[]
   investmentGroupIds?: string[]
@@ -79,6 +81,12 @@ export const buildInvestmentOpportunityQuery = (
     ${fields.leads}(where: { isDeleted: { _eq: false } }) {
       ${buildLeadFragment(InvestmentLeadFields)}
     }
+    
+    # Divestment relation
+    divestment {
+      ${INVESTMENT_REF}
+    }
+    divestmentId
     
     # IRM-specific Investment fields
     dealType
@@ -121,8 +129,7 @@ export const buildInvestmentOpportunityQuery = (
  * Build Investment Opportunity by ID query
  */
 export const buildInvestmentOpportunityByIdQuery = (
-  fields: typeof InvestmentOpportunityFields = InvestmentOpportunityFields,
-  id: string
+  fields: typeof InvestmentOpportunityFields = InvestmentOpportunityFields
 ): string => {
   // Build relation builders and fields for common relations
   const relationBuilders: OpportunityRelationBuilders = {
@@ -157,6 +164,28 @@ export const buildInvestmentOpportunityByIdQuery = (
     ${fields.leads}(where: { isDeleted: { _eq: false } }) {
       ${buildLeadFragment(InvestmentLeadFields)}
     }
+    
+    # Opportunity-Account Junction Table (many-to-many)
+    # GraphQL field name: opportunityAccounts
+    ${fields.investmentOpportunityAccounts}(where: { isDeleted: { _eq: false } }) {
+      id
+      version
+      opportunityId
+      accountId
+      accountTypeRef
+      accountType {
+        ${CATALOG_ENTRY}
+      }
+      account {
+        ${buildAccountFragment(InvestmentAccountFields)}
+      }
+    }
+    
+    # Divestment relation
+    divestment {
+      ${INVESTMENT_REF}
+    }
+    divestmentId
     
     # IRM-specific Investment fields
     dealType
@@ -193,7 +222,7 @@ export const buildInvestmentOpportunityByIdQuery = (
     sizeMeasurementUnitRef
   `
 
-  return buildOpportunityByIdQuery('InvestmentOpportunity', id, fields, relationBuilders, relationFields, entityFields)
+  return buildOpportunityByIdQuery('InvestmentOpportunity', fields, relationBuilders, relationFields, entityFields)
 }
 
 /**
@@ -305,6 +334,37 @@ export const GET_INVESTMENT_OPPORTUNITY_STAGE_CONDITION_BY_ID = (id: string): st
           parentEntryId
         }
         configSnapshot
+      }
+    }
+  `
+}
+
+// Get Equity Investment Round by Opportunity ID
+export const GET_EQUITY_INVESTMENT_ROUND_BY_OPPORTUNITY_ID = (opportunityId: string): string => {
+  return `
+    query GetEquityInvestmentRoundByOpportunityId {
+      EquityInvestmentRound(
+        where: { 
+          investmentOpportunityId: { _eq: "${opportunityId}" }
+          isDeleted: { _eq: false }
+        }
+        limit: 1
+      ) {
+        id
+        name
+        year
+        version
+        equityInvestmentId
+        equityInvestment {
+          investmentId
+          investment {
+            id
+          }
+        }
+        createdAt
+        createdBy
+        updatedAt
+        updatedBy
       }
     }
   `

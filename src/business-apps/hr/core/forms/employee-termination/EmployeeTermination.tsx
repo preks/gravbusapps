@@ -14,7 +14,7 @@ export const EmployeeTermination: React.FC<BusinessAppContextProps> = props => {
   const employeeId =
     additionalData?.employeeId ||
     additionalData?.psi_taskPayload?.employeeId ||
-    additionalData?.psi_taskPayload?.initialParameters?.employeeId ||
+    additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId ||
     userInfo?.employeeDetails?.employeeId ||
     (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('id') : null)
   if (!accessToken) {

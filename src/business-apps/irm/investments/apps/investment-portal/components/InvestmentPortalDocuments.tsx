@@ -6,7 +6,7 @@ import { getIrmDocumentApiConfig } from '@/business-apps/irm/common/utils/docume
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { createDocumentSectionActions } from '@/common/utils/documentSectionActions'
-import { useInvestmentDocuments } from '@/business-apps/irm/common/hooks/useInvestmentDocuments'
+import { useInvestmentDocuments } from '@/common/data/investment/hooks/useInvestmentDocuments'
 
 interface InvestmentPortalDocumentsProps {
   investmentId: string

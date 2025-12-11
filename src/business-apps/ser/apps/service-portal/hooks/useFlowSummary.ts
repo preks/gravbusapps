@@ -31,13 +31,33 @@ export const useFlowSummary = ({ flowId, userId, workflowEngine, enabled = true 
   const [error, setError] = useState<string | null>(null)
 
   const fetchSummary = useCallback(async () => {
-    if (!enabled || !flowId || !userId) {
+    // Enhanced validation logging
+    console.log('[useFlowSummary] 🔍 Fetch summary called:', {
+      enabled,
+      flowId,
+      userId,
+      hasWorkflowEngine: !!workflowEngine,
+      hasGetFlowSummaryMethod: !!workflowEngine?.getFlowSummary
+    })
+
+    if (!enabled) {
+      console.log('[useFlowSummary] ⏸️ Skipped: Not enabled (flow may not be completed yet)')
+      return
+    }
+
+    if (!flowId) {
+      console.warn('[useFlowSummary] ⚠️ Skipped: Missing flowId')
+      return
+    }
+
+    if (!userId) {
+      console.warn('[useFlowSummary] ⚠️ Skipped: Missing userId')
       return
     }
 
     // Check if workflow engine supports getFlowSummary
     if (!workflowEngine.getFlowSummary) {
-      console.log('[useFlowSummary] Workflow engine does not support getFlowSummary')
+      console.warn('[useFlowSummary] ⚠️ Workflow engine does not support getFlowSummary method')
       return
     }
 
@@ -45,19 +65,22 @@ export const useFlowSummary = ({ flowId, userId, workflowEngine, enabled = true 
       setIsLoading(true)
       setError(null)
 
-      console.log('[useFlowSummary] Fetching flow summary:', { flowId, userId })
+      console.log('[useFlowSummary] 🚀 Fetching flow summary:', { flowId, userId })
 
       const summary = await workflowEngine.getFlowSummary(flowId, userId)
 
-      console.log('[useFlowSummary] Flow summary fetched successfully:', {
+      console.log('[useFlowSummary] ✅ Flow summary fetched successfully:', {
         workflowId: summary.workflowId,
-        summaryFieldsCount: summary.summaryData?.length || 0
+        workflowName: summary.workflowName,
+        status: summary.status,
+        summaryFieldsCount: summary.summaryData?.length || 0,
+        hasSummaryData: !!(summary.summaryData && summary.summaryData.length > 0)
       })
 
       setSummaryData(summary)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch flow summary'
-      console.error('[useFlowSummary] Error fetching flow summary:', err)
+      console.error('[useFlowSummary] ❌ Error fetching flow summary:', err)
       setError(errorMessage)
       setSummaryData(null)
     } finally {

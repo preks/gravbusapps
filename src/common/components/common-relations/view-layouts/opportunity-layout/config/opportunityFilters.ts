@@ -39,6 +39,23 @@ export const opportunityFilterConfig: FilterConfiguration = {
       ]
     },
     {
+      id: 'forecast-group',
+      label: 'Forecast',
+      collapsible: true,
+      defaultExpanded: false,
+      filters: [
+        {
+          id: 'opportunityForecastIds',
+          field: 'opportunityForecastIds',
+          label: 'Forecast',
+          type: 'multi-select',
+          config: {
+            options: []
+          }
+        }
+      ]
+    },
+    {
       id: 'pipeline-group',
       label: 'Pipeline',
       collapsible: true,

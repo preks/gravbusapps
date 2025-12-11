@@ -1,10 +1,11 @@
 import type { ColumnDef } from '@tanstack/react-table'
-import { Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
+import { Avatar, AvatarImage, AvatarFallback, Badge } from '@newwork/nw-design-system'
 import { Building2, Mail, Phone, Globe, Calendar, MapPin } from 'lucide-react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { formatAddress } from '@/common/utils/addressFormatter'
 import { type Account, createAccountDescriptors, AccountFields } from '@/common/data/relations/types/accountTypes'
 import { deriveSortableColumns, deriveAvailableColumns } from '@/common/network/graphql/descriptorUtils'
+import { getAccountPriorityBadgeVariant } from '@/common/utils/badgeUtils'
 
 // Helper to safely convert values to strings
 const safeString = (value: any): string => {
@@ -40,82 +41,6 @@ const getOwnerName = (account: Account) => {
   return '-'
 }
 
-// Render revenue (band code may be a single number or a range "min-max")
-// Format similar to OpportunityLayout amount column
-const renderRevenueCell = (account: Account) => {
-  // Account has: accountAnnualRevenueBand (correct name)
-  const band = account.accountAnnualRevenueBand
-  if (!band?.code && !band?.value) {
-    return <div className="gba:text-right gba:text-sm gba:text-muted-foreground">No revenue</div>
-  }
-
-  const code = safeString(band.code || '').trim()
-  if (!code) {
-    return <div className="gba:text-right gba:text-sm gba:text-muted-foreground">No revenue</div>
-  }
-
-  // Parse numeric(s)
-  const parts = code
-    .split('-')
-    .map(s => Number(s.trim()))
-    .filter(n => !Number.isNaN(n))
-
-  if (parts.length === 0) {
-    // Fallback to value if code is not numeric
-    return (
-      <div className="gba:text-right gba:text-sm gba:truncate" title={safeString(band.value)}>
-        {safeString(band.value) || 'No revenue'}
-      </div>
-    )
-  }
-
-  // Default currency (could be made configurable)
-  const currencyCode = 'EUR'
-
-  if (parts.length === 1) {
-    // Single value: format like OpportunityLayout amount
-    const formattedValue = new Intl.NumberFormat(undefined, {
-      style: 'currency',
-      currency: currencyCode,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(parts[0])
-
-    return (
-      <div
-        className="gba:text-right gba:text-sm gba:font-mono gba:truncate"
-        data-testid={`account-revenue-${account.id}`}
-      >
-        {formattedValue}
-      </div>
-    )
-  }
-
-  // Range: show "min – max" formatted like OpportunityLayout
-  const [min, max] = parts
-  const formattedMin = new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency: currencyCode,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(min)
-  const formattedMax = new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency: currencyCode,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(max)
-
-  return (
-    <div
-      className="gba:text-right gba:text-sm gba:font-mono gba:truncate"
-      data-testid={`account-revenue-${account.id}`}
-    >
-      {formattedMin} – {formattedMax}
-    </div>
-  )
-}
-
 /**
  * Default Account Columns - Base columns that work for both Customer and Investment Accounts
  * Uses Account (the CORRECT structure)
@@ -132,15 +57,25 @@ export const commonAccountColumns: ColumnDef<Account>[] = [
     maxSize: 350,
     enableResizing: false,
     cell: ({ row }) => {
+      const accountName = safeString(row.original.name)
+      const imageUrl = row.original.pictureThumbnail
+        ? `data:image/gif;base64,${row.original.pictureThumbnail}`
+        : undefined
+
       return (
         <div
-          className="gba:flex gba:items-center gba:gap-2 gba:min-w-0"
+          className="gba:flex gba:items-center gba:gap-3 gba:min-w-0"
           data-testid={`account-cell-${row.original.id}`}
         >
-          <Building2 className="gba:h-4 gba:w-4 gba:text-gray-400 gba:shrink-0" />
+          <Avatar className="gba:w-8 gba:h-8 gba:shrink-0">
+            {imageUrl && <AvatarImage src={imageUrl} alt={accountName} />}
+            <AvatarFallback>
+              <Building2 className="gba:h-4 gba:w-4" />
+            </AvatarFallback>
+          </Avatar>
           <div className="gba:min-w-0 gba:flex-1">
-            <div className="gba:font-medium gba:text-sm gba:truncate" title={safeString(row.original.name)}>
-              {safeString(row.original.name)}
+            <div className="gba:font-medium gba:text-sm gba:truncate" title={accountName}>
+              {accountName}
             </div>
           </div>
         </div>
@@ -283,6 +218,39 @@ export const commonAccountColumns: ColumnDef<Account>[] = [
     }
   },
   {
+    id: 'accountPriority',
+    accessorFn: row => {
+      const priority = row.accountPriority
+      if (!priority) return ''
+      const value = safeString(priority.value || priority.code)
+      const additionalValue1 = safeString(priority.additionalValue1)
+      return additionalValue1 ? `${value}: ${additionalValue1}` : value
+    },
+    header: 'Priority',
+    size: 250,
+    minSize: 120,
+    maxSize: 250,
+    enableResizing: false,
+    cell: ({ row }) => {
+      if (!row.original.accountPriority) {
+        return <span className="gba:text-sm gba:text-muted-foreground">No priority</span>
+      }
+      const priority = row.original.accountPriority
+      const value = safeString(priority.value || priority.code)
+      const additionalValue1 = safeString(priority.additionalValue1)
+      const displayValue = additionalValue1 ? `${value}: ${additionalValue1}` : value
+      return (
+        <Badge
+          variant={getAccountPriorityBadgeVariant(priority)}
+          className="gba:text-sm"
+          data-testid={`account-priority-cell-${row.original.id}`}
+        >
+          {displayValue}
+        </Badge>
+      )
+    }
+  },
+  {
     id: 'industryClass',
     accessorFn: row => row.industryClass?.value || row.industryClass?.code || '',
     header: 'Industry',
@@ -358,18 +326,29 @@ export const commonAccountColumns: ColumnDef<Account>[] = [
   },
   {
     id: 'accountAnnualRevenueBand',
-    accessorKey: 'accountAnnualRevenueBand',
-    header: 'Revenue',
+    accessorFn: row => row.accountAnnualRevenueBand?.value || row.accountAnnualRevenueBand?.code || '',
+    header: 'Revenue Band',
     size: 150,
     minSize: 120,
     maxSize: 200,
     enableResizing: false,
-    meta: {
-      type: 'currency' as const,
-      currency: 'EUR',
-      align: 'right' as const
-    },
-    cell: ({ row }) => renderRevenueCell(row.original)
+    cell: ({ row }) => {
+      if (!row.original.accountAnnualRevenueBand) {
+        return <span className="gba:text-sm gba:text-muted-foreground">No revenue band</span>
+      }
+      const revenueBandValue = safeString(
+        row.original.accountAnnualRevenueBand.value || row.original.accountAnnualRevenueBand.code
+      )
+      return (
+        <span
+          className="gba:text-sm gba:truncate gba:block"
+          title={revenueBandValue}
+          data-testid={`revenue-band-cell-${row.original.id}`}
+        >
+          {revenueBandValue}
+        </span>
+      )
+    }
   },
   {
     id: 'ownerEmployee',
@@ -455,10 +434,11 @@ export const commonAccountColumns: ColumnDef<Account>[] = [
  */
 const ACCOUNT_COLUMN_LABELS: Record<string, string> = {
   name: 'Account Name',
+  accountPriority: 'Priority',
   industryClass: 'Industry',
   legalForm: 'Legal Form',
   size: 'Size',
-  accountAnnualRevenueBand: 'Revenue',
+  accountAnnualRevenueBand: 'Revenue Band',
   ownerEmployee: 'Owner',
   createdAt: 'Created Date',
   updatedAt: 'Updated Date'
@@ -476,6 +456,7 @@ export const defaultVisibleAccountColumns = [
   'name',
   'communicationChannels',
   'addresses',
+  'accountPriority',
   'industryClass',
   'legalForm',
   'size',

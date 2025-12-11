@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { GET_EXPENSE_PLAN_FOR_APPROVAL } from '../queries/expensePlanQueries'
-import { ExpensePlanApprovalData } from '../types/expensePlanTypes'
+import { ExpensePlanApprovalData } from '../types/expensePlanV2Types'
 
 interface UseExpensePlanDataProps {
   planId: string | null

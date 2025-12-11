@@ -8,6 +8,7 @@ import { readFile, rename as fsRename } from 'fs/promises' // For asynchronous f
 import crypto from 'crypto'
 import path from 'path'
 import dotenv from '@dotenvx/dotenvx'
+import { execSync } from 'child_process'
 
 // Function to get dynamic entries for Vite build using synchronous fs methods
 function getDynamicEntries(projectRootDir: string): Record<string, string> {
@@ -173,6 +174,7 @@ export default defineConfig(({ command, mode }) => {
   // --- End of original logic ---
 
   let dynamicEntries = {}
+  const isUnversionedBuild = env.VITE_BUILD_NUMBER === undefined || env.VITE_BUILD_NUMBER === null
   const isProduction = mode === 'production'
   const shouldHashFilesForDeployment = isProduction && env.VITE_BUILD_FOR_DEPLOYMENT === 'true'
   const isBuildCommand = command === 'build'
@@ -183,11 +185,96 @@ export default defineConfig(({ command, mode }) => {
   }
 
   // Define content for the __APP_BUILD_INFO__ banner
-  const gitUserForBanner = env.VITE_GIT_USER || 'N/A'
+  // Helper to check if a name is a pipeline/bot user
+  const isPipelineUser = (name: string) => {
+    const pipelineNames = ['bitbucket pipeline', 'bitbucket-pipelines', 'bitbucket pipelines', 'update bot']
+    return pipelineNames.some(p => name.toLowerCase().includes(p))
+  }
+
+  // Try to find a human author (not pipeline/bot)
+  let gitUserForBanner = 'N/A'
+  const viteGitUser = env.VITE_GIT_USER
+
+  // If VITE_GIT_USER is set and is a real human (not pipeline), use it directly
+  if (viteGitUser && !isPipelineUser(viteGitUser)) {
+    gitUserForBanner = viteGitUser
+  } else {
+    // Need to find the actual human author from git history
+    try {
+      const screenDir = targetEntryFile ? path.dirname(targetEntryFile) : null
+      let commitAuthor = ''
+
+      // Try to get author of last non-merge commit that modified this screen
+      if (screenDir) {
+        // --no-merges skips merge commits which are usually by pipelines
+        commitAuthor = execSync(`git log --no-merges -1 --pretty=format:%an -- "${screenDir}"`, {
+          encoding: 'utf8'
+        }).trim()
+      }
+
+      // Fallback: get any recent non-pipeline author
+      if (!commitAuthor || isPipelineUser(commitAuthor)) {
+        // Get authors of last 10 commits and find first human
+        const authors = execSync('git log -10 --pretty=format:%an', { encoding: 'utf8' }).trim().split('\n')
+        commitAuthor = authors.find(a => a && !isPipelineUser(a)) || ''
+      }
+
+      if (commitAuthor && !isPipelineUser(commitAuthor)) {
+        gitUserForBanner = commitAuthor
+      }
+    } catch {
+      // Keep the default 'N/A' value
+    }
+  }
   const publishTimeForBanner = env.VITE_PUBLISH_TIME || new Date().toISOString()
+
+  // Build Bitbucket PR URL if available
+  const bitbucketWorkspace = env.BITBUCKET_WORKSPACE
+  const bitbucketRepoSlug = env.BITBUCKET_REPO_SLUG
+  const bitbucketBuildNumber = env.BITBUCKET_BUILD_NUMBER
+
+  // First try explicit PR ID (available in PR pipelines)
+  let prUrl: string | null = null
+  const bitbucketPrId = env.BITBUCKET_PR_ID
+  if (bitbucketPrId && bitbucketWorkspace && bitbucketRepoSlug) {
+    prUrl = `https://bitbucket.org/${bitbucketWorkspace}/${bitbucketRepoSlug}/pull-requests/${bitbucketPrId}`
+  } else if (bitbucketWorkspace && bitbucketRepoSlug) {
+    // For merge commits, try to extract PR number from the commit that last modified this screen
+    // Bitbucket merge commits have format: "Merged in branch-name (pull request #123)"
+    try {
+      const screenDir = targetEntryFile ? path.dirname(targetEntryFile) : null
+      let commitMsg = ''
+
+      if (screenDir) {
+        // Get commit message of the last commit that modified this screen
+        commitMsg = execSync(`git log -1 --pretty=format:%s -- "${screenDir}"`, { encoding: 'utf8' }).trim()
+      }
+
+      // Fallback to last commit if screen-specific lookup fails
+      if (!commitMsg) {
+        commitMsg = execSync('git log -1 --pretty=format:%s', { encoding: 'utf8' }).trim()
+      }
+
+      const prMatch = commitMsg.match(/\(pull request #(\d+)\)/)
+      if (prMatch) {
+        prUrl = `https://bitbucket.org/${bitbucketWorkspace}/${bitbucketRepoSlug}/pull-requests/${prMatch[1]}`
+      }
+    } catch {
+      // Couldn't extract PR from commit message
+    }
+  }
+
+  const pipelineUrl =
+    bitbucketBuildNumber && bitbucketWorkspace && bitbucketRepoSlug
+      ? `https://bitbucket.org/${bitbucketWorkspace}/${bitbucketRepoSlug}/pipelines/results/${bitbucketBuildNumber}`
+      : null
+
   const appBuildInfoObject = {
     gitUser: gitUserForBanner,
-    publishTime: publishTimeForBanner
+    publishTime: publishTimeForBanner,
+    prUrl: prUrl,
+    pipelineUrl: pipelineUrl,
+    buildNumber: bitbucketBuildNumber || null
   }
   const appBuildInfoStringForBanner = JSON.stringify(appBuildInfoObject)
 
@@ -218,12 +305,20 @@ if (globalThis.__APP_BUILD_INFO__) {
   // Construct the desired format, ensuring timezone is handled gracefully
   const formattedBuildTime = \`\${parts.day}.\${parts.month}.\${parts.year} \${parts.hour}:\${parts.minute} \${parts.timeZoneName || ''}\`.trim();
 
-  console.log(\`---------------------------------------
-       Screen Build Information
----------------------------------------
-  Built by:    \${buildInfo.gitUser}
-  Build time:  \${formattedBuildTime}
----------------------------------------\`);
+  const extraLines = [];
+  if (buildInfo.buildNumber) extraLines.push('  Build #:     ' + buildInfo.buildNumber);
+  if (buildInfo.prUrl) extraLines.push('  PR:          ' + buildInfo.prUrl);
+  if (buildInfo.pipelineUrl) extraLines.push('  Pipeline:    ' + buildInfo.pipelineUrl);
+  
+  console.log('---------------------------------------');
+  console.log('       Screen Build Information');
+  console.log('---------------------------------------');
+  console.log('  Built by:    ' + buildInfo.gitUser);
+  console.log('  Build time:  ' + formattedBuildTime);
+  if (extraLines.length > 0) {
+    extraLines.forEach(function(line) { console.log(line); });
+  }
+  console.log('---------------------------------------');
 } else {
   console.log('Screen Build Info: Not available');
 }
@@ -234,12 +329,11 @@ if (globalThis.__APP_BUILD_INFO__) {
   const prependBuildInfoBannerPlugin = {
     name: 'prepend-custom-build-info-banner',
     renderChunk(code: string, chunk: any) {
-      // isProduction is from the outer closure
       if (
         !shouldHashFilesForDeployment &&
-        isProduction &&
+        isUnversionedBuild &&
         chunk.isEntry &&
-        chunk.facadeModuleId?.endsWith('index.ts') &&
+        chunk.facadeModuleId?.endsWith('.ts') &&
         chunk.name !== 'index' &&
         chunk.exports.length > 0
       ) {
@@ -338,6 +432,7 @@ if (globalThis.__APP_BUILD_INFO__) {
         // Generate a module that re-exports all the wrapped components
         let code = `import { wrapWithUiCatalog } from './common/wrapWithUiCatalog';
 import { wrapWithLocalizationProvider } from './common/wrapWithLocalizationProvider';
+import { wrapWithBlinkProvider } from './common/wrapWithBlinkProvider';
 `
 
         // For each entry in our dynamic entries, create an import and export
@@ -353,7 +448,7 @@ import { wrapWithLocalizationProvider } from './common/wrapWithLocalizationProvi
             code += `export const ${cleanEntryKey} = ${cleanEntryKey}Original;
 `
           } else {
-            code += `export const ${cleanEntryKey} = wrapWithUiCatalog(wrapWithLocalizationProvider(${cleanEntryKey}Original));
+            code += `export const ${cleanEntryKey} = wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvider(${cleanEntryKey}Original)));
 `
           }
         })
@@ -543,10 +638,11 @@ export default OriginalComponent;
         wrapperContent = `// Auto-generated wrapper file
 import { wrapWithUiCatalog } from '@/common/wrapWithUiCatalog';
 import { wrapWithLocalizationProvider } from '@/common/wrapWithLocalizationProvider';
+import { wrapWithBlinkProvider } from '@/common/wrapWithBlinkProvider';
 import OriginalComponent from '${relativeEntryPath.startsWith('.') ? relativeEntryPath : './' + relativeEntryPath}';
 
 // Re-export wrapped component
-export default wrapWithUiCatalog(wrapWithLocalizationProvider(OriginalComponent));
+export default wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvider(OriginalComponent)));
 `
       }
 
@@ -625,6 +721,7 @@ export default wrapWithUiCatalog(wrapWithLocalizationProvider(OriginalComponent)
         cssFileName: 'main'
       },
       minify: isProduction ? 'esbuild' : false, // Ensure minification for production
+      reportCompressedSize: isUnversionedBuild,
       // Enable CSS processing
       css: {
         devSourcemap: true

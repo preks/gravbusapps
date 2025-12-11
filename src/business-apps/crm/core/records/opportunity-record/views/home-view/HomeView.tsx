@@ -104,7 +104,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 opportunityData?.opportunityContacts
                   ?.map((oc: any) => ({
                     ...oc.contact,
-                    jobPosition: oc.contact?.jobTitle // Map CRM jobTitle to jobPosition for ContactSection
+                    jobPosition: oc.contact?.jobTitle, // Map CRM jobTitle to jobPosition for ContactSection
+                    contactType: oc.contactType
                   }))
                   .filter(Boolean) || [],
               contactId: opportunityData?.opportunityContacts?.[0]?.contact?.id,
@@ -144,7 +145,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 ? {
                     ...opportunityData,
                     // Map salesPipelineStage to opportunityPipelineStage (ConditionSection expects this)
-                    opportunityPipelineStage: opportunityData.salesPipelineStage
+                    opportunityPipelineStage: opportunityData.opportunityPipelineStage
                   }
                 : undefined,
               // Transform stage condition statuses to use IRM field names
@@ -161,6 +162,66 @@ export const HomeView: React.FC<HomeViewProps> = ({
           }
         ]}
         data-testid="opportunity-stage-condition-section-wrapper"
+      />
+
+      {/* Tasks & Approvals - 1/2 width, spans 2 rows - matching IRM Lead layout */}
+      <SectionWrapper
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2"
+        sections={[
+          {
+            id: 'tasks-section',
+            component: TaskSection,
+            props: {
+              ...props,
+              accessToken,
+              opportunityId: opportunityId,
+              buildReferenceUrl,
+              tasks: tasks,
+              taskActionProps: {
+                contextsArray: [FlowContextName.customerTaskCreate],
+                externalContextData: { opportunityId },
+                prefixDataTestId: 'opportunity-tasks',
+                emptyStateBehavior: 'enable'
+              },
+              taskEntityActionProps: {
+                contextsArray: [FlowContextName.customerTaskEntity],
+                externalContextData: { opportunityId },
+                prefixDataTestId: 'opportunity-task-entity',
+                emptyStateBehavior: 'enable'
+              }
+            }
+          },
+          {
+            id: 'approval-tasks-section',
+            component: TaskSection,
+            props: {
+              ...props,
+              accessToken,
+              sectionTitle: 'Approval Tasks',
+              opportunityId: opportunityId,
+              buildReferenceUrl,
+              tasks: approvals,
+              taskEntityActionProps: {
+                contextsArray: [FlowContextName.customerTaskEntity],
+                externalContextData: { opportunityId },
+                prefixDataTestId: 'opportunity-approval-entity',
+                emptyStateBehavior: 'enable'
+              },
+              taskActionProps: {
+                contextsArray: [FlowContextName.customerTaskCreate],
+                externalContextData: {
+                  opportunityId,
+                  opportunity: opportunityId,
+                  typeRef: 'SalesTaskType:v1:APPROVAL',
+                  salesTask: { opportunity: opportunityId, type: 'SalesTaskType:v1:APPROVAL' }
+                },
+                prefixDataTestId: 'opportunity-approvals',
+                emptyStateBehavior: 'enable'
+              }
+            }
+          }
+        ]}
+        data-testid="opportunity-tasks-approvals-section-wrapper"
       />
 
       {/* Activities & Notes - 1/2 width, spans 2 rows - matching IRM Lead layout */}
@@ -222,66 +283,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
           }
         ]}
         data-testid="opportunity-activities-notes-section-wrapper"
-      />
-
-      {/* Tasks & Approvals - 1/2 width, spans 2 rows - matching IRM Lead layout */}
-      <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2"
-        sections={[
-          {
-            id: 'tasks-section',
-            component: TaskSection,
-            props: {
-              ...props,
-              accessToken,
-              opportunityId: opportunityId,
-              buildReferenceUrl,
-              tasks: tasks,
-              taskActionProps: {
-                contextsArray: [FlowContextName.customerTaskCreate],
-                externalContextData: { opportunityId },
-                prefixDataTestId: 'opportunity-tasks',
-                emptyStateBehavior: 'enable'
-              },
-              taskEntityActionProps: {
-                contextsArray: [FlowContextName.customerTaskEntity],
-                externalContextData: { opportunityId },
-                prefixDataTestId: 'opportunity-task-entity',
-                emptyStateBehavior: 'enable'
-              }
-            }
-          },
-          {
-            id: 'approval-tasks-section',
-            component: TaskSection,
-            props: {
-              ...props,
-              accessToken,
-              sectionTitle: 'Approval Tasks',
-              opportunityId: opportunityId,
-              buildReferenceUrl,
-              tasks: approvals,
-              taskEntityActionProps: {
-                contextsArray: [FlowContextName.customerTaskEntity],
-                externalContextData: { opportunityId },
-                prefixDataTestId: 'opportunity-approval-entity',
-                emptyStateBehavior: 'enable'
-              },
-              taskActionProps: {
-                contextsArray: [FlowContextName.customerTaskCreate],
-                externalContextData: {
-                  opportunityId,
-                  opportunity: opportunityId,
-                  typeRef: 'SalesTaskType:v1:APPROVAL',
-                  salesTask: { opportunity: opportunityId, type: 'SalesTaskType:v1:APPROVAL' }
-                },
-                prefixDataTestId: 'opportunity-approvals',
-                emptyStateBehavior: 'enable'
-              }
-            }
-          }
-        ]}
-        data-testid="opportunity-tasks-approvals-section-wrapper"
       />
     </>
   )

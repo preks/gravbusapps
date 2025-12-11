@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { RecordLayout, Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useGetInvestmentById } from '@/common/data/investment'
-import { useGetInvestmentCatalogData } from '@/business-apps/irm/investments/forms/investment-form/queries/InvestmentCatalogQueries'
+import { useGetInvestmentById } from '@/common/data/investment/hooks/useInvestments'
+import { useGetInvestmentCatalogData } from '@/common/data/investment/hooks/useInvestmentCatalogs'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { Bot } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -15,14 +15,12 @@ import { useInvestmentAiSummary } from './hooks/useInvestmentAiSummary'
 import { TrendingUp, Home, BarChart3 } from 'lucide-react'
 import { createHeaderMeta, getTypeSpecificDetailGroups } from './utils/investmentHeaderConfig'
 import { createInvestmentTabsConfig } from './utils/investmentTabConfig'
-import { InvestmentRecordAnalyticsChat } from '@/ai-insights/components/InvestmentRecordAnalyticsChat'
-import { extractCurrencyCode } from '@/common/utils/numberFormatter'
 
 type InvestmentRecordProps = BusinessAppContextProps
 
 const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
   const [investmentId, setInvestmentId] = useState<string | null>(null)
-  const ALLOWED_TABS = ['home', 'analytics', 'tiles', 'overview', 'documents', 'reports'] as const
+  const ALLOWED_TABS = ['home', 'analytics', 'tiles', 'overview', 'divestments', 'documents', 'reports'] as const
   type TabKey = (typeof ALLOWED_TABS)[number]
 
   const getInitialTab = (): TabKey => {
@@ -186,11 +184,14 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
     loadData()
   }, [loadData])
 
+  // Memoized callback for process completion
+  const handleProcessSuccess = useCallback(() => {
+    loadData()
+  }, [loadData])
+
   // Refresh on process completion success using shared hook
   useProcessCompletion({
-    onSuccess: () => {
-      loadData()
-    }
+    onSuccess: handleProcessSuccess
   })
 
   // Determine investment type and type-specific data using dynamic approach
@@ -270,6 +271,30 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
     }
   }, [])
 
+  // Header action button - MUST be before conditional returns (Rules of Hooks)
+  const headerActionButton = useMemo(
+    () => (
+      <AppAction
+        variant="header"
+        contexts={[
+          {
+            context: getInvestmentFlowContext(investmentType),
+            contextData: { investmentId }
+          }
+        ]}
+        shareContext={{
+          entityType: 'investment',
+          entityId: investmentId || '',
+          entityName: investmentData?.name || 'Investment',
+          entityUrl: `/platform/irm/investment-record?investmentId=${investmentId}`
+        }}
+        prefixDataTestId={`${investmentType}-record-action`}
+        accessToken={props.accessToken}
+      />
+    ),
+    [investmentId, investmentType, investmentData?.name, props.accessToken]
+  )
+
   // Loading state
   if (isLoading) {
     return (
@@ -331,18 +356,6 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
     />
   )
 
-  const headerActionButton = (
-    <AppActionButton
-      size="icon"
-      contextsArray={[getInvestmentFlowContext(investmentType)]}
-      externalContextData={{ investmentId }}
-      prefixDataTestId={`${investmentType}-record-action`}
-      emptyStateBehavior="enable"
-      deferMainContextRequestsUntilClick={false}
-      accessToken={props.accessToken}
-    />
-  )
-
   // Detail groups for header using centralized utilities with dynamic catalog data
   const headerDetailGroups = getTypeSpecificDetailGroups(investmentType, typeSpecificData, investment, catalogData)
 
@@ -376,18 +389,6 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
         headerDetailGroups={headerDetailGroups}
         subViews={subViewsConfig}
       />
-
-      {/* Analytics assistant for the page */}
-      {investmentId && investmentData && props.accessToken && (
-        <div className="gba:px-4 gba:py-2">
-          <InvestmentRecordAnalyticsChat
-            investmentId={investmentId}
-            investmentName={investmentData.name}
-            accessToken={props.accessToken}
-            currency={extractCurrencyCode(investmentData.currency)}
-          />
-        </div>
-      )}
     </div>
   )
 }

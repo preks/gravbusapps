@@ -16,7 +16,7 @@ interface UsePortfolioStatusCountDistributionResult {
 
 export const usePortfolioStatusCountDistribution = (
   context: BusinessAppContextProps,
-  currency: string = 'All Currencies'
+  currency: string = 'All'
 ): UsePortfolioStatusCountDistributionResult => {
   const { fetchData } = useGetStatusCountDistribution(context, currency)
   const [data, setData] = useState<StatusCountData[]>([])

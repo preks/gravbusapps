@@ -349,7 +349,7 @@ hr-analytics-categories = { $count } categorii
 hr-analytics-top-8-of-nationalities = Top 8 din { $total } naționalități
 hr-analytics-total-data-points = Puncte de date totale: { $count }
 hr-analytics-gender-diversity = Diversitate de gen
-hr-analytics-gender-distribution-balance = Echilibru în distribuția pe genuri
+hr-analytics-gender-distribution-balance = Distribuție pe gen (femei:bărbați)
 hr-analytics-most-common-gender = Cel mai frecvent gen
 hr-analytics-most-frequent-gender = Genul cel mai des întâlnit
 hr-analytics-average-age = Vârstă medie
@@ -362,9 +362,9 @@ hr-analytics-new-hires-this-month = Angajări noi în această lună
 hr-analytics-monthly-departures = Plecări lunare
 hr-analytics-departures-this-month = Plecări în această lună
 hr-analytics-net-change = Schimbare netă
-hr-analytics-monthly-headcount-change = Schimbare lunară de headcount
+hr-analytics-monthly-headcount-change = Schimbare număr de angajați (luna curentă)
 hr-analytics-growth-rate = Rată de creștere
-hr-analytics-monthly-growth-percentage = Procent de creștere lunar
+hr-analytics-monthly-growth-percentage = Creștere în această lună
 hr-analytics-workforce-analytics = Analitice workforce
 hr-analytics-loading-workforce = Se încarcă datele și analizele workforce...
 hr-analytics-failed-to-load-workforce = Încărcarea datelor workforce a eșuat
@@ -427,4 +427,6 @@ hr-pagination-prev-page-sr = Mergi la pagina anterioară
 hr-pagination-next-page-sr = Mergi la pagina următoare
 hr-pagination-last-page-sr = Mergi la ultima pagină
 
+#Picture
+employee-edit-picture = EDITEAZA POZA
 

@@ -1,42 +1,19 @@
-import React, { useState } from 'react'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, LineChart, Line } from 'recharts'
+import React, { useState, useMemo } from 'react'
+import { BarChart, Bar, XAxis, YAxis, LineChart, Line, CartesianGrid } from 'recharts'
 import { BarChartOutlined, LineChartOutlined } from '@ant-design/icons'
+import { ChartContainer, ChartTooltip, ChartLegend, ChartLegendContent } from '@newwork/nw-design-system'
 import { CampaignsAnalyticsComponentProps } from '../types/CampaignsAnalyticsTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
-import { CHART_COLORS } from '../../../utils/chartColors'
-import {
-  TooltipWrapper,
-  TooltipDataLine,
-  ChartContainer
-} from '@/common/components/customer/campaign-management/ChartHelpers'
 import { ChartCard, ChartTypeSwitcher } from '@/common/components/customer/campaign-management/ChartCard'
 
 /**
- * Chart data series configuration to eliminate duplication
- */
-const CHART_DATA_SERIES = [
-  { dataKey: 'leadsCount', name: 'Leads', color: CHART_COLORS.primary },
-  { dataKey: 'accountsCount', name: 'Accounts', color: CHART_COLORS.success },
-  { dataKey: 'contactsCount', name: 'Contacts', color: CHART_COLORS.accent },
-  { dataKey: 'opportunitiesCount', name: 'Opportunities', color: CHART_COLORS.warning }
-] as const
-
-/**
  * Custom tooltip for campaign performance chart
- * Extracted to improve performance and testability
+ * Using design system tooltip styling
  */
-interface PerformanceTooltipData {
-  leadsCount: number
-  accountsCount: number
-  contactsCount: number
-  opportunitiesCount: number
-  totalRevenue: number
-}
-
 interface PerformanceTooltipProps {
   active?: boolean
-  payload?: Array<{ payload: PerformanceTooltipData }>
+  payload?: any[]
   label?: string
 }
 
@@ -44,17 +21,26 @@ const PerformanceTooltip: React.FC<PerformanceTooltipProps> = ({ active, payload
   if (active && payload?.length) {
     const data = payload[0].payload
     return (
-      <TooltipWrapper title={label || 'Campaign'}>
-        <TooltipDataLine label="Leads" value={data.leadsCount} color={CHART_COLORS.primary} />
-        <TooltipDataLine label="Accounts" value={data.accountsCount} color={CHART_COLORS.success} />
-        <TooltipDataLine label="Contacts" value={data.contactsCount} color={CHART_COLORS.accent} />
-        <TooltipDataLine label="Opportunities" value={data.opportunitiesCount} color={CHART_COLORS.warning} />
-        <TooltipDataLine
-          label="Revenue"
-          value={formatCurrencyCompact(data.totalRevenue, 'USD')}
-          color={CHART_COLORS.danger}
-        />
-      </TooltipWrapper>
+      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">Campaign: {label}</div>
+        {payload.map((entry: any) => (
+          <div key={entry.dataKey} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+            <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: entry.color }} />
+            <span className="gba:font-medium">{entry.name}:</span>
+            <span className="gba:font-semibold">{entry.value}</span>
+          </div>
+        ))}
+        {data.totalRevenue !== undefined && (
+          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1 gba:mt-2 gba:pt-2 gba:border-t">
+            <div
+              className="gba:w-3 gba:h-3 gba:rounded-full"
+              style={{ backgroundColor: 'var(--color-totalrevenue)' }}
+            />
+            <span className="gba:font-medium">Total Revenue:</span>
+            <span className="gba:font-semibold">{formatCurrencyCompact(data.totalRevenue, 'USD')}</span>
+          </div>
+        )}
+      </div>
     )
   }
   return null
@@ -67,6 +53,18 @@ const CampaignsPerformanceComparison: React.FC<CampaignsAnalyticsComponentProps>
   onRetry
 }) => {
   const [chartType, setChartType] = useState<'bar' | 'line'>('bar')
+
+  // Chart configuration using design system approach (same as IRM Portfolio)
+  const chartConfig = useMemo(
+    () => ({
+      leadscount: { label: 'Leads' },
+      accountscount: { label: 'Accounts' },
+      contactscount: { label: 'Contacts' },
+      opportunitiescount: { label: 'Opportunities' },
+      totalrevenue: { label: 'Total Revenue' }
+    }),
+    []
+  )
 
   // Common chart configuration to eliminate duplication
   const commonChartProps = {
@@ -105,31 +103,67 @@ const CampaignsPerformanceComparison: React.FC<CampaignsAnalyticsComponentProps>
       }
       data-testid="campaigns-performance-comparison"
     >
-      <ChartContainer>
+      <ChartContainer config={chartConfig} className="gba:h-[400px] gba:w-full">
         {chartType === 'bar' ? (
           <BarChart {...commonChartProps}>
+            <CartesianGrid strokeDasharray="3 3" />
             <XAxis {...commonAxisProps.xAxis} />
             <YAxis />
-            <Tooltip content={<PerformanceTooltip />} />
-            {CHART_DATA_SERIES.map(series => (
-              <Bar key={series.dataKey} dataKey={series.dataKey} fill={series.color} name={series.name} />
-            ))}
+            <ChartTooltip content={<PerformanceTooltip />} />
+            <ChartLegend content={<ChartLegendContent />} />
+            <Bar dataKey="leadsCount" fill="var(--color-leadscount)" name="Leads" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="accountsCount" fill="var(--color-accountscount)" name="Accounts" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="contactsCount" fill="var(--color-contactscount)" name="Contacts" radius={[4, 4, 0, 0]} />
+            <Bar
+              dataKey="opportunitiesCount"
+              fill="var(--color-opportunitiescount)"
+              name="Opportunities"
+              radius={[4, 4, 0, 0]}
+            />
           </BarChart>
         ) : (
           <LineChart {...commonChartProps}>
+            <CartesianGrid strokeDasharray="3 3" />
             <XAxis {...commonAxisProps.xAxis} />
             <YAxis />
-            <Tooltip content={<PerformanceTooltip />} />
-            {CHART_DATA_SERIES.map(series => (
-              <Line
-                key={series.dataKey}
-                type="monotone"
-                dataKey={series.dataKey}
-                stroke={series.color}
-                name={series.name}
-                strokeWidth={2}
-              />
-            ))}
+            <ChartTooltip content={<PerformanceTooltip />} />
+            <ChartLegend content={<ChartLegendContent />} />
+            <Line
+              type="monotone"
+              dataKey="leadsCount"
+              stroke="var(--color-leadscount)"
+              name="Leads"
+              strokeWidth={3}
+              dot={false}
+              activeDot={{ r: 4 }}
+            />
+            <Line
+              type="monotone"
+              dataKey="accountsCount"
+              stroke="var(--color-accountscount)"
+              name="Accounts"
+              strokeWidth={3}
+              dot={false}
+              activeDot={{ r: 4 }}
+            />
+            <Line
+              type="monotone"
+              dataKey="contactsCount"
+              stroke="var(--color-contactscount)"
+              name="Contacts"
+              strokeWidth={3}
+              dot={false}
+              activeDot={{ r: 4 }}
+            />
+            <Line
+              type="monotone"
+              dataKey="opportunitiesCount"
+              stroke="var(--color-opportunitiescount)"
+              name="Opportunities"
+              strokeWidth={3}
+              dot={false}
+              activeDot={{ r: 4 }}
+            />
           </LineChart>
         )}
       </ChartContainer>

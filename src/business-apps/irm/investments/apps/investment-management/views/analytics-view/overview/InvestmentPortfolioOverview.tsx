@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState } from 'react'
 import {
   Alert,
   AlertTitle,
@@ -22,6 +22,7 @@ import { WidgetGroup } from '@/components/widget-group'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { useAvailableCurrencies } from '@/common/data/common/hooks/useAvailableCurrencies'
 import { useInvestmentPortfolioIntegration } from './hooks'
 import { PortfolioTimelineCharts } from './components/PortfolioTimelineCharts'
 import { PortfolioAnalyticsCharts } from './components/PortfolioAnalyticsCharts'
@@ -47,23 +48,13 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
   const [activeTab, setActiveTab] = useState('distribution')
   const [selectedCurrency, setSelectedCurrency] = useState<string>('EUR')
 
-  const { investments, kpis, previousKpis, isLoading, error, refetch } = useInvestmentPortfolioIntegration(
-    props,
-    selectedCurrency
-  )
+  const { kpis, previousKpis, isLoading, error, refetch } = useInvestmentPortfolioIntegration(props, selectedCurrency)
 
-  // Extract unique currencies from investments
-  const availableCurrencies = useMemo(() => {
-    const currencies = new Set<string>()
-    for (const inv of investments) {
-      if (inv.currencyCode) {
-        currencies.add(inv.currencyCode)
-      }
-    }
-    const currencyArray = Array.from(currencies).sort((a, b) => a.localeCompare(b))
-    // Ensure at least the default currency is available
-    return currencyArray.length > 0 ? currencyArray : ['EUR']
-  }, [investments])
+  // Fetch available currencies efficiently using distinctOn
+  const { currencies: availableCurrencies } = useAvailableCurrencies(props, {
+    filters: { entity: 'Investment' },
+    returnFormat: 'codes'
+  })
 
   if (isLoading) {
     return (
@@ -147,11 +138,11 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
               color: 'var(--nw-color-primary-500)',
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
-              description: 'Current market valuation across all investments',
+              description: 'All investments',
               trend: {
                 value: calculateChange(kpis.totalPortfolioValue, previousKpis.totalPortfolioValue).value,
                 positive: calculateChange(kpis.totalPortfolioValue, previousKpis.totalPortfolioValue).positive,
-                description: 'vs 30 days ago'
+                description: 'vs last quarter'
               }
             },
             {
@@ -161,11 +152,11 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
               prefix: <BarChartOutlined />,
               color: 'var(--nw-color-success-500)',
               span: { xs: 24, sm: 12, lg: 6 },
-              description: 'Total number of investment positions',
+              description: 'Investment count',
               trend: {
                 value: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).value,
                 positive: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).positive,
-                description: 'vs 30 days ago'
+                description: 'vs last quarter'
               }
             },
             {
@@ -183,11 +174,11 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
               color: 'var(--nw-color-warning-500)',
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
-              description: 'Sum of all total invested amounts',
+              description: 'Total capital',
               trend: {
                 value: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).value,
                 positive: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).positive,
-                description: 'vs 30 days ago'
+                description: 'vs last quarter'
               }
             },
             {
@@ -197,11 +188,11 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
               prefix: <RiseOutlined />,
               color: 'var(--nw-color-purple-500)',
               span: { xs: 24, sm: 12, lg: 6 },
-              description: 'Currently active investment positions',
+              description: 'Active positions',
               trend: {
                 value: calculateChange(kpis.activeInvestments, previousKpis.activeInvestments).value,
                 positive: calculateChange(kpis.activeInvestments, previousKpis.activeInvestments).positive,
-                description: 'vs 30 days ago'
+                description: 'vs last quarter'
               }
             }
           ]}

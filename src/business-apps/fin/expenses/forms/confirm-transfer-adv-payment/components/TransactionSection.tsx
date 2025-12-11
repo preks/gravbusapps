@@ -20,20 +20,10 @@ const TransactionSection: React.FC<TransactionSectionProps> = ({
   onConfirmationChange
 }) => {
   return (
-    <div className="gba:mb-6 gba:p-3" data-testid="confirm-transfer-adv-payment-transaction-section">
-      <h3
-        className="gba:text-lg gba:font-semibold gba:mb-3 gba:text-foreground"
-        data-testid="confirm-transfer-adv-payment-transaction-title"
-      >
-        {getTranslationFromI18nKeyAndLabel(
-          'lowcoder:confirm_transfer_advance_payment.transaction_confirmation_text',
-          'Transaction Confirmation'
-        )}
-      </h3>
-
+    <div data-testid="confirm-transfer-adv-payment-v2-transaction-section">
       <div className="gba:flex gba:flex-col gba:gap-4">
         {/* Transaction Date */}
-        <div data-testid="confirm-transfer-adv-payment-transaction-date">
+        <div data-testid="confirm-transfer-adv-payment-v2-transaction-date">
           <label className="gba:block gba:mb-2 gba:text-sm gba:font-medium gba:text-foreground">
             {getTranslationFromI18nKeyAndLabel(
               'lowcoder:confirm_transfer_advance_payment.transaction_date_label',
@@ -50,7 +40,7 @@ const TransactionSection: React.FC<TransactionSectionProps> = ({
         </div>
 
         {/* Transaction ID */}
-        <div data-testid="confirm-transfer-adv-payment-transaction-id">
+        <div data-testid="confirm-transfer-adv-payment-v2-transaction-id">
           <label className="gba:block gba:mb-2 gba:text-sm gba:font-medium gba:text-foreground">
             {getTranslationFromI18nKeyAndLabel(
               'lowcoder:confirm_transfer_advance_payment.transaction_id_label',
@@ -69,7 +59,7 @@ const TransactionSection: React.FC<TransactionSectionProps> = ({
         </div>
 
         {/* Confirmation Checkbox */}
-        <div className="gba:flex gba:items-start gba:gap-2" data-testid="confirm-transfer-adv-payment-confirmation">
+        <div className="gba:flex gba:items-start gba:gap-2" data-testid="confirm-transfer-adv-payment-v2-confirmation">
           <Checkbox
             checked={confirmationChecked}
             onCheckedChange={checked => onConfirmationChange(checked === true)}

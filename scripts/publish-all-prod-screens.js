@@ -7,12 +7,11 @@
  * - ⚠️  WARNING: This will publish EVERY screen in the repository!
  */
 
-import path from 'path'
-import fs from 'fs'
-import { dirname } from 'path'
-import { fileURLToPath } from 'url'
+import path, { dirname } from 'node:path'
+import fs from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { glob } from 'glob'
-import { execSync } from 'child_process'
+import { execSync } from 'node:child_process'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)

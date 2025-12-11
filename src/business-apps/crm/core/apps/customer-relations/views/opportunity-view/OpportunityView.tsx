@@ -1,89 +1,159 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState, useCallback } from 'react'
+import type { ColumnDef } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCustomerOpportunities } from '@/common/data/customer/hooks/useCustomerOpportunities'
 import { OpportunityLayout } from '@/common/components/common-relations/view-layouts/opportunity-layout'
+import { OpportunityStatisticsLayout } from '@/common/components/common-relations/view-layouts/opportunity-layout/components/OpportunityStatisticsLayout'
+import type { OpportunityStatisticsData } from '@/common/components/common-relations/view-layouts/opportunity-layout/components/OpportunityStatisticsLayout'
 import { createOpportunityConfig } from '@/common/components/common-relations/view-layouts/opportunity-layout/utils/opportunityConfigBuilder'
-import type { CustomerOpportunity } from '@/common/data/customer/types'
+import { createOpportunityColumns } from '@/common/components/common-relations/view-layouts/opportunity-layout/config/opportunityColumns'
+import type { CustomerOpportunity } from '@/common/data/customer/types/customerOpportunityTypes'
 import type { CustomerOpportunityQueryVariables } from '@/common/data/customer/queries/customerOpportunityQueries'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useCustomerOpportunityFilters } from './hooks/useCustomerOpportunityFilters'
 import { useCustomerOpportunityStatistics } from '@/common/data/customer/hooks/useCustomerOpportunityStatistics'
 import { CUSTOMER_OPPORTUNITY_DESCRIPTORS } from '@/common/data/customer/types/customerOpportunityTypes'
+import {
+  insertCustomerColumnsAfter,
+  CUSTOMER_OPPORTUNITY_EXTENDED_COLUMN_IDS,
+  CUSTOMER_OPPORTUNITY_SORTABLE_COLUMNS
+} from '@/common/components/customer/view-layouts/opportunity-layout/config/opportunityColumns'
+
+// Separate component to properly use hooks with currency filtering
+const CustomerOpportunityStatistics: React.FC<{
+  context: BusinessAppContextProps
+  selectedCurrency?: string // Full currency ID like "Currency:v1:EUR" or undefined
+}> = ({ context, selectedCurrency }) => {
+  const opportunityStatistics = useCustomerOpportunityStatistics(context, selectedCurrency)
+
+  if (!opportunityStatistics.trendData) return null
+
+  return (
+    <OpportunityStatisticsLayout
+      statistics={{
+        recentOpportunities: opportunityStatistics.trendData.recentOpportunities,
+        totalOpportunities: opportunityStatistics.trendData.totalOpportunities,
+        // CRM still uses winRate from hook - mapping to opportunitiesThisQuarter for shared layout compatibility
+        opportunitiesThisQuarter: opportunityStatistics.trendData.winRate,
+        opportunitiesThisYear: opportunityStatistics.trendData.opportunitiesThisYear,
+        isLoading: opportunityStatistics.isLoading,
+        error: opportunityStatistics.error,
+        refetch: () => void opportunityStatistics.refetch()
+      }}
+    />
+  )
+}
 
 export type OpportunityViewProps = BusinessAppContextProps
 
 export const OpportunityView: React.FC<OpportunityViewProps> = context => {
   const { fetchCustomerOpportunities } = useCustomerOpportunities(context)
-  const opportunityStatistics = useCustomerOpportunityStatistics(context)
 
-  const config = useMemo(
-    () =>
-      createOpportunityConfig<CustomerOpportunity, CustomerOpportunityQueryVariables>({
-        contextType: 'customer',
+  // State to trigger statistics refresh
+  const [statisticsRefreshKey, setStatisticsRefreshKey] = useState(0)
 
-        extendQueryVariables: vars => ({
-          ...vars,
-          // Filter for OPEN status only on kanban board
-          opportunityStatusIds: ['SalesOpportunityStatus:v1:OPEN']
-        }),
+  // Create a refetch callback for statistics
+  const refetchStatistics = useCallback(() => {
+    setStatisticsRefreshKey(prev => prev + 1)
+  }, [])
 
-        fetchOpportunities: async variables => {
-          return await fetchCustomerOpportunities(variables)
-        },
+  // Statistics data with refetch callback
+  const opportunityStatisticsData: OpportunityStatisticsData | undefined = useMemo(() => {
+    return {
+      recentOpportunities: { current: 0, previous: 0, change: 0, changePercent: 0, isPositive: false },
+      totalOpportunities: { current: 0, previous: 0, change: 0, changePercent: 0, isPositive: false },
+      opportunitiesThisQuarter: { current: 0, previous: 0, change: 0, changePercent: 0, isPositive: false },
+      opportunitiesThisYear: { current: 0, previous: 0, change: 0, changePercent: 0, isPositive: false },
+      isLoading: false,
+      error: null,
+      refetch: refetchStatistics
+    }
+  }, [refetchStatistics])
 
-        filterDataHook: useCustomerOpportunityFilters,
+  const config = useMemo(() => {
+    const baseConfig = createOpportunityConfig<CustomerOpportunity, CustomerOpportunityQueryVariables>({
+      contextType: 'customer',
 
-        viewDescriptors: CUSTOMER_OPPORTUNITY_DESCRIPTORS,
+      fetchOpportunities: async variables => {
+        return await fetchCustomerOpportunities(variables)
+      },
 
-        columnMappings: {
-          pipeline: 'salesPipeline',
-          stage: 'salesPipelineStage'
-        },
+      filterDataHook: useCustomerOpportunityFilters,
 
-        flowContexts: {
-          entity: FlowContextName.customerOpportunityEntity,
-          create: FlowContextName.customerOpportunityCreate
-        },
+      viewDescriptors: CUSTOMER_OPPORTUNITY_DESCRIPTORS,
 
-        urlPaths: {
-          opportunityRecord: '/platform/crm/opportunity-record',
-          accountRecord: '/platform/crm/account-record',
-          source: 'customer-relations'
-        },
+      columnMappings: {
+        pipeline: 'salesPipeline',
+        stage: 'salesPipelineStage'
+      },
 
-        boardConfig: {
-          pipelineCatalog: 'SalesPipeline',
-          pipelineStageCatalog: 'SalesPipelineStage',
-          opportunityType: 'CustomerOpportunity',
-          processName: 'transitionOpportunity',
-          processDomain: 'customer-relations'
-        },
+      flowContexts: {
+        entity: FlowContextName.customerOpportunityEntity,
+        create: FlowContextName.customerOpportunityCreate
+      },
 
-        fetchBoardOpportunities: fetchCustomerOpportunities,
-        extractBoardOpportunities: result => result.opportunities || [],
-        extractBoardTotalCount: result => result.total || 0,
+      urlPaths: {
+        opportunityRecord: '/platform/crm/opportunity-record',
+        accountRecord: '/platform/crm/account-record',
+        source: 'customer-relations'
+      },
 
-        opportunityStatistics: opportunityStatistics.trendData
-          ? {
-              recentOpportunities: opportunityStatistics.trendData.recentOpportunities,
-              opportunityValue: opportunityStatistics.trendData.opportunityValue,
-              winRate: opportunityStatistics.trendData.winRate,
-              opportunitiesThisYear: opportunityStatistics.trendData.opportunitiesThisYear,
-              isLoading: opportunityStatistics.isLoading,
-              error: opportunityStatistics.error,
-              refetch: () => void opportunityStatistics.refetch()
-            }
-          : undefined,
+      boardConfig: {
+        pipelineCatalog: 'SalesPipeline',
+        pipelineStageCatalog: 'SalesPipelineStage',
+        opportunityType: 'CustomerOpportunity',
+        processName: 'transitionOpportunity',
+        processDomain: 'customer-relations'
+      },
 
-        rowActionsContextArray: [FlowContextName.customerOpportunityEntity],
-        buildRowActionsExternalContextData: (row: { original: CustomerOpportunity }) => ({
-          opportunityId: row.original.id
-        })
-      }),
-    [context, fetchCustomerOpportunities, opportunityStatistics]
+      fetchBoardOpportunities: fetchCustomerOpportunities,
+      extractBoardOpportunities: result => result.opportunities || [],
+      extractBoardTotalCount: result => result.total || 0,
+
+      // Provide statistics data for refetch in handleProcessComplete
+      opportunityStatistics: opportunityStatisticsData,
+
+      // Use renderStatistics to support currency filtering
+      renderStatistics: (selectedCurrency?: string) => (
+        <CustomerOpportunityStatistics
+          key={statisticsRefreshKey}
+          context={context}
+          selectedCurrency={selectedCurrency}
+        />
+      ),
+
+      rowActionsContextArray: [FlowContextName.customerOpportunityEntity],
+      buildRowActionsExternalContextData: (row: { original: CustomerOpportunity }) => ({
+        opportunityId: row.original.id
+      })
+    })
+
+    // CRM-specific: Override createColumns to add customer-specific columns
+    return {
+      ...baseConfig,
+      createColumns: (buildAccountUrl: (id: string) => string) => {
+        const baseColumns = createOpportunityColumns(buildAccountUrl) as ColumnDef<CustomerOpportunity>[]
+        return insertCustomerColumnsAfter(baseColumns, 'amount')
+      },
+      createSortableColumns: (availableColumnIds?: string[]) => {
+        const baseSortable = baseConfig.createSortableColumns(availableColumnIds)
+        // Add CRM-specific sortable columns
+        const additionalSortable = CUSTOMER_OPPORTUNITY_SORTABLE_COLUMNS.filter(
+          col => !availableColumnIds || availableColumnIds.includes(col.id)
+        )
+        return [...baseSortable, ...additionalSortable]
+      }
+    } as typeof baseConfig
+  }, [context, fetchCustomerOpportunities, opportunityStatisticsData, statisticsRefreshKey])
+
+  return (
+    <OpportunityLayout
+      context={context}
+      config={config}
+      dataTestId="customer-opportunities-view"
+      extendVisibleColumns={CUSTOMER_OPPORTUNITY_EXTENDED_COLUMN_IDS}
+    />
   )
-
-  return <OpportunityLayout context={context} config={config} dataTestId="customer-opportunities-view" />
 }
 
 export default OpportunityView

@@ -14,7 +14,7 @@ import {
 } from '../queries/investmentReportQueries'
 
 // Import centralized types and mappers
-import { BaseInvestmentReport, InvestmentReport } from '@/common/data/investment/types'
+import { BaseInvestmentReport, InvestmentReport } from '@/common/data/investment/types/investmentTypes'
 import { toInvestmentReport } from '@/common/data/investment/mappers/investmentReportMappers'
 
 // Response interfaces

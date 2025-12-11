@@ -1,145 +1,260 @@
-import React from 'react'
-import { IconAvatar, Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@newwork/nw-design-system'
-import type { Message } from '../types'
-import { UserIcon } from 'lucide-react'
+import React, { useMemo, useState } from 'react'
+import {
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  TooltipProvider,
+  Button
+} from '@newwork/nw-design-system'
+import { ArrowBendUpLeft } from '@phosphor-icons/react'
+import type { Message, ConversationParticipant } from '../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { navigateTo } from '@/common/utils/navigationUtils'
+import { formatTime, formatFullTimestamp, getStatusIcon } from './utils/messageUtils'
+import { isPreviewable } from './utils/attachmentUtils'
+import { renderContentWithReferences } from './EntityReferenceBadge'
+import { AIResponseRenderer } from './AIResponseRenderer'
+import { MessageAttachments, type MessageAttachment } from './MessageAttachments'
+import { AttachmentPreviewDialog } from './AttachmentPreviewDialog'
+
+const getInitials = (name: string): string => {
+  if (!name) return '?'
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 1) {
+    return parts[0].charAt(0).toUpperCase()
+  }
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase()
+}
 
 interface MessageItemProps {
   message: Message
   currentUserId: string | null
   isGroupChat: boolean
+  accessToken?: string
+  participants?: ConversationParticipant[]
+  onReplyToAI?: () => void
 }
 
-const formatTime = (date: Date | string): string => {
-  // Parse the date - if it's a string, ensure it's treated as UTC
-  let d: Date
-  if (typeof date === 'string') {
-    // If the string doesn't end with 'Z' (UTC indicator), add it
-    // This ensures the timestamp is interpreted as UTC
-    const dateStr = date.endsWith('Z') ? date : date + 'Z'
-    d = new Date(dateStr)
-  } else {
-    d = date
-  }
-
-  const now = new Date()
-  const diffMs = now.getTime() - d.getTime()
-  const diffMins = Math.floor(diffMs / 60000)
-  const diffHours = Math.floor(diffMs / 3600000)
-  const diffDays = Math.floor(diffMs / 86400000)
-
-  if (diffMins < 1) return getTranslationFromI18nKeyAndLabel('chat.time.justNow', 'Just now')
-  if (diffMins < 60)
-    return getTranslationFromI18nKeyAndLabel('chat.time.minutesAgo', `${diffMins}m ago`).replace(
-      '{minutes}',
-      diffMins.toString()
-    )
-  if (diffHours < 24)
-    return getTranslationFromI18nKeyAndLabel('chat.time.hoursAgo', `${diffHours}h ago`).replace(
-      '{hours}',
-      diffHours.toString()
-    )
-  if (diffDays < 7)
-    return getTranslationFromI18nKeyAndLabel('chat.time.daysAgo', `${diffDays}d ago`).replace(
-      '{days}',
-      diffDays.toString()
-    )
-
-  return d.toLocaleDateString()
-}
-
-const formatFullTimestamp = (date: Date | string): string => {
-  // Parse the date - if it's a string, ensure it's treated as UTC
-  let d: Date
-  if (typeof date === 'string') {
-    // If the string doesn't end with 'Z' (UTC indicator), add it
-    const dateStr = date.endsWith('Z') ? date : date + 'Z'
-    d = new Date(dateStr)
-  } else {
-    d = date
-  }
-
-  return d.toLocaleString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
-  })
-}
-
-const getStatusIcon = (status?: string) => {
-  switch (status) {
-    case 'read':
-      return <span className="gba:text-blue-500">✓✓</span>
-    case 'delivered':
-      return <span className="gba:text-gray-500">✓✓</span>
-    case 'sent':
-      return <span className="gba:text-gray-500">✓</span>
-    default:
-      return null
-  }
-}
-
-export const MessageItem: React.FC<MessageItemProps> = ({ message, currentUserId, isGroupChat }) => {
-  const isOwnMessage = message.senderId === currentUserId
+export const MessageItem: React.FC<MessageItemProps> = ({
+  message,
+  currentUserId,
+  isGroupChat,
+  accessToken,
+  participants,
+  onReplyToAI
+}) => {
+  const isAIResponse = message.metadata?.isAIResponse === true
+  // AI responses should never be styled as "own message" even if sent by current user
+  const isOwnMessage = message.senderId === currentUserId && !isAIResponse
   const sender = message.sender
 
+  // Look up avatar and employeeId from conversation participants if not in sender
+  const participantData = useMemo(() => {
+    if (!participants) return null
+    const participant = participants.find(p => p.userId === message.senderId)
+    return participant?.user
+  }, [participants, message.senderId])
+
+  // Use sender data first, then fall back to participant data for avatar and employeeId
+  const avatarUrl = sender?.avatarUrl || participantData?.avatarUrl
+  const employeeId = sender?.employeeId || participantData?.employeeId
+  const attachments: MessageAttachment[] = useMemo(() => message.metadata?.attachments || [], [message.metadata])
+
+  const [preview, setPreview] = useState<{ open: boolean; att: MessageAttachment | null }>({
+    open: false,
+    att: null
+  })
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+
+  const openPreview = async (att: MessageAttachment) => {
+    try {
+      const resp = await fetch(att.url, {
+        credentials: 'include',
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}
+      })
+      let blob = await resp.blob()
+      const kind = isPreviewable(att)
+      if (kind === 'pdf' && blob.type !== 'application/pdf') {
+        blob = new Blob([blob], { type: 'application/pdf' })
+      }
+      const url = URL.createObjectURL(blob)
+      setPreview({ open: true, att })
+      setPreviewUrl(url)
+    } catch {
+      window.open(att.url, '_blank', 'noopener,noreferrer')
+    }
+  }
+
+  const closePreview = () => {
+    setPreview({ open: false, att: null })
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl)
+      setPreviewUrl(null)
+    }
+  }
+
+  // Deleted message
   if (message.isDeleted) {
     return (
-      <div className="gba:flex gba:justify-center gba:py-2" data-testid={`message-${message.id}`}>
-        <span className="gba:text-sm gba:text-muted-foreground gba:italic">
+      <div className="gba:flex gba:justify-center gba:py-1.5" data-testid={`message-${message.id}`}>
+        <span className="gba:text-xs gba:text-muted-foreground gba:italic gba:bg-muted/50 gba:px-3 gba:py-1 gba:rounded-full">
           {getTranslationFromI18nKeyAndLabel('chat.message.deleted', 'Message deleted')}
         </span>
       </div>
     )
   }
 
-  return (
-    <div
-      className={`gba:flex gba:gap-2 gba:mb-4 ${isOwnMessage ? 'gba:flex-row-reverse' : 'gba:flex-row'}`}
-      data-testid={`message-${message.id}`}
-    >
-      {!isOwnMessage && isGroupChat && (
-        <IconAvatar
-          className="gba:w-8 gba:h-8 gba:flex-shrink-0"
-          label={sender?.firstName || sender?.username || getTranslationFromI18nKeyAndLabel('chat.user', 'User')}
-          icon={UserIcon}
-        />
-      )}
+  const statusText = getStatusIcon(message.status)
 
+  return (
+    <>
       <div
-        className={`gba:max-w-[75%] gba:rounded-lg gba:px-4 gba:py-2 ${
-          isOwnMessage ? 'gba:bg-primary gba:text-primary-foreground' : 'gba:bg-muted gba:text-foreground'
-        }`}
+        className={`gba:flex gba:gap-2 gba:mb-1 ${isOwnMessage ? 'gba:flex-row-reverse' : 'gba:flex-row'}`}
+        data-testid={`message-${message.id}`}
       >
-        {!isOwnMessage && isGroupChat && sender && (
-          <div className="gba:text-xs gba:font-semibold gba:mb-1 gba:opacity-80">
-            {sender.firstName} {sender.lastName}
+        {/* Avatar for AI responses - shown in all chat types */}
+        {isAIResponse && (
+          <div className="gba:w-7 gba:h-7 gba:flex-shrink-0 gba:mt-0.5 gba:rounded-full gba:bg-gradient-to-br gba:from-primary gba:to-accent gba:flex gba:items-center gba:justify-center">
+            <span className="gba:text-[10px] gba:text-primary-foreground gba:font-bold">AI</span>
           </div>
         )}
 
-        <div className="gba:break-words">{message.content}</div>
+        {/* Avatar for other users in group chat */}
+        {!isOwnMessage && !isAIResponse && isGroupChat && (
+          <Avatar
+            className={`gba:w-7 gba:h-7 gba:flex-shrink-0 gba:mt-0.5 ${employeeId ? 'gba:cursor-pointer hover:gba:ring-2 hover:gba:ring-primary gba:transition-all' : ''}`}
+            onClick={() => {
+              if (employeeId) {
+                navigateTo(`/platform/employee-record?employeeId=${employeeId}`)
+              }
+            }}
+            title={employeeId ? 'View profile' : undefined}
+          >
+            {avatarUrl && (
+              <AvatarImage src={avatarUrl} alt={sender?.firstName || participantData?.firstName || 'User'} />
+            )}
+            <AvatarFallback className="gba:text-xs">
+              {getInitials(
+                sender?.displayName ||
+                  participantData?.displayName ||
+                  `${sender?.firstName || participantData?.firstName || ''} ${sender?.lastName || participantData?.lastName || ''}`.trim() ||
+                  sender?.username ||
+                  participantData?.username ||
+                  getTranslationFromI18nKeyAndLabel('chat.user', 'User')
+              )}
+            </AvatarFallback>
+          </Avatar>
+        )}
 
+        {/* Message bubble */}
         <div
-          className={`gba:flex gba:items-center gba:gap-1 gba:mt-1 gba:text-xs ${
-            isOwnMessage ? 'gba:opacity-80' : 'gba:text-muted-foreground'
+          className={`gba:max-w-[80%] gba:px-3 gba:py-2 gba:shadow-sm ${
+            isAIResponse
+              ? 'gba:bg-gradient-to-br gba:from-muted gba:to-accent/10 gba:text-foreground gba:rounded-2xl gba:rounded-bl-md gba:border gba:border-primary/20'
+              : isOwnMessage
+                ? 'gba:bg-primary gba:text-primary-foreground gba:rounded-2xl gba:rounded-br-md'
+                : 'gba:bg-card gba:text-card-foreground gba:rounded-2xl gba:rounded-bl-md gba:border gba:border-border/50'
           }`}
         >
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span>{formatTime(message.createdAt)}</span>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{formatFullTimestamp(message.createdAt)}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          {isOwnMessage && <span className="gba:ml-1">{getStatusIcon(message.status)}</span>}
+          {/* Sender name for AI responses */}
+          {isAIResponse && (
+            <div className="gba:text-[11px] gba:font-semibold gba:mb-0.5 gba:text-primary gba:flex gba:items-center gba:justify-between">
+              <div className="gba:flex gba:items-center gba:gap-1">
+                <span className="gba:text-xs">✨</span>
+                {getTranslationFromI18nKeyAndLabel('chat.everyAI', 'Every AI')}
+              </div>
+              {onReplyToAI && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={e => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          onReplyToAI()
+                        }}
+                        className="gba:h-5 gba:w-5 gba:text-primary/70 gba:hover:text-primary gba:hover:bg-primary/10"
+                        data-testid={`reply-to-ai-${message.id}`}
+                      >
+                        <ArrowBendUpLeft className="gba:w-3.5 gba:h-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="gba:text-xs">
+                        {getTranslationFromI18nKeyAndLabel('chat.replyToEvery', 'Reply to Every')}
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
+          )}
+
+          {/* Sender name in group chat */}
+          {!isOwnMessage && !isAIResponse && isGroupChat && (sender || participantData) && (
+            <div
+              className={`gba:text-[11px] gba:font-medium gba:mb-0.5 gba:text-primary ${employeeId ? 'gba:cursor-pointer hover:gba:underline' : ''}`}
+              onClick={() => {
+                if (employeeId) {
+                  navigateTo(`/platform/employee-record?employeeId=${employeeId}`)
+                }
+              }}
+            >
+              {sender?.firstName || participantData?.firstName} {sender?.lastName || participantData?.lastName}
+            </div>
+          )}
+
+          {/* Attachments */}
+          <MessageAttachments attachments={attachments} isOwnMessage={isOwnMessage} onPreview={openPreview} />
+
+          {/* Text content */}
+          {message.content && (
+            <div className="gba:break-words gba:text-sm gba:leading-relaxed">
+              {isAIResponse ? (
+                <AIResponseRenderer content={message.content} scheduledMeeting={message.metadata?.scheduledMeeting} />
+              ) : (
+                renderContentWithReferences(message.content, message.metadata, isOwnMessage)
+              )}
+            </div>
+          )}
+
+          {/* Timestamp and status */}
+          <div
+            className={`gba:flex gba:items-center gba:justify-end gba:gap-1 gba:mt-1 ${
+              isOwnMessage ? 'gba:opacity-70' : 'gba:text-muted-foreground'
+            }`}
+          >
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="gba:text-[10px]">{formatTime(message.createdAt)}</span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="gba:text-xs">{formatFullTimestamp(message.createdAt)}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            {isOwnMessage && statusText && (
+              <span className={`gba:text-[10px] ${isOwnMessage ? 'gba:opacity-70' : 'gba:text-muted-foreground'}`}>
+                {statusText}
+              </span>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Preview dialog */}
+      <AttachmentPreviewDialog
+        open={preview.open}
+        attachment={preview.att}
+        objectUrl={previewUrl || undefined}
+        onClose={closePreview}
+      />
+    </>
   )
 }

@@ -1,29 +1,28 @@
 ﻿import { UseFormReturn } from 'react-hook-form'
 
 /**
- * Assignee option for selection (with avatar support)
+ * Assignee option for selection
  */
 export interface AssigneeOption {
   value: string
   label: string
-  avatarUrl?: string
-  email?: string
-  firstName?: string
-  lastName?: string
+  displayName?: string
+  avatar?: string
 }
 
 /**
  * Props for custom assignee selector component
  */
 export interface AssigneeSelectorProps {
-  value?: string
-  onValueChange: (value: string) => void
+  value?: string | string[]
+  onValueChange: (value: string | string[]) => void
   disabled?: boolean
   placeholder?: string
   searchPlaceholder?: string
   emptyText?: string
   loading?: boolean
   className?: string
+  multiple?: boolean
 }
 
 /**
@@ -33,8 +32,14 @@ export interface QuickTaskFormData {
   title: string
   message: string
   documents: QuickTaskUploadFile[]
-  assignedUserId: string
+  assignedUserIds: string[] // Changed from assignedUserId to support multiple users
   dueDate: string
+  // Entity reference fields
+  entityType?: string
+  entityId?: string
+  entityName?: string
+  entityDisplayUrl?: string
+  entityMetadata?: Record<string, any>
 }
 
 /**
@@ -101,11 +106,11 @@ export interface QuickTaskFormConfig {
 export interface QuickTaskFormProps {
   config?: QuickTaskFormConfig
   accessToken: string
+  currentUserId?: string
   onSubmit: (data: QuickTaskFormData) => Promise<void>
   onCancel?: () => void
   defaultValues?: Partial<QuickTaskFormData>
   isSubmitting?: boolean
-  employeeId?: string // Current user's employee ID for fetching teammates
 }
 
 /**
@@ -116,10 +121,10 @@ export interface QuickTaskModalProps {
   onOpenChange: (open: boolean) => void
   config?: QuickTaskFormConfig
   accessToken: string
+  currentUserId?: string
   onSubmit: (data: QuickTaskFormData) => Promise<void>
   title?: string
   description?: string
-  employeeId?: string // Current user's employee ID for fetching teammates
 }
 
 /**
@@ -127,10 +132,10 @@ export interface QuickTaskModalProps {
  */
 export interface UseQuickTaskFormOptions {
   accessToken: string
+  currentUserId?: string
   config?: QuickTaskFormConfig
   defaultValues?: Partial<QuickTaskFormData>
   onSubmit: (data: QuickTaskFormData) => Promise<void>
-  employeeId?: string // Current user's employee ID for fetching teammates
 }
 
 /**
@@ -154,7 +159,8 @@ export interface Employee {
   firstName: string
   lastName: string
   fullName: string
+  displayName: string
+  pictureThumbnail?: string
   email?: string
   personnelCode?: string
-  avatarUrl?: string
 }

@@ -57,7 +57,7 @@ export const calculateCustomerOpportunityWinRate = (opportunities: any[]): numbe
 }
 
 /**
- * Calculate average sales cycle length
+ * Calculate average opportunity cycle length
  */
 export const calculateCustomerSalesCycleLength = (opportunities: any[]): number => {
   if (!opportunities || opportunities.length === 0) {

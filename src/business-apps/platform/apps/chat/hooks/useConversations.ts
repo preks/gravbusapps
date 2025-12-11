@@ -22,7 +22,7 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
 
   // Use user management client to fetch real user data
   const { getUsersByIds } = useUserManagementClient(accessToken)
-  const { fetchAvatars } = useEmployeeAvatars(accessToken)
+  const { fetchAvatarsWithEmployeeIds } = useEmployeeAvatars(accessToken)
 
   // Helper function to enrich conversations with real user data and avatars
   // Only enriches user data for placeholder users (who haven't logged in yet)
@@ -51,22 +51,22 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
           })
         })
 
-        // Fetch avatars for ALL participants (parallel request)
-        const avatarMapPromise = fetchAvatars(Array.from(allParticipantIds))
+        // Fetch avatars and employeeIds for ALL participants (parallel request)
+        const employeeInfoMapPromise = fetchAvatarsWithEmployeeIds(Array.from(allParticipantIds))
 
         // Fetch real user data only for placeholder users (parallel request)
         const userDataMapPromise =
           placeholderUserIds.size > 0 ? getUsersByIds(Array.from(placeholderUserIds)) : Promise.resolve(new Map())
 
         // Wait for both requests to complete
-        const [avatarMap, userDataMap] = await Promise.all([avatarMapPromise, userDataMapPromise])
+        const [employeeInfoMap, userDataMap] = await Promise.all([employeeInfoMapPromise, userDataMapPromise])
 
-        // Enrich conversations with user data and avatars
+        // Enrich conversations with user data, avatars, and employeeIds
         const enrichedConversations = conversations.map(
           (conv: Conversation): Conversation => ({
             ...conv,
             participants: conv.participants?.map((p: ConversationParticipant) => {
-              const avatarUrl = avatarMap.get(p?.user?.id || '')
+              const employeeInfo = employeeInfoMap.get(p?.user?.id || '')
 
               // Enrich placeholder users with real data from user management
               if (p?.user?.email?.includes('@placeholder.local')) {
@@ -81,20 +81,22 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
                       lastName: realUserData.lastName,
                       email: realUserData.email,
                       username: realUserData.username,
-                      // Add avatar from Employee API
-                      avatarUrl: avatarUrl || p.user.avatarUrl
+                      // Add avatar and employeeId from Employee API
+                      avatarUrl: employeeInfo?.avatarUrl || p.user.avatarUrl,
+                      employeeId: employeeInfo?.employeeId || p.user.employeeId
                     }
                   }
                 }
               }
 
-              // For non-placeholder users, just update avatar
-              if (avatarUrl && p?.user) {
+              // For non-placeholder users, update avatar and employeeId
+              if (employeeInfo && p?.user) {
                 return {
                   ...p,
                   user: {
                     ...p.user,
-                    avatarUrl
+                    avatarUrl: employeeInfo.avatarUrl || p.user.avatarUrl,
+                    employeeId: employeeInfo.employeeId || p.user.employeeId
                   }
                 }
               }
@@ -110,7 +112,7 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
         return conversations
       }
     },
-    [getUsersByIds, fetchAvatars]
+    [getUsersByIds, fetchAvatarsWithEmployeeIds]
   )
 
   const loadConversations = useCallback(async () => {
@@ -127,12 +129,30 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
       const conversationsData = response.data || (response as any).conversations || []
       const total = response.total || 0
 
+      // Debug: Log conversations with unread counts
+      if (conversationsData.some((c: any) => c.unreadCount > 0)) {
+        console.log(
+          '[Chat] Conversations with unread counts:',
+          conversationsData
+            .filter((c: any) => c.unreadCount > 0)
+            .map((c: any) => ({ id: c.id, name: c.name, unreadCount: c.unreadCount, type: c.type }))
+        )
+      }
+
       // Check if there are more conversations to load
       setHasMore(conversationsData.length === LIMIT && conversationsData.length < total)
 
       // Enrich conversations with real user data from User Management Service
       const enrichedConversations = await enrichConversations(conversationsData)
-      setConversations(enrichedConversations)
+
+      // Sort by most recent activity (lastMessage or updatedAt)
+      const sortedConversations = enrichedConversations.sort((a, b) => {
+        const aTime = a.lastMessage?.createdAt || a.updatedAt || a.createdAt
+        const bTime = b.lastMessage?.createdAt || b.updatedAt || b.createdAt
+        return new Date(bTime).getTime() - new Date(aTime).getTime()
+      })
+
+      setConversations(sortedConversations)
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to load conversations'))
       console.error('Error loading conversations:', err)
@@ -170,7 +190,18 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
   }, [apiClient, enabled, isLoadingMore, hasMore, currentPage, conversations.length, enrichConversations, LIMIT])
 
   const updateConversation = useCallback((conversationId: string, updates: Partial<Conversation>) => {
-    setConversations(prev => prev.map(conv => (conv.id === conversationId ? { ...conv, ...updates } : conv)))
+    setConversations(prev => {
+      const updated = prev.map(conv => (conv.id === conversationId ? { ...conv, ...updates } : conv))
+      // Re-sort if updatedAt changed
+      if (updates.updatedAt || updates.lastMessage) {
+        return updated.sort((a, b) => {
+          const aTime = a.lastMessage?.createdAt || a.updatedAt || a.createdAt
+          const bTime = b.lastMessage?.createdAt || b.updatedAt || b.createdAt
+          return new Date(bTime).getTime() - new Date(aTime).getTime()
+        })
+      }
+      return updated
+    })
   }, [])
 
   const addConversation = useCallback(
@@ -194,8 +225,9 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
   )
 
   const updateConversationLastMessage = useCallback((conversationId: string, message: Message) => {
-    setConversations(prev =>
-      prev.map(conv =>
+    setConversations(prev => {
+      // Update the conversation
+      const updated = prev.map(conv =>
         conv.id === conversationId
           ? {
               ...conv,
@@ -204,7 +236,14 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
             }
           : conv
       )
-    )
+
+      // Re-sort by most recent activity (move updated conversation to top)
+      return updated.sort((a, b) => {
+        const aTime = a.lastMessage?.createdAt || a.updatedAt || a.createdAt
+        const bTime = b.lastMessage?.createdAt || b.updatedAt || b.createdAt
+        return new Date(bTime).getTime() - new Date(aTime).getTime()
+      })
+    })
   }, [])
 
   const markConversationAsRead = useCallback((conversationId: string) => {

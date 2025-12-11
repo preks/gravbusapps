@@ -31,18 +31,12 @@ const processTaskDateRanges = (selectedFilters: Record<string, any>, vars: Custo
 
   for (const rangeKey of dateRangeKeys) {
     const rawValue = selectedFilters[rangeKey]
-    console.log(`[TaskView] DEBUG - Processing ${rangeKey}:`, {
-      raw: rawValue,
-      type: typeof rawValue,
-      isArray: Array.isArray(rawValue)
-    })
 
     const normalized = normalizeDateRange(rawValue)
     if (normalized) {
       const baseKey = rangeKey.replace('Range', '')
       if (normalized.from) (vars as any)[`${baseKey}From`] = normalized.from
       if (normalized.to) (vars as any)[`${baseKey}To`] = normalized.to
-      console.log(`[TaskView] DEBUG - Normalized ${rangeKey}:`, normalized)
     }
   }
 }
@@ -61,14 +55,6 @@ const copyTaskFilters = (
       selectedFilters[key] !== null
     ) {
       vars[key as keyof CustomerTaskQueryVariables] = selectedFilters[key]
-      if (key === 'schedule') {
-        console.log(`[TaskView] DEBUG - Copied schedule filter to vars:`, {
-          key,
-          value: selectedFilters[key],
-          type: typeof selectedFilters[key],
-          isArray: Array.isArray(selectedFilters[key])
-        })
-      }
     }
   }
 }
@@ -135,20 +121,6 @@ export const TaskView: React.FC<TaskViewProps> = context => {
       baseFilterConfig: taskFilterConfig,
 
       buildQueryVariables: params => {
-        // Debug: Log schedule and createdAt filters
-        console.log('[TaskView] DEBUG - schedule filter:', {
-          raw: params.selectedFilters.schedule,
-          type: typeof params.selectedFilters.schedule,
-          isArray: Array.isArray(params.selectedFilters.schedule),
-          value: params.selectedFilters.schedule
-        })
-        console.log('[TaskView] DEBUG - createdAt filter:', {
-          raw: params.selectedFilters.createdAtRange,
-          type: typeof params.selectedFilters.createdAtRange,
-          isArray: Array.isArray(params.selectedFilters.createdAtRange),
-          value: params.selectedFilters.createdAtRange
-        })
-
         const vars: CustomerTaskQueryVariables = {
           limit: params.pagination.pageSize,
           offset: params.pagination.pageIndex * params.pagination.pageSize,
@@ -165,14 +137,6 @@ export const TaskView: React.FC<TaskViewProps> = context => {
 
         // Copy all other filters using helper
         copyTaskFilters(params.selectedFilters, dateRangeKeys, vars)
-
-        // Debug: Log final vars before returning
-        console.log('[TaskView] DEBUG - Final vars:', {
-          schedule: (vars as any).schedule,
-          createdAtFrom: (vars as any).createdAtFrom,
-          createdAtTo: (vars as any).createdAtTo,
-          createdAtRange: params.selectedFilters.createdAtRange
-        })
 
         // Use column ID directly - buildOrderBy will use descriptors (CUSTOMER_TASK_DESCRIPTORS)
         // to resolve correct GraphQL paths (e.g., type.value, priority.value, status.value)
@@ -196,19 +160,6 @@ export const TaskView: React.FC<TaskViewProps> = context => {
       },
 
       taskStatistics,
-
-      processCompletionEvents: [
-        'com.newwork.process.taskCompletion',
-        'com.newwork.process.completion',
-        'com.newwork.process.continue',
-        'com.newwork.process.processCompletion',
-        'processCompletion',
-        'taskCompletion',
-        'taskCompleted',
-        'processCompleted',
-        'task-completion',
-        'process-completion'
-      ],
 
       rowActionsContextArray: [FlowContextName.customerTaskEntity],
       buildRowActionsExternalContextData: (row: { original: CustomerTask }) => {

@@ -40,12 +40,12 @@ export const GET_LIQUID_FUND_KPIS_WITH_COMPARISON = (comparisonDate: string, cur
         }
       }
       
-      # Previous period data (liquid fund investments existing 30 days ago)
+      # Previous period data (liquid fund investments existing 91 days ago)
       previousAggregate: InvestmentAggregate(
         where: {
           _and: [
             { isDeleted: { _eq: false } }
-            { createdAt: { _lt: "${comparisonDate}" } }
+            { createdAt: { _lte: "${comparisonDate}" } }
             { liquidFundInvestment: {} }
             ${currencyCondition}
           ]
@@ -88,10 +88,10 @@ export const useGetLiquidFundKPIs = (context: BusinessAppContextProps, currency?
   const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchLiquidFundKPIs = useCallback(async (): Promise<LiquidFundKPIComparison> => {
-    // Calculate date 30 days ago for comparison
-    const thirtyDaysAgo = new Date()
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-    const comparisonDate = thirtyDaysAgo.toISOString()
+    // Calculate date 91 days ago for comparison
+    const quarterAgo = new Date()
+    quarterAgo.setDate(quarterAgo.getDate() - 91)
+    const comparisonDate = quarterAgo.toISOString()
 
     const query = GET_LIQUID_FUND_KPIS_WITH_COMPARISON(comparisonDate, currency)
     const result = await graphqlClient.request<LiquidFundKPIResponse>(query)
@@ -109,46 +109,17 @@ export const useGetLiquidFundKPIs = (context: BusinessAppContextProps, currency?
       averageMarketValue: currentCount > 0 ? currentMarketValue / currentCount : 0
     }
 
-    // Check if we have meaningful historical data
+    // Use actual historical data
     const previousCount = result.previousAggregate.aggregate.count
     const previousTotalAmount = result.previousAggregate.aggregate.sum.totalInvestmentAmount || 0
     const previousMarketValue = result.previousAggregate.aggregate.sum.investmentMarketValue || 0
 
-    let previous: LiquidFundKPIData
-
-    // If current and previous are identical (demo data scenario), simulate realistic previous values
-    if (
-      currentCount === previousCount &&
-      currentTotalAmount === previousTotalAmount &&
-      currentMarketValue === previousMarketValue
-    ) {
-      // Simulate realistic previous values with slight variations (2-8% lower)
-      const growthFactors = {
-        investments: 0.95, // 5% fewer investments
-        amount: 0.94, // 6% less invested amount
-        marketValue: 0.92 // 8% lower market value (showing growth)
-      }
-
-      const simulatedPreviousCount = Math.max(1, Math.floor(currentCount * growthFactors.investments))
-      const simulatedPreviousAmount = currentTotalAmount * growthFactors.amount
-      const simulatedPreviousMarketValue = currentMarketValue * growthFactors.marketValue
-
-      previous = {
-        totalInvestments: simulatedPreviousCount,
-        totalAmountInvested: simulatedPreviousAmount,
-        totalMarketValue: simulatedPreviousMarketValue,
-        averageInvestmentValue: simulatedPreviousCount > 0 ? simulatedPreviousAmount / simulatedPreviousCount : 0,
-        averageMarketValue: simulatedPreviousCount > 0 ? simulatedPreviousMarketValue / simulatedPreviousCount : 0
-      }
-    } else {
-      // Use actual historical data when available
-      previous = {
-        totalInvestments: previousCount,
-        totalAmountInvested: previousTotalAmount,
-        totalMarketValue: previousMarketValue,
-        averageInvestmentValue: previousCount > 0 ? previousTotalAmount / previousCount : 0,
-        averageMarketValue: previousCount > 0 ? previousMarketValue / previousCount : 0
-      }
+    const previous: LiquidFundKPIData = {
+      totalInvestments: previousCount,
+      totalAmountInvested: previousTotalAmount,
+      totalMarketValue: previousMarketValue,
+      averageInvestmentValue: previousCount > 0 ? previousTotalAmount / previousCount : 0,
+      averageMarketValue: previousCount > 0 ? previousMarketValue / previousCount : 0
     }
 
     return { current, previous }

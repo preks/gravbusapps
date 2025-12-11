@@ -9,6 +9,7 @@ import PipelineDataPage from './pages/pipeline-data/PipelineDataPage'
 import InvestmentDataPage from './pages/investment-data/InvestmentDataPage'
 import TemplateDataPage from './pages/template-data/TemplateDataPage'
 import TaskTemplateDataPage from './pages/task-template-data/TaskTemplateDataPage'
+import { FolderTemplateDataPage, ModuleType } from '@/common/components/common-relations/setting-pages/folder-templates'
 
 export interface InvestmentSettingsProps extends BusinessAppContextProps {
   className?: string
@@ -102,6 +103,10 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
         {
           label: t('crm.document_templates', 'Document Templates'),
           onClick: () => handleInlinePageChange({ key: 'template-data' })
+        },
+        {
+          label: t('crm.folder_templates', 'Folder Templates'),
+          onClick: () => handleInlinePageChange({ key: 'folder-templates' })
         },
         {
           label: t('crm.task_templates', 'Task Templates'),
@@ -225,6 +230,17 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
       <PipelineDataPage
         {...context}
         prefixDataTestId={`${prefixDataTestId || ''}-InvestmentPipelineSettings`}
+        onBack={() => handleInlinePageChange(null)}
+      />
+    )
+  }
+
+  if (inlinePage?.key === 'folder-templates') {
+    return (
+      <FolderTemplateDataPage
+        accessToken={context.accessToken}
+        moduleType={ModuleType.IRM}
+        prefixDataTestId={`${prefixDataTestId || ''}-InvestmentFolderTemplateSettings`}
         onBack={() => handleInlinePageChange(null)}
       />
     )

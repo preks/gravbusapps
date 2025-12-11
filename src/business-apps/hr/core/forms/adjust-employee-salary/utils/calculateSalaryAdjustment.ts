@@ -83,7 +83,16 @@ const calculateAnnualMonthlyAdjustment = (
 }
 
 /**
- * Calculate salary adjustment based on frequency
+ * Calculate salary adjustment based on frequency.
+ *
+ * Intended for "adjust" mode when the employee has existing salary data.
+ * The UI should disable frequency options that lack corresponding salary data
+ * (e.g., disable "hourly" when no hourly salary exists).
+ *
+ * Defensive behavior: If required salary data is missing for the selected frequency
+ * (e.g., hourly adjustment requested but no hourly salary), this function returns
+ * a no-op result (all null values, zero adjustment) and logs a warning. It does not
+ * throw, so callers do not need to pre-validate salary data existence.
  */
 export const calculateSalaryAdjustment = (
   values: AdjustEmployeeSalaryFormValues,
@@ -92,8 +101,17 @@ export const calculateSalaryAdjustment = (
   currentSalaryHourly: number | null
 ): SalaryAdjustmentResult => {
   if (values.adjustmentFrequency === 'hourly') {
+    // Handle missing hourly salary gracefully - return zeros instead of throwing
+    // The UI should prevent this case by disabling hourly option when no hourly data exists
     if (currentSalaryHourly == null || currentSalaryHourly === 0) {
-      throw new Error('Hourly salary is required for hourly adjustments')
+      console.warn('Attempted hourly adjustment without hourly salary data')
+      return {
+        newAnnualSalary: null,
+        newMonthlySalary: null,
+        newHourlySalary: null,
+        adjustmentValue: 0,
+        adjustmentType: 'amount'
+      }
     }
     return calculateHourlyAdjustment(values, currentSalaryHourly)
   }

@@ -5,6 +5,7 @@ import { useMonthlyHeadcountChanges } from '../../../../hooks/useMonthlyHeadcoun
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useTranslation } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
 const { Title, Text } = Typography
 
@@ -22,25 +23,20 @@ const HeadcountChangesChart: React.FC<BusinessAppContextProps> = props => {
           data-testid="headcount-changes-tooltip"
         >
           <div className="gba:font-semibold gba:text-base gba:mb-1">
-            {new Date(d.month + '-01').toLocaleString(undefined, { month: 'short', year: 'numeric' })}
+            {new Date(d.month + '-01').toLocaleString(getCurrentActiveUserLocale() ?? 'en-US', {
+              month: 'short',
+              year: 'numeric'
+            })}
           </div>
           <div className="gba:text-success gba:text-sm">
-            <span className="gba:font-medium">
-              {t('hr-analytics-new-hires')}:
-            </span>{' '}
-            +{d.newHires}
+            <span className="gba:font-medium">{t('hr-analytics-new-hires')}:</span> +{d.newHires}
           </div>
           <div className="gba:text-destructive gba:text-sm">
-            <span className="gba:font-medium">
-              {t('hr-analytics-departures')}:
-            </span>{' '}
+            <span className="gba:font-medium">{t('hr-analytics-departures')}:</span>{' '}
             {d.departures === 0 ? '0' : '-' + d.departures}
           </div>
           <div className="gba:text-foreground gba:text-sm">
-            <span className="gba:font-medium">
-              {t('hr-analytics-net-change')}:
-            </span>{' '}
-            {d.netChange > 0 ? '+' : ''}
+            <span className="gba:font-medium">{t('hr-analytics-net-change')}:</span> {d.netChange > 0 ? '+' : ''}
             {d.netChange}
           </div>
         </div>

@@ -2,8 +2,19 @@
  * Customer Account Types
  */
 
-import { type Account, AccountFields, createAccountDescriptors } from '@/common/data/relations/types/accountTypes'
+import {
+  type Account,
+  AccountFields,
+  createAccountDescriptors,
+  AccountFormFields
+} from '@/common/data/relations/types/accountTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
+import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
+import {
+  filterCommunicationChannels,
+  filterAddresses,
+  addressLineToString
+} from '@/common/data/common/utils/entityPayloadHelpers'
 import type { CustomerAddress } from './customerAddressTypes'
 import type { CustomerCommunicationChannel } from './customerCommunicationChannelTypes'
 import type { CustomerContact } from './customerContactTypes'
@@ -28,20 +39,7 @@ export interface CustomerAccount extends Account {
   opportunities?: CustomerOpportunity[]
   tasks?: CustomerTask[]
 
-  // Base fields for mapping (CRM-specific GraphQL field names that need mapping)
-  annualRevenue?: any // Mapped to accountAnnualRevenueBand (CatalogEntry)
-  annualRevenueRef?: string // Mapped to accountAnnualRevenueBandRef
-  //contact?: CustomerContact[] // Mapped to contacts (singular in CRM)
-  crmAddress?: CustomerAddress[] // Duplicate - mapped to addresses
-  crmDocument?: CustomerDocument[] // Duplicate - mapped to documents
-  crmNote?: CustomerNote[] // Duplicate - mapped to notes
-  industry?: any // Mapped to industryClass (CatalogEntry)
-  industryRef?: string // Mapped to industryClassRef
-  numberOfEmployees?: any // Mapped to companySize (CatalogEntry)
-  numberOfEmployeesRef?: string // Mapped to companySizeRef
-  opportunity?: CustomerOpportunity[] // Mapped to opportunities (singular in CRM)
-  pictureUrl?: string // Mapped to picture
-  pictureThumbnailUrl?: string // Mapped to pictureThumbnail
+  // CRM-specific fields
   salesCampaign?: any // CRM-specific (SalesCampaign)
   salesCampaignId?: string // CRM-specific
 }
@@ -62,11 +60,13 @@ export const CustomerAccountFields = {
   industryClassRef: 'industryRef',
   opportunities: 'opportunity', // CRM uses singular "opportunity"
   picture: 'pictureUrl',
-  pictureThumbnail: 'pictureThumbnailUrl'
+  pictureThumbnail: 'pictureThumbnailUrl',
   // Note: CRM doesn't have "activities" or "leads" on Account level
-} as const
 
-export type CustomerAccountFieldName = (typeof CustomerAccountFields)[keyof typeof CustomerAccountFields]
+  // CRM-specific fields
+  salesCampaign: 'salesCampaign',
+  salesCampaignId: 'salesCampaignId'
+} as const
 
 /**
  * Customer Account Descriptors
@@ -77,21 +77,10 @@ export type CustomerAccountFieldName = (typeof CustomerAccountFields)[keyof type
 export const CUSTOMER_ACCOUNT_DESCRIPTORS: Descriptor[] = [
   // Filter out descriptors that need structural overrides
   ...createAccountDescriptors(CustomerAccountFields as Record<keyof typeof AccountFields, string>).filter(
-    d => !['activities', 'addresses', 'leads', 'locality', 'notes', 'opportunities'].includes(d.key)
+    d => !['activities', 'leads', 'locality', 'notes', 'opportunities'].includes(d.key)
   ),
 
   // CRM-specific structural overrides
-  {
-    key: 'addresses',
-    searchPaths: [
-      'addresses.city', // CRM uses "city" not "locality"
-      'addresses.postalCode',
-      'addresses.region.value',
-      'addresses.country.value'
-    ],
-    sortPaths: ['addresses.city', 'addresses.postalCode', 'addresses.region.value', 'addresses.country.value'],
-    type: 'text'
-  },
   {
     key: 'leads',
     searchPaths: ['lead.firstName', 'lead.lastName', 'lead.companyName'], // CRM uses singular "lead"
@@ -117,6 +106,117 @@ export const CUSTOMER_ACCOUNT_DESCRIPTORS: Descriptor[] = [
     type: 'text'
   },
 
-  // CRM-specific additional fields
+  // CRM-specific fields
   { key: 'campaignIds', path: 'salesCampaignId', kind: 'inIds' }
 ]
+
+/**
+ * Customer Account Form Fields Configuration
+ * Extends AccountFormFields with CRM-specific fields
+ */
+export const customerAccountFormFields = {
+  ...AccountFormFields,
+  // CRM-specific fields
+  salesCampaignId: 'salesCampaign',
+  // Overwrite
+  picture: 'pictureUrl',
+  pictureThumbnail: 'pictureThumbnailUrl',
+  companySizeRef: 'numberOfEmployeesRef',
+  industryClassRef: 'industryRef',
+  accountAnnualRevenueBandRef: 'annualRevenueRef'
+} as const
+
+export const buildCustomerAccountPayload = (account: Partial<CustomerAccount>) => {
+  // Build base payload using customerAccountFormFields for field mapping
+  const basePayload = buildPayload(account, customerAccountFormFields)
+
+  // Filter communication channels
+  const filteredChannels = filterCommunicationChannels(basePayload.communicationChannels)
+  if (filteredChannels) {
+    basePayload.communicationChannels = filteredChannels
+  } else {
+    delete basePayload.communicationChannels
+  }
+
+  // Filter and transform addresses (CRM uses JSON string for addressLine)
+  const filteredAddresses = filterAddresses(basePayload.addresses, addressLineToString)
+  if (filteredAddresses) {
+    basePayload.addresses = filteredAddresses
+  } else {
+    delete basePayload.addresses
+  }
+
+  return {
+    account: basePayload
+  }
+}
+
+/**
+ * Transform raw GraphQL response to CustomerAccount
+ *
+ * NOTE: This mapper handles CRM-specific field naming inconsistencies:
+ * - industry → industryClass (fallback only)
+ * - numberOfEmployees → companySize (fallback only)
+ * - annualRevenue → accountAnnualRevenueBand (fallback only)
+ * - salesCampaign → customerCampaign
+ * - pictureUrl → picture (fallback only)
+ * - pictureThumbnailUrl → pictureThumbnail (fallback only)
+ * - contact → contacts (singular to plural, if needed)
+ * - opportunity → opportunities (singular to plural, fallback only)
+ * - lead → leads (singular to plural)
+ * - crmAddress → addresses (fallback only)
+ * - crmDocument → documents (fallback only)
+ * - crmNote → notes (fallback only)
+ */
+export function toCustomerAccount(raw: any): CustomerAccount {
+  // Extract incorrectly named fields to exclude from spread
+  const {
+    annualRevenue,
+    annualRevenueRef,
+    crmAddress,
+    crmDocument,
+    crmNote,
+    industry,
+    industryRef,
+    numberOfEmployees,
+    numberOfEmployeesRef,
+    opportunity,
+    pictureUrl,
+    pictureThumbnailUrl,
+    lead,
+    ...rest
+  } = raw
+
+  // Transform addresses array: convert addressLine from string to object (same logic as toCustomerLead)
+  const addresses = (raw.addresses ?? crmAddress)?.map((addr: any) => ({
+    ...addr,
+    addressLine:
+      typeof addr.addressLine === 'string'
+        ? (() => {
+            try {
+              return JSON.parse(addr.addressLine)
+            } catch {
+              return undefined
+            }
+          })()
+        : addr.addressLine
+  }))
+
+  return {
+    ...rest,
+    // Map only if target field doesn't already exist (fallback mapping)
+    industryClass: raw.industryClass ?? industry,
+    industryClassRef: raw.industryClassRef ?? industryRef,
+    companySize: raw.companySize ?? numberOfEmployees,
+    companySizeRef: raw.companySizeRef ?? numberOfEmployeesRef,
+    accountAnnualRevenueBand: raw.accountAnnualRevenueBand ?? annualRevenue,
+    accountAnnualRevenueBandRef: raw.accountAnnualRevenueBandRef ?? annualRevenueRef,
+    picture: raw.picture ?? pictureUrl,
+    pictureThumbnail: raw.pictureThumbnail ?? pictureThumbnailUrl,
+    addresses: addresses,
+    documents: raw.documents ?? crmDocument,
+    notes: raw.notes ?? crmNote,
+    opportunities: raw.opportunities ?? opportunity,
+    leads: raw.leads ?? lead
+  } as CustomerAccount
+}

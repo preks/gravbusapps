@@ -14,10 +14,10 @@ export interface EquityRoleCountDistributionIntegration {
 
 /**
  * Hook that fetches role count distribution independently
- * Supports "All Currencies" option
+ * Supports "All" option
  *
  * @param context - Business app context with access token
- * @param currency - Currency filter (supports 'All Currencies')
+ * @param currency - Currency filter (supports 'All')
  * @returns Role count distribution data with loading/error states
  */
 export const useEquityRoleCountDistribution = (

@@ -1,7 +1,11 @@
 // Investment data integration hook - combines multiple data sources
 import { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import type { Investment, InvestmentAccount, InvestmentContact, InvestmentOpportunity, InvestmentLead } from '../types'
+import type { Investment } from '../types/investmentTypes'
+import type { InvestmentAccount } from '../types/investmentAccountTypes'
+import type { InvestmentContact } from '../types/investmentContactTypes'
+import type { InvestmentOpportunity } from '../types/investmentOpportunityTypes'
+import type { InvestmentLead } from '../types/investmentLeadTypes'
 
 // Import the individual hooks
 import { useGetInvestments } from './useInvestments'

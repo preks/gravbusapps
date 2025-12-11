@@ -18,7 +18,7 @@ import { PieChart, Pie, Cell } from 'recharts'
 import { Edit } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { useGetInvestmentShareholdersByInvestmentId } from '@/common/data/investment'
+import { useGetInvestmentShareholdersByInvestmentId } from '@/common/data/investment/hooks/useInvestmentShareholders'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 

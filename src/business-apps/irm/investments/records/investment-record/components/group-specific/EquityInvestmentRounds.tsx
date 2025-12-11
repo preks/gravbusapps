@@ -1,9 +1,10 @@
-import React, { useEffect } from 'react'
+import React, { useCallback } from 'react'
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
+  CardDescription,
   Table,
   TableBody,
   TableCell,
@@ -11,17 +12,18 @@ import {
   TableHeader,
   TableRow,
   Badge,
-  Button
+  Button,
+  Spinner
 } from '@newwork/nw-design-system'
-import { TrendingUp, Calendar, DollarSign, Percent, Plus } from 'lucide-react'
+import { TrendingUp, Plus, ExternalLink } from 'lucide-react'
 import { AppAction } from '@/components/app-action/AppAction'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrencyString, extractCurrencyCode, formatPercentage } from '@/common/utils/numberFormatter'
-import type { BaseEquityInvestmentRound } from '@/common/data/investment'
+import { buildPlatformUrl } from '@/common/utils/navigationUtils'
+import type { BaseEquityInvestmentRound } from '@/common/data/investment/types/investmentBaseTypes'
 
 interface EquityInvestmentRoundsProps extends BusinessAppContextProps {
   equityData?: {
@@ -83,65 +85,39 @@ const EquityInvestmentRounds: React.FC<EquityInvestmentRoundsProps> = ({
 
   // Investment rounds loaded
 
+  // Memoized callbacks for process completion
+  const handleProcessSuccess = useCallback(() => {
+    // Process completed successfully, refreshing data
+    if (onRefresh) {
+      onRefresh()
+    }
+  }, [onRefresh])
+
+  const handleProcessFailure = useCallback(() => {
+    // Process failed, but still refreshing data to check for changes
+    // Even on failure, refresh to check if the delete actually succeeded
+    if (onRefresh) {
+      onRefresh()
+    }
+  }, [onRefresh])
+
   // Listen for process completion events and refresh data when equity round processes complete
   useProcessCompletion({
-    onSuccess: () => {
-      // Process completed successfully, refreshing data
-      if (onRefresh) {
-        onRefresh()
-      }
-    },
-    onFailure: () => {
-      // Process failed, but still refreshing data to check for changes
-      // Even on failure, refresh to check if the delete actually succeeded
-      if (onRefresh) {
-        onRefresh()
-      }
-    }
+    onSuccess: handleProcessSuccess,
+    onFailure: handleProcessFailure
   })
-
-  // Fallback: also listen for 'continue' events from AppActionForm to trigger a refresh
-  useEffect(() => {
-    const handleContinue = (event: Event) => {
-      try {
-        const customEvent = event as CustomEvent<any>
-        const payload = customEvent?.detail?.payload
-        const round = payload?.equityInvestmentRound
-        if (!round) return
-
-        // If the payload contains our entity, refresh
-        // This handles create, update, and delete operations
-        if (!equityInvestmentId || round.equityInvestment === equityInvestmentId || round.id) {
-          if (onRefresh) {
-            onRefresh()
-          }
-        }
-      } catch {
-        // no-op
-      }
-    }
-
-    window.addEventListener('com.newwork.process.continue', handleContinue)
-    return () => window.removeEventListener('com.newwork.process.continue', handleContinue)
-  }, [onRefresh, equityInvestmentId])
 
   if (isLoading) {
     return (
-      <Card data-testid={dataTestId}>
+      <Card data-testid={dataTestId} className="gba:border gba:shadow-sm">
         <CardHeader>
-          <CardTitle className="gba:flex gba:items-center gba:gap-2">
-            <TrendingUp className="gba:h-5 gba:w-5" />
-            Investment Rounds
+          <CardTitle className="gba:text-lg gba:font-semibold">
+            {getTranslationFromI18nKeyAndLabel('investment.rounds.investmentRounds', 'Investment Rounds')}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="gba:animate-pulse gba:space-y-4">
-            <div className="gba:h-4 gba:bg-gray-200 gba:rounded gba:w-3/4"></div>
-            <div className="gba:space-y-2">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="gba:h-12 gba:bg-gray-200 gba:rounded"></div>
-              ))}
-            </div>
+          <div className="gba:flex gba:items-center gba:justify-center gba:h-[200px]">
+            <Spinner size="lg" />
           </div>
         </CardContent>
       </Card>
@@ -149,190 +125,196 @@ const EquityInvestmentRounds: React.FC<EquityInvestmentRoundsProps> = ({
   }
 
   return (
-    <Card data-testid={dataTestId}>
+    <Card data-testid={dataTestId} className="gba:border gba:shadow-sm">
       <CardHeader>
-        <div className="gba:flex gba:items-center gba:justify-between">
-          <CardTitle className="gba:flex gba:items-center gba:gap-2">
-            <TrendingUp className="gba:h-5 gba:w-5" style={{ color: 'var(--nw-color-primary-500)' }} />
-            {getTranslationFromI18nKeyAndLabel('investment.rounds.investmentRounds', 'Investment Rounds')}
-            <Badge variant="outline" className="gba:ml-2">
-              {investmentRounds.length} {getTranslationFromI18nKeyAndLabel('investment.rounds.rounds', 'rounds')}
-            </Badge>
-          </CardTitle>
+        <div className="gba:flex gba:justify-between gba:items-start">
+          <div>
+            <CardTitle className="gba:text-lg gba:font-semibold">
+              {getTranslationFromI18nKeyAndLabel('investment.rounds.investmentRounds', 'Investment Rounds')}
+              <Badge variant="outline" className="gba:ml-2">
+                {investmentRounds.length}
+              </Badge>
+            </CardTitle>
+            <CardDescription>
+              {getTranslationFromI18nKeyAndLabel(
+                'investment.rounds.description',
+                'Funding rounds and capital raises for this investment'
+              )}
+            </CardDescription>
+          </div>
           {accessToken && actionContextId ? (
             <AppAction
-              contextsArray={[FlowContextName.investmentEquityInvestmentRoundCreate]}
-              externalContextData={{
-                equityInvestmentId: actionContextId,
-                targetEquityInvestmentId: actionContextId,
-                customEquityId: actionContextId,
-                investmentId: mainInvestmentId,
-                mainInvestmentId: mainInvestmentId,
-                // Ensure we pass the ID in multiple formats the process might expect
-                entityId: actionContextId,
-                parentEntityId: actionContextId,
-                equityInvestment: actionContextId
-              }}
+              contexts={[
+                {
+                  context: FlowContextName.investmentEquityInvestmentRoundCreate,
+                  contextData: {
+                    equityInvestmentId: actionContextId,
+                    targetEquityInvestmentId: actionContextId,
+                    customEquityId: actionContextId,
+                    investmentId: mainInvestmentId,
+                    mainInvestmentId: mainInvestmentId,
+                    entityId: actionContextId,
+                    parentEntityId: actionContextId,
+                    equityInvestment: actionContextId
+                  }
+                }
+              ]}
               accessToken={accessToken}
-              emptyStateBehavior="enable"
+              emptyState="enable"
               prefixDataTestId="equity-round-add"
             >
               <Button
+                size="sm"
                 variant="default"
-                size="default"
-                className="gba:flex gba:items-center gba:gap-2"
+                type="button"
                 data-testid="equity-round-add-button"
+                style={{ gap: 'var(--nw-spacing-xs)' }}
               >
-                <Plus className="gba:h-4 gba:w-4" />
+                <Plus size={16} />
                 {getTranslationFromI18nKeyAndLabel('investment.rounds.addRound', 'Add Round')}
               </Button>
             </AppAction>
           ) : (
-            <div data-testid="equity-round-add-button-disabled" className="gba:opacity-50 gba:cursor-not-allowed">
-              <Button disabled variant="outline" size="default" className="gba:flex gba:items-center gba:gap-2">
-                <Plus className="gba:h-4 gba:w-4" />
-                {getTranslationFromI18nKeyAndLabel('investment.rounds.addRound', 'Add Round')}
-              </Button>
-            </div>
+            <Button
+              disabled
+              size="sm"
+              variant="outline"
+              type="button"
+              data-testid="equity-round-add-button-disabled"
+              style={{ gap: 'var(--nw-spacing-xs)' }}
+            >
+              <Plus size={16} />
+              {getTranslationFromI18nKeyAndLabel('investment.rounds.addRound', 'Add Round')}
+            </Button>
           )}
         </div>
       </CardHeader>
       <CardContent>
-        <div className="gba:overflow-x-auto">
-          <Table data-testid={`${dataTestId}-table`}>
-            <TableHeader>
-              <TableRow className="gba:border-b gba:bg-gray-50">
-                <TableHead className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:text-left gba:py-3 gba:px-4">
-                  {getTranslationFromI18nKeyAndLabel('investment.rounds.actions', 'ACTIONS')}
-                </TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-left gba:py-3 gba:px-4">
-                  <div className="gba:flex gba:items-center gba:gap-2">
-                    <Calendar className="gba:h-4 gba:w-4" />
+        {investmentRounds.length === 0 ? (
+          <div className="gba:text-center gba:py-12" data-testid="investment-rounds-empty-state">
+            <TrendingUp className="gba:h-12 gba:w-12 gba:text-muted-foreground gba:mx-auto gba:mb-2" />
+            <p className="gba:text-sm gba:text-muted-foreground gba:mb-2">
+              {getTranslationFromI18nKeyAndLabel(
+                'investment.rounds.noInvestmentRounds',
+                'No investment rounds recorded yet.'
+              )}
+            </p>
+            <p className="gba:text-xs gba:text-muted-foreground">
+              {getTranslationFromI18nKeyAndLabel(
+                'investment.rounds.clickToAdd',
+                'Click "Add Round" above to record a funding round.'
+              )}
+            </p>
+          </div>
+        ) : (
+          <div
+            className="gba:border gba:border-border gba:rounded-lg gba:overflow-hidden"
+            data-testid={`${dataTestId}-table-content`}
+          >
+            <Table data-testid={`${dataTestId}-table`}>
+              <TableHeader>
+                <TableRow className="gba:bg-muted/50">
+                  <TableHead className="gba:font-semibold gba:text-foreground">
                     {getTranslationFromI18nKeyAndLabel('investment.rounds.name', 'Name')}
-                  </div>
-                </TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-center gba:py-3 gba:px-4">
-                  <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
-                    <Calendar className="gba:h-4 gba:w-4" />
+                  </TableHead>
+                  <TableHead className="gba:font-semibold gba:text-foreground gba:text-center">
                     {getTranslationFromI18nKeyAndLabel('investment.rounds.year', 'Year')}
-                  </div>
-                </TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-right gba:py-3 gba:px-4">
-                  <div className="gba:flex gba:items-center gba:gap-2 gba:justify-end">
-                    <DollarSign className="gba:h-4 gba:w-4" />
+                  </TableHead>
+                  <TableHead className="gba:font-semibold gba:text-foreground gba:text-right">
                     {getTranslationFromI18nKeyAndLabel('investment.rounds.preValue', 'Pre Value')}
-                  </div>
-                </TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-right gba:py-3 gba:px-4">
-                  <div className="gba:flex gba:items-center gba:gap-2 gba:justify-end">
-                    <DollarSign className="gba:h-4 gba:w-4" />
-                    {getTranslationFromI18nKeyAndLabel('investment.rounds.investmentVolume', 'Investment Volume')}
-                  </div>
-                </TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-center gba:py-3 gba:px-4">
-                  <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
-                    <Percent className="gba:h-4 gba:w-4" />
-                    {getTranslationFromI18nKeyAndLabel('investment.rounds.sharePercentage', 'Share Percentage')}
-                  </div>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {investmentRounds.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="gba:text-center gba:py-12 gba:text-gray-500">
-                    <div className="gba:flex gba:flex-col gba:items-center gba:gap-2">
-                      <TrendingUp className="gba:h-12 gba:w-12 gba:text-gray-300" />
-                      <p className="gba:text-lg gba:font-medium">
-                        {getTranslationFromI18nKeyAndLabel(
-                          'investment.rounds.noInvestmentRounds',
-                          'No Investment Rounds'
-                        )}
-                      </p>
-                      <p className="gba:text-sm">
-                        {getTranslationFromI18nKeyAndLabel(
-                          'investment.rounds.noRoundsMessage',
-                          'No investment rounds have been recorded for this equity investment.'
-                        )}
-                      </p>
-                    </div>
-                  </TableCell>
+                  </TableHead>
+                  <TableHead className="gba:font-semibold gba:text-foreground gba:text-right">
+                    {getTranslationFromI18nKeyAndLabel('investment.rounds.investmentVolume', 'Volume')}
+                  </TableHead>
+                  <TableHead className="gba:font-semibold gba:text-foreground gba:text-center">
+                    {getTranslationFromI18nKeyAndLabel('investment.rounds.sharePercentage', 'Share %')}
+                  </TableHead>
+                  <TableHead className="gba:font-semibold gba:text-foreground">
+                    {getTranslationFromI18nKeyAndLabel('investment.rounds.source', 'Source')}
+                  </TableHead>
+                  <TableHead className="gba:w-[60px] gba:font-semibold gba:text-foreground">
+                    {getTranslationFromI18nKeyAndLabel('investment.rounds.actions', '')}
+                  </TableHead>
                 </TableRow>
-              ) : (
-                investmentRounds.map((round: BaseEquityInvestmentRound, index: number) => (
+              </TableHeader>
+              <TableBody>
+                {investmentRounds.map((round: BaseEquityInvestmentRound, index: number) => (
                   <TableRow
                     key={round.id || index}
-                    className="gba:border-b gba:hover:bg-gray-50"
+                    className="gba:hover:bg-muted/30"
                     data-testid={`${dataTestId}-row-${index}`}
                   >
-                    <TableCell className="gba:py-4 gba:px-6">
-                      <div className="gba:flex gba:justify-start gba:gap-2">
-                        {/* Combined Update & Delete Actions */}
-                        <AppActionButton
-                          data-testid={`equity-round-actions-button-${round.id || index}`}
-                          size="icon"
-                          contextsArray={[
-                            FlowContextName.investmentEquityInvestmentRoundUpdate,
-                            FlowContextName.investmentEquityInvestmentRoundDelete
-                          ]}
-                          externalContextData={{
-                            // Primary ID for the round
-                            equityInvestmentRoundId: round.id,
-                            entityId: round.id,
-                            // Parent context
-                            equityInvestmentId: actionContextId,
-                            investmentId: actionContextId,
-                            // Additional context for flow system
-                            targetEntityId: round.id,
-                            targetEntityType: 'equityInvestmentRound',
-                            // Pass round data for both update and delete
-                            roundName: round.name,
-                            roundYear: round.year,
-                            roundData: round
-                          }}
-                          prefixDataTestId="equity-round-actions"
-                          accessToken={accessToken}
-                          emptyStateBehavior="enable"
-                          deferMainContextRequestsUntilClick
-                          onClick={e => e.stopPropagation()}
-                          onDropdownOpen={() => {
-                            // Combined actions dropdown opened
-                          }}
-                        />
-                      </div>
+                    <TableCell className="gba:font-medium gba:py-4">
+                      {round.name ||
+                        `${getTranslationFromI18nKeyAndLabel('investment.rounds.round', 'Round')} ${index + 1}`}
                     </TableCell>
-                    <TableCell className="gba:py-3 gba:px-4">
-                      <div className="gba:font-medium gba:text-gray-900">
-                        {round.name ||
-                          `${getTranslationFromI18nKeyAndLabel('investment.rounds.round', 'Round')} ${index + 1}`}
-                      </div>
+                    <TableCell className="gba:text-center gba:py-4">{formatYear(round.year || null)}</TableCell>
+                    <TableCell className="gba:text-right gba:py-4">
+                      {formatCurrency(round.preValue ?? null, round.currency || null)}
                     </TableCell>
-                    <TableCell className="gba:py-3 gba:px-4 gba:text-center">
-                      <span className="gba:font-medium gba:text-gray-900">{formatYear(round.year || null)}</span>
+                    <TableCell className="gba:text-right gba:py-4">
+                      {formatCurrency(round.investmentVolume ?? null, round.currency || null)}
                     </TableCell>
-                    <TableCell className="gba:py-3 gba:px-4 gba:text-right">
-                      <span className="gba:font-medium gba:text-gray-900">
-                        {formatCurrency(round.preValue ?? null, round.currency || null)}
-                      </span>
-                    </TableCell>
-                    <TableCell className="gba:py-3 gba:px-4 gba:text-right">
-                      <span className="gba:font-medium gba:text-gray-900">
-                        {formatCurrency(round.investmentVolume ?? null, round.currency || null)}
-                      </span>
-                    </TableCell>
-                    <TableCell className="gba:py-3 gba:px-4 gba:text-center">
-                      <Badge variant="secondary" className="gba:font-medium">
+                    <TableCell className="gba:text-center gba:py-4">
+                      <Badge variant="secondary">
                         {round.roundSharePercentage !== null && round.roundSharePercentage !== undefined
                           ? formatPercentage(round.roundSharePercentage, 1)
                           : getTranslationFromI18nKeyAndLabel('common.notAvailable', 'N/A')}
                       </Badge>
                     </TableCell>
+                    <TableCell className="gba:py-4">
+                      {round.investmentOpportunity || round.investmentOpportunityId ? (
+                        <a
+                          href={buildPlatformUrl('/platform/irm/opportunity-record', {
+                            opportunityId: round.investmentOpportunity?.id || round.investmentOpportunityId || ''
+                          })}
+                          className="gba:text-primary gba:hover:underline gba:cursor-pointer gba:flex gba:items-center gba:gap-1"
+                          onClick={e => e.stopPropagation()}
+                          data-testid={`${dataTestId}-source-link-${round.id || index}`}
+                        >
+                          {round.investmentOpportunity?.name ||
+                            getTranslationFromI18nKeyAndLabel('investment.rounds.viewOpportunity', 'View Opportunity')}
+                          <ExternalLink className="gba:h-3 gba:w-3" />
+                        </a>
+                      ) : (
+                        <span className="gba:text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="gba:py-4">
+                      <AppAction
+                        variant="table-row"
+                        contexts={[
+                          {
+                            context: FlowContextName.investmentEquityInvestmentRoundUpdate,
+                            contextData: {
+                              equityInvestmentRoundId: round.id,
+                              entityId: round.id,
+                              equityInvestmentId: actionContextId,
+                              roundData: round
+                            }
+                          },
+                          {
+                            context: FlowContextName.investmentEquityInvestmentRoundDelete,
+                            contextData: {
+                              equityInvestmentRoundId: round.id,
+                              entityId: round.id,
+                              equityInvestmentId: actionContextId,
+                              roundData: round
+                            }
+                          }
+                        ]}
+                        prefixDataTestId={`equity-round-actions-${round.id || index}`}
+                        accessToken={accessToken}
+                        emptyState="enable"
+                        lazyLoad
+                      />
+                    </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </CardContent>
     </Card>
   )

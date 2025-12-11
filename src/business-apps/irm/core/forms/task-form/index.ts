@@ -1,3 +1,2 @@
-import InvestmentTaskForm from './TaskForm'
-export { InvestmentTaskForm }
-export default InvestmentTaskForm
+export { default } from './TaskForm'
+export { default as AccountForm } from './TaskForm'

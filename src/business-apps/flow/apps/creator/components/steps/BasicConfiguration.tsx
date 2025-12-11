@@ -1,7 +1,7 @@
 import React from 'react'
 import { Input, Label, Textarea } from '@newwork/nw-design-system'
 import { Select, Space, InputNumber } from 'antd'
-import { User, Settings, FileText, FormInput, Clock } from 'lucide-react'
+import { User, Settings, FileText, FormInput, Clock, Code2, Bot } from 'lucide-react'
 import { FlowStepType } from '../../types/flowTemplate'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
@@ -48,6 +48,18 @@ export const BasicConfiguration: React.FC<BasicConfigurationProps> = ({ step, st
             <Space>
               <FormInput className="gba:h-4 gba:w-4" />
               {getTranslationFromI18nKeyAndLabel('flow.creator.acknowledge', 'Acknowledge')}
+            </Space>
+          </Select.Option>
+          <Select.Option value={FlowStepType.FUNCTION}>
+            <Space>
+              <Code2 className="gba:h-4 gba:w-4" />
+              {getTranslationFromI18nKeyAndLabel('flow.creator.function', 'Function')}
+            </Space>
+          </Select.Option>
+          <Select.Option value={FlowStepType.AGENT}>
+            <Space>
+              <Bot className="gba:h-4 gba:w-4" />
+              {getTranslationFromI18nKeyAndLabel('flow.creator.agent', 'Agent')}
             </Space>
           </Select.Option>
         </Select>

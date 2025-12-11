@@ -25,15 +25,27 @@ export interface CostCenter {
 }
 
 export interface ExpensePlan {
+  id: string
   employee: Employee
   code: string
   requestType: RequestType
   currency: Currency
   totalAmount: number
   title: string
+  description?: string
+}
+
+export interface AdvancePaymentComment {
+  id: string
+  commentDate: string
+  comment: string
+  commentType: string
+  authorEmployee?: string
+  advancePayment?: string
 }
 
 export interface AdvancePaymentData {
+  id: string
   expensePlanId: string
   expensePlan: ExpensePlan
   amount: number
@@ -41,20 +53,11 @@ export interface AdvancePaymentData {
   currency: Currency
   paymentMethod: string
   costCenter: CostCenter
-}
-
-export interface AdvancePaymentApprovalProps {
-  isOpen?: boolean
-  onClose?: () => void
-  onApprove?: (message?: string) => void
-  onReject?: (message?: string) => void
-  paymentId?: string
-  accessToken: string
-  additionalData?: {
-    psi_taskPayload?: {
-      advancePayment?: {
-        id: string
-      }
-    }
-  }
+  code?: string
+  status?: string
+  decisionDate?: string
+  transactionDate?: string
+  transactionNumber?: string
+  transactionConfirmed?: boolean
+  advancePaymentComment?: AdvancePaymentComment[]
 }

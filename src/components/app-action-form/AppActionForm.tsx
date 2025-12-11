@@ -1,17 +1,10 @@
-import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
-import {
-  Button,
-  Alert,
-  Form,
-  WizardForm,
-  useWizard,
-  type WizardStep,
-  LocalizationProvider
-} from '@newwork/nw-design-system'
+import React, { useState, useCallback, useEffect, useRef } from 'react'
+import { Button, Alert, Form, WizardForm, useWizard, type WizardStep, useTranslation } from '@newwork/nw-design-system'
 import { useForm, type Resolver, type UseFormReturn } from 'react-hook-form'
+import { type z } from 'zod'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
-import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import translations from './_i18n'
 
 export interface ProcessMessage {
   type: 'success' | 'error' | 'info'
@@ -32,9 +25,9 @@ export interface AppActionFormProps {
   cancelButtonText?: string
   showCancelButton?: boolean
   submitButtonVariant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link'
-  businessAppContext?: BusinessAppContextProps
   form?: UseFormReturn<any>
   resolver?: Resolver<any>
+  schema?: z.ZodType<any>
   'data-testid'?: string
   // Optional overrides for test ids on action buttons
   submitButtonTestId?: string
@@ -48,25 +41,28 @@ export interface AppActionFormProps {
   formType?: 'form' | 'wizard'
   // Wizard-specific props
   wizardSteps?: WizardStep<any>[]
-  showStepIndicator?: boolean
   allowStepJumping?: boolean
   // Pre-submission handler (e.g., for file uploads)
   handlePreSubmit?: (formData: any) => Promise<any>
   isSubmitDisabled?: boolean
   // Optional completion callback and success navigation
   onProcessCompletion?: (detail: { resolution?: 'success' | 'failure' } | null) => void
+  /**
+   * @deprecated This prop is obsolete and will be removed in a future version. It is not used by AppActionForm.
+   */
+  businessAppContext?: BusinessAppContextProps
 }
 
-const getSuccessMessage = (processType: string): string => {
+const getSuccessMessage = (processType: string, t: (key: string, args?: Record<string, any>) => string): string => {
   switch (processType) {
     case 'create':
-      return getTranslationFromI18nKeyAndLabel('process:success.created', 'Successfully created')
+      return t('process-success-created')
     case 'update':
-      return getTranslationFromI18nKeyAndLabel('process:success.updated', 'Successfully updated')
+      return t('process-success-updated')
     case 'delete':
-      return getTranslationFromI18nKeyAndLabel('process:success.deleted', 'Successfully deleted')
+      return t('process-success-deleted')
     default:
-      return getTranslationFromI18nKeyAndLabel('process:success.completed', 'Successfully completed')
+      return t('process-success-completed')
   }
 }
 
@@ -124,6 +120,8 @@ const FormNavigation: React.FC<FormNavigationProps> = ({
   submitButtonDataTestId,
   cancelButtonDataTestId
 }) => {
+  const { t } = useTranslation(translations)
+
   return (
     <div
       className="gba:flex gba:justify-end gba:gap-2 gba:items-center gba:mt-auto gba:pt-4"
@@ -139,7 +137,7 @@ const FormNavigation: React.FC<FormNavigationProps> = ({
             onClick={onCancel}
             disabled={isLoading}
           >
-            {cancelButtonText || getTranslationFromI18nKeyAndLabel('process:button.cancel', 'Cancel')}
+            {cancelButtonText || t('process-button-cancel')}
           </Button>
         )}
 
@@ -151,7 +149,7 @@ const FormNavigation: React.FC<FormNavigationProps> = ({
             onClick={onBack}
             disabled={isLoading}
           >
-            {backButtonText || getTranslationFromI18nKeyAndLabel('process:button.previous', 'Previous')}
+            {backButtonText || t('process-button-previous')}
           </Button>
         )}
       </div>
@@ -166,7 +164,7 @@ const FormNavigation: React.FC<FormNavigationProps> = ({
             disabled={isLoading || isNextDisabled}
             onClick={onNext}
           >
-            {nextButtonText || getTranslationFromI18nKeyAndLabel('process:button.next', 'Next')}
+            {nextButtonText || t('process-button-next')}
           </Button>
         )}
 
@@ -177,7 +175,7 @@ const FormNavigation: React.FC<FormNavigationProps> = ({
             variant={submitButtonVariant}
             disabled={isLoading || isSubmitDisabled}
           >
-            {submitButtonText || getTranslationFromI18nKeyAndLabel('process:button.submit', 'Submit')}
+            {submitButtonText || t('process-button-submit')}
           </Button>
         )}
       </div>
@@ -197,10 +195,11 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
   validateForm,
   submitButtonText,
   cancelButtonText,
-  showCancelButton = true,
+  showCancelButton, // deprecated - will be auto-calculated from onCancel
   submitButtonVariant = 'default',
   form: externalForm,
   resolver,
+  schema,
   'data-testid': dataTestId = 'process-dialog',
   submitButtonTestId,
   cancelButtonTestId,
@@ -209,12 +208,12 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
   disableFormSubmission = false,
   formType = 'form',
   wizardSteps,
-  showStepIndicator = true,
-  allowStepJumping = false,
+  allowStepJumping = true,
   handlePreSubmit,
   isSubmitDisabled = false,
   onProcessCompletion
 }) => {
+  const { t } = useTranslation(translations)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<ProcessMessage | null>(null)
   const isSubmittingRef = useRef(false)
@@ -254,12 +253,12 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
           enhancedData = await handlePreSubmit(dataForValidation)
         }
 
-        // Development-only payload logging (input data)
-        if (process.env.NODE_ENV !== 'production') {
-          console.log('[AppActionForm] Form data (before transformation):', enhancedData)
-        }
-
         const result = await onSubmit(enhancedData)
+
+        // Development-only payload logging (output data)
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('[AppActionForm] Payload:', result)
+        }
 
         // Create a promise that resolves when process completes OR after timeout
         const waitForProcessCompletion = new Promise<void>(resolve => {
@@ -342,7 +341,7 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
       onCancel={handleCancel}
       onSubmit={undefined} // Will be handled by form onSubmit
       cancelButtonText={cancelButtonText}
-      submitButtonText={submitButtonText || getSuccessMessage(processType).replace('Successfully ', '')}
+      submitButtonText={submitButtonText || getSuccessMessage(processType, t).replace('Successfully ', '')}
       isLoading={loading || form?.formState?.isSubmitting}
       submitButtonVariant={submitButtonVariant}
       dataTestId={dataTestId}
@@ -369,7 +368,7 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
         }}
         onSubmit={undefined} // Will be handled by WizardForm onSubmit
         cancelButtonText={cancelButtonText}
-        submitButtonText={submitButtonText || getSuccessMessage(processType).replace('Successfully ', '')}
+        submitButtonText={submitButtonText || getSuccessMessage(processType, t).replace('Successfully ', '')}
         isLoading={loading || form?.formState?.isSubmitting}
         submitButtonVariant={submitButtonVariant}
         dataTestId={dataTestId}
@@ -379,68 +378,100 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
     )
   }
 
-  return (
-    <LocalizationProvider locale={useMemo(() => getCurrentActiveUserLocale() as any, [])}>
-      <div className="gba:p-6 gba:h-full gba:flex gba:flex-col" data-testid={dataTestId}>
-        {message && message.type === 'error' && (
-          <Alert variant="destructive" className="gba:mb-4" data-testid={`${dataTestId}-message`}>
-            {message.message}
-          </Alert>
-        )}
+  // Helper function to render form content based on conditions
+  const renderFormContent = (): React.ReactNode => {
+    // Validation error handler for form submission
+    const handleValidationErrors = (errors: any) => {
+      // Development-only validation error logging
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('[AppActionForm] Validation failed:', errors)
+        // Note: form.formState.errors might not be updated yet, use errors parameter instead
+        console.error('[AppActionForm] Validation errors (from callback):', errors)
+        console.error('[AppActionForm] Form errors (from formState):', form.formState.errors)
+        console.error('[AppActionForm] Form values:', form.getValues())
+      }
+    }
 
-        {formType === 'wizard' && wizardSteps && form ? (
-          // Use WizardForm with custom navigation as children
-          <WizardForm
-            form={form}
-            steps={wizardSteps}
-            onSubmit={data => handleSubmit(data)}
-            showStepIndicator={showStepIndicator}
-            allowStepJumping={allowStepJumping}
-            className="gba:w-full"
+    // Wizard form
+    if (formType === 'wizard' && wizardSteps && form) {
+      return (
+        <WizardForm
+          form={form}
+          steps={wizardSteps}
+          onSubmit={handleSubmit}
+          showStepIndicator={true}
+          allowStepJumping={allowStepJumping}
+          className="gba:w-full"
+          {...(schema ? { schema: schema as any } : {})}
+        >
+          <WizardNavigation />
+        </WizardForm>
+      )
+    }
+
+    // Disabled form submission (custom handling)
+    if (disableFormSubmission) {
+      return (
+        <div className="gba:flex gba:flex-col gba:w-full gba:h-full" data-testid={`${dataTestId}-content`}>
+          {children}
+          {customActions}
+        </div>
+      )
+    }
+
+    // Custom layout with form
+    if (customFormLayout && form) {
+      return (
+        <Form {...(form as any)} schema={schema}>
+          <form
+            onSubmit={form.handleSubmit(vals => handleSubmit(vals), handleValidationErrors)}
+            className="gba:flex gba:flex-col gba:w-full gba:h-full"
+            data-testid={`${dataTestId}-form`}
           >
-            <WizardNavigation />
-          </WizardForm>
-        ) : disableFormSubmission ? (
-          // Custom form handling - don't wrap in Form/form elements
-          <div className="gba:flex gba:flex-col gba:w-full gba:h-full" data-testid={`${dataTestId}-content`}>
             {children}
             {customActions}
-          </div>
-        ) : customFormLayout && form ? (
-          // Custom layout: just provide form context and let children handle layout
-          <Form {...(form as any)}>
-            <form
-              onSubmit={form.handleSubmit(vals => handleSubmit(vals))}
-              className="gba:flex gba:flex-col gba:w-full gba:h-full"
-              data-testid={`${dataTestId}-form`}
-            >
+          </form>
+        </Form>
+      )
+    }
+
+    // Standard layout with form
+    if (form) {
+      return (
+        <Form {...(form as any)} schema={schema}>
+          <form
+            onSubmit={form.handleSubmit(vals => handleSubmit(vals), handleValidationErrors)}
+            className="gba:flex gba:flex-col gba:w-full gba:max-w-full gba:h-full"
+            data-testid={`${dataTestId}-form`}
+          >
+            <div className="gba:flex-1 gba:space-y-4" data-testid={`${dataTestId}-form-content`}>
               {children}
-              {customActions}
-            </form>
-          </Form>
-        ) : form ? (
-          // Standard layout
-          <Form {...(form as any)}>
-            <form
-              onSubmit={form.handleSubmit(vals => handleSubmit(vals))}
-              className="gba:flex gba:flex-col gba:w-full gba:max-w-md gba:h-full"
-              data-testid={`${dataTestId}-form`}
-            >
-              <div className="gba:flex-1 gba:space-y-4" data-testid={`${dataTestId}-form-content`}>
-                {children}
-              </div>
-              {formNavigation}
-            </form>
-          </Form>
-        ) : (
-          // Fallback: no form wrapper (shouldn't happen in normal scenarios)
-          <div className="gba:flex gba:flex-col gba:w-full gba:h-full" data-testid={`${dataTestId}-content`}>
-            {children}
-            {customActions}
-          </div>
-        )}
+            </div>
+            {formNavigation}
+          </form>
+        </Form>
+      )
+    }
+
+    // Fallback: no form wrapper (shouldn't happen in normal scenarios)
+    return (
+      <div className="gba:flex gba:flex-col gba:w-full gba:h-full" data-testid={`${dataTestId}-content`}>
+        {children}
+        {customActions}
       </div>
-    </LocalizationProvider>
+    )
+  }
+
+  return (
+    <div className="gba:p-6 gba:h-full gba:flex gba:flex-col" data-testid={dataTestId}>
+      {message?.type === 'error' && (
+        <Alert variant="destructive" className="gba:mb-4" data-testid={`${dataTestId}-message`}>
+          {message.message}
+        </Alert>
+      )}
+
+      {renderFormContent()}
+    </div>
   )
 }
 

@@ -7,8 +7,8 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import TotalRewardsCard from '../components/current/TotalRewardsCard'
 import BenefitsPerksSection from '../components/current/BenefitsPerksSection'
 import CompensationKPICards from '../components/current/CompensationKPICards'
-import { useCompensationPermissions } from '../../../../hooks/useCompensationPermissions'
-import { ScopePermissionCheckResult } from '@/common/hooks/useScopePermissionCheck'
+import { ScopePermissionCheckResult, useScopePermissionCheck } from '@/common/hooks/useScopePermissionCheck'
+import { useCompensationPermissions } from '../hooks/useCompensationPermissions'
 
 interface CurrentCompensationViewProps extends BusinessAppContextProps {
   t: (key: string, params?: any) => string
@@ -20,6 +20,7 @@ interface CurrentCompensationViewProps extends BusinessAppContextProps {
   locale: string
   employeeRecordHrBackoffice: ScopePermissionCheckResult
   isSelfView: boolean // Whether user is viewing their own profile
+  supervisorEmployeeId?: string | null // Employee's supervisor ID for manager check
 }
 
 /**
@@ -38,15 +39,37 @@ const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({
   additionalData,
   locale,
   employeeRecordHrBackoffice,
-  isSelfView
+  isSelfView,
+  supervisorEmployeeId
 }) => {
-  // Check compensation-related permissions
-  // Only managers and HR admins should have write permission on employee_working_condition and employee_bonus
-  // Note: We check permission on the employee being viewed (employeeId) - managers should have write access to their employees' salaries
-  const { hasPermissionToAdjustSalary, hasPermissionToGrantBonus } = useCompensationPermissions(
-    employeeId,
-    accessToken || ''
+  // Compute permissions locally using hooks (avoids prop drilling)
+  const employeeRecordAllHrBackoffice = useScopePermissionCheck(
+    '/platform/employee-record',
+    'employee-record-all-hr-backoffice',
+    accessToken
   )
+  const employeeGrowthPermission = useScopePermissionCheck('/platform/employee-record', 'employee-growth', accessToken)
+
+  // Determine if current user is the employee's manager
+  const currentUserEmployeeId = userInfo?.employeeDetails?.employeeId || ''
+  const isManager = !!(supervisorEmployeeId && currentUserEmployeeId && supervisorEmployeeId === currentUserEmployeeId)
+
+  // Check if permissions are still loading
+  const permissionsLoading = employeeRecordAllHrBackoffice.loading || employeeGrowthPermission.loading
+
+  // Use centralized permission hook for consistent permission logic
+  // Only compute permissions when loading is complete to avoid incorrect evaluation
+  const { canManageCompensation } = useCompensationPermissions({
+    isSelfView,
+    isManager,
+    hasEmployeeGrowthPermission: !employeeGrowthPermission.loading && employeeGrowthPermission.hasPermission === true,
+    hasEmployeeRecordAllHrBackoffice: employeeRecordAllHrBackoffice?.hasPermission === true
+  })
+
+  // Both salary adjustment and bonus granting use the same permission logic
+  // Hide actions during permission loading to avoid flickering UI
+  const showSalaryAction = !permissionsLoading && canManageCompensation
+  const showBonusAction = !permissionsLoading && canManageCompensation
 
   // Handle loading state - show loading indicators when data is not yet available
   if (loading && !compensationData) {
@@ -110,8 +133,8 @@ const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({
         employeeId={employeeId}
         accessToken={accessToken}
         locale={locale}
-        hasPermissionToAdjustSalary={hasPermissionToAdjustSalary ?? false}
-        hasPermissionToGrantBonus={hasPermissionToGrantBonus ?? false}
+        hasPermissionToAdjustSalary={showSalaryAction}
+        hasPermissionToGrantBonus={showBonusAction}
       />
 
       {/* Total Rewards 360° View */}

@@ -3,7 +3,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { DocumentSection } from '@/components/document-section'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { useInvestmentDocuments } from '@/business-apps/irm/common/hooks/useInvestmentDocuments'
+import { useInvestmentDocuments } from '@/common/data/investment/hooks/useInvestmentDocuments'
 import { createDocumentSectionActions } from '@/common/utils/documentSectionActions'
 import { getIrmDocumentApiConfig, useGetIrmDocuments } from '@/business-apps/irm/common/utils/documentUtils'
 

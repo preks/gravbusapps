@@ -23,15 +23,18 @@ export interface CatalogBenefitEntry {
   description?: string
   displayOrder: number
   parentEntryId?: string
+  type?: string
   additionalValue1?: string
   additionalValue2?: string
   additionalValue3?: string
+  objectValue?: unknown
   translations?: Array<{
     localeCode: string
     value: string
     additionalValue1?: string
     additionalValue2?: string
     additionalValue3?: string
+    objectValue?: unknown
   }>
   childEntries?: ProviderEntry[]
 }
@@ -48,6 +51,7 @@ export interface BenefitCatalogItem {
   description?: string
   displayOrder: number
   parentEntryId?: string
+  // Optional: benefit entry type (from GraphQL source) can be accessed via catalogEntry.type
   availableProviders?: ProviderEntry[]
   isActive: boolean
   employeeBenefitId?: string
@@ -64,6 +68,7 @@ export interface BenefitCatalogItem {
   canRequest: boolean
   canDeactivate: boolean
   isPending?: boolean
+  type?: string // used as Provider Type for Benefit
 }
 
 export interface BenefitsCatalogData {
@@ -77,8 +82,8 @@ export interface GraphQLCatalogEntryTranslation {
   id: string
   localeCode: string
   value: string
-  additionalValue1?: string
-  additionalValue2?: string
+  additionalValue1?: string // used as Value for the Benefit
+  additionalValue2?: string // used as Curency for the Benefit
   additionalValue3?: string
   objectValue?: unknown
 }

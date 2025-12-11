@@ -18,6 +18,7 @@ export const ChangeExternalId: React.FC<BusinessAppContextProps> = ({ accessToke
 
   const [isLoading, setIsLoading] = useState(true)
   const [employee, setEmployee] = useState<any>(null)
+  const [employeePosition, setEmployeePosition] = useState<any>(null)
   const ignorePrefillAfterSubmitRef = useRef(false)
 
   const form = useForm<ExternalIdFormValues>({
@@ -37,20 +38,21 @@ export const ChangeExternalId: React.FC<BusinessAppContextProps> = ({ accessToke
       try {
         setIsLoading(true)
         const employeeId =
+          additionalData?.employeeId ||
           additionalData?.psi_taskPayload?.employeeId ||
-          additionalData?.psi_taskPayload?.initialParameters?.employeeId ||
+          additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId ||
           userInfo?.employeeDetails?.employeeId ||
           ''
-
         if (employeeId) {
           const res = await graphqlClient.request<any>(EMPLOYEE_DATA_QUERY, { idEmployee: employeeId })
           const emp = res?.EmployeeByPk || null
           setEmployee(emp)
+          setEmployeePosition(res?.EmployeePosition?.[0] || null)
           if (!ignorePrefillAfterSubmitRef.current) {
             form.reset({
-              externalId: emp?.externalId || ''
+              externalId: emp?.externalId || emp?.additionalProperties?.SAPNumber || ''
             })
-            initialRef.current = { externalId: emp?.externalId || '' }
+            initialRef.current = { externalId: emp?.externalId || emp?.additionalProperties?.SAPNumber || '' }
           }
         } else {
           setEmployee(null)
@@ -115,6 +117,16 @@ export const ChangeExternalId: React.FC<BusinessAppContextProps> = ({ accessToke
         )}
         flowIconUrl={flowIconUrl}
         className="gba:px-6"
+        employee={
+          employee
+            ? {
+                firstName: employee.firstName,
+                lastName: employee.lastName,
+                pictureThumbnail: employee.pictureThumbnail,
+                jobTitle: employeePosition?.jobPosition?.name
+              }
+            : undefined
+        }
       />
 
       <div className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='change-external-id']]:!pt-0">
@@ -136,8 +148,9 @@ export const ChangeExternalId: React.FC<BusinessAppContextProps> = ({ accessToke
             // Prevent prefill reset while the process is completing and the modal is about to close
             ignorePrefillAfterSubmitRef.current = true
             const employeeId =
+              additionalData?.employeeId ||
               additionalData?.psi_taskPayload?.employeeId ||
-              additionalData?.psi_taskPayload?.initialParameters?.employeeId ||
+              additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId ||
               userInfo?.employeeDetails?.employeeId ||
               employee?.id ||
               ''

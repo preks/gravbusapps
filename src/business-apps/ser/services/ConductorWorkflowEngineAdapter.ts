@@ -1113,17 +1113,35 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
 
   /**
    * Map flow status to service request status
+   * Case-insensitive to handle API variations
    */
   private mapFlowStatusToRequestStatus(flowStatus: string): 'open' | 'in_progress' | 'completed' | 'canceled' {
+    // Normalize status to uppercase for consistent mapping
+    const normalizedStatus = flowStatus?.toUpperCase() || 'UNKNOWN'
+
     const statusMapping: Record<string, 'open' | 'in_progress' | 'completed' | 'canceled'> = {
       RUNNING: 'in_progress',
       COMPLETED: 'completed',
+      DONE: 'completed', // Alternative completed status
+      SUCCESS: 'completed', // Alternative completed status
       FAILED: 'canceled',
       PAUSED: 'in_progress',
-      TERMINATED: 'canceled'
+      TERMINATED: 'canceled',
+      CANCELLED: 'canceled', // Alternative spelling
+      CANCELED: 'canceled'
     }
 
-    return statusMapping[flowStatus] || 'open'
+    const mappedStatus = statusMapping[normalizedStatus] || 'open'
+
+    // Log status mapping for debugging
+    console.log(`[ConductorAdapter] Status mapping:`, {
+      originalStatus: flowStatus,
+      normalizedStatus,
+      mappedStatus,
+      foundInMapping: normalizedStatus in statusMapping
+    })
+
+    return mappedStatus
   }
 
   // =================================================================================

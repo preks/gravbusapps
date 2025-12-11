@@ -4,6 +4,15 @@ export const EMPLOYEE_DATA_QUERY = `
     id
     version
     externalId
+    additionalProperties
+    firstName
+    lastName
+    pictureThumbnail
+  }
+  EmployeePosition(where: {employeeId: {_eq: $idEmployee}}) {
+    jobPosition {
+      name
+    }
   }
 }
   `

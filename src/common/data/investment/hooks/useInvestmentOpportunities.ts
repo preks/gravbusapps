@@ -1,14 +1,16 @@
 // Investment Opportunity hooks - CRM opportunity entity operations
-import { useCallback } from 'react'
+import { useCallback, useState, useEffect, useMemo } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import type {
-  InvestmentOpportunity,
-  InvestmentTask,
-  InvestmentActivity,
-  InvestmentNote,
-  InvestmentDocument
-} from '../types'
+import {
+  type InvestmentOpportunity,
+  toInvestmentOpportunity,
+  INVESTMENT_OPPORTUNITY_DESCRIPTORS
+} from '../types/investmentOpportunityTypes'
+import type { InvestmentTask } from '../types/investmentTaskTypes'
+import type { InvestmentActivity } from '../types/investmentActivityTypes'
+import type { InvestmentNote } from '../types/investmentNoteTypes'
+import type { InvestmentDocument } from '../types/investmentDocumentTypes'
 
 // Import new query builders
 import {
@@ -44,14 +46,8 @@ import {
 import { buildWhere } from '@/common/network/graphql/queryHelpers'
 
 // Use the mapper function
-import {
-  toInvestmentOpportunity,
-  toInvestmentTask,
-  toInvestmentActivity,
-  toInvestmentNote,
-  toInvestmentDocument
-} from '../mappers'
-import { INVESTMENT_OPPORTUNITY_DESCRIPTORS } from '../types/investmentOpportunityTypes'
+import { toInvestmentTask } from '../mappers/investmentTaskMappers'
+import { toInvestmentActivity, toInvestmentNote, toInvestmentDocument } from '../mappers/investmentRelatedEntityMappers'
 
 // Note: InvestmentOpportunityQueryVariables is imported from queries
 
@@ -91,7 +87,12 @@ export interface InvestmentOpportunityAggregateResponse {
   }
 }
 
-// Hook for getting investment opportunities with full details
+/**
+ * @deprecated This hook is in transition. Use `useInvestmentOpportunitiesList` instead.
+ *
+ * Legacy function-only hook for investment opportunities.
+ * Returns fetch functions without state management.
+ */
 export const useGetInvestmentOpportunities = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken)
 
@@ -106,6 +107,9 @@ export const useGetInvestmentOpportunities = (context: BusinessAppContextProps) 
       }
       if (variables.accountSearch?.trim()) {
         customConditions.push({ account: { name: { _ilike: `%${variables.accountSearch.trim()}%` } } })
+      }
+      if (variables.currencyCode?.trim()) {
+        customConditions.push({ currency: { code: { _eq: variables.currencyCode.trim() } } })
       }
 
       // Custom ranged filters for estimatedAmount (treat null as 0)
@@ -184,10 +188,12 @@ export const useGetInvestmentOpportunityById = (context: BusinessAppContextProps
 
   const fetchInvestmentOpportunityById = useCallback(
     async (id: string) => {
-      const query = buildInvestmentOpportunityByIdQuery(undefined, id)
+      const query = buildInvestmentOpportunityByIdQuery()
 
       try {
-        const result = await graphqlClient.request<{ InvestmentOpportunityByPk: InvestmentOpportunity | null }>(query)
+        const result = await graphqlClient.request<{ InvestmentOpportunityByPk: InvestmentOpportunity | null }>(query, {
+          id
+        })
 
         return {
           opportunity: result.InvestmentOpportunityByPk
@@ -205,6 +211,138 @@ export const useGetInvestmentOpportunityById = (context: BusinessAppContextProps
   return { fetchInvestmentOpportunityById }
 }
 
+/**
+ * Declarative List Hook for Investment Opportunities
+ *
+ * Automatically fetches and manages state for a list of investment opportunities.
+ * Follows the Hook Refactoring Guide Pattern 2.
+ *
+ * @example
+ * const { opportunities, loading, error, refetch } = useInvestmentOpportunitiesList(context, { limit: 20 })
+ *
+ * @todo MIGRATION: Replace all usages of deprecated `useGetInvestmentOpportunities` with this hook
+ * @todo RENAME: After migration is complete, rename this hook to `useInvestmentOpportunities` and remove the deprecated hook
+ */
+export interface UseInvestmentOpportunitiesListResult {
+  opportunities: InvestmentOpportunity[]
+  total: number
+  loading: boolean
+  error: string | null
+  refetch: (variables?: InvestmentOpportunityQueryVariables) => Promise<void>
+}
+
+export function useInvestmentOpportunitiesList(
+  context: BusinessAppContextProps,
+  variables?: InvestmentOpportunityQueryVariables
+): UseInvestmentOpportunitiesListResult {
+  const graphqlClient = useGraphQLClient(context.accessToken)
+
+  // Memoize variables to prevent infinite loops when object is recreated on each render
+  const stableVariables = useMemo(() => variables, [JSON.stringify(variables)])
+
+  const [state, setState] = useState({
+    opportunities: [] as InvestmentOpportunity[],
+    total: 0,
+    loading: true,
+    error: null as string | null
+  })
+
+  const fetchOpportunities = useCallback(
+    async (queryVariables?: InvestmentOpportunityQueryVariables) => {
+      if (!context.accessToken) {
+        setState(prev => ({ ...prev, loading: false }))
+        return
+      }
+
+      setState(prev => ({ ...prev, loading: true, error: null }))
+
+      try {
+        const vars = { ...stableVariables, ...queryVariables }
+        const query = buildInvestmentOpportunityQuery()
+
+        const customConditions: Record<string, any>[] = []
+
+        if (vars.dealType) {
+          customConditions.push({ dealType: { _eq: vars.dealType } })
+        }
+        if (vars.accountSearch?.trim()) {
+          customConditions.push({ account: { name: { _ilike: `%${vars.accountSearch.trim()}%` } } })
+        }
+
+        // Custom ranged filters for estimatedAmount (treat null as 0)
+        if (vars.estimatedAmountRanges?.length) {
+          const orConditions = vars.estimatedAmountRanges.flatMap(range => {
+            const conditions: any[] = []
+            const amountCondition: any = {}
+
+            if (range.min !== undefined) amountCondition._gte = range.min
+            if (range.max !== undefined) amountCondition._lte = range.max
+
+            if (Object.keys(amountCondition).length > 0) {
+              conditions.push({ estimatedAmount: amountCondition })
+            }
+
+            // If range includes 0, also include null values (null treated as 0)
+            const includesZero =
+              (range.min === undefined || range.min === 0) && (range.max === undefined || range.max >= 0)
+            if (includesZero) {
+              conditions.push({ estimatedAmount: { _isNull: true } })
+            }
+
+            return conditions
+          })
+          customConditions.push({ _or: orConditions })
+        }
+
+        if (vars.forecastedProfitBetween) {
+          customConditions.push({
+            forecastedProfitAmount: {
+              _gte: vars.forecastedProfitBetween[0],
+              _lte: vars.forecastedProfitBetween[1]
+            }
+          })
+        }
+
+        const whereCondition = buildInvestmentOpportunityWhereCondition(vars, [], customConditions)
+        const orderBy = buildInvestmentOpportunityOrderBy(vars.orderBy || [])
+
+        const graphQLVariables: Record<string, any> = {
+          limit: Math.min(vars.limit || 50, 100),
+          offset: vars.offset || 0,
+          where: whereCondition,
+          orderBy: orderBy
+        }
+
+        const result = await graphqlClient.request<InvestmentOpportunityQueryResponse>(query, graphQLVariables)
+        const opportunities = result.InvestmentOpportunity.map(toInvestmentOpportunity)
+        const total = result.InvestmentOpportunityAggregate?.aggregate?.count || 0
+
+        setState({ opportunities, total, loading: false, error: null })
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to fetch investment opportunities'
+
+        setState(prev => ({
+          ...prev,
+          opportunities: [],
+          total: 0,
+          loading: false,
+          error: errorMessage
+        }))
+      }
+    },
+    [context.accessToken, graphqlClient, stableVariables]
+  )
+
+  useEffect(() => {
+    fetchOpportunities()
+  }, [fetchOpportunities])
+
+  return {
+    ...state,
+    refetch: fetchOpportunities
+  }
+}
+
 // Hook for getting investment opportunity aggregates for metrics
 export const useGetInvestmentOpportunityAggregates = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken)
@@ -220,6 +358,9 @@ export const useGetInvestmentOpportunityAggregates = (context: BusinessAppContex
       }
       if (variables.accountSearch?.trim()) {
         customConditions.push({ investmentAccount: { name: { _ilike: `%${variables.accountSearch.trim()}%` } } })
+      }
+      if (variables.currencyCode?.trim()) {
+        customConditions.push({ currency: { code: { _eq: variables.currencyCode.trim() } } })
       }
 
       if (variables.estimatedAmountRanges?.length) {

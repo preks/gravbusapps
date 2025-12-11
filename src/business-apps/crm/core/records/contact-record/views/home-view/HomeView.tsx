@@ -3,7 +3,9 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import type { CustomerContact, CustomerActivity, CustomerTask } from '@/common/data/customer/types'
+import type { CustomerContact } from '@/common/data/customer/types/customerContactTypes'
+import type { CustomerActivity } from '@/common/data/customer/types/customerActivityTypes'
+import type { CustomerTask } from '@/common/data/customer/types/customerTaskTypes'
 import type { CustomerNote } from '@/common/data/customer/hooks/useCustomerNotes'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
 import type { AppActionCommonProps } from '@/common/hooks/useAppActionData'
@@ -73,7 +75,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
             component: AccountSection,
             props: {
               ...props,
-              accounts: contact?.accountContacts?.map(ac => ac.account).filter(Boolean) || [],
+              accounts:
+                contact?.accountContacts
+                  ?.map(ac => ({
+                    ...ac.account,
+                    contactType: ac.contactType
+                  }))
+                  .filter(Boolean) || [],
               accountId: contact?.accountContacts?.[0]?.account?.id,
               recordUrl: contact?.accountContacts?.[0]?.account?.id
                 ? buildPlatformUrl('/platform/crm/account-record', {

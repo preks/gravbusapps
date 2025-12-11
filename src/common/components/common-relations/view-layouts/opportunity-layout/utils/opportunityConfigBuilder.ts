@@ -185,13 +185,14 @@ export const createOpportunityConfig = <TOpportunity extends { id: string }, TQu
     },
 
     fetchOpportunitiesForBoard: async (
-      filters: OpportunityBoardFilters & { additionalFilters?: Record<string, any> },
+      filters: OpportunityBoardFilters & { additionalFilters?: Record<string, any>; currencyCode?: string },
       currentEmployeeId?: string
     ) => {
       const variables: any = {
         limit: 200,
         orderBy: [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }],
-        search: filters.search?.trim() || undefined
+        search: filters.search?.trim() || undefined,
+        currencyCode: filters.currencyCode || undefined
       }
 
       if (filters.selectedPipelineId) {

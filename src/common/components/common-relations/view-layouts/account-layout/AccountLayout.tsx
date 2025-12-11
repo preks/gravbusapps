@@ -48,8 +48,6 @@ export interface AccountViewConfig<TAccount extends Account = Account, TQueryVar
   accountStatistics?: AccountStatisticsData
   variant?: 'customer' | 'investment'
 
-  processCompletionEvents?: string[]
-
   rowActionsContextArray: FlowContextName[]
   buildRowActionsExternalContextData: (row: { original: TAccount }) => Record<string, string>
 
@@ -190,24 +188,11 @@ function ConfigAccountLayout<TAccount extends Account = Account, TQueryVariables
   // Process Completion Handlers
   const handleProcessComplete = useCallback(() => {
     loadData(false)
-  }, [loadData])
+    // Also refresh statistics when process completes
+    config.accountStatistics?.refetch?.()
+  }, [loadData, config.accountStatistics?.refetch])
 
   useProcessCompletion({ onSuccess: handleProcessComplete })
-
-  useEffect(() => {
-    const events = config.processCompletionEvents || ['taskCompletion', 'accountCompletion']
-    const handlers = events.map(eventName => {
-      const handler = () => handleProcessComplete()
-      globalThis.addEventListener(eventName, handler)
-      return { eventName, handler }
-    })
-
-    return () => {
-      for (const { eventName, handler } of handlers) {
-        globalThis.removeEventListener(eventName, handler)
-      }
-    }
-  }, [handleProcessComplete, config.processCompletionEvents])
 
   // Event Handlers
   const handleSearch = useCallback((value: string) => {
@@ -245,13 +230,16 @@ function ConfigAccountLayout<TAccount extends Account = Account, TQueryVariables
     }
   }, [availableColumns, visibleColumns.length])
 
-  // Row actions - rendered internally
-  const rowActions = useMemo(
-    () => (row: { original: TAccount }) => (
+  // Row actions - rendered internally (only if actions are configured)
+  const rowActions = useMemo(() => {
+    // Hide actions column if no actions are configured
+    if (!config.rowActionsContextArray || config.rowActionsContextArray.length === 0) {
+      return undefined
+    }
+    return (row: { original: TAccount }) => (
       <AccountRowActions row={row} config={config} accessToken={context?.accessToken || ''} />
-    ),
-    [config, context?.accessToken]
-  )
+    )
+  }, [config, context?.accessToken])
 
   if (!context) {
     console.error('AccountLayout: context is required')

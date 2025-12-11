@@ -1,5 +1,6 @@
 import React from 'react'
-import { ActivitiesStatistics, ActivitiesTable } from '../activities'
+import { ActivitiesStatistics } from '../activities/ActivitiesStatistics'
+import { ActivitiesTable } from '../activities/ActivitiesTable'
 import { SalesActivitiesTabProps } from '../../types/activitiesTypes'
 
 const DATA_TEST_ID_PREFIX = 'SalesActivitiesTab'

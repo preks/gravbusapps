@@ -2,6 +2,10 @@ import React from 'react'
 import { Pagination } from 'antd'
 import { AbsenceListProps } from '../../../queries/types'
 import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import {
+  getAbsenceStatusBadgeVariant,
+  getBadgeVariantBackgroundClass
+} from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 
 const AbsenceList: React.FC<AbsenceListProps> = ({
   absenceList,
@@ -70,8 +74,8 @@ const AbsenceList: React.FC<AbsenceListProps> = ({
                     {formatDate(absence.startDate, 'date.long')} - {formatDate(absence.endDate, 'date.long')}
                   </div>
                   <div
-                    className="gba:status-badge gba:px-3 gba:py-1 gba:rounded gba:text-sm"
-                    style={{ backgroundColor: absence.statusColor }}
+                    className={`gba:status-badge gba:px-3 gba:py-1 gba:rounded gba:text-sm ${getBadgeVariantBackgroundClass(getAbsenceStatusBadgeVariant(absence.originalStatus))}`}
+                    data-testid={`absence-status-badge-${idx}`}
                   >
                     {absence.status}
                   </div>

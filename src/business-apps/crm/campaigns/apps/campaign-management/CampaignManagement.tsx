@@ -12,6 +12,7 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { createCampaignColumns, createCampaignSortableColumns } from './config/campaignColumns'
 import { campaignFilterConfig } from './config/campaignFilters'
 import type { TimelinePeriod } from './components/campaigns-analytics/types/CampaignsAnalyticsTypes'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 
 // Import shared Campaign Management Layout
 import { CampaignManagementLayout } from '@/common/components/customer/campaign-management'
@@ -283,67 +284,13 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = prop
     filterCreatedBefore
   ])
 
-  // Refresh list after process completion
-  useEffect(() => {
-    console.log('🎯 [CampaignManagement] Setting up campaign completion event listeners')
-
-    const handleProcessEvents = (event: Event) => {
-      try {
-        const type = event?.type || ''
-        const detail = (event as CustomEvent)?.detail || {}
-        const payload = detail?.payload || {}
-
-        console.log('🔔 [CampaignManagement] Event received:', {
-          type,
-          detail,
-          payload,
-          hasCampaign: !!(payload.salesCampaign || payload.campaign || payload.campaignId || detail.campaign)
-        })
-
-        // Check if this is a campaign-related event
-        const isCampaignEvent =
-          type === 'com.newwork.process.taskCompletion' ||
-          type === 'com.newwork.process.processCompletion' ||
-          type === 'process-completion' ||
-          type === 'task-completion' ||
-          type === 'com.newwork.process.continue' ||
-          type === 'campaignCompletion' ||
-          (detail?.payload && detail?.event === 'pse_submit') ||
-          payload.salesCampaign ||
-          payload.campaign ||
-          payload.campaignId ||
-          detail.campaign
-
-        if (isCampaignEvent) {
-          console.log('✅ [CampaignManagement] Campaign event detected, refreshing data...')
-          refetch()
-          refetchStatistics()
-        }
-      } catch (error) {
-        console.error('❌ [CampaignManagement] Error handling process event:', error)
-      }
-    }
-
-    const eventTypes = [
-      'com.newwork.process.taskCompletion',
-      'com.newwork.process.processCompletion',
-      'process-completion',
-      'task-completion',
-      'com.newwork.process.continue',
-      'campaignCompletion'
-    ]
-
-    for (const eventType of eventTypes) {
-      globalThis.addEventListener(eventType, handleProcessEvents as EventListener)
-    }
-
-    return () => {
-      console.log('🧹 [CampaignManagement] Cleaning up event listeners')
-      for (const eventType of eventTypes) {
-        globalThis.removeEventListener(eventType, handleProcessEvents as EventListener)
-      }
-    }
+  // Process Completion Handlers
+  const handleProcessComplete = useCallback(() => {
+    refetch()
+    refetchStatistics()
   }, [refetch, refetchStatistics])
+
+  useProcessCompletion({ onSuccess: handleProcessComplete })
 
   // Modal handlers
   const handleCloseModal = useCallback(() => {
@@ -374,7 +321,9 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = prop
   // Render actions for each campaign row
   const renderCampaignActions = useCallback(
     (row: { original: Campaign }) => (
-      <CampaignRowActions campaignId={row.original.id} accessToken={props.accessToken} />
+      <div role="presentation" onClick={e => e.stopPropagation()}>
+        <CampaignRowActions campaignId={row.original.id} accessToken={props.accessToken} />
+      </div>
     ),
     [props.accessToken]
   )

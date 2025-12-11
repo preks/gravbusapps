@@ -1,13 +1,13 @@
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 
 import { enforceQueryLimit } from '@/business-apps/crm/common/utils/queryLimits'
 
 export interface DashboardQueryVariables {
   pipelineRef?: string
-  startDate: string
-  endDate: string
+  startDate?: string
+  endDate?: string
   limit?: number
   offset?: number
 }
@@ -63,18 +63,16 @@ export const GET_PIPELINE_STAGES = `
 `
 
 // Get opportunities for a specific pipeline
+// Note: No date filter - shows ALL opportunities for accurate KPI stats
 export const GET_PIPELINE_OPPORTUNITIES = `
   query GetPipelineOpportunities(
     $pipelineRef: String!
-    $startDate: timestamptz!
-    $endDate: timestamptz!
     $limit: Int
     $offset: Int
   ) {
     opportunities: InvestmentOpportunity(
       where: {
         isDeleted: { _eq: false }
-        createdAt: { _gte: $startDate, _lte: $endDate }
         _or: [
           { opportunityPipeline: { id: { _eq: $pipelineRef } } },
           { opportunityPipeline: { code: { _eq: $pipelineRef } } }
@@ -90,6 +88,7 @@ export const GET_PIPELINE_OPPORTUNITIES = `
       closeDate
       createdAt
       currencyRef
+      ownerEmployeeId
       opportunityPipelineStageRef
       opportunityStatus {
         code
@@ -235,12 +234,10 @@ export const GET_SALES_ACTIVITIES = `
 `
 
 // Get win rate data for a pipeline
+// Fetch ALL closed opportunities (no date filter) - consistent with KPIs and leaderboard
 export const GET_WIN_RATE_DATA = `
   query GetWinRateData(
     $pipelineRef: String!
-    $monthStart: timestamp!
-    $quarterStart: timestamp!
-    $endDate: timestamp!
   ) {
     monthOpportunities: InvestmentOpportunity(
       where: {
@@ -249,13 +246,13 @@ export const GET_WIN_RATE_DATA = `
           { opportunityPipeline: { code: { _eq: $pipelineRef } } }
         ]
         isDeleted: { _eq: false }
-        closeDate: { _gte: $monthStart, _lte: $endDate }
         opportunityStatus: { code: { _in: ["WON", "LOST"] } }
       }
     ) {
       id
       opportunityStatus { code }
       estimatedAmount
+      currencyRef
       closeDate
     }
     
@@ -266,24 +263,23 @@ export const GET_WIN_RATE_DATA = `
           { opportunityPipeline: { code: { _eq: $pipelineRef } } }
         ]
         isDeleted: { _eq: false }
-        closeDate: { _gte: $quarterStart, _lte: $endDate }
         opportunityStatus: { code: { _in: ["WON", "LOST"] } }
       }
     ) {
       id
       opportunityStatus { code }
       estimatedAmount
+      currencyRef
       closeDate
     }
   }
 `
 
 // Get sales rep performance for leaderboard
+// Fetch ALL opportunities (no date filter) to show accurate won/lost stats
 export const GET_SALES_REP_PERFORMANCE = `
   query GetSalesRepPerformance(
     $pipelineRef: String!
-    $startDate: timestamp!
-    $endDate: timestamp!
     $activityStartDate: timestamptz!
     $activityEndDate: timestamptz!
   ) {
@@ -294,13 +290,12 @@ export const GET_SALES_REP_PERFORMANCE = `
           { opportunityPipeline: { code: { _eq: $pipelineRef } } }
         ]
         isDeleted: { _eq: false }
-        closeDate: { _gte: $startDate, _lte: $endDate }
-        opportunityStatus: { code: { _in: ["WON", "LOST"] } }
       }
     ) {
       id
       opportunityStatus { code }
       estimatedAmount
+      currencyRef
       ownerEmployeeId
       ownerEmployee {
         id
@@ -328,11 +323,12 @@ export const GET_SALES_REP_PERFORMANCE = `
 
 export const GET_TODAYS_ACTIVITIES = (): string => {
   return `
-    query GetTodaysActivities($startDate: timestamptz!, $endDate: timestamptz!) {
+    query GetTodaysActivities($startDate: timestamptz!, $endDate: timestamptz!, $employeeId: uuid!) {
       InvestmentActivity(
         where: {
           isDeleted: {_eq: false}
           createdAt: {_gte: $startDate, _lte: $endDate}
+          ownerEmployeeId: {_eq: $employeeId}
         }
         limit: 10
         orderBy: {createdAt: DESC}
@@ -384,11 +380,12 @@ export const GET_TODAYS_ACTIVITIES = (): string => {
 
 export const GET_TODAYS_TASKS = (): string => {
   return `
-    query GetActiveTasks {
+    query GetActiveTasks($employeeId: uuid!) {
       InvestmentTask(
         where: {
           isDeleted: {_eq: false}
           endDate: {_isNull: true}
+          assignedEmployeeId: {_eq: $employeeId}
         }
         limit: 10
         orderBy: {createdAt: DESC}
@@ -458,6 +455,12 @@ export const GET_TODAYS_TASKS = (): string => {
 export const useDashboardQueries = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken)
 
+  // Extract employeeId once at hook level to avoid duplication in multiple callbacks
+  const employeeId = useMemo(
+    () => context.userInfo?.employeeDetails?.employeeId,
+    [context.userInfo?.employeeDetails?.employeeId]
+  )
+
   const fetchPipelines = useCallback(async () => {
     try {
       const result = await graphqlClient.request<{
@@ -488,9 +491,11 @@ export const useDashboardQueries = (context: BusinessAppContextProps) => {
   const fetchPipelineOpportunities = useCallback(
     async (variables: DashboardQueryVariables) => {
       try {
+        // Only pass variables expected by the query (no date filter)
         const safeVariables = {
-          ...variables,
-          limit: enforceQueryLimit(variables.limit || 50)
+          pipelineRef: variables.pipelineRef,
+          limit: enforceQueryLimit(variables.limit || 100),
+          offset: variables.offset
         }
         const result = await graphqlClient.request<{
           opportunities: any[]
@@ -536,12 +541,12 @@ export const useDashboardQueries = (context: BusinessAppContextProps) => {
   )
 
   const fetchWinRateData = useCallback(
-    async (variables: { pipelineRef: string; monthStart: string; quarterStart: string; endDate: string }) => {
+    async (variables: { pipelineRef: string }) => {
       try {
         const result = await graphqlClient.request<{
           monthOpportunities: any[]
           quarterOpportunities: any[]
-        }>(GET_WIN_RATE_DATA, variables)
+        }>(GET_WIN_RATE_DATA, { pipelineRef: variables.pipelineRef })
         return result
       } catch (error) {
         // Error handled by caller
@@ -552,13 +557,7 @@ export const useDashboardQueries = (context: BusinessAppContextProps) => {
   )
 
   const fetchSalesRepPerformance = useCallback(
-    async (variables: {
-      pipelineRef: string
-      startDate: string
-      endDate: string
-      activityStartDate: string
-      activityEndDate: string
-    }) => {
+    async (variables: { pipelineRef: string; activityStartDate: string; activityEndDate: string }) => {
       try {
         const result = await graphqlClient.request<{
           opportunities: any[]
@@ -574,8 +573,8 @@ export const useDashboardQueries = (context: BusinessAppContextProps) => {
   )
 
   const fetchTodaysActivities = useCallback(async (): Promise<any[]> => {
-    if (!context.accessToken) {
-      throw new Error('Access token is required')
+    if (!context.accessToken || !employeeId) {
+      return []
     }
 
     try {
@@ -586,7 +585,8 @@ export const useDashboardQueries = (context: BusinessAppContextProps) => {
       const query = GET_TODAYS_ACTIVITIES()
       const result = await graphqlClient.request<{ InvestmentActivity: any[] }>(query, {
         startDate: startOfDay,
-        endDate: endOfDay
+        endDate: endOfDay,
+        employeeId
       })
 
       return result.InvestmentActivity || []
@@ -594,23 +594,25 @@ export const useDashboardQueries = (context: BusinessAppContextProps) => {
       // Error handled by caller
       throw error
     }
-  }, [graphqlClient, context.accessToken])
+  }, [graphqlClient, context.accessToken, employeeId])
 
   const fetchTodaysTasks = useCallback(async (): Promise<any[]> => {
-    if (!context.accessToken) {
-      throw new Error('Access token is required')
+    if (!context.accessToken || !employeeId) {
+      return []
     }
 
     try {
       const query = GET_TODAYS_TASKS()
-      const result = await graphqlClient.request<{ InvestmentTask: any[] }>(query)
+      const result = await graphqlClient.request<{ InvestmentTask: any[] }>(query, {
+        employeeId
+      })
 
       return result.InvestmentTask || []
     } catch (error) {
       // Error handled by caller
       throw error
     }
-  }, [graphqlClient, context.accessToken])
+  }, [graphqlClient, context.accessToken, employeeId])
 
   const fetchOpenLeadsForRevenueSource = useCallback(
     async (variables: { startDate: string; endDate: string; limit?: number }) => {

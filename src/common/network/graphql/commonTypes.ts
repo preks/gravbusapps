@@ -34,7 +34,7 @@ export interface BaseEntity {
   recordState?: string
   activeFrom?: string
   activeTo?: string
-  version: number
+  version?: number
   additionalProperties?: any // jsonb
 }
 
@@ -88,6 +88,8 @@ export interface CatalogEntry {
   catalogId?: string
   parentEntryId?: string
   displayOrder?: number
+  childEntries?: CatalogEntry[]
+  parentEntry?: CatalogEntry
   translations?: CatalogEntryTranslation[]
 }
 

@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useGetInvestmentById } from '@/common/data/investment'
+import { useGetInvestmentById } from '@/common/data/investment/hooks/useInvestments'
 import { useCatalogEntries } from '@/common/data/catalog'
-import { Investment } from '@/common/data/investment/types'
+import { Investment } from '@/common/data/investment/types/investmentTypes'
 import { CatalogEntry } from '@/common/data/catalog/types/catalogTypes'
 
 interface UseInvestmentPopupDataParams {

@@ -1,6 +1,16 @@
-import { type Activity, ActivityFields, createActivityDescriptors } from '@/common/data/relations/types/activityTypes'
+import {
+  type Activity,
+  ActivityFields,
+  ActivityFormFields,
+  createActivityDescriptors
+} from '@/common/data/relations/types/activityTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
-import { CustomerAccount, CustomerContact, CustomerDocument, CustomerOpportunity, CustomerLead } from './'
+import type { CustomerAccount } from './customerAccountTypes'
+import type { CustomerContact } from './customerContactTypes'
+import type { CustomerDocument } from './customerDocumentTypes'
+import type { CustomerLead } from './customerLeadTypes'
+import type { CustomerOpportunity } from './customerOpportunityTypes'
+import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
 
 export interface CustomerActivity extends Activity {
   account?: CustomerAccount
@@ -15,10 +25,15 @@ export interface CustomerActivity extends Activity {
  * CRM uses same field names as Common, so no overrides needed
  */
 export const CustomerActivityFields = {
-  ...ActivityFields
+  ...ActivityFields,
+  investment: 'investment',
+  investmentId: 'investmentId'
 } as const
 
-export type CustomerActivityFieldName = (typeof CustomerActivityFields)[keyof typeof CustomerActivityFields]
+export const CustomerActivityFormFields = {
+  ...ActivityFormFields,
+  investmentId: 'investment'
+}
 
 /**
  * Customer Activity Descriptors
@@ -28,3 +43,16 @@ export type CustomerActivityFieldName = (typeof CustomerActivityFields)[keyof ty
 export const CUSTOMER_ACTIVITY_DESCRIPTORS: Descriptor[] = [
   ...createActivityDescriptors(CustomerActivityFields as Record<keyof typeof ActivityFields, string>)
 ]
+
+/**
+ * Build Customer Activity Payload
+ * Uses buildPayload utility with CustomerActivityFormFields mapping
+ */
+export const buildCustomerActivityPayload = (activity: Partial<CustomerActivity> & Record<string, any>) => {
+  // Build base payload using buildPayload utility
+  const payload = buildPayload(activity, CustomerActivityFormFields)
+
+  return {
+    salesActivity: payload
+  }
+}

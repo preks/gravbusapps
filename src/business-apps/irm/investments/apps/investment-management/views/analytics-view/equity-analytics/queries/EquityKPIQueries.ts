@@ -15,9 +15,9 @@ export interface EquityKPIComparison {
 }
 
 const GET_EQUITY_KPIS_WITH_COMPARISON = (comparisonDate: string, currencyFilter?: string): string => {
-  // Currency codes are stored as "Currency:v1:EUR" so we match the suffix pattern
-  // The _ilike pattern will naturally exclude null currency values
-  const currencyCondition = currencyFilter ? `{ currency: { code: { _ilike: "%${currencyFilter}%" } } }` : ''
+  // Currency codes are stored exactly as "EUR", "USD", etc.
+  // Use exact match for reliable filtering
+  const currencyCondition = currencyFilter ? `{ currency: { code: { _eq: "${currencyFilter}" } } }` : ''
   return `
     query GetEquityKPIsWithComparison {
       # Current data (equity investments only - filter by investment group, not specialization)
@@ -57,7 +57,7 @@ const GET_EQUITY_KPIS_WITH_COMPARISON = (comparisonDate: string, currencyFilter?
         investmentMarketValue
       }
       
-      # Previous period data (equity investments existing 30 days ago)
+      # Previous period data (equity investments existing 91 days ago)
       previousAggregate: InvestmentAggregate(
         where: {
           _and: [
@@ -136,10 +136,10 @@ export const useGetEquityKPIs = (context: BusinessAppContextProps, currency?: st
   const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchEquityKPIs = useCallback(async (): Promise<EquityKPIComparison> => {
-    // Calculate date 30 days ago for comparison
-    const thirtyDaysAgo = new Date()
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-    const comparisonDate = thirtyDaysAgo.toISOString()
+    // Calculate date 91 days ago for comparison
+    const quarterAgo = new Date()
+    quarterAgo.setDate(quarterAgo.getDate() - 91)
+    const comparisonDate = quarterAgo.toISOString()
 
     const query = GET_EQUITY_KPIS_WITH_COMPARISON(comparisonDate, currency)
     try {
@@ -218,48 +218,18 @@ export const useGetEquityKPIs = (context: BusinessAppContextProps, currency?: st
         averageDuration: currentAvgDuration
       }
 
-      // Check if we have meaningful historical data
+      // Use actual historical data
       const previousCount = result.previousAggregate.aggregate.count
       const previousTotalAmount = result.previousAggregate.aggregate.sum.totalInvestmentAmount || 0
       const previousTotalMarketValue = result.previousAggregate.aggregate.sum.investmentMarketValue || 0
       const previousPortfolioMoic = calculatePortfolioMoicFromAggregates(previousTotalMarketValue, previousTotalAmount)
       const previousAvgDuration = calculateAverageDuration(result.previousInvestments)
 
-      let previous: EquityKPIData
-
-      // If current and previous are identical (demo data scenario), simulate realistic previous values
-      if (
-        currentCount === previousCount &&
-        currentTotalAmount === previousTotalAmount &&
-        currentPortfolioMoic === previousPortfolioMoic
-      ) {
-        // Simulate realistic previous values with slight variations (3-7% lower)
-        const growthFactors = {
-          investments: 0.93, // 7% fewer investments
-          amount: 0.95, // 5% less invested amount
-          moic: 0.95, // 5% lower MOIC (showing growth)
-          avgDuration: 0.98 // 2% lower average duration (slightly shorter 30 days ago)
-        }
-
-        const simulatedPreviousCount = Math.max(1, Math.floor(currentCount * growthFactors.investments))
-        const simulatedPreviousAmount = currentTotalAmount * growthFactors.amount
-        const simulatedPreviousMoic = currentPortfolioMoic * growthFactors.moic
-        const simulatedPreviousAvgDuration = currentAvgDuration * growthFactors.avgDuration
-
-        previous = {
-          totalInvestments: simulatedPreviousCount,
-          totalAmountInvested: simulatedPreviousAmount,
-          portfolioMoic: simulatedPreviousMoic,
-          averageDuration: simulatedPreviousAvgDuration
-        }
-      } else {
-        // Use actual historical data when available
-        previous = {
-          totalInvestments: previousCount,
-          totalAmountInvested: previousTotalAmount,
-          portfolioMoic: previousPortfolioMoic,
-          averageDuration: previousAvgDuration
-        }
+      const previous: EquityKPIData = {
+        totalInvestments: previousCount,
+        totalAmountInvested: previousTotalAmount,
+        portfolioMoic: previousPortfolioMoic,
+        averageDuration: previousAvgDuration
       }
 
       return { current, previous }

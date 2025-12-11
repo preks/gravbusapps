@@ -1,7 +1,7 @@
 import { useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import type { InvestmentActivity } from '../types'
+import type { InvestmentActivity } from '../types/investmentActivityTypes'
 import {
   buildInvestmentActivityQuery,
   buildInvestmentActivityByIdQuery,
@@ -9,7 +9,7 @@ import {
   buildInvestmentActivityOrderBy,
   type InvestmentActivityQueryVariables
 } from '../queries/investmentActivityQueries'
-import { toInvestmentActivity } from '../mappers'
+import { toInvestmentActivity } from '../mappers/investmentRelatedEntityMappers'
 
 // Response interfaces
 export interface InvestmentActivitiesQueryResponse {

@@ -3,20 +3,19 @@ import {
   type TaskComment,
   type TaskTemplate,
   TaskFields,
+  TaskFormFields,
   createTaskDescriptors
 } from '@/common/data/relations/types/taskTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { TaskTiming } from '@/common/data/relations/constants/taskConstants'
 import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
 import type { SourceTable } from './customerEnums'
-import type {
-  CustomerAccount,
-  CustomerContact,
-  CustomerDocument,
-  CustomerLead,
-  CustomerOpportunityStageCondition,
-  CustomerOpportunity
-} from './'
+import type { CustomerAccount } from './customerAccountTypes'
+import type { CustomerContact } from './customerContactTypes'
+import type { CustomerDocument } from './customerDocumentTypes'
+import type { CustomerLead } from './customerLeadTypes'
+import type { CustomerOpportunity, CustomerOpportunityStageCondition } from './customerOpportunityTypes'
+import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
 
 export interface CustomerTask extends Task {
   account?: CustomerAccount
@@ -77,7 +76,14 @@ export const CustomerTaskFields = {
   taskTemplateId: 'salesTaskTemplateId'
 } as const
 
-export type CustomerTaskFieldName = (typeof CustomerTaskFields)[keyof typeof CustomerTaskFields]
+export const CustomerTaskFormFields = {
+  ...TaskFormFields,
+  taskPriorityRef: 'priorityRef',
+  taskStatusRef: 'statusRef',
+  taskTiming: 'timingType',
+  taskTypeRef: 'typeRef',
+  taskTemplateId: 'salesTaskTemplate'
+}
 
 /**
  * Customer Task Descriptors
@@ -94,3 +100,16 @@ export const CUSTOMER_TASK_DESCRIPTORS: Descriptor[] = [
     type: 'text'
   }
 ]
+
+/**
+ * Build Customer Task Payload
+ * Uses buildPayload utility with CustomerTaskFormFields mapping
+ */
+export const buildCustomerTaskPayload = (task: Partial<CustomerTask> & Record<string, any>) => {
+  // Build base payload using buildPayload utility
+  const payload = buildPayload(task, CustomerTaskFormFields)
+
+  return {
+    salesTask: payload
+  }
+}

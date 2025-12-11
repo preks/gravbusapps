@@ -13,7 +13,7 @@ import {
 } from '@newwork/nw-design-system'
 import { ScatterChart, Scatter, XAxis, YAxis, Bar, ComposedChart } from 'recharts'
 import { ChartBarIcon, PercentIcon } from '@phosphor-icons/react'
-import { formatCurrency } from '@/common/data/investment'
+import { formatCurrency } from '@/common/data/investment/utils/formatters'
 import { formatCompactNumber } from '@/common/utils/numberFormatter'
 
 interface RealEstateAnalyticsChartsProps {

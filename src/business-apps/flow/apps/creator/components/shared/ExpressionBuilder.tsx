@@ -23,12 +23,15 @@ import { Network, Type, CheckCircle, AlertCircle, Copy, X, Loader2, TestTube2 } 
 import { FlowTemplate } from '../../types/flowTemplate'
 import { TreeNode as TreeNodeType } from '../../types/expressionTree'
 import { CatalogMetadata } from '../../types/catalogTypes'
+import { BaseEntity, isBaseEntity, getEntityDisplayLabel, getEntityDescription } from '../../types/baseEntity'
 import { TreeNavigator } from './TreeNavigator'
 import { QuickActions } from './QuickActions'
 import { buildExpressionTree, pathToExpression } from '../../utils/expressionTreeBuilder'
 import { useExpressionValidator } from '../../hooks/useExpressionValidator'
 import { useExpressionTesting } from '../../hooks/useExpressionTesting'
 import { useCatalogDiscovery } from '../../hooks/useCatalogDiscovery'
+import { useEntitySchemas, clearEntitySchemasCache } from '../../hooks/useEntitySchemas'
+import { useDatasource } from '../../hooks/useDatasource'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { env } from '@/common/env/EnvUtils'
 
@@ -123,11 +126,31 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
   const [catalogsLoading, setCatalogsLoading] = useState(false)
   const { fetchCatalogs, fetchCatalogEntries } = useCatalogDiscovery(context)
 
+  // Entity schemas state - NEW
+  const { schemas: entitySchemas, isLoading: schemasLoading } = useEntitySchemas({
+    includeFields: true,
+    enableCache: false // Caching disabled for debugging
+  })
+
+  // Log schema state for debugging
+  useEffect(() => {
+    console.log('Entity schemas state:', {
+      hasSchemas: !!entitySchemas,
+      isLoading: schemasLoading,
+      schemaKeys: entitySchemas ? Object.keys(entitySchemas) : [],
+      employeeSchema: entitySchemas?.employee,
+      employeeFieldCount: entitySchemas?.employee?.fields?.length
+    })
+  }, [entitySchemas, schemasLoading])
+
+  // Datasource for entity browsing
+  const { list: listEntities } = useDatasource()
+
   // Dynamic tree data state
   const [treeData, setTreeData] = useState<TreeNodeType[]>([])
 
   // Validation state
-  const { validateExpression } = useExpressionValidator(template, stepIndex)
+  const { validateExpression } = useExpressionValidator(template, stepIndex, entitySchemas ?? undefined)
   const [validationResult, setValidationResult] = useState<{ isValid: boolean; message?: string } | null>(null)
   const validationTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -148,10 +171,13 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
     const loadCatalogs = async () => {
       setCatalogsLoading(true)
       try {
+        // Clear entity schemas cache to force fresh data (caching disabled for debugging)
+        clearEntitySchemasCache()
+
         const catalogData = await fetchCatalogs()
         setCatalogs(catalogData)
-        // Build initial tree with catalogs
-        const initialTree = buildExpressionTree(template, stepIndex, catalogData)
+        // Build initial tree with catalogs and entity schemas
+        const initialTree = buildExpressionTree(template, stepIndex, catalogData, entitySchemas)
         setTreeData(initialTree)
       } catch (error) {
         console.error('Failed to load catalogs:', error)
@@ -163,7 +189,7 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
     if (isOpen) {
       loadCatalogs()
     }
-  }, [isOpen, fetchCatalogs, template, stepIndex])
+  }, [isOpen, fetchCatalogs, template, stepIndex, entitySchemas])
 
   // Debounced validation effect with backend API call
   useEffect(() => {
@@ -201,7 +227,7 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
         }
 
         // Then call backend API for thorough validation
-        const apiUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'http://localhost:3001'
+        const apiUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
 
         // Create a complete template with ALL steps for cross-step validation
         const testTemplate = {
@@ -551,6 +577,19 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
       return
     }
 
+    // Handle entity browser click - now handled by inline search UI in TreeNode
+    // The search input will appear, and user will trigger search via handleEntitySearch
+    if (node.type === 'entity-browser') {
+      // Don't auto-browse anymore - let the inline search UI handle it
+      return
+    }
+
+    // Handle entity instance or entity field with expression template
+    if ((node.type === 'entity-instance' || node.type === 'entity-field') && node.expressionTemplate) {
+      insertAtCursor(node.expressionTemplate)
+      return
+    }
+
     // Handle catalog entry click - insert entry reference
     if (node.type === 'catalog-entry' && node.expressionTemplate) {
       insertAtCursor(node.expressionTemplate)
@@ -571,6 +610,208 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
         const expression = node.expressionPath.startsWith('{{') ? node.expressionPath : `{{${node.expressionPath}}}`
         insertAtCursor(expression)
       }
+    }
+  }
+
+  /**
+   * Handle Entity Search - triggered from inline search input
+   */
+  const handleEntitySearch = async (nodeId: string, search: string) => {
+    // Find the node in the tree
+    const findNode = (nodes: TreeNodeType[], id: string): TreeNodeType | null => {
+      for (const node of nodes) {
+        if (node.id === id) return node
+        if (node.children) {
+          const found = findNode(node.children, id)
+          if (found) return found
+        }
+      }
+      return null
+    }
+
+    const node = findNode(treeData, nodeId)
+    if (!node || node.type !== 'entity-browser' || !node.metadata?.entityType) {
+      console.warn('handleEntitySearch: Node not found or invalid', { nodeId, node })
+      return
+    }
+
+    console.log('handleEntitySearch: Starting search', { nodeId, search, entityType: node.metadata.entityType })
+    await handleEntityBrowse(node, search)
+  }
+
+  /**
+   * Handle Entity Browse - load entities via datasource API
+   * Supports group filters for hierarchical entity browsing
+   */
+  const handleEntityBrowse = async (node: TreeNodeType, search?: string) => {
+    if (node.type !== 'entity-browser' || !node.metadata?.entityType) {
+      return
+    }
+
+    const entityType = node.metadata.entityType
+    const searchTerm = search !== undefined ? search : node.metadata.search || ''
+    const groupFilters = node.metadata.groupFilters as
+      | Array<{ field: string; operator: string; value: any }>
+      | undefined
+    const groupDisplayName = node.metadata.groupDisplayName as string | undefined
+
+    // Build display label
+    const displayLabel = groupDisplayName || entityType
+
+    // Set loading state
+    setTreeData(prevTree =>
+      updateTreeNode(prevTree, node.id, n => ({
+        ...n,
+        label: `🔍 Loading ${displayLabel}...`,
+        metadata: { ...n.metadata, loadingState: 'loading', search: searchTerm }
+      }))
+    )
+
+    try {
+      // Convert group filters to FilterInput format
+      const filters = groupFilters?.map(gf => ({
+        field: gf.field,
+        operator: gf.operator as any,
+        value: gf.value
+      }))
+
+      const result = await listEntities(entityType, {
+        search: searchTerm,
+        limit: 20,
+        offset: typeof node.metadata?.offset === 'number' ? node.metadata.offset : 0,
+        filters: filters
+      })
+
+      const rawEntities = (result?.entities || []) as any[]
+      const total = result?.meta.total || rawEntities.length
+      const hasMore = !!result?.meta.hasMore
+      const currentOffset = result?.meta.offset || 0
+
+      // Validate entities conform to BaseEntity contract
+      const entities: BaseEntity[] = rawEntities.filter(e => {
+        if (!isBaseEntity(e)) {
+          console.warn(`Entity does not conform to BaseEntity contract:`, e)
+          return false
+        }
+        return true
+      })
+
+      // Log validation results
+      if (entities.length < rawEntities.length) {
+        console.warn(`${rawEntities.length - entities.length} entities filtered out due to invalid structure`)
+      }
+
+      // Log if API indicates non-conformance
+      if (result?.meta.conformsToBaseEntity === false) {
+        console.warn(`API reported that some entities do not conform to BaseEntity contract`)
+      }
+
+      // Build entity instance nodes with field children from schema
+      // NOTE: Schema keys are lowercase, so we need to normalize the entity type
+      const schemaKey = entityType.toLowerCase()
+      const schema = entitySchemas?.[schemaKey]
+
+      console.log('Building entity instance nodes:', {
+        entityType,
+        schemaKey,
+        hasSchema: !!schema,
+        schemaFieldCount: schema?.fields.length || 0,
+        schemaFields: schema?.fields.map(f => f.name) || [],
+        entityKeys: Object.keys(entities[0] || {}),
+        firstEntity: entities[0],
+        availableSchemaKeys: entitySchemas ? Object.keys(entitySchemas) : []
+      })
+
+      const instanceNodes: TreeNodeType[] = entities.map((entity: BaseEntity) => ({
+        id: `entity-${entityType}-instance-${entity.id}`,
+        label: getEntityDisplayLabel(entity),
+        type: 'entity-instance' as const,
+        icon: 'box',
+        description: getEntityDescription(entity),
+        isExpanded: false,
+        expressionTemplate: `{{$entity.${entityType}.${entity.id}}}`,
+        metadata: {
+          entityType,
+          entryId: entity.id,
+          entityCode: entity.code,
+          entityTypeValue: entity.type
+        },
+        children:
+          schema?.fields.map(field => ({
+            id: `entity-${entityType}-instance-${entity.id}-field-${field.name}`,
+            label: `${field.displayName}: ${entity[field.name] ?? 'N/A'}`,
+            type: 'entity-field' as const,
+            icon: 'hash',
+            dataType: field.type as any,
+            description: field.description,
+            expressionTemplate: `{{$entity.${entityType}.${entity.id}.${field.name}}}`
+          })) || []
+      }))
+
+      // Add Load More if needed
+      if (hasMore) {
+        instanceNodes.push({
+          id: `entity-${entityType}-load-more`,
+          label: `📄 Load More (${Math.max(total - currentOffset - entities.length, 0)} remaining)`,
+          type: 'entity-browser' as const,
+          icon: 'folder-open',
+          description: 'Click to load more entities',
+          isExpanded: false,
+          metadata: {
+            entityType,
+            offset: currentOffset + entities.length,
+            hasMore: true,
+            loadingState: 'idle',
+            search: searchTerm
+          },
+          children: []
+        })
+      }
+
+      // Update the tree under this browser node
+      setTreeData(prevTree => {
+        const updated = updateTreeNode(prevTree, node.id, n => {
+          console.log(`Updating entity browser node:`, {
+            nodeId: node.id,
+            entityType,
+            searchTerm,
+            isExpanded: true,
+            childrenCount: instanceNodes.length,
+            hasChildren: instanceNodes.length > 0,
+            firstChild: instanceNodes[0]?.label
+          })
+          return {
+            ...n,
+            label: `🔍 Browse ${displayLabel} (${total} total${searchTerm ? `, search="${searchTerm}"` : ''})`,
+            isExpanded: true,
+            children:
+              typeof node.metadata?.offset === 'number' && node.metadata.offset > 0 && n.children
+                ? // append mode (load more)
+                  [...(n.children.filter((c: any) => c.type !== 'entity-browser') as any[]), ...instanceNodes]
+                : // initial load (replace)
+                  instanceNodes,
+            metadata: {
+              ...n.metadata,
+              loadingState: 'loaded',
+              offset: currentOffset + entities.length,
+              hasMore,
+              search: searchTerm // Save the search term in metadata
+            }
+          }
+        })
+        console.log('Tree updated, returning new tree')
+        return updated
+      })
+    } catch (error) {
+      console.error(`Failed to browse entities for ${displayLabel}:`, error)
+      // Update to error state
+      setTreeData(prevTree =>
+        updateTreeNode(prevTree, node.id, n => ({
+          ...n,
+          label: `🔍 Browse ${displayLabel} (Error)`,
+          metadata: { ...n.metadata, loadingState: 'error' }
+        }))
+      )
     }
   }
 
@@ -731,6 +972,7 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
                 <TreeNavigator
                   nodes={treeData}
                   onSelect={handleNodeSelect}
+                  onEntitySearch={handleEntitySearch}
                   isLoading={catalogsLoading}
                   data-testid={`${testId}-navigator`}
                 />

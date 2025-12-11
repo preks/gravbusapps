@@ -57,12 +57,12 @@ const GET_REAL_ESTATE_KPIS_WITH_COMPARISON = (comparisonDate: string, currencyFi
         }
       }
       
-      # Previous period data (real estate investments existing 30 days ago)
+      # Previous period data (real estate investments existing 91 days ago)
       previousAggregate: InvestmentAggregate(
         where: {
           _and: [
             { isDeleted: { _eq: false } }
-            { createdAt: { _lt: "${comparisonDate}" } }
+            { createdAt: { _lte: "${comparisonDate}" } }
             { realEstateInvestment: {} }
             ${currencyCondition}
           ]
@@ -83,7 +83,7 @@ const GET_REAL_ESTATE_KPIS_WITH_COMPARISON = (comparisonDate: string, currencyFi
           _and: [
             { isDeleted: { _eq: false } }
             { occupancyPercent: { _gte: 0 } }
-            { createdAt: { _lt: "${comparisonDate}" } }
+            { createdAt: { _lte: "${comparisonDate}" } }
             { investment: { isDeleted: { _eq: false } } }
           ]
         }
@@ -140,10 +140,10 @@ export const useGetRealEstateKPIs = (context: BusinessAppContextProps, currency?
   const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchRealEstateKPIs = useCallback(async (): Promise<RealEstateKPIComparison> => {
-    // Calculate date 30 days ago for comparison
-    const thirtyDaysAgo = new Date()
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-    const comparisonDate = thirtyDaysAgo.toISOString()
+    // Calculate date 91 days ago for comparison
+    const quarterAgo = new Date()
+    quarterAgo.setDate(quarterAgo.getDate() - 91)
+    const comparisonDate = quarterAgo.toISOString()
 
     const query = GET_REAL_ESTATE_KPIS_WITH_COMPARISON(comparisonDate, currency)
     try {
@@ -162,47 +162,17 @@ export const useGetRealEstateKPIs = (context: BusinessAppContextProps, currency?
         averageOccupancyRate: currentAvgOccupancy
       }
 
-      // Check if we have meaningful historical data
+      // Use actual historical data
       const previousCount = result.previousAggregate.aggregate.count
       const previousTotalAmount = result.previousAggregate.aggregate.sum.totalInvestmentAmount || 0
       const previousMarketValue = result.previousAggregate.aggregate.sum.investmentMarketValue || 0
       const previousAvgOccupancy = result.previousRealEstateAggregate.aggregate.avg.occupancyPercent || 0
 
-      let previous: RealEstateKPIData
-
-      // If current and previous are identical (demo data scenario), simulate realistic previous values
-      if (
-        currentCount === previousCount &&
-        currentTotalAmount === previousTotalAmount &&
-        currentMarketValue === previousMarketValue
-      ) {
-        // Simulate realistic previous values with slight variations (4-8% lower)
-        const growthFactors = {
-          investments: 0.92, // 8% fewer investments
-          amount: 0.96, // 4% less invested amount
-          marketValue: 0.94, // 6% lower market value (showing growth)
-          occupancy: 0.95 // 5% lower occupancy rate
-        }
-
-        const simulatedPreviousCount = Math.max(1, Math.floor(currentCount * growthFactors.investments))
-        const simulatedPreviousAmount = currentTotalAmount * growthFactors.amount
-        const simulatedPreviousMarketValue = currentMarketValue * growthFactors.marketValue
-        const simulatedPreviousOccupancy = currentAvgOccupancy * growthFactors.occupancy
-
-        previous = {
-          totalInvestments: simulatedPreviousCount,
-          totalAmountInvested: simulatedPreviousAmount,
-          totalMarketValue: simulatedPreviousMarketValue,
-          averageOccupancyRate: simulatedPreviousOccupancy
-        }
-      } else {
-        // Use actual historical data when available
-        previous = {
-          totalInvestments: previousCount,
-          totalAmountInvested: previousTotalAmount,
-          totalMarketValue: previousMarketValue,
-          averageOccupancyRate: previousAvgOccupancy
-        }
+      const previous: RealEstateKPIData = {
+        totalInvestments: previousCount,
+        totalAmountInvested: previousTotalAmount,
+        totalMarketValue: previousMarketValue,
+        averageOccupancyRate: previousAvgOccupancy
       }
 
       return { current, previous }

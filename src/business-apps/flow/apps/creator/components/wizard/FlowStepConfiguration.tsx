@@ -18,7 +18,8 @@ const createEmptyStep = (): FlowStep => ({
   message: '',
   links: [],
   inputs: [],
-  type: FlowStepType.TASK
+  type: FlowStepType.TASK,
+  kind: 'USER'
 })
 
 export const FlowStepConfiguration: React.FC<FlowStepConfigurationProps> = ({

@@ -5,13 +5,13 @@ import CampaignFormComponent from './components/CampaignFormComponent'
 import type { CampaignFormValues } from './types'
 import { CatalogSelect } from '@/components/catalog-select'
 
-interface CampaignFormProps {
+interface CampaignFormProps extends BusinessAppContextProps {
   initialValues?: Partial<CampaignFormValues>
   onSubmit?: (values: CampaignFormValues) => Promise<void>
   onCancel?: () => Promise<void>
 }
 
-const CampaignForm: React.FC<BusinessAppContextProps & CampaignFormProps> = ({
+const CampaignForm: React.FC<CampaignFormProps> = ({
   initialValues,
   onSubmit = async () => {},
   onCancel = async () => {},
@@ -27,16 +27,14 @@ const CampaignForm: React.FC<BusinessAppContextProps & CampaignFormProps> = ({
     )
   }
 
-  const businessAppContext: BusinessAppContextProps = {
-    accessToken,
-    userInfo,
-    additionalData
-  }
-
   return (
-    <CatalogSelect.Provider<CampaignFormValues> {...businessAppContext}>
+    <CatalogSelect.Provider<CampaignFormValues>
+      accessToken={accessToken}
+      userInfo={userInfo}
+      additionalData={additionalData}
+    >
       <CampaignFormProvider
-        businessAppContext={businessAppContext}
+        businessAppContext={{ accessToken, userInfo, additionalData }}
         initialValues={initialValues}
         onSubmit={onSubmit}
         onCancel={onCancel}

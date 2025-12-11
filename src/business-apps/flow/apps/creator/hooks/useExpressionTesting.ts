@@ -68,7 +68,7 @@ export const useExpressionTesting = (
 
       setIsTesting(true)
       try {
-        const apiUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'http://localhost:8081'
+        const apiUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
         const mockContext = buildMockContext()
 
         const response = await fetch(`${apiUrl}/api/expressions/test-resolve`, {

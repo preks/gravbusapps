@@ -5,6 +5,12 @@ export const EMPLOYEE_DATA_QUERY = `query fetchEmployee($idEmployee: uuid!) {
     firstName
     lastName
     displayName
+    pictureThumbnail
+  }
+  EmployeePosition(where: {employeeId: {_eq: $idEmployee}}, limit: 1) {
+    jobPosition {
+      name
+    }
   }
 }
 `
@@ -21,17 +27,19 @@ export const CATALOG_DATA_QUERY = `query fetchCatalogData($activeUserLocale: Str
       defaultLocale
     }
   }
-  
-  currency: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "Currency"}}, isDeleted: {_eq: false}}, orderBy: {displayOrder: ASC}) {
-    value
-    id
-    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
-      localeCode
-      value
+}
+`
+
+export const EMPLOYEE_BANK_ACCOUNT_CURRENCY_QUERY = `query fetchEmployeeBankAccountCurrency($idEmployee: uuid!) {
+  EmployeeBankAccount(
+    where: {
+      employeeId: { _eq: $idEmployee }
+      isDeleted: { _eq: false }
     }
-    catalog {
-      defaultLocale
-    }
+    orderBy: [{ createdAt: DESC }]
+    limit: 1
+  ) {
+    currencyRef
   }
 }
 `

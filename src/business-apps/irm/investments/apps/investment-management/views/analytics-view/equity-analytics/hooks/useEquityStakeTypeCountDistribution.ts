@@ -14,10 +14,10 @@ export interface EquityStakeTypeCountDistributionIntegration {
 
 /**
  * Hook that fetches stake type count distribution independently
- * Supports "All Currencies" option
+ * Supports "All" option
  *
  * @param context - Business app context with access token
- * @param currency - Currency filter (supports 'All Currencies')
+ * @param currency - Currency filter (supports 'All')
  * @returns Stake type count distribution data with loading/error states
  */
 export const useEquityStakeTypeCountDistribution = (

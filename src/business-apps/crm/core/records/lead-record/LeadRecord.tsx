@@ -14,11 +14,13 @@ import { Flag, Bot } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { useCustomerLeads } from '@/common/data/customer/hooks/useCustomerLeads'
+import { useCustomerLead } from '@/common/data/customer/hooks/useCustomerLead'
+import { buildLeadStatusesQuery } from '@/common/data/relations/queries/leadQueries'
 import { useCustomerActivities } from '@/common/data/customer/hooks/useCustomerActivities'
 import { useCustomerNotes } from '@/common/data/customer/hooks/useCustomerNotes'
 import { useCustomerTasks } from '@/common/data/customer/hooks/useCustomerTasks'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
+import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { useAiSummary } from './hooks/useAiSummary'
@@ -39,54 +41,32 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
     return params.get('tab') || 'overview'
   })
 
-  // Fetch lead data using central hook
-  const { fetchCustomerLeadById } = useCustomerLeads(props)
-
-  // State for lead data
-  const [leadData, setLeadData] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [leadStatuses, setLeadStatuses] = useState<any[]>([])
-
-  // Fetch lead data
-  const fetchLeadData = useCallback(async () => {
-    if (!leadId || !props.accessToken) {
-      setLoading(false)
-      return
-    }
-
-    try {
-      setLoading(true)
-      setError(null)
-      const lead = await fetchCustomerLeadById(leadId)
-      if (lead) {
-        setLeadData(lead)
-        // Extract lead statuses from lead object if available
-        if (lead.leadStatuses && Array.isArray(lead.leadStatuses)) {
-          // Statuses are already sorted by alternativeCode from GraphQL query
-          setLeadStatuses(
-            lead.leadStatuses.map((status: any) => ({
-              id: status.id,
-              code: status.code,
-              value: status.value,
-              alternativeCode: status.alternativeCode
-            }))
-          )
-        }
-      } else {
-        setError('Lead not found')
+  // Use new declarative hook for lead data with additional leadStatuses query
+  const additionalQueries = useMemo(
+    () => [
+      {
+        query: buildLeadStatusesQuery('SalesLeadStatus'),
+        data: (result: any) => result.leadStatuses || [],
+        key: 'leadStatuses' as const
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch lead data')
-    } finally {
-      setLoading(false)
-    }
-  }, [leadId, props.accessToken, fetchCustomerLeadById])
+    ],
+    []
+  )
 
-  // Load data on mount
-  useEffect(() => {
-    fetchLeadData()
-  }, [fetchLeadData])
+  const {
+    lead: leadData,
+    leadStatuses,
+    loading,
+    error,
+    refetch
+  } = useCustomerLead(props.accessToken, leadId, {
+    additionalQueries
+  })
+
+  // Fetch lead data function for refetch
+  const fetchLeadData = useCallback(async () => {
+    await refetch()
+  }, [refetch])
 
   // AI Summary hook - must be called before any conditional returns
   const aiSummaryHook = useAiSummary(leadId, props.accessToken)
@@ -220,52 +200,16 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
     loadSectionData()
   }, [loadSectionData])
 
+  // Memoized callback for process completion
+  const handleProcessSuccess = useCallback(() => {
+    fetchLeadData()
+    loadSectionData()
+  }, [fetchLeadData, loadSectionData])
+
   // Listen for process completion events to refresh lead data
-  useEffect(() => {
-    const handleProcessCompletion = async (event: any) => {
-      try {
-        // Check for successful completion
-        if (event.detail?.resolution === 'success') {
-          await fetchLeadData()
-          await loadSectionData() // Also refresh section data
-          return
-        }
-
-        // Also check for different event structure
-        const response = event.detail?.response
-        if (response?.detail?.resolution === 'success' || response?.lead) {
-          await fetchLeadData()
-          await loadSectionData() // Also refresh section data
-        }
-      } catch (err) {
-        console.error('Error handling process completion in LeadRecord:', err)
-      }
-    }
-
-    // Listen to multiple possible event names for lead updates
-    const eventNames = [
-      'com.newwork.process.taskCompletion',
-      'com.newwork.process.completion',
-      'com.newwork.process.continue',
-      'com.newwork.process.processCompletion',
-      'processCompletion',
-      'taskCompletion',
-      'taskCompleted',
-      'processCompleted',
-      'task-completion',
-      'process-completion'
-    ]
-
-    eventNames.forEach(eventName => {
-      window.addEventListener(eventName, handleProcessCompletion as EventListener)
-    })
-
-    return () => {
-      eventNames.forEach(eventName => {
-        window.removeEventListener(eventName, handleProcessCompletion as EventListener)
-      })
-    }
-  }, [leadId, fetchLeadData, loadSectionData])
+  useProcessCompletion({
+    onSuccess: handleProcessSuccess
+  })
 
   const getBackButtonText = () => {
     if (fromEntity === 'salesPerformance') {
@@ -335,22 +279,34 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
     )
   }, [aiSummaryHook, leadId])
 
+  // Calculate leadName early for use in headerActionButton
+  const leadName =
+    leadData?.companyName ||
+    (leadData?.firstName && leadData?.lastName ? `${leadData.firstName} ${leadData.lastName}`.trim() : '') ||
+    getTranslationFromI18nKeyAndLabel('crm.lead.unnamed', 'Unnamed Lead')
+
   const headerActionButton = useMemo(
     () => (
-      <AppActionButton
+      <AppAction
         data-testid="lead-record-action-button"
-        size="icon"
-        contextsArray={[FlowContextName.customerLeadEntity]}
-        externalContextData={{
-          leadId: leadId
+        variant="header"
+        contexts={[
+          {
+            context: FlowContextName.customerLeadEntity,
+            contextData: { leadId }
+          }
+        ]}
+        shareContext={{
+          entityType: 'lead',
+          entityId: leadId,
+          entityName: leadName,
+          entityUrl: `/platform/crm/lead-record?leadId=${leadId}`
         }}
         prefixDataTestId="lead-record-action"
         accessToken={props.accessToken}
-        emptyStateBehavior="hide"
-        deferMainContextRequestsUntilClick={false}
       />
     ),
-    [leadId, props.accessToken]
+    [leadId, leadName, props.accessToken]
   )
 
   // Action props for sections - must be defined before subViewsConfig
@@ -416,7 +372,7 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
 
   // Header content with status progression
   const headerContent = useMemo(() => {
-    if (leadStatuses && leadStatuses.length > 0 && leadData) {
+    if (leadStatuses && Array.isArray(leadStatuses) && leadStatuses.length > 0 && leadData) {
       return (
         <StatusProgression
           currentStatus={leadData?.leadStatus?.value || 'New'}
@@ -521,11 +477,6 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
       </div>
     )
   }
-
-  const leadName =
-    leadData?.companyName ||
-    (leadData?.firstName && leadData?.lastName ? `${leadData.firstName} ${leadData.lastName}`.trim() : '') ||
-    getTranslationFromI18nKeyAndLabel('crm.lead.unnamed', 'Unnamed Lead')
 
   // Create header title with sensitive badge
   const headerTitle = (

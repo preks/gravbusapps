@@ -3,11 +3,12 @@ import { Input, Badge, ScrollArea } from '@newwork/nw-design-system'
 import { Search, Loader2 } from 'lucide-react'
 import { TreeNode } from './TreeNode'
 import { TreeNode as TreeNodeType } from '../../types/expressionTree'
-import { searchTreeNodes } from '../../utils/expressionTreeBuilder'
+import { filterTreeNodes } from '../../utils/expressionTreeBuilder'
 
 interface TreeNavigatorProps {
   nodes: TreeNodeType[]
   onSelect: (node: TreeNodeType) => void
+  onEntitySearch?: (nodeId: string, search: string) => void
   isLoading?: boolean
   'data-testid'?: string
 }
@@ -15,6 +16,7 @@ interface TreeNavigatorProps {
 export const TreeNavigator: React.FC<TreeNavigatorProps> = ({
   nodes,
   onSelect,
+  onEntitySearch,
   isLoading = false,
   'data-testid': testId
 }) => {
@@ -54,25 +56,31 @@ export const TreeNavigator: React.FC<TreeNavigatorProps> = ({
 
     const newExpanded = collectExpanded(nodes)
 
-    // Only update if there are new expanded nodes
-    if (newExpanded.size > 0) {
-      setExpandedNodes(prev => {
-        const merged = new Set([...prev, ...newExpanded])
-        return merged
+    // Merge with previous state, but also respect when nodes should be collapsed
+    // Keep manually toggled nodes, but add programmatically expanded nodes
+    setExpandedNodes(prev => {
+      const merged = new Set([...prev, ...newExpanded])
+      console.log('TreeNavigator: Syncing expansion state', {
+        previousCount: prev.size,
+        newCount: newExpanded.size,
+        mergedCount: merged.size,
+        newExpanded: Array.from(newExpanded),
+        added: Array.from(newExpanded).filter(id => !prev.has(id))
       })
-    }
+      return merged
+    })
   }, [nodes])
 
   // Filter nodes based on search query
   const filteredNodes = useMemo(() => {
-    return searchTreeNodes(nodes, searchQuery)
+    return filterTreeNodes(nodes, searchQuery)
   }, [nodes, searchQuery])
 
   // Count total fields
   const totalFields = useMemo(() => {
     const countFields = (nodeList: TreeNodeType[]): number => {
       return nodeList.reduce((count, node) => {
-        const isField = node.type === 'field' || node.type === 'catalog-field'
+        const isField = node.type === 'field' || node.type === 'catalog-field' || node.type === 'entity-field'
         const childCount = node.children ? countFields(node.children) : 0
         return count + (isField ? 1 : 0) + childCount
       }, 0)
@@ -159,6 +167,7 @@ export const TreeNavigator: React.FC<TreeNavigatorProps> = ({
                 node={node}
                 onSelect={handleSelect}
                 onToggle={handleToggle}
+                onEntitySearch={onEntitySearch}
                 data-testid={`${testId}-node-${node.id}`}
               />
             ))}

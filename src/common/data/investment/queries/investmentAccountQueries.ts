@@ -15,7 +15,7 @@ import {
   type AccountRelationFields
 } from '@/common/data/relations/queries/accountQueries'
 import { InvestmentAccountFields, INVESTMENT_ACCOUNT_DESCRIPTORS } from '../types/investmentAccountTypes'
-import { INVESTMENT_REF, INVESTMENT_REPORT_REF } from './fragments/investmentReferenceFragments'
+import { INVESTMENT_REPORT_REF } from './fragments/investmentReferenceFragments'
 import { INVESTMENT_ADDRESS_FRAGMENT } from '../types/investmentAddressTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 
@@ -67,9 +67,8 @@ export const buildInvestmentAccountQuery = (
     }
     
     # IRM-specific relations
-    investment(where: { isDeleted: { _eq: false } }) {
-      ${INVESTMENT_REF}
-    }
+    # Note: investmentInvestmentAccount is accessed FROM Investment, not FROM InvestmentAccount
+    # Investments can be filtered via descriptors using the junction table path
     
     investmentReport(where: { isDeleted: { _eq: false } }) {
       ${INVESTMENT_REPORT_REF}
@@ -82,8 +81,7 @@ export const buildInvestmentAccountQuery = (
  * Build Investment Account by ID query
  */
 export const buildInvestmentAccountByIdQuery = (
-  fields: typeof InvestmentAccountFields = InvestmentAccountFields,
-  id: string
+  fields: typeof InvestmentAccountFields = InvestmentAccountFields
 ): string => {
   // Build relation builders and fields for common relations
   const relationBuilders: AccountRelationBuilders = {
@@ -119,16 +117,15 @@ export const buildInvestmentAccountByIdQuery = (
     }
     
     # IRM-specific relations
-    investment(where: { isDeleted: { _eq: false } }) {
-      ${INVESTMENT_REF}
-    }
+    # Note: investmentInvestmentAccount is accessed FROM Investment, not FROM InvestmentAccount
+    # Investments can be filtered via descriptors using the junction table path
     
     investmentReport(where: { isDeleted: { _eq: false } }) {
       ${INVESTMENT_REPORT_REF}
     }
   `
 
-  return buildAccountByPkQuery('InvestmentAccount', id, fields, relationBuilders, relationFields, entityFields)
+  return buildAccountByPkQuery('InvestmentAccount', fields, relationBuilders, relationFields, entityFields)
 }
 
 /**

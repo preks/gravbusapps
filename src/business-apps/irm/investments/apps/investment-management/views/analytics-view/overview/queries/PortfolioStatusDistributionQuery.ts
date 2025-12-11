@@ -91,7 +91,7 @@ const BUILD_STATUS_COUNT_DISTRIBUTION_QUERY = (
   const statusAggregates = statuses
     .map(status => {
       const sanitizedRef = status.statusRef.replaceAll(/\W/g, '_')
-      const currencyCondition = currency === 'All Currencies' ? '' : `currency: { code: { _eq: "${currency}" } }`
+      const currencyCondition = currency === 'All' ? '' : `currency: { code: { _eq: "${currency}" } }`
 
       return `
       status_${sanitizedRef}: InvestmentAggregate(
@@ -221,10 +221,7 @@ export const buildStatusAmountDistributionQuery = (
 /**
  * Hook to fetch status count distribution (uses shared distinct statuses cache)
  */
-export const useGetStatusCountDistribution = (
-  context: BusinessAppContextProps,
-  currency: string = 'All Currencies'
-) => {
+export const useGetStatusCountDistribution = (context: BusinessAppContextProps, currency: string = 'All') => {
   const graphqlClient = useGraphQLClient(context.accessToken)
   const getDistinctStatuses = useGetDistinctStatuses(context)
 

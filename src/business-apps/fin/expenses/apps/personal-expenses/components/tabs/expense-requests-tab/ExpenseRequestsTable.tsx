@@ -121,6 +121,15 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
     return trimmedSearch !== '' || selectedFilters.length > 0
   }, [search, selectedFilters])
 
+  useEffect(() => {
+    if (!isLoading && totalCount > 0 && currentPage > 1 && onTableChange) {
+      const lastPage = Math.max(1, Math.ceil(totalCount / pageSize))
+      if (currentPage > lastPage) {
+        onTableChange({ current: lastPage, pageSize }, {}, { field: sortField, order: sortOrder })
+      }
+    }
+  }, [isLoading, totalCount, currentPage, pageSize, onTableChange, sortField, sortOrder])
+
   // Sync local search input with prop changes
   useEffect(() => {
     setSearchInput(search || '')
@@ -134,7 +143,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
     // Manage pagination transitions for search
     if (prev === '' && next !== '') {
       // Starting a new search → save current page and jump to page 1
-      if (onTableChange) {
+      if (onTableChange && currentPage !== 1) {
         onTableChange({ current: 1, pageSize }, {}, { field: sortField, order: sortOrder })
       }
       savedPageBeforeSearchRef.current = currentPage
@@ -148,9 +157,9 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
         )
       }
       savedPageBeforeSearchRef.current = null
-    } else if (next !== '' && currentPage !== 1) {
-      // While typing within search mode, keep on page 1
-      if (onTableChange) {
+    } else if (prev !== next && next !== '') {
+      // Search term changed while already in search mode → reset to first page
+      if (onTableChange && currentPage !== 1) {
         onTableChange({ current: 1, pageSize }, {}, { field: sortField, order: sortOrder })
       }
     }

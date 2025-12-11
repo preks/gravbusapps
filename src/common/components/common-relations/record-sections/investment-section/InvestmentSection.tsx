@@ -15,7 +15,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import DynamicInvestmentFields from './DynamicInvestmentFields'
 import { TrendUpIcon } from '@phosphor-icons/react'
-import type { Investment } from '@/common/data/investment/types'
+import type { Investment } from '@/common/data/investment/types/investmentTypes'
 import { createGetPages } from '../utils'
 
 interface InvestmentSectionProps extends Partial<BusinessAppContextProps> {
@@ -211,7 +211,11 @@ const InvestmentDisplay: React.FC<InvestmentDisplayProps> = ({
         </div>
 
         {/* Dynamic Investment Fields */}
-        <DynamicInvestmentFields investmentData={investment} fields={fields} businessAppContext={businessAppContext} />
+        <DynamicInvestmentFields
+          investmentData={investment}
+          accessToken={businessAppContext?.accessToken || ''}
+          fields={fields}
+        />
       </div>
     </div>
   )

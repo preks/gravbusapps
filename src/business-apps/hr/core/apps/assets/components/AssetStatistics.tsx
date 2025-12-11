@@ -30,12 +30,10 @@ const AssetStatisticsComponent: React.FC<AssetStatisticsProps> = ({
   onStatusFilterChange,
   activeStatusFilter
 }) => {
-  // Handle card click to filter by status
   const handleCardClick = useCallback(
     (status: string) => {
       if (!onStatusFilterChange) return
 
-      // Toggle filter: if clicking the same status, clear filter (show all)
       if (activeStatusFilter === status) {
         onStatusFilterChange('all')
       } else {
@@ -45,7 +43,6 @@ const AssetStatisticsComponent: React.FC<AssetStatisticsProps> = ({
     [onStatusFilterChange, activeStatusFilter]
   )
 
-  // Handle widget click from WidgetGroup
   const handleWidgetClick = useCallback(
     (widgetKey: string) => {
       if (!onStatusFilterChange) return
@@ -81,7 +78,7 @@ const AssetStatisticsComponent: React.FC<AssetStatisticsProps> = ({
         span: { xs: 24, sm: 12, lg: 6 },
         description: getTranslationFromI18nKeyAndLabel(
           'lowcoder:hr_assets.statistics_total_assets_description',
-          'All IT equipment in inventory'
+          'All equipment in inventory'
         ),
         onClick: onStatusFilterChange ? () => handleCardClick('all') : undefined,
         active: activeStatusFilter === 'all' || activeStatusFilter === undefined
@@ -151,9 +148,7 @@ const AssetStatisticsComponent: React.FC<AssetStatisticsProps> = ({
   )
 }
 
-// Memoize component to prevent unnecessary re-renders
 export const AssetStatistics = memo(AssetStatisticsComponent, (prevProps, nextProps) => {
-  // Only re-render if these props change
   return (
     prevProps.statistics.totalAssets === nextProps.statistics.totalAssets &&
     prevProps.statistics.allocatedAssets === nextProps.statistics.allocatedAssets &&

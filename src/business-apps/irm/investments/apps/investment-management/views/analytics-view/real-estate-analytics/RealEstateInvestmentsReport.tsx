@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import {
   Alert,
   AlertTitle,
@@ -22,8 +22,9 @@ import { DollarCircleOutlined, RiseOutlined, TeamOutlined, PercentageOutlined } 
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import { useGetInvestments } from '@/common/data/investment'
-import type { Investment } from '@/common/data/investment'
+import { useGetInvestments } from '@/common/data/investment/hooks/useInvestments'
+import type { Investment } from '@/common/data/investment/types/investmentTypes'
+import { useAvailableCurrencies } from '@/common/data/common/hooks/useAvailableCurrencies'
 import { useRealEstateKPIIntegration } from './hooks'
 import { RealEstateDistributionCharts, RealEstateTimelineCharts, RealEstateAnalyticsCharts } from './components'
 import {
@@ -103,18 +104,11 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
   const [dataLoading, setDataLoading] = useState(true)
   const [dataError, setDataError] = useState<string | null>(null)
 
-  // Extract unique currencies from real estate investments
-  const availableCurrencies = useMemo(() => {
-    const currencies = new Set<string>()
-    for (const inv of realEstateInvestments) {
-      if (inv.currencyCode) {
-        currencies.add(inv.currencyCode)
-      }
-    }
-    const currencyArray = Array.from(currencies).sort((a, b) => a.localeCompare(b))
-    // Ensure at least the default currency is available
-    return currencyArray.length > 0 ? currencyArray : ['EUR']
-  }, [realEstateInvestments])
+  // Fetch available currencies efficiently using distinctOn
+  const { currencies: availableCurrencies } = useAvailableCurrencies(props, {
+    filters: { entity: 'Investment', investmentGroupId: 'InvestmentGroup:v1:REAL_ESTATE' },
+    returnFormat: 'codes'
+  })
 
   // Use the new KPI integration hook for real GraphQL aggregate queries with currency filter
   const {
@@ -272,41 +266,41 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
               prefix: <TeamOutlined />,
               color: 'var(--nw-color-primary-500)',
               span: { xs: 24, sm: 12, lg: 6 },
-              description: 'Total number of real estate investments',
+              description: 'Property count',
               trend: {
                 value: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).value,
                 positive: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).positive,
-                description: 'vs 30 days ago'
+                description: 'vs last quarter'
               }
             },
             {
               key: 'total-amount-invested',
               title: getTranslationFromI18nKeyAndLabel('kpi.totalAmountInvested', 'Total Amount Invested'),
-              value: formatCurrency(kpis.totalAmountInvested),
+              value: formatCurrency(kpis.totalAmountInvested, selectedCurrency),
               prefix: <DollarCircleOutlined />,
               color: 'var(--nw-color-success-500)',
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
-              description: 'Sum of all real estate investment amounts',
+              description: 'Total capital',
               trend: {
                 value: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).value,
                 positive: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).positive,
-                description: 'vs 30 days ago'
+                description: 'vs last quarter'
               }
             },
             {
               key: 'total-market-value',
               title: getTranslationFromI18nKeyAndLabel('kpi.totalMarketValue', 'Total Market Value'),
-              value: formatCurrency(kpis.totalMarketValue),
+              value: formatCurrency(kpis.totalMarketValue, selectedCurrency),
               prefix: <RiseOutlined />,
               color: 'var(--nw-color-warning-500)',
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
-              description: 'Current total market value of properties',
+              description: 'Current valuation',
               trend: {
                 value: calculateChange(kpis.totalMarketValue, previousKpis.totalMarketValue).value,
                 positive: calculateChange(kpis.totalMarketValue, previousKpis.totalMarketValue).positive,
-                description: 'vs 30 days ago'
+                description: 'vs last quarter'
               }
             },
             {
@@ -317,11 +311,11 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
               color: 'var(--nw-color-purple-500)',
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
-              description: 'Average occupancy rate across all properties',
+              description: 'Portfolio avg',
               trend: {
                 value: calculateChange(kpis.averageOccupancyRate, previousKpis.averageOccupancyRate).value,
                 positive: calculateChange(kpis.averageOccupancyRate, previousKpis.averageOccupancyRate).positive,
-                description: 'vs 30 days ago'
+                description: 'vs last quarter'
               }
             }
           ]}

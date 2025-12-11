@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import { FlowTemplate } from '../types/flowTemplate'
 import { env } from '@/common/env/EnvUtils'
+import { EntitySchema } from './useEntitySchemas'
 
 export interface ValidationResult {
   isValid: boolean
@@ -11,7 +12,11 @@ export interface ValidationResult {
 /**
  * Hook for validating expressions against custom-flow-engine backend
  */
-export const useExpressionValidator = (template: FlowTemplate, stepIndex: number) => {
+export const useExpressionValidator = (
+  template: FlowTemplate,
+  stepIndex: number,
+  entitySchemas?: Record<string, EntitySchema>
+) => {
   const [validationCache, setValidationCache] = useState<Map<string, ValidationResult>>(new Map())
 
   /**
@@ -30,14 +35,14 @@ export const useExpressionValidator = (template: FlowTemplate, stepIndex: number
       }
 
       // Client-side basic validation
-      const clientValidation = validateExpressionClient(expression)
+      const clientValidation = validateExpressionClient(expression, entitySchemas)
       if (!clientValidation.isValid) {
         return clientValidation
       }
 
       try {
         // Call backend validation API
-        const apiUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'http://localhost:8081'
+        const apiUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
         const response = await fetch(`${apiUrl}/api/templates/validate-expressions`, {
           method: 'POST',
           headers: {
@@ -87,9 +92,12 @@ export const useExpressionValidator = (template: FlowTemplate, stepIndex: number
 }
 
 /**
- * Client-side expression validation (syntax check only)
+ * Client-side expression validation (syntax and entity type check)
  */
-const validateExpressionClient = (expression: string): ValidationResult => {
+const validateExpressionClient = (
+  expression: string,
+  entitySchemas?: Record<string, EntitySchema>
+): ValidationResult => {
   // Check for balanced braces
   const openBraces = (expression.match(/\{\{/g) || []).length
   const closeBraces = (expression.match(/\}\}/g) || []).length
@@ -109,18 +117,44 @@ const validateExpressionClient = (expression: string): ValidationResult => {
     const expr = match[1].trim()
 
     // Check for valid prefixes
-    if (!expr.startsWith('$workflow.') && !expr.startsWith('$steps.') && !expr.startsWith('$catalog.')) {
+    if (
+      !expr.startsWith('$workflow.') &&
+      !expr.startsWith('$steps.') &&
+      !expr.startsWith('$catalog.') &&
+      !expr.startsWith('$entity.')
+    ) {
       return {
         isValid: false,
-        message: `Invalid expression prefix: ${expr}. Must start with $workflow, $steps, or $catalog`
+        message: `Invalid expression prefix: ${expr}. Must start with $workflow, $steps, $catalog, or $entity`
       }
     }
 
     // Check for empty expressions
-    if (expr === '$workflow' || expr === '$steps' || expr === '$catalog') {
+    if (expr === '$workflow' || expr === '$steps' || expr === '$catalog' || expr === '$entity') {
       return {
         isValid: false,
         message: 'Incomplete expression. Specify a field after the prefix.'
+      }
+    }
+
+    // Validate entity type exists
+    if (expr.startsWith('$entity.')) {
+      // Extract entity type: $entity.costCenters.{id}.name -> costCenters
+      const entityPart = expr.substring(8) // Remove "$entity."
+      const entityType = entityPart.split('.')[0].split('{')[0].trim() // Get first part before . or {
+
+      if (entityType && entitySchemas) {
+        // Check if entity type exists (case-insensitive)
+        const entityTypeLower = entityType.toLowerCase()
+        const availableTypes = Object.keys(entitySchemas)
+
+        if (!availableTypes.includes(entityTypeLower)) {
+          const availableList = availableTypes.map(t => entitySchemas[t].displayName || t).join(', ')
+          return {
+            isValid: false,
+            message: `Invalid entity type: "${entityType}". Available entities: ${availableList}`
+          }
+        }
       }
     }
   }

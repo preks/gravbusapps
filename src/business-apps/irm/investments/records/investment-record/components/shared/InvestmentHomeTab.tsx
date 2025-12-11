@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useGetInvestmentTasksByInvestmentId } from '../../hooks/useInvestmentTasksByInvestmentId'
 import { useGetInvestmentActivitiesByInvestmentId } from '../../hooks/useInvestmentActivitiesByInvestmentId'
@@ -111,54 +112,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
     }
   }, [investmentId, fetchInvestmentTasksByInvestmentId])
 
-  // Handle process events
-  const handleProcessEvent = useCallback(
-    (event: Event) => {
-      try {
-        const customEvent = event as CustomEvent
-
-        // Check for successful completion
-        if (customEvent.detail?.resolution === 'success') {
-          loadTasks()
-          loadActivities()
-          loadNotes()
-          loadApprovals()
-          return
-        }
-
-        // Check for different event structures
-        const response = customEvent.detail?.response
-        if (response?.detail?.resolution === 'success' || response?.investment) {
-          loadTasks()
-          loadActivities()
-          loadNotes()
-          loadApprovals()
-          return
-        }
-
-        // Check for continue events with payload (task/activity/note creation/update)
-        if (customEvent.type === 'com.newwork.process.continue' && customEvent.detail?.payload) {
-          loadTasks()
-          loadActivities()
-          loadNotes()
-          loadApprovals()
-          return
-        }
-
-        // Handle process completion events by investmentId (legacy support)
-        if (customEvent.detail?.investmentId === investmentId) {
-          loadTasks()
-          loadActivities()
-          loadNotes()
-          loadApprovals()
-        }
-      } catch (err) {
-        console.error('Error handling process event in InvestmentHomeTab:', err)
-      }
-    },
-    [investmentId, loadTasks, loadActivities, loadNotes, loadApprovals]
-  )
-
+  // Load section data on mount
   useEffect(() => {
     loadTasks()
     loadActivities()
@@ -166,29 +120,18 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
     loadApprovals()
   }, [loadTasks, loadActivities, loadNotes, loadApprovals])
 
-  // Listen for process events to refresh data
-  useEffect(() => {
-    const eventTypes = [
-      'com.newwork.process.continue',
-      'com.newwork.process.processCompletion',
-      'com.newwork.process.taskCompletion',
-      'com.newwork.process.completion',
-      'processCompletion',
-      'taskCompletion',
-      'taskCompleted',
-      'processCompleted'
-    ]
+  // Memoized callback for process completion
+  const handleProcessSuccess = useCallback(() => {
+    loadTasks()
+    loadActivities()
+    loadNotes()
+    loadApprovals()
+  }, [loadTasks, loadActivities, loadNotes, loadApprovals])
 
-    eventTypes.forEach(eventType => {
-      window.addEventListener(eventType, handleProcessEvent)
-    })
-
-    return () => {
-      eventTypes.forEach(eventType => {
-        window.removeEventListener(eventType, handleProcessEvent)
-      })
-    }
-  }, [handleProcessEvent])
+  // Listen for process completion events to refresh section data
+  useProcessCompletion({
+    onSuccess: handleProcessSuccess
+  })
 
   return (
     <>
@@ -201,19 +144,32 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
             component: AccountSection,
             props: {
               ...context,
-              account: investment?.investmentAccount,
-              accountId: investment?.investmentAccount?.id,
-              recordUrl: investment?.investmentAccount?.id
+              // Transform junction table to include account type
+              accounts:
+                investment?.investmentAccounts
+                  ?.map(junction => ({
+                    ...junction.investmentAccount,
+                    investmentAccountType: junction.investmentAccountType // Add catalog entry from junction table
+                  }))
+                  .filter(Boolean) || [],
+              account: investment?.investmentAccounts?.[0]
+                ? {
+                    ...investment.investmentAccounts[0].investmentAccount,
+                    investmentAccountType: investment.investmentAccounts[0].investmentAccountType
+                  }
+                : undefined,
+              accountId: investment?.investmentAccounts?.[0]?.investmentAccountId,
+              recordUrl: investment?.investmentAccounts?.[0]?.investmentAccountId
                 ? buildPlatformUrl('/platform/irm/account-record', {
-                    accountId: investment.investmentAccount.id,
+                    accountId: investment.investmentAccounts[0].investmentAccountId,
                     source: 'investment-relations',
                     fromEntity: 'investments'
                   })
                 : undefined,
-              actionButtonProps: investment?.investmentAccount?.id
+              actionButtonProps: investment?.investmentAccounts?.[0]?.investmentAccountId
                 ? {
                     contextsArray: [FlowContextName.investmentAccountEntity],
-                    externalContextData: { accountId: investment.investmentAccount.id },
+                    externalContextData: { accountId: investment.investmentAccounts[0].investmentAccountId },
                     prefixDataTestId: 'investment-record-account-action'
                   }
                 : undefined
@@ -232,36 +188,73 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
             component: ContactSection,
             props: {
               ...context,
+              // Flatten contacts from all associated accounts (junction table)
+              // GraphQL field: investmentAccountContact (singular), TypeScript: accountContacts (plural)
               contacts:
-                investment?.investmentAccount?.investmentAccountContact
-                  ?.map((iac: any) => ({
-                    id: iac.contact?.id,
-                    firstName: iac.contact?.firstName,
-                    lastName: iac.contact?.lastName,
-                    email: iac.contact?.email,
-                    phone: iac.contact?.phone,
-                    jobPosition: iac.contact?.jobPosition,
-                    department: iac.contact?.department,
-                    communicationChannels: iac.contact?.communicationChannels
-                  }))
-                  .filter(Boolean) || [],
-              contactId: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.id || null,
-              recordUrl: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.id
-                ? buildPlatformUrl('/platform/irm/contact-record', {
-                    contactId: investment.investmentAccount.investmentAccountContact[0].contact.id,
-                    source: 'investment-relations',
-                    fromEntity: 'investments'
+                investment?.investmentAccounts
+                  ?.flatMap(junction => {
+                    // Try both field names: accountContacts (mapped) or investmentAccountContact (raw GraphQL)
+                    const contactAssociations =
+                      junction.investmentAccount?.accountContacts ||
+                      junction.investmentAccount?.investmentAccountContact ||
+                      []
+                    return contactAssociations.map((iac: any) => ({
+                      ...iac.contact,
+                      contactType: iac.contactType, // From account-contact association
+                      pictureThumbnail: iac.contact?.pictureThumbnail,
+                      communicationChannels: iac.contact?.communicationChannels
+                    }))
                   })
-                : undefined,
-              actionButtonProps: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.id
-                ? {
-                    contextsArray: [FlowContextName.investmentContactEntity],
-                    externalContextData: {
-                      contactId: investment.investmentAccount.investmentAccountContact[0].contact.id
-                    },
-                    prefixDataTestId: 'investment-record-contact-action'
-                  }
-                : undefined
+                  .filter(Boolean) || [],
+              contactId: (() => {
+                const firstContactAssoc = investment?.investmentAccounts
+                  ?.flatMap(
+                    junction =>
+                      junction.investmentAccount?.accountContacts ||
+                      junction.investmentAccount?.investmentAccountContact ||
+                      []
+                  )
+                  .find(Boolean)
+                return firstContactAssoc?.contact?.id || null
+              })(),
+              recordUrl: (() => {
+                const firstContactAssoc = investment?.investmentAccounts
+                  ?.flatMap(
+                    junction =>
+                      junction.investmentAccount?.accountContacts ||
+                      junction.investmentAccount?.investmentAccountContact ||
+                      []
+                  )
+                  .find(Boolean)
+                const firstContact = firstContactAssoc?.contact
+                return firstContact?.id
+                  ? buildPlatformUrl('/platform/irm/contact-record', {
+                      contactId: firstContact.id,
+                      source: 'investment-relations',
+                      fromEntity: 'investments'
+                    })
+                  : undefined
+              })(),
+              actionButtonProps: (() => {
+                const firstContactAssoc = investment?.investmentAccounts
+                  ?.flatMap(
+                    junction =>
+                      junction.investmentAccount?.accountContacts ||
+                      junction.investmentAccount?.investmentAccountContact ||
+                      []
+                  )
+                  .find(Boolean)
+                const firstContact = firstContactAssoc?.contact
+                return firstContact?.id
+                  ? {
+                      contextsArray: [FlowContextName.investmentContactEntity],
+                      externalContextData: {
+                        contactId: firstContact.id
+                      },
+                      prefixDataTestId: 'investment-record-contact-action'
+                    }
+                  : undefined
+              })()
             }
           }
         ]}

@@ -1,24 +1,21 @@
 // Customer Account hooks - list and by-id operations for customer accounts
-import { useCallback } from 'react'
+import { useCallback, useState, useEffect, useMemo } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 // Types
-import type { CustomerAccount } from '../types'
+import type { CustomerAccount } from '../types/customerAccountTypes'
 
 // Use the new query builder functions
 import {
   buildCustomerAccountQuery,
-  buildCustomerAccountByIdQuery,
-  buildCustomerAccountSearchQuery,
   buildCustomerAccountWhereCondition,
   buildCustomerAccountOrderBy,
   type CustomerAccountQueryVariables
 } from '../queries/customerAccountQueries'
 
 // Mapper
-import { toCustomerAccount } from '../mappers/customerAccountMappers'
-import { CustomerAccountFields } from '../types/customerAccountTypes'
+import { toCustomerAccount } from '../types/customerAccountTypes'
 
 export interface CustomerAccountListQueryResponse {
   Account: any[]
@@ -32,6 +29,13 @@ export interface CustomerAccountListData {
   total: number
 }
 
+/**
+ * @deprecated This hook is in transition. Use `useCustomerAccountsList` instead.
+ * The name `useCustomerAccounts` will be restored to the new declarative hook after migration.
+ *
+ * Legacy function-only hook for customer accounts.
+ * Returns fetch functions without state management.
+ */
 export const useCustomerAccounts = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken)
 
@@ -61,33 +65,93 @@ export const useCustomerAccounts = (context: BusinessAppContextProps) => {
     },
     [graphqlClient]
   )
+  return { fetchCustomerAccounts }
+}
 
-  const fetchCustomerAccountById = useCallback(
-    async (id: string): Promise<CustomerAccount | null> => {
-      const query = buildCustomerAccountByIdQuery(CustomerAccountFields, id)
-      const result = await graphqlClient.request<{ AccountByPk: any }>(query)
-      const raw = result.AccountByPk
-      return raw ? toCustomerAccount(raw) : null
-    },
-    [graphqlClient]
-  )
+/**
+ * Declarative List Hook for Customer Accounts
+ *
+ * Automatically fetches and manages state for a list of customer accounts.
+ * Follows the Hook Refactoring Guide Pattern 2.
+ *
+ * @example
+ * const { accounts, loading, error, refetch } = useCustomerAccountsList(context, { limit: 20 })
+ *
+ * @todo MIGRATION: Replace all usages of deprecated `useCustomerAccounts` with this hook
+ * @todo RENAME: After migration is complete, rename this hook to `useCustomerAccounts` and remove the deprecated hook
+ */
+export interface UseCustomerAccountsListResult {
+  accounts: CustomerAccount[]
+  total: number
+  loading: boolean
+  error: string | null
+  refetch: (variables?: CustomerAccountQueryVariables) => Promise<void>
+}
 
-  const searchCustomerAccounts = useCallback(
-    async (variables: CustomerAccountQueryVariables): Promise<CustomerAccount[]> => {
-      const query = buildCustomerAccountSearchQuery()
+export function useCustomerAccountsList(
+  context: BusinessAppContextProps,
+  variables?: CustomerAccountQueryVariables
+): UseCustomerAccountsListResult {
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
-      const whereCondition = buildCustomerAccountWhereCondition(variables)
+  // Memoize variables to prevent infinite loops when object is recreated on each render
+  const stableVariables = useMemo(() => variables, [JSON.stringify(variables)])
 
-      const graphQLVariables = {
-        limit: Math.min(variables.limit || 20, 50),
-        where: whereCondition
+  const [state, setState] = useState({
+    accounts: [] as CustomerAccount[],
+    total: 0,
+    loading: true,
+    error: null as string | null
+  })
+
+  const fetchAccounts = useCallback(
+    async (queryVariables?: CustomerAccountQueryVariables) => {
+      if (!context.accessToken) {
+        setState(prev => ({ ...prev, loading: false }))
+        return
       }
 
-      const result = await graphqlClient.request<{ Account: any[] }>(query, graphQLVariables)
-      return result.Account.map(toCustomerAccount)
+      setState(prev => ({ ...prev, loading: true, error: null }))
+
+      try {
+        const vars = { ...stableVariables, ...queryVariables }
+        const query = buildCustomerAccountQuery()
+        const whereCondition = buildCustomerAccountWhereCondition(vars)
+        const orderBy = buildCustomerAccountOrderBy(vars.orderBy || [])
+
+        const graphQLVariables: Record<string, any> = {
+          limit: Math.min(vars.limit || 50, 100),
+          offset: vars.offset || 0,
+          where: whereCondition,
+          orderBy: orderBy
+        }
+
+        const result = await graphqlClient.request<CustomerAccountListQueryResponse>(query, graphQLVariables)
+        const accounts = result.Account.map(toCustomerAccount)
+        const total = result.AccountAggregate?.aggregate?.count || 0
+
+        setState({ accounts, total, loading: false, error: null })
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to fetch customer accounts'
+
+        setState(prev => ({
+          ...prev,
+          accounts: [],
+          total: 0,
+          loading: false,
+          error: errorMessage
+        }))
+      }
     },
-    [graphqlClient]
+    [context.accessToken, graphqlClient, stableVariables]
   )
 
-  return { fetchCustomerAccounts, fetchCustomerAccountById, searchCustomerAccounts }
+  useEffect(() => {
+    fetchAccounts()
+  }, [fetchAccounts])
+
+  return {
+    ...state,
+    refetch: fetchAccounts
+  }
 }

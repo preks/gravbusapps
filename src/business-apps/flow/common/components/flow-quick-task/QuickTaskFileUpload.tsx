@@ -157,7 +157,7 @@ export const QuickTaskFileUpload: React.FC<QuickTaskFileUploadProps> = ({
       <button
         type="button"
         disabled={disabled || !canAddMoreFiles}
-        className={`gba:border-2 gba:border-dashed gba:rounded-lg gba:p-6 gba:text-center gba:transition-colors gba:w-full ${
+        className={`gba:border-2 gba:border-dashed gba:rounded-lg gba:p-4 gba:text-center gba:transition-colors gba:w-full ${
           disabled
             ? 'gba:opacity-50 gba:cursor-not-allowed gba:bg-gray-50'
             : 'gba:cursor-pointer hover:gba:border-blue-400'
@@ -168,8 +168,8 @@ export const QuickTaskFileUpload: React.FC<QuickTaskFileUploadProps> = ({
         onClick={canAddMoreFiles ? openFilePicker : undefined}
         aria-label={getTranslationFromI18nKeyAndLabel('quickTask.upload.ariaLabel', 'Upload files')}
       >
-        <div className="gba:flex gba:justify-center gba:mb-3">
-          <UploadIcon className="gba:w-10 gba:h-10 gba:text-gray-400" />
+        <div className="gba:flex gba:justify-center gba:mb-2">
+          <UploadIcon className="gba:w-8 gba:h-8 gba:text-gray-400" />
         </div>
 
         {canAddMoreFiles ? (

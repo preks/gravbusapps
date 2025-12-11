@@ -15,3 +15,9 @@ export {
   formatLargeNumber,
   formatNumber
 } from './formatters'
+
+// Export reference entity utilities
+export * from './referenceEntityUtils'
+
+// Export investment to opportunity mapper
+export { mapInvestmentToInvestmentOpportunityValues } from './investmentToOpportunityMapper'

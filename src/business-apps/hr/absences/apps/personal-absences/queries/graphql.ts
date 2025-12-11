@@ -56,6 +56,8 @@ export const GET_EMPLOYEE_ENTITLEMENTS = `
           approved
           total
           pending
+          validFrom
+          validTo
         }
     }`
 

@@ -10,13 +10,6 @@ import {
   AlertTitle,
   AlertDescription,
   DataTable,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogClose,
-  DialogFooter,
   CardDescription
 } from '@newwork/nw-design-system'
 import {
@@ -25,18 +18,19 @@ import {
   EyeSlashIcon,
   TrashIcon,
   EyeIcon,
-  PencilSimpleLineIcon,
-  WarningIcon
+  PencilSimpleLineIcon
 } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { ColumnDef, SortingState } from '@tanstack/react-table'
-import TimeTypeForm from '../../../../forms/time-types-form/TimeTypeForm'
-import { useTimeTypesData, TransformedTimeType } from '../../hooks/useTimeTypesData'
+import TimeTypeForm from '../../../../forms/time-attendance/TimeTypeForm'
+import { useTimeTypesData } from '../../hooks/useTimeTypesData'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { TransformedTimeType } from '../../types/time-types'
+import { DeleteDialog } from '../DeleteDialog'
 
 export interface TimeTypesProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -324,43 +318,20 @@ export const TimeTypesTab: React.FC<TimeTypesProps> = ({ accessToken, prefixData
           {renderTimeTypesTable()}
         </div>
 
-        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle className="gba:flex gba:items-center gba:gap-2">
-                <WarningIcon className="gba:text-destructive" />
-                {getTranslationFromI18nKeyAndLabel(
-                  'master-data:hr.time_attendance.time_types.actions.delete_title',
-                  'Delete Time Type'
-                )}
-              </DialogTitle>
-              <DialogDescription>
-                {getTranslationFromI18nKeyAndLabel(
-                  'master-data:hr.time_attendance.time_types.actions.delete_message',
-                  'Are you sure you want to delete this time type?'
-                )}
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <DialogClose asChild>
-                <Button variant="outline">
-                  {getTranslationFromI18nKeyAndLabel('master-data:forms.common.buttons.cancel', 'Cancel')}
-                </Button>
-              </DialogClose>
-              <Button variant="destructive" onClick={() => handleDeleteTimeType(selectedTimeType)}>
-                {isDeleting
-                  ? getTranslationFromI18nKeyAndLabel(
-                      'master-data:hr.time_attendance.time_types.actions.deleting',
-                      'Deleting...'
-                    )
-                  : getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:expense_calculation_rule.expense_table.delete',
-                      'Delete'
-                    )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <DeleteDialog
+          isOpen={isDeleteDialogOpen}
+          onOpenChange={setIsDeleteDialogOpen}
+          onConfirm={() => handleDeleteTimeType(selectedTimeType)}
+          isDeleting={isDeleting}
+          titleKey={getTranslationFromI18nKeyAndLabel(
+            'master-data:hr.time_attendance.time_types.actions.delete_title',
+            'Delete Time Type'
+          )}
+          description={getTranslationFromI18nKeyAndLabel(
+            'master-data:hr.time_attendance.time_types.actions.delete_message',
+            'Are you sure you want to delete this time type?'
+          )}
+        />
       </CardContent>
     </Card>
   )

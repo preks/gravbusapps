@@ -47,8 +47,7 @@ export const ChangeEmployeeAddressProvider: React.FC<ProviderProps> = ({
 
   const employeeId: string | undefined = useMemo(() => {
     return (
-      additionalData?.psi_taskPayload?.employeeId ||
-      additionalData?.psi_taskPayload?.initialParameters?.employeeId ||
+      (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.employeeId ||
       userInfo?.employeeDetails?.employeeId
     )
   }, [additionalData, userInfo])

@@ -8,8 +8,7 @@ import { buildWhere, buildOrderBy, type Descriptor } from '@/common/network/grap
 import { AccountFields } from '../types/accountTypes'
 import { AUDIT_FIELDS, CATALOG_ENTRY } from '@/common/network/graphql/commonFragments'
 import { COMMUNICATION_CHANNEL_REF } from '@/common/data/common/queries/communicationChannelFragments'
-//import { ADDRESS_REF } from '@/common/data/common/queries/addressFragments'
-import { buildAddressFragment } from './_tempAddress'
+import { ADDRESS_REF } from '@/common/data/common/queries/addressFragments'
 import type { BaseQueryVariables } from '@/common/network/graphql/commonTypes'
 import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments'
 
@@ -23,6 +22,7 @@ export interface AccountQueryVariables extends BaseQueryVariables {
   legalFormIds?: string[]
   companySizeIds?: string[]
   revenueBandIds?: string[]
+  accountPriorityIds?: string[]
   countryIds?: string[]
   regionIds?: string[]
 
@@ -66,6 +66,10 @@ export const buildAccountQuery = (
           ${CATALOG_ENTRY}
         }
         ${entityFields.accountAnnualRevenueBandRef}
+        ${entityFields.accountPriority} {
+          ${CATALOG_ENTRY}
+        }
+        ${entityFields.accountPriorityRef}
         ${entityFields.code}
         ${entityFields.companySize} {
           ${CATALOG_ENTRY}
@@ -122,7 +126,6 @@ export const buildAccountQuery = (
  */
 export const buildAccountByPkQuery = (
   entityName: string,
-  id: string,
   entityFields: Record<keyof typeof AccountFields, string> = AccountFields,
   relationBuilders?: AccountRelationBuilders,
   relationFields?: AccountRelationFields,
@@ -135,6 +138,10 @@ export const buildAccountByPkQuery = (
           ${CATALOG_ENTRY}
         }
         ${entityFields.accountAnnualRevenueBandRef}
+        ${entityFields.accountPriority} {
+          ${CATALOG_ENTRY}
+        }
+        ${entityFields.accountPriorityRef}
         ${entityFields.code}
         ${entityFields.companySize} {
           ${CATALOG_ENTRY}
@@ -204,9 +211,11 @@ export const buildAccountByPkQuery = (
           ${COMMUNICATION_CHANNEL_REF}
         }
         ${relationFields.contactFields.addresses}(where: { isDeleted: { _eq: false } }) {
-          ${buildAddressFragment(entityName)}
+          ${ADDRESS_REF}
         }
       }
+      contactId
+      accountId
     }
     
     # Leads relation (only in IRM, field name: leads vs investmentLead)
@@ -218,8 +227,8 @@ export const buildAccountByPkQuery = (
       : ''
 
   return `
-    query Get${entityName}ById {
-      ${entityName}ByPk(id: "${id}") {
+    query Get${entityName}ById($id: uuid!) {
+      ${entityName}ByPk(id: $id) {
         ${baseFields}
         ${commonRelations}
         ${additionalFields || ''}

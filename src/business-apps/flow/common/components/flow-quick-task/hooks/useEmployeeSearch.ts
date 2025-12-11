@@ -1,5 +1,6 @@
 ﻿import { useState, useCallback, useRef, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import { Employee } from '../types'
 
 interface UseEmployeeSearchResult {
@@ -7,129 +8,43 @@ interface UseEmployeeSearchResult {
   loading: boolean
   error: Error | null
   searchEmployees: (searchTerm: string) => Promise<void>
+  initialLoadComplete: boolean
 }
 
-// Helper to format employee data from GraphQL response
-const formatEmployee = (emp: any): Employee => ({
-  id: emp.id,
-  userId: emp.userId,
-  firstName: emp.firstName,
-  lastName: emp.lastName,
-  fullName: emp.fullName || `${emp.firstName} ${emp.lastName}`,
-  email: emp.communication?.[0]?.value,
-  personnelCode: emp.code,
-  avatarUrl: emp.pictureThumbnail ? `data:image/jpeg;base64,${emp.pictureThumbnail}` : undefined
-})
+interface UseEmployeeSearchOptions {
+  accessToken: string
+  currentUserId?: string
+}
 
 /**
  * Custom hook for searching employees by name
  * Performs async search with debouncing and limits results to 20
- * Prioritizes teammates in the results (teammates appear first)
- * @param accessToken - Access token for authorization
- * @param employeeId - Current user's employee ID for fetching teammates
+ * On initial load (empty search), shows employees from the same structure
+ * @param options - Access token and optional current user ID for filtering
  * @returns Object containing employees data, loading state, error state, and search function
  */
-export const useEmployeeSearch = (accessToken: string, employeeId?: string): UseEmployeeSearchResult => {
+export const useEmployeeSearch = (options: UseEmployeeSearchOptions | string): UseEmployeeSearchResult => {
+  // Support both old signature (string) and new signature (object)
+  const { accessToken, currentUserId } =
+    typeof options === 'string' ? { accessToken: options, currentUserId: undefined } : options
   const [employees, setEmployees] = useState<Employee[]>([])
-  const [loading, setLoading] = useState<boolean>(false)
+  const [loading, setLoading] = useState<boolean>(true) // Start with true to show initial load
   const [error, setError] = useState<Error | null>(null)
-  const [hasSearched, setHasSearched] = useState<boolean>(false)
-  const [teammates, setTeammates] = useState<Employee[]>([])
-  const [teammatesLoading, setTeammatesLoading] = useState<boolean>(true)
+  const [initialLoadComplete, setInitialLoadComplete] = useState<boolean>(false)
 
   const graphqlClient = useGraphQLClient(accessToken)
   const abortControllerRef = useRef<AbortController | null>(null)
-
-  // Fetch teammates from organizational unit using GraphQL
-  useEffect(() => {
-    const fetchTeammates = async () => {
-      if (!employeeId || !accessToken) {
-        setTeammatesLoading(false)
-        return
-      }
-
-      setTeammatesLoading(true)
-      try {
-        // Fetch teammates from the same organizational unit in a single query
-        const query = `
-          query GetTeammates($employeeId: uuid!) {
-            myUnit: EmployeeOrganizationalUnit(
-              where: { employeeId: { _eq: $employeeId } }
-              limit: 1
-            ) {
-              organizationalUnitId
-            }
-            teammates: EmployeeOrganizationalUnit(
-              where: {
-                employeeId: { _eq: $employeeId }
-              }
-            ) {
-              organizationalUnit {
-                organizationalUnitEmployee {
-                  employee {
-                    id
-                    userId
-                    firstName
-                    lastName
-                    fullName
-                    code
-                    pictureThumbnail
-                    communication(where: { typeRef: { _eq: "email" }, isDeleted: { _eq: false } }, limit: 1) {
-                      value
-                    }
-                  }
-                }
-              }
-            }
-          }
-        `
-        const response = await graphqlClient.request<{
-          myUnit: Array<{ organizationalUnitId: string }>
-          teammates: Array<{ organizationalUnit: { organizationalUnitEmployee: Array<{ employee: any }> } }>
-        }>(query, { employeeId })
-
-        if (response.teammates.length === 0 || !response.teammates[0]?.organizationalUnit) {
-          setTeammatesLoading(false)
-          return
-        }
-
-        const formattedTeammates = response.teammates[0].organizationalUnit.organizationalUnitEmployee
-          .map(({ employee }) => formatEmployee(employee))
-          .filter(emp => emp.userId) // Filter out test accounts
-
-        setTeammates(formattedTeammates)
-      } catch (err) {
-        console.error('Error fetching teammates:', err)
-      } finally {
-        setTeammatesLoading(false)
-      }
-    }
-
-    fetchTeammates()
-  }, [employeeId, accessToken, graphqlClient])
-
-  // Initialize employees with teammates when they first load
-  useEffect(() => {
-    if (teammates.length > 0 && !hasSearched) {
-      setEmployees(teammates)
-    }
-  }, [teammates, hasSearched])
+  const lastSearchRef = useRef<string | null>(null) // Track last search to prevent duplicate fetches
 
   const searchEmployees = useCallback(
     async (searchTerm: string) => {
-      // CRITICAL: Don't allow any search while teammates are still loading
-      // This prevents the initial empty search from running before teammates are ready
-      if (teammatesLoading) {
+      // Skip if we've already fetched this exact search term (prevent duplicate fetches)
+      if (lastSearchRef.current === searchTerm) {
         return
       }
 
-      // If search term is empty and we haven't searched yet, just show teammates
-      if (!searchTerm && !hasSearched && teammates.length > 0) {
-        return
-      }
-
-      // Mark that a search has been performed
-      setHasSearched(true)
+      // Update last search term
+      lastSearchRef.current = searchTerm
 
       // Cancel any pending request
       if (abortControllerRef.current) {
@@ -147,57 +62,168 @@ export const useEmployeeSearch = (accessToken: string, employeeId?: string): Use
       setError(null)
 
       try {
-        // GraphQL query to search employees by name
-        const query = `
-          query SearchEmployees($searchTerm: String!) {
-            Employee(
-              limit: 20,
-              orderBy: { firstName: ASC },
-              where: {
-                isDeleted: { _eq: false },
-                _or: [
-                  { firstName: { _ilike: $searchTerm } },
-                  { lastName: { _ilike: $searchTerm } },
-                  { fullName: { _ilike: $searchTerm } }
-                ]
-              }
-            ) {
-              id
-              userId
-              firstName
-              lastName
-              fullName
-              code
-              pictureThumbnail
-              communication(where: { typeRef: { _eq: "email" }, isDeleted: { _eq: false } }, limit: 1) {
-                value
-              }
-            }
-          }
-        `
+        // Default: show team members (same org unit)
+        // Search: show all structure employees matching search term
+        const isInitialLoad = !searchTerm || searchTerm.trim() === ''
+        const structureId = getCurrentActiveStructureId()
 
-        const variables = {
-          searchTerm: `%${searchTerm}%`
+        // On initial load with currentUserId, get team members from same org unit
+        // OPTIMIZED: Filter by organizational unit in GraphQL query (server-side)
+        const query =
+          currentUserId && isInitialLoad
+            ? `
+              query GetTeamMembers($structureId: uuid!, $currentUserId: String!) {
+                # First, get current user's organizational unit (limit hardcoded to 1)
+                currentUserPosition: EmployeePosition(
+                  where: {
+                    structureId: { _eq: $structureId },
+                    employee: { userId: { _eq: $currentUserId } }
+                  },
+                  limit: 1
+                ) {
+                  organizationalUnitId
+                  organizationalUnit {
+                    id
+                  }
+                }
+              }
+            `
+            : `
+              query SearchEmployees($structureId: uuid!, $search: String, $limit: Int) {
+                EmployeePosition(
+                  where: {
+                    structureId: { _eq: $structureId },
+                    employee: { isDeleted: { _eq: false } },
+                    _or: [
+                      { firstName: { _ilike: $search } },
+                      { lastName: { _ilike: $search } },
+                      { employee: { displayName: { _ilike: $search } } }
+                    ]
+                  },
+                  limit: $limit,
+                  orderBy: { firstName: ASC, lastName: ASC }
+                ) {
+                  id
+                  employeeId
+                  firstName
+                  lastName
+                  employee {
+                    id
+                    displayName
+                    pictureThumbnail
+                    userId
+                    fullName
+                    code
+                    communication(where: { typeRef: { _eq: "email" }, isDeleted: { _eq: false } }, limit: 1) {
+                      value
+                    }
+                  }
+                }
+              }
+            `
+
+        const variables =
+          currentUserId && isInitialLoad
+            ? {
+                structureId: structureId || '99b1ba64-a4d3-4dd0-8302-b1dc0c4daaaf',
+                currentUserId,
+                limit: 50 // REDUCED: Only fetch 50 team members max (was 500!)
+              }
+            : {
+                structureId: structureId || '99b1ba64-a4d3-4dd0-8302-b1dc0c4daaaf',
+                search: `%${searchTerm}%`,
+                limit: 20 // REDUCED: Show top 20 search results (was 50)
+              }
+
+        let employeePositions: any[] = []
+
+        // For initial load with team members, use two-step query (optimized)
+        if (currentUserId && isInitialLoad) {
+          // Step 1: Get current user's organizational unit (no limit needed for this query)
+          const orgUnitResponse = await graphqlClient.request<{
+            currentUserPosition: any[]
+          }>(query, {
+            structureId: variables.structureId,
+            currentUserId: variables.currentUserId
+            // Note: Don't pass limit here - the query doesn't use it
+          })
+
+          const currentUserOrgUnitId = orgUnitResponse.currentUserPosition[0]?.organizationalUnitId
+
+          // Step 2: Fetch ONLY employees from that organizational unit (server-side filter)
+          if (currentUserOrgUnitId) {
+            const teamMembersQuery = `
+              query GetTeamMembersByOrgUnit($structureId: uuid!, $orgUnitId: uuid!, $limit: Int) {
+                EmployeePosition(
+                  where: {
+                    structureId: { _eq: $structureId },
+                    organizationalUnitId: { _eq: $orgUnitId },
+                    employee: { isDeleted: { _eq: false } }
+                  },
+                  limit: $limit,
+                  orderBy: { firstName: ASC, lastName: ASC }
+                ) {
+                  id
+                  employeeId
+                  firstName
+                  lastName
+                  employee {
+                    id
+                    displayName
+                    pictureThumbnail
+                    userId
+                    fullName
+                    code
+                    communication(where: { typeRef: { _eq: "email" }, isDeleted: { _eq: false } }, limit: 1) {
+                      value
+                    }
+                  }
+                }
+              }
+            `
+
+            const teamMembersResponse = await graphqlClient.request<{
+              EmployeePosition: any[]
+            }>(teamMembersQuery, {
+              structureId: variables.structureId,
+              orgUnitId: currentUserOrgUnitId,
+              limit: variables.limit
+            })
+
+            employeePositions = teamMembersResponse.EmployeePosition
+          } else {
+            console.warn('[useEmployeeSearch] No org unit found for user, falling back to search')
+          }
+        } else {
+          // For search, use single query
+          const response = await graphqlClient.request<{
+            EmployeePosition: any[]
+          }>(query, variables)
+
+          employeePositions = response.EmployeePosition
         }
 
-        const response = await graphqlClient.request<{ Employee: any[] }>(query, variables)
-        const formattedEmployees = response.Employee.map(formatEmployee)
+        const formattedEmployees: Employee[] = employeePositions
+          .map((pos: any) => ({
+            id: pos.employee?.id || pos.employeeId,
+            userId: pos.employee?.userId,
+            firstName: pos.firstName,
+            lastName: pos.lastName,
+            fullName: pos.employee?.fullName || `${pos.firstName} ${pos.lastName}`,
+            displayName: pos.employee?.displayName || `${pos.firstName} ${pos.lastName}`,
+            pictureThumbnail: pos.employee?.pictureThumbnail,
+            email: pos.employee?.communication?.[0]?.value,
+            personnelCode: pos.employee?.code
+          }))
+          // Filter out current user
+          .filter((emp: Employee) => !currentUserId || emp.userId !== currentUserId)
 
-        // Filter teammates that match the search term
-        const searchLower = searchTerm.toLowerCase()
-        const teammateEmployees = teammates.filter(
-          t =>
-            !searchTerm ||
-            t.fullName.toLowerCase().includes(searchLower) ||
-            t.firstName.toLowerCase().includes(searchLower) ||
-            t.lastName.toLowerCase().includes(searchLower)
-        )
+        setEmployees(formattedEmployees)
 
-        // Filter out duplicates and combine: teammates first, then others
-        const teammateUserIds = new Set(teammateEmployees.map(t => t.userId))
-        const nonTeammates = formattedEmployees.filter(emp => !teammateUserIds.has(emp.userId))
-
-        setEmployees([...teammateEmployees, ...nonTeammates])
+        // Mark initial load as complete only for the first successful load
+        if (!initialLoadComplete && isInitialLoad) {
+          setInitialLoadComplete(true)
+        }
       } catch (err: any) {
         // Ignore abort errors
         if (err.name === 'AbortError') {
@@ -209,7 +235,7 @@ export const useEmployeeSearch = (accessToken: string, employeeId?: string): Use
         setLoading(false)
       }
     },
-    [accessToken, graphqlClient, teammates, hasSearched, teammatesLoading]
+    [accessToken, graphqlClient, initialLoadComplete]
   )
 
   // Cleanup: abort any pending requests when component unmounts
@@ -223,8 +249,9 @@ export const useEmployeeSearch = (accessToken: string, employeeId?: string): Use
 
   return {
     employees,
-    loading: loading || teammatesLoading,
+    loading,
     error,
-    searchEmployees
+    searchEmployees,
+    initialLoadComplete
   }
 }

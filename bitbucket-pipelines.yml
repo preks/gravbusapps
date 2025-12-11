@@ -44,8 +44,11 @@ definitions:
   services:
     docker:
       memory: 3072
-    docker-large:
+    docker-medium:
       memory: 7168
+      type: docker
+    docker-large:
+      memory: 15360
       type: docker
   caches:
     nodecustom:
@@ -57,7 +60,7 @@ definitions:
   steps:
     - step: &install_dependencies
         name: Install dependencies
-        size: 2x
+        size: 1x
         clone:
           enabled: true
           depth: full
@@ -77,11 +80,14 @@ definitions:
 
     - step: &detect-changed-screens
         name: Detect Changed Screens
-        size: 2x
+        size: 1x
         services:
           - docker
         script:
           - bash scripts/detect-changed-screens.sh
+          - |
+            echo "Changed screens:"
+            cat changed-tsx.txt
         artifacts:
           - changed-tsx.txt
 
@@ -183,7 +189,7 @@ definitions:
           - all-screens.txt
     - step: &sonar_scan
         name: Sonar scan
-        size: 2x
+        size: 4x
         clone:
           enabled: true
           depth: full # SonarCloud scanner needs the full history to assign issues properly
@@ -194,26 +200,41 @@ definitions:
         script:
           - pipe: sonarsource/sonarcloud-scan:4.1.0
             variables:
-              SONAR_SCANNER_OPTS: -Xmx6144m
-              EXTRA_ARGS: ['-Dsonar.javascript.node.maxspace=4096']
+              SONAR_SCANNER_OPTS: -Xmx10240m
+              EXTRA_ARGS: ['-Dsonar.javascript.node.maxspace=9216']
+
+    - step: &sonar_scan_main
+        name: Sonar scan (main)
+        size: 4x
+        clone:
+          enabled: true
+          depth: full # SonarCloud scanner needs the full history to assign issues properly
+        caches:
+          - nodecustom
+        services:
+          - docker-large
+        script:
+          - pipe: sonarsource/sonarcloud-scan:4.1.0
+            variables:
+              SONAR_SCANNER_OPTS: -Xmx14336m
+              EXTRA_ARGS: ['-Dsonar.javascript.node.maxspace=13312']
 
 pipelines:
   pull-requests:
     '**':
       - step: *install_dependencies
-      - step: *build-validate-screens
-      - step: *sonar_scan
+      - parallel:
+        - step: *build-validate-screens
+        - step: *sonar_scan
 
   branches:
     develop:
       - step: *install_dependencies
       - step: *publish-changed-screens
-    # Deactivated due to current SonarCloud sizing limits
-    #      - step: *sonar_scan
+
     hotfix/*:
       - step: *install_dependencies
       - step: *publish-changed-prod-screens
-      - step: *sonar_scan
 
     main:
       - step: *install_dependencies
@@ -222,6 +243,10 @@ pipelines:
   custom:
     dry-run:
       - step: *detect-changed-screens
+
+    sonar-scan-main:
+      - step: *install_dependencies
+      - step: *sonar_scan_main
 
     build-manual:
       - variables:
@@ -236,6 +261,9 @@ pipelines:
             default: ''
           - name: PUBLISH_ALL_SCREENS
             default: 'false'
+            allowed-values:
+              - 'true'
+              - 'false'
       - step: *install_dependencies
       - step: *publish-manual-screens
 
@@ -245,7 +273,65 @@ pipelines:
             default: ''
           - name: PUBLISH_ALL_SCREENS
             default: 'false'
+            allowed-values:
+              - 'true'
+              - 'false'
           - name: SKIP_RESOURCE_URL_SYNC
             default: 'true'
+            allowed-values:
+              - 'true'
+              - 'false'
+      - step:
+          name: Enforce develop/main branches for production publish
+          script:
+            - |
+              if [ "$BITBUCKET_BRANCH" != "develop" ] && [ "$BITBUCKET_BRANCH" != "main" ]; then
+                echo "publishing to production is restricted to develop or main branches. Current branch: $BITBUCKET_BRANCH"
+                exit 1
+              fi
       - step: *install_dependencies
       - step: *publish-manual-prod-screens
+
+    calculate-hashes:
+      - variables:
+          - name: HASH_ENV
+            default: 'dev'
+            allowed-values:
+              - 'dev'
+              - 'prod'
+          - name: SCREENS
+            default: ''
+          - name: COMMIT_CHANGES
+            default: 'false'
+            allowed-values:
+              - 'true'
+              - 'false'
+          - name: DRY_RUN
+            default: 'true'
+            allowed-values:
+              - 'true'
+              - 'false'
+      - step: *install_dependencies
+      - step:
+          name: Calculate screen hashes
+          size: 2x
+          caches:
+          - nodecustom
+          script:
+            - echo "🔧 Calculating hashes for $HASH_ENV environment"
+            - |
+              ARGS="--env=$HASH_ENV"
+              if [ -n "$SCREENS" ]; then
+                ARGS="$ARGS --screens=$SCREENS"
+              fi
+              if [ "$COMMIT_CHANGES" = "true" ]; then
+                ARGS="$ARGS --commit"
+              fi
+              if [ "$DRY_RUN" = "true" ]; then
+                ARGS="$ARGS --dry-run"
+              fi
+              echo "Running: node scripts/calculate-hashes.js $ARGS"
+              node scripts/calculate-hashes.js $ARGS
+          artifacts:
+            - component-hashes.json
+            - component-hashes-prod.json

@@ -245,7 +245,7 @@ const CampaignsTopPerformers: React.FC<CampaignsAnalyticsComponentProps> = ({
   error = null,
   onRetry
 }) => {
-  const [activeTab, setActiveTab] = useState('employees')
+  const [activeTab, setActiveTab] = useState('campaigns')
 
   if (isLoading) {
     return (
@@ -354,7 +354,7 @@ const CampaignsTopPerformers: React.FC<CampaignsAnalyticsComponentProps> = ({
             key: 'employees',
             children: (
               <div
-                className="gba:space-y-6"
+                className="gba:space-y-6 gba:bg-white gba:pb-6"
                 style={{ maxHeight: '480px', overflowY: 'auto', overflowX: 'hidden' }}
                 data-testid="top-employees-list"
               >

@@ -20,6 +20,7 @@ current-bonuses = Boni
 current-annually = Jährlich
 current-monthly = Monatlich
 current-hourly = Stündlich
+no-salary-record = Keine Gehaltsaufzeichnung
 
 # Compensation Band
 band-title = Vergütungsstufe
@@ -128,8 +129,10 @@ modal-request-title = Zusatzleistung anfordern
 modal-request-description = Füllen Sie das untenstehende Formular aus, um diese Zusatzleistung anzufordern
 modal-request-provider-label = Zusatzleistungsanbieter
 modal-request-provider-placeholder = Anbieter auswählen
-modal-request-value-label = Jährlicher Zusatzleistungswert (Optional)
-modal-request-value-placeholder = Geschätzten Jahreswert eingeben
+modal-request-value-label = Zusatzleistungswert
+modal-request-value-placeholder = Geschätzten eingeben
+modal-request-period-label = Leistungszeitraum
+modal-request-period-placeholder = Geschätzten Zeitraum eingeben
 modal-request-value-help = Optional: Geschätzter jährlicher Wert dieser Zusatzleistung
 modal-request-start-date-label = Startdatum
 modal-request-justification-label = Begründung

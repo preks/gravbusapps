@@ -185,23 +185,28 @@ export const CampaignManagementLayout: React.FC<CampaignManagementLayoutProps> =
   // Default actions renderer if not provided
   const defaultRenderActions = useCallback(
     (row: { original: Campaign }) => (
-      <CampaignRowActions
-        campaignId={row.original.id}
-        accessToken={accessToken}
-        campaignEntityContext={campaignEntityContext}
-      />
+      <div role="presentation" onClick={e => e.stopPropagation()}>
+        <CampaignRowActions
+          campaignId={row.original.id}
+          accessToken={accessToken}
+          campaignEntityContext={campaignEntityContext}
+        />
+      </div>
     ),
     [accessToken, campaignEntityContext]
   )
 
   return (
     <div className="layout-content gba:pb-8">
-      {/* Tab Navigation */}
+      {/* Statistics Section - Always visible above tabs */}
+      {renderStatistics?.()}
+
+      {/* Tab Navigation with Search/Filters on same line */}
       <DataDisplay
         titleSections={[
           {
             id: 'overview',
-            label: translations?.title || getTranslationFromI18nKeyAndLabel('campaigns.tabs.overview', 'Overview'),
+            label: getTranslationFromI18nKeyAndLabel('campaigns.tabs.overview', 'Overview'),
             metadata: {
               count: campaigns.length,
               isLoading: isLoading
@@ -214,100 +219,95 @@ export const CampaignManagementLayout: React.FC<CampaignManagementLayoutProps> =
         ]}
         currentSection={mainActiveTab}
         onSectionChange={section => setMainActiveTab(section)}
-      >
-        {mainActiveTab === 'overview' ? (
-          <>
-            {/* Statistics Section */}
-            {renderStatistics?.()}
-
-            {/* Campaign List with Toolbar */}
-            <DataDisplay
-              searchValue={searchTerm}
-              searchPlaceholder={
-                translations?.searchPlaceholder ||
-                getTranslationFromI18nKeyAndLabel('common:searchCampaigns', 'Search campaigns...')
-              }
-              onSearchChange={handleSearchChange}
-              filters={selectedFilters}
-              filterConfiguration={filterConfiguration}
-              onFilterChange={handleFilterChange}
-              sorting={sorting}
-              sortableColumns={sortableColumns}
-              onSortingChange={handleSortingChange}
-              availableColumns={[
+        searchValue={searchTerm}
+        searchPlaceholder={
+          translations?.searchPlaceholder ||
+          getTranslationFromI18nKeyAndLabel('common:searchCampaigns', 'Search campaigns...')
+        }
+        onSearchChange={handleSearchChange}
+        filters={mainActiveTab === 'overview' ? selectedFilters : undefined}
+        filterConfiguration={mainActiveTab === 'overview' ? filterConfiguration : undefined}
+        onFilterChange={mainActiveTab === 'overview' ? handleFilterChange : undefined}
+        sorting={mainActiveTab === 'overview' ? sorting : undefined}
+        sortableColumns={mainActiveTab === 'overview' ? sortableColumns : undefined}
+        onSortingChange={mainActiveTab === 'overview' ? handleSortingChange : undefined}
+        availableColumns={
+          mainActiveTab === 'overview'
+            ? [
                 { id: 'name', label: 'Campaign' },
                 { id: 'type', label: 'Type' },
                 { id: 'startDate', label: 'Start Date' },
                 { id: 'endDate', label: 'End Date' },
                 { id: 'status', label: 'Status' },
                 { id: 'createdAt', label: 'Created' }
-              ]}
-              visibleColumns={visibleColumns}
-              onVisibleColumnsChange={setVisibleColumns}
-              primaryAction={
-                onAddCampaign ? (
-                  <AppAction
-                    contexts={[
-                      {
-                        context: campaignCreateContext as any,
-                        contextData: {}
-                      }
-                    ]}
-                    accessToken={accessToken}
-                    data-testid="add-campaign-action"
-                    emptyState="hide"
-                  >
-                    <Button
-                      size="sm"
-                      variant="default"
-                      data-testid="add-campaign-button"
-                      type="button"
-                      onClick={onAddCampaign}
-                    >
-                      <Plus size={16} />
-                      {translations?.addButton ||
-                        getTranslationFromI18nKeyAndLabel('crm:campaign.addCampaign', 'Add Campaign')}
-                    </Button>
-                  </AppAction>
-                ) : undefined
-              }
-              toolbarDensity="default"
-              enableLiveFiltering
-              filterSheetTitle={getTranslationFromI18nKeyAndLabel('common:filterCampaigns', 'Filter Campaigns')}
-              filterSheetDescription={getTranslationFromI18nKeyAndLabel(
-                'common:filterCampaignsDescription',
-                'Apply filters to narrow down the campaign list'
-              )}
-            >
-              <DataTable<Campaign>
-                data={paginatedCampaigns}
-                columns={columns ? columns.filter(col => visibleColumns.includes(col.id as string)) : []}
-                loading={isLoading}
-                error={error || undefined}
-                totalCount={campaigns.length}
-                sorting={sorting}
-                onSortingChange={handleSortingChange}
-                pagination={pagination}
-                onPaginationChange={setPagination}
-                enablePagination
-                enableSorting
-                enableSelection={false}
-                enableColumnPinning
-                enableResizing={false}
-                tableLayout="fixed"
-                rowsPerPageOptions={[10, 20, 50, 100]}
-                showPageNumbers
-                maxVisiblePages={7}
-                emptyMessage={
-                  translations?.emptyMessage ||
-                  getTranslationFromI18nKeyAndLabel('campaign.management.empty', 'No campaigns found')
+              ]
+            : undefined
+        }
+        visibleColumns={mainActiveTab === 'overview' ? visibleColumns : undefined}
+        onVisibleColumnsChange={mainActiveTab === 'overview' ? setVisibleColumns : undefined}
+        primaryAction={
+          onAddCampaign && mainActiveTab === 'overview' ? (
+            <AppAction
+              contexts={[
+                {
+                  context: campaignCreateContext as any,
+                  contextData: {}
                 }
-                actions={renderCampaignActions || defaultRenderActions}
-                onRowClick={onCampaignRowClick ? handleCampaignRowClick : undefined}
-                data-testid="campaign-list"
-              />
-            </DataDisplay>
-          </>
+              ]}
+              accessToken={accessToken}
+              data-testid="add-campaign-action"
+              emptyState="hide"
+            >
+              <Button
+                size="sm"
+                variant="default"
+                data-testid="add-campaign-button"
+                type="button"
+                onClick={onAddCampaign}
+              >
+                <Plus size={16} />
+                {translations?.addButton ||
+                  getTranslationFromI18nKeyAndLabel('crm:campaign.addCampaign', 'Add Campaign')}
+              </Button>
+            </AppAction>
+          ) : undefined
+        }
+        toolbarDensity="default"
+        enableLiveFiltering={mainActiveTab === 'overview'}
+        filterSheetTitle={getTranslationFromI18nKeyAndLabel('common:filterCampaigns', 'Filter Campaigns')}
+        filterSheetDescription={getTranslationFromI18nKeyAndLabel(
+          'common:filterCampaignsDescription',
+          'Apply filters to narrow down the campaign list'
+        )}
+      >
+        {mainActiveTab === 'overview' ? (
+          <DataTable<Campaign>
+            data={paginatedCampaigns}
+            columns={columns ? columns.filter(col => visibleColumns.includes(col.id as string)) : []}
+            loading={isLoading}
+            error={error || undefined}
+            totalCount={campaigns.length}
+            sorting={sorting}
+            onSortingChange={handleSortingChange}
+            pagination={pagination}
+            onPaginationChange={setPagination}
+            enablePagination
+            enableSorting
+            enableSelection={false}
+            enableColumnPinning
+            enableResizing={false}
+            tableLayout="fixed"
+            rowsPerPageOptions={[10, 20, 50, 100]}
+            showPageNumbers
+            maxVisiblePages={7}
+            emptyMessage={
+              translations?.emptyMessage ||
+              getTranslationFromI18nKeyAndLabel('campaign.management.empty', 'No campaigns found')
+            }
+            actions={renderCampaignActions || defaultRenderActions}
+            onRowClick={onCampaignRowClick ? handleCampaignRowClick : undefined}
+            data-testid="campaign-list"
+          />
         ) : (
           <div className="gba:space-y-6 gba:mt-6">
             {/* Analytics Content */}

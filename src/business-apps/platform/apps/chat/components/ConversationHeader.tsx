@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import {
   Button,
   IconAvatar,
+  Avatar,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -13,9 +14,19 @@ import {
   DialogHeader,
   DialogTitle
 } from '@newwork/nw-design-system'
-import { ArrowLeft, UserIcon, DotsThreeVertical, SignOut, X, Info } from '@phosphor-icons/react'
+import { ArrowLeft, DotsThreeVertical, SignOut, X, Info, Users } from '@phosphor-icons/react'
+import { UserIcon, Phone, Video, PhoneCall } from 'lucide-react'
 import type { Conversation } from '../types'
+import type { UserPresence } from '../hooks/usePresence'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { navigateTo } from '@/common/utils/navigationUtils'
+
+export interface ActiveCallInfo {
+  roomId: string
+  callType: 'audio' | 'video'
+  participantCount: number
+  participantNames: string[]
+}
 
 interface ConversationHeaderProps {
   conversation: Conversation
@@ -23,8 +34,29 @@ interface ConversationHeaderProps {
   onClose?: () => void
   onRemove?: () => void
   onGroupSettings?: () => void
+  onAudioCall?: () => void
+  onVideoCall?: () => void
+  onJoinCall?: () => void
   showBackButton?: boolean
   currentUserId?: string | null
+  compact?: boolean
+  otherUserPresence?: UserPresence
+  isCallEnabled?: boolean
+  isInCall?: boolean
+  activeCall?: ActiveCallInfo | null
+}
+
+const getOtherParticipant = (conversation: Conversation, currentUserId?: string | null) => {
+  if (conversation.type !== 'direct' || !conversation.participants || conversation.participants.length === 0) {
+    return null
+  }
+
+  // Filter out current user to get the other participant
+  const otherParticipants = conversation.participants.filter(p => {
+    return p.userId !== currentUserId && p.user?.id !== currentUserId
+  })
+
+  return otherParticipants[0] || null
 }
 
 const getConversationName = (conversation: Conversation, currentUserId?: string | null): string => {
@@ -32,75 +64,62 @@ const getConversationName = (conversation: Conversation, currentUserId?: string 
     return conversation.name
   }
 
-  if (conversation.type === 'direct' && conversation.participants && conversation.participants.length > 0) {
-    // If we have currentUserId, filter it out to get the other participant
-    if (currentUserId) {
-      const otherParticipants = conversation.participants.filter(p => {
-        // Exclude current user - check both userId and user.id
-        return p.userId !== currentUserId && p.user?.id !== currentUserId
-      })
-
-      const otherParticipant = otherParticipants[0]
-      if (otherParticipant?.user) {
-        const name = `${otherParticipant.user.firstName || ''} ${otherParticipant.user.lastName || ''}`.trim()
-        return (
-          name ||
-          otherParticipant.user.username ||
-          getTranslationFromI18nKeyAndLabel('chat.unknownUser', 'Unknown User')
-        )
-      }
-    }
-
-    // If no currentUserId or filtering didn't work, try to find a participant with user data
-    // In a direct message, there should be exactly 2 participants
-    // We'll show the first one that has user data and isn't the current user (if currentUserId is known)
-    for (const participant of conversation.participants) {
-      if (participant.user) {
-        // Skip if this is the current user
-        if (currentUserId && (participant.userId === currentUserId || participant.user.id === currentUserId)) {
-          continue
-        }
-        const name = `${participant.user.firstName || ''} ${participant.user.lastName || ''}`.trim()
-        if (name) {
-          return name
-        }
-        if (participant.user.username) {
-          return participant.user.username
-        }
-      }
-    }
-
-    // Fallback: if we have exactly 2 participants, show the first one with user data
-    // (This handles the case where currentUserId is null but we still want to show a name)
-    if (conversation.participants.length === 2) {
-      // Try to find a participant that's not the current user (if currentUserId is known)
-      let participantToShow = conversation.participants.find(p => {
-        if (!p.user) return false
-        if (currentUserId && (p.userId === currentUserId || p.user.id === currentUserId)) {
-          return false // Skip current user
-        }
-        return true
-      })
-
-      // If we didn't find one (or currentUserId is null), just get the first one with user data
-      if (!participantToShow) {
-        participantToShow = conversation.participants.find(p => p.user)
-      }
-
-      if (participantToShow?.user) {
-        const name = `${participantToShow.user.firstName || ''} ${participantToShow.user.lastName || ''}`.trim()
-        return (
-          name ||
-          participantToShow.user.username ||
-          getTranslationFromI18nKeyAndLabel('chat.directMessage', 'Direct Message')
-        )
-      }
-    }
-
-    return getTranslationFromI18nKeyAndLabel('chat.directMessage', 'Direct Message')
+  const otherParticipant = getOtherParticipant(conversation, currentUserId)
+  if (otherParticipant?.user) {
+    const name = `${otherParticipant.user.firstName || ''} ${otherParticipant.user.lastName || ''}`.trim()
+    return (
+      name || otherParticipant.user.username || getTranslationFromI18nKeyAndLabel('chat.unknownUser', 'Unknown User')
+    )
   }
 
   return getTranslationFromI18nKeyAndLabel('chat.directMessage', 'Direct Message')
+}
+
+const getConversationAvatarUrl = (conversation: Conversation, currentUserId?: string | null): string | undefined => {
+  if (conversation.type === 'group') {
+    return undefined // Groups use icon
+  }
+
+  const otherParticipant = getOtherParticipant(conversation, currentUserId)
+  return otherParticipant?.user?.avatarUrl
+}
+
+// Presence status indicator component - only shows for online/away, not offline
+const PresenceIndicator: React.FC<{ status: 'online' | 'away' | 'offline'; size?: 'sm' | 'md' }> = ({
+  status,
+  size = 'md'
+}) => {
+  // Don't show indicator for offline status
+  if (status === 'offline') return null
+
+  const statusColors = {
+    online: 'gba:bg-success',
+    away: 'gba:bg-warning',
+    offline: 'gba:bg-muted-foreground'
+  }
+
+  const statusTitles = {
+    online: 'Online',
+    away: 'Away',
+    offline: 'Offline'
+  }
+
+  const sizeClasses = size === 'sm' ? 'gba:w-2.5 gba:h-2.5' : 'gba:w-3 gba:h-3'
+
+  return (
+    <span
+      className={`gba:absolute gba:bottom-0 gba:right-0 gba:rounded-full gba:border-2 gba:border-background ${statusColors[status]} ${sizeClasses}`}
+      title={statusTitles[status]}
+    />
+  )
+}
+
+// Get presence status text for display - returns null for offline
+const getPresenceStatusText = (presence?: UserPresence): string | null => {
+  if (!presence || presence.status === 'offline') return null
+  if (presence.status === 'online') return getTranslationFromI18nKeyAndLabel('chat.statusOnline', 'Online')
+  if (presence.status === 'away') return getTranslationFromI18nKeyAndLabel('chat.statusAway', 'Away')
+  return null
 }
 
 export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
@@ -109,12 +128,35 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
   onClose,
   onRemove,
   onGroupSettings,
+  onAudioCall,
+  onVideoCall,
+  onJoinCall,
   showBackButton = false,
-  currentUserId = null
+  currentUserId = null,
+  compact = false,
+  otherUserPresence,
+  isCallEnabled = true,
+  isInCall = false,
+  activeCall = null
 }) => {
   const name = getConversationName(conversation, currentUserId)
+  const avatarUrl = getConversationAvatarUrl(conversation, currentUserId)
   const [showRemoveDialog, setShowRemoveDialog] = useState(false)
   const isGroupChat = conversation.type === 'group'
+  const isDirectChat = conversation.type === 'direct'
+  const otherParticipant = isDirectChat ? getOtherParticipant(conversation, currentUserId) : null
+  // Use employeeId for navigation, not keycloak id
+  const otherEmployeeId = (otherParticipant?.user as any)?.employeeId
+
+  const handleAvatarClick = () => {
+    if (isDirectChat && otherEmployeeId) {
+      navigateTo(`/platform/employee-record?employeeId=${otherEmployeeId}`)
+    }
+  }
+  const presenceStatus = otherUserPresence?.status || 'offline'
+  const presenceStatusText = isDirectChat ? getPresenceStatusText(otherUserPresence) : null
+  // Check for active call from prop (for group chats from useGroupCall) or conversation object
+  const hasActiveCall = isGroupChat && (!!activeCall || !!conversation.activeCall)
 
   const handleRemoveClick = () => {
     setShowRemoveDialog(true)
@@ -125,76 +167,165 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
     onRemove?.()
   }
 
+  const avatarSize = compact ? 'gba:w-8 gba:h-8' : 'gba:w-9 gba:h-9'
+
   return (
     <>
       <div
-        className="gba:flex gba:items-center gba:gap-3 gba:p-4 gba:border-b gba:bg-background"
+        className={`gba:flex gba:items-center gba:border-b gba:border-border/50 gba:bg-background/80 gba:backdrop-blur-sm gba:flex-shrink-0 ${
+          compact ? 'gba:gap-2 gba:px-3 gba:py-2' : 'gba:gap-3 gba:px-4 gba:py-3'
+        }`}
         data-testid="conversation-header"
       >
         {showBackButton && onBack && (
           <Button
             variant="ghost"
-            size="sm"
+            size="icon"
             onClick={onBack}
-            className="gba:flex-shrink-0"
+            className="gba:h-8 gba:w-8 gba:flex-shrink-0"
             data-testid="conversation-back-button"
           >
-            <ArrowLeft className="gba:w-5 gba:h-5" />
+            <ArrowLeft className="gba:w-4 gba:h-4" />
           </Button>
         )}
 
-        <IconAvatar className="gba:w-10 gba:h-10 gba:flex-shrink-0" label={name} icon={UserIcon} />
+        <div
+          className={`gba:relative gba:flex-shrink-0 ${isDirectChat && otherEmployeeId ? 'gba:cursor-pointer hover:gba:opacity-80 gba:transition-opacity' : ''}`}
+          onClick={isDirectChat && otherEmployeeId ? handleAvatarClick : undefined}
+          title={
+            isDirectChat && otherEmployeeId
+              ? getTranslationFromI18nKeyAndLabel('chat.viewProfile', 'View profile')
+              : undefined
+          }
+        >
+          {avatarUrl ? (
+            <Avatar className={avatarSize}>
+              <img src={avatarUrl} alt={name} className="gba:w-full gba:h-full gba:object-cover gba:rounded-full" />
+            </Avatar>
+          ) : (
+            <IconAvatar className={avatarSize} label={name} icon={isGroupChat ? Users : UserIcon} />
+          )}
+          {isDirectChat && <PresenceIndicator status={presenceStatus} size={compact ? 'sm' : 'md'} />}
+        </div>
 
         <div className="gba:flex-1 gba:min-w-0">
-          <h2 className="gba:font-semibold gba:truncate">{name}</h2>
-          {conversation.type === 'group' && conversation.participants && (
-            <p className="gba:text-sm gba:text-muted-foreground">
+          <h2
+            className={`gba:font-semibold gba:truncate gba:text-foreground ${compact ? 'gba:text-sm' : 'gba:text-base'}`}
+          >
+            {name}
+          </h2>
+          {/* Show presence status for direct chats - only if online/away */}
+          {isDirectChat && !compact && presenceStatusText && (
+            <p className={`gba:text-xs ${presenceStatus === 'online' ? 'gba:text-success' : 'gba:text-warning'}`}>
+              {presenceStatusText}
+            </p>
+          )}
+          {/* Show participant count for group chats */}
+          {isGroupChat && conversation.participants && !compact && (
+            <p className="gba:text-xs gba:text-muted-foreground">
               {getTranslationFromI18nKeyAndLabel('chat.participantsCount', '{count} participants').replace(
                 '{count}',
                 conversation.participants.length.toString()
               )}
             </p>
           )}
+          {hasActiveCall && !compact && (
+            <p className="gba:text-xs gba:text-success">
+              {getTranslationFromI18nKeyAndLabel('chat.activeCallInGroup', 'Active call in this group')}
+            </p>
+          )}
         </div>
 
-        {!showBackButton && onClose && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onClose}
-            className="gba:flex-shrink-0"
-            data-testid="conversation-close-button"
-            title={getTranslationFromI18nKeyAndLabel('chat.closeConversation', 'Close conversation')}
-          >
-            <X className="gba:w-5 gba:h-5" />
-          </Button>
-        )}
+        <div className="gba:flex gba:items-center gba:gap-1">
+          {/* Call controls - show join button for active calls, or call buttons otherwise */}
+          {isCallEnabled && !isInCall && (
+            <>
+              {hasActiveCall && onJoinCall ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onJoinCall}
+                  className="gba:h-8 gba:w-8 gba:flex-shrink-0 gba:text-success gba:hover:text-success gba:hover:bg-success/10"
+                  data-testid="conversation-join-call-button"
+                  title={getTranslationFromI18nKeyAndLabel('chat.joinCall', 'Join call')}
+                >
+                  <PhoneCall className="gba:w-4 gba:h-4" />
+                </Button>
+              ) : (
+                <>
+                  {onAudioCall && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={onAudioCall}
+                      className="gba:h-8 gba:w-8 gba:flex-shrink-0"
+                      data-testid="conversation-audio-call-button"
+                      title={getTranslationFromI18nKeyAndLabel('chat.startAudioCall', 'Start audio call')}
+                    >
+                      <Phone className="gba:w-4 gba:h-4" />
+                    </Button>
+                  )}
+                  {onVideoCall && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={onVideoCall}
+                      className="gba:h-8 gba:w-8 gba:flex-shrink-0"
+                      data-testid="conversation-video-call-button"
+                      title={getTranslationFromI18nKeyAndLabel('chat.startVideoCall', 'Start video call')}
+                    >
+                      <Video className="gba:w-4 gba:h-4" />
+                    </Button>
+                  )}
+                </>
+              )}
+            </>
+          )}
 
-        {(onRemove || (isGroupChat && onGroupSettings)) && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="gba:flex-shrink-0" data-testid="conversation-menu-button">
-                <DotsThreeVertical className="gba:w-5 gba:h-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {isGroupChat && onGroupSettings && (
-                <DropdownMenuItem onClick={onGroupSettings} data-testid="conversation-group-settings-button">
-                  <Info className="gba:w-4 gba:h-4 gba:mr-2" />
-                  {getTranslationFromI18nKeyAndLabel('chat.groupSettings', 'Group Settings')}
-                </DropdownMenuItem>
-              )}
-              {onRemove && (
-                <DropdownMenuItem onClick={handleRemoveClick} data-testid="conversation-remove-button">
-                  <SignOut className="gba:w-4 gba:h-4 gba:mr-2" />
-                  {isGroupChat
-                    ? getTranslationFromI18nKeyAndLabel('chat.leaveConversation', 'Leave conversation')
-                    : getTranslationFromI18nKeyAndLabel('chat.removeConversation', 'Remove conversation')}
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+          {!showBackButton && onClose && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              className="gba:h-8 gba:w-8 gba:flex-shrink-0"
+              data-testid="conversation-close-button"
+              title={getTranslationFromI18nKeyAndLabel('chat.closeConversation', 'Close conversation')}
+            >
+              <X className="gba:w-4 gba:h-4" />
+            </Button>
+          )}
+
+          {(onRemove || (isGroupChat && onGroupSettings)) && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="gba:h-8 gba:w-8 gba:flex-shrink-0"
+                  data-testid="conversation-menu-button"
+                >
+                  <DotsThreeVertical className="gba:w-4 gba:h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {isGroupChat && onGroupSettings && (
+                  <DropdownMenuItem onClick={onGroupSettings} data-testid="conversation-group-settings-button">
+                    <Info className="gba:w-4 gba:h-4 gba:mr-2" />
+                    {getTranslationFromI18nKeyAndLabel('chat.groupSettings', 'Group Settings')}
+                  </DropdownMenuItem>
+                )}
+                {onRemove && (
+                  <DropdownMenuItem onClick={handleRemoveClick} data-testid="conversation-remove-button">
+                    <SignOut className="gba:w-4 gba:h-4 gba:mr-2" />
+                    {isGroupChat
+                      ? getTranslationFromI18nKeyAndLabel('chat.leaveConversation', 'Leave conversation')
+                      : getTranslationFromI18nKeyAndLabel('chat.removeConversation', 'Remove conversation')}
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
       </div>
 
       <Dialog open={showRemoveDialog} onOpenChange={setShowRemoveDialog}>

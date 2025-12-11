@@ -1,4 +1,4 @@
-import { ExpenseRequestTrip, TravelRegion } from '../types/expensePlanTypes'
+import { ExpenseRequestTrip, TravelRegion } from '../types/expensePlanV2Types'
 
 /**
  * Extracts destinations from a list of trip points.

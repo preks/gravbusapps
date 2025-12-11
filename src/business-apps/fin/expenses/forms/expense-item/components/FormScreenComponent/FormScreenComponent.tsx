@@ -1,6 +1,7 @@
-import React, { useCallback } from 'react'
+import React, { useCallback, useEffect, useRef, useMemo } from 'react'
 import { Button, DateInputField, Divider, InputField, SelectField, Switch } from '@newwork/gravity-ui-catalog'
 import { Form, Row, Col } from 'antd'
+import { Badge } from '@newwork/nw-design-system'
 import { ExpensePosition, ExpenseGroup, ExpenseType, CostCenter, Currency, CustomField } from '../../types'
 import UploadComponent from '../UploadComponent'
 import SinglePositionComponent from './SinglePositionComponent'
@@ -67,7 +68,84 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
   isEmbeddedInRequestWizard = false
 }) => {
   const t = getTranslationFromI18nKeyAndLabel
-  const { isProcessingFiles, isFormDisabled, expenseRuleError, handleCurrencyChange, isEditMode } = useExpenseItem()
+  const { isProcessingFiles, isFormDisabled, expenseRuleError, handleCurrencyChange, isEditMode, additionalData } =
+    useExpenseItem()
+
+  const selectedExpenseRequestId = Form.useWatch('expenseRequestId', form)
+  const hadBackendRequestRef = useRef(false)
+
+  useEffect(() => {
+    if (hadBackendRequestRef.current || !isEditMode) {
+      return
+    }
+
+    const initialRequestId = selectedExpenseRequestId || form.getFieldValue('expenseRequestId')
+    if (initialRequestId && initialRequestId !== '0') {
+      hadBackendRequestRef.current = true
+    }
+  }, [form, isEditMode, selectedExpenseRequestId])
+
+  const expenseRequestOptions = useMemo(() => {
+    return expenseRequests.map(request => {
+      // For "None" option, return simple text
+      if (request.id === '0') {
+        return {
+          id: request.id,
+          name: request.title || request.code
+        }
+      }
+
+      // For expense requests with status, create a React element with Badge
+      const statusDisplay = request.statusDisplay
+      const formattedDate = request.formattedDate || ''
+      const title = request.title || request.code || ''
+
+      const badgeVariant = statusDisplay?.badgeVariant || 'outline'
+      const statusLabel = statusDisplay?.label || ''
+
+      // Map badge variant to text color token
+      const getTextColorClass = (variant: string) => {
+        switch (variant) {
+          case 'offline':
+            return 'gba:text-offline'
+          case 'warning':
+            return 'gba:text-warning'
+          case 'info':
+            return 'gba:text-info'
+          case 'success':
+            return 'gba:text-success'
+          default:
+            return ''
+        }
+      }
+
+      const textColorClass = statusDisplay ? getTextColorClass(badgeVariant) : ''
+
+      return {
+        id: request.id,
+        name: (
+          <div className="gba:flex gba:items-center gba:gap-2">
+            {statusLabel && (
+              <Badge variant={badgeVariant} className="gba:shrink-0">
+                {statusLabel}
+              </Badge>
+            )}
+            <span className={`${textColorClass} gba:min-w-0 gba:truncate`}>
+              {formattedDate} - {title}
+            </span>
+          </div>
+        )
+      }
+    })
+  }, [expenseRequests])
+
+  const hasBackendPreselectedRequest =
+    hadBackendRequestRef.current ||
+    !!(additionalData?.expenseRequestId || additionalData?.psi_taskPayload?.psi_initialParameters?.expenseRequest)
+
+  const filteredExpenseRequestOptions = hasBackendPreselectedRequest
+    ? expenseRequestOptions.filter(option => option.id !== '0')
+    : expenseRequestOptions
 
   // Memoize the submit handler to prevent re-creating on every render
   const handleCreateClick = useCallback(
@@ -75,20 +153,16 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
       e.stopPropagation()
       e.preventDefault()
 
-      // Defer validation to next tick to prevent visual jumps
       setTimeout(async () => {
         try {
-          // Validate without scroll to prevent DOM jumping
           await form.validateFields()
 
-          // Check for expense rule errors
           if (expenseRuleError) {
             return
           }
 
           handleSubmit()
         } catch (errorInfo) {
-          // Form validation failed - scroll to first error smoothly
           const firstErrorField = (errorInfo as any)?.errorFields?.[0]?.name?.[0]
           if (firstErrorField) {
             const element = document.querySelector(`[name="${firstErrorField}"]`)
@@ -365,12 +439,18 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
             allowClear
             name="expenseRequestId"
             data-testid="expense-request-select"
-            data={[
-              ...expenseRequests.map(request => ({
-                id: request.id,
-                name: request.title || request.code
-              }))
-            ]}
+            data={filteredExpenseRequestOptions}
+            value={
+              selectedExpenseRequestId
+                ? {
+                    id: selectedExpenseRequestId,
+                    name:
+                      filteredExpenseRequestOptions.find(option => option.id === selectedExpenseRequestId)?.name ||
+                      expenseRequestOptions.find(option => option.id === selectedExpenseRequestId)?.name ||
+                      selectedExpenseRequestId
+                  }
+                : undefined
+            }
             onChange={(value: any) => {
               form.setFieldsValue({ expenseRequestId: value.value })
             }}
@@ -405,7 +485,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         <Button
           variant="primary"
           onClick={handleCreateClick}
-          disabled={isProcessingFiles}
+          disabled={isProcessingFiles || (isEditMode && hadBackendRequestRef.current && !selectedExpenseRequestId)}
           className="gba:min-w-[100px] gba:border-2 gba:text-base gba:font-semibold gba:px-4"
           style={{ borderRadius: '22px', width: 'auto', height: '40px' }}
           data-testid="submit-button"

@@ -5,4 +5,4 @@ export { default } from './InvestmentView'
 export { default as InvestmentView } from './InvestmentView'
 
 // Export components
-export * from './components'
+export * from './data'

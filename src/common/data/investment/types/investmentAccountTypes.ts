@@ -4,11 +4,17 @@
 
 import {
   type Account,
-  type CommonAccountFilters,
   AccountFields,
-  createAccountDescriptors
+  createAccountDescriptors,
+  AccountFormFields
 } from '@/common/data/relations/types/accountTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
+import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
+import {
+  filterCommunicationChannels,
+  filterAddresses,
+  filterAddressLines
+} from '@/common/data/common/utils/entityPayloadHelpers'
 import { type Investment, type InvestmentReport } from './investmentTypes'
 import type { InvestmentAddress } from './investmentAddressTypes'
 import type { InvestmentCommunicationChannel } from './investmentCommunicationChannelTypes'
@@ -25,31 +31,20 @@ import type { InvestmentAccountContact } from './investmentAccountContactTypes'
  * Extends Account with IRM-specific fields and proper type mappings
  */
 export interface InvestmentAccount extends Account {
-  // Map any types from Account to specific Investment types
+  // Investment-specific fields
+  investments?: Investment[]
+  investmentReports?: InvestmentReport[]
+
+  // Mapped from Account to Investment-specific types
   accountContacts?: InvestmentAccountContact[]
   activities?: InvestmentActivity[]
   addresses?: InvestmentAddress[]
   communicationChannels?: InvestmentCommunicationChannel[]
   documents?: InvestmentDocument[]
-  investments?: Investment[]
-  investmentReports?: InvestmentReport[]
   leads?: InvestmentLead[]
   notes?: InvestmentNote[]
   opportunities?: InvestmentOpportunity[]
   tasks?: InvestmentTask[]
-
-  // Base fields for mapping (IRM-specific GraphQL field names that need mapping)
-  investment?: Investment[] // Mapped to investments (singular in GraphQL)
-  investmentAccountContact?: InvestmentAccountContact[] // Mapped to accountContacts
-  investmentActivity?: InvestmentActivity[] // Duplicate - mapped to activities
-  investmentAddress?: InvestmentAddress[] // Duplicate - mapped to addresses
-  investmentCommunicationChannel?: InvestmentCommunicationChannel[] // Duplicate - mapped to communicationChannels
-  investmentDocument?: InvestmentDocument[] // Duplicate - mapped to documents
-  investmentLead?: InvestmentLead[] // Duplicate - mapped to leads
-  investmentNote?: InvestmentNote[] // Duplicate - mapped to notes
-  investmentOpportunity?: InvestmentOpportunity[] // Mapped to opportunities
-  investmentReport?: InvestmentReport[] // Mapped to reports
-  investmentTask?: InvestmentTask[] // Duplicate - mapped to tasks
 }
 
 /**
@@ -60,15 +55,13 @@ export const InvestmentAccountFields = {
   ...AccountFields,
   // Override IRM-specific field names
   accountContacts: 'investmentAccountContact',
-  activities: 'investmentActivity',
-  documents: 'investmentDocument',
+  //activities: 'investmentActivity',
+  //documents: 'investmentDocument',
   leads: 'investmentLead',
-  notes: 'investmentNote',
-  opportunities: 'investmentOpportunity',
-  tasks: 'investmentTask'
+  //notes: 'investmentNote',
+  opportunities: 'investmentOpportunity'
+  //tasks: 'investmentTask'
 } as const
-
-export type InvestmentAccountFieldName = (typeof InvestmentAccountFields)[keyof typeof InvestmentAccountFields]
 
 /**
  * Investment Account Descriptors
@@ -79,20 +72,89 @@ export const INVESTMENT_ACCOUNT_DESCRIPTORS: Descriptor[] = [
   ...createAccountDescriptors(InvestmentAccountFields as Record<keyof typeof AccountFields, string>),
 
   // IRM-specific fields (not in Common/CRM)
-  {
-    key: 'investments',
-    searchPaths: ['investment.name', 'investment.code'],
-    sortPath: 'investment.name',
-    type: 'text'
-  },
+  // Note: investmentInvestmentAccount is a relationship from Investment TO InvestmentAccount
+  // It does not exist as a field ON InvestmentAccount
+  // Filtering InvestmentAccount by investment data must be done via reverse relationships
+  // For now, these descriptors are commented out as they require a different approach
 
   // IRM-specific filter IDs
-  { key: 'investmentIds', path: 'investment.id', kind: 'inIds' },
   { key: 'reportIds', path: 'investmentReport.id', kind: 'inIds' }
 ]
 
 /**
- * Investment Account Filters
- * Alias for CommonAccountFilters (IRM uses same filter structure as Common)
+ * Investment Account Form Fields Configuration
+ * Extends AccountFormFields with IRM-specific fields (currently just mirrors AccountFormFields)
+ *
+ * This allows for future IRM-specific field additions or overrides
  */
-export type InvestmentAccountFilters = CommonAccountFilters
+export const investmentAccountFormFields = { ...AccountFormFields } as const
+
+export const buildInvestmentAccountPayload = (account: Partial<InvestmentAccount>) => {
+  // Build base payload using investmentAccountFormFields for field mapping
+  const payload = buildPayload(account, investmentAccountFormFields)
+
+  // Filter communication channels
+  const filteredChannels = filterCommunicationChannels(payload.communicationChannels)
+  if (filteredChannels) {
+    payload.communicationChannels = filteredChannels
+  } else {
+    delete payload.communicationChannels
+  }
+
+  // Filter addresses (IRM keeps addressLine as object)
+  const filteredAddresses = filterAddresses(payload.addresses, filterAddressLines)
+  if (filteredAddresses) {
+    payload.addresses = filteredAddresses
+  } else {
+    delete payload.addresses
+  }
+
+  return {
+    investmentAccount: payload
+  }
+}
+
+/**
+ * Transform raw GraphQL response to InvestmentAccount
+ *
+ * NOTE: IRM field naming already matches Account standards:
+ * - industryClass (IRM) ✓
+ * - companySize (IRM) ✓
+ * - accountAnnualRevenueBand (IRM) ✓
+ * - locality (IRM) ✓
+ *
+ * This mapper handles array naming transformations:
+ * - investment → investments
+ * - investmentReport → reports
+ * - investmentAddress → addresses
+ * - investmentCommunicationChannel → communicationChannels
+ * - investmentAccountContact → accountContacts (common naming)
+ * - investmentOpportunity → opportunities (common naming)
+ * - investmentLead → leads (common naming)
+ */
+export function toInvestmentAccount(raw: any): InvestmentAccount {
+  // Extract GraphQL field names to exclude from spread
+  const {
+    investments, // GraphQL field name for junction table relationship
+    investmentReport,
+    investmentAccountContact,
+    investmentAddress,
+    investmentCommunicationChannel,
+    investmentLead,
+    investmentOpportunity,
+    ...rest
+  } = raw
+
+  return {
+    ...rest,
+    // Map GraphQL field names to TypeScript interface names
+    // investments field comes from GraphQL relationship, keep it as-is
+    investments: investments ?? [],
+    investmentReports: raw.investmentReports ?? investmentReport,
+    accountContacts: raw.accountContacts ?? investmentAccountContact,
+    addresses: raw.addresses ?? investmentAddress,
+    communicationChannels: raw.communicationChannels ?? investmentCommunicationChannel,
+    leads: raw.leads ?? investmentLead,
+    opportunities: raw.opportunities ?? investmentOpportunity
+  } as InvestmentAccount
+}
