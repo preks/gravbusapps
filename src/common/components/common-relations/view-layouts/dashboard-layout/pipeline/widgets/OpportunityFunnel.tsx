@@ -26,7 +26,7 @@ const formatCurrency = (amount: number, currencyCode: string = 'EUR'): string =>
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
     }).format(amount)
-  } catch (error) {
+  } catch {
     return `${currencyCode} ${amount.toLocaleString()}`
   }
 }
@@ -38,9 +38,10 @@ const formatPercentage = (value: number, decimals: number = 1): string => {
 export interface OpportunityFunnelProps {
   funnelData: OpportunityFunnelData[]
   pipelineId: string
+  currency?: string
 }
 
-export const OpportunityFunnel: React.FC<OpportunityFunnelProps> = ({ funnelData, pipelineId }) => {
+export const OpportunityFunnel: React.FC<OpportunityFunnelProps> = ({ funnelData, pipelineId, currency = 'EUR' }) => {
   if (!funnelData || funnelData.length === 0) {
     return (
       <Card>
@@ -100,7 +101,9 @@ export const OpportunityFunnel: React.FC<OpportunityFunnelProps> = ({ funnelData
                   </div>
                   <div className="gba:text-right">
                     <div className="gba:text-sm gba:text-gray-600">{stage.count} deals</div>
-                    <div className="gba:text-lg gba:font-bold gba:text-gray-900">{formatCurrency(stage.value)}</div>
+                    <div className="gba:text-lg gba:font-bold gba:text-gray-900">
+                      {formatCurrency(stage.value, currency)}
+                    </div>
                   </div>
                 </div>
 
@@ -116,7 +119,7 @@ export const OpportunityFunnel: React.FC<OpportunityFunnelProps> = ({ funnelData
                 <div className="gba:flex gba:justify-between gba:items-center gba:text-sm">
                   <div className="gba:flex gba:items-center gba:gap-4">
                     <span className="gba:text-gray-500">{formatPercentage(stage.percentage)} of total</span>
-                    <span className="gba:text-gray-500">Avg: {formatCurrency(avgDealSize)}</span>
+                    <span className="gba:text-gray-500">Avg: {formatCurrency(avgDealSize, currency)}</span>
                   </div>
                   {index < funnelData.length - 1 && <div className="gba:text-gray-400 gba:text-xs">→ Next stage</div>}
                 </div>
@@ -140,7 +143,9 @@ export const OpportunityFunnel: React.FC<OpportunityFunnelProps> = ({ funnelData
               <div className="gba:text-sm gba:text-gray-600 gba:font-medium">Total Opportunities</div>
             </div>
             <div className="gba:text-center gba:p-3 gba:bg-white gba:rounded-lg gba:shadow-sm">
-              <div className="gba:text-2xl gba:font-bold gba:text-green-600">{formatCurrency(totalValue)}</div>
+              <div className="gba:text-2xl gba:font-bold gba:text-green-600">
+                {formatCurrency(totalValue, currency)}
+              </div>
               <div className="gba:text-sm gba:text-gray-600 gba:font-medium">Total Value</div>
             </div>
           </div>

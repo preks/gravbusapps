@@ -92,10 +92,15 @@ export const INVESTMENT_REPORT = `
       value
     }
     
-    # Investment account for proprietor information
-    investmentAccount {
+    # Investment accounts via junction table (replaces direct investmentAccount)
+    investmentAccounts(where: { isDeleted: { _eq: false } }) {
       id
-      name
+      investmentAccountId
+      investmentAccountTypeRef
+      investmentAccount {
+        id
+        name
+      }
     }
     
     # Loan recipient investment account (also available at report root level)
@@ -193,9 +198,14 @@ export const LIQUID_FUND_INVESTMENT_REPORT = `
       code
       isin
       additionalProperties
-      investmentAccount {
+      # Investment accounts via junction table (replaces direct investmentAccount)
+      investmentAccounts(where: { isDeleted: { _eq: false } }) {
         id
-        name
+        investmentAccountId
+        investmentAccount {
+          id
+          name
+        }
       }
     }
     investmentLiquidFundType { ${CATALOG_ENTRY} }

@@ -17,6 +17,7 @@ import { useCustomerContact } from '@/common/data/customer/hooks/useCustomerCont
 import { useCustomerActivities } from '@/common/data/customer/hooks/useCustomerActivities'
 import { useCustomerTasks } from '@/common/data/customer/hooks/useCustomerTasks'
 import { useCustomerNotes } from '@/common/data/customer/hooks/useCustomerNotes'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { HomeView } from './views/home-view/HomeView'
@@ -147,52 +148,16 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
     await refetchContactData()
   }, [refetchContactData])
 
+  // Memoized callback for process completion
+  const handleProcessSuccess = useCallback(() => {
+    fetchContactData()
+    loadSectionData()
+  }, [fetchContactData, loadSectionData])
+
   // Listen for process completion events to refresh contact data
-  useEffect(() => {
-    const handleProcessCompletion = async (event: any) => {
-      try {
-        // Check for successful completion
-        if (event.detail?.resolution === 'success') {
-          await fetchContactData()
-          await loadSectionData() // Also refresh section data
-          return
-        }
-
-        // Also check for different event structure
-        const response = event.detail?.response
-        if (response?.detail?.resolution === 'success' || response?.contact) {
-          await fetchContactData()
-          await loadSectionData() // Also refresh section data
-        }
-      } catch (err) {
-        console.error('Error handling process completion in ContactRecord:', err)
-      }
-    }
-
-    // Listen to multiple possible event names for contact updates
-    const eventNames = [
-      'com.newwork.process.taskCompletion',
-      'com.newwork.process.completion',
-      'com.newwork.process.continue',
-      'com.newwork.process.processCompletion',
-      'processCompletion',
-      'taskCompletion',
-      'taskCompleted',
-      'processCompleted',
-      'task-completion',
-      'process-completion'
-    ]
-
-    eventNames.forEach(eventName => {
-      window.addEventListener(eventName, handleProcessCompletion as EventListener)
-    })
-
-    return () => {
-      eventNames.forEach(eventName => {
-        window.removeEventListener(eventName, handleProcessCompletion as EventListener)
-      })
-    }
-  }, [contactId, fetchContactData, loadSectionData])
+  useProcessCompletion({
+    onSuccess: handleProcessSuccess
+  })
 
   const getBackButtonText = () => {
     if (fromEntity === 'leads') {

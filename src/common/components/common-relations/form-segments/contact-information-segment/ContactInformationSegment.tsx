@@ -11,9 +11,9 @@ import {
 } from '@newwork/nw-design-system'
 import { useFormContext } from 'react-hook-form'
 import { EmployeeSelect } from '@/components/employee-select'
-import { AccountSelect } from '@/common/components/common-relations/selects/account-select'
+import { AccountSegment } from '@/common/components/common-relations/form-segments/account-segment'
+import type { AccountSegmentOption } from '@/common/components/common-relations/form-segments/account-segment'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import type { SelectOption as AccountSelectOption } from '@/common/components/common-relations/selects/account-select'
 import translations from './_i18n'
 
 interface ContactInformationSegmentProps {
@@ -51,17 +51,10 @@ const ContactInformationSegment: React.FC<ContactInformationSegmentProps> = ({
   const form = useFormContext<any>()
   const { t } = useTranslation(translations)
 
-  // Transform accounts to SelectOption[] internally
-  const accountOptions = useMemo<AccountSelectOption[]>(() => {
+  // Transform accounts to AccountSegmentOption[]
+  const accountOptions = useMemo<AccountSegmentOption[]>(() => {
     if (!useAccounts?.accounts) return []
     return useAccounts.accounts.map((account: any) => {
-      const emailChannel = account.communicationChannels?.find(
-        (ch: any) => ch.communicationChannel?.code === 'EMAIL' || ch.communicationChannelRef?.includes(':EMAIL')
-      )
-      const phoneChannel = account.communicationChannels?.find(
-        (ch: any) => ch.communicationChannel?.code === 'PHONE' || ch.communicationChannelRef?.includes(':PHONE')
-      )
-
       return {
         id: account.id || '',
         value: account.id || '',
@@ -69,19 +62,11 @@ const ContactInformationSegment: React.FC<ContactInformationSegmentProps> = ({
         name: account.displayName || account.name || 'Unknown Account',
         pictureThumbnail: account.pictureThumbnail || undefined,
         extraInfo: {
-          email: emailChannel?.value || undefined,
-          phone: phoneChannel?.value || undefined,
           website: account.website || undefined,
           businessKey: account.businessKey || undefined,
-          code: account.code || undefined,
-          ownerEmployee: account.ownerEmployee
-            ? {
-                firstName: account.ownerEmployee.firstName,
-                lastName: account.ownerEmployee.lastName
-              }
-            : undefined
+          code: account.code || undefined
         }
-      } as AccountSelectOption
+      }
     })
   }, [useAccounts?.accounts])
 
@@ -103,55 +88,6 @@ const ContactInformationSegment: React.FC<ContactInformationSegmentProps> = ({
       return pictureStr
     }
   }
-
-  // Helper function to transform accountContact to AccountSelect format
-  const transformAccountContactToAccountSelect = (
-    ac: any
-  ): { id: string; name: string; contactType?: string; pictureThumbnail?: string } => {
-    if (ac.account) {
-      const account = ac.account
-      const displayName = account.displayName || account.name || 'Unknown Account'
-      return {
-        id: ac.accountId || ac.account?.id || '',
-        name: displayName,
-        contactType: ac.contactType || undefined,
-        pictureThumbnail: account.pictureThumbnail
-      }
-    }
-    return {
-      id: ac.accountId || '',
-      name: ac.account?.name || 'Unknown Account',
-      contactType: ac.contactType || undefined
-    }
-  }
-
-  // Helper function to get account ID from accountContact
-  const getAccountIdFromAccountContact = (ac: any): string => {
-    return ac.accountId || (ac.account?.id ? ac.account.id : '')
-  }
-
-  // Helper function to transform account value to accountContact format
-  const transformAccountValueToAccountContact = useCallback(
-    (accountValue: any, contactId: string | undefined, existingAccountContacts: any[]) => {
-      const accountId = typeof accountValue === 'object' ? accountValue.id : accountValue
-      const contactType = typeof accountValue === 'object' ? accountValue.contactType : undefined
-
-      // Find existing accountContact to preserve id and version
-      const existingAc = existingAccountContacts.find((ac: any) => {
-        const acAccountId = getAccountIdFromAccountContact(ac)
-        return acAccountId === accountId
-      })
-
-      return {
-        ...(existingAc?.id && { id: existingAc.id }),
-        ...(existingAc?.version !== undefined && { version: existingAc.version }),
-        accountId: accountId,
-        contactId: contactId || undefined,
-        contactType: contactType || null
-      }
-    },
-    []
-  )
 
   // Get avatar image from form values (pictureThumbnail or picture)
   const pictureThumbnail = form.watch('pictureThumbnail')
@@ -310,65 +246,25 @@ const ContactInformationSegment: React.FC<ContactInformationSegmentProps> = ({
       {/* Custom fields slot */}
       {customFields}
 
-      {/* Account Selection using AccountSelect */}
+      {/* Account Selection - Multiple accounts with contact types */}
       {useAccounts && (
-        <FormField
-          control={form.control}
-          name="accountContacts"
-          render={({ field, fieldState }) => {
-            // Transform accountContacts to AccountSelect format
-            const accountContacts = field.value || []
-            const accountSelectValue = accountContacts.map(transformAccountContactToAccountSelect)
-
-            // Handle onChange - transform back to accountContacts format
-            const handleChange = (
-              accountIds:
-                | string
-                | Array<string | { id: string; name: string; contactType?: string }>
-                | { id: string; name: string; contactType?: string }
-                | { id: string; name: string }
-                | null
-            ) => {
-              // Normalize to array
-              let normalizedValue: Array<string | { id: string; name: string; contactType?: string }>
-              if (Array.isArray(accountIds)) {
-                normalizedValue = accountIds
-              } else if (accountIds === null || accountIds === '') {
-                normalizedValue = []
-              } else {
-                normalizedValue = [accountIds]
-              }
-
-              const contactId = form.getValues('id')
-              const existingAccountContacts = field.value || []
-              const accountContacts = normalizedValue.map((accountValue: any) =>
-                transformAccountValueToAccountContact(accountValue, contactId, existingAccountContacts)
-              )
-              field.onChange(accountContacts)
-            }
-
-            return (
-              <FormItem>
-                <FormLabel>{t('contact-accounts-label')}</FormLabel>
-                <FormControl>
-                  <AccountSelect
-                    value={accountSelectValue}
-                    onChange={handleChange}
-                    accounts={accountOptions}
-                    accountsLoading={useAccounts.loading}
-                    accountsError={useAccounts.error}
-                    searchAccounts={searchAccounts}
-                    accountContacts={field.value || []}
-                    multiple={true}
-                    dataTestId="contact-information-segment-accounts"
-                    error={fieldState.error?.message || null}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )
-          }}
-        />
+        <FormItem>
+          <FormLabel>{t('contact-accounts-label')}</FormLabel>
+          <FormControl>
+            <AccountSegment
+              fieldArrayName="accountContacts"
+              accountIdFieldName="accountId"
+              accountTypeFieldName="contactType"
+              typeMode="contactType"
+              accounts={accountOptions}
+              accountsLoading={useAccounts.loading}
+              accountsError={useAccounts.error}
+              searchAccounts={searchAccounts}
+              accountContacts={form.watch('accountContacts') || []}
+              dataTestId="contact-information-segment-accounts"
+            />
+          </FormControl>
+        </FormItem>
       )}
     </div>
   )

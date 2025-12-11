@@ -9,7 +9,7 @@ import { useForm } from 'react-hook-form'
 import type { GrantEmployeeBonusFormValues, CatalogEntry } from './types'
 import BonusDetailsGroup from './components/BonusDetailsGroup'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
-import { extractEmployeeId } from './utils/employeeIdUtils'
+import { extractEmployeeId } from '@/business-apps/hr/core/utils/employeeIdUtils'
 import { useTaskCancellation } from '../../hooks/useTaskCancellation'
 import translations from '../_i18n'
 

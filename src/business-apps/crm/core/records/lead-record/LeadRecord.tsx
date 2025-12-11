@@ -19,6 +19,7 @@ import { buildLeadStatusesQuery } from '@/common/data/relations/queries/leadQuer
 import { useCustomerActivities } from '@/common/data/customer/hooks/useCustomerActivities'
 import { useCustomerNotes } from '@/common/data/customer/hooks/useCustomerNotes'
 import { useCustomerTasks } from '@/common/data/customer/hooks/useCustomerTasks'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
@@ -199,52 +200,16 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
     loadSectionData()
   }, [loadSectionData])
 
+  // Memoized callback for process completion
+  const handleProcessSuccess = useCallback(() => {
+    fetchLeadData()
+    loadSectionData()
+  }, [fetchLeadData, loadSectionData])
+
   // Listen for process completion events to refresh lead data
-  useEffect(() => {
-    const handleProcessCompletion = async (event: any) => {
-      try {
-        // Check for successful completion
-        if (event.detail?.resolution === 'success') {
-          await fetchLeadData()
-          await loadSectionData() // Also refresh section data
-          return
-        }
-
-        // Also check for different event structure
-        const response = event.detail?.response
-        if (response?.detail?.resolution === 'success' || response?.lead) {
-          await fetchLeadData()
-          await loadSectionData() // Also refresh section data
-        }
-      } catch (err) {
-        console.error('Error handling process completion in LeadRecord:', err)
-      }
-    }
-
-    // Listen to multiple possible event names for lead updates
-    const eventNames = [
-      'com.newwork.process.taskCompletion',
-      'com.newwork.process.completion',
-      'com.newwork.process.continue',
-      'com.newwork.process.processCompletion',
-      'processCompletion',
-      'taskCompletion',
-      'taskCompleted',
-      'processCompleted',
-      'task-completion',
-      'process-completion'
-    ]
-
-    eventNames.forEach(eventName => {
-      window.addEventListener(eventName, handleProcessCompletion as EventListener)
-    })
-
-    return () => {
-      eventNames.forEach(eventName => {
-        window.removeEventListener(eventName, handleProcessCompletion as EventListener)
-      })
-    }
-  }, [leadId, fetchLeadData, loadSectionData])
+  useProcessCompletion({
+    onSuccess: handleProcessSuccess
+  })
 
   const getBackButtonText = () => {
     if (fromEntity === 'salesPerformance') {

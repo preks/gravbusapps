@@ -14,7 +14,13 @@ interface AdditionalPropertiesFormValues {
 }
 
 const AddSkillContent: React.FC<BusinessAppContextProps> = props => {
-  const { employeeId: ctxEmployeeId, existingProps, existingPropsMap, employeeVersion } = useAdditionalProperties()
+  const {
+    employeeId: ctxEmployeeId,
+    existingProps,
+    existingPropsMap,
+    employeeVersion,
+    employeeHeaderInfo
+  } = useAdditionalProperties()
 
   // New property inputs and list
   const [propName, setPropName] = useState('')
@@ -46,11 +52,6 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = props => {
     () => getTranslationFromI18nKeyAndLabel('lowcoder:additional_props_form.title', 'Update Additional Properties'),
     []
   )
-
-  // Display name derived from user info
-  const employeeFullName = `${props.userInfo?.employeeDetails?.firstName || ''} ${
-    props.userInfo?.employeeDetails?.lastName || ''
-  }`.trim()
 
   const normalizedDefaults: AdditionalPropertiesFormValues = useMemo(
     () => ({
@@ -125,20 +126,26 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = props => {
       className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-full"
       data-testid="flw_addSkills_addSkillsContainer"
     >
-      <FormHeader title={title} flowIconUrl={flowIconUrl} className="gba:px-6" />
+      <FormHeader
+        title={title}
+        flowIconUrl={flowIconUrl}
+        className="gba:px-6"
+        employee={
+          employeeHeaderInfo
+            ? {
+                firstName: employeeHeaderInfo.firstName,
+                lastName: employeeHeaderInfo.lastName,
+                pictureThumbnail: employeeHeaderInfo.pictureThumbnail,
+                jobTitle: employeeHeaderInfo.jobTitle
+              }
+            : undefined
+        }
+      />
 
       <div
         className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='add-skill-form']]:!py-0"
         data-testid="add-skill-form-content"
       >
-        {/* Header showing current employee name */}
-        <div
-          className="gba:text-muted-foreground gba:font-bold gba:mb-2 gba:px-6"
-          data-testid="flw_addSkills_employeeText"
-        >
-          {employeeFullName}
-        </div>
-
         <AppActionForm
           processType="update"
           form={form as any}

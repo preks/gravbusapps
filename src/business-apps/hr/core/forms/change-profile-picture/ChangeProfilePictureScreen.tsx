@@ -8,6 +8,7 @@ import { useGetEmployeePicture } from './queries/ChangeProfilePictureQueries'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import AppActionForm from '@/components/app-action-form/AppActionForm'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
+import FormHeader from '../components/FormHeader'
 
 const prefixDataTestId = 'ChangeProfilePictureScreen'
 
@@ -22,11 +23,14 @@ type AvatarUploadValue = {
   thumbnail: string | null
 }
 
+import { EmployeeInfo } from '../components/FormHeader'
+
 const ChangeProfilePictureScreen: React.FC<BusinessAppContextProps> = ({ additionalData, userInfo, accessToken }) => {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [isImageLoading, setIsImageLoading] = useState<boolean>(true)
   const [currentVersion, setCurrentVersion] = useState<number | null>(null)
   const [changedFile, setChangedFile] = useState<AvatarUploadValue | null>(null)
+  const [employeeHeaderInfo, setEmployeeHeaderInfo] = useState<EmployeeInfo | undefined>(undefined)
   const onChangeExecutionsRef = useRef<number>(0)
 
   const currentImageUrl = useMemo(() => {
@@ -34,29 +38,46 @@ const ChangeProfilePictureScreen: React.FC<BusinessAppContextProps> = ({ additio
     return typeof avatar === 'string' && avatar.length > 0 ? avatar : null
   }, [additionalData])
 
-  // GraphQL: Prefill from existing picture
   const { fetchEmployeePicture } = useGetEmployeePicture({ accessToken, userInfo })
   const fileClient = useFileClient({ accessToken, userInfo })
+
+  const employeeId = useMemo(() => {
+    return (
+      (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.employeeId ||
+      userInfo?.employeeDetails?.employeeId
+    )
+  }, [additionalData, userInfo?.employeeDetails?.employeeId])
+
   useEffect(() => {
+    if (!employeeId || !accessToken) {
+      setIsImageLoading(false)
+      return
+    }
+
     let cancelled = false
     const load = async () => {
-      // Skip if already have preview or payload provides avatar
-      if (previewUrl || currentImageUrl) return
-      const employeeId =
-        (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.employeeId ||
-        userInfo?.employeeDetails?.employeeId
-      if (!employeeId) return
       try {
         setIsImageLoading(true)
         const res = await fetchEmployeePicture(employeeId)
         if (!cancelled) {
-          if (res.thumbnail) {
+          if (!currentImageUrl && res.thumbnail) {
             setPreviewUrl(res.thumbnail)
           }
           if (typeof res.version === 'number') setCurrentVersion(res.version)
+          const rawThumbnail = res.thumbnail
+            ? res.thumbnail.includes(',')
+              ? res.thumbnail.split(',')[1]
+              : res.thumbnail
+            : undefined
+          setEmployeeHeaderInfo({
+            firstName: res.firstName,
+            lastName: res.lastName,
+            pictureThumbnail: rawThumbnail,
+            jobTitle: res.jobTitle
+          })
         }
       } catch (error) {
-        console.error('Failed to upload profile picture:', error)
+        console.error('Failed to fetch employee data:', error)
       } finally {
         if (!cancelled) setIsImageLoading(false)
       }
@@ -65,20 +86,11 @@ const ChangeProfilePictureScreen: React.FC<BusinessAppContextProps> = ({ additio
     return () => {
       cancelled = true
     }
-  }, [
-    userInfo?.employeeDetails?.employeeId,
-    (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.employeeId,
-    accessToken,
-    additionalData,
-    previewUrl,
-    currentImageUrl,
-    fetchEmployeePicture
-  ])
+  }, [employeeId, accessToken])
 
   const imageSrc = previewUrl || currentImageUrl || undefined
 
   const validateForm = () => {
-    // Require uploading a new file; existing preview/current image is not sufficient
     const hasNewUpload = Boolean(changedFile)
     if (!hasNewUpload) {
       return [
@@ -132,13 +144,11 @@ const ChangeProfilePictureScreen: React.FC<BusinessAppContextProps> = ({ additio
       processType="update"
       formData={{}}
       onSubmit={data => data}
-      // Prevent platform process event hooks after submit/cancel
       submitEventType={undefined as any}
       cancelEventType={undefined as any}
       businessAppContext={{ accessToken, userInfo, additionalData }}
       validateForm={validateForm}
       handlePreSubmit={handlePreSubmit}
-      // Disable submit until a new file is selected
       isSubmitDisabled={!changedFile || onChangeExecutionsRef.current < 2}
       submitButtonText={getTranslationFromI18nKeyAndLabel('common.submit', 'Submit')}
       cancelButtonText={getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
@@ -160,32 +170,22 @@ const ChangeProfilePictureScreen: React.FC<BusinessAppContextProps> = ({ additio
       }}
     >
       <div className="gba:bg-white gba:w-full gba:max-w-xl gba:max-h-[90vh] gba:overflow-hidden">
-        {/* Header */}
-        <div className="gba:flex gba:items-center gba:justify-between gba:p-6">
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <img
-              src={flowSmall}
-              alt="Flow Small"
-              data-testid={formatDataTestId(prefixDataTestId, 'FlowIcon')}
-              className="gba:w-6 gba:h-6"
-              style={{
-                filter: 'brightness(0)'
-              }}
-            />
-            <h2
-              className="gba:text-xl gba:font-semibold gba:text-foreground"
-              data-testid={formatDataTestId(prefixDataTestId, 'Title')}
-            >
-              {getTranslationFromI18nKeyAndLabel('lowcoder:profile_picture_form.title', 'Change Profile Picture')}
-            </h2>
-          </div>
-        </div>
+        <FormHeader
+          title={getTranslationFromI18nKeyAndLabel('lowcoder:profile_picture_form.title', 'Change Profile Picture')}
+          flowIconUrl={flowSmall}
+          employee={
+            employeeHeaderInfo?.firstName || employeeHeaderInfo?.lastName
+              ? {
+                  firstName: employeeHeaderInfo.firstName,
+                  lastName: employeeHeaderInfo.lastName,
+                  pictureThumbnail: employeeHeaderInfo.pictureThumbnail,
+                  jobTitle: employeeHeaderInfo.jobTitle
+                }
+              : undefined
+          }
+        />
 
-        {/* Divider */}
-        <div className="gba:border-t gba:border-border" />
-
-        {/* Content */}
-        <div className="gba:p-6 gba:flex gba:flex-col gba:items-center gba:gap-6 gba:overflow-y-auto gba:max-h-[calc(90vh-160px)]">
+        <div className="gba:px-6 gba:pb-6 gba:flex gba:flex-col gba:items-center gba:gap-6 gba:overflow-y-auto gba:max-h-[calc(90vh-160px)]">
           <div className="gba:w-full gba:flex gba:justify-center">
             {isImageLoading ? (
               <Spinner size="lg" />
@@ -223,8 +223,6 @@ const ChangeProfilePictureScreen: React.FC<BusinessAppContextProps> = ({ additio
             </div>
           )}
         </div>
-
-        {/* Actions handled by AppActionForm (standard layout) */}
       </div>
     </AppActionForm>
   )

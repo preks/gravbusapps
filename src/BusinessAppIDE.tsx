@@ -52,6 +52,9 @@ const examplePatterns = import.meta.glob('./common/examples/**/index.ts', {
 
 const businessApps: BusinessAppInfo[] = []
 
+// Collect all module pattern paths for parent detection
+const allModulePaths = Object.keys(modulePatterns)
+
 // Build the businessApps array from index.ts files (matching getDynamicEntries logic)
 for (const path in modulePatterns) {
   if (
@@ -94,21 +97,39 @@ for (const path in modulePatterns) {
       continue
     }
 
-    // Only include paths that are actual apps (typically in "apps", "forms", "popups", or "records" directories)
-    const hasAppsFormsPopupsOrRecords = pathParts.some(
-      part => part === 'apps' || part === 'forms' || part === 'popups' || part === 'records'
+    // Only include paths that are actual apps (typically in "apps", "forms", "popups", "windows", or "records" directories)
+    const hasAppsFormsPopupsWindowsOrRecords = pathParts.some(
+      part => part === 'apps' || part === 'forms' || part === 'popups' || part === 'windows' || part === 'records'
     )
-    if (!hasAppsFormsPopupsOrRecords) {
+    if (!hasAppsFormsPopupsWindowsOrRecords) {
       continue
+    }
+
+    // Check if a parent directory has an index.ts - if yes, this is internal organization, not a separate app
+    const currentDirIndex = pathParts.length - 2 // Index of directory containing index.ts
+    let hasParentIndex = false
+
+    for (let i = currentDirIndex - 1; i >= 2; i--) {
+      const parentPath = pathParts.slice(0, i + 1).join('/') + '/index.ts'
+      if (allModulePaths.includes(parentPath)) {
+        hasParentIndex = true
+        break
+      }
+    }
+
+    if (hasParentIndex) {
+      continue // Skip nested index.ts files
     }
 
     // Determine the type based on the parent directory
     // Records are treated as apps (full-screen, not dialogs)
-    let componentType: 'app' | 'form' | 'popup' = 'app'
+    let componentType: 'app' | 'form' | 'popup' | 'window' = 'app'
     if (pathParts.includes('forms')) {
       componentType = 'form'
     } else if (pathParts.includes('popups')) {
       componentType = 'popup'
+    } else if (pathParts.includes('windows')) {
+      componentType = 'window'
     } else if (pathParts.includes('records')) {
       componentType = 'app' // Records display as full-screen apps
     }
@@ -139,23 +160,44 @@ for (const path in modulePatterns) {
   }
 }
 
+// Collect all example pattern paths for parent detection
+const allExamplePaths = Object.keys(examplePatterns)
+
 // Build the businessApps array from example index.ts files under ./common/examples
 for (const path in examplePatterns) {
   const pathParts = path.split('/')
   // Example path: ./common/examples/forms/example-catalog-select-form/index.ts
 
   // Determine type based on directory
-  let componentType: 'app' | 'form' | 'popup' = 'app'
+  let componentType: 'app' | 'form' | 'popup' | 'window' = 'app'
   if (pathParts.includes('forms')) {
     componentType = 'form'
   } else if (pathParts.includes('popups')) {
     componentType = 'popup'
+  } else if (pathParts.includes('windows')) {
+    componentType = 'window'
   }
 
   // Find index of "examples" segment
   const examplesIndex = pathParts.indexOf('examples')
   if (examplesIndex === -1) {
     continue
+  }
+
+  // Check if a parent directory has an index.ts - if yes, this is internal organization, not a separate app
+  const currentDirIndex = pathParts.length - 2 // Index of directory containing index.ts
+  let hasParentIndex = false
+
+  for (let i = currentDirIndex - 1; i >= examplesIndex; i--) {
+    const parentPath = pathParts.slice(0, i + 1).join('/') + '/index.ts'
+    if (allExamplePaths.includes(parentPath)) {
+      hasParentIndex = true
+      break
+    }
+  }
+
+  if (hasParentIndex) {
+    continue // Skip nested index.ts files
   }
 
   // appName is directory containing index.ts
@@ -225,8 +267,8 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
 
   const urlParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
 
-  // Check for different parameter types (app, form, popup)
-  const appFromUrl = urlParams.get('app') || urlParams.get('form') || urlParams.get('popup')
+  // Check for different parameter types (app, form, popup, window)
+  const appFromUrl = urlParams.get('app') || urlParams.get('form') || urlParams.get('popup') || urlParams.get('window')
 
   const [selectedApp, setSelectedApp] = useState<BusinessAppInfo | null>(
     // First try to find by full path (new format), then fallback to name (legacy format)

@@ -5,6 +5,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useInvestmentAccount } from '@/common/data/investment/hooks/useInvestmentAccount'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
@@ -78,50 +79,15 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
     }
   }, [])
 
+  // Memoized callback for process completion
+  const handleProcessSuccess = useCallback(() => {
+    refetchAccountData()
+  }, [refetchAccountData])
+
   // Listen for process completion events to refresh account data
-  useEffect(() => {
-    const handleProcessCompletion = (event: any) => {
-      try {
-        // Check for successful completion
-        if (event.detail?.resolution === 'success') {
-          refetchAccountData()
-          return
-        }
-
-        // Also check for different event structure
-        const response = event.detail?.response
-        if (response?.detail?.resolution === 'success' || response?.account) {
-          refetchAccountData()
-        }
-      } catch (err) {
-        console.error('Error handling process completion in AccountRecord:', err)
-      }
-    }
-
-    // Listen to multiple possible event names for account updates
-    const eventNames = [
-      'com.newwork.process.taskCompletion',
-      'com.newwork.process.completion',
-      'com.newwork.process.continue',
-      'com.newwork.process.processCompletion',
-      'processCompletion',
-      'taskCompletion',
-      'taskCompleted',
-      'processCompleted',
-      'task-completion',
-      'process-completion'
-    ]
-
-    eventNames.forEach(eventName => {
-      window.addEventListener(eventName, handleProcessCompletion as EventListener)
-    })
-
-    return () => {
-      eventNames.forEach(eventName => {
-        window.removeEventListener(eventName, handleProcessCompletion as EventListener)
-      })
-    }
-  }, [accountId, refetchAccountData])
+  useProcessCompletion({
+    onSuccess: handleProcessSuccess
+  })
 
   // Memoize header data - must be called before conditional returns
   const headerDetailGroups = useMemo(

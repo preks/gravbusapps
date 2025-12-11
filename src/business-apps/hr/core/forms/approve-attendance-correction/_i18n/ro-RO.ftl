@@ -1,4 +1,4 @@
-grant-bonus-review-acknowledge = Confirmă
+grant-bonus-review-acknowledge = Aprobă
 grant-bonus-review-reject = Respinge
 
 #Urmărirea timpului

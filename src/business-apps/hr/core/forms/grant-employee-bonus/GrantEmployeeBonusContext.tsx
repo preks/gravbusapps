@@ -7,7 +7,7 @@ import {
   EMPLOYEE_BANK_ACCOUNT_CURRENCY_QUERY
 } from './GrantEmployeeBonusQueries'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
-import { extractEmployeeId } from './utils/employeeIdUtils'
+import { extractEmployeeId } from '@/business-apps/hr/core/utils/employeeIdUtils'
 import type {
   GrantEmployeeBonusContextData,
   EmployeeDataResponse,
