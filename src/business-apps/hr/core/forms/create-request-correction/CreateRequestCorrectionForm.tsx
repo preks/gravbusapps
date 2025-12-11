@@ -19,16 +19,12 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface RequestCorrectionFormProps extends BusinessAppContextProps {
-  employeeId: string
+  employeeId?: string
   onSubmitted?: () => void
   additionalData: any
 }
 
-export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> = ({
-  employeeId,
-  onSubmitted,
-  additionalData
-}) => {
+export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> = ({ onSubmitted, additionalData }) => {
   const form = useForm<{ date: string; clockIn: string; clockOut: string; notes?: string }>({
     defaultValues: { date: '', clockIn: '', clockOut: '', notes: '' },
     mode: 'onChange'
@@ -149,13 +145,8 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
 
       const nowIso = new Date().toISOString()
 
-      const requestEmployeeId =
-        employeeId ||
-        additionalData?.employeeId ||
-        additionalData?.psi_taskPayload?.employeeId ||
-        additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId
-
       const payloadObject = additionalData?.psi_taskPayload?.psi_initialParameters
+      const requestEmployeeId = payloadObject?.employeeId
 
       const payload = {
         changeMode: 'INSERT',
