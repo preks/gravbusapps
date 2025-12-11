@@ -5,13 +5,17 @@ import { useChatClient } from './hooks/useChatClient'
 import { useCall } from './hooks/useCall'
 import { useGroupCall } from './hooks/useGroupCall'
 import { useEveryAIChat } from './hooks/useEveryAIChat'
+import { useChatExperts } from './hooks/useChatExperts'
 import { ConversationList } from './components/ConversationList'
+import { ExpertSelectorPanel } from './components/ExpertSelectorPanel.tsx'
+import { ActiveExpertsBar } from './components/ActiveExpertsBar.tsx'
 import { ConversationHeader, type ActiveCallInfo } from './components/ConversationHeader'
 import { MessageList } from './components/MessageList'
 import { MessageInput } from './components/MessageInput'
 import { CreateGroupModal } from './components/CreateGroupModal'
 import { GroupSettingsModal } from './components/GroupSettingsModal'
 import { AIThinkingIndicator, AIResponseRenderer } from './components/AIResponseRenderer'
+import { playNudgeSound, applyShakeAnimation, injectNudgeStyles } from './utils/nudgeUtils'
 import { IncomingCallDialog } from './components/IncomingCallDialog'
 import { IncomingGroupCallDialog } from './components/IncomingGroupCallDialog'
 import { CallModal } from './components/CallModal'
@@ -30,6 +34,7 @@ interface ChatProps extends BusinessAppContextProps {
 
 export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefixDataTestId = 'chat' }) => {
   const containerRef = useRef<HTMLDivElement>(null)
+  const chatViewRef = useRef<HTMLDivElement>(null)
   const [showConversationList, setShowConversationList] = useState(true)
   const [viewMode, setViewMode] = useState<ViewMode>('full')
   const [showCreateGroupModal, setShowCreateGroupModal] = useState(false)
@@ -41,6 +46,14 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
   const urlContextProcessed = useRef(false)
   const conversationIdFromUrlProcessed = useRef(false)
   const activeConversationIdRef = useRef<string | null>(null)
+  const presenceInitializedUsersRef = useRef<Set<string>>(new Set())
+  const lastNudgeTimeRef = useRef<number>(0)
+  const NUDGE_COOLDOWN_MS = 30000 // 30 seconds
+
+  // Inject nudge animation styles on mount
+  useEffect(() => {
+    injectNudgeStyles()
+  }, [])
 
   // Reset URL processing refs on mount to allow restoration after hard refresh
   useEffect(() => {
@@ -136,6 +149,8 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
     refreshConversations,
     startTyping,
     stopTyping,
+    sendNudge,
+    registerNudgeCallback,
     apiClient,
     wsClient,
     activeCalls
@@ -158,6 +173,40 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
   useEffect(() => {
     console.debug('[Chat] stableActiveConversation', stableActiveConversation?.id)
   }, [stableActiveConversation?.id])
+
+  // Register nudge callback to handle incoming nudges from OTHER users
+  useEffect(() => {
+    if (!registerNudgeCallback || !currentUser) return
+
+    registerNudgeCallback(data => {
+      // Ignore nudges from yourself (shouldn't happen, but safety check)
+      if (data.fromUserId === currentUser.id) {
+        console.log('[Chat] Ignoring nudge from self')
+        return
+      }
+
+      console.log('[Chat] Nudge received from:', data.fromUserName, 'conversation:', data.conversationId)
+
+      // Play sound
+      playNudgeSound()
+
+      // Shake animation on the whole chat container
+      if (containerRef.current) {
+        applyShakeAnimation(containerRef.current)
+      }
+
+      // System message will arrive via normal new_message WebSocket event
+      // Backend creates it and sends it ONLY to the receiver
+    })
+  }, [registerNudgeCallback, currentUser, activeConversationId])
+
+  // Clear presence initialization tracking when connection drops
+  // This allows presence to be re-initialized from API when reconnecting
+  useEffect(() => {
+    if (!isConnected) {
+      presenceInitializedUsersRef.current.clear()
+    }
+  }, [isConnected])
 
   // Convert current user to CallParticipant format
   const currentUserAsParticipant: CallParticipant | null = useMemo(() => {
@@ -270,6 +319,37 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
   } = useEveryAIChat({
     accessToken
   })
+
+  // Every Experts integration
+  const {
+    availableExperts,
+    expertsLoading,
+    activeExperts,
+    addExpert,
+    removeExpert,
+    processExpertMention,
+    showExpertSelector,
+    setShowExpertSelector
+  } = useChatExperts({
+    accessToken,
+    conversationId: activeConversationId,
+    currentUserId: currentUser?.id || null,
+    apiClient
+  })
+
+  // Track active experts count for all conversations
+  // Use data directly from conversation.activeExperts (no API calls needed!)
+  const conversationExpertCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+
+    conversations.forEach(conv => {
+      if (conv.type === 'group' && conv.activeExperts && conv.activeExperts.length > 0) {
+        counts.set(conv.id, conv.activeExperts.length)
+      }
+    })
+
+    return counts
+  }, [conversations])
 
   // Call handlers for both direct (1:1) and group conversations
   const handleAudioCall = () => {
@@ -386,26 +466,39 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
   }
 
   // Initialize presence status from conversation participants' user data
+  // Only initialize each user once from API data, then rely on WebSocket updates
   useEffect(() => {
-    if (!conversations || conversations.length === 0 || !updatePresenceFromUser) return
+    try {
+      if (!conversations || conversations.length === 0 || !updatePresenceFromUser) return
 
-    // Extract all users from conversations and update their presence
-    conversations.forEach(conv => {
-      conv.participants?.forEach(p => {
-        if (p.user && p.userId !== currentUser?.id && p.user.id !== currentUser?.id) {
-          // The API returns isOnline (boolean) and lastSeen on user object
-          const lastSeen = p.user.lastSeen || p.user.lastSeenAt
+      // Extract all users from conversations and initialize their presence
+      conversations.forEach(conv => {
+        conv.participants?.forEach(p => {
+          if (p.user && p.userId !== currentUser?.id && p.user.id !== currentUser?.id) {
+            const userId = p.user.id
 
-          // If we have isOnline directly from API, use it
-          if (typeof p.user.isOnline === 'boolean') {
-            updatePresenceFromUser(p.user.id, lastSeen, p.user.isOnline)
-          } else {
-            // Fallback to calculating from lastSeen/lastSeenAt
-            updatePresenceFromUser(p.user.id, lastSeen, p.user.isActive)
+            // Only initialize this user's presence once from API data
+            // After that, WebSocket events will keep it updated
+            if (!presenceInitializedUsersRef.current.has(userId)) {
+              presenceInitializedUsersRef.current.add(userId)
+
+              // The API returns isOnline (boolean) and lastSeen on user object
+              const lastSeen = p.user.lastSeen || p.user.lastSeenAt
+
+              // If we have isOnline directly from API, use it
+              if (typeof p.user.isOnline === 'boolean') {
+                updatePresenceFromUser(userId, lastSeen, p.user.isOnline)
+              } else {
+                // Fallback to calculating from lastSeen/lastSeenAt
+                updatePresenceFromUser(userId, lastSeen, p.user.isActive)
+              }
+            }
           }
-        }
+        })
       })
-    })
+    } catch (error) {
+      console.error('[Chat] Error initializing presence:', error)
+    }
   }, [conversations, currentUser?.id, updatePresenceFromUser])
 
   const handleSendMessage = useCallback(
@@ -436,6 +529,26 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
         // Send the user's message first
         await sendMessage(activeConversationId, content, Object.keys(metadata).length > 0 ? metadata : undefined)
         setDraftMessage('') // clear draft after successful send
+
+        // Check for expert mention FIRST (before @Every)
+        const expertResult = await processExpertMention(content, entityReferences)
+
+        if (expertResult.isExpertMention && expertResult.expertResponse) {
+          // Expert handled the message, send expert's response
+          await new Promise(resolve => setTimeout(resolve, 100))
+
+          await sendMessage(activeConversationId, expertResult.expertResponse.text, {
+            isEveryExpertResponse: true,
+            expertId: expertResult.expertResponse.expertId,
+            expertName: expertResult.expertResponse.expertName,
+            expertColor: expertResult.expertResponse.expertColor,
+            citations: expertResult.expertResponse.citations,
+            confidence: expertResult.expertResponse.confidence
+          })
+
+          clearStreamingText()
+          return // Stop here, don't process with generic Every
+        }
 
         // Check if message contains @Every mention and process it
         if (hasEveryMention(entityReferences) && activeConversation) {
@@ -555,6 +668,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
       apiClient,
       hasEveryMention,
       processEveryAIMessage,
+      processExpertMention,
       activeConversation,
       clearStreamingText,
       setDraftMessage
@@ -783,6 +897,50 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
   const handleShowGroupSettings = useCallback(() => {
     setShowGroupSettingsModal(true)
   }, [])
+
+  const handleNudge = useCallback(() => {
+    if (!activeConversation || activeConversation.type !== 'direct' || !currentUser) return
+
+    // Check cooldown
+    const now = Date.now()
+    const timeSinceLastNudge = now - lastNudgeTimeRef.current
+
+    if (timeSinceLastNudge < NUDGE_COOLDOWN_MS) {
+      const secondsRemaining = Math.ceil((NUDGE_COOLDOWN_MS - timeSinceLastNudge) / 1000)
+      setErrorMessage(
+        getTranslationFromI18nKeyAndLabel(
+          'chat.nudgeCooldown',
+          `Please wait ${secondsRemaining} seconds before sending another nudge.`
+        ).replace('{seconds}', secondsRemaining.toString())
+      )
+      // Auto-dismiss after 3 seconds
+      setTimeout(() => setErrorMessage(null), 3000)
+      return
+    }
+
+    // Get the other participant
+    const otherParticipant = activeConversation.participants?.find(
+      p => p.userId !== currentUser.id && p.user?.id !== currentUser.id
+    )
+
+    if (!otherParticipant?.userId) {
+      console.error('[Chat] Cannot send nudge: other participant not found')
+      return
+    }
+
+    // Send nudge via WebSocket
+    const success = sendNudge(activeConversation.id, otherParticipant.userId)
+
+    if (success) {
+      // Update last nudge time
+      lastNudgeTimeRef.current = now
+
+      // Don't create a system message for the sender
+      // The receiver will see the nudge message via the callback
+      // The sender just gets visual feedback from the cooldown reset
+      console.log('[Chat] Nudge sent successfully')
+    }
+  }, [activeConversation, currentUser, sendNudge, sendMessage])
 
   const handleCloseGroupSettings = useCallback(() => {
     setShowGroupSettingsModal(false)
@@ -1210,13 +1368,17 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
               compact={viewMode === 'compact'}
               getUserPresence={getUserPresence}
               presenceMap={presenceMap}
+              conversationExpertCounts={conversationExpertCounts}
             />
           </div>
         )}
 
         {/* Active Conversation */}
         {showChatView && (
-          <div className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:h-full gba:max-h-full gba:overflow-hidden">
+          <div
+            ref={chatViewRef}
+            className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:h-full gba:max-h-full gba:overflow-hidden gba:relative"
+          >
             {stableActiveConversation ? (
               <>
                 <ConversationHeader
@@ -1225,6 +1387,10 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
                   onClose={handleCloseConversation}
                   onRemove={handleRemoveConversation}
                   onGroupSettings={handleShowGroupSettings}
+                  onAddExpert={
+                    stableActiveConversation.type === 'group' ? () => setShowExpertSelector(true) : undefined
+                  }
+                  onNudge={stableActiveConversation.type === 'direct' ? handleNudge : undefined}
                   onAudioCall={handleAudioCall}
                   onVideoCall={handleVideoCall}
                   onJoinCall={handleJoinActiveCall}
@@ -1236,6 +1402,16 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
                   isInCall={isInAnyCall}
                   activeCall={activeCallInfo}
                 />
+
+                {/* Active Experts Bar */}
+                {activeExperts.length > 0 && (
+                  <ActiveExpertsBar
+                    experts={activeExperts}
+                    onRemoveExpert={expertId => removeExpert(expertId, sendMessage)}
+                    data-testid={`${prefixDataTestId}-active-experts`}
+                  />
+                )}
+
                 <MessageList
                   messages={messages}
                   currentUserId={currentUser?.id || null}
@@ -1315,6 +1491,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
                 onFocusReady={focusFn => {
                   focusInputRef.current = focusFn
                 }}
+                activeExperts={activeExperts}
               />
             )}
           </div>
@@ -1340,6 +1517,17 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
         apiClient={apiClient}
         onRefresh={refreshConversations}
         prefixDataTestId={`${prefixDataTestId}-group-settings-modal`}
+      />
+
+      {/* Expert Selector Panel */}
+      <ExpertSelectorPanel
+        isOpen={showExpertSelector}
+        onClose={() => setShowExpertSelector(false)}
+        experts={availableExperts}
+        activeExpertIds={activeExperts.map(e => e.expertId)}
+        isLoading={expertsLoading}
+        onAddExpert={expert => addExpert(expert, sendMessage)}
+        data-testid={`${prefixDataTestId}-expert-selector`}
       />
 
       {/* Call Components */}
