@@ -385,7 +385,32 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       // Create updated message with correct status
       const messageWithStatus = { ...message, status: messageStatus }
 
-      // Batch message and conversation updates to reduce flickering
+      // Update conversation list immediately (not in startTransition) for instant UI feedback
+      // Users need to see unread counts and list reordering instantly
+      console.log(
+        '[Chat] Updating conversation list - conversationId:',
+        message.conversationId,
+        'isOtherUser:',
+        isOtherUserMessage,
+        'isActive:',
+        message.conversationId === currentActiveConversationId
+      )
+      conversationsHookRef.current?.updateConversationLastMessage(message.conversationId, messageWithStatus)
+
+      // Increment unread count ONLY for messages from OTHER users in background conversations
+      // This MUST be immediate so users see the badge update right away
+      if (isOtherUserMessage && message.conversationId !== currentActiveConversationId) {
+        console.log('[Chat] Incrementing unread count for background conversation:', message.conversationId)
+        conversationsHookRef.current?.incrementUnreadCount(message.conversationId)
+      } else {
+        console.log(
+          '[Chat] NOT incrementing unread:',
+          isOtherUserMessage ? 'conversation is active' : 'message is from current user'
+        )
+      }
+
+      // Use startTransition only for adding message to chat view (less critical)
+      // This prevents the message list from blocking other UI updates
       startTransition(() => {
         // Always add message if it's for the active conversation
         if (message.conversationId === currentActiveConversationId) {
@@ -399,14 +424,6 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
             currentActiveConversationId,
             ')'
           )
-        }
-
-        // Always update conversation last message (this updates the conversation list)
-        conversationsHookRef.current?.updateConversationLastMessage(message.conversationId, messageWithStatus)
-
-        // Increment unread count ONLY for messages from OTHER users in background conversations
-        if (isOtherUserMessage && message.conversationId !== currentActiveConversationId) {
-          conversationsHookRef.current?.incrementUnreadCount(message.conversationId)
         }
       })
     }
