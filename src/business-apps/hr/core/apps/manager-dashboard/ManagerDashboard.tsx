@@ -15,6 +15,7 @@ import { useTeamAvailability } from './hooks/useTeamAvailability'
 import { useTeamProjectAllocation } from './hooks/useTeamProjectAllocation'
 import { useTeamPerformance } from './hooks/useTeamPerformance'
 import { useTeamAttendance } from './hooks/useTeamAttendance'
+import { useManagerFeedback } from './hooks/useManagerFeedback'
 import { useAIInsights } from './hooks/useAIInsights'
 import { getCurrentActiveStructureId, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -261,6 +262,19 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
     accessToken: accessToken || '',
     managerId: employeeId || '',
     availableEmployeeIds
+  })
+
+  // Calculate direct report IDs for feedback query
+  const directReportIds = useMemo(() => directReports.map(r => r.id), [directReports])
+
+  // Fetch manager feedback data
+  const {
+    daysSinceLastFeedback,
+    hasFeedbackRecently
+  } = useManagerFeedback({
+    accessToken: accessToken || '',
+    managerId: employeeId || '',
+    directReportIds
   })
 
   // Fetch AI insights
@@ -513,9 +527,10 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
                             setActiveApprovalTab('absences')
                             handleNavigateToApprovals()
                           }}
-                          className="gba:text-sm gba:text-primary gba:underline gba:hover:text-primary/80 gba:cursor-pointer gba:bg-transparent gba:border-0 gba:p-0 gba:text-left"
+                          className="gba:text-sm gba:text-primary gba:cursor-pointer gba:bg-transparent gba:border-0 gba:p-0 gba:text-left gba:inline-flex gba:items-center gba:gap-1 gba:rounded gba:px-1 gba:-mx-1 hover:gba:bg-muted/50 gba:transition-colors"
                         >
                           {`${absenceApprovalsCount} absence ${absenceApprovalsCount === 1 ? 'request' : 'requests'} pending approval`}
+                          <CaretRightIcon size={14} className="gba:flex-shrink-0" />
                         </button>
                       </li>
                     )}
@@ -528,9 +543,10 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
                             setActiveApprovalTab('expenses')
                             handleNavigateToApprovals()
                           }}
-                          className="gba:text-sm gba:text-primary gba:underline gba:hover:text-primary/80 gba:cursor-pointer gba:bg-transparent gba:border-0 gba:p-0 gba:text-left"
+                          className="gba:text-sm gba:text-primary gba:cursor-pointer gba:bg-transparent gba:border-0 gba:p-0 gba:text-left gba:inline-flex gba:items-center gba:gap-1 gba:rounded gba:px-1 gba:-mx-1 hover:gba:bg-muted/50 gba:transition-colors"
                         >
                           {`${combinedExpenseCount} expense ${combinedExpenseCount === 1 ? 'request' : 'requests'} pending approval`}
+                          <CaretRightIcon size={14} className="gba:flex-shrink-0" />
                         </button>
                       </li>
                     )}
@@ -544,10 +560,11 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
                             <button
                               type="button"
                               onClick={handleNavigateToAbsentTeammates}
-                              className="gba:text-sm gba:text-primary gba:underline gba:text-left gba:p-0 gba:bg-transparent gba:border-0 gba:cursor-pointer hover:gba:opacity-80"
+                              className="gba:text-sm gba:text-primary gba:text-left gba:p-0 gba:bg-transparent gba:border-0 gba:cursor-pointer gba:inline-flex gba:items-center gba:gap-1 gba:rounded gba:px-1 gba:-mx-1 hover:gba:bg-muted/50 gba:transition-colors"
                               data-testid="manager-dashboard-ai-absent-link"
                             >
                               {`${onLeaveCount} team ${onLeaveCount === 1 ? 'member is' : 'members are'} out of office today`}
+                              <CaretRightIcon size={14} className="gba:flex-shrink-0" />
                             </button>
                             {sickLeavesCount > 0 && (
                               <span className="gba:text-sm gba:text-muted-foreground gba:mt-1 gba:pl-2 gba:border-l-2 gba:border-destructive">
@@ -568,10 +585,11 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
                         <button
                           type="button"
                           onClick={handleNavigateToUnallocatedTeammates}
-                          className="gba:text-sm gba:text-primary gba:underline gba:text-left gba:p-0 gba:bg-transparent gba:border-0 gba:cursor-pointer hover:gba:opacity-80"
+                          className="gba:text-sm gba:text-primary gba:text-left gba:p-0 gba:bg-transparent gba:border-0 gba:cursor-pointer gba:inline-flex gba:items-center gba:gap-1 gba:rounded gba:px-1 gba:-mx-1 hover:gba:bg-muted/50 gba:transition-colors"
                           data-testid="manager-dashboard-ai-unallocated-link"
                         >
                           {`${unallocatedCount} team ${unallocatedCount === 1 ? 'member is' : 'members are'} not allocated to projects`}
+                          <CaretRightIcon size={14} className="gba:flex-shrink-0" />
                         </button>
                       </li>
                     )}
@@ -581,10 +599,11 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
                         <button
                           type="button"
                           onClick={handleNavigateToTeamPerformance}
-                          className="gba:text-sm gba:text-primary gba:underline gba:text-left gba:p-0 gba:bg-transparent gba:border-0 gba:cursor-pointer hover:gba:opacity-80"
+                          className="gba:text-sm gba:text-primary gba:text-left gba:p-0 gba:bg-transparent gba:border-0 gba:cursor-pointer gba:inline-flex gba:items-center gba:gap-1 gba:rounded gba:px-1 gba:-mx-1 hover:gba:bg-muted/50 gba:transition-colors"
                           data-testid="manager-dashboard-ai-no-goals-link"
                         >
                           {`${employeesWithoutGoals} team ${employeesWithoutGoals === 1 ? 'member has' : 'members have'} no performance goals set`}
+                          <CaretRightIcon size={14} className="gba:flex-shrink-0" />
                         </button>
                       </li>
                     )}
@@ -594,10 +613,11 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
                         <button
                           type="button"
                           onClick={handleNavigateToTeamPerformance}
-                          className="gba:text-sm gba:text-primary gba:underline gba:text-left gba:p-0 gba:bg-transparent gba:border-0 gba:cursor-pointer hover:gba:opacity-80"
+                          className="gba:text-sm gba:text-primary gba:text-left gba:p-0 gba:bg-transparent gba:border-0 gba:cursor-pointer gba:inline-flex gba:items-center gba:gap-1 gba:rounded gba:px-1 gba:-mx-1 hover:gba:bg-muted/50 gba:transition-colors"
                           data-testid="manager-dashboard-ai-goals-behind-link"
                         >
                           {`${goalsBehindTarget} performance ${goalsBehindTarget === 1 ? 'goal is' : 'goals are'} behind target`}
+                          <CaretRightIcon size={14} className="gba:flex-shrink-0" />
                         </button>
                       </li>
                     )}
@@ -607,10 +627,11 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
                         <button
                           type="button"
                           onClick={handleNavigateToNotClockedIn}
-                          className="gba:text-sm gba:text-primary gba:underline gba:text-left gba:p-0 gba:bg-transparent gba:border-0 gba:cursor-pointer hover:gba:opacity-80"
+                          className="gba:text-sm gba:text-primary gba:text-left gba:p-0 gba:bg-transparent gba:border-0 gba:cursor-pointer gba:inline-flex gba:items-center gba:gap-1 gba:rounded gba:px-1 gba:-mx-1 hover:gba:bg-muted/50 gba:transition-colors"
                           data-testid="manager-dashboard-ai-not-clocked-in-link"
                         >
                           {`${notClockedInCount} available team ${notClockedInCount === 1 ? 'member has' : 'members have'} not clocked in yet`}
+                          <CaretRightIcon size={14} className="gba:flex-shrink-0" />
                         </button>
                       </li>
                     )}
@@ -622,15 +643,26 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
                         </span>
                       </li>
                     )}
+                    {!hasFeedbackRecently && directReports.length > 0 && (
+                      <li className="gba:flex gba:items-start gba:gap-2">
+                        <span className="gba:mt-1.5 gba:h-2 gba:w-2 gba:rounded-full gba:flex-shrink-0 gba:bg-warning" />
+                        <span className="gba:text-sm gba:text-foreground">
+                          {daysSinceLastFeedback !== null
+                            ? `You haven't given feedback to any team member in the last ${daysSinceLastFeedback} days`
+                            : `You haven't given feedback to any team member yet`}
+                        </span>
+                      </li>
+                    )}
                     {upcomingAnniversaries.length > 0 && (
                       <li className="gba:flex gba:items-start gba:gap-2">
                         <span className="gba:mt-1.5 gba:h-2 gba:w-2 gba:rounded-full gba:flex-shrink-0 gba:bg-primary" />
                         <button
                           type="button"
                           onClick={() => handleNavigateToInsights('anniversaries')}
-                          className="gba:text-sm gba:text-primary gba:underline gba:hover:text-primary/80 gba:cursor-pointer gba:bg-transparent gba:border-0 gba:p-0 gba:text-left"
+                          className="gba:text-sm gba:text-primary gba:cursor-pointer gba:bg-transparent gba:border-0 gba:p-0 gba:text-left gba:inline-flex gba:items-center gba:gap-1 gba:rounded gba:px-1 gba:-mx-1 hover:gba:bg-muted/50 gba:transition-colors"
                         >
                           {`${upcomingAnniversaries.length} ${upcomingAnniversaries.length === 1 ? 'anniversary' : 'anniversaries'} coming up this month`}
+                          <CaretRightIcon size={14} className="gba:flex-shrink-0" />
                         </button>
                       </li>
                     )}
