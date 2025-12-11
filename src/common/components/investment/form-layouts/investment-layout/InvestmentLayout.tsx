@@ -73,7 +73,10 @@ export const InvestmentLayout: React.FC<InvestmentLayoutProps> = ({
     liquidFundInvestment
   }
 
-  const isUpdate = Boolean(formValues.investment.id)
+  // For investment-form: investment.id exists (the investment entity ID)
+  // For investment-report-form: investment.id doesn't exist, but investment.investmentId exists (reference to investment)
+  // In both cases, if we have an ID, we should disable type selection
+  const isUpdate = Boolean(formValues.investment.id || formValues.investment.investmentId)
 
   // Get investmentTypeId from form state
   const investmentTypeId = investment?.investmentTypeId || null
@@ -141,7 +144,7 @@ export const InvestmentLayout: React.FC<InvestmentLayoutProps> = ({
           investmentAccounts={investmentAccounts}
           company={formValues.investment.company}
           useAccounts={useAccounts}
-          entityId={formValues.investment.id}
+          entityId={formValues.investment.id || formValues.investment.investmentId}
           investmentGroup={baseTypeId}
           customFields={investmentInformationCustomFields}
           disabled={isFormDisabled}

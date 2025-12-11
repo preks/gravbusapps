@@ -37,7 +37,9 @@ export const sanitizeInvestmentReport = (
   // Get report-specific fields directly from formData (no fallbacks)
   const reportDate = (formData as any).investmentReportDate
   const reportScope = (formData as any).investmentReportScope
-  const finalInvestmentId = formData.investment?.id
+  // Use investmentId field (not id) - id belongs to the investment entity, not the report
+  // investmentId is a custom property added during transform, not part of Investment type
+  const finalInvestmentId = (formData.investment as any)?.investmentId
 
   // Map investment.investmentRole (from Layout) to investmentRoleReport (for Report)
   // Map Sub-Groups (from Layout) to Report field names (with "Report")
@@ -45,6 +47,11 @@ export const sanitizeInvestmentReport = (
   // Extract reportId and reportVersion (custom properties added during transform, not part of Investment type)
   const reportId = (mergedData as any).reportId
   const reportVersion = (mergedData as any).reportVersion
+
+  // Exclude investment id and version - these belong to the investment, not the report
+  // Delete them from mergedData before spreading
+  delete (mergedData as any).id
+  delete (mergedData as any).version
   const { investmentRole, ...investmentDataWithoutSubGroups } = mergedData
 
   // Determine which sub-investment type is active based on investment group

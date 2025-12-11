@@ -243,27 +243,10 @@ export const InvestmentReportForm: React.FC<InvestmentReportFormProps> = ({
       // Use transformInvestment to transform the investment
       const transformed = transformInvestment(currentFetchedInvestment, investmentId, getPathByType)
 
-      // Update form values
-      if (transformed.investment) {
-        Object.keys(transformed.investment).forEach(key => {
-          form.setValue(`investment.${key}` as any, (transformed.investment as any)[key])
-        })
-      }
-      if (transformed.liquidFundInvestment) {
-        form.setValue('liquidFundInvestment', transformed.liquidFundInvestment)
-      }
-      if (transformed.equityInvestment) {
-        form.setValue('equityInvestment', transformed.equityInvestment)
-      }
-      if (transformed.realEstateInvestment) {
-        form.setValue('realEstateInvestment', transformed.realEstateInvestment)
-      }
-      if (transformed.investmentReportDate) {
-        form.setValue('investmentReportDate', transformed.investmentReportDate)
-      }
-      if (transformed.investmentReportScope) {
-        form.setValue('investmentReportScope', transformed.investmentReportScope)
-      }
+      // Update form values using reset to avoid complex type issues
+      form.reset(
+        transformed as Partial<InvestmentFormValues & { investmentReportDate?: string; investmentReportScope?: string }>
+      )
     }
   }, [currentFetchedInvestment, investmentLoading, investmentId, form, investmentReportId, getPathByType])
 
@@ -273,7 +256,9 @@ export const InvestmentReportForm: React.FC<InvestmentReportFormProps> = ({
   }, [])
 
   // Determine if this is an update
-  const isUpdate = Boolean(investmentReportId || formValues.investment.id)
+  // For reports: check investmentReportId OR investment.investmentId (reference to investment)
+  // For investment-form: would check investment.id (the investment entity ID)
+  const isUpdate = Boolean(investmentReportId || formValues.investment.id || formValues.investment.investmentId)
 
   // Translation hook
   const { t } = useTranslation(translations)

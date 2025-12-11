@@ -160,8 +160,10 @@ export const transformInvestmentReport = (
   }
 
   // Step 7: Set IDs
+  // Only set investmentId (not id) - id belongs to the investment entity, not the report
+  // investmentId is used to reference which investment this report is for
+  // InvestmentLayout will use investment.investmentId for isUpdate check and entityId
   if (mappedValues.investment && investmentId) {
-    ;(mappedValues.investment as any).id = investmentId
     ;(mappedValues.investment as any).investmentId = investmentId
   }
 
