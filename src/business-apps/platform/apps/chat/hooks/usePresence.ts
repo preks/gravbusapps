@@ -39,14 +39,35 @@ export function usePresence({ wsClient, isConnected }: UsePresenceOptions) {
   // Handle incoming presence updates from WebSocket
   // Backend sends: { userId, isOnline: boolean, timestamp }
   const handlePresenceUpdate = useCallback((data: BackendPresenceEvent) => {
+    // SIMPLIFIED: Trust backend's isOnline status completely
+    // Backend is the source of truth for real-time presence
+    const status = data.isOnline ? 'online' : 'offline'
+    const timestamp = data.timestamp || new Date().toISOString()
+
+    console.log(
+      `[usePresence] WebSocket update: userId=${data.userId}, isOnline=${data.isOnline}, status=${status}, timestamp=${timestamp}`
+    )
+
     setPresenceMap(prev => {
       const newMap = new Map(prev)
       newMap.set(data.userId, {
-        status: data.isOnline ? 'online' : 'offline',
-        lastSeen: data.timestamp || new Date().toISOString()
+        status,
+        lastSeen: timestamp
       })
       return newMap
     })
+
+    // NOTE: If you need 'away' status back, uncomment this code:
+    // let status: 'online' | 'away' | 'offline'
+    // if (data.isOnline) {
+    //   status = 'online'
+    // } else {
+    //   const lastSeenDate = new Date(timestamp)
+    //   const diffMinutes = (new Date().getTime() - lastSeenDate.getTime()) / (1000 * 60)
+    //   if (diffMinutes < 2) status = 'online'
+    //   else if (diffMinutes < 15) status = 'away'
+    //   else status = 'offline'
+    // }
   }, [])
 
   // Setup WebSocket listener for presence events
@@ -57,13 +78,23 @@ export function usePresence({ wsClient, isConnected }: UsePresenceOptions) {
 
     // Get the socket directly to register the handler
     const socket = wsClient.getSocket()
-    if (socket) {
-      socket.on('user_status_change', handlePresenceUpdate)
+    if (!socket) {
+      return
     }
+
+    // CRITICAL FIX: Remove ALL existing listeners first to prevent duplicates
+    // Socket.IO doesn't deduplicate handlers, so we must manually ensure only one exists
+    socket.off('user_status_change')
+
+    // Now add our handler
+    socket.on('user_status_change', handlePresenceUpdate)
+
+    console.log('[usePresence] Registered user_status_change handler')
 
     return () => {
       if (socket) {
         socket.off('user_status_change', handlePresenceUpdate)
+        console.log('[usePresence] Cleaned up user_status_change handler')
       }
     }
   }, [wsClient, isConnected, handlePresenceUpdate])
@@ -98,11 +129,11 @@ export function usePresence({ wsClient, isConnected }: UsePresenceOptions) {
     (userId: string, lastSeen?: Date | string, isOnline?: boolean) => {
       let status: 'online' | 'away' | 'offline' = 'offline'
 
-      // If we have explicit isOnline from API, use it directly
-      if (typeof isOnline === 'boolean') {
-        status = isOnline ? 'online' : 'offline'
-      } else if (lastSeen) {
-        // Fallback: Calculate status based on lastSeen timestamp
+      // CRITICAL FIX: Always prefer lastSeen calculation over isOnline
+      // The isOnline field from API can be stale (cached), but lastSeen is more reliable
+      // WebSocket events will override this with real-time data anyway
+      if (lastSeen) {
+        // Calculate status based on lastSeen timestamp
         const lastSeenDate = new Date(lastSeen)
         const now = new Date()
         const diffMinutes = (now.getTime() - lastSeenDate.getTime()) / (1000 * 60)
@@ -114,22 +145,40 @@ export function usePresence({ wsClient, isConnected }: UsePresenceOptions) {
           // Seen in last 15 minutes = away
           status = 'away'
         }
-        // Otherwise offline
+        // Otherwise offline (default)
+      } else if (typeof isOnline === 'boolean') {
+        // Only use isOnline as last resort if no lastSeen available
+        status = isOnline ? 'online' : 'offline'
       }
 
+      console.log(
+        `[usePresence] API init: userId=${userId}, status=${status}, isOnline=${isOnline}, lastSeen=${lastSeen}, calculated from lastSeen=${!!lastSeen}`
+      )
       updatePresence(userId, { status, lastSeen })
     },
     [updatePresence]
   )
 
   // Clear all presence data
+  // NOTE: This should rarely be called - presence should persist through brief disconnects
   const clearPresence = useCallback(() => {
+    console.log('[usePresence] Clearing all presence data')
     setPresenceMap(new Map())
     presenceMapRef.current = new Map()
   }, [])
 
+  // Version number that increments on every presence change
+  // Components can use this to force re-renders when presence changes
+  const [presenceVersion, setPresenceVersion] = useState(0)
+
+  // Increment version whenever presenceMap changes
+  useEffect(() => {
+    setPresenceVersion(v => v + 1)
+  }, [presenceMap])
+
   return {
     presenceMap,
+    presenceVersion, // Use this to trigger re-renders: key={presenceVersion}
     getUserPresence,
     isUserOnline,
     updatePresence,

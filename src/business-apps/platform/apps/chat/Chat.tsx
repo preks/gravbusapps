@@ -134,8 +134,8 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
     messagesLoading,
     hasMoreMessages,
     typingUsers,
-    presenceMap,
     getUserPresence,
+    presenceVersion,
     updatePresenceFromUser,
     sendMessage,
     createDirectConversation,
@@ -201,10 +201,41 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
   }, [registerNudgeCallback, currentUser, activeConversationId])
 
   // Clear presence initialization tracking when connection drops
-  // This allows presence to be re-initialized from API when reconnecting
+  // RESILIENCE FIX: Add SHORT delay (500ms) to handle rapid reconnects from platform remounting
+  // This prevents losing presence data during brief component lifecycle changes
+  // Longer disconnects still clear cache to ensure fresh data on next load
+  const isConnectedRef = useRef(isConnected)
+  const disconnectTimeRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    isConnectedRef.current = isConnected
+  }, [isConnected])
+
   useEffect(() => {
     if (!isConnected) {
-      presenceInitializedUsersRef.current.clear()
+      // Record when we disconnected
+      disconnectTimeRef.current = Date.now()
+
+      const timeout = setTimeout(() => {
+        // Only clear if still disconnected after 500ms
+        // This handles platform remounting (< 500ms) but clears for real disconnects
+        if (!isConnectedRef.current) {
+          console.log('[Chat] Connection lost for 500ms+, clearing presence cache')
+          presenceInitializedUsersRef.current.clear()
+          disconnectTimeRef.current = null
+        }
+      }, 500) // 500ms grace period - fast enough for remounting, slow enough for stability
+
+      return () => clearTimeout(timeout)
+    } else {
+      // Check if this was a rapid reconnect (< 500ms)
+      if (disconnectTimeRef.current !== null) {
+        const disconnectDuration = Date.now() - disconnectTimeRef.current
+        if (disconnectDuration < 500) {
+          console.log(`[Chat] Rapid reconnect after ${disconnectDuration}ms - preserving presence cache`)
+        }
+        disconnectTimeRef.current = null
+      }
     }
   }, [isConnected])
 
@@ -1367,7 +1398,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
               accessToken={accessToken}
               compact={viewMode === 'compact'}
               getUserPresence={getUserPresence}
-              presenceMap={presenceMap}
+              presenceVersion={presenceVersion}
               conversationExpertCounts={conversationExpertCounts}
             />
           </div>
