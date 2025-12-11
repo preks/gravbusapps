@@ -134,9 +134,23 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
     string,
     string
   ]
+  // Convert HH:MM to total minutes for comparison
+  const hhmmToMinutes = (hhmm?: string): number | null => {
+    if (!hhmm || typeof hhmm !== 'string' || !hhmm.includes(':')) return null
+    const [hh, mm] = hhmm.split(':').map(v => parseInt(v, 10))
+    if (Number.isNaN(hh) || Number.isNaN(mm)) return null
+    return hh * 60 + mm
+  }
   const isValid = useMemo(() => {
     const hasNotes = typeof notesVal === 'string' && notesVal.trim().length > 0
-    return Boolean(dateVal && clockInVal && clockOutVal && hasNotes)
+    const startMins = hhmmToMinutes(clockInVal)
+    const endMins = hhmmToMinutes(clockOutVal)
+    const timeOrderOk =
+      startMins === null ||
+      endMins === null ||
+      // Allow equal, only invalidate when start is strictly after end
+      startMins <= endMins
+    return Boolean(dateVal && clockInVal && clockOutVal && hasNotes && timeOrderOk)
   }, [dateVal, clockInVal, clockOutVal, notesVal])
 
   // Normalize any date (ISO with time or YYYY-MM-DD) to UTC midnight ISO
@@ -328,7 +342,17 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
             <FormField
               control={form.control as any}
               name="clockIn"
-              rules={{ required: 'Clock In time is required' }}
+              rules={{
+                required: 'Clock In time is required',
+                validate: value => {
+                  const start = hhmmToMinutes(value)
+                  const end = hhmmToMinutes(form.getValues('clockOut'))
+                  if (start !== null && end !== null && start > end) {
+                    return 'Start time cannot be after end time'
+                  }
+                  return true
+                }
+              }}
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>
@@ -353,7 +377,17 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
             <FormField
               control={form.control as any}
               name="clockOut"
-              rules={{ required: 'Clock Out time is required' }}
+              rules={{
+                required: 'Clock Out time is required',
+                validate: value => {
+                  const end = hhmmToMinutes(value)
+                  const start = hhmmToMinutes(form.getValues('clockIn'))
+                  if (start !== null && end !== null && start > end) {
+                    return 'Start time cannot be after end time'
+                  }
+                  return true
+                }
+              }}
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>
