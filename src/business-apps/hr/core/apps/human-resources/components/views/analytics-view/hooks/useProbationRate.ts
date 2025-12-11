@@ -59,49 +59,16 @@ export const useProbationRate = (accessToken: string) => {
       // Execute the GraphQL query
       const response = await graphQLClient.request<ProbationRateDataResponse>(GET_PROBATION_RATE_DATA)
 
-      // Log raw response for debugging
-      console.log('[useProbationRate] Raw response:', JSON.stringify(response))
-      console.log('[useProbationRate] Response keys:', Object.keys(response))
-
-      if (response.EmployeePositionAggregate) {
-        console.log('[useProbationRate] EmployeePositionAggregate exists')
-      } else {
-        console.log('[useProbationRate] EmployeePositionAggregate missing')
-      }
-
-      if (response.EmployeeWorkingConditionAggregate) {
-        console.log('[useProbationRate] EmployeeWorkingConditionAggregate exists')
-      } else {
-        console.log('[useProbationRate] EmployeeWorkingConditionAggregate missing')
-      }
-
-      // Validate response structure
-      if (
-        !response ||
-        !response.EmployeePositionAggregate ||
-        !response.EmployeePositionAggregate.aggregate ||
-        !('count' in response.EmployeePositionAggregate.aggregate) ||
-        !response.EmployeeWorkingConditionAggregate ||
-        !response.EmployeeWorkingConditionAggregate.aggregate ||
-        !('count' in response.EmployeeWorkingConditionAggregate.aggregate)
-      ) {
-        throw new Error('[useProbationRate] Invalid response structure from GraphQL API')
-      }
-
-      // Extract and validate counts
-      const total = Number(response.EmployeePositionAggregate.aggregate.count)
+      // Extract counts from aliased aggregates
+      const total = Number((response as any)?.totalActive?.aggregate?.count)
       if (isNaN(total)) {
         throw new Error('[useProbationRate] Total employee count is not a valid number')
       }
 
-      const completedProbation = Number(response.EmployeeWorkingConditionAggregate.aggregate.count)
-      if (isNaN(completedProbation)) {
-        throw new Error('[useProbationRate] Completed probation count is not a valid number')
+      const inProbation = Number((response as any)?.inProbationActive?.aggregate?.count)
+      if (isNaN(inProbation)) {
+        throw new Error('[useProbationRate] In-probation employee count is not a valid number')
       }
-
-      // With our updated query, completedProbation now represents employees currently in probation
-      // (those with probation end date > today)
-      const inProbation = completedProbation
 
       // Calculate probation rate (percentage of employees currently in probation)
       const calculatedProbationRate = total > 0 ? (inProbation / total) * 100 : 0

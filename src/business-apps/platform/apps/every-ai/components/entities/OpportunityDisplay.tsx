@@ -1,91 +1,102 @@
-import React, { useState, useEffect } from 'react'
-import { EntityCard } from './EntityCard'
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import React from 'react'
+import { Card, CardContent, CardHeader, CardTitle, Badge } from '@newwork/nw-design-system'
+// import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { getOperationBadge } from './utils/displayUtils'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import EntityLink, { markdownUrlTransform } from '../links/EntityLink'
 
 interface OpportunityDisplayProps {
   opportunityId: string
   accessToken: string
   operation?: 'create' | 'update' | 'delete' | 'read'
+  textHuman?: string
+  textTitle?: string
 }
 
-interface Opportunity {
-  id: string
-  name: string
-  amount?: number
-  closeDate?: string
-  stage?: { value: string }
-  account?: { name: string }
-}
+// interface Opportunity {
+//   id: string
+//   name: string
+//   amount?: number
+//   closeDate?: string
+//   stage?: { value: string }
+//   account?: { name: string }
+// }
 
-export const OpportunityDisplay: React.FC<OpportunityDisplayProps> = ({ opportunityId, accessToken, operation }) => {
-  const [opportunity, setOpportunity] = useState<Opportunity | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const graphqlClient = useGraphQLClient(accessToken)
+export const OpportunityDisplay: React.FC<OpportunityDisplayProps> = ({
+  textHuman,
+  textTitle,
+  accessToken,
+  opportunityId,
+  operation
+}) => {
+  // const [opportunity, setOpportunity] = useState<Opportunity | null>(null)
+  // const [isLoading, setIsLoading] = useState(true)
+  // const [error, setError] = useState<string | null>(null)
+  // const graphqlClient = useGraphQLClient(accessToken)
 
-  useEffect(() => {
-    const fetchOpportunity = async () => {
-      setIsLoading(true)
-      setError(null)
+  // useEffect(() => {
+  //   const fetchOpportunity = async () => {
+  //     setIsLoading(true)
+  //     setError(null)
 
-      try {
-        const query = `
-          query GetOpportunity($id: uuid!) {
-            customerOpportunities_by_pk(id: $id) {
-              id
-              name
-              amount
-              closeDate
-              stage {
-                value
-              }
-              account {
-                name
-              }
-            }
-          }
-        `
+  //     try {
+  //       const query = `
+  //         query GetOpportunity($id: uuid!) {
+  //           customerOpportunities_by_pk(id: $id) {
+  //             id
+  //             name
+  //             amount
+  //             closeDate
+  //             stage {
+  //               value
+  //             }
+  //             account {
+  //               name
+  //             }
+  //           }
+  //         }
+  //       `
 
-        const result = await graphqlClient.request<{ customerOpportunities_by_pk: Opportunity }>(query, {
-          id: opportunityId
-        })
+  //       const result = await graphqlClient.request<{ customerOpportunities_by_pk: Opportunity }>(query, {
+  //         id: opportunityId
+  //       })
 
-        if (result.customerOpportunities_by_pk) {
-          setOpportunity(result.customerOpportunities_by_pk)
-        } else {
-          setError('Opportunity not found')
-        }
-      } catch (err) {
-        console.error('Error fetching opportunity:', err)
-        setError('Failed to load opportunity')
-      } finally {
-        setIsLoading(false)
-      }
-    }
+  //       if (result.customerOpportunities_by_pk) {
+  //         setOpportunity(result.customerOpportunities_by_pk)
+  //       } else {
+  //         setError('Opportunity not found')
+  //       }
+  //     } catch (err) {
+  //       console.error('Error fetching opportunity:', err)
+  //       setError('Failed to load opportunity')
+  //     } finally {
+  //       setIsLoading(false)
+  //     }
+  //   }
 
-    if (opportunityId && accessToken) {
-      fetchOpportunity()
-    }
-  }, [opportunityId, accessToken, graphqlClient])
+  //   if (opportunityId && accessToken) {
+  //     fetchOpportunity()
+  //   }
+  // }, [opportunityId, accessToken, graphqlClient])
 
-  const operationBadge = getOperationBadge(operation)
+  // const operationBadge = getOperationBadge(operation)
 
-  const handleClick = () => {
-    if (opportunityId) {
-      const url = buildPlatformUrl('/platform/crm/opportunity-record', {
-        opportunityId: opportunityId,
-        source: 'every-ai'
-      })
-      navigateTo(url)
-    }
-  }
+  // const handleClick = () => {
+  //   if (opportunityId) {
+  //     const url = buildPlatformUrl('/platform/crm/opportunity-record', {
+  //       opportunityId: opportunityId,
+  //       source: 'every-ai'
+  //     })
+  //     navigateTo(url)
+  //   }
+  // }
 
-  const formatCurrency = (amount?: number) => {
-    if (!amount) return '-'
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR' }).format(amount)
-  }
+  // const formatCurrency = (amount?: number) => {
+  //   if (!amount) return '-'
+  //   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR' }).format(amount)
+  // }
 
   const icon = (
     <div className="gba:h-12 gba:w-12 gba:rounded-full gba:bg-ai-secondary gba:flex gba:items-center gba:justify-center">
@@ -100,25 +111,65 @@ export const OpportunityDisplay: React.FC<OpportunityDisplayProps> = ({ opportun
     </div>
   )
 
+  const handleTitleClick = () => {
+    if (!opportunityId) return
+    const url = buildPlatformUrl('/platform/crm/opportunity-record', {
+      opportunityId,
+      source: 'every-ai'
+    })
+    navigateTo(url)
+  }
+
+  const content = textHuman || ''
+  // Convert single newlines to hard line breaks in markdown
+  const contentWithLineBreaks = content.replace(/\n/g, '  \n')
+
   return (
-    <EntityCard
-      title={opportunity?.name || 'Opportunity'}
-      subtitle={opportunity?.account?.name}
-      icon={icon}
-      status={operationBadge?.text || opportunity?.stage?.value}
-      statusVariant={operationBadge?.variant}
-      fields={
-        opportunity
-          ? [
-              { label: 'Amount', value: formatCurrency(opportunity.amount) },
-              { label: 'Close Date', value: opportunity.closeDate }
-            ]
-          : undefined
-      }
-      isLoading={isLoading}
-      error={error || undefined}
-      onClick={handleClick}
-    />
+    <Card className="gba:border-2 gba:shadow-lg" data-testid="opportunity-display-markdown">
+      <CardHeader className="gba:flex gba:flex-row gba:items-center gba:gap-3 gba:justify-between">
+        <div className="gba:flex gba:items-center gba:gap-3">
+          {icon}
+          <CardTitle className="gba:text-base gba:font-bold gba:text-foreground">
+            <button
+              type="button"
+              className="gba:underline hover:gba:text-primary"
+              onClick={handleTitleClick}
+              data-testid="opportunity-title-link"
+            >
+              {textTitle || 'Opportunity'}
+            </button>
+          </CardTitle>
+        </div>
+        {getOperationBadge(operation) && (
+          <Badge
+            variant={getOperationBadge(operation)!.variant}
+            className="gba:text-xs"
+            data-testid="opportunity-operation-badge"
+          >
+            {getOperationBadge(operation)!.text}
+          </Badge>
+        )}
+      </CardHeader>
+      <CardContent className="gba:p-5">
+        <div className="gba:prose gba:prose-sm gba:max-w-none gba:text-foreground">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              ul: ({ ...props }) => <ul className="gba:list-disc gba:ml-6" {...props} />,
+              ol: ({ ...props }) => <ol className="gba:list-decimal gba:ml-6" {...props} />,
+              a: ({ href, children, ...props }) => (
+                <EntityLink href={href} accessToken={accessToken} {...props}>
+                  {children}
+                </EntityLink>
+              )
+            }}
+            urlTransform={markdownUrlTransform}
+          >
+            {contentWithLineBreaks}
+          </ReactMarkdown>
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 

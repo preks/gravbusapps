@@ -1,10 +1,19 @@
 import React, { useState, useEffect } from 'react'
-import { Tabs, TabsContent, TabsList, TabsTrigger, Button, Spinner, Card, CardContent, useTranslation } from '@newwork/nw-design-system'
-import { PiTrendUp, PiArrowClockwise, PiUsers, PiChartBar, PiBriefcase } from 'react-icons/pi'
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  Button,
+  Spinner,
+  Card,
+  CardContent,
+  useTranslation
+} from '@newwork/nw-design-system'
+import { PiTrendUp, PiArrowClockwise, PiUsers, PiBriefcase } from 'react-icons/pi'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import HeadcountTrends from './components/tabs/HeadcountTrends'
 import TurnoverRetention from './components/tabs/TurnoverRetention'
-import Performance from './components/tabs/Performance'
 import Employment from './components/tabs/Employment'
 import { useHeadcountTrendsData } from '../../../hooks/useHeadcountTrendsData'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
@@ -12,7 +21,7 @@ import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 const Workforce: React.FC<BusinessAppContextProps> = context => {
   const { t } = useTranslation(hrTranslations)
   // Define valid tabs
-  const validTabs = ['headcount-trends', 'turnover-retention', 'employment', 'performance']
+  const validTabs = ['headcount-trends', 'turnover-retention', 'employment']
   const defaultTab = 'headcount-trends'
 
   // Get content from URL query parameter or use default
@@ -104,9 +113,13 @@ const Workforce: React.FC<BusinessAppContextProps> = context => {
       {/* Header */}
       <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
         <div className="gba:flex gba:items-center gba:gap-4">
-          <h2 className="gba:text-2xl gba:font-bold gba:text-foreground gba:m-0">{t('hr-analytics-workforce-analytics')}</h2>
+          <h2 className="gba:text-2xl gba:font-bold gba:text-foreground gba:m-0">
+            {t('hr-analytics-workforce-analytics')}
+          </h2>
           <div className="gba:bg-card gba:px-3 gba:py-1 gba:rounded-full gba:border gba:border-border">
-            <span className="gba:font-semibold gba:text-info">{statistics.totalEmployees} {t('hr-analytics-employees')}</span>
+            <span className="gba:font-semibold gba:text-info">
+              {statistics.totalEmployees} {t('hr-analytics-employees')}
+            </span>
           </div>
         </div>
         <Button
@@ -126,35 +139,47 @@ const Workforce: React.FC<BusinessAppContextProps> = context => {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange}>
-        <TabsList className="gba:grid gba:w-full gba:max-w-5xl gba:grid-cols-4">
+        <TabsList className="gba:grid gba:w-full gba:max-w-5xl gba:grid-cols-3 gba:items-stretch gba:h-12 gba:gap-2">
           <TabsTrigger
             value="headcount-trends"
             data-testid="headcount-trends-tab"
-            className="gba:flex gba:items-center gba:gap-2"
+            className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:h-12 gba:px-4 gba:py-0 gba:leading-none gba:min-w-0 gba:overflow-hidden"
+            title={t('hr-analytics-headcount-trends')}
           >
-            <PiTrendUp />
-            {t('hr-analytics-headcount-trends')}
+            <span className="gba:shrink-0">
+              <PiTrendUp />
+            </span>
+            <span className="gba:flex-1 gba:min-w-0 gba:truncate gba:text-ellipsis gba:overflow-hidden">
+              {t('hr-analytics-headcount-trends')}
+            </span>
           </TabsTrigger>
           <TabsTrigger
             value="turnover-retention"
             data-testid="turnover-retention-tab"
-            className="gba:flex gba:items-center gba:gap-2"
+            className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:h-12 gba:px-4 gba:py-0 gba:leading-none gba:min-w-0 gba:overflow-hidden"
+            title={t('hr-analytics-turnover-retention')}
           >
-            <PiUsers />
-            {t('hr-analytics-turnover-retention')}
-          </TabsTrigger>
-          <TabsTrigger value="employment" data-testid="employment-tab" className="gba:flex gba:items-center gba:gap-2">
-            <PiBriefcase />
-            {t('hr-analytics-employment')}
+            <span className="gba:shrink-0">
+              <PiUsers />
+            </span>
+            <span className="gba:flex-1 gba:min-w-0 gba:truncate gba:text-ellipsis gba:overflow-hidden">
+              {t('hr-analytics-turnover-retention')}
+            </span>
           </TabsTrigger>
           <TabsTrigger
-            value="performance"
-            data-testid="performance-tab"
-            className="gba:flex gba:items-center gba:gap-2"
+            value="employment"
+            data-testid="employment-tab"
+            className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:h-12 gba:px-4 gba:py-0 gba:leading-none gba:min-w-0 gba:overflow-hidden"
+            title={t('hr-analytics-employment')}
           >
-            <PiChartBar />
-            {t('hr-analytics-performance')}
+            <span className="gba:shrink-0">
+              <PiBriefcase />
+            </span>
+            <span className="gba:flex-1 gba:min-w-0 gba:truncate gba:text-ellipsis gba:overflow-hidden">
+              {t('hr-analytics-employment')}
+            </span>
           </TabsTrigger>
+          {/* Performance tab hidden */}
         </TabsList>
 
         <TabsContent value="headcount-trends" className="gba:mt-6">
@@ -169,9 +194,7 @@ const Workforce: React.FC<BusinessAppContextProps> = context => {
           <Employment {...context} />
         </TabsContent>
 
-        <TabsContent value="performance" className="gba:mt-6">
-          <Performance {...context} />
-        </TabsContent>
+        {/* Performance content hidden */}
       </Tabs>
     </div>
   )

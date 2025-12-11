@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useQueryExecutionClient, QueryType, Services } from '@/common/network/dataset'
+import { useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
 export interface DemographicsData {
@@ -59,6 +61,7 @@ export const useDemographicsDataIntegration = (
   const [error, setError] = useState<string | null>(null)
 
   const queryClient = useQueryExecutionClient(context.accessToken, Services.EMPLOYEE)
+  const { t } = useTranslation(hrTranslations)
 
   const calculateStatistics = useCallback(
     (
@@ -152,18 +155,21 @@ export const useDemographicsDataIntegration = (
 
       // Transform data for consistent structure
       const transformedData: DemographicsData = {
-        genderDistribution: genderData.data.map(item => ({
-          category: item.category,
-          value: item.value
-        })),
+        genderDistribution: genderData.data.map(item => {
+          const raw = String(item.category || '')
+          const name =
+            raw.trim().toLowerCase() === 'not specified'.toLowerCase() ? t('hr-analytics-not-specified') : raw
+          return { category: name, value: item.value }
+        }),
         ageDistribution: ageData.data.map(item => ({
           category: item.category,
           value: item.value
         })),
-        nationalityDistribution: nationalityData.data.map(item => ({
-          category: item.category,
-          value: item.value
-        }))
+        nationalityDistribution: nationalityData.data.map(item => {
+          const raw = String(item.category || '')
+          const name = raw.trim().toLowerCase() === 'unknown'.toLowerCase() ? t('hr-analytics-not-specified') : raw
+          return { category: name, value: item.value }
+        })
       }
 
       // Get the authoritative total employee count

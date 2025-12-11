@@ -367,9 +367,27 @@ function renderEntity(item: EntityData, accessToken: string) {
     case 'employee':
       return <EmployeeDisplay key={item.id} employeeId={item.id} accessToken={accessToken} operation={item.operation} />
     case 'lead':
-      return <LeadDisplay key={item.id} leadId={item.id} accessToken={accessToken} operation={item.operation} />
+      return (
+        <LeadDisplay
+          key={item.id}
+          leadId={item.id}
+          accessToken={accessToken}
+          operation={item.operation}
+          textHuman={item.text_human}
+          textTitle={item.text_title}
+        />
+      )
     case 'contact':
-      return <ContactDisplay key={item.id} contactId={item.id} accessToken={accessToken} operation={item.operation} />
+      return (
+        <ContactDisplay
+          key={item.id}
+          contactId={item.id}
+          accessToken={accessToken}
+          operation={item.operation}
+          textHuman={item.text_human}
+          textTitle={item.text_title}
+        />
+      )
     case 'opportunity':
     case 'investment_opportunity':
       return (
@@ -378,13 +396,24 @@ function renderEntity(item: EntityData, accessToken: string) {
           opportunityId={item.id}
           accessToken={accessToken}
           operation={item.operation}
+          textHuman={item.text_human}
+          textTitle={item.text_title}
         />
       )
     case 'company':
     case 'account':
     case 'investment_company':
     case 'investment_account':
-      return <CompanyDisplay key={item.id} companyId={item.id} accessToken={accessToken} operation={item.operation} />
+      return (
+        <CompanyDisplay
+          key={item.id}
+          companyId={item.id}
+          accessToken={accessToken}
+          operation={item.operation}
+          textHuman={item.text_human}
+          textTitle={item.text_title}
+        />
+      )
     case 'expense_request':
     case 'expense_plan':
     case 'expense_item':
@@ -398,12 +427,39 @@ function renderEntity(item: EntityData, accessToken: string) {
         />
       )
     case 'investment_lead':
-      return <LeadDisplay key={item.id} leadId={item.id} accessToken={accessToken} operation={item.operation} />
+      return (
+        <LeadDisplay
+          key={item.id}
+          leadId={item.id}
+          accessToken={accessToken}
+          operation={item.operation}
+          textHuman={item.text_human}
+          textTitle={item.text_title}
+        />
+      )
     case 'investment_contact':
-      return <ContactDisplay key={item.id} contactId={item.id} accessToken={accessToken} operation={item.operation} />
+      return (
+        <ContactDisplay
+          key={item.id}
+          contactId={item.id}
+          accessToken={accessToken}
+          operation={item.operation}
+          textHuman={item.text_human}
+          textTitle={item.text_title}
+        />
+      )
     case 'absence':
     case 'employee_absence':
-      return <AbsenceDisplay key={item.id} absenceId={item.id} accessToken={accessToken} operation={item.operation} />
+      return (
+        <AbsenceDisplay
+          key={item.id}
+          absenceId={item.id}
+          accessToken={accessToken}
+          operation={item.operation}
+          textHuman={item.text_human}
+          textTitle={item.text_title}
+        />
+      )
     case 'sales_activity':
     case 'salesActivity':
       return (
@@ -421,6 +477,8 @@ function renderEntity(item: EntityData, accessToken: string) {
           serviceTicketId={item.id}
           accessToken={accessToken}
           operation={item.operation}
+          textHuman={item.text_human}
+          textTitle={item.text_title}
         />
       )
     case 'content_entry':
