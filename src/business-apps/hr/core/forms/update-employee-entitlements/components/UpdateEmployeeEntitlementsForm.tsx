@@ -36,7 +36,6 @@ const UpdateEmployeeEntitlementsForm: React.FC<UpdateEmployeeEntitlementsFormPro
     error,
     isFixedEmployeeId,
     activeEmployeeId,
-    fixedEmployeeName,
     employeeHeaderInfo,
     entitlements,
     absenceTypes,
@@ -124,8 +123,7 @@ const UpdateEmployeeEntitlementsForm: React.FC<UpdateEmployeeEntitlementsFormPro
             data-testid="mileageRuleModal_columnLayoutContainer"
             className="gba:min-w-0 gba:max-w-full gba:overflow-x-hidden"
           >
-            {/* Employee selector or fixed display */}
-            {!isFixedEmployeeId ? (
+            {!isFixedEmployeeId && (
               <div className="gba:mb-4">
                 <div className="gba:font-semibold gba:text-sm gba:mb-2">
                   {getTranslationFromI18nKeyAndLabel('lowcoder:working_hours_form.employee_label', 'Employee')}
@@ -176,18 +174,6 @@ const UpdateEmployeeEntitlementsForm: React.FC<UpdateEmployeeEntitlementsFormPro
                   </div>
                 )}
                 {error && <div className="gba:mt-2 gba:text-destructive">{error}</div>}
-              </div>
-            ) : (
-              <div className="gba:mb-4">
-                <div className="gba:font-semibold gba:text-sm gba:mb-2">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:working_hours_form.employee_label', 'Employee')}
-                </div>
-                <div
-                  className="gba:bg-muted gba:rounded-md gba:px-3 gba:py-2 gba:text-sm"
-                  data-testid="flw_updateEmployeeEntitlements_employee_fixed"
-                >
-                  <span>{fixedEmployeeName || '-'}</span>
-                </div>
               </div>
             )}
 
