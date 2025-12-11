@@ -12,7 +12,6 @@ import {
 } from '@newwork/nw-design-system'
 import { ChartBar, Users } from '@phosphor-icons/react'
 import { OfficeUsageProps } from './types'
-import { OfficeUsageFilterBar } from './components/filters/OfficeUsageFilterBar'
 import { UsageOverviewTab } from './components/tabs/UsageOverviewTab'
 import { LivePresenceTab } from './components/tabs/LivePresenceTab'
 import { useOfficeUsageFilters } from './hooks/useOfficeUsageFilters'
@@ -141,15 +140,6 @@ const OfficeUsage: React.FC<OfficeUsageProps> = ({ accessToken, prefixDataTestId
         </p>
       </div>
 
-      {/* Filter Bar - Persistent across tabs */}
-      <OfficeUsageFilterBar
-        filters={filters}
-        onFiltersChange={updateFilters}
-        locations={locations}
-        isLoading={locationsLoading || attendanceLoading}
-        prefixDataTestId={`${prefixDataTestId}-filter-bar`}
-      />
-
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={value => setActiveTab(value as typeof activeTab)}>
         <TabsList className="gba:mb-6">
@@ -175,6 +165,8 @@ const OfficeUsage: React.FC<OfficeUsageProps> = ({ accessToken, prefixDataTestId
             attendance={attendance}
             locations={locations}
             filters={filters}
+            onFiltersChange={updateFilters}
+            filtersLoading={locationsLoading || attendanceLoading}
             isLoading={attendanceLoading}
             error={attendanceError}
             onRetry={() => fetchAttendance(filters.dateFrom, filters.dateTo)}

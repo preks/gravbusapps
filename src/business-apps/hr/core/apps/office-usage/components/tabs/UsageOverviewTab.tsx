@@ -8,11 +8,14 @@ import { LocationDetailPanel } from '../usage-overview/LocationDetailPanel'
 import { CapacityUsageChart } from '../usage-overview/CapacityUsageChart'
 import { useUsageOverviewData } from '../../hooks/useUsageOverviewData'
 import { useLocationDetail } from '../../hooks/useLocationDetail'
+import { OfficeUsageFilterBar } from '../filters/OfficeUsageFilterBar'
 
 interface UsageOverviewTabProps {
   attendance: OfficeAttendanceRecord[]
   locations: SiteLocationCapacity[]
   filters: OfficeUsageFilters
+  onFiltersChange: (updates: Partial<OfficeUsageFilters>) => void
+  filtersLoading?: boolean
   isLoading: boolean
   error: Error | null
   onRetry: () => void
@@ -24,6 +27,8 @@ export const UsageOverviewTab: React.FC<UsageOverviewTabProps> = ({
   attendance,
   locations,
   filters,
+  onFiltersChange,
+  filtersLoading = false,
   isLoading,
   error,
   onRetry,
@@ -97,6 +102,15 @@ export const UsageOverviewTab: React.FC<UsageOverviewTabProps> = ({
             : `${filters.selectedLocations.length} ${getTranslationFromI18nKeyAndLabel('lowcoder:office_usage.locations', 'location(s)')}`}
         </p>
       </div>
+
+      {/* Filters under header and subtitle */}
+      <OfficeUsageFilterBar
+        filters={filters}
+        onFiltersChange={onFiltersChange}
+        locations={locations}
+        isLoading={filtersLoading}
+        prefixDataTestId={`${prefixDataTestId}-filter-bar`}
+      />
 
       {/* KPI Cards */}
       <KpiCards kpis={kpis} prefixDataTestId={`${prefixDataTestId}-kpis`} />
