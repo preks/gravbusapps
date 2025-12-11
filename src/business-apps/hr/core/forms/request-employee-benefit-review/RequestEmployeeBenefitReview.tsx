@@ -5,7 +5,7 @@ import { useTranslation, Spinner, Alert, AlertTitle, AlertDescription } from '@n
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import FormHeader from '../components/FormHeader'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
-import { BenefitDetailsList } from './components/BenefitDetailsList'
+import { BenefitDetailsList } from '../employee-benefit-review/components'
 import { useBenefitReviewData } from './hooks/useBenefitReviewData'
 import translations from '../_i18n'
 
@@ -119,7 +119,12 @@ export const RequestEmployeeBenefitReview: React.FC<BusinessAppContextProps> = (
             <h3 className="gba:text-lg gba:font-semibold gba:mb-4">
               {t('request-benefit-review-benefit-details', { defaultValue: 'Benefit Details' })}
             </h3>
-            <BenefitDetailsList items={displayItems} dataTestIdPrefix="request-employee-benefit-review" t={t} />
+            <BenefitDetailsList
+              items={displayItems}
+              dataTestIdPrefix="request-employee-benefit-review"
+              translationPrefix="request-benefit-review"
+              t={t}
+            />
           </div>
 
           {/* Additional Information Section - Justification */}
