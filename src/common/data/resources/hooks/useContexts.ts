@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useResourceClient } from './useResourceClient'
+import { useResourceClient } from '@/common/network/resources/useResourceClient'
 import type { GetContextsParams, ContextWithActions } from '../types/context.types'
 import type { ActionAssignmentDTO } from '../types/assignment.types'
 

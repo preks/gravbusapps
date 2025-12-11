@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo, useState, useEffect, useRef } from 'react'
 import { DataDisplay, DataTable } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useResourceClient } from '@/common/data/resources/hooks/useResourceClient'
+import { useResourceClient } from '@/common/network/resources/useResourceClient'
 import type { ContextDTO } from '@/common/data/resources/types/context.types'
 import type { ActionAssignmentDTO } from '@/common/data/resources/types/assignment.types'
 

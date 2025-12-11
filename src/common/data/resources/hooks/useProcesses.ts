@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useResourceClient } from './useResourceClient'
+import { useResourceClient } from '@/common/network/resources/useResourceClient'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 export interface ProcessOption {

@@ -8,7 +8,7 @@ import { useEditableState } from '../../../../hooks/useEditableState'
 import type { ActionDTO } from '@/common/data/resources/types/action.types'
 import { useDomainProcesses } from '@/common/data/resources/hooks/useDomainProcesses'
 import { useComponents } from '@/common/data/resources/hooks/useComponents'
-import { useResourceClient } from '@/common/data/resources/hooks/useResourceClient'
+import { useResourceClient } from '@/common/network/resources/useResourceClient'
 import { createActionTableColumns } from './ActionTableColumns'
 
 interface ActionTableProps extends BusinessAppContextProps {

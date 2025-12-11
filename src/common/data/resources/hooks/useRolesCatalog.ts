@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useResourceClient } from './useResourceClient'
+import { useResourceClient } from '@/common/network/resources/useResourceClient'
 
 export interface RoleOption {
   id: string

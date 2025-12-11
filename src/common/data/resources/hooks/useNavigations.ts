@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useResourceClient } from './useResourceClient'
+import { useResourceClient } from '@/common/network/resources/useResourceClient'
 import type { NavigationDTO, GetNavigationsParams } from '../types/navigation.types'
 
 interface UseNavigationsResult {

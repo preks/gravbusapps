@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from 'react'
 import { ComponentResource, AzureBlobVersions, Component } from '../types/component.types'
 import { useComponentPaths } from './useComponentPaths'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useResourceClient } from './useResourceClient'
+import { useResourceClient } from '@/common/network/resources/useResourceClient'
 
 interface UseComponentResourcesParams {
   searchParameter?: string
