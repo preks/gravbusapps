@@ -5,7 +5,7 @@ import { useTranslation, Spinner, Alert, AlertTitle, AlertDescription } from '@n
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import FormHeader from '../components/FormHeader'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
-import { BenefitDetailsList } from './components/BenefitDetailsList'
+import { BenefitDetailsList } from '../employee-benefit-review/components'
 import { DeactivationDetailsList } from './components/DeactivationDetailsList'
 import { useDeactivateBenefitReviewData } from './hooks/useDeactivateBenefitReviewData'
 import translations from '../_i18n'
@@ -118,6 +118,7 @@ export const DeactivateEmployeeBenefitReview: React.FC<BusinessAppContextProps> 
             <BenefitDetailsList
               items={displayItems}
               dataTestIdPrefix="deactivate-employee-benefit-review-benefit"
+              translationPrefix="deactivate-benefit-review"
               t={t}
             />
           </div>

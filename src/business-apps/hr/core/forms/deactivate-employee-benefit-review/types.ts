@@ -1,30 +1,19 @@
-export interface EmployeeBenefitDeactivationData {
+import type {
+  BenefitDisplayItem,
+  EmployeeBenefitBaseData,
+  BenefitReviewBasePayload
+} from '../employee-benefit-review/types'
+
+export type { BenefitDisplayItem }
+
+export interface EmployeeBenefitDeactivationData extends EmployeeBenefitBaseData {
   id: string
-  employee: string
-  benefitTypeRef: string | null
-  benefitProviderRef: string | null
-  yearlyAmount: number
-  monthlyAmount: number
-  period?: string | null
-  currencyRef: string
-  startDate: string | null
   endDate: string
   notes: string
-  status?: string
-  employeeYearlyContribution?: number
-  employeeMonthlyContribution?: number
 }
 
-export interface DeactivateBenefitReviewPayload {
+export interface DeactivateBenefitReviewPayload extends BenefitReviewBasePayload {
   employeeBenefit: EmployeeBenefitDeactivationData
-  employeeId?: string
-  initiatorEmployeeId?: string
-}
-
-export interface BenefitDisplayItem {
-  key: string
-  label: string
-  value: string
 }
 
 export interface DeactivationDetails {
