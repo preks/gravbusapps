@@ -70,7 +70,7 @@ export function useContractTypeDistribution(accessToken: string) {
         setContractTypeDataLoading(false)
         setContractTypeDataError(err)
       })
-  }, [datasetClient, totalEmployees, countLoading])
+  }, [datasetClient, totalEmployees, countLoading, t])
 
   // Combine all possible errors
   useEffect(() => {

@@ -48,6 +48,7 @@ const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({ data, l
   // Custom active shape for the pie chart when hovering
   const renderActiveShape = (props: any) => {
     const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, payload, value } = props
+    if (!payload) return null
 
     return (
       <g>
@@ -147,16 +148,16 @@ const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({ data, l
       ) : (
         <>
           {/* Chart container */}
-          <div className="gba:h-96">
+          <div className="gba:h-96" onMouseLeave={() => setActiveIndex(-1)}>
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart data-testid={`${prefixDataTestId}-rendered`}>
+              <PieChart data-testid={`${prefixDataTestId}-rendered`} onMouseLeave={() => setActiveIndex(-1)}>
                 <Pie
                   data={chartData}
                   cx="50%"
                   cy="50%"
                   labelLine={false}
                   activeIndex={activeIndex}
-                  activeShape={renderActiveShape}
+                  activeShape={activeIndex >= 0 ? renderActiveShape : undefined}
                   innerRadius="60%"
                   outerRadius="80%"
                   dataKey="value"

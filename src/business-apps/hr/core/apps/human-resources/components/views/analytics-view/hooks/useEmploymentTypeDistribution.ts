@@ -77,7 +77,7 @@ export function useEmploymentTypeDistribution(accessToken: string) {
         // Fall back to empty distribution data
         setDistribution([])
       })
-  }, [datasetClient, countLoading, totalEmployees])
+  }, [datasetClient, countLoading, totalEmployees, t])
 
   // Combine errors if any occur
   useEffect(() => {
