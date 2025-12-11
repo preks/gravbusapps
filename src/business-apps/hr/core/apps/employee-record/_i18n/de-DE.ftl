@@ -258,3 +258,8 @@ payslip-download-tooltip = Gehaltsabrechnung herunterladen
 modal-request-benefit-type-label = Leistungsart
 modal-character-count = {$current} / {$max} Zeichen
 modal-character-minimum = (mindestens {$min} Zeichen)
+
+# Form Validation Errors
+error-end-date-required = Enddatum ist erforderlich
+error-end-date-today-or-later = Enddatum muss heute oder später sein
+error-end-date-after-start-date = Enddatum muss am oder nach dem Startdatum der Leistung liegen

@@ -258,3 +258,8 @@ payslip-download-tooltip = Download Payslip
 modal-request-benefit-type-label = Benefit Type
 modal-character-count = {$current} / {$max} characters
 modal-character-minimum = (minimum {$min} characters)
+
+# Form Validation Errors
+error-end-date-required = End date is required
+error-end-date-today-or-later = End date must be today or later
+error-end-date-after-start-date = End date must be on or after the benefit start date

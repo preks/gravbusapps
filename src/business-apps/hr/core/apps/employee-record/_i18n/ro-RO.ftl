@@ -258,3 +258,8 @@ payslip-download-tooltip = Descarcă fluturaș salarial
 modal-request-benefit-type-label = Tipul Beneficiului
 modal-character-count = {$current} / {$max} caractere
 modal-character-minimum = (minim {$min} caractere)
+
+# Form Validation Errors
+error-end-date-required = Data de încheiere este obligatorie
+error-end-date-today-or-later = Data de încheiere trebuie să fie astăzi sau mai târziu
+error-end-date-after-start-date = Data de încheiere trebuie să fie în sau după data de început a beneficiului
