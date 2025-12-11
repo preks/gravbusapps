@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useEmployeeCount } from './useEmployeeCount'
 import { QueryType, Services, useQueryExecutionClient } from '@/common/network/dataset'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
@@ -29,48 +29,62 @@ export function useContractTypeDistribution(accessToken: string) {
 
   // Get total employee count for percentage calculation
   const { count: totalEmployees, loading: countLoading, error: countError } = useEmployeeCount(accessToken)
+  const lastFetchKeyRef = useRef<string>('')
+
+  // Module-level in-flight cache for dataset requests
+  const staticCache =
+    (useContractTypeDistribution as any).__cache ||
+    ((useContractTypeDistribution as any).__cache = new Map<string, Promise<any>>())
 
   // Fetch contract type distribution data using Dataset
   useEffect(() => {
     if (countLoading || !datasetClient) return
 
+    const localeCode = getCurrentActiveUserLocale()
+    const fetchKey = `dataset|employeeContractTypeData|${accessToken}|${localeCode}`
+    if (lastFetchKeyRef.current === fetchKey) {
+      return
+    }
+    lastFetchKeyRef.current = fetchKey
+
     setContractTypeDataLoading(true)
 
-    const localeCode = getCurrentActiveUserLocale()
+    let p = staticCache.get(fetchKey)
+    if (!p) {
+      p = datasetClient.executeQuery('employeeContractTypeData', QueryType.DATASET, { localeCode })
+      staticCache.set(fetchKey, p)
+    }
 
-    datasetClient
-      .executeQuery('employeeContractTypeData', QueryType.DATASET, { localeCode })
-      .then((result: any) => {
-        setContractTypeDataLoading(false)
+    p.then((result: any) => {
+      setContractTypeDataLoading(false)
 
-        const rows = Array.isArray(result?.data) ? result.data : []
+      const rows = Array.isArray(result?.data) ? result.data : []
 
-        // Create distribution data with counts and percentages from dataset rows
-        const items: ContractTypeDistribution[] = rows.map((r: any) => {
-          const rawName = String(r.category || 'Unknown')
-          const name =
-            rawName.trim().toLowerCase() === 'not specified'.toLowerCase() ? t('hr-analytics-not-specified') : rawName
-          const count = Number(r.value || 0)
-          const percentage = totalEmployees > 0 ? (count / totalEmployees) * 100 : 0
-          return {
-            id: String(r.category || 'unknown'),
-            name,
-            count,
-            percentage
-          }
-        })
-
-        // Sort by count in descending order
-        const sortedDistribution = items.sort((a, b) => b.count - a.count)
-
-        setDistribution(sortedDistribution)
+      // Create distribution data with counts and percentages from dataset rows
+      const items: ContractTypeDistribution[] = rows.map((r: any) => {
+        const rawName = String(r.category || 'Unknown')
+        const name =
+          rawName.trim().toLowerCase() === 'not specified'.toLowerCase() ? t('hr-analytics-not-specified') : rawName
+        const count = Number(r.value || 0)
+        const percentage = totalEmployees > 0 ? (count / totalEmployees) * 100 : 0
+        return {
+          id: String(r.category || 'unknown'),
+          name,
+          count,
+          percentage
+        }
       })
-      .catch((err: any) => {
-        console.error('[useContractTypeDistribution] Error fetching contract type distribution (dataset):', err)
-        setContractTypeDataLoading(false)
-        setContractTypeDataError(err)
-      })
-  }, [datasetClient, totalEmployees, countLoading, t])
+
+      // Sort by count in descending order
+      const sortedDistribution = items.sort((a, b) => b.count - a.count)
+
+      setDistribution(sortedDistribution)
+    }).catch((err: any) => {
+      console.error('[useContractTypeDistribution] Error fetching contract type distribution (dataset):', err)
+      setContractTypeDataLoading(false)
+      setContractTypeDataError(err)
+    })
+  }, [accessToken, totalEmployees, countLoading, t])
 
   // Combine all possible errors
   useEffect(() => {
