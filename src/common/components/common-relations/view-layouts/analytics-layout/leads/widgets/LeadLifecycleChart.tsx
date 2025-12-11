@@ -15,9 +15,12 @@ import {
 } from '@newwork/nw-design-system'
 import { AreaChart, Area, XAxis, YAxis } from 'recharts'
 import { ChartLineIcon, CalendarIcon, EyeIcon } from '@phosphor-icons/react'
-// Remove SupportedVariant import - using string type directly
+import { TIME_FILTER_OPTIONS, formatLifecycleXAxisLabel, getCurrentFilterLabel } from '../../shared/lifecycleChartUtils'
+import type { TimeFilter } from '../../shared/lifecycleChartUtils'
+import { LifecycleChartLoadingState } from '../../shared/LifecycleChartLoadingState'
 
-export type TimeFilter = 'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'
+// Re-export TimeFilter for backward compatibility
+export type { TimeFilter } from '../../shared/lifecycleChartUtils'
 
 export interface LeadsOverTimePoint {
   date: string
@@ -35,14 +38,6 @@ export interface LeadLifecycleChartProps {
   moduleColor?: string
 }
 
-const timeFilterOptions = [
-  { key: 'month' as TimeFilter, label: 'Last Month' },
-  { key: 'quarter' as TimeFilter, label: 'Last Quarter' },
-  { key: 'sixMonths' as TimeFilter, label: 'Last 6 Months' },
-  { key: 'year' as TimeFilter, label: 'Last Year' },
-  { key: 'historical' as TimeFilter, label: 'Historical' }
-]
-
 export const LeadLifecycleChart: React.FC<LeadLifecycleChartProps> = ({
   data,
   isLoading = false,
@@ -56,29 +51,7 @@ export const LeadLifecycleChart: React.FC<LeadLifecycleChartProps> = ({
     leadsLost: true
   })
 
-  const lineOptions = [
-    { key: 'leadsCreated' as keyof typeof visibleLines, label: 'Leads Created' },
-    { key: 'leadsConverted' as keyof typeof visibleLines, label: 'Leads Converted' },
-    { key: 'leadsLost' as keyof typeof visibleLines, label: 'Leads Lost' }
-  ]
-
-  const toggleLineVisibility = (lineKey: keyof typeof visibleLines) => {
-    setVisibleLines(prev => ({ ...prev, [lineKey]: !prev[lineKey] }))
-  }
-
-  const formatXAxisLabel = (value: string) => {
-    const date = new Date(value)
-    if (selectedTimeFilter === 'month') {
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) // "Nov 1", "Nov 2"
-    }
-    if (selectedTimeFilter === 'historical') {
-      return date.getFullYear().toString() // "2024"
-    }
-    // For quarter, sixMonths, and year: show month + year (monthly aggregation)
-    return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) // "Nov 2025"
-  }
-
-  // Chart configuration (moved to top level to avoid conditional hook calls)
+  // Chart configuration - must be called before early return
   const chartConfig = useMemo(
     () => ({
       leadsCreated: { label: 'Leads Created' },
@@ -88,24 +61,36 @@ export const LeadLifecycleChart: React.FC<LeadLifecycleChartProps> = ({
     []
   )
 
+  // Non-hook logic can come after hooks but before early returns
+  const lineOptions: Array<{ key: keyof typeof visibleLines; label: string }> = [
+    { key: 'leadsCreated', label: 'Leads Created' },
+    { key: 'leadsConverted', label: 'Leads Converted' },
+    { key: 'leadsLost', label: 'Leads Lost' }
+  ]
+
+  const toggleLineVisibility = (lineKey: keyof typeof visibleLines) => {
+    setVisibleLines(prev => ({ ...prev, [lineKey]: !prev[lineKey] }))
+  }
+
+  const currentFilterLabel = getCurrentFilterLabel(selectedTimeFilter)
+
+  // Early return AFTER all hooks
+  if (isLoading) {
+    return (
+      <LifecycleChartLoadingState
+        title="Lead Lifecycle Overview"
+        selectedTimeFilter={selectedTimeFilter}
+        lineOptions={lineOptions}
+        moduleColor={moduleColor}
+        dataTestIdPrefix="LeadLifecycleChart"
+      />
+    )
+  }
+
   // Just display the data passed in - filtering happens at parent level
   const chartData = data
 
   const renderChartContent = () => {
-    if (isLoading) {
-      return (
-        <div
-          className="gba:flex gba:items-center gba:justify-center gba:h-[400px]"
-          data-testid="LeadLifecycleChart-loading"
-        >
-          <div className="gba:text-center">
-            <div className="gba:animate-spin gba:rounded-full gba:h-12 gba:w-12 gba:border-b-2 gba:border-primary gba:mx-auto" />
-            <p className="gba:mt-4 gba:text-sm gba:text-muted-foreground">Loading chart data...</p>
-          </div>
-        </div>
-      )
-    }
-
     if (chartData.length === 0) {
       return (
         <div className="gba:text-center gba:p-8" data-testid="LeadLifecycleChart-empty-state">
@@ -119,10 +104,18 @@ export const LeadLifecycleChart: React.FC<LeadLifecycleChartProps> = ({
     }
 
     return (
-      <ChartContainer config={chartConfig} className="gba:h-[320px] gba:w-full" data-testid="LeadLifecycleChart-chart">
-        <AreaChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-          <XAxis dataKey="date" tick={{ fontSize: 12 }} tickFormatter={formatXAxisLabel} />
-          <YAxis tick={{ fontSize: 12 }} />
+      <ChartContainer
+        config={chartConfig}
+        className="gba:h-[400px] gba:w-full gba:aspect-auto"
+        data-testid="LeadLifecycleChart-chart"
+      >
+        <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+          <XAxis
+            dataKey="date"
+            tickLine={false}
+            tickFormatter={value => formatLifecycleXAxisLabel(value, selectedTimeFilter)}
+          />
+          <YAxis tickLine={false} />
           <ChartTooltip content={<ChartTooltipContent labelKey="date" />} />
           <ChartLegend content={<ChartLegendContent />} />
           {visibleLines.leadsCreated && (
@@ -132,9 +125,8 @@ export const LeadLifecycleChart: React.FC<LeadLifecycleChartProps> = ({
               name="leadsCreated"
               stroke={`var(--color-leadsCreated)`}
               fill={`var(--color-leadsCreated)`}
-              fillOpacity={0.12}
+              fillOpacity={0.2}
               strokeWidth={2}
-              dot={false}
             />
           )}
           {visibleLines.leadsConverted && (
@@ -144,9 +136,8 @@ export const LeadLifecycleChart: React.FC<LeadLifecycleChartProps> = ({
               name="leadsConverted"
               stroke={`var(--color-leadsConverted)`}
               fill={`var(--color-leadsConverted)`}
-              fillOpacity={0.12}
+              fillOpacity={0.2}
               strokeWidth={2}
-              dot={false}
             />
           )}
           {visibleLines.leadsLost && (
@@ -156,9 +147,8 @@ export const LeadLifecycleChart: React.FC<LeadLifecycleChartProps> = ({
               name="leadsLost"
               stroke={`var(--color-leadsLost)`}
               fill={`var(--color-leadsLost)`}
-              fillOpacity={0.12}
+              fillOpacity={0.2}
               strokeWidth={2}
-              dot={false}
             />
           )}
         </AreaChart>
@@ -172,12 +162,12 @@ export const LeadLifecycleChart: React.FC<LeadLifecycleChartProps> = ({
         <div className="gba:flex gba:items-center gba:justify-between">
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
             <IconAvatar icon={ChartLineIcon} variant={moduleColor as any} size="md" decorative />
-            Lead Lifecycle Overview
+            Lead Lifecycle Overview ({currentFilterLabel})
           </CardTitle>
           <div className="gba:flex gba:items-center gba:gap-2">
             <CalendarIcon size={16} className="gba:text-gray-500" />
             <div className="gba:flex gba:gap-1" data-testid="LeadLifecycleChart-time-filters">
-              {timeFilterOptions.map(option => (
+              {TIME_FILTER_OPTIONS.map(option => (
                 <Button
                   key={option.key}
                   variant={selectedTimeFilter === option.key ? 'default' : 'outline'}
@@ -195,7 +185,7 @@ export const LeadLifecycleChart: React.FC<LeadLifecycleChartProps> = ({
           <div className="gba:flex gba:items-center gba:gap-6">
             <div className="gba:flex gba:items-center gba:gap-2">
               <EyeIcon size={16} className="gba:text-gray-500" />
-              <span className="gba:text-sm gba:font-medium gba:text-gray-700">Show Lines:</span>
+              <span className="gba:text-sm gba:font-medium gba:text-gray-700">Show Data:</span>
             </div>
             <div className="gba:flex gba:flex-wrap gba:gap-4" data-testid="LeadLifecycleChart-line-filters">
               {lineOptions.map(line => (

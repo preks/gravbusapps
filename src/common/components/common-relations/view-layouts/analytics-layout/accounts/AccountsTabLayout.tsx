@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { WidgetGroup } from '@/components/widget-group'
 import { BankOutlined, DollarCircleOutlined, TeamOutlined, RiseOutlined } from '@ant-design/icons'
 import { AccountLifecycleChart } from './widgets/AccountLifecycleChart'
@@ -112,37 +112,6 @@ export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
   availableCurrencies = ['EUR', 'USD'],
   showTopAccounts = true
 }) => {
-  const [visibleLines, setVisibleLines] = useState({
-    accountsCreated: true,
-    accountsWithOpportunities: true,
-    accountsActive: true
-  })
-
-  const toggleLineVisibility = (key: 'accountsCreated' | 'accountsWithOpportunities' | 'accountsActive') => {
-    setVisibleLines(prev => ({ ...prev, [key]: !prev[key] }))
-  }
-
-  const formatTooltip = (value: any, name: string) => {
-    const labelMap: Record<string, string> = {
-      accountsCreated: 'Accounts Created',
-      accountsWithOpportunities: 'Accounts with Opportunities',
-      accountsActive: 'Active Accounts'
-    }
-    return [value, labelMap[name] || name]
-  }
-
-  const formatXAxisLabel = (value: string) => {
-    const date = new Date(value)
-    if (selectedTimeFilter === 'month') {
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) // "Nov 1", "Nov 2"
-    }
-    if (selectedTimeFilter === 'historical') {
-      return date.getFullYear().toString() // "2024"
-    }
-    // For quarter, sixMonths, and year: show month + year (monthly aggregation)
-    return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) // "Nov 2025"
-  }
-
   const kpis = [
     {
       key: 'total-accounts',
@@ -191,7 +160,7 @@ export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
     {
       key: 'accounts-this-period',
       title: `New This Month`,
-      value: trendData?.currentMonthAccounts || accountsOverTime.reduce((sum, i) => sum + i.accountsCreated, 0),
+      value: trendData?.currentMonthAccounts || 0,
       prefix: <RiseOutlined />,
       description: `Accounts created this month`,
       ...(trendData && !trendLoading
@@ -204,18 +173,15 @@ export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
     <div className="gba:space-y-6" data-testid="accounts-analytics-tab">
       <div>
         <h2 className="gba:text-2xl gba:font-bold gba:mb-4">{title}</h2>
-        <WidgetGroup widgets={kpis} data-testid="accounts-key-metrics" />
+        <WidgetGroup widgets={kpis} isLoading={trendLoading} data-testid="accounts-key-metrics" />
       </div>
 
       <AccountLifecycleChart
+        key={`account-lifecycle-${selectedTimeFilter}`}
         data={accountsOverTime}
-        isLoading={accountsOverTimeLoading}
+        isLoading={accountsOverTimeLoading || growthLoading || healthLoading}
         selectedTimeFilter={selectedTimeFilter}
         onTimeFilterChange={onTimeFilterChange || (() => {})}
-        visibleLines={visibleLines}
-        onToggleLineVisibility={toggleLineVisibility}
-        formatXAxisLabel={formatXAxisLabel}
-        formatTooltip={formatTooltip}
         moduleColor={moduleColor}
       />
 
@@ -229,7 +195,6 @@ export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
             monthlyGrowthTrend
           }}
           isLoading={growthLoading}
-          topAccountsLoading={topAccountsLoading}
           moduleColor={moduleColor}
         />
         <AccountHealthMatrix

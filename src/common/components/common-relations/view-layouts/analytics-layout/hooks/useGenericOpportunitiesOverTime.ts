@@ -88,12 +88,6 @@ export const useGenericOpportunitiesOverTime = (
   const graphqlClient = useGraphQLClient(accessToken)
 
   const fetchOpportunitiesOverTime = useCallback(async () => {
-    if (!accessToken) {
-      setError('Access token is required')
-      setIsLoading(false)
-      return
-    }
-
     setIsLoading(true)
     setError(null)
 
@@ -208,8 +202,10 @@ export const useGenericOpportunitiesOverTime = (
   ])
 
   useEffect(() => {
-    fetchOpportunitiesOverTime()
-  }, [fetchOpportunitiesOverTime])
+    if (accessToken) {
+      fetchOpportunitiesOverTime()
+    }
+  }, [accessToken, fetchOpportunitiesOverTime])
 
   return { data, isLoading, error, refetch: fetchOpportunitiesOverTime }
 }

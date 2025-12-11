@@ -195,7 +195,7 @@ export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
     {
       key: 'leads-this-period',
       title: 'New This Month',
-      value: trendData?.currentMonthLeads || leadsOverTime.reduce((sum, item) => sum + item.leadsCreated, 0),
+      value: trendData?.currentMonthLeads || 0,
       prefix: <RiseOutlined />,
       description: 'Leads created this month',
       // Add trend data for new leads this month vs last month
@@ -219,8 +219,16 @@ export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
 
       {/* Required: Lead Lifecycle Chart */}
       <LeadLifecycleChart
+        key={`lead-lifecycle-${selectedTimeFilter}`}
         data={leadsOverTime}
-        isLoading={leadsOverTimeLoading}
+        isLoading={
+          leadsOverTimeLoading ||
+          velocityLoading ||
+          leadQualityMatrix?.isLoading ||
+          leadEngagementInsights?.isLoading ||
+          leadsBySourceLoading ||
+          leadsByStatusLoading
+        }
         selectedTimeFilter={selectedTimeFilter}
         onTimeFilterChange={onTimeFilterChange}
         moduleColor={moduleColor}
