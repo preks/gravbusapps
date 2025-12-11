@@ -72,6 +72,10 @@ export const GET_MAIN_VIEW_ADVANCE_PAYMENTS = `
         startDate
         endDate
         currencyRef
+        expenseRequest(where: { isDeleted: { _eq: false } }) {
+          id
+          code
+        }
         employee {
           id
           displayName
