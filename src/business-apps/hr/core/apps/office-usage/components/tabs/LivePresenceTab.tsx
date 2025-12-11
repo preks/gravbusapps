@@ -17,6 +17,7 @@ interface LivePresenceTabProps {
   onRetry: () => void
   selectedLocationFilter?: string
   prefixDataTestId?: string
+  onClearLocationFilter?: () => void
 }
 
 export const LivePresenceTab: React.FC<LivePresenceTabProps> = ({
@@ -28,7 +29,8 @@ export const LivePresenceTab: React.FC<LivePresenceTabProps> = ({
   onRefresh,
   onRetry,
   selectedLocationFilter,
-  prefixDataTestId = 'live-presence-tab'
+  prefixDataTestId = 'live-presence-tab',
+  onClearLocationFilter
 }) => {
   const [viewMode, setViewMode] = useState<'grouped' | 'list'>('grouped')
 
@@ -97,8 +99,28 @@ export const LivePresenceTab: React.FC<LivePresenceTabProps> = ({
           </div>
         </div>
 
-        {/* View Mode Toggle */}
+        {/* Right side controls */}
         <div className="gba:flex gba:items-center gba:gap-2">
+          {selectedLocationFilter && (
+            <Badge variant="secondary" className="gba:flex gba:items-center gba:gap-2">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:office_usage.filtered_by', 'Filtered by')}:{' '}
+              {locations.find(loc => loc.siteLocationId === selectedLocationFilter)?.name ||
+                getTranslationFromI18nKeyAndLabel('lowcoder:office_usage.location', 'Location')}
+              {onClearLocationFilter && (
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  className="gba:ml-1"
+                  onClick={onClearLocationFilter}
+                  data-testid={`${prefixDataTestId}-clear-location-filter`}
+                >
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:office_usage.clear', 'Clear')}
+                </Button>
+              )}
+            </Badge>
+          )}
+
+          {/* View Mode Toggle */}
           <Badge
             variant={viewMode === 'grouped' ? 'default' : 'outline'}
             className="gba:cursor-pointer"
