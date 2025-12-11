@@ -27,8 +27,10 @@ export interface BusinessAppInfo {
   module: string
   subModule?: string
   screenKey: string
-  type: 'app' | 'form' | 'popup'
+  type: BusinessAppType
 }
+
+type BusinessAppType = 'app' | 'form' | 'popup' | 'window'
 
 export interface IDEMainMenuProps {
   businessApps: BusinessAppInfo[]
@@ -64,7 +66,7 @@ const groupBusinessAppsByModule = (businessApps: BusinessAppInfo[]): GroupedApps
   return moduleGroups
 }
 
-const getTypeIcon = (type: 'app' | 'form' | 'popup') => {
+const getTypeIcon = (type: 'app' | 'form' | 'popup' | 'window') => {
   switch (type) {
     case 'app':
       return <PlayIcon size={16} className="gba:text-ext-1" />
@@ -72,12 +74,14 @@ const getTypeIcon = (type: 'app' | 'form' | 'popup') => {
       return <ArticleNyTimesIcon size={16} className="gba:text-ext-2" />
     case 'popup':
       return <ChatCircleIcon size={16} className="gba:text-ext-3" />
+    case 'window':
+      return <ArticleNyTimesIcon size={16} className="gba:text-ext-4" />
     default:
       return <PlayIcon size={16} className="gba:text-primary" />
   }
 }
 
-const getTypeColor = (type: 'app' | 'form' | 'popup') => {
+const getTypeColor = (type: 'app' | 'form' | 'popup' | 'window') => {
   switch (type) {
     case 'app':
       return 'primary'
@@ -85,6 +89,8 @@ const getTypeColor = (type: 'app' | 'form' | 'popup') => {
       return 'secondary'
     case 'popup':
       return 'accent'
+    case 'window':
+      return 'info'
     default:
       return 'primary'
   }

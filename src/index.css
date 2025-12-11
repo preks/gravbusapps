@@ -22,6 +22,9 @@
 @import '@newwork/gravity-ui-catalog/dist/assets/style.css';
 
 @import '@newwork/nw-design-system/index.css';
+
+@import 'react-quill/dist/quill.snow.css';
+
 @import '@newwork/nw-design-system/core';
 @import '@newwork/nw-design-system/layout';
 @import '@newwork/nw-design-system/colors';

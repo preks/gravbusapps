@@ -1,333 +1,115 @@
-// CRM Overview Analytics Query
-export const GET_CRM_OVERVIEW_ANALYTICS = (currencyCode?: string) => {
+// Overview Tab Only - Single optimized query with all trend data and metrics
+export const GET_IRM_OVERVIEW_ONLY_ANALYTICS = (currencyCode?: string) => {
   const currencyFilter = currencyCode ? `, currency: { code: { _eq: "${currencyCode}" } }` : ''
 
-  return `
-  query GetCrmOverviewAnalytics {
-    InvestmentLeadAggregate(where: { isDeleted: { _eq: false } }) {
-      aggregate {
-        count
-      }
-    }
-    InvestmentAccountAggregate(where: { isDeleted: { _eq: false } }) {
-      aggregate {
-        count
-      }
-    }
-    InvestmentOpportunityAggregate(where: { isDeleted: { _eq: false }${currencyFilter} }) {
-      aggregate {
-        count
-      }
-    }
-    InvestmentContactAggregate(where: { isDeleted: { _eq: false } }) {
-      aggregate {
-        count
-      }
-    }
-    RecentLeads: InvestmentLead(
-      where: { 
-        isDeleted: { _eq: false },
-        createdAt: { _gte: "2024-01-01T00:00:00Z" }
-      },
-      limit: 10,
-      orderBy: { createdAt: DESC }
-    ) {
-      id
-      createdAt
-    }
-    RecentOpportunities: InvestmentOpportunity(
-      where: { 
-        isDeleted: { _eq: false },
-        createdAt: { _gte: "2024-01-01T00:00:00Z" }${currencyFilter}
-      },
-      limit: 10,
-      orderBy: { createdAt: DESC }
-    ) {
-      id
-      createdAt
-      estimatedAmount
-      ownerEmployee {
-        id
-        firstName
-        lastName
-        displayName
-      }
-    }
-  }
-`
-}
-
-// Leads Analytics Query
-export const GET_LEADS_ANALYTICS = `
-  query GetLeadsAnalytics {
-    InvestmentLeadAggregate(where: { isDeleted: { _eq: false } }) {
-      aggregate {
-        count
-      }
-    }
-    convertedLeads: InvestmentLeadAggregate(where: {isDeleted: {_eq: false}, leadStatus: {value: {_in: ["Converted", "Qualified"]}}}) {
-      aggregate {
-        count
-      }
-    }
-    InvestmentLead(where: { isDeleted: { _eq: false } }, limit: 1000) {
-      id
-      firstName
-      lastName
-      email
-      createdAt
-      leadSourceType
-      leadStatus {
-        id
-        code
-        value
-      }
-      leadSource {
-        id
-        code
-        value
-      }
-      leadRating {
-        id
-        code
-        value
-      }
-      accountAnnualRevenueBand {
-        id
-        code
-        value
-      }
-      ownerEmployee {
-        id
-        firstName
-        lastName
-        displayName
-      }
-    }
-  }
-`
-
-// Accounts Analytics Query
-export const GET_ACCOUNTS_ANALYTICS = `
-  query GetAccountsAnalytics {
-    InvestmentAccountAggregate(where: { isDeleted: { _eq: false } }) {
-      aggregate {
-        count
-      }
-    }
-    accountWithOpportunities: InvestmentAccountAggregate(where: {investment: {id: {_isNull: false}}}) {
-      aggregate {
-        count
-      }
-    }
-    InvestmentAccount(where: { isDeleted: { _eq: false } }, limit: 1000) {
-      id
-      name
-      createdAt
-      industryClass {
-        id
-        code
-        value
-      }
-      companySize { id code value }
-      ownerEmployee {
-        id
-        firstName
-        lastName
-        displayName
-      }
-    }
-  }
-`
-
-// Opportunities Analytics Query
-export const GET_OPPORTUNITIES_ANALYTICS = (currencyCode?: string) => {
-  const currencyFilter = currencyCode ? `, currency: { code: { _eq: "${currencyCode}" } }` : ''
+  // Calculate date ranges for last 30 days comparison (simpler than calendar months)
   const now = new Date()
-  const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString()
-  const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+  const last30DaysStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString()
+  const previous30DaysStart = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000).toISOString()
 
   return `
-  query GetOpportunitiesAnalytics {
-    totalEstimatedAmount: InvestmentOpportunityAggregate(where: { isDeleted: { _eq: false }${currencyFilter} }) {
-      aggregate {
-        sum {
-          estimatedAmount
-        }
-      }
+  query GetIrmOverviewOnlyAnalytics {
+    # Current total entity counts
+    InvestmentLeadAggregate(where: { isDeleted: { _eq: false } }) {
+      aggregate { count }
+    }
+    InvestmentAccountAggregate(where: { isDeleted: { _eq: false } }) {
+      aggregate { count }
     }
     InvestmentOpportunityAggregate(where: { isDeleted: { _eq: false }${currencyFilter} }) {
-      aggregate {
-        count
-      }
+      aggregate { count }
     }
-    WonOpportunitiesValue: InvestmentOpportunityAggregate(
-      where: { 
-        isDeleted: { _eq: false },
-        opportunityStatus: { code: { _eq: "WON" } }${currencyFilter}
-      }
+    InvestmentContactAggregate(where: { isDeleted: { _eq: false } }) {
+      aggregate { count }
+    }
+    
+    # Last 30 days entity counts
+    Last30DaysLeads: InvestmentLeadAggregate(
+      where: { isDeleted: { _eq: false }, createdAt: { _gte: "${last30DaysStart}" } }
     ) {
-      aggregate {
-        sum {
-          estimatedAmount
-        }
-      }
+      aggregate { count }
     }
-    InvestmentOpportunity(where: { isDeleted: { _eq: false }${currencyFilter} }) {
-      id
-      name
-      estimatedAmount
-      closeDate
-      createdAt
-      updatedAt
-      opportunityPipelineStage {
-        id
-        code
-        value
-      }
-      opportunityPipeline {
-        id
-        code
-        value
-      }
-      opportunityStatus {
-        id
-        code
-        alternativeCode
-        value
-      }
-      currency {
-        id
-        code
-        value
-      }
-      accountId
-      account {
-        id
-        name
-      }
-      ownerEmployee {
-        id
-        firstName
-        lastName
-        displayName
-      }
-    }
-    WonOpportunitiesAndWithCloseDate: InvestmentOpportunity(
-      where: { 
-        isDeleted: { _eq: false }
-        opportunityStatus: { code: { _eq: "WON" } }
-        closeDate: { _isNull: false }
-      }
+    Last30DaysAccounts: InvestmentAccountAggregate(
+      where: { isDeleted: { _eq: false }, createdAt: { _gte: "${last30DaysStart}" } }
     ) {
-      id
-      name
-      estimatedAmount
-      closeDate
-      createdAt
-      opportunityPipelineStage {
-        id
-        code
-        value
-      }
-      opportunityPipeline {
-        id
-        code
-        value
-      }
-      opportunityStatus {
-        id
-        code
-        alternativeCode
-        value
-      }
-      currency {
-        id
-        code
-        value
-      }
-      accountId
-      account {
-        id
-        name
-      }
-      ownerEmployee {
-        id
-        firstName
-        lastName
-        displayName
-      }
+      aggregate { count }
     }
-
+    Last30DaysOpportunities: InvestmentOpportunityAggregate(
+      where: { isDeleted: { _eq: false }, createdAt: { _gte: "${last30DaysStart}" }${currencyFilter} }
+    ) {
+      aggregate { count }
+    }
+    Last30DaysContacts: InvestmentContactAggregate(
+      where: { isDeleted: { _eq: false }, createdAt: { _gte: "${last30DaysStart}" } }
+    ) {
+      aggregate { count }
+    }
+    
+    # Previous 30 days entity counts
+    Previous30DaysLeads: InvestmentLeadAggregate(
+      where: { isDeleted: { _eq: false }, createdAt: { _gte: "${previous30DaysStart}", _lt: "${last30DaysStart}" } }
+    ) {
+      aggregate { count }
+    }
+    Previous30DaysAccounts: InvestmentAccountAggregate(
+      where: { isDeleted: { _eq: false }, createdAt: { _gte: "${previous30DaysStart}", _lt: "${last30DaysStart}" } }
+    ) {
+      aggregate { count }
+    }
+    Previous30DaysOpportunities: InvestmentOpportunityAggregate(
+      where: { isDeleted: { _eq: false }, createdAt: { _gte: "${previous30DaysStart}", _lt: "${last30DaysStart}" }${currencyFilter} }
+    ) {
+      aggregate { count }
+    }
+    Previous30DaysContacts: InvestmentContactAggregate(
+      where: { isDeleted: { _eq: false }, createdAt: { _gte: "${previous30DaysStart}", _lt: "${last30DaysStart}" } }
+    ) {
+      aggregate { count }
+    }
+    
+    # Won opportunities - all time (for overall metrics)
     WonOpportunities: InvestmentOpportunityAggregate(
-      where: { 
-        isDeleted: { _eq: false },
-        opportunityStatus: { code: { _eq: "WON" } }
-      }
+      where: { isDeleted: { _eq: false }, opportunityStatus: { code: { _eq: "WON" } }${currencyFilter} }
     ) {
-      aggregate {
-        count
-      }
+      aggregate { count sum { estimatedAmount } }
     }
-
-    # Previous month opportunities (total and won)
-    PreviousMonthOpportunities: InvestmentOpportunityAggregate(
-      where: {
-        isDeleted: { _eq: false },
-        createdAt: { _gte: "${previousMonthStart}", _lt: "${currentMonthStart}" }
-      }
+    
+    # Won opportunities - last 30 days (with sum for revenue)
+    Last30DaysWonOpportunities: InvestmentOpportunityAggregate(
+      where: { isDeleted: { _eq: false }, opportunityStatus: { code: { _eq: "WON" } }, createdAt: { _gte: "${last30DaysStart}" }${currencyFilter} }
     ) {
-      aggregate {
-        count
-      }
+      aggregate { count sum { estimatedAmount } }
     }
-
-    PreviousMonthWonOpportunities: InvestmentOpportunityAggregate(
-      where: {
-        isDeleted: { _eq: false },
-        opportunityStatus: { code: { _eq: "WON" } },
-        createdAt: { _gte: "${previousMonthStart}", _lt: "${currentMonthStart}" }
-      }
+    
+    # Won opportunities - previous 30 days (with sum for revenue)
+    Previous30DaysWonOpportunities: InvestmentOpportunityAggregate(
+      where: { isDeleted: { _eq: false }, opportunityStatus: { code: { _eq: "WON" } }, createdAt: { _gte: "${previous30DaysStart}", _lt: "${last30DaysStart}" }${currencyFilter} }
     ) {
-      aggregate {
-        count
-      }
+      aggregate { count sum { estimatedAmount } }
+    }
+    
+    # Converted leads - last 30 days
+    Last30DaysConvertedLeads: InvestmentLeadAggregate(
+      where: { isDeleted: { _eq: false }, createdAt: { _gte: "${last30DaysStart}" }, leadStatus: { value: { _in: ["Converted", "Qualified"] } } }
+    ) {
+      aggregate { count }
+    }
+    
+    # Converted leads - previous 30 days
+    Previous30DaysConvertedLeads: InvestmentLeadAggregate(
+      where: { isDeleted: { _eq: false }, createdAt: { _gte: "${previous30DaysStart}", _lt: "${last30DaysStart}" }, leadStatus: { value: { _in: ["Converted", "Qualified"] } } }
+    ) {
+      aggregate { count }
+    }
+    
+    # Geographic Distribution - Top Countries (using distinctOn for efficiency)
+    accountAddresses: InvestmentAddress(
+      distinctOn: [accountId, countryRef]
+      where: { isDeleted: { _eq: false }, accountId: { _isNull: false }, country: { value: { _isNull: false } } }
+    ) {
+      accountId
+      country { value }
     }
   }
 `
 }
-
-// Contacts Analytics Query
-export const GET_CONTACTS_ANALYTICS = `
-  query GetContactsAnalytics {
-    InvestmentContactAggregate(where: { isDeleted: { _eq: false } }) {
-      aggregate {
-        count
-      }
-    }
-    InvestmentContact(where: { isDeleted: { _eq: false } }, limit: 1000) {
-      id
-      firstName
-      lastName
-      email
-      createdAt
-      investmentAccountContact { account { id name } }
-      ownerEmployee {
-        id
-        firstName
-        lastName
-        displayName
-      }
-    }
-    ContactsWithoutAccount: InvestmentContactAggregate(
-      where: { 
-        isDeleted: { _eq: false },
-        investmentAccountContact: { accountId: { _isNull: true } }
-      }
-    ) {
-      aggregate {
-        count
-      }
-    }
-  }
-`

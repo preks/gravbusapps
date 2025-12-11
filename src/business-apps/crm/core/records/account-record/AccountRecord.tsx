@@ -4,6 +4,7 @@ import { UsersIcon, TrendUpIcon, FileTextIcon, BankIcon } from '@phosphor-icons/
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useCustomerAccount } from '@/common/data/customer/hooks/useCustomerAccount'
@@ -62,50 +63,15 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
     }
   }, [])
 
-  // Listen for process completion events to refresh account data
-  useEffect(() => {
-    const handleProcessCompletion = async (event: any) => {
-      try {
-        // Check for successful completion
-        if (event.detail?.resolution === 'success') {
-          await refetch()
-          return
-        }
-
-        // Also check for different event structure
-        const response = event.detail?.response
-        if (response?.detail?.resolution === 'success' || response?.account) {
-          await refetch()
-        }
-      } catch (err) {
-        console.error('Error handling process completion in AccountRecord:', err)
-      }
-    }
-
-    // Listen to multiple possible event names for account updates
-    const eventNames = [
-      'com.newwork.process.taskCompletion',
-      'com.newwork.process.completion',
-      'com.newwork.process.continue',
-      'com.newwork.process.processCompletion',
-      'processCompletion',
-      'taskCompletion',
-      'taskCompleted',
-      'processCompleted',
-      'task-completion',
-      'process-completion'
-    ]
-
-    eventNames.forEach(eventName => {
-      window.addEventListener(eventName, handleProcessCompletion as EventListener)
-    })
-
-    return () => {
-      eventNames.forEach(eventName => {
-        window.removeEventListener(eventName, handleProcessCompletion as EventListener)
-      })
-    }
+  // Memoized callback for process completion
+  const handleProcessSuccess = useCallback(() => {
+    refetch()
   }, [refetch])
+
+  // Listen for process completion events to refresh account data
+  useProcessCompletion({
+    onSuccess: handleProcessSuccess
+  })
 
   // Memoize header data - must be called before conditional returns
   const headerDetailGroups = useMemo(

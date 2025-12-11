@@ -5,6 +5,7 @@ import { useFormSubmission } from './FormSubmissionContext'
 import { useVoiceFormContext } from '../context/VoiceFormContext'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { FormHeader, FormActions, FormStatusMessages, SchemaField, SecondaryCollapsible } from './forms'
+import { formatFlowName } from './forms/utils/formSchemaUtils'
 
 interface DynamicFormDisplayProps {
   data: FlowProposalOutput
@@ -17,6 +18,7 @@ interface DynamicFormDisplayProps {
 
 // SchemaField, SearchableUuidField, and SecondaryCollapsible have been moved to ./forms/
 // All old component definitions have been removed - they are now imported from ./forms
+// SchemaField now includes ReactQuill support for markdown content types
 
 export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
   data,

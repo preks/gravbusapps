@@ -10,7 +10,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Label
+  Label,
+  Spinner
 } from '@newwork/nw-design-system'
 
 export interface TopAccountItem {
@@ -24,6 +25,7 @@ export interface TopAccountItem {
 
 interface TopAccountsByRevenueProps {
   topAccounts: TopAccountItem[]
+  isLoading?: boolean
   moduleColor?: string
   selectedCurrency?: string
   onCurrencyChange?: (currency: string) => void
@@ -32,6 +34,7 @@ interface TopAccountsByRevenueProps {
 
 export const TopAccountsByRevenue: React.FC<TopAccountsByRevenueProps> = ({
   topAccounts,
+  isLoading = false,
   selectedCurrency = 'EUR',
   onCurrencyChange,
   availableCurrencies = ['EUR', 'USD']
@@ -75,7 +78,12 @@ export const TopAccountsByRevenue: React.FC<TopAccountsByRevenueProps> = ({
         </div>
       </CardHeader>
       <CardContent>
-        {topAccounts.length > 0 ? (
+        {isLoading && (
+          <div className="gba:flex gba:justify-center gba:items-center gba:py-12" data-testid="top-accounts-loading">
+            <Spinner size="lg" />
+          </div>
+        )}
+        {!isLoading && topAccounts.length > 0 && (
           <div className="gba:space-y-3">
             {topAccounts.map((account, index) => (
               <div
@@ -99,7 +107,8 @@ export const TopAccountsByRevenue: React.FC<TopAccountsByRevenueProps> = ({
               </div>
             ))}
           </div>
-        ) : (
+        )}
+        {!isLoading && topAccounts.length === 0 && (
           <div className="gba:text-center gba:text-gray-500 gba:py-8">No accounts with revenue available</div>
         )}
       </CardContent>

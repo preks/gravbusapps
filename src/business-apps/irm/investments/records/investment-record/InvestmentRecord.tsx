@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { RecordLayout, Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetInvestmentById } from '@/common/data/investment/hooks/useInvestments'
-import { useGetInvestmentCatalogData } from '@/business-apps/irm/investments/forms/investment-form/queries/InvestmentCatalogQueries'
+import { useGetInvestmentCatalogData } from '@/common/data/investment/hooks/useInvestmentCatalogs'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -184,11 +184,14 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
     loadData()
   }, [loadData])
 
+  // Memoized callback for process completion
+  const handleProcessSuccess = useCallback(() => {
+    loadData()
+  }, [loadData])
+
   // Refresh on process completion success using shared hook
   useProcessCompletion({
-    onSuccess: () => {
-      loadData()
-    }
+    onSuccess: handleProcessSuccess
   })
 
   // Determine investment type and type-specific data using dynamic approach

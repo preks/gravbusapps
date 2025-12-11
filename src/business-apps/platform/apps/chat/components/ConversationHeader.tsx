@@ -3,8 +3,6 @@ import {
   Button,
   IconAvatar,
   Avatar,
-  AvatarImage,
-  AvatarFallback,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -17,11 +15,18 @@ import {
   DialogTitle
 } from '@newwork/nw-design-system'
 import { ArrowLeft, DotsThreeVertical, SignOut, X, Info, Users } from '@phosphor-icons/react'
-import { UserIcon } from 'lucide-react'
+import { UserIcon, Phone, Video, PhoneCall } from 'lucide-react'
 import type { Conversation } from '../types'
 import type { UserPresence } from '../hooks/usePresence'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo } from '@/common/utils/navigationUtils'
+
+export interface ActiveCallInfo {
+  roomId: string
+  callType: 'audio' | 'video'
+  participantCount: number
+  participantNames: string[]
+}
 
 interface ConversationHeaderProps {
   conversation: Conversation
@@ -29,10 +34,16 @@ interface ConversationHeaderProps {
   onClose?: () => void
   onRemove?: () => void
   onGroupSettings?: () => void
+  onAudioCall?: () => void
+  onVideoCall?: () => void
+  onJoinCall?: () => void
   showBackButton?: boolean
   currentUserId?: string | null
   compact?: boolean
   otherUserPresence?: UserPresence
+  isCallEnabled?: boolean
+  isInCall?: boolean
+  activeCall?: ActiveCallInfo | null
 }
 
 const getOtherParticipant = (conversation: Conversation, currentUserId?: string | null) => {
@@ -73,27 +84,6 @@ const getConversationAvatarUrl = (conversation: Conversation, currentUserId?: st
   return otherParticipant?.user?.avatarUrl
 }
 
-const getOtherParticipantEmployeeId = (
-  conversation: Conversation,
-  currentUserId?: string | null
-): string | undefined => {
-  if (conversation.type !== 'direct') {
-    return undefined
-  }
-
-  const otherParticipant = getOtherParticipant(conversation, currentUserId)
-  return otherParticipant?.user?.employeeId
-}
-
-const getInitials = (name: string): string => {
-  if (!name) return '?'
-  const parts = name.trim().split(/\s+/)
-  if (parts.length === 1) {
-    return parts[0].charAt(0).toUpperCase()
-  }
-  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase()
-}
-
 // Presence status indicator component - only shows for online/away, not offline
 const PresenceIndicator: React.FC<{ status: 'online' | 'away' | 'offline'; size?: 'sm' | 'md' }> = ({
   status,
@@ -124,73 +114,6 @@ const PresenceIndicator: React.FC<{ status: 'online' | 'away' | 'offline'; size?
   )
 }
 
-// Stacked avatars component for group chats
-interface StackedAvatarsProps {
-  participants: Conversation['participants']
-  currentUserId?: string | null
-  size?: 'sm' | 'md'
-  maxAvatars?: number
-}
-
-const StackedAvatars: React.FC<StackedAvatarsProps> = ({
-  participants,
-  currentUserId,
-  size = 'md',
-  maxAvatars = 3
-}) => {
-  if (!participants || participants.length === 0) {
-    return <IconAvatar className={size === 'sm' ? 'gba:w-8 gba:h-8' : 'gba:w-9 gba:h-9'} label="Group" icon={Users} />
-  }
-
-  // Filter out current user and get other participants
-  const otherParticipants = participants.filter(p => p.userId !== currentUserId && p.user?.id !== currentUserId)
-
-  // Take only the first maxAvatars participants
-  const visibleParticipants = otherParticipants.slice(0, maxAvatars)
-  const remainingCount = otherParticipants.length - maxAvatars
-
-  const avatarSizeClass = size === 'sm' ? 'gba:w-6 gba:h-6' : 'gba:w-7 gba:h-7'
-  const containerWidth = size === 'sm' ? 'gba:w-10' : 'gba:w-11'
-  const containerHeight = size === 'sm' ? 'gba:h-8' : 'gba:h-9'
-
-  return (
-    <div className={`gba:relative gba:flex gba:items-center ${containerWidth} ${containerHeight}`}>
-      {visibleParticipants.map((participant, index) => {
-        const user = participant.user
-        const name =
-          user?.displayName || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.username || 'User'
-
-        return (
-          <Avatar
-            key={participant.id || index}
-            className={`${avatarSizeClass} gba:border-2 gba:border-background gba:absolute`}
-            style={{
-              left: `${index * (size === 'sm' ? 10 : 12)}px`,
-              zIndex: maxAvatars - index
-            }}
-            title={name}
-          >
-            {user?.avatarUrl && <AvatarImage src={user.avatarUrl} alt={name} />}
-            <AvatarFallback className="gba:text-[10px]">{getInitials(name)}</AvatarFallback>
-          </Avatar>
-        )
-      })}
-      {remainingCount > 0 && (
-        <div
-          className={`${avatarSizeClass} gba:rounded-full gba:bg-muted gba:border-2 gba:border-background gba:flex gba:items-center gba:justify-center gba:text-[10px] gba:font-medium gba:text-muted-foreground gba:absolute`}
-          style={{
-            left: `${visibleParticipants.length * (size === 'sm' ? 10 : 12)}px`,
-            zIndex: 0
-          }}
-          title={`+${remainingCount} more`}
-        >
-          +{remainingCount}
-        </div>
-      )}
-    </div>
-  )
-}
-
 // Get presence status text for display - returns null for offline
 const getPresenceStatusText = (presence?: UserPresence): string | null => {
   if (!presence || presence.status === 'offline') return null
@@ -205,26 +128,35 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
   onClose,
   onRemove,
   onGroupSettings,
+  onAudioCall,
+  onVideoCall,
+  onJoinCall,
   showBackButton = false,
   currentUserId = null,
   compact = false,
-  otherUserPresence
+  otherUserPresence,
+  isCallEnabled = true,
+  isInCall = false,
+  activeCall = null
 }) => {
   const name = getConversationName(conversation, currentUserId)
   const avatarUrl = getConversationAvatarUrl(conversation, currentUserId)
-  const employeeId = getOtherParticipantEmployeeId(conversation, currentUserId)
   const [showRemoveDialog, setShowRemoveDialog] = useState(false)
   const isGroupChat = conversation.type === 'group'
   const isDirectChat = conversation.type === 'direct'
-  const presenceStatus = otherUserPresence?.status || 'offline'
-  const presenceStatusText = isDirectChat ? getPresenceStatusText(otherUserPresence) : null
-  const isClickable = isDirectChat && !!employeeId
+  const otherParticipant = isDirectChat ? getOtherParticipant(conversation, currentUserId) : null
+  // Use employeeId for navigation, not keycloak id
+  const otherEmployeeId = (otherParticipant?.user as any)?.employeeId
 
-  const handleProfileClick = () => {
-    if (isClickable) {
-      navigateTo(`/platform/employee-record?employeeId=${employeeId}`)
+  const handleAvatarClick = () => {
+    if (isDirectChat && otherEmployeeId) {
+      navigateTo(`/platform/employee-record?employeeId=${otherEmployeeId}`)
     }
   }
+  const presenceStatus = otherUserPresence?.status || 'offline'
+  const presenceStatusText = isDirectChat ? getPresenceStatusText(otherUserPresence) : null
+  // Check for active call from prop (for group chats from useGroupCall) or conversation object
+  const hasActiveCall = isGroupChat && (!!activeCall || !!conversation.activeCall)
 
   const handleRemoveClick = () => {
     setShowRemoveDialog(true)
@@ -258,38 +190,27 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
         )}
 
         <div
-          className={`gba:relative gba:flex-shrink-0 ${isClickable ? 'gba:cursor-pointer' : ''}`}
-          onClick={handleProfileClick}
-          title={isClickable ? 'View profile' : undefined}
+          className={`gba:relative gba:flex-shrink-0 ${isDirectChat && otherEmployeeId ? 'gba:cursor-pointer hover:gba:opacity-80 gba:transition-opacity' : ''}`}
+          onClick={isDirectChat && otherEmployeeId ? handleAvatarClick : undefined}
+          title={
+            isDirectChat && otherEmployeeId
+              ? getTranslationFromI18nKeyAndLabel('chat.viewProfile', 'View profile')
+              : undefined
+          }
         >
-          {isGroupChat ? (
-            <StackedAvatars
-              participants={conversation.participants}
-              currentUserId={currentUserId}
-              size={compact ? 'sm' : 'md'}
-              maxAvatars={3}
-            />
-          ) : avatarUrl ? (
-            <Avatar
-              className={`${avatarSize} ${isClickable ? 'hover:gba:ring-2 hover:gba:ring-primary gba:transition-all' : ''}`}
-            >
-              <AvatarImage src={avatarUrl} alt={name} />
-              <AvatarFallback>{getInitials(name)}</AvatarFallback>
+          {avatarUrl ? (
+            <Avatar className={avatarSize}>
+              <img src={avatarUrl} alt={name} className="gba:w-full gba:h-full gba:object-cover gba:rounded-full" />
             </Avatar>
           ) : (
-            <IconAvatar
-              className={`${avatarSize} ${isClickable ? 'hover:gba:ring-2 hover:gba:ring-primary gba:transition-all' : ''}`}
-              label={name}
-              icon={UserIcon}
-            />
+            <IconAvatar className={avatarSize} label={name} icon={isGroupChat ? Users : UserIcon} />
           )}
           {isDirectChat && <PresenceIndicator status={presenceStatus} size={compact ? 'sm' : 'md'} />}
         </div>
 
         <div className="gba:flex-1 gba:min-w-0">
           <h2
-            className={`gba:font-semibold gba:truncate gba:text-foreground ${compact ? 'gba:text-sm' : 'gba:text-base'} ${isClickable ? 'gba:cursor-pointer hover:gba:text-primary gba:transition-colors' : ''}`}
-            onClick={handleProfileClick}
+            className={`gba:font-semibold gba:truncate gba:text-foreground ${compact ? 'gba:text-sm' : 'gba:text-base'}`}
           >
             {name}
           </h2>
@@ -308,9 +229,59 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
               )}
             </p>
           )}
+          {hasActiveCall && !compact && (
+            <p className="gba:text-xs gba:text-success">
+              {getTranslationFromI18nKeyAndLabel('chat.activeCallInGroup', 'Active call in this group')}
+            </p>
+          )}
         </div>
 
         <div className="gba:flex gba:items-center gba:gap-1">
+          {/* Call controls - show join button for active calls, or call buttons otherwise */}
+          {isCallEnabled && !isInCall && (
+            <>
+              {hasActiveCall && onJoinCall ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onJoinCall}
+                  className="gba:h-8 gba:w-8 gba:flex-shrink-0 gba:text-success gba:hover:text-success gba:hover:bg-success/10"
+                  data-testid="conversation-join-call-button"
+                  title={getTranslationFromI18nKeyAndLabel('chat.joinCall', 'Join call')}
+                >
+                  <PhoneCall className="gba:w-4 gba:h-4" />
+                </Button>
+              ) : (
+                <>
+                  {onAudioCall && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={onAudioCall}
+                      className="gba:h-8 gba:w-8 gba:flex-shrink-0"
+                      data-testid="conversation-audio-call-button"
+                      title={getTranslationFromI18nKeyAndLabel('chat.startAudioCall', 'Start audio call')}
+                    >
+                      <Phone className="gba:w-4 gba:h-4" />
+                    </Button>
+                  )}
+                  {onVideoCall && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={onVideoCall}
+                      className="gba:h-8 gba:w-8 gba:flex-shrink-0"
+                      data-testid="conversation-video-call-button"
+                      title={getTranslationFromI18nKeyAndLabel('chat.startVideoCall', 'Start video call')}
+                    >
+                      <Video className="gba:w-4 gba:h-4" />
+                    </Button>
+                  )}
+                </>
+              )}
+            </>
+          )}
+
           {!showBackButton && onClose && (
             <Button
               variant="ghost"
