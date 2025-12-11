@@ -66,6 +66,7 @@ adjust-salary-review-annual-gross-salary = Jahresbruttogehalt
 adjust-salary-review-monthly-gross-salary = Monatliches Bruttogehalt
 adjust-salary-review-hourly-gross-salary = Stündliches Bruttogehalt
 adjust-salary-review-increase-text = { $percentage }% Erhöhung
+adjust-salary-review-hourly-suffix = /h
 
 # Assign Employee Salary Review Form (new employee without existing salary)
 assign-salary-review-title = Erstmalige Gehaltszuweisung prüfen für { $employeeName }
@@ -137,5 +138,27 @@ grant-bonus-review-fiscal-year = Geschäftsjahr
 grant-bonus-review-additional-info = Zusätzliche Informationen
 grant-bonus-review-description = Beschreibung
 grant-bonus-review-notes = Notizen
-grant-bonus-review-acknowledge = Bestätigen
+grant-bonus-review-acknowledge = Genehmigen
 grant-bonus-review-reject = Ablehnen
+
+# Request Employee Benefit Review Form
+request-benefit-review-title = Überprüfung der Zusatzleistung für { $employeeName }
+request-benefit-review-initiated-by = Initiiert von { $initiatorName }
+request-benefit-review-benefit-details = Details zur Zusatzleistung
+request-benefit-review-benefit-type = Art der Zusatzleistung
+request-benefit-review-provider = Anbieter
+request-benefit-review-yearly-value = Jährlicher Wert
+request-benefit-review-monthly-value = Monatlicher Wert
+request-benefit-review-period = Zeitraum
+request-benefit-review-start-date = Gewünschtes Startdatum
+request-benefit-review-employee-yearly-contribution = Jährlicher Beitrag des Mitarbeiters
+request-benefit-review-employee-monthly-contribution = Monatlicher Beitrag des Mitarbeiters
+request-benefit-review-additional-info = Zusätzliche Informationen
+request-benefit-review-justification = Begründung
+request-benefit-review-financial-details = Finanzielle Details
+request-benefit-review-employee-contributions = Mitarbeiterbeiträge
+request-benefit-review-approve = Genehmigen
+request-benefit-review-reject = Ablehnen
+request-benefit-review-loading = Lade Zusatzleistungsdaten...
+request-benefit-review-error-title = Daten können nicht geladen werden
+request-benefit-review-error-description = Fehler beim Laden der Mitarbeiter-Zusatzleistungsdaten

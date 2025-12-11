@@ -66,6 +66,7 @@ adjust-salary-review-annual-gross-salary = Salariu brut anual
 adjust-salary-review-monthly-gross-salary = Salariu brut lunar
 adjust-salary-review-hourly-gross-salary = Salariu brut pe oră
 adjust-salary-review-increase-text = { $percentage }% creștere
+adjust-salary-review-hourly-suffix = /h
 
 # Assign Employee Salary Review Form (new employee without existing salary)
 assign-salary-review-title = Revizuire atribuire inițială salariu pentru { $employeeName }
@@ -139,3 +140,25 @@ grant-bonus-review-description = Descriere
 grant-bonus-review-notes = Note
 grant-bonus-review-acknowledge = Confirmă
 grant-bonus-review-reject = Respinge
+
+# Request Employee Benefit Review Form
+request-benefit-review-title = Revizuire beneficiu pentru { $employeeName }
+request-benefit-review-initiated-by = Inițiat de { $initiatorName }
+request-benefit-review-benefit-details = Detalii beneficiu
+request-benefit-review-benefit-type = Tipul beneficiului
+request-benefit-review-provider = Furnizor
+request-benefit-review-yearly-value = Valoare anuală
+request-benefit-review-monthly-value = Valoare lunară
+request-benefit-review-period = Perioadă
+request-benefit-review-start-date = Dată de început preferată
+request-benefit-review-employee-yearly-contribution = Contribuție anuală angajat
+request-benefit-review-employee-monthly-contribution = Contribuție lunară angajat
+request-benefit-review-additional-info = Informații suplimentare
+request-benefit-review-justification = Justificare
+request-benefit-review-financial-details = Detalii financiare
+request-benefit-review-employee-contributions = Contribuții angajat
+request-benefit-review-approve = Aprobă
+request-benefit-review-reject = Respinge
+request-benefit-review-loading = Se încarcă datele despre beneficiu...
+request-benefit-review-error-title = Nu se pot încărca datele
+request-benefit-review-error-description = Eroare la încărcarea datelor despre beneficiile angajatului

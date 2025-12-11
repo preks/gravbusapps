@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -7,11 +7,24 @@ import {
   DialogFooter,
   Button,
   Input,
-  Label
+  Label,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+  Avatar,
+  IconAvatar
 } from '@newwork/nw-design-system'
+import { Users, Buildings } from '@phosphor-icons/react'
+import { UserIcon } from 'lucide-react'
 import { UserSelector } from './UserSelector'
+import { DimensionPicker } from './DimensionPicker'
 import { ChatApiClient } from '../services/chatApiClient'
+import { useOrganizationalDimensions, DimensionType } from '../hooks/useOrganizationalDimensions'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import type { OrgUserBasic } from '@/common/network/org-directory/OrgDirectoryClient'
+
+type CreationMode = 'manual' | 'dimension'
 
 interface CreateGroupModalProps {
   isOpen: boolean
@@ -31,20 +44,57 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
   prefixDataTestId = 'create-group-modal',
   accessToken
 }) => {
+  const [creationMode, setCreationMode] = useState<CreationMode>('manual')
   const [groupName, setGroupName] = useState('')
   const [description, setDescription] = useState('')
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([])
   const [isCreating, setIsCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Dimension-based selection state
+  const [showDimensionPicker, setShowDimensionPicker] = useState(false)
+  const [dimensionMembers, setDimensionMembers] = useState<OrgUserBasic[]>([])
+  const [selectedDimensionName, setSelectedDimensionName] = useState<string>('')
+
+  // Hook for organizational dimensions
+  const {
+    organizationalUnits,
+    matrixTeams,
+    locations,
+    legalEntities,
+    capabilities,
+    isLoadingDimensions,
+    isLoadingMembers,
+    selectedMembers,
+    loadDimensions,
+    loadMembersByDimension,
+    clearMembers
+  } = useOrganizationalDimensions(accessToken || '')
+
+  // Load dimensions when modal opens and dimension mode is selected
+  useEffect(() => {
+    if (isOpen && creationMode === 'dimension' && accessToken) {
+      loadDimensions()
+    }
+  }, [isOpen, creationMode, accessToken, loadDimensions])
+
   const handleClose = () => {
     if (!isCreating) {
-      setGroupName('')
-      setDescription('')
-      setSelectedUserIds([])
-      setError(null)
+      resetState()
       onClose()
     }
+  }
+
+  const resetState = () => {
+    setGroupName('')
+    setDescription('')
+    setSelectedUserIds([])
+    setError(null)
+    setCreationMode('manual')
+    setShowDimensionPicker(false)
+    setDimensionMembers([])
+    setSelectedDimensionName('')
+    clearMembers()
   }
 
   const handleCreate = async () => {
@@ -53,15 +103,22 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
       return
     }
 
-    if (selectedUserIds.length === 0) {
+    let participantIds = creationMode === 'manual' ? selectedUserIds : dimensionMembers.map(m => m.id)
+
+    if (participantIds.length === 0) {
       setError(getTranslationFromI18nKeyAndLabel('chat.selectAtLeastOneUser', 'Please select at least one participant'))
       return
+    }
+
+    // Ensure current user is included in the participants (they are the group creator)
+    if (currentUserId && !participantIds.includes(currentUserId)) {
+      participantIds = [currentUserId, ...participantIds]
     }
 
     try {
       setIsCreating(true)
       setError(null)
-      await onCreateGroup(groupName.trim(), selectedUserIds, description.trim() || undefined)
+      await onCreateGroup(groupName.trim(), participantIds, description.trim() || undefined)
       handleClose()
     } catch (err) {
       console.error('Error creating group:', err)
@@ -73,94 +130,318 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
     }
   }
 
+  // Handle dimension selection
+  const handleDimensionSelect = async (type: DimensionType, dimensionId: string) => {
+    await loadMembersByDimension(type, dimensionId)
+  }
+
+  // Handle dimension confirmation
+  const handleDimensionConfirm = (members: OrgUserBasic[], dimensionName: string) => {
+    setDimensionMembers(members)
+    setSelectedDimensionName(dimensionName)
+    setShowDimensionPicker(false)
+    // Auto-suggest group name based on dimension
+    if (!groupName.trim()) {
+      setGroupName(dimensionName)
+    }
+  }
+
+  // Handle mode change
+  const handleModeChange = (mode: string) => {
+    setCreationMode(mode as CreationMode)
+    setError(null)
+    // Reset selections when changing mode
+    if (mode === 'manual') {
+      setDimensionMembers([])
+      setSelectedDimensionName('')
+      clearMembers()
+    } else {
+      setSelectedUserIds([])
+    }
+  }
+
+  // Start dimension picker flow
+  const handleStartDimensionPicker = () => {
+    setShowDimensionPicker(true)
+    setError(null)
+  }
+
+  // Cancel dimension picker
+  const handleCancelDimensionPicker = () => {
+    setShowDimensionPicker(false)
+    clearMembers()
+  }
+
+  const getParticipantCount = () => {
+    return creationMode === 'manual' ? selectedUserIds.length : dimensionMembers.length
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="gba:max-w-2xl gba:max-h-[80vh]" data-testid={prefixDataTestId}>
+      <DialogContent className="gba:max-w-2xl gba:max-h-[85vh]" data-testid={prefixDataTestId}>
         <DialogHeader>
           <DialogTitle>{getTranslationFromI18nKeyAndLabel('chat.createGroup', 'Create Group Chat')}</DialogTitle>
         </DialogHeader>
 
-        <div className="gba:space-y-4 gba:py-4">
-          {/* Group Name */}
-          <div className="gba:space-y-2">
-            <Label htmlFor="group-name">
-              {getTranslationFromI18nKeyAndLabel('chat.groupName', 'Group Name')}
-              <span className="gba:text-destructive">*</span>
-            </Label>
-            <Input
-              id="group-name"
-              placeholder={getTranslationFromI18nKeyAndLabel('chat.groupNamePlaceholder', 'Enter group name...')}
-              value={groupName}
-              onChange={e => setGroupName(e.target.value)}
-              disabled={isCreating}
-              data-testid={`${prefixDataTestId}-name-input`}
+        {showDimensionPicker ? (
+          // Dimension picker view
+          <div className="gba:py-4">
+            <DimensionPicker
+              organizationalUnits={organizationalUnits}
+              matrixTeams={matrixTeams}
+              locations={locations}
+              legalEntities={legalEntities}
+              capabilities={capabilities}
+              isLoadingDimensions={isLoadingDimensions}
+              isLoadingMembers={isLoadingMembers}
+              selectedMembers={selectedMembers}
+              onDimensionSelect={handleDimensionSelect}
+              onConfirm={handleDimensionConfirm}
+              onCancel={handleCancelDimensionPicker}
+              currentUserId={currentUserId}
+              prefixDataTestId={`${prefixDataTestId}-dimension-picker`}
             />
           </div>
+        ) : (
+          // Main creation form
+          <div className="gba:space-y-4 gba:py-4">
+            {/* Mode Selection Tabs */}
+            <Tabs value={creationMode} onValueChange={handleModeChange} className="gba:w-full">
+              <TabsList className="gba:w-full gba:mb-4">
+                <TabsTrigger value="manual" className="gba:flex-1" data-testid={`${prefixDataTestId}-tab-manual`}>
+                  <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
+                    <Users className="gba:w-4 gba:h-4" />
+                    <span>{getTranslationFromI18nKeyAndLabel('chat.selectManually', 'Select Manually')}</span>
+                  </div>
+                </TabsTrigger>
+                <TabsTrigger value="dimension" className="gba:flex-1" data-testid={`${prefixDataTestId}-tab-dimension`}>
+                  <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
+                    <Buildings className="gba:w-4 gba:h-4" />
+                    <span>{getTranslationFromI18nKeyAndLabel('chat.selectByGroup', 'By Group')}</span>
+                  </div>
+                </TabsTrigger>
+              </TabsList>
 
-          {/* Description (optional) */}
-          <div className="gba:space-y-2">
-            <Label htmlFor="group-description">
-              {getTranslationFromI18nKeyAndLabel('chat.groupDescription', 'Description')}
-              <span className="gba:text-muted-foreground gba:ml-1">
-                ({getTranslationFromI18nKeyAndLabel('chat.optional', 'optional')})
-              </span>
-            </Label>
-            <Input
-              id="group-description"
-              placeholder={getTranslationFromI18nKeyAndLabel(
-                'chat.groupDescriptionPlaceholder',
-                'Enter description...'
-              )}
-              value={description}
-              onChange={e => setDescription(e.target.value)}
+              {/* Manual Selection Tab */}
+              <TabsContent value="manual" className="gba:space-y-4">
+                {/* Group Name */}
+                <div className="gba:space-y-2">
+                  <Label htmlFor="group-name">
+                    {getTranslationFromI18nKeyAndLabel('chat.groupName', 'Group Name')}
+                    <span className="gba:text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="group-name"
+                    placeholder={getTranslationFromI18nKeyAndLabel('chat.groupNamePlaceholder', 'Enter group name...')}
+                    value={groupName}
+                    onChange={e => setGroupName(e.target.value)}
+                    disabled={isCreating}
+                    data-testid={`${prefixDataTestId}-name-input`}
+                  />
+                </div>
+
+                {/* Description (optional) */}
+                <div className="gba:space-y-2">
+                  <Label htmlFor="group-description">
+                    {getTranslationFromI18nKeyAndLabel('chat.groupDescription', 'Description')}
+                    <span className="gba:text-muted-foreground gba:ml-1">
+                      ({getTranslationFromI18nKeyAndLabel('chat.optional', 'optional')})
+                    </span>
+                  </Label>
+                  <Input
+                    id="group-description"
+                    placeholder={getTranslationFromI18nKeyAndLabel(
+                      'chat.groupDescriptionPlaceholder',
+                      'Enter description...'
+                    )}
+                    value={description}
+                    onChange={e => setDescription(e.target.value)}
+                    disabled={isCreating}
+                    data-testid={`${prefixDataTestId}-description-input`}
+                  />
+                </div>
+
+                {/* User Selector */}
+                <div className="gba:space-y-2">
+                  <Label>
+                    {getTranslationFromI18nKeyAndLabel('chat.selectParticipants', 'Select Participants')}
+                    <span className="gba:text-destructive">*</span>
+                  </Label>
+                  <div className="gba:h-64">
+                    <UserSelector
+                      selectedUserIds={selectedUserIds}
+                      onSelectionChange={setSelectedUserIds}
+                      currentUserId={currentUserId}
+                      prefixDataTestId={`${prefixDataTestId}-user-selector`}
+                      accessToken={accessToken}
+                    />
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* Dimension Selection Tab */}
+              <TabsContent value="dimension" className="gba:space-y-4">
+                {/* Selected dimension info or select button */}
+                {dimensionMembers.length > 0 ? (
+                  <>
+                    {/* Selected group info */}
+                    <div className="gba:p-4 gba:bg-success-secondary gba:rounded-lg gba:border gba:border-success/30">
+                      <div className="gba:flex gba:items-center gba:justify-between">
+                        <div>
+                          <div className="gba:font-medium gba:text-success-secondary-foreground">
+                            {selectedDimensionName}
+                          </div>
+                          <div className="gba:text-sm gba:text-success-secondary-foreground/70">
+                            {dimensionMembers.length} {getTranslationFromI18nKeyAndLabel('chat.members', 'members')}
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleStartDimensionPicker}
+                          data-testid={`${prefixDataTestId}-change-dimension`}
+                        >
+                          {getTranslationFromI18nKeyAndLabel('chat.change', 'Change')}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Group Name */}
+                    <div className="gba:space-y-2">
+                      <Label htmlFor="group-name-dimension">
+                        {getTranslationFromI18nKeyAndLabel('chat.groupName', 'Group Name')}
+                        <span className="gba:text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="group-name-dimension"
+                        placeholder={getTranslationFromI18nKeyAndLabel(
+                          'chat.groupNamePlaceholder',
+                          'Enter group name...'
+                        )}
+                        value={groupName}
+                        onChange={e => setGroupName(e.target.value)}
+                        disabled={isCreating}
+                        data-testid={`${prefixDataTestId}-name-input-dimension`}
+                      />
+                    </div>
+
+                    {/* Description (optional) */}
+                    <div className="gba:space-y-2">
+                      <Label htmlFor="group-description-dimension">
+                        {getTranslationFromI18nKeyAndLabel('chat.groupDescription', 'Description')}
+                        <span className="gba:text-muted-foreground gba:ml-1">
+                          ({getTranslationFromI18nKeyAndLabel('chat.optional', 'optional')})
+                        </span>
+                      </Label>
+                      <Input
+                        id="group-description-dimension"
+                        placeholder={getTranslationFromI18nKeyAndLabel(
+                          'chat.groupDescriptionPlaceholder',
+                          'Enter description...'
+                        )}
+                        value={description}
+                        onChange={e => setDescription(e.target.value)}
+                        disabled={isCreating}
+                        data-testid={`${prefixDataTestId}-description-input-dimension`}
+                      />
+                    </div>
+
+                    {/* Member preview */}
+                    <div className="gba:space-y-2">
+                      <Label className="gba:text-muted-foreground">
+                        {getTranslationFromI18nKeyAndLabel('chat.participantsPreview', 'Participants')}
+                      </Label>
+                      <div className="gba:h-40 gba:overflow-y-auto gba:border gba:border-border/50 gba:rounded-lg gba:bg-muted/20 gba:p-2">
+                        <div className="gba:flex gba:flex-wrap gba:gap-2">
+                          {dimensionMembers.map(member => (
+                            <div
+                              key={member.id}
+                              className="gba:flex gba:items-center gba:gap-2 gba:px-2 gba:py-1 gba:bg-background gba:rounded-md gba:text-sm gba:border gba:border-border/50"
+                            >
+                              {member.avatarUrl ? (
+                                <Avatar className="gba:w-5 gba:h-5 gba:flex-shrink-0">
+                                  <img
+                                    src={member.avatarUrl}
+                                    alt={member.name}
+                                    className="gba:w-full gba:h-full gba:object-cover gba:rounded-full"
+                                  />
+                                </Avatar>
+                              ) : (
+                                <IconAvatar
+                                  className="gba:w-5 gba:h-5 gba:flex-shrink-0"
+                                  label={member.name}
+                                  icon={UserIcon}
+                                />
+                              )}
+                              <span className="gba:truncate gba:max-w-[150px]">{member.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  // No dimension selected - show selection prompt
+                  <div className="gba:text-center gba:py-12 gba:space-y-4">
+                    <div className="gba:w-16 gba:h-16 gba:mx-auto gba:rounded-full gba:bg-primary/10 gba:flex gba:items-center gba:justify-center">
+                      <Buildings className="gba:w-8 gba:h-8 gba:text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="gba:font-medium gba:text-foreground">
+                        {getTranslationFromI18nKeyAndLabel(
+                          'chat.createGroupByDimension',
+                          'Create Group by Organization'
+                        )}
+                      </h3>
+                      <p className="gba:text-sm gba:text-muted-foreground gba:mt-1 gba:max-w-xs gba:mx-auto">
+                        {getTranslationFromI18nKeyAndLabel(
+                          'chat.dimensionDescription',
+                          'Select an organization unit, matrix team, or location to automatically add all members.'
+                        )}
+                      </p>
+                    </div>
+                    <Button onClick={handleStartDimensionPicker} data-testid={`${prefixDataTestId}-select-dimension`}>
+                      {getTranslationFromI18nKeyAndLabel('chat.selectGroup', 'Select Group')}
+                    </Button>
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+
+            {/* Error Message */}
+            {error && (
+              <div
+                className="gba:text-sm gba:text-destructive gba:bg-destructive-secondary gba:p-3 gba:rounded-md"
+                data-testid={`${prefixDataTestId}-error`}
+              >
+                {error}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Footer - only show when not in dimension picker */}
+        {!showDimensionPicker && (
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={handleClose}
               disabled={isCreating}
-              data-testid={`${prefixDataTestId}-description-input`}
-            />
-          </div>
-
-          {/* User Selector */}
-          <div className="gba:space-y-2">
-            <Label>
-              {getTranslationFromI18nKeyAndLabel('chat.selectParticipants', 'Select Participants')}
-              <span className="gba:text-destructive">*</span>
-            </Label>
-            <div className="gba:h-72">
-              <UserSelector
-                selectedUserIds={selectedUserIds}
-                onSelectionChange={setSelectedUserIds}
-                currentUserId={currentUserId}
-                prefixDataTestId={`${prefixDataTestId}-user-selector`}
-                accessToken={accessToken}
-              />
-            </div>
-          </div>
-
-          {/* Error Message */}
-          {error && (
-            <div
-              className="gba:text-sm gba:text-destructive gba:bg-destructive-secondary gba:p-3 gba:rounded-md"
-              data-testid={`${prefixDataTestId}-error`}
+              data-testid={`${prefixDataTestId}-cancel`}
             >
-              {error}
-            </div>
-          )}
-        </div>
-
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={handleClose}
-            disabled={isCreating}
-            data-testid={`${prefixDataTestId}-cancel`}
-          >
-            {getTranslationFromI18nKeyAndLabel('chat.cancel', 'Cancel')}
-          </Button>
-          <Button onClick={handleCreate} disabled={isCreating} data-testid={`${prefixDataTestId}-create`}>
-            {isCreating
-              ? getTranslationFromI18nKeyAndLabel('chat.creating', 'Creating...')
-              : getTranslationFromI18nKeyAndLabel('chat.createGroup', 'Create Group')}
-          </Button>
-        </DialogFooter>
+              {getTranslationFromI18nKeyAndLabel('chat.cancel', 'Cancel')}
+            </Button>
+            <Button
+              onClick={handleCreate}
+              disabled={isCreating || getParticipantCount() === 0}
+              data-testid={`${prefixDataTestId}-create`}
+            >
+              {isCreating
+                ? getTranslationFromI18nKeyAndLabel('chat.creating', 'Creating...')
+                : `${getTranslationFromI18nKeyAndLabel('chat.createGroup', 'Create Group')}${getParticipantCount() > 0 ? ` (${getParticipantCount()})` : ''}`}
+            </Button>
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   )

@@ -1,11 +1,13 @@
-import React from 'react'
-import { Card, CardHeader, CardContent, Button, Spinner, Separator } from '@newwork/nw-design-system'
+import React, { useMemo } from 'react'
+import { Card, CardHeader, CardContent, Button, Spinner } from '@newwork/nw-design-system'
 import { Play, Settings, Users } from 'lucide-react'
 import { AssignmentConfiguration } from './AssignmentConfiguration'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { FlowTemplate, ExecutionAssignment } from '../types'
+import { FlowVisualization } from './FlowVisualization'
 
 interface LaunchConfigurationProps {
+  accessToken: string
   selectedTemplate: FlowTemplate | null
   templateMetadata: any
   executionAssignments: ExecutionAssignment[]
@@ -18,6 +20,7 @@ interface LaunchConfigurationProps {
 }
 
 export const LaunchConfiguration: React.FC<LaunchConfigurationProps> = ({
+  accessToken,
   selectedTemplate,
   templateMetadata,
   executionAssignments,
@@ -28,6 +31,12 @@ export const LaunchConfiguration: React.FC<LaunchConfigurationProps> = ({
   onLaunchWithWizard,
   'data-testid': testId
 }) => {
+  const templateForPreview: FlowTemplate | null = useMemo(() => {
+    if (!selectedTemplate) return null
+    const metaTemplate = (templateMetadata?.template || templateMetadata?.data?.template) as FlowTemplate | undefined
+    const steps = (metaTemplate?.steps || selectedTemplate.steps || []) as any[]
+    return { ...selectedTemplate, steps }
+  }, [selectedTemplate, templateMetadata])
   if (!selectedTemplate) {
     return (
       <Card
@@ -76,6 +85,7 @@ export const LaunchConfiguration: React.FC<LaunchConfigurationProps> = ({
                 <h3 className="gba:text-sm gba:font-medium gba:text-gray-900">Task Assignments</h3>
               </div>
               <AssignmentConfiguration
+                accessToken={accessToken}
                 assignments={executionAssignments}
                 onChange={onAssignmentsChange}
                 compact
@@ -122,6 +132,36 @@ export const LaunchConfiguration: React.FC<LaunchConfigurationProps> = ({
           )}
         </Button>
       </div>
+
+      {/* Flow Preview under assignment panel */}
+      {templateForPreview && templateForPreview.steps && templateForPreview.steps.length > 0 && (
+        <Card className="gba:bg-white gba:border gba:border-gray-100 gba:shadow-sm">
+          <CardHeader className="gba:pb-3">
+            <div className="gba:flex gba:items-center gba:gap-3">
+              <div className="gba:p-2 gba:bg-indigo-50 gba:rounded-lg">
+                <Users className="gba:h-5 gba:w-5 gba:text-indigo-600" />
+              </div>
+              <div>
+                <h3 className="gba:text-base gba:font-medium gba:text-gray-900">Flow Preview</h3>
+                <p className="gba:text-sm gba:text-gray-600">Visual overview of steps and assignments</p>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="gba:pt-0">
+            <div style={{ height: 360 }}>
+              <FlowVisualization
+                template={templateForPreview}
+                currentStep={0}
+                // @ts-expect-error visualization ignores these in view mode
+                simulationData={{}}
+                // @ts-expect-error visualization ignores these in view mode
+                assignmentCounts={{}}
+                data-testid={`${testId}-flow-preview`}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

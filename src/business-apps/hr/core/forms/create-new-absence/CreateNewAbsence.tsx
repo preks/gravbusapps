@@ -19,8 +19,10 @@ import { useForm } from 'react-hook-form'
 
 import dayjs from 'dayjs'
 import flowSmall from '@/assets/icons/flowSmall.svg'
+import FormHeader from '../components/FormHeader'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { getAllEmployees } from './queries/getAllEmployees'
+import { GET_EMPLOYEE_DETAILS } from './queries/getEmployeeDetails'
 import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext'
 import { getCurrentActiveStructureId, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useAbsenceValidation } from './hooks/useAbsenceValidation'
@@ -65,6 +67,21 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
   const absenceType = mappedParentType || ''
 
   const [employees, setEmployees] = useState<Employee[]>([])
+  const [employee, setEmployee] = useState<{
+    firstName?: string
+    lastName?: string
+    pictureThumbnail?: string
+    jobTitle?: string
+  } | null>(null)
+
+  // Prioritize employeeId from task payload, then fall back to logged-in user's employeeId
+  const employeeId = useMemo(() => {
+    return (
+      (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.employeeId ||
+      userInfo?.employeeDetails?.employeeId ||
+      ''
+    )
+  }, [additionalData, userInfo?.employeeDetails?.employeeId])
 
   const { absenceTypes: types } = useAbsenceTypesByGroup(props, absenceType)
 
@@ -93,7 +110,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
     validationWarnings
   } = useAbsenceValidation({
     accessToken,
-    employeeId: userInfo?.employeeDetails?.employeeId || '',
+    employeeId: employeeId || '',
     selectedType: formValuesState.selectedType || '',
     startDate: formValuesState.startDate,
     endDate: formValuesState.endDate,
@@ -126,6 +143,25 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
         setEmployees(res?.Employee || [])
       })
   }, [accessToken, userInfo?.id, structureId, client])
+
+  useEffect(() => {
+    if (!accessToken || !employeeId) return
+    client
+      .request(GET_EMPLOYEE_DETAILS, {
+        idEmployee: employeeId
+      })
+      .then((res: any) => {
+        setEmployee({
+          firstName: res?.EmployeeByPk?.firstName,
+          lastName: res?.EmployeeByPk?.lastName,
+          pictureThumbnail: res?.EmployeeByPk?.pictureThumbnail,
+          jobTitle: res?.EmployeePosition?.[0]?.jobPosition?.name
+        })
+      })
+      .catch(() => {
+        // Silently fail if employee details can't be fetched
+      })
+  }, [accessToken, employeeId, client])
 
   useEffect(() => {
     if (types.length === 1 && !formValuesState.selectedType) {
@@ -218,7 +254,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
   const handleFormSubmit = useCallback(
     async (formData: CreateNewAbsenceFormValues) => {
       const baseAbsenceData = {
-        employeeId: userInfo?.employeeDetails.employeeId,
+        employeeId: employeeId,
         typeRef: formData.selectedType,
         startDate: formData.startDate ? dayjs(formData.startDate).format('YYYY-MM-DD') : null,
         endDate: formData.endDate ? dayjs(formData.endDate).format('YYYY-MM-DD') : null,
@@ -235,13 +271,13 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
             const pathParams = { accessScope: 'public' }
             const queryParams = {
               appName: 'employee-profile',
-              folderPath: `/documents/${userInfo?.employeeDetails?.employeeId || ''}/absences`
+              folderPath: `/documents/${employeeId || ''}/absences`
             }
 
             const uploadResponse = await fileClient.uploadFile(fileItem.originFileObj, pathParams, queryParams)
 
             const employeeDocument = {
-              employeeId: userInfo?.employeeDetails?.employeeId,
+              employeeId: employeeId,
               documentGroup: 'DocumentGroup:v1:PERSONAL',
               type: 'DocumentType:v1:16',
               name: uploadResponse.fileInfo.fileMetadata?.originalFileName || fileItem.name,
@@ -275,7 +311,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
 
       return payload
     },
-    [userInfo?.employeeDetails.employeeId, fileList, isUpdateMode, existingSickLeave, fileClient]
+    [employeeId, fileList, isUpdateMode, existingSickLeave, fileClient]
   )
 
   const validateForm = useCallback(
@@ -308,314 +344,302 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
 
   return (
     <div
-      className="gba:min-h-screen gba:flex gba:flex-col gba:items-center gba:justify-center gba:bg-white gba:mt-3"
+      className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-full gba:max-w-md"
       data-testid="create-new-absence-root"
     >
-      <div
-        className="gba:flex gba:items-center gba:pb-6 gba:gap-2 gba:w-100 gba:border-b gba:border-border"
-        data-testid="create-new-absence-header"
+      <FormHeader
+        title={getTranslationFromI18nKeyAndLabel('lowcoder:absence_form.create_new_title', 'Create New Absence')}
+        flowIconUrl={flowSmall}
+        employee={
+          employee
+            ? {
+                firstName: employee.firstName,
+                lastName: employee.lastName,
+                pictureThumbnail: employee.pictureThumbnail,
+                jobTitle: employee.jobTitle
+              }
+            : undefined
+        }
+      />
+      <AppActionForm
+        processType={isUpdateMode ? 'update' : 'create'}
+        onSubmit={handleFormSubmit}
+        formData={formValuesState}
+        validateForm={validateForm}
+        form={form}
+        businessAppContext={props}
+        submitButtonText={isUpdateMode ? 'Update' : 'Submit'}
+        isSubmitDisabled={!isFormValid || isValidating}
+        data-testid="create-new-absence-form"
       >
-        <img
-          src={flowSmall}
-          alt="Flow Small"
-          style={{
-            filter: 'brightness(0)',
-            fill: 'var(--nw-foreground)',
-            width: '24px',
-            height: '24px'
-          }}
-        />
-        <h1 className="gba:text-2xl gba:font-bold gba:text-center" data-testid="create-new-absence-title">
-          {getTranslationFromI18nKeyAndLabel('lowcoder:absence_form.create_new_title', 'Create New Absence')}
-        </h1>
-      </div>
-      <div className="gba:flex-grow gba:w-full">
-        <AppActionForm
-          processType={isUpdateMode ? 'update' : 'create'}
-          onSubmit={handleFormSubmit}
-          formData={formValuesState}
-          validateForm={validateForm}
-          form={form}
-          businessAppContext={props}
-          submitButtonText={isUpdateMode ? 'Update' : 'Submit'}
-          isSubmitDisabled={!isFormValid || isValidating}
-          data-testid="create-new-absence-form"
-        >
-          <div className="gba:p-6 gba:bg-white gba:w-full gba:max-w-md" data-testid="create-new-absence-form-content">
-            {showSickLeaveOptions && existingSickLeave && (
-              <div
-                className="gba:mb-4 gba:p-4 gba:border gba:border-warning gba:bg-warning-secondary gba:rounded"
-                data-testid="sick-leave-options-container"
-              >
-                <div className="gba:mb-3">
-                  <h4 className="gba:text-sm gba:font-semibold gba:text-warning gba:mb-2">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:absence_form.existing_found',
-                      'Existing Sick Leave Found'
-                    )}
-                  </h4>
-                  <p className="gba:text-sm gba:text-warning">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:absence_form.existing_message',
-                      'You already have a sick leave for today. Would you like to update it or create a new absence?'
-                    )}
-                  </p>
-                </div>
-                <div className="gba:flex gba:gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="gba:border-warning gba:text-warning hover:gba:bg-warning-secondary"
-                    onClick={handleUpdateExisting}
-                    data-testid="update-existing-sick-leave-button"
+        <div className="gba:flex-1 gba:space-y-4" data-testid="create-new-absence-form-content">
+          {showSickLeaveOptions && existingSickLeave && (
+            <div
+              className="gba:mb-4 gba:p-4 gba:border gba:border-warning gba:bg-warning-secondary gba:rounded"
+              data-testid="sick-leave-options-container"
+            >
+              <div className="gba:mb-3">
+                <h4 className="gba:text-sm gba:font-semibold gba:text-warning gba:mb-2">
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:absence_form.existing_found',
+                    'Existing Sick Leave Found'
+                  )}
+                </h4>
+                <p className="gba:text-sm gba:text-warning">
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:absence_form.existing_message',
+                    'You already have a sick leave for today. Would you like to update it or create a new absence?'
+                  )}
+                </p>
+              </div>
+              <div className="gba:flex gba:gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gba:border-warning gba:text-warning hover:gba:bg-warning-secondary"
+                  onClick={handleUpdateExisting}
+                  data-testid="update-existing-sick-leave-button"
+                >
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:absence_form.update_existing', 'Update Existing')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gba:border-warning gba:text-warning hover:gba:bg-warning-secondary"
+                  onClick={handleCreateNew}
+                  data-testid="create-new-absence-button"
+                >
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:absence_form.create_new', 'Create New')}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {!showSickLeaveOptions && (
+            <>
+              <div className="gba:mb-4 gba:w-full">
+                <Label className="gba:block gba:mb-2 gba:font-medium" data-testid="type-Label">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.type', 'Type')}
+                  <span className="gba:text-destructive gba:ml-1">*</span>
+                </Label>
+                <div className="gba:w-full">
+                  <Select
+                    data-testid="type-dropdown"
+                    value={formValuesState.selectedType || ''}
+                    onValueChange={(value: string) => {
+                      form.setValue('selectedType', value)
+                    }}
+                    disabled={types.length <= 1}
                   >
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:absence_form.update_existing', 'Update Existing')}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="gba:border-warning gba:text-warning hover:gba:bg-warning-secondary"
-                    onClick={handleCreateNew}
-                    data-testid="create-new-absence-button"
-                  >
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:absence_form.create_new', 'Create New')}
-                  </Button>
+                    <SelectTrigger className="gba:w-full">
+                      <SelectValue
+                        placeholder={getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:absence_form.select_type',
+                          'Select a type'
+                        )}
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {types.map(type => (
+                        <SelectItem key={type.id} value={type.id}>
+                          {type.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
-            )}
-
-            {!showSickLeaveOptions && (
-              <>
+              <div className="gba:mb-4">
+                <Label className="gba:block gba:mb-2 gba:font-medium" data-testid="date-range-label">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.start_date', 'Start Date')} /{' '}
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.end_date', 'End Date')}
+                  <span className="gba:text-destructive gba:ml-1">*</span>
+                </Label>
+                <DateInput
+                  mode="range"
+                  type="date"
+                  value={
+                    formValuesState.startDate && formValuesState.endDate
+                      ? ([
+                          formValuesState.startDate.toISOString().split('T')[0],
+                          formValuesState.endDate.toISOString().split('T')[0]
+                        ] as any)
+                      : formValuesState.startDate
+                        ? ([formValuesState.startDate.toISOString().split('T')[0], null] as any)
+                        : undefined
+                  }
+                  onChange={(value: string | [string | null, string | null] | null) => {
+                    if (Array.isArray(value)) {
+                      const startDateStr = value[0]
+                      const endDateStr = value[1]
+                      form.setValue('startDate', startDateStr ? new Date(startDateStr) : undefined)
+                      form.setValue('endDate', endDateStr ? new Date(endDateStr) : undefined)
+                    } else if (value) {
+                      form.setValue('startDate', new Date(value))
+                      form.setValue('endDate', undefined)
+                    } else {
+                      form.setValue('startDate', undefined)
+                      form.setValue('endDate', undefined)
+                    }
+                  }}
+                  outputFormat="iso"
+                  placeholder={
+                    getTranslationFromI18nKeyAndLabel('lowcoder:absence_form.select_start_date', 'Select start date') +
+                    ' / ' +
+                    getTranslationFromI18nKeyAndLabel('lowcoder:absence_form.select_end_date', 'Select end date')
+                  }
+                  className="gba:w-full"
+                  data-testid="absence-date-range-input"
+                />
+              </div>
+              {absenceType !== 'AbsenceGroup:v1:WORK' && (
                 <div className="gba:mb-4 gba:w-full">
-                  <Label className="gba:block gba:mb-2 gba:font-medium" data-testid="type-Label">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.type', 'Type')}
-                    <span className="gba:text-destructive gba:ml-1">*</span>
+                  <Label className="gba:block gba:mb-2 gba:font-medium" data-testid="substitute-Label">
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:absence_form.substitute', 'Substitute')}
                   </Label>
                   <div className="gba:w-full">
                     <Select
-                      data-testid="type-dropdown"
-                      value={formValuesState.selectedType || ''}
-                      onValueChange={(value: string) => {
-                        form.setValue('selectedType', value)
-                      }}
-                      disabled={types.length <= 1}
+                      data-testid="substitute-dropdown"
+                      value={formValuesState.selectedSubstitute || ''}
+                      onValueChange={(value: string) => form.setValue('selectedSubstitute', value)}
                     >
                       <SelectTrigger className="gba:w-full">
                         <SelectValue
                           placeholder={getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:absence_form.select_type',
-                            'Select a type'
+                            'lowcoder:absence_form.select_substitute',
+                            'Select substitute'
                           )}
                         />
                       </SelectTrigger>
                       <SelectContent>
-                        {types.map(type => (
-                          <SelectItem key={type.id} value={type.id}>
-                            {type.name}
+                        {employees.map(employee => (
+                          <SelectItem key={employee.id} value={employee.id}>
+                            {employee.firstName} {employee.lastName}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
+              )}
+              <div className="gba:mb-4">
+                <Label className="gba:block gba:mb-2 gba:font-medium" data-testid="comment-Label">
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:initiate_expense_plan.create_expense_plan.comment_text_area',
+                    'Comment'
+                  )}
+                </Label>
+                <Textarea
+                  data-testid="comment-textarea"
+                  className="gba:w-full gba:min-h-[80px]"
+                  value={formValuesState.comment || ''}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => form.setValue('comment', e.target.value)}
+                  placeholder={getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:absence_form.comment_text_area_placeholder',
+                    'Add a comment (optional)'
+                  )}
+                />
+              </div>
+
+              {isUpdateMode && existingSickLeave && (
+                <div
+                  className="gba:mb-4 gba:p-3 gba:border gba:border-info gba:bg-info-secondary gba:rounded"
+                  data-testid="update-mode-indicator"
+                >
+                  <p className="gba:text-sm gba:text-info gba:font-medium">
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:absence_form.update_mode_indicator',
+                      'Updating existing absence'
+                    )}
+                  </p>
+                </div>
+              )}
+
+              {(hasValidationErrors || validationWarnings.length > 0) && (
+                <div className="gba:mb-4" data-testid="validation-errors-container">
+                  {generalErrors.map((error, index) => (
+                    <Alert key={`general-${index}`} className="gba:mb-2" data-testid={`general-error-${index}`}>
+                      <AlertCircle className="gba:h-4 gba:w-4" />
+                      <span>{error.message}</span>
+                    </Alert>
+                  ))}
+
+                  {overlapErrors.map((error, index) => (
+                    <Alert key={`overlap-${index}`} className="gba:mb-2" data-testid={`overlap-error-${index}`}>
+                      <AlertCircle className="gba:h-4 gba:w-4" />
+                      <span>{error.message}</span>
+                    </Alert>
+                  ))}
+
+                  {balanceErrors.map((error, index) => (
+                    <Alert key={`balance-${index}`} className="gba:mb-2" data-testid={`balance-error-${index}`}>
+                      <AlertCircle className="gba:h-4 gba:w-4" />
+                      <span>{error.message}</span>
+                    </Alert>
+                  ))}
+                  {validationWarnings.map((warning, index) => (
+                    <Alert key={`warning-${index}`} className="gba:mb-2" data-testid={`validation-warning-${index}`}>
+                      <AlertCircle className="gba:h-4 gba:w-4" />
+                      <span>{warning.message}</span>
+                    </Alert>
+                  ))}
+                </div>
+              )}
+
+              {/* Loading indicator for validation */}
+              {isValidating && (
+                <div
+                  className="gba:mb-4 gba:text-center gba:text-sm gba:text-muted-foreground"
+                  data-testid="validation-loading"
+                >
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:absence_form.validation_checking',
+                    'Checking availability...'
+                  )}
+                </div>
+              )}
+
+              {/* File Upload Section - Only for Health Group */}
+              {absenceType === 'AbsenceGroup:v1:HEALTH' && (
                 <div className="gba:mb-4">
-                  <Label className="gba:block gba:mb-2 gba:font-medium" data-testid="date-range-label">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.start_date', 'Start Date')} /{' '}
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.end_date', 'End Date')}
-                    <span className="gba:text-destructive gba:ml-1">*</span>
+                  <Label className="gba:block gba:mb-2 gba:font-medium" data-testid="attachments-label">
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.attachments', 'Attachments')}
                   </Label>
-                  <DateInput
-                    mode="range"
-                    type="date"
-                    value={
-                      formValuesState.startDate && formValuesState.endDate
-                        ? ([
-                            formValuesState.startDate.toISOString().split('T')[0],
-                            formValuesState.endDate.toISOString().split('T')[0]
-                          ] as any)
-                        : formValuesState.startDate
-                          ? ([formValuesState.startDate.toISOString().split('T')[0], null] as any)
-                          : undefined
-                    }
-                    onChange={(value: string | [string | null, string | null] | null) => {
-                      if (Array.isArray(value)) {
-                        const startDateStr = value[0]
-                        const endDateStr = value[1]
-                        form.setValue('startDate', startDateStr ? new Date(startDateStr) : undefined)
-                        form.setValue('endDate', endDateStr ? new Date(endDateStr) : undefined)
-                      } else if (value) {
-                        form.setValue('startDate', new Date(value))
-                        form.setValue('endDate', undefined)
-                      } else {
-                        form.setValue('startDate', undefined)
-                        form.setValue('endDate', undefined)
-                      }
-                    }}
-                    outputFormat="iso"
-                    placeholder={
-                      getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:absence_form.select_start_date',
-                        'Select start date'
-                      ) +
-                      ' / ' +
-                      getTranslationFromI18nKeyAndLabel('lowcoder:absence_form.select_end_date', 'Select end date')
-                    }
+                  <Upload
+                    fileList={fileList}
+                    onChange={handleFileChange}
+                    beforeUpload={beforeUpload}
+                    multiple
+                    maxCount={5}
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    data-testid="file-upload"
                     className="gba:w-full"
-                    data-testid="absence-date-range-input"
-                  />
-                </div>
-                {absenceType !== 'AbsenceGroup:v1:WORK' && (
-                  <div className="gba:mb-4 gba:w-full">
-                    <Label className="gba:block gba:mb-2 gba:font-medium" data-testid="substitute-Label">
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:absence_form.substitute', 'Substitute')}
-                    </Label>
-                    <div className="gba:w-full">
-                      <Select
-                        data-testid="substitute-dropdown"
-                        value={formValuesState.selectedSubstitute || ''}
-                        onValueChange={(value: string) => form.setValue('selectedSubstitute', value)}
-                      >
-                        <SelectTrigger className="gba:w-full">
-                          <SelectValue
-                            placeholder={getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:absence_form.select_substitute',
-                              'Select substitute'
-                            )}
-                          />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {employees.map(employee => (
-                            <SelectItem key={employee.id} value={employee.id}>
-                              {employee.firstName} {employee.lastName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                )}
-                <div className="gba:mb-4">
-                  <Label className="gba:block gba:mb-2 gba:font-medium" data-testid="comment-Label">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:initiate_expense_plan.create_expense_plan.comment_text_area',
-                      'Comment'
-                    )}
-                  </Label>
-                  <Textarea
-                    data-testid="comment-textarea"
-                    className="gba:w-full gba:min-h-[80px]"
-                    value={formValuesState.comment || ''}
-                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => form.setValue('comment', e.target.value)}
-                    placeholder={getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:absence_form.comment_text_area_placeholder',
-                      'Add a comment (optional)'
-                    )}
-                  />
-                </div>
-
-                {isUpdateMode && existingSickLeave && (
-                  <div
-                    className="gba:mb-4 gba:p-3 gba:border gba:border-info gba:bg-info-secondary gba:rounded"
-                    data-testid="update-mode-indicator"
                   >
-                    <p className="gba:text-sm gba:text-info gba:font-medium">
-                      {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:absence_form.update_mode_indicator',
-                        'Updating existing absence'
-                      )}
-                    </p>
-                  </div>
-                )}
-
-                {(hasValidationErrors || validationWarnings.length > 0) && (
-                  <div className="gba:mb-4" data-testid="validation-errors-container">
-                    {generalErrors.map((error, index) => (
-                      <Alert key={`general-${index}`} className="gba:mb-2" data-testid={`general-error-${index}`}>
-                        <AlertCircle className="gba:h-4 gba:w-4" />
-                        <span>{error.message}</span>
-                      </Alert>
-                    ))}
-
-                    {overlapErrors.map((error, index) => (
-                      <Alert key={`overlap-${index}`} className="gba:mb-2" data-testid={`overlap-error-${index}`}>
-                        <AlertCircle className="gba:h-4 gba:w-4" />
-                        <span>{error.message}</span>
-                      </Alert>
-                    ))}
-
-                    {balanceErrors.map((error, index) => (
-                      <Alert key={`balance-${index}`} className="gba:mb-2" data-testid={`balance-error-${index}`}>
-                        <AlertCircle className="gba:h-4 gba:w-4" />
-                        <span>{error.message}</span>
-                      </Alert>
-                    ))}
-                    {validationWarnings.map((warning, index) => (
-                      <Alert key={`warning-${index}`} className="gba:mb-2" data-testid={`validation-warning-${index}`}>
-                        <AlertCircle className="gba:h-4 gba:w-4" />
-                        <span>{warning.message}</span>
-                      </Alert>
-                    ))}
-                  </div>
-                )}
-
-                {/* Loading indicator for validation */}
-                {isValidating && (
-                  <div
-                    className="gba:mb-4 gba:text-center gba:text-sm gba:text-muted-foreground"
-                    data-testid="validation-loading"
-                  >
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:absence_form.validation_checking',
-                      'Checking availability...'
-                    )}
-                  </div>
-                )}
-
-                {/* File Upload Section - Only for Health Group */}
-                {absenceType === 'AbsenceGroup:v1:HEALTH' && (
-                  <div className="gba:mb-4">
-                    <Label className="gba:block gba:mb-2 gba:font-medium" data-testid="attachments-label">
-                      {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:expense_item_request_card.attachments',
-                        'Attachments'
-                      )}
-                    </Label>
-                    <Upload
-                      fileList={fileList}
-                      onChange={handleFileChange}
-                      beforeUpload={beforeUpload}
-                      multiple
-                      maxCount={5}
-                      accept=".pdf,.jpg,.jpeg,.png"
-                      data-testid="file-upload"
-                      className="gba:w-full"
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="gba:w-full gba:h-12 gba:border-dashed gba:border-2 gba:border-border hover:gba:border-info"
+                      data-testid="upload-button"
                     >
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="gba:w-full gba:h-12 gba:border-dashed gba:border-2 gba:border-border hover:gba:border-info"
-                        data-testid="upload-button"
-                      >
-                        <UploadOutlined className="gba:mr-2" />
-                        {getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:absence_form.upload_button',
-                          'Click or drag files to upload'
-                        )}
-                      </Button>
-                    </Upload>
-                    <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
+                      <UploadOutlined className="gba:mr-2" />
                       {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:absence_form.upload_hint',
-                        'Supported formats: PDF, JPG, PNG (max 10MB each, up to 5 files)'
+                        'lowcoder:absence_form.upload_button',
+                        'Click or drag files to upload'
                       )}
-                    </div>
+                    </Button>
+                  </Upload>
+                  <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:absence_form.upload_hint',
+                      'Supported formats: PDF, JPG, PNG (max 10MB each, up to 5 files)'
+                    )}
                   </div>
-                )}
-              </>
-            )}
-          </div>
-        </AppActionForm>
-      </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </AppActionForm>
     </div>
   )
 }

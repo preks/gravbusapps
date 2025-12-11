@@ -12,6 +12,7 @@ import {
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, ComposedChart, Area } from 'recharts'
 import { PiChartPie, PiChartBar, PiTrendUp, PiUsers, PiTarget } from 'react-icons/pi'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { ActivityTimelineTooltip } from '@/common/components/common-relations/view-layouts/analytics-layout/shared/tooltips/ActivityTimelineTooltip'
 
 const DATA_TEST_ID_PREFIX = 'TeamOverviewCharts'
 
@@ -62,28 +63,6 @@ const MemberBarTooltip: React.FC<MemberBarTooltipProps> = ({ active, payload }) 
           <span className="gba:font-medium gba:text-gray-700">{data.payload.fullName}</span>
         </div>
         <div className="gba:text-lg gba:font-semibold gba:text-gray-900">{data.value} activities</div>
-      </div>
-    )
-  }
-  return null
-}
-
-interface TimelineTooltipProps {
-  active?: boolean
-  payload?: readonly any[]
-}
-
-const TimelineTooltip: React.FC<TimelineTooltipProps> = ({ active, payload }) => {
-  if (active && payload?.length) {
-    const data = payload[0].payload
-    return (
-      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{data.fullDate}</div>
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: 'var(--color-activities)' }} />
-          <span className="gba:font-medium">Activities:</span>
-          <span className="gba:font-semibold">{data.activities}</span>
-        </div>
       </div>
     )
   }
@@ -372,7 +351,7 @@ export const TeamOverviewCharts: React.FC<TeamOverviewChartsProps> = ({
                   interval="preserveStartEnd"
                 />
                 <YAxis tick={{ fontSize: 12 }} />
-                <ChartTooltip content={TimelineTooltip} />
+                <ChartTooltip content={ActivityTimelineTooltip} />
                 <ChartLegend content={<ChartLegendContent />} />
                 <Area
                   type="monotone"

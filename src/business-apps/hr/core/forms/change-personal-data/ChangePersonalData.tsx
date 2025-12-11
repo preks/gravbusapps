@@ -26,6 +26,7 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
   const { data } = useChangePersonalData()
 
   const employee = useMemo(() => data?.employee?.EmployeeByPk, [data])
+  const employeePosition = useMemo(() => data?.employee?.EmployeePosition?.[0], [data])
   const catalogSalutation: CatalogEntry[] = useMemo(() => data?.catalogs?.salutation || [], [data])
   const catalogs = useMemo(
     () => ({
@@ -190,7 +191,20 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
       className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-[100%] gba:max-w-[800px]"
       data-testid="flw_changePersonalData_screenContentLayout"
     >
-      <FormHeader title={title} flowIconUrl={flowIconUrl} className="gba:px-6" />
+      <FormHeader
+        title={title}
+        flowIconUrl={flowIconUrl}
+        employee={
+          employee
+            ? {
+                firstName: employee.firstName,
+                lastName: employee.lastName,
+                pictureThumbnail: employee.pictureThumbnail,
+                jobTitle: employeePosition?.jobPosition?.name
+              }
+            : undefined
+        }
+      />
 
       <div
         className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='change-personal-data']]:!pt-0"

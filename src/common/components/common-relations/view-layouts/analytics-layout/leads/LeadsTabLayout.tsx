@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { TeamOutlined, PercentageOutlined, ClockCircleOutlined, RiseOutlined } from '@ant-design/icons'
 import { LeadLifecycleChart, TimeFilter } from './widgets/LeadLifecycleChart'
@@ -27,38 +27,81 @@ interface LeadsTrendData {
 
 export interface LeadsTabLayoutProps {
   title?: string
+  moduleColor?: string
+
+  // Required: Core KPIs
   totalLeads: number
   conversionRate: number
   avgTimeToConversion: number
   trendData?: LeadsTrendData | null
   trendLoading?: boolean
+
+  // Required: Lead Lifecycle Chart
   leadsOverTime: Array<{ date: string; count: number; leadsCreated: number; leadsConverted: number; leadsLost: number }>
+  leadsOverTimeLoading?: boolean
   selectedTimeFilter: TimeFilter
   onTimeFilterChange: (filter: TimeFilter) => void
-  leadsBySource: Array<{ source: string; count: number; percentage?: number }>
-  leadsByStatus: Array<{ status: string; count: number }>
-  topOwners: Array<{ employeeId: string; employeeName: string; leadCount: number; conversionRate: number }>
-  leadsByRating?: Array<{ rating: string; count: number; percentage?: number }>
-  leadHealthIndicators?: Array<{ label: string; value: number; status?: 'good' | 'warning' | 'bad' }>
-  moduleColor?: string
+
+  // Optional: Lead Velocity Analysis (can be hidden)
+  velocityData?: {
+    avgTimeToConversion: number
+    conversionRate: number
+    volumeTrend: number
+    velocityTrendData: Array<{
+      month: string
+      date: string
+      leadsCreated: number
+      leadsConverted: number
+      conversionVelocity: number
+    }>
+  } | null
+  velocityLoading?: boolean
+
+  // Optional: Lead Quality Matrix (can be hidden)
+  leadQualityMatrix?: {
+    leadsBySource: Array<{ source: string; count: number; percentage?: number; conversionRate?: number }>
+    isLoading?: boolean
+  }
+
+  // Optional: Lead Engagement Insights (can be hidden)
+  leadEngagementInsights?: {
+    leadsByRating: Array<{ rating: string; count: number; percentage?: number }>
+    leadHealthIndicators: Array<{ label: string; value: number; status?: 'good' | 'warning' | 'bad' }>
+    highQualityPercentage: number
+    isLoading?: boolean
+  }
+
+  // Optional: Distribution Charts (can be hidden)
+  leadsBySource?: Array<{ source: string; count: number; percentage?: number; conversionRate?: number }>
+  leadsBySourceLoading?: boolean
+  leadsByStatus?: Array<{ status: string; count: number }>
+  leadsByStatusLoading?: boolean
+
+  // Optional: Top Lead Owners (can be hidden)
+  topOwners?: Array<{ employeeId: string; employeeName: string; leadCount: number; conversionRate: number }>
 }
 
 export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
   title = 'Leads Analytics',
+  moduleColor = 'default',
   totalLeads,
   conversionRate,
   avgTimeToConversion,
   trendData,
   trendLoading = false,
   leadsOverTime,
+  leadsOverTimeLoading = false,
   selectedTimeFilter,
   onTimeFilterChange,
+  velocityData,
+  velocityLoading = false,
+  leadQualityMatrix,
+  leadEngagementInsights,
   leadsBySource,
+  leadsBySourceLoading = false,
   leadsByStatus,
-  topOwners,
-  leadsByRating,
-  leadHealthIndicators,
-  moduleColor = 'default'
+  leadsByStatusLoading = false,
+  topOwners
 }) => {
   // Helper function to calculate trend with total description (matching archived version)
   const calculateTrendWithTotalDescription = (currentValue: number, previousValue: number) => {
@@ -152,7 +195,7 @@ export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
     {
       key: 'leads-this-period',
       title: 'New This Month',
-      value: trendData?.currentMonthLeads || leadsOverTime.reduce((sum, item) => sum + item.leadsCreated, 0),
+      value: trendData?.currentMonthLeads || 0,
       prefix: <RiseOutlined />,
       description: 'Leads created this month',
       // Add trend data for new leads this month vs last month
@@ -164,88 +207,8 @@ export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
     }
   ]
 
-  // Generate lead lifecycle data based on selected time filter (from archived LeadTab)
-  const leadsOverTimeFiltered = useMemo(() => {
-    if (!leadsOverTime) return []
-
-    // Calculate date range based on selected time filter
-    const endDate = new Date()
-    const startDate = new Date()
-
-    switch (selectedTimeFilter) {
-      case 'month':
-        startDate.setMonth(endDate.getMonth() - 1)
-        break
-      case 'quarter':
-        startDate.setMonth(endDate.getMonth() - 3)
-        break
-      case 'sixMonths':
-        startDate.setMonth(endDate.getMonth() - 6)
-        break
-      case 'year':
-        startDate.setFullYear(endDate.getFullYear() - 1)
-        break
-      case 'historical':
-        startDate.setFullYear(endDate.getFullYear() - 3) // 3 years of historical data
-        break
-      default:
-        startDate.setMonth(endDate.getMonth() - 3)
-    }
-
-    // For month filter: return daily data, for others: aggregate into monthly periods
-    if (selectedTimeFilter === 'month') {
-      // Filter daily data for the last month
-      const startDateStr = startDate.toISOString().split('T')[0]
-      return leadsOverTime.filter(item => item.date >= startDateStr)
-    } else {
-      // Aggregate daily data into monthly periods
-      const monthlyData = new Map<
-        string,
-        {
-          date: string
-          count: number
-          leadsCreated: number
-          leadsConverted: number
-          leadsLost: number
-        }
-      >()
-
-      const current = new Date(startDate)
-      const end = new Date(endDate)
-
-      // Initialize monthly buckets
-      while (current <= end) {
-        const key = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-01`
-        monthlyData.set(key, {
-          date: key,
-          count: 0,
-          leadsCreated: 0,
-          leadsConverted: 0,
-          leadsLost: 0
-        })
-        current.setMonth(current.getMonth() + 1)
-      }
-
-      // Filter data by date range first
-      const startDateStr = startDate.toISOString().split('T')[0]
-      const filteredData = leadsOverTime.filter(item => item.date >= startDateStr)
-
-      // Aggregate the filtered daily data into monthly buckets
-      filteredData.forEach(daily => {
-        const d = new Date(daily.date)
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
-        const monthlyEntry = monthlyData.get(key)
-        if (monthlyEntry) {
-          monthlyEntry.count += daily.count
-          monthlyEntry.leadsCreated += daily.leadsCreated
-          monthlyEntry.leadsConverted += daily.leadsConverted
-          monthlyEntry.leadsLost += daily.leadsLost
-        }
-      })
-
-      return Array.from(monthlyData.values()).sort((a, b) => a.date.localeCompare(b.date))
-    }
-  }, [leadsOverTime, selectedTimeFilter])
+  // No filtering needed - useLeadsOverTime hook already returns correctly aggregated data per period
+  // (daily for month, weekly for quarter/sixMonths, monthly for year, yearly for historical)
 
   return (
     <div className="gba:space-y-6" data-testid="leads-analytics-tab">
@@ -254,54 +217,91 @@ export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
         <WidgetGroup widgets={keyMetricsWidgets} isLoading={trendLoading} data-testid="leads-key-metrics" />
       </div>
 
+      {/* Required: Lead Lifecycle Chart */}
       <LeadLifecycleChart
-        data={leadsOverTimeFiltered}
+        key={`lead-lifecycle-${selectedTimeFilter}`}
+        data={leadsOverTime}
+        isLoading={
+          leadsOverTimeLoading ||
+          velocityLoading ||
+          leadQualityMatrix?.isLoading ||
+          leadEngagementInsights?.isLoading ||
+          leadsBySourceLoading ||
+          leadsByStatusLoading
+        }
         selectedTimeFilter={selectedTimeFilter}
         onTimeFilterChange={onTimeFilterChange}
         moduleColor={moduleColor}
       />
 
-      <div className="gba:grid gba:grid-cols-1 xl:gba:grid-cols-2 gba:gap-6">
-        <LeadVelocityAnalysis
-          data={{
-            avgTimeToConversion,
-            conversionRate,
-            leadsOverTime
-          }}
+      {/* Optional: Velocity & Quality Analysis */}
+      {(velocityData || leadQualityMatrix) && (
+        <div className="gba:grid gba:grid-cols-1 xl:gba:grid-cols-2 gba:gap-6">
+          {velocityData && (
+            <LeadVelocityAnalysis
+              avgTimeToConversion={velocityData.avgTimeToConversion || avgTimeToConversion}
+              conversionRate={velocityData.conversionRate || conversionRate}
+              volumeTrend={velocityData.volumeTrend || 0}
+              velocityTrendData={velocityData.velocityTrendData || []}
+              isLoading={velocityLoading}
+              moduleColor={moduleColor}
+            />
+          )}
+          {leadQualityMatrix && (
+            <LeadQualityMatrix
+              data={{
+                totalLeads,
+                conversionRate,
+                leadsBySource: leadQualityMatrix.leadsBySource.map(s => ({
+                  source: s.source,
+                  count: s.count,
+                  percentage: s.percentage || 0,
+                  conversionRate: s.conversionRate || 0
+                }))
+              }}
+              isLoading={leadQualityMatrix.isLoading}
+              moduleColor={moduleColor}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Optional: Lead Engagement Insights */}
+      {leadEngagementInsights && (
+        <LeadEngagementInsights
+          leadsByRating={leadEngagementInsights.leadsByRating.map(r => ({
+            rating: r.rating,
+            count: r.count,
+            percentage: r.percentage || 0
+          }))}
+          leadHealthIndicators={leadEngagementInsights.leadHealthIndicators}
+          conversionRate={conversionRate}
+          avgTimeToConversion={avgTimeToConversion}
+          leadsOverTime={leadsOverTime}
+          highQualityPercentage={leadEngagementInsights.highQualityPercentage}
+          isLoading={leadEngagementInsights.isLoading}
           moduleColor={moduleColor}
         />
-        <LeadQualityMatrix
-          data={{
-            totalLeads,
-            conversionRate,
-            leadsBySource: leadsBySource.map(s => ({ source: s.source, count: s.count, percentage: s.percentage || 0 }))
-          }}
-          moduleColor={moduleColor}
-        />
-      </div>
+      )}
 
-      <LeadEngagementInsights
-        leadsByRating={(leadsByRating || []).map(r => ({
-          rating: r.rating,
-          count: r.count,
-          percentage: r.percentage || 0
-        }))}
-        leadHealthIndicators={leadHealthIndicators || []}
-        conversionRate={conversionRate}
-        avgTimeToConversion={avgTimeToConversion}
-        leadsOverTime={leadsOverTime}
-        moduleColor={moduleColor}
-      />
+      {/* Optional: Distribution Pie Charts */}
+      {(leadsBySource || leadsByStatus) && (
+        <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:md:grid-cols-2">
+          {leadsBySource && (
+            <LeadsBySourcePie
+              data={leadsBySource.map(s => ({ source: s.source, count: s.count }))}
+              isLoading={leadsBySourceLoading}
+              moduleColor={moduleColor}
+            />
+          )}
+          {leadsByStatus && (
+            <LeadsByStatusPie data={leadsByStatus} isLoading={leadsByStatusLoading} moduleColor={moduleColor} />
+          )}
+        </div>
+      )}
 
-      <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:md:grid-cols-2">
-        <LeadsBySourcePie
-          data={leadsBySource.map(s => ({ source: s.source, count: s.count }))}
-          moduleColor={moduleColor}
-        />
-        <LeadsByStatusPie data={leadsByStatus} moduleColor={moduleColor} />
-      </div>
-
-      <TopLeadOwners owners={topOwners} moduleColor={moduleColor} />
+      {/* Optional: Top Lead Owners */}
+      {topOwners && topOwners.length > 0 && <TopLeadOwners owners={topOwners} moduleColor={moduleColor} />}
     </div>
   )
 }

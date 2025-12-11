@@ -201,10 +201,12 @@ export const useAppActionData = (config: UseAppActionDataConfig, dataTestIdPrefi
   }, [config.staticFlowData, shareAction, flowData])
 
   // Calculate whether to show loading state
-  // If staticFlowData is provided, we never show the loading overlay
+  // If staticFlowData OR shareAction is provided, we never show the loading overlay
   const hasStaticData = (config.staticFlowData?.length ?? 0) > 0
+  const hasShareAction = shareAction !== null
   const shouldShowLoading =
     !hasStaticData &&
+    !hasShareAction &&
     (isLoading ||
       (!!config.deferMainContextRequestsUntilClick && combinedData.length === 0 && !hasDeferredFetchAttempted))
 

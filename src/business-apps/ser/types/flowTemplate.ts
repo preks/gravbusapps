@@ -35,6 +35,26 @@ export interface ValidationRule {
   message?: string
 }
 
+// Data source configuration for dynamic SELECT/MULTISELECT fields
+export type DataSourceType = 'CATALOG' | 'ENTITY' | 'API' | 'STATIC'
+
+export interface DataSourceConfig {
+  type: DataSourceType
+  // For ENTITY type - fetches from /api/datasource/:entity
+  entity?: string // Entity type: 'employee', 'costCenter', 'lead', 'account', 'contact', etc.
+  // For CATALOG type
+  catalog?: string // Catalog identifier
+  catalogIdentifier?: string // Alternative catalog identifier (new format)
+  version?: string // Catalog version (default: 'v1')
+  // Field mapping
+  valueField: string // Field to use as option value (e.g., 'id', 'code')
+  labelField: string // Field to use as option label (e.g., 'displayName', 'value')
+  // Optional filters
+  filters?: Record<string, any>
+  // Pagination defaults
+  limit?: number // Default limit for results
+}
+
 // Dynamic form field definition from workflow template
 export interface DynamicFormField {
   type: DynamicFormFieldType
@@ -50,6 +70,8 @@ export interface DynamicFormField {
     value: string
     label: string
   }>
+  // Data source for dynamic SELECT/MULTISELECT options
+  dataSource?: DataSourceConfig
   // Conditional fields
   dependsOn?: string
   showWhen?: string | string[]
@@ -103,6 +125,7 @@ export interface FlowTemplate {
 
   // Computed properties for UI
   formSchema?: DynamicFormField[] // Extracted from step_0.form
+  step0Message?: string // Message from step_0 to display in the form
   estimatedDuration?: string
   stepCount?: number
 }

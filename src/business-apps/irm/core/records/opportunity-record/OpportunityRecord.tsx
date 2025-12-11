@@ -22,7 +22,7 @@ import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { useInvestmentOpportunity } from '@/common/data/investment/hooks/useInvestmentOpportunity'
-import { formatCurrency, extractCurrencyCode } from '@/common/utils/numberFormatter'
+import { formatCurrency } from '@/common/utils/numberFormatter'
 import { getOpportunityStatusBadgeVariant, getOpportunityForecastBadgeVariant } from '@/common/utils/badgeUtils'
 import { useAiSummary } from './hooks/useAiSummary'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
@@ -31,6 +31,7 @@ import { Bot } from 'lucide-react'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
 import { useProspectRejectionReasons } from '@/common/data/investment/hooks/useProspectRejectionReasons'
 import type { RejectionReason } from '@/common/data/investment/types/rejectionReasonTypes'
+import type { Investment } from '@/common/data/investment/types/investmentTypes'
 import ConditionSection from '@/common/components/common-relations/record-sections/condition-section/ConditionSection'
 import InvestmentSection from '@/common/components/common-relations/record-sections/investment-section/InvestmentSection'
 import { OpportunityStageProgression } from '@/common/components/common-relations/record-sections/opportunity-pipeline-section/OpportunityStageProgression'
@@ -55,7 +56,6 @@ import {
 import { useInvestment } from '@/common/data/investment/hooks/useInvestment.new'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { startProcess } from '@/common/utils/start-process'
-import { OpportunityStatusUpdatePopup } from '@/business-apps/irm/core/popups/status-update-popup'
 import {
   getIrmDocumentApiConfig,
   useGetIrmDocuments,
@@ -72,14 +72,6 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
   const ALLOWED_TABS = ['overview', 'documents'] as const
   type TabKey = (typeof ALLOWED_TABS)[number]
   const [activeTab, setActiveTab] = useState('overview')
-
-  // Status update popup state
-  const [statusUpdatePopup, setStatusUpdatePopup] = useState<{
-    open: boolean
-    opportunityId?: string
-    opportunityVersion?: number
-    opportunityName?: string
-  }>({ open: false })
 
   // Initialize activeTab from URL on mount and write default if missing
   useEffect(() => {
@@ -428,16 +420,19 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     loadRejectionReasons()
   }, [loadRejectionReasons])
 
+  // Memoized callback for process completion
+  const handleProcessSuccess = useCallback(() => {
+    refetchOpportunityData()
+    fetchOpportunityStages() // Refetch stages and catalog conditions after stage transition
+    loadActivities()
+    loadNotes()
+    loadTasksAndApprovals()
+    loadDocuments()
+    loadRejectionReasons() // Refresh rejection reasons after process completion
+  }, [refetchOpportunityData, fetchOpportunityStages, loadRejectionReasons])
+
   useProcessCompletion({
-    onSuccess: () => {
-      refetchOpportunityData()
-      fetchOpportunityStages() // Refetch stages and catalog conditions after stage transition
-      loadActivities()
-      loadNotes()
-      loadTasksAndApprovals()
-      loadDocuments()
-      loadRejectionReasons() // Refresh rejection reasons after process completion
-    }
+    onSuccess: handleProcessSuccess
   })
 
   // Memoize stage condition action props to prevent recreation
@@ -622,21 +617,6 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     )
   }, [props.accessToken, opportunityId, rejectionReasons, rejectionReasonsError, loadRejectionReasons])
 
-  // Handler to open status update popup
-  const handleUpdateStatus = () => {
-    const versionNumber =
-      typeof opportunityData?.version === 'number'
-        ? opportunityData.version
-        : Number.parseInt(opportunityData?.version || '1', 10)
-
-    setStatusUpdatePopup({
-      open: true,
-      opportunityId: opportunityId,
-      opportunityVersion: versionNumber,
-      opportunityName: opportunityData?.name || 'Unnamed Opportunity'
-    })
-  }
-
   // Memoize RecordLayout data to prevent unnecessary re-renders (must be before early returns)
   const headerMeta = useMemo(() => {
     // Forecast badge
@@ -647,36 +627,101 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
       ? `${forecastValue}: ${forecastAdditionalValue1}`
       : forecastValue
 
+    // Get associated investment (1-to-1 relationship)
+    const associatedInvestment = opportunityData?.investments?.find((inv: Investment) => !inv.isDeleted)
+
+    // Get associated equity investment round (1-to-1 relationship)
+    const associatedRound = opportunityData?.equityInvestmentRound
+
     return (
       <div className="gba:flex gba:items-center gba:gap-2">
+        {/* Rejection Reasons Badge */}
+        {rejectionReasonsBadge}
         {opportunityData?.opportunityStatus?.value && (
-          <Badge
-            variant={getOpportunityStatusBadgeVariant(opportunityData.opportunityStatus)}
-            className="gba:gap-1 gba:cursor-pointer hover:gba:opacity-80"
-            onClick={handleUpdateStatus}
-            data-testid="opportunity-status-badge"
+          <AppAction
+            contextsArray={[FlowContextName.investmentOpportunityStatusUpdate]}
+            externalContextData={{ opportunityId }}
+            prefixDataTestId="opportunity-status-update"
+            accessToken={props.accessToken}
+            emptyStateBehavior="enable"
+            deferMainContextRequestsUntilClick
           >
-            {opportunityData.opportunityStatus.value}
-          </Badge>
+            <Badge
+              variant={getOpportunityStatusBadgeVariant(opportunityData.opportunityStatus)}
+              className="gba:gap-1 gba:cursor-pointer hover:gba:opacity-80"
+              data-testid="opportunity-status-badge"
+            >
+              {opportunityData.opportunityStatus.value}
+            </Badge>
+          </AppAction>
         )}
         {forecast && forecastDisplayValue && (
           <Badge variant={getOpportunityForecastBadgeVariant(forecast)} data-testid="opportunity-forecast-badge">
             {forecastDisplayValue}
           </Badge>
         )}
-        {opportunityData?.estimatedAmount && (
-          <Badge variant="outline" className="gba:gap-1">
-            {formatCurrency(opportunityData.estimatedAmount, opportunityData?.currency?.id || 'Currency:v1:EUR')}
-          </Badge>
+        {/* Associated Investment Badge - Only show if association exists */}
+        {associatedInvestment?.id && (
+          <button
+            type="button"
+            onClick={() => {
+              const investmentId = associatedInvestment?.id
+              if (investmentId) {
+                navigateTo(
+                  buildPlatformUrl('/platform/irm/investment-record', {
+                    investmentId
+                  })
+                )
+              }
+            }}
+            className="gba:bg-transparent gba:border-0 gba:p-0"
+            data-testid="opportunity-associated-investment-link"
+            aria-label={`${getTranslationFromI18nKeyAndLabel('opportunity.associatedInvestment.ariaLabel', 'Navigate to associated investment')}: ${associatedInvestment.name}`}
+          >
+            <Badge variant="outline" className="gba:cursor-pointer gba:hover:opacity-80">
+              {getTranslationFromI18nKeyAndLabel('opportunity.associatedInvestment.label', 'Associated Investment')}:{' '}
+              {associatedInvestment.name}
+            </Badge>
+          </button>
+        )}
+        {/* Associated Round Badge - Only show if association exists */}
+        {associatedRound?.id && (
+          <button
+            type="button"
+            onClick={() => {
+              // Navigate to the investment that this round belongs to
+              const investmentId =
+                (associatedRound as any).equityInvestment?.investment?.id ||
+                (associatedRound as any).equityInvestment?.investmentId
+              if (investmentId) {
+                navigateTo(
+                  buildPlatformUrl('/platform/irm/investment-record', {
+                    investmentId,
+                    tab: 'overview'
+                  })
+                )
+              }
+            }}
+            className="gba:bg-transparent gba:border-0 gba:p-0"
+            data-testid="opportunity-associated-round-link"
+            aria-label={`${getTranslationFromI18nKeyAndLabel('opportunity.associatedRound.ariaLabel', 'Navigate to investment for round')}: ${associatedRound.name}`}
+          >
+            <Badge variant="outline" className="gba:cursor-pointer gba:hover:opacity-80">
+              {getTranslationFromI18nKeyAndLabel('opportunity.associatedRound.label', 'Associated Round')}:{' '}
+              {associatedRound.name}
+            </Badge>
+          </button>
         )}
       </div>
     )
   }, [
-    opportunityData?.estimatedAmount,
-    opportunityData?.currency?.id,
     opportunityData?.opportunityStatus?.value,
     opportunityData?.opportunityForecast,
-    handleUpdateStatus
+    opportunityData?.investments,
+    opportunityData?.equityInvestmentRound,
+    rejectionReasonsBadge,
+    opportunityId,
+    props.accessToken
   ])
 
   // Transform catalog referenceFields to formFields format for InvestmentSection
@@ -720,10 +765,6 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                   return formatted?.includes('T') ? dateOnly : formatted
                 })()
               : getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
-          },
-          {
-            label: getTranslationFromI18nKeyAndLabel('crm.common.currency', 'Currency'),
-            value: extractCurrencyCode(opportunityData?.currency?.id || 'Currency:v1:EUR')
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.opportunity.estimatedAmount', 'Estimated Amount'),
@@ -896,18 +937,32 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                   component: AccountSection,
                   props: {
                     ...props,
-                    account: opportunityData?.account,
-                    accountId: opportunityData?.account?.id,
-                    recordUrl: opportunityData?.account?.id
+                    // Transform junction table to include account type
+                    accounts:
+                      opportunityData?.opportunityAccounts
+                        ?.map(junction => ({
+                          ...junction.account,
+                          accountType: junction.accountType // Add catalog entry from junction table
+                        }))
+                        .filter(Boolean) || [],
+                    account: opportunityData?.opportunityAccounts?.[0]
+                      ? {
+                          ...opportunityData.opportunityAccounts[0].account,
+                          accountType: opportunityData.opportunityAccounts[0].accountType
+                        }
+                      : undefined,
+                    accountId: opportunityData?.opportunityAccounts?.[0]?.accountId,
+                    accountIds: opportunityData?.opportunityAccounts?.map(a => a.accountId).filter(Boolean),
+                    recordUrl: opportunityData?.opportunityAccounts?.[0]?.accountId
                       ? buildPlatformUrl('/platform/irm/account-record', {
-                          accountId: opportunityData.account.id,
+                          accountId: opportunityData.opportunityAccounts[0].accountId,
                           source: 'opportunity-relations',
                           fromEntity: 'opportunities'
                         })
                       : undefined,
                     actionButtonProps: {
                       contextsArray: [FlowContextName.investmentAccountEntity],
-                      externalContextData: { accountId: opportunityData?.account?.id },
+                      externalContextData: { accountId: opportunityData?.opportunityAccounts?.[0]?.accountId },
                       prefixDataTestId: 'investment-opportunity-account-action'
                     }
                   }
@@ -1187,12 +1242,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
         headerIcon={LightbulbIcon}
         headerCategory="OPPORTUNITY"
         onBack={handleDealTypeBack}
-        headerTitle={
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <span>{opportunityData?.name || ''}</span>
-            {rejectionReasonsBadge}
-          </div>
-        }
+        headerTitle={opportunityData?.name || ''}
         headerMeta={headerMeta}
         headerActions={headerActions}
         headerActionButton={headerActionButton}
@@ -1200,26 +1250,6 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
         headerContent={headerContent}
         subViews={subViewsConfig}
       />
-
-      {/* Status Update Popup */}
-      {statusUpdatePopup.open && statusUpdatePopup.opportunityId && (
-        <OpportunityStatusUpdatePopup
-          isOpen={statusUpdatePopup.open}
-          onClose={() => setStatusUpdatePopup({ open: false })}
-          accessToken={props.accessToken}
-          opportunityId={statusUpdatePopup.opportunityId}
-          opportunityVersion={statusUpdatePopup.opportunityVersion}
-          opportunityName={statusUpdatePopup.opportunityName}
-          onSuccess={() => {
-            refetchOpportunityData()
-            setStatusUpdatePopup({ open: false })
-          }}
-          onError={() => {
-            setStatusUpdatePopup({ open: false })
-          }}
-          data-testid="opportunity-status-update-popup"
-        />
-      )}
     </div>
   )
 }

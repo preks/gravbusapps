@@ -14,9 +14,20 @@ import {
 } from './widgets/OpportunityLifecycleChart'
 import { OpportunityVelocityAnalysis } from './widgets/OpportunityVelocityAnalysis'
 import { DealHealthMatrix } from './widgets/DealHealthMatrix'
-import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
-import { OpportunitiesByStageBar } from './widgets/OpportunitiesByStageBar'
-import { OpportunitiesByPipelinePie } from './widgets/OpportunitiesByPipelinePie'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Label,
+  Spinner
+} from '@newwork/nw-design-system'
+import { OpportunitiesByStagePie } from './widgets/OpportunitiesByStagePie'
 import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
 
 export interface OpportunitiesTrendData {
@@ -26,6 +37,8 @@ export interface OpportunitiesTrendData {
   actualWinRateLastMonth: number
   actualAvgDealSizeThisMonth: number
   actualAvgDealSizeLastMonth: number
+  actualAvgOpportunityValueThisMonth?: number // Average value of ALL opportunities
+  actualAvgOpportunityValueLastMonth?: number // Average value of ALL opportunities (previous period)
   actualAvgSalesCycleLastMonth: number
   currentPeriodOpportunities: number
   previousPeriodOpportunities: number
@@ -41,8 +54,13 @@ export interface OpportunityLifecyclePoint {
 }
 
 const calculatePercentChange = (current: number, previous: number): string => {
+  // Handle edge case where previous is 0
   if (previous === 0) {
-    return current > 0 ? '100.0%' : '0.0%'
+    if (current === 0) {
+      return '0.0%'
+    } else {
+      return '100.0%'
+    }
   }
   return `${(((current - previous) / previous) * 100).toFixed(1)}%`
 }
@@ -58,6 +76,7 @@ export interface OpportunitiesTabLayoutProps {
   trendData?: OpportunitiesTrendData | null
   trendLoading?: boolean
   lifecycleData: OpportunityLifecyclePoint[]
+  lifecycleLoading?: boolean
   pipelines: PipelineItem[]
   selectedPipelineId?: string
   onPipelineChange: (id: string) => void
@@ -65,12 +84,30 @@ export interface OpportunitiesTabLayoutProps {
   onTimeFilterChange: (filter: OpportunityTimeFilter) => void
   opportunitiesByStage: Array<{ stage: string; count: number; value: number }>
   selectedStagePipelineId?: string
-  onStagePipelineChange?: (id: string) => void
-  opportunitiesByPipeline: Array<{ pipelineId: string; pipeline: string; count: number; percentage: number }>
-  topDeals: Array<{ id: string; name: string; value: number; stage: string; winChance: number; owner: string }>
+  onStagePipelineChange?: (id: string | undefined) => void
+  topDeals: Array<{
+    id: string
+    name: string
+    value: number
+    stage: string
+    winChance: number
+    owner: string
+    currencyCode?: string
+  }>
+  topDealsLoading?: boolean
   velocityData?: { averageDaysInPipeline: number; velocityTrend: any[]; quickWins: any[]; slowMovers: any[] } | null
   dealHealthData?: { healthDistribution: any; matrixData: any[] } | null
   moduleColor?: string
+
+  // Currency filter props
+  kpiCurrency?: string
+  onKpiCurrencyChange?: (currency: string) => void
+  topDealsCurrency?: string
+  onTopDealsCurrencyChange?: (currency: string) => void
+  availableCurrencies?: string[]
+
+  // Feature flags
+  showTopDeals?: boolean // Default: true - Set to false to hide top deals section (e.g., for IRM)
 }
 
 // colors local to pie widget
@@ -86,6 +123,7 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
   trendData,
   trendLoading = false,
   lifecycleData,
+  lifecycleLoading = false,
   pipelines,
   selectedPipelineId,
   onPipelineChange,
@@ -94,11 +132,17 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
   opportunitiesByStage,
   selectedStagePipelineId,
   onStagePipelineChange,
-  opportunitiesByPipeline,
   topDeals,
+  topDealsLoading = false,
   velocityData,
   dealHealthData,
-  moduleColor = 'default'
+  moduleColor = 'default',
+  kpiCurrency = 'EUR',
+  onKpiCurrencyChange,
+  topDealsCurrency = 'EUR',
+  onTopDealsCurrencyChange,
+  availableCurrencies = ['EUR', 'USD'],
+  showTopDeals = true
 }) => {
   const kpis = [
     {
@@ -112,24 +156,24 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
             trend: {
               value: calculatePercentChange(totalOpportunities, trendData.totalOpportunitiesLastMonth || 0),
               positive: totalOpportunities >= (trendData.totalOpportunitiesLastMonth || 0),
-              description: `${totalOpportunities} total vs ${trendData.totalOpportunitiesLastMonth || 0} last month`
+              description: 'vs previous period (30 days ago)'
             }
           }
         : {})
     },
     {
       key: 'total-value',
-      title: selectedPipelineId ? 'Pipeline Value (Filtered)' : 'Total Pipeline Value',
-      value: formatCurrencyCompact(totalValue, 'USD', undefined, 1, true),
+      title: 'Total Pipeline Value',
+      value: formatCurrencyCompact(totalValue, kpiCurrency, undefined, 1, true),
       valueIsString: true,
       prefix: <DollarCircleOutlined />,
-      description: selectedPipelineId ? 'Combined value in selected pipeline' : 'Combined value of all opportunities',
+      description: 'Combined value of all opportunities',
       ...(trendData && !trendLoading
         ? {
             trend: {
               value: calculatePercentChange(totalValue, trendData.previousPeriodPipelineValue || 0),
               positive: totalValue >= (trendData.previousPeriodPipelineValue || 0),
-              description: `${formatCurrencyCompact(totalValue, 'USD', undefined, 1, true)} total vs ${formatCurrencyCompact(trendData.previousPeriodPipelineValue || 0, 'USD', undefined, 1, true)} last month`
+              description: 'vs previous period (30 days ago)'
             }
           }
         : {})
@@ -146,7 +190,7 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
             trend: {
               value: `${Math.abs((trendData.actualWinRateThisMonth || winRate) - (trendData.actualWinRateLastMonth || 0)).toFixed(1)}%`,
               positive: (trendData.actualWinRateThisMonth || winRate) >= (trendData.actualWinRateLastMonth || 0),
-              description: `${(trendData.actualWinRateThisMonth || winRate).toFixed(1)}% this period vs ${(trendData.actualWinRateLastMonth || 0).toFixed(1)}% last month`
+              description: 'vs previous period (30 days ago)'
             }
           }
         : {})
@@ -154,7 +198,13 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
     {
       key: 'avg-deal-size',
       title: 'Avg. Deal Size',
-      value: formatCurrencyCompact(trendData?.actualAvgDealSizeThisMonth || avgDealSize, 'USD', undefined, 1, true),
+      value: formatCurrencyCompact(
+        trendData?.actualAvgDealSizeThisMonth || avgDealSize,
+        kpiCurrency,
+        undefined,
+        1,
+        true
+      ),
       valueIsString: true,
       prefix: <DollarCircleOutlined />,
       description: 'Average opportunity value',
@@ -167,7 +217,7 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
               ),
               positive:
                 (trendData.actualAvgDealSizeThisMonth || avgDealSize) >= (trendData.actualAvgDealSizeLastMonth || 0),
-              description: `${formatCurrencyCompact(trendData.actualAvgDealSizeThisMonth || avgDealSize, 'USD', undefined, 1, true)} this period vs ${formatCurrencyCompact(trendData.actualAvgDealSizeLastMonth || 0, 'USD', undefined, 1, true)} last month`
+              description: 'vs previous period (30 days ago)'
             }
           }
         : {})
@@ -186,24 +236,24 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
                 trendData.previousPeriodOpportunities || 0
               ),
               positive: (trendData.currentPeriodOpportunities || 0) >= (trendData.previousPeriodOpportunities || 0),
-              description: `${trendData.currentPeriodOpportunities || 0} this period vs ${trendData.previousPeriodOpportunities || 0} previous`
+              description: 'vs previous period (30 days ago)'
             }
           }
         : {})
     },
     {
-      key: 'avg-sales-cycle',
-      title: 'Avg. Opportunity Cycle',
-      value: avgSalesCycle,
-      suffix: ' days',
-      prefix: <ClockCircleOutlined />,
-      description: 'Average time to close deals',
-      ...(trendData && !trendLoading
+      key: 'avg-opportunity-value',
+      title: 'Avg. Opportunity Value',
+      value: formatCurrencyCompact(avgSalesCycle, kpiCurrency, undefined, 1, true),
+      valueIsString: true,
+      prefix: <DollarCircleOutlined />,
+      description: 'Average value per opportunity',
+      ...(trendData && !trendLoading && trendData.actualAvgOpportunityValueLastMonth !== undefined
         ? {
             trend: {
-              value: calculatePercentChange(avgSalesCycle, trendData.actualAvgSalesCycleLastMonth || 0),
-              positive: avgSalesCycle <= (trendData.actualAvgSalesCycleLastMonth || 0),
-              description: `${avgSalesCycle} days this period vs ${trendData.actualAvgSalesCycleLastMonth || 0} days last month`
+              value: calculatePercentChange(avgSalesCycle, trendData.actualAvgOpportunityValueLastMonth || 0),
+              positive: avgSalesCycle >= (trendData.actualAvgOpportunityValueLastMonth || 0),
+              description: 'vs previous period (30 days ago)'
             }
           }
         : {})
@@ -221,7 +271,7 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
               value: `${Math.abs((trendData.actualConversionRateThisMonth || 0) - (trendData.actualConversionRateLastMonth || 0)).toFixed(1)}%`,
               positive:
                 (trendData.actualConversionRateThisMonth || 0) >= (trendData.actualConversionRateLastMonth || 0),
-              description: `${(trendData.actualConversionRateThisMonth || 0).toFixed(1)}% this period vs ${(trendData.actualConversionRateLastMonth || 0).toFixed(1)}% last month`
+              description: 'vs previous period (30 days ago)'
             }
           }
         : {})
@@ -241,7 +291,7 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
                 Number(trendData.actualPipelineVelocityLastMonth) || 0
               ),
               positive: (Number(_pipelineVelocity) || 0) <= (Number(trendData.actualPipelineVelocityLastMonth) || 0),
-              description: `${Number(_pipelineVelocity) || 0} days this period vs ${Number(trendData.actualPipelineVelocityLastMonth) || 0} days last month`
+              description: 'vs previous period (30 days ago)'
             }
           }
         : {})
@@ -252,11 +302,34 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
     <div className="gba:space-y-6" data-testid="opportunities-analytics-tab">
       <div>
         <h2 className="gba:text-2xl gba:font-bold gba:mb-4">{title}</h2>
+        {/* Currency Filter for KPIs */}
+        {availableCurrencies && availableCurrencies.length > 1 && onKpiCurrencyChange && (
+          <div
+            className="gba:mb-4 gba:flex gba:items-center gba:gap-2 gba:justify-end"
+            data-testid="opportunities-kpi-currency-filter"
+          >
+            <Label className="gba:text-sm gba:font-medium">Currency</Label>
+            <Select value={kpiCurrency} onValueChange={onKpiCurrencyChange}>
+              <SelectTrigger className="gba:w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {availableCurrencies.map(currency => (
+                  <SelectItem key={currency} value={currency}>
+                    {currency}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         <WidgetGroup widgets={kpis} data-testid="opportunities-key-metrics" />
       </div>
 
       <OpportunityLifecycleChart
+        key={`opportunity-lifecycle-${selectedTimeFilter}-${selectedPipelineId || 'all'}`}
         data={lifecycleData}
+        isLoading={lifecycleLoading || trendLoading}
         selectedTimeFilter={selectedTimeFilter}
         onTimeFilterChange={onTimeFilterChange}
         pipelines={pipelines}
@@ -281,55 +354,82 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
         />
       </div>
 
-      <div className="gba:flex gba:flex-col lg:gba:flex-row gba:gap-6">
-        <div className="gba:flex-1 lg:gba:w-3/4">
-          <OpportunitiesByStageBar
-            data={opportunitiesByStage}
-            moduleColor={moduleColor}
-            pipelines={pipelines}
-            selectedPipelineId={selectedStagePipelineId}
-            onPipelineChange={onStagePipelineChange}
-          />
-        </div>
-        <div className="gba:flex-1 lg:gba:w-1/4 lg:gba:flex-none">
-          <OpportunitiesByPipelinePie data={opportunitiesByPipeline} moduleColor={moduleColor} />
-        </div>
-      </div>
+      <OpportunitiesByStagePie
+        data={opportunitiesByStage}
+        moduleColor={moduleColor}
+        pipelines={pipelines}
+        selectedPipelineId={selectedStagePipelineId}
+        onPipelineChange={onStagePipelineChange}
+      />
 
-      <Card data-testid="top-deals-section">
-        <CardHeader>
-          <CardTitle className="gba:flex gba:items-center gba:gap-2">Top Opportunities by Value</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {topDeals.length > 0 ? (
-            <div className="gba:space-y-3">
-              {topDeals.map((deal, index) => (
+      {/* Conditionally render Top Deals section */}
+      {showTopDeals && (
+        <Card data-testid="top-deals-section">
+          <CardHeader>
+            <div className="gba:flex gba:items-center gba:justify-between">
+              <CardTitle className="gba:flex gba:items-center gba:gap-2">Top Opportunities by Value</CardTitle>
+              {/* Currency Filter */}
+              {availableCurrencies && availableCurrencies.length > 1 && onTopDealsCurrencyChange && (
                 <div
-                  key={deal.id}
-                  className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:border gba:rounded-lg"
-                  data-testid={`top-deal-${index}`}
+                  className="gba:flex gba:items-center gba:gap-2 gba:ml-auto"
+                  data-testid="top-deals-currency-filter"
                 >
-                  <div className="gba:flex gba:items-center gba:gap-3">
-                    <span className="gba:text-xs gba:text-gray-600">#{index + 1}</span>
-                    <div>
-                      <div className="gba:font-medium">{deal.name}</div>
-                      <div className="gba:text-sm gba:text-gray-600">
-                        {deal.stage} • {deal.winChance}% win chance • {deal.owner}
+                  <Label className="gba:text-sm gba:font-medium gba:whitespace-nowrap">Currency</Label>
+                  <Select value={topDealsCurrency} onValueChange={onTopDealsCurrencyChange}>
+                    <SelectTrigger className="gba:w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableCurrencies.map(currency => (
+                        <SelectItem key={currency} value={currency}>
+                          {currency}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {topDealsLoading && (
+              <div className="gba:flex gba:justify-center gba:items-center gba:py-12" data-testid="top-deals-loading">
+                <Spinner size="lg" />
+              </div>
+            )}
+            {!topDealsLoading && topDeals.length > 0 && (
+              <div className="gba:space-y-3">
+                {topDeals.map((deal, index) => (
+                  <div
+                    key={deal.id}
+                    className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:border gba:rounded-lg"
+                    data-testid={`top-deal-${index}`}
+                  >
+                    <div className="gba:flex gba:items-center gba:gap-3">
+                      <span className="gba:text-xs gba:text-gray-600">#{index + 1}</span>
+                      <div>
+                        <div className="gba:font-medium">{deal.name}</div>
+                        <div className="gba:text-sm gba:text-gray-600">
+                          {deal.stage} • {deal.winChance}% win chance • {deal.owner}
+                        </div>
                       </div>
                     </div>
+                    <div className="gba:text-right">
+                      <div className="gba:font-bold">
+                        {formatCurrencyCompact(deal.value, topDealsCurrency, undefined, 1, true)}
+                      </div>
+                      <div className="gba:text-sm gba:text-gray-600">Opportunity Value</div>
+                    </div>
                   </div>
-                  <div className="gba:text-right">
-                    <div className="gba:font-bold">{formatCurrencyCompact(deal.value, 'USD', undefined, 1, true)}</div>
-                    <div className="gba:text-sm gba:text-gray-600">Opportunity Value</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="gba:text-center gba:text-gray-500 gba:py-8">No deal data available</div>
-          )}
-        </CardContent>
-      </Card>
+                ))}
+              </div>
+            )}
+            {!topDealsLoading && topDeals.length === 0 && (
+              <div className="gba:text-center gba:text-gray-500 gba:py-8">No deal data available</div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

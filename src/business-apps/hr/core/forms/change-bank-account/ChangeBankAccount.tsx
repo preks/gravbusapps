@@ -31,8 +31,11 @@ interface BankAccountFormValues {
   comment?: string
 }
 
-const ChangeBankAccountContent: React.FC<BusinessAppContextProps> = ({ userInfo }) => {
+const ChangeBankAccountContent: React.FC<BusinessAppContextProps> = ({ userInfo, additionalData }) => {
   const { data } = useChangeBankAccount()
+
+  const employee = useMemo(() => (data?.employee as any)?.Employee?.[0], [data])
+  const employeePosition = useMemo(() => (data?.employee as any)?.EmployeePosition?.[0], [data])
 
   const form = useForm<BankAccountFormValues>({
     defaultValues: {
@@ -176,10 +179,23 @@ const ChangeBankAccountContent: React.FC<BusinessAppContextProps> = ({ userInfo 
       className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-[100%] gba:max-w-[800px]"
       data-testid="change-bank-account-form-container"
     >
-      <FormHeader title={title} flowIconUrl={flowIconUrl} className="gba:px-6" />
+      <FormHeader
+        title={title}
+        flowIconUrl={flowIconUrl}
+        employee={
+          employee
+            ? {
+                firstName: employee.firstName,
+                lastName: employee.lastName,
+                pictureThumbnail: employee.pictureThumbnail,
+                jobTitle: employeePosition?.jobPosition?.name
+              }
+            : undefined
+        }
+      />
 
       <div
-        className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='change-bank-account']]:!pt-0"
+        className="gba:flex gba:flex-col gba:[&>div[data-testid='change-bank-account']]:!pt-0"
         data-testid="change-bank-account-form-content"
       >
         <AppActionForm
@@ -197,7 +213,11 @@ const ChangeBankAccountContent: React.FC<BusinessAppContextProps> = ({ userInfo 
             'Cancel'
           )}
           onSubmit={async (values: BankAccountFormValues) => {
-            const employeeId = userInfo?.employeeDetails?.employeeId || (data?.employee as any)?.Employee?.[0]?.id || ''
+            const employeeId =
+              (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.employeeId ||
+              userInfo?.employeeDetails?.employeeId ||
+              (data?.employee as any)?.Employee?.[0]?.id ||
+              ''
             const existing = (data?.employee?.EmployeeBankAccount || [])?.[0] || null
             const payload = buildBankAccountPayload({ values, existingAccount: existing, employeeId })
             return payload as any

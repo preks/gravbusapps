@@ -6,6 +6,7 @@ import {
   AvatarFallback,
   AvatarImage,
   Badge,
+  Button,
   Card,
   CardContent,
   CardHeader,
@@ -45,6 +46,11 @@ import dayjs from 'dayjs'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getCatalogEntryValue } from '@/common/data/catalog/utils/catalogTranslationUtils'
 import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
+import { DocuSignSignatureModal } from '@/common/components/docusign/DocuSignSignatureModal'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { buildInvestmentTaskFormDataFromTask } from '@/common/components/docusign/utils/investmentTaskMapper'
+import { useEnvelopeStatusCache } from '@/common/components/docusign/hooks/useEnvelopeStatusCache'
+import { getDocuSignButtonState } from '@/common/components/docusign/utils/docuSignTaskUtils'
 
 interface TaskDetailSheetProps {
   task: Task | null
@@ -52,6 +58,10 @@ interface TaskDetailSheetProps {
   onOpenChange: (open: boolean) => void
   buildReferenceUrl?: (reference: TaskReference) => string
   'data-testid'?: string
+  accessToken?: string
+  assignedUserId?: string
+  currentUserId?: string
+  businessAppContext?: BusinessAppContextProps
 }
 
 const DATA_TEST_ID_PREFIX = 'TaskDetailSheet'
@@ -82,7 +92,11 @@ export const TaskDetailSheet: React.FC<TaskDetailSheetProps> = ({
   open,
   onOpenChange,
   buildReferenceUrl,
-  'data-testid': dataTestId
+  'data-testid': dataTestId,
+  accessToken,
+  assignedUserId,
+  currentUserId,
+  businessAppContext
 }) => {
   return (
     <Sheet open={open} onOpenChange={onOpenChange} title="Task Details">
@@ -94,7 +108,15 @@ export const TaskDetailSheet: React.FC<TaskDetailSheetProps> = ({
         </SheetHeader>
         <div className="gba:flex-1 gba:overflow-hidden gba:px-6">
           {task ? (
-            <TaskDetailContent task={task} buildReferenceUrl={buildReferenceUrl} data-testid={dataTestId} />
+            <TaskDetailContent
+              task={task}
+              buildReferenceUrl={buildReferenceUrl}
+              data-testid={dataTestId}
+              accessToken={accessToken}
+              assignedUserId={assignedUserId}
+              currentUserId={currentUserId}
+              businessAppContext={businessAppContext}
+            />
           ) : (
             <div className="gba:p-4 gba:text-center gba:text-muted-foreground">No task selected</div>
           )}
@@ -111,6 +133,10 @@ interface TaskDetailContentProps {
   task: Task
   buildReferenceUrl?: (reference: TaskReference) => string
   'data-testid'?: string
+  accessToken?: string
+  assignedUserId?: string
+  currentUserId?: string
+  businessAppContext?: BusinessAppContextProps
 }
 
 // Helper component: Assignee Field
@@ -216,7 +242,11 @@ const ReferenceField: React.FC<ReferenceFieldProps> = ({
 const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
   task,
   buildReferenceUrl,
-  'data-testid': dataTestId
+  'data-testid': dataTestId,
+  accessToken,
+  assignedUserId,
+  currentUserId,
+  businessAppContext
 }) => {
   const formatDate = (dateString: string) => {
     if (!dateString) return '-'
@@ -246,6 +276,57 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
       window.open(fileUrl, '_blank')
     } catch {
       // Silent fail - fileInfo structure invalid
+    }
+  }
+
+  const [isDocuSignOpen, setIsDocuSignOpen] = React.useState(false)
+  const { statusMap, ensureStatus, statusVersion } = useEnvelopeStatusCache(accessToken)
+  const investmentTaskFormData = React.useMemo(() => buildInvestmentTaskFormDataFromTask(task), [task])
+  const docuSignTaskContext = React.useMemo(
+    () =>
+      investmentTaskFormData
+        ? {
+            taskId: task.id,
+            taskFormData: investmentTaskFormData
+          }
+        : undefined,
+    [investmentTaskFormData, task.id]
+  )
+
+  const isAssignee = React.useMemo(() => {
+    return Boolean(assignedUserId && currentUserId && assignedUserId === currentUserId)
+  }, [assignedUserId, currentUserId])
+
+  const documentsWithStatus = React.useMemo(() => {
+    return (task.documents || []).map(doc => {
+      const envelopeId = (doc.fileInfo as any)?.docusignEnvelopeId
+      const envelopeStatus = envelopeId ? statusMap[envelopeId]?.status?.toLowerCase() : undefined
+      return {
+        ...doc,
+        envelopeId,
+        envelopeStatus
+      }
+    })
+  }, [task.documents, statusMap, statusVersion])
+
+  React.useEffect(() => {
+    documentsWithStatus.forEach(doc => {
+      if (doc.envelopeId) {
+        ensureStatus(doc.envelopeId)
+      }
+    })
+  }, [documentsWithStatus, ensureStatus])
+
+  const { hasSignableDocs, label: docuSignButtonLabel } = React.useMemo(
+    () => getDocuSignButtonState(documentsWithStatus, isAssignee),
+    [documentsWithStatus, isAssignee]
+  )
+
+  const checkEnvelopeStatus = async (envelopeId: string) => {
+    try {
+      await ensureStatus(envelopeId)
+    } catch {
+      // ignore
     }
   }
 
@@ -296,7 +377,14 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
       <div className="gba:space-y-4 gba:p-1" data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-container`}>
         <Card data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-details-card`}>
           <CardHeader className="gba:pb-3">
-            <CardTitle className="gba:text-base gba:font-medium gba:text-muted-foreground">Details</CardTitle>
+            <div className="gba:flex gba:items-center gba:justify-between">
+              <CardTitle className="gba:text-base gba:font-medium gba:text-muted-foreground">Details</CardTitle>
+              {hasSignableDocs && (
+                <Button size="sm" onClick={() => setIsDocuSignOpen(true)}>
+                  {docuSignButtonLabel}
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="gba:space-y-1">
             <FieldRow
@@ -459,17 +547,21 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
           </CardContent>
         </Card>
 
-        {task.documents && task.documents.length > 0 && (
+        {documentsWithStatus.length > 0 && (
           <Card data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-documents-card`}>
             <CardHeader className="gba:pb-3">
               <CardTitle className="gba:text-base gba:font-medium gba:text-muted-foreground">
-                Documents ({task.documents.length})
+                Documents ({documentsWithStatus.length})
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="gba:space-y-2">
-                {task.documents.map(doc => {
+                {documentsWithStatus.map(doc => {
                   const FileIcon = getFileIcon(doc.mimeType)
+                  const envelopeId = doc.envelopeId || (doc.fileInfo as any)?.docusignEnvelopeId
+                  const displayStatus = envelopeId
+                    ? statusMap[envelopeId]?.status || doc.envelopeStatus || 'unknown'
+                    : null
                   return (
                     <button
                       type="button"
@@ -486,6 +578,24 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
                         {doc.mimeType && (
                           <div className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">{doc.mimeType}</div>
                         )}
+                        {envelopeId ? (
+                          <div className="gba:mt-1 gba:flex gba:items-center gba:gap-2">
+                            <span className="gba:text-xs gba:text-muted-foreground">DocuSign:</span>
+                            <span className="gba:text-xs gba:font-medium">{displayStatus}</span>
+                            <Button
+                              variant="link"
+                              size="sm"
+                              onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                                e.stopPropagation()
+                                if (envelopeId) {
+                                  checkEnvelopeStatus(envelopeId)
+                                }
+                              }}
+                            >
+                              Check status
+                            </Button>
+                          </div>
+                        ) : null}
                       </div>
                       <ArrowSquareOutIcon
                         size={16}
@@ -500,6 +610,24 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
         )}
         <div className="gba:h-4" />
       </div>
+      {/* DocuSign Modal */}
+      <DocuSignSignatureModal
+        isOpen={isDocuSignOpen}
+        onClose={() => setIsDocuSignOpen(false)}
+        accessToken={accessToken}
+        assignedUserId={assignedUserId}
+        emailOnly={!isAssignee}
+        businessAppContext={businessAppContext}
+        taskContext={docuSignTaskContext}
+        documents={documentsWithStatus.map(d => ({
+          id: d.id,
+          name: d.name,
+          mimeType: d.mimeType,
+          version: d.version,
+          envelopeStatus: d.envelopeStatus,
+          fileInfo: d.fileInfo
+        }))}
+      />
     </ScrollArea>
   )
 }

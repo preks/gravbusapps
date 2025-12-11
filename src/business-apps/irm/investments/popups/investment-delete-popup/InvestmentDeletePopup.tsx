@@ -5,6 +5,7 @@ import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { Alert, AlertDescription, Badge, Spinner } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { navigateTo } from '@/common/utils/navigationUtils'
 
 export interface InvestmentDeletePopupValues {
   investmentId: string
@@ -151,6 +152,16 @@ const InvestmentDeletePopup: React.FC<InvestmentDeletePopupProps> = ({ initialVa
     return null
   }
 
+  // Handle process completion - redirect to investment management
+  const handleProcessCompletion = (detail: { resolution?: 'success' | 'failure' } | null) => {
+    if (detail?.resolution === 'success') {
+      // Small delay to ensure the popup closes properly before navigation
+      setTimeout(() => {
+        navigateTo('/platform/irm/investment-management?view=investments')
+      }, 100)
+    }
+  }
+
   if (loading) {
     return (
       <div className="gba:p-6 gba:text-center" data-testid={formatDataTestId(prefixDataTestId, 'loading')}>
@@ -180,6 +191,7 @@ const InvestmentDeletePopup: React.FC<InvestmentDeletePopupProps> = ({ initialVa
       validateForm={validateForm}
       submitButtonText={getTranslationFromI18nKeyAndLabel('common.delete', 'Delete')}
       submitButtonVariant="destructive"
+      onProcessCompletion={handleProcessCompletion}
       businessAppContext={props}
       data-testid={formatDataTestId(prefixDataTestId, 'form')}
     >

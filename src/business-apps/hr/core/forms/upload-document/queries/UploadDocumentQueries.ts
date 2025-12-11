@@ -7,6 +7,14 @@ export const GET_UPLOAD_DOCUMENT_LOOKUPS = `
   query MyQuery($id: uuid!, $activeUserLocale: String!) {
     Employee(where: {id: {_eq: $id}, isDeleted: {_eq: false}}) {
       id
+      firstName
+      lastName
+      pictureThumbnail
+      employeePosition {
+        jobPosition {
+          name
+        }
+      }
       businessPartnerPerson { id lastName firstName userId }
     }
     documentGroup: CatalogEntry(
@@ -46,6 +54,7 @@ export const useUploadDocumentLookups = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken)
   const [groups, setGroups] = useState<CatalogOption[]>([])
   const [types, setTypes] = useState<CatalogTypeOption[]>([])
+  const [employee, setEmployee] = useState<EmployeeDetails | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -82,6 +91,17 @@ export const useUploadDocumentLookups = (context: BusinessAppContextProps) => {
         parentEntryId: t.parentEntryId || null
       }))
 
+      const employeeData = (res?.Employee || [])[0]
+      if (employeeData) {
+        setEmployee({
+          id: employeeData.id,
+          firstName: employeeData.firstName,
+          lastName: employeeData.lastName,
+          pictureThumbnail: employeeData.pictureThumbnail,
+          employeePosition: employeeData.employeePosition
+        })
+      }
+
       setGroups(mappedGroups)
       setTypes(mappedTypes)
     } catch (e: any) {
@@ -95,5 +115,5 @@ export const useUploadDocumentLookups = (context: BusinessAppContextProps) => {
     load()
   }, [load])
 
-  return { groups, types, loading, error, refetch: load }
+  return { groups, types, employee, loading, error, refetch: load }
 }

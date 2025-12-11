@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import { getEmployeesByOrgUnitQuery } from '../queries/getEmployeesByOrgUnit'
+import { formatDate } from '@/common/utils/windowUtils'
 
 // Define types for the hook results
 export interface OrgUnitEmployeeData {
@@ -39,7 +40,10 @@ export const useEmployeesByOrgUnit = (accessToken: string): UseEmployeesByOrgUni
 
       try {
         setLoading(true)
-        const response = await graphQLClient.request(getEmployeesByOrgUnitQuery, { structureId })
+        const response = await graphQLClient.request(getEmployeesByOrgUnitQuery, {
+          structureId,
+          asOf: formatDate(new Date(), 'fullDateTime.ISO')
+        })
 
         // Extract employee assignments and organizational units
         const { EmployeeOrganizationalUnit, OrganizationalUnit } = response

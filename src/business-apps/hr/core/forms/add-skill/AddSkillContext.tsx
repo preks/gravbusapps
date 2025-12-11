@@ -22,6 +22,18 @@ export interface DetailedEmployee {
   id: string
   firstName: string
   lastName: string
+  pictureThumbnail?: string
+  employeePosition?:
+    | Array<{
+        jobPosition?: {
+          name?: string
+        }
+      }>
+    | {
+        jobPosition?: {
+          name?: string
+        }
+      }
   skills: EmployeeSkillLink[]
 }
 

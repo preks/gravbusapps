@@ -16,7 +16,8 @@ query MyQuery(
         { _or: [
           { exitDate: { _isNull: true } },
           { exitDate: { _gt: $thisYearEnd } }
-        ]}
+        ]},
+        { employee: { isDeleted: { _eq: false } } }
       ]
     }
   ) {
@@ -34,7 +35,8 @@ query MyQuery(
         { _or: [
           { exitDate: { _isNull: true } },
           { exitDate: { _gt: $lastYearEnd } }
-        ]}
+        ]},
+        { employee: { isDeleted: { _eq: false } } }
       ]
     }
   ) {

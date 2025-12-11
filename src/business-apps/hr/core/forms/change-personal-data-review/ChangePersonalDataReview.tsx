@@ -319,7 +319,9 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
                   displayName,
                   firstName: employeeData.firstName,
                   lastName: employeeData.lastName,
-                  avatarUrl: employeeData.picture,
+                  avatarUrl: employeeData.pictureThumbnail
+                    ? `data:image/jpeg;base64,${employeeData.pictureThumbnail}`
+                    : undefined,
                   position: employeeData.position
                 }
               : undefined

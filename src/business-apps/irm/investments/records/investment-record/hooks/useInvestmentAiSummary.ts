@@ -79,7 +79,7 @@ export function useInvestmentAiSummary(investmentId: string, accessToken: string
         stakePercentage: investment.stakePercentage,
         currency: investment.currency?.value || 'EUR',
         acquisitionDate: investment.acquisitionDate,
-        companyName: investment.investmentAccount?.name || 'Unknown Company',
+        companyName: investment.investmentAccounts?.[0]?.investmentAccount?.name || 'Unknown Company', // GraphQL field name
         // Additional context
         activitiesCount: sortedActivities.length,
         notesCount: sortedNotes.length,

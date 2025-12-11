@@ -189,19 +189,19 @@ definitions:
           - all-screens.txt
     - step: &sonar_scan
         name: Sonar scan
-        size: 2x
+        size: 4x
         clone:
           enabled: true
           depth: full # SonarCloud scanner needs the full history to assign issues properly
         caches:
           - nodecustom
         services:
-          - docker-medium
+          - docker-large
         script:
           - pipe: sonarsource/sonarcloud-scan:4.1.0
             variables:
-              SONAR_SCANNER_OPTS: -Xmx6144m
-              EXTRA_ARGS: ['-Dsonar.javascript.node.maxspace=5120']
+              SONAR_SCANNER_OPTS: -Xmx10240m
+              EXTRA_ARGS: ['-Dsonar.javascript.node.maxspace=9216']
 
     - step: &sonar_scan_main
         name: Sonar scan (main)
@@ -281,6 +281,14 @@ pipelines:
             allowed-values:
               - 'true'
               - 'false'
+      - step:
+          name: Enforce develop/main branches for production publish
+          script:
+            - |
+              if [ "$BITBUCKET_BRANCH" != "develop" ] && [ "$BITBUCKET_BRANCH" != "main" ]; then
+                echo "publishing to production is restricted to develop or main branches. Current branch: $BITBUCKET_BRANCH"
+                exit 1
+              fi
       - step: *install_dependencies
       - step: *publish-manual-prod-screens
 

@@ -10,7 +10,7 @@ import {
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetInvestmentOpportunities } from '@/common/data/investment/hooks/useInvestmentOpportunities'
-import { useAvailableCurrencies } from '@/common/data/investment/hooks/useAvailableCurrencies'
+import { useAvailableCurrencies } from '@/common/data/common/hooks/useAvailableCurrencies'
 import { OpportunityListLayout } from '@/common/components/common-relations/view-layouts/opportunity-layout'
 import {
   createOpportunityColumns,

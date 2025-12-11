@@ -1,72 +1,22 @@
-import { useState, useEffect, useCallback } from 'react'
-import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+// CRM-specific wrapper for shared generic pipelines hook
+import { useMemo } from 'react'
+import { useGenericPipelines } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericPipelines'
 
-export interface Pipeline {
-  id: string
-  name: string
-  value: string
-}
-
+/**
+ * CRM Pipelines hook - Uses GraphQL distinctOn to fetch unique pipelines
+ * This is more efficient than fetching from Catalog API
+ */
 export const usePipelines = (accessToken: string) => {
-  const [pipelines, setPipelines] = useState<Pipeline[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const config = useMemo(
+    () => ({
+      source: 'graphql' as const,
+      opportunityEntity: 'Opportunity',
+      pipelineField: 'salesPipelineRef',
+      pipelineRelation: 'salesPipeline'
+    }),
+    []
+  )
 
-  const catalogClient = useCatalogManagerClient(accessToken)
-  const userLocale = getCurrentActiveUserLocale() ?? 'en-US'
-
-  const loadPipelines = useCallback(async () => {
-    if (!accessToken) {
-      setIsLoading(false)
-      return
-    }
-
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      const response = await catalogClient.getCatalogEntriesList(
-        {
-          catalogIdentifier: 'SalesPipeline',
-          version: 'v1'
-        },
-        {
-          limit: 50,
-          offset: 0,
-          returnTotalRecords: true,
-          localeCode: userLocale
-        }
-      )
-
-      if (response?.data) {
-        const processedPipelines = response.data.map((entry: any) => ({
-          id: entry.id,
-          name: entry.value || entry.code || entry.id,
-          value: entry.value || entry.code || entry.id
-        }))
-
-        setPipelines(processedPipelines)
-      } else {
-        setPipelines([])
-      }
-    } catch (err) {
-      // Error handled by state management
-      setError(err instanceof Error ? err.message : 'Failed to load pipelines')
-      setPipelines([])
-    } finally {
-      setIsLoading(false)
-    }
-  }, [catalogClient, accessToken, userLocale])
-
-  useEffect(() => {
-    loadPipelines()
-  }, [loadPipelines])
-
-  return {
-    pipelines,
-    isLoading,
-    error,
-    refetch: loadPipelines
-  }
+  return useGenericPipelines(accessToken, config)
 }
+export type { Pipeline } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericPipelines'

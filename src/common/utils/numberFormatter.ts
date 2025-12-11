@@ -105,12 +105,29 @@ export const formatPercentage = (value: number | null | undefined, decimals: num
 /**
  * Extract currency code from reference string (e.g., "Currency:v1:EUR" -> "EUR")
  * Common pattern in business applications
- * @param currencyRef - Currency reference string
+ * @param currencyRef - Currency reference string or object with id/value
  * @returns Currency code or default
  */
-export const extractCurrencyCode = (currencyRef: string | null | undefined): string => {
+export const extractCurrencyCode = (
+  currencyRef: string | null | undefined | { id?: string; value?: string; code?: string }
+): string => {
   if (!currencyRef) return 'EUR'
-  return currencyRef.split(':').pop() || 'EUR'
+
+  // Handle object with id or value property (GraphQL catalog entry)
+  if (typeof currencyRef === 'object') {
+    const currencyStr = currencyRef.id || currencyRef.value || currencyRef.code
+    if (currencyStr && typeof currencyStr === 'string') {
+      return currencyStr.split(':').pop() || 'EUR'
+    }
+    return 'EUR'
+  }
+
+  // Handle string
+  if (typeof currencyRef === 'string') {
+    return currencyRef.split(':').pop() || 'EUR'
+  }
+
+  return 'EUR'
 }
 
 // Resolve effective locale (defaults to platform locale when available)

@@ -43,7 +43,7 @@ export const DealSummary: React.FC<DealSummaryProps> = ({ deals, onDealClick }) 
             <div
               key={deal.id}
               data-testid={`key-deal-item-${deal.id}`}
-              className="gba:p-4 gba:rounded-lg gba:border gba:border-gray-200 hover:gba:shadow-md gba:transition-all gba:cursor-pointer hover:gba:bg-gray-50"
+              className="gba:p-4 gba:rounded-lg gba:border gba:border-border gba:transition-all gba:duration-200 gba:hover:shadow-md gba:cursor-pointer gba:hover:bg-accent"
               onClick={() => handleDealClick(deal.id)}
             >
               <div className="gba:flex gba:items-start gba:justify-between gba:mb-2">

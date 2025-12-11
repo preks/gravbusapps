@@ -37,6 +37,12 @@ interface UseBonusReviewDataReturn {
   initiatorName: string
   displayItems: BonusDisplayItem[]
   bonusDetails: { description?: string; notes?: string } | null
+  employee?: {
+    firstName?: string
+    lastName?: string
+    pictureThumbnail?: string
+    jobTitle?: string
+  }
 }
 
 export const useBonusReviewData = ({
@@ -49,6 +55,15 @@ export const useBonusReviewData = ({
   const [employeeName, setEmployeeName] = useState<string>('')
   const [initiatorName, setInitiatorName] = useState<string>('')
   const [bonusTypeEntries, setBonusTypeEntries] = useState<BonusTypeEntry[]>([])
+  const [employee, setEmployee] = useState<
+    | {
+        firstName?: string
+        lastName?: string
+        pictureThumbnail?: string
+        jobTitle?: string
+      }
+    | undefined
+  >(undefined)
   const locale = useMemo(() => getCurrentActiveUserLocale(), [])
 
   // Extract payload data
@@ -68,14 +83,20 @@ export const useBonusReviewData = ({
     const fetchName = async () => {
       try {
         if (!accessToken || !employeeIdFromPayload) return
-        const result = await graphqlClient.request<{ employee: { firstName: string; lastName: string } }>(
-          GET_EMPLOYEE_NAME,
-          { employeeId: employeeIdFromPayload }
-        )
+        const result = await graphqlClient.request<{
+          employee: { firstName: string; lastName: string; pictureThumbnail?: string }
+          EmployeePosition?: Array<{ jobPosition?: { name?: string } }>
+        }>(GET_EMPLOYEE_NAME, { employeeId: employeeIdFromPayload })
         if (cancelled) return
         const emp = result?.employee
         if (emp) {
           setEmployeeName(`${emp.firstName || ''} ${emp.lastName || ''}`.trim())
+          setEmployee({
+            firstName: emp.firstName,
+            lastName: emp.lastName,
+            pictureThumbnail: emp.pictureThumbnail,
+            jobTitle: result?.EmployeePosition?.[0]?.jobPosition?.name
+          })
         }
       } catch {
         // ignore
@@ -152,6 +173,7 @@ export const useBonusReviewData = ({
     employeeName,
     initiatorName,
     displayItems,
-    bonusDetails
+    bonusDetails,
+    employee
   }
 }

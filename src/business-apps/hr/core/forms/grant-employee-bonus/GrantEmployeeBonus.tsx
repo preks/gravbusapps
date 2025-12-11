@@ -9,7 +9,7 @@ import { useForm } from 'react-hook-form'
 import type { GrantEmployeeBonusFormValues, CatalogEntry } from './types'
 import BonusDetailsGroup from './components/BonusDetailsGroup'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
-import { extractEmployeeId } from './utils/employeeIdUtils'
+import { extractEmployeeId } from '@/business-apps/hr/core/utils/employeeIdUtils'
 import { useTaskCancellation } from '../../hooks/useTaskCancellation'
 import translations from '../_i18n'
 
@@ -18,6 +18,7 @@ const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ addition
   const { t } = useTranslation(translations)
 
   const employee = useMemo(() => data?.employee?.EmployeeByPk, [data])
+  const employeePosition = useMemo(() => data?.employee?.EmployeePosition?.[0], [data])
   const catalogs = useMemo(
     () => ({
       bonusType: data?.catalogs?.bonusType || []
@@ -123,10 +124,23 @@ const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ addition
       className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-full gba:max-w-[800px]"
       data-testid="flw_grantEmployeeBonus_screenContentLayout"
     >
-      <FormHeader title={title} flowIconUrl={flowIconUrl} className="gba:px-6" />
+      <FormHeader
+        title={title}
+        flowIconUrl={flowIconUrl}
+        employee={
+          employee
+            ? {
+                firstName: employee.firstName,
+                lastName: employee.lastName,
+                pictureThumbnail: employee.pictureThumbnail,
+                jobTitle: employeePosition?.jobPosition?.name
+              }
+            : undefined
+        }
+      />
 
       <div
-        className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='grant-employee-bonus']]:pt-0!"
+        className="gba:flex gba:flex-col gba:[&>div[data-testid='grant-employee-bonus']]:pt-0!"
         data-testid="grant-employee-bonus-form-content"
       >
         <AppActionForm

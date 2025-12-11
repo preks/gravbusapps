@@ -2067,6 +2067,7 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
             await saveTemplate(template.template)
             setIsWizardOpen(false)
           }}
+          context={{ accessToken, userInfo }}
           data-testid={`${testId}-wizard-dialog`}
         />
       </div>

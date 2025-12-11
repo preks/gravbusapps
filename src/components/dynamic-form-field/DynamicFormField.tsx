@@ -1,5 +1,6 @@
 import React from 'react'
-import { Control, FieldValues } from 'react-hook-form'
+import { Control, FieldValues, Path, ControllerRenderProps } from 'react-hook-form'
+import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@newwork/nw-design-system'
 import {
   TextField,
   TextAreaField,
@@ -11,6 +12,7 @@ import {
   CatalogField,
   ReferenceField
 } from './field-types'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 /**
  * Field Definition Interface
@@ -29,19 +31,27 @@ export interface DynamicFieldDefinition {
  */
 export interface DynamicFormFieldProps<TFieldValues extends FieldValues = FieldValues> {
   /** Field definition from catalog configuration */
-  field: DynamicFieldDefinition
+  readonly field: DynamicFieldDefinition
   /** Field name in the form */
-  fieldName: string
+  readonly fieldName: string
   /** React Hook Form control */
-  control: Control<TFieldValues>
+  readonly control: Control<TFieldValues>
   /** Access token for API requests (required for CATALOG_ fields) */
-  accessToken: string
+  readonly accessToken: string
   /** Optional data-testid prefix */
-  testIdPrefix?: string
+  readonly testIdPrefix?: string
   /** Currency symbol to display in amount fields */
-  currencySymbol?: string
+  readonly currencySymbol?: string
   /** Custom renderer for REF_ fields */
-  renderReferenceField?: (entityType: string, field: DynamicFieldDefinition, fieldName: string) => React.ReactNode
+  readonly renderReferenceField?: (
+    entityType: string,
+    field: DynamicFieldDefinition,
+    fieldName: string,
+    formField: ControllerRenderProps<TFieldValues>,
+    businessAppContext: BusinessAppContextProps
+  ) => React.ReactNode
+  /** Business app context (required for REF_ fields) */
+  readonly businessAppContext?: BusinessAppContextProps
 }
 
 /**
@@ -50,6 +60,9 @@ export interface DynamicFormFieldProps<TFieldValues extends FieldValues = FieldV
  * A router component that selects and renders the appropriate field type component
  * based on the field definition. Each field type is implemented in its own file
  * under the `field-types/` directory for better maintainability.
+ *
+ * All fields are wrapped with FormField, FormItem, FormLabel, FormControl, and FormMessage
+ * at this level to eliminate duplication across field types.
  *
  * Supported field types:
  * - Standard: DATE, DATETIME, TEXT, TEXTAREA, NUMBER, AMOUNT, PERCENTAGE
@@ -73,67 +86,182 @@ export function DynamicFormField<TFieldValues extends FieldValues = FieldValues>
   accessToken,
   testIdPrefix = 'DynamicFormField',
   currencySymbol,
-  renderReferenceField
+  renderReferenceField,
+  businessAppContext
 }: DynamicFormFieldProps<TFieldValues>) {
-  const commonProps = {
-    field,
-    fieldName,
-    control,
-    testIdPrefix,
-    currencySymbol
-  }
-
   // Extract the base type (e.g., "CATALOG" from "CATALOG_IndustryType", "TEXT" from "TEXT")
   const fieldType = field.type.split('_')[0]
 
-  // ============================================================================
-  // FIELD TYPE ROUTER
-  // ============================================================================
+  return (
+    <FormField
+      key={fieldName}
+      control={control}
+      name={fieldName as Path<TFieldValues>}
+      render={({ field: formField }) => {
+        return (
+          <FormItem>
+            <FormLabel>{field.label}</FormLabel>
+            <FormControl>
+              {renderFieldInput(fieldType, {
+                formField,
+                field,
+                fieldName,
+                testIdPrefix,
+                currencySymbol,
+                accessToken,
+                renderReferenceField,
+                businessAppContext
+              })}
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )
+      }}
+    />
+  )
 
-  switch (fieldType) {
-    case 'DATE':
-      return <DateField {...commonProps} />
-
-    case 'DATETIME':
-      return <DateTimeField {...commonProps} />
-
-    case 'AMOUNT':
-      return <AmountField {...commonProps} />
-
-    case 'PERCENTAGE':
-      return <PercentageField {...commonProps} />
-
-    case 'NUMBER':
-      return <NumberField {...commonProps} />
-
-    case 'TEXT':
-      return <TextField {...commonProps} />
-
-    case 'TEXTAREA':
-      return <TextAreaField {...commonProps} />
-
-    case 'CATALOG': {
-      const catalogName = field.type.replace('CATALOG_', '')
-      return <CatalogField {...commonProps} catalogName={catalogName} accessToken={accessToken} />
+  function renderFieldInput(
+    fieldType: string,
+    props: {
+      formField: ControllerRenderProps<TFieldValues>
+      field: DynamicFieldDefinition
+      fieldName: string
+      testIdPrefix: string
+      currencySymbol?: string
+      accessToken: string
+      renderReferenceField?: (
+        entityType: string,
+        field: DynamicFieldDefinition,
+        fieldName: string,
+        formField: ControllerRenderProps<TFieldValues>,
+        businessAppContext: BusinessAppContextProps
+      ) => React.ReactNode
+      businessAppContext?: BusinessAppContextProps
     }
+  ): React.ReactNode {
+    const { formField, field, fieldName, testIdPrefix, currencySymbol, renderReferenceField, businessAppContext } =
+      props
 
-    case 'REF': {
-      const entityType = field.type.replace('REF_', '')
-      return (
-        <ReferenceField
-          entityType={entityType}
-          field={field}
-          fieldName={fieldName}
-          renderReferenceField={renderReferenceField}
-        />
-      )
+    switch (fieldType) {
+      case 'DATE':
+        return (
+          <DateField
+            value={formField.value}
+            onChange={value => formField.onChange(value || '')}
+            onBlur={formField.onBlur}
+            fieldName={fieldName}
+            testIdPrefix={testIdPrefix}
+          />
+        )
+
+      case 'DATETIME':
+        return (
+          <DateTimeField
+            value={formField.value}
+            onChange={value => formField.onChange(value || '')}
+            onBlur={formField.onBlur}
+            fieldName={fieldName}
+            testIdPrefix={testIdPrefix}
+          />
+        )
+
+      case 'AMOUNT':
+        return (
+          <AmountField
+            value={formField.value}
+            onChange={e => formField.onChange(e.target.value)}
+            onBlur={formField.onBlur}
+            fieldName={fieldName}
+            testIdPrefix={testIdPrefix}
+            currencySymbol={currencySymbol}
+          />
+        )
+
+      case 'PERCENTAGE':
+        return (
+          <PercentageField
+            value={formField.value}
+            onChange={e => formField.onChange(e.target.value)}
+            onBlur={formField.onBlur}
+            fieldName={fieldName}
+            testIdPrefix={testIdPrefix}
+          />
+        )
+
+      case 'NUMBER':
+        return (
+          <NumberField
+            value={formField.value}
+            onChange={e => formField.onChange(e.target.value)}
+            onBlur={formField.onBlur}
+            fieldName={fieldName}
+            testIdPrefix={testIdPrefix}
+          />
+        )
+
+      case 'TEXT':
+        return (
+          <TextField
+            value={formField.value}
+            onChange={e => formField.onChange(e.target.value)}
+            onBlur={formField.onBlur}
+            fieldName={fieldName}
+            testIdPrefix={testIdPrefix}
+            placeholder={field.label ? `Enter ${field.label.toLowerCase()}` : undefined}
+          />
+        )
+
+      case 'TEXTAREA':
+        return (
+          <TextAreaField
+            value={formField.value}
+            onChange={e => formField.onChange(e.target.value)}
+            onBlur={formField.onBlur}
+            fieldName={fieldName}
+            testIdPrefix={testIdPrefix}
+            placeholder={field.label ? `Enter ${field.label.toLowerCase()}` : undefined}
+          />
+        )
+
+      case 'CATALOG': {
+        const catalogName = field.type.replace('CATALOG_', '')
+        return (
+          <CatalogField
+            value={formField.value}
+            onValueChange={value => formField.onChange(value)}
+            catalogName={catalogName}
+            fieldName={fieldName}
+            testIdPrefix={testIdPrefix}
+          />
+        )
+      }
+
+      case 'REF': {
+        const entityType = field.type.replace('REF_', '')
+        if (!businessAppContext) {
+          throw new Error(
+            `DynamicFormField: REF_ field type "${field.type}" requires businessAppContext prop. ` +
+              `Please provide BusinessAppContextProps when using reference fields.`
+          )
+        }
+        return (
+          <ReferenceField
+            entityType={entityType}
+            field={field}
+            fieldName={fieldName}
+            formField={formField}
+            renderReferenceField={renderReferenceField}
+            businessAppContext={businessAppContext}
+          />
+        )
+      }
+
+      default:
+        throw new Error(
+          `DynamicFormField: Unhandled field type "${field.type}". ` +
+            `Supported types: DATE, DATETIME, AMOUNT, PERCENTAGE, NUMBER, TEXT, TEXTAREA, CATALOG_*, REF_*. ` +
+            `Please add support for this type in field-types/ directory.`
+        )
     }
-
-    default:
-      throw new Error(
-        `DynamicFormField: Unhandled field type "${field.type}". ` +
-          `Supported types: DATE, DATETIME, AMOUNT, PERCENTAGE, NUMBER, TEXT, TEXTAREA, CATALOG_*, REF_*. ` +
-          `Please add support for this type in field-types/ directory.`
-      )
   }
 }

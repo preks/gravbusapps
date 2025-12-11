@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { EntityCard } from './EntityCard'
 import { env } from '@/common/env/EnvUtils'
+import { getOperationBadge } from './utils/displayUtils'
 
 interface BlinkDisplayProps {
   blinkId: string
@@ -72,20 +73,7 @@ export const BlinkDisplay: React.FC<BlinkDisplayProps> = ({ blinkId, accessToken
     }
   }, [blinkId, accessToken])
 
-  const getOperationBadge = () => {
-    switch (operation) {
-      case 'create':
-        return { text: 'Created', variant: 'success' as const }
-      case 'update':
-        return { text: 'Updated', variant: 'default' as const }
-      case 'delete':
-        return { text: 'Deleted', variant: 'destructive' as const }
-      default:
-        return undefined
-    }
-  }
-
-  const operationBadge = getOperationBadge()
+  const operationBadge = getOperationBadge(operation)
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return '-'
