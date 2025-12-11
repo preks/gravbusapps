@@ -52,8 +52,6 @@ export const ApproveAttendanceCorrection: React.FC<ChangeRelationshipReviewProps
   const approveLabel = t('grant-bonus-review-acknowledge')
   const cancelLabel = t('grant-bonus-review-reject')
 
-  console.log('additionalData', additionalData)
-
   // Fetch employee and catalog data
 
   // Detect if we're in every-box context
