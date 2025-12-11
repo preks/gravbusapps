@@ -100,6 +100,29 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
     return hasSearch || hasStatusFilters || hasCurrencyFilter
   }, [props.search, props.activeFilter, currencyFilter])
 
+  const handleViewExpensePlanDetails = useCallback((record: AdvancePaymentItem) => {
+    const url = buildPlatformUrl('/platform/fin/expenses/expense-plan-record', {
+      expensePlanId: record.expensePlan?.id ?? '',
+      referrer: '/platform/fin/expenses/manager-expenses?tab=advance-payments'
+    })
+    navigateTo(url)
+  }, [])
+
+  const handleViewExpenseRequestDetails = useCallback((record: AdvancePaymentItem) => {
+    const expenseRequests = record.expensePlan?.expenseRequest
+    const firstExpenseRequest = Array.isArray(expenseRequests) && expenseRequests.length > 0 ? expenseRequests[0] : null
+
+    if (!firstExpenseRequest?.id) {
+      return
+    }
+
+    const url = buildPlatformUrl('/platform/fin/expenses/expense-request-record', {
+      expenseRequestId: firstExpenseRequest.id,
+      referrer: '/platform/fin/expenses/manager-expenses?tab=advance-payments'
+    })
+    navigateTo(url)
+  }, [])
+
   // Handle page size changes
   const handlePageSizeChange = useCallback(
     (newPageSize: number) => {
@@ -311,24 +334,47 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
                           data-testid={`advance-payments-update-button-${record.id}`}
                           size="icon"
                           staticFlowData={[
-                            {
-                              category: getTranslationFromI18nKeyAndLabel(
-                                'lowcoder:employee_list.flows_button.actions',
-                                'Actions'
-                              ),
-                              key: 'view-advance-payment-details',
-                              label: getTranslationFromI18nKeyAndLabel(
-                                'lowcoder:advance_payment_table.advance_payment_details',
-                                'View Advance Payment Details'
-                              ),
-                              onClick: () => {
-                                // Navigate to advance payment details page
-                                const url = buildPlatformUrl('/platform/fin/expenses/advance-payment-record', {
-                                  advancePaymentId: record.id
-                                })
-                                navigateTo(url)
-                              }
-                            }
+                            ...(record.expensePlan?.id
+                              ? [
+                                  {
+                                    category: getTranslationFromI18nKeyAndLabel(
+                                      'lowcoder:employee_list.flows_button.navigations',
+                                      'Navigations'
+                                    ),
+                                    key: 'view-plan-details',
+                                    label: getTranslationFromI18nKeyAndLabel(
+                                      'lowcoder:expense_plan_list.expense_plan_flows.view_plan_details',
+                                      'View Plan Details'
+                                    ),
+                                    onClick: (e?: React.MouseEvent) => {
+                                      e?.stopPropagation()
+                                      handleViewExpensePlanDetails(record)
+                                    }
+                                  }
+                                ]
+                              : []),
+                            ...(record.expensePlan?.expenseRequest &&
+                            Array.isArray(record.expensePlan.expenseRequest) &&
+                            record.expensePlan.expenseRequest.length > 0 &&
+                            record.expensePlan.expenseRequest[0].id
+                              ? [
+                                  {
+                                    category: getTranslationFromI18nKeyAndLabel(
+                                      'lowcoder:employee_list.flows_button.navigations',
+                                      'Navigations'
+                                    ),
+                                    key: 'view-request-details',
+                                    label: getTranslationFromI18nKeyAndLabel(
+                                      'lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details',
+                                      'View Request Details'
+                                    ),
+                                    onClick: (e?: React.MouseEvent) => {
+                                      e?.stopPropagation()
+                                      handleViewExpenseRequestDetails(record)
+                                    }
+                                  }
+                                ]
+                              : [])
                           ]}
                           prefixDataTestId="advance-payments-update"
                           accessToken={props.accessToken}
