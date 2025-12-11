@@ -49,9 +49,6 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
   const presenceInitializedUsersRef = useRef<Set<string>>(new Set())
   const lastNudgeTimeRef = useRef<number>(0)
   const NUDGE_COOLDOWN_MS = 30000 // 30 seconds
-  const [nudgeNotification, setNudgeNotification] = useState<{ fromUserName: string; conversationId: string } | null>(
-    null
-  )
 
   // Inject nudge animation styles on mount
   useEffect(() => {
@@ -190,7 +187,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
 
       console.log('[Chat] Nudge received from:', data.fromUserName, 'conversation:', data.conversationId)
 
-      // Always play sound regardless of active conversation
+      // Play sound
       playNudgeSound()
 
       // Shake animation on the whole chat container
@@ -198,18 +195,10 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
         applyShakeAnimation(containerRef.current)
       }
 
-      // Show temporary nudge notification
-      setNudgeNotification({
-        fromUserName: data.fromUserName,
-        conversationId: data.conversationId
-      })
-
-      // Auto-hide after 3 seconds
-      setTimeout(() => {
-        setNudgeNotification(null)
-      }, 3000)
+      // System message will arrive via normal new_message WebSocket event
+      // Backend creates it and sends it ONLY to the receiver
     })
-  }, [registerNudgeCallback, currentUser])
+  }, [registerNudgeCallback, currentUser, activeConversationId])
 
   // Clear presence initialization tracking when connection drops
   // This allows presence to be re-initialized from API when reconnecting
@@ -1339,20 +1328,6 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
                   participants={stableActiveConversation.participants}
                   onReplyToAI={handleReplyToAI}
                 />
-
-                {/* Nudge Notification */}
-                {nudgeNotification && nudgeNotification.conversationId === stableActiveConversation.id && (
-                  <div className="gba:absolute gba:top-1/2 gba:left-1/2 gba:-translate-x-1/2 gba:-translate-y-1/2 gba:z-50 gba:pointer-events-none">
-                    <div className="gba:bg-gradient-to-r gba:from-warning gba:to-warning-secondary gba:text-warning-foreground gba:px-6 gba:py-3 gba:rounded-full gba:shadow-lg gba:border gba:border-warning gba:animate-in gba:fade-in gba:zoom-in gba:duration-300">
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <span className="gba:text-2xl">👋</span>
-                        <span className="gba:text-sm gba:font-medium">
-                          {nudgeNotification.fromUserName} sent you a nudge!
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
 
                 {/* AI Processing Indicator */}
                 {isAIProcessing && (
