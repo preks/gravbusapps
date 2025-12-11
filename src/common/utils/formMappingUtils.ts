@@ -37,6 +37,14 @@ const isNestedObjectSchema = (schemaField: z.ZodTypeAny): boolean => {
 }
 
 /**
+ * Checks if schema field is a ZodArray
+ */
+const isArraySchema = (schemaField: z.ZodTypeAny): boolean => {
+  const unwrapped = unwrapZodType(schemaField)
+  return unwrapped instanceof z.ZodArray
+}
+
+/**
  * Transforms a number value based on schema type
  */
 const transformNumberValue = (value: number, schemaField: z.ZodTypeAny): any => {
@@ -49,36 +57,34 @@ const transformNumberValue = (value: number, schemaField: z.ZodTypeAny): any => 
 }
 
 /**
- * Configuration for array-to-object conversion
- */
-export interface ArrayToObjectConfig {
-  /**
-   * Field names that should be converted from array[0] to object
-   * Example: ['equityInvestment', 'realEstateInvestment'] will convert
-   * entity.equityInvestment[0] → result.equityInvestment
-   */
-  arrayFields?: string[]
-}
-
-/**
  * Transforms a single field value, handling nested objects and arrays
  */
 const transformFieldValue = (
   value: any,
   key: string,
   schemaField: z.ZodTypeAny,
-  transformations?: Partial<Record<string, (value: any) => any>>,
-  arrayToObjectConfig?: ArrayToObjectConfig
+  transformations?: Partial<Record<string, (value: any) => any>>
 ): any => {
   // Apply custom transformation if provided (takes precedence)
   if (transformations && key in transformations) {
     return transformations[key]?.(value)
   }
 
-  // Handle array-to-object conversion (e.g., equityInvestment[0] → equityInvestment)
-  if (arrayToObjectConfig?.arrayFields?.includes(key) && Array.isArray(value) && value.length > 0) {
-    // Convert array[0] to object
-    return value[0]
+  // Handle arrays: map each item against array's element schema
+  if (isArraySchema(schemaField) && Array.isArray(value)) {
+    const unwrapped = unwrapZodType(schemaField) as z.ZodArray<any>
+    let elementSchema = unwrapped.element
+
+    // Unwrap optional/nullable from element schema
+    elementSchema = unwrapZodType(elementSchema)
+
+    // If element is an object, map each item recursively to only include schema fields
+    if (elementSchema instanceof z.ZodObject) {
+      return value.map((item: any) => mapToFormValuesRecursive(item, elementSchema, transformations))
+    }
+
+    // Otherwise pass through (primitives, etc.)
+    return value
   }
 
   // Handle nested objects: recursively map if schema expects nested object
@@ -91,7 +97,7 @@ const transformFieldValue = (
   ) {
     const nestedSchema = unwrapZodType(schemaField) as z.ZodObject<any>
     // Recursively map nested structure
-    return mapToFormValuesRecursive(value, nestedSchema, transformations, undefined, arrayToObjectConfig)
+    return mapToFormValuesRecursive(value, nestedSchema, transformations)
   }
 
   // Convert Date objects to ISO strings (API might return Date objects)
@@ -115,8 +121,7 @@ const mapToFormValuesRecursive = <TEntity extends Record<string, any>, TSchema e
   entity: TEntity | null,
   schema: TSchema,
   transformations?: Partial<Record<string, (value: any) => any>>,
-  defaultValues?: Partial<z.infer<TSchema>>,
-  arrayToObjectConfig?: ArrayToObjectConfig
+  defaultValues?: Partial<z.infer<TSchema>>
 ): Partial<z.infer<TSchema>> => {
   if (!entity) {
     return defaultValues || {}
@@ -129,14 +134,7 @@ const mapToFormValuesRecursive = <TEntity extends Record<string, any>, TSchema e
     if (key in entity) {
       const value = entity[key]
       const schemaField = schema.shape[key]
-      const transformedValue = transformFieldValue(
-        value,
-        key,
-        schemaField,
-        transformations,
-        arrayToObjectConfig,
-        schema
-      )
+      const transformedValue = transformFieldValue(value, key, schemaField, transformations)
       result[key] = transformedValue
     }
   }
@@ -146,13 +144,12 @@ const mapToFormValuesRecursive = <TEntity extends Record<string, any>, TSchema e
 
 /**
  * Automatically maps entity to form values by matching field names.
- * Supports nested structures and optional array-to-object conversion.
+ * Supports nested structures and arrays with proper schema-based mapping.
  *
  * @param entity - The entity data to map (can be null)
- * @param schema - Zod schema defining the form structure (supports nested objects)
+ * @param schema - Zod schema defining the form structure (supports nested objects and arrays)
  * @param transformations - Optional custom transformations for specific fields
  * @param defaultValues - Optional default values to merge with mapped values
- * @param arrayToObjectConfig - Optional configuration for converting arrays to objects
  *
  * @example
  * // Simple flat mapping
@@ -169,20 +166,23 @@ const mapToFormValuesRecursive = <TEntity extends Record<string, any>, TSchema e
  * mapToFormValues(investmentData, schema)
  *
  * @example
- * // Array to object conversion
- * mapToFormValues(investmentData, schema, undefined, undefined, {
- *   arrayFields: ['equityInvestment', 'realEstateInvestment']
+ * // Array mapping - each array item is mapped against element schema
+ * const schema = z.object({
+ *   opportunityAccounts: z.array(z.object({
+ *     accountId: z.string(),
+ *     accountTypeRef: z.string()
+ *   }))
  * })
- * // Converts: entity.equityInvestment[0] → result.equityInvestment
+ * // GraphQL data with nested objects is automatically cleaned to match schema
+ * mapToFormValues(opportunityData, schema)
  */
 export function mapToFormValues<TEntity extends Record<string, any>, TSchema extends z.ZodObject<any>>(
   entity: TEntity | null,
   schema: TSchema,
   transformations?: Partial<Record<keyof TEntity, (value: any) => any>>,
-  defaultValues?: Partial<z.infer<TSchema>>,
-  arrayToObjectConfig?: ArrayToObjectConfig
+  defaultValues?: Partial<z.infer<TSchema>>
 ): Partial<z.infer<TSchema>> {
-  return mapToFormValuesRecursive(entity, schema, transformations, defaultValues, arrayToObjectConfig)
+  return mapToFormValuesRecursive(entity, schema, transformations, defaultValues)
 }
 
 /**

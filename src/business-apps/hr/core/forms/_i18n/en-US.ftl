@@ -140,3 +140,25 @@ grant-bonus-review-description = Description
 grant-bonus-review-notes = Notes
 grant-bonus-review-acknowledge = Acknowledge
 grant-bonus-review-reject = Reject
+
+# Request Employee Benefit Review Form
+request-benefit-review-title = Employee Benefit Review for { $employeeName }
+request-benefit-review-initiated-by = Initiated by { $initiatorName }
+request-benefit-review-benefit-details = Benefit Details
+request-benefit-review-benefit-type = Benefit Type
+request-benefit-review-provider = Provider
+request-benefit-review-yearly-value = Yearly Value
+request-benefit-review-monthly-value = Monthly Value
+request-benefit-review-period = Period
+request-benefit-review-start-date = Preferred Start Date
+request-benefit-review-employee-yearly-contribution = Employee Yearly Contribution
+request-benefit-review-employee-monthly-contribution = Employee Monthly Contribution
+request-benefit-review-additional-info = Additional Information
+request-benefit-review-justification = Justification
+request-benefit-review-financial-details = Financial Details
+request-benefit-review-employee-contributions = Employee Contributions
+request-benefit-review-approve = Approve
+request-benefit-review-reject = Reject
+request-benefit-review-loading = Loading benefit review data...
+request-benefit-review-error-title = Unable to Load Data
+request-benefit-review-error-description = Failed to load employee benefit data

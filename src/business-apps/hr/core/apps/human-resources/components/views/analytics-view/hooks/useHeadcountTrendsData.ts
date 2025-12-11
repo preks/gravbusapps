@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useQueryExecutionClient, QueryType, Services } from '@/common/network/dataset'
 
@@ -76,6 +76,7 @@ export const useHeadcountTrendsData = (context: BusinessAppContextProps): UseHea
   const [error, setError] = useState<string | null>(null)
 
   const queryClient = useQueryExecutionClient(context.accessToken, Services.EMPLOYEE)
+  const lastFetchKeyRef = useRef<string>('')
 
   const calculateStatistics = useCallback((loadedData: HeadcountTrendsData): HeadcountStatistics => {
     // Get current total headcount
@@ -119,6 +120,14 @@ export const useHeadcountTrendsData = (context: BusinessAppContextProps): UseHea
         startDate: startDateStr,
         endDate: endDate
       }
+
+      // Dedupe by token and date range
+      const fetchKey = `${context.accessToken}|${startDateStr}|${endDate}`
+      if (lastFetchKeyRef.current === fetchKey) {
+        setIsLoading(false)
+        return
+      }
+      lastFetchKeyRef.current = fetchKey
 
       console.log('[useHeadcountTrendsData] Using date range:', dateParams)
 
@@ -212,7 +221,7 @@ export const useHeadcountTrendsData = (context: BusinessAppContextProps): UseHea
     } finally {
       setIsLoading(false)
     }
-  }, [queryClient, context.accessToken, calculateStatistics])
+  }, [context.accessToken, calculateStatistics])
 
   useEffect(() => {
     if (context.accessToken) {
