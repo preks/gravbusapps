@@ -146,6 +146,7 @@ export const OverviewTabLayout: React.FC<OverviewTabLayoutProps> = ({
 
       {/* Revenue Trends - Always shown */}
       <RevenueTrendChart
+        key={`revenue-trends-${revenueTimeFilter}-${revenuePipelineId || 'all'}-${revenueCurrency}`}
         moduleColor={moduleColor as any}
         data={revenueTrends}
         isLoading={revenueLoading}

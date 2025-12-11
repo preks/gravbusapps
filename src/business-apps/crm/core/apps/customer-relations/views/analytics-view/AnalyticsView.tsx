@@ -178,7 +178,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     activeAnalyticsTab === 'opportunities' ? context.accessToken : ''
   )
   const { data: oppHealthData } = useDealHealthData(activeAnalyticsTab === 'opportunities' ? context.accessToken : '')
-  const { data: oppLifecycleData } = useOpportunitiesOverTime(
+  const { data: oppLifecycleData, isLoading: oppLifecycleLoading } = useOpportunitiesOverTime(
     activeAnalyticsTab === 'opportunities' ? context.accessToken : '',
     oppTimeFilter,
     oppLifecyclePipelineId
@@ -203,8 +203,12 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     contactsTimeFilter
   )
 
-  const { data: contactInsights } = useContactInsights(activeAnalyticsTab === 'contacts' ? context.accessToken : '')
-  const { data: contactQuality } = useContactQualityData(activeAnalyticsTab === 'contacts' ? context.accessToken : '')
+  const { data: contactInsights, isLoading: contactInsightsLoading } = useContactInsights(
+    activeAnalyticsTab === 'contacts' ? context.accessToken : ''
+  )
+  const { data: contactQuality, isLoading: contactQualityLoading } = useContactQualityData(
+    activeAnalyticsTab === 'contacts' ? context.accessToken : ''
+  )
 
   // Initialize selectedStagePipelineId to first pipeline when pipelines are loaded
   useEffect(() => {
@@ -330,6 +334,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
       opportunitiesStaticData,
       opportunitiesStaticLoading,
       oppLifecycleData: oppLifecycleData || [],
+      oppLifecycleLoading,
       oppTimeFilter,
       onOppTimeFilterChange: setOppTimeFilter,
       pipelines: pipelines || [],
@@ -365,7 +370,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
       contactsTimeFilter,
       onContactsTimeFilterChange: setContactsTimeFilter,
       contactInsights,
-      contactQuality
+      contactInsightsLoading,
+      contactQuality,
+      contactQualityLoading
     },
     {
       title: 'Contacts Analytics'

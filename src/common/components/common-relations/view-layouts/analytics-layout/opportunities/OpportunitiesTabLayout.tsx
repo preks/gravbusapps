@@ -76,6 +76,7 @@ export interface OpportunitiesTabLayoutProps {
   trendData?: OpportunitiesTrendData | null
   trendLoading?: boolean
   lifecycleData: OpportunityLifecyclePoint[]
+  lifecycleLoading?: boolean
   pipelines: PipelineItem[]
   selectedPipelineId?: string
   onPipelineChange: (id: string) => void
@@ -122,6 +123,7 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
   trendData,
   trendLoading = false,
   lifecycleData,
+  lifecycleLoading = false,
   pipelines,
   selectedPipelineId,
   onPipelineChange,
@@ -325,7 +327,9 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
       </div>
 
       <OpportunityLifecycleChart
+        key={`opportunity-lifecycle-${selectedTimeFilter}-${selectedPipelineId || 'all'}`}
         data={lifecycleData}
+        isLoading={lifecycleLoading || trendLoading}
         selectedTimeFilter={selectedTimeFilter}
         onTimeFilterChange={onTimeFilterChange}
         pipelines={pipelines}
