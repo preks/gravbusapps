@@ -656,18 +656,15 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     }
   }, [isConnected]) // Only re-register when connection changes, all other values accessed via refs
 
-  // Join/leave conversation when active conversation changes
+  // Join conversation and mark as read when active conversation changes
+  // NOTE: We DON'T leave conversations when going back to the list
+  // Users should stay in all conversation rooms to receive real-time updates
   useEffect(() => {
     if (!wsClientRef.current || !isConnected) {
       return
     }
 
-    // Leave previous conversation if switching or going back
-    if (currentConversationIdRef.current && currentConversationIdRef.current !== activeConversationId) {
-      wsClientRef.current.leaveConversation(currentConversationIdRef.current)
-    }
-
-    // Join new conversation
+    // Join new conversation if not already joined
     if (activeConversationId) {
       console.log('[Chat] Joining conversation room:', activeConversationId)
       wsClientRef.current.joinConversation(activeConversationId)
