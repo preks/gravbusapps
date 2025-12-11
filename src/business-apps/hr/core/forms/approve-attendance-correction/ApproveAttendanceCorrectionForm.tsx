@@ -68,9 +68,8 @@ export const ApproveAttendanceCorrection: React.FC<ChangeRelationshipReviewProps
 
   const formatTime = (value?: string) => {
     if (!value) return '-'
-    // Times are stored as UTC (created via Date.UTC in the creator form).
-    // Display them as-entered (no local timezone shift) by formatting in UTC.
-    return dayjs.utc(value).locale(locale).format('LT')
+    // Times are stored in UTC. Convert to LOCAL time and display using localized format.
+    return dayjs.utc(value).local().locale(locale).format('LT')
   }
 
   const attendanceDate = (correction?.attendanceDate as string) || undefined

@@ -179,15 +179,20 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
     }
   }
 
-  // Combine a base date (ISO) with HH:MM as UTC into full ISO
-  const combineDateAndTime = (baseDateIso: string, hhmm: string): string => {
+  // Combine a base date (ISO) with an HH:MM entered/viewed in LOCAL time
+  // and return the corresponding UTC ISO string.
+  // Example: baseDate "2025-12-08T00:00:00.000Z", hhmm "12:54", TZ=UTC+2
+  // -> result "2025-12-08T10:54:00.000Z"
+  const combineDateAndTimeLocalToUtc = (baseDateIso: string, hhmm: string): string => {
     if (!baseDateIso || !hhmm) return ''
     const base = new Date(baseDateIso)
     if (Number.isNaN(base.getTime())) return ''
     const [hh, mm] = hhmm.split(':').map(v => parseInt(v, 10))
     if (isNaN(hh) || isNaN(mm)) return ''
-    const utc = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate(), hh, mm, 0, 0))
-    return utc.toISOString()
+    // Use UTC parts for the calendar date (to preserve the selected date),
+    // but construct a LOCAL date/time with the entered hours/minutes.
+    const local = new Date(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate(), hh, mm, 0, 0)
+    return local.toISOString()
   }
 
   // Extract YYYY-MM-DD from an ISO string (or return the date if already in that format)
@@ -216,8 +221,9 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
       // Attendance date: prefer platform param if present (already ISO), else form value
       const attendanceDateISO = toUtcMidnightIso(platformParams.attendanceDateISO || date)
 
-      const startTimeISO = combineDateAndTime(attendanceDateISO, clockIn)
-      const endTimeISO = combineDateAndTime(attendanceDateISO, clockOut)
+      // Interpret HH:MM as LOCAL time and convert to UTC for payload
+      const startTimeISO = combineDateAndTimeLocalToUtc(attendanceDateISO, clockIn)
+      const endTimeISO = combineDateAndTimeLocalToUtc(attendanceDateISO, clockOut)
 
       const nowIso = new Date().toISOString()
 
