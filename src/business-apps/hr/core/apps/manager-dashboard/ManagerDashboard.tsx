@@ -8,9 +8,6 @@ import { useTeamBirthdays } from './hooks/useTeamBirthdays'
 import { useTeamAnniversaries } from './hooks/useTeamAnniversaries'
 import { useOpenJobPositions } from './hooks/useOpenJobPositions'
 import { useCurrentUserProfile } from './hooks/useCurrentUserProfile'
-import { useExpensesApprovals } from './hooks/useExpensesApprovals'
-import { useAbsencesApprovals } from './hooks/useAbsencesApprovals'
-import { usePersonalDataApprovals } from './hooks/usePersonalDataApprovals'
 import { useTeamAvailability } from './hooks/useTeamAvailability'
 import { useTeamProjectAllocation } from './hooks/useTeamProjectAllocation'
 import { useTeamPerformance } from './hooks/useTeamPerformance'
@@ -53,19 +50,16 @@ import {
   UsersIcon,
   CaretRightIcon,
   CaretLeftIcon,
-  CheckCircleIcon,
   CakeIcon,
   TrophyIcon,
   EnvelopeSimpleOpenIcon,
   Sparkle
 } from '@phosphor-icons/react'
-import RequestsToApproveTable from './components/RequestsToApproveTable'
 import MyTeammatesTable from './components/MyTeammatesTable'
 
-type ApprovalTab = 'expenses' | 'absences' | 'personal-changes'
 type TeamTab = 'my-team' | 'my-teams'
 type InsightsTab = 'birthdays' | 'anniversaries' | 'open-positions'
-type CurrentView = 'dashboard' | 'teammates' | 'filtered-teammates' | 'approvals' | 'insights' | 'team-performance' | 'not-clocked-in'
+type CurrentView = 'dashboard' | 'teammates' | 'filtered-teammates' | 'insights' | 'team-performance' | 'not-clocked-in'
 
 /**
  * Manager Dashboard
@@ -79,9 +73,6 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
 
   // State for team insights tabs
   const [activeInsightsTab, setActiveInsightsTab] = useState<InsightsTab>('birthdays')
-
-  // State for approval tabs
-  const [activeApprovalTab, setActiveApprovalTab] = useState<ApprovalTab>('expenses')
 
   // State for current view (dashboard or detailed pages)
   const [currentView, setCurrentView] = useState<CurrentView>('dashboard')
@@ -122,10 +113,6 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
 
   const handleNavigateToNotClockedIn = () => {
     setCurrentView('not-clocked-in')
-  }
-
-  const handleNavigateToApprovals = () => {
-    setCurrentView('approvals')
   }
 
   const handleNavigateToInsights = (tab?: InsightsTab) => {
@@ -283,85 +270,6 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
     managerId: employeeId || ''
   })
 
-  // Memoize directReports to prevent infinite loops
-  const memoizedDirectReports = useMemo(() => {
-    return (directReports || []).map(employee => ({
-      userId: employee.userId,
-      displayName: employee.displayName,
-      pictureThumbnail: employee.pictureThumbnail
-    }))
-  }, [directReports])
-
-  // Fetch all requests (we'll slice them in the component based on showAll)
-  // New hooks for each tab
-  const {
-    expenseApprovals,
-    totalCount: expenseApprovalsCount,
-    isLoading: loadingExpenseApprovals,
-    error: expenseApprovalsError,
-    refetch: refetchExpenseApprovals
-  } = useExpensesApprovals({
-    accessToken: accessToken || '',
-    directReports: memoizedDirectReports
-  })
-
-  const {
-    absenceApprovals,
-    totalCount: absenceApprovalsCount,
-    isLoading: loadingAbsenceApprovals,
-    error: absenceApprovalsError,
-    refetch: refetchAbsenceApprovals
-  } = useAbsencesApprovals({
-    accessToken: accessToken || '',
-    directReports: memoizedDirectReports
-  })
-
-  // Simple tab change handler
-  const handleApprovalTabChange = (tab: ApprovalTab) => {
-    setActiveApprovalTab(tab)
-  }
-
-  const {
-    personalDataApprovals,
-    totalCount: personalDataApprovalsCount,
-    isLoading: loadingPersonalDataApprovals,
-    error: personalDataApprovalsError,
-    refetch: refetchPersonalDataApprovals
-  } = usePersonalDataApprovals({
-    accessToken: accessToken || '',
-    directReports: memoizedDirectReports
-  })
-
-  const personalChangesCount = useMemo(() => {
-    return personalDataApprovalsCount // Show actual total count
-  }, [personalDataApprovalsCount])
-
-  // Combined loading and error states - only show loading for active tab
-  const isLoadingApprovals = useMemo(() => {
-    if (activeApprovalTab === 'expenses') {
-      return loadingExpenseApprovals
-    } else if (activeApprovalTab === 'absences') {
-      return loadingAbsenceApprovals
-    } else if (activeApprovalTab === 'personal-changes') {
-      return loadingPersonalDataApprovals
-    }
-    return false
-  }, [activeApprovalTab, loadingExpenseApprovals, loadingAbsenceApprovals, loadingPersonalDataApprovals])
-
-  const hasApprovalsError = useMemo(() => {
-    if (activeApprovalTab === 'expenses') {
-      return expenseApprovalsError
-    } else if (activeApprovalTab === 'absences') {
-      return absenceApprovalsError
-    } else if (activeApprovalTab === 'personal-changes') {
-      return personalDataApprovalsError
-    }
-    return false
-  }, [activeApprovalTab, expenseApprovalsError, absenceApprovalsError, personalDataApprovalsError])
-
-  // Combined expense count (requests + plans)
-  const combinedExpenseCount = expenseApprovalsCount
-
   // Calculate sick leaves and on-leave stats from directReports
   // Sick leave is detected by parentEntryId containing 'HEALTH' (e.g., 'AbsenceGroup:v1:HEALTH')
   // or by type name containing 'sick' (fallback)
@@ -518,38 +426,6 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
                   </ul>
                 ) : (
                   <ul className="gba:space-y-1.5">
-                    {absenceApprovalsCount > 0 && (
-                      <li className="gba:flex gba:items-start gba:gap-2">
-                        <span className="gba:mt-1.5 gba:h-2 gba:w-2 gba:rounded-full gba:flex-shrink-0 gba:bg-destructive" />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setActiveApprovalTab('absences')
-                            handleNavigateToApprovals()
-                          }}
-                          className="gba:text-sm gba:text-primary gba:cursor-pointer gba:bg-transparent gba:border-0 gba:p-0 gba:text-left gba:inline-flex gba:items-center gba:gap-1 gba:rounded gba:px-1 gba:-mx-1 hover:gba:bg-muted/50 gba:transition-colors"
-                        >
-                          {`${absenceApprovalsCount} absence ${absenceApprovalsCount === 1 ? 'request' : 'requests'} pending approval`}
-                          <CaretRightIcon size={14} className="gba:flex-shrink-0" />
-                        </button>
-                      </li>
-                    )}
-                    {combinedExpenseCount > 0 && (
-                      <li className="gba:flex gba:items-start gba:gap-2">
-                        <span className="gba:mt-1.5 gba:h-2 gba:w-2 gba:rounded-full gba:flex-shrink-0 gba:bg-warning" />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setActiveApprovalTab('expenses')
-                            handleNavigateToApprovals()
-                          }}
-                          className="gba:text-sm gba:text-primary gba:cursor-pointer gba:bg-transparent gba:border-0 gba:p-0 gba:text-left gba:inline-flex gba:items-center gba:gap-1 gba:rounded gba:px-1 gba:-mx-1 hover:gba:bg-muted/50 gba:transition-colors"
-                        >
-                          {`${combinedExpenseCount} expense ${combinedExpenseCount === 1 ? 'request' : 'requests'} pending approval`}
-                          <CaretRightIcon size={14} className="gba:flex-shrink-0" />
-                        </button>
-                      </li>
-                    )}
                     <li className="gba:flex gba:items-start gba:gap-2">
                       <span
                         className={`gba:mt-1.5 gba:h-2 gba:w-2 gba:rounded-full gba:flex-shrink-0 ${onLeaveCount > 0 ? 'gba:bg-warning' : 'gba:bg-success'}`}
@@ -666,19 +542,6 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
                         </button>
                       </li>
                     )}
-                    {absenceApprovalsCount === 0 &&
-                      combinedExpenseCount === 0 &&
-                      upcomingAnniversaries.length === 0 && (
-                        <li className="gba:flex gba:items-start gba:gap-2">
-                          <span className="gba:mt-1.5 gba:h-2 gba:w-2 gba:rounded-full gba:flex-shrink-0 gba:bg-success" />
-                          <span className="gba:text-sm gba:text-foreground">
-                            {getTranslationFromI18nKeyAndLabel(
-                              'master-data:hr.manager_dashboard.all_caught_up',
-                              'All caught up! No pending approvals.'
-                            )}
-                          </span>
-                        </li>
-                      )}
                   </ul>
                 )}
               </div>
@@ -810,83 +673,6 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
       >
         {/* Left Column - 2/3 width */}
         <div className="gba:lg:col-span-2 gba:space-y-6">
-          {/* Requests Card - Summary View */}
-          <Card data-testid="manager-dashboard-requests-summary-card">
-            <CardHeader>
-              <CardTitle className="gba:text-base gba:font-semibold">
-                {getTranslationFromI18nKeyAndLabel(
-                  'master-data:hr.manager_dashboard.pending_requests',
-                  'Pending Requests'
-                )}
-              </CardTitle>
-              <CardAction>
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={handleNavigateToApprovals}
-                  data-testid="manager-dashboard-review-all-button"
-                >
-                  {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.review_all', 'Review All')}
-                </Button>
-              </CardAction>
-            </CardHeader>
-            <CardContent>
-              {isLoadingApprovals ? (
-                <div className="gba:h-6 gba:bg-muted gba:rounded gba:animate-pulse" />
-              ) : (
-                <div className="gba:space-y-2">
-                  <p className="gba:text-sm gba:text-foreground">
-                    {combinedExpenseCount + absenceApprovalsCount + personalChangesCount > 0
-                      ? `${combinedExpenseCount + absenceApprovalsCount + personalChangesCount} ${getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.approvals_pending', 'approvals pending')}`
-                      : getTranslationFromI18nKeyAndLabel(
-                          'master-data:hr.manager_dashboard.no_pending_approvals',
-                          'No pending approvals'
-                        )}
-                  </p>
-                  {combinedExpenseCount > 0 && (
-                    <p className="gba:text-xs gba:text-muted-foreground">
-                      • {combinedExpenseCount}{' '}
-                      {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:modify_expense_request.expense_items_sum',
-                        'expense'
-                      )}{' '}
-                      {getTranslationFromI18nKeyAndLabel(
-                        'master-data:hr.manager_dashboard.requests',
-                        'requests'
-                      ).toLowerCase()}
-                    </p>
-                  )}
-                  {absenceApprovalsCount > 0 && (
-                    <p className="gba:text-xs gba:text-muted-foreground">
-                      • {absenceApprovalsCount}{' '}
-                      {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:absence_management_hub_manager.absence_list_screen.title',
-                        'absence'
-                      )}{' '}
-                      {getTranslationFromI18nKeyAndLabel(
-                        'master-data:hr.manager_dashboard.requests',
-                        'requests'
-                      ).toLowerCase()}
-                    </p>
-                  )}
-                  {personalChangesCount > 0 && (
-                    <p className="gba:text-xs gba:text-muted-foreground">
-                      • {personalChangesCount}{' '}
-                      {getTranslationFromI18nKeyAndLabel(
-                        'master-data:hr.manager_dashboard.personal_changes',
-                        'personal'
-                      )}{' '}
-                      {getTranslationFromI18nKeyAndLabel(
-                        'master-data:hr.manager_dashboard.requests',
-                        'requests'
-                      ).toLowerCase()}
-                    </p>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
           {/* Team Availability & Project Allocation Row */}
           <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4">
             {/* Team Availability Card - Clickable to see absent members */}
@@ -1801,111 +1587,6 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
             </Table>
           </div>
         )}
-      </div>
-    )
-  }
-
-  if (currentView === 'approvals') {
-    // Use data from new hooks based on active tab
-    const expenseRequests = activeApprovalTab === 'expenses' ? expenseApprovals : []
-    const leaveRequests = activeApprovalTab === 'absences' ? absenceApprovals : []
-    const personalChanges = activeApprovalTab === 'personal-changes' ? personalDataApprovals : []
-
-    return (
-      <div className="gba:p-6 gba:h-full gba:flex gba:flex-col">
-        <div className="gba:flex gba:items-center gba:justify-between gba:mb-6">
-          <div className="gba:flex gba:items-center">
-            <Button variant="ghost" size="sm" onClick={handleNavigateBackToDashboard} className="gba:mr-4">
-              <CaretLeftIcon size={16} className="gba:mr-1" />
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:absence_management_hub_backoffice.absence_details.back_to_dashboard',
-                'Back to Dashboard'
-              )}
-            </Button>
-            <h1 className="gba:text-xl gba:font-semibold">
-              {getTranslationFromI18nKeyAndLabel(
-                'master-data:hr.manager_dashboard.requests_to_approve',
-                'Requests to Approve'
-              )}
-            </h1>
-            <Badge variant="info" className="gba:ml-3">
-              {`${expenseApprovalsCount + absenceApprovalsCount + personalDataApprovalsCount} ${getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.total_requests', 'total requests').toLowerCase()}`}
-            </Badge>
-          </div>
-        </div>
-
-        {/* Loading State */}
-        {isLoadingApprovals && (
-          <div className="gba:text-center gba:py-12">
-            <div className="gba:flex gba:items-center gba:justify-center gba:text-neutral-500">
-              <span className="gba:mr-2 gba:animate-spin">⏳</span>{' '}
-              {getTranslationFromI18nKeyAndLabel(
-                'master-data:hr.manager_dashboard.status.loading_approval_requests',
-                'Loading approval requests...'
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Error State */}
-        {hasApprovalsError && (
-          <div className="gba:text-center gba:py-12">
-            <div className="gba:text-destructive-600 gba:mb-4">
-              {getTranslationFromI18nKeyAndLabel(
-                'master-data:hr.manager_dashboard.status.failed_load_requests',
-                'Failed to load approval requests'
-              )}
-            </div>
-            <Button onClick={() => globalThis.location.reload()} variant="outline">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.try_again', 'Try Again')}
-            </Button>
-          </div>
-        )}
-
-        {/* Empty State */}
-        {expenseApprovals.length === 0 &&
-          absenceApprovals.length === 0 &&
-          personalDataApprovals.length === 0 &&
-          !isLoadingApprovals &&
-          !hasApprovalsError && (
-            <div className="gba:text-center gba:py-12">
-              <CheckCircleIcon className="gba:h-12 gba:w-12 gba:text-success-300 gba:mx-auto gba:mb-4" />
-              <h3 className="gba:text-lg gba:font-medium gba:text-neutral-900 gba:mb-2">
-                {`${getTranslationFromI18nKeyAndLabel(
-                  'master-data:hr.manager_dashboard.status.all_caught_up',
-                  'All caught up'
-                )}!`}
-              </h3>
-              <p className="gba:text-neutral-500">
-                {getTranslationFromI18nKeyAndLabel(
-                  'master-data:hr.manager_dashboard.status.no_pending_requests',
-                  'There are no pending approval requests at the moment.'
-                )}
-              </p>
-            </div>
-          )}
-
-        {/* Tabs for Detailed Approval View */}
-        {!isLoadingApprovals &&
-          !hasApprovalsError &&
-          (expenseApprovals.length > 0 || absenceApprovals.length > 0 || personalDataApprovals.length > 0) && (
-            <RequestsToApproveTable
-              activeApprovalTab={activeApprovalTab}
-              setActiveApprovalTab={handleApprovalTabChange}
-              allExpenseCount={combinedExpenseCount}
-              allAbsenceCount={absenceApprovalsCount}
-              allPersonalChangesCount={personalChangesCount}
-              expenseRequests={expenseRequests}
-              leaveRequests={leaveRequests}
-              allPersonalChanges={personalChanges}
-              accessToken={accessToken || ''}
-              userId={userInfo?.id}
-              refetchAbsences={refetchAbsenceApprovals}
-              refetchPersonalData={refetchPersonalDataApprovals}
-              refetchExpenses={refetchExpenseApprovals}
-              employeeId={employeeId}
-            />
-          )}
       </div>
     )
   }
