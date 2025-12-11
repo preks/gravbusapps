@@ -75,6 +75,10 @@ const OfficeUsage: React.FC<OfficeUsageProps> = ({ accessToken, prefixDataTestId
     setActiveTab('live-presence')
   }
 
+  const handleClearLivePresenceLocation = () => {
+    setSelectedLocationFilter(undefined)
+  }
+
   // Check if we have access token
   if (!accessToken) {
     return (
@@ -186,6 +190,7 @@ const OfficeUsage: React.FC<OfficeUsageProps> = ({ accessToken, prefixDataTestId
             onRefresh={fetchPresence}
             onRetry={fetchPresence}
             selectedLocationFilter={selectedLocationFilter}
+            onClearLocationFilter={handleClearLivePresenceLocation}
             prefixDataTestId={`${prefixDataTestId}-live-presence`}
           />
         </TabsContent>

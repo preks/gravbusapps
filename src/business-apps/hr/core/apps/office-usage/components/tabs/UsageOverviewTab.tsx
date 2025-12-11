@@ -41,6 +41,20 @@ export const UsageOverviewTab: React.FC<UsageOverviewTabProps> = ({
   const { kpis, locationUsageCards } = useUsageOverviewData(attendance, locations, filters.granularity)
   const locationDetail = useLocationDetail(selectedLocationId, attendance, locations)
 
+  // Apply optional location filter for the chart (graph-only as requested)
+  const selectedLocationIdForChart = filters.selectedLocations?.[0]
+  const filteredAttendanceForChart =
+    selectedLocationIdForChart && selectedLocationIdForChart.length > 0
+      ? attendance.filter(a => a.siteLocationId === selectedLocationIdForChart)
+      : attendance
+  const filteredLocationsForChart =
+    selectedLocationIdForChart && selectedLocationIdForChart.length > 0
+      ? locations.filter(l => l.siteLocationId === selectedLocationIdForChart)
+      : locations
+  const selectedLocationForLabel = selectedLocationIdForChart
+    ? locations.find(l => l.siteLocationId === selectedLocationIdForChart)
+    : undefined
+
   const handleLocationClick = (locationId: string) => {
     setSelectedLocationId(locationId)
   }
@@ -103,7 +117,10 @@ export const UsageOverviewTab: React.FC<UsageOverviewTabProps> = ({
         </p>
       </div>
 
-      {/* Filters under header and subtitle */}
+      {/* KPI Cards */}
+      <KpiCards kpis={kpis} prefixDataTestId={`${prefixDataTestId}-kpis`} />
+
+      {/* Filters under KPI cards */}
       <OfficeUsageFilterBar
         filters={filters}
         onFiltersChange={onFiltersChange}
@@ -111,9 +128,6 @@ export const UsageOverviewTab: React.FC<UsageOverviewTabProps> = ({
         isLoading={filtersLoading}
         prefixDataTestId={`${prefixDataTestId}-filter-bar`}
       />
-
-      {/* KPI Cards */}
-      <KpiCards kpis={kpis} prefixDataTestId={`${prefixDataTestId}-kpis`} />
 
       {/* Capacity vs Usage Chart */}
       <div className="gba:mb-6 gba:bg-card gba:rounded-lg gba:border gba:border-border gba:p-6">
@@ -123,16 +137,22 @@ export const UsageOverviewTab: React.FC<UsageOverviewTabProps> = ({
           </h3>
           <p className="gba:text-sm gba:text-muted-foreground">
             —{' '}
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:office_usage.all_locations_combined',
-              'All locations combined'
-            )}
+            {selectedLocationForLabel
+              ? `${selectedLocationForLabel.name}${
+                  selectedLocationForLabel.locality ? ` (${selectedLocationForLabel.locality})` : ''
+                }`
+              : getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:office_usage.all_locations_combined',
+                  'All locations combined'
+                )}
           </p>
         </div>
         <CapacityUsageChart
-          attendance={attendance}
-          locations={locations}
+          attendance={filteredAttendanceForChart}
+          locations={filteredLocationsForChart}
           granularity={filters.granularity}
+          dateFrom={filters.dateFrom}
+          dateTo={filters.dateTo}
           prefixDataTestId={`${prefixDataTestId}-chart`}
         />
       </div>
