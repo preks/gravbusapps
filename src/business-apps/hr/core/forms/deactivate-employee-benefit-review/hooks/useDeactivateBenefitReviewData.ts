@@ -1,5 +1,6 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import {
   GET_EMPLOYEE_NAME,
   GET_INITIATOR_EMPLOYEE_NAME,
@@ -8,7 +9,6 @@ import {
 } from '../DeactivateEmployeeBenefitReviewQueries'
 import { buildBenefitDisplayItems, buildDeactivationDetails } from '../buildRows'
 import type { DeactivateBenefitReviewPayload, BenefitDisplayItem, DeactivationDetails } from '../types'
-import { useGraphQLFetch } from './useGraphQLFetch'
 
 interface CatalogEntry {
   id: string
@@ -54,11 +54,15 @@ export const useDeactivateBenefitReviewData = ({
   userInfo,
   t
 }: UseDeactivateBenefitReviewDataParams): UseDeactivateBenefitReviewDataReturn => {
+  const graphqlClient = useGraphQLClient(accessToken)
   const [employeeName, setEmployeeName] = useState<string>('')
   const [initiatorName, setInitiatorName] = useState<string>('')
   const [benefitTypeEntry, setBenefitTypeEntry] = useState<CatalogEntry | null>(null)
   const [providerEntry, setProviderEntry] = useState<CatalogEntry | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [isLoadingEmployee, setIsLoadingEmployee] = useState(false)
+  const [isLoadingBenefitType, setIsLoadingBenefitType] = useState(false)
+  const [isLoadingProvider, setIsLoadingProvider] = useState(false)
   const [employee, setEmployee] = useState<
     | {
         firstName?: string
@@ -88,93 +92,157 @@ export const useDeactivateBenefitReviewData = ({
   const initiatorEmployeeId: string | undefined = useMemo(() => payload?.initiatorEmployeeId, [payload])
 
   // Fetch affected employee name
-  const handleEmployeeSuccess = useCallback(
-    (result: {
-      employee: { firstName: string; lastName: string; pictureThumbnail?: string }
-      EmployeePosition?: Array<{ jobPosition?: { name?: string } }>
-    }) => {
-      const emp = result?.employee
-      if (emp) {
-        setEmployeeName(`${emp.firstName || ''} ${emp.lastName || ''}`.trim())
-        setEmployee({
-          firstName: emp.firstName,
-          lastName: emp.lastName,
-          pictureThumbnail: emp.pictureThumbnail,
-          jobTitle: result?.EmployeePosition?.[0]?.jobPosition?.name
-        })
+  useEffect(() => {
+    let cancelled = false
+
+    const fetchEmployeeData = async () => {
+      if (!accessToken || !employeeIdFromPayload) {
+        return
       }
-    },
-    []
-  )
 
-  const handleEmployeeError = useCallback(() => {
-    setError('Failed to load employee data')
-  }, [])
+      setIsLoadingEmployee(true)
+      setError(null)
 
-  const employeeVariables = useMemo(() => ({ employeeId: employeeIdFromPayload }), [employeeIdFromPayload])
+      try {
+        const result = await graphqlClient.request<{
+          employee: { firstName: string; lastName: string; pictureThumbnail?: string }
+          EmployeePosition?: Array<{ jobPosition?: { name?: string } }>
+        }>(GET_EMPLOYEE_NAME, { employeeId: employeeIdFromPayload })
 
-  const { isLoading: isLoadingEmployee, error: employeeError } = useGraphQLFetch({
-    accessToken,
-    query: GET_EMPLOYEE_NAME,
-    variables: employeeVariables,
-    enabled: !!employeeIdFromPayload,
-    onSuccess: handleEmployeeSuccess,
-    onError: handleEmployeeError
-  })
+        if (cancelled) return
+
+        const emp = result?.employee
+        if (emp) {
+          setEmployeeName(`${emp.firstName || ''} ${emp.lastName || ''}`.trim())
+          setEmployee({
+            firstName: emp.firstName,
+            lastName: emp.lastName,
+            pictureThumbnail: emp.pictureThumbnail,
+            jobTitle: result?.EmployeePosition?.[0]?.jobPosition?.name
+          })
+        }
+      } catch {
+        if (cancelled) return
+        setError('Failed to load employee data')
+      } finally {
+        if (!cancelled) {
+          setIsLoadingEmployee(false)
+        }
+      }
+    }
+
+    fetchEmployeeData()
+
+    return () => {
+      cancelled = true
+    }
+  }, [accessToken, employeeIdFromPayload])
 
   // Fetch initiator employee name (employee who requested deactivation)
-  const handleInitiatorSuccess = useCallback((result: { initiator: { firstName: string; lastName: string } }) => {
-    const initiator = result?.initiator
-    if (initiator) {
-      setInitiatorName(`${initiator.firstName || ''} ${initiator.lastName || ''}`.trim())
+  useEffect(() => {
+    let cancelled = false
+
+    const fetchInitiatorData = async () => {
+      if (!initiatorEmployeeId) {
+        return
+      }
+
+      try {
+        const result = await graphqlClient.request<{ initiator: { firstName: string; lastName: string } }>(
+          GET_INITIATOR_EMPLOYEE_NAME,
+          { initiatorEmployeeId }
+        )
+
+        if (cancelled) return
+
+        const initiator = result?.initiator
+        if (initiator) {
+          setInitiatorName(`${initiator.firstName || ''} ${initiator.lastName || ''}`.trim())
+        }
+      } catch {
+        if (cancelled) return
+        // Silently fail for initiator - not critical
+      }
     }
-  }, [])
 
-  const initiatorVariables = useMemo(() => ({ initiatorEmployeeId }), [initiatorEmployeeId])
+    fetchInitiatorData()
 
-  useGraphQLFetch({
-    accessToken,
-    query: GET_INITIATOR_EMPLOYEE_NAME,
-    variables: initiatorVariables,
-    enabled: !!initiatorEmployeeId,
-    onSuccess: handleInitiatorSuccess
-  })
+    return () => {
+      cancelled = true
+    }
+  }, [initiatorEmployeeId])
 
   // Fetch benefit type catalog entry
-  const handleBenefitTypeSuccess = useCallback((result: { CatalogEntry: CatalogEntry[] }) => {
-    setBenefitTypeEntry(result?.CatalogEntry?.[0] || null)
-  }, [])
+  useEffect(() => {
+    let cancelled = false
 
-  const benefitTypeVariables = useMemo(
-    () => ({ benefitTypeRef: benefitData?.benefitTypeRef }),
-    [benefitData?.benefitTypeRef]
-  )
+    const fetchBenefitTypeData = async () => {
+      if (!accessToken || !benefitData?.benefitTypeRef) {
+        return
+      }
 
-  useGraphQLFetch({
-    accessToken,
-    query: BENEFIT_TYPE_CATALOG_QUERY,
-    variables: benefitTypeVariables,
-    enabled: !!benefitData?.benefitTypeRef,
-    onSuccess: handleBenefitTypeSuccess
-  })
+      setIsLoadingBenefitType(true)
+
+      try {
+        const result = await graphqlClient.request<{ CatalogEntry: CatalogEntry[] }>(BENEFIT_TYPE_CATALOG_QUERY, {
+          benefitTypeRef: benefitData.benefitTypeRef
+        })
+
+        if (cancelled) return
+
+        setBenefitTypeEntry(result?.CatalogEntry?.[0] || null)
+      } catch {
+        if (cancelled) return
+        // Silently fail for catalog - not critical
+      } finally {
+        if (!cancelled) {
+          setIsLoadingBenefitType(false)
+        }
+      }
+    }
+
+    fetchBenefitTypeData()
+
+    return () => {
+      cancelled = true
+    }
+  }, [accessToken, benefitData?.benefitTypeRef])
 
   // Fetch provider catalog entry
-  const handleProviderSuccess = useCallback((result: { CatalogEntry: CatalogEntry[] }) => {
-    setProviderEntry(result?.CatalogEntry?.[0] || null)
-  }, [])
+  useEffect(() => {
+    let cancelled = false
 
-  const providerVariables = useMemo(
-    () => ({ benefitProviderRef: benefitData?.benefitProviderRef }),
-    [benefitData?.benefitProviderRef]
-  )
+    const fetchProviderData = async () => {
+      if (!accessToken || !benefitData?.benefitProviderRef) {
+        return
+      }
 
-  useGraphQLFetch({
-    accessToken,
-    query: BENEFIT_PROVIDER_CATALOG_QUERY,
-    variables: providerVariables,
-    enabled: !!benefitData?.benefitProviderRef,
-    onSuccess: handleProviderSuccess
-  })
+      setIsLoadingProvider(true)
+
+      try {
+        const result = await graphqlClient.request<{ CatalogEntry: CatalogEntry[] }>(BENEFIT_PROVIDER_CATALOG_QUERY, {
+          benefitProviderRef: benefitData.benefitProviderRef
+        })
+
+        if (cancelled) return
+
+        setProviderEntry(result?.CatalogEntry?.[0] || null)
+      } catch {
+        if (cancelled) return
+        // Silently fail for catalog - not critical
+      } finally {
+        if (!cancelled) {
+          setIsLoadingProvider(false)
+        }
+      }
+    }
+
+    fetchProviderData()
+
+    return () => {
+      cancelled = true
+    }
+  }, [accessToken, benefitData?.benefitProviderRef])
 
   // Build benefit display items
   const displayItems = useMemo(() => {
@@ -203,7 +271,7 @@ export const useDeactivateBenefitReviewData = ({
     displayItems,
     deactivationDetails,
     employee,
-    isLoading: isLoadingEmployee,
-    error: error || (employeeError ? 'Failed to load employee data' : null)
+    isLoading: isLoadingEmployee || isLoadingBenefitType || isLoadingProvider,
+    error
   }
 }
