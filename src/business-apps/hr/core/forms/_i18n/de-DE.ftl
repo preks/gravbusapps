@@ -140,3 +140,25 @@ grant-bonus-review-description = Beschreibung
 grant-bonus-review-notes = Notizen
 grant-bonus-review-acknowledge = Bestätigen
 grant-bonus-review-reject = Ablehnen
+
+# Deactivate Employee Benefit Review Form
+deactivate-benefit-review-title = Benefit-Deaktivierungsanfrage für { $employeeName }
+deactivate-benefit-review-requested-by = Angefordert von { $initiatorName }
+deactivate-benefit-review-loading = Lade Benefit-Deaktivierungsanfrage...
+deactivate-benefit-review-error-title = Daten können nicht geladen werden
+deactivate-benefit-review-error-description = Fehler beim Laden der Benefit-Deaktivierungsanfrage
+deactivate-benefit-review-benefit-details = Benefit-Details
+deactivate-benefit-review-deactivation-details = Deaktivierungsanfrage
+deactivate-benefit-review-approve = Deaktivierung genehmigen
+deactivate-benefit-review-reject = Ablehnen
+deactivate-benefit-review-benefit-type = Benefit-Art
+deactivate-benefit-review-provider = Anbieter
+deactivate-benefit-review-yearly-value = Jahreswert
+deactivate-benefit-review-monthly-value = Monatswert
+deactivate-benefit-review-period = Zeitraum
+deactivate-benefit-review-start-date = Startdatum
+deactivate-benefit-review-employee-yearly-contribution = Mitarbeiter-Jahresbeitrag
+deactivate-benefit-review-employee-monthly-contribution = Mitarbeiter-Monatsbeitrag
+deactivate-benefit-review-employee-contributions = Mitarbeiterbeiträge
+deactivate-benefit-review-end-date = Angefordertes Enddatum
+deactivate-benefit-review-reason = Grund für Deaktivierung

@@ -140,3 +140,25 @@ grant-bonus-review-description = Descriere
 grant-bonus-review-notes = Note
 grant-bonus-review-acknowledge = Confirmă
 grant-bonus-review-reject = Respinge
+
+# Deactivate Employee Benefit Review Form
+deactivate-benefit-review-title = Cerere dezactivare beneficiu pentru { $employeeName }
+deactivate-benefit-review-requested-by = Solicitat de { $initiatorName }
+deactivate-benefit-review-loading = Se încarcă cererea de dezactivare beneficiu...
+deactivate-benefit-review-error-title = Imposibil de încărcat datele
+deactivate-benefit-review-error-description = Eroare la încărcarea cererii de dezactivare beneficiu
+deactivate-benefit-review-benefit-details = Detalii beneficiu
+deactivate-benefit-review-deactivation-details = Cerere dezactivare
+deactivate-benefit-review-approve = Aprobă dezactivarea
+deactivate-benefit-review-reject = Respinge
+deactivate-benefit-review-benefit-type = Tip beneficiu
+deactivate-benefit-review-provider = Furnizor
+deactivate-benefit-review-yearly-value = Valoare anuală
+deactivate-benefit-review-monthly-value = Valoare lunară
+deactivate-benefit-review-period = Perioadă
+deactivate-benefit-review-start-date = Dată de început
+deactivate-benefit-review-employee-yearly-contribution = Contribuție anuală angajat
+deactivate-benefit-review-employee-monthly-contribution = Contribuție lunară angajat
+deactivate-benefit-review-employee-contributions = Contribuții angajat
+deactivate-benefit-review-end-date = Dată de încheiere solicitată
+deactivate-benefit-review-reason = Motiv dezactivare
