@@ -51,6 +51,7 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
   )
   const [generatePrompt, setGeneratePrompt] = useState('')
   const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null)
+  const [originalValues, setOriginalValues] = useState<AiResponse | null>(null)
   const buttonRef = React.useRef<HTMLDivElement>(null)
 
   // Debug: Track isPopoverOpen changes
@@ -75,9 +76,11 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
       })
 
       // Use response values if available (for refining), otherwise use props
-      const inputTitle = response?.title || title
-      const inputPreviewText = response?.previewText || previewText
-      const inputContent = response?.content || content
+      const previousResponse = response // Store state response to avoid shadowing
+      const inputTitle = previousResponse?.title || title
+      const inputPreviewText = previousResponse?.previewText || previewText
+      const inputContent = previousResponse?.content || content
+      const isRefining = !!previousResponse // Check if we're refining based on previous response
 
       setActiveAction(actionType)
       setIsLoading(true)
@@ -85,6 +88,15 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
       setPendingOptions(options || null)
       setView('loading') // Switch to loading view
       setSearchQuery('')
+
+      // Store original values for fixSpelling action to show diff
+      if (actionType === 'fixSpelling') {
+        setOriginalValues({
+          title: inputTitle,
+          previewText: inputPreviewText,
+          content: inputContent
+        })
+      }
 
       try {
         // Map UI action types to API action types
@@ -121,47 +133,51 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
 
         const apiAction = actionMap[actionType]
 
-        // Prepare texts array
+        // Prepare texts array - always pass all three fields (title, preview, content)
         const textsToProcess: string[] = []
         const fieldOrder: Array<'title' | 'previewText' | 'content'> = []
 
-        // For generate action, use the prompt if provided
-        if (actionType === 'generate' && options?.prompt) {
-          const prompt = options.prompt
+        // Static prompts used for all actions
+        const TITLE_STATIC_PROMPT = 'Title with 80 character limit:'
+        const PREVIEW_STATIC_PROMPT = 'Abstract with 250 character limit:'
+        const CONTENT_STATIC_PROMPT = 'HTML styled full size article:'
 
-          // Add title generation if title is empty
-          if (!inputTitle.trim()) {
-            textsToProcess.push(`Generate a Title for: ${prompt}`)
-            fieldOrder.push('title')
-          }
+        const prompt = options?.prompt || ''
 
-          // Add preview text generation if previewText is empty
-          if (!inputPreviewText.trim()) {
-            textsToProcess.push(`Generate a short preview text for: ${prompt}`)
-            fieldOrder.push('previewText')
-          }
+        // For generate action (initial)
+        if (actionType === 'generate' && !isRefining) {
+          // Format: <static-prompt>: <prompt>
+          textsToProcess.push(`${TITLE_STATIC_PROMPT} ${prompt}`)
+          fieldOrder.push('title')
 
-          // Always add content generation
-          textsToProcess.push(`Generate a full styled content text for: ${prompt}`)
+          textsToProcess.push(`${PREVIEW_STATIC_PROMPT} ${prompt}`)
+          fieldOrder.push('previewText')
+
+          textsToProcess.push(`${CONTENT_STATIC_PROMPT} ${prompt}`)
           fieldOrder.push('content')
         } else {
-          // For other actions, use existing fields (from response if refining, otherwise from props)
-          if (inputTitle.trim()) {
-            textsToProcess.push(inputTitle)
-            fieldOrder.push('title')
-          }
-          if (inputPreviewText.trim()) {
-            textsToProcess.push(inputPreviewText)
-            fieldOrder.push('previewText')
-          }
-          if (inputContent.trim()) {
-            // Strip HTML tags from content for processing
-            const textContent = inputContent.replace(/<[^>]*>/g, '').trim()
-            if (textContent) {
-              textsToProcess.push(textContent)
-              fieldOrder.push('content')
-            }
-          }
+          // For all other cases (refining generate or any other action)
+          // Format: <static-prompt>: <refinement-prompt>: <text> (or <static-prompt>: <text> if no refinement prompt)
+
+          const titleText = inputTitle.trim() || ''
+          const titlePrompt = prompt
+            ? `${TITLE_STATIC_PROMPT} ${prompt}: ${titleText}`
+            : `${TITLE_STATIC_PROMPT} ${titleText}`
+          textsToProcess.push(titlePrompt)
+          fieldOrder.push('title')
+
+          const previewTextValue = inputPreviewText.trim() || ''
+          const previewPrompt = prompt
+            ? `${PREVIEW_STATIC_PROMPT} ${prompt}: ${previewTextValue}`
+            : `${PREVIEW_STATIC_PROMPT} ${previewTextValue}`
+          textsToProcess.push(previewPrompt)
+          fieldOrder.push('previewText')
+
+          const contentPrompt = prompt
+            ? `${CONTENT_STATIC_PROMPT} ${prompt}: ${inputContent}`
+            : `${CONTENT_STATIC_PROMPT} ${inputContent}`
+          textsToProcess.push(contentPrompt)
+          fieldOrder.push('content')
         }
 
         // If no text to process, show error
@@ -296,6 +312,7 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
     setResponse(null)
     setActiveAction(null)
     setPendingOptions(null)
+    setOriginalValues(null)
     setIsPopoverOpen(false)
   }, [])
 
@@ -330,6 +347,7 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
       setResponse(null)
       setActiveAction(null)
       setPendingOptions(null)
+      setOriginalValues(null)
       setIsPopoverOpen(false)
     }
   }, [response, onTitleChange, onPreviewTextChange, onContentChange])
@@ -421,6 +439,7 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
             setResponse(null)
             setActiveAction(null)
             setPendingOptions(null)
+            setOriginalValues(null)
           }}
           className="gba:h-8 gba:w-8"
           data-testid="ai-response-back-button"
@@ -446,24 +465,100 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
 
         {!isLoading && !error && response && (
           <>
-            {/* Show response content */}
-            {response.title && (
-              <div className="gba:mb-4">
-                <div className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-1">Title</div>
-                <div className="gba:text-sm">{response.title}</div>
-              </div>
-            )}
-            {response.previewText && (
-              <div className="gba:mb-4">
-                <div className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-1">Preview</div>
-                <div className="gba:text-sm">{response.previewText}</div>
-              </div>
-            )}
-            {response.content && (
-              <div className="gba:mb-4">
-                <div className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-1">Content</div>
-                <div className="gba:text-sm" dangerouslySetInnerHTML={{ __html: response.content }} />
-              </div>
+            {/* Show diff view for fixSpelling action */}
+            {activeAction === 'fixSpelling' && originalValues ? (
+              (() => {
+                // Check if there are any differences
+                const titleChanged = (originalValues.title || '').trim() !== (response.title || '').trim()
+                const previewChanged = (originalValues.previewText || '').trim() !== (response.previewText || '').trim()
+                // For content, compare text content (strip HTML for comparison)
+                const originalContentText = (originalValues.content || '').replace(/<[^>]*>/g, '').trim()
+                const responseContentText = (response.content || '').replace(/<[^>]*>/g, '').trim()
+                const contentChanged = originalContentText !== responseContentText
+                const hasChanges = titleChanged || previewChanged || contentChanged
+
+                if (!hasChanges) {
+                  // Show green checkmark if no errors found
+                  return (
+                    <div
+                      className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-12"
+                      data-testid="ai-fix-spelling-no-errors"
+                    >
+                      <div className="gba:rounded-full gba:bg-success gba:p-4 gba:mb-4">
+                        <CheckCircleIcon size={48} weight="fill" className="gba:text-success-foreground" />
+                      </div>
+                      <div className="gba:text-lg gba:font-semibold gba:text-foreground">No errors found</div>
+                    </div>
+                  )
+                }
+
+                // Show diff view
+                return (
+                  <div className="gba:space-y-4" data-testid="ai-fix-spelling-diff">
+                    {titleChanged && (
+                      <div className="gba:mb-4">
+                        <div className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">Title</div>
+                        <div className="gba:space-y-2">
+                          <div className="gba:px-3 gba:py-2 gba:bg-destructive/10 gba:text-destructive gba:rounded gba:text-sm gba:line-through">
+                            {originalValues.title || '-'}
+                          </div>
+                          <div className="gba:px-3 gba:py-2 gba:bg-success/10 gba:text-success gba:rounded gba:text-sm gba:font-medium">
+                            {response.title || '-'}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {previewChanged && (
+                      <div className="gba:mb-4">
+                        <div className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">Preview</div>
+                        <div className="gba:space-y-2">
+                          <div className="gba:px-3 gba:py-2 gba:bg-destructive/10 gba:text-destructive gba:rounded gba:text-sm gba:line-through">
+                            {originalValues.previewText || '-'}
+                          </div>
+                          <div className="gba:px-3 gba:py-2 gba:bg-success/10 gba:text-success gba:rounded gba:text-sm gba:font-medium">
+                            {response.previewText || '-'}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {contentChanged && (
+                      <div className="gba:mb-4">
+                        <div className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">Content</div>
+                        <div className="gba:space-y-2">
+                          <div className="gba:px-3 gba:py-2 gba:bg-destructive/10 gba:text-destructive gba:rounded gba:text-sm gba:line-through">
+                            <div dangerouslySetInnerHTML={{ __html: originalValues.content || '-' }} />
+                          </div>
+                          <div className="gba:px-3 gba:py-2 gba:bg-success/10 gba:text-success gba:rounded gba:text-sm gba:font-medium">
+                            <div dangerouslySetInnerHTML={{ __html: response.content || '-' }} />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })()
+            ) : (
+              <>
+                {/* Show regular response content for other actions */}
+                {response.title && (
+                  <div className="gba:mb-4">
+                    <div className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-1">Title</div>
+                    <div className="gba:text-sm">{response.title}</div>
+                  </div>
+                )}
+                {response.previewText && (
+                  <div className="gba:mb-4">
+                    <div className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-1">Preview</div>
+                    <div className="gba:text-sm">{response.previewText}</div>
+                  </div>
+                )}
+                {response.content && (
+                  <div className="gba:mb-4">
+                    <div className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-1">Content</div>
+                    <div className="gba:text-sm" dangerouslySetInnerHTML={{ __html: response.content }} />
+                  </div>
+                )}
+              </>
             )}
 
             {/* Action Buttons */}

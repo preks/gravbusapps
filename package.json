@@ -36,6 +36,7 @@
     "antd": "^5.26.1",
     "clsx": "^2.1.1",
     "d3": "^7.9.0",
+    "diff": "^8.0.2",
     "emoji-picker-react": "^4.15.0",
     "featurehub-javascript-client-sdk": "^1.4.0",
     "i18next": "^25.2.1",
