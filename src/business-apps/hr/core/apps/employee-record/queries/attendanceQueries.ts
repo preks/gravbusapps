@@ -128,3 +128,29 @@ export const employmentRegionHolidaysQuery = `
     }
   }
 `
+
+/**
+ * Active attendance correction requests for a date range (by employee)
+ */
+export const employeeAttendanceCorrectionsForRangeQuery = `
+  query GetEmployeeAttendanceCorrections(
+    $employeeId: uuid!
+    $dateFrom: date!
+    $dateTo: date!
+  ) {
+    EmployeeAttendanceCorrectionRequest(
+      where: {
+        employeeId: { _eq: $employeeId }
+        recordState: { _eq: "active" }
+        attendanceDate: { _gte: $dateFrom, _lte: $dateTo }
+        status: { _neq: "APPROVED_CORRECTION_REQUEST" }
+      }
+      orderBy: { attendanceDate: ASC }
+    ) {
+      id
+      attendanceDate
+      status
+      recordState
+    }
+  }
+`
