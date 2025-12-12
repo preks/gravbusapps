@@ -217,7 +217,12 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
       return
     }
 
-    console.log('🔊 [TTS] Checking conversation for new responses. Length:', conversation.length, 'lastSpoken:', lastSpokenTurnIndexRef.current)
+    console.log(
+      '🔊 [TTS] Checking conversation for new responses. Length:',
+      conversation.length,
+      'lastSpoken:',
+      lastSpokenTurnIndexRef.current
+    )
 
     // Find the latest agent turn with an answer (don't wait for isLoading to finish)
     for (let i = conversation.length - 1; i > lastSpokenTurnIndexRef.current; i--) {
@@ -235,7 +240,12 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
 
         // Find the answer output
         const answerOutput = turn.outputs?.find((o: OutputItem): o is AnswerOutput => o.type === 'answer')
-        console.log('🔊 [TTS] Answer output:', answerOutput ? 'FOUND' : 'NOT FOUND', 'outputs:', turn.outputs?.map(o => o.type))
+        console.log(
+          '🔊 [TTS] Answer output:',
+          answerOutput ? 'FOUND' : 'NOT FOUND',
+          'outputs:',
+          turn.outputs?.map(o => o.type)
+        )
 
         if (answerOutput?.displayData) {
           // Extract text from display data
@@ -474,7 +484,11 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
                     if (key.toLowerCase().includes('version')) return false
                     if (key === 'changeMode') return false
                     // Skip UUID values (e.g., owner employee IDs)
-                    if (typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) return false
+                    if (
+                      typeof value === 'string' &&
+                      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
+                    )
+                      return false
                     // Skip fields that end with Id or Ref (like ownerEmployeeId)
                     if (key.toLowerCase().endsWith('id') || key.toLowerCase().endsWith('ref')) return false
                     return true
@@ -509,7 +523,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
             title="Open in Fullscreen"
           >
             <ArrowsOut
-              className="gba:h-5 gba:w-5 gba:text-muted-foreground group-hover:gba:text-primary gba:transition-colors"
+              className="gba:h-5 gba:w-5 gba:text-muted-foreground group-hover:gba:text-ai gba:transition-colors"
               weight="regular"
               aria-hidden="true"
             />
@@ -530,13 +544,13 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
           >
             {showRemindersPanel ? (
               <Sparkle
-                className="gba:h-5 gba:w-5 gba:text-muted-foreground group-hover:gba:text-primary gba:transition-colors"
+                className="gba:h-5 gba:w-5 gba:text-muted-foreground group-hover:gba:text-ai gba:transition-colors"
                 weight="regular"
                 aria-hidden="true"
               />
             ) : (
               <Bell
-                className="gba:h-5 gba:w-5 gba:text-muted-foreground group-hover:gba:text-primary gba:transition-colors"
+                className="gba:h-5 gba:w-5 gba:text-muted-foreground group-hover:gba:text-ai gba:transition-colors"
                 weight="regular"
                 aria-hidden="true"
               />
@@ -581,35 +595,25 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
         >
           {conversation.length === 0 && !isLoading ? (
             <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:text-center">
-              {/* Premium welcome screen */}
-              <div className="gba:relative gba:mb-6">
-                <div className="gba:absolute gba:inset-0 gba:bg-gradient-to-br gba:from-primary gba:to-info gba:rounded-full gba:blur-2xl gba:opacity-40 gba:animate-pulse" />
-                <div className="gba:h-24 gba:w-24 gba:bg-gradient-to-br gba:from-primary gba:to-info gba:rounded-full gba:flex gba:items-center gba:justify-center gba:relative gba:shadow-2xl">
-                  <svg
-                    className="gba:h-12 gba:w-12 gba:text-primary-foreground"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
+              {/* Professional welcome screen */}
+              <div className="gba:relative gba:mb-8">
+                <div className="gba:h-20 gba:w-20 gba:bg-gradient-to-br gba:from-ai gba:to-ai-secondary gba:rounded-full gba:flex gba:items-center gba:justify-center gba:relative gba:shadow-lg">
+                  <Sparkle className="gba:h-10 gba:w-10 gba:text-ai-foreground" weight="fill" />
                 </div>
               </div>
 
-              <h2 className="gba:text-3xl gba:font-bold gba:bg-gradient-to-r gba:from-primary gba:via-info gba:to-success gba:bg-clip-text gba:text-transparent gba:mb-3">
-                Welcome to EveryAI
-              </h2>
-              <p className="gba:text-muted-foreground gba:max-w-md gba:text-lg gba:mb-8">
+              <h2 className="gba:text-3xl gba:font-bold gba:text-foreground gba:mb-3">Welcome to EveryAI</h2>
+              <p className="gba:text-muted-foreground gba:max-w-md gba:text-base gba:mb-10">
                 Your intelligent companion for managing tasks, analyzing data, and automating workflows across the
                 entire platform.
               </p>
 
-              {/* Feature highlights with icons - now including Voice */}
+              {/* Feature highlights with icons */}
               <div className="gba:grid gba:grid-cols-4 gba:gap-4 gba:max-w-3xl gba:mb-8">
                 {[
                   {
                     icon: (
-                      <svg className="gba:h-6 gba:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="gba:h-5 gba:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path
                           strokeLinecap="round"
                           strokeLinejoin="round"
@@ -622,7 +626,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
                   },
                   {
                     icon: (
-                      <svg className="gba:h-6 gba:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="gba:h-5 gba:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path
                           strokeLinecap="round"
                           strokeLinejoin="round"
@@ -635,7 +639,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
                   },
                   {
                     icon: (
-                      <svg className="gba:h-6 gba:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="gba:h-5 gba:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path
                           strokeLinecap="round"
                           strokeLinejoin="round"
@@ -648,7 +652,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
                   },
                   {
                     icon: (
-                      <svg className="gba:h-6 gba:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="gba:h-5 gba:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path
                           strokeLinecap="round"
                           strokeLinejoin="round"
@@ -668,19 +672,19 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
                 ].map((feature, idx) => (
                   <div
                     key={idx}
-                    className="gba:flex gba:flex-col gba:items-center gba:gap-3 gba:p-5 gba:rounded-xl gba:bg-card gba:border gba:border-border hover:gba:border-primary gba:transition-all gba:shadow-sm hover:gba:shadow-md gba:group"
+                    className="gba:flex gba:flex-col gba:items-center gba:gap-2.5 gba:p-4 gba:rounded-lg gba:bg-card gba:border gba:border-border hover:gba:border-ai/50 gba:transition-colors"
                   >
-                    <div className="gba:h-12 gba:w-12 gba:rounded-xl gba:bg-gradient-to-br gba:from-primary/10 gba:to-info/10 gba:flex gba:items-center gba:justify-center gba:text-primary group-hover:gba:scale-110 gba:transition-transform">
+                    <div className="gba:h-10 gba:w-10 gba:rounded-lg gba:bg-muted gba:flex gba:items-center gba:justify-center gba:text-muted-foreground">
                       {feature.icon}
                     </div>
-                    <span className="gba:text-sm gba:font-semibold gba:text-foreground">{feature.label}</span>
+                    <span className="gba:text-sm gba:font-medium gba:text-foreground">{feature.label}</span>
                   </div>
                 ))}
               </div>
 
-              <p className="gba:text-xs gba:text-muted-foreground gba:opacity-75">
+              <p className="gba:text-sm gba:text-muted-foreground">
                 Type a message, click a suggestion, or use{' '}
-                <span className="gba:font-semibold gba:text-primary">Voice Mode</span> to speak
+                <span className="gba:font-medium gba:text-foreground">Voice Mode</span> to speak
               </p>
             </div>
           ) : (

@@ -8,7 +8,6 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { TaskListLayout } from './components/TaskListLayout'
 import { TaskStatisticsLayout } from './components/TaskStatisticsLayout'
-import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import type { Task, TaskReference } from '@/common/data/relations/types/taskTypes'
 import { TaskDetailSheet } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
@@ -16,6 +15,7 @@ import { deriveSortableColumns } from '@/common/network/graphql/descriptorUtils'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import { useFilterGroups } from '@/common/data/common/hooks/useFilterGroups'
 import { buildDynamicFilterConfig } from './utils/filterHelpers'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 
 export type TaskTabKey = 'my' | 'team'
 
@@ -74,8 +74,6 @@ export interface TaskViewConfig<TTask extends Task = Task, TQueryVariables = any
     error: Error | null
     refetch: () => void
   }
-
-  processCompletionEvents?: string[]
 
   rowActionsContextArray: FlowContextName[]
   buildRowActionsExternalContextData: (row: { original: TTask }) => Record<string, string>
@@ -300,35 +298,11 @@ function ConfigTaskLayout<TTask extends Task = Task, TQueryVariables = any>(
   const handleProcessComplete = useCallback(() => {
     loadMyTasks(false)
     loadTeamTasks(false)
-  }, [loadMyTasks, loadTeamTasks])
+    // Also refresh statistics when process completes
+    config.taskStatistics?.refetch?.()
+  }, [loadMyTasks, loadTeamTasks, config.taskStatistics?.refetch])
 
   useProcessCompletion({ onSuccess: handleProcessComplete })
-
-  useEffect(() => {
-    const events = config.processCompletionEvents || [
-      'com.newwork.process.taskCompletion',
-      'com.newwork.process.completion',
-      'com.newwork.process.continue',
-      'com.newwork.process.processCompletion',
-      'processCompletion',
-      'taskCompletion',
-      'taskCompleted',
-      'processCompleted',
-      'task-completion',
-      'process-completion'
-    ]
-    const handlers = events.map(eventName => {
-      const handler = () => handleProcessComplete()
-      globalThis.addEventListener(eventName, handler)
-      return { eventName, handler }
-    })
-
-    return () => {
-      for (const { eventName, handler } of handlers) {
-        globalThis.removeEventListener(eventName, handler)
-      }
-    }
-  }, [handleProcessComplete, config.processCompletionEvents])
 
   // Event Handlers (section-aware)
   const handleSearch = useCallback(
@@ -546,6 +520,7 @@ function ConfigTaskLayout<TTask extends Task = Task, TQueryVariables = any>(
         }}
         buildReferenceUrl={config.buildReferenceUrl}
         data-testid={`${dataTestId}-detail-sheet`}
+        businessAppContext={context}
       />
     </div>
   )

@@ -3,7 +3,7 @@ import { Input, Badge, ScrollArea } from '@newwork/nw-design-system'
 import { Search, Loader2 } from 'lucide-react'
 import { TreeNode } from './TreeNode'
 import { TreeNode as TreeNodeType } from '../../types/expressionTree'
-import { searchTreeNodes } from '../../utils/expressionTreeBuilder'
+import { filterTreeNodes } from '../../utils/expressionTreeBuilder'
 
 interface TreeNavigatorProps {
   nodes: TreeNodeType[]
@@ -73,7 +73,7 @@ export const TreeNavigator: React.FC<TreeNavigatorProps> = ({
 
   // Filter nodes based on search query
   const filteredNodes = useMemo(() => {
-    return searchTreeNodes(nodes, searchQuery)
+    return filterTreeNodes(nodes, searchQuery)
   }, [nodes, searchQuery])
 
   // Count total fields

@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { PipelineInfo, DateRange } from '../types/dashboardTypes'
 import { useDashboardQueries } from '../queries/DashboardQueries'
 import { formatCurrency, extractCurrencyCode } from '../utils/dashboardUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { useAvailableCurrencies } from '@/common/data/investment/hooks/useAvailableCurrencies'
+import { useAvailableCurrencies } from '@/common/data/common/hooks/useAvailableCurrencies'
 
 export interface OverviewData {
   aggregatedFunnel: Array<{
@@ -84,6 +84,7 @@ export interface UseOverviewDataReturn {
   isLoading: boolean
   error: string | null
   refetch: () => void
+  setSelectedCurrency: (currency: string) => void
 }
 
 // Note: Currency extraction is now handled by the centralized useAvailableCurrencies hook
@@ -99,13 +100,6 @@ const calculateFunnelData = (filteredOpportunities: any[]) => {
   }
 
   const stageOrder = ['DISCOVERY', 'QUALIFICATION', 'NEGOTIATION', 'CLOSED_WON', 'CLOSED_LOST']
-  const stageColors = [
-    'var(--nw-offline)',
-    'var(--nw-info)',
-    'var(--nw-warning)',
-    'var(--nw-success)',
-    'var(--nw-destructive)'
-  ]
 
   const standardizedStageGroups = new Map<string, { count: number; value: number }>()
   let totalPipelineValue = 0
@@ -139,14 +133,13 @@ const calculateFunnelData = (filteredOpportunities: any[]) => {
 
   const totalOpportunities = filteredOpportunities.length
   const aggregatedFunnel = stageOrder
-    .map((stageCode, index) => {
+    .map(stageCode => {
       const data = standardizedStageGroups.get(stageCode)!
       return {
         stage: stageMapping[stageCode as keyof typeof stageMapping],
         count: data.count,
         value: data.value,
-        percentage: totalOpportunities > 0 ? Math.round((data.count / totalOpportunities) * 100) : 0,
-        color: stageColors[index]
+        percentage: totalOpportunities > 0 ? Math.round((data.count / totalOpportunities) * 100) : 0
       }
     })
     .filter(stage => stage.count > 0)
@@ -257,12 +250,23 @@ const processLeadSourcesWithQuality = (openLeads: any[], allOpportunities: any[]
 export const useOverviewData = (
   context: BusinessAppContextProps,
   pipelines: PipelineInfo[],
-  dateRange: DateRange,
-  selectedCurrency?: string
+  dateRange: DateRange
 ): UseOverviewDataReturn => {
   const [overviewData, setOverviewData] = useState<OverviewData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [selectedCurrency, setSelectedCurrency] = useState<string>('EUR')
+
+  // Store unfiltered data for client-side currency filtering
+  const [allOpportunities, setAllOpportunities] = useState<any[]>([])
+  const [staticData, setStaticData] = useState<{
+    recentRecords: any[]
+    todaysActivities: any[]
+    activeTasks: any[]
+    revenueBySource: any[]
+    totalLeadCount: number
+    availableCurrencies: string[]
+  } | null>(null)
 
   // Use centralized currency hook for investment opportunities
   const { currencies: availableCurrencies } = useAvailableCurrencies(context, {
@@ -317,25 +321,22 @@ export const useOverviewData = (
       ])
 
       // Flatten all opportunities from all pipelines
-      const allOpportunities = opportunityArrays.flat()
+      const opportunities = opportunityArrays.flat()
 
-      // Filter opportunities by currency if specified
-      const filteredOpportunities = selectedCurrency
-        ? allOpportunities.filter((opp: any) => {
-            const oppCurrency = extractCurrencyCode(opp.currencyRef || '')
-            return oppCurrency === selectedCurrency
-          })
-        : allOpportunities
+      // Store unfiltered opportunities for client-side filtering
+      setAllOpportunities(opportunities)
 
-      // Calculate funnel data
-      const { aggregatedFunnel, totalPipelineValue, totalRevenue } = calculateFunnelData(filteredOpportunities)
+      // Auto-select first currency if available and not set
+      if (availableCurrencies.length > 0 && !selectedCurrency) {
+        setSelectedCurrency(availableCurrencies[0])
+      }
 
       // Process lead sources with quality metrics
-      const { revenueBySource, totalLeadCount } = processLeadSourcesWithQuality(openLeads, allOpportunities)
+      const { revenueBySource, totalLeadCount } = processLeadSourcesWithQuality(openLeads, opportunities)
 
-      // Create recent records from opportunities and leads
+      // Create recent records from opportunities and leads (not currency-dependent)
       const recentRecords = [
-        ...allOpportunities.slice(0, 3).map((opp: any) => ({
+        ...opportunities.slice(0, 3).map((opp: any) => ({
           id: opp.id,
           name: opp.name,
           type: 'opportunity' as const,
@@ -349,21 +350,13 @@ export const useOverviewData = (
         }))
       ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
-      // Create key deals from top opportunities
-      const keyDeals = allOpportunities
-        .filter((opp: any) => opp.estimatedAmount > 0)
-        .sort((a: any, b: any) => (b.estimatedAmount || 0) - (a.estimatedAmount || 0))
-        .slice(0, 6)
-        .map((opp: any) => ({
-          id: opp.id,
-          name: opp.name,
-          value: formatCurrency(opp.estimatedAmount, extractCurrencyCode(opp.currencyRef || 'Currency:v1:EUR')),
-          stage: opp.opportunityPipelineStage?.value || opp.salesPipelineStage?.value || opp.stage || 'Unknown',
-          owner: opp.ownerEmployee
-            ? `${opp.ownerEmployee.firstName} ${opp.ownerEmployee.lastName}`.trim()
-            : 'Unassigned',
-          closeDate: opp.closeDate ? new Date(opp.closeDate).toLocaleDateString() : 'TBD'
-        }))
+      // Store static data (not currency-dependent)
+      setStaticData({
+        recentRecords,
+        revenueBySource,
+        totalLeadCount,
+        availableCurrencies: availableCurrencies as string[]
+      })
 
       // Process today's activities
       const processedTodaysActivities = todaysActivities.map((activity: any) => {
@@ -463,21 +456,12 @@ export const useOverviewData = (
         }
       })
 
-      const realOverviewData: OverviewData = {
-        aggregatedFunnel,
-        revenueBySource,
-        totalPipelineValue,
-        totalRevenue,
-        totalLeadCount,
-        recentRecords,
-        keyDeals,
+      // Store processed activities and tasks in static data
+      setStaticData(prev => ({
+        ...prev!,
         todaysActivities: processedTodaysActivities,
-        activeTasks: processedTodaysTasks,
-        availableCurrencies: availableCurrencies as string[],
-        selectedCurrency: selectedCurrency || 'EUR'
-      }
-
-      setOverviewData(realOverviewData)
+        activeTasks: processedTodaysTasks
+      }))
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load overview data'
       setError(errorMessage)
@@ -489,15 +473,69 @@ export const useOverviewData = (
     context.accessToken,
     pipelines,
     dateRange,
-    selectedCurrency,
     fetchPipelineOpportunities,
     fetchRecentLeads,
     fetchSalesActivities,
     fetchPipelineStages,
     fetchTodaysActivities,
     fetchTodaysTasks,
-    fetchOpenLeadsForRevenueSource
+    fetchOpenLeadsForRevenueSource,
+    availableCurrencies
   ])
+
+  // Client-side filtering by currency using useMemo (no refetch needed)
+  const filteredOverviewData = React.useMemo(() => {
+    if (!staticData || allOpportunities.length === 0) {
+      return null
+    }
+
+    // Filter opportunities by selected currency
+    const filteredOpportunities = selectedCurrency
+      ? allOpportunities.filter((opp: any) => {
+          const oppCurrency = extractCurrencyCode(opp.currencyRef || '')
+          return oppCurrency === selectedCurrency
+        })
+      : allOpportunities
+
+    // Calculate funnel data from filtered opportunities
+    const { aggregatedFunnel, totalPipelineValue, totalRevenue } = calculateFunnelData(filteredOpportunities)
+
+    // Create key deals from filtered opportunities
+    const keyDeals = filteredOpportunities
+      .filter((opp: any) => opp.estimatedAmount > 0)
+      .sort((a: any, b: any) => (b.estimatedAmount || 0) - (a.estimatedAmount || 0))
+      .slice(0, 6)
+      .map((opp: any) => ({
+        id: opp.id,
+        name: opp.name,
+        value: formatCurrency(opp.estimatedAmount, extractCurrencyCode(opp.currencyRef || 'Currency:v1:EUR')),
+        stage: opp.opportunityPipelineStage?.value || opp.salesPipelineStage?.value || opp.stage || 'Unknown',
+        owner: opp.ownerEmployee ? `${opp.ownerEmployee.firstName} ${opp.ownerEmployee.lastName}`.trim() : 'Unassigned',
+        closeDate: opp.closeDate ? new Date(opp.closeDate).toLocaleDateString() : 'TBD'
+      }))
+
+    // Combine static data with filtered currency-dependent data
+    return {
+      aggregatedFunnel,
+      availableCurrencies: staticData.availableCurrencies,
+      selectedCurrency,
+      revenueBySource: staticData.revenueBySource,
+      totalPipelineValue,
+      totalRevenue,
+      totalLeadCount: staticData.totalLeadCount,
+      recentRecords: staticData.recentRecords,
+      keyDeals,
+      todaysActivities: staticData.todaysActivities || [],
+      activeTasks: staticData.activeTasks || []
+    }
+  }, [staticData, allOpportunities, selectedCurrency])
+
+  // Update overviewData when filteredOverviewData changes
+  React.useEffect(() => {
+    if (filteredOverviewData) {
+      setOverviewData(filteredOverviewData)
+    }
+  }, [filteredOverviewData])
 
   const refetch = useCallback(() => {
     loadOverviewData()
@@ -511,6 +549,7 @@ export const useOverviewData = (
     overviewData,
     isLoading,
     error,
-    refetch
+    refetch,
+    setSelectedCurrency
   }
 }

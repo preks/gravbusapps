@@ -7,6 +7,10 @@ interface SimpleItem {
   label: string
 }
 
+export interface StatusItem extends SimpleItem {
+  code?: string
+}
+
 export const useInvestmentOpportunityFilters = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken)
 
@@ -14,7 +18,7 @@ export const useInvestmentOpportunityFilters = (context: BusinessAppContextProps
   const [stages, setStages] = useState<SimpleItem[]>([])
   const [pipelines, setPipelines] = useState<SimpleItem[]>([])
   const [accounts, setAccounts] = useState<SimpleItem[]>([])
-  const [statuses, setStatuses] = useState<SimpleItem[]>([])
+  const [statuses, setStatuses] = useState<StatusItem[]>([])
   const [forecasts, setForecasts] = useState<SimpleItem[]>([])
   const [amountRange, setAmountRange] = useState<{ min: number; max: number }>({ min: 0, max: 1000000 })
 
@@ -97,18 +101,28 @@ export const useInvestmentOpportunityFilters = (context: BusinessAppContextProps
     if (!context.accessToken) return
     try {
       const res = await graphqlClient.request<{
-        InvestmentOpportunity: Array<{ account?: { id: string; name: string } | null }>
+        InvestmentOpportunity: Array<{
+          opportunityAccounts?: Array<{
+            accountId: string
+            account?: { id: string; name: string } | null
+          }> | null
+        }>
       }>(`
         query GetOppAccounts {
           InvestmentOpportunity(where: { isDeleted: { _eq: false } }, limit: 100) {
-            account { id name }
+            opportunityAccounts(where: { isDeleted: { _eq: false } }) {
+              accountId
+              account { id name }
+            }
           }
         }
       `)
       const map = new Map<string, string>()
-      ;(res?.InvestmentOpportunity || []).forEach(r => {
-        const a = r.account
-        if (a?.id) map.set(a.id, a.name)
+      ;(res?.InvestmentOpportunity || []).forEach(opp => {
+        opp.opportunityAccounts?.forEach(assoc => {
+          const a = assoc.account
+          if (a?.id) map.set(a.id, a.name)
+        })
       })
       setAccounts(Array.from(map.entries()).map(([id, label]) => ({ id, label })))
     } catch {
@@ -128,12 +142,18 @@ export const useInvestmentOpportunityFilters = (context: BusinessAppContextProps
           }
         }
       `)
-      const map = new Map<string, string>()
+      const map = new Map<string, StatusItem>()
       ;(res?.InvestmentOpportunity || []).forEach(r => {
         const s = r.opportunityStatus
-        if (s?.id) map.set(s.id, s.value || s.code || s.id)
+        if (s?.id) {
+          map.set(s.id, {
+            id: s.id,
+            label: s.value || s.code || s.id,
+            code: s.code
+          })
+        }
       })
-      setStatuses(Array.from(map.entries()).map(([id, label]) => ({ id, label })))
+      setStatuses(Array.from(map.values()))
     } catch {
       setStatuses([])
     }

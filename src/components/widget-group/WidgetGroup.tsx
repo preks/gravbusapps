@@ -9,6 +9,19 @@ export interface WidgetItem {
   title: string
   value: number | string | undefined | null
   prefix?: ReactNode
+  /**
+   * Optional className(s) applied to the icon container in the card header.
+   * Useful for coloring the icon bubble.
+   */
+  iconClassName?: string
+  /**
+   * Optional className(s) applied to the footer/description text.
+   */
+  footerClassName?: string
+  /**
+   * Optional className(s) applied to the card element itself.
+   */
+  cardClassName?: string
   suffix?: ReactNode
   color?: string
   precision?: number
@@ -207,7 +220,9 @@ const extractIconFromPrefix = (prefix: ReactNode): ReactNode | undefined => {
  */
 const transformWidgetToKpiCard = (widget: WidgetItem): KpiCardData => {
   // Determine icon from prefix (element or string shorthand)
-  const iconNode = extractIconFromPrefix(widget.prefix)
+  const iconNode =
+    extractIconFromPrefix(widget.prefix) ||
+    (React.isValidElement(widget.prefix) ? (widget.prefix as ReactNode) : undefined)
 
   // Decide whether to keep textual prefix
   // If prefix is a known icon string, don't show it as text

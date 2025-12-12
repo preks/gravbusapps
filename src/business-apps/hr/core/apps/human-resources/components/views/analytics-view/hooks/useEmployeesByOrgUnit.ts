@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
-import { getEmployeesByOrgUnitQuery } from '../queries/getEmployeesByOrgUnit'
+import { useQueryExecutionClient, QueryType, Services } from '@/common/network/dataset'
 
 // Define types for the hook results
 export interface OrgUnitEmployeeData {
@@ -27,47 +25,28 @@ export const useEmployeesByOrgUnit = (accessToken: string): UseEmployeesByOrgUni
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<Error | null>(null)
 
-  const graphQLClient = useGraphqlClient(accessToken)
-  const structureId = getCurrentActiveStructureId()
+  const queryClient = useQueryExecutionClient(accessToken, Services.EMPLOYEE)
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!accessToken || !structureId) {
+      if (!accessToken) {
         setLoading(false)
         return
       }
 
       try {
         setLoading(true)
-        const response = await graphQLClient.request(getEmployeesByOrgUnitQuery, { structureId })
+        const response = await queryClient.executeQuery('employeesByDepartment', QueryType.DATASET, {})
 
-        // Extract employee assignments and organizational units
-        const { EmployeeOrganizationalUnit, OrganizationalUnit } = response
+        const rows: Array<{ category: string; value: number }> = response?.data || []
+        const totalEmployees = rows.reduce((sum, r) => sum + (Number(r.value) || 0), 0)
 
-        // Create a map to count employees per organizational unit
-        const orgUnitCounts = new Map<string, number>()
-
-        // Initialize all organizational units with 0 count
-        OrganizationalUnit.forEach((unit: { id: string }) => {
-          orgUnitCounts.set(unit.id, 0)
-        })
-
-        // Count employees per organizational unit
-        EmployeeOrganizationalUnit.forEach((assignment: { organizationalUnitId: string }) => {
-          const unitId = assignment.organizationalUnitId
-          const currentCount = orgUnitCounts.get(unitId) || 0
-          orgUnitCounts.set(unitId, currentCount + 1)
-        })
-
-        // Calculate total employee count
-        const totalEmployees = Array.from(orgUnitCounts.values()).reduce((sum, count) => sum + count, 0)
-
-        // Transform to final data structure
-        const orgUnitData: OrgUnitEmployeeData[] = OrganizationalUnit.map((unit: { id: string; name: string }) => {
-          const count = orgUnitCounts.get(unit.id) || 0
+        const orgUnitData: OrgUnitEmployeeData[] = rows.map(r => {
+          const name = r.category || 'Unknown'
+          const count = Number(r.value) || 0
           return {
-            id: unit.id,
-            name: unit.name,
+            id: name,
+            name,
             count,
             percentage: totalEmployees > 0 ? parseFloat(((count / totalEmployees) * 100).toFixed(1)) : 0
           }
@@ -91,7 +70,7 @@ export const useEmployeesByOrgUnit = (accessToken: string): UseEmployeesByOrgUni
     }
 
     fetchData()
-  }, [accessToken, structureId, graphQLClient])
+  }, [accessToken, queryClient])
 
   return { data, loading, error }
 }

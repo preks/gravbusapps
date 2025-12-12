@@ -1,22 +1,14 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import {
-  Button,
-  Spinner,
-  RecordLayout,
-  Badge,
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger
-} from '@newwork/nw-design-system'
+import { Button, Spinner, RecordLayout } from '@newwork/nw-design-system'
 import { Users, FileText, User, CurrencyDollar } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
-import { getContactTypeDisplayValue, getContactFullName } from './utils'
+import { getContactFullName } from './utils'
 import { useContactAiSummary } from './hooks/useContactAiSummary'
 import { Bot } from 'lucide-react'
 import { useInvestmentContact } from '@/common/data/investment/hooks/useInvestmentContact'
@@ -155,52 +147,16 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
     loadSectionData()
   }, [loadSectionData])
 
+  // Memoized callback for process completion
+  const handleProcessSuccess = useCallback(() => {
+    refetchContactData()
+    loadSectionData()
+  }, [refetchContactData, loadSectionData])
+
   // Listen for process completion events to refresh contact data
-  useEffect(() => {
-    const handleProcessCompletion = (event: any) => {
-      try {
-        // Check for successful completion
-        if (event.detail?.resolution === 'success') {
-          refetchContactData()
-          loadSectionData() // Also refresh section data
-          return
-        }
-
-        // Also check for different event structure
-        const response = event.detail?.response
-        if (response?.detail?.resolution === 'success' || response?.contact) {
-          refetchContactData()
-          loadSectionData() // Also refresh section data
-        }
-      } catch (err) {
-        console.error('Error handling process completion in ContactRecord:', err)
-      }
-    }
-
-    // Listen to multiple possible event names for contact updates
-    const eventNames = [
-      'com.newwork.process.taskCompletion',
-      'com.newwork.process.completion',
-      'com.newwork.process.continue',
-      'com.newwork.process.processCompletion',
-      'processCompletion',
-      'taskCompletion',
-      'taskCompleted',
-      'processCompleted',
-      'task-completion',
-      'process-completion'
-    ]
-
-    eventNames.forEach(eventName => {
-      window.addEventListener(eventName, handleProcessCompletion as EventListener)
-    })
-
-    return () => {
-      eventNames.forEach(eventName => {
-        window.removeEventListener(eventName, handleProcessCompletion as EventListener)
-      })
-    }
-  }, [contactId, refetchContactData, loadSectionData])
+  useProcessCompletion({
+    onSuccess: handleProcessSuccess
+  })
 
   // Get source from URL parameters to determine back navigation text
   const source = useMemo(() => {
@@ -465,29 +421,8 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
     )
   }
 
-  // Create header title with contact type badge
-  const contactType = contactData?.type
-  const contactTypeLabel = getContactTypeDisplayValue(contactData, null)
-
-  const headerTitle = (
-    <div className="gba:flex gba:items-center gba:gap-2">
-      <span>{fullName}</span>
-      {contactType && (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Badge data-testid="contact-type-badge" variant="outline" className="gba:text-sm">
-                {contactTypeLabel}
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent data-testid="contact-type-tooltip">
-              {getTranslationFromI18nKeyAndLabel('crm.common.contactType', 'Contact Type')}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      )}
-    </div>
-  )
+  // Header title without contact type badge (contact type shown in Account Section)
+  const headerTitle = fullName
 
   return (
     <div data-testid="investment-contact-detail">

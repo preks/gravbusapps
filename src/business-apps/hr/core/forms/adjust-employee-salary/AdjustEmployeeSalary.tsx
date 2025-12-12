@@ -20,6 +20,7 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
   const { data, isLoading } = useAdjustEmployeeSalary()
 
   const employee = useMemo(() => data?.employee?.EmployeeByPk, [data])
+  const employeePosition = useMemo(() => data?.employee?.EmployeePosition?.[0], [data])
   const currentCompensation = useMemo(() => findActiveSalary(data?.compensation?.AllEmployeeSalaries || []), [data])
   const salaryAdjustReasonEntries = useMemo(
     () => data?.catalogs?.salaryAdjustReason?.CatalogEntry || [],
@@ -239,7 +240,20 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
         className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-full gba:max-w-[800px]"
         data-testid="flw_adjustEmployeeSalary_screenContentLayout"
       >
-        <FormHeader title={title} flowIconUrl={flowIconUrl} className="gba:px-6" />
+        <FormHeader
+          title={title}
+          flowIconUrl={flowIconUrl}
+          employee={
+            employee
+              ? {
+                  firstName: employee.firstName,
+                  lastName: employee.lastName,
+                  pictureThumbnail: employee.pictureThumbnail,
+                  jobTitle: employeePosition?.jobPosition?.name
+                }
+              : undefined
+          }
+        />
         <div className="gba:flex gba:justify-center gba:items-center gba:min-h-[400px]">
           <Spinner size="lg" />
         </div>
@@ -252,10 +266,23 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
       className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-full gba:max-w-[800px]"
       data-testid="flw_adjustEmployeeSalary_screenContentLayout"
     >
-      <FormHeader title={title} flowIconUrl={flowIconUrl} className="gba:px-6" />
+      <FormHeader
+        title={title}
+        flowIconUrl={flowIconUrl}
+        employee={
+          employee
+            ? {
+                firstName: employee.firstName,
+                lastName: employee.lastName,
+                pictureThumbnail: employee.pictureThumbnail,
+                jobTitle: employeePosition?.jobPosition?.name
+              }
+            : undefined
+        }
+      />
 
       <div
-        className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='adjust-employee-salary']]:pt-0!"
+        className="gba:flex gba:flex-col gba:[&>div[data-testid='adjust-employee-salary']]:pt-0!"
         data-testid="adjust-employee-salary-form-content"
       >
         <AppActionForm

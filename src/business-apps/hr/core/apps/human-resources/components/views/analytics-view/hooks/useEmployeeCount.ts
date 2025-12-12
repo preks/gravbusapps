@@ -19,6 +19,9 @@ interface EmployeeCountResponse {
   }
 }
 
+// Module-level in-flight cache to dedupe concurrent/duplicate requests (per token and date range)
+const employeeCountRequestCache = new Map<string, Promise<EmployeeCountResponse>>()
+
 /**
  * Hook to fetch employee count from the GraphQL API
  * @param accessToken - Access token for API authentication
@@ -54,15 +57,26 @@ export const useEmployeeCount = (accessToken: string) => {
         setError(null)
       }
 
-      // Define year ends for as-of-year-end headcount
+      // Use end-of-today for current year to keep a stable key across calls in the same day,
+      // and Dec 31 (23:59:59.999) for last year
       const now = new Date()
-      const thisYearEnd = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999)
+      const thisYearEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
       const lastYearEnd = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999)
 
-      const combinedResponse = await graphQLClient.request<EmployeeCountResponse>(employeeCountQuery, {
-        thisYearEnd: formatDate(thisYearEnd, 'fullDateTime.ISO') as string,
-        lastYearEnd: formatDate(lastYearEnd, 'fullDateTime.ISO') as string
-      })
+      const thisYearEndIso = formatDate(thisYearEnd, 'fullDateTime.ISO') as string
+      const lastYearEndIso = formatDate(lastYearEnd, 'fullDateTime.ISO') as string
+      const cacheKey = `${accessToken}|${thisYearEndIso}|${lastYearEndIso}`
+
+      let promise = employeeCountRequestCache.get(cacheKey)
+      if (!promise) {
+        promise = graphQLClient.request<EmployeeCountResponse>(employeeCountQuery, {
+          thisYearEnd: thisYearEndIso,
+          lastYearEnd: lastYearEndIso
+        })
+        employeeCountRequestCache.set(cacheKey, promise)
+      }
+
+      const combinedResponse = await promise
 
       const thisYearCount = Number(combinedResponse?.thisYear?.aggregate?.count ?? 0)
       const prevYearCount = Number(combinedResponse?.lastYear?.aggregate?.count ?? 0)

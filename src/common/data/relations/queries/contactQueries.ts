@@ -198,6 +198,7 @@ export const buildContactByIdQuery = (
         }
         ${entityFields.salutationRef}
         ${entityFields.type}
+        ${entityFields.userId}
   `
 
   // Common entity relations

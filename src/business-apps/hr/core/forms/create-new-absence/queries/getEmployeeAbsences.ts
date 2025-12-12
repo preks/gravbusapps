@@ -31,22 +31,27 @@ export const getEmployeeAbsences = `
   }
 `
 
-export const getEmployeeAbsenceBalance = `
-  query GetEmployeeAbsenceBalance($employeeId: uuid!, $typeRef: String!) {
-    EmployeeAbsenceBalance(
+export const getEmployeeAbsenceEntitlement = `
+  query GetEmployeeAbsenceEntitlement($employeeId: uuid!, $typeRef: String!) {
+    EmployeeAbsenceEntitlement(
       where: {
         employeeId: { _eq: $employeeId },
-        typeRef: { _eq: $typeRef }
+        type: { id: { _eq: $typeRef } },
+        isDeleted: { _eq: false }
       }
     ) {
       id
       employeeId
-      typeRef
-      annualTotal
-      remaining
+      available
+      pending
       approved
+      total
       validFrom
       validTo
+      type {
+        id
+        objectValue
+      }
     }
   }
 `

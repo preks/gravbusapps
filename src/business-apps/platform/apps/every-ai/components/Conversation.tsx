@@ -6,6 +6,7 @@ import remarkGfm from 'remark-gfm'
 import EntityLink, { markdownUrlTransform } from './links/EntityLink'
 import { AvatarWithInitials } from './shared/AvatarWithInitials'
 import { UserInfoProps } from '@/common/BusinessAppContext'
+import { Sparkle } from '@phosphor-icons/react'
 
 interface ConversationProps {
   turns: ConversationTurn[]
@@ -42,7 +43,17 @@ const UserTurnRenderer: React.FC<{ turn: UserTurn; accessToken: string; userInfo
   accessToken,
   userInfo
 }) => {
-  const textWithMentions = buildTextWithMentions(turn.text || '', turn.mentions)
+  // Parse JSON messages to show user-friendly text
+  let displayText = turn.text || ''
+  try {
+    const parsed = JSON.parse(turn.text || '')
+    if (parsed?.userMessage) {
+      displayText = parsed.userMessage
+    }
+  } catch {
+    // Not JSON, use original text
+  }
+  const textWithMentions = buildTextWithMentions(displayText, turn.mentions)
 
   return (
     <div
@@ -80,17 +91,17 @@ const UserTurnRenderer: React.FC<{ turn: UserTurn; accessToken: string; userInfo
         <div className="gba:flex gba:items-end gba:gap-2 gba:justify-end">
           <div className="gba:relative gba:group">
             {/* Subtle glow effect */}
-            <div className="gba:absolute gba:inset-0 gba:bg-gradient-to-br gba:from-primary gba:to-info gba:rounded-[20px] gba:blur-md gba:opacity-0 group-hover:gba:opacity-30 gba:transition-opacity" />
+            <div className="gba:absolute gba:inset-0 gba:bg-gradient-to-br gba:from-muted gba:to-muted/80 gba:rounded-[20px] gba:blur-md gba:opacity-0 group-hover:gba:opacity-30 gba:transition-opacity" />
 
-            <div className="gba:max-w-md gba:rounded-[20px] gba:px-5 gba:py-3 gba:bg-gradient-to-br gba:from-primary gba:to-info gba:text-primary-foreground gba:shadow-lg gba:relative">
-              <div className="gba:prose gba:prose-invert gba:max-w-none gba:text-sm">
+            <div className="gba:max-w-md gba:rounded-[20px] gba:px-5 gba:py-3 gba:bg-gradient-to-br gba:from-muted gba:to-muted/80 gba:text-foreground gba:shadow-lg gba:relative">
+              <div className="gba:prose gba:max-w-none gba:text-sm">
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   components={{
                     a: ({ href, children, ...props }) => {
                       if (href && href.startsWith('employee://')) {
                         return (
-                          <span className="gba:inline-flex gba:items-center gba:gap-1 gba:px-2 gba:py-0.5 gba:rounded-full gba:bg-primary-foreground/20 gba:text-primary-foreground gba:font-medium">
+                          <span className="gba:inline-flex gba:items-center gba:gap-1 gba:px-2 gba:py-0.5 gba:rounded-full gba:bg-muted-foreground/20 gba:text-muted-foreground gba:font-medium">
                             @{children}
                           </span>
                         )
@@ -174,21 +185,14 @@ const Conversation: React.FC<ConversationProps> = ({ turns, accessToken, sendMes
         return (
           <div
             key={turn.key}
-            className="gba:self-start gba:w-full gba:flex gba:items-start gba:gap-3 gba:animate-in gba:slide-in-from-left"
+            className="gba:w-full gba:flex gba:items-start gba:gap-3 gba:animate-in gba:slide-in-from-left"
             data-testid="chat-agent-turn"
           >
             {/* Premium AI Avatar */}
             <div className="gba:relative gba:flex-shrink-0">
-              <div className="gba:absolute gba:inset-0 gba:bg-gradient-to-br gba:from-primary gba:to-info gba:rounded-full gba:blur-md gba:opacity-40 gba:animate-pulse" />
-              <div className="gba:h-10 gba:w-10 gba:bg-gradient-to-br gba:from-primary gba:to-info gba:rounded-full gba:flex gba:items-center gba:justify-center gba:relative gba:shadow-lg">
-                <svg
-                  className="gba:h-5 gba:w-5 gba:text-primary-foreground"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
+              <div className="gba:absolute gba:inset-0 gba:bg-gradient-to-br gba:from-ai gba:to-ai-secondary gba:rounded-full gba:blur-md gba:opacity-40 gba:animate-pulse" />
+              <div className="gba:h-10 gba:w-10 gba:bg-gradient-to-br gba:from-ai gba:to-ai-secondary gba:rounded-full gba:flex gba:items-center gba:justify-center gba:relative gba:shadow-lg">
+                <Sparkle className="gba:h-5 gba:w-5 gba:text-ai-foreground" weight="fill" />
               </div>
             </div>
 

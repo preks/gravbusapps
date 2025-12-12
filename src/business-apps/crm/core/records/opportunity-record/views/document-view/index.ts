@@ -1,1 +1,1 @@
-export { DocumentView } from './DocumentView'
+export { DocumentView, DocumentView as default } from './DocumentView'

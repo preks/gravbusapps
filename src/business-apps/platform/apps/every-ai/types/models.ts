@@ -63,6 +63,8 @@ export type EntityData = {
     | 'lead'
     | 'contact'
     | 'opportunity'
+    // display-only entity text fields (provided by backend for robust rendering)
+    | 'content_entry'
     | 'crm_note'
     | 'crm_document'
     | 'irm_note'
@@ -89,6 +91,11 @@ export type EntityData = {
     | 'service_workflow'
   id: string
   operation?: 'create' | 'update' | 'delete' | 'read'
+  // New enriched fields coming from backend to avoid hardcoded queries
+  text_title?: string
+  text_human?: string
+  text_full?: string | null
+  tool?: string
   flow_proposal?: string
 }
 
@@ -179,6 +186,7 @@ export type FlowProposalOutput = {
   flow_name: string
   module_name: string
   uuid: string
+  operation?: 'create' | 'update' | 'delete'
   arguments: {
     flow?: Record<string, any>
     task?: Record<string, any>

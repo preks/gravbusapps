@@ -55,8 +55,8 @@ export const useEmployeesPerYear = (accessToken: string) => {
       }
 
       const currentYear = dayjs().year()
-      // Build 5 year-end cutoffs: y0=current year end, y1=prev, ... y4
-      const y0 = formatDate(new Date(currentYear, 11, 31, 23, 59, 59, 999), 'fullDateTime.ISO') as string
+      // Build 5 cutoffs: y0=today (YTD), y1..y4 = end of prior years
+      const y0 = formatDate(new Date(), 'fullDateTime.ISO') as string
       const y1 = formatDate(new Date(currentYear - 1, 11, 31, 23, 59, 59, 999), 'fullDateTime.ISO') as string
       const y2 = formatDate(new Date(currentYear - 2, 11, 31, 23, 59, 59, 999), 'fullDateTime.ISO') as string
       const y3 = formatDate(new Date(currentYear - 3, 11, 31, 23, 59, 59, 999), 'fullDateTime.ISO') as string

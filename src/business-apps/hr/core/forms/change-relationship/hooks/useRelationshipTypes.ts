@@ -29,6 +29,9 @@ export const GET_RELATIONSHIP_TYPES = `
  query fetchEmployee($idEmployee: uuid!, $activeUserLocale: String!) {
  EmployeeByPk(id: $idEmployee) {    
    id
+   firstName
+   lastName
+   pictureThumbnail
    relationship {
     id
     version
@@ -100,6 +103,12 @@ export const useRelationshipTypes = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken)
   const [options, setOptions] = useState<SelectOption[]>([])
   const [relationships, setRelationships] = useState<EmployeeRelationship[]>([])
+  const [employee, setEmployee] = useState<{
+    firstName?: string
+    lastName?: string
+    pictureThumbnail?: string
+    jobTitle?: string
+  } | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -131,6 +140,12 @@ export const useRelationshipTypes = (context: BusinessAppContextProps) => {
           value: e.id
         }))
       )
+      setEmployee({
+        firstName: res?.EmployeeByPk?.firstName,
+        lastName: res?.EmployeeByPk?.lastName,
+        pictureThumbnail: res?.EmployeeByPk?.pictureThumbnail,
+        jobTitle: res?.EmployeePosition?.[0]?.jobPosition?.name
+      })
     } catch (e: any) {
       setError(e?.message || 'Failed to load relationship types')
     } finally {
@@ -146,5 +161,5 @@ export const useRelationshipTypes = (context: BusinessAppContextProps) => {
     if (context.accessToken) fetchOptions()
   }, [context.accessToken, fetchOptions])
 
-  return { options, relationships, loading, error, refetch: fetchOptions }
+  return { options, relationships, employee, loading, error, refetch: fetchOptions }
 }

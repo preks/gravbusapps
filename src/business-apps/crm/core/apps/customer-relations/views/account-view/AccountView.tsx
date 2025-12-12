@@ -142,7 +142,6 @@ export const AccountView: React.FC<AccountViewProps> = context => {
       buildRecordUrl: (id: string) => buildPlatformUrl('/platform/crm/account-record', { accountId: id }),
       accountStatistics: accountStatisticsData,
       variant: 'customer',
-      processCompletionEvents: ['taskCompletion', 'accountCompletion'],
       rowActionsContextArray: [FlowContextName.customerAccountEntity],
       buildRowActionsExternalContextData: (row: { original: Account }) => ({
         accountId: row.original.id || ''

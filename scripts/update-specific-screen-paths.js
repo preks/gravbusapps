@@ -82,7 +82,6 @@ const componentPathMappings = {
   '/crm/investments/popups/activity-delete-popup': '/irm/core/popups/activity-delete-popup',
   '/crm/investments/popups/document-delete-popup': '/irm/core/popups/document-delete-popup',
   '/crm/investments/popups/document-popup': '/irm/core/popups/document-popup',
-  '/crm/investments/popups/document-update-popup': '/irm/core/popups/document-update-popup',
   '/crm/investments/popups/note-delete-popup': '/irm/core/popups/note-delete-popup',
   '/crm/investments/popups/stage-condition-popup': '/irm/core/popups/stage-condition-popup',
   '/crm/investments/popups/stage-transition-popup': '/irm/core/popups/stage-transition-popup',

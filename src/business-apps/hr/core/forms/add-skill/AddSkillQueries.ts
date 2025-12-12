@@ -3,6 +3,12 @@ export const ADD_SKILL_QUERY = `query MyQuery($id: uuid!) {
     firstName
     lastName
     id
+    pictureThumbnail
+    employeePosition {
+      jobPosition {
+        name
+      }
+    }
     skills(where: {isDeleted: {_eq: false}}) {
       version
       id

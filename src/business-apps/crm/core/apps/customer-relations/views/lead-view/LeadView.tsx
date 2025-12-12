@@ -147,7 +147,6 @@ export const LeadView: React.FC<LeadViewProps> = context => {
       },
       buildRecordUrl: (id: string) => buildPlatformUrl('/platform/crm/lead-record', { leadId: id }),
       leadStatistics: leadStatisticsData,
-      processCompletionEvents: ['taskCompletion', 'leadCompletion'],
       rowActionsContextArray: [FlowContextName.customerLeadEntity],
       buildRowActionsExternalContextData: (row: { original: CustomerLead }) => ({
         leadId: row.original.id

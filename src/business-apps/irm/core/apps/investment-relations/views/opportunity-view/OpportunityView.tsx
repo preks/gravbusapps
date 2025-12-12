@@ -1,7 +1,8 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetInvestmentOpportunities } from '@/common/data/investment/hooks/useInvestmentOpportunities'
 import { OpportunityLayout } from '@/common/components/common-relations/view-layouts/opportunity-layout'
+import type { QuickFiltersRenderProps } from '@/common/components/common-relations/view-layouts/opportunity-layout'
 import { createOpportunityConfig } from '@/common/components/common-relations/view-layouts/opportunity-layout/utils/opportunityConfigBuilder'
 import type { InvestmentOpportunity } from '@/common/data/investment/types/investmentOpportunityTypes'
 import type { InvestmentOpportunityQueryVariables } from '@/common/data/investment/queries/investmentOpportunityQueries'
@@ -10,13 +11,27 @@ import { useInvestmentOpportunityFilters } from './hooks/useInvestmentOpportunit
 import { useInvestmentOpportunityStatistics } from '@/common/data/investment/hooks/useInvestmentOpportunityStatistics'
 import { INVESTMENT_OPPORTUNITY_DESCRIPTORS } from '@/common/data/investment/types/investmentOpportunityTypes'
 import { OpportunityStatisticsLayout } from '@/common/components/common-relations/view-layouts/opportunity-layout/components/OpportunityStatisticsLayout'
+import type { OpportunityStatisticsData } from '@/common/components/common-relations/view-layouts/opportunity-layout/components/OpportunityStatisticsLayout'
+import { OpportunityQuickFilters, type QuickFilterType } from './components'
+
+/**
+ * Map quickFilter type to opportunity status codes for statistics filtering
+ */
+const getStatusCodesFromQuickFilter = (quickFilter?: string): string[] | undefined => {
+  if (quickFilter === 'qualified') return ['WON']
+  if (quickFilter === 'unqualified') return ['OPEN', 'LOST']
+  if (quickFilter === 'converted') return ['CONVERTED']
+  return undefined // 'all' or undefined - no filter
+}
 
 // Separate component to properly use hooks
 const InvestmentOpportunityStatistics: React.FC<{
   context: BusinessAppContextProps
   selectedCurrency?: string // Full currency ID like "Currency:v1:EUR" or undefined
-}> = ({ context, selectedCurrency }) => {
-  const opportunityStatistics = useInvestmentOpportunityStatistics(context, selectedCurrency)
+  quickFilter?: string // Quick filter type: 'all', 'qualified', 'unqualified', 'converted'
+}> = ({ context, selectedCurrency, quickFilter }) => {
+  const statusCodes = useMemo(() => getStatusCodesFromQuickFilter(quickFilter), [quickFilter])
+  const opportunityStatistics = useInvestmentOpportunityStatistics(context, selectedCurrency, statusCodes)
 
   if (!opportunityStatistics.trendData) return null
 
@@ -25,7 +40,7 @@ const InvestmentOpportunityStatistics: React.FC<{
       statistics={{
         recentOpportunities: opportunityStatistics.trendData.recentOpportunities,
         totalOpportunities: opportunityStatistics.trendData.totalOpportunities,
-        winRate: opportunityStatistics.trendData.winRate,
+        opportunitiesThisQuarter: opportunityStatistics.trendData.opportunitiesThisQuarter,
         opportunitiesThisYear: opportunityStatistics.trendData.opportunitiesThisYear,
         isLoading: opportunityStatistics.isLoading,
         error: opportunityStatistics.error,
@@ -39,6 +54,57 @@ export type OpportunityViewProps = BusinessAppContextProps
 
 export const OpportunityView: React.FC<OpportunityViewProps> = context => {
   const { fetchInvestmentOpportunities } = useGetInvestmentOpportunities(context)
+  const [activeQuickFilter, setActiveQuickFilter] = useState<QuickFilterType>('all')
+
+  const handleQuickFilterChange = useCallback(
+    (
+      filter: QuickFilterType,
+      statusIds: string[] | undefined,
+      onFilterChange: (filters: Record<string, any>) => void,
+      currentFilters: Record<string, any>
+    ) => {
+      setActiveQuickFilter(filter)
+      onFilterChange({
+        ...currentFilters,
+        opportunityStatusIds: statusIds && statusIds.length > 0 ? statusIds : undefined
+      })
+    },
+    []
+  )
+
+  const renderQuickFilters = useCallback(
+    ({ statuses, selectedFilters, onFilterChange }: QuickFiltersRenderProps) => (
+      <OpportunityQuickFilters
+        statuses={statuses}
+        activeFilter={activeQuickFilter}
+        onFilterChange={(filter, statusIds) =>
+          handleQuickFilterChange(filter, statusIds, onFilterChange, selectedFilters)
+        }
+      />
+    ),
+    [activeQuickFilter, handleQuickFilterChange]
+  )
+
+  // State to trigger statistics refresh
+  const [statisticsRefreshKey, setStatisticsRefreshKey] = useState(0)
+
+  // Create a refetch callback for statistics
+  const refetchStatistics = useCallback(() => {
+    setStatisticsRefreshKey(prev => prev + 1)
+  }, [])
+
+  // Statistics data with refetch callback
+  const opportunityStatisticsData: OpportunityStatisticsData | undefined = useMemo(() => {
+    return {
+      recentOpportunities: { current: 0, previous: 0, change: 0, changePercent: 0, isPositive: false },
+      totalOpportunities: { current: 0, previous: 0, change: 0, changePercent: 0, isPositive: false },
+      opportunitiesThisQuarter: { current: 0, previous: 0, change: 0, changePercent: 0, isPositive: false },
+      opportunitiesThisYear: { current: 0, previous: 0, change: 0, changePercent: 0, isPositive: false },
+      isLoading: false,
+      error: null,
+      refetch: refetchStatistics
+    }
+  }, [refetchStatistics])
 
   const config = useMemo(
     () =>
@@ -91,18 +157,35 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
         fetchBoardOpportunities: fetchInvestmentOpportunities,
         extractBoardOpportunities: result => result.InvestmentOpportunity || [],
         extractBoardTotalCount: result => result.InvestmentOpportunityAggregate?.aggregate?.count || 0,
-        renderStatistics: (selectedCurrency?: string) => (
-          <InvestmentOpportunityStatistics context={context} selectedCurrency={selectedCurrency} />
+
+        // Provide statistics data for refetch in handleProcessComplete
+        opportunityStatistics: opportunityStatisticsData,
+
+        renderStatistics: (selectedCurrency?: string, quickFilter?: string) => (
+          <InvestmentOpportunityStatistics
+            key={statisticsRefreshKey}
+            context={context}
+            selectedCurrency={selectedCurrency}
+            quickFilter={quickFilter}
+          />
         ),
         rowActionsContextArray: [FlowContextName.investmentOpportunityEntity],
         buildRowActionsExternalContextData: (row: { original: InvestmentOpportunity }) => ({
           opportunityId: row.original.id
         })
       }),
-    [context, fetchInvestmentOpportunities]
+    [context, fetchInvestmentOpportunities, opportunityStatisticsData, statisticsRefreshKey]
   )
 
-  return <OpportunityLayout context={context} config={config} dataTestId="investment-opportunities-view" />
+  return (
+    <OpportunityLayout
+      context={context}
+      config={config}
+      dataTestId="investment-opportunities-view"
+      renderQuickFilters={renderQuickFilters}
+      quickFilter={activeQuickFilter}
+    />
+  )
 }
 
 export default OpportunityView

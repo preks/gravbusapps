@@ -13,7 +13,7 @@ import {
 import type { ColumnDef } from '@tanstack/react-table'
 import { Plus } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useAvailableCurrencies } from '@/common/data/investment/hooks/useAvailableCurrencies'
+import { useAvailableCurrencies } from '@/common/data/common/hooks/useAvailableCurrencies'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -128,7 +128,7 @@ export interface OpportunityViewConfig<TOpportunity extends { id: string }, TQue
   buildAccountUrl: (id: string) => string
 
   opportunityStatistics?: OpportunityStatisticsData
-  renderStatistics?: (selectedCurrency?: string) => React.ReactNode
+  renderStatistics?: (selectedCurrency?: string, quickFilter?: string) => React.ReactNode
 
   boardConfig: OpportunityBoardConfig
   fetchOpportunitiesForBoard: (
@@ -138,13 +138,17 @@ export interface OpportunityViewConfig<TOpportunity extends { id: string }, TQue
   ) => Promise<{ opportunities: TOpportunity[]; total: number }>
   renderBoardCard?: (opportunity: TOpportunity) => React.ReactNode
 
-  processCompletionEvents?: string[]
-
   rowActionsContextArray: FlowContextName[]
   buildRowActionsExternalContextData: (row: { original: TOpportunity }) => Record<string, string>
 }
 
 export type OpportunityTabKey = 'list' | 'board'
+
+export interface QuickFiltersRenderProps {
+  statuses: Array<{ id: string; label: string; code?: string }>
+  selectedFilters: Record<string, any>
+  onFilterChange: (filters: Record<string, any>) => void
+}
 
 export interface OpportunityLayoutProps<TOpportunity extends { id: string } = any, TQueryVariables = any> {
   context: BusinessAppContextProps
@@ -154,6 +158,8 @@ export interface OpportunityLayoutProps<TOpportunity extends { id: string } = an
   hideFilters?: boolean
   customPrimaryAction?: React.ReactNode
   extendVisibleColumns?: string[] // Additional columns to add to base columns
+  renderQuickFilters?: (props: QuickFiltersRenderProps) => React.ReactNode
+  quickFilter?: string // Current quick filter value (e.g., 'all', 'qualified', 'unqualified')
 }
 
 interface OpportunityRowActionsProps<TOpportunity extends { id: string }> {
@@ -297,7 +303,9 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     initialFilters = {},
     hideFilters = false,
     customPrimaryAction,
-    extendVisibleColumns = []
+    extendVisibleColumns = [],
+    renderQuickFilters,
+    quickFilter
   } = props
   const { accessToken } = context
 
@@ -373,7 +381,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
   // Fetch available currencies efficiently using distinctOn
   const { currencies: currencyOptions } = useAvailableCurrencies(context, {
     filters: {
-      entity: 'InvestmentOpportunity',
+      entity: config.contextType === 'customer' ? 'Opportunity' : 'InvestmentOpportunity',
       ...(config.boardConfig && 'dealType' in config.boardConfig
         ? { dealType: (config.boardConfig as any).dealType }
         : {})
@@ -599,24 +607,11 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
       loadBoardData()
     }
     setBoardRefreshTrigger(prev => prev + 1)
-  }, [currentSection, loadListData, loadBoardData])
+    // Also refresh statistics when process completes
+    config.opportunityStatistics?.refetch?.()
+  }, [currentSection, loadListData, loadBoardData, config.opportunityStatistics?.refetch])
 
   useProcessCompletion({ onSuccess: handleProcessComplete })
-
-  useEffect(() => {
-    const events = config.processCompletionEvents || ['taskCompletion']
-    const handlers = events.map(eventName => {
-      const handler = () => handleProcessComplete()
-      globalThis.addEventListener(eventName, handler)
-      return { eventName, handler }
-    })
-
-    return () => {
-      for (const { eventName, handler } of handlers) {
-        globalThis.removeEventListener(eventName, handler)
-      }
-    }
-  }, [handleProcessComplete, config.processCompletionEvents])
 
   // Event Handlers
   const handleSearch = useCallback((value: string) => {
@@ -721,13 +716,24 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     <div data-testid={dataTestId}>
       {/* Statistics */}
       {config.renderStatistics ? (
-        <div data-testid={`${dataTestId}-statistics`}>{config.renderStatistics(selectedCurrencyId)}</div>
+        <div data-testid={`${dataTestId}-statistics`}>{config.renderStatistics(selectedCurrencyId, quickFilter)}</div>
       ) : config.opportunityStatistics ? (
         <OpportunityStatisticsLayout
           statistics={config.opportunityStatistics}
           data-testid={`${dataTestId}-statistics`}
         />
       ) : null}
+
+      {/* Quick Filters */}
+      {renderQuickFilters && (
+        <div className="gba:mb-4" data-testid={`${dataTestId}-quick-filters`}>
+          {renderQuickFilters({
+            statuses: statuses as Array<{ id: string; label: string; code?: string }>,
+            selectedFilters,
+            onFilterChange: handleFilterUpdate
+          })}
+        </div>
+      )}
 
       {/* DataDisplay with titleSections as Tabs */}
       <DataDisplay

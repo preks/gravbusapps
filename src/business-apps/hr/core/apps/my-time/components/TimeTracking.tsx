@@ -1,11 +1,26 @@
 'use client'
 
 import React from 'react'
-import { Button, Card, Alert, Icon, useTranslation } from '@newwork/nw-design-system'
+import {
+  Button,
+  Card,
+  Alert,
+  Icon,
+  useTranslation,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useTimeTrackingData } from '@/business-apps/hr/core/apps/employee-record/components/tabs/hooks/useTimeTrackingData'
 import {
-  ClockIcon
+  ClockIcon,
+  MapPinIcon,
+  SignIn,
+  SignOut
   // other icons reserved for future
 } from '@phosphor-icons/react'
 import { InterventionsTable } from '@/business-apps/hr/core/apps/employee-record/components/tabs/components/InterventionsTable'
@@ -31,7 +46,10 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({ employee, employeeId, acces
     todaysPlannedMinutes,
     todayRecordedMinutes,
     hasTodayAttendanceRecord,
-    entries
+    entries,
+    isNearHome,
+    isNearOffice,
+    updateLocationSelection
   } = useTimeTrackingData({ employeeId, accessToken, workingHours: employee?.workingHours?.[0] })
 
   const { t } = useTranslation(timeTrackingTranslations)
@@ -41,29 +59,6 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({ employee, employeeId, acces
     const h = Math.floor(abs / 60)
     const m = abs % 60
     return `${h}:${String(m).padStart(2, '0')}`
-  }
-
-  const employeeName =
-    employee?.displayName || getTranslationFromI18nKeyAndLabel('lowcoder:common.employee', 'Employee')
-
-  // Secondary helper message for hero card (avoid nested ternary)
-  const isClockedOutWithWork = !isClockedIn && todayRecordedMinutes > 0
-  let headerSecondary = ''
-  if (isClockedIn) {
-    headerSecondary = getTranslationFromI18nKeyAndLabel(
-      'lowcoder:time_tracking.summary.header.clock_IN_secondary',
-      "Let's make this day count."
-    )
-  } else if (isClockedOutWithWork) {
-    headerSecondary = getTranslationFromI18nKeyAndLabel(
-      'lowcoder:time_tracking.summary.header.clock_OUT_secondary',
-      'Great work today — see you tomorrow, fresh and focused.'
-    )
-  } else {
-    headerSecondary = getTranslationFromI18nKeyAndLabel(
-      'lowcoder:time_tracking.summary.header.welcome_secondary',
-      'Let’s set things in motion — your hours start with a single click.'
-    )
   }
 
   const workedHm = `${formatHm(todayRecordedMinutes)}h`
@@ -104,6 +99,19 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({ employee, employeeId, acces
     }
   }
 
+  const locationPrimaryLabel = React.useMemo(() => {
+    if (isNearOffice) return getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.location.office', 'Office')
+    if (isNearHome) return getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.location.home', 'Home')
+    return getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.location.remote', 'Remote')
+  }, [isNearHome, isNearOffice])
+  const confirmLocationLabel = React.useMemo(() => {
+    const label = `Not working from ${locationPrimaryLabel}?`
+    return getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.location.you_are_working_from_question', label, {
+      location: locationPrimaryLabel
+    })
+  }, [locationPrimaryLabel])
+  const [isLocationModalOpen, setIsLocationModalOpen] = React.useState(false)
+
   const getTodayTimes = () => {
     try {
       const now = new Date()
@@ -134,7 +142,7 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({ employee, employeeId, acces
       <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4 gba:mt-4" data-testid="timeclock-main-row">
         {/* Hero time card */}
         <Card
-          className="gba:p-10 gba:bg-info-on-card gba:text-info-foreground gba:min-h-96"
+          className="gba:p-10 gba:!bg-info-on-card gba:text-info-foreground gba:min-h-96"
           data-testid="timeclock-hero-card"
         >
           <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:text-center gba:gap-4 gba:h-full">
@@ -142,15 +150,6 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({ employee, employeeId, acces
               <Icon icon={ClockIcon} className="gba:text-5xl" />
             </div>
             <HeroLiveClock className="gba:flex gba:flex-col gba:items-center gba:justify-center" />
-            <div className="gba:text-base gba:opacity-90 gba:max-w-xl">
-              {isClockedIn
-                ? headerSecondary
-                : getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:time_tracking.summary.header.clock_out',
-                    `Clocked out — time to recharge, ${employeeName}.`,
-                    { employeeName }
-                  )}
-            </div>
             <div className="gba:w-full">
               {isClockedIn ? (
                 <Button
@@ -160,7 +159,10 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({ employee, employeeId, acces
                   onClick={clockOut}
                   data-testid="timeclock-hero-clock-out-button"
                 >
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.actions.clock_out', 'Clock Out')}
+                  <span className="gba:inline-flex gba:items-center gba:gap-2">
+                    <Icon icon={SignOut} />
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.actions.clock_out', 'Clock Out')}
+                  </span>
                 </Button>
               ) : (
                 <Button
@@ -170,7 +172,10 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({ employee, employeeId, acces
                   onClick={clockIn}
                   data-testid="timeclock-hero-clock-in-button"
                 >
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.actions.clock_in', 'Clock In')}
+                  <span className="gba:inline-flex gba:items-center gba:gap-2">
+                    <Icon icon={SignIn} />
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.actions.clock_in', 'Clock In')}
+                  </span>
                 </Button>
               )}
             </div>
@@ -222,6 +227,32 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({ employee, employeeId, acces
               {t('no_time_entries_for_today')}
             </div>
           )}
+
+          {/* Geolocation (moved into middle card) */}
+          {(isClockedIn || hasTodayAttendanceRecord) && (
+            <div className="gba:mt-6" data-testid="timeclock-location-block">
+              <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <Icon icon={MapPinIcon} />
+                  <div className="gba:flex gba:flex-col gba:pt-3">
+                    <div className="gba:text-sm gba:text-muted-foreground">
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.location.label', 'Location')}
+                    </div>
+                    <div className="gba:text-base gba:font-medium">{locationPrimaryLabel}</div>
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="gba:!px-0 gba:text-sm gba:underline"
+                      onClick={() => setIsLocationModalOpen(true)}
+                      data-testid="timeclock-location-open-modal-button-mid"
+                    >
+                      {confirmLocationLabel}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </Card>
 
         {/* Today at a Glance */}
@@ -259,6 +290,55 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({ employee, employeeId, acces
           </div>
         </Card>
       </div>
+
+      {/* Location confirm modal for middle card */}
+      <Dialog open={isLocationModalOpen} onOpenChange={setIsLocationModalOpen}>
+        <DialogContent data-testid="timeclock-location-modal-mid">
+          <DialogHeader>
+            <DialogTitle>
+              {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.location.confirm_title', 'Confirm location')}
+            </DialogTitle>
+            <DialogDescription>
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:time_tracking.location.question',
+                'Right now, the location you are working from is ... ?'
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gba:flex gba:gap-2 gba:justify-end">
+            <Button
+              variant="outline"
+              onClick={() => {
+                updateLocationSelection('home')
+                setIsLocationModalOpen(false)
+              }}
+              data-testid="timeclock-location-option-home-mid"
+            >
+              {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.location.home', 'Home')}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                updateLocationSelection('office')
+                setIsLocationModalOpen(false)
+              }}
+              data-testid="timeclock-location-option-office-mid"
+            >
+              {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.location.office', 'Office')}
+            </Button>
+            <Button
+              variant="default"
+              onClick={() => {
+                updateLocationSelection('remote')
+                setIsLocationModalOpen(false)
+              }}
+              data-testid="timeclock-location-option-other-mid"
+            >
+              {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.location.other', 'Remote')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Interventions table */}
       <InterventionsTable

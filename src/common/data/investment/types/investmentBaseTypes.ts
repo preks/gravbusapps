@@ -214,7 +214,13 @@ export interface BaseEquityInvestmentRound extends BaseEntity {
   currency?: CatalogEntry
 
   // Entity references (using Ref types)
-  equityInvestment?: BaseEquityInvestment
+  equityInvestment?: BaseEquityInvestment & {
+    investmentId?: string
+    investment?: { id: string }
+  }
+  equityInvestmentId?: string
+  investmentOpportunity?: InvestmentOpportunity
+  investmentOpportunityId?: string
 }
 
 // real_estate_investment table

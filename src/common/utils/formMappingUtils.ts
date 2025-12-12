@@ -29,6 +29,22 @@ const isNumberSchemaType = (schemaField: z.ZodTypeAny): boolean => {
 }
 
 /**
+ * Checks if schema field is a nested ZodObject
+ */
+const isNestedObjectSchema = (schemaField: z.ZodTypeAny): boolean => {
+  const unwrapped = unwrapZodType(schemaField)
+  return unwrapped instanceof z.ZodObject
+}
+
+/**
+ * Checks if schema field is a ZodArray
+ */
+const isArraySchema = (schemaField: z.ZodTypeAny): boolean => {
+  const unwrapped = unwrapZodType(schemaField)
+  return unwrapped instanceof z.ZodArray
+}
+
+/**
  * Transforms a number value based on schema type
  */
 const transformNumberValue = (value: number, schemaField: z.ZodTypeAny): any => {
@@ -41,7 +57,7 @@ const transformNumberValue = (value: number, schemaField: z.ZodTypeAny): any => 
 }
 
 /**
- * Transforms a single field value
+ * Transforms a single field value, handling nested objects and arrays
  */
 const transformFieldValue = (
   value: any,
@@ -52,6 +68,36 @@ const transformFieldValue = (
   // Apply custom transformation if provided (takes precedence)
   if (transformations && key in transformations) {
     return transformations[key]?.(value)
+  }
+
+  // Handle arrays: map each item against array's element schema
+  if (isArraySchema(schemaField) && Array.isArray(value)) {
+    const unwrapped = unwrapZodType(schemaField) as z.ZodArray<any>
+    let elementSchema = unwrapped.element
+
+    // Unwrap optional/nullable from element schema
+    elementSchema = unwrapZodType(elementSchema)
+
+    // If element is an object, map each item recursively to only include schema fields
+    if (elementSchema instanceof z.ZodObject) {
+      return value.map((item: any) => mapToFormValuesRecursive(item, elementSchema, transformations))
+    }
+
+    // Otherwise pass through (primitives, etc.)
+    return value
+  }
+
+  // Handle nested objects: recursively map if schema expects nested object
+  if (
+    isNestedObjectSchema(schemaField) &&
+    value &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    !(value instanceof Date)
+  ) {
+    const nestedSchema = unwrapZodType(schemaField) as z.ZodObject<any>
+    // Recursively map nested structure
+    return mapToFormValuesRecursive(value, nestedSchema, transformations)
   }
 
   // Convert Date objects to ISO strings (API might return Date objects)
@@ -68,12 +114,15 @@ const transformFieldValue = (
   return value
 }
 
-export function mapToFormValues<TEntity extends Record<string, any>, TSchema extends z.ZodObject<any>>(
+/**
+ * Recursive helper for mapping nested structures
+ */
+const mapToFormValuesRecursive = <TEntity extends Record<string, any>, TSchema extends z.ZodObject<any>>(
   entity: TEntity | null,
   schema: TSchema,
-  transformations?: Partial<Record<keyof TEntity, (value: any) => any>>,
+  transformations?: Partial<Record<string, (value: any) => any>>,
   defaultValues?: Partial<z.infer<TSchema>>
-): Partial<z.infer<TSchema>> {
+): Partial<z.infer<TSchema>> => {
   if (!entity) {
     return defaultValues || {}
   }
@@ -91,6 +140,49 @@ export function mapToFormValues<TEntity extends Record<string, any>, TSchema ext
   }
 
   return result
+}
+
+/**
+ * Automatically maps entity to form values by matching field names.
+ * Supports nested structures and arrays with proper schema-based mapping.
+ *
+ * @param entity - The entity data to map (can be null)
+ * @param schema - Zod schema defining the form structure (supports nested objects and arrays)
+ * @param transformations - Optional custom transformations for specific fields
+ * @param defaultValues - Optional default values to merge with mapped values
+ *
+ * @example
+ * // Simple flat mapping
+ * mapToFormValues(account, accountSchema)
+ *
+ * @example
+ * // Nested structure mapping
+ * const schema = z.object({
+ *   investment: z.object({
+ *     name: z.string(),
+ *     id: z.string()
+ *   })
+ * })
+ * mapToFormValues(investmentData, schema)
+ *
+ * @example
+ * // Array mapping - each array item is mapped against element schema
+ * const schema = z.object({
+ *   opportunityAccounts: z.array(z.object({
+ *     accountId: z.string(),
+ *     accountTypeRef: z.string()
+ *   }))
+ * })
+ * // GraphQL data with nested objects is automatically cleaned to match schema
+ * mapToFormValues(opportunityData, schema)
+ */
+export function mapToFormValues<TEntity extends Record<string, any>, TSchema extends z.ZodObject<any>>(
+  entity: TEntity | null,
+  schema: TSchema,
+  transformations?: Partial<Record<keyof TEntity, (value: any) => any>>,
+  defaultValues?: Partial<z.infer<TSchema>>
+): Partial<z.infer<TSchema>> {
+  return mapToFormValuesRecursive(entity, schema, transformations, defaultValues)
 }
 
 /**

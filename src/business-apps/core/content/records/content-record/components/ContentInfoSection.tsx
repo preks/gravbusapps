@@ -1,32 +1,55 @@
 import React, { useMemo } from 'react'
-import { useTranslation } from 'react-i18next'
-import { Button } from '@newwork/nw-design-system'
-import { MessageCircle, Share2 } from 'lucide-react'
-import { Content } from '@/business-apps/core/content/apps/content-hub/types/content.types'
-import { copyUrlToClipboard } from '@/business-apps/core/content/apps/content-hub/utils/contentUtils'
-import { useArticleLikes } from '@/business-apps/core/content/hooks/useArticleLikes'
-import { LikeButton } from '@/business-apps/core/content/components/interactions'
+import { Share2 } from 'lucide-react'
+import { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
+import { ReactionPicker } from '@/common/components/content'
+import { AppAction } from '@/components/app-action'
+import { getEntityTypeFromContentGroup, buildContentRecordUrl } from '@/business-apps/core/content/utils/shareUtils'
+import { buildReactionSummaryFromCounts } from '@/common/data/content/utils/reactionUtils'
+import { EmployeeHoverCard } from '@/common/components/employee'
+import { ContentGroup } from '@/common/data/content/types/contentEnums'
 import dayjs from 'dayjs'
 
 interface ContentInfoSectionProps {
-  item: Content
+  item: ContentEntry
   accessToken: string
   userId: string | undefined
+  employeeId: string | undefined
+  allowedReactions?: string[]
+  reactionCatalogMap?: Record<string, string>
 }
 
-const ContentInfoSection: React.FC<ContentInfoSectionProps> = ({ item, accessToken, userId }) => {
-  const { t } = useTranslation('content')
-
-  // Fetch user's like status
-  const { userLike, refetch: refetchLikes } = useArticleLikes(item.articleId, userId, accessToken)
+const ContentInfoSection: React.FC<ContentInfoSectionProps> = ({
+  item,
+  accessToken,
+  userId,
+  employeeId,
+  allowedReactions,
+  reactionCatalogMap
+}) => {
+  // Build reaction summary from contentEntryReactionCounts
+  const reactionSummary = buildReactionSummaryFromCounts(item, userId)
 
   const formattedDate = useMemo(() => {
     return item.createdAt ? dayjs(item.createdAt).format('MMM DD, YYYY') : ''
   }, [item.createdAt])
 
-  const handleShare = () => {
-    copyUrlToClipboard(t('content_link_copied'))
+  const entityType = getEntityTypeFromContentGroup(item.contentGroupRef)
+  const entityDisplayUrl = buildContentRecordUrl(item.id)
+
+  // Get author label based on content group
+  const getAuthorLabel = (): string => {
+    if (item.contentGroupRef?.includes(ContentGroup.NEWS)) return 'Author'
+    if (item.contentGroupRef?.includes(ContentGroup.KNOWLEDGE)) return 'Creator'
+    if (item.contentGroupRef?.includes(ContentGroup.DOCUMENT)) return 'Responsible'
+    return 'Author' // Default
   }
+
+  const authorLabel = getAuthorLabel()
+  const authorName =
+    item.creatorEmployee?.displayName ||
+    (item.creatorEmployee
+      ? `${item.creatorEmployee.firstName || ''} ${item.creatorEmployee.lastName || ''}`.trim()
+      : null)
 
   return (
     <div
@@ -35,19 +58,21 @@ const ContentInfoSection: React.FC<ContentInfoSectionProps> = ({ item, accessTok
     >
       {/* Author and Date Info */}
       <div className="gba:flex gba:flex-row gba:items-center">
-        {item.displayAuthor && item.author && (
+        {authorName && (
           <>
-            <p className="gba:text-sm gba:font-bold gba:text-foreground">
-              {item.author.firstName} {item.author.lastName}
-            </p>
-
-            {item.author.jobPosition && (
-              <>
-                <p className="gba:text-sm gba:font-regular gba:mx-3 gba:text-muted-foreground">•</p>
-                <p className="gba:text-sm gba:font-regular gba:text-foreground">{item.author.jobPosition}</p>
-                <p className="gba:text-sm gba:font-regular gba:mx-3 gba:text-muted-foreground">•</p>
-              </>
-            )}
+            <div className="gba:flex gba:items-center gba:text-sm">
+              <span className="gba:text-muted-foreground gba:mr-1">{authorLabel}:</span>
+              {item.creatorEmployee ? (
+                <EmployeeHoverCard employee={item.creatorEmployee}>
+                  <span className="gba:cursor-pointer hover:gba:text-primary hover:gba:underline gba:text-foreground gba:font-medium">
+                    {authorName}
+                  </span>
+                </EmployeeHoverCard>
+              ) : (
+                <span className="gba:text-foreground gba:font-medium">{authorName}</span>
+              )}
+            </div>
+            <p className="gba:text-sm gba:font-regular gba:mx-3 gba:text-muted-foreground">•</p>
           </>
         )}
 
@@ -60,30 +85,42 @@ const ContentInfoSection: React.FC<ContentInfoSectionProps> = ({ item, accessTok
 
       {/* Stats */}
       <div className="gba:flex gba:flex-row gba:items-center gba:ml-auto gba:gap-4">
-        {item.allowLike && (
-          <LikeButton
-            articleId={item.articleId}
-            userLike={userLike}
-            likesCount={item.likesCount}
-            allowLike={item.allowLike}
+        {item.allowReaction && (
+          <ReactionPicker
+            contentEntryId={item.id}
+            reactionSummary={reactionSummary}
+            allowReaction={item.allowReaction}
             accessToken={accessToken}
-            onSuccess={refetchLikes}
+            employeeId={employeeId || ''}
+            onSuccess={() => {
+              // Refetch will be handled by parent component
+            }}
             size="md"
-            data-testid="content-info-like-button"
+            allowedReactions={allowedReactions}
+            reactionCatalogMap={reactionCatalogMap}
+            data-testid="content-info-reaction-picker"
           />
         )}
 
-        {item.allowComment && (
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <MessageCircle className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
-            <span className="gba:text-sm gba:text-foreground">{item.commentsCount || 0}</span>
-          </div>
+        {entityType && (
+          <AppAction
+            variant="custom"
+            mode="button"
+            buttonSize="sm"
+            buttonVariant="ghost"
+            shareContext={{
+              entityType,
+              entityId: item.id,
+              entityName: item.title || '',
+              entityUrl: entityDisplayUrl
+            }}
+            accessToken={accessToken}
+            className="gba:p-2"
+            data-testid="content-share-button"
+          >
+            <Share2 className="gba:w-4 gba:h-4" />
+          </AppAction>
         )}
-
-        <Button variant="ghost" size="sm" onClick={handleShare} className="gba:p-2" data-testid="content-share-button">
-          <Share2 className="gba:w-4 gba:h-4" />
-          <span className="gba:ml-2 gba:text-sm">{item.shareCount || 0}</span>
-        </Button>
       </div>
     </div>
   )
