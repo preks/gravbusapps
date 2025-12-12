@@ -232,22 +232,6 @@ export const InboxView: React.FC<InboxViewProps> = ({
     updateTaskUrl(null)
   }, [])
 
-  // Handler to remove task immediately after completion and refresh completed tasks
-  const handleTaskCompleted = useCallback(
-    (taskId: string) => {
-      // Remove from local inbox/active tasks immediately for better UX
-      setLocalTasks(prev => prev.filter(t => t.id !== taskId))
-      setLocalCompletedTasks(prev => prev.filter(t => t.id !== taskId))
-
-      // Close the task detail and clear URL
-      handleCloseTask()
-
-      // Refresh completed tasks from backend using dedicated endpoint
-      onCompletedRefresh()
-    },
-    [onCompletedRefresh, handleCloseTask]
-  )
-
   /**
    * Helper function to check if a task is a Blink (quick direct task)
    */
@@ -442,6 +426,51 @@ export const InboxView: React.FC<InboxViewProps> = ({
 
     return result
   }, [currentTasks, searchQuery, filterType, employeeMap, shouldIncludeCflowTask, applyTypeFilter])
+
+  // Handler to remove task immediately after completion and refresh completed tasks
+  // AUTO-ADVANCE: Opens the next task in the list after completing current one
+  const handleTaskCompleted = useCallback(
+    (taskId: string) => {
+      // Use the ACTUAL displayed list from filteredTasks
+      const displayedTasks = filteredTasks
+
+      // Find the completed task's index in the DISPLAYED list
+      const completedTaskIndex = displayedTasks.findIndex(t => t.id === taskId)
+
+      // Calculate next task BEFORE removing from state
+      let nextTask: UnifiedTask | null = null
+      if (completedTaskIndex !== -1 && displayedTasks.length > 1) {
+        // Try to get the next task after the completed one
+        if (completedTaskIndex < displayedTasks.length - 1) {
+          nextTask = displayedTasks[completedTaskIndex + 1]
+        } else if (completedTaskIndex > 0) {
+          // If completed task was last, get the previous one
+          nextTask = displayedTasks[completedTaskIndex - 1]
+        }
+      }
+
+      // Remove completed task from local state (immediate UI feedback)
+      setLocalTasks(prev => prev.filter(t => t.id !== taskId))
+      setLocalCompletedTasks(prev => prev.filter(t => t.id !== taskId))
+
+      // Auto-advance to next task or close if none available
+      if (nextTask && nextTask.id !== taskId) {
+        // Use setTimeout to ensure this runs AFTER any pending onClose() calls from child components
+        // This prevents cFlow's onClose() from closing the newly selected task
+        setTimeout(() => {
+          setSelectedTask(nextTask)
+          updateTaskUrl(nextTask.id)
+        }, 0)
+      } else {
+        // No more tasks in filtered list - close detail panel
+        handleCloseTask()
+      }
+
+      // Refresh completed tasks from backend
+      onCompletedRefresh()
+    },
+    [filteredTasks, onCompletedRefresh, handleCloseTask, filterType]
+  )
 
   // Count tasks by type for badges
   // Note: Shows counts from loaded tasks. Adds "+" suffix if more tasks exist

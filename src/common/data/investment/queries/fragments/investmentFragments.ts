@@ -9,6 +9,7 @@
 
 import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments'
 import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments'
+import { COMPANY_REF } from '@/common/data/orgchart/queries/fragments/companyFragments'
 import { ADDRESS_REF } from '@/common/data/common/queries/addressFragments'
 import { COMMUNICATION_CHANNEL_REF } from '@/common/data/common/queries/communicationChannelFragments'
 import { InvestmentAccountFields } from '../../types/investmentAccountTypes'
@@ -318,6 +319,11 @@ export const INVESTMENT = `
     # Loan recipient investment account
     loanRecipientInvestmentAccount {
         ${INVESTMENT_ACCOUNT_REF}
+    }
+    
+    # Company relationship
+    company {
+        ${COMPANY_REF}
     }
     
     # All investment specializations with full details
