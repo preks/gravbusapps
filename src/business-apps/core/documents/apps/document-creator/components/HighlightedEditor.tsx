@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import ReactQuill from 'react-quill'
 import { Button } from '@newwork/nw-design-system'
-import { Check, X, Warning, Info, XCircle } from '@phosphor-icons/react'
+import { CheckCircle, XCircle, WarningCircle, Info } from '@phosphor-icons/react'
 import { createPortal } from 'react-dom'
 
 export interface EditorAnnotation {
@@ -54,7 +54,7 @@ const AnnotationPopover: React.FC<{
       case 'critical':
         return <XCircle className="gba:w-4 gba:h-4" weight="fill" />
       case 'warning':
-        return <Warning className="gba:w-4 gba:h-4" weight="fill" />
+        return <WarningCircle className="gba:w-4 gba:h-4" weight="fill" />
       default:
         return <Info className="gba:w-4 gba:h-4" weight="fill" />
     }
@@ -104,7 +104,7 @@ const AnnotationPopover: React.FC<{
           {annotation.category.toUpperCase()}
         </span>
         <button onClick={onClose} className="gba:p-1 gba:rounded gba:text-muted-foreground hover:gba:bg-muted">
-          <X className="gba:w-4 gba:h-4" />
+          <XCircle className="gba:w-4 gba:h-4" />
         </button>
       </div>
 
@@ -130,11 +130,11 @@ const AnnotationPopover: React.FC<{
       {/* Actions */}
       <div className="gba:flex gba:gap-2">
         <Button type="button" size="sm" onClick={onAccept} className="gba:flex-1 gba:gap-1.5">
-          <Check className="gba:w-4 gba:h-4" weight="bold" />
+          <CheckCircle className="gba:w-4 gba:h-4" weight="bold" />
           {annotation.suggestion ? 'Apply Fix' : 'OK'}
         </Button>
         <Button type="button" size="sm" variant="outline" onClick={onDismiss} className="gba:gap-1.5">
-          <X className="gba:w-4 gba:h-4" />
+          <XCircle className="gba:w-4 gba:h-4" />
           Ignore
         </Button>
       </div>
@@ -346,7 +346,7 @@ export const HighlightedEditor: React.FC<HighlightedEditorProps> = ({
       {/* Issue counter - only show if there are unresolved issues */}
       {unresolvedCount > 0 && (
         <div className="gba:absolute gba:top-12 gba:right-3 gba:z-20 gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-1.5 gba:rounded-full gba:text-xs gba:font-bold gba:bg-warning-secondary gba:text-warning-secondary-foreground gba:border-2 gba:border-warning gba:shadow-md">
-          <Warning className="gba:w-4 gba:h-4" weight="fill" />
+          <WarningCircle className="gba:w-4 gba:h-4" weight="fill" />
           {unresolvedCount} issue{unresolvedCount !== 1 ? 's' : ''} · Click highlighted text
         </div>
       )}

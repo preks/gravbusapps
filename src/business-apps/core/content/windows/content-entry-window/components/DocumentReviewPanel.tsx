@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { Button, ScrollArea } from '@newwork/nw-design-system'
-import { Check, X, Sparkle, CaretDown, CaretUp } from '@phosphor-icons/react'
+import { CheckCircle, XCircle, Sparkles, CaretDown, CaretUp } from '@phosphor-icons/react'
 
 export interface ReviewAnnotation {
   id: string
@@ -56,17 +56,17 @@ export const DocumentReviewPanel: React.FC<DocumentReviewPanelProps> = ({
       contentType: 'article_draft'
     }
 
-    ;(window as any).__currentDocumentContext = documentContext
+    ;(globalThis as any).__currentDocumentContext = documentContext
 
-    window.dispatchEvent(
+    globalThis.dispatchEvent(
       new CustomEvent('document-context-changed', {
         detail: documentContext
       })
     )
 
     return () => {
-      if ((window as any).__currentDocumentContext?.documentId === 'content-editor') {
-        ;(window as any).__currentDocumentContext = null
+      if ((globalThis as any).__currentDocumentContext?.documentId === 'content-editor') {
+        ;(globalThis as any).__currentDocumentContext = null
       }
     }
   }, [content, title])
@@ -106,9 +106,9 @@ export const DocumentReviewPanel: React.FC<DocumentReviewPanelProps> = ({
       }
     }
 
-    window.addEventListener('document-review-annotations', handleAnnotations as EventListener)
+    globalThis.addEventListener('document-review-annotations', handleAnnotations as EventListener)
     return () => {
-      window.removeEventListener('document-review-annotations', handleAnnotations as EventListener)
+      globalThis.removeEventListener('document-review-annotations', handleAnnotations as EventListener)
     }
   }, [])
 
@@ -185,7 +185,7 @@ export const DocumentReviewPanel: React.FC<DocumentReviewPanelProps> = ({
         className="gba:w-full gba:flex gba:items-center gba:justify-between gba:p-3 gba:text-left hover:gba:bg-accent/50 gba:transition-colors gba:rounded-t-lg"
       >
         <div className="gba:flex gba:items-center gba:gap-2">
-          <Sparkle className="gba:w-4 gba:h-4 gba:text-primary" weight="fill" />
+          <Sparkles className="gba:w-4 gba:h-4 gba:text-primary" weight="fill" />
           <span className="gba:font-medium gba:text-sm">AI Review</span>
           {isReviewing ? (
             <Badge variant="secondary" className="gba:animate-pulse">
@@ -255,7 +255,7 @@ export const DocumentReviewPanel: React.FC<DocumentReviewPanelProps> = ({
                         className="gba:flex-1 gba:gap-1"
                         data-testid={`accept-annotation-${annotation.id}`}
                       >
-                        <Check className="gba:w-3 gba:h-3" />
+                        <CheckCircle className="gba:w-3 gba:h-3" />
                         {annotation.suggestion ? 'Accept & Apply' : 'Acknowledge'}
                       </Button>
                       <Button
@@ -266,7 +266,7 @@ export const DocumentReviewPanel: React.FC<DocumentReviewPanelProps> = ({
                         className="gba:gap-1"
                         data-testid={`decline-annotation-${annotation.id}`}
                       >
-                        <X className="gba:w-3 gba:h-3" />
+                        <XCircle className="gba:w-3 gba:h-3" />
                         Dismiss
                       </Button>
                     </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { Button } from '@newwork/nw-design-system'
-import { Check, X, Sparkle, CaretDown, CaretUp, Warning, Info, XCircle } from '@phosphor-icons/react'
+import { CheckCircle, XCircle, SparkleIcon, CaretDown, CaretUp, WarningCircle, Info } from '@phosphor-icons/react'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 
 export interface ReviewAnnotation {
@@ -51,11 +51,11 @@ export const DocumentReviewPanel: React.FC<DocumentReviewPanelProps> = ({
       documentContent: plainText,
       contentType: 'contract_draft'
     }
-    ;(window as any).__currentDocumentContext = documentContext
-    window.dispatchEvent(new CustomEvent('document-context-changed', { detail: documentContext }))
+    ;(globalThis as any).__currentDocumentContext = documentContext
+    globalThis.dispatchEvent(new CustomEvent('document-context-changed', { detail: documentContext }))
     return () => {
-      if ((window as any).__currentDocumentContext?.documentId === 'document-creator') {
-        ;(window as any).__currentDocumentContext = null
+      if ((globalThis as any).__currentDocumentContext?.documentId === 'document-creator') {
+        ;(globalThis as any).__currentDocumentContext = null
       }
     }
   }, [content, title])
@@ -83,8 +83,8 @@ export const DocumentReviewPanel: React.FC<DocumentReviewPanelProps> = ({
         setError(null)
       }
     }
-    window.addEventListener('document-review-annotations', handleAnnotations as EventListener)
-    return () => window.removeEventListener('document-review-annotations', handleAnnotations as EventListener)
+    globalThis.addEventListener('document-review-annotations', handleAnnotations as EventListener)
+    return () => globalThis.removeEventListener('document-review-annotations', handleAnnotations as EventListener)
   }, [onAnnotationsChange])
 
   const handleReview = useCallback(async () => {
@@ -200,7 +200,7 @@ export const DocumentReviewPanel: React.FC<DocumentReviewPanelProps> = ({
           bg: 'gba:bg-warning-secondary',
           text: 'gba:text-warning-secondary-foreground',
           border: 'gba:border-warning/30',
-          icon: <Warning className="gba:w-4 gba:h-4" weight="fill" />
+          icon: <WarningCircle className="gba:w-4 gba:h-4" weight="fill" />
         }
       default:
         return {
@@ -226,7 +226,7 @@ export const DocumentReviewPanel: React.FC<DocumentReviewPanelProps> = ({
           onClick={() => setIsExpanded(!isExpanded)}
           className="gba:flex gba:items-center gba:gap-2 gba:text-left"
         >
-          <Sparkle className="gba:w-5 gba:h-5 gba:text-primary" weight="fill" />
+          <SparkleIcon className="gba:w-5 gba:h-5 gba:text-primary" weight="fill" />
           <span className="gba:font-semibold gba:text-sm gba:text-foreground">AI Review</span>
           {isReviewing && (
             <span className="gba:px-2 gba:py-0.5 gba:rounded-full gba:text-xs gba:font-medium gba:animate-pulse gba:bg-info-secondary gba:text-info-secondary-foreground">
@@ -258,7 +258,7 @@ export const DocumentReviewPanel: React.FC<DocumentReviewPanelProps> = ({
           disabled={isReviewing || !content.trim()}
           className="gba:gap-2"
         >
-          <Sparkle className="gba:w-4 gba:h-4" />
+          <SparkleIcon className="gba:w-4 gba:h-4" />
           {isReviewing ? 'Reviewing...' : 'Review'}
         </Button>
       </div>
@@ -272,7 +272,7 @@ export const DocumentReviewPanel: React.FC<DocumentReviewPanelProps> = ({
 
           {annotations.length === 0 && !isReviewing && !error && (
             <div className="gba:p-5 gba:text-center gba:text-muted-foreground">
-              <Sparkle className="gba:w-8 gba:h-8 gba:mx-auto gba:mb-2 gba:opacity-40" />
+              <SparkleIcon className="gba:w-8 gba:h-8 gba:mx-auto gba:mb-2 gba:opacity-40" />
               <p className="gba:text-sm">Click &quot;Review&quot; to analyze your document</p>
             </div>
           )}
@@ -329,7 +329,7 @@ export const DocumentReviewPanel: React.FC<DocumentReviewPanelProps> = ({
                         onClick={() => handleAccept(annotation)}
                         className="gba:flex-1 gba:gap-1 gba:h-8"
                       >
-                        <Check className="gba:w-3 gba:h-3" weight="bold" />
+                        <CheckCircle className="gba:w-3 gba:h-3" weight="bold" />
                         Fix
                       </Button>
                       <Button
@@ -339,7 +339,7 @@ export const DocumentReviewPanel: React.FC<DocumentReviewPanelProps> = ({
                         onClick={() => handleDecline(annotation.id)}
                         className="gba:gap-1 gba:h-8"
                       >
-                        <X className="gba:w-3 gba:h-3" />
+                        <XCircle className="gba:w-3 gba:h-3" />
                         Ignore
                       </Button>
                     </div>

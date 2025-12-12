@@ -590,7 +590,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
                   reviewData.annotations.length > 0
                 ) {
                   // Get current document context
-                  const docContext = (window as any).__currentDocumentContext
+                  const docContext = (globalThis as any).__currentDocumentContext
 
                   if (docContext?.documentId) {
                     // Transform annotations to expected format
@@ -609,7 +609,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
 
                     // Dispatch annotations to document view
                     console.log('[Chat] Dispatching document annotations:', annotations.length)
-                    window.dispatchEvent(
+                    globalThis.dispatchEvent(
                       new CustomEvent('document-review-annotations', {
                         detail: {
                           documentId: docContext.documentId,

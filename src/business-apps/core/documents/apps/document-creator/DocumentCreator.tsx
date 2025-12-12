@@ -12,7 +12,14 @@ import {
   Separator,
   ScrollArea
 } from '@newwork/nw-design-system'
-import { FileText, Sparkle, FileDoc, FilePdf, MagicWand, ArrowLeft } from '@phosphor-icons/react'
+import {
+  FileTextIcon,
+  SparkleIcon,
+  FileDocIcon,
+  FilePdfIcon,
+  MagicWandIcon,
+  ArrowLeftIcon
+} from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { DocumentReviewPanel, type ReviewAnnotation } from './components/DocumentReviewPanel'
 import { HighlightedEditor, type EditorAnnotation } from './components/HighlightedEditor'
@@ -260,10 +267,10 @@ const DocumentCreator: React.FC<DocumentCreatorProps> = ({ accessToken, onClose,
         <div className="gba:flex gba:items-center gba:gap-3">
           {onClose && (
             <Button variant="ghost" size="icon" onClick={onClose}>
-              <ArrowLeft className="gba:w-5 gba:h-5" />
+              <ArrowLeftIcon className="gba:w-5 gba:h-5" />
             </Button>
           )}
-          <FileText className="gba:w-6 gba:h-6 gba:text-primary" />
+          <FileTextIcon className="gba:w-6 gba:h-6 gba:text-primary" />
           <h1 className="gba:text-xl gba:font-semibold">Document Creator</h1>
         </div>
 
@@ -276,7 +283,7 @@ const DocumentCreator: React.FC<DocumentCreatorProps> = ({ accessToken, onClose,
             disabled={!content || isExporting}
             className="gba:gap-2"
           >
-            <FileDoc className="gba:w-4 gba:h-4" />
+            <FileDocIcon className="gba:w-4 gba:h-4" />
             Word
           </Button>
           <Button
@@ -286,7 +293,7 @@ const DocumentCreator: React.FC<DocumentCreatorProps> = ({ accessToken, onClose,
             disabled={!content || isExporting}
             className="gba:gap-2"
           >
-            <FilePdf className="gba:w-4 gba:h-4" />
+            <FilePdfIcon className="gba:w-4 gba:h-4" />
             PDF
           </Button>
 
@@ -329,7 +336,7 @@ const DocumentCreator: React.FC<DocumentCreatorProps> = ({ accessToken, onClose,
               {/* AI Content Generation */}
               <div>
                 <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
-                  <MagicWand className="gba:w-4 gba:h-4 gba:text-primary" />
+                  <MagicWandIcon className="gba:w-4 gba:h-4 gba:text-primary" />
                   <h3 className="gba:text-sm gba:font-medium">AI Assistant</h3>
                 </div>
                 <div className="gba:space-y-3">
@@ -344,7 +351,7 @@ const DocumentCreator: React.FC<DocumentCreatorProps> = ({ accessToken, onClose,
                     disabled={!aiPrompt.trim() || isGenerating}
                     className="gba:w-full gba:gap-2"
                   >
-                    <Sparkle className="gba:w-4 gba:h-4" />
+                    <SparkleIcon className="gba:w-4 gba:h-4" />
                     {isGenerating ? 'Generating...' : 'Generate Content'}
                   </Button>
                 </div>

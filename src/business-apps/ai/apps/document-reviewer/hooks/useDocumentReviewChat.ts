@@ -300,7 +300,7 @@ export const useDocumentReviewChat = (options: UseDocumentReviewChatOptions): Us
   const dispatchAnnotations = useCallback(() => {
     if (!documentContext || !annotations.length) return
 
-    window.dispatchEvent(
+    globalThis.dispatchEvent(
       new CustomEvent('document-review-annotations', {
         detail: {
           documentId: documentContext.documentId,

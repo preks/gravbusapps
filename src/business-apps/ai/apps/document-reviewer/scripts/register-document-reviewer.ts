@@ -188,10 +188,10 @@ export async function getDocumentReviewerStatus(
 }
 
 // Export for browser console usage
-if (typeof window !== 'undefined') {
-  ;(window as any).registerDocumentReviewer = registerDocumentReviewer
-  ;(window as any).unregisterDocumentReviewer = unregisterDocumentReviewer
-  ;(window as any).getDocumentReviewerStatus = getDocumentReviewerStatus
+if (typeof globalThis.window !== 'undefined') {
+  ;(globalThis as any).registerDocumentReviewer = registerDocumentReviewer
+  ;(globalThis as any).unregisterDocumentReviewer = unregisterDocumentReviewer
+  ;(globalThis as any).getDocumentReviewerStatus = getDocumentReviewerStatus
 
   console.log(
     '📝 Document Reviewer registration functions loaded.\n' +

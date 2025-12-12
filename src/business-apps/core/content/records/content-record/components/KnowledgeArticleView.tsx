@@ -1,13 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { Badge, Button } from '@newwork/nw-design-system'
-import { Sparkles, Loader2, X } from 'lucide-react'
+import React, { useState, useEffect, useRef } from 'react'
+import { Badge } from '@newwork/nw-design-system'
 import { ContentEntry } from '@/common/data/content/types/contentTypes'
 import { CommentSection } from '@/business-apps/core/content/records/content-record/components/interactions'
 import ContentInfoSection from './ContentInfoSection'
 import { buildFileUrl } from '@/common/utils/fileUtils'
 import type { TranslatedTexts } from '@/common/components/content'
-import { DocumentAnnotationOverlay } from '@/business-apps/ai/apps/document-reviewer'
-import type { DocumentAnnotation } from '@/business-apps/ai/apps/document-reviewer/types'
 
 interface KnowledgeArticleViewProps {
   item: ContentEntry
@@ -44,95 +41,6 @@ const KnowledgeArticleView: React.FC<KnowledgeArticleViewProps> = ({
   // State for image blob URL
   const [imageBlobUrl, setImageBlobUrl] = useState<string | null>(null)
   const blobUrlRef = useRef<string | null>(null)
-
-  // Document Review state - managed locally, receives annotations from chat
-  const [isReviewMode, setIsReviewMode] = useState(false)
-  const [annotations, setAnnotations] = useState<DocumentAnnotation[]>([])
-  const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null)
-  const [isReviewLoading, setIsReviewLoading] = useState(false)
-
-  // Broadcast document content for chat to use
-  useEffect(() => {
-    if (!displayContent || !item.id) return
-
-    // Broadcast that this document is currently being viewed
-    const documentContext = {
-      documentId: item.id,
-      documentTitle: displayTitle || item.title,
-      documentContent: displayContent,
-      contentType: 'knowledge_article'
-    }
-
-    // Store in window for chat to access
-    ;(window as any).__currentDocumentContext = documentContext
-
-    // Also dispatch event for any listeners
-    window.dispatchEvent(
-      new CustomEvent('document-context-changed', {
-        detail: documentContext
-      })
-    )
-
-    console.log('[KnowledgeArticleView] Document context broadcast:', item.id)
-
-    return () => {
-      // Clean up on unmount
-      if ((window as any).__currentDocumentContext?.documentId === item.id) {
-        ;(window as any).__currentDocumentContext = null
-      }
-    }
-  }, [item.id, displayTitle, displayContent, item.title])
-
-  // Listen for annotations from chat
-  useEffect(() => {
-    const handleAnnotations = (event: CustomEvent) => {
-      const { documentId, annotations: newAnnotations, isLoading } = event.detail
-
-      console.log('[KnowledgeArticleView] Received annotations event:', {
-        documentId,
-        count: newAnnotations?.length,
-        isLoading
-      })
-
-      // Only accept annotations for this document
-      if (documentId !== item.id) {
-        console.log('[KnowledgeArticleView] Ignoring annotations for different document')
-        return
-      }
-
-      if (isLoading !== undefined) {
-        setIsReviewLoading(isLoading)
-      }
-
-      if (newAnnotations && newAnnotations.length > 0) {
-        setAnnotations(newAnnotations)
-        setIsReviewMode(true)
-        console.log('[KnowledgeArticleView] Annotations set:', newAnnotations.length)
-      }
-    }
-
-    window.addEventListener('document-review-annotations', handleAnnotations as EventListener)
-    return () => {
-      window.removeEventListener('document-review-annotations', handleAnnotations as EventListener)
-    }
-  }, [item.id])
-
-  // Close review mode
-  const handleCloseReview = useCallback(() => {
-    setIsReviewMode(false)
-    setAnnotations([])
-    setSelectedAnnotationId(null)
-  }, [])
-
-  // Select annotation
-  const selectAnnotation = useCallback((id: string) => {
-    setSelectedAnnotationId(id)
-  }, [])
-
-  // Resolve annotation
-  const resolveAnnotation = useCallback((id: string) => {
-    setAnnotations(prev => prev.map(a => (a.id === id ? { ...a, resolved: true } : a)))
-  }, [])
 
   // Fetch image with authentication
   useEffect(() => {
@@ -257,67 +165,25 @@ const KnowledgeArticleView: React.FC<KnowledgeArticleViewProps> = ({
           reactionCatalogMap={reactionCatalogMap}
         />
 
-        {/* AI Review Status Bar - shows when reviewing via chat */}
-        {(isReviewMode || isReviewLoading) && (
-          <div className="gba:flex gba:items-center gba:gap-3 gba:mb-6 gba:p-3 gba:bg-muted/50 gba:rounded-lg">
-            {isReviewLoading ? (
-              <>
-                <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin gba:text-primary" />
-                <span className="gba:text-sm gba:text-muted-foreground">AI is reviewing this document...</span>
-              </>
-            ) : (
-              <>
-                <Sparkles className="gba:w-4 gba:h-4 gba:text-primary" />
-                <Badge variant="secondary">
-                  {annotations.filter(a => !a.resolved).length} issue
-                  {annotations.filter(a => !a.resolved).length !== 1 ? 's' : ''} found
-                </Badge>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleCloseReview}
-                  data-testid="knowledge-article-close-review-button"
-                  className="gba:ml-auto gba:gap-1"
-                >
-                  <X className="gba:w-4 gba:h-4" />
-                  Close Review
-                </Button>
-              </>
-            )}
-          </div>
+        {/* Content */}
+        {displayContent && (
+          <div
+            className="gba:prose gba:prose-lg gba:max-w-none gba:mb-10
+                       [&>h1]:gba:text-3xl [&>h1]:gba:font-bold [&>h1]:gba:mt-8 [&>h1]:gba:mb-4 [&>h1]:gba:text-foreground
+                       [&>h2]:gba:text-2xl [&>h2]:gba:font-semibold [&>h2]:gba:mt-6 [&>h2]:gba:mb-3 [&>h2]:gba:text-foreground
+                       [&>h3]:gba:text-xl [&>h3]:gba:font-semibold [&>h3]:gba:mt-5 [&>h3]:gba:mb-2 [&>h3]:gba:text-foreground
+                       [&>p]:gba:text-base [&>p]:gba:leading-7 [&>p]:gba:mb-4 [&>p]:gba:text-foreground
+                       [&>ul]:gba:list-disc [&>ul]:gba:ml-6 [&>ul]:gba:mb-4 [&>ul]:gba:text-foreground
+                       [&>ol]:gba:list-decimal [&>ol]:gba:ml-6 [&>ol]:gba:mb-4 [&>ol]:gba:text-foreground
+                       [&>li]:gba:mb-2
+                       [&>code]:gba:bg-muted [&>code]:gba:px-2 [&>code]:gba:py-1 [&>code]:gba:rounded [&>code]:gba:text-sm [&>code]:gba:font-mono
+                       [&>pre]:gba:bg-muted [&>pre]:gba:p-4 [&>pre]:gba:rounded-lg [&>pre]:gba:mb-4 [&>pre]:gba:overflow-x-auto
+                       [&>blockquote]:gba:border-l-4 [&>blockquote]:gba:border-primary [&>blockquote]:gba:pl-4 [&>blockquote]:gba:italic [&>blockquote]:gba:my-4 [&>blockquote]:gba:text-muted-foreground
+                       [&>a]:gba:text-primary [&>a]:gba:underline [&>a]:hover:gba:text-primary/80"
+            dangerouslySetInnerHTML={{ __html: displayContent }}
+            data-testid="knowledge-article-content"
+          />
         )}
-
-        {/* Content - with or without annotations */}
-        {displayContent &&
-          (isReviewMode && annotations.length > 0 ? (
-            <DocumentAnnotationOverlay
-              content={displayContent}
-              annotations={annotations}
-              selectedAnnotationId={selectedAnnotationId}
-              isLoading={isReviewLoading}
-              onAnnotationClick={ann => selectAnnotation(ann.id)}
-              onResolve={ann => resolveAnnotation(ann.id)}
-              className="gba:mb-10"
-              data-testid="knowledge-article-annotations"
-            />
-          ) : (
-            <div
-              className="gba:prose gba:prose-lg gba:max-w-none gba:mb-10
-                         [&>h1]:gba:text-3xl [&>h1]:gba:font-bold [&>h1]:gba:mt-8 [&>h1]:gba:mb-4 [&>h1]:gba:text-foreground
-                         [&>h2]:gba:text-2xl [&>h2]:gba:font-semibold [&>h2]:gba:mt-6 [&>h2]:gba:mb-3 [&>h2]:gba:text-foreground
-                         [&>h3]:gba:text-xl [&>h3]:gba:font-semibold [&>h3]:gba:mt-5 [&>h3]:gba:mb-2 [&>h3]:gba:text-foreground
-                         [&>p]:gba:text-base [&>p]:gba:leading-7 [&>p]:gba:mb-4 [&>p]:gba:text-foreground
-                         [&>ul]:gba:list-disc [&>ul]:gba:ml-6 [&>ul]:gba:mb-4 [&>ul]:gba:text-foreground
-                         [&>ol]:gba:list-decimal [&>ol]:gba:ml-6 [&>ol]:gba:mb-4 [&>ol]:gba:text-foreground
-                         [&>li]:gba:mb-2
-                         [&>code]:gba:bg-muted [&>code]:gba:px-2 [&>code]:gba:py-1 [&>code]:gba:rounded [&>code]:gba:text-sm [&>code]:gba:font-mono
-                         [&>pre]:gba:bg-muted [&>pre]:gba:p-4 [&>pre]:gba:rounded-lg [&>pre]:gba:mb-4 [&>pre]:gba:overflow-x-auto
-                         [&>blockquote]:gba:border-l-4 [&>blockquote]:gba:border-primary [&>blockquote]:gba:pl-4 [&>blockquote]:gba:italic [&>blockquote]:gba:my-4 [&>blockquote]:gba:text-muted-foreground
-                         [&>a]:gba:text-primary [&>a]:gba:underline [&>a]:hover:gba:text-primary/80"
-              dangerouslySetInnerHTML={{ __html: displayContent }}
-              data-testid="knowledge-article-content"
-            />
-          ))}
 
         {/* Comment Section */}
         {item.allowComment && (

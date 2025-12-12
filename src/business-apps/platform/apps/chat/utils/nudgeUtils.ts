@@ -9,7 +9,7 @@
  */
 export const playNudgeSound = () => {
   try {
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+    const audioContext = new (globalThis.AudioContext || (globalThis as any).webkitAudioContext)()
 
     // Create a short beep sound (double beep like MSN)
     const playBeep = (frequency: number, duration: number, delay: number) => {

@@ -49,7 +49,7 @@ export const useExpertRouting = ({ accessToken }: ExpertRoutingOptions) => {
         // Check if this is a Document Reviewer expert - inject document context
         const expertName = expert.expertName?.toLowerCase() || ''
         const isDocumentReviewer = expertName.includes('document') || expertName.includes('review')
-        const docContext = (window as any).__currentDocumentContext
+        const docContext = (globalThis as any).__currentDocumentContext
 
         // For Document Reviewer, build a comprehensive prompt with document content
         let effectivePrompt = prompt

@@ -141,10 +141,10 @@ export const DocumentReviewProvider: React.FC<DocumentReviewProviderProps> = ({ 
       }
     }
 
-    window.addEventListener('document-review-annotations', handleAnnotationsEvent as EventListener)
+    globalThis.addEventListener('document-review-annotations', handleAnnotationsEvent as EventListener)
 
     return () => {
-      window.removeEventListener('document-review-annotations', handleAnnotationsEvent as EventListener)
+      globalThis.removeEventListener('document-review-annotations', handleAnnotationsEvent as EventListener)
     }
   }, [currentDocument, setAnnotations])
 
@@ -213,7 +213,7 @@ export const useDocumentViewAnnotations = (
       contentType,
       title: options?.title,
       content: options?.content,
-      url: typeof window !== 'undefined' ? window.location.href : undefined
+      url: typeof globalThis.window !== 'undefined' ? globalThis.location.href : undefined
     })
 
     return () => {
