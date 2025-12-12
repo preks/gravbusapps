@@ -5,17 +5,18 @@ import {
   extractCurrencyCode,
   extractCatalogDisplay,
   formatDateValue,
-  type CatalogEntry,
-  type TranslationFunction
+  extractBenefitValueFromCatalog,
+  type CatalogEntry
 } from '../employee-benefit-review/utils'
+import { translatePeriod, type TranslationFunction } from '@/business-apps/hr/core/utils/benefitExtractionUtils'
 
-export type { CatalogEntry, TranslationFunction } from '../employee-benefit-review/utils'
+export type { CatalogEntry } from '../employee-benefit-review/utils'
+export type { TranslationFunction } from '@/business-apps/hr/core/utils/benefitExtractionUtils'
 
 export interface BenefitDetails {
   benefitType: string
   provider: string
-  yearlyValue: string
-  monthlyValue: string
+  value: string
   period: string
   startDate: string
   justification?: string
@@ -56,12 +57,25 @@ export function buildBenefitDetails(params: {
   const providerDisplay = extractCatalogDisplay(benefitData.benefitProviderRef, providerEntry)
   const startDateFormatted = formatDateValue(benefitData.startDate)
 
+  // Extract value and period from catalog entry objectValue
+  const catalogValue = extractBenefitValueFromCatalog(benefitTypeEntry, locale)
+  const valueAmount = catalogValue?.value
+    ? Number.parseFloat(
+        String(catalogValue.value)
+          .replace(/[^\d.,-]/g, '')
+          .replace(',', '.')
+      )
+    : benefitData.yearlyAmount || benefitData.monthlyAmount || 0
+
+  const rawPeriod =
+    catalogValue?.period && catalogValue.period !== '-' ? catalogValue.period : benefitData.period || null
+  const valuePeriod = translatePeriod(rawPeriod, params.t)
+
   return {
     benefitType: benefitTypeDisplay,
     provider: providerDisplay,
-    yearlyValue: formatCurrencyString(benefitData.yearlyAmount || 0, { currency: currencyCode, locale }),
-    monthlyValue: formatCurrencyString(benefitData.monthlyAmount || 0, { currency: currencyCode, locale }),
-    period: benefitData.period || '-',
+    value: formatCurrencyString(valueAmount, { currency: currencyCode, locale }),
+    period: valuePeriod,
     startDate: startDateFormatted,
     justification: benefitData.notes?.trim() || undefined,
     employeeYearlyContribution:
