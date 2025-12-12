@@ -87,14 +87,18 @@ export const GlossarySegment: React.FC<GlossarySegmentProps> = ({
         )}
       />
 
-      {/* Definition (Content) */}
+      {/* Definition (Content) - Optional to allow "Request term" workflow */}
       <FormField
         control={control as any}
         name="content"
-        rules={{ required: t('glossary-definition-required') || 'Definition is required' }}
         render={({ field }) => (
           <FormItem>
-            <FormLabel>{t('glossary-definition') || 'Definition'}</FormLabel>
+            <FormLabel>
+              {t('glossary-definition') || 'Definition'}
+              <span className="gba:text-muted-foreground gba:font-normal gba:ml-1">
+                ({t('optional') || 'optional'})
+              </span>
+            </FormLabel>
             <FormControl>
               <Textarea
                 {...field}
@@ -105,7 +109,8 @@ export const GlossarySegment: React.FC<GlossarySegmentProps> = ({
             </FormControl>
             <FormMessage />
             <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-              {t('glossary-definition-hint') || 'Explain what this term means in our company context'}
+              {t('glossary-definition-hint-optional') ||
+                "Leave empty if you don't know the definition - someone else can fill it in later"}
             </div>
           </FormItem>
         )}
@@ -204,6 +209,11 @@ export const GlossarySegment: React.FC<GlossarySegmentProps> = ({
       {/* Hidden fields - Comments and Reactions enabled for glossary terms */}
       <input type="hidden" {...(control as any).register('allowComment')} value="true" />
       <input type="hidden" {...(control as any).register('allowReaction')} value="true" />
+
+      {/* Hidden contentGroupRef - ensure it's always submitted when provided via context */}
+      {extractedContentGroupRef && (
+        <input type="hidden" {...(control as any).register('contentGroupRef')} value={extractedContentGroupRef} />
+      )}
     </div>
   )
 }

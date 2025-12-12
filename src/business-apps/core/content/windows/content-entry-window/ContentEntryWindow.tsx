@@ -522,6 +522,17 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
     }
   }, [authorName, form])
 
+  // Sync contentGroupRef from additionalData (for new content entries)
+  useEffect(() => {
+    if (extractedContentGroupRef && !extractedContentId) {
+      // Only set if creating new entry (no existing content ID)
+      const currentValue = form.getValues('contentGroupRef')
+      if (!currentValue || currentValue !== extractedContentGroupRef) {
+        form.setValue('contentGroupRef', extractedContentGroupRef)
+      }
+    }
+  }, [extractedContentGroupRef, extractedContentId, form])
+
   // Helper: Upload image file
   const uploadImageFile = useCallback(
     async (file: File, updatedData: ContentEntryFormValues): Promise<void> => {

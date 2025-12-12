@@ -108,15 +108,31 @@ retry = Retry
 # Glossary
 glossary-subtitle = A shared language for terms, acronyms, and how we work
 glossary-add-term = Add term
+glossary-request-term = Request term
 glossary-search-placeholder = Search term, definition, author...
 glossary-published = Published
 glossary-draft = Draft
 glossary-results-count = { $count } results
 glossary-empty = No terms found. Add the first term to get started.
 glossary-no-definition = No definition yet.
+glossary-needs-definition = Needs Definition
+glossary-definition-needed = This term was requested but hasn't been defined yet. Click "Edit" to add a definition!
 glossary-created-by = Created by
+glossary-examples = Examples
 viewing-as = Viewing as
 all = All
 search = Search
 loading = Loading...
 refresh = Refresh
+edit = Edit
+cancel = Cancel
+submitting = Submitting...
+
+# Request Term Dialog
+glossary-request-title = Request a New Term
+glossary-request-description = Don't know the definition? Request it and someone else can fill it in.
+glossary-request-term-label = Term or Acronym
+glossary-request-term-placeholder = e.g., API, SLA, OKR...
+glossary-request-reason-label = Why do you need this term? (optional)
+glossary-request-reason-placeholder = Where did you encounter this term? Why is it important?
+glossary-request-submit = Submit Request

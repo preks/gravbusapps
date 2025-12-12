@@ -15,7 +15,7 @@ import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
-import { Book, Plus, RefreshCw } from 'lucide-react'
+import { Book, Plus, RefreshCw, Pencil, HelpCircle } from 'lucide-react'
 import translations from '../../_i18n'
 
 const PAGE_SIZE = 100
@@ -63,8 +63,11 @@ const GlossaryView: React.FC<GlossaryViewProps> = ({
     [searchQuery]
   )
 
-  // Use central content data
-  const { entries, totalCount, isLoading, error, refetch } = useContentEntries(queryParams, accessToken)
+  // Memoize query options to prevent infinite loop
+  const queryOptions = useMemo(() => ({ config: 'full' as const }), [])
+
+  // Use central content data - use 'full' config to include 'content' field for definitions
+  const { entries, totalCount, isLoading, error, refetch } = useContentEntries(queryParams, accessToken, queryOptions)
 
   // Listen for process completion to refresh data
   useProcessCompletion({
@@ -134,6 +137,25 @@ const GlossaryView: React.FC<GlossaryViewProps> = ({
               <Button data-testid="glossary-add-term-button">
                 <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
                 {t('glossary-add-term')}
+              </Button>
+            </AppAction>
+
+            {/* Request Term - uses same flow but with hint that definition can be left empty */}
+            <AppAction
+              contexts={[
+                {
+                  context: FlowContextName.contentEntryCreate,
+                  contextData: { contentGroup: ContentGroup.GLOSSARY }
+                }
+              ]}
+              accessToken={accessToken}
+              emptyState="enable"
+              lazyLoad
+              data-testid="glossary-request-button"
+            >
+              <Button variant="outline" data-testid="glossary-request-term-button">
+                <HelpCircle className="gba:w-4 gba:h-4 gba:mr-2" />
+                {t('glossary-request-term')}
               </Button>
             </AppAction>
           </div>
@@ -259,7 +281,7 @@ const GlossaryView: React.FC<GlossaryViewProps> = ({
                 data-testid={`glossary-item-${item.id}`}
               >
                 <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">
-                  <div className="gba:min-w-0">
+                  <div className="gba:min-w-0 gba:flex-1">
                     <div className="gba:flex gba:items-center gba:flex-wrap gba:gap-2 gba:mb-2">
                       <h3
                         className="gba:text-lg gba:md:text-xl gba:font-bold gba:text-foreground"
@@ -274,21 +296,39 @@ const GlossaryView: React.FC<GlossaryViewProps> = ({
                       >
                         {item.status}
                       </Badge>
+                      {/* Show "Needs Definition" badge for requested terms */}
+                      {!item.content && (
+                        <Badge
+                          variant="warning"
+                          className="gba:text-xs"
+                          data-testid={`glossary-item-needs-definition-${item.id}`}
+                        >
+                          {t('glossary-needs-definition')}
+                        </Badge>
+                      )}
                     </div>
 
-                    {item.preview ? (
-                      <p
-                        className="gba:text-muted-foreground gba:mb-3"
-                        data-testid={`glossary-item-definition-${item.id}`}
-                      >
-                        {item.preview}
+                    {/* Definition - use content field, not preview */}
+                    {item.content ? (
+                      <p className="gba:text-foreground gba:mb-3" data-testid={`glossary-item-definition-${item.id}`}>
+                        {item.content}
                       </p>
                     ) : (
                       <p
-                        className="gba:text-muted-foreground gba:italic gba:mb-3"
+                        className="gba:text-warning-foreground gba:bg-warning-secondary gba:rounded gba:p-3 gba:mb-3"
                         data-testid={`glossary-item-definition-empty-${item.id}`}
                       >
-                        {t('glossary-no-definition')}
+                        {t('glossary-definition-needed')}
+                      </p>
+                    )}
+
+                    {/* Examples - show preview if available */}
+                    {item.preview && (
+                      <p
+                        className="gba:text-sm gba:text-muted-foreground gba:mb-3 gba:italic"
+                        data-testid={`glossary-item-examples-${item.id}`}
+                      >
+                        {t('glossary-examples')}: {item.preview}
                       </p>
                     )}
 
@@ -302,6 +342,27 @@ const GlossaryView: React.FC<GlossaryViewProps> = ({
                         </span>
                       )}
                     </div>
+                  </div>
+
+                  {/* Edit Button */}
+                  <div className="gba:shrink-0">
+                    <AppAction
+                      contexts={[
+                        {
+                          context: FlowContextName.contentEntryEntity,
+                          contextData: { contentEntryId: item.id }
+                        }
+                      ]}
+                      accessToken={accessToken}
+                      emptyState="enable"
+                      lazyLoad
+                      data-testid={`glossary-edit-button-${item.id}`}
+                    >
+                      <Button variant="outline" size="sm" data-testid={`glossary-item-edit-${item.id}`}>
+                        <Pencil className="gba:w-4 gba:h-4 gba:mr-1" />
+                        {t('edit')}
+                      </Button>
+                    </AppAction>
                   </div>
                 </div>
               </div>
