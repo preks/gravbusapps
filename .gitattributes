@@ -1,0 +1,8 @@
+# Git attributes configuration
+
+# Production hash file: Always keep current branch's version during merge
+# This prevents merge conflicts when merging develop → main
+# - main branch: Keeps its production hashes
+# - develop branch: Keeps its empty state {}
+component-hashes-prod.json merge=ours
+
