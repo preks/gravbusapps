@@ -6,6 +6,7 @@ import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 export interface EmploymentStatistics {
   totalFte: number
   employeeCount: number
+  fteRatio: number
   averageTenure: string
   gapRate: number
   vacantPositions: number
@@ -27,9 +28,7 @@ const EmploymentStatistics: React.FC<EmploymentStatisticsProps> = ({ statistics,
     {
       id: 'fte-employee-count',
       title: t('hr-analytics-fte-employee-count'),
-      value: isLoading
-        ? t('hr-data-filter-loading')
-        : `${statistics.totalFte.toFixed(1)} / ${statistics.employeeCount}`,
+      value: isLoading ? t('hr-data-filter-loading') : `${statistics.fteRatio.toFixed(2)}`,
       icon: <Icon icon={UsersIcon} size="sm" decorative />,
       iconColor: 'var(--nw-info)',
       footer: t('hr-analytics-fte-ratio')
