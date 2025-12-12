@@ -141,6 +141,44 @@ grant-bonus-review-notes = Notes
 grant-bonus-review-acknowledge = Acknowledge
 grant-bonus-review-reject = Reject
 
+# ============================================
+# Common Review Form Translations
+# ============================================
+
+# Common Card Titles
+card-title-unchanged = All Other Fields
+
+# Common Badges
+badge-new = New
+badge-changed = Changed
+badge-unchanged = Unchanged
+badge-not-set = Not Set
+badge-changes = { $count } { $count ->
+    [one] Change
+   *[other] Changes
+}
+
+# Common Field Values
+value-not-set = Not set
+value-na = N/A
+
+# Common Actions
+action-acknowledge = Acknowledge
+action-retry = Retry
+
+# Common States
+loading = Loading...
+
+# Common Field Labels
+label-first-name = First Name
+label-last-name = Last Name
+label-email = Email
+label-notes = Notes
+label-birth-date = Birth Date
+label-country = Country
+label-city = City
+label-currency = Currency
+
 # Deactivate Employee Benefit Review Form
 deactivate-benefit-review-title = Benefit Deactivation Request for { $employeeName }
 deactivate-benefit-review-requested-by = Requested by { $initiatorName }

@@ -1,8 +1,7 @@
 import React, { useState } from 'react'
 import { Badge, Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@newwork/nw-design-system'
 import { PiMapPin, PiArrowRight, PiArrowLeft, PiMapTrifold, PiFlag, PiTable, PiChartLine } from 'react-icons/pi'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { formatDateTime } from '@/business-apps/core/every/apps/every-box/utils/taskFormatters'
+import { formatDateTime } from '@/common/utils/dateFormatter'
 import { getCatalogValue } from '../utils/formatters'
 import { ExpenseRequestTrip } from '../types/expensePlanV2Types'
 import Pill from '@/components/pill'
@@ -10,6 +9,7 @@ import Pill from '@/components/pill'
 interface EnhancedTripSectionProps {
   expenseRequestTrip: ExpenseRequestTrip[]
   prefixDataTestId?: string
+  t: (key: string, vars?: Record<string, unknown>) => string
 }
 
 // Get point type icon
@@ -41,55 +41,41 @@ const getDirectionIcon = (direction?: string) => {
   }
 }
 
-// Get point type label
-const getPointTypeLabel = (pointType: string) => {
-  switch (pointType) {
-    case 'START_POINT':
-      return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:create_expense_request.add_request_trip_details.transformer_rule',
-        'Start Point'
-      )
-    case 'END_POINT':
-      return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:expense_request_overview.trip_list.location_title.end_location',
-        'End Point'
-      )
-    case 'DESTINATION_POINT':
-      return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:expense_request_overview.trip_list.location_title.destination',
-        'Destination'
-      )
-    case 'REGION_ARRIVAL':
-      return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:expense_request_overview.trip_list.location_title.destination',
-        'Region Arrival'
-      )
-    default:
-      return pointType
-  }
-}
-
-// Get direction label
-const getDirectionLabel = (direction?: string) => {
-  if (!direction) return ''
-  switch (direction) {
-    case 'GO':
-      return getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.request.outbound', 'Outbound')
-    case 'BACK':
-      return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:expense_request_overview.trip_list.location_title.start_location',
-        'Return'
-      )
-    default:
-      return direction
-  }
-}
-
 const EnhancedTripSection: React.FC<EnhancedTripSectionProps> = ({
   expenseRequestTrip,
-  prefixDataTestId = 'approve-expense-plan-v2'
+  prefixDataTestId = 'approve-expense-plan-v2',
+  t
 }) => {
   const [viewMode, setViewMode] = useState<'table' | 'timeline'>('table')
+
+  // Get point type label
+  const getPointTypeLabel = (pointType: string) => {
+    switch (pointType) {
+      case 'START_POINT':
+        return t('point-type-start')
+      case 'END_POINT':
+        return t('point-type-end')
+      case 'DESTINATION_POINT':
+        return t('point-type-destination')
+      case 'REGION_ARRIVAL':
+        return t('point-type-region-arrival')
+      default:
+        return pointType
+    }
+  }
+
+  // Get direction label
+  const getDirectionLabel = (direction?: string) => {
+    if (!direction) return ''
+    switch (direction) {
+      case 'GO':
+        return t('direction-outbound')
+      case 'BACK':
+        return t('direction-return')
+      default:
+        return direction
+    }
+  }
 
   // Handle empty or undefined trip data
   if (!expenseRequestTrip || expenseRequestTrip.length === 0) {
@@ -116,49 +102,19 @@ const EnhancedTripSection: React.FC<EnhancedTripSectionProps> = ({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="gba:text-center">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:expense_config_calculation_rule_list.expense_table.order',
-                  'Order'
-                )}
-              </TableHead>
-              <TableHead>{getTranslationFromI18nKeyAndLabel('expense.trip.dateTime', 'Date & Time')}</TableHead>
-              <TableHead>
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:expense_request_overview.trip_list.trip_list_title',
-                  'Trip Details'
-                )}
-              </TableHead>
-              <TableHead>
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:expense_request_overview.trip_list.location_title.destination',
-                  'Destination'
-                )}
-              </TableHead>
-              <TableHead>
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:create_expense_request.add_request_trip_details.start_location',
-                  'Start Location'
-                )}
-              </TableHead>
-              <TableHead>
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:create_expense_request.add_request_trip_details.start_location',
-                  'Start Location (Country)'
-                )}
-              </TableHead>
-              <TableHead>
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:create_expense_request.add_request_trip_details.select_start_region_rule_label',
-                  'Region'
-                )}
-              </TableHead>
+              <TableHead className="gba:text-center">{t('label-order')}</TableHead>
+              <TableHead>{t('label-date-time')}</TableHead>
+              <TableHead>{t('label-trip-details')}</TableHead>
+              <TableHead>{t('label-destination')}</TableHead>
+              <TableHead>{t('label-start-location')}</TableHead>
+              <TableHead>{t('label-start-location-country')}</TableHead>
+              <TableHead>{t('label-region')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {sortedTrips.map((trip, index) => (
               <TableRow
-                key={trip.id || `trip-${trip.tripOrder ?? index}`}
+                key={`trip-${trip.tripOrder ?? index}`}
                 data-testid={`${prefixDataTestId}-trip-table-row-${index}`}
               >
                 <TableCell className="gba:text-center">{trip.tripOrder ?? index + 1}</TableCell>
@@ -216,7 +172,7 @@ const EnhancedTripSection: React.FC<EnhancedTripSectionProps> = ({
 
           return (
             <div
-              key={trip.id || `trip-${trip.tripOrder ?? index}`}
+              key={`trip-${trip.tripOrder ?? index}`}
               className={`gba:relative gba:pl-8 gba:pb-4 ${
                 index < sortedTrips.length - 1 ? 'gba:border-l-2 gba:border-border' : ''
               }`}
@@ -288,7 +244,7 @@ const EnhancedTripSection: React.FC<EnhancedTripSectionProps> = ({
           data-testid={`${prefixDataTestId}-trip-table-view-button`}
         >
           <PiTable className="gba:h-4 gba:w-4 gba:mr-2" />
-          {getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.table', 'Table')}
+          {t('view-table')}
         </Button>
         <Button
           variant={viewMode === 'timeline' ? 'default' : 'outline'}
@@ -297,7 +253,7 @@ const EnhancedTripSection: React.FC<EnhancedTripSectionProps> = ({
           data-testid={`${prefixDataTestId}-trip-timeline-view-button`}
         >
           <PiChartLine className="gba:h-4 gba:w-4 gba:mr-2" />
-          {getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.timeline', 'Timeline')}
+          {t('view-timeline')}
         </Button>
       </div>
 
