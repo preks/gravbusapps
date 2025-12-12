@@ -46,11 +46,67 @@ export const useExpertRouting = ({ accessToken }: ExpertRoutingOptions) => {
         const userParameters = expertPrompt.user_content?.parameters || []
         const systemParameters = expertPrompt.system_content?.parameters || []
 
+        // Check if this is a Document Reviewer expert - inject document context
+        const expertName = expert.expertName?.toLowerCase() || ''
+        const isDocumentReviewer = expertName.includes('document') || expertName.includes('review')
+        const docContext = (window as any).__currentDocumentContext
+
+        // For Document Reviewer, build a comprehensive prompt with document content
+        let effectivePrompt = prompt
+        if (isDocumentReviewer && docContext?.documentContent) {
+          console.log('[ExpertRouting] Document Reviewer detected, injecting document context:', {
+            documentId: docContext.documentId,
+            documentTitle: docContext.documentTitle,
+            contentLength: docContext.documentContent?.length || 0
+          })
+
+          // Build a comprehensive prompt that includes all the document details
+          effectivePrompt = `${prompt}
+
+=== DOCUMENT TO REVIEW ===
+Title: ${docContext.documentTitle || 'Untitled'}
+Document ID: ${docContext.documentId || 'unknown'}
+Content Type: ${docContext.contentType || 'knowledge_article'}
+
+--- DOCUMENT CONTENT START ---
+${docContext.documentContent}
+--- DOCUMENT CONTENT END ---
+
+Please analyze the document above and return your findings as structured JSON with annotations.`
+        }
+
         // Only send parameters if the template expects them
         if (userParameters.length > 0) {
           // Map to the actual parameter names defined in the template
           userParameters.forEach(param => {
-            userParams[param] = prompt
+            // For Document Reviewer, map to specific params if template expects them
+            if (isDocumentReviewer && docContext) {
+              if (param === 'content' || param === 'documentContent' || param === 'document_content') {
+                userParams[param] = docContext.documentContent || ''
+              } else if (param === 'title' || param === 'documentTitle' || param === 'document_title') {
+                userParams[param] = docContext.documentTitle || 'Untitled'
+              } else if (param === 'document_id' || param === 'documentId') {
+                userParams[param] = docContext.documentId || ''
+              } else if (param === 'content_type' || param === 'contentType') {
+                userParams[param] = docContext.contentType || 'knowledge_article'
+              } else if (param === 'review_type' || param === 'reviewType') {
+                userParams[param] = 'all'
+              } else if (param === 'custom_instructions' || param === 'customInstructions') {
+                userParams[param] = ''
+              } else if (
+                param === 'user_message' ||
+                param === 'userMessage' ||
+                param === 'question' ||
+                param === 'query' ||
+                param === 'request'
+              ) {
+                userParams[param] = effectivePrompt
+              } else {
+                userParams[param] = effectivePrompt
+              }
+            } else {
+              userParams[param] = effectivePrompt
+            }
           })
         }
 
