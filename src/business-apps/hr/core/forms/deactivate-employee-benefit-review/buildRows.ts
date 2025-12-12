@@ -34,7 +34,6 @@ export function buildDeactivationDetails(params: {
   const { benefitData } = params
 
   return {
-    requestedEndDate: formatDateValue(benefitData.endDate),
-    deactivationReason: benefitData.notes?.trim() || '-'
+    requestedEndDate: formatDateValue(benefitData.endDate)
   }
 }

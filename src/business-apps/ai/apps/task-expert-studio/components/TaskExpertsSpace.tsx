@@ -12,7 +12,8 @@ import {
   TableHead,
   TableBody,
   TableCell,
-  Spinner
+  Spinner,
+  Badge
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useTaskExperts } from '../hooks/useTaskExperts'
@@ -151,9 +152,9 @@ export const TaskExpertsSpace: React.FC<BusinessAppContextProps> = context => {
                 <TableHeader>
                   <TableRow className="gba:border-b">
                     <TableHead>Name</TableHead>
-                    <TableHead>Type</TableHead>
+                    <TableHead>Agent Type</TableHead>
+                    <TableHead>Specialty</TableHead>
                     <TableHead>Version</TableHead>
-                    <TableHead>Workspace</TableHead>
                     <TableHead className="gba:w-[160px]">ACTIONS</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -166,6 +167,12 @@ export const TaskExpertsSpace: React.FC<BusinessAppContextProps> = context => {
                         </div>
                       </TableCell>
                     </TableRow>
+                  ) : prompts.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="gba:py-6 gba:text-center gba:text-muted-foreground">
+                        No task experts found. Click "New Task Expert" to create one.
+                      </TableCell>
+                    </TableRow>
                   ) : (
                     prompts.map(p => (
                       <TableRow
@@ -173,11 +180,30 @@ export const TaskExpertsSpace: React.FC<BusinessAppContextProps> = context => {
                         data-testid={`task-expert-studio-task-expert-row-${p._id ?? p.name}`}
                       >
                         <TableCell className="gba:py-3">
-                          <span className="gba:font-medium">{p.name}</span>
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <span className="gba:font-medium">{p.name}</span>
+                            {p.is_public && (
+                              <Badge variant="success" className="gba:text-[10px] gba:px-1.5 gba:py-0">
+                                Public
+                              </Badge>
+                            )}
+                          </div>
                         </TableCell>
-                        <TableCell className="gba:py-3 gba:text-muted-foreground">{p.type ?? 'completion'}</TableCell>
+                        <TableCell className="gba:py-3">
+                          {p.agent_type === 'everyai' ? (
+                            <Badge variant="default" className="gba:text-[10px]">
+                              🎓 EveryAI
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary" className="gba:text-[10px]">
+                              FLOW
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="gba:py-3 gba:text-muted-foreground gba:text-sm">
+                          {p.specialty || '-'}
+                        </TableCell>
                         <TableCell className="gba:py-3">v{p.version}</TableCell>
-                        <TableCell className="gba:py-3">{p.workspace?.id || '-'}</TableCell>
                         <TableCell
                           className="gba:py-3"
                           data-testid={`task-expert-studio-task-experts-actions-cell-${p._id ?? p.name}`}

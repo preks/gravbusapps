@@ -8,7 +8,7 @@ import {
   useTranslation,
   Badge
 } from '@newwork/nw-design-system'
-import { Home, Newspaper, BookOpen, FileText, MessageCircleQuestion, TrendingUp } from 'lucide-react'
+import { Home, Newspaper, BookOpen, FileText, MessageCircleQuestion, TrendingUp, Book } from 'lucide-react'
 import translations from './_i18n'
 import NewsView from './views/news-view'
 import HomeView from './views/home-view'
@@ -16,6 +16,7 @@ import KnowledgeView from './views/knowledge-view'
 import DocumentView from './views/document-view'
 import QuestionView from './views/question-view'
 import EngagementView from './views/engagement-view'
+import GlossaryView from './views/glossary-view'
 import { BannerCarousel, BannerVariant, BannerConfig } from './components/shared/Banner'
 import { useCatalogEntries } from '@/common/data/catalog/hooks/useCatalogEntries'
 import { usePortalTranslation } from './hooks/usePortalTranslation'
@@ -103,7 +104,7 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
   const [activeTab, setActiveTab] = useState(initialTab)
 
   // Tab order for carousel-style animation
-  const tabOrder = ['home', 'news', 'knowledge', 'documents', 'questions', 'engagement']
+  const tabOrder = ['home', 'news', 'knowledge', 'documents', 'questions', 'glossary', 'engagement']
   const activeTabIndex = tabOrder.indexOf(activeTab)
 
   // Update URL when tab changes
@@ -190,6 +191,12 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
           title: t('question-welcome-title'),
           subtitle: t('question-welcome-subtitle')
         }
+      case 'glossary':
+        return {
+          variant: BannerVariant.GLOSSARY,
+          title: t('glossary-welcome-title'),
+          subtitle: t('glossary-welcome-subtitle')
+        }
       case 'engagement':
         return {
           variant: BannerVariant.INTRANET,
@@ -257,6 +264,13 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
                   data-testid="intranet-tab-questions"
                 >
                   {t('questions')}
+                </TabSwitchTrigger>
+                <TabSwitchTrigger
+                  value="glossary"
+                  startIcon={<Book className="gba:w-4 gba:h-4" />}
+                  data-testid="intranet-tab-glossary"
+                >
+                  {t('glossary')}
                 </TabSwitchTrigger>
                 <TabSwitchTrigger
                   value="engagement"
@@ -351,6 +365,15 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
             targetLanguage={targetLanguage}
             translatedItems={stableTranslatedItems}
             onTranslate={translateAllContent}
+          />
+        </TabSwitchContent>
+
+        <TabSwitchContent value="glossary" data-testid="intranet-content-glossary">
+          <GlossaryView
+            accessToken={context.accessToken}
+            userInfo={context.userInfo}
+            hideBanner
+            currentTab="glossary"
           />
         </TabSwitchContent>
 

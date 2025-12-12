@@ -8,163 +8,162 @@ import { createDynamicInvestmentSchema } from '@/common/components/investment/fo
 import { mapToFormValues } from '@/common/utils/formMappingUtils'
 
 /**
- * Extract investment data from report, excluding id/version
+ * Normalize array to single object (for sub-investments)
  */
-const extractInvestmentDataFromReport = (report: InvestmentReport | Partial<InvestmentReport>): Partial<Investment> => {
-  if (report.investment) {
-    return {
-      ...report.investment,
-      id: undefined,
-      version: undefined,
-      ...(report.investment.code === null ? {} : { code: report.investment.code }),
-      // Explicitly preserve investmentAccounts from report
-      ...(report.investment.investmentAccounts ? { investmentAccounts: report.investment.investmentAccounts } : {})
+const normalizeSubInvestment = (subInvestment: any): any => {
+  return Array.isArray(subInvestment) ? subInvestment[0] : subInvestment
+}
+
+/**
+ * Transforms InvestmentReport to InvestmentFormValues structure
+ * Treats InvestmentReport as Investment - just maps field names:
+ * - InvestmentReport → Investment (all top-level fields except report-specific ones)
+ * - InvestmentReport.liquidFundInvestmentReport[0] → Investment.liquidFundInvestment
+ * - InvestmentReport.equityInvestmentReport[0] → Investment.equityInvestment
+ * - InvestmentReport.realEstateInvestmentReport[0] → Investment.realEstateInvestment
+ * - InvestmentReport.investmentRoleReport → Investment.investmentRole
+ */
+export const transformInvestmentReport = (
+  report: InvestmentReport | Partial<InvestmentReport>,
+  reportId: string | undefined,
+  investmentId: string | undefined,
+  getPathByType?: (typeId: string | null | undefined) => InvestmentType[]
+): Partial<InvestmentFormValues & { investmentReportDate?: string; investmentReportScope?: string }> => {
+  // Step 1: Build Investment-like object from report
+  // Start with nested investment (for InvestmentInformationSegment fields)
+  const baseInvestment = report.investment ? { ...report.investment } : {}
+
+  // Step 2: Overlay all report-level fields (these are snapshot fields)
+  // Extract sub-reports and investmentRoleReport first
+  const equityInvestmentReport = report.equityInvestmentReport
+  const liquidFundInvestmentReport = report.liquidFundInvestmentReport
+  const realEstateInvestmentReport = report.realEstateInvestmentReport
+  const investmentRoleReport = report.investmentRoleReport
+
+  // Exclude report-specific fields: date, scope, investmentId, investment, sub-reports, investmentRoleReport
+  const reportFields = { ...report }
+  delete reportFields.date
+  delete reportFields.scope
+  delete reportFields.investmentId
+  delete reportFields.investment
+  delete reportFields.equityInvestmentReport
+  delete reportFields.liquidFundInvestmentReport
+  delete reportFields.realEstateInvestmentReport
+  delete reportFields.investmentRoleReport
+  delete reportFields.loanRecipientInvestmentAccount
+
+  // Merge report-level fields into investment object
+  // These override nested investment fields (snapshot data)
+  const investmentLike: Partial<Investment> = {
+    ...baseInvestment,
+    ...reportFields
+  }
+
+  // Step 3: Map sub-reports to sub-investments
+  // Keep date and scope in sub-investments (they're part of the sub-investment report types)
+  if (equityInvestmentReport && equityInvestmentReport.length > 0) {
+    const equityReport = equityInvestmentReport[0]
+    // Keep date and scope - they're part of EquityInvestmentReport
+    ;(investmentLike as any).equityInvestment = reportId
+      ? equityReport
+      : { ...equityReport, id: undefined, version: undefined }
+  }
+
+  if (liquidFundInvestmentReport && liquidFundInvestmentReport.length > 0) {
+    const liquidFundReport = liquidFundInvestmentReport[0]
+    // Keep date and scope - they're part of LiquidFundInvestmentReport
+    ;(investmentLike as any).liquidFundInvestment = reportId
+      ? liquidFundReport
+      : { ...liquidFundReport, id: undefined, version: undefined }
+  }
+
+  if (realEstateInvestmentReport && realEstateInvestmentReport.length > 0) {
+    const realEstateReport = realEstateInvestmentReport[0]
+    // Keep date and scope - they're part of RealEstateInvestmentReport
+    ;(investmentLike as any).realEstateInvestment = reportId
+      ? realEstateReport
+      : { ...realEstateReport, id: undefined, version: undefined }
+  }
+
+  // Step 4: Map investmentRoleReport to investmentRole
+  if (investmentRoleReport) {
+    ;(investmentLike as any).investmentRole = investmentRoleReport
+  }
+
+  // Step 5: Use mapToFormValues to transform Investment-like object to form values
+  const baseSchema = createDynamicInvestmentSchema()
+  const mappedValues = mapToFormValues({ investment: investmentLike }, baseSchema) as Partial<InvestmentFormValues>
+
+  // Extract sub-investments from investmentLike and set them at top level (like investment-form does)
+  // This is needed because mapToFormValues maps them inside investment, but form expects them at top level
+  if ((investmentLike as any).equityInvestment) {
+    ;(mappedValues as any).equityInvestment = (investmentLike as any).equityInvestment
+  }
+  if ((investmentLike as any).liquidFundInvestment) {
+    ;(mappedValues as any).liquidFundInvestment = (investmentLike as any).liquidFundInvestment
+  }
+  if ((investmentLike as any).realEstateInvestment) {
+    ;(mappedValues as any).realEstateInvestment = (investmentLike as any).realEstateInvestment
+  }
+
+  // mapToFormValues only maps fields in schema.shape, but investment schema uses .catchall(z.any())
+  // So we need to manually merge all fields from investmentLike that weren't mapped
+  // This ensures all report-level snapshot fields (like totalInvestmentAmount, investmentMarketValue, etc.) are included
+  if (mappedValues.investment) {
+    // Merge all fields from investmentLike into mappedValues.investment
+    // This ensures all dynamic segment fields are included
+    Object.keys(investmentLike).forEach(key => {
+      if (!(key in mappedValues.investment!)) {
+        ;(mappedValues.investment as any)[key] = (investmentLike as any)[key]
+      }
+    })
+  }
+
+  // Also merge sub-investment fields that weren't mapped (for dynamic fields in sub-investments)
+  if ((investmentLike as any).equityInvestment && mappedValues.equityInvestment) {
+    Object.keys((investmentLike as any).equityInvestment).forEach(key => {
+      if (!(key in mappedValues.equityInvestment!)) {
+        ;(mappedValues.equityInvestment as any)[key] = ((investmentLike as any).equityInvestment as any)[key]
+      }
+    })
+  }
+  if ((investmentLike as any).liquidFundInvestment && mappedValues.liquidFundInvestment) {
+    Object.keys((investmentLike as any).liquidFundInvestment).forEach(key => {
+      if (!(key in mappedValues.liquidFundInvestment!)) {
+        ;(mappedValues.liquidFundInvestment as any)[key] = ((investmentLike as any).liquidFundInvestment as any)[key]
+      }
+    })
+  }
+  if ((investmentLike as any).realEstateInvestment && mappedValues.realEstateInvestment) {
+    Object.keys((investmentLike as any).realEstateInvestment).forEach(key => {
+      if (!(key in mappedValues.realEstateInvestment!)) {
+        ;(mappedValues.realEstateInvestment as any)[key] = ((investmentLike as any).realEstateInvestment as any)[key]
+      }
+    })
+  }
+
+  // Step 6: Set investment type ID from nested investment
+  if (getPathByType && report.investment) {
+    const groupId = report.investment.investmentGroupRef || null
+    const typeId = report.investment.investmentTypeRef || null
+
+    let liquidFundTypeId: string | null = null
+    if (report.investment.liquidFundInvestment) {
+      const liquidFund = normalizeSubInvestment(report.investment.liquidFundInvestment)
+      liquidFundTypeId = liquidFund?.investmentLiquidFundTypeRef || null
+    }
+
+    const investmentTypeId = mapToSingleInvestmentTypeId(groupId, typeId, liquidFundTypeId, getPathByType)
+    if (investmentTypeId && mappedValues.investment) {
+      ;(mappedValues.investment as any).investmentTypeId = investmentTypeId
     }
   }
-  return {
-    name: (report as any).name || '',
-    ...((report as any).code === null ? {} : { code: (report as any).code })
-  }
-}
 
-/**
- * Remove id/version from a sub-investment (handles both array and single object)
- */
-const removeIdVersionFromSubInvestment = (subInvestment: any): any => {
-  if (Array.isArray(subInvestment)) {
-    return subInvestment.map((item: any) => ({
-      ...item,
-      id: undefined,
-      version: undefined
-    }))
-  }
-  return {
-    ...subInvestment,
-    id: undefined,
-    version: undefined
-  }
-}
-
-/**
- * Merge fetched investment with report investment data, excluding id/version
- */
-const mergeInvestmentData = (
-  investmentData: Partial<Investment>,
-  fetchedInvestment?: Investment | null | undefined
-): Partial<Investment> => {
-  if (!fetchedInvestment) {
-    return investmentData
-  }
-
-  return {
-    ...fetchedInvestment,
-    id: undefined,
-    version: undefined,
-    ...(fetchedInvestment.equityInvestment
-      ? { equityInvestment: removeIdVersionFromSubInvestment(fetchedInvestment.equityInvestment) }
-      : {}),
-    ...(fetchedInvestment.liquidFundInvestment
-      ? { liquidFundInvestment: removeIdVersionFromSubInvestment(fetchedInvestment.liquidFundInvestment) }
-      : {}),
-    ...(fetchedInvestment.realEstateInvestment
-      ? { realEstateInvestment: removeIdVersionFromSubInvestment(fetchedInvestment.realEstateInvestment) }
-      : {}),
-    // Explicitly preserve investmentAccounts from fetched investment
-    ...(fetchedInvestment.investmentAccounts ? { investmentAccounts: fetchedInvestment.investmentAccounts } : {}),
-    ...investmentData
-  }
-}
-
-/**
- * Map sub-investment report to form values (with or without id/version based on mode)
- */
-const mapSubInvestmentReport = (reportItem: any, reportId: string | undefined): any => {
-  if (reportId) {
-    return reportItem
-  }
-  return {
-    ...reportItem,
-    id: undefined,
-    version: undefined
-  }
-}
-
-/**
- * Extract liquidFundTypeId from merged investment data
- */
-const extractLiquidFundTypeId = (mergedInvestmentData: Partial<Investment>): string | null => {
-  if (!mergedInvestmentData.liquidFundInvestment) return null
-
-  const liquidFund = Array.isArray(mergedInvestmentData.liquidFundInvestment)
-    ? mergedInvestmentData.liquidFundInvestment[0]
-    : mergedInvestmentData.liquidFundInvestment
-  return (liquidFund as any)?.investmentLiquidFundTypeRef || null
-}
-
-/**
- * Set investment type ID in mapped values
- */
-const setInvestmentTypeId = (
-  mappedValues: Partial<InvestmentFormValues>,
-  mergedInvestmentData: Partial<Investment>,
-  getPathByType?: (typeId: string | null | undefined) => InvestmentType[]
-): void => {
-  if (!getPathByType) return
-
-  const groupId = mergedInvestmentData.investmentGroupRef || null
-  const typeId = mergedInvestmentData.investmentTypeRef || null
-  const liquidFundTypeId = extractLiquidFundTypeId(mergedInvestmentData)
-  const investmentTypeId = mapToSingleInvestmentTypeId(groupId, typeId, liquidFundTypeId, getPathByType)
-
-  if (investmentTypeId && mappedValues.investment) {
-    ;(mappedValues.investment as any).investmentTypeId = investmentTypeId
-  }
-}
-
-/**
- * Map investment role from report to form values
- */
-const mapInvestmentRole = (
-  report: InvestmentReport | Partial<InvestmentReport>,
-  mappedValues: Partial<InvestmentFormValues>
-): void => {
-  if (report.investmentRoleReport && mappedValues.investment) {
-    ;(mappedValues.investment as any).investmentRole = report.investmentRoleReport
-  }
-}
-
-/**
- * Map sub-investment reports to form values
- */
-const mapSubInvestmentReports = (
-  report: InvestmentReport | Partial<InvestmentReport>,
-  reportId: string | undefined,
-  mappedValues: Partial<InvestmentFormValues>
-): void => {
-  if (report.equityInvestmentReport && report.equityInvestmentReport.length > 0) {
-    ;(mappedValues as any).equityInvestment = mapSubInvestmentReport(report.equityInvestmentReport[0], reportId)
-  }
-
-  if (report.liquidFundInvestmentReport && report.liquidFundInvestmentReport.length > 0) {
-    ;(mappedValues as any).liquidFundInvestment = mapSubInvestmentReport(report.liquidFundInvestmentReport[0], reportId)
-  }
-
-  if (report.realEstateInvestmentReport && report.realEstateInvestmentReport.length > 0) {
-    ;(mappedValues as any).realEstateInvestment = mapSubInvestmentReport(report.realEstateInvestmentReport[0], reportId)
-  }
-}
-
-/**
- * Set investment IDs in mapped values
- */
-const setInvestmentIds = (
-  mappedValues: Partial<InvestmentFormValues>,
-  investmentId: string | undefined,
-  reportId: string | undefined,
-  report: InvestmentReport | Partial<InvestmentReport>
-): void => {
+  // Step 7: Set IDs
+  // Only set investmentId (not id) - id belongs to the investment entity, not the report
+  // investmentId is used to reference which investment this report is for
+  // InvestmentLayout will use investment.investmentId for isUpdate check and entityId
   if (mappedValues.investment && investmentId) {
-    ;(mappedValues.investment as any).id = investmentId
     ;(mappedValues.investment as any).investmentId = investmentId
   }
 
@@ -172,49 +171,13 @@ const setInvestmentIds = (
     ;(mappedValues.investment as any).reportId = reportId
     ;(mappedValues.investment as any).reportVersion = report.version
   }
-}
 
-/**
- * Normalize liquid fund investment array
- */
-const normalizeLiquidFundInvestment = (mappedValues: Partial<InvestmentFormValues>): any => {
-  const liquidFundInvestment = (mappedValues as any).liquidFundInvestment
-  if (!liquidFundInvestment) return null
-
-  return Array.isArray(liquidFundInvestment) ? liquidFundInvestment[0] : liquidFundInvestment
-}
-
-/**
- * Transforms InvestmentReport to InvestmentFormValues structure
- * Used for initializing the form with report data
- */
-export const transformInvestmentReport = (
-  report: InvestmentReport | Partial<InvestmentReport>,
-  reportId: string | undefined,
-  investmentId: string | undefined,
-  getPathByType?: (typeId: string | null | undefined) => InvestmentType[],
-  fetchedInvestment?: Investment | null | undefined
-): Partial<InvestmentFormValues & { investmentReportDate?: string; investmentReportScope?: string }> => {
-  const investmentData = extractInvestmentDataFromReport(report)
-  const mergedInvestmentData = mergeInvestmentData(investmentData, fetchedInvestment)
-
-  const baseSchema = createDynamicInvestmentSchema()
-  const mappedValues = mapToFormValues(
-    { investment: mergedInvestmentData },
-    baseSchema
-  ) as Partial<InvestmentFormValues>
-
-  setInvestmentTypeId(mappedValues, mergedInvestmentData, getPathByType)
-  mapInvestmentRole(report, mappedValues)
-  mapSubInvestmentReports(report, reportId, mappedValues)
-  setInvestmentIds(mappedValues, investmentId, reportId, report)
-
-  // Explicitly preserve investmentAccounts in mapped values
-  if (mergedInvestmentData.investmentAccounts && mappedValues.investment) {
-    ;(mappedValues.investment as any).investmentAccounts = mergedInvestmentData.investmentAccounts
-  }
-
-  const liquidFundNormalized = normalizeLiquidFundInvestment(mappedValues)
+  // Step 8: Normalize liquid fund investment array
+  const liquidFundNormalized = (mappedValues as any).liquidFundInvestment
+    ? Array.isArray((mappedValues as any).liquidFundInvestment)
+      ? (mappedValues as any).liquidFundInvestment[0]
+      : (mappedValues as any).liquidFundInvestment
+    : null
 
   return {
     ...mappedValues,

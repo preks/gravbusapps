@@ -32,13 +32,17 @@ const baseInvestmentSchema = z.object({
       // Investment-Account Junction Table (many-to-many)
       investmentAccounts: z
         .array(
-          z.object({
-            id: z.string().optional(),
-            version: z.number().optional(),
-            investmentAccountId: z.string().optional(),
-            investmentAccountType: z.string().nullable().optional(),
-            investmentAccountTypeRef: z.string().nullable().optional()
-          })
+          z
+            .object({
+              id: z.string().optional(),
+              version: z.number().optional(),
+              investmentId: z.string().optional(),
+              investmentAccountId: z.string().optional(),
+              investmentAccountTypeRef: z.string().nullable().optional(),
+              investmentAccountType: catalogEntrySchema.optional(),
+              investmentAccount: z.any().optional() // Nested account object from GraphQL
+            })
+            .catchall(z.any())
         )
         .optional(),
       // Investment type field (leaf InvestmentType ID)
@@ -53,7 +57,11 @@ const baseInvestmentSchema = z.object({
   // Group-specific data (optional - one will be present based on group)
   equityInvestment: z.any().optional(),
   realEstateInvestment: z.any().optional(),
-  liquidFundInvestment: z.any().optional()
+  liquidFundInvestment: z.any().optional(),
+
+  // Report-specific fields (for InvestmentReportForm)
+  investmentReportDate: z.string().optional(),
+  investmentReportScope: z.string().optional()
 })
 
 // Helper function to convert property path to field name for nested structure
@@ -314,7 +322,10 @@ const buildExtendedSchema = (
     liquidFundInvestment:
       Object.keys(liquidFundInvestmentFields).length > 0
         ? z.object(liquidFundInvestmentFields).catchall(z.any()).optional()
-        : z.any().optional()
+        : z.any().optional(),
+    // Report-specific fields (for InvestmentReportForm) - preserve from base schema
+    investmentReportDate: baseInvestmentSchema.shape.investmentReportDate,
+    investmentReportScope: baseInvestmentSchema.shape.investmentReportScope
   })
 }
 
