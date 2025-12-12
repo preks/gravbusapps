@@ -213,6 +213,32 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
     return m ? m[1] : ''
   }
 
+  // Parse duration strings like "7h 30m" / "8h" / "30m" into minutes
+  const parseDurationToMinutes = (text?: string): number => {
+    if (!text) return 0
+    let hours = 0
+    let minutes = 0
+    const tokens = String(text).trim().split(/\s+/)
+    for (const token of tokens) {
+      if (/^\d+h$/i.test(token)) {
+        hours = Number.parseInt(token.slice(0, -1), 10) || 0
+      } else if (/^\d+m$/i.test(token)) {
+        minutes = Number.parseInt(token.slice(0, -1), 10) || 0
+      }
+    }
+    return hours * 60 + minutes
+  }
+
+  // Format minutes as "Xh Ym" or "Xh" and keep minus sign for negative values
+  const formatMinutes = (minutes: number): string => {
+    const sign = minutes < 0 ? '-' : ''
+    const abs = Math.abs(minutes)
+    const h = Math.floor(abs / 60)
+    const m = abs % 60
+    if (m === 0) return `${sign}${h}h`
+    return `${sign}${h}h ${m}m`
+  }
+
   const handleSubmit = async () => {
     setSubmitting(true)
     try {
@@ -230,6 +256,16 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
       const payloadObject = additionalData?.psi_taskPayload?.psi_initialParameters
       const requestEmployeeId = payloadObject?.employeeId
 
+      // Recalculate recorded/effective/difference, keep planned as original value
+      const recordedMinutes = Math.max(
+        0,
+        Math.round((new Date(endTimeISO).getTime() - new Date(startTimeISO).getTime()) / 60000)
+      )
+      const breakMinutes = parseDurationToMinutes(payloadObject?.breakTime || '0h')
+      const effectiveMinutes = Math.max(0, recordedMinutes - breakMinutes)
+      const plannedMinutes = parseDurationToMinutes(payloadObject?.plannedTime || '0h')
+      const differenceMinutes = effectiveMinutes - plannedMinutes
+
       const payload = {
         changeMode: 'INSERT',
         employeeid: requestEmployeeId,
@@ -244,11 +280,11 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
           correctionDescription: notes,
           employee: requestEmployeeId,
           employeeAttendance: payloadObject?.timeEntryId,
-          recordedTime: payloadObject?.recordedTime,
+          recordedTime: formatMinutes(recordedMinutes),
           breakTime: payloadObject?.breakTime,
-          effectiveTime: payloadObject?.effectiveTime,
+          effectiveTime: formatMinutes(effectiveMinutes),
           plannedTime: payloadObject?.plannedTime,
-          differenceTime: payloadObject?.differenceTime
+          differenceTime: formatMinutes(differenceMinutes)
         },
         employeeInfo: {
           userId: payloadObject?.userId,

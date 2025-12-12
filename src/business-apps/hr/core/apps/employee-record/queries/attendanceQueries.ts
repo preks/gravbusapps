@@ -154,3 +154,26 @@ export const employeeAttendanceCorrectionsForRangeQuery = `
     }
   }
 `
+
+/**
+ * Single attendance row by id (for review/diff)
+ */
+export const employeeAttendanceByIdQuery = `
+  query GetEmployeeAttendanceById($id: uuid!) {
+    EmployeeAttendance(where: { id: { _eq: $id }, isDeleted: { _eq: false } }, limit: 1) {
+      id
+      version
+      attendanceDate
+      startTime
+      endTime
+      recordedTime
+      breakTime
+      effectiveTime
+      plannedTime
+      differenceTime
+      manualOverride
+      notes
+      attendanceLocation
+    }
+  }
+`
