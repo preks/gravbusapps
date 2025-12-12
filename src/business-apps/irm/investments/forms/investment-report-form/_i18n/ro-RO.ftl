@@ -3,6 +3,7 @@
 # Form Labels
 report-form-investment = Investiție
 report-form-investment-placeholder = Selectați investiția
+report-form-investment-search-placeholder = Tastați pentru a căuta investiții...
 report-form-date = Data raportului
 report-form-scope = Perioada raportului
 report-form-scope-placeholder = Selectați perioada

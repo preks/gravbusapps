@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react'
 import { useTranslation, Button, Card, Skeleton } from '@newwork/nw-design-system'
-import { Folder, Home, FileText, Share2 } from 'lucide-react'
+import { Folder, Home, FileText, Share2, FilePlus, ArrowLeft } from 'lucide-react'
 import Banner, { BannerVariant } from '../../components/shared/Banner'
 import SearchInput from '../../components/shared/SearchInput'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -14,6 +14,7 @@ import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { DocumentSection, type DocumentItem } from '@/components/document-section/DocumentSection'
 import { EmployeeHoverCard } from '@/common/components/employee'
 import { getEntityTypeFromContentGroup, buildContentRecordUrl } from '@/business-apps/core/content/utils/shareUtils'
+import DocumentCreator from '@/business-apps/core/documents/apps/document-creator'
 
 interface DocumentViewProps extends BusinessAppContextProps {
   hideBanner?: boolean
@@ -40,6 +41,7 @@ const DocumentView: React.FC<DocumentViewProps> = ({
   const { t } = useTranslation(translations)
   const navigation = useDocumentNavigation()
   const [searchQuery, setSearchQuery] = useState('')
+  const [showDocumentCreator, setShowDocumentCreator] = useState(false)
 
   // Fetch document areas (ContentEntries with DOCUMENT group)
   const {
@@ -122,6 +124,38 @@ const DocumentView: React.FC<DocumentViewProps> = ({
     })
   }, [allDocuments])
 
+  // If Document Creator is open, show it as a full view (not overlay)
+  if (showDocumentCreator) {
+    return (
+      <div
+        className="gba:relative gba:min-h-screen gba:flex gba:flex-col gba:w-full"
+        data-testid="document-creator-view"
+      >
+        {/* Back button header */}
+        <div className="gba:p-4 gba:border-b gba:border-border gba:bg-background">
+          <Button variant="ghost" onClick={() => setShowDocumentCreator(false)} className="gba:gap-2">
+            <ArrowLeft className="gba:w-4 gba:h-4" />
+            Back to Documents
+          </Button>
+        </div>
+
+        {/* Document Creator - Full height */}
+        <div className="gba:flex-1 gba:overflow-hidden">
+          <DocumentCreator
+            accessToken={accessToken}
+            userInfo={userInfo}
+            onClose={() => setShowDocumentCreator(false)}
+            onSave={doc => {
+              console.log('Document saved:', doc)
+              setShowDocumentCreator(false)
+              // TODO: Save document to backend
+            }}
+          />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="gba:relative gba:min-h-screen gba:flex gba:flex-col gba:w-full" data-testid="document-view">
       {/* Banner */}
@@ -195,6 +229,14 @@ const DocumentView: React.FC<DocumentViewProps> = ({
                 </div>
                 <div className="gba:flex gba:gap-2 gba:items-center">
                   <SearchInput onSearch={handleSearch} placeholder={t('search_documents')} className="gba:w-[300px]" />
+                  <Button
+                    onClick={() => setShowDocumentCreator(true)}
+                    className="gba:gap-2"
+                    data-testid="create-document-button"
+                  >
+                    <FilePlus className="gba:w-4 gba:h-4" />
+                    Create Document
+                  </Button>
                   <AppAction
                     contexts={[
                       {
@@ -207,7 +249,7 @@ const DocumentView: React.FC<DocumentViewProps> = ({
                     lazyLoad
                     data-testid="create-document-area-button"
                   >
-                    <Button>{t('create_area')}</Button>
+                    <Button variant="outline">{t('create_area')}</Button>
                   </AppAction>
                 </div>
               </div>

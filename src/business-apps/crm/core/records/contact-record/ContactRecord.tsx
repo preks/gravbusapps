@@ -1,14 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import {
-  Button,
-  Spinner,
-  RecordLayout,
-  Badge,
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger
-} from '@newwork/nw-design-system'
+import { Button, Spinner, RecordLayout } from '@newwork/nw-design-system'
 import { Users, FileText, User, DollarSign } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -398,39 +389,8 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
     )
   }
 
-  // Helper function to convert contact type codes to human-readable values
-  const getContactTypeDisplayValue = (typeCode?: string): string => {
-    if (!typeCode) return ''
-
-    // Convert snake_case to Title Case with spaces
-    return typeCode
-      .split('_')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(' ')
-  }
-
-  const contactType = contactData?.contactType || contactData?.type
-  const contactTypeDisplay = getContactTypeDisplayValue(contactType)
-
-  const headerTitle = (
-    <div className="gba:flex gba:items-center gba:gap-2">
-      <span>{fullName}</span>
-      {contactTypeDisplay && (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Badge data-testid="contact-type-badge" variant="outline" className="gba:text-sm">
-                {contactTypeDisplay}
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent data-testid="contact-type-tooltip">
-              {getTranslationFromI18nKeyAndLabel('crm.common.contactType', 'Contact Type')}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      )}
-    </div>
-  )
+  // Header title without contact type badge (contact type shown in Account Section)
+  const headerTitle = fullName
 
   return (
     <div data-testid="customer-contact-detail">

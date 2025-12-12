@@ -9,7 +9,7 @@ interface DeactivationDetailsListProps {
 
 /**
  * Display component for deactivation request details
- * Shows the requested end date and deactivation reason for HR review
+ * Shows the requested end date for HR review
  */
 export const DeactivationDetailsList: React.FC<DeactivationDetailsListProps> = ({ details, dataTestIdPrefix, t }) => {
   return (
@@ -20,14 +20,6 @@ export const DeactivationDetailsList: React.FC<DeactivationDetailsListProps> = (
           {t('deactivate-benefit-review-end-date', { defaultValue: 'Requested End Date' })}
         </div>
         <div className="gba:text-xl gba:font-bold">{details.requestedEndDate || '-'}</div>
-      </div>
-
-      {/* Deactivation Reason */}
-      <div data-testid={`${dataTestIdPrefix}-reason`}>
-        <div className="gba:text-sm gba:text-muted-foreground gba:mb-1">
-          {t('deactivate-benefit-review-reason', { defaultValue: 'Reason for Deactivation' })}
-        </div>
-        <div className="gba:font-medium gba:whitespace-pre-wrap">{details.deactivationReason || '-'}</div>
       </div>
     </div>
   )
