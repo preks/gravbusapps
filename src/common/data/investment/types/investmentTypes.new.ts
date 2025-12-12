@@ -178,6 +178,7 @@ export const InvestmentFields = {
 
   // Array Relationships (not used in forms)
   investmentInvestmentAccounts: 'investmentInvestmentAccount',
+  investmentAccounts: 'investmentAccounts', // Junction table - GraphQL field name
   equityInvestment: 'equityInvestment',
   realEstateInvestment: 'realEstateInvestment',
   liquidFundInvestment: 'liquidFundInvestment',

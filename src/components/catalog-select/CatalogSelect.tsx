@@ -511,8 +511,14 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
   }, [wiredDisabled, fieldName, formContext, formState?.isSubmitted])
 
   if (wiredVariant === 'combobox') {
+    // Extract key and businessAppContext from props before spreading
+    // key must be passed directly to JSX, not through spread
+    // businessAppContext should not be passed to DOM elements
+    const restProps = props ? { ...props } : {}
+    delete restProps.key
+    delete restProps.businessAppContext
+
     const baseProps = {
-      key: stableKey,
       className:
         'gba:w-full gba:max-w-full gba:h-auto gba:[&_button]:max-w-full gba:[&_button]:min-w-0 gba:[&_button]:overflow-hidden gba:[&_button_span]:truncate',
       options: comboboxOptions,
@@ -528,7 +534,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
       align: 'start' as const,
       disabled: wiredDisabled,
       allowClear,
-      ...props
+      ...restProps
     }
 
     if (mode === 'tags') {
@@ -560,6 +566,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
       return (
         <div className="gba:w-full gba:max-w-full gba:overflow-hidden">
           <Combobox
+            key={stableKey}
             {...baseProps}
             mode="tags"
             value={tagsValue}
@@ -575,6 +582,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
       return (
         <div className="gba:w-full gba:max-w-full gba:overflow-hidden">
           <Combobox
+            key={stableKey}
             {...baseProps}
             mode="multiple"
             value={multipleValue}
@@ -588,6 +596,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
     return (
       <div className="gba:w-full gba:max-w-full gba:overflow-hidden">
         <Combobox
+          key={stableKey}
           {...baseProps}
           mode="default"
           value={defaultValue}

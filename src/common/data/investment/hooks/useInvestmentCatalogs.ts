@@ -15,6 +15,7 @@ export interface FormFieldDefinition {
   property: string // e.g., "investment.acquisitionDate" or "equityInvestment.marketValue"
   required: boolean
   displayOrder: string // e.g., "1.1", "1.2", "2"
+  report?: boolean // Optional: false means field should be excluded from report forms/tables
 }
 
 export interface FormFieldGroup {

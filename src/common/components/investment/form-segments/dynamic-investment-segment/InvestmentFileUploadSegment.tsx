@@ -97,11 +97,8 @@ const InvestmentFileUploadSegment: React.FC<InvestmentFileUploadSegmentProps> = 
         data-testid={formatDataTestId(prefixDataTestId, 'Input')}
       />
 
-      {/* Drag and drop area */}
-      <button
-        type="button"
-        aria-label="File upload drop zone. Click or drag and drop files here."
-        disabled={isLoading}
+      {/* Drag and drop area - use div like other file upload components to avoid nested buttons */}
+      <div
         className={`gba:relative gba:w-full gba:max-w-full gba:overflow-hidden gba:border-2 gba:border-dashed gba:rounded-lg gba:transition-colors gba:box-border gba:bg-transparent gba:p-0 ${
           dragActive
             ? 'gba:border-primary gba:bg-primary/5'
@@ -112,6 +109,7 @@ const InvestmentFileUploadSegment: React.FC<InvestmentFileUploadSegmentProps> = 
         onDragLeave={handleDragLeave}
         onClick={() => !isLoading && !file && document.getElementById('investment-ai-file-input')?.click()}
         data-testid={formatDataTestId(prefixDataTestId, 'DropZone')}
+        aria-label="File upload drop zone. Click or drag and drop files here."
       >
         {/* Loading overlay */}
         {isLoading && (
@@ -173,7 +171,7 @@ const InvestmentFileUploadSegment: React.FC<InvestmentFileUploadSegmentProps> = 
             </p>
           </div>
         )}
-      </button>
+      </div>
     </div>
   )
 }

@@ -285,6 +285,9 @@ export const EquityInvestmentReportFormFields = {
   id: 'id',
   version: 'version',
   additionalProperties: 'additionalProperties',
+  // Report Core Fields
+  date: 'date',
+  scope: 'scope',
   // Equity Investment Report Fields
   marketValue: 'marketValue',
   turnoverAmount: 'turnoverAmount',
@@ -299,6 +302,9 @@ export const LiquidFundInvestmentReportFormFields = {
   id: 'id',
   version: 'version',
   additionalProperties: 'additionalProperties',
+  // Report Core Fields
+  date: 'date',
+  scope: 'scope',
   // Liquid Fund Investment Report Fields
   proprietorName: 'proprietorName',
   bankName: 'bankName',
@@ -318,6 +324,9 @@ export const RealEstateInvestmentReportFormFields = {
   id: 'id',
   version: 'version',
   additionalProperties: 'additionalProperties',
+  // Report Core Fields
+  date: 'date',
+  scope: 'scope',
   // Real Estate Investment Report Fields
   size: 'size',
   numberOfUnits: 'numberOfUnits',
