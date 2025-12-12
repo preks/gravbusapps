@@ -5,7 +5,8 @@ export enum BannerVariant {
   KNOWLEDGE = 'knowledge',
   INTRANET = 'intranet',
   DOCUMENT = 'document',
-  QUESTION = 'question'
+  QUESTION = 'question',
+  GLOSSARY = 'glossary'
 }
 
 export interface BannerConfig {
@@ -50,6 +51,11 @@ export const gradients = {
   [BannerVariant.QUESTION]: {
     className:
       'gba:bg-gradient-to-r gba:from-purple-500 gba:via-violet-500 gba:to-fuchsia-500 gba:dark:from-purple-600 gba:dark:via-violet-600 gba:dark:to-fuchsia-600',
+    textColor: 'gba:text-white'
+  },
+  [BannerVariant.GLOSSARY]: {
+    className:
+      'gba:bg-gradient-to-r gba:from-amber-500 gba:via-orange-500 gba:to-rose-500 gba:dark:from-amber-600 gba:dark:via-orange-600 gba:dark:to-rose-600',
     textColor: 'gba:text-white'
   }
 }

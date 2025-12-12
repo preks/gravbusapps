@@ -87,3 +87,27 @@ current = Aktuell
 points = Punkte
 error = Fehler
 retry = Erneut versuchen
+
+# Glossary
+glossary = Glossar
+glossary-subtitle = Eine gemeinsame Sprache für Begriffe, Akronyme und wie wir arbeiten
+glossary-add-term = Begriff hinzufügen
+glossary-request-term = Begriff anfragen
+glossary-search-placeholder = Begriff, Definition, Autor suchen...
+glossary-published = Veröffentlicht
+glossary-draft = Entwurf
+glossary-results-count = { $count } Ergebnisse
+glossary-empty = Keine Begriffe gefunden. Füge den ersten Begriff hinzu.
+glossary-no-definition = Noch keine Definition.
+glossary-needs-definition = Definition fehlt
+glossary-definition-needed = Dieser Begriff wurde angefragt, aber noch nicht definiert. Klicke auf "Bearbeiten", um eine Definition hinzuzufügen!
+glossary-created-by = Erstellt von
+glossary-examples = Beispiele
+viewing-as = Angezeigt als
+all = Alle
+search = Suchen
+loading = Laden...
+refresh = Aktualisieren
+edit = Bearbeiten
+cancel = Abbrechen
+submitting = Wird gesendet...
