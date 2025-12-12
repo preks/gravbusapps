@@ -58,7 +58,8 @@ export const comparisonEngine = {
           version: source.version,
           isDraft: source.isDraft || false,
           updatedAt: source.updatedAt || new Date().toISOString(),
-          contentHash: calculateContentHash(source)
+          contentHash: calculateContentHash(source),
+          tags: source.tags
         },
         target: null
       }
@@ -75,7 +76,8 @@ export const comparisonEngine = {
           version: target.version,
           isDraft: target.isDraft || false,
           updatedAt: target.updatedAt || new Date().toISOString(),
-          contentHash: calculateContentHash(target)
+          contentHash: calculateContentHash(target),
+          tags: target.tags
         }
       }
     }
@@ -113,13 +115,15 @@ export const comparisonEngine = {
           version: source.version,
           isDraft: source.isDraft || false,
           updatedAt: source.updatedAt || new Date().toISOString(),
-          contentHash: sourceHash
+          contentHash: sourceHash,
+          tags: source.tags
         },
         target: {
           version: target.version,
           isDraft: target.isDraft || false,
           updatedAt: target.updatedAt || new Date().toISOString(),
-          contentHash: targetHash
+          contentHash: targetHash,
+          tags: target.tags
         },
         versionGap
       }
@@ -133,8 +137,13 @@ export const comparisonEngine = {
    * Generate summary statistics
    */
   generateSummary(comparisons: TemplateComparison[]): ComparisonSummary {
+    const sourceCount = comparisons.filter(c => c.source !== null).length
+    const targetCount = comparisons.filter(c => c.target !== null).length
+
     return {
       totalTemplates: comparisons.length,
+      sourceCount,
+      targetCount,
       identical: comparisons.filter(c => c.status === 'IDENTICAL').length,
       versionDrift: comparisons.filter(c => c.status === 'VERSION_DRIFT').length,
       contentDrift: comparisons.filter(c => c.status === 'CONTENT_DRIFT').length,

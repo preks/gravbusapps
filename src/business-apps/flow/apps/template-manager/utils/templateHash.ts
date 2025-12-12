@@ -29,7 +29,21 @@ export function calculateContentHash(template: FlowTemplate): string {
     summaryFields: template.summaryFields
   }
 
-  // Use btoa to create base64 encoded hash
-  // In production, consider using a proper hashing library like crypto-js
-  return btoa(JSON.stringify(content))
+  // Use simple hash function that handles all UTF-8 characters safely
+  // More reliable than btoa for international characters
+  const jsonString = JSON.stringify(content)
+  return simpleHash(jsonString)
+}
+
+/**
+ * Simple hash function as fallback for UTF-8 strings
+ */
+function simpleHash(str: string): string {
+  let hash = 0
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i)
+    hash = (hash << 5) - hash + char
+    hash = hash & hash // Convert to 32-bit integer
+  }
+  return Math.abs(hash).toString(36)
 }

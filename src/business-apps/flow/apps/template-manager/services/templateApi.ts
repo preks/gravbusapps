@@ -24,28 +24,49 @@ export const templateApi = {
    */
   async getTemplates(baseUrl: string, apiKey: string): Promise<FlowTemplate[]> {
     try {
-      const response = await axios.get(`${baseUrl}/api/templates`, {
-        headers: { Authorization: `Bearer ${apiKey}` }
-      })
+      const allTemplates: FlowTemplate[] = []
+      let offset = 0
+      const limit = 100 // Fetch 100 per page for efficiency
+      let hasMore = true
 
-      // Handle different response formats
-      let templates: FlowTemplate[]
+      // Fetch all pages
+      while (hasMore) {
+        const response = await axios.get(`${baseUrl}/api/templates`, {
+          headers: { Authorization: `Bearer ${apiKey}` },
+          params: { offset, limit }
+        })
 
-      if (Array.isArray(response.data)) {
-        // Response is directly an array
-        templates = response.data
-      } else if (response.data.templates && Array.isArray(response.data.templates)) {
-        // Response has a templates property
-        templates = response.data.templates
-      } else if (response.data.data && Array.isArray(response.data.data)) {
-        // Response has a data property
-        templates = response.data.data
-      } else {
-        console.error('Unexpected response format:', response.data)
-        throw new Error(`Unexpected response format. Expected array of templates, got: ${typeof response.data}`)
+        // Handle different response formats
+        let templates: FlowTemplate[] = []
+
+        if (Array.isArray(response.data)) {
+          // Response is directly an array
+          templates = response.data
+          hasMore = false // No pagination info, assume single page
+        } else if (response.data.data && Array.isArray(response.data.data)) {
+          // Response has a data property (paginated format)
+          templates = response.data.data
+          hasMore = response.data.hasMore || false
+        } else if (response.data.templates && Array.isArray(response.data.templates)) {
+          // Response has a templates property
+          templates = response.data.templates
+          hasMore = false // No pagination info
+        } else {
+          console.error('Unexpected response format:', response.data)
+          throw new Error(`Unexpected response format. Expected array of templates, got: ${typeof response.data}`)
+        }
+
+        allTemplates.push(...templates)
+
+        // If no more pages or fetched less than limit, stop
+        if (!hasMore || templates.length < limit) {
+          break
+        }
+
+        offset += limit
       }
 
-      return templates
+      return allTemplates
     } catch (error) {
       console.error('Error fetching templates:', error)
       const enhancedError = createEnhancedError(error, {
@@ -129,6 +150,102 @@ export const templateApi = {
     } catch {
       // Assume no active workflows if endpoint doesn't exist
       return false
+    }
+  },
+
+  /**
+   * Delete a template from an instance
+   */
+  async deleteTemplate(
+    baseUrl: string,
+    templateId: string,
+    apiKey: string,
+    userId: string,
+    reason: string
+  ): Promise<void> {
+    try {
+      await axios.delete(`${baseUrl}/api/templates/${templateId}`, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+        data: {
+          userId,
+          reason
+        }
+      })
+    } catch (error) {
+      console.error(`Failed to delete template ${templateId}:`, error)
+      const enhancedError = createEnhancedError(error, {
+        operation: 'Delete Template',
+        templateId,
+        url: `${baseUrl}/api/templates/${templateId}`
+      })
+      throw enhancedError
+    }
+  },
+
+  /**
+   * Get deleted (soft-deleted) templates from an instance
+   */
+  async getDeletedTemplates(
+    baseUrl: string,
+    apiKey: string,
+    limit = 50,
+    offset = 0
+  ): Promise<{ data: any[]; count: number; totalCount?: number; hasMore?: boolean }> {
+    try {
+      const response = await axios.get(`${baseUrl}/api/templates/deleted`, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+        params: { limit, offset }
+      })
+
+      // Transform the response to flatten metadata.deletionInfo
+      const transformedData = (response.data.data || []).map((template: any) => ({
+        templateId: template.templateId || template.id,
+        name: template.name,
+        version: template.version || template.metadata?.databaseInfo?.version || 0,
+        deletedAt: template.metadata?.deletionInfo?.deletedAt || template.deletedAt || new Date().toISOString(),
+        deletedBy: template.metadata?.deletionInfo?.deletedBy || template.deletedBy || 'Unknown',
+        deletionReason:
+          template.metadata?.deletionInfo?.deletionReason || template.deletionReason || 'No reason provided'
+      }))
+
+      return {
+        data: transformedData,
+        count: response.data.count || transformedData.length,
+        totalCount: response.data.totalCount,
+        hasMore: response.data.hasMore
+      }
+    } catch (error) {
+      console.error('Failed to fetch deleted templates:', error)
+      const enhancedError = createEnhancedError(error, {
+        operation: 'Fetch Deleted Templates',
+        url: `${baseUrl}/api/templates/deleted`,
+        statusCode: axios.isAxiosError(error) ? error.response?.status : undefined
+      })
+      throw enhancedError
+    }
+  },
+
+  /**
+   * Restore a soft-deleted template
+   */
+  async restoreTemplate(baseUrl: string, templateId: string, apiKey: string, userId: string): Promise<void> {
+    try {
+      await axios.post(
+        `${baseUrl}/api/templates/${templateId}/restore`,
+        { userId },
+        {
+          headers: { Authorization: `Bearer ${apiKey}` }
+        }
+      )
+    } catch (error) {
+      console.error(`Failed to restore template ${templateId}:`, error)
+      const enhancedError = createEnhancedError(error, {
+        operation: 'Restore Template',
+        templateId,
+        url: `${baseUrl}/api/templates/${templateId}/restore`,
+        statusCode: axios.isAxiosError(error) ? error.response?.status : undefined
+      })
+      throw enhancedError
     }
   },
 

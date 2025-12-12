@@ -26,10 +26,13 @@ export interface TemplateVersion {
   isDraft: boolean
   updatedAt: string
   contentHash: string
+  tags?: Record<string, any>
 }
 
 export interface ComparisonSummary {
   totalTemplates: number
+  sourceCount: number
+  targetCount: number
   identical: number
   versionDrift: number
   contentDrift: number

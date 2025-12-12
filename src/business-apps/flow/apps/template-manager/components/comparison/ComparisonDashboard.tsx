@@ -38,7 +38,9 @@ import { SyncMode, SyncOptions, TemplateSyncItem } from '../../types/sync'
 import { EnhancedError } from '../../types/error'
 import { templateApi, FlowTemplate } from '../../services/templateApi'
 import { createEnhancedError } from '../../utils/errorHandler'
-import { Loader2, AlertCircle, ArrowRight, HelpCircle, Check, ArrowLeftRight } from 'lucide-react'
+import { Loader2, AlertCircle, ArrowRight, HelpCircle, Check, ArrowLeftRight, Trash2 } from 'lucide-react'
+import { TemplateDeleteDialog } from './TemplateDeleteDialog'
+import { DeletedTemplatesModal } from '../deleted/DeletedTemplatesModal'
 
 export const ComparisonDashboard: React.FC<{ context: BusinessAppContextProps }> = ({ context }) => {
   const [sourceInstanceId, setSourceInstanceId] = useState<string>('')
@@ -58,6 +60,13 @@ export const ComparisonDashboard: React.FC<{ context: BusinessAppContextProps }>
   const [diffComparison, setDiffComparison] = useState<TemplateComparison | null>(null)
   const [diffSourceTemplate, setDiffSourceTemplate] = useState<FlowTemplate | null>(null)
   const [diffTargetTemplate, setDiffTargetTemplate] = useState<FlowTemplate | null>(null)
+
+  // Delete state
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [deleteComparison, setDeleteComparison] = useState<TemplateComparison | null>(null)
+
+  // Deleted templates modal state
+  const [showDeletedTemplatesModal, setShowDeletedTemplatesModal] = useState(false)
 
   // Hooks
   const { instances, isLoading: instancesLoading, error: instancesError } = useFlowInstances(context.accessToken)
@@ -118,6 +127,53 @@ export const ComparisonDashboard: React.FC<{ context: BusinessAppContextProps }>
           operation: 'Export Template',
           templateName: comparison.name,
           instanceType
+        })
+      )
+    }
+  }
+
+  const handleDeleteClick = (comparison: TemplateComparison) => {
+    setDeleteComparison(comparison)
+    setShowDeleteDialog(true)
+  }
+
+  const handleDelete = async (templateId: string, deleteFrom: 'source' | 'target' | 'both', reason: string) => {
+    if (!sourceInstance || !targetInstance) {
+      setSyncError(
+        createEnhancedError(new Error('Source and target instances must be selected'), {
+          operation: 'Delete Template'
+        })
+      )
+      return
+    }
+
+    try {
+      const sourceApiKey = sourceInstance.apiKey || context.accessToken
+      const targetApiKey = targetInstance.apiKey || context.accessToken
+      const userId = context.userInfo?.employeeDetails?.employeeId || 'system'
+
+      if (deleteFrom === 'source' || deleteFrom === 'both') {
+        await templateApi.deleteTemplate(sourceInstance.baseUrl, templateId, sourceApiKey, userId, reason)
+      }
+
+      if (deleteFrom === 'target' || deleteFrom === 'both') {
+        await templateApi.deleteTemplate(targetInstance.baseUrl, templateId, targetApiKey, userId, reason)
+      }
+
+      setSyncSuccess(`Template deleted successfully from ${deleteFrom === 'both' ? 'both instances' : deleteFrom}`)
+
+      // Refresh comparison after deletion
+      setTimeout(() => {
+        handleCompare()
+        setSyncSuccess(null)
+      }, 1500)
+    } catch (err) {
+      console.error('Delete failed:', err)
+      setSyncError(
+        createEnhancedError(err as Error, {
+          operation: 'Delete Template',
+          templateId,
+          deleteFrom
         })
       )
     }
@@ -511,16 +567,32 @@ export const ComparisonDashboard: React.FC<{ context: BusinessAppContextProps }>
 
             {/* Compare and Import Buttons */}
             <div className="gba:flex gba:justify-between gba:gap-2 gba:pt-2">
-              <TemplateExportImport
-                instances={instances}
-                accessToken={context.accessToken}
-                onImportSuccess={() => {
-                  // Refresh comparison after import
-                  if (sourceInstanceId && targetInstanceId) {
-                    setTimeout(() => handleCompare(), 1000)
-                  }
-                }}
-              />
+              <div className="gba:flex gba:gap-2">
+                <TemplateExportImport
+                  instances={instances}
+                  accessToken={context.accessToken}
+                  onImportSuccess={() => {
+                    // Refresh comparison after import
+                    if (sourceInstanceId && targetInstanceId) {
+                      setTimeout(() => handleCompare(), 1000)
+                    }
+                  }}
+                />
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowDeletedTemplatesModal(true)}
+                      disabled={!sourceInstanceId && !targetInstanceId}
+                      data-testid="view-deleted-templates-button"
+                    >
+                      <Trash2 className="gba:h-4 gba:w-4 gba:mr-2" />
+                      Deleted Templates
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>View and restore deleted templates</TooltipContent>
+                </Tooltip>
+              </div>
               <Button onClick={handleCompare} disabled={!sourceInstanceId || !targetInstanceId || comparing} size="lg">
                 {comparing ? (
                   <>
@@ -556,9 +628,9 @@ export const ComparisonDashboard: React.FC<{ context: BusinessAppContextProps }>
         {syncError && <EnhancedErrorAlert error={syncError} onDismiss={() => setSyncError(null)} />}
 
         {syncSuccess && (
-          <Alert variant="default" className="gba:border-success gba:bg-success-secondary">
-            <Check className="gba:h-4 gba:w-4 gba:text-success" />
-            <AlertDescription className="gba:text-success-secondary-foreground">
+          <Alert variant="default" className="gba:bg-success gba:text-white gba:border-success">
+            <Check className="gba:h-4 gba:w-4 gba:text-white" />
+            <AlertDescription className="gba:text-white">
               <strong>Success:</strong> {syncSuccess}
             </AlertDescription>
           </Alert>
@@ -566,33 +638,48 @@ export const ComparisonDashboard: React.FC<{ context: BusinessAppContextProps }>
 
         {/* Results */}
         {comparisons.length > 0 && (
-          <>
-            <TemplateSummaryCard summary={getSummary()} />
+          <div className="gba:relative">
+            {/* Loading Overlay */}
+            {comparing && (
+              <div className="gba:absolute gba:inset-0 gba:z-50 gba:flex gba:items-center gba:justify-center gba:bg-background/50 gba:backdrop-blur-sm gba:rounded-lg">
+                <div className="gba:flex gba:flex-col gba:items-center gba:gap-3 gba:bg-card gba:p-6 gba:rounded-lg gba:shadow-lg gba:border">
+                  <Loader2 className="gba:h-8 gba:w-8 gba:animate-spin gba:text-primary" />
+                  <p className="gba:text-sm gba:font-medium">Refreshing comparison...</p>
+                </div>
+              </div>
+            )}
 
-            {/* Bulk Selection Controls */}
-            <BulkSelectionControls
-              selectedCount={selectedTemplateIds.size}
-              totalCount={
-                comparisons.filter(
-                  c => c.status !== 'IDENTICAL' && c.status !== 'NEW_IN_TARGET' && c.status !== 'TARGET_AHEAD'
-                ).length
-              }
-              onSelectAll={handleSelectAll}
-              onClearSelection={handleClearSelection}
-              onBulkSync={handleBulkSyncClick}
-              disabled={comparing}
-            />
+            {/* Content */}
+            <div className={comparing ? 'gba:pointer-events-none' : ''}>
+              <TemplateSummaryCard summary={getSummary()} />
 
-            <TemplateComparisonTable
-              comparisons={comparisons}
-              onSyncClick={handleSyncClick}
-              onDiffClick={handleDiffClick}
-              onExportClick={handleExport}
-              selectedTemplateIds={selectedTemplateIds}
-              onSelectionChange={handleSelectionChange}
-              bulkMode={true}
-            />
-          </>
+              {/* Bulk Selection Controls */}
+              <BulkSelectionControls
+                selectedCount={selectedTemplateIds.size}
+                totalCount={
+                  comparisons.filter(
+                    c => c.status !== 'IDENTICAL' && c.status !== 'NEW_IN_TARGET' && c.status !== 'TARGET_AHEAD'
+                  ).length
+                }
+                onSelectAll={handleSelectAll}
+                onClearSelection={handleClearSelection}
+                onBulkSync={handleBulkSyncClick}
+                disabled={comparing}
+              />
+
+              <TemplateComparisonTable
+                comparisons={comparisons}
+                onSyncClick={handleSyncClick}
+                onDiffClick={handleDiffClick}
+                onExportClick={handleExport}
+                onDeleteClick={handleDeleteClick}
+                selectedTemplateIds={selectedTemplateIds}
+                onSelectionChange={handleSelectionChange}
+                bulkMode={true}
+                accessToken={context.accessToken}
+              />
+            </div>
+          </div>
         )}
 
         {/* Single Template Sync Dialog */}
@@ -654,6 +741,33 @@ export const ComparisonDashboard: React.FC<{ context: BusinessAppContextProps }>
             targetTemplate={diffTargetTemplate}
           />
         )}
+
+        {/* Delete Confirmation Dialog */}
+        {deleteComparison && sourceInstance && targetInstance && (
+          <TemplateDeleteDialog
+            isOpen={showDeleteDialog}
+            onClose={() => {
+              setShowDeleteDialog(false)
+              setDeleteComparison(null)
+            }}
+            comparison={deleteComparison}
+            sourceInstance={sourceInstance}
+            targetInstance={targetInstance}
+            onDelete={handleDelete}
+          />
+        )}
+
+        {/* Deleted Templates Modal */}
+        <DeletedTemplatesModal
+          isOpen={showDeletedTemplatesModal}
+          onClose={() => setShowDeletedTemplatesModal(false)}
+          instances={instances}
+          sourceInstanceId={sourceInstanceId}
+          targetInstanceId={targetInstanceId}
+          accessToken={context.accessToken}
+          userId={context.userInfo?.employeeDetails?.employeeId || 'system'}
+          onTemplateRestored={handleCompare}
+        />
       </div>
     </TooltipProvider>
   )

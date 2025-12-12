@@ -22,16 +22,19 @@ import {
 } from '@newwork/nw-design-system'
 import { TemplateComparison, ComparisonStatus } from '../../types/comparison'
 import { StatusBadge } from '../common/StatusBadge'
-import { FileCode, Download } from 'lucide-react'
+import { FileCode, Download, Trash2 } from 'lucide-react'
+import { useAppCategories } from '../../hooks/useAppCategories'
 
 interface TemplateComparisonTableProps {
   comparisons: TemplateComparison[]
   onSyncClick: (comparison: TemplateComparison) => void
   onDiffClick: (comparison: TemplateComparison) => void
   onExportClick?: (comparison: TemplateComparison, instanceType: 'source' | 'target') => void
+  onDeleteClick?: (comparison: TemplateComparison) => void
   selectedTemplateIds?: Set<string>
   onSelectionChange?: (templateId: string, selected: boolean) => void
   bulkMode?: boolean
+  accessToken: string
 }
 
 export const TemplateComparisonTable: React.FC<TemplateComparisonTableProps> = ({
@@ -39,12 +42,18 @@ export const TemplateComparisonTable: React.FC<TemplateComparisonTableProps> = (
   onSyncClick,
   onDiffClick,
   onExportClick,
+  onDeleteClick,
   selectedTemplateIds = new Set(),
   onSelectionChange,
-  bulkMode = false
+  bulkMode = false,
+  accessToken
 }) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [appFilter, setAppFilter] = useState<string>('all')
+
+  // Load app catalog for filtering by tags.app
+  const { categories: appCategories, isLoading: loadingApps } = useAppCategories(accessToken)
 
   const filteredComparisons = useMemo(() => {
     return comparisons.filter(comp => {
@@ -56,9 +65,30 @@ export const TemplateComparisonTable: React.FC<TemplateComparisonTableProps> = (
       // Status filter
       const matchesStatus = statusFilter === 'all' || comp.status === statusFilter
 
-      return matchesSearch && matchesStatus
+      // App filter - check if template's tags.app matches selected app
+      let matchesApp = true
+      if (appFilter !== 'all') {
+        // Check both source and target templates for app tags
+        const sourceTemplate = comp.source
+        const targetTemplate = comp.target
+
+        const hasMatchingApp = (template: any) => {
+          if (!template?.tags) {
+            return false // No tags at all
+          }
+          if (!template.tags.app) {
+            return false // No app tag
+          }
+          // Direct comparison
+          return template.tags.app === appFilter
+        }
+
+        matchesApp = hasMatchingApp(sourceTemplate) || hasMatchingApp(targetTemplate)
+      }
+
+      return matchesSearch && matchesStatus && matchesApp
     })
-  }, [comparisons, searchTerm, statusFilter])
+  }, [comparisons, searchTerm, statusFilter, appFilter])
 
   const canSync = (status: ComparisonStatus) => {
     return status !== 'IDENTICAL' && status !== 'NEW_IN_TARGET'
@@ -88,6 +118,21 @@ export const TemplateComparisonTable: React.FC<TemplateComparisonTableProps> = (
             onChange={e => setSearchTerm(e.target.value)}
             className="gba:w-full"
           />
+        </div>
+        <div className="gba:w-48">
+          <Select value={appFilter} onValueChange={setAppFilter} disabled={loadingApps}>
+            <SelectTrigger>
+              <SelectValue placeholder="Filter by app" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Apps</SelectItem>
+              {appCategories.map(app => (
+                <SelectItem key={app.id} value={app.catalogRef}>
+                  {app.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="gba:w-48">
           <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -230,6 +275,17 @@ export const TemplateComparisonTable: React.FC<TemplateComparisonTableProps> = (
                           data-testid={`template-sync-button-${comparison.templateId}`}
                         >
                           Sync →
+                        </Button>
+                      )}
+                      {onDeleteClick && (comparison.source !== null || comparison.target !== null) && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => onDeleteClick(comparison)}
+                          data-testid={`template-delete-button-${comparison.templateId}`}
+                          className="gba:text-destructive gba:hover:text-destructive gba:hover:bg-destructive/10"
+                        >
+                          <Trash2 className="gba:h-4 gba:w-4" />
                         </Button>
                       )}
                     </div>
