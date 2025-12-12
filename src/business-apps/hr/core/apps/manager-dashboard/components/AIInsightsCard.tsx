@@ -1,6 +1,6 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { Card, CardContent } from '@newwork/nw-design-system'
-import { Sparkle, CaretRight as CaretRightIcon } from '@phosphor-icons/react'
+import { Sparkles, ChevronRight } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { TeamAnniversary } from '../hooks/useTeamAnniversaries'
 
@@ -31,6 +31,51 @@ export interface AIInsightsCardProps {
   onNavigateToInsights: (tab: 'anniversaries') => void
 }
 
+type InsightColor = 'warning' | 'success' | 'destructive' | 'info' | 'primary'
+
+interface InsightItemConfig {
+  id: string
+  color: InsightColor
+  text: string
+  subText?: string
+  onClick?: () => void
+  testId?: string
+}
+
+const colorClasses: Record<InsightColor, string> = {
+  warning: 'gba:bg-warning',
+  success: 'gba:bg-success',
+  destructive: 'gba:bg-destructive',
+  info: 'gba:bg-info',
+  primary: 'gba:bg-primary'
+}
+
+const InsightBullet: React.FC<{ color: InsightColor }> = ({ color }) => (
+  <span className={`gba:mt-1.5 gba:h-2 gba:w-2 gba:rounded-full gba:flex-shrink-0 ${colorClasses[color]}`} />
+)
+
+const InsightLink: React.FC<{ onClick: () => void; testId?: string; children: React.ReactNode }> = ({
+  onClick,
+  testId,
+  children
+}) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className="gba:text-sm gba:text-primary gba:text-left gba:p-0 gba:bg-transparent gba:border-0 gba:cursor-pointer gba:inline-flex gba:items-center gba:gap-1 gba:rounded gba:px-1 gba:-mx-1 hover:gba:bg-muted/50 gba:transition-colors"
+    data-testid={testId}
+  >
+    {children}
+    <ChevronRight size={14} className="gba:flex-shrink-0" />
+  </button>
+)
+
+const InsightText: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <span className="gba:text-sm gba:text-foreground">{children}</span>
+)
+
+const pluralize = (count: number, singular: string, plural: string) => (count === 1 ? singular : plural)
+
 export const AIInsightsCard: React.FC<AIInsightsCardProps> = ({
   loadingAI,
   aiInsightItems,
@@ -51,16 +96,168 @@ export const AIInsightsCard: React.FC<AIInsightsCardProps> = ({
   onNavigateToNotClockedIn,
   onNavigateToInsights
 }) => {
+  const insights = useMemo((): InsightItemConfig[] => {
+    const items: InsightItemConfig[] = []
+
+    items.push({
+      id: 'availability',
+      color: onLeaveCount > 0 ? 'warning' : 'success',
+      text:
+        onLeaveCount > 0
+          ? `${onLeaveCount} team ${pluralize(onLeaveCount, 'member is', 'members are')} out of office today`
+          : `Your team is 100% available today (${directReportsCount}/${directReportsCount})`,
+      subText:
+        onLeaveCount > 0 && sickLeavesCount > 0
+          ? `Out of which ${sickLeavesCount} ${pluralize(sickLeavesCount, 'is', 'are')} on sick leave`
+          : undefined,
+      onClick: onLeaveCount > 0 ? onNavigateToAbsentTeammates : undefined,
+      testId: onLeaveCount > 0 ? 'manager-dashboard-ai-absent-link' : undefined
+    })
+
+    if (unallocatedCount > 0) {
+      items.push({
+        id: 'unallocated',
+        color: 'warning',
+        text: `${unallocatedCount} team ${pluralize(unallocatedCount, 'member is', 'members are')} not allocated to projects`,
+        onClick: onNavigateToUnallocatedTeammates,
+        testId: 'manager-dashboard-ai-unallocated-link'
+      })
+    }
+
+    if (employeesWithoutGoals > 0) {
+      items.push({
+        id: 'no-goals',
+        color: 'warning',
+        text: `${employeesWithoutGoals} team ${pluralize(employeesWithoutGoals, 'member has', 'members have')} no performance goals set`,
+        onClick: onNavigateToTeamPerformance,
+        testId: 'manager-dashboard-ai-no-goals-link'
+      })
+    }
+
+    if (goalsBehindTarget > 0) {
+      items.push({
+        id: 'goals-behind',
+        color: 'destructive',
+        text: `${goalsBehindTarget} performance ${pluralize(goalsBehindTarget, 'goal is', 'goals are')} behind target`,
+        onClick: onNavigateToTeamPerformance,
+        testId: 'manager-dashboard-ai-goals-behind-link'
+      })
+    }
+
+    if (notClockedInCount > 0) {
+      items.push({
+        id: 'not-clocked-in',
+        color: 'info',
+        text: `${notClockedInCount} available team ${pluralize(notClockedInCount, 'member has', 'members have')} not clocked in yet`,
+        onClick: onNavigateToNotClockedIn,
+        testId: 'manager-dashboard-ai-not-clocked-in-link'
+      })
+    }
+
+    if (remoteCount > 0) {
+      items.push({
+        id: 'remote',
+        color: 'info',
+        text: `${remoteCount} team ${pluralize(remoteCount, 'member is', 'members are')} working remotely today`
+      })
+    }
+
+    if (!hasFeedbackRecently && directReportsCount > 0) {
+      items.push({
+        id: 'feedback',
+        color: 'warning',
+        text:
+          daysSinceLastFeedback === null
+            ? `You haven't given feedback to any team member yet`
+            : `You haven't given feedback to any team member in the last ${daysSinceLastFeedback} days`
+      })
+    }
+
+    if (upcomingAnniversaries.length > 0) {
+      items.push({
+        id: 'anniversaries',
+        color: 'primary',
+        text: `${upcomingAnniversaries.length} ${pluralize(upcomingAnniversaries.length, 'anniversary', 'anniversaries')} coming up this month`,
+        onClick: () => onNavigateToInsights('anniversaries')
+      })
+    }
+
+    return items
+  }, [
+    onLeaveCount,
+    sickLeavesCount,
+    unallocatedCount,
+    employeesWithoutGoals,
+    goalsBehindTarget,
+    notClockedInCount,
+    remoteCount,
+    hasFeedbackRecently,
+    daysSinceLastFeedback,
+    directReportsCount,
+    upcomingAnniversaries,
+    onNavigateToAbsentTeammates,
+    onNavigateToUnallocatedTeammates,
+    onNavigateToTeamPerformance,
+    onNavigateToNotClockedIn,
+    onNavigateToInsights
+  ])
+
+  const renderInsightItem = (item: InsightItemConfig) => (
+    <li key={item.id} className="gba:flex gba:items-start gba:gap-2">
+      <InsightBullet color={item.color} />
+      <div className="gba:flex gba:flex-col gba:gap-1">
+        {item.onClick ? (
+          <InsightLink onClick={item.onClick} testId={item.testId}>
+            {item.text}
+          </InsightLink>
+        ) : (
+          <InsightText>{item.text}</InsightText>
+        )}
+        {item.subText && (
+          <span className="gba:text-sm gba:text-muted-foreground gba:mt-1 gba:pl-2 gba:border-l-2 gba:border-destructive">
+            {item.subText}
+          </span>
+        )}
+      </div>
+    </li>
+  )
+
+  const renderAIInsightItem = (item: AIInsightItem) => {
+    const color: InsightColor =
+      item.type === 'warning' ? 'destructive' : item.type === 'success' ? 'success' : 'primary'
+    return (
+      <li key={item.id} className="gba:flex gba:items-start gba:gap-2">
+        <InsightBullet color={color} />
+        <InsightText>{item.text}</InsightText>
+      </li>
+    )
+  }
+
+  const renderContent = () => {
+    if (loadingAI) {
+      return (
+        <div className="gba:space-y-2">
+          <div className="gba:h-4 gba:bg-muted gba:rounded gba:animate-pulse gba:w-3/4" />
+          <div className="gba:h-4 gba:bg-muted gba:rounded gba:animate-pulse gba:w-2/3" />
+        </div>
+      )
+    }
+
+    if (aiInsightItems.length > 0) {
+      return <ul className="gba:space-y-1.5">{aiInsightItems.map(renderAIInsightItem)}</ul>
+    }
+
+    return <ul className="gba:space-y-1.5">{insights.map(renderInsightItem)}</ul>
+  }
+
   return (
     <Card className="gba:lg:col-span-2" data-testid="manager-dashboard-ai-says-card">
       <CardContent className="gba:p-5">
         <div className="gba:flex gba:items-start gba:gap-4">
-          {/* Orange circle with Sparkle icon - matching EveryAI platform icon */}
           <span className="gba:inline-flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-full gba:bg-warning gba:flex-shrink-0">
-            <Sparkle size={24} weight="fill" className="gba:text-warning-foreground" />
+            <Sparkles size={24} className="gba:text-warning-foreground" />
           </span>
           <div className="gba:flex-1">
-            {/* Header with gradient text - matching InterventionsTable design */}
             <div className="gba:text-lg gba:font-semibold gba:mb-2">
               <span>NEWWORK </span>
               <span className="gba:bg-gradient-to-r gba:from-primary gba:via-info gba:to-success gba:bg-clip-text gba:text-transparent">
@@ -76,149 +273,7 @@ export const AIInsightsCard: React.FC<AIInsightsCardProps> = ({
                 )}
               </span>
             </div>
-
-            {loadingAI ? (
-              <div className="gba:space-y-2">
-                <div className="gba:h-4 gba:bg-muted gba:rounded gba:animate-pulse gba:w-3/4" />
-                <div className="gba:h-4 gba:bg-muted gba:rounded gba:animate-pulse gba:w-2/3" />
-              </div>
-            ) : aiInsightItems.length > 0 ? (
-              <ul className="gba:space-y-1.5">
-                {aiInsightItems.map(item => (
-                  <li key={item.id} className="gba:flex gba:items-start gba:gap-2">
-                    <span
-                      className={`gba:mt-1.5 gba:h-2 gba:w-2 gba:rounded-full gba:flex-shrink-0 ${
-                        item.type === 'warning'
-                          ? 'gba:bg-destructive'
-                          : item.type === 'success'
-                            ? 'gba:bg-success'
-                            : 'gba:bg-primary'
-                      }`}
-                    />
-                    <span className="gba:text-sm gba:text-foreground">{item.text}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <ul className="gba:space-y-1.5">
-                <li className="gba:flex gba:items-start gba:gap-2">
-                  <span
-                    className={`gba:mt-1.5 gba:h-2 gba:w-2 gba:rounded-full gba:flex-shrink-0 ${onLeaveCount > 0 ? 'gba:bg-warning' : 'gba:bg-success'}`}
-                  />
-                  <div className="gba:flex gba:flex-col gba:gap-1">
-                    {onLeaveCount > 0 ? (
-                      <>
-                        <button
-                          type="button"
-                          onClick={onNavigateToAbsentTeammates}
-                          className="gba:text-sm gba:text-primary gba:text-left gba:p-0 gba:bg-transparent gba:border-0 gba:cursor-pointer gba:inline-flex gba:items-center gba:gap-1 gba:rounded gba:px-1 gba:-mx-1 hover:gba:bg-muted/50 gba:transition-colors"
-                          data-testid="manager-dashboard-ai-absent-link"
-                        >
-                          {`${onLeaveCount} team ${onLeaveCount === 1 ? 'member is' : 'members are'} out of office today`}
-                          <CaretRightIcon size={14} className="gba:flex-shrink-0" />
-                        </button>
-                        {sickLeavesCount > 0 && (
-                          <span className="gba:text-sm gba:text-muted-foreground gba:mt-1 gba:pl-2 gba:border-l-2 gba:border-destructive">
-                            {`Out of which ${sickLeavesCount} ${sickLeavesCount === 1 ? 'is' : 'are'} on sick leave`}
-                          </span>
-                        )}
-                      </>
-                    ) : (
-                      <span className="gba:text-sm gba:text-foreground">
-                        {`Your team is 100% available today (${directReportsCount}/${directReportsCount})`}
-                      </span>
-                    )}
-                  </div>
-                </li>
-                {unallocatedCount > 0 && (
-                  <li className="gba:flex gba:items-start gba:gap-2">
-                    <span className="gba:mt-1.5 gba:h-2 gba:w-2 gba:rounded-full gba:flex-shrink-0 gba:bg-warning" />
-                    <button
-                      type="button"
-                      onClick={onNavigateToUnallocatedTeammates}
-                      className="gba:text-sm gba:text-primary gba:text-left gba:p-0 gba:bg-transparent gba:border-0 gba:cursor-pointer gba:inline-flex gba:items-center gba:gap-1 gba:rounded gba:px-1 gba:-mx-1 hover:gba:bg-muted/50 gba:transition-colors"
-                      data-testid="manager-dashboard-ai-unallocated-link"
-                    >
-                      {`${unallocatedCount} team ${unallocatedCount === 1 ? 'member is' : 'members are'} not allocated to projects`}
-                      <CaretRightIcon size={14} className="gba:flex-shrink-0" />
-                    </button>
-                  </li>
-                )}
-                {employeesWithoutGoals > 0 && (
-                  <li className="gba:flex gba:items-start gba:gap-2">
-                    <span className="gba:mt-1.5 gba:h-2 gba:w-2 gba:rounded-full gba:flex-shrink-0 gba:bg-warning" />
-                    <button
-                      type="button"
-                      onClick={onNavigateToTeamPerformance}
-                      className="gba:text-sm gba:text-primary gba:text-left gba:p-0 gba:bg-transparent gba:border-0 gba:cursor-pointer gba:inline-flex gba:items-center gba:gap-1 gba:rounded gba:px-1 gba:-mx-1 hover:gba:bg-muted/50 gba:transition-colors"
-                      data-testid="manager-dashboard-ai-no-goals-link"
-                    >
-                      {`${employeesWithoutGoals} team ${employeesWithoutGoals === 1 ? 'member has' : 'members have'} no performance goals set`}
-                      <CaretRightIcon size={14} className="gba:flex-shrink-0" />
-                    </button>
-                  </li>
-                )}
-                {goalsBehindTarget > 0 && (
-                  <li className="gba:flex gba:items-start gba:gap-2">
-                    <span className="gba:mt-1.5 gba:h-2 gba:w-2 gba:rounded-full gba:flex-shrink-0 gba:bg-destructive" />
-                    <button
-                      type="button"
-                      onClick={onNavigateToTeamPerformance}
-                      className="gba:text-sm gba:text-primary gba:text-left gba:p-0 gba:bg-transparent gba:border-0 gba:cursor-pointer gba:inline-flex gba:items-center gba:gap-1 gba:rounded gba:px-1 gba:-mx-1 hover:gba:bg-muted/50 gba:transition-colors"
-                      data-testid="manager-dashboard-ai-goals-behind-link"
-                    >
-                      {`${goalsBehindTarget} performance ${goalsBehindTarget === 1 ? 'goal is' : 'goals are'} behind target`}
-                      <CaretRightIcon size={14} className="gba:flex-shrink-0" />
-                    </button>
-                  </li>
-                )}
-                {notClockedInCount > 0 && (
-                  <li className="gba:flex gba:items-start gba:gap-2">
-                    <span className="gba:mt-1.5 gba:h-2 gba:w-2 gba:rounded-full gba:flex-shrink-0 gba:bg-info" />
-                    <button
-                      type="button"
-                      onClick={onNavigateToNotClockedIn}
-                      className="gba:text-sm gba:text-primary gba:text-left gba:p-0 gba:bg-transparent gba:border-0 gba:cursor-pointer gba:inline-flex gba:items-center gba:gap-1 gba:rounded gba:px-1 gba:-mx-1 hover:gba:bg-muted/50 gba:transition-colors"
-                      data-testid="manager-dashboard-ai-not-clocked-in-link"
-                    >
-                      {`${notClockedInCount} available team ${notClockedInCount === 1 ? 'member has' : 'members have'} not clocked in yet`}
-                      <CaretRightIcon size={14} className="gba:flex-shrink-0" />
-                    </button>
-                  </li>
-                )}
-                {remoteCount > 0 && (
-                  <li className="gba:flex gba:items-start gba:gap-2">
-                    <span className="gba:mt-1.5 gba:h-2 gba:w-2 gba:rounded-full gba:flex-shrink-0 gba:bg-info" />
-                    <span className="gba:text-sm gba:text-foreground">
-                      {`${remoteCount} team ${remoteCount === 1 ? 'member is' : 'members are'} working remotely today`}
-                    </span>
-                  </li>
-                )}
-                {!hasFeedbackRecently && directReportsCount > 0 && (
-                  <li className="gba:flex gba:items-start gba:gap-2">
-                    <span className="gba:mt-1.5 gba:h-2 gba:w-2 gba:rounded-full gba:flex-shrink-0 gba:bg-warning" />
-                    <span className="gba:text-sm gba:text-foreground">
-                      {daysSinceLastFeedback !== null
-                        ? `You haven't given feedback to any team member in the last ${daysSinceLastFeedback} days`
-                        : `You haven't given feedback to any team member yet`}
-                    </span>
-                  </li>
-                )}
-                {upcomingAnniversaries.length > 0 && (
-                  <li className="gba:flex gba:items-start gba:gap-2">
-                    <span className="gba:mt-1.5 gba:h-2 gba:w-2 gba:rounded-full gba:flex-shrink-0 gba:bg-primary" />
-                    <button
-                      type="button"
-                      onClick={() => onNavigateToInsights('anniversaries')}
-                      className="gba:text-sm gba:text-primary gba:cursor-pointer gba:bg-transparent gba:border-0 gba:p-0 gba:text-left gba:inline-flex gba:items-center gba:gap-1 gba:rounded gba:px-1 gba:-mx-1 hover:gba:bg-muted/50 gba:transition-colors"
-                    >
-                      {`${upcomingAnniversaries.length} ${upcomingAnniversaries.length === 1 ? 'anniversary' : 'anniversaries'} coming up this month`}
-                      <CaretRightIcon size={14} className="gba:flex-shrink-0" />
-                    </button>
-                  </li>
-                )}
-              </ul>
-            )}
+            {renderContent()}
           </div>
         </div>
       </CardContent>

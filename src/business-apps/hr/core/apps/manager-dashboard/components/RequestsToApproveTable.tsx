@@ -35,6 +35,36 @@ import { handleApprovePersonalChange } from './PersonalChangeItem'
 import { handleApproveExpense, handleReturnExpense } from './ExpenseItem.tsx'
 import { ExpenseApproval } from '../hooks/useExpensesApprovals.ts'
 
+interface ExpenseTypeDisplayProps {
+  isAdvancePayment: boolean
+  isRequestType: boolean
+  isTrip: boolean
+}
+
+const getExpenseTypeDisplay = ({ isAdvancePayment, isRequestType, isTrip }: ExpenseTypeDisplayProps) => {
+  if (isAdvancePayment) {
+    return {
+      icon: <WalletIcon size={16} />,
+      label: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:backoffice_expense_landing_page.advance_title',
+        'Advance Payment'
+      )
+    }
+  }
+
+  if (isRequestType) {
+    const label = isTrip
+      ? getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.trip_request', 'Trip Request')
+      : getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.initiate_title_header', 'Expense Request')
+    return { icon: <MoneyWavyIcon size={16} />, label }
+  }
+
+  const label = isTrip
+    ? getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.trip_plan', 'Trip Plan')
+    : getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plan', 'Expense Plan')
+  return { icon: <PathIcon size={16} />, label }
+}
+
 type RequestsToApproveTableProps = {
   activeApprovalTab: 'expenses' | 'absences' | 'personal-changes'
   setActiveApprovalTab: (_value: 'expenses' | 'absences' | 'personal-changes') => void
@@ -219,41 +249,19 @@ const RequestsToApproveTable = ({
                         <TableCell>
                           <div className="gba:flex gba:flex-col gba:gap-0.5">
                             <div className="gba:font-medium gba:w-full gba:truncate">
-                              {isAdvancePayment ? (
-                                <div className="gba:flex gba:items-center gba:gap-1">
-                                  <WalletIcon size={16} />
-                                  {getTranslationFromI18nKeyAndLabel(
-                                    'lowcoder:backoffice_expense_landing_page.advance_title',
-                                    'Advance Payment'
-                                  )}
-                                </div>
-                              ) : isRequestType ? (
-                                <div className="gba:flex gba:items-center gba:gap-1">
-                                  <MoneyWavyIcon size={16} />
-                                  {isTrip
-                                    ? getTranslationFromI18nKeyAndLabel(
-                                        'master-data:hr.manager_dashboard.trip_request',
-                                        'Trip Request'
-                                      )
-                                    : getTranslationFromI18nKeyAndLabel(
-                                        'lowcoder:create_expense_request.initiate_title_header',
-                                        'Expense Request'
-                                      )}
-                                </div>
-                              ) : (
-                                <div className="gba:flex gba:items-center gba:gap-1">
-                                  <PathIcon size={16} />
-                                  {isTrip
-                                    ? getTranslationFromI18nKeyAndLabel(
-                                        'master-data:hr.manager_dashboard.trip_plan',
-                                        'Trip Plan'
-                                      )
-                                    : getTranslationFromI18nKeyAndLabel(
-                                        'lowcoder:team_expenses_page.expense_plan',
-                                        'Expense Plan'
-                                      )}
-                                </div>
-                              )}
+                              {(() => {
+                                const { icon, label } = getExpenseTypeDisplay({
+                                  isAdvancePayment,
+                                  isRequestType,
+                                  isTrip
+                                })
+                                return (
+                                  <div className="gba:flex gba:items-center gba:gap-1">
+                                    {icon}
+                                    {label}
+                                  </div>
+                                )
+                              })()}
                             </div>
                           </div>
                         </TableCell>

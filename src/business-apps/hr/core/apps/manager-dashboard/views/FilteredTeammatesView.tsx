@@ -13,7 +13,7 @@ import {
   AvatarImage,
   AvatarFallback
 } from '@newwork/nw-design-system'
-import { CaretLeft as CaretLeftIcon } from '@phosphor-icons/react'
+import { ChevronLeft } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { DirectReport } from '../hooks/useDirectReports'
 
@@ -98,7 +98,7 @@ export const FilteredTeammatesView: React.FC<FilteredTeammatesViewProps> = ({
             className="gba:mr-4"
             data-testid="manager-dashboard-filtered-teammates-back-button"
           >
-            <CaretLeftIcon size={16} className="gba:mr-1" />
+            <ChevronLeft size={16} className="gba:mr-1" />
             {getTranslationFromI18nKeyAndLabel(
               'lowcoder:absence_management_hub_backoffice.absence_details.back_to_dashboard',
               'Back to Dashboard'
@@ -184,9 +184,7 @@ export const FilteredTeammatesView: React.FC<FilteredTeammatesViewProps> = ({
                 <TableHead>
                   {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.department', 'Department')}
                 </TableHead>
-                <TableHead>
-                  {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.status', 'Status')}
-                </TableHead>
+                <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.status', 'Status')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

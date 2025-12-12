@@ -10,7 +10,7 @@ import {
   AvatarImage,
   AvatarFallback
 } from '@newwork/nw-design-system'
-import { CaretRight as CaretRightIcon } from '@phosphor-icons/react'
+import { ChevronRight } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { DirectReport } from '../hooks/useDirectReports'
 import { TeamMemberAttendance } from '../hooks/useTeamAttendance'
@@ -52,7 +52,7 @@ export const MyTeamCard: React.FC<MyTeamCardProps> = ({
             data-testid="manager-dashboard-my-team-view-all-button"
           >
             {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.view_all', 'View All')}
-            <CaretRightIcon size={16} className="gba:ml-1" />
+            <ChevronRight size={16} className="gba:ml-1" />
           </Button>
         </CardAction>
       </CardHeader>
@@ -84,12 +84,12 @@ export const MyTeamCard: React.FC<MyTeamCardProps> = ({
                     type="button"
                     onClick={() => onNavigateToEmployee(report.id)}
                     className="gba:p-0 gba:bg-transparent gba:border-0 gba:cursor-pointer gba:transition-transform gba:hover:scale-110"
-                    title={`${report.firstName} ${report.lastName}${!isAvailable ? ` - ${absenceType || getTranslationFromI18nKeyAndLabel('master-data:manager_dashboard.on_leave', 'On Leave')}` : ''}`}
+                    title={`${report.firstName} ${report.lastName}${isAvailable ? '' : ` - ${absenceType || getTranslationFromI18nKeyAndLabel('master-data:manager_dashboard.on_leave', 'On Leave')}`}`}
                     data-testid={`manager-dashboard-team-avatar-${report.id}`}
                   >
                     <Avatar
                       size="default"
-                      className={`gba:h-10 gba:w-10 ${!isAvailable ? 'gba:opacity-50 gba:ring-2 gba:ring-purple-500' : ''}`}
+                      className={`gba:h-10 gba:w-10 ${isAvailable ? '' : 'gba:opacity-50 gba:ring-2 gba:ring-purple-500'}`}
                     >
                       <AvatarImage
                         src={

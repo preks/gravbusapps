@@ -1,6 +1,6 @@
 import React from 'react'
 import { Button, Badge } from '@newwork/nw-design-system'
-import { CaretLeft as CaretLeftIcon } from '@phosphor-icons/react'
+import { ChevronLeft } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { DirectReport } from '../hooks/useDirectReports'
 import { MatrixTeamMember } from '../hooks/useMatrixTeams'
@@ -113,7 +113,7 @@ export const TeammatesView: React.FC<TeammatesViewProps> = ({
             className="gba:mr-4"
             data-testid="manager-dashboard-teammates-back-button"
           >
-            <CaretLeftIcon size={16} className="gba:mr-1" />
+            <ChevronLeft size={16} className="gba:mr-1" />
             {getTranslationFromI18nKeyAndLabel(
               'lowcoder:absence_management_hub_backoffice.absence_details.back_to_dashboard',
               'Back to Dashboard'

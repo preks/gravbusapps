@@ -130,8 +130,8 @@ export const useTeamAvailability = ({
               todayTimestamp
             })
             absencesData = absencesResponse?.EmployeeAbsence || []
-          } catch (absenceErr) {
-            console.warn('Could not fetch absence data:', absenceErr)
+          } catch (error_) {
+            console.warn('Could not fetch absence data:', error_)
           }
         }
 

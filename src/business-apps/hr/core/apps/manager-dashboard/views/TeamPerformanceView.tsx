@@ -1,7 +1,7 @@
 import React from 'react'
 import dayjs from 'dayjs'
 import { Button, Badge, Spinner, Card, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
-import { CaretLeft as CaretLeftIcon } from '@phosphor-icons/react'
+import { ChevronLeft } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { TeamMemberPerformance } from '../hooks/useTeamPerformance'
 
@@ -40,7 +40,7 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
             className="gba:mr-4"
             data-testid="manager-dashboard-team-performance-back-button"
           >
-            <CaretLeftIcon size={16} className="gba:mr-1" />
+            <ChevronLeft size={16} className="gba:mr-1" />
             {getTranslationFromI18nKeyAndLabel(
               'lowcoder:absence_management_hub_backoffice.absence_details.back_to_dashboard',
               'Back to Dashboard'

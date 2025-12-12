@@ -22,13 +22,7 @@ import {
   Sheet,
   SheetContent
 } from '@newwork/nw-design-system'
-import {
-  CaretLeft as CaretLeftIcon,
-  Cake as CakeIcon,
-  Trophy as TrophyIcon,
-  Users as UsersIcon,
-  EnvelopeSimpleOpen as EnvelopeSimpleOpenIcon
-} from '@phosphor-icons/react'
+import { ChevronLeft, Cake, Trophy, Users, MailOpen } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { TeamBirthday } from '../hooks/useTeamBirthdays'
 import { TeamAnniversary } from '../hooks/useTeamAnniversaries'
@@ -90,7 +84,7 @@ export const TeamInsightsView: React.FC<TeamInsightsViewProps> = ({
               className="gba:mr-4"
               data-testid="manager-dashboard-insights-back-button"
             >
-              <CaretLeftIcon size={16} className="gba:mr-1" />
+              <ChevronLeft size={16} className="gba:mr-1" />
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:absence_management_hub_backoffice.absence_details.back_to_dashboard',
                 'Back to Dashboard'
@@ -113,13 +107,13 @@ export const TeamInsightsView: React.FC<TeamInsightsViewProps> = ({
               <TabsList className="gba:inline-flex gba:m-4">
                 <TabsTrigger value="birthdays">
                   <div className="gba:flex gba:flex-row gba:items-center gba:gap-2">
-                    <CakeIcon size={16} />
+                    <Cake size={16} />
                     <span>{getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.birthday', 'Birthdays')}</span>
                   </div>
                 </TabsTrigger>
                 <TabsTrigger value="anniversaries">
                   <div className="gba:flex gba:flex-row gba:items-center gba:gap-2">
-                    <TrophyIcon size={16} />
+                    <Trophy size={16} />
                     <span>
                       {getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.anniversary_date', 'Anniversaries')}
                     </span>
@@ -127,7 +121,7 @@ export const TeamInsightsView: React.FC<TeamInsightsViewProps> = ({
                 </TabsTrigger>
                 <TabsTrigger value="open-positions">
                   <div className="gba:flex gba:flex-row gba:items-center gba:gap-2">
-                    <UsersIcon size={16} />
+                    <Users size={16} />
                     <span>
                       {getTranslationFromI18nKeyAndLabel(
                         'master-data:hr.manager_dashboard.open_positions',
@@ -222,19 +216,19 @@ export const TeamInsightsView: React.FC<TeamInsightsViewProps> = ({
                                         `Dear ${person.firstName},\n\nWishing you a wonderful birthday!\n\nBest regards`
                                       )
                                     )
-                                    window.location.href = `mailto:${person.email}?subject=${subject}&body=${body}`
+                                    globalThis.location.href = `mailto:${person.email}?subject=${subject}&body=${body}`
                                   }
                                 }}
                                 title={
-                                  !person.email
-                                    ? getTranslationFromI18nKeyAndLabel(
+                                  person.email
+                                    ? ''
+                                    : getTranslationFromI18nKeyAndLabel(
                                         'master-data:hr.manager_dashboard.no_email',
                                         'No email available'
                                       )
-                                    : ''
                                 }
                               >
-                                <EnvelopeSimpleOpenIcon size={16} className="gba:mr-1" />
+                                <MailOpen size={16} className="gba:mr-1" />
                                 {getTranslationFromI18nKeyAndLabel(
                                   'master-data:hr.manager_dashboard.send_message',
                                   'Send Message'
@@ -341,19 +335,19 @@ export const TeamInsightsView: React.FC<TeamInsightsViewProps> = ({
                                         `Dear ${person.firstName},\n\nCongratulations on your ${person.yearsOfService}-year work anniversary! Thank you for your dedication and contributions.\n\nBest regards`
                                       )
                                     )
-                                    window.location.href = `mailto:${person.email}?subject=${subject}&body=${body}`
+                                    globalThis.location.href = `mailto:${person.email}?subject=${subject}&body=${body}`
                                   }
                                 }}
                                 title={
-                                  !person.email
-                                    ? getTranslationFromI18nKeyAndLabel(
+                                  person.email
+                                    ? ''
+                                    : getTranslationFromI18nKeyAndLabel(
                                         'master-data:hr.manager_dashboard.no_email',
                                         'No email available'
                                       )
-                                    : ''
                                 }
                               >
-                                <EnvelopeSimpleOpenIcon size={16} className="gba:mr-1" />
+                                <MailOpen size={16} className="gba:mr-1" />
                                 {getTranslationFromI18nKeyAndLabel(
                                   'master-data:hr.manager_dashboard.send_message',
                                   'Send Message'
