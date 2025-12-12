@@ -11,7 +11,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Label
+  Label,
+  Spinner
 } from '@newwork/nw-design-system'
 import { TrophyIcon } from '@phosphor-icons/react'
 
@@ -28,6 +29,7 @@ export interface TopPerformersProps {
   selectedCurrency?: string
   onCurrencyChange?: (currency: string) => void
   availableCurrencies?: string[]
+  isLoading?: boolean
 }
 
 export const TopPerformers: React.FC<TopPerformersProps> = ({
@@ -35,7 +37,8 @@ export const TopPerformers: React.FC<TopPerformersProps> = ({
   moduleColor = 'default',
   selectedCurrency = 'EUR',
   onCurrencyChange,
-  availableCurrencies = ['EUR', 'USD']
+  availableCurrencies = ['EUR', 'USD'],
+  isLoading = false
 }) => {
   // Currency formatter
   const formatCurrency = (value: number) => {
@@ -75,7 +78,12 @@ export const TopPerformers: React.FC<TopPerformersProps> = ({
         )}
       </CardHeader>
       <CardContent>
-        {performers.length > 0 ? (
+        {isLoading && (
+          <div className="gba:flex gba:justify-center gba:items-center gba:py-12" data-testid="top-performers-loading">
+            <Spinner size="lg" />
+          </div>
+        )}
+        {!isLoading && performers.length > 0 && (
           <div className="gba:space-y-3">
             {performers.map((performer, index) => (
               <div
@@ -99,10 +107,11 @@ export const TopPerformers: React.FC<TopPerformersProps> = ({
               </div>
             ))}
           </div>
-        ) : (
-          <div className="gba:text-center gba:text-gray-500 gba:py-12">
+        )}
+        {!isLoading && performers.length === 0 && (
+          <div className="gba:text-center gba:text-gray-500 gba:py-12" data-testid="top-performers-empty">
             <TrophyIcon className="gba:text-4xl gba:mb-4 gba:opacity-50" />
-            <p>No performance data available</p>
+            <p>No performance data available for {selectedCurrency}</p>
           </div>
         )}
       </CardContent>

@@ -134,29 +134,35 @@ export const OpportunityVelocityAnalysis: React.FC<OpportunityVelocityAnalysisPr
               </Badge>
             </div>
             <div className="gba:space-y-3">
-              {data.quickWins.map(win => (
-                <button
-                  key={win.id}
-                  type="button"
-                  className="gba:p-3 gba:bg-green-50 gba:border gba:border-green-200 gba:rounded-lg gba:cursor-pointer gba:hover:bg-green-100 gba:transition-colors gba:text-left gba:w-full"
-                  data-testid={`recent-win-${win.id}`}
-                  onClick={() => handleOpportunityClick(win.id)}
-                >
-                  <div className="gba:flex gba:justify-between gba:items-start">
-                    <div className="gba:flex-1">
-                      <h5 className="gba:font-medium gba:text-green-900 gba:text-sm gba:truncate gba:hover:underline">
-                        {win.title}
-                      </h5>
-                      <p className="gba:text-xs gba:text-green-600 gba:mt-1">Closed {win.daysSinceClosed} days ago</p>
-                    </div>
-                    <div className="gba:text-right">
-                      <div className="gba:text-sm gba:font-semibold gba:text-green-800">
-                        {formatCurrency(win.value, win.currencyCode)}
+              {data.quickWins.length > 0 ? (
+                data.quickWins.map(win => (
+                  <button
+                    key={win.id}
+                    type="button"
+                    className="gba:p-3 gba:bg-green-50 gba:border gba:border-green-200 gba:rounded-lg gba:cursor-pointer gba:hover:bg-green-100 gba:transition-colors gba:text-left gba:w-full"
+                    data-testid={`recent-win-${win.id}`}
+                    onClick={() => handleOpportunityClick(win.id)}
+                  >
+                    <div className="gba:flex gba:justify-between gba:items-start">
+                      <div className="gba:flex-1">
+                        <h5 className="gba:font-medium gba:text-green-900 gba:text-sm gba:truncate gba:hover:underline">
+                          {win.title}
+                        </h5>
+                        <p className="gba:text-xs gba:text-green-600 gba:mt-1">Closed {win.daysSinceClosed} days ago</p>
+                      </div>
+                      <div className="gba:text-right">
+                        <div className="gba:text-sm gba:font-semibold gba:text-green-800">
+                          {formatCurrency(win.value, win.currencyCode)}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                ))
+              ) : (
+                <div className="gba:text-center gba:py-8 gba:text-gray-500">
+                  <p className="gba:text-sm">No recent wins found</p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -169,29 +175,37 @@ export const OpportunityVelocityAnalysis: React.FC<OpportunityVelocityAnalysisPr
               </Badge>
             </div>
             <div className="gba:space-y-3">
-              {data.slowMovers.map(mover => (
-                <button
-                  key={mover.id}
-                  type="button"
-                  className="gba:p-3 gba:bg-orange-50 gba:border gba:border-orange-200 gba:rounded-lg gba:cursor-pointer gba:hover:bg-orange-100 gba:transition-colors gba:text-left gba:w-full"
-                  data-testid={`slow-mover-${mover.id}`}
-                  onClick={() => handleOpportunityClick(mover.id)}
-                >
-                  <div className="gba:flex gba:justify-between gba:items-start">
-                    <div className="gba:flex-1">
-                      <h5 className="gba:font-medium gba:text-orange-900 gba:text-sm gba:truncate gba:hover:underline">
-                        {mover.title}
-                      </h5>
-                      <p className="gba:text-xs gba:text-orange-600 gba:mt-1">Open for {mover.daysSinceCreated} days</p>
-                    </div>
-                    <div className="gba:text-right">
-                      <div className="gba:text-sm gba:font-semibold gba:text-orange-800">
-                        {formatCurrency(mover.value, mover.currencyCode)}
+              {data.slowMovers.length > 0 ? (
+                data.slowMovers.map(mover => (
+                  <button
+                    key={mover.id}
+                    type="button"
+                    className="gba:p-3 gba:bg-orange-50 gba:border gba:border-orange-200 gba:rounded-lg gba:cursor-pointer gba:hover:bg-orange-100 gba:transition-colors gba:text-left gba:w-full"
+                    data-testid={`slow-mover-${mover.id}`}
+                    onClick={() => handleOpportunityClick(mover.id)}
+                  >
+                    <div className="gba:flex gba:justify-between gba:items-start">
+                      <div className="gba:flex-1">
+                        <h5 className="gba:font-medium gba:text-orange-900 gba:text-sm gba:truncate gba:hover:underline">
+                          {mover.title}
+                        </h5>
+                        <p className="gba:text-xs gba:text-orange-600 gba:mt-1">
+                          Open for {mover.daysSinceCreated} days
+                        </p>
+                      </div>
+                      <div className="gba:text-right">
+                        <div className="gba:text-sm gba:font-semibold gba:text-orange-800">
+                          {formatCurrency(mover.value, mover.currencyCode)}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                ))
+              ) : (
+                <div className="gba:text-center gba:py-8 gba:text-gray-500">
+                  <p className="gba:text-sm">No open opportunities found</p>
+                </div>
+              )}
             </div>
           </div>
         </div>

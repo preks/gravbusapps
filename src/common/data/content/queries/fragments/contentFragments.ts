@@ -3,8 +3,18 @@
  * Reusable fragments for consistent data fetching
  */
 
+// Import catalog entry fragment from catalog data
+import { CATALOG_ENTRY_REF } from '@/common/data/catalog/queries/catalogFragments'
+import { ContentRole } from '../../types/contentEnums'
+// Import document fragment from document types
+import { CONTENT_DOCUMENT_FRAGMENT } from '../../types/contentDocumentTypes'
+
+// Re-export document fragment for backwards compatibility
+export { CONTENT_DOCUMENT_FRAGMENT } from '../../types/contentDocumentTypes'
+
 /**
  * Employee reference fragment
+ * Extended to include job position, organizational unit, and work communications
  */
 export const EMPLOYEE_REF_FRAGMENT = `
   id
@@ -12,30 +22,42 @@ export const EMPLOYEE_REF_FRAGMENT = `
   firstName
   lastName
   displayName
-  email
   picture
   pictureThumbnail
+  employeePosition {
+    jobPosition {
+      name
+    }
+    organizationalUnit {
+      name
+    }
+  }
+  communication(where: {_and: [{isDeleted: {_eq: false}}, {purpose: {_eq: "INTERNAL"}}]}) {
+    purpose
+    channel {
+      value
+      code
+    }
+    value
+    type {
+      value
+    }
+  }
 `
 
 /**
- * Catalog entry fragment
+ * Use the centralized catalog entry fragment
  */
-export const CATALOG_ENTRY_FRAGMENT = `
-  id
-  catalogIdentifier
-  version
-  key
-  value
-  sortOrder
-  isActive
-`
+export const CATALOG_ENTRY_FRAGMENT = CATALOG_ENTRY_REF
 
 /**
  * Content entry core fields
  */
 export const CONTENT_ENTRY_CORE_FRAGMENT = `
   id
-  parentContentId
+  version
+  parentContentEntryId
+  rootContentEntryId
   title
   preview
   content
@@ -44,15 +66,19 @@ export const CONTENT_ENTRY_CORE_FRAGMENT = `
   timeToRead
   creatorEmployeeId
   updaterEmployeeId
+  acceptorEmployeeId
   displayCreator
   displayUpdater
   allowComment
   allowReaction
+  accepted
   role
   contentGroupRef
   contentTypeRef
-  recordVersion
-  recordState
+  languageRef
+  entryVersion
+  activeFrom
+  activeTo
   createdAt
   createdBy
   updatedAt
@@ -71,6 +97,9 @@ export const CONTENT_ENTRY_WITH_EMPLOYEES_FRAGMENT = `
   updaterEmployee {
     ${EMPLOYEE_REF_FRAGMENT}
   }
+  acceptorEmployee {
+    ${EMPLOYEE_REF_FRAGMENT}
+  }
 `
 
 /**
@@ -82,6 +111,9 @@ export const CONTENT_ENTRY_WITH_CATALOGS_FRAGMENT = `
     ${CATALOG_ENTRY_FRAGMENT}
   }
   contentType {
+    ${CATALOG_ENTRY_FRAGMENT}
+  }
+  language {
     ${CATALOG_ENTRY_FRAGMENT}
   }
 `
@@ -119,41 +151,80 @@ export const CONTENT_ENTRY_TAG_FRAGMENT = `
 `
 
 /**
- * Content document fragment
+ * Content document with children (one level)
  */
-export const CONTENT_DOCUMENT_FRAGMENT = `
-  id
-  parentDocumentId
-  folder
-  name
-  description
-  fileInfo
-  documentGroupRef
-  documentTypeRef
-  contentEntryId
-  recordState
-  createdAt
-  createdBy
-  isDeleted
-  documentType {
-    ${CATALOG_ENTRY_FRAGMENT}
+export const CONTENT_DOCUMENT_WITH_CHILDREN_FRAGMENT = `
+  ${CONTENT_DOCUMENT_FRAGMENT}
+  childDocuments {
+    id
+    version
+    parentDocumentId
+    folder
+    name
+    description
+    fileInfo
+    documentGroupRef
+    documentTypeRef
+    contentEntryId
+    recordState
+    createdAt
+    createdBy
+    isDeleted
   }
 `
 
 /**
  * Content entry reaction fragment
+ * FIXED: CatalogEntry has no label or icon fields
  */
 export const CONTENT_ENTRY_REACTION_FRAGMENT = `
   id
   contentEntryId
   creatorEmployeeId
-  reaction
-  recordState
+  contentReactionRef
   createdAt
   createdBy
   isDeleted
   creatorEmployee {
     ${EMPLOYEE_REF_FRAGMENT}
+  }
+  contentReaction {
+    id
+    code
+    value
+    description
+  }
+`
+
+/**
+ * Descendant aggregate for counting ALL nested comments (for News, Knowledge, Documents)
+ */
+export const DESCENDANT_COMMENT_COUNT_FRAGMENT = `
+  descendantContentEntriesAggregate(
+    where: {
+      role: { _eq: "${ContentRole.COMMENT}" }
+      isDeleted: { _eq: false }
+    }
+  ) {
+    aggregate {
+      count
+    }
+  }
+`
+
+/**
+ * Child aggregate for counting DIRECT answers only (for Questions)
+ */
+export const CHILD_ANSWER_COUNT_FRAGMENT = `
+  childContentEntriesAggregate(
+    where: {
+      role: { _eq: "${ContentRole.COMMENT}" }
+      isDeleted: { _eq: false }
+    }
+  ) {
+    aggregate {
+      count
+    }
   }
 `
 
@@ -173,5 +244,33 @@ export const CONTENT_ENTRY_FULL_FRAGMENT = `
   }
   contentEntryReactions {
     ${CONTENT_ENTRY_REACTION_FRAGMENT}
+  }
+  ${DESCENDANT_COMMENT_COUNT_FRAGMENT}
+`
+
+/**
+ * Child content entry fragment (for comments, one level only to avoid recursion)
+ */
+export const CHILD_CONTENT_ENTRY_FRAGMENT = `
+  id
+  parentContentEntryId
+  rootContentEntryId
+  title
+  preview
+  content
+  picture
+  pictureThumbnail
+  creatorEmployeeId
+  displayCreator
+  allowComment
+  allowReaction
+  role
+  contentGroupRef
+  contentTypeRef
+  createdAt
+  updatedAt
+  isDeleted
+  creatorEmployee {
+    ${EMPLOYEE_REF_FRAGMENT}
   }
 `

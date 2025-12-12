@@ -1,11 +1,21 @@
 'use client'
 
 import React from 'react'
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell, Badge } from '@newwork/nw-design-system'
+import {
+  Table,
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody,
+  TableCell,
+  Badge,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { TimeEntry } from '../hooks/useTimeTrackingData'
+import hrI18n from './_i18n'
 
 export interface TimeEntriesTableProps {
   entries: TimeEntry[]
@@ -14,10 +24,12 @@ export interface TimeEntriesTableProps {
   onPageSizeChange: (s: number) => void
   accessToken: string
   employeeId: string
+  userId?: string
 }
 
 export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
-  const { entries, locale, pageSize, onPageSizeChange, accessToken, employeeId } = props
+  const { entries, locale, pageSize, onPageSizeChange, accessToken, employeeId, userId } = props
+  const { t } = useTranslation(hrI18n)
 
   const statusToVariant: Record<string, any> = {
     approved: 'success',
@@ -67,9 +79,7 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
             </TableHead>
             <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.notes', 'Notes')}</TableHead>
             <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.status', 'Status')}</TableHead>
-            <TableHead className="gba:w-[60px]">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.actions', 'Actions')}
-            </TableHead>
+            <TableHead className="gba:w-[60px]">{t('actions')}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -124,6 +134,7 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
                       contextsArray={[FlowContextName.employeeAttendanceCorrectionRequest]}
                       externalContextData={{
                         employeeId,
+                        employeeid: employeeId,
                         timeEntryId: e.id,
                         attendanceDateISO: e.attendanceDateISO,
                         startTimeISO: e.startTimeISO,
@@ -134,12 +145,17 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
                         breakTime: e.breakTime,
                         effectiveTime: e.effectiveTime,
                         plannedTime: e.plannedTime,
-                        differenceTime: e.differenceTime
+                        differenceTime: e.differenceTime,
+                        changeMode: 'INSERT',
+                        userId: userId,
+                        employeeAttendanceCorrectionRequest: {
+                          timeEntryVersion: e.version,
+                          timeEntryId: e.id
+                        }
                       }}
                       prefixDataTestId={`time-tracking-update`}
                       accessToken={accessToken}
                       emptyStateBehavior="enable"
-                      deferMainContextRequestsUntilClick
                       onClick={evt => evt.stopPropagation()}
                     />
                   </div>

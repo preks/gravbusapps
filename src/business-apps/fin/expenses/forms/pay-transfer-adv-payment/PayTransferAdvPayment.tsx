@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react'
-import { Spinner, Alert, AlertTitle, AlertDescription, Badge } from '@newwork/nw-design-system'
+import { Spinner, Alert, AlertTitle, AlertDescription, useTranslation } from '@newwork/nw-design-system'
 import { Check } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/components/TaskDetailHeader'
 import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
 import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
@@ -18,6 +17,7 @@ import {
   TransactionConfirmationSection,
   TransactionConfirmationDetailsSection
 } from './components'
+import translations from './_i18n'
 
 /**
  * Extended interface for additionalData with form-specific properties
@@ -44,6 +44,8 @@ const PayTransferAdvPaymentContent: React.FC<PayTransferAdvPaymentProps> = ({
   userInfo,
   onClose
 }) => {
+  const { t } = useTranslation(translations)
+
   // Cast additionalData to extended interface for proper typing
   const extendedAdditionalData = additionalData as ExtendedAdditionalData | undefined
 
@@ -66,11 +68,7 @@ const PayTransferAdvPaymentContent: React.FC<PayTransferAdvPaymentProps> = ({
   const taskCompletedAt = processMetadata?.completedAt || extendedAdditionalData?.psi_taskCompletedAt
   // Task is completed if status is COMPLETED OR if completedAt exists
   const isTaskCompleted = taskStatus === 'COMPLETED' || !!taskCompletedAt
-  const taskTitle =
-    processMetadata?.referenceTaskName ||
-    processMetadata?.nodeName ||
-    getTranslationFromI18nKeyAndLabel('lowcoder:pay_transfer_advance_payment.title', 'Hand out Advance Payment')
-  const taskSource: 'kogito' | 'cflow' = processMetadata?.source || 'kogito'
+  const taskTitle = processMetadata?.referenceTaskName || processMetadata?.nodeName || t('task-title')
   const creatorName = taskPayload?.creatorName as string | undefined
 
   // Use generic hooks for entity dates (request created)
@@ -142,14 +140,14 @@ const PayTransferAdvPaymentContent: React.FC<PayTransferAdvPaymentProps> = ({
   if (error) {
     return (
       <Alert variant="destructive" data-testid="pay-transfer-adv-payment-error">
-        <AlertTitle>Error Loading Advance Payment</AlertTitle>
+        <AlertTitle>{t('error-loading-title')}</AlertTitle>
         <AlertDescription>
           {error}
           <button
             onClick={refetch}
             className="gba:mt-2 gba:px-3 gba:py-1 gba:bg-destructive gba:text-destructive-foreground gba:rounded gba:text-sm"
           >
-            Retry
+            {t('action-retry')}
           </button>
         </AlertDescription>
       </Alert>
@@ -159,29 +157,15 @@ const PayTransferAdvPaymentContent: React.FC<PayTransferAdvPaymentProps> = ({
   if (!advancePayment) {
     return (
       <Alert data-testid="pay-transfer-adv-payment-no-data">
-        <AlertTitle>No Data</AlertTitle>
-        <AlertDescription>Advance payment not found</AlertDescription>
+        <AlertTitle>{t('error-no-data-title')}</AlertTitle>
+        <AlertDescription>{t('error-no-data-description')}</AlertDescription>
       </Alert>
     )
   }
 
-  // Get status display
-  const getStatusDisplay = (status?: string) => {
-    if (!status) return { label: 'Pending', variant: 'default' as const }
-    const statusLower = status.toLowerCase()
-    if (statusLower.includes('transferred') || statusLower.includes('confirmed')) {
-      return { label: 'Transferred', variant: 'success' as const }
-    }
-    if (statusLower.includes('booked')) return { label: 'Booked', variant: 'default' as const }
-    if (statusLower.includes('approved')) return { label: 'Approved', variant: 'success' as const }
-    if (statusLower.includes('pending')) return { label: 'Pending', variant: 'default' as const }
-    return { label: status, variant: 'default' as const }
-  }
-
-  const statusDisplay = getStatusDisplay(advancePayment.status)
   const displayName =
     `${advancePayment.expensePlan?.employee?.firstName || ''} ${advancePayment.expensePlan?.employee?.lastName || ''}`.trim() ||
-    'Employee'
+    t('value-employee')
 
   // Check if all required fields are filled
   const isConfirmButtonDisabled = !transactionDate || !confirmationChecked || isConfirming
@@ -192,8 +176,6 @@ const PayTransferAdvPaymentContent: React.FC<PayTransferAdvPaymentProps> = ({
       header={
         <TaskDetailHeader
           title={taskTitle}
-          status={taskStatus}
-          source={taskSource}
           showEmployeeInfo={true}
           employeeData={
             advancePayment?.expensePlan?.employee
@@ -211,11 +193,6 @@ const PayTransferAdvPaymentContent: React.FC<PayTransferAdvPaymentProps> = ({
           isLoadingEmployee={loading}
           creatorName={creatorName}
           onClose={isEveryBoxContext ? handleClose : undefined}
-          customBadges={
-            <Badge variant={statusDisplay.variant} data-testid="advance-payment-status-badge">
-              {statusDisplay.label}
-            </Badge>
-          }
         />
       }
       footer={
@@ -224,7 +201,7 @@ const PayTransferAdvPaymentContent: React.FC<PayTransferAdvPaymentProps> = ({
             data-testid="pay-transfer-adv-payment-actions"
             actions={[
               {
-                label: 'Confirm',
+                label: t('action-confirm'),
                 onClick: handleConfirm,
                 variant: 'default' as const,
                 disabled: isConfirmButtonDisabled,

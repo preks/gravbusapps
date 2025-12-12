@@ -63,6 +63,7 @@ export type EntityData = {
     | 'lead'
     | 'contact'
     | 'opportunity'
+    // display-only entity text fields (provided by backend for robust rendering)
     | 'content_entry'
     | 'crm_note'
     | 'crm_document'
@@ -90,6 +91,11 @@ export type EntityData = {
     | 'service_workflow'
   id: string
   operation?: 'create' | 'update' | 'delete' | 'read'
+  // New enriched fields coming from backend to avoid hardcoded queries
+  text_title?: string
+  text_human?: string
+  text_full?: string | null
+  tool?: string
   flow_proposal?: string
 }
 

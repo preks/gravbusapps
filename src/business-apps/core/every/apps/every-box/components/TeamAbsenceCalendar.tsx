@@ -21,11 +21,13 @@ import {
   TableHead,
   TableBody,
   TableCell,
-  Badge
+  Badge,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { Users, Calendar, ChevronDown, ChevronUp } from 'lucide-react'
 import { useTeamAbsences } from '../hooks/useTeamAbsences'
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { getCurrentActiveUserLocale, getCatalogValue } from '@/common/utils/windowUtils'
+import translations from '../_i18n'
 
 interface TeamAbsenceCalendarProps {
   accessToken: string
@@ -84,15 +86,15 @@ const useIsMobile = (breakpoint: number = 768) => {
   return isMobile
 }
 
-// Helper function for status display
-const getAbsenceStatusDisplay = (status: string) => {
+// Helper function for status display - returns type for logic, label translation key
+const getAbsenceStatusDisplay = (status: string, t: (key: string) => string) => {
   switch (status) {
     case 'APPROVED':
-      return { label: 'Approved', type: 'approved' }
+      return { label: t('absence-status-approved'), type: 'approved' }
     case 'PENDING':
-      return { label: 'Pending', type: 'pending' }
+      return { label: t('absence-status-pending'), type: 'pending' }
     case 'REJECTED':
-      return { label: 'Rejected', type: 'rejected' }
+      return { label: t('absence-status-rejected'), type: 'rejected' }
     default:
       return { label: status, type: 'default' }
   }
@@ -105,6 +107,7 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
   endDate,
   currentAbsence
 }) => {
+  const { t } = useTranslation(translations)
   const userLocale = getCurrentActiveUserLocale() ?? 'en-US'
   const isMobile = useIsMobile()
   const [expandedEmployees, setExpandedEmployees] = useState<Set<string>>(new Set())
@@ -186,7 +189,7 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
     if (currentAbsence) {
       map[currentAbsence.employeeId] = {}
 
-      const statusDisplay = getAbsenceStatusDisplay(currentAbsence.status)
+      const statusDisplay = getAbsenceStatusDisplay(currentAbsence.status, t)
       let color = 'gba:bg-info'
       if (statusDisplay.type === 'approved') {
         color = 'gba:bg-success'
@@ -228,9 +231,9 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
         map[employeeId] = {}
       }
 
-      // Get absence type and color
-      const statusDisplay = getAbsenceStatusDisplay(absence.status)
-      const absenceType = absence.type?.value || 'Absence'
+      // Get absence type and color (with locale-aware translation)
+      const statusDisplay = getAbsenceStatusDisplay(absence.status, t)
+      const absenceType = getCatalogValue(absence.type) || t('absence-calendar-fallback-type')
 
       // Determine color based on status
       let color = 'gba:bg-info'
@@ -258,7 +261,7 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
     })
 
     return map
-  }, [absences, currentAbsence, startDate, endDate, weekRange])
+  }, [absences, currentAbsence, startDate, endDate, weekRange, t])
 
   if (!supervisorId) {
     return null
@@ -347,7 +350,7 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
               <span className="gba:font-medium gba:text-sm gba:truncate">{employeeName}</span>
               {isCurrentAbsence && (
                 <Badge variant="default" className="gba:text-[10px] gba:px-1.5 gba:py-0">
-                  Pending
+                  {t('absence-status-pending')}
                 </Badge>
               )}
             </div>
@@ -376,7 +379,9 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
                 )
               })}
               {!isExpanded && groupedAbsences.length > 2 && (
-                <span className="gba:text-xs gba:text-muted-foreground">+{groupedAbsences.length - 2} more</span>
+                <span className="gba:text-xs gba:text-muted-foreground">
+                  {t('absence-calendar-more', { count: groupedAbsences.length - 2 })}
+                </span>
               )}
             </div>
           </div>
@@ -389,7 +394,9 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
         {isExpanded && (
           <div className="gba:border-t gba:bg-muted/30">
             <div className="gba:p-3 gba:space-y-2">
-              <div className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">Daily Breakdown</div>
+              <div className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">
+                {t('absence-calendar-daily-breakdown')}
+              </div>
               <div className="gba:grid gba:grid-cols-2 sm:gba:grid-cols-3 gba:gap-2">
                 {absenceDays.map(day => {
                   const dayDate = new Date(day.dateString + 'T12:00:00')
@@ -428,7 +435,7 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
       <CardHeader className="gba:pb-3">
         <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-base sm:gba:text-lg">
           <Users className="gba:h-4 gba:w-4 sm:gba:h-5 sm:gba:w-5 gba:text-primary gba:flex-shrink-0" />
-          <span className="gba:truncate">Team Absence Calendar</span>
+          <span className="gba:truncate">{t('absence-calendar-title')}</span>
           <span className="gba:hidden sm:gba:inline">- {monthYear}</span>
         </CardTitle>
         <div className="sm:gba:hidden gba:text-sm gba:text-muted-foreground gba:flex gba:items-center gba:gap-1 gba:mt-1">
@@ -436,10 +443,10 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
           {monthYear}
         </div>
         <p className="gba:text-xs sm:gba:text-sm gba:text-muted-foreground gba:mt-1">
-          View team absences during this period
+          {t('absence-calendar-description')}
           {currentAbsence && (
             <span className="gba:block gba:mt-1 gba:text-primary gba:font-medium">
-              {isMobile ? 'Highlighted card is pending approval' : 'The highlighted row is pending your approval'}
+              {isMobile ? t('absence-calendar-pending-mobile') : t('absence-calendar-pending-desktop')}
             </span>
           )}
         </p>
@@ -453,14 +460,14 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
 
         {error && (
           <Alert variant="destructive">
-            <div className="gba:font-medium">Error Loading Team Absences</div>
+            <div className="gba:font-medium">{t('absence-calendar-error-title')}</div>
             <div className="gba:text-sm gba:opacity-90">{error}</div>
           </Alert>
         )}
 
         {!isLoading && !error && employees.length === 0 && (
           <div className="gba:text-center gba:py-8 gba:text-muted-foreground">
-            <p>No team members found</p>
+            <p>{t('absence-calendar-no-members')}</p>
           </div>
         )}
 
@@ -498,7 +505,7 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
                 {/* Empty state for mobile */}
                 {!currentAbsence && employeesWithAbsences.length === 0 && (
                   <div className="gba:text-center gba:py-6 gba:text-muted-foreground gba:text-sm">
-                    No team absences during this period
+                    {t('absence-calendar-no-absences')}
                   </div>
                 )}
               </div>
@@ -509,7 +516,7 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
                   <TableHeader>
                     <TableRow>
                       <TableHead className="gba:w-48 gba:sticky gba:left-0 gba:z-10 gba:bg-background gba:shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
-                        Team Member
+                        {t('absence-calendar-team-member')}
                       </TableHead>
                       {calendarDays.map(day => (
                         <TableHead
@@ -554,13 +561,18 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
                                       ? 'gba:ring-2 gba:ring-primary gba:ring-offset-2 gba:shadow-lg'
                                       : ''
                                   }`}
-                                  title={`${absence.type} - ${absence.status}${isCurrentAbsenceDay ? ' (This absence is pending approval)' : ''}`}
+                                  title={(() => {
+                                    const baseTitle = `${absence.type} - ${absence.status}`
+                                    return isCurrentAbsenceDay
+                                      ? `${baseTitle} (${t('absence-calendar-pending-tooltip')})`
+                                      : baseTitle
+                                  })()}
                                 >
                                   {absence.type}
                                   {isCurrentAbsenceDay && (
                                     <span
                                       className="gba:absolute -gba:top-1 -gba:right-1 gba:bg-primary gba:text-white gba:rounded-full gba:w-3 gba:h-3 gba:flex gba:items-center gba:justify-center gba:text-[8px]"
-                                      title="Pending Approval"
+                                      title={t('absence-calendar-pending-approval')}
                                     >
                                       •
                                     </span>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { WidgetGroup } from '@/components/widget-group'
 import { BankOutlined, DollarCircleOutlined, TeamOutlined, RiseOutlined } from '@ant-design/icons'
 import { AccountLifecycleChart } from './widgets/AccountLifecycleChart'
@@ -22,6 +22,7 @@ export interface AccountsTabLayoutProps {
   totalAccounts: number
   accountsWithOpportunities: number
   avgOpportunitiesPerAccount: number
+  avgRevenuePerAccount?: number // Average revenue per account with won opportunities (aggregate calculation)
   trendData?: AccountsTrendData | null
   trendLoading?: boolean
   accountsOverTime: Array<{
@@ -38,7 +39,7 @@ export interface AccountsTabLayoutProps {
   // Relationship data
   accountsByIndustry: Array<{ industry: string; count: number; percentage: number }>
   accountsBySize: Array<{ sizeRange: string; count: number; percentage: number }>
-  topAccounts: Array<{
+  topAccounts?: Array<{
     id: string
     name: string
     industry: string
@@ -46,6 +47,7 @@ export interface AccountsTabLayoutProps {
     wonOpportunities?: number
     totalValue: number
   }>
+  topAccountsLoading?: boolean
   monthlyGrowthTrend?: Array<{
     month: string
     date: string
@@ -57,10 +59,13 @@ export interface AccountsTabLayoutProps {
   healthLoading?: boolean
   moduleColor?: string
 
-  // Currency filter props
+  // Currency filter props (only used with topAccounts)
   selectedCurrency?: string
   onCurrencyChange?: (currency: string) => void
   availableCurrencies?: string[]
+
+  // Optional sections
+  showTopAccounts?: boolean // Control visibility of Top Accounts by Revenue section
 }
 
 const calculateTrend = (
@@ -87,6 +92,7 @@ export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
   totalAccounts,
   accountsWithOpportunities,
   avgOpportunitiesPerAccount,
+  avgRevenuePerAccount,
   trendData,
   trendLoading = false,
   accountsOverTime,
@@ -95,46 +101,17 @@ export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
   onTimeFilterChange,
   accountsByIndustry,
   accountsBySize,
-  topAccounts,
+  topAccounts = [],
+  topAccountsLoading = false,
   monthlyGrowthTrend = [],
   growthLoading = false,
   healthLoading = false,
   moduleColor = 'default',
   selectedCurrency = 'EUR',
   onCurrencyChange,
-  availableCurrencies = ['EUR', 'USD']
+  availableCurrencies = ['EUR', 'USD'],
+  showTopAccounts = true
 }) => {
-  const [visibleLines, setVisibleLines] = useState({
-    accountsCreated: true,
-    accountsWithOpportunities: true,
-    accountsActive: true
-  })
-
-  const toggleLineVisibility = (key: 'accountsCreated' | 'accountsWithOpportunities' | 'accountsActive') => {
-    setVisibleLines(prev => ({ ...prev, [key]: !prev[key] }))
-  }
-
-  const formatTooltip = (value: any, name: string) => {
-    const labelMap: Record<string, string> = {
-      accountsCreated: 'Accounts Created',
-      accountsWithOpportunities: 'Accounts with Opportunities',
-      accountsActive: 'Active Accounts'
-    }
-    return [value, labelMap[name] || name]
-  }
-
-  const formatXAxisLabel = (value: string) => {
-    const date = new Date(value)
-    if (selectedTimeFilter === 'month') {
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) // "Nov 1", "Nov 2"
-    }
-    if (selectedTimeFilter === 'historical') {
-      return date.getFullYear().toString() // "2024"
-    }
-    // For quarter, sixMonths, and year: show month + year (monthly aggregation)
-    return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) // "Nov 2025"
-  }
-
   const kpis = [
     {
       key: 'total-accounts',
@@ -183,7 +160,7 @@ export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
     {
       key: 'accounts-this-period',
       title: `New This Month`,
-      value: trendData?.currentMonthAccounts || accountsOverTime.reduce((sum, i) => sum + i.accountsCreated, 0),
+      value: trendData?.currentMonthAccounts || 0,
       prefix: <RiseOutlined />,
       description: `Accounts created this month`,
       ...(trendData && !trendLoading
@@ -196,24 +173,27 @@ export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
     <div className="gba:space-y-6" data-testid="accounts-analytics-tab">
       <div>
         <h2 className="gba:text-2xl gba:font-bold gba:mb-4">{title}</h2>
-        <WidgetGroup widgets={kpis} data-testid="accounts-key-metrics" />
+        <WidgetGroup widgets={kpis} isLoading={trendLoading} data-testid="accounts-key-metrics" />
       </div>
 
       <AccountLifecycleChart
+        key={`account-lifecycle-${selectedTimeFilter}`}
         data={accountsOverTime}
-        isLoading={accountsOverTimeLoading}
+        isLoading={accountsOverTimeLoading || growthLoading || healthLoading}
         selectedTimeFilter={selectedTimeFilter}
         onTimeFilterChange={onTimeFilterChange || (() => {})}
-        visibleLines={visibleLines}
-        onToggleLineVisibility={toggleLineVisibility}
-        formatXAxisLabel={formatXAxisLabel}
-        formatTooltip={formatTooltip}
         moduleColor={moduleColor}
       />
 
       <div className="gba:grid gba:grid-cols-1 xl:gba:grid-cols-2 gba:gap-6">
         <AccountGrowthAnalysis
-          data={{ totalAccounts, accountsWithOpportunities, topAccounts, monthlyGrowthTrend }}
+          data={{
+            totalAccounts,
+            accountsWithOpportunities,
+            avgRevenuePerAccount, // Pass aggregate calculation if available
+            topAccounts, // Legacy fallback
+            monthlyGrowthTrend
+          }}
           isLoading={growthLoading}
           moduleColor={moduleColor}
         />
@@ -236,13 +216,16 @@ export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
         moduleColor={moduleColor}
       />
 
-      <TopAccountsByRevenue
-        topAccounts={topAccounts}
-        moduleColor={moduleColor}
-        selectedCurrency={selectedCurrency}
-        onCurrencyChange={onCurrencyChange}
-        availableCurrencies={availableCurrencies}
-      />
+      {showTopAccounts && (
+        <TopAccountsByRevenue
+          topAccounts={topAccounts}
+          isLoading={topAccountsLoading}
+          moduleColor={moduleColor}
+          selectedCurrency={selectedCurrency}
+          onCurrencyChange={onCurrencyChange}
+          availableCurrencies={availableCurrencies}
+        />
+      )}
     </div>
   )
 }

@@ -61,13 +61,24 @@ export interface InvestmentData {
   currency?: CatalogEntry // Full catalog object
   fundManagerName?: string
   identification?: any // JSON object
-  investmentAccount?: InvestmentAccount // Full account object
+  irr?: number | string // Internal Rate of Return
+  moic?: number | string // Multiple on Invested Capital
   investmentOpportunity?: string // uuid
   loanRecipientInvestmentAccount?: InvestmentAccount // uuid
   additionalProperties?: any // JSON object
 
   // Investment Roles (array) - GraphQL schema name is singular
   investmentRole?: InvestmentRoleData[]
+
+  // Investment-Account Junction Table (many-to-many)
+  investmentAccounts?: Array<{
+    // GraphQL field name
+    id?: string
+    version?: number
+    investmentAccountId: string
+    investmentAccountTypeRef?: string
+    isDeleted?: boolean
+  }>
 
   // Support for dynamic additional properties fields
   [key: string]: any // Allow dynamic additional properties fields
@@ -262,6 +273,16 @@ export const buildInvestmentPayload = (
     }),
     ...(investment.currency?.id && { currencyRef: investment.currency.id }), // Extract ID from catalog object
     ...(investment.fundManagerName && { fundManagerName: investment.fundManagerName }),
+    ...(investment.irr !== undefined &&
+      investment.irr !== null &&
+      investment.irr !== '' && {
+        irr: toNumber(investment.irr)
+      }),
+    ...(investment.moic !== undefined &&
+      investment.moic !== null &&
+      investment.moic !== '' && {
+        moic: toNumber(investment.moic)
+      }),
     ...(investment.identification && { identification: investment.identification }),
     ...(investment.investmentAccount?.id && { investmentAccount: investment.investmentAccount.id }), // Extract ID from account object
     ...(investment.investmentOpportunity && { investmentOpportunity: investment.investmentOpportunity }),

@@ -47,8 +47,6 @@ export interface ContactViewConfig<TContact extends Contact = Contact, TQueryVar
 
   contactStatistics?: ContactStatisticsData
 
-  processCompletionEvents?: string[]
-
   rowActionsContextArray: FlowContextName[]
   buildRowActionsExternalContextData: (row: { original: TContact }) => Record<string, string>
 
@@ -189,24 +187,11 @@ function ConfigContactLayout<TContact extends Contact = Contact, TQueryVariables
   // Process Completion Handlers
   const handleProcessComplete = useCallback(() => {
     loadData(false)
-  }, [loadData])
+    // Also refresh statistics when process completes
+    config.contactStatistics?.refetch?.()
+  }, [loadData, config.contactStatistics?.refetch])
 
   useProcessCompletion({ onSuccess: handleProcessComplete })
-
-  useEffect(() => {
-    const events = config.processCompletionEvents || ['taskCompletion', 'contactCompletion']
-    const handlers = events.map(eventName => {
-      const handler = () => handleProcessComplete()
-      globalThis.addEventListener(eventName, handler)
-      return { eventName, handler }
-    })
-
-    return () => {
-      for (const { eventName, handler } of handlers) {
-        globalThis.removeEventListener(eventName, handler)
-      }
-    }
-  }, [handleProcessComplete, config.processCompletionEvents])
 
   // Event Handlers
   const handleSearch = useCallback((value: string) => {

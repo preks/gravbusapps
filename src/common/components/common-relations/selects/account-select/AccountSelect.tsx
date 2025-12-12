@@ -6,17 +6,13 @@ import {
   Avatar,
   AvatarImage,
   AvatarFallback,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Button
 } from '@newwork/nw-design-system'
 import { PiX } from 'react-icons/pi'
 import { Building2 } from 'lucide-react'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import { ContactType, getContactTypeLabel } from '@/common/data/relations/constants/contactConstants'
+import { CatalogSelect } from '@/components/catalog-select'
+import { INVESTMENT_ACCOUNT_TYPE } from '@/common/data/investment/constants/investmentCatalogs'
 
 export interface SelectOption {
   id: string
@@ -40,7 +36,7 @@ export interface SelectOption {
 interface AccountValue {
   id: string
   name: string
-  contactType?: ContactType | string
+  accountType?: string // Catalog reference ID
   pictureThumbnail?: string
 }
 
@@ -66,6 +62,7 @@ interface AccountSelectProps {
 
   // Component behavior
   multiple?: boolean
+  disabled?: boolean
 }
 
 const AccountSelect: React.FC<AccountSelectProps> = ({
@@ -79,7 +76,8 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
   searchAccounts,
   accountContacts = [],
   initialAccount,
-  multiple = false
+  multiple = false,
+  disabled = false
   // onNewAccount - can be added later if needed
 }) => {
   // Helper function to extract ID from value (string or object)
@@ -124,7 +122,7 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
       const merged = normalizedValue.map(newAccount => {
         const newId = getAccountId(newAccount)
         const newAccountObj =
-          typeof newAccount === 'object' ? newAccount : { id: newAccount, name: '', contactType: undefined }
+          typeof newAccount === 'object' ? newAccount : { id: newAccount, name: '', accountType: undefined }
         const existingAccount = internalValue.find(a => getAccountId(a) === newId)
 
         // If existing account has complete data, keep it
@@ -132,10 +130,10 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
           const hasCompleteData = Boolean(existingAccount.pictureThumbnail)
 
           if (hasCompleteData) {
-            // Keep existing data, but update contactType if present in newAccount
+            // Keep existing data, but update accountType if present in newAccount
             return {
               ...existingAccount,
-              ...(newAccountObj.contactType && { contactType: newAccountObj.contactType })
+              ...(newAccountObj.accountType && { accountType: newAccountObj.accountType })
             }
           }
         }
@@ -146,19 +144,19 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
       setInternalValue(merged)
     } else {
       // IDs haven't changed, but data might have been updated
-      // Merge: update contactType from value if it changed, but keep other data from internalValue if it exists
+      // Merge: update accountType from value if it changed, but keep other data from internalValue if it exists
       const merged = normalizedValue.map(newAccount => {
         const newId = getAccountId(newAccount)
         const newAccountObj =
-          typeof newAccount === 'object' ? newAccount : { id: newAccount, name: '', contactType: undefined }
+          typeof newAccount === 'object' ? newAccount : { id: newAccount, name: '', accountType: undefined }
         const existingAccount = internalValue.find(a => getAccountId(a) === newId)
 
         if (existingAccount && typeof existingAccount === 'object' && existingAccount.name) {
-          // Keep existing data, but update contactType if it changed
-          if (newAccountObj.contactType !== existingAccount.contactType) {
+          // Keep existing data, but update accountType if it changed
+          if (newAccountObj.accountType !== existingAccount.accountType) {
             return {
               ...existingAccount,
-              contactType: newAccountObj.contactType
+              accountType: newAccountObj.accountType
             }
           }
           return existingAccount
@@ -340,7 +338,7 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
         const newAccount: AccountValue = {
           id: accountId,
           name: accountFromList.label || accountFromList.name,
-          contactType: undefined,
+          accountType: undefined,
           pictureThumbnail: accountFromList.pictureThumbnail
         }
         const newValue = multiple ? [...internalValue, newAccount] : [newAccount]
@@ -360,7 +358,7 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
     const newAccount: AccountValue = {
       id: accountId,
       name: selectedAccount.label || selectedAccount.name,
-      contactType: undefined,
+      accountType: undefined,
       pictureThumbnail: selectedAccount.pictureThumbnail
     }
     const newValue = multiple ? [...internalValue, newAccount] : [newAccount]
@@ -374,12 +372,13 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
     }
   }
 
-  // Handle contact type change
-  const handleContactTypeChange = (accountId: string, contactType: ContactType | string) => {
-    const newValue = internalValue.map(account => {
-      const id = getAccountId(account)
-      if (id === accountId) {
-        return typeof account === 'object' ? { ...account, contactType } : { id: account, name: '', contactType }
+  // Handle account type change - uses index instead of ID to avoid closure issues
+  const handleAccountTypeChange = (index: number, accountType: string | null) => {
+    const newValue = internalValue.map((account, idx) => {
+      if (idx === index) {
+        return typeof account === 'object'
+          ? { ...account, accountType: accountType || undefined }
+          : { id: account, name: '', accountType: accountType || undefined }
       }
       return account
     })
@@ -392,6 +391,13 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
     const newValue = internalValue.filter(a => getAccountId(a) !== accountId)
     setInternalValue(newValue)
     onChange(multiple ? newValue : newValue[0] || '')
+  }
+
+  // Get empty text for combobox (like ContactSelect)
+  const getEmptyText = () => {
+    if (accountsLoading) return 'Loading...'
+    if (accountsError) return 'Error loading accounts'
+    return 'No accounts found'
   }
 
   // Filter out already selected accounts from available options
@@ -426,9 +432,9 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
           onValueChange={handleAddAccount}
           options={availableAccountOptions}
           placeholder="Search and select account..."
-          searchPlaceholder="Search accounts..."
-          emptyText={accountsLoading ? 'Loading...' : 'No accounts found'}
-          disabled={accountsLoading}
+          searchPlaceholder="Type to search..."
+          emptyText={getEmptyText()}
+          disabled={disabled || accountsLoading}
           loading={accountsLoading}
           onSearch={searchAccounts}
           data-testid={formatDataTestId(dataTestId || 'account-list', 'combobox')}
@@ -437,23 +443,23 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
 
       {/* Selected Accounts List - only for multiple mode */}
       {multiple && internalValue.length > 0 && (
-        <div className="gba:space-y-2" data-testid={formatDataTestId(dataTestId || 'account-list', 'selected-list')}>
+        <div className="gba:space-y-0" data-testid={formatDataTestId(dataTestId || 'account-list', 'selected-list')}>
           {internalValue.map((account, index) => {
             const accountId = getAccountId(account)
             const accountData = getAccountData(account)
             const accountValue =
-              typeof account === 'object' ? account : { id: account, name: '', contactType: undefined }
+              typeof account === 'object' ? account : { id: account, name: '', accountType: undefined }
 
             if (!accountData) return null
 
             return (
               <div
                 key={accountId}
-                className="gba:flex gba:items-center gba:gap-3 gba:p-3 gba:border gba:rounded-lg gba:bg-card"
-                data-testid={formatDataTestId(dataTestId || 'account-list', `account-${index}`)}
+                className="gba:flex gba:items-center gba:gap-3 gba:py-2"
+                data-testid={formatDataTestId(dataTestId || 'account-list', `account-card-${index}`)}
               >
                 {/* Avatar */}
-                <Avatar size="sm" className="gba:flex-shrink-0">
+                <Avatar className="gba:flex-shrink-0" size="sm">
                   {accountData.pictureThumbnail ? (
                     <AvatarImage
                       src={`data:image/gif;base64,${accountData.pictureThumbnail}`}
@@ -468,7 +474,7 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
 
                 {/* Account Info */}
                 <div className="gba:flex-1 gba:min-w-0">
-                  <div className="gba:truncate gba:font-medium">{accountData.label}</div>
+                  <h4 className="gba:text-sm gba:font-semibold gba:truncate">{accountData.label}</h4>
                   {accountData.extraInfo?.website && (
                     <div className="gba:text-xs gba:text-muted-foreground gba:truncate">
                       {accountData.extraInfo.website}
@@ -476,23 +482,16 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
                   )}
                 </div>
 
-                {/* Contact Type Select (only for multiple mode) */}
-                <Select
-                  value={accountValue.contactType || ''}
-                  onValueChange={contactType => handleContactTypeChange(accountId, contactType)}
-                  data-testid={formatDataTestId(dataTestId || 'account-list', `contact-type-${index}`)}
-                >
-                  <SelectTrigger className="gba:w-[180px]">
-                    <SelectValue placeholder="Contact Type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.values(ContactType).map(type => (
-                      <SelectItem key={type} value={type}>
-                        {getContactTypeLabel(type)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {/* Account Type Select - Using Catalog */}
+                <div className="gba:w-48">
+                  <CatalogSelect
+                    catalogIdentifier={INVESTMENT_ACCOUNT_TYPE}
+                    value={accountValue.accountType || ''}
+                    onValueChange={accountType => handleAccountTypeChange(index, accountType)}
+                    data-testid={formatDataTestId(dataTestId || 'account-list', `account-type-${index}`)}
+                    placeholder="Select type..."
+                  />
+                </div>
 
                 {/* Remove Button */}
                 <Button
@@ -500,10 +499,11 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
                   variant="ghost"
                   size="icon"
                   onClick={() => handleRemoveAccount(accountId)}
-                  data-testid={formatDataTestId(dataTestId || 'account-list', `remove-${index}`)}
+                  className="gba:flex-shrink-0 gba:text-destructive hover:gba:text-destructive/80"
+                  data-testid={formatDataTestId(dataTestId || 'account-list', `remove-account-${index}`)}
                   aria-label={`Remove ${accountData.label}`}
                 >
-                  <PiX className="gba:h-4 gba:w-4" />
+                  <PiX className="gba:w-4 gba:h-4" />
                 </Button>
               </div>
             )
@@ -511,21 +511,19 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
         </div>
       )}
 
-      {/* Combobox for adding accounts - always visible in multiple mode */}
-      {multiple && (
-        <Combobox
-          value=""
-          onValueChange={handleAddAccount}
-          options={availableAccountOptions}
-          placeholder="Search and select account..."
-          searchPlaceholder="Search accounts..."
-          emptyText={accountsLoading ? 'Loading...' : 'No accounts found'}
-          disabled={accountsLoading}
-          loading={accountsLoading}
-          onSearch={searchAccounts}
-          data-testid={formatDataTestId(dataTestId || 'account-list', 'combobox')}
-        />
-      )}
+      {/* Combobox for adding accounts - always visible */}
+      <Combobox
+        value=""
+        onValueChange={handleAddAccount}
+        options={availableAccountOptions}
+        placeholder="Search and select account..."
+        searchPlaceholder="Type to search..."
+        emptyText={getEmptyText()}
+        disabled={disabled || accountsLoading}
+        loading={accountsLoading}
+        onSearch={searchAccounts}
+        data-testid={formatDataTestId(dataTestId || 'account-list', 'add-account-combobox')}
+      />
 
       {/* Error Display */}
       {(error || accountsError) && (

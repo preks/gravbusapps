@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from 'react'
+import React, { useEffect, useRef, useCallback, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { AppActionForm } from '@/components/app-action-form'
 import { CatalogSelect } from '@/components/catalog-select'
@@ -16,8 +16,14 @@ import { buildFilePath } from '@/common/utils/fileUtils'
 import { APP_NAME, FILE_ENTITY, FILE_CONTEXT } from '@/common/data/investment/constants/investmentConstants'
 import { ErrorAlert } from '@/components/error-alert'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { UserSelect } from '@/components/user-select'
+import type { UserSelectOption } from '@/components/user-select'
+import { useUserManagementClient } from '@/common/network/users/useUserManagementClient'
+import { FormField, FormItem, FormLabel, FormControl, FormDescription, FormMessage } from '@newwork/nw-design-system'
 
-export const investmentContactSchema = contactSchema.extend({})
+export const investmentContactSchema = contactSchema.extend({
+  userId: z.string().nullable().optional()
+})
 
 type ContactFormProps = BusinessAppContextProps
 
@@ -31,9 +37,15 @@ export const ContactForm: React.FC<ContactFormProps> = ({ accessToken, userInfo,
   // File client for avatar upload
   const fileClient = useFileClient({ accessToken, userInfo, additionalData })
 
+  // User management client for fetching user data
+  const userClient = useUserManagementClient(accessToken || '')
+
   // ALL HOOKS MUST BE CALLED BEFORE EARLY RETURN (Rules of Hooks)
   // Account selection hook - using new declarative list hook
   const useAccounts = useInvestmentAccountsList({ accessToken, userInfo, additionalData }, { limit: 20 })
+
+  // State for initial user (for UserSelect)
+  const [initialUser, setInitialUser] = useState<UserSelectOption | null>(null)
 
   // Ref to store current file and thumbnail from AvatarUpload (no re-renders)
   const avatarFileRef = useRef<{ file: File; thumbnail: string } | null>(null)
@@ -52,6 +64,25 @@ export const ContactForm: React.FC<ContactFormProps> = ({ accessToken, userInfo,
       contactRef.current = contact
     }
   }, [contact?.id, contact, form])
+
+  // Fetch user data when contact has userId
+  useEffect(() => {
+    const fetchUser = async () => {
+      if (contact?.userId && accessToken) {
+        try {
+          const user = await userClient.getUserById(contact.userId)
+          setInitialUser(user)
+        } catch (error) {
+          console.error('Failed to fetch user for contact:', error)
+          setInitialUser(null)
+        }
+      } else {
+        setInitialUser(null)
+      }
+    }
+
+    fetchUser()
+  }, [contact?.userId, accessToken, userClient])
 
   // Handle form submission - data already matches interface structure exactly
   const handleSubmit = useCallback(async (data: any) => {
@@ -120,6 +151,34 @@ export const ContactForm: React.FC<ContactFormProps> = ({ accessToken, userInfo,
     }
   }
 
+  // Platform User Assignment field (IRM-specific)
+  const userAssignmentField = (
+    <FormField
+      control={form.control}
+      name="userId"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>Platform User</FormLabel>
+          <FormControl>
+            <UserSelect
+              value={field.value || null}
+              onValueChange={(userId: string | null) => field.onChange(userId || null)}
+              accessToken={accessToken}
+              initialUser={initialUser}
+              placeholder="Search and assign a platform user..."
+              activeOnly={true}
+              data-testid={formatDataTestId('investment-contact-form', 'user-select')}
+            />
+          </FormControl>
+          <FormDescription className="gba:text-xs gba:text-muted-foreground">
+            Assign a platform user to this contact for portal access
+          </FormDescription>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  )
+
   const processType = contact?.id ? 'update' : 'create'
 
   return (
@@ -141,6 +200,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({ accessToken, userInfo,
           ownerEmployee={contact?.ownerEmployee}
           entityId={contact?.id || contactId}
           useAccounts={useAccounts}
+          contactInformationCustomFields={userAssignmentField}
           avatarFileRef={avatarFileRef}
           loading={loading && !!contactId}
         />

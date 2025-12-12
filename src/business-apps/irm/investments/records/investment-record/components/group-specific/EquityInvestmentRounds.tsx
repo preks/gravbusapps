@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useCallback } from 'react'
 import {
   Card,
   CardContent,
@@ -85,47 +85,27 @@ const EquityInvestmentRounds: React.FC<EquityInvestmentRoundsProps> = ({
 
   // Investment rounds loaded
 
+  // Memoized callbacks for process completion
+  const handleProcessSuccess = useCallback(() => {
+    // Process completed successfully, refreshing data
+    if (onRefresh) {
+      onRefresh()
+    }
+  }, [onRefresh])
+
+  const handleProcessFailure = useCallback(() => {
+    // Process failed, but still refreshing data to check for changes
+    // Even on failure, refresh to check if the delete actually succeeded
+    if (onRefresh) {
+      onRefresh()
+    }
+  }, [onRefresh])
+
   // Listen for process completion events and refresh data when equity round processes complete
   useProcessCompletion({
-    onSuccess: () => {
-      // Process completed successfully, refreshing data
-      if (onRefresh) {
-        onRefresh()
-      }
-    },
-    onFailure: () => {
-      // Process failed, but still refreshing data to check for changes
-      // Even on failure, refresh to check if the delete actually succeeded
-      if (onRefresh) {
-        onRefresh()
-      }
-    }
+    onSuccess: handleProcessSuccess,
+    onFailure: handleProcessFailure
   })
-
-  // Fallback: also listen for 'continue' events from AppActionForm to trigger a refresh
-  useEffect(() => {
-    const handleContinue = (event: Event) => {
-      try {
-        const customEvent = event as CustomEvent<any>
-        const payload = customEvent?.detail?.payload
-        const round = payload?.equityInvestmentRound
-        if (!round) return
-
-        // If the payload contains our entity, refresh
-        // This handles create, update, and delete operations
-        if (!equityInvestmentId || round.equityInvestment === equityInvestmentId || round.id) {
-          if (onRefresh) {
-            onRefresh()
-          }
-        }
-      } catch {
-        // no-op
-      }
-    }
-
-    window.addEventListener('com.newwork.process.continue', handleContinue)
-    return () => window.removeEventListener('com.newwork.process.continue', handleContinue)
-  }, [onRefresh, equityInvestmentId])
 
   if (isLoading) {
     return (
@@ -164,19 +144,23 @@ const EquityInvestmentRounds: React.FC<EquityInvestmentRoundsProps> = ({
           </div>
           {accessToken && actionContextId ? (
             <AppAction
-              contextsArray={[FlowContextName.investmentEquityInvestmentRoundCreate]}
-              externalContextData={{
-                equityInvestmentId: actionContextId,
-                targetEquityInvestmentId: actionContextId,
-                customEquityId: actionContextId,
-                investmentId: mainInvestmentId,
-                mainInvestmentId: mainInvestmentId,
-                entityId: actionContextId,
-                parentEntityId: actionContextId,
-                equityInvestment: actionContextId
-              }}
+              contexts={[
+                {
+                  context: FlowContextName.investmentEquityInvestmentRoundCreate,
+                  contextData: {
+                    equityInvestmentId: actionContextId,
+                    targetEquityInvestmentId: actionContextId,
+                    customEquityId: actionContextId,
+                    investmentId: mainInvestmentId,
+                    mainInvestmentId: mainInvestmentId,
+                    entityId: actionContextId,
+                    parentEntityId: actionContextId,
+                    equityInvestment: actionContextId
+                  }
+                }
+              ]}
               accessToken={accessToken}
-              emptyStateBehavior="enable"
+              emptyState="enable"
               prefixDataTestId="equity-round-add"
             >
               <Button

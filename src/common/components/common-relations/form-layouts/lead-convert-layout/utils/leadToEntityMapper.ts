@@ -65,8 +65,7 @@ export function mapLeadToAccount(leadData: Lead | Record<string, unknown> | null
     accountAnnualRevenueBandRef: (leadData.accountAnnualRevenueBandRef as string) || '',
     notesSummary: (leadData.description as string) || '',
     addresses: addresses as Address[] | undefined,
-    communicationChannels:
-      communicationChannels.length > 0 ? (communicationChannels as CommunicationChannel[]) : undefined
+    communicationChannels: communicationChannels.length > 0 ? (communicationChannels as CommunicationChannel[]) : []
   }
 }
 
@@ -105,8 +104,7 @@ export function mapLeadToContact(leadData: Lead | Record<string, unknown> | null
     salutationRef: (leadData.salutationRef as string) || '',
     description: (leadData.description as string) || '',
     ownerEmployeeId: (leadData.ownerEmployeeId as string) || '',
-    communicationChannels:
-      communicationChannels.length > 0 ? (communicationChannels as CommunicationChannel[]) : undefined
+    communicationChannels: communicationChannels.length > 0 ? (communicationChannels as CommunicationChannel[]) : []
   }
 }
 
