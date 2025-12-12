@@ -187,18 +187,88 @@ export const HighlightedEditor: React.FC<HighlightedEditorProps> = ({
     []
   )
 
-  // Highlight colors using CSS custom properties (design tokens)
-  // These are programmatic colors for Quill - using semantic values
+  // Highlight colors - Quill requires actual color values, not CSS variables
+  // Using vivid colors that stand out clearly in the editor
   const getHighlightColor = useCallback((severity: string) => {
     switch (severity) {
       case 'critical':
-        return 'hsl(var(--destructive-secondary))'
+        return '#fecaca' // Light red - matches destructive-secondary
       case 'warning':
-        return 'hsl(var(--warning-secondary))'
+        return '#fef08a' // Light yellow - matches warning-secondary
       default:
-        return 'hsl(var(--info-secondary))'
+        return '#bfdbfe' // Light blue - matches info-secondary
     }
   }, [])
+
+  // Normalize text for comparison (handles whitespace differences)
+  const normalizeText = useCallback((text: string) => {
+    return text
+      .toLowerCase()
+      .replace(/\s+/g, ' ') // Normalize all whitespace to single space
+      .replace(/\u00A0/g, ' ') // Replace non-breaking spaces
+      .trim()
+  }, [])
+
+  // Find text position with fuzzy matching
+  const findTextPosition = useCallback(
+    (quillText: string, searchText: string): { index: number; length: number } | null => {
+      // Try exact match first (case-insensitive)
+      const lowerQuillText = quillText.toLowerCase()
+      const lowerSearchText = searchText.toLowerCase()
+      const index = lowerQuillText.indexOf(lowerSearchText)
+
+      if (index !== -1) {
+        return { index, length: searchText.length }
+      }
+
+      // Try with normalized whitespace
+      const normalizedSearch = normalizeText(searchText)
+
+      // Build a sliding window search with whitespace tolerance
+      const words = normalizedSearch.split(' ').filter(w => w.length > 0)
+      if (words.length === 0) return null
+
+      // Try to find the first word and then verify the rest
+      const firstWord = words[0]
+      let searchStart = 0
+
+      while (searchStart < lowerQuillText.length) {
+        const firstWordIndex = lowerQuillText.indexOf(firstWord, searchStart)
+        if (firstWordIndex === -1) break
+
+        // Check if the rest of the words follow (with some whitespace flexibility)
+        let matchLength = firstWord.length
+        let currentPos = firstWordIndex + firstWord.length
+        let allWordsFound = true
+
+        for (let i = 1; i < words.length; i++) {
+          // Skip whitespace
+          while (currentPos < lowerQuillText.length && /\s/.test(lowerQuillText[currentPos])) {
+            currentPos++
+            matchLength++
+          }
+
+          // Check for next word
+          if (lowerQuillText.substring(currentPos, currentPos + words[i].length) === words[i]) {
+            matchLength += words[i].length
+            currentPos += words[i].length
+          } else {
+            allWordsFound = false
+            break
+          }
+        }
+
+        if (allWordsFound) {
+          return { index: firstWordIndex, length: matchLength }
+        }
+
+        searchStart = firstWordIndex + 1
+      }
+
+      return null
+    },
+    [normalizeText]
+  )
 
   // Apply highlights - only for UNRESOLVED annotations
   const applyHighlights = useCallback(() => {
@@ -218,28 +288,35 @@ export const HighlightedEditor: React.FC<HighlightedEditorProps> = ({
 
       unresolvedAnnotations.forEach(annotation => {
         if (!annotation.original_text) return
-        const searchText = annotation.original_text.toLowerCase()
-        const index = text.toLowerCase().indexOf(searchText)
 
-        if (index !== -1) {
+        const match = findTextPosition(text, annotation.original_text)
+
+        if (match) {
           const color = getHighlightColor(annotation.severity)
           console.log(
             '[HighlightedEditor] Highlighting:',
             annotation.original_text,
             'at index',
-            index,
+            match.index,
+            'length',
+            match.length,
             'with color',
             color
           )
-          quill.formatText(index, annotation.original_text.length, 'background', color, 'silent')
+          quill.formatText(match.index, match.length, 'background', color, 'silent')
         } else {
-          console.log('[HighlightedEditor] Text not found:', annotation.original_text)
+          console.log(
+            '[HighlightedEditor] Text not found:',
+            annotation.original_text,
+            '| Quill text sample:',
+            text.substring(0, 200)
+          )
         }
       })
     } catch (err) {
       console.error('[HighlightedEditor] Error applying highlights:', err)
     }
-  }, [annotations, getHighlightColor])
+  }, [annotations, getHighlightColor, findTextPosition])
 
   // Re-apply highlights when annotations change (including when resolved)
   useEffect(() => {
@@ -367,23 +444,23 @@ export const HighlightedEditor: React.FC<HighlightedEditorProps> = ({
           padding: 2px 4px;
           margin: 0 1px;
           border-radius: 4px;
-          border-bottom: 3px solid hsl(var(--destructive));
+          border-bottom: 3px solid #ef4444;
           font-weight: 500;
           transition: all 0.15s ease;
-          box-shadow: 0 2px 4px hsl(var(--destructive) / 0.3);
+          box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
         }
         .doc-editor .ql-editor span[style*="background-color"]:hover {
           filter: brightness(0.9);
-          box-shadow: 0 3px 8px hsl(var(--destructive) / 0.4);
+          box-shadow: 0 3px 8px rgba(239, 68, 68, 0.4);
           transform: translateY(-1px);
         }
         .doc-editor .ql-toolbar {
-          border-color: hsl(var(--border)) !important;
-          background: hsl(var(--muted));
+          border-color: #e5e7eb !important;
+          background: #f9fafb;
           border-radius: 8px 8px 0 0;
         }
         .doc-editor .ql-container {
-          border-color: hsl(var(--border)) !important;
+          border-color: #e5e7eb !important;
           border-radius: 0 0 8px 8px;
         }
       `}</style>

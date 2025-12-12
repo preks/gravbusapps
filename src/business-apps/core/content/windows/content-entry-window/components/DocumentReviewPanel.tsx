@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Button, ScrollArea } from '@newwork/nw-design-system'
+import { Button, ScrollArea, Badge } from '@newwork/nw-design-system'
 import { CheckCircle, XCircle, Sparkles, CaretDown, CaretUp } from '@phosphor-icons/react'
 
 export interface ReviewAnnotation {
