@@ -194,6 +194,10 @@ export const TaskExpertsSpace: React.FC<BusinessAppContextProps> = context => {
                             <Badge variant="default" className="gba:text-[10px]">
                               🎓 EveryAI
                             </Badge>
+                          ) : p.agent_type === 'general' ? (
+                            <Badge variant="info" className="gba:text-[10px]">
+                              ⚡ General
+                            </Badge>
                           ) : (
                             <Badge variant="secondary" className="gba:text-[10px]">
                               FLOW

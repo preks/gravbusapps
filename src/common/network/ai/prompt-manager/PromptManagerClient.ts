@@ -10,7 +10,7 @@ export interface Paging {
 }
 
 export type PromptType = 'completion' | 'chat'
-export type AgentType = 'flow' | 'everyai'
+export type AgentType = 'flow' | 'everyai' | 'general'
 export type ResponseStyle = 'formal' | 'conversational' | 'technical'
 export type CitationMode = 'always' | 'when_needed' | 'never'
 
@@ -480,6 +480,25 @@ export class PromptManagerClient extends RestClient {
       params: {
         ...params,
         agentType: 'everyai' // Filter for EveryAI agents only
+      } as Record<string, any>
+    })
+  }
+
+  /**
+   * Get all General agents (agents with agent_type=general)
+   * General agents are standalone agents for general purpose use (not in chat or flow)
+   */
+  async getGeneralAgents(params?: {
+    search?: string | null
+    tags?: string[]
+    limit?: number
+    offset?: number
+    returnTotalRecords?: boolean
+  }): Promise<PromptPage> {
+    return this.get<PromptPage>('/api/v1/prompts/', {
+      params: {
+        ...params,
+        agentType: 'general' // Filter for General agents only
       } as Record<string, any>
     })
   }
