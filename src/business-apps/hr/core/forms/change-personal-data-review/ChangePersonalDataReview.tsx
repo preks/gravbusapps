@@ -4,37 +4,29 @@
  * Uses TaskDetailHeader and TaskDetailFooter for consistent HR form layout
  */
 
-import React, { useState, useMemo } from 'react'
+import React, { useState } from 'react'
 import {
   Separator,
   Alert,
   AlertDescription,
   AlertTitle,
   Badge,
-  Label,
   Spinner,
   Collapsible,
   CollapsibleTrigger,
-  CollapsibleContent
+  CollapsibleContent,
+  useTranslation
 } from '@newwork/nw-design-system'
-import {
-  User,
-  Calendar,
-  MapPin,
-  Globe,
-  Heart,
-  GraduationCap,
-  ChevronDown,
-  CheckCircle,
-  FileText,
-  ArrowRight
-} from 'lucide-react'
+import { User, Calendar, MapPin, Globe, Heart, GraduationCap, ChevronDown, CheckCircle, FileText } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/components/TaskDetailHeader'
 import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
 import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
 import { usePersonalDataReviewData } from './hooks/usePersonalDataReviewData'
+import { useReviewFormData } from '../../hooks/useReviewFormData'
+import { RenderComparisonField, RenderUnchangedField } from '../../components/ReviewFieldRenderer'
+import translations from './_i18n'
 import dayjs from 'dayjs'
 
 /**
@@ -82,6 +74,9 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
   userInfo,
   onClose
 }) => {
+  // Translation hook
+  const { t } = useTranslation(translations)
+
   // Cast additionalData to extended interface for proper typing
   const extendedAdditionalData = additionalData as ExtendedAdditionalData | undefined
 
@@ -94,8 +89,7 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
   const taskStatus = additionalData?.psi_taskStatus || processMetadata?.status || 'IN_PROGRESS'
   const taskCompletedAt = processMetadata?.completedAt || extendedAdditionalData?.psi_taskCompletedAt
   const isTaskCompleted = taskStatus === 'COMPLETED' || !!taskCompletedAt
-  const taskTitle = processMetadata?.referenceTaskName || processMetadata?.nodeName || 'Review Personal Data Change'
-  const taskSource: 'kogito' | 'cflow' = processMetadata?.source || 'kogito'
+  const taskTitle = t('task-title')
   const creatorName = taskPayload?.creatorName as string | undefined
 
   // Extract personal information data from payload
@@ -120,26 +114,24 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
     oldPersonalInformation?.firstName || oldPersonalInformation?.lastName || oldPersonalInformation?.birthDate
   )
 
-  const changeMode = hasOldPersonalInformation ? 'UPDATE' : 'INSERT'
-  const isInsertMode = changeMode === 'INSERT'
-
-  // Helper function to get alert description message (extracted to reduce nested ternaries)
-  const getAlertDescriptionMessage = (mode: string, hasOld: boolean, changes: number): string => {
-    if (mode === 'INSERT') {
-      return 'This is new personal data being added to the employee record.'
-    }
-    if (hasOld && changes > 0) {
-      const changeWord = changes === 1 ? 'change' : 'changes'
-      return `This is an update with ${changes} ${changeWord} to the existing personal data. Changed fields are highlighted below.`
-    }
-    return 'This is an update to existing personal data in the employee record.'
+  // Helper functions for formatters
+  const getCatalogValue = (ref?: string | null): string => {
+    if (!ref) return t('value-na')
+    const entry = catalogMap[ref]
+    if (!entry) return ref.split(':').pop() || ref
+    return entry.translations?.[0]?.value || entry.value || entry.code || ref
   }
 
-  // Count total changes - MUST BE BEFORE CONDITIONAL RETURNS
-  const changesCount = useMemo(() => {
-    if (!hasOldPersonalInformation) return 0
+  const formatBirthDate = (date?: string | null): string => {
+    if (!date) return t('value-na')
+    return dayjs(date).format('MMM D, YYYY')
+  }
 
-    const fields: (keyof PersonalInformationData)[] = [
+  // Use shared hook for review form data
+  const { changesCount, changeMode, isInsertMode, compareField } = useReviewFormData<PersonalInformationData>({
+    newData: newPersonalInformation,
+    oldData: oldPersonalInformation,
+    fields: [
       'salutationRef',
       'title',
       'firstName',
@@ -154,18 +146,32 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
       'languageRef',
       'maritalStatusRef',
       'severelyDisabilityDegree',
-      'schoolQualificationRef'
-    ]
+      'schoolQualificationRef',
+      'notes'
+    ],
+    formatters: {
+      salutationRef: getCatalogValue,
+      genderRef: getCatalogValue,
+      nationalityRef: getCatalogValue,
+      languageRef: getCatalogValue,
+      maritalStatusRef: getCatalogValue,
+      schoolQualificationRef: getCatalogValue,
+      birthDate: formatBirthDate
+    },
+    defaultFormatter: (v: any) => String(v || t('value-na')),
+    t
+  })
 
-    const compareField = (newVal: any, oldVal: any): boolean => {
-      const format = (v: any) => String(v || 'N/A')
-      return format(newVal) !== format(oldVal)
+  // Helper function to get alert description message (extracted to reduce nested ternaries)
+  const getAlertDescriptionMessage = (mode: string, hasOld: boolean, changes: number): string => {
+    if (mode === 'INSERT') {
+      return t('alert-new-data')
     }
-
-    return fields.reduce((count, field) => {
-      return compareField(newPersonalInformation[field], oldPersonalInformation[field]) ? count + 1 : count
-    }, 0)
-  }, [newPersonalInformation, oldPersonalInformation, hasOldPersonalInformation])
+    if (hasOld && changes > 0) {
+      return t('alert-update-with-changes', { count: changes })
+    }
+    return t('alert-update-no-changes')
+  }
 
   const handleClose = () => {
     if (onClose) {
@@ -204,105 +210,23 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
   if (error) {
     return (
       <Alert variant="destructive" data-testid="change-personal-data-review-error">
-        <AlertTitle>Error Loading Personal Data</AlertTitle>
+        <AlertTitle>{t('error-loading-title')}</AlertTitle>
         <AlertDescription>
           {error}
           <button
             onClick={refetch}
             className="gba:mt-2 gba:px-3 gba:py-1 gba:bg-destructive gba:text-destructive-foreground gba:rounded gba:text-sm"
           >
-            Retry
+            {t('action-retry')}
           </button>
         </AlertDescription>
       </Alert>
     )
   }
 
-  // Helper functions
-  const getCatalogValue = (ref?: string | null): string => {
-    if (!ref) return 'N/A'
-    const entry = catalogMap[ref]
-    if (!entry) return ref.split(':').pop() || ref
-
-    // Use translation if available, otherwise use default value
-    return entry.translations?.[0]?.value || entry.value || entry.code || ref
-  }
-
   const displayName = employeeData
     ? `${employeeData.firstName || ''} ${employeeData.lastName || ''}`.trim() || 'Employee'
     : 'Employee'
-
-  // Field comparison
-  interface FieldComparison {
-    changed: boolean
-    oldValue: string
-    newValue: string
-  }
-
-  const compareField = (newVal: any, oldVal: any, formatter?: (val: any) => string): FieldComparison => {
-    const format = formatter || ((v: any) => String(v || 'N/A'))
-    const newFormatted = format(newVal)
-    const oldFormatted = format(oldVal)
-
-    return {
-      changed: newFormatted !== oldFormatted,
-      oldValue: oldFormatted,
-      newValue: newFormatted
-    }
-  }
-
-  // Render comparison field - Show ONLY changed fields with old → new
-  const renderComparisonField = (label: string, comparison: FieldComparison, icon?: React.ReactNode) => {
-    // Only show changed fields
-    if (!comparison.changed) return null
-
-    const isNewData = !hasOldPersonalInformation || changeMode === 'INSERT'
-    // Display "Not set" if old value was empty/null/N/A
-    const displayOldValue = comparison.oldValue === 'N/A' || !comparison.oldValue ? 'Not set' : comparison.oldValue
-
-    return (
-      <div className="gba:space-y-2">
-        <Label className="gba:text-muted-foreground gba:flex gba:items-center gba:gap-2">
-          {icon}
-          {label}
-          <Badge variant={isNewData ? 'success' : 'warning'} className="gba:ml-2">
-            {isNewData ? 'New' : 'Changed'}
-          </Badge>
-        </Label>
-
-        {/* Always show old → new for changed fields */}
-        <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
-          {!isNewData && (
-            <>
-              <div className="gba:px-3 gba:py-2 gba:bg-destructive/10 gba:text-destructive gba:rounded gba:text-sm gba:line-through">
-                {displayOldValue}
-              </div>
-              <ArrowRight className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
-            </>
-          )}
-          <div className="gba:px-3 gba:py-2 gba:bg-success/10 gba:text-success gba:rounded gba:text-sm gba:font-medium">
-            {comparison.newValue}
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // Render unchanged field - Show current value for unchanged fields
-  const renderUnchangedField = (label: string, value: string, icon?: React.ReactNode) => {
-    // Skip empty values
-    if (!value || value === 'N/A') return null
-
-    return (
-      <div className="gba:space-y-2">
-        <Label className="gba:text-muted-foreground gba:flex gba:items-center gba:gap-2">
-          {icon}
-          {label}
-        </Label>
-        <div className="gba:px-3 gba:py-2 gba:bg-muted gba:rounded gba:text-sm">{value}</div>
-      </div>
-    )
-  }
 
   return (
     <TaskFormLayout
@@ -310,8 +234,6 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
       header={
         <TaskDetailHeader
           title={taskTitle}
-          status={taskStatus}
-          source={taskSource}
           showEmployeeInfo={true}
           employeeData={
             employeeData
@@ -329,11 +251,6 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
           isLoadingEmployee={loading}
           creatorName={creatorName}
           onClose={isEveryBoxContext ? handleClose : undefined}
-          customBadges={
-            <Badge variant={changeMode === 'INSERT' ? 'success' : 'info'} data-testid="personal-data-change-mode-badge">
-              {changeMode === 'INSERT' ? 'New Data' : 'Data Update'}
-            </Badge>
-          }
         />
       }
       footer={
@@ -342,7 +259,7 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
             data-testid="change-personal-data-review-actions"
             actions={[
               {
-                label: 'Acknowledge',
+                label: t('action-acknowledge'),
                 onClick: handleAcknowledge,
                 variant: 'default' as const,
                 disabled: isAcknowledging,
@@ -371,118 +288,137 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
           <div className="gba:flex gba:items-center gba:justify-between">
             <h4 className="gba:flex gba:items-center gba:gap-2 gba:text-lg gba:font-semibold">
               <User className="gba:h-5 gba:w-5" />
-              {changeMode === 'INSERT' ? 'New Personal Data' : 'Personal Data Changes'}
+              {changeMode === 'INSERT' ? t('card-title-new-data') : t('card-title-changes')}
             </h4>
             {hasOldPersonalInformation && changesCount > 0 && (
-              <Badge variant="warning">
-                {changesCount} {changesCount === 1 ? 'Change' : 'Changes'}
-              </Badge>
+              <Badge variant="warning">{t('badge-changes', { count: changesCount })}</Badge>
             )}
           </div>
         </div>
         <div className="gba:p-6 gba:space-y-4">
           {/* Names Section */}
           <div className="gba:space-y-4">
-            {renderComparisonField(
-              'Salutation',
-              compareField(newPersonalInformation.salutationRef, oldPersonalInformation.salutationRef, getCatalogValue)
-            )}
-            {renderComparisonField('Title', compareField(newPersonalInformation.title, oldPersonalInformation.title))}
-            {renderComparisonField(
-              'First Name',
-              compareField(newPersonalInformation.firstName, oldPersonalInformation.firstName)
-            )}
-            {renderComparisonField(
-              'Last Name',
-              compareField(newPersonalInformation.lastName, oldPersonalInformation.lastName)
-            )}
-            {renderComparisonField(
-              'Display Name',
-              compareField(newPersonalInformation.displayName, oldPersonalInformation.displayName)
-            )}
-            {renderComparisonField(
-              'Preferred Name',
-              compareField(newPersonalInformation.preferredName, oldPersonalInformation.preferredName)
-            )}
-            {renderComparisonField(
-              'Birth Name',
-              compareField(newPersonalInformation.birthName, oldPersonalInformation.birthName)
-            )}
+            <RenderComparisonField
+              label={t('label-salutation')}
+              comparison={compareField('salutationRef')}
+              isNewData={isInsertMode}
+              t={t}
+            />
+            <RenderComparisonField
+              label={t('label-title')}
+              comparison={compareField('title')}
+              isNewData={isInsertMode}
+              t={t}
+            />
+            <RenderComparisonField
+              label={t('label-first-name')}
+              comparison={compareField('firstName')}
+              isNewData={isInsertMode}
+              t={t}
+            />
+            <RenderComparisonField
+              label={t('label-last-name')}
+              comparison={compareField('lastName')}
+              isNewData={isInsertMode}
+              t={t}
+            />
+            <RenderComparisonField
+              label={t('label-display-name')}
+              comparison={compareField('displayName')}
+              isNewData={isInsertMode}
+              t={t}
+            />
+            <RenderComparisonField
+              label={t('label-preferred-name')}
+              comparison={compareField('preferredName')}
+              isNewData={isInsertMode}
+              t={t}
+            />
+            <RenderComparisonField
+              label={t('label-birth-name')}
+              comparison={compareField('birthName')}
+              isNewData={isInsertMode}
+              t={t}
+            />
           </div>
 
           <Separator />
 
           {/* Birth and Gender Section */}
           <div className="gba:space-y-4">
-            {renderComparisonField(
-              'Birth Date',
-              compareField(newPersonalInformation.birthDate, oldPersonalInformation.birthDate, date =>
-                date ? dayjs(date).format('MMM D, YYYY') : 'N/A'
-              ),
-              <Calendar className="gba:h-4 gba:w-4" />
-            )}
-            {renderComparisonField(
-              'Birth Place',
-              compareField(newPersonalInformation.birthPlace, oldPersonalInformation.birthPlace),
-              <MapPin className="gba:h-4 gba:w-4" />
-            )}
-            {renderComparisonField(
-              'Gender',
-              compareField(newPersonalInformation.genderRef, oldPersonalInformation.genderRef, getCatalogValue),
-              <User className="gba:h-4 gba:w-4" />
-            )}
+            <RenderComparisonField
+              label={t('label-birth-date')}
+              comparison={compareField('birthDate')}
+              icon={<Calendar className="gba:h-4 gba:w-4" />}
+              isNewData={isInsertMode}
+              t={t}
+            />
+            <RenderComparisonField
+              label={t('label-birth-place')}
+              comparison={compareField('birthPlace')}
+              icon={<MapPin className="gba:h-4 gba:w-4" />}
+              isNewData={isInsertMode}
+              t={t}
+            />
+            <RenderComparisonField
+              label={t('label-gender')}
+              comparison={compareField('genderRef')}
+              icon={<User className="gba:h-4 gba:w-4" />}
+              isNewData={isInsertMode}
+              t={t}
+            />
           </div>
 
           <Separator />
 
           {/* Additional Information */}
           <div className="gba:space-y-4">
-            {renderComparisonField(
-              'Nationality',
-              compareField(
-                newPersonalInformation.nationalityRef,
-                oldPersonalInformation.nationalityRef,
-                getCatalogValue
-              ),
-              <Globe className="gba:h-4 gba:w-4" />
-            )}
-            {renderComparisonField(
-              'Language',
-              compareField(newPersonalInformation.languageRef, oldPersonalInformation.languageRef, getCatalogValue),
-              <Globe className="gba:h-4 gba:w-4" />
-            )}
-            {renderComparisonField(
-              'Marital Status',
-              compareField(
-                newPersonalInformation.maritalStatusRef,
-                oldPersonalInformation.maritalStatusRef,
-                getCatalogValue
-              ),
-              <Heart className="gba:h-4 gba:w-4" />
-            )}
-            {renderComparisonField(
-              'Disability Degree',
-              compareField(
-                newPersonalInformation.severelyDisabilityDegree,
-                oldPersonalInformation.severelyDisabilityDegree
-              )
-            )}
-            {renderComparisonField(
-              'School Qualification',
-              compareField(
-                newPersonalInformation.schoolQualificationRef,
-                oldPersonalInformation.schoolQualificationRef,
-                getCatalogValue
-              ),
-              <GraduationCap className="gba:h-4 gba:w-4" />
-            )}
+            <RenderComparisonField
+              label={t('label-nationality')}
+              comparison={compareField('nationalityRef')}
+              icon={<Globe className="gba:h-4 gba:w-4" />}
+              isNewData={isInsertMode}
+              t={t}
+            />
+            <RenderComparisonField
+              label={t('label-language')}
+              comparison={compareField('languageRef')}
+              icon={<Globe className="gba:h-4 gba:w-4" />}
+              isNewData={isInsertMode}
+              t={t}
+            />
+            <RenderComparisonField
+              label={t('label-marital-status')}
+              comparison={compareField('maritalStatusRef')}
+              icon={<Heart className="gba:h-4 gba:w-4" />}
+              isNewData={isInsertMode}
+              t={t}
+            />
+            <RenderComparisonField
+              label={t('label-disability-degree')}
+              comparison={compareField('severelyDisabilityDegree')}
+              isNewData={isInsertMode}
+              t={t}
+            />
+            <RenderComparisonField
+              label={t('label-school-qualification')}
+              comparison={compareField('schoolQualificationRef')}
+              icon={<GraduationCap className="gba:h-4 gba:w-4" />}
+              isNewData={isInsertMode}
+              t={t}
+            />
           </div>
 
           {/* Notes - only show if present */}
           {(newPersonalInformation.notes || oldPersonalInformation.notes) && (
             <>
               <Separator />
-              {renderComparisonField('Notes', compareField(newPersonalInformation.notes, oldPersonalInformation.notes))}
+              <RenderComparisonField
+                label={t('label-notes')}
+                comparison={compareField('notes')}
+                isNewData={isInsertMode}
+                t={t}
+              />
             </>
           )}
         </div>
@@ -497,9 +433,9 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
                 <div className="gba:flex gba:items-center gba:justify-between">
                   <h4 className="gba:flex gba:items-center gba:gap-2 gba:text-lg gba:font-semibold">
                     <User className="gba:h-5 gba:w-5" />
-                    All Other Fields
+                    {t('card-title-unchanged')}
                     <Badge variant="secondary" className="gba:ml-2">
-                      Unchanged
+                      {t('badge-unchanged')}
                     </Badge>
                   </h4>
                   <ChevronDown
@@ -516,48 +452,66 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
                 {/* Names Section */}
                 <div className="gba:space-y-4">
                   {(() => {
-                    const comparison = compareField(
-                      newPersonalInformation.salutationRef,
-                      oldPersonalInformation.salutationRef,
-                      getCatalogValue
+                    const comparison = compareField('salutationRef')
+                    return (
+                      !comparison.changed && (
+                        <RenderUnchangedField label={t('label-salutation')} value={comparison.newValue} t={t} />
+                      )
                     )
-                    return !comparison.changed && renderUnchangedField('Salutation', comparison.newValue)
                   })()}
 
                   {(() => {
-                    const comparison = compareField(newPersonalInformation.title, oldPersonalInformation.title)
-                    return !comparison.changed && renderUnchangedField('Title', comparison.newValue)
-                  })()}
-
-                  {(() => {
-                    const comparison = compareField(newPersonalInformation.firstName, oldPersonalInformation.firstName)
-                    return !comparison.changed && renderUnchangedField('First Name', comparison.newValue)
-                  })()}
-
-                  {(() => {
-                    const comparison = compareField(newPersonalInformation.lastName, oldPersonalInformation.lastName)
-                    return !comparison.changed && renderUnchangedField('Last Name', comparison.newValue)
-                  })()}
-
-                  {(() => {
-                    const comparison = compareField(
-                      newPersonalInformation.displayName,
-                      oldPersonalInformation.displayName
+                    const comparison = compareField('title')
+                    return (
+                      !comparison.changed && (
+                        <RenderUnchangedField label={t('label-title')} value={comparison.newValue} t={t} />
+                      )
                     )
-                    return !comparison.changed && renderUnchangedField('Display Name', comparison.newValue)
                   })()}
 
                   {(() => {
-                    const comparison = compareField(
-                      newPersonalInformation.preferredName,
-                      oldPersonalInformation.preferredName
+                    const comparison = compareField('firstName')
+                    return (
+                      !comparison.changed && (
+                        <RenderUnchangedField label={t('label-first-name')} value={comparison.newValue} t={t} />
+                      )
                     )
-                    return !comparison.changed && renderUnchangedField('Preferred Name', comparison.newValue)
                   })()}
 
                   {(() => {
-                    const comparison = compareField(newPersonalInformation.birthName, oldPersonalInformation.birthName)
-                    return !comparison.changed && renderUnchangedField('Birth Name', comparison.newValue)
+                    const comparison = compareField('lastName')
+                    return (
+                      !comparison.changed && (
+                        <RenderUnchangedField label={t('label-last-name')} value={comparison.newValue} t={t} />
+                      )
+                    )
+                  })()}
+
+                  {(() => {
+                    const comparison = compareField('displayName')
+                    return (
+                      !comparison.changed && (
+                        <RenderUnchangedField label={t('label-display-name')} value={comparison.newValue} t={t} />
+                      )
+                    )
+                  })()}
+
+                  {(() => {
+                    const comparison = compareField('preferredName')
+                    return (
+                      !comparison.changed && (
+                        <RenderUnchangedField label={t('label-preferred-name')} value={comparison.newValue} t={t} />
+                      )
+                    )
+                  })()}
+
+                  {(() => {
+                    const comparison = compareField('birthName')
+                    return (
+                      !comparison.changed && (
+                        <RenderUnchangedField label={t('label-birth-name')} value={comparison.newValue} t={t} />
+                      )
+                    )
                   })()}
                 </div>
 
@@ -566,37 +520,44 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
                 {/* Birth and Gender Section */}
                 <div className="gba:space-y-4">
                   {(() => {
-                    const comparison = compareField(
-                      newPersonalInformation.birthDate,
-                      oldPersonalInformation.birthDate,
-                      date => (date ? dayjs(date).format('MMM D, YYYY') : 'N/A')
-                    )
+                    const comparison = compareField('birthDate')
                     return (
-                      !comparison.changed &&
-                      renderUnchangedField('Birth Date', comparison.newValue, <Calendar className="gba:h-4 gba:w-4" />)
+                      !comparison.changed && (
+                        <RenderUnchangedField
+                          label={t('label-birth-date')}
+                          value={comparison.newValue}
+                          icon={<Calendar className="gba:h-4 gba:w-4" />}
+                          t={t}
+                        />
+                      )
                     )
                   })()}
 
                   {(() => {
-                    const comparison = compareField(
-                      newPersonalInformation.birthPlace,
-                      oldPersonalInformation.birthPlace
-                    )
+                    const comparison = compareField('birthPlace')
                     return (
-                      !comparison.changed &&
-                      renderUnchangedField('Birth Place', comparison.newValue, <MapPin className="gba:h-4 gba:w-4" />)
+                      !comparison.changed && (
+                        <RenderUnchangedField
+                          label={t('label-birth-place')}
+                          value={comparison.newValue}
+                          icon={<MapPin className="gba:h-4 gba:w-4" />}
+                          t={t}
+                        />
+                      )
                     )
                   })()}
 
                   {(() => {
-                    const comparison = compareField(
-                      newPersonalInformation.genderRef,
-                      oldPersonalInformation.genderRef,
-                      getCatalogValue
-                    )
+                    const comparison = compareField('genderRef')
                     return (
-                      !comparison.changed &&
-                      renderUnchangedField('Gender', comparison.newValue, <User className="gba:h-4 gba:w-4" />)
+                      !comparison.changed && (
+                        <RenderUnchangedField
+                          label={t('label-gender')}
+                          value={comparison.newValue}
+                          icon={<User className="gba:h-4 gba:w-4" />}
+                          t={t}
+                        />
+                      )
                     )
                   })()}
                 </div>
@@ -606,61 +567,66 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
                 {/* Additional Information */}
                 <div className="gba:space-y-4">
                   {(() => {
-                    const comparison = compareField(
-                      newPersonalInformation.nationalityRef,
-                      oldPersonalInformation.nationalityRef,
-                      getCatalogValue
-                    )
+                    const comparison = compareField('nationalityRef')
                     return (
-                      !comparison.changed &&
-                      renderUnchangedField('Nationality', comparison.newValue, <Globe className="gba:h-4 gba:w-4" />)
+                      !comparison.changed && (
+                        <RenderUnchangedField
+                          label={t('label-nationality')}
+                          value={comparison.newValue}
+                          icon={<Globe className="gba:h-4 gba:w-4" />}
+                          t={t}
+                        />
+                      )
                     )
                   })()}
 
                   {(() => {
-                    const comparison = compareField(
-                      newPersonalInformation.languageRef,
-                      oldPersonalInformation.languageRef,
-                      getCatalogValue
-                    )
+                    const comparison = compareField('languageRef')
                     return (
-                      !comparison.changed &&
-                      renderUnchangedField('Language', comparison.newValue, <Globe className="gba:h-4 gba:w-4" />)
+                      !comparison.changed && (
+                        <RenderUnchangedField
+                          label={t('label-language')}
+                          value={comparison.newValue}
+                          icon={<Globe className="gba:h-4 gba:w-4" />}
+                          t={t}
+                        />
+                      )
                     )
                   })()}
 
                   {(() => {
-                    const comparison = compareField(
-                      newPersonalInformation.maritalStatusRef,
-                      oldPersonalInformation.maritalStatusRef,
-                      getCatalogValue
-                    )
+                    const comparison = compareField('maritalStatusRef')
                     return (
-                      !comparison.changed &&
-                      renderUnchangedField('Marital Status', comparison.newValue, <Heart className="gba:h-4 gba:w-4" />)
+                      !comparison.changed && (
+                        <RenderUnchangedField
+                          label={t('label-marital-status')}
+                          value={comparison.newValue}
+                          icon={<Heart className="gba:h-4 gba:w-4" />}
+                          t={t}
+                        />
+                      )
                     )
                   })()}
 
                   {(() => {
-                    const comparison = compareField(
-                      newPersonalInformation.severelyDisabilityDegree,
-                      oldPersonalInformation.severelyDisabilityDegree
+                    const comparison = compareField('severelyDisabilityDegree')
+                    return (
+                      !comparison.changed && (
+                        <RenderUnchangedField label={t('label-disability-degree')} value={comparison.newValue} t={t} />
+                      )
                     )
-                    return !comparison.changed && renderUnchangedField('Disability Degree', comparison.newValue)
                   })()}
 
                   {(() => {
-                    const comparison = compareField(
-                      newPersonalInformation.schoolQualificationRef,
-                      oldPersonalInformation.schoolQualificationRef,
-                      getCatalogValue
-                    )
+                    const comparison = compareField('schoolQualificationRef')
                     return (
-                      !comparison.changed &&
-                      renderUnchangedField(
-                        'School Qualification',
-                        comparison.newValue,
-                        <GraduationCap className="gba:h-4 gba:w-4" />
+                      !comparison.changed && (
+                        <RenderUnchangedField
+                          label={t('label-school-qualification')}
+                          value={comparison.newValue}
+                          icon={<GraduationCap className="gba:h-4 gba:w-4" />}
+                          t={t}
+                        />
                       )
                     )
                   })()}
@@ -669,12 +635,12 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
                 {/* Notes */}
                 {(newPersonalInformation.notes || oldPersonalInformation.notes) &&
                   (() => {
-                    const comparison = compareField(newPersonalInformation.notes, oldPersonalInformation.notes)
+                    const comparison = compareField('notes')
                     if (!comparison.changed) {
                       return (
                         <>
                           <Separator />
-                          {renderUnchangedField('Notes', comparison.newValue)}
+                          <RenderUnchangedField label={t('label-notes')} value={comparison.newValue} t={t} />
                         </>
                       )
                     }
