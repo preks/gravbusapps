@@ -190,6 +190,7 @@ deactivate-benefit-review-deactivation-details = Deactivation Request
 deactivate-benefit-review-submit = Deactivate Benefit
 deactivate-benefit-review-benefit-type = Benefit Type
 deactivate-benefit-review-provider = Provider
+deactivate-benefit-review-value = Value
 deactivate-benefit-review-yearly-value = Yearly Value
 deactivate-benefit-review-monthly-value = Monthly Value
 deactivate-benefit-review-period = Period

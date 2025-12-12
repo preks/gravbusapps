@@ -190,6 +190,7 @@ deactivate-benefit-review-deactivation-details = Deaktivierungsanfrage
 deactivate-benefit-review-submit = Zusatzleistung deaktivieren
 deactivate-benefit-review-benefit-type = Art der Zusatzleistung
 deactivate-benefit-review-provider = Anbieter
+deactivate-benefit-review-value = Wert
 deactivate-benefit-review-yearly-value = Jahreswert
 deactivate-benefit-review-monthly-value = Monatswert
 deactivate-benefit-review-period = Zeitraum

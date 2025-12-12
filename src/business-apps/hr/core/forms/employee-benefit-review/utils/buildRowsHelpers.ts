@@ -195,12 +195,19 @@ export function buildBenefitDisplayItems(params: {
       key: 'benefitType',
       label: t(`${translationPrefix}-benefit-type`, { defaultValue: 'Benefit Type' }),
       value: benefitTypeDisplay
-    },
-    {
+    }
+  ]
+
+  // Only add provider if it has a value
+  if (providerDisplay && providerDisplay !== '-') {
+    items.push({
       key: 'provider',
       label: t(`${translationPrefix}-provider`, { defaultValue: 'Provider' }),
       value: providerDisplay
-    },
+    })
+  }
+
+  items.push(
     {
       key: 'value',
       label: t(`${translationPrefix}-value`, { defaultValue: 'Value' }),
@@ -211,7 +218,7 @@ export function buildBenefitDisplayItems(params: {
       label: t(`${translationPrefix}-period`, { defaultValue: 'Period' }),
       value: valuePeriod || '-'
     }
-  ]
+  )
 
   // Add start date
   items.push({

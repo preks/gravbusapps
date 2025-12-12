@@ -190,6 +190,7 @@ deactivate-benefit-review-deactivation-details = Cerere dezactivare
 deactivate-benefit-review-submit = Dezactivează beneficiu
 deactivate-benefit-review-benefit-type = Tip beneficiu
 deactivate-benefit-review-provider = Furnizor
+deactivate-benefit-review-value = Valoare
 deactivate-benefit-review-yearly-value = Valoare anuală
 deactivate-benefit-review-monthly-value = Valoare lunară
 deactivate-benefit-review-period = Perioadă
