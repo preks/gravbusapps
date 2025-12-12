@@ -2,7 +2,7 @@
  * Utility for resolving employee information
  */
 
-import { GraphQLClient } from 'graphql-request'
+import { GraphQLClient } from '@/common/network/graphql/GraphQLClient'
 
 export interface EmployeeInfo {
   employeeId: string
