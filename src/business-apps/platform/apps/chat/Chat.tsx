@@ -761,7 +761,8 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
                 isAIResponse: true,
                 aiAssistant: 'Every',
                 originalQuestion: content,
-                everyAiSessionId: aiResponse.sessionId
+                everyAiSessionId: aiResponse.sessionId,
+                isFormResult: true // Mark this as a result from form submission
               }
 
               if (aiResponse.scheduledMeeting) {

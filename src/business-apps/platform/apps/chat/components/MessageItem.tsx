@@ -55,18 +55,8 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
   const isOwnMessage = message.senderId === currentUserId && !isAIResponse && !isExpertResponse
   const sender = message.sender
 
-  // DEBUG: Log ALL AI messages to understand the data structure
-  if (isAIResponse) {
-    console.log('🤖 [MessageItem] AI Response message:', {
-      messageId: message.id,
-      senderId: message.senderId,
-      currentUserId,
-      isGroupChat,
-      sender: message.sender,
-      metadata: message.metadata,
-      fullMessage: message
-    })
-  }
+  // Track if AI renderer has hidden cards (for form results)
+  const [hasHiddenResultCards, setHasHiddenResultCards] = useState(false)
 
   // Check if AI message was initiated by current user
   // IMPORTANT: We need to check if senderId matches, but the backend might be changing it!
@@ -92,21 +82,6 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
       }
       return false
     })
-
-  // DEBUG: Log form visibility decision
-  if (isAIResponse && hasFormOutputs) {
-    console.log('🔍 [MessageItem] Form visibility decision:', {
-      messageId: message.id,
-      senderId: message.senderId,
-      currentUserId,
-      senderEqualsCurrentUser: message.senderId === currentUserId,
-      isGroupChat,
-      isAIMessageInitiatedByCurrentUser,
-      hasFormOutputs,
-      willHideForm: hasFormOutputs && !isAIMessageInitiatedByCurrentUser,
-      willShowForm: !hasFormOutputs || isAIMessageInitiatedByCurrentUser
-    })
-  }
 
   // Look up avatar and employeeId from conversation participants if not in sender
   const participantData = useMemo(() => {
@@ -329,6 +304,21 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
                         : `${message.metadata?.aiAssistant || 'Every AI'} is preparing a form for the other user`}
                     </span>
                   </div>
+                ) : hasHiddenResultCards ? (
+                  // Show message when form result cards are hidden
+                  <div className="gba:space-y-2">
+                    <div className="gba:text-sm gba:italic gba:text-muted-foreground gba:flex gba:items-center gba:gap-2">
+                      <span>✨</span>
+                      <span>
+                        {isGroupChat
+                          ? `${sender?.firstName || 'Someone'} submitted a request to ${message.metadata?.aiAssistant || 'Every AI'}`
+                          : `${message.metadata?.aiAssistant || 'Every AI'} processed a request`}
+                      </span>
+                    </div>
+                    <div className="gba:text-xs gba:italic gba:text-muted-foreground gba:px-2 gba:py-1 gba:bg-muted/30 gba:rounded">
+                      💼 Request details are only visible to the person who created them
+                    </div>
+                  </div>
                 ) : (
                   // Always use EveryAI renderer for consistent UI
                   // It handles both rich outputs and plain text automatically
@@ -336,6 +326,8 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
                     message={message}
                     accessToken={accessToken || ''}
                     onSendMessage={onSendMessage}
+                    isInitiatedByCurrentUser={isAIMessageInitiatedByCurrentUser}
+                    onHasHiddenCards={setHasHiddenResultCards}
                   />
                 )
               ) : (

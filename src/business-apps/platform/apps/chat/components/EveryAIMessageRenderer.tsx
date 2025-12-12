@@ -10,6 +10,8 @@ interface EveryAIMessageRendererProps {
   message: Message
   accessToken: string
   onSendMessage?: (content: string, metadata?: Record<string, any>) => Promise<void>
+  isInitiatedByCurrentUser?: boolean
+  onHasHiddenCards?: (hasHidden: boolean) => void
 }
 
 /**
@@ -26,11 +28,27 @@ interface EveryAIMessageRendererProps {
 const EveryAIMessageRendererComponent: React.FC<EveryAIMessageRendererProps> = ({
   message,
   accessToken,
-  onSendMessage
+  onSendMessage,
+  isInitiatedByCurrentUser,
+  onHasHiddenCards
 }) => {
+  // Check if this message is a result from a form submission
+  const isFormResult = message.metadata?.isFormResult === true
+
+  // Track if we filtered any entity cards (to show a message)
+  const [hasHiddenCards, setHasHiddenCards] = React.useState(false)
+
+  // Notify parent when hasHiddenCards changes
+  React.useEffect(() => {
+    if (onHasHiddenCards) {
+      onHasHiddenCards(hasHiddenCards)
+    }
+  }, [hasHiddenCards, onHasHiddenCards])
+
   // Extract outputs from message metadata (don't mutate original array!)
   const outputs: OutputItem[] = React.useMemo(() => {
     const originalOutputs = message.metadata?.outputs || []
+    let hiddenCardCount = 0
 
     // If no outputs but we have text content, create a simple text output
     if (originalOutputs.length === 0 && message.content) {
@@ -47,8 +65,51 @@ const EveryAIMessageRendererComponent: React.FC<EveryAIMessageRendererProps> = (
       return [textOutput]
     }
 
+    // If this is a form result and current user is NOT the initiator,
+    // filter out entity cards (absence, expense, etc.)
+    if (isFormResult && !isInitiatedByCurrentUser) {
+      const filtered = originalOutputs.map((output: any) => {
+        // Only filter 'answer' type outputs
+        if (output.type === 'answer' && output.displayData) {
+          const filteredDisplayData = output.displayData.filter((data: any) => {
+            // Hide entity cards for absence/expense/employee_absence
+            if (data.type === 'entity') {
+              const entityType = data.entity as string
+              const isPrivateEntity = [
+                'absence',
+                'employee_absence',
+                'expense_request',
+                'expense_plan',
+                'expense_item'
+              ].includes(entityType)
+
+              if (isPrivateEntity) {
+                hiddenCardCount++
+                console.log(`🔒 [EveryAIMessageRenderer] Hiding ${entityType} card from non-initiator`)
+                return false // Hide this entity card
+              }
+            }
+            return true // Keep everything else
+          })
+
+          return {
+            ...output,
+            displayData: filteredDisplayData
+          }
+        }
+        return output
+      })
+
+      // Update state if we hid any cards
+      if (hiddenCardCount > 0 && !hasHiddenCards) {
+        setHasHiddenCards(true)
+      }
+
+      return filtered
+    }
+
     return originalOutputs
-  }, [message.metadata?.outputs, message.content])
+  }, [message.metadata?.outputs, message.content, isFormResult, isInitiatedByCurrentUser, hasHiddenCards])
 
   // Extract scheduled meeting if present
   const scheduledMeeting: ScheduledMeeting | undefined = message.metadata?.scheduledMeeting
@@ -130,16 +191,19 @@ const EveryAIMessageRendererComponent: React.FC<EveryAIMessageRendererProps> = (
   return (
     <FormSubmissionProvider>
       <div className="gba:space-y-3" data-testid="everyai-message-renderer">
-        {filteredOutputs.map((output, index) => (
-          <OutputItemRenderer
-            key={`output-${index}`}
-            item={output}
-            accessToken={accessToken}
-            sendMessage={handleSendMessage}
-            conversation={conversation}
-            isVoiceMode={false}
-          />
-        ))}
+        {/* If we hid cards from non-initiator, don't show any outputs (message handled by MessageItem) */}
+        {!hasHiddenCards &&
+          // Show normal outputs if user is initiator or no cards were hidden
+          filteredOutputs.map((output, index) => (
+            <OutputItemRenderer
+              key={`output-${index}`}
+              item={output}
+              accessToken={accessToken}
+              sendMessage={handleSendMessage}
+              conversation={conversation}
+              isVoiceMode={false}
+            />
+          ))}
 
         {/* Always render MeetingCard if we have scheduled meeting (original chat behavior) */}
         {scheduledMeeting && <MeetingCard meeting={scheduledMeeting} />}
@@ -150,11 +214,12 @@ const EveryAIMessageRendererComponent: React.FC<EveryAIMessageRendererProps> = (
 
 // Memoize to prevent unnecessary re-renders (which trigger GraphQL queries in entity displays)
 export const EveryAIMessageRenderer = React.memo(EveryAIMessageRendererComponent, (prevProps, nextProps) => {
-  // Only re-render if message content, outputs, or metadata actually changes
+  // Only re-render if message content, outputs, metadata, or initiator status changes
   return (
     prevProps.message.id === nextProps.message.id &&
     prevProps.message.content === nextProps.message.content &&
     prevProps.accessToken === nextProps.accessToken &&
+    prevProps.isInitiatedByCurrentUser === nextProps.isInitiatedByCurrentUser &&
     JSON.stringify(prevProps.message.metadata?.outputs) === JSON.stringify(nextProps.message.metadata?.outputs) &&
     JSON.stringify(prevProps.message.metadata?.scheduledMeeting) ===
       JSON.stringify(nextProps.message.metadata?.scheduledMeeting)
