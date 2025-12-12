@@ -154,7 +154,6 @@ const GET_ORGANIZATIONAL_HIERARCHY = `
     }
   }
 `
-
 const GET_EMPLOYEE_SITE_LOCATIONS = `
   query GetEmployeeSiteLocations($structureId: uuid!) {
     EmployeeSiteLocation(

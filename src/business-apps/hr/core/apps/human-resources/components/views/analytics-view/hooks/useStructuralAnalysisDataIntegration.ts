@@ -59,13 +59,16 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
       // Execute datasets
       let overviewRows: DatasetRow[] = []
       let hierarchyRows: DatasetRow[] = []
+      let spanDistRows: DatasetRow[] = []
       if (datasetClient) {
-        const [overviewRes, hierarchyRes] = await Promise.all([
+        const [overviewRes, hierarchyRes, spanDistRes] = await Promise.all([
           datasetClient.executeQuery('structuralOverviewMetrics', QueryType.DATASET, { structureId }),
-          datasetClient.executeQuery('hierarchyDepthMetrics', QueryType.DATASET, { structureId })
+          datasetClient.executeQuery('hierarchyDepthMetrics', QueryType.DATASET, { structureId }),
+          datasetClient.executeQuery('spanOfControlDistribution', QueryType.DATASET, { structureId })
         ])
         overviewRows = ((overviewRes as any)?.data ?? []) as DatasetRow[]
         hierarchyRows = ((hierarchyRes as any)?.data ?? []) as DatasetRow[]
+        spanDistRows = ((spanDistRes as any)?.data ?? []) as DatasetRow[]
         // Fire depth dataset (not consumed here)
         datasetClient
           .executeQuery('depthAnalysisByLevelDataset', QueryType.DATASET, { structureId })
@@ -82,9 +85,29 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
       // Process organizational data to build hierarchy
       const organizationalNodes = processOrganizationalData(rawData)
 
-      // Generate analysis data
-      const spanOfControlData = generateSpanOfControlAnalysis(organizationalNodes)
-      let spanOfControlSummary = generateSpanOfControlSummary(spanOfControlData)
+      // Generate analysis data (prefer dataset rows for span-of-control distribution)
+      const spanOfControlData =
+        spanDistRows.length > 0
+          ? spanDistRows.map(r => {
+              const directReports = typeof r.value === 'number' ? r.value : 0
+              const efficiency = directReports > 7 ? 'Overloaded' : directReports >= 3 ? 'Optimal' : 'Underutilized'
+              return {
+                managerId: r.category, // no id available; use name as key
+                managerName: r.category,
+                organizationalUnit: r.category,
+                directReports,
+                managerLevel: null,
+                efficiency,
+                recommendation:
+                  efficiency === 'Overloaded'
+                    ? 'Consider redistributing direct reports or adding a layer.'
+                    : efficiency === 'Underutilized'
+                      ? 'Consider consolidating roles or expanding responsibilities.'
+                      : 'Current span is within optimal range.'
+              } as any
+            })
+          : generateSpanOfControlAnalysis(organizationalNodes)
+      let spanOfControlSummary = generateSpanOfControlSummary(spanOfControlData as any)
       const depthAnalysisData = generateDepthAnalysis(organizationalNodes)
       const reportingChainData = generateReportingChainAnalysis(organizationalNodes)
       const reportingChainSummary = generateReportingChainSummary(reportingChainData)
