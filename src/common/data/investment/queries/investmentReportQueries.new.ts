@@ -5,8 +5,11 @@
  */
 
 import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments'
+import { COMPANY_REF } from '@/common/data/orgchart/queries/fragments/companyFragments'
 import { INVESTMENT_ACCOUNT_REF } from './fragments/investmentReferenceFragments'
 import { InvestmentReportFields } from '../types/investmentReportTypes'
+import { InvestmentFields } from '../types/investmentTypes.new'
+import { LiquidFundInvestmentFields } from '../types/liquidFundInvestmentTypes'
 import type { BaseQueryVariables } from '@/common/network/graphql/commonTypes'
 
 /**
@@ -162,15 +165,19 @@ const buildInvestmentFieldFragment = (fieldSet: Set<string>): string => {
       investmentGroup {
         ${CATALOG_ENTRY}
       }
+      investmentGroupRef
       investmentType {
         ${CATALOG_ENTRY}
       }
+      investmentTypeRef
       investmentStatus {
         ${CATALOG_ENTRY}
       }
+      investmentStatusRef
       currency {
         ${CATALOG_ENTRY}
       }
+      currencyRef
       
       # Employee relationship
       ownerEmployee {
@@ -179,6 +186,13 @@ const buildInvestmentFieldFragment = (fieldSet: Set<string>): string => {
         lastName
         pictureThumbnail
       }
+      ownerEmployeeId
+      
+      # Company relationship
+      company {
+        ${COMPANY_REF}
+      }
+      companyId
       
       # Investment Account relationship (via junction table)
       # GraphQL field name: investmentAccounts (not investmentInvestmentAccounts)
@@ -188,6 +202,19 @@ const buildInvestmentFieldFragment = (fieldSet: Set<string>): string => {
         investmentAccount {
           ${INVESTMENT_ACCOUNT_REF}
         }
+        investmentAccountType {
+          ${CATALOG_ENTRY}
+        }
+        investmentAccountTypeRef
+      }
+      
+      # Sub-investments (for type extraction)
+      ${InvestmentFields.liquidFundInvestment} {
+        id
+        ${LiquidFundInvestmentFields.investmentLiquidFundType} {
+          ${CATALOG_ENTRY}
+        }
+        ${LiquidFundInvestmentFields.investmentLiquidFundTypeRef}
       }
     }
     ${InvestmentReportFields.investmentId}
