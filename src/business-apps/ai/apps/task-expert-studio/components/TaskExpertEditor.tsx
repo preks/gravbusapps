@@ -564,6 +564,14 @@ export const TaskExpertEditor: React.FC<TaskExpertEditorProps> = props => {
                     </div>
                   </div>
                 </SelectItem>
+                <SelectItem value="general">
+                  <div className="gba:space-y-0.5">
+                    <div className="gba:font-medium">General Agent</div>
+                    <div className="gba:text-xs gba:text-muted-foreground">
+                      General purpose agent for standalone use
+                    </div>
+                  </div>
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
