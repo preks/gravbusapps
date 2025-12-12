@@ -34,7 +34,7 @@ export const RequestEmployeeBenefitProvider: React.FC<ProviderProps> = ({
   userInfo
 }) => {
   const graphqlClient = useGraphQLClient(accessToken)
-  const catalogClient = useCatalogManagerClient(accessToken || '')
+  const catalogClient = useCatalogManagerClient(accessToken)
   const [data, setData] = useState<RequestEmployeeBenefitContextData | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
@@ -56,6 +56,9 @@ export const RequestEmployeeBenefitProvider: React.FC<ProviderProps> = ({
     setError(null)
 
     try {
+      // Ensure catalogClient has the latest token before making requests
+      catalogClient.setAccessToken(accessToken)
+
       // Fetch employee data
       const empVariables = { idEmployee: employeeId }
       const employeeData = await graphqlClient.request<EmployeeDataResponse>(EMPLOYEE_DATA_QUERY, empVariables)
