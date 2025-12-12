@@ -259,8 +259,7 @@ modal-request-benefit-type-label = Leistungsart
 modal-character-count = {$current} / {$max} Zeichen
 modal-character-minimum = (mindestens {$min} Zeichen)
 
-# Deactivation Reasons
-modal-deactivate-reason-no_longer_needed = Nicht mehr benötigt
-modal-deactivate-reason-found_alternative = Alternative gefunden
-modal-deactivate-reason-cost_reduction = Kostenreduzierung
-modal-deactivate-reason-other = Sonstiges (bitte angeben)
+# Form Validation Errors
+error-end-date-required = Enddatum ist erforderlich
+error-end-date-today-or-later = Enddatum muss heute oder später sein
+error-end-date-after-start-date = Enddatum muss am oder nach dem Startdatum der Leistung liegen

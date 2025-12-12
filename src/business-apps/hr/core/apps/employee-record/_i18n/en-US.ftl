@@ -259,8 +259,7 @@ modal-request-benefit-type-label = Benefit Type
 modal-character-count = {$current} / {$max} characters
 modal-character-minimum = (minimum {$min} characters)
 
-# Deactivation Reasons
-modal-deactivate-reason-no_longer_needed = No longer needed
-modal-deactivate-reason-found_alternative = Found alternative
-modal-deactivate-reason-cost_reduction = Cost reduction
-modal-deactivate-reason-other = Other (please specify)
+# Form Validation Errors
+error-end-date-required = End date is required
+error-end-date-today-or-later = End date must be today or later
+error-end-date-after-start-date = End date must be on or after the benefit start date
