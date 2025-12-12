@@ -1716,11 +1716,26 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
                                 <Button
                                   variant="outline"
                                   size="sm"
+                                  disabled={!person.email}
                                   onClick={e => {
                                     e.stopPropagation()
-                                    // TODO: Implement send message functionality
-                                    console.log('Send birthday message to', person.fullName)
+                                    if (person.email) {
+                                      const subject = encodeURIComponent(
+                                        getTranslationFromI18nKeyAndLabel(
+                                          'master-data:hr.manager_dashboard.birthday_email_subject',
+                                          `Happy Birthday, ${person.firstName}!`
+                                        )
+                                      )
+                                      const body = encodeURIComponent(
+                                        getTranslationFromI18nKeyAndLabel(
+                                          'master-data:hr.manager_dashboard.birthday_email_body',
+                                          `Dear ${person.firstName},\n\nWishing you a wonderful birthday!\n\nBest regards`
+                                        )
+                                      )
+                                      window.location.href = `mailto:${person.email}?subject=${subject}&body=${body}`
+                                    }
                                   }}
+                                  title={!person.email ? getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.no_email', 'No email available') : ''}
                                 >
                                   <EnvelopeSimpleOpenIcon size={16} className="gba:mr-1" />
                                   {getTranslationFromI18nKeyAndLabel(
@@ -1816,11 +1831,26 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
                                 <Button
                                   variant="outline"
                                   size="sm"
+                                  disabled={!person.email}
                                   onClick={e => {
                                     e.stopPropagation()
-                                    // TODO: Implement send message functionality
-                                    console.log('Send anniversary message to', person.fullName)
+                                    if (person.email) {
+                                      const subject = encodeURIComponent(
+                                        getTranslationFromI18nKeyAndLabel(
+                                          'master-data:hr.manager_dashboard.anniversary_email_subject',
+                                          `Congratulations on your ${person.yearsOfService}-year anniversary!`
+                                        )
+                                      )
+                                      const body = encodeURIComponent(
+                                        getTranslationFromI18nKeyAndLabel(
+                                          'master-data:hr.manager_dashboard.anniversary_email_body',
+                                          `Dear ${person.firstName},\n\nCongratulations on your ${person.yearsOfService}-year work anniversary! Thank you for your dedication and contributions.\n\nBest regards`
+                                        )
+                                      )
+                                      window.location.href = `mailto:${person.email}?subject=${subject}&body=${body}`
+                                    }
                                   }}
+                                  title={!person.email ? getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.no_email', 'No email available') : ''}
                                 >
                                   <EnvelopeSimpleOpenIcon size={16} className="gba:mr-1" />
                                   {getTranslationFromI18nKeyAndLabel(
