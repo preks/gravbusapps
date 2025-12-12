@@ -258,6 +258,21 @@ export class ChatWebSocketClient {
     this.socket?.on('user:left', handler)
   }
 
+  // Nudge events
+  onNudgeReceived(handler: (data: { conversationId: string; fromUserId: string; fromUserName: string }) => void) {
+    this.socket?.on('nudge:received', handler)
+  }
+
+  sendNudge(conversationId: string, toUserId: string) {
+    if (!this.socket || !this.socket.connected) {
+      console.error('[ChatWebSocketClient] Cannot send nudge: socket not connected')
+      return
+    }
+
+    console.log('[ChatWebSocketClient] Sending nudge:', { conversationId, toUserId })
+    this.socket.emit('nudge:send', { conversationId, toUserId })
+  }
+
   onMessageRead(handler: (data: { messageId: string; conversationId: string; readBy: string }) => void) {
     this.socket?.on('message:read', handler)
   }

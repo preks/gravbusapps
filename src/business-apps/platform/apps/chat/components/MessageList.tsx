@@ -17,6 +17,7 @@ interface MessageListProps {
   accessToken?: string
   participants?: ConversationParticipant[]
   onReplyToAI?: () => void
+  onSendMessage?: (content: string, metadata?: Record<string, any>) => Promise<void>
 }
 
 export const MessageList: React.FC<MessageListProps> = ({
@@ -30,7 +31,8 @@ export const MessageList: React.FC<MessageListProps> = ({
   conversationId,
   accessToken,
   participants,
-  onReplyToAI
+  onReplyToAI,
+  onSendMessage
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
@@ -50,13 +52,18 @@ export const MessageList: React.FC<MessageListProps> = ({
   // Track if this is the first load for a new conversation
   const [isFirstLoad, setIsFirstLoad] = useState(true)
 
+  // Filter messages to only show messages for the current conversation
+  // This is a defensive measure to prevent showing wrong conversation's messages
+  // in case of race conditions with async API calls
+  const filteredMessages = messages.filter(m => m.conversationId === conversationId)
+
   // Filter typing users for this conversation
   const conversationTypingUsers = typingUsers.filter(t => t.conversationId === conversationId && t.isTyping)
 
   // Scroll to bottom when messages load or new messages arrive
   useEffect(() => {
     // Only scroll if we have messages and the component is ready
-    if (messages.length > 0 && messagesEndRef.current) {
+    if (filteredMessages.length > 0 && messagesEndRef.current) {
       // Use requestAnimationFrame to ensure DOM has fully updated
       requestAnimationFrame(() => {
         if (messagesEndRef.current) {
@@ -78,8 +85,8 @@ export const MessageList: React.FC<MessageListProps> = ({
       }
     }
 
-    prevMessagesLengthRef.current = messages.length
-  }, [messages, conversationId, isFirstLoad])
+    prevMessagesLengthRef.current = filteredMessages.length
+  }, [filteredMessages, conversationId, isFirstLoad])
 
   useEffect(() => {
     if (conversationTypingUsers.length > 0 && messagesEndRef.current) {
@@ -152,8 +159,10 @@ export const MessageList: React.FC<MessageListProps> = ({
     lastScrollTopRef.current = currentTop
   }
 
-  // Show loading only on first load when there are no messages
-  const showLoading = isLoading && messages.length === 0 && isFirstLoad
+  // Show loading when:
+  // 1. First load for a new conversation (isFirstLoad)
+  // 2. OR when loading with no messages (switching conversations)
+  const showLoading = isLoading && filteredMessages.length === 0
 
   return (
     <div
@@ -167,7 +176,7 @@ export const MessageList: React.FC<MessageListProps> = ({
           <div className="gba:flex-1 gba:flex gba:items-center gba:justify-center">
             <Spinner size="sm" />
           </div>
-        ) : messages.length === 0 && !isLoading ? (
+        ) : filteredMessages.length === 0 && !isLoading ? (
           <div className="gba:flex-1 gba:flex gba:flex-col gba:items-center gba:justify-center gba:text-center gba:p-4">
             <div className="gba:w-12 gba:h-12 gba:rounded-full gba:bg-muted/50 gba:flex gba:items-center gba:justify-center gba:mb-3">
               <svg
@@ -188,7 +197,7 @@ export const MessageList: React.FC<MessageListProps> = ({
               {getTranslationFromI18nKeyAndLabel('chat.noMessages', 'No messages yet. Start the conversation!')}
             </p>
           </div>
-        ) : messages.length > 0 ? (
+        ) : filteredMessages.length > 0 ? (
           <div className="gba:mt-auto gba:space-y-0.5">
             {hasMore && (
               <div className="gba:flex gba:items-center gba:justify-center gba:py-2 gba:mb-2">
@@ -205,7 +214,7 @@ export const MessageList: React.FC<MessageListProps> = ({
               </div>
             )}
 
-            {messages.map(message => (
+            {filteredMessages.map(message => (
               <MessageItem
                 key={message.id}
                 message={message}
@@ -214,6 +223,7 @@ export const MessageList: React.FC<MessageListProps> = ({
                 accessToken={accessToken}
                 participants={participants}
                 onReplyToAI={message.metadata?.isAIResponse ? onReplyToAI : undefined}
+                onSendMessage={onSendMessage}
               />
             ))}
 

@@ -15,7 +15,7 @@ import {
   DialogTitle
 } from '@newwork/nw-design-system'
 import { ArrowLeft, DotsThreeVertical, SignOut, X, Info, Users } from '@phosphor-icons/react'
-import { UserIcon, Phone, Video, PhoneCall } from 'lucide-react'
+import { UserIcon, Phone, Video, PhoneCall, UserPlus, Bell } from 'lucide-react'
 import type { Conversation } from '../types'
 import type { UserPresence } from '../hooks/usePresence'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -34,6 +34,8 @@ interface ConversationHeaderProps {
   onClose?: () => void
   onRemove?: () => void
   onGroupSettings?: () => void
+  onAddExpert?: () => void
+  onNudge?: () => void
   onAudioCall?: () => void
   onVideoCall?: () => void
   onJoinCall?: () => void
@@ -114,11 +116,58 @@ const PresenceIndicator: React.FC<{ status: 'online' | 'away' | 'offline'; size?
   )
 }
 
-// Get presence status text for display - returns null for offline
+// Get presence status text for display
 const getPresenceStatusText = (presence?: UserPresence): string | null => {
-  if (!presence || presence.status === 'offline') return null
+  if (!presence) return null
+
   if (presence.status === 'online') return getTranslationFromI18nKeyAndLabel('chat.statusOnline', 'Online')
   if (presence.status === 'away') return getTranslationFromI18nKeyAndLabel('chat.statusAway', 'Away')
+
+  // For offline status, show last seen if available
+  if (presence.status === 'offline' && presence.lastSeen) {
+    try {
+      const lastSeenDate = new Date(presence.lastSeen)
+      // Check if date is valid
+      if (isNaN(lastSeenDate.getTime())) {
+        return null
+      }
+
+      const now = new Date()
+      const diffMs = now.getTime() - lastSeenDate.getTime()
+
+      // Check for negative or invalid differences
+      if (diffMs < 0 || isNaN(diffMs)) {
+        return null
+      }
+
+      const diffMinutes = Math.floor(diffMs / (1000 * 60))
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+      if (diffMinutes < 60) {
+        return getTranslationFromI18nKeyAndLabel('chat.lastSeenMinutes', `Last seen ${diffMinutes}m ago`).replace(
+          '{minutes}',
+          diffMinutes.toString()
+        )
+      } else if (diffHours < 24) {
+        return getTranslationFromI18nKeyAndLabel('chat.lastSeenHours', `Last seen ${diffHours}h ago`).replace(
+          '{hours}',
+          diffHours.toString()
+        )
+      } else if (diffDays < 7) {
+        return getTranslationFromI18nKeyAndLabel('chat.lastSeenDays', `Last seen ${diffDays}d ago`).replace(
+          '{days}',
+          diffDays.toString()
+        )
+      } else {
+        return getTranslationFromI18nKeyAndLabel('chat.lastSeenLongAgo', 'Last seen a while ago')
+      }
+    } catch (error) {
+      console.error('Error calculating last seen time:', error)
+      return null
+    }
+  }
+
   return null
 }
 
@@ -128,6 +177,8 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
   onClose,
   onRemove,
   onGroupSettings,
+  onAddExpert,
+  onNudge,
   onAudioCall,
   onVideoCall,
   onJoinCall,
@@ -214,9 +265,17 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
           >
             {name}
           </h2>
-          {/* Show presence status for direct chats - only if online/away */}
+          {/* Show presence status for direct chats */}
           {isDirectChat && !compact && presenceStatusText && (
-            <p className={`gba:text-xs ${presenceStatus === 'online' ? 'gba:text-success' : 'gba:text-warning'}`}>
+            <p
+              className={`gba:text-xs ${
+                presenceStatus === 'online'
+                  ? 'gba:text-success'
+                  : presenceStatus === 'away'
+                    ? 'gba:text-warning'
+                    : 'gba:text-muted-foreground'
+              }`}
+            >
               {presenceStatusText}
             </p>
           )}
@@ -237,6 +296,20 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
         </div>
 
         <div className="gba:flex gba:items-center gba:gap-1">
+          {/* Nudge button - only for direct chats */}
+          {isDirectChat && onNudge && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onNudge}
+              className="gba:h-8 gba:w-8 gba:flex-shrink-0"
+              data-testid="conversation-nudge-button"
+              title={getTranslationFromI18nKeyAndLabel('chat.sendNudge', 'Send nudge')}
+            >
+              <Bell className="gba:w-4 gba:h-4" />
+            </Button>
+          )}
+
           {/* Call controls - show join button for active calls, or call buttons otherwise */}
           {isCallEnabled && !isInCall && (
             <>
@@ -295,7 +368,7 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
             </Button>
           )}
 
-          {(onRemove || (isGroupChat && onGroupSettings)) && (
+          {(onRemove || (isGroupChat && (onGroupSettings || onAddExpert))) && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -308,6 +381,12 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                {isGroupChat && onAddExpert && (
+                  <DropdownMenuItem onClick={onAddExpert} data-testid="conversation-add-expert-button">
+                    <UserPlus className="gba:w-4 gba:h-4 gba:mr-2" />
+                    {getTranslationFromI18nKeyAndLabel('chat.addExpert', 'Add Expert')}
+                  </DropdownMenuItem>
+                )}
                 {isGroupChat && onGroupSettings && (
                   <DropdownMenuItem onClick={onGroupSettings} data-testid="conversation-group-settings-button">
                     <Info className="gba:w-4 gba:h-4 gba:mr-2" />
