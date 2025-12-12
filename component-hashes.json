@@ -45,6 +45,7 @@
   "fin/expenses/apps/expense-calculation-rules": "afc6082a465605246339c8b6da75ff2b",
   "fin/expenses/apps/expense-plan-record": "a5e4dbf2d58d9dbadd3599c9faa40621",
   "fin/expenses/apps/expense-request-record": "5e8f23d0ceff681ca6aa01fcca2fdf6a",
+  "fin/expenses/apps/expense-settings": "e3da8bddb4ec06e4d39e0f49b187b62c",
   "fin/expenses/apps/expenses-launcher": "25cf81eec6ee013c500af2d990a1b62e",
   "fin/expenses/apps/manager-expenses": "7c85991bad3626659424968acd6f2a79",
   "fin/expenses/apps/personal-expenses": "215174ebb7f0d05e02db063f889b3429",
