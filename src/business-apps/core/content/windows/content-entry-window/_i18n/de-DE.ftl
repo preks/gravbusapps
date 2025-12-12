@@ -40,6 +40,21 @@ document-area-name-placeholder = z.B. HR-Dokumente, Rechtsverträge, Richtlinien
 document-area-description-placeholder = Beschreiben Sie, welche Art von Dokumenten in diesem Bereich gespeichert werden...
 document-area-description-hint = Helfen Sie anderen, den Zweck dieses Dokumentbereichs zu verstehen
 
+# Glossary-specific fields
+glossary-term = Begriff
+glossary-term-placeholder = Begriff eingeben (z.B. "API", "SLA")
+glossary-term-hint = Das zu definierende Wort, die Phrase oder das Akronym
+glossary-term-required = Begriff ist erforderlich
+glossary-definition = Definition
+glossary-definition-placeholder = Geben Sie eine klare, prägnante Definition...
+glossary-definition-hint = Erklären Sie, was dieser Begriff in unserem Unternehmenskontext bedeutet
+glossary-definition-required = Definition ist erforderlich
+glossary-examples = Beispiele (optional)
+glossary-examples-placeholder = Fügen Sie Verwendungsbeispiele oder zusätzlichen Kontext hinzu...
+glossary-examples-hint = Helfen Sie anderen zu verstehen, wie dieser Begriff in der Praxis verwendet wird
+categories = Kategorien
+tags = Tags
+
 # Validations
 title-required = Titel ist erforderlich
 preview-required = Vorschautext ist erforderlich

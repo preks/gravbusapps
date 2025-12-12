@@ -12,7 +12,7 @@ import { ContentRole } from '@/common/data/content/types/contentEnums'
 import { buildContentEntryPayload } from '@/common/data/content/payloads/contentEntryPayloads'
 import { useContentEntry } from '@/common/data/content/hooks/useContentEntry'
 import { buildFileUrl } from '@/common/utils/fileUtils'
-import { ArticleSegment, QuestionSegment, DocumentSegment } from './segments'
+import { ArticleSegment, QuestionSegment, DocumentSegment, GlossarySegment } from './segments'
 import translations from './_i18n'
 
 export interface ContentEntryWindowProps extends BusinessAppContextProps {
@@ -500,6 +500,8 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
       return 'question'
     } else if (watchContentGroupRef === 'ContentGroup:v1:DOCUMENT') {
       return 'document'
+    } else if (watchContentGroupRef === 'ContentGroup:v1:GLOSSARY') {
+      return 'glossary'
     } else {
       // NEWS, KNOWLEDGE, INTRANET use article segment
       return 'article'
@@ -831,6 +833,17 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
             imageInfo={imageInfo}
             setImageInfo={setImageInfo}
             setImageFile={setImageFile}
+            extractedContentGroupRef={extractedContentGroupRef}
+            onCreateCategory={onCreateCategory}
+            onCreateTag={onCreateTag}
+            onCategoriesChange={handleCategoriesChange}
+            onTagsChange={handleTagsChange}
+          />
+        )}
+
+        {currentSegment === 'glossary' && (
+          <GlossarySegment
+            control={control}
             extractedContentGroupRef={extractedContentGroupRef}
             onCreateCategory={onCreateCategory}
             onCreateTag={onCreateTag}
