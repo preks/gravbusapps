@@ -149,30 +149,43 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
     setDragActive(false)
   }, [])
 
+  // Helper function to fetch image from URL and process it
+  const handlePictureUrl = useCallback(
+    async (pictureUrl: string) => {
+      try {
+        const response = await fetch(pictureUrl, { mode: 'cors' })
+        if (!response.ok) {
+          throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`)
+        }
+
+        const blob = await response.blob()
+        if (!blob.type.startsWith('image/')) {
+          throw new Error('URL does not point to an image')
+        }
+
+        // Convert blob to File
+        const fileName = pictureUrl.split('/').pop()?.split('?')[0] || 'image.jpg'
+        const fileExtension = fileName.split('.').pop() || 'jpg'
+        const mimeType = blob.type || `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`
+        const file = new File([blob], fileName, { type: mimeType })
+
+        // Process as regular file upload
+        processFile(file)
+      } catch (error) {
+        console.error('Failed to load picture from URL:', error)
+        throw error
+      }
+    },
+    [processFile]
+  )
+
   // URL fetch handler
   const handleUrlFetch = useCallback(async () => {
     if (!urlInput.trim()) return
 
     setIsLoadingUrl(true)
     try {
-      const response = await fetch(urlInput.trim(), { mode: 'cors' })
-      if (!response.ok) {
-        throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`)
-      }
-
-      const blob = await response.blob()
-      if (!blob.type.startsWith('image/')) {
-        throw new Error('URL does not point to an image')
-      }
-
-      // Convert blob to File
-      const fileName = urlInput.split('/').pop()?.split('?')[0] || 'image.jpg'
-      const fileExtension = fileName.split('.').pop() || 'jpg'
-      const mimeType = blob.type || `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`
-      const file = new File([blob], fileName, { type: mimeType })
-
-      // Process as regular file upload
-      processFile(file)
+      await handlePictureUrl(urlInput.trim())
       setUrlInput('')
       setUrlPopoverOpen(false)
       setUploadMenuOpen(false)
@@ -181,7 +194,7 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
     } finally {
       setIsLoadingUrl(false)
     }
-  }, [urlInput, processFile])
+  }, [urlInput, handlePictureUrl])
 
   const handleImageRemove = useCallback(() => {
     setImage(null)
@@ -340,6 +353,7 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
             onTitleChange={value => setValue('title', value)}
             onPreviewTextChange={value => setValue('previewText', value)}
             onContentChange={value => setValue('content', value)}
+            onPictureChange={handlePictureUrl}
             accessToken={context.accessToken || ''}
             context={context}
           />

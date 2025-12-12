@@ -12,6 +12,7 @@ export interface AiResponse {
   title: string
   previewText: string
   content: string
+  picture?: string | null
 }
 
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -23,6 +24,7 @@ export interface ContentAiTextGeneratorProps {
   onTitleChange: (value: string) => void
   onPreviewTextChange: (value: string) => void
   onContentChange: (value: string) => void
+  onPictureChange?: (pictureUrl: string) => Promise<void>
   accessToken: string
   context: BusinessAppContextProps
 }
