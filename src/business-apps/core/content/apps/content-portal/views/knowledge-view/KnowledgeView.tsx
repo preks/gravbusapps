@@ -256,6 +256,7 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
                 onArticleClick={handleArticleClick}
                 truncateText={truncateText}
                 t={t}
+                accessToken={accessToken}
               />
             )}
 
