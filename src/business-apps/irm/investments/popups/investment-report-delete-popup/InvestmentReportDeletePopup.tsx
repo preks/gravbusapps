@@ -4,8 +4,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { Alert, AlertDescription, Badge, Spinner } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { formatDate } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 
 export interface InvestmentReportDeletePopupValues {
   investmentReportId: string
@@ -181,7 +180,7 @@ const InvestmentReportDeletePopup: React.FC<InvestmentReportDeletePopupProps> = 
         return formatted
       }
       const dateObj = new Date(dateString)
-      if (isNaN(dateObj.getTime())) return '-'
+      if (Number.isNaN(dateObj.getTime())) return '-'
       return dateObj.toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'short',
@@ -242,7 +241,6 @@ const InvestmentReportDeletePopup: React.FC<InvestmentReportDeletePopupProps> = 
       submitButtonText={getTranslationFromI18nKeyAndLabel('common.delete', 'Delete')}
       submitButtonVariant="destructive"
       onProcessCompletion={handleProcessCompletion}
-      businessAppContext={props}
       data-testid={formatDataTestId(prefixDataTestId, 'form')}
     >
       <div className="gba:space-y-4" data-testid={formatDataTestId(prefixDataTestId, 'container')}>
