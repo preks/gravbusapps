@@ -14,5 +14,4 @@ export interface DeactivateBenefitReviewPayload extends BenefitReviewBasePayload
 
 export interface DeactivationDetails {
   requestedEndDate: string
-  deactivationReason: string
 }
