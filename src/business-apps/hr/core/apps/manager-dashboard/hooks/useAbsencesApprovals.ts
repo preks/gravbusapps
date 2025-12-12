@@ -42,7 +42,7 @@ interface UseAbsencesApprovalsResult {
  * Helper function to get priority label based on amount and type
  */
 export const getPriorityLabel = (request: AbsenceApproval | ExpenseApproval): string => {
-  if (request.type === 'expense-request' || request.type === 'expense-plan') {
+  if (request.type === 'expense-request' || request.type === 'expense-plan' || request.type === 'advance-payment') {
     const amount = request.totalAmount
     if (amount >= 1000)
       return getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.high_amount', 'High Amount')
@@ -73,8 +73,8 @@ export const getPriorityLabel = (request: AbsenceApproval | ExpenseApproval): st
 export const getPriorityVariant = (
   request: AbsenceApproval | ExpenseApproval
 ): 'default' | 'info' | 'warning' | 'destructive' => {
-  // For expense requests and plans, use amount-based priority
-  if (request.type === 'expense-request' || request.type === 'expense-plan') {
+  // For expense requests, plans, and advance payments, use amount-based priority
+  if (request.type === 'expense-request' || request.type === 'expense-plan' || request.type === 'advance-payment') {
     const amount = request.totalAmount
     if (amount >= 1000) return 'destructive' // High amount - urgent
     if (amount >= 500) return 'warning' // Medium amount - important
@@ -142,7 +142,6 @@ export const useAbsencesApprovals = ({
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
   const [hasLoaded, setHasLoaded] = useState<boolean>(false)
-  const [previousDirectReportsLength, setPreviousDirectReportsLength] = useState<number>(0)
 
   // Flow execution tasks for employee absences - only when enabled
   const absenceFlowResult = useFlowExecutionTasks(
@@ -226,19 +225,8 @@ export const useAbsencesApprovals = ({
     setError(null)
 
     try {
-      // Helper function to filter tasks by direct reports
-      const filterTasksByDirectReports = (tasks: FlowExecutionTask[]) => {
-        if (!directReports || directReports.length === 0) {
-          return tasks
-        }
-
-        const directReportUserIds = directReports.map(report => report.userId)
-        return tasks.filter(task => {
-          return task.creatorUserId && directReportUserIds.includes(task.creatorUserId)
-        })
-      }
-
       // Process absence tasks from flow
+      // Note: No filtering by directReports - the flow API returns tasks assigned to the current user
       const processAbsenceTasks = (tasks: FlowExecutionTask[]): AbsenceApproval[] => {
         return tasks
           .filter(task => {
@@ -250,7 +238,7 @@ export const useAbsencesApprovals = ({
             const creatorName = task.creatorName || ''
             const nameParts = creatorName.split(' ')
 
-            // Find the direct report data for this creator
+            // Try to find the direct report data for this creator (for picture)
             const directReport = directReports.find(report => report.userId === task.creatorUserId)
 
             return {
@@ -403,17 +391,12 @@ export const useAbsencesApprovals = ({
           })
       }
 
-      // Filter tasks by direct reports
-      const filteredAbsenceTasks = filterTasksByDirectReports(absenceTasks)
-      const filteredVacationTasks = filterTasksByDirectReports(vacationTasks)
-      const filteredSpecialLeaveTasks = filterTasksByDirectReports(specialLeaveTasks)
-      const filteredWorkLeaveTasks = filterTasksByDirectReports(workLeaveTasks)
-
-      // Process absence, vacation, special leave, and work leave tasks
-      const processedAbsences = processAbsenceTasks(filteredAbsenceTasks)
-      const processedVacations = processVacationTasks(filteredVacationTasks)
-      const processedSpecialLeaves = processSpecialLeaveTasks(filteredSpecialLeaveTasks)
-      const processedWorkLeaves = processWorkLeaveTasks(filteredWorkLeaveTasks)
+      // Process all absence types - no filtering by directReports
+      // The flow API returns tasks assigned to the current user (manager)
+      const processedAbsences = processAbsenceTasks(absenceTasks)
+      const processedVacations = processVacationTasks(vacationTasks)
+      const processedSpecialLeaves = processSpecialLeaveTasks(specialLeaveTasks)
+      const processedWorkLeaves = processWorkLeaveTasks(workLeaveTasks)
 
       // Combine and sort all absence, vacation, special leave, and work leave approvals
       const allAbsenceApprovals = [
@@ -425,16 +408,13 @@ export const useAbsencesApprovals = ({
 
       setAbsenceApprovals(allAbsenceApprovals)
       setTotalCount(allAbsenceApprovals.length)
-      setPreviousDirectReportsLength(directReports?.length || 0)
-
-      // Only set hasLoaded to true if we have data
-      if (allAbsenceApprovals.length > 0) {
-        setHasLoaded(true)
-      }
+      // Always set hasLoaded to true after processing
+      setHasLoaded(true)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load absence approvals'
       setError(errorMessage)
       console.error('Error loading absence data:', err)
+      setHasLoaded(true) // Mark as loaded even on error
     } finally {
       setIsLoading(false)
     }
@@ -457,15 +437,8 @@ export const useAbsencesApprovals = ({
     // Only process when all tasks are loaded (not loading)
     if (absenceLoading || vacationLoading || specialLeaveLoading || workLeaveLoading) return
 
-    // Process data if we have tasks
-    if (
-      absenceTasks.length > 0 ||
-      vacationTasks.length > 0 ||
-      specialLeaveTasks.length > 0 ||
-      workLeaveTasks.length > 0
-    ) {
-      loadAbsenceData()
-    }
+    // Process data once loading is complete (even if 0 tasks)
+    loadAbsenceData()
   }, [
     hasLoaded,
     absenceLoading,
@@ -483,28 +456,6 @@ export const useAbsencesApprovals = ({
   useEffect(() => {
     processData()
   }, [processData])
-
-  // Reset hasLoaded when directReports becomes available (was empty before)
-  useEffect(() => {
-    const currentLength = directReports?.length || 0
-    if (
-      currentLength > 0 &&
-      previousDirectReportsLength === 0 &&
-      hasLoaded &&
-      (absenceTasks.length > 0 || vacationTasks.length > 0 || specialLeaveTasks.length > 0 || workLeaveTasks.length > 0)
-    ) {
-      // If we already loaded but directReports was empty, re-process now that it's available
-      setHasLoaded(false)
-    }
-  }, [
-    directReports,
-    previousDirectReportsLength,
-    hasLoaded,
-    absenceTasks.length,
-    vacationTasks.length,
-    specialLeaveTasks.length,
-    workLeaveTasks.length
-  ])
 
   // Update error state based on flow tasks
   useEffect(() => {
