@@ -138,8 +138,6 @@ export interface OpportunityViewConfig<TOpportunity extends { id: string }, TQue
   ) => Promise<{ opportunities: TOpportunity[]; total: number }>
   renderBoardCard?: (opportunity: TOpportunity) => React.ReactNode
 
-  processCompletionEvents?: string[]
-
   rowActionsContextArray: FlowContextName[]
   buildRowActionsExternalContextData: (row: { original: TOpportunity }) => Record<string, string>
 }
@@ -609,24 +607,11 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
       loadBoardData()
     }
     setBoardRefreshTrigger(prev => prev + 1)
-  }, [currentSection, loadListData, loadBoardData])
+    // Also refresh statistics when process completes
+    config.opportunityStatistics?.refetch?.()
+  }, [currentSection, loadListData, loadBoardData, config.opportunityStatistics?.refetch])
 
   useProcessCompletion({ onSuccess: handleProcessComplete })
-
-  useEffect(() => {
-    const events = config.processCompletionEvents || ['taskCompletion']
-    const handlers = events.map(eventName => {
-      const handler = () => handleProcessComplete()
-      globalThis.addEventListener(eventName, handler)
-      return { eventName, handler }
-    })
-
-    return () => {
-      for (const { eventName, handler } of handlers) {
-        globalThis.removeEventListener(eventName, handler)
-      }
-    }
-  }, [handleProcessComplete, config.processCompletionEvents])
 
   // Event Handlers
   const handleSearch = useCallback((value: string) => {

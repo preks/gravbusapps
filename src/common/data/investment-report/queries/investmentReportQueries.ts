@@ -41,6 +41,8 @@ const ORDERABLE_FIELDS = new Set([
   'forecastedProfitAmount',
   'debtFinancingAmount',
   'requiredCapitalAmount',
+  'irr',
+  'moic',
   // Nested fields (for validation)
   'investment.name',
   'investment.code',

@@ -10,10 +10,29 @@ export interface Paging {
 }
 
 export type PromptType = 'completion' | 'chat'
+export type AgentType = 'flow' | 'everyai' | 'general'
+export type ResponseStyle = 'formal' | 'conversational' | 'technical'
+export type CitationMode = 'always' | 'when_needed' | 'never'
 
 export interface PromptContent {
   template: string | null
   parameters: string[]
+}
+
+export interface KnowledgeSource {
+  id: string
+  type: 'document' | 'url' | 'content_entry' // content_entry = internal knowledge base
+  name: string
+  description?: string
+  url?: string
+  fileId?: string
+  fileName?: string
+  fileSize?: number
+  mimeType?: string
+  contentEntryId?: string // For internal content
+  extractedContent?: string // Extracted text from documents (parsed by FlowBot)
+  lastUpdated: string
+  createdAt: string
 }
 
 export interface PromptODM {
@@ -31,6 +50,17 @@ export interface PromptODM {
   version: number
   workspace: { id: string; collection: string }
   revision_message?: string
+  // Every Experts fields
+  agent_type?: AgentType
+  specialty?: string
+  response_style?: ResponseStyle
+  avatar?: string
+  color?: string
+  citation_mode?: CitationMode
+  knowledge_sources?: KnowledgeSource[]
+  is_public?: boolean
+  created_by?: string
+  tags?: string[]
 }
 
 export interface PromptPage {
@@ -72,6 +102,16 @@ export interface PromptDetails {
   responseSchema?: Record<string, unknown> | null
   name: string
   workspaceId: string
+  // Every Experts fields
+  agentType?: AgentType
+  specialty?: string
+  responseStyle?: ResponseStyle
+  avatar?: string
+  color?: string
+  citationMode?: CitationMode
+  knowledgeSources?: KnowledgeSource[]
+  isPublic?: boolean
+  tags?: string[]
 }
 
 export interface PromptPutDetails {
@@ -84,6 +124,16 @@ export interface PromptPutDetails {
   modelSettings?: Record<string, unknown>
   responseSchema?: Record<string, unknown> | null
   revisionMessage?: string
+  // Every Experts fields
+  agentType?: AgentType
+  specialty?: string
+  responseStyle?: ResponseStyle
+  avatar?: string
+  color?: string
+  citationMode?: CitationMode
+  knowledgeSources?: KnowledgeSource[]
+  isPublic?: boolean
+  tags?: string[]
 }
 
 export interface PromptPatchDetails {
@@ -96,6 +146,16 @@ export interface PromptPatchDetails {
   modelSettings?: Record<string, unknown> | null
   responseSchema?: Record<string, unknown> | null
   revisionMessage?: string
+  // Every Experts fields
+  agentType?: AgentType | null
+  specialty?: string | null
+  responseStyle?: ResponseStyle | null
+  avatar?: string | null
+  color?: string | null
+  citationMode?: CitationMode | null
+  knowledgeSources?: KnowledgeSource[] | null
+  isPublic?: boolean | null
+  tags?: string[] | null
 }
 
 export interface PromptExecuteResponse<T = unknown> {
@@ -402,6 +462,111 @@ export class PromptManagerClient extends RestClient {
 
   async deleteFunctionTool(id: string): Promise<void> {
     await this.delete<void>(`/api/v1/tools/function/${encodeURIComponent(id)}`)
+  }
+
+  // --- Every Experts (EveryAI Agents) ---
+  /**
+   * Get all EveryAI experts (agents with agent_type=everyai)
+   */
+  async getEveryAIExperts(params?: {
+    search?: string | null
+    tags?: string[]
+    isPublic?: boolean
+    limit?: number
+    offset?: number
+    returnTotalRecords?: boolean
+  }): Promise<PromptPage> {
+    return this.get<PromptPage>('/api/v1/prompts/', {
+      params: {
+        ...params,
+        agentType: 'everyai' // Filter for EveryAI agents only
+      } as Record<string, any>
+    })
+  }
+
+  /**
+   * Get all General agents (agents with agent_type=general)
+   * General agents are standalone agents for general purpose use (not in chat or flow)
+   */
+  async getGeneralAgents(params?: {
+    search?: string | null
+    tags?: string[]
+    limit?: number
+    offset?: number
+    returnTotalRecords?: boolean
+  }): Promise<PromptPage> {
+    return this.get<PromptPage>('/api/v1/prompts/', {
+      params: {
+        ...params,
+        agentType: 'general' // Filter for General agents only
+      } as Record<string, any>
+    })
+  }
+
+  /**
+   * Upload a document as a knowledge source for an expert
+   */
+  async uploadKnowledgeSource(promptId: string, file: File, description?: string): Promise<KnowledgeSource> {
+    const formData = new FormData()
+    formData.append('file', file)
+    if (description) {
+      formData.append('description', description)
+    }
+    return this.post<KnowledgeSource>(
+      `/api/v1/prompts/${encodeURIComponent(promptId)}/knowledge-sources/upload`,
+      formData
+    )
+  }
+
+  /**
+   * Add a URL as a knowledge source for an expert
+   */
+  async addKnowledgeSourceUrl(
+    promptId: string,
+    url: string,
+    name: string,
+    description?: string
+  ): Promise<KnowledgeSource> {
+    return this.post<KnowledgeSource>(`/api/v1/prompts/${encodeURIComponent(promptId)}/knowledge-sources/url`, {
+      url,
+      name,
+      description
+    })
+  }
+
+  /**
+   * Add internal content entry as a knowledge source
+   */
+  async addKnowledgeSourceContent(
+    promptId: string,
+    contentEntryId: string,
+    name: string,
+    description?: string
+  ): Promise<KnowledgeSource> {
+    return this.post<KnowledgeSource>(`/api/v1/prompts/${encodeURIComponent(promptId)}/knowledge-sources/content`, {
+      contentEntryId,
+      name,
+      description
+    })
+  }
+
+  /**
+   * Remove a knowledge source from an expert
+   */
+  async removeKnowledgeSource(promptId: string, sourceId: string): Promise<void> {
+    await this.delete<void>(
+      `/api/v1/prompts/${encodeURIComponent(promptId)}/knowledge-sources/${encodeURIComponent(sourceId)}`
+    )
+  }
+
+  /**
+   * Get all knowledge sources for an expert
+   */
+  async getKnowledgeSources(promptId: string): Promise<KnowledgeSource[]> {
+    const response = await this.get<{ data: KnowledgeSource[] }>(
+      `/api/v1/prompts/${encodeURIComponent(promptId)}/knowledge-sources`
+    )
+    return response.data || []
   }
 }
 

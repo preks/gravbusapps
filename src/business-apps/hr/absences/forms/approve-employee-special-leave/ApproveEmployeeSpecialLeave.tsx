@@ -5,7 +5,16 @@
  */
 
 import React, { useState, useEffect, useMemo, useRef } from 'react'
-import { Separator, Textarea, Switch, Label, Spinner, Alert } from '@newwork/nw-design-system'
+import {
+  Separator,
+  Textarea,
+  Switch,
+  Label,
+  Spinner,
+  Alert,
+  useTranslation,
+  useLocale
+} from '@newwork/nw-design-system'
 import { ThumbsUp, XCircle, MessageSquare, CheckCircle, AlertCircle } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
@@ -14,55 +23,14 @@ import { TeamAbsenceCalendar } from '@/business-apps/core/every/apps/every-box/c
 import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/components/TaskDetailHeader'
 import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
 import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { formatDateTime } from '@/business-apps/core/every/apps/every-box/utils/taskFormatters'
 import { useEntityDates } from '@/common/data/common/hooks/useEntityDates'
 import { useApproverData } from '@/common/data/employee/hooks/useApproverData'
+import { formatWorkingDaysAndHours } from '@/business-apps/hr/absences/utils/absenceDurationFormatter'
+import { formatDateTime } from '@/common/utils/dateFormatter'
+import { ExtendedAdditionalData } from '@/business-apps/hr/absences/types/taskTypes'
+import { useApprovalData } from '@/business-apps/hr/absences/hooks/useApprovalData'
 import dayjs from 'dayjs'
-
-/**
- * Extended interface for additionalData with form-specific properties
- * This provides proper typing for dynamic task payload properties
- */
-interface ExtendedAdditionalData {
-  [k: string]: unknown
-  formData?: {
-    approval?: string
-    approvalNote?: string
-  }
-  psi_taskCompletedAt?: string
-  psi_taskPayload?: {
-    endpoint?: string
-    [k: string]: unknown
-  }
-  psi_processMetadata?: {
-    [k: string]: unknown
-  }
-  psi_taskStatus?: string
-  endpoint?: string
-}
-
-/**
- * Formats working days and hours into a readable string
- */
-const formatWorkingDaysAndHours = (workingDays?: number, workingHours?: number): string => {
-  const parts: string[] = []
-
-  if (workingDays !== undefined) {
-    parts.push(`${workingDays} ${workingDays === 1 ? 'day' : 'days'}`)
-  }
-
-  if (workingHours !== undefined) {
-    const hoursText = `(${workingHours} ${workingHours === 1 ? 'hour' : 'hours'})`
-    if (parts.length > 0) {
-      parts.push(` ${hoursText}`)
-    } else {
-      parts.push(hoursText)
-    }
-  }
-
-  return parts.join('')
-}
+import translations from './_i18n'
 
 interface ApproveEmployeeSpecialLeaveProps extends BusinessAppContextProps {
   // Additional props from task payload
@@ -75,6 +43,9 @@ const ApproveEmployeeSpecialLeave: React.FC<ApproveEmployeeSpecialLeaveProps> = 
   userInfo,
   onClose
 }) => {
+  const { t } = useTranslation(translations)
+  const { locale } = useLocale()
+
   // Cast additionalData to extended interface for proper typing
   const extendedAdditionalData = additionalData as ExtendedAdditionalData | undefined
 
@@ -84,15 +55,9 @@ const ApproveEmployeeSpecialLeave: React.FC<ApproveEmployeeSpecialLeaveProps> = 
   const [isRejecting, setIsRejecting] = useState(false)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [actualApprovalStatus, setActualApprovalStatus] = useState<string | null>(null)
-  const [actualApprovalNote, setActualApprovalNote] = useState<string | null>(null)
-  const [actualApprovalDate, setActualApprovalDate] = useState<string | null>(null)
-  const [isLoadingApprovalData, setIsLoadingApprovalData] = useState(false)
 
   // Ref for comment section to scroll into view
   const commentSectionRef = useRef<HTMLDivElement>(null)
-
-  const graphqlClient = useGraphqlClient(accessToken)
 
   // Extract task data from additionalData
   const taskPayload = additionalData?.psi_taskPayload || {}
@@ -104,8 +69,8 @@ const ApproveEmployeeSpecialLeave: React.FC<ApproveEmployeeSpecialLeaveProps> = 
   const taskStatus = additionalData?.psi_taskStatus || processMetadata?.status || 'IN_PROGRESS'
   const isTaskCompleted = taskStatus === 'COMPLETED'
 
-  // Get task title from process metadata or use default
-  const taskTitle = processMetadata?.referenceTaskName || processMetadata?.nodeName || 'Approve Special Leave Request'
+  // Get task title (translated)
+  const taskTitle = t('task-title-approve-special-leave')
 
   // Use generic hooks for entity dates (request created)
   const { createdAt: requestCreatedAt, isLoading: isLoadingRequestDate } = useEntityDates({
@@ -175,9 +140,6 @@ const ApproveEmployeeSpecialLeave: React.FC<ApproveEmployeeSpecialLeaveProps> = 
 
   const completedAt = processMetadata?.completedAt || extendedAdditionalData?.psi_taskCompletedAt || null
 
-  // Get task source from process metadata (fallback to 'kogito' if not available)
-  const taskSource: 'kogito' | 'cflow' = processMetadata?.source || 'kogito'
-
   // Use custom hook for data fetching
   const {
     employeeData,
@@ -208,105 +170,17 @@ const ApproveEmployeeSpecialLeave: React.FC<ApproveEmployeeSpecialLeaveProps> = 
     }
   }, [showComment])
 
-  // Fetch approval data from absence record for completed tasks
-  useEffect(() => {
-    const fetchApprovalData = async () => {
-      if (!accessToken || !employeeAbsence?.id || !isTaskCompleted) {
-        // If we have task output data, use it
-        if (taskOutputApprovalStatus) {
-          setActualApprovalStatus(taskOutputApprovalStatus)
-          setActualApprovalNote(taskOutputApprovalNote)
-        }
-        return
-      }
-
-      setIsLoadingApprovalData(true)
-      try {
-        const absenceQuery = `
-          query GetAbsenceApprovalData($absenceId: uuid!) {
-            EmployeeAbsence(where: {id: {_eq: $absenceId}}, limit: 1) {
-              id
-              status
-              approvalNote
-              approverId
-              updatedAt
-            }
-          }
-        `
-
-        const response = await graphqlClient.request<{
-          EmployeeAbsence: any[]
-        }>(absenceQuery, {
-          absenceId: employeeAbsence.id
-        })
-
-        if (response.EmployeeAbsence && response.EmployeeAbsence.length > 0) {
-          const absence = response.EmployeeAbsence[0]
-
-          // Priority order for approval status:
-          // 1. Task outputs (most reliable for completed tasks)
-          // 2. EmployeeAbsence.status
-          if (taskOutputApprovalStatus) {
-            setActualApprovalStatus(taskOutputApprovalStatus)
-          } else if (absence.status) {
-            setActualApprovalStatus(absence.status)
-          }
-
-          // Priority order for approval note:
-          // 1. Task outputs/inputs (most reliable for completed tasks)
-          // 2. EmployeeAbsence.approvalNote
-          if (taskOutputApprovalNote) {
-            setActualApprovalNote(taskOutputApprovalNote)
-          } else if (absence.approvalNote) {
-            setActualApprovalNote(absence.approvalNote)
-          } else {
-            setActualApprovalNote(null)
-          }
-
-          // Priority order for approval date:
-          // 1. Task completedAt (most reliable for completed tasks)
-          // 2. EmployeeAbsence.updatedAt (fallback)
-          if (completedAt) {
-            setActualApprovalDate(completedAt)
-          } else if (absence.updatedAt) {
-            setActualApprovalDate(absence.updatedAt)
-          } else {
-            setActualApprovalDate(null)
-          }
-        } else {
-          // Fallback to task output data if fetch fails
-          setActualApprovalStatus(taskOutputApprovalStatus || employeeAbsence.status)
-          setActualApprovalNote(taskOutputApprovalNote || employeeAbsence.approvalNote)
-          setActualApprovalDate(completedAt || null)
-        }
-      } catch (error) {
-        console.error('Error fetching approval data:', error)
-        // Fallback to task output data if fetch fails
-        setActualApprovalStatus(taskOutputApprovalStatus || employeeAbsence.status)
-        setActualApprovalNote(taskOutputApprovalNote || employeeAbsence.approvalNote)
-        setActualApprovalDate(completedAt || null)
-      } finally {
-        setIsLoadingApprovalData(false)
-      }
-    }
-
-    fetchApprovalData()
-  }, [
+  // Use custom hook for approval data fetching
+  const { approvalStatus, approvalNote, approvalDate, isLoadingApprovalData } = useApprovalData({
     accessToken,
-    employeeAbsence?.id,
+    absenceId: employeeAbsence?.id,
     isTaskCompleted,
-    graphqlClient,
     taskOutputApprovalStatus,
     taskOutputApprovalNote,
-    employeeAbsence?.status,
-    employeeAbsence?.approvalNote,
-    completedAt
-  ])
-
-  // Use actual approval data (from fetch) or fallback to task output data
-  const approvalStatus = actualApprovalStatus || taskOutputApprovalStatus
-  const approvalNote = actualApprovalNote !== null ? actualApprovalNote : taskOutputApprovalNote
-  const approvalDate = actualApprovalDate !== null ? actualApprovalDate : completedAt
+    completedAt,
+    fallbackStatus: employeeAbsence?.status,
+    fallbackNote: employeeAbsence?.approvalNote
+  })
 
   const handleApprove = async () => {
     setIsApproving(true)
@@ -321,15 +195,15 @@ const ApproveEmployeeSpecialLeave: React.FC<ApproveEmployeeSpecialLeaveProps> = 
         event: 'pse_submit'
       })
 
-      setSuccessMessage('Special leave request approved successfully!')
+      setSuccessMessage(t('success-special-leave-approved'))
 
       // Allow time for user to see success message before closing
       setTimeout(() => {
         // Platform will handle closing the modal
       }, 1500)
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Failed to approve'
-      setErrorMessage(`Failed to approve: ${errorMsg}`)
+      const errorMsg = err instanceof Error ? err.message : t('error-failed-to-approve')
+      setErrorMessage(`${t('error-failed-to-approve')}: ${errorMsg}`)
     } finally {
       setIsApproving(false)
     }
@@ -337,7 +211,7 @@ const ApproveEmployeeSpecialLeave: React.FC<ApproveEmployeeSpecialLeaveProps> = 
 
   const handleReject = async () => {
     if (!comment.trim()) {
-      setErrorMessage('Please provide a reason for rejection')
+      setErrorMessage(t('error-provide-rejection-reason'))
       setShowComment(true)
       return
     }
@@ -354,15 +228,15 @@ const ApproveEmployeeSpecialLeave: React.FC<ApproveEmployeeSpecialLeaveProps> = 
         event: 'pse_submit'
       })
 
-      setSuccessMessage('Special leave request rejected successfully!')
+      setSuccessMessage(t('success-special-leave-rejected'))
 
       // Allow time for user to see success message before closing
       setTimeout(() => {
         // Platform will handle closing the modal
       }, 1500)
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Failed to reject'
-      setErrorMessage(`Failed to reject: ${errorMsg}`)
+      const errorMsg = err instanceof Error ? err.message : t('error-failed-to-reject')
+      setErrorMessage(`${t('error-failed-to-reject')}: ${errorMsg}`)
     } finally {
       setIsRejecting(false)
     }
@@ -390,8 +264,6 @@ const ApproveEmployeeSpecialLeave: React.FC<ApproveEmployeeSpecialLeaveProps> = 
       header={
         <TaskDetailHeader
           title={taskTitle}
-          status={taskStatus}
-          source={taskSource}
           showEmployeeInfo={true}
           employeeData={
             employeeData
@@ -415,7 +287,7 @@ const ApproveEmployeeSpecialLeave: React.FC<ApproveEmployeeSpecialLeaveProps> = 
             data-testid="action-footer"
             actions={[
               {
-                label: 'Reject',
+                label: t('action-reject'),
                 onClick: handleReject,
                 variant: 'destructive' as const,
                 disabled: isRejecting || isApproving || !!successMessage,
@@ -424,7 +296,7 @@ const ApproveEmployeeSpecialLeave: React.FC<ApproveEmployeeSpecialLeaveProps> = 
                 testId: 'reject-button'
               },
               {
-                label: 'Approve',
+                label: t('action-approve'),
                 onClick: handleApprove,
                 variant: 'default' as const,
                 disabled: isApproving || isRejecting || !!successMessage,
@@ -455,12 +327,14 @@ const ApproveEmployeeSpecialLeave: React.FC<ApproveEmployeeSpecialLeaveProps> = 
       {employeeAbsence && typeof employeeAbsence === 'object' && (
         <>
           <div data-testid="special-leave-details-section">
-            <h4 className="gba:font-semibold gba:mb-4 gba:text-lg">Special Leave Request Details</h4>
+            <h4 className="gba:font-semibold gba:mb-4 gba:text-lg">{t('section-special-leave-request-details')}</h4>
             <div className="gba:bg-muted gba:p-4 gba:rounded-lg gba:space-y-3">
               {/* Type */}
               {absenceTypeName && (
                 <div className="gba:flex gba:items-start gba:gap-3">
-                  <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">Type:</span>
+                  <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
+                    {t('label-type')}:
+                  </span>
                   <span className="gba:text-sm gba:flex-1">{absenceTypeName}</span>
                 </div>
               )}
@@ -469,7 +343,7 @@ const ApproveEmployeeSpecialLeave: React.FC<ApproveEmployeeSpecialLeaveProps> = 
               {employeeAbsence.startDate && employeeAbsence.endDate && (
                 <div className="gba:flex gba:items-start gba:gap-3">
                   <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                    Duration:
+                    {t('label-duration')}:
                   </span>
                   <span className="gba:text-sm gba:flex-1">
                     {(() => {
@@ -490,10 +364,10 @@ const ApproveEmployeeSpecialLeave: React.FC<ApproveEmployeeSpecialLeaveProps> = 
               {(employeeAbsence.workingDays !== undefined || employeeAbsence.workingHours !== undefined) && (
                 <div className="gba:flex gba:items-start gba:gap-3">
                   <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                    Working Days:
+                    {t('label-working-days')}:
                   </span>
                   <span className="gba:text-sm gba:flex-1">
-                    {formatWorkingDaysAndHours(employeeAbsence.workingDays, employeeAbsence.workingHours)}
+                    {formatWorkingDaysAndHours(employeeAbsence.workingDays, employeeAbsence.workingHours, t)}
                   </span>
                 </div>
               )}
@@ -502,7 +376,7 @@ const ApproveEmployeeSpecialLeave: React.FC<ApproveEmployeeSpecialLeaveProps> = 
               {employeeAbsence.reason?.trim() && (
                 <div className="gba:flex gba:items-start gba:gap-3">
                   <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                    Reason:
+                    {t('label-reason')}:
                   </span>
                   <span className="gba:text-sm gba:flex-1 gba:text-muted-foreground">
                     {employeeAbsence.reason.trim()}
@@ -514,10 +388,10 @@ const ApproveEmployeeSpecialLeave: React.FC<ApproveEmployeeSpecialLeaveProps> = 
               {employeeAbsence.substituteEmployee && (
                 <div className="gba:flex gba:items-start gba:gap-3">
                   <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                    Substitute:
+                    {t('label-substitute')}:
                   </span>
                   <span className="gba:text-sm gba:flex-1 gba:text-muted-foreground">
-                    {isLoadingSubstitute ? <Spinner size="sm" /> : substituteEmployeeName || 'Loading...'}
+                    {isLoadingSubstitute ? <Spinner size="sm" /> : substituteEmployeeName || t('loading')}
                   </span>
                 </div>
               )}
@@ -526,7 +400,7 @@ const ApproveEmployeeSpecialLeave: React.FC<ApproveEmployeeSpecialLeaveProps> = 
               {employeeAbsence.description?.trim() && (
                 <div className="gba:flex gba:items-start gba:gap-3">
                   <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                    Description:
+                    {t('label-description')}:
                   </span>
                   <span className="gba:text-sm gba:flex-1 gba:text-muted-foreground">
                     {employeeAbsence.description.trim()}
@@ -538,10 +412,10 @@ const ApproveEmployeeSpecialLeave: React.FC<ApproveEmployeeSpecialLeaveProps> = 
               {requestCreatedAt && (
                 <div className="gba:flex gba:items-start gba:gap-3">
                   <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                    Request Created:
+                    {t('label-request-created')}:
                   </span>
                   <span className="gba:text-sm gba:flex-1">
-                    {isLoadingRequestDate ? <Spinner size="sm" /> : formatDateTime(requestCreatedAt)}
+                    {isLoadingRequestDate ? <Spinner size="sm" /> : formatDateTime(requestCreatedAt, locale)}
                   </span>
                 </div>
               )}
@@ -561,12 +435,12 @@ const ApproveEmployeeSpecialLeave: React.FC<ApproveEmployeeSpecialLeaveProps> = 
           ) : (
             approvalStatus && (
               <div data-testid="approval-details-section">
-                <h4 className="gba:font-semibold gba:mb-4 gba:text-lg">Approval Details</h4>
+                <h4 className="gba:font-semibold gba:mb-4 gba:text-lg">{t('section-approval-details')}</h4>
                 <div className="gba:bg-muted gba:p-4 gba:rounded-lg gba:space-y-3">
                   {/* Status */}
                   <div className="gba:flex gba:items-start gba:gap-3">
                     <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                      Status:
+                      {t('label-status')}:
                     </span>
                     <span
                       className={`gba:text-sm gba:flex-1 gba:font-medium ${
@@ -582,12 +456,12 @@ const ApproveEmployeeSpecialLeave: React.FC<ApproveEmployeeSpecialLeaveProps> = 
                       approvalStatus === 'APPROVED_BY_HR' ? (
                         <span className="gba:flex gba:items-center gba:gap-2">
                           <CheckCircle className="gba:h-4 gba:w-4" />
-                          Approved
+                          {t('status-approved')}
                         </span>
                       ) : (
                         <span className="gba:flex gba:items-center gba:gap-2">
                           <AlertCircle className="gba:h-4 gba:w-4" />
-                          Rejected
+                          {t('status-rejected')}
                         </span>
                       )}
                     </span>
@@ -597,7 +471,7 @@ const ApproveEmployeeSpecialLeave: React.FC<ApproveEmployeeSpecialLeaveProps> = 
                   {approverName && (
                     <div className="gba:flex gba:items-start gba:gap-3">
                       <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                        Approved By:
+                        {t('label-approved-by')}:
                       </span>
                       <span className="gba:text-sm gba:flex-1">
                         {isLoadingApproverName ? <Spinner size="sm" /> : approverName}
@@ -609,9 +483,9 @@ const ApproveEmployeeSpecialLeave: React.FC<ApproveEmployeeSpecialLeaveProps> = 
                   {approvalDate && (
                     <div className="gba:flex gba:items-start gba:gap-3">
                       <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                        Date:
+                        {t('label-date')}:
                       </span>
-                      <span className="gba:text-sm gba:flex-1">{formatDateTime(approvalDate)}</span>
+                      <span className="gba:text-sm gba:flex-1">{formatDateTime(approvalDate, locale)}</span>
                     </div>
                   )}
 
@@ -619,7 +493,7 @@ const ApproveEmployeeSpecialLeave: React.FC<ApproveEmployeeSpecialLeaveProps> = 
                   {approvalNote?.trim() && (
                     <div className="gba:flex gba:items-start gba:gap-3">
                       <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                        Comment:
+                        {t('label-comment')}:
                       </span>
                       <span className="gba:text-sm gba:flex-1 gba:text-muted-foreground">{approvalNote.trim()}</span>
                     </div>
@@ -642,7 +516,7 @@ const ApproveEmployeeSpecialLeave: React.FC<ApproveEmployeeSpecialLeaveProps> = 
             endDate={employeeAbsence.endDate}
             currentAbsence={{
               employeeId: employeeAbsence.employeeId || employeeData?.id || '',
-              employeeName: employeeData?.displayName || creatorName || 'Unknown',
+              employeeName: employeeData?.displayName || creatorName || t('unknown'),
               position: employeeData?.position || undefined,
               type: absenceTypeName,
               status: 'PENDING_APPROVAL'
@@ -658,7 +532,7 @@ const ApproveEmployeeSpecialLeave: React.FC<ApproveEmployeeSpecialLeaveProps> = 
           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
             <MessageSquare className="gba:h-4 gba:w-4" />
             <Label htmlFor="approval-comment" className="gba:text-sm gba:font-medium">
-              Add Comment (Required for rejection)
+              {t('comment-label')}
             </Label>
             <Switch
               id="approval-comment"
@@ -675,7 +549,7 @@ const ApproveEmployeeSpecialLeave: React.FC<ApproveEmployeeSpecialLeaveProps> = 
           {showComment && (
             <Textarea
               rows={3}
-              placeholder="Add your approval comment or rejection reason..."
+              placeholder={t('comment-placeholder')}
               value={comment}
               onChange={e => setComment(e.target.value)}
               maxLength={500}

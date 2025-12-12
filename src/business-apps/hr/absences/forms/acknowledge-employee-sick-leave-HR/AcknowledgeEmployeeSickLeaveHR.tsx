@@ -5,7 +5,7 @@
  */
 
 import React, { useState } from 'react'
-import { Separator, Spinner, Alert } from '@newwork/nw-design-system'
+import { Separator, Spinner, Alert, useTranslation, useLocale } from '@newwork/nw-design-system'
 import { CheckCircle } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
@@ -14,31 +14,11 @@ import { TeamAbsenceCalendar } from '@/business-apps/core/every/apps/every-box/c
 import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/components/TaskDetailHeader'
 import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
 import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
-import { formatDateTime } from '@/business-apps/core/every/apps/every-box/utils/taskFormatters'
 import { useEntityDates } from '@/common/data/common/hooks/useEntityDates'
+import { formatWorkingDaysAndHours } from '@/business-apps/hr/absences/utils/absenceDurationFormatter'
+import { formatDateTime } from '@/common/utils/dateFormatter'
 import dayjs from 'dayjs'
-
-/**
- * Formats working days and hours into a readable string
- */
-const formatWorkingDaysAndHours = (workingDays?: number, workingHours?: number): string => {
-  const parts: string[] = []
-
-  if (workingDays !== undefined) {
-    parts.push(`${workingDays} ${workingDays === 1 ? 'day' : 'days'}`)
-  }
-
-  if (workingHours !== undefined) {
-    const hoursText = `(${workingHours} ${workingHours === 1 ? 'hour' : 'hours'})`
-    if (parts.length > 0) {
-      parts.push(` ${hoursText}`)
-    } else {
-      parts.push(hoursText)
-    }
-  }
-
-  return parts.join('')
-}
+import translations from './_i18n'
 
 interface AcknowledgeEmployeeSickLeaveHRProps extends BusinessAppContextProps {
   // Additional props from task payload
@@ -51,6 +31,9 @@ const AcknowledgeEmployeeSickLeaveHR: React.FC<AcknowledgeEmployeeSickLeaveHRPro
   userInfo,
   onClose
 }) => {
+  const { t } = useTranslation(translations)
+  const { locale } = useLocale()
+
   const [isAcknowledging, setIsAcknowledging] = useState(false)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -65,8 +48,8 @@ const AcknowledgeEmployeeSickLeaveHR: React.FC<AcknowledgeEmployeeSickLeaveHRPro
   const taskStatus = additionalData?.psi_taskStatus || processMetadata?.status || 'IN_PROGRESS'
   const isTaskCompleted = taskStatus === 'COMPLETED'
 
-  // Get task title from process metadata or use default
-  const taskTitle = processMetadata?.referenceTaskName || processMetadata?.nodeName || 'Acknowledge Sick Leave'
+  // Get task title (translated)
+  const taskTitle = t('task-title-acknowledge-sick-leave-hr')
 
   // Use generic hooks for entity dates (request created)
   const { createdAt: requestCreatedAt, isLoading: isLoadingRequestDate } = useEntityDates({
@@ -74,9 +57,6 @@ const AcknowledgeEmployeeSickLeaveHR: React.FC<AcknowledgeEmployeeSickLeaveHRPro
     entityId: employeeAbsence?.id,
     entityType: 'EmployeeAbsence'
   })
-
-  // Get task source from process metadata (fallback to 'kogito' if not available)
-  const taskSource: 'kogito' | 'cflow' = processMetadata?.source || 'kogito'
 
   // Use custom hook for data fetching (reuse from vacation approval)
   const {
@@ -107,15 +87,15 @@ const AcknowledgeEmployeeSickLeaveHR: React.FC<AcknowledgeEmployeeSickLeaveHRPro
         event: 'pse_submit'
       })
 
-      setSuccessMessage('Sick leave acknowledged successfully!')
+      setSuccessMessage(t('success-sick-leave-acknowledged'))
 
       // Allow time for user to see success message before closing
       setTimeout(() => {
         // Platform will handle closing the modal
       }, 1500)
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Failed to acknowledge'
-      setErrorMessage(`Failed to acknowledge: ${errorMsg}`)
+      const errorMsg = err instanceof Error ? err.message : t('error-failed-to-acknowledge')
+      setErrorMessage(`${t('error-failed-to-acknowledge')}: ${errorMsg}`)
     } finally {
       setIsAcknowledging(false)
     }
@@ -146,8 +126,6 @@ const AcknowledgeEmployeeSickLeaveHR: React.FC<AcknowledgeEmployeeSickLeaveHRPro
       header={
         <TaskDetailHeader
           title={taskTitle}
-          status={taskStatus}
-          source={taskSource}
           showEmployeeInfo={true}
           employeeData={
             employeeData
@@ -171,7 +149,7 @@ const AcknowledgeEmployeeSickLeaveHR: React.FC<AcknowledgeEmployeeSickLeaveHRPro
             data-testid="action-footer"
             actions={[
               {
-                label: 'Acknowledge',
+                label: t('action-acknowledge'),
                 onClick: handleAcknowledge,
                 variant: 'default' as const,
                 disabled: isAcknowledging || !!successMessage,
@@ -202,12 +180,14 @@ const AcknowledgeEmployeeSickLeaveHR: React.FC<AcknowledgeEmployeeSickLeaveHRPro
       {employeeAbsence && typeof employeeAbsence === 'object' && (
         <>
           <div data-testid="request-details-section">
-            <h4 className="gba:font-semibold gba:mb-4 gba:text-lg">Request Details</h4>
+            <h4 className="gba:font-semibold gba:mb-4 gba:text-lg">{t('section-request-details')}</h4>
             <div className="gba:bg-muted gba:p-4 gba:rounded-lg gba:space-y-3">
               {/* Type */}
               {absenceTypeName && (
                 <div className="gba:flex gba:items-start gba:gap-3">
-                  <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">Type:</span>
+                  <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
+                    {t('label-type')}:
+                  </span>
                   <span className="gba:text-sm gba:flex-1">{absenceTypeName}</span>
                 </div>
               )}
@@ -216,7 +196,7 @@ const AcknowledgeEmployeeSickLeaveHR: React.FC<AcknowledgeEmployeeSickLeaveHRPro
               {submissionDate && (
                 <div className="gba:flex gba:items-start gba:gap-3">
                   <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                    Submission Date:
+                    {t('label-submission-date')}:
                   </span>
                   <span className="gba:text-sm gba:flex-1">{dayjs(submissionDate).format('MMM D, YYYY')}</span>
                 </div>
@@ -226,7 +206,7 @@ const AcknowledgeEmployeeSickLeaveHR: React.FC<AcknowledgeEmployeeSickLeaveHRPro
               {employeeAbsence.startDate && employeeAbsence.endDate && (
                 <div className="gba:flex gba:items-start gba:gap-3">
                   <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                    Absence Duration:
+                    {t('label-absence-duration')}:
                   </span>
                   <span className="gba:text-sm gba:flex-1">
                     {(() => {
@@ -247,10 +227,10 @@ const AcknowledgeEmployeeSickLeaveHR: React.FC<AcknowledgeEmployeeSickLeaveHRPro
               {(employeeAbsence.workingDays !== undefined || employeeAbsence.workingHours !== undefined) && (
                 <div className="gba:flex gba:items-start gba:gap-3">
                   <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                    Working Days:
+                    {t('label-working-days')}:
                   </span>
                   <span className="gba:text-sm gba:flex-1">
-                    {formatWorkingDaysAndHours(employeeAbsence.workingDays, employeeAbsence.workingHours)}
+                    {formatWorkingDaysAndHours(employeeAbsence.workingDays, employeeAbsence.workingHours, t)}
                   </span>
                 </div>
               )}
@@ -259,10 +239,10 @@ const AcknowledgeEmployeeSickLeaveHR: React.FC<AcknowledgeEmployeeSickLeaveHRPro
               {employeeAbsence.substituteEmployee && (
                 <div className="gba:flex gba:items-start gba:gap-3">
                   <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                    Substitute:
+                    {t('label-substitute')}:
                   </span>
                   <span className="gba:text-sm gba:flex-1 gba:text-muted-foreground">
-                    {isLoadingSubstitute ? <Spinner size="sm" /> : substituteEmployeeName || 'Loading...'}
+                    {isLoadingSubstitute ? <Spinner size="sm" /> : substituteEmployeeName || t('loading')}
                   </span>
                 </div>
               )}
@@ -271,7 +251,7 @@ const AcknowledgeEmployeeSickLeaveHR: React.FC<AcknowledgeEmployeeSickLeaveHRPro
               {employeeAbsence.description?.trim() && (
                 <div className="gba:flex gba:items-start gba:gap-3">
                   <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                    Description:
+                    {t('label-description')}:
                   </span>
                   <span className="gba:text-sm gba:flex-1 gba:text-muted-foreground">
                     {employeeAbsence.description.trim()}
@@ -283,10 +263,10 @@ const AcknowledgeEmployeeSickLeaveHR: React.FC<AcknowledgeEmployeeSickLeaveHRPro
               {requestCreatedAt && (
                 <div className="gba:flex gba:items-start gba:gap-3">
                   <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                    Request Created:
+                    {t('label-request-created')}:
                   </span>
                   <span className="gba:text-sm gba:flex-1">
-                    {isLoadingRequestDate ? <Spinner size="sm" /> : formatDateTime(requestCreatedAt)}
+                    {isLoadingRequestDate ? <Spinner size="sm" /> : formatDateTime(requestCreatedAt, locale)}
                   </span>
                 </div>
               )}
@@ -306,7 +286,7 @@ const AcknowledgeEmployeeSickLeaveHR: React.FC<AcknowledgeEmployeeSickLeaveHRPro
             endDate={employeeAbsence.endDate}
             currentAbsence={{
               employeeId: employeeAbsence.employeeId || employeeData?.id || '',
-              employeeName: employeeData?.displayName || creatorName || 'Unknown',
+              employeeName: employeeData?.displayName || creatorName || t('unknown'),
               position: employeeData?.position || undefined,
               type: absenceTypeName,
               status: 'PENDING_APPROVAL'

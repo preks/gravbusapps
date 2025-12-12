@@ -129,16 +129,6 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
       const conversationsData = response.data || (response as any).conversations || []
       const total = response.total || 0
 
-      // Debug: Log conversations with unread counts
-      if (conversationsData.some((c: any) => c.unreadCount > 0)) {
-        console.log(
-          '[Chat] Conversations with unread counts:',
-          conversationsData
-            .filter((c: any) => c.unreadCount > 0)
-            .map((c: any) => ({ id: c.id, name: c.name, unreadCount: c.unreadCount, type: c.type }))
-        )
-      }
-
       // Check if there are more conversations to load
       setHasMore(conversationsData.length === LIMIT && conversationsData.length < total)
 
@@ -224,36 +214,102 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
     [enrichConversations]
   )
 
-  const updateConversationLastMessage = useCallback((conversationId: string, message: Message) => {
-    setConversations(prev => {
-      // Update the conversation
-      const updated = prev.map(conv =>
-        conv.id === conversationId
-          ? {
-              ...conv,
-              lastMessage: message,
-              updatedAt: new Date().toISOString()
-            }
-          : conv
+  const updateConversationLastMessage = useCallback(
+    async (conversationId: string, message: Message) => {
+      console.log(
+        '[useConversations] Updating last message for conversation:',
+        conversationId,
+        'Message:',
+        message.content?.substring(0, 30)
       )
 
-      // Re-sort by most recent activity (move updated conversation to top)
-      return updated.sort((a, b) => {
-        const aTime = a.lastMessage?.createdAt || a.updatedAt || a.createdAt
-        const bTime = b.lastMessage?.createdAt || b.updatedAt || b.createdAt
-        return new Date(bTime).getTime() - new Date(aTime).getTime()
+      setConversations(prev => {
+        // Check if conversation exists
+        const convExists = prev.some(c => c.id === conversationId)
+
+        if (!convExists) {
+          console.warn('[useConversations] Conversation not found in list:', conversationId, '- fetching from API')
+
+          // Trigger async fetch of the missing conversation
+          // This happens when a message arrives for a conversation that's not in the paginated list
+          if (apiClient) {
+            apiClient
+              .getConversationById(conversationId)
+              .then(async conversation => {
+                // Enrich before adding
+                const enriched = await enrichConversations([conversation])
+                const enrichedConv = enriched[0] || conversation
+
+                // Add to top of list with the new message
+                setConversations(currentConvs => {
+                  const withNew = [{ ...enrichedConv, lastMessage: message, unreadCount: 1 }, ...currentConvs]
+                  // Sort to ensure correct order
+                  return withNew.sort((a, b) => {
+                    const aTime = a.lastMessage?.createdAt || a.updatedAt || a.createdAt
+                    const bTime = b.lastMessage?.createdAt || b.updatedAt || b.createdAt
+                    return new Date(bTime).getTime() - new Date(aTime).getTime()
+                  })
+                })
+              })
+              .catch(err => {
+                console.error('[useConversations] Failed to fetch missing conversation:', err)
+              })
+          }
+
+          return prev
+        }
+
+        // Update the conversation
+        const updated = prev.map(conv =>
+          conv.id === conversationId
+            ? {
+                ...conv,
+                lastMessage: message,
+                updatedAt: new Date().toISOString()
+              }
+            : conv
+        )
+
+        // Re-sort by most recent activity (move updated conversation to top)
+        const sorted = updated.sort((a, b) => {
+          const aTime = a.lastMessage?.createdAt || a.updatedAt || a.createdAt
+          const bTime = b.lastMessage?.createdAt || b.updatedAt || b.createdAt
+          return new Date(bTime).getTime() - new Date(aTime).getTime()
+        })
+
+        console.log(
+          '[useConversations] Re-sorted conversations, top 3:',
+          sorted.slice(0, 3).map(c => ({ id: c.id, name: c.name || 'Direct' }))
+        )
+        return sorted
       })
-    })
-  }, [])
+    },
+    [apiClient, enrichConversations]
+  )
 
   const markConversationAsRead = useCallback((conversationId: string) => {
     setConversations(prev => prev.map(conv => (conv.id === conversationId ? { ...conv, unreadCount: 0 } : conv)))
   }, [])
 
   const incrementUnreadCount = useCallback((conversationId: string) => {
-    setConversations(prev =>
-      prev.map(conv => (conv.id === conversationId ? { ...conv, unreadCount: (conv.unreadCount || 0) + 1 } : conv))
-    )
+    console.log('[useConversations] Incrementing unread count for conversation:', conversationId)
+    setConversations(prev => {
+      const convExists = prev.some(c => c.id === conversationId)
+
+      if (!convExists) {
+        console.warn('[useConversations] Cannot increment unread count - conversation not in list:', conversationId)
+        return prev
+      }
+
+      return prev.map(conv => {
+        if (conv.id === conversationId) {
+          const newCount = (conv.unreadCount || 0) + 1
+          console.log('[useConversations] New unread count for', conversationId, ':', newCount)
+          return { ...conv, unreadCount: newCount }
+        }
+        return conv
+      })
+    })
   }, [])
 
   const removeConversation = useCallback((conversationId: string) => {

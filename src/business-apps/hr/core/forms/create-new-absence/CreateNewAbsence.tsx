@@ -65,6 +65,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
   }
   const mappedParentType = processName && processToParentAbsenceTypeMap[processName]
   const absenceType = mappedParentType || ''
+  const isSickLeaveProcess = processName === 'createEmployeeSickLeave'
 
   const [employees, setEmployees] = useState<Employee[]>([])
   const [employee, setEmployee] = useState<{
@@ -170,15 +171,13 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
   }, [types, formValuesState.selectedType, form])
 
   useEffect(() => {
-    const isHealthGroup = absenceType === 'AbsenceGroup:v1:HEALTH'
-
-    if (hasExistingSickLeave && existingSickLeave && isHealthGroup) {
+    if (hasExistingSickLeave && existingSickLeave && isSickLeaveProcess) {
       setShowSickLeaveOptions(true)
     } else {
       setShowSickLeaveOptions(false)
       setIsUpdateMode(false)
     }
-  }, [hasExistingSickLeave, existingSickLeave, absenceType])
+  }, [hasExistingSickLeave, existingSickLeave, isSickLeaveProcess])
 
   const isMandatoryFieldsCompleted = useMemo(() => {
     return !!(formValuesState.selectedType && formValuesState.startDate && formValuesState.endDate)
@@ -368,7 +367,14 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
         validateForm={validateForm}
         form={form}
         businessAppContext={props}
-        submitButtonText={isUpdateMode ? 'Update' : 'Submit'}
+        submitButtonText={
+          isUpdateMode
+            ? getTranslationFromI18nKeyAndLabel(
+                'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.btn_update',
+                'Update'
+              )
+            : getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.submit', 'Submit')
+        }
         isSubmitDisabled={!isFormValid || isValidating}
         data-testid="create-new-absence-form"
       >
@@ -599,8 +605,8 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
                 </div>
               )}
 
-              {/* File Upload Section - Only for Health Group */}
-              {absenceType === 'AbsenceGroup:v1:HEALTH' && (
+              {/* File Upload Section - Only for Sick Leave */}
+              {isSickLeaveProcess && (
                 <div className="gba:mb-4">
                   <Label className="gba:block gba:mb-2 gba:font-medium" data-testid="attachments-label">
                     {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.attachments', 'Attachments')}

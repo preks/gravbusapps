@@ -259,8 +259,7 @@ modal-request-benefit-type-label = Tipul Beneficiului
 modal-character-count = {$current} / {$max} caractere
 modal-character-minimum = (minim {$min} caractere)
 
-# Deactivation Reasons
-modal-deactivate-reason-no_longer_needed = Nu mai este necesar
-modal-deactivate-reason-found_alternative = A fost găsită o alternativă
-modal-deactivate-reason-cost_reduction = Reducerea costurilor
-modal-deactivate-reason-other = Altele (vă rugăm să specificați)
+# Form Validation Errors
+error-end-date-required = Data de încheiere este obligatorie
+error-end-date-today-or-later = Data de încheiere trebuie să fie astăzi sau mai târziu
+error-end-date-after-start-date = Data de încheiere trebuie să fie în sau după data de început a beneficiului

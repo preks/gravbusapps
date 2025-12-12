@@ -22,8 +22,9 @@ interface ConversationListProps {
   accessToken: string
   compact?: boolean
   getUserPresence?: (userId: string) => UserPresence
-  // Pass presenceMap to trigger re-renders when presence changes via WebSocket
-  presenceMap?: Map<string, UserPresence>
+  presenceVersion?: number // Version number that changes when any presence updates
+  // Map of conversation IDs to active expert counts
+  conversationExpertCounts?: Map<string, number>
 }
 
 // Helper to get the other participant's user ID from a direct conversation
@@ -52,11 +53,12 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   accessToken,
   compact = false,
   getUserPresence,
-  presenceMap // Used to trigger re-renders when presence changes - the actual lookup uses getUserPresence
+  presenceVersion, // Triggers re-render when presence changes (without passing entire map)
+  conversationExpertCounts
 }) => {
-  // Log presence map changes for debugging (can be removed after verification)
-  // The presenceMap prop ensures this component re-renders when any user's presence changes
-  void presenceMap // Explicitly reference to suppress unused variable warning
+  // Force re-render when presenceVersion changes
+  void presenceVersion
+
   const [searchQuery, setSearchQuery] = useState('')
   const [showUserSearch, setShowUserSearch] = useState(false)
   const [showNewChatMenu, setShowNewChatMenu] = useState(false)
@@ -218,6 +220,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
               {filteredConversations.map(conversation => {
                 const otherUserId = getOtherParticipantUserId(conversation, currentUserId)
                 const otherUserPresence = otherUserId && getUserPresence ? getUserPresence(otherUserId) : undefined
+                const activeExpertCount = conversationExpertCounts?.get(conversation.id) || 0
 
                 return (
                   <ConversationItem
@@ -229,6 +232,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                     currentUserId={currentUserId}
                     compact={compact}
                     otherUserPresence={otherUserPresence}
+                    activeExpertCount={activeExpertCount}
                   />
                 )
               })}

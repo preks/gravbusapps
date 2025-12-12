@@ -57,11 +57,6 @@ export const useGenericAccountsOverTime = (
 
   useEffect(() => {
     const fetchAccountsOverTime = async () => {
-      if (!accessToken) {
-        setIsLoading(false)
-        return
-      }
-
       try {
         setIsLoading(true)
         setError(null)
@@ -134,7 +129,9 @@ export const useGenericAccountsOverTime = (
       }
     }
 
-    fetchAccountsOverTime()
+    if (accessToken) {
+      fetchAccountsOverTime()
+    }
   }, [accessToken, timeFilter, config.accountEntity, config.opportunityRelation])
 
   return { accountsOverTime, isLoading, error }

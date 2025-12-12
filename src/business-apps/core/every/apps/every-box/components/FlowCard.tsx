@@ -6,16 +6,27 @@
 import React, { memo, useMemo, useState, useEffect } from 'react'
 import { Card, CardContent, Badge, Progress, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
 import { Calendar, Users, Zap, ArrowRight, FileText, DollarSign } from 'lucide-react'
+import dayjs from 'dayjs'
+import relativeTime from 'dayjs/plugin/relativeTime'
+import localizedFormat from 'dayjs/plugin/localizedFormat'
+import isToday from 'dayjs/plugin/isToday'
+import isYesterday from 'dayjs/plugin/isYesterday'
+import 'dayjs/locale/de'
+import 'dayjs/locale/en'
+import 'dayjs/locale/ro'
+import 'dayjs/locale/fr'
+import 'dayjs/locale/es'
+import 'dayjs/locale/it'
 import { Flow } from '../types'
-import {
-  formatRelativeTime,
-  formatDateTime,
-  getFlowStatusBadgeVariant,
-  formatFlowStatus
-} from '../utils/taskFormatters'
+import { getFlowStatusBadgeVariant, formatFlowStatus } from '../utils/taskFormatters'
 import { useEmployeeAvatar } from '../hooks/useEmployeeAvatar'
 import { base64ToObjectURL, getInitials, getDisplayName } from '../utils/avatarUtils'
 import { EmployeeAvatarData } from '../hooks/useEmployeeAvatarsBatch'
+
+dayjs.extend(relativeTime)
+dayjs.extend(localizedFormat)
+dayjs.extend(isToday)
+dayjs.extend(isYesterday)
 
 interface FlowCardProps {
   flow: Flow
@@ -24,6 +35,10 @@ interface FlowCardProps {
   isSelected?: boolean
   /** Pre-fetched employee data map - if provided, uses this instead of individual fetches */
   employeeMap?: Map<string, EmployeeAvatarData>
+  /** Translation function passed from parent to avoid useTranslation in each card */
+  t: (key: string, params?: Record<string, any>) => string
+  /** Locale string for date formatting (e.g., 'en-US', 'de-DE') */
+  locale: string
 }
 
 /**
@@ -94,8 +109,29 @@ const AssigneeAvatar: React.FC<AssigneeAvatarProps> = memo(({ userId, accessToke
 })
 
 export const FlowCard: React.FC<FlowCardProps> = memo(
-  ({ flow, onView, accessToken, isSelected = false, employeeMap }) => {
+  ({ flow, onView, accessToken, isSelected = false, employeeMap, t, locale }) => {
     const progressPercentage = flow.totalSteps > 0 ? Math.round((flow.currentStep / flow.totalSteps) * 100) : 0
+
+    // Date formatting functions
+    const baseLocale = locale?.split('-')[0]?.toLowerCase() || 'en'
+
+    const formatRelativeTime = (date: string | Date): string => {
+      return dayjs(date).locale(baseLocale).fromNow()
+    }
+
+    const formatDateTime = (date: string | Date): string => {
+      const d = dayjs(date)
+      const time = d.locale(baseLocale).format('LT')
+
+      if (d.isToday()) {
+        return `${t('formatter-today')}, ${time}`
+      }
+      if (d.isYesterday()) {
+        return `${t('formatter-yesterday')}, ${time}`
+      }
+
+      return d.locale(baseLocale).format('L LT')
+    }
 
     // Check if this is a blink flow (has blinkGroupId or is grouped)
     const isBlinkFlow = !!(flow.blinkGroupId || flow.isGrouped)
@@ -176,7 +212,7 @@ export const FlowCard: React.FC<FlowCardProps> = memo(
                       data-testid="flow-blink-badge"
                     >
                       <Zap className="gba:h-3 gba:w-3 gba:mr-1" />
-                      Blink
+                      {t('flow-card-blink')}
                     </Badge>
                     {visibleAssigneeIds.length > 0 && (
                       <div className="gba:flex gba:items-center gba:gap-1.5" data-testid="flow-blink-assignees">
@@ -206,23 +242,23 @@ export const FlowCard: React.FC<FlowCardProps> = memo(
                 {isServiceRequest && (
                   <Badge variant="secondary" data-testid="flow-service-badge">
                     <FileText className="gba:h-3 gba:w-3 gba:mr-1" />
-                    Service Request
+                    {t('flow-card-service-request')}
                   </Badge>
                 )}
                 {isExpenseFlow && (
                   <Badge variant="secondary" data-testid="flow-expense-badge">
                     <DollarSign className="gba:h-3 gba:w-3 gba:mr-1" />
-                    Expenses
+                    {t('flow-card-expenses')}
                   </Badge>
                 )}
                 {isAbsenceRequest && (
                   <Badge variant="secondary" data-testid="flow-absence-badge">
                     <Calendar className="gba:h-3 gba:w-3 gba:mr-1" />
-                    Absences
+                    {t('flow-card-absences')}
                   </Badge>
                 )}
                 <Badge variant={getFlowStatusBadgeVariant(flow.status)} data-testid="flow-status-badge">
-                  {formatFlowStatus(flow.status)}
+                  {formatFlowStatus(flow.status, t)}
                 </Badge>
               </div>
 
@@ -236,7 +272,7 @@ export const FlowCard: React.FC<FlowCardProps> = memo(
                   <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:mb-0.5">
                     <Users className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />
                     <span data-testid="flow-assignee-progress">
-                      {completedAssignees} of {assigneeCount} completed
+                      {t('flow-card-assignee-progress', { completed: completedAssignees, total: assigneeCount })}
                     </span>
                   </div>
                   <Progress
@@ -251,9 +287,9 @@ export const FlowCard: React.FC<FlowCardProps> = memo(
               {!shouldShowAssigneeProgress && flow.totalSteps > 0 && (
                 <div className="gba:mb-1.5">
                   <div className="gba:flex gba:items-center gba:justify-between gba:text-xs gba:text-muted-foreground gba:mb-0.5">
-                    <span>Progress</span>
+                    <span>{t('flow-card-progress')}</span>
                     <span data-testid="flow-progress-text">
-                      {flow.currentStep} of {flow.totalSteps} steps
+                      {t('flow-card-steps', { current: flow.currentStep, total: flow.totalSteps })}
                     </span>
                   </div>
                   <Progress value={progressPercentage} className="gba:h-1.5" data-testid="flow-progress-bar" />
@@ -263,10 +299,14 @@ export const FlowCard: React.FC<FlowCardProps> = memo(
               <div className="gba:flex gba:items-center gba:gap-4 gba:text-xs gba:text-muted-foreground">
                 <div className="gba:flex gba:items-center gba:gap-1">
                   <Calendar className="gba:h-3 gba:w-3" />
-                  <span data-testid="flow-started-at">Started {formatRelativeTime(flow.startedAt)}</span>
+                  <span data-testid="flow-started-at">
+                    {t('flow-card-started', { date: formatRelativeTime(flow.startedAt) })}
+                  </span>
                 </div>
                 {flow.completedAt && (
-                  <span data-testid="flow-completed-at">Completed {formatDateTime(flow.completedAt)}</span>
+                  <span data-testid="flow-completed-at">
+                    {t('flow-card-completed', { date: formatDateTime(flow.completedAt) })}
+                  </span>
                 )}
               </div>
             </div>

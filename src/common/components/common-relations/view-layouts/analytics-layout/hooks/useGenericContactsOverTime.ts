@@ -29,11 +29,6 @@ export const useGenericContactsOverTime = (
 
   useEffect(() => {
     const fetchContactsOverTime = async () => {
-      if (!accessToken) {
-        setIsLoading(false)
-        return
-      }
-
       try {
         setIsLoading(true)
         setError(null)
@@ -79,7 +74,9 @@ export const useGenericContactsOverTime = (
       }
     }
 
-    fetchContactsOverTime()
+    if (accessToken) {
+      fetchContactsOverTime()
+    }
   }, [accessToken, selectedTimeFilter, config.contactEntity])
 
   return { contactsOverTime, isLoading, error }
