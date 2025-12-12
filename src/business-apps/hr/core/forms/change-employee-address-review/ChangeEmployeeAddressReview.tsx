@@ -83,8 +83,10 @@ const determineChangeMode = (changeMode: string) => {
 }
 
 // Helper: Extract employee ID from payload
-const extractEmployeeId = (taskPayload: any, userInfo: any): string | undefined => {
-  return taskPayload?.address?.employeeId || userInfo?.employeeDetails?.employeeId
+// Priority: 1) top-level employeeId, 2) nested in address object
+// Note: If both are missing, creatorUserId will be used to lookup employee in the hook
+const extractEmployeeId = (taskPayload: any): string | undefined => {
+  return taskPayload?.employeeId || taskPayload?.address?.employeeId || undefined
 }
 
 // Helper: Create catalog value formatter
@@ -111,7 +113,6 @@ const createAddressTypeFormatter = (t: (key: string) => string) => {
 const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewProps> = ({
   accessToken,
   additionalData,
-  userInfo,
   onClose
 }) => {
   // Translation hook
@@ -136,12 +137,13 @@ const ChangeEmployeeAddressReviewContent: React.FC<ChangeEmployeeAddressReviewPr
   const newAddress: AddressData = taskPayload?.address || {}
   const oldAddress: AddressData = taskPayload?.oldAddressData || {}
   const { isDeleteMode, isInsertMode } = determineChangeMode(taskPayload?.changeMode)
-  const employeeIdFromPayload = extractEmployeeId(taskPayload, userInfo)
+  const employeeIdFromPayload = extractEmployeeId(taskPayload)
 
   // Fetch employee and catalog data
   const { employeeData, catalogMap, docNameMap, loading, error, refetch } = useAddressReviewData({
     accessToken,
     employeeId: employeeIdFromPayload,
+    creatorUserId: taskPayload?.creatorUserId, // Pass creator user ID for employee lookup when employeeId is null
     newAddress,
     oldAddress
   })
