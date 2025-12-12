@@ -381,12 +381,40 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
         for (const regionId of set.childRegionIds) {
           console.log(`🗑️ Hard deleting child region: ${regionId}`)
           try {
-            // Extract the short ID for the DELETE endpoint
-            // Format: "TravelRegion:v1:02" -> use "02"
+            // Step 3a: Check and delete catalog_entry_localized records first
+            console.log(`  Checking for localized entries for ${regionId}...`)
+            const localizedQuery = `
+              query GetLocalizedEntries($catalogEntryId: String!) {
+                CatalogEntryLocalized(where: { catalogEntryId: { _eq: $catalogEntryId } }) {
+                  id
+                  catalogEntryId
+                  localeCode
+                }
+              }
+            `
+            const localizedResult = await graphqlClient.request<any>(localizedQuery, { catalogEntryId: regionId })
+            const localizedEntries = localizedResult.CatalogEntryLocalized || []
+            
+            if (localizedEntries.length > 0) {
+              console.log(`  Found ${localizedEntries.length} localized entries, deleting...`)
+              const deleteLocalizedMutation = `
+                mutation DeleteLocalizedEntries($catalogEntryId: String!) {
+                  delete_CatalogEntryLocalized(where: { catalogEntryId: { _eq: $catalogEntryId } }) {
+                    affected_rows
+                  }
+                }
+              `
+              const deleteLocalizedResult = await graphqlClient.request<any>(deleteLocalizedMutation, { catalogEntryId: regionId })
+              console.log(`  ✅ Deleted ${deleteLocalizedResult.delete_CatalogEntryLocalized.affected_rows} localized entries`)
+            } else {
+              console.log(`  No localized entries found`)
+            }
+
+            // Step 3b: Now hard delete the catalog entry
             const entryIdParts = regionId.split(':')
             const shortId = entryIdParts.length >= 3 ? entryIdParts[2] : regionId
 
-            console.log(`  Hard deleting with ID: ${shortId}`)
+            console.log(`  Hard deleting catalog entry with ID: ${shortId}`)
             const result = await catalogClient.deleteCatalogEntry('TravelRegion', 'v1', shortId)
             console.log(`✅ Hard deleted region ${regionId}:`, result)
           } catch (err: any) {
@@ -406,12 +434,43 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
 
       // Step 4: Hard delete the travel region set (DELETE endpoint will physically remove it)
       console.log('🗑️ Hard deleting travel region set:', set.id)
+      
+      // Step 4a: Check and delete catalog_entry_localized records for the set first
+      console.log(`  Checking for localized entries for set ${set.id}...`)
+      const setLocalizedQuery = `
+        query GetSetLocalizedEntries($catalogEntryId: String!) {
+          CatalogEntryLocalized(where: { catalogEntryId: { _eq: $catalogEntryId } }) {
+            id
+            catalogEntryId
+            localeCode
+          }
+        }
+      `
+      const setLocalizedResult = await graphqlClient.request<any>(setLocalizedQuery, { catalogEntryId: set.id })
+      const setLocalizedEntries = setLocalizedResult.CatalogEntryLocalized || []
+      
+      if (setLocalizedEntries.length > 0) {
+        console.log(`  Found ${setLocalizedEntries.length} localized entries for set, deleting...`)
+        const deleteSetLocalizedMutation = `
+          mutation DeleteSetLocalizedEntries($catalogEntryId: String!) {
+            delete_CatalogEntryLocalized(where: { catalogEntryId: { _eq: $catalogEntryId } }) {
+              affected_rows
+            }
+          }
+        `
+        const deleteSetLocalizedResult = await graphqlClient.request<any>(deleteSetLocalizedMutation, { catalogEntryId: set.id })
+        console.log(`  ✅ Deleted ${deleteSetLocalizedResult.delete_CatalogEntryLocalized.affected_rows} localized entries for set`)
+      } else {
+        console.log(`  No localized entries found for set`)
+      }
+
+      // Step 4b: Now hard delete the catalog entry for the set
       // Extract the short ID for the DELETE endpoint
       // Format: "TravelRegionSet:v1:Miahela Test" -> use "Miahela Test"
       const setIdParts = set.id.split(':')
       const shortSetId = setIdParts.length >= 3 ? setIdParts.slice(2).join(':') : set.id
 
-      console.log(`  Hard deleting set with ID: ${shortSetId}`)
+      console.log(`  Hard deleting set catalog entry with ID: ${shortSetId}`)
       const setDeleteResult = await catalogClient.deleteCatalogEntry('TravelRegionSet', 'v1', shortSetId)
       console.log('✅ Hard deleted travel region set:', setDeleteResult)
 

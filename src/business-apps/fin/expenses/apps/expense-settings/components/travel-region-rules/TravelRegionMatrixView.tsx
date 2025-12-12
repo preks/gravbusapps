@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Button,
   Alert,
@@ -28,44 +28,35 @@ import { toast } from 'sonner'
 import { PiArrowLeft, PiPlus, PiMapPin, PiFloppyDisk, PiDotsSixVertical, PiTrash } from 'react-icons/pi'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { ExpenseSettingsClient } from '../../utils/ExpenseSettingsClient'
 import TravelRegionRuleForm from '../../forms/travel-region-rule-form/TravelRegionRuleForm'
 import TravelRegionForm from '../../forms/travel-region-form/TravelRegionForm'
 import { useAllowanceRuleUsageCheck } from '../../hooks'
 import MileageRulesPagination from '../mileage-rules/MileageRulesPagination'
-import { useMatrixDataLoaders, useMatrixCellEditing, useMatrixSaveHandlers } from './hooks'
 import {
-  EditableCell,
-  EditableTravelRegion,
-  EditableAllowanceRegionRule,
-  ValidityPeriod,
-  CurrencyOption,
-  UsageInfo
-} from './types'
+  useMatrixDataLoaders,
+  useMatrixCellEditing,
+  useMatrixSaveHandlers,
+  useMatrixPagination,
+  useMatrixSearch,
+  useMatrixSorting,
+  useMatrixModals,
+  useDetailUsageValidation
+} from './hooks'
+import { EditableCell, EditableTravelRegion, EditableAllowanceRegionRule, ValidityPeriod, CurrencyOption } from './types'
+import { formatDate, formatPeriodShort } from './utils/matrixFormatters'
+import { convertToEditableCells, validateCurrencies } from './utils/matrixDataTransformers'
+import { regionHasSavedDetails as checkRegionHasSavedDetails } from './utils/matrixValidation'
 import dayjs from 'dayjs'
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent
-} from '@dnd-kit/core'
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  horizontalListSortingStrategy,
-  useSortable
-} from '@dnd-kit/sortable'
+import { DndContext, closestCenter } from '@dnd-kit/core'
+import { SortableContext, horizontalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
 interface TravelRegion {
   id: string
   code: string
   value: string
+  objectValue?: any
 }
 
 interface TravelRegionMatrixViewProps extends BusinessAppContextProps {
@@ -90,7 +81,6 @@ const SortableColumnHeader: React.FC<{
     opacity: isDragging ? 0.5 : 1
   }
 
-  // Check if rule has any details
   const hasDetails = rule.details && rule.details.length > 0
 
   return (
@@ -114,17 +104,16 @@ const SortableColumnHeader: React.FC<{
             >
               <PiPlus className="gba:w-3 gba:h-3" />
             </Button>
-            {!hasDetails && (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => onDeleteRule(rule)}
-                className="gba:h-6 gba:w-6 gba:p-0 gba:text-destructive hover:gba:text-destructive hover:gba:bg-destructive-secondary"
-                title="Delete this rule"
-              >
-                <PiTrash className="gba:w-3 gba:h-3" />
-              </Button>
-            )}
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => onDeleteRule(rule)}
+              className="gba:h-6 gba:w-6 gba:p-0 gba:text-destructive hover:gba:text-destructive hover:gba:bg-destructive-secondary"
+              title={hasDetails ? 'Cannot delete rule with existing details' : 'Delete this rule'}
+              disabled={hasDetails}
+            >
+              <PiTrash className="gba:w-3 gba:h-3" />
+            </Button>
           </div>
         </div>
         {children}
@@ -140,59 +129,21 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
   travelRegionSetName,
   onBack
 }) => {
+  // State
   const [editableTravelRegions, setEditableTravelRegions] = useState<EditableTravelRegion[]>([])
   const [allowanceRegionRules, setAllowanceRegionRules] = useState<EditableAllowanceRegionRule[]>([])
   const [editableCells, setEditableCells] = useState<EditableCell[]>([])
   const [currencies, setCurrencies] = useState<CurrencyOption[]>([])
-  const [countries, setCountries] = useState<CurrencyOption[]>([]) // Reuse CurrencyOption type for countries
+  const [countries, setCountries] = useState<CurrencyOption[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [isRuleModalOpen, setIsRuleModalOpen] = useState(false)
-  const [isRuleModalLoading, setIsRuleModalLoading] = useState(false)
-  const [isRegionModalOpen, setIsRegionModalOpen] = useState(false)
-
-  // Edit rule modal state (for adding detail from rule header +)
-  const [isEditRuleModalOpen, setIsEditRuleModalOpen] = useState(false)
-  const [isEditRuleModalLoading, setIsEditRuleModalLoading] = useState(false)
-  const [selectedRuleForEdit, setSelectedRuleForEdit] = useState<EditableAllowanceRegionRule | null>(null)
-
-  // Usage check state
-  const [ruleUsageInfo, setRuleUsageInfo] = useState<UsageInfo | null>(null)
-  const { checkAllowanceRuleUsage, isChecking: isCheckingUsage } = useAllowanceRuleUsageCheck(accessToken)
-
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
-  const [totalRegions, setTotalRegions] = useState(0)
-  const [isLoadingRegions, setIsLoadingRegions] = useState(false)
-
-  // Search state
-  const [searchTerm, setSearchTerm] = useState('')
-  const [isSearching, setIsSearching] = useState(false)
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-
-  // Filter state - show regions with details first (default: true)
   const [showRegionsWithDetailsFirst, setShowRegionsWithDetailsFirst] = useState(true)
-
-  // Delete region confirmation state
-  const [deleteRegionConfirmation, setDeleteRegionConfirmation] = useState<{
-    isOpen: boolean
-    region: TravelRegion | null
-  }>({ isOpen: false, region: null })
-  const [isDeletingRegion, setIsDeletingRegion] = useState(false)
+  const [ruleUsageInfo, setRuleUsageInfo] = useState<any>(null)
 
   const catalogClient = useCatalogManagerClient(accessToken)
-  const graphqlClient = useGraphQLClient(accessToken)
+  const { checkAllowanceRuleUsage, isChecking: isCheckingUsage } = useAllowanceRuleUsageCheck(accessToken)
 
-  // Use data loaders hook - extracts complex loading logic
-  const {
-    loadCurrencies,
-    loadTravelRegions: loadTravelRegionsFromHook,
-    loadAllowanceRegionRules,
-    fetchTravelRegionCount
-  } = useMatrixDataLoaders({ accessToken, travelRegionSetId })
-
-  // Create a function to get a fresh client with current token
+  // Get expense settings client
   const getExpenseSettingsClient = useCallback(() => {
     const client = new ExpenseSettingsClient()
     if (accessToken) {
@@ -201,292 +152,23 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     return client
   }, [accessToken])
 
-  // Check if a specific AllowanceRegionRuleDetail is used in transactions
-  const checkDetailUsage = useCallback(
-    async (detailId: string): Promise<UsageInfo> => {
-      const query = `
-      query CheckDetailUsage($detailId: uuid!) {
-        expenseAllowanceCount: ExpenseAllowanceAggregate(
-          where: { 
-            allowanceRegionRuleDetailId: { _eq: $detailId }
-            isDeleted: { _eq: false }
-          }
-        ) {
-          aggregate { count }
-        }
-        expenseRequestTripCount: ExpenseRequestTripAggregate(
-          where: { 
-            allowanceRegionRuleDetailId: { _eq: $detailId }
-            isDeleted: { _eq: false }
-          }
-        ) {
-          aggregate { count }
-        }
-        expenseRequestTripTimeCount: ExpenseRequestTripTimeAggregate(
-          where: { 
-            allowanceRegionRuleDetailId: { _eq: $detailId }
-            isDeleted: { _eq: false }
-          }
-        ) {
-          aggregate { count }
-        }
-      }
-    `
+  // Data loaders
+  const { loadCurrencies, loadTravelRegions: loadTravelRegionsFromHook, loadAllowanceRegionRules, fetchTravelRegionCount } =
+    useMatrixDataLoaders({ accessToken, travelRegionSetId })
 
-      const result = await graphqlClient.request<{
-        expenseAllowanceCount: { aggregate: { count: number } }
-        expenseRequestTripCount: { aggregate: { count: number } }
-        expenseRequestTripTimeCount: { aggregate: { count: number } }
-      }>(query, { detailId })
-
-      const allowanceCount = result.expenseAllowanceCount?.aggregate?.count || 0
-      const tripCount = result.expenseRequestTripCount?.aggregate?.count || 0
-      const tripTimeCount = result.expenseRequestTripTimeCount?.aggregate?.count || 0
-      const totalUsage = allowanceCount + tripCount + tripTimeCount
-
-      if (totalUsage === 0) {
-        return { isUsed: false, usedIn: {}, message: '' }
-      }
-
-      const usageDetails: string[] = []
-      if (allowanceCount > 0) usageDetails.push(`${allowanceCount} expense allowance(s)`)
-      if (tripCount > 0) usageDetails.push(`${tripCount} trip(s)`)
-      if (tripTimeCount > 0) usageDetails.push(`${tripTimeCount} trip time(s)`)
-
-      return {
-        isUsed: true,
-        usedIn: { allowanceCount, tripCount, tripTimeCount },
-        message: `This detail is used in ${usageDetails.join(', ')}. Only "Valid To" can be edited.`
-      }
-    },
-    [graphqlClient]
-  )
-
-  // Drag and drop sensors
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates
-    })
-  )
-
-  const formatDate = (dateString?: string): string => {
-    if (!dateString) return ''
-    return dayjs(dateString).format('DD/MM/YYYY')
-  }
-
-  // Wrapper for loadTravelRegions that updates totalRegions state
+  // Wrapper for loadTravelRegions
   const loadTravelRegions = useCallback(
     async (page: number, limit: number, search: string = '') => {
       try {
-        setIsLoadingRegions(true)
-
-        const [totalCount, regions] = await Promise.all([
-          fetchTravelRegionCount(travelRegionSetId),
-          loadTravelRegionsFromHook(page, limit, search)
-        ])
-
-        setTotalRegions(totalCount)
+        const regions = await loadTravelRegionsFromHook(page, limit, search)
         return regions
       } catch (err) {
         console.error('Error loading travel regions:', err)
         return []
-      } finally {
-        setIsLoadingRegions(false)
       }
     },
-    [fetchTravelRegionCount, loadTravelRegionsFromHook, travelRegionSetId]
+    [loadTravelRegionsFromHook]
   )
-
-  // Handle search
-  const handleSearch = useCallback(
-    async (search: string) => {
-      setCurrentPage(1) // Reset to first page when searching
-      setIsSearching(true)
-
-      try {
-        const regions = await loadTravelRegions(1, pageSize, search)
-
-        // Update the regions state
-        const editableRegions = regions.map(region => ({
-          ...region,
-          isEditing: false,
-          editingCode: region.code,
-          editingValue: region.value,
-          validityPeriods: [],
-          isModified: false,
-          isNew: false
-        }))
-        setEditableTravelRegions(editableRegions)
-
-        // Regenerate cells for new regions
-        const cells = convertToEditableCells(allowanceRegionRules, regions)
-        const validatedCells = validateCurrencies(cells)
-        setEditableCells(validatedCells)
-      } catch (err) {
-        console.error('❌ Error searching regions:', err)
-      } finally {
-        setIsSearching(false)
-      }
-    },
-    [loadTravelRegions, pageSize, allowanceRegionRules]
-  )
-
-  // Helper to check if a region has any details in the current rules
-  // Simple check: does any rule have a detail for this specific region ID?
-  const regionHasDetails = useCallback((region: TravelRegion, rules: EditableAllowanceRegionRule[]): boolean => {
-    return rules.some(rule => rule.details?.some(detail => detail.travelRegion?.id === region.id))
-  }, [])
-
-  // Get sorted regions - with details first if checkbox is checked
-  const sortedRegions = useMemo(() => {
-    console.log('🔍 Sorting ALL regions:', {
-      showRegionsWithDetailsFirst,
-      totalRegions: editableTravelRegions.length,
-      totalRules: allowanceRegionRules.length,
-      travelRegionSetId
-    })
-
-    if (!showRegionsWithDetailsFirst) {
-      // When checkbox is unchecked, return regions alphabetically
-      return editableTravelRegions
-    }
-
-    // Separate regions into two groups: with details and without details
-    const regionsWithDetails: TravelRegion[] = []
-    const regionsWithoutDetails: TravelRegion[] = []
-
-    editableTravelRegions.forEach(region => {
-      if (regionHasDetails(region, allowanceRegionRules)) {
-        regionsWithDetails.push(region)
-      } else {
-        regionsWithoutDetails.push(region)
-      }
-    })
-
-    console.log('🔍 Sort result:', {
-      withDetails: regionsWithDetails.length,
-      withoutDetails: regionsWithoutDetails.length,
-      sampleWithDetails: regionsWithDetails.slice(0, 5).map(r => ({ code: r.code, value: r.value })),
-      sampleWithoutDetails: regionsWithoutDetails.slice(0, 5).map(r => ({ code: r.code, value: r.value }))
-    })
-
-    // Return: regions with details first, then regions without details
-    return [...regionsWithDetails, ...regionsWithoutDetails]
-  }, [editableTravelRegions, allowanceRegionRules, showRegionsWithDetailsFirst, regionHasDetails, travelRegionSetId])
-
-  // Client-side pagination: slice the sorted array based on current page
-  const paginatedRegions = useMemo(() => {
-    const startIndex = (currentPage - 1) * pageSize
-    const endIndex = startIndex + pageSize
-    const page = sortedRegions.slice(startIndex, endIndex)
-
-    console.log('🔍 Pagination:', {
-      currentPage,
-      pageSize,
-      totalRegions: sortedRegions.length,
-      startIndex,
-      endIndex,
-      pageRegions: page.length,
-      firstRegion: page[0] ? { code: page[0].code, value: page[0].value } : null,
-      lastRegion: page[page.length - 1]
-        ? { code: page[page.length - 1].code, value: page[page.length - 1].value }
-        : null
-    })
-
-    return page
-  }, [sortedRegions, currentPage, pageSize])
-
-  // Check if any region has details in the CURRENT travel region set
-  const anyRegionHasDetails = useMemo(() => {
-    // Check across all regions (not just current page)
-    const hasAny = editableTravelRegions.some(region => regionHasDetails(region, allowanceRegionRules))
-
-    console.log('🔍 Checking anyRegionHasDetails:', {
-      result: hasAny,
-      totalRegions: editableTravelRegions.length,
-      totalRules: allowanceRegionRules.length
-    })
-
-    return hasAny
-  }, [editableTravelRegions, allowanceRegionRules, regionHasDetails])
-
-  // Convert rule details to editable cells
-  const convertToEditableCells = useCallback(
-    (rules: EditableAllowanceRegionRule[], regions: TravelRegion[]): EditableCell[] => {
-      const cells: EditableCell[] = []
-
-      rules.forEach(rule => {
-        regions.forEach(region => {
-          // Find existing details for this rule-region combination
-          // Match strictly by travel region ID only
-          const existingDetails =
-            rule.details?.filter(detail => {
-              return detail.travelRegion?.id === region.id
-            }) || []
-
-          if (existingDetails.length > 0) {
-            // Create cells for existing details
-            existingDetails.forEach(detail => {
-              // Find the matching validity period for this detail
-              const periodKey = `${detail.activeFrom}-${detail.activeTo || 'null'}`
-              const matchingPeriod = rule.validityPeriods.find(p => p.id === periodKey)
-
-              cells.push({
-                id: detail.id,
-                travelRegionId: region.id,
-                allowanceRegionRuleId: rule.id,
-                amount: detail.amount,
-                currencyCode: detail.currency?.code || 'EUR',
-                currencyRef: detail.currency?.id || detail.currencyRef, // Store full currency ID
-                countryRef: detail.country?.id || detail.countryRef, // Store full country ID
-                activeFrom: detail.activeFrom,
-                activeTo: detail.activeTo,
-                version: detail.version, // Version for optimistic locking
-                isNew: false,
-                isModified: false,
-                validityPeriodId: matchingPeriod?.id // Link to the validity period
-              })
-            })
-          }
-          // Note: We no longer create empty placeholders here
-          // Cells are created on-demand when clicking or adding a period
-        })
-      })
-
-      return cells
-    },
-    []
-  )
-
-  // Validate currency consistency for each region
-  const validateCurrencies = useCallback((cells: EditableCell[]): EditableCell[] => {
-    const regionCurrencies: { [regionId: string]: Set<string> } = {}
-
-    // Group currencies by region
-    cells.forEach(cell => {
-      if (cell.amount > 0) {
-        if (!regionCurrencies[cell.travelRegionId]) {
-          regionCurrencies[cell.travelRegionId] = new Set()
-        }
-        regionCurrencies[cell.travelRegionId].add(cell.currencyCode)
-      }
-    })
-
-    // Mark cells with currency conflicts
-    const finalCells = cells.map(cell => {
-      const regionCurrenciesSet = regionCurrencies[cell.travelRegionId]
-      const hasConflict = regionCurrenciesSet && regionCurrenciesSet.size > 1
-
-      return {
-        ...cell,
-        hasError: hasConflict,
-        errorMessage: hasConflict ? 'Currency mismatch in this region' : undefined
-      }
-    })
-
-    return finalCells
-  }, [])
 
   // Load all data
   const loadData = useCallback(async () => {
@@ -494,10 +176,8 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     setError(null)
 
     try {
-      // Always load ALL regions (no pagination in API call)
-      // We'll handle pagination client-side after sorting
       const [allRegions, rulesData, currenciesData, countriesData] = await Promise.all([
-        loadTravelRegions(1, 9999, ''), // Load ALL regions
+        loadTravelRegions(1, 9999, ''),
         loadAllowanceRegionRules(),
         loadCurrencies(),
         catalogClient.getCatalogEntriesList(
@@ -517,14 +197,12 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
         }))
       )
 
-      // Generate cells for ALL rules and ALL regions
       const allRegionsForCells = [...allRegions, ...regionsWithDetails]
       const uniqueRegionsForCells = Array.from(new Map(allRegionsForCells.map(r => [r.id, r])).values())
       const cells = convertToEditableCells(rules, uniqueRegionsForCells)
       const validatedCells = validateCurrencies(cells)
       setEditableCells(validatedCells)
 
-      // Store ALL regions - pagination will be handled client-side
       const allRegionsForDisplay = [...allRegions, ...regionsWithDetails]
       const uniqueRegionsForDisplay = Array.from(new Map(allRegionsForDisplay.map(r => [r.id, r])).values())
 
@@ -543,16 +221,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     } finally {
       setIsLoading(false)
     }
-  }, [
-    loadTravelRegions,
-    loadAllowanceRegionRules,
-    loadCurrencies,
-    validateCurrencies,
-    convertToEditableCells,
-    currentPage,
-    pageSize
-    // Remove showRegionsWithDetailsFirst dependency - sorting is client-side now
-  ])
+  }, [loadTravelRegions, loadAllowanceRegionRules, loadCurrencies, catalogClient])
 
   useEffect(() => {
     if (accessToken && travelRegionSetId) {
@@ -560,19 +229,69 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     }
   }, [accessToken, travelRegionSetId, loadData])
 
-  // Use cell editing hook - extracts cell edit logic (must be after loadData definition)
-  const {
-    editingCellId,
-    editingCellUsageInfo,
-    isCheckingCellUsage,
-    isSavingCell,
-    handleEnterCellEdit,
-    updateCellField,
-    handleSaveSingleCell,
-    handleRemoveNewCell,
-    setEditingCellId,
-    setEditingCellUsageInfo
-  } = useMatrixCellEditing({
+  // Pagination
+  const pagination = useMatrixPagination({
+    loadTravelRegions,
+    allowanceRegionRules,
+    setEditableTravelRegions,
+    convertToEditableCells,
+    validateCurrencies,
+    setEditableCells
+  })
+
+  // Search
+  const search = useMatrixSearch({
+    loadTravelRegions,
+    loadData,
+    pageSize: pagination.state.pageSize,
+    allowanceRegionRules,
+    setEditableTravelRegions,
+    setEditableCells,
+    convertToEditableCells,
+    validateCurrencies,
+    setCurrentPage: pagination.actions.setCurrentPage
+  })
+
+  // Sorting
+  const sorting = useMatrixSorting({
+    showRegionsWithDetailsFirst,
+    editableTravelRegions,
+    allowanceRegionRules,
+    setAllowanceRegionRules,
+    setEditableCells,
+    convertToEditableCells,
+    validateCurrencies,
+    travelRegionSetId
+  })
+
+  // Detail usage validation
+  const { checkDetailUsage } = useDetailUsageValidation({ accessToken })
+
+  // Helper to check if a region has saved details
+  const regionHasSavedDetails = useCallback(
+    (regionId: string): boolean => {
+      return checkRegionHasSavedDetails(regionId, allowanceRegionRules)
+    },
+    [allowanceRegionRules]
+  )
+
+  // Modals (with loadData now available)
+  const modals = useMatrixModals({
+    travelRegionSetId,
+    allowanceRegionRules,
+    getExpenseSettingsClient,
+    loadData,
+    handlePageChange: pagination.actions.handlePageChange,
+    currentPage: pagination.state.currentPage,
+    checkAllowanceRuleUsage,
+    catalogClient,
+    regionHasSavedDetails,
+    setRuleUsageInfo,
+    accessToken
+  })
+
+  // Cell editing
+  const cellEditing = useMatrixCellEditing({
     accessToken,
     currencies,
     allowanceRegionRules,
@@ -585,7 +304,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     getExpenseSettingsClient
   })
 
-  // Use save handlers hook
+  // Save handlers
   const { isSaving, handleSaveAll } = useMatrixSaveHandlers({
     accessToken,
     editableCells,
@@ -595,422 +314,44 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     getExpenseSettingsClient
   })
 
-  // Handle page change
-  const handlePageChange = useCallback(
-    async (newPage: number) => {
-      setCurrentPage(newPage)
-      setIsLoadingRegions(true)
+  // Delete rule handler
+  const handleDeleteRule = useCallback(
+    async (rule: EditableAllowanceRegionRule) => {
+      if (rule.details && rule.details.length > 0) {
+        toast.error('Cannot delete rule with existing details')
+        return
+      }
+
+      if (!confirm(`Are you sure you want to delete the rule "${rule.name}"?`)) {
+        return
+      }
 
       try {
-        const paginatedRegions = await loadTravelRegions(newPage, pageSize, '')
-
-        // Get regions with details from current rules
-        const regionsWithDetailsMap = new Map<string, TravelRegion>()
-        allowanceRegionRules.forEach(rule => {
-          rule.details?.forEach(detail => {
-            if (detail.travelRegion && detail.travelRegion.id) {
-              const regionId = detail.travelRegion.id
-              if (!regionsWithDetailsMap.has(regionId)) {
-                regionsWithDetailsMap.set(regionId, {
-                  id: detail.travelRegion.id,
-                  code: detail.travelRegion.code,
-                  value: detail.travelRegion.value
-                })
-              }
-            }
-          })
-        })
-        const regionsWithDetails = Array.from(regionsWithDetailsMap.values())
-
-        // Include regions with details that might be on other pages
-        const allRegionsForDisplay = [...paginatedRegions, ...regionsWithDetails]
-        const uniqueRegionsForDisplay = Array.from(new Map(allRegionsForDisplay.map(r => [r.id, r])).values())
-
-        setEditableTravelRegions(
-          uniqueRegionsForDisplay.map(region => ({
-            ...region,
-            isEditing: false,
-            editingCode: region.code,
-            editingValue: region.value,
-            isModified: false,
-            isNew: false
-          }))
-        )
-
-        // Generate cells for ALL rules and ALL regions (including those with details)
-        // This ensures details are available for rendering even if region is on another page
-        const cells = convertToEditableCells(allowanceRegionRules, uniqueRegionsForDisplay)
-        const validatedCells = validateCurrencies(cells)
-        setEditableCells(validatedCells)
+        const client = getExpenseSettingsClient()
+        await client.deleteAllowanceRegionRule(rule.id, rule.version)
+        toast.success('Rule deleted successfully')
+        await loadData()
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load page')
-      } finally {
-        setIsLoadingRegions(false)
+        console.error('Error deleting rule:', err)
+        toast.error('Failed to delete rule')
       }
     },
-    [loadTravelRegions, pageSize, allowanceRegionRules, validateCurrencies, convertToEditableCells]
+    [getExpenseSettingsClient, loadData]
   )
 
-  // Cleanup search timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current)
-      }
-    }
-  }, [])
-
-  // Handle drag end for column reordering
-  const handleDragEnd = useCallback(
-    (event: DragEndEvent) => {
-      const { active, over } = event
-
-      if (active.id !== over?.id) {
-        setAllowanceRegionRules(rules => {
-          const oldIndex = rules.findIndex(rule => rule.id === active.id)
-          const newIndex = rules.findIndex(rule => rule.id === over?.id)
-
-          const newRules = arrayMove(rules, oldIndex, newIndex)
-
-          // Update rule order
-          const updatedRules = newRules.map((rule, index) => ({
-            ...rule,
-            ruleOrder: index + 1
-          }))
-
-          // Regenerate editable cells with new order
-          const currentRegions = editableTravelRegions.map(r => ({ id: r.id, code: r.code, value: r.value }))
-          const newCells = convertToEditableCells(updatedRules, currentRegions)
-          const validatedCells = validateCurrencies(newCells)
-          setEditableCells(validatedCells)
-
-          return updatedRules
-        })
-      }
-    },
-    [editableTravelRegions, validateCurrencies]
-  )
-
-  // Open region creation modal
-  const handleAddRegion = () => {
-    setIsRegionModalOpen(true)
-  }
-
-  // Handle region modal save
-  const handleRegionModalSave = async () => {
-    // The form already created the region via catalogClient.createCatalogEntry()
-    // Just reload the page to show the new region
-    console.log('✅ Region created by form, reloading page...')
-    await handlePageChange(currentPage)
-    setIsRegionModalOpen(false)
-  }
-
-  // Handle region modal cancel
-  const handleRegionModalCancel = () => {
-    setIsRegionModalOpen(false)
-  }
-
-  // Check if a region has any saved allowance details by checking against loaded rule details
-  // NOTE: This only works correctly if the rules contain ALL rules with details for these regions
-  // Since rules are filtered by travelRegionSetId, this will only check rules within the current set
-  const regionHasSavedDetails = useCallback(
-    (regionId: string): boolean => {
-      // Check if any rule has details for this region
-      const hasDetails = allowanceRegionRules.some(rule => {
-        const ruleHasDetailsForRegion = rule.details?.some(detail => {
-          const matches = detail.travelRegion?.id === regionId && detail.id
-          return matches
-        })
-        return ruleHasDetailsForRegion
-      })
-
-      // Debug logging
-      const region = editableTravelRegions.find(r => r.id === regionId)
-      console.log('🔍 Checking region for delete:', {
-        regionCode: region?.code,
-        regionValue: region?.value,
-        regionId,
-        hasDetails,
-        currentTravelRegionSet: travelRegionSetId,
-        totalRulesInCurrentSet: allowanceRegionRules.length,
-        rulesWithDetails: allowanceRegionRules
-          .filter(r => r.details && r.details.length > 0)
-          .map(r => ({
-            ruleId: r.id,
-            ruleName: r.name,
-            detailCount: r.details?.length || 0,
-            regionIdsInRule: r.details?.map(d => d.travelRegion?.id).filter(Boolean),
-            hasThisRegion: r.details?.some(d => d.travelRegion?.id === regionId)
-          }))
-      })
-
-      return hasDetails
-    },
-    [allowanceRegionRules, editableTravelRegions, travelRegionSetId]
-  )
-
-  // Handle delete region click
-  const handleDeleteRegionClick = async (region: TravelRegion, e: React.MouseEvent) => {
-    e.stopPropagation()
-
-    // Check if this region has any SAVED details in any rule
-    if (regionHasSavedDetails(region.id)) {
-      toast.error('Cannot delete region with existing allowance details')
-      return
+  // Client-side pagination
+  const paginatedRegions = useMemo(() => {
+    // When searching, show all results without pagination
+    if (search.state.searchTerm) {
+      return sorting.state.sortedRegions
     }
 
-    setDeleteRegionConfirmation({ isOpen: true, region })
-  }
-
-  // Handle delete region cancel
-  const handleDeleteRegionCancel = () => {
-    setDeleteRegionConfirmation({ isOpen: false, region: null })
-  }
-
-  // Handle delete region confirm
-  const handleDeleteRegionConfirm = async () => {
-    const { region } = deleteRegionConfirmation
-    if (!region) return
-
-    console.log('🗑️ Deleting region:', {
-      id: region.id,
-      code: region.code,
-      value: region.value
-    })
-
-    setIsDeletingRegion(true)
-    try {
-      // Soft delete the region using the catalog entry ID (not code)
-      console.log('🗑️ Calling deleteCatalogEntry with:', 'TravelRegion', 'v1', region.id)
-      const deleteResult = await catalogClient.deleteCatalogEntry('TravelRegion', 'v1', region.id)
-      console.log('✅ Delete API call successful, result:', deleteResult)
-
-      // Verify deletion by trying to fetch the entry
-      try {
-        const verifyEntry = await catalogClient.getCatalogEntryById(region.id)
-        console.log('🔍 Verification: Entry after delete:', {
-          id: verifyEntry.id,
-          code: verifyEntry.code,
-          isDeleted: verifyEntry.isDeleted
-        })
-      } catch {
-        console.log('🔍 Verification: Entry not found (this might be expected)')
-      }
-
-      toast.success(`Travel region "${region.value}" deleted successfully`)
-
-      // Close dialog first
-      setDeleteRegionConfirmation({ isOpen: false, region: null })
-
-      // Fully reload all data to reflect the deletion
-      console.log('🔄 Reloading data after delete...')
-      await loadData()
-      console.log('✅ Data reloaded')
-    } catch (err) {
-      console.error('❌ Error deleting region:', err)
-      console.error('❌ Error details:', {
-        message: err instanceof Error ? err.message : 'Unknown error',
-        stack: err instanceof Error ? err.stack : undefined,
-        full: err
-      })
-      toast.error(err instanceof Error ? err.message : 'Failed to delete region')
-    } finally {
-      setIsDeletingRegion(false)
-    }
-  }
-
-  // Handle deleting an allowance region rule
-  const handleDeleteRule = async (rule: EditableAllowanceRegionRule) => {
-    // Check if rule has any details
-    if (rule.details && rule.details.length > 0) {
-      toast.error('Cannot delete rule with existing details')
-      return
-    }
-
-    if (!confirm(`Are you sure you want to delete the rule "${rule.name}"?`)) {
-      return
-    }
-
-    try {
-      const client = getExpenseSettingsClient()
-      await client.deleteAllowanceRegionRule(rule.id, rule.version)
-      toast.success('Rule deleted successfully')
-      await loadData()
-    } catch (err) {
-      console.error('Error deleting rule:', err)
-      toast.error('Failed to delete rule')
-    }
-  }
-
-  // Open rule creation modal
-  const handleAddRule = () => {
-    setIsRuleModalOpen(true)
-  }
-
-  // Open edit rule modal to add details (from rule header +)
-  const handleAddDetailForRule = async (ruleId: string) => {
-    const rule = allowanceRegionRules.find(r => r.id === ruleId)
-    if (rule) {
-      setSelectedRuleForEdit(rule)
-      setIsEditRuleModalLoading(true)
-      setIsEditRuleModalOpen(true)
-
-      try {
-        // Check if this rule is used in any expense transactions
-        const usageInfo = await checkAllowanceRuleUsage(ruleId)
-        setRuleUsageInfo(usageInfo)
-      } catch (error) {
-        console.error('Error checking rule usage:', error)
-        // On error, show the form but with a warning
-        setRuleUsageInfo({
-          isUsed: true,
-          usedIn: {
-            expenseRuleAllowanceCodes: [],
-            expensePlans: 0,
-            expenseRequests: 0,
-            expensePlanItems: 0,
-            expenseItems: 0,
-            expensePositions: 0
-          },
-          message: 'Unable to verify usage. Editing is restricted for safety.'
-        })
-      } finally {
-        setIsEditRuleModalLoading(false)
-      }
-    }
-  }
-
-  // Handle saving the edited rule (with new details)
-  const handleEditRuleModalSave = async (formData: any) => {
-    setIsEditRuleModalLoading(true)
-    try {
-      const client = getExpenseSettingsClient()
-
-      // Save the rule with updated details
-      const ruleData = {
-        id: selectedRuleForEdit?.id,
-        version: selectedRuleForEdit?.version,
-        code: formData.code.trim(),
-        name: formData.name.trim(),
-        activeFrom: formData.activeFrom ? `${formData.activeFrom}T00:00:00+00:00` : null,
-        activeTo: formData.activeTo ? `${formData.activeTo}T00:00:00+00:00` : null,
-        travelRegionSetRef: travelRegionSetId,
-        ruleOrder: selectedRuleForEdit?.ruleOrder || 1,
-        additionalProperties: selectedRuleForEdit?.additionalProperties || {},
-        businessKey: formData.code.trim()
-      }
-
-      // Save the rule first
-      await client.saveAllowanceRegionRule(ruleData)
-
-      // Save each detail
-      if (formData.details && formData.details.length > 0) {
-        for (const detail of formData.details) {
-          const detailPayload = {
-            allowanceRegionRuleDetail: {
-              ...(detail.id && { id: detail.id }),
-              amount: detail.amounts?.[0] || 0,
-              currencyRef: detail.currencyRef,
-              activeFrom: detail.activeFrom ? `${detail.activeFrom}T00:00:00+00:00` : null,
-              activeTo: detail.activeTo ? `${detail.activeTo}T00:00:00+00:00` : null,
-              travelRegionRef: detail.travelRegionRef || detail.travelRegion,
-              countryRef: detail.countryRef,
-              home: detail.home || false,
-              allowanceRegionRule: selectedRuleForEdit?.id
-            },
-            changeMode: detail.id ? 'UPDATE' : 'INSERT'
-          }
-
-          await client.post('/employee-expense/saveAllowanceRegionRuleDetail', detailPayload)
-        }
-      }
-
-      toast.success('Rule and details saved successfully')
-
-      // Close modal and reload data
-      setIsEditRuleModalOpen(false)
-      setSelectedRuleForEdit(null)
-      setRuleUsageInfo(null)
-      await loadData()
-    } catch (err) {
-      console.error('Error saving rule:', err)
-      toast.error('Failed to save rule and details')
-    } finally {
-      setIsEditRuleModalLoading(false)
-    }
-  }
-
-  // Handle cancel edit rule modal
-  const handleEditRuleModalCancel = () => {
-    setIsEditRuleModalOpen(false)
-    setSelectedRuleForEdit(null)
-    setRuleUsageInfo(null)
-  }
-
-  // Handle rule modal save
-  const handleRuleModalSave = async (formData: any) => {
-    setIsRuleModalLoading(true)
-    try {
-      // Create the allowance region rule using the form data
-      const ruleData = {
-        code: formData.code.trim(),
-        name: formData.name.trim(),
-        description: `Allowance rule: ${formData.name.trim()}`,
-        activeFrom: formData.activeFrom
-          ? `${formData.activeFrom}T00:00:00+00:00`
-          : `${dayjs().format('YYYY-MM-DD')}T00:00:00+00:00`,
-        activeTo: formData.activeTo ? `${formData.activeTo}T00:00:00+00:00` : null,
-        travelRegionSetRef: travelRegionSetId,
-        ruleOrder: allowanceRegionRules.length + 1,
-        additionalProperties: {},
-        businessKey: formData.code.trim()
-      }
-
-      // Get a fresh client with current token
-      const client = getExpenseSettingsClient()
-
-      // Save the rule first
-      const savedRule = await client.saveAllowanceRegionRule(ruleData)
-
-      // Save each detail if provided
-      if (formData.details && formData.details.length > 0) {
-        for (const detail of formData.details) {
-          const detailPayload = {
-            allowanceRegionRuleDetail: {
-              amount: detail.amounts?.[0] || 0,
-              currencyRef: detail.currencyRef,
-              activeFrom: detail.activeFrom ? `${detail.activeFrom}T00:00:00+00:00` : null,
-              activeTo: detail.activeTo ? `${detail.activeTo}T00:00:00+00:00` : null,
-              travelRegionRef: detail.travelRegionRef || detail.travelRegion,
-              countryRef: detail.countryRef,
-              home: detail.home || false,
-              allowanceRegionRule: savedRule.allowanceRegionRule.id
-            },
-            changeMode: 'INSERT'
-          }
-
-          await client.post('/employee-expense/saveAllowanceRegionRuleDetail', detailPayload)
-        }
-      }
-
-      // Reload data to show the new rule with details
-      await loadData()
-      setIsRuleModalOpen(false)
-      toast.success('Allowance rule and details created successfully')
-    } catch (err) {
-      console.error('Error creating rule:', err)
-      toast.error('Failed to create rule')
-    } finally {
-      setIsRuleModalLoading(false)
-    }
-  }
-
-  // Handle rule modal cancel
-  const handleRuleModalCancel = () => {
-    setIsRuleModalOpen(false)
-  }
-
-  // Removed unused getCell and getCellIndex functions
+    // Otherwise, apply pagination
+    const { currentPage, pageSize } = pagination.state
+    const startIndex = (currentPage - 1) * pageSize
+    const endIndex = startIndex + pageSize
+    return sorting.state.sortedRegions.slice(startIndex, endIndex)
+  }, [sorting.state.sortedRegions, pagination.state.currentPage, pagination.state.pageSize, search.state.searchTerm])
 
   if (isLoading) {
     return (
@@ -1063,7 +404,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
               Travel Region Matrix: {travelRegionSetName}
             </h2>
             <p className="gba:text-muted-foreground">
-              Excel-like editing - {totalRegions} regions × {allowanceRegionRules.length} rules
+              Excel-like editing - {sorting.state.sortedRegions.length} regions × {allowanceRegionRules.length} rules
             </p>
 
             {/* Search Input */}
@@ -1071,36 +412,32 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
               <Input
                 type="text"
                 placeholder="Search regions..."
-                value={searchTerm}
+                value={search.state.searchTerm}
                 onChange={e => {
                   const value = e.target.value
-                  setSearchTerm(value)
-                  // Debounce search - search after 500ms of no typing
-                  if (searchTimeoutRef.current) {
-                    clearTimeout(searchTimeoutRef.current)
+                  search.actions.setSearchTerm(value)
+                  if (search.searchTimeoutRef.current) {
+                    clearTimeout(search.searchTimeoutRef.current)
                   }
-                  searchTimeoutRef.current = setTimeout(() => {
-                    handleSearch(value)
+                  search.searchTimeoutRef.current = setTimeout(() => {
+                    search.actions.handleSearch(value)
                   }, 500)
                 }}
                 className="gba:w-80 gba:h-9"
                 data-testid="travel-region-search-input"
               />
-              {searchTerm && (
+              {search.state.searchTerm && (
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => {
-                    setSearchTerm('')
-                    handleSearch('')
-                  }}
+                  onClick={search.actions.clearSearch}
                   className="gba:h-9 gba:px-3"
                   data-testid="clear-search-button"
                 >
                   Clear
                 </Button>
               )}
-              {isSearching && <div className="gba:text-sm gba:text-muted-foreground">Searching...</div>}
+              {search.state.isSearching && <div className="gba:text-sm gba:text-muted-foreground">Searching...</div>}
 
               {/* Show regions with details first checkbox */}
               <div className="gba:flex gba:items-center gba:gap-2 gba:ml-4">
@@ -1120,7 +457,6 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
             </div>
           </div>
           <div className="gba:flex gba:gap-3">
-            {/* Always show Save button for testing */}
             <Button onClick={handleSaveAll} disabled={isSaving} variant="default" data-testid="save-all-changes-button">
               <PiFloppyDisk className="gba:w-4 gba:h-4 gba:mr-2" />
               {isSaving ? 'Saving...' : 'Save All Changes'}
@@ -1130,7 +466,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
       </div>
 
       {/* Excel-like Matrix Table */}
-      {isLoadingRegions ? (
+      {pagination.state.isLoadingRegions ? (
         <div
           className="gba:flex gba:justify-center gba:items-center gba:py-12 gba:bg-muted gba:rounded-lg"
           data-testid={`${prefixDataTestId}-loading-regions-state`}
@@ -1143,10 +479,13 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
       ) : editableTravelRegions.length > 0 ? (
         <div className="gba:border gba:rounded-lg gba:overflow-hidden">
           <div className="gba:overflow-x-auto">
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <DndContext
+              sensors={sorting.state.sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={sorting.actions.handleDragEnd}
+            >
               <Table className="gba:min-w-full" data-testid={`${prefixDataTestId}-matrix-table`}>
                 <TableHeader>
-                  {/* Main Header Row */}
                   <TableRow>
                     <TableHead className="gba:w-48 gba:min-w-48 gba:sticky gba:left-0 gba:bg-white gba:z-10 gba:border-r">
                       <span className="gba:font-semibold">Travel Regions</span>
@@ -1159,7 +498,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                         <SortableColumnHeader
                           key={rule.id}
                           rule={rule}
-                          onAddDetailForRule={handleAddDetailForRule}
+                          onAddDetailForRule={modals.actions.handleAddDetailForRule}
                           onDeleteRule={handleDeleteRule}
                         >
                           <div className="gba:text-center">
@@ -1172,12 +511,11 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                         </SortableColumnHeader>
                       ))}
                     </SortableContext>
-                    {/* Simple Add Column Header */}
                     <TableHead className="gba:w-16 gba:text-center gba:bg-muted">
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={handleAddRule}
+                        onClick={modals.actions.handleAddRule}
                         className="gba:h-8 gba:w-8 gba:p-0"
                         title="Add New Rule"
                         data-testid={`${prefixDataTestId}-rule-header-add-button`}
@@ -1188,13 +526,13 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {/* Add Row - Simple plus button row */}
+                  {/* Add Row */}
                   <TableRow className="gba:bg-muted gba:border-b-2">
                     <TableCell className="gba:sticky gba:left-0 gba:bg-muted gba:z-10 gba:border-r gba:text-center">
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={handleAddRegion}
+                        onClick={modals.actions.handleAddRegion}
                         className="gba:h-8 gba:w-8 gba:p-0"
                         title="Add New Travel Region"
                         data-testid={`${prefixDataTestId}-add-region-button`}
@@ -1210,12 +548,11 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                         —
                       </TableCell>
                     ))}
-                    {/* Empty cell for add column */}
                     <TableCell className="gba:bg-muted"></TableCell>
                   </TableRow>
 
                   {/* No rules message */}
-                  {allowanceRegionRules.length === 0 && sortedRegions.length > 0 && (
+                  {allowanceRegionRules.length === 0 && sorting.state.sortedRegions.length > 0 && (
                     <TableRow>
                       <TableCell
                         colSpan={2}
@@ -1231,8 +568,8 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
 
                   {/* No details message */}
                   {showRegionsWithDetailsFirst &&
-                    !anyRegionHasDetails &&
-                    sortedRegions.length > 0 &&
+                    !sorting.state.anyRegionHasDetails &&
+                    sorting.state.sortedRegions.length > 0 &&
                     allowanceRegionRules.length > 0 && (
                       <TableRow>
                         <TableCell
@@ -1246,39 +583,27 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                       </TableRow>
                     )}
 
-                  {/* Data Rows - One row per region, columns show values based on rule periods */}
+                  {/* Data Rows */}
                   {paginatedRegions.map(region => (
                     <TableRow key={region.id}>
                       <TableCell className="gba:sticky gba:left-0 gba:bg-white gba:z-10 gba:border-r gba:w-48">
                         <div className="gba:p-3">
-                          {/* Simple Region Info */}
                           <div className="gba:flex gba:items-center gba:gap-2">
                             <PiMapPin className="gba:text-primary gba:w-5 gba:h-5" />
                             <div className="gba:flex-1">
-                              {/* Read-only Code */}
                               <div className="gba:mb-1">
                                 <div className="gba:text-xs gba:text-muted-foreground gba:px-1 gba:py-0.5">
                                   {region.code}
                                 </div>
                               </div>
-                              {/* Read-only Name */}
                               <div>
                                 <div className="gba:font-medium gba:text-sm gba:px-1 gba:py-0.5">{region.value}</div>
                               </div>
                             </div>
-                            {/* Delete button */}
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={e => {
-                                console.log('🗑️ Delete button clicked for region:', {
-                                  id: region.id,
-                                  code: region.code,
-                                  value: region.value,
-                                  hasDetails: regionHasSavedDetails(region.id)
-                                })
-                                handleDeleteRegionClick(region, e)
-                              }}
+                              onClick={e => modals.actions.handleDeleteRegionClick(region, e)}
                               className="gba:h-6 gba:w-6 gba:p-0 gba:text-destructive hover:gba:text-destructive hover:gba:bg-destructive-secondary"
                               title={
                                 regionHasSavedDetails(region.id)
@@ -1294,7 +619,6 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                         </div>
                       </TableCell>
                       {allowanceRegionRules.map(rule => {
-                        // Find all cells for this rule and region (all validity periods)
                         const ruleCells = editableCells.filter(
                           c => c.allowanceRegionRuleId === rule.id && c.travelRegionId === region.id
                         )
@@ -1307,8 +631,9 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                             <div className="gba:space-y-2">
                               {/* Existing details */}
                               {ruleCells.map(cell => {
-                                const isEditing = cell.isNew || editingCellId === cell.id
-                                const isUsedInTransactions = editingCellUsageInfo?.isUsed && editingCellId === cell.id
+                                const isEditing = cell.isNew || cellEditing.editingCellId === cell.id
+                                const isUsedInTransactions =
+                                  cellEditing.editingCellUsageInfo?.isUsed && cellEditing.editingCellId === cell.id
 
                                 return (
                                   <div
@@ -1322,35 +647,31 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                     }`}
                                     onClick={() => {
                                       if (!isEditing && cell.id) {
-                                        handleEnterCellEdit(cell.id)
+                                        cellEditing.handleEnterCellEdit(cell.id)
                                       }
                                     }}
                                   >
-                                    {/* Modification Indicator */}
                                     {cell.isModified && (
                                       <div className="gba:absolute gba:top-1 gba:right-1">
                                         <div className="gba:w-2 gba:h-2 gba:bg-info gba:rounded-full"></div>
                                       </div>
                                     )}
 
-                                    {/* Editable fields when editing or new */}
                                     {isEditing ? (
                                       <div className="gba:space-y-2">
-                                        {/* Usage Warning */}
                                         {isUsedInTransactions && !cell.isNew && (
                                           <div className="gba:text-xs gba:text-warning gba:bg-warning-secondary gba:p-1 gba:rounded gba:mb-2">
                                             ⚠️ Used in transactions - only "To" date can be edited
                                           </div>
                                         )}
 
-                                        {/* Loading indicator for usage check */}
-                                        {isCheckingCellUsage && editingCellId === cell.id && (
+                                        {cellEditing.isCheckingCellUsage && cellEditing.editingCellId === cell.id && (
                                           <div className="gba:text-xs gba:text-muted-foreground gba:text-center">
                                             Checking usage...
                                           </div>
                                         )}
 
-                                        {/* Active From - disabled if used in transactions */}
+                                        {/* Active From */}
                                         <div>
                                           <label className="gba:text-xs gba:text-muted-foreground gba:block gba:mb-1">
                                             From:
@@ -1359,14 +680,14 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                             value={cell.activeFrom ? dayjs(cell.activeFrom).format('YYYY-MM-DD') : ''}
                                             onChange={date => {
                                               const dateValue = date ? `${date}T00:00:00+00:00` : ''
-                                              updateCellField(cell.id!, cell.validityPeriodId!, 'activeFrom', dateValue)
+                                              cellEditing.updateCellField(cell.id!, cell.validityPeriodId!, 'activeFrom', dateValue)
                                             }}
                                             disabled={isUsedInTransactions && !cell.isNew}
                                             data-testid={`${prefixDataTestId}-cell-active-from-${rule.id}-${region.id}`}
                                           />
                                         </div>
 
-                                        {/* Active To - always editable */}
+                                        {/* Active To */}
                                         <div>
                                           <label className="gba:text-xs gba:text-muted-foreground gba:block gba:mb-1">
                                             To:
@@ -1375,13 +696,13 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                             value={cell.activeTo ? dayjs(cell.activeTo).format('YYYY-MM-DD') : ''}
                                             onChange={date => {
                                               const dateValue = date ? `${date}T00:00:00+00:00` : undefined
-                                              updateCellField(cell.id!, cell.validityPeriodId!, 'activeTo', dateValue)
+                                              cellEditing.updateCellField(cell.id!, cell.validityPeriodId!, 'activeTo', dateValue)
                                             }}
                                             data-testid={`${prefixDataTestId}-cell-active-to-${rule.id}-${region.id}`}
                                           />
                                         </div>
 
-                                        {/* Amount - disabled if used in transactions */}
+                                        {/* Amount */}
                                         <div>
                                           <label className="gba:text-xs gba:text-muted-foreground gba:block gba:mb-1">
                                             Amount:
@@ -1392,7 +713,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                             value={cell.amount || ''}
                                             onChange={e => {
                                               const value = parseFloat(e.target.value) || 0
-                                              updateCellField(cell.id!, cell.validityPeriodId!, 'amount', value)
+                                              cellEditing.updateCellField(cell.id!, cell.validityPeriodId!, 'amount', value)
                                             }}
                                             onClick={e => e.stopPropagation()}
                                             className="gba:w-full gba:h-7 gba:text-center gba:text-sm gba:font-semibold"
@@ -1402,7 +723,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                           />
                                         </div>
 
-                                        {/* Currency - disabled if used in transactions */}
+                                        {/* Currency */}
                                         <div>
                                           <label className="gba:text-xs gba:text-muted-foreground gba:block gba:mb-1">
                                             Currency:
@@ -1411,7 +732,6 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                             value={cell.currencyCode}
                                             onValueChange={value => {
                                               const selectedCurrency = currencies.find(c => c.code === value)
-                                              // Update both currency code and ref
                                               setEditableCells(prev =>
                                                 prev.map(c =>
                                                   c.id === cell.id || c.validityPeriodId === cell.validityPeriodId
@@ -1444,7 +764,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                           </Select>
                                         </div>
 
-                                        {/* Country - disabled if used in transactions */}
+                                        {/* Country */}
                                         <div>
                                           <label className="gba:text-xs gba:text-muted-foreground gba:block gba:mb-1">
                                             Country:
@@ -1452,7 +772,6 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                           <Select
                                             value={cell.countryRef}
                                             onValueChange={value => {
-                                              // Update country ref
                                               setEditableCells(prev =>
                                                 prev.map(c =>
                                                   c.id === cell.id || c.validityPeriodId === cell.validityPeriodId
@@ -1487,17 +806,16 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                         {/* Action buttons */}
                                         <div className="gba:flex gba:gap-2 gba:mt-2">
                                           {cell.isNew ? (
-                                            /* Cancel and Save buttons for new cells */
                                             <div className="gba:flex gba:gap-1 gba:w-full">
                                               <Button
                                                 variant="outline"
                                                 size="sm"
                                                 onClick={e => {
                                                   e.stopPropagation()
-                                                  handleRemoveNewCell(cell.validityPeriodId!, rule.id)
+                                                  cellEditing.handleRemoveNewCell(cell.validityPeriodId!, rule.id)
                                                 }}
                                                 className="gba:flex-1 gba:h-7 gba:text-xs"
-                                                disabled={isSavingCell}
+                                                disabled={cellEditing.isSavingCell}
                                               >
                                                 Cancel
                                               </Button>
@@ -1506,28 +824,26 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                                 size="sm"
                                                 onClick={e => {
                                                   e.stopPropagation()
-                                                  handleSaveSingleCell(cell)
+                                                  cellEditing.handleSaveSingleCell(cell)
                                                 }}
                                                 className="gba:flex-1 gba:h-7 gba:text-xs"
-                                                disabled={isSavingCell || cell.amount <= 0}
+                                                disabled={cellEditing.isSavingCell || cell.amount <= 0}
                                               >
-                                                {isSavingCell ? 'Saving...' : 'Save'}
+                                                {cellEditing.isSavingCell ? 'Saving...' : 'Save'}
                                               </Button>
                                             </div>
                                           ) : (
-                                            /* Done and Delete buttons for editing existing cells */
                                             <div className="gba:flex gba:gap-1 gba:w-full">
                                               <Button
                                                 variant="outline"
                                                 size="sm"
                                                 onClick={e => {
                                                   e.stopPropagation()
-                                                  // Cancel - just close without saving
-                                                  setEditingCellId(null)
-                                                  setEditingCellUsageInfo(null)
+                                                  cellEditing.setEditingCellId(null)
+                                                  cellEditing.setEditingCellUsageInfo(null)
                                                 }}
                                                 className="gba:flex-1 gba:h-7 gba:text-xs"
-                                                disabled={isSavingCell}
+                                                disabled={cellEditing.isSavingCell}
                                               >
                                                 Cancel
                                               </Button>
@@ -1536,14 +852,23 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                                 size="sm"
                                                 onClick={e => {
                                                   e.stopPropagation()
-                                                  handleSaveSingleCell(cell)
+                                                  cellEditing.handleSaveSingleCell(cell)
                                                 }}
                                                 className="gba:flex-1 gba:h-7 gba:text-xs"
-                                                disabled={isSavingCell || isCheckingCellUsage}
+                                                disabled={cellEditing.isSavingCell || cellEditing.isCheckingCellUsage}
                                               >
-                                                {isSavingCell ? 'Saving...' : 'Save'}
+                                                {cellEditing.isSavingCell ? 'Saving...' : 'Save'}
                                               </Button>
-                                              {!editingCellUsageInfo?.isUsed && (
+                                              {(() => {
+                                                const shouldShowDelete = !cellEditing.editingCellUsageInfo || !cellEditing.editingCellUsageInfo.isUsed
+                                                console.log('Delete button visibility:', {
+                                                  cellId: cell.id,
+                                                  shouldShowDelete,
+                                                  editingCellUsageInfo: cellEditing.editingCellUsageInfo,
+                                                  isUsed: cellEditing.editingCellUsageInfo?.isUsed
+                                                })
+                                                return shouldShowDelete
+                                              })() && (
                                                 <Button
                                                   variant="destructive"
                                                   size="sm"
@@ -1551,17 +876,8 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                                     e.stopPropagation()
                                                     if (confirm('Are you sure you want to delete this detail?')) {
                                                       try {
-                                                        console.log('🗑️ Deleting detail:', {
-                                                          id: cell.id,
-                                                          version: cell.version,
-                                                          travelRegionId: cell.travelRegionId,
-                                                          allowanceRegionRuleId: cell.allowanceRegionRuleId,
-                                                          amount: cell.amount,
-                                                          currencyRef: cell.currencyRef,
-                                                          countryRef: cell.countryRef
-                                                        })
                                                         const client = getExpenseSettingsClient()
-                                                        const result = await client.deleteAllowanceRegionRuleDetail({
+                                                        await client.deleteAllowanceRegionRuleDetail({
                                                           id: cell.id!,
                                                           version: cell.version,
                                                           allowanceRegionRuleId: cell.allowanceRegionRuleId,
@@ -1572,14 +888,12 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                                           activeFrom: cell.activeFrom,
                                                           activeTo: cell.activeTo
                                                         })
-                                                        console.log('✅ Delete result:', result)
                                                         toast.success('Detail deleted successfully')
-                                                        setEditingCellId(null)
-                                                        setEditingCellUsageInfo(null)
+                                                        cellEditing.setEditingCellId(null)
+                                                        cellEditing.setEditingCellUsageInfo(null)
                                                         await loadData()
                                                       } catch (err: any) {
-                                                        console.error('❌ Error deleting detail:', err)
-                                                        console.error('❌ Error response:', err.response?.data)
+                                                        console.error('Error deleting detail:', err)
                                                         const errorMsg =
                                                           err.response?.data?.message ||
                                                           err.message ||
@@ -1589,7 +903,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                                     }
                                                   }}
                                                   className="gba:h-7 gba:px-2"
-                                                  disabled={isSavingCell || isCheckingCellUsage}
+                                                  disabled={cellEditing.isSavingCell || cellEditing.isCheckingCellUsage}
                                                   title="Delete this detail"
                                                 >
                                                   <PiTrash className="gba:w-4 gba:h-4" />
@@ -1601,25 +915,17 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                       </div>
                                     ) : (
                                       <>
-                                        {/* Period Dates */}
                                         <div className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:text-center">
-                                          {cell.activeFrom ? dayjs(cell.activeFrom).format('DD/MM/YY') : 'New'} -{' '}
-                                          {cell.activeTo ? dayjs(cell.activeTo).format('DD/MM/YY') : '∞'}
+                                          {formatPeriodShort(cell.activeFrom, cell.activeTo)}
                                         </div>
-
-                                        {/* Amount Display */}
                                         <div className="gba:text-center gba:mb-2">
                                           <div className="gba:text-lg gba:font-semibold gba:text-foreground">
                                             {cell.amount.toFixed(2)}
                                           </div>
                                         </div>
-
-                                        {/* Currency */}
                                         <div className="gba:text-xs gba:text-muted-foreground gba:text-center gba:font-medium">
                                           {cell.currencyCode}
                                         </div>
-
-                                        {/* Click to edit hint */}
                                         <div className="gba:text-xs gba:text-muted-foreground gba:text-center gba:mt-1 gba:opacity-0 hover:gba:opacity-100">
                                           Click to edit
                                         </div>
@@ -1629,16 +935,14 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                 )
                               })}
 
-                              {/* Add new detail button - always visible */}
+                              {/* Add new detail button */}
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => {
-                                  // Create a new cell for this rule-region combination
                                   const newPeriodId = `new-${rule.id}-${region.id}-${Date.now()}`
                                   const todayDate = `${dayjs().format('YYYY-MM-DD')}T00:00:00+00:00`
 
-                                  // Create new period for this rule
                                   const newPeriod: ValidityPeriod = {
                                     id: newPeriodId,
                                     activeFrom: todayDate,
@@ -1648,7 +952,6 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                     ruleId: rule.id
                                   }
 
-                                  // Add period to the rule's validityPeriods
                                   setAllowanceRegionRules(prev =>
                                     prev.map(r =>
                                       r.id === rule.id
@@ -1657,13 +960,9 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                     )
                                   )
 
-                                  // Get countryRef from region's objectValue (already populated)
                                   const countryRef = region.objectValue?.destination_country_ref || undefined
-
-                                  // Find EUR currency ref
                                   const eurCurrency = currencies.find(c => c.code === 'EUR')
 
-                                  // Create new cell
                                   const newCell: EditableCell = {
                                     id: undefined,
                                     travelRegionId: region.id,
@@ -1693,7 +992,6 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                           </TableCell>
                         )
                       })}
-                      {/* Empty add column cell */}
                       <TableCell className="gba:w-16 gba:text-center gba:text-muted"></TableCell>
                     </TableRow>
                   ))}
@@ -1715,7 +1013,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
           <div className="gba:flex gba:justify-center gba:gap-3">
             <Button
               variant="default"
-              onClick={handleAddRegion}
+              onClick={modals.actions.handleAddRegion}
               data-testid={`${prefixDataTestId}-empty-state-add-region-button`}
             >
               <PiPlus className="gba:w-4 gba:h-4 gba:mr-2" />
@@ -1723,7 +1021,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
             </Button>
             <Button
               variant="outline"
-              onClick={handleAddRule}
+              onClick={modals.actions.handleAddRule}
               data-testid={`${prefixDataTestId}-empty-state-add-rule-button`}
             >
               <PiPlus className="gba:w-4 gba:h-4 gba:mr-2" />
@@ -1733,87 +1031,42 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
         </div>
       )}
 
-      {/* Pagination Controls - use sortedRegions length for total */}
-      {!searchTerm && sortedRegions.length > 0 && (
+      {/* Pagination Controls */}
+      {!search.state.searchTerm && sorting.state.sortedRegions.length > 0 && (
         <MileageRulesPagination
-          currentPage={currentPage}
-          pageSize={pageSize}
-          totalItems={sortedRegions.length}
+          currentPage={pagination.state.currentPage}
+          pageSize={pagination.state.pageSize}
+          totalItems={sorting.state.sortedRegions.length}
           itemLabel="regions"
-          onPageChange={async pagination => {
-            const pageSizeChanged = pagination.pageSize !== pageSize
-            setCurrentPage(pagination.current)
-            setPageSize(pagination.pageSize)
-
-            // If page size changed, reload with new page size from page 1
+          onPageChange={async paginationData => {
+            const pageSizeChanged = paginationData.pageSize !== pagination.state.pageSize
             if (pageSizeChanged) {
-              setIsLoadingRegions(true)
-              try {
-                const paginatedRegions = await loadTravelRegions(1, pagination.pageSize, '')
-                const regionsWithDetailsMap = new Map<string, TravelRegion>()
-                allowanceRegionRules.forEach(rule => {
-                  rule.details?.forEach(detail => {
-                    if (detail.travelRegion && detail.travelRegion.id) {
-                      const regionId = detail.travelRegion.id
-                      if (!regionsWithDetailsMap.has(regionId)) {
-                        regionsWithDetailsMap.set(regionId, {
-                          id: detail.travelRegion.id,
-                          code: detail.travelRegion.code,
-                          value: detail.travelRegion.value
-                        })
-                      }
-                    }
-                  })
-                })
-                const regionsWithDetails = Array.from(regionsWithDetailsMap.values())
-
-                // Include regions with details that might be on other pages
-                const allRegionsForDisplay = [...paginatedRegions, ...regionsWithDetails]
-                const uniqueRegionsForDisplay = Array.from(new Map(allRegionsForDisplay.map(r => [r.id, r])).values())
-
-                // Map regions to EditableTravelRegion format
-                setEditableTravelRegions(
-                  uniqueRegionsForDisplay.map(region => ({
-                    ...region,
-                    isEditing: false,
-                    editingCode: region.code,
-                    editingValue: region.value,
-                    isModified: false,
-                    isNew: false
-                  }))
-                )
-
-                // Generate cells for all rules and regions
-                const cells = convertToEditableCells(allowanceRegionRules, uniqueRegionsForDisplay)
-                const validatedCells = validateCurrencies(cells)
-                setEditableCells(validatedCells)
-              } catch (err) {
-                console.error('Error loading regions with new page size:', err)
-              } finally {
-                setIsLoadingRegions(false)
-              }
+              await pagination.actions.handlePageSizeChange(paginationData.pageSize)
             } else {
-              // Just change page with existing page size
-              await handlePageChange(pagination.current)
+              pagination.actions.setCurrentPage(paginationData.current)
             }
           }}
         />
       )}
 
       {/* Search Results Info */}
-      {searchTerm && editableTravelRegions.length > 0 && (
+      {search.state.searchTerm && editableTravelRegions.length > 0 && (
         <div
           className="gba:flex gba:items-center gba:justify-center gba:mt-6 gba:px-4 gba:py-4 gba:bg-info-secondary gba:border gba:border-info gba:rounded-lg"
           data-testid={`${prefixDataTestId}-search-results-info`}
         >
           <span className="gba:text-sm gba:text-foreground">
-            Showing {editableTravelRegions.length} search results for "{searchTerm}"
+            Showing {editableTravelRegions.length} search results for "{search.state.searchTerm}"
           </span>
         </div>
       )}
 
       {/* Rule Creation Modal */}
-      <Dialog open={isRuleModalOpen} onOpenChange={setIsRuleModalOpen}>
+      <Dialog open={modals.state.isRuleModalOpen} onOpenChange={(open) => {
+        if (!open) {
+          modals.actions.handleRuleModalCancel()
+        }
+      }}>
         <DialogContent
           className="gba:max-w-4xl gba:max-h-[90vh] gba:overflow-hidden gba:p-0"
           data-testid={`${prefixDataTestId}-rule-creation-modal`}
@@ -1825,9 +1078,9 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
             <TravelRegionRuleForm
               accessToken={accessToken}
               travelRegionSetId={travelRegionSetId}
-              onSave={handleRuleModalSave}
-              onCancel={handleRuleModalCancel}
-              loading={isRuleModalLoading}
+              onSave={modals.actions.handleRuleModalSave}
+              onCancel={modals.actions.handleRuleModalCancel}
+              loading={modals.state.isRuleModalLoading}
             />
           </div>
         </DialogContent>
@@ -1836,9 +1089,9 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
       {/* Travel Region Creation Modal */}
       <TravelRegionForm
         accessToken={accessToken}
-        open={isRegionModalOpen}
-        onClose={handleRegionModalCancel}
-        onSave={handleRegionModalSave}
+        open={modals.state.isRegionModalOpen}
+        onClose={modals.actions.handleRegionModalCancel}
+        onSave={modals.actions.handleRegionModalSave}
         travelRegionSetId={travelRegionSetId}
         travelRegionSetName={travelRegionSetName}
         countries={countries}
@@ -1847,8 +1100,8 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
 
       {/* Delete Region Confirmation Dialog */}
       <Dialog
-        open={deleteRegionConfirmation.isOpen}
-        onOpenChange={() => setDeleteRegionConfirmation({ isOpen: false, region: null })}
+        open={modals.state.deleteRegionConfirmation.isOpen}
+        onOpenChange={() => modals.actions.handleDeleteRegionCancel()}
       >
         <DialogContent data-testid={`${prefixDataTestId}-delete-region-confirmation-dialog`}>
           <DialogHeader>
@@ -1857,14 +1110,14 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
           <div className="gba:space-y-4">
             <p className="gba:text-sm gba:text-muted-foreground">
               Are you sure you want to delete the travel region{' '}
-              <strong>{deleteRegionConfirmation.region?.value}</strong>?
+              <strong>{modals.state.deleteRegionConfirmation.region?.value}</strong>?
             </p>
-            {deleteRegionConfirmation.region &&
-              editableCells.some(cell => cell.travelRegionId === deleteRegionConfirmation.region!.id && cell.id) && (
+            {modals.state.deleteRegionConfirmation.region &&
+              editableCells.some(cell => cell.travelRegionId === modals.state.deleteRegionConfirmation.region!.id && cell.id) && (
                 <div className="gba:bg-destructive-secondary gba:text-destructive gba:p-3 gba:rounded gba:text-sm">
                   ⚠️ This region has{' '}
                   {
-                    editableCells.filter(cell => cell.travelRegionId === deleteRegionConfirmation.region!.id && cell.id)
+                    editableCells.filter(cell => cell.travelRegionId === modals.state.deleteRegionConfirmation.region!.id && cell.id)
                       .length
                   }{' '}
                   allowance details. Cannot delete.
@@ -1873,56 +1126,59 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
             <div className="gba:flex gba:justify-end gba:gap-2">
               <Button
                 variant="outline"
-                onClick={handleDeleteRegionCancel}
-                disabled={isDeletingRegion}
+                onClick={modals.actions.handleDeleteRegionCancel}
+                disabled={modals.state.isDeletingRegion}
                 data-testid={`${prefixDataTestId}-delete-region-cancel-button`}
               >
                 Cancel
               </Button>
               <Button
                 variant="destructive"
-                onClick={handleDeleteRegionConfirm}
-                disabled={isDeletingRegion}
+                onClick={modals.actions.handleDeleteRegionConfirm}
+                disabled={modals.state.isDeletingRegion}
                 data-testid={`${prefixDataTestId}-delete-region-confirm-button`}
               >
-                {isDeletingRegion ? 'Deleting...' : 'Delete'}
+                {modals.state.isDeletingRegion ? 'Deleting...' : 'Delete'}
               </Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Edit Rule Modal (for adding details to existing rule) */}
-      <Dialog open={isEditRuleModalOpen} onOpenChange={setIsEditRuleModalOpen}>
+      {/* Edit Rule Modal */}
+      <Dialog open={modals.state.isEditRuleModalOpen} onOpenChange={(open) => {
+        if (!open) {
+          modals.actions.handleEditRuleModalCancel()
+        }
+      }}>
         <DialogContent
           className="gba:max-w-4xl gba:max-h-[90vh] gba:overflow-hidden gba:p-0"
           data-testid={`${prefixDataTestId}-edit-rule-modal`}
         >
           <DialogHeader className="gba:px-6 gba:pt-6 gba:pb-4">
-            <DialogTitle>Add Details to: {selectedRuleForEdit?.name || 'Rule'}</DialogTitle>
+            <DialogTitle>Add Details to: {modals.state.selectedRuleForEdit?.name || 'Rule'}</DialogTitle>
             <p className="gba:text-sm gba:text-muted-foreground">Add new allowance region details to this rule</p>
           </DialogHeader>
           <div className="gba:px-6 gba:pb-6 gba:overflow-y-auto gba:max-h-[calc(90vh-80px)]">
-            {selectedRuleForEdit && (
+            {modals.state.selectedRuleForEdit && (
               <TravelRegionRuleForm
                 accessToken={accessToken}
                 travelRegionSetId={travelRegionSetId}
                 isEditing={false}
                 initialData={{
-                  // Don't pass ID - prevents fetching existing details from server
-                  code: selectedRuleForEdit.code,
-                  name: selectedRuleForEdit.name,
-                  activeFrom: selectedRuleForEdit.activeFrom
-                    ? dayjs(selectedRuleForEdit.activeFrom).format('YYYY-MM-DD')
+                  code: modals.state.selectedRuleForEdit.code,
+                  name: modals.state.selectedRuleForEdit.name,
+                  activeFrom: modals.state.selectedRuleForEdit.activeFrom
+                    ? dayjs(modals.state.selectedRuleForEdit.activeFrom).format('YYYY-MM-DD')
                     : dayjs().format('YYYY-MM-DD'),
-                  activeTo: selectedRuleForEdit.activeTo
-                    ? dayjs(selectedRuleForEdit.activeTo).format('YYYY-MM-DD')
+                  activeTo: modals.state.selectedRuleForEdit.activeTo
+                    ? dayjs(modals.state.selectedRuleForEdit.activeTo).format('YYYY-MM-DD')
                     : '',
-                  details: [] // Empty - only adding new details
+                  details: []
                 }}
-                onSave={handleEditRuleModalSave}
-                onCancel={handleEditRuleModalCancel}
-                loading={isEditRuleModalLoading || isCheckingUsage}
+                onSave={modals.actions.handleEditRuleModalSave}
+                onCancel={modals.actions.handleEditRuleModalCancel}
+                loading={modals.state.isEditRuleModalLoading || isCheckingUsage}
                 isUsedInTransactions={ruleUsageInfo?.isUsed || false}
                 usageMessage={ruleUsageInfo?.message}
               />

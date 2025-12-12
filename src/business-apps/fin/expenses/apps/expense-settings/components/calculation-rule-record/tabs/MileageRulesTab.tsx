@@ -967,8 +967,16 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
                       <FormItem data-testid="mileage-rule-select-field">
                         <FormLabel data-testid="mileage-rule-select-label">Mileage Rule</FormLabel>
                         <Select
-                          value={field.value}
+                          value={field.value || ''}
                           onValueChange={value => {
+                            console.log('🔍 Mileage Rule selected:', value)
+                            // Handle clearing selection
+                            if (value === '__clear__') {
+                              field.onChange('')
+                              form.setValue('mileageRuleId', '')
+                              console.log('✅ Cleared mileage rule')
+                              return
+                            }
                             field.onChange(value)
                             // Clear unit price when mileage rule is selected
                             if (value) {
@@ -983,6 +991,12 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent data-testid="mileage-rule-select-options">
+                            {/* Add clear option */}
+                            {field.value && (
+                              <SelectItem value="__clear__" data-testid="mileage-rule-option-clear">
+                                <span className="gba:text-muted-foreground gba:italic">Clear selection</span>
+                              </SelectItem>
+                            )}
                             {mileageRuleOptions.map(option => (
                               <SelectItem
                                 key={option.id}

@@ -1,3 +1,8 @@
 export { useMatrixDataLoaders } from './useMatrixDataLoaders'
 export { useMatrixCellEditing } from './useMatrixCellEditing'
 export { useMatrixSaveHandlers } from './useMatrixSaveHandlers'
+export { useMatrixPagination } from './useMatrixPagination'
+export { useMatrixSearch } from './useMatrixSearch'
+export { useMatrixSorting } from './useMatrixSorting'
+export { useMatrixModals } from './useMatrixModals'
+export { useDetailUsageValidation } from './useDetailUsageValidation'

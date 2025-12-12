@@ -18,7 +18,11 @@ export interface ExpenseSettingsProps extends BusinessAppContextProps {
 }
 
 const ExpenseSettings: React.FC<ExpenseSettingsProps> = context => {
+  console.log('🚀 ExpenseSettings component mounting...', { context })
+  
   const { prefixDataTestId = '', className = '' } = context
+  
+  console.log('✅ ExpenseSettings props:', { prefixDataTestId, className, accessToken: context.accessToken ? 'present' : 'missing' })
 
   // TEMPORARY: Feature flag disabled for local development testing
   // const isDevEnabled = useFeature('dev.enabled')
@@ -127,27 +131,35 @@ const ExpenseSettings: React.FC<ExpenseSettingsProps> = context => {
 
   // Render content based on active view and rule record parameters
   const renderViewContent = () => {
+    console.log('📄 renderViewContent called, activeView:', activeView)
+    
     // Render the normal view content
     switch (activeView) {
       case 'dashboard':
+        console.log('✅ Rendering Dashboard view')
         return (
           <div data-testid={`${prefixDataTestId}-dashboard-view`}>
             <ExpenseSettingsDashboard {...context} />
           </div>
         )
       case 'calculation-rules':
+        console.log('✅ Rendering Calculation Rules view')
         return <CalculationRulesView {...context} prefixDataTestId={prefixDataTestId} />
       case 'mileage-rules':
+        console.log('✅ Rendering Mileage Rules view')
         return <MileageRulesView {...context} prefixDataTestId={prefixDataTestId} />
       case 'travel-region-rules':
+        console.log('✅ Rendering Travel Region Rules view')
         return <TravelRegionRulesView {...context} prefixDataTestId={prefixDataTestId} />
       default:
+        console.warn('⚠️ Unknown view:', activeView)
         return null
     }
   }
 
   // If we have a ruleId, show the calculation rule record in full screen mode
   if (ruleRecordParams.ruleId) {
+    console.log('📝 Rendering full screen Calculation Rule Record for ruleId:', ruleRecordParams.ruleId)
     return (
       <div data-testid={`${prefixDataTestId}-expense-settings`} className={`gba:h-screen gba:w-full ${className}`}>
         <CalculationRuleRecord
@@ -159,6 +171,8 @@ const ExpenseSettings: React.FC<ExpenseSettingsProps> = context => {
       </div>
     )
   }
+
+  console.log('🎨 Rendering PageLayout with headerSubViews, activeView:', activeView)
 
   // Otherwise, render the normal PageLayout with views
   return (
