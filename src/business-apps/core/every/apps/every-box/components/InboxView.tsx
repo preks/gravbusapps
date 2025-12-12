@@ -431,20 +431,11 @@ export const InboxView: React.FC<InboxViewProps> = ({
   // AUTO-ADVANCE: Opens the next task in the list after completing current one
   const handleTaskCompleted = useCallback(
     (taskId: string) => {
-      console.log('🎯 AUTO-ADVANCE: Task completed:', taskId)
-      console.log('📋 Current filter type:', filterType)
-
       // Use the ACTUAL displayed list from filteredTasks
       const displayedTasks = filteredTasks
-      console.log('📝 Displayed tasks count:', displayedTasks.length)
-      console.log(
-        '📝 Task IDs:',
-        displayedTasks.map(t => `${t.id.substring(0, 8)}... (${t.title || t.name})`)
-      )
 
       // Find the completed task's index in the DISPLAYED list
       const completedTaskIndex = displayedTasks.findIndex(t => t.id === taskId)
-      console.log('📍 Completed task index:', completedTaskIndex)
 
       // Calculate next task BEFORE removing from state
       let nextTask: UnifiedTask | null = null
@@ -452,19 +443,10 @@ export const InboxView: React.FC<InboxViewProps> = ({
         // Try to get the next task after the completed one
         if (completedTaskIndex < displayedTasks.length - 1) {
           nextTask = displayedTasks[completedTaskIndex + 1]
-          console.log('➡️  Next task (after):', nextTask.id.substring(0, 8), nextTask.title || nextTask.name)
         } else if (completedTaskIndex > 0) {
           // If completed task was last, get the previous one
           nextTask = displayedTasks[completedTaskIndex - 1]
-          console.log('⬅️  Next task (previous):', nextTask.id.substring(0, 8), nextTask.title || nextTask.name)
         }
-      } else {
-        console.log(
-          '❌ No next task available. CompletedIndex:',
-          completedTaskIndex,
-          'DisplayedTasks length:',
-          displayedTasks.length
-        )
       }
 
       // Remove completed task from local state (immediate UI feedback)
@@ -473,7 +455,6 @@ export const InboxView: React.FC<InboxViewProps> = ({
 
       // Auto-advance to next task or close if none available
       if (nextTask && nextTask.id !== taskId) {
-        console.log('✨ Auto-advancing to next task')
         // Use setTimeout to ensure this runs AFTER any pending onClose() calls from child components
         // This prevents cFlow's onClose() from closing the newly selected task
         setTimeout(() => {
@@ -481,7 +462,6 @@ export const InboxView: React.FC<InboxViewProps> = ({
           updateTaskUrl(nextTask.id)
         }, 0)
       } else {
-        console.log('🚪 Closing detail panel - no next task')
         // No more tasks in filtered list - close detail panel
         handleCloseTask()
       }
