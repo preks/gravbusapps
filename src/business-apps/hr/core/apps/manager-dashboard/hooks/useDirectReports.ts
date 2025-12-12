@@ -16,12 +16,14 @@ export interface DirectReport {
   // Absence information
   currentAbsence?: {
     type: string
+    parentEntryId?: string // e.g., 'AbsenceGroup:v1:HEALTH' for sick leave
     startDate: string
     endDate: string
     status: string // APPROVED, PENDING, etc.
   }
   nextAbsence?: {
     type: string
+    parentEntryId?: string
     startDate: string
     endDate: string
     status: string // APPROVED, PENDING, etc.
@@ -123,6 +125,7 @@ export const useDirectReports = ({ accessToken, managerId }: UseDirectReportsPro
             status
             type {
               value
+              parentEntryId
             }
           }
         }
@@ -216,6 +219,7 @@ export const useDirectReports = ({ accessToken, managerId }: UseDirectReportsPro
             currentAbsence: currentAbsence
               ? {
                   type: currentAbsence.type?.value || 'Leave',
+                  parentEntryId: currentAbsence.type?.parentEntryId,
                   startDate: currentAbsence.startDate,
                   endDate: currentAbsence.endDate,
                   status: currentAbsence.status
@@ -224,6 +228,7 @@ export const useDirectReports = ({ accessToken, managerId }: UseDirectReportsPro
             nextAbsence: nextAbsence
               ? {
                   type: nextAbsence.type?.value || 'Leave',
+                  parentEntryId: nextAbsence.type?.parentEntryId,
                   startDate: nextAbsence.startDate,
                   endDate: nextAbsence.endDate,
                   status: nextAbsence.status

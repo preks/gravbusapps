@@ -655,6 +655,30 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
             </Badge>
           </AppAction>
         )}
+        {/* Company Badge - Only show if company association exists */}
+        {opportunityData?.company?.id && (
+          <button
+            type="button"
+            onClick={() => {
+              const companyId = opportunityData.company?.id
+              if (companyId) {
+                navigateTo(
+                  buildPlatformUrl('/platform/mdm/company-record', {
+                    companyId
+                  })
+                )
+              }
+            }}
+            className="gba:bg-transparent gba:border-0 gba:p-0"
+            data-testid="opportunity-company-link"
+            aria-label={`${getTranslationFromI18nKeyAndLabel('opportunity.legalEntity.ariaLabel', 'Navigate to legal entity')}: ${opportunityData.company.name}`}
+          >
+            <Badge variant="outline" className="gba:cursor-pointer gba:hover:opacity-80">
+              {getTranslationFromI18nKeyAndLabel('opportunity.legalEntity.label', 'Legal Entity')}:{' '}
+              {opportunityData.company.name}
+            </Badge>
+          </button>
+        )}
         {forecast && forecastDisplayValue && (
           <Badge variant={getOpportunityForecastBadgeVariant(forecast)} data-testid="opportunity-forecast-badge">
             {forecastDisplayValue}
@@ -719,6 +743,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     opportunityData?.opportunityForecast,
     opportunityData?.investments,
     opportunityData?.equityInvestmentRound,
+    opportunityData?.company,
     rejectionReasonsBadge,
     opportunityId,
     props.accessToken

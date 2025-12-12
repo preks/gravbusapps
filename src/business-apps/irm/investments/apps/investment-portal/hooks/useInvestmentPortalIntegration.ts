@@ -43,8 +43,8 @@ export const useInvestmentPortalIntegration = (context: BusinessAppContextProps)
 
       // Step 3: Extract account IDs
       const accountIds: string[] = []
-      if (userContact.investmentAccountContact && Array.isArray(userContact.investmentAccountContact)) {
-        for (const iac of userContact.investmentAccountContact) {
+      if (userContact.accountContacts && Array.isArray(userContact.accountContacts)) {
+        for (const iac of userContact.accountContacts) {
           if (iac.account?.id) {
             accountIds.push(iac.account.id)
           }

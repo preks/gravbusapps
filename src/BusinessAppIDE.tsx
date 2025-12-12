@@ -25,9 +25,10 @@ import {
   SidebarTrigger,
   Separator,
   LocalizationProvider,
-  SupportedLocale
+  SupportedLocale,
+  Badge
 } from '@newwork/nw-design-system'
-import { Gear, Info } from '@phosphor-icons/react'
+import { Gear, Info, Clock, Warning, CheckCircle, XCircle } from '@phosphor-icons/react'
 import { IDEMainMenu, BusinessAppInfo } from '@/components/ide-main-menu'
 import { IDERenderer } from '@/components/ide-renderer'
 import { UserInfoProps } from './common/BusinessAppContext'
@@ -305,6 +306,94 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
 
   const [lastPublishedDate, setLastPublishedDate] = useState<string>('')
   const [openKeys, setOpenKeys] = useState<string[]>([])
+
+  // Token expiration tracking
+  const [tokenStatus, setTokenStatus] = useState<{
+    isValid: boolean
+    isExpired: boolean
+    expiresAt: Date | null
+    remainingTime: string
+    variant: 'success' | 'warning' | 'destructive' | 'secondary'
+  } | null>(null)
+
+  // Utility function to decode and analyze JWT token
+  const analyzeToken = useCallback((token: string) => {
+    if (!token || token.trim().length === 0) {
+      return null
+    }
+
+    try {
+      const tokenParts = token.split('.')
+      if (tokenParts.length !== 3) {
+        return null
+      }
+
+      const payload = JSON.parse(atob(tokenParts[1].replace(/-/g, '+').replace(/_/g, '/')))
+
+      if (!payload.exp) {
+        return null
+      }
+
+      const expiresAt = new Date(payload.exp * 1000) // JWT exp is in seconds
+      const now = new Date()
+      const isExpired = now >= expiresAt
+      const remainingMs = expiresAt.getTime() - now.getTime()
+
+      let remainingTime = ''
+      let variant: 'success' | 'warning' | 'destructive' | 'secondary' = 'success'
+
+      if (isExpired) {
+        remainingTime = 'Expired'
+        variant = 'destructive'
+      } else {
+        const hours = Math.floor(remainingMs / (1000 * 60 * 60))
+        const minutes = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60))
+
+        if (hours >= 2) {
+          remainingTime = `${hours}h ${minutes}m`
+          variant = 'success'
+        } else if (hours >= 1) {
+          remainingTime = `${hours}h ${minutes}m`
+          variant = 'warning'
+        } else if (minutes > 0) {
+          remainingTime = `${minutes}m`
+          variant = 'warning'
+        } else {
+          remainingTime = 'Expiring soon'
+          variant = 'destructive'
+        }
+      }
+
+      return {
+        isValid: !isExpired,
+        isExpired,
+        expiresAt,
+        remainingTime,
+        variant
+      }
+    } catch (error) {
+      console.error('Error analyzing token:', error)
+      return null
+    }
+  }, [])
+
+  // Update token status when accessToken changes
+  useEffect(() => {
+    const status = analyzeToken(accessToken)
+    setTokenStatus(status)
+  }, [accessToken, analyzeToken])
+
+  // Auto-refresh token status every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (accessToken) {
+        const status = analyzeToken(accessToken)
+        setTokenStatus(status)
+      }
+    }, 30000) // Update every 30 seconds
+
+    return () => clearInterval(interval)
+  }, [accessToken, analyzeToken])
 
   useEffect(() => {
     const savedUserInfo = localStorage.getItem(STORAGE_KEY_USER_INFO)
@@ -690,6 +779,63 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                             <span className="gba:text-secondary-foreground">Last Published: {lastPublishedDate}</span>
                           </div>
                         )}
+                        {tokenStatus && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge
+                                  variant={tokenStatus.variant}
+                                  className="gba:cursor-pointer gba:gap-1.5 gba:px-2.5 gba:py-1"
+                                  onClick={() => setSettingsModalVisible(true)}
+                                  data-testid="TokenStatusBadge"
+                                >
+                                  {tokenStatus.isExpired ? (
+                                    <XCircle size={14} weight="fill" />
+                                  ) : tokenStatus.variant === 'warning' ? (
+                                    <Warning size={14} weight="fill" />
+                                  ) : (
+                                    <CheckCircle size={14} weight="fill" />
+                                  )}
+                                  <span className="gba:text-xs gba:font-medium">{tokenStatus.remainingTime}</span>
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <div className="gba:space-y-1">
+                                  <div className="gba:font-semibold">
+                                    {tokenStatus.isExpired ? 'Token Expired' : 'Access Token Status'}
+                                  </div>
+                                  {tokenStatus.expiresAt && (
+                                    <div className="gba:text-xs">Expires: {tokenStatus.expiresAt.toLocaleString()}</div>
+                                  )}
+                                  <div className="gba:text-xs gba:text-muted-foreground">Click to update token</div>
+                                </div>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                        {!tokenStatus && accessToken && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge
+                                  variant="secondary"
+                                  className="gba:cursor-pointer gba:gap-1.5 gba:px-2.5 gba:py-1"
+                                  onClick={() => setSettingsModalVisible(true)}
+                                  data-testid="TokenStatusBadge-Invalid"
+                                >
+                                  <Clock size={14} />
+                                  <span className="gba:text-xs gba:font-medium">Invalid Token</span>
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <div className="gba:space-y-1">
+                                  <div className="gba:font-semibold">Invalid Token Format</div>
+                                  <div className="gba:text-xs gba:text-muted-foreground">Click to update token</div>
+                                </div>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -763,6 +909,64 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                           className="gba:w-full gba:resize-none gba:whitespace-pre-wrap gba:break-words"
                           style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
                         />
+                        {tokenStatus && (
+                          <div
+                            className={`gba:p-3 gba:rounded-lg gba:flex gba:items-start gba:gap-2 ${
+                              tokenStatus.variant === 'destructive'
+                                ? 'gba:bg-destructive-secondary gba:text-destructive-secondary'
+                                : tokenStatus.variant === 'warning'
+                                  ? 'gba:bg-warning-secondary gba:text-warning-secondary'
+                                  : 'gba:bg-success-secondary gba:text-success-secondary'
+                            }`}
+                            data-testid="TokenStatusInfo"
+                          >
+                            <div className="gba:flex-shrink-0 gba:mt-0.5">
+                              {tokenStatus.isExpired ? (
+                                <XCircle size={18} weight="fill" />
+                              ) : tokenStatus.variant === 'warning' ? (
+                                <Warning size={18} weight="fill" />
+                              ) : (
+                                <CheckCircle size={18} weight="fill" />
+                              )}
+                            </div>
+                            <div className="gba:flex-1 gba:space-y-1">
+                              <div className="gba:font-semibold gba:text-sm">
+                                {tokenStatus.isExpired
+                                  ? 'Token Expired'
+                                  : tokenStatus.variant === 'warning'
+                                    ? 'Token Expiring Soon'
+                                    : 'Token Valid'}
+                              </div>
+                              {tokenStatus.expiresAt && (
+                                <div className="gba:text-xs">
+                                  <div>Expires: {tokenStatus.expiresAt.toLocaleString()}</div>
+                                  <div className="gba:font-medium gba:mt-0.5">
+                                    {tokenStatus.isExpired
+                                      ? 'Please update your token'
+                                      : `${tokenStatus.remainingTime} remaining`}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        {!tokenStatus && accessToken && (
+                          <div
+                            className="gba:p-3 gba:rounded-lg gba:flex gba:items-start gba:gap-2 gba:bg-secondary gba:text-secondary-foreground"
+                            data-testid="TokenStatusInfo-Invalid"
+                          >
+                            <div className="gba:flex-shrink-0 gba:mt-0.5">
+                              <Clock size={18} />
+                            </div>
+                            <div className="gba:flex-1">
+                              <div className="gba:font-semibold gba:text-sm">Invalid Token Format</div>
+                              <div className="gba:text-xs gba:mt-1">
+                                The token format is invalid or cannot be decoded. Please ensure you're using a valid JWT
+                                token.
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       <div className="gba:space-y-2">

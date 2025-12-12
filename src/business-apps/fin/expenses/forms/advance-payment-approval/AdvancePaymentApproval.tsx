@@ -1,9 +1,17 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react'
-import { Spinner, Alert, AlertTitle, AlertDescription, Badge, Switch, Textarea, Label } from '@newwork/nw-design-system'
+import {
+  Spinner,
+  Alert,
+  AlertTitle,
+  AlertDescription,
+  Switch,
+  Textarea,
+  Label,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { ThumbsUp, XCircle, MessageSquare } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/components/TaskDetailHeader'
 import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
 import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
@@ -32,6 +40,7 @@ interface ExtendedAdditionalData {
 
 // Component imports
 import { AdvancePaymentDetailsSection, ExpensePlanInfoSection, ApprovalDetailsSection } from './components'
+import translations from './_i18n'
 
 interface AdvancePaymentApprovalProps extends BusinessAppContextProps {
   onClose?: () => void
@@ -43,6 +52,8 @@ const AdvancePaymentApprovalContent: React.FC<AdvancePaymentApprovalProps> = ({
   userInfo,
   onClose
 }) => {
+  const { t } = useTranslation(translations)
+
   // Cast additionalData to extended interface for proper typing
   const extendedAdditionalData = additionalData as ExtendedAdditionalData | undefined
 
@@ -78,11 +89,7 @@ const AdvancePaymentApprovalContent: React.FC<AdvancePaymentApprovalProps> = ({
   const taskCompletedAt = processMetadata?.completedAt || extendedAdditionalData?.psi_taskCompletedAt
   // Task is completed if status is COMPLETED OR if completedAt exists (matching InboxView logic)
   const isTaskCompleted = taskStatus === 'COMPLETED' || !!taskCompletedAt
-  const taskTitle =
-    processMetadata?.referenceTaskName ||
-    processMetadata?.nodeName ||
-    getTranslationFromI18nKeyAndLabel('lowcoder:approve_advance_payment.title', 'Approve Advance Payment')
-  const taskSource: 'kogito' | 'cflow' = processMetadata?.source || 'kogito'
+  const taskTitle = t('task-title')
   const creatorName = taskPayload?.creatorName as string | undefined
 
   // Use generic hooks for entity dates (request created)
@@ -92,10 +99,24 @@ const AdvancePaymentApprovalContent: React.FC<AdvancePaymentApprovalProps> = ({
     entityType: 'AdvancePayment'
   })
 
+  // For completed tasks, try to extract approver from comments
+  const approverId = useMemo(() => {
+    if (!isTaskCompleted || !advancePayment?.advancePaymentComment) return null
+
+    // Find the most recent APPROVE_COMMENT or REJECT_COMMENT with an authorEmployee
+    const approvalComment = advancePayment.advancePaymentComment.find(
+      comment =>
+        (comment.commentType === 'APPROVE_COMMENT' || comment.commentType === 'REJECT_COMMENT') &&
+        comment.authorEmployee
+    )
+
+    return approvalComment?.authorEmployee || null
+  }, [isTaskCompleted, advancePayment?.advancePaymentComment])
+
   // For completed tasks, fetch approver name
   const { approverName, isLoading: isLoadingApproverName } = useApproverData({
     accessToken,
-    approverId: isTaskCompleted ? advancePayment?.approverId : null
+    approverId
   })
 
   // Extract approval data from task outputs/inputs (for completed tasks)
@@ -324,14 +345,14 @@ const AdvancePaymentApprovalContent: React.FC<AdvancePaymentApprovalProps> = ({
   if (error) {
     return (
       <Alert variant="destructive" data-testid="advance-payment-approval-error">
-        <AlertTitle>Error Loading Advance Payment</AlertTitle>
+        <AlertTitle>{t('error-loading-title')}</AlertTitle>
         <AlertDescription>
           {error}
           <button
             onClick={refetch}
             className="gba:mt-2 gba:px-3 gba:py-1 gba:bg-destructive gba:text-destructive-foreground gba:rounded gba:text-sm"
           >
-            Retry
+            {t('action-retry')}
           </button>
         </AlertDescription>
       </Alert>
@@ -341,25 +362,15 @@ const AdvancePaymentApprovalContent: React.FC<AdvancePaymentApprovalProps> = ({
   if (!advancePayment) {
     return (
       <Alert data-testid="advance-payment-approval-no-data">
-        <AlertTitle>No Data</AlertTitle>
-        <AlertDescription>Advance payment not found</AlertDescription>
+        <AlertTitle>{t('error-no-data-title')}</AlertTitle>
+        <AlertDescription>{t('error-no-data-description')}</AlertDescription>
       </Alert>
     )
   }
 
-  // Get status display
-  const getStatusDisplay = (status?: string) => {
-    if (!status) return { label: 'Pending', variant: 'default' as const }
-    const statusLower = status.toLowerCase()
-    if (statusLower.includes('approved')) return { label: 'Approved', variant: 'success' as const }
-    if (statusLower.includes('rejected')) return { label: 'Rejected', variant: 'destructive' as const }
-    return { label: status, variant: 'default' as const }
-  }
-
-  const statusDisplay = getStatusDisplay(approvalStatus || advancePayment.status)
   const displayName =
     `${advancePayment.expensePlan?.employee?.firstName || ''} ${advancePayment.expensePlan?.employee?.lastName || ''}`.trim() ||
-    'Employee'
+    t('value-employee')
 
   return (
     <TaskFormLayout
@@ -367,8 +378,6 @@ const AdvancePaymentApprovalContent: React.FC<AdvancePaymentApprovalProps> = ({
       header={
         <TaskDetailHeader
           title={taskTitle}
-          status={taskStatus}
-          source={taskSource}
           showEmployeeInfo={true}
           employeeData={
             advancePayment?.expensePlan?.employee
@@ -386,11 +395,6 @@ const AdvancePaymentApprovalContent: React.FC<AdvancePaymentApprovalProps> = ({
           isLoadingEmployee={loading}
           creatorName={creatorName}
           onClose={isEveryBoxContext ? handleClose : undefined}
-          customBadges={
-            <Badge variant={statusDisplay.variant} data-testid="advance-payment-status-badge">
-              {statusDisplay.label}
-            </Badge>
-          }
         />
       }
       footer={
@@ -399,7 +403,7 @@ const AdvancePaymentApprovalContent: React.FC<AdvancePaymentApprovalProps> = ({
             data-testid="advance-payment-approval-actions"
             actions={[
               {
-                label: 'Return',
+                label: t('action-return'),
                 onClick: handleReject,
                 variant: 'outline' as const,
                 disabled: isRejecting || isApproving,
@@ -408,7 +412,7 @@ const AdvancePaymentApprovalContent: React.FC<AdvancePaymentApprovalProps> = ({
                 testId: 'return-button'
               },
               {
-                label: 'Approve',
+                label: t('action-approve'),
                 onClick: handleApprove,
                 variant: 'default' as const,
                 disabled: isApproving || isRejecting,
@@ -433,12 +437,17 @@ const AdvancePaymentApprovalContent: React.FC<AdvancePaymentApprovalProps> = ({
           isLoadingApprover={isLoadingApproverName}
           isLoading={loading}
           prefixDataTestId="advance-payment-approval"
+          t={t}
         />
       )}
 
       {/* 2. Expense Plan Info */}
       {advancePayment.expensePlan && (
-        <ExpensePlanInfoSection expensePlan={advancePayment.expensePlan} prefixDataTestId="advance-payment-approval" />
+        <ExpensePlanInfoSection
+          expensePlan={advancePayment.expensePlan}
+          prefixDataTestId="advance-payment-approval"
+          t={t}
+        />
       )}
 
       {/* 3. Advance Payment Details */}
@@ -447,6 +456,7 @@ const AdvancePaymentApprovalContent: React.FC<AdvancePaymentApprovalProps> = ({
         requestCreatedAt={requestCreatedAt}
         isLoadingRequestDate={isLoadingRequestDate}
         prefixDataTestId="advance-payment-approval"
+        t={t}
       />
 
       {/* 4. Comment Section - Only for active tasks */}
@@ -459,14 +469,14 @@ const AdvancePaymentApprovalContent: React.FC<AdvancePaymentApprovalProps> = ({
               className="gba:text-sm gba:font-medium gba:cursor-pointer gba:flex gba:items-center gba:gap-2"
             >
               <MessageSquare className="gba:h-4 gba:w-4" />
-              Add Comment (Required for rejection)
+              {t('comment-toggle-label')}
             </Label>
           </div>
 
           {showComment && (
             <Textarea
               id="comment"
-              placeholder="Enter your approval comment or rejection reason..."
+              placeholder={t('comment-placeholder')}
               value={comment}
               onChange={e => setComment(e.target.value)}
               rows={4}

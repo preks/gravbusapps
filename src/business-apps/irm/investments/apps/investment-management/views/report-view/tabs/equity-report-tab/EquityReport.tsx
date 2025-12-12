@@ -150,9 +150,17 @@ export const EquityReport: React.FC<EquityReportProps> = ({
       // Find the equity investment group
       const equityGroup = catalogData.investmentGroups.find((group: any) => group.code === 'EQUITY')
 
-      if (equityGroup?.objectValue?.formFields) {
-        equityGroup.objectValue.formFields.forEach((group: any) => {
+      if (equityGroup?.objectValue) {
+        // Parse objectValue if it's a string
+        const parsedObjectValue =
+          typeof equityGroup.objectValue === 'string' ? JSON.parse(equityGroup.objectValue) : equityGroup.objectValue
+
+        parsedObjectValue?.formFields?.forEach((group: any) => {
           group.fields.forEach((field: any) => {
+            // Filter out fields with report: false (not for report tables)
+            if (field.report === false) {
+              return
+            }
             // Use the same ID generation as the table transformer (property with dots -> underscores)
             const columnId = field.property.replaceAll('.', '_')
             columns.push({

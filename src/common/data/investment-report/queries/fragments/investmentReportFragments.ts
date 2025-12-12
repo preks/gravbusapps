@@ -36,6 +36,10 @@ export const INVESTMENT_REPORT = `
   totalCommitmentAmount
   totalDistributionAmount
   
+  # Financial metrics
+  irr
+  moic
+  
   ${AUDIT_FIELDS}
   
   # Catalog relationships

@@ -70,8 +70,18 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
       const activeLiquidFundType = catalogData.investmentLiquidFundTypes.find(type => type.code === activeTypeCode)
 
       if (activeLiquidFundType?.objectValue?.formFields) {
-        activeLiquidFundType.objectValue.formFields.forEach(group => {
+        // Parse objectValue if it's a string
+        const parsedObjectValue =
+          typeof activeLiquidFundType.objectValue === 'string'
+            ? JSON.parse(activeLiquidFundType.objectValue)
+            : activeLiquidFundType.objectValue
+
+        parsedObjectValue.formFields?.forEach(group => {
           group.fields.forEach(field => {
+            // Filter out fields with report: false (not for report tables)
+            if (field.report === false) {
+              return
+            }
             // Use the same ID generation as the table transformer (property with dots -> underscores)
             const columnId = field.property.split('.').join('_')
             columns.push({

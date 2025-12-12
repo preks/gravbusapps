@@ -141,6 +141,65 @@ grant-bonus-review-notes = Note
 grant-bonus-review-acknowledge = Confirmă
 grant-bonus-review-reject = Respinge
 
+# ============================================
+# Common Review Form Translations
+# ============================================
+
+# Common Card Titles
+card-title-unchanged = Toate celelalte câmpuri
+
+# Common Badges
+badge-new = Nou
+badge-changed = Modificat
+badge-unchanged = Neschimbat
+badge-not-set = Nesetat
+badge-changes = { $count } { $count ->
+    [one] Modificare
+   *[other] Modificări
+}
+
+# Common Field Values
+value-not-set = Nesetat
+value-na = N/A
+
+# Common Actions
+action-acknowledge = Confirmă
+action-retry = Reîncearcă
+
+# Common States
+loading = Se încarcă...
+
+# Common Field Labels
+label-first-name = Prenume
+label-last-name = Nume
+label-email = E-mail
+label-notes = Note
+label-birth-date = Data nașterii
+label-country = Țară
+label-city = Oraș
+label-currency = Monedă
+
+# Deactivate Employee Benefit Review Form
+deactivate-benefit-review-title = Cerere dezactivare beneficiu pentru { $employeeName }
+deactivate-benefit-review-requested-by = Solicitat de { $initiatorName }
+deactivate-benefit-review-loading = Se încarcă cererea de dezactivare beneficiu...
+deactivate-benefit-review-error-title = Imposibil de încărcat datele
+deactivate-benefit-review-error-description = Eroare la încărcarea cererii de dezactivare beneficiu
+deactivate-benefit-review-benefit-details = Detalii beneficiu
+deactivate-benefit-review-deactivation-details = Cerere dezactivare
+deactivate-benefit-review-submit = Dezactivează beneficiu
+deactivate-benefit-review-benefit-type = Tip beneficiu
+deactivate-benefit-review-provider = Furnizor
+deactivate-benefit-review-yearly-value = Valoare anuală
+deactivate-benefit-review-monthly-value = Valoare lunară
+deactivate-benefit-review-period = Perioadă
+deactivate-benefit-review-start-date = Dată de început
+deactivate-benefit-review-employee-yearly-contribution = Contribuție anuală angajat
+deactivate-benefit-review-employee-monthly-contribution = Contribuție lunară angajat
+deactivate-benefit-review-employee-contributions = Contribuții angajat
+deactivate-benefit-review-end-date = Dată de încheiere solicitată
+deactivate-benefit-review-reason = Motiv dezactivare
+
 # Request Employee Benefit Review Form
 request-benefit-review-title = Revizuire beneficiu pentru { $employeeName }
 request-benefit-review-initiated-by = Inițiat de { $initiatorName }

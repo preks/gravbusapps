@@ -141,6 +141,65 @@ grant-bonus-review-notes = Notes
 grant-bonus-review-acknowledge = Acknowledge
 grant-bonus-review-reject = Reject
 
+# ============================================
+# Common Review Form Translations
+# ============================================
+
+# Common Card Titles
+card-title-unchanged = All Other Fields
+
+# Common Badges
+badge-new = New
+badge-changed = Changed
+badge-unchanged = Unchanged
+badge-not-set = Not Set
+badge-changes = { $count } { $count ->
+    [one] Change
+   *[other] Changes
+}
+
+# Common Field Values
+value-not-set = Not set
+value-na = N/A
+
+# Common Actions
+action-acknowledge = Acknowledge
+action-retry = Retry
+
+# Common States
+loading = Loading...
+
+# Common Field Labels
+label-first-name = First Name
+label-last-name = Last Name
+label-email = Email
+label-notes = Notes
+label-birth-date = Birth Date
+label-country = Country
+label-city = City
+label-currency = Currency
+
+# Deactivate Employee Benefit Review Form
+deactivate-benefit-review-title = Benefit Deactivation Request for { $employeeName }
+deactivate-benefit-review-requested-by = Requested by { $initiatorName }
+deactivate-benefit-review-loading = Loading benefit deactivation request...
+deactivate-benefit-review-error-title = Unable to Load Data
+deactivate-benefit-review-error-description = Failed to load benefit deactivation request data
+deactivate-benefit-review-benefit-details = Benefit Details
+deactivate-benefit-review-deactivation-details = Deactivation Request
+deactivate-benefit-review-submit = Deactivate Benefit
+deactivate-benefit-review-benefit-type = Benefit Type
+deactivate-benefit-review-provider = Provider
+deactivate-benefit-review-yearly-value = Yearly Value
+deactivate-benefit-review-monthly-value = Monthly Value
+deactivate-benefit-review-period = Period
+deactivate-benefit-review-start-date = Start Date
+deactivate-benefit-review-employee-yearly-contribution = Employee Yearly Contribution
+deactivate-benefit-review-employee-monthly-contribution = Employee Monthly Contribution
+deactivate-benefit-review-employee-contributions = Employee Contributions
+deactivate-benefit-review-end-date = Requested End Date
+deactivate-benefit-review-reason = Reason for Deactivation
+
 # Request Employee Benefit Review Form
 request-benefit-review-title = Employee Benefit Review for { $employeeName }
 request-benefit-review-initiated-by = Initiated by { $initiatorName }

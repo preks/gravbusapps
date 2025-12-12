@@ -141,6 +141,65 @@ grant-bonus-review-notes = Notizen
 grant-bonus-review-acknowledge = Genehmigen
 grant-bonus-review-reject = Ablehnen
 
+# ============================================
+# Common Review Form Translations
+# ============================================
+
+# Common Card Titles
+card-title-unchanged = Alle anderen Felder
+
+# Common Badges
+badge-new = Neu
+badge-changed = Geändert
+badge-unchanged = Unverändert
+badge-not-set = Nicht gesetzt
+badge-changes = { $count } { $count ->
+    [one] Änderung
+   *[other] Änderungen
+}
+
+# Common Field Values
+value-not-set = Nicht gesetzt
+value-na = K.A.
+
+# Common Actions
+action-acknowledge = Bestätigen
+action-retry = Erneut versuchen
+
+# Common States
+loading = Wird geladen...
+
+# Common Field Labels
+label-first-name = Vorname
+label-last-name = Nachname
+label-email = E-Mail
+label-notes = Notizen
+label-birth-date = Geburtsdatum
+label-country = Land
+label-city = Stadt
+label-currency = Währung
+
+# Deactivate Employee Benefit Review Form
+deactivate-benefit-review-title = Deaktivierungsanfrage für Zusatzleistung von { $employeeName }
+deactivate-benefit-review-requested-by = Angefordert von { $initiatorName }
+deactivate-benefit-review-loading = Lade Deaktivierungsanfrage für Zusatzleistung...
+deactivate-benefit-review-error-title = Daten können nicht geladen werden
+deactivate-benefit-review-error-description = Fehler beim Laden der Deaktivierungsanfrage für Zusatzleistung
+deactivate-benefit-review-benefit-details = Details zur Zusatzleistung
+deactivate-benefit-review-deactivation-details = Deaktivierungsanfrage
+deactivate-benefit-review-submit = Zusatzleistung deaktivieren
+deactivate-benefit-review-benefit-type = Art der Zusatzleistung
+deactivate-benefit-review-provider = Anbieter
+deactivate-benefit-review-yearly-value = Jahreswert
+deactivate-benefit-review-monthly-value = Monatswert
+deactivate-benefit-review-period = Zeitraum
+deactivate-benefit-review-start-date = Startdatum
+deactivate-benefit-review-employee-yearly-contribution = Mitarbeiter-Jahresbeitrag
+deactivate-benefit-review-employee-monthly-contribution = Mitarbeiter-Monatsbeitrag
+deactivate-benefit-review-employee-contributions = Mitarbeiterbeiträge
+deactivate-benefit-review-end-date = Angefordertes Enddatum
+deactivate-benefit-review-reason = Grund für Deaktivierung
+
 # Request Employee Benefit Review Form
 request-benefit-review-title = Überprüfung der Zusatzleistung für { $employeeName }
 request-benefit-review-initiated-by = Initiiert von { $initiatorName }

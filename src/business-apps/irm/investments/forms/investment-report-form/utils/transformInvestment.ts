@@ -39,6 +39,23 @@ export const transformInvestment = (
   // Map investment data to form values (automatic mapping of all fields)
   const mappedValues = mapToFormValues({ investment }, baseSchema) as Partial<InvestmentFormValues>
 
+  // IMPORTANT: mapToFormValues only maps fields in the schema, but schema has .catchall(z.any())
+  // We need to manually merge all fields from investment to ensure dynamic fields are preserved
+  if (mappedValues.investment) {
+    // Merge all fields from investment into mappedValues.investment
+    // This ensures all dynamic fields (not in base schema) are included
+    Object.keys(investment).forEach(key => {
+      // Skip fields that are already mapped or should be excluded
+      if (key === 'id' || key === 'version' || key === 'investmentAccounts') {
+        return
+      }
+      // Only add if not already present (mapToFormValues might have transformed it)
+      if (!(key in mappedValues.investment!)) {
+        ;(mappedValues.investment as any)[key] = (investment as any)[key]
+      }
+    })
+  }
+
   // Extract IDs - einfach die Ref-Felder nehmen, keine Fallbacks
   const groupId = investment.investmentGroupRef || null
   const typeId = investment.investmentTypeRef || null
@@ -96,9 +113,10 @@ export const transformInvestment = (
     ;(mappedValues as any).realEstateInvestment = removeIdVersion((mappedValues as any).realEstateInvestment)
   }
 
-  // Set investment.id and investmentId so InvestmentLayout recognizes it
+  // Set investmentId only (not id) - id belongs to the investment entity, not the report
+  // investmentId is used to reference which investment this report is for
+  // InvestmentLayout will use investment.investmentId for isUpdate check and entityId
   if (mappedValues.investment && investmentId) {
-    ;(mappedValues.investment as any).id = investmentId
     ;(mappedValues.investment as any).investmentId = investmentId
   }
 

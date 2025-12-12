@@ -12,7 +12,6 @@ import {
 } from '@newwork/nw-design-system'
 import { ChartBar, Users } from '@phosphor-icons/react'
 import { OfficeUsageProps } from './types'
-import { OfficeUsageFilterBar } from './components/filters/OfficeUsageFilterBar'
 import { UsageOverviewTab } from './components/tabs/UsageOverviewTab'
 import { LivePresenceTab } from './components/tabs/LivePresenceTab'
 import { useOfficeUsageFilters } from './hooks/useOfficeUsageFilters'
@@ -20,6 +19,7 @@ import { useSiteLocations } from './hooks/useSiteLocations'
 import { useOfficeAttendance } from './hooks/useOfficeAttendance'
 import { useLivePresence } from './hooks/useLivePresence'
 import { getCurrentActiveStructureId, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getDateRangeForPreset } from './utils/dateUtils'
 
 const OfficeUsage: React.FC<OfficeUsageProps> = ({ accessToken, prefixDataTestId = 'office-usage' }) => {
   const [activeTab, setActiveTab] = useState<'usage-overview' | 'live-presence'>('usage-overview')
@@ -47,6 +47,14 @@ const OfficeUsage: React.FC<OfficeUsageProps> = ({ accessToken, prefixDataTestId
     fetchAttendance
   } = useOfficeAttendance(accessToken, structureId)
 
+  // KPI attendance (independent, last 30 days, all locations)
+  const {
+    attendance: kpiAttendance,
+    isLoading: kpiLoading,
+    error: kpiError,
+    fetchAttendance: fetchKpiAttendance
+  } = useOfficeAttendance(accessToken, structureId)
+
   // Live presence data
   const {
     presence,
@@ -63,6 +71,14 @@ const OfficeUsage: React.FC<OfficeUsageProps> = ({ accessToken, prefixDataTestId
     }
   }, [accessToken, filters.dateFrom, filters.dateTo, fetchAttendance])
 
+  // Fetch KPI attendance once (last 30 days, by day)
+  useEffect(() => {
+    if (accessToken) {
+      const { dateFrom, dateTo } = getDateRangeForPreset('last-30-days')
+      fetchKpiAttendance(dateFrom, dateTo)
+    }
+  }, [accessToken, fetchKpiAttendance])
+
   // Fetch live presence on tab change
   useEffect(() => {
     if (activeTab === 'live-presence' && accessToken) {
@@ -74,6 +90,10 @@ const OfficeUsage: React.FC<OfficeUsageProps> = ({ accessToken, prefixDataTestId
   const handleSwitchToLivePresence = (locationId?: string) => {
     setSelectedLocationFilter(locationId)
     setActiveTab('live-presence')
+  }
+
+  const handleClearLivePresenceLocation = () => {
+    setSelectedLocationFilter(undefined)
   }
 
   // Check if we have access token
@@ -141,15 +161,6 @@ const OfficeUsage: React.FC<OfficeUsageProps> = ({ accessToken, prefixDataTestId
         </p>
       </div>
 
-      {/* Filter Bar - Persistent across tabs */}
-      <OfficeUsageFilterBar
-        filters={filters}
-        onFiltersChange={updateFilters}
-        locations={locations}
-        isLoading={locationsLoading || attendanceLoading}
-        prefixDataTestId={`${prefixDataTestId}-filter-bar`}
-      />
-
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={value => setActiveTab(value as typeof activeTab)}>
         <TabsList className="gba:mb-6">
@@ -172,12 +183,19 @@ const OfficeUsage: React.FC<OfficeUsageProps> = ({ accessToken, prefixDataTestId
         {/* Usage Overview Tab */}
         <TabsContent value="usage-overview">
           <UsageOverviewTab
+            kpiAttendance={kpiAttendance}
             attendance={attendance}
             locations={locations}
             filters={filters}
-            isLoading={attendanceLoading}
-            error={attendanceError}
-            onRetry={() => fetchAttendance(filters.dateFrom, filters.dateTo)}
+            onFiltersChange={updateFilters}
+            filtersLoading={locationsLoading || attendanceLoading || kpiLoading}
+            isLoading={attendanceLoading || kpiLoading}
+            error={attendanceError || kpiError}
+            onRetry={() => {
+              fetchAttendance(filters.dateFrom, filters.dateTo)
+              const { dateFrom, dateTo } = getDateRangeForPreset('last-30-days')
+              fetchKpiAttendance(dateFrom, dateTo)
+            }}
             onSwitchToLivePresence={handleSwitchToLivePresence}
             prefixDataTestId={`${prefixDataTestId}-usage-overview`}
           />
@@ -194,6 +212,7 @@ const OfficeUsage: React.FC<OfficeUsageProps> = ({ accessToken, prefixDataTestId
             onRefresh={fetchPresence}
             onRetry={fetchPresence}
             selectedLocationFilter={selectedLocationFilter}
+            onClearLocationFilter={handleClearLivePresenceLocation}
             prefixDataTestId={`${prefixDataTestId}-live-presence`}
           />
         </TabsContent>

@@ -3,22 +3,27 @@
  * This fetches the fullTimeEquivalent field from EmployeeWorkingHours
  */
 export const GET_FTE_DATA = `
-  query GetFteData {
+  query GetFteData($now: timestamptz!) {
     EmployeeWorkingHours(
       where: {
-        employee: {
-          isDeleted: { _eq: false }
-        }
+        _and: [
+          { isDeleted: { _eq: false } },
+          { employee: { isDeleted: { _eq: false } } },
+          { _or: [{ activeFrom: { _isNull: true } }, { activeFrom: { _lte: $now } }] },
+          { _or: [{ activeTo: { _isNull: true } }, { activeTo: { _gte: $now } }] }
+        ]
       }
     ) {
       id
+      employeeId
+      weeklyHours
       fullTimeEquivalent
-      employee {
-        id
-      }
+      activeFrom
+      activeTo
+      createdAt
     }
     
-    # Get aggregate data for FTE sum
+    # Keep aggregate for testing (unfiltered sum over non-deleted employees)
     EmployeeWorkingHoursAggregate(
       where: {
         employee: {

@@ -1,26 +1,9 @@
-export interface EmployeeBenefitData {
-  employee: string
-  benefitTypeRef: string | null
-  benefitProviderRef: string | null
-  yearlyAmount: number
-  monthlyAmount: number
-  period: string | null
-  currencyRef: string
-  startDate: string | null
-  notes: string | null
-  employeeYearlyContribution?: number
-  employeeMonthlyContribution?: number
-  status?: string
-}
+import type { EmployeeBenefitBaseData, BenefitReviewBasePayload } from '../employee-benefit-review/types'
 
-export interface BenefitReviewPayload {
+export type { BenefitDisplayItem } from '../employee-benefit-review/types'
+
+export type EmployeeBenefitData = EmployeeBenefitBaseData
+
+export interface BenefitReviewPayload extends BenefitReviewBasePayload {
   employeeBenefit: EmployeeBenefitData
-  employeeId?: string
-  initiatorEmployeeId?: string
-}
-
-export interface BenefitDisplayItem {
-  key: string
-  label: string
-  value: string
 }
