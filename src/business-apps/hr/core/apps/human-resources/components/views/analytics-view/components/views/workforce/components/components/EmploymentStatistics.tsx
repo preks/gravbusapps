@@ -28,7 +28,9 @@ const EmploymentStatistics: React.FC<EmploymentStatisticsProps> = ({ statistics,
     {
       id: 'fte-employee-count',
       title: t('hr-analytics-fte-employee-count'),
-      value: isLoading ? t('hr-data-filter-loading') : `${statistics.fteRatio.toFixed(2)}`,
+      value: isLoading
+        ? t('hr-data-filter-loading')
+        : `${statistics.fteRatio.toFixed(2)} / ${statistics.employeeCount}`,
       icon: <Icon icon={UsersIcon} size="sm" decorative />,
       iconColor: 'var(--nw-info)',
       footer: t('hr-analytics-fte-ratio')
