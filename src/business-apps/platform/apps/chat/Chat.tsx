@@ -546,6 +546,63 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
             confidence: expertResult.expertResponse.confidence
           })
 
+          // Check if this is a Document Reviewer response with annotations
+          // Look for the expert name containing "Document" or "Review" and try to parse annotations
+          const expertName = expertResult.expertResponse.expertName?.toLowerCase() || ''
+          const isDocumentReviewer = expertName.includes('document') || expertName.includes('review')
+
+          if (isDocumentReviewer) {
+            try {
+              // Try to extract JSON from the response
+              const responseText = expertResult.expertResponse.text
+              const jsonMatch = responseText.match(/\{[\s\S]*"annotations"[\s\S]*\}/m)
+
+              if (jsonMatch) {
+                const reviewData = JSON.parse(jsonMatch[0])
+
+                if (
+                  reviewData.annotations &&
+                  Array.isArray(reviewData.annotations) &&
+                  reviewData.annotations.length > 0
+                ) {
+                  // Get current document context
+                  const docContext = (window as any).__currentDocumentContext
+
+                  if (docContext?.documentId) {
+                    // Transform annotations to expected format
+                    const annotations = reviewData.annotations.map((ann: any, idx: number) => ({
+                      id: ann.id || `ann-${idx}`,
+                      type: ann.type || 'error',
+                      severity: ann.severity || 'warning',
+                      category: ann.category || 'grammar',
+                      startOffset: ann.startOffset ?? ann.start_offset ?? 0,
+                      endOffset: ann.endOffset ?? ann.end_offset ?? 0,
+                      originalText: ann.originalText || ann.original_text || '',
+                      message: ann.message || '',
+                      suggestion: ann.suggestedText || ann.suggested_text || ann.suggestion || '',
+                      resolved: false
+                    }))
+
+                    // Dispatch annotations to document view
+                    console.log('[Chat] Dispatching document annotations:', annotations.length)
+                    window.dispatchEvent(
+                      new CustomEvent('document-review-annotations', {
+                        detail: {
+                          documentId: docContext.documentId,
+                          annotations,
+                          isLoading: false
+                        }
+                      })
+                    )
+                  }
+                }
+              }
+            } catch (e) {
+              console.log('[Chat] Could not parse document review annotations:', e)
+              // Not an error - expert may not have returned JSON annotations
+            }
+          }
+
           clearStreamingText()
           return // Stop here, don't process with generic Every
         }

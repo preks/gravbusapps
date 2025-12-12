@@ -21,6 +21,7 @@ import ReactQuill from 'react-quill'
 import { CatalogSelect } from '@/components/catalog-select'
 import { ContentEntryFormValues } from '../ContentEntryWindow'
 import { ContentAiTextGenerator } from '../components/ContentAiTextGenerator'
+import { DocumentReviewPanel } from '../components/DocumentReviewPanel'
 import translations from '../_i18n'
 
 // Check if running in local development environment
@@ -352,6 +353,14 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
             />
           </div>
         )}
+
+        {/* AI Document Review Panel - Shows suggestions from chat */}
+        <DocumentReviewPanel
+          content={watchContent || ''}
+          title={watchTitle || ''}
+          onContentChange={value => setValue('content', value)}
+          accessToken={context.accessToken || ''}
+        />
 
         {/* Content Group and Content Type - Above Image Upload */}
         <FormFieldGroup>
