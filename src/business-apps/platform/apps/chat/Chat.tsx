@@ -220,7 +220,6 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
         // Only clear if still disconnected after 500ms
         // This handles platform remounting (< 500ms) but clears for real disconnects
         if (!isConnectedRef.current) {
-          console.log('[Chat] Connection lost for 500ms+, clearing presence cache')
           presenceInitializedUsersRef.current.clear()
           disconnectTimeRef.current = null
         }
@@ -228,14 +227,8 @@ export const Chat: React.FC<ChatProps> = ({ accessToken: accessTokenProp, prefix
 
       return () => clearTimeout(timeout)
     } else {
-      // Check if this was a rapid reconnect (< 500ms)
-      if (disconnectTimeRef.current !== null) {
-        const disconnectDuration = Date.now() - disconnectTimeRef.current
-        if (disconnectDuration < 500) {
-          console.log(`[Chat] Rapid reconnect after ${disconnectDuration}ms - preserving presence cache`)
-        }
-        disconnectTimeRef.current = null
-      }
+      // Reset disconnect timestamp on reconnect
+      disconnectTimeRef.current = null
     }
   }, [isConnected])
 

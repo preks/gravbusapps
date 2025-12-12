@@ -129,16 +129,6 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
       const conversationsData = response.data || (response as any).conversations || []
       const total = response.total || 0
 
-      // Debug: Log conversations with unread counts
-      if (conversationsData.some((c: any) => c.unreadCount > 0)) {
-        console.log(
-          '[Chat] Conversations with unread counts:',
-          conversationsData
-            .filter((c: any) => c.unreadCount > 0)
-            .map((c: any) => ({ id: c.id, name: c.name, unreadCount: c.unreadCount, type: c.type }))
-        )
-      }
-
       // Check if there are more conversations to load
       setHasMore(conversationsData.length === LIMIT && conversationsData.length < total)
 

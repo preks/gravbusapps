@@ -209,15 +209,12 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
         currentConversationIdRef.current = activeConversationId
       }
 
-      // PERFORMANCE FIX: Removed the 500ms setTimeout that was reloading conversations
-      // The initial load is sufficient, and WebSocket events will update conversations in real-time
-      // This saves ~1.3 seconds on initial load and prevents duplicate API calls
-      // If unread counts are needed, they should be included in WebSocket events instead
-
-      // Old code (removed for performance):
-      // setTimeout(() => {
-      //   conversationsHookRef.current?.loadConversations?.()
-      // }, 500)
+      // Refresh conversations after WebSocket connects to get accurate unread counts
+      // This ensures unread counts reflect messages received while offline
+      // Small delay to allow initial connection to stabilize
+      setTimeout(() => {
+        conversationsHookRef.current?.loadConversations?.()
+      }, 500)
     }
 
     const handleDisconnect = () => {

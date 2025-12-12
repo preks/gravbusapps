@@ -83,6 +83,21 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
       return false
     })
 
+  // Check if message is a form cancellation JSON (should be hidden from UI)
+  const isFormCancellationMessage = useMemo(() => {
+    try {
+      const parsed = JSON.parse(message.content)
+      return parsed?.action === 'form_cancel'
+    } catch {
+      return false
+    }
+  }, [message.content])
+
+  // Hide form cancellation messages from UI (they're only for form state tracking)
+  if (isFormCancellationMessage) {
+    return null
+  }
+
   // Look up avatar and employeeId from conversation participants if not in sender
   const participantData = useMemo(() => {
     if (!participants) return null
