@@ -672,19 +672,27 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                               <PiPencil className="gba:h-4 gba:w-4 gba:mr-2" />
                               Update
                             </DropdownMenuItem>
-                            {!periodUsageMap[record.id] && (
-                              <>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  onClick={() => handleDeleteClick(record)}
-                                  className="gba:text-destructive"
-                                  data-testid={`delete-allowance-period-${record.id}`}
-                                >
-                                  <PiTrash className="gba:h-4 gba:w-4 gba:mr-2" />
-                                  Delete
-                                </DropdownMenuItem>
-                              </>
-                            )}
+                            {/* Always show delete option, but disable if period is used */}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={e => {
+                                e.stopPropagation()
+                                if (!periodUsageMap[record.id]) {
+                                  handleDeleteClick(record)
+                                }
+                              }}
+                              className="gba:text-destructive"
+                              disabled={periodUsageMap[record.id]}
+                              title={
+                                periodUsageMap[record.id]
+                                  ? 'Cannot delete - this period is used in allowance setups'
+                                  : 'Delete this allowance period'
+                              }
+                              data-testid={`delete-allowance-period-${record.id}`}
+                            >
+                              <PiTrash className="gba:h-4 gba:w-4 gba:mr-2" />
+                              Delete
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>

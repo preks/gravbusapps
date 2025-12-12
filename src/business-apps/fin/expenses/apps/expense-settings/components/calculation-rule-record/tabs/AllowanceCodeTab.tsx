@@ -383,6 +383,9 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
           positions: ExpensePosition(
             where: { expenseRuleAllowanceCodeId: { _in: $allowanceCodeIds }, isDeleted: { _eq: false } }
           ) { expenseRuleAllowanceCodeId }
+          setups: ExpenseRuleAllowanceSetup(
+            where: { allowanceCodeId: { _in: $allowanceCodeIds }, isDeleted: { _eq: false } }
+          ) { allowanceCodeId }
         }
       `
 
@@ -390,6 +393,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
           planItems: { expenseRuleAllowanceCodeId: string }[]
           items: { expenseRuleAllowanceCodeId: string }[]
           positions: { expenseRuleAllowanceCodeId: string }[]
+          setups: { allowanceCodeId: string }[]
         }>(query, { allowanceCodeIds })
 
         // Build a set of used allowance code IDs
@@ -397,6 +401,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
         result.planItems?.forEach(item => usedIds.add(item.expenseRuleAllowanceCodeId))
         result.items?.forEach(item => usedIds.add(item.expenseRuleAllowanceCodeId))
         result.positions?.forEach(item => usedIds.add(item.expenseRuleAllowanceCodeId))
+        result.setups?.forEach(item => usedIds.add(item.allowanceCodeId))
 
         // Create usage map
         const usageMap: Record<string, boolean> = {}
@@ -843,23 +848,27 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                                 <PiPencil className="gba:h-4 gba:w-4 gba:mr-2" />
                                 Update
                               </DropdownMenuItem>
-                              {/* Only show delete option if allowance code is not used */}
-                              {!allowanceCodeUsageMap[record.id] && (
-                                <>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    onClick={e => {
-                                      e.stopPropagation()
-                                      handleDeleteClick(record)
-                                    }}
-                                    className="gba:text-destructive"
-                                    data-testid={`allowance-code-delete-${record.id}`}
-                                  >
-                                    <PiTrash className="gba:h-4 gba:w-4 gba:mr-2" />
-                                    Delete
-                                  </DropdownMenuItem>
-                                </>
-                              )}
+                              {/* Always show delete option, but disable if allowance code is used */}
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={e => {
+                                  e.stopPropagation()
+                                  if (!allowanceCodeUsageMap[record.id]) {
+                                    handleDeleteClick(record)
+                                  }
+                                }}
+                                className="gba:text-destructive"
+                                disabled={allowanceCodeUsageMap[record.id]}
+                                title={
+                                  allowanceCodeUsageMap[record.id]
+                                    ? 'Cannot delete - this code is used in allowance setups'
+                                    : 'Delete this allowance code'
+                                }
+                                data-testid={`allowance-code-delete-${record.id}`}
+                              >
+                                <PiTrash className="gba:h-4 gba:w-4 gba:mr-2" />
+                                Delete
+                              </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
@@ -1103,12 +1112,35 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                       <FormLabel data-testid="allowance-code-amount-label">Amount</FormLabel>
                       <FormControl>
                         <Input
-                          type="number"
-                          min="0"
-                          step="0.1"
+                          type="text"
                           placeholder="e.g. 57.50"
-                          value={field.value ?? ''}
-                          onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}
+                          value={field.value === undefined || field.value === null ? '' : String(field.value)}
+                          onChange={e => {
+                            const value = e.target.value.trim()
+                            if (value === '') {
+                              field.onChange(undefined)
+                              return
+                            }
+                            // Allow numbers with optional decimal point
+                            if (/^\d*\.?\d*$/.test(value)) {
+                              const numValue = value === '' ? undefined : Number(value)
+                              field.onChange(numValue)
+                            }
+                          }}
+                          onBlur={e => {
+                            // On blur, clean up the value
+                            const value = e.target.value.trim()
+                            if (value === '') {
+                              field.onChange(undefined)
+                            } else {
+                              const numValue = Number(value)
+                              if (!isNaN(numValue) && numValue >= 0) {
+                                field.onChange(numValue)
+                              } else {
+                                field.onChange(undefined)
+                              }
+                            }
+                          }}
                           disabled={isRestrictedEdit}
                           data-testid="allowance-code-amount-input"
                         />
