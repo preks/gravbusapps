@@ -339,6 +339,12 @@ export const TaskExpertEditor: React.FC<TaskExpertEditorProps> = props => {
           return tool.code
         })
 
+      // Build model settings - enforce JSON response when a schema is provided
+      const modelSettings: Record<string, unknown> = {}
+      if (responseType === 'json' && responseSchema && responseSchema.trim()) {
+        modelSettings.response_format = { type: 'json_object' }
+      }
+
       // For create mode, filter out document sources (will be uploaded after)
       // Keep content_entry and url sources (they don't need file upload)
       const sourcesForCreate =
@@ -353,7 +359,7 @@ export const TaskExpertEditor: React.FC<TaskExpertEditorProps> = props => {
           modelId,
           userContent,
           systemContent,
-          modelSettings: {},
+          modelSettings,
           responseSchema: responseSchema ? JSON.parse(responseSchema) : null,
           tools: toolCodes,
           // Every Expert fields
@@ -379,7 +385,7 @@ export const TaskExpertEditor: React.FC<TaskExpertEditorProps> = props => {
           userContent,
           systemContent,
           modelId,
-          modelSettings: {},
+          modelSettings,
           responseSchema: responseSchema ? JSON.parse(responseSchema) : null,
           tools: toolCodes,
           revisionMessage: '',
