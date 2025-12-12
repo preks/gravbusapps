@@ -42,6 +42,7 @@ export interface Contact extends BaseEntity {
   salutationRef?: string // IRM | CRM
   tasks?: Task[] // IRM | CRM
   type?: ContactType // IRM | TODO (contactType)
+  userId?: string // Platform user ID for this contact (optional)
 }
 
 /**
@@ -77,7 +78,8 @@ export const ContactFields = {
   salutation: 'salutation',
   salutationRef: 'salutationRef',
   tasks: 'tasks',
-  type: 'type'
+  type: 'type',
+  userId: 'userId'
 } as const
 
 /**
@@ -299,5 +301,6 @@ export const contactFormFields = {
   professionalTitleRef: 'professionalTitleRef',
   salutationRef: 'salutationRef',
   type: 'type',
+  userId: 'userId',
   version: 'version'
 } as const
