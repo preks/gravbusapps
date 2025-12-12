@@ -8,6 +8,9 @@
  * @module document-reviewer
  */
 
+// Default export (main component for app entry)
+export { default } from './DocumentReviewer'
+
 // Types
 export * from './types'
 
