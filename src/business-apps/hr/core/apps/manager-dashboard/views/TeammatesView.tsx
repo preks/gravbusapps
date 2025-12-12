@@ -49,11 +49,49 @@ export const TeammatesView: React.FC<TeammatesViewProps> = ({
   onNavigateToEmployee
 }) => {
   // Filter direct reports based on active filter
-  const filteredDirectReports = filterAbsentOnly
-    ? directReports.filter(report => report.status === 'On Leave')
-    : filterUnallocatedOnly
-      ? directReports.filter(report => unallocatedEmployeeIds.includes(report.id))
-      : directReports
+  const getFilteredDirectReports = () => {
+    if (filterAbsentOnly) {
+      return directReports.filter(report => report.status === 'On Leave')
+    }
+    if (filterUnallocatedOnly) {
+      return directReports.filter(report => unallocatedEmployeeIds.includes(report.id))
+    }
+    return directReports
+  }
+  const filteredDirectReports = getFilteredDirectReports()
+
+  // Helper functions for header display
+  const getHeaderTitle = () => {
+    if (filterAbsentOnly) {
+      return getTranslationFromI18nKeyAndLabel(
+        'master-data:hr.manager_dashboard.absent_teammates',
+        'Absent Team Members'
+      )
+    }
+    if (filterUnallocatedOnly) {
+      return getTranslationFromI18nKeyAndLabel(
+        'master-data:hr.manager_dashboard.unallocated_teammates',
+        'Unallocated Team Members'
+      )
+    }
+    return getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.my_teammates', 'My Teammates')
+  }
+
+  const getBadgeVariant = (): 'warning' | 'info' | 'secondary' => {
+    if (filterAbsentOnly) return 'warning'
+    if (filterUnallocatedOnly) return 'info'
+    return 'secondary'
+  }
+
+  const getBadgeText = () => {
+    if (filterAbsentOnly) {
+      return `${filteredDirectReports.length} ${getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.out_of_office', 'out of office')}`
+    }
+    if (filterUnallocatedOnly) {
+      return `${filteredDirectReports.length} ${getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.not_allocated', 'not allocated')}`
+    }
+    return `${directReports.length + matrixTeamMembers.length} ${getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.total_teammates', 'total teammates').toLowerCase()}`
+  }
 
   // Transform DirectReport data to Employee interface format with proper data mapping
   const transformedDirectReports: Employee[] = filteredDirectReports.map(report => ({
@@ -119,25 +157,9 @@ export const TeammatesView: React.FC<TeammatesViewProps> = ({
               'Back to Dashboard'
             )}
           </Button>
-          <h1 className="gba:text-xl gba:font-semibold">
-            {filterAbsentOnly
-              ? getTranslationFromI18nKeyAndLabel(
-                  'master-data:hr.manager_dashboard.absent_teammates',
-                  'Absent Team Members'
-                )
-              : filterUnallocatedOnly
-                ? getTranslationFromI18nKeyAndLabel(
-                    'master-data:hr.manager_dashboard.unallocated_teammates',
-                    'Unallocated Team Members'
-                  )
-                : getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.my_teammates', 'My Teammates')}
-          </h1>
-          <Badge variant={filterAbsentOnly ? 'warning' : filterUnallocatedOnly ? 'info' : 'info'} className="gba:ml-3">
-            {filterAbsentOnly
-              ? `${filteredDirectReports.length} ${getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.out_of_office', 'out of office')}`
-              : filterUnallocatedOnly
-                ? `${filteredDirectReports.length} ${getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.not_allocated', 'not allocated')}`
-                : `${directReports.length + matrixTeamMembers.length} ${getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.total_teammates', 'total teammates').toLowerCase()}`}
+          <h1 className="gba:text-xl gba:font-semibold">{getHeaderTitle()}</h1>
+          <Badge variant={getBadgeVariant()} className="gba:ml-3">
+            {getBadgeText()}
           </Badge>
           {(filterAbsentOnly || filterUnallocatedOnly) && (
             <Button

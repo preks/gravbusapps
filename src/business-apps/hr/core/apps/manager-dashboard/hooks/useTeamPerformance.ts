@@ -47,10 +47,7 @@ interface UseTeamPerformanceProps {
  * Hook to fetch team performance data
  * Gets all performance goals for direct reports and calculates team averages
  */
-export const useTeamPerformance = ({
-  accessToken,
-  managerId
-}: UseTeamPerformanceProps): TeamPerformanceResult => {
+export const useTeamPerformance = ({ accessToken, managerId }: UseTeamPerformanceProps): TeamPerformanceResult => {
   const [teamPerformance, setTeamPerformance] = useState<TeamMemberPerformance[]>([])
   const [averageTeamProgress, setAverageTeamProgress] = useState(0)
   const [totalGoals, setTotalGoals] = useState(0)
@@ -138,7 +135,7 @@ export const useTeamPerformance = ({
 
       // Step 3: Group goals by employee and calculate stats
       const goalsByEmployee = new Map<string, PerformanceGoal[]>()
-      
+
       // Initialize map with empty arrays for all employees
       for (const empId of employeeIds) {
         goalsByEmployee.set(empId, [])
@@ -161,16 +158,17 @@ export const useTeamPerformance = ({
 
       const teamData: TeamMemberPerformance[] = employees.map((emp: any) => {
         const goals = goalsByEmployee.get(emp.id) || []
-        
+
         // Calculate stats for this employee
         const employeeGoalsOnTrack = goals.filter(g => g.status === 'ON_TRACK' || g.status === 'ACHIEVED').length
         const employeeGoalsAtRisk = goals.filter(g => g.status === 'AT_RISK').length
-        const employeeGoalsBehindTarget = goals.filter(g => g.status === 'BEHIND_TARGET' || g.status === 'NOT_ACHIEVED').length
-        
+        const employeeGoalsBehindTarget = goals.filter(
+          g => g.status === 'BEHIND_TARGET' || g.status === 'NOT_ACHIEVED'
+        ).length
+
         // Calculate average progress for this employee
-        const avgProgress = goals.length > 0
-          ? Math.round(goals.reduce((sum, g) => sum + (g.progressPercent || 0), 0) / goals.length)
-          : 0
+        const avgProgress =
+          goals.length > 0 ? Math.round(goals.reduce((sum, g) => sum + (g.progressPercent || 0), 0) / goals.length) : 0
 
         // Accumulate team totals
         allGoalsCount += goals.length
@@ -195,9 +193,7 @@ export const useTeamPerformance = ({
       })
 
       // Calculate team average
-      const teamAvgProgress = allGoalsCount > 0
-        ? Math.round(allGoalsProgress / allGoalsCount)
-        : 0
+      const teamAvgProgress = allGoalsCount > 0 ? Math.round(allGoalsProgress / allGoalsCount) : 0
 
       setTeamPerformance(teamData)
       setAverageTeamProgress(teamAvgProgress)
@@ -226,6 +222,8 @@ export const useTeamPerformance = ({
     goalsBehindTarget,
     loading,
     error,
-    refetch: fetchTeamPerformance
+    refetch: () => {
+      fetchTeamPerformance()
+    }
   }
 }

@@ -26,6 +26,23 @@ export interface MyTeamCardProps {
   onNavigateToEmployee: (employeeId: string) => void
 }
 
+const LoadingSkeleton: React.FC = () => (
+  <div className="gba:flex gba:gap-2 gba:flex-wrap">
+    {[1, 2, 3, 4, 5, 6].map(i => (
+      <div key={i} className="gba:h-10 gba:w-10 gba:bg-muted gba:rounded-full gba:animate-pulse" />
+    ))}
+  </div>
+)
+
+const getAvatarTitle = (report: DirectReport, isAvailable: boolean): string => {
+  const fullName = `${report.firstName} ${report.lastName}`
+  if (isAvailable) return fullName
+  const absenceType =
+    report.currentAbsence?.type ||
+    getTranslationFromI18nKeyAndLabel('master-data:manager_dashboard.on_leave', 'On Leave')
+  return `${fullName} - ${absenceType}`
+}
+
 export const MyTeamCard: React.FC<MyTeamCardProps> = ({
   directReports,
   teamAttendance,
@@ -57,26 +74,21 @@ export const MyTeamCard: React.FC<MyTeamCardProps> = ({
         </CardAction>
       </CardHeader>
       <CardContent className="gba:pt-2">
-        {loadingDirectReports || loadingAvailability ? (
-          <div className="gba:flex gba:gap-2 gba:flex-wrap">
-            {[1, 2, 3, 4, 5, 6].map(i => (
-              <div key={i} className="gba:h-10 gba:w-10 gba:bg-muted gba:rounded-full gba:animate-pulse" />
-            ))}
-          </div>
-        ) : directReports.length === 0 ? (
+        {(loadingDirectReports || loadingAvailability) && <LoadingSkeleton />}
+        {!loadingDirectReports && !loadingAvailability && directReports.length === 0 && (
           <p className="gba:text-sm gba:text-muted-foreground">
             {getTranslationFromI18nKeyAndLabel(
               'master-data:hr.manager_dashboard.status.no_direct_reports',
               'No direct reports found'
             )}
           </p>
-        ) : (
+        )}
+        {!loadingDirectReports && !loadingAvailability && directReports.length > 0 && (
           <div className="gba:space-y-3">
             {/* Main Team Avatars */}
             <div className="gba:flex gba:flex-wrap gba:gap-2" data-testid="manager-dashboard-team-avatars">
               {directReports.map(report => {
                 const isAvailable = report.status === 'Available'
-                const absenceType = report.currentAbsence?.type || ''
 
                 return (
                   <button
@@ -84,7 +96,7 @@ export const MyTeamCard: React.FC<MyTeamCardProps> = ({
                     type="button"
                     onClick={() => onNavigateToEmployee(report.id)}
                     className="gba:p-0 gba:bg-transparent gba:border-0 gba:cursor-pointer gba:transition-transform gba:hover:scale-110"
-                    title={`${report.firstName} ${report.lastName}${isAvailable ? '' : ` - ${absenceType || getTranslationFromI18nKeyAndLabel('master-data:manager_dashboard.on_leave', 'On Leave')}`}`}
+                    title={getAvatarTitle(report, isAvailable)}
                     data-testid={`manager-dashboard-team-avatar-${report.id}`}
                   >
                     <Avatar

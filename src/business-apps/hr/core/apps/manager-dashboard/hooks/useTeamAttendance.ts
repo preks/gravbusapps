@@ -131,7 +131,7 @@ export const useTeamAttendance = ({
 
       // Create a map of employee attendance
       const attendanceMap = new Map<string, { isInOffice: boolean; clockInTime: string; isClockedOut: boolean }>()
-      
+
       for (const record of attendanceRecords) {
         // Only consider currently active attendance (not clocked out)
         if (!record.endTime) {
@@ -158,7 +158,7 @@ export const useTeamAttendance = ({
 
         if (isInOffice) officeCount++
         if (isRemote) remoteWorkers++
-        
+
         // Check if available (not on leave) but not clocked in
         if (!isClockedIn && availableEmployeeIds.includes(emp.id)) {
           notClockedIn++
@@ -203,7 +203,8 @@ export const useTeamAttendance = ({
     notClockedInEmployeeIds,
     loading,
     error,
-    refetch: fetchTeamAttendance
+    refetch: () => {
+      fetchTeamAttendance()
+    }
   }
 }
-

@@ -45,6 +45,25 @@ interface Employee {
   }
 }
 
+const StatusBadge: React.FC<{ employee: Employee }> = ({ employee }) => {
+  if (employee.status === 'On Leave') {
+    return (
+      <Badge variant="warning">
+        {employee.currentAbsence?.type ||
+          getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.on_leave', 'On Leave')}
+      </Badge>
+    )
+  }
+  if (employee.status === 'Available') {
+    return (
+      <Badge variant="success">
+        {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.available', 'Available')}
+      </Badge>
+    )
+  }
+  return <Badge variant="secondary">{employee.status || '-'}</Badge>
+}
+
 export const FilteredTeammatesView: React.FC<FilteredTeammatesViewProps> = ({
   directReports,
   unallocatedEmployeeIds,
@@ -56,11 +75,62 @@ export const FilteredTeammatesView: React.FC<FilteredTeammatesViewProps> = ({
   onNavigateToEmployee
 }) => {
   // Filter direct reports based on active filter
-  const filteredDirectReports = filterAbsentOnly
-    ? directReports.filter(report => report.status === 'On Leave')
-    : filterUnallocatedOnly
-      ? directReports.filter(report => unallocatedEmployeeIds.includes(report.id))
-      : directReports
+  const getFilteredDirectReports = () => {
+    if (filterAbsentOnly) {
+      return directReports.filter(report => report.status === 'On Leave')
+    }
+    if (filterUnallocatedOnly) {
+      return directReports.filter(report => unallocatedEmployeeIds.includes(report.id))
+    }
+    return directReports
+  }
+  const filteredDirectReports = getFilteredDirectReports()
+
+  // Helper functions for display text
+  const getHeaderTitle = () => {
+    if (filterAbsentOnly) {
+      return getTranslationFromI18nKeyAndLabel(
+        'master-data:hr.manager_dashboard.absent_teammates',
+        'Absent Team Members'
+      )
+    }
+    if (filterUnallocatedOnly) {
+      return getTranslationFromI18nKeyAndLabel(
+        'master-data:hr.manager_dashboard.unallocated_teammates',
+        'Unallocated Team Members'
+      )
+    }
+    return getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.my_teammates', 'My Teammates')
+  }
+
+  const getBadgeText = (count: number) => {
+    if (filterAbsentOnly) {
+      return `${count} ${getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.out_of_office', 'out of office')}`
+    }
+    if (filterUnallocatedOnly) {
+      return `${count} ${getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.not_allocated', 'not allocated')}`
+    }
+    return `${count} ${getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.total_teammates', 'team members').toLowerCase()}`
+  }
+
+  const getEmptyMessage = () => {
+    if (filterAbsentOnly) {
+      return getTranslationFromI18nKeyAndLabel(
+        'master-data:hr.manager_dashboard.no_absent_members',
+        'No team members are currently out of office'
+      )
+    }
+    if (filterUnallocatedOnly) {
+      return getTranslationFromI18nKeyAndLabel(
+        'master-data:hr.manager_dashboard.no_unallocated_members',
+        'All team members are allocated to projects'
+      )
+    }
+    return getTranslationFromI18nKeyAndLabel(
+      'master-data:hr.manager_dashboard.no_team_members',
+      'No team members found'
+    )
+  }
 
   // Transform DirectReport data to Employee interface format
   const transformedFilteredReports: Employee[] = filteredDirectReports.map(report => ({
@@ -104,25 +174,9 @@ export const FilteredTeammatesView: React.FC<FilteredTeammatesViewProps> = ({
               'Back to Dashboard'
             )}
           </Button>
-          <h1 className="gba:text-xl gba:font-semibold">
-            {filterAbsentOnly
-              ? getTranslationFromI18nKeyAndLabel(
-                  'master-data:hr.manager_dashboard.absent_teammates',
-                  'Absent Team Members'
-                )
-              : filterUnallocatedOnly
-                ? getTranslationFromI18nKeyAndLabel(
-                    'master-data:hr.manager_dashboard.unallocated_teammates',
-                    'Unallocated Team Members'
-                  )
-                : getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.my_teammates', 'My Teammates')}
-          </h1>
+          <h1 className="gba:text-xl gba:font-semibold">{getHeaderTitle()}</h1>
           <Badge variant={filterAbsentOnly ? 'warning' : 'info'} className="gba:ml-3">
-            {filterAbsentOnly
-              ? `${transformedFilteredReports.length} ${getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.out_of_office', 'out of office')}`
-              : filterUnallocatedOnly
-                ? `${transformedFilteredReports.length} ${getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.not_allocated', 'not allocated')}`
-                : `${transformedFilteredReports.length} ${getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.total_teammates', 'team members').toLowerCase()}`}
+            {getBadgeText(transformedFilteredReports.length)}
           </Badge>
         </div>
       </div>
@@ -151,22 +205,7 @@ export const FilteredTeammatesView: React.FC<FilteredTeammatesViewProps> = ({
 
       {/* Empty State */}
       {!loadingDirectReports && !directReportsError && transformedFilteredReports.length === 0 && (
-        <div className="gba:text-center gba:py-12 gba:text-muted-foreground">
-          {filterAbsentOnly
-            ? getTranslationFromI18nKeyAndLabel(
-                'master-data:hr.manager_dashboard.no_absent_members',
-                'No team members are currently out of office'
-              )
-            : filterUnallocatedOnly
-              ? getTranslationFromI18nKeyAndLabel(
-                  'master-data:hr.manager_dashboard.no_unallocated_members',
-                  'All team members are allocated to projects'
-                )
-              : getTranslationFromI18nKeyAndLabel(
-                  'master-data:hr.manager_dashboard.no_team_members',
-                  'No team members found'
-                )}
-        </div>
+        <div className="gba:text-center gba:py-12 gba:text-muted-foreground">{getEmptyMessage()}</div>
       )}
 
       {/* Team Members Table */}
@@ -220,18 +259,7 @@ export const FilteredTeammatesView: React.FC<FilteredTeammatesViewProps> = ({
                   <TableCell>{employee.jobTitle || '-'}</TableCell>
                   <TableCell>{employee.organizationalUnit || '-'}</TableCell>
                   <TableCell>
-                    {employee.status === 'On Leave' ? (
-                      <Badge variant="warning">
-                        {employee.currentAbsence?.type ||
-                          getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.on_leave', 'On Leave')}
-                      </Badge>
-                    ) : employee.status === 'Available' ? (
-                      <Badge variant="success">
-                        {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.available', 'Available')}
-                      </Badge>
-                    ) : (
-                      <Badge variant="secondary">{employee.status || '-'}</Badge>
-                    )}
+                    <StatusBadge employee={employee} />
                   </TableCell>
                 </TableRow>
               ))}

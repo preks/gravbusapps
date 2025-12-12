@@ -39,6 +39,110 @@ interface UseExpensesApprovalsResult {
   refetch: () => void
 }
 
+type DirectReportLookup = Array<{ userId: string; displayName: string; pictureThumbnail?: string }>
+
+const getActionRequiredStatus = (): string =>
+  getTranslationFromI18nKeyAndLabel('lowcoder:backoffice_expense_landing_page.action_required', 'Action Required')
+
+const buildEmployeeData = (task: FlowExecutionTask, directReports: DirectReportLookup): ExpenseApproval['employee'] => {
+  const creatorName = task.creatorName || ''
+  const nameParts = creatorName.split(' ')
+  const directReport = directReports.find(report => report.userId === task.creatorUserId)
+
+  return {
+    id: task.creatorUserId || '',
+    fullName: directReport?.displayName || creatorName,
+    firstName: nameParts[0] || '',
+    lastName: nameParts.slice(1).join(' ') || '',
+    pictureThumbnail: directReport?.pictureThumbnail
+  }
+}
+
+const processExpensePlanTasks = (tasks: FlowExecutionTask[], directReports: DirectReportLookup): ExpenseApproval[] => {
+  return tasks
+    .filter(task => task.inputs?.expensePlan?.status === 'PENDING')
+    .map(task => {
+      const expensePlan = task.inputs?.expensePlan
+
+      return {
+        id: task.id,
+        title:
+          expensePlan?.title ||
+          getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plan', 'Expense Plan'),
+        description: expensePlan?.description || null,
+        totalAmount: expensePlan?.totalAmount || 0,
+        status: getActionRequiredStatus(),
+        requestDate: expensePlan?.planDate || task.started,
+        createdAt: task.started || new Date().toISOString(),
+        employee: buildEmployeeData(task, directReports),
+        type: 'expense-plan' as const,
+        requestType: expensePlan?.requestTypeRef || 'EXPENSE_PLAN',
+        startDate: expensePlan?.startDate,
+        endDate: expensePlan?.endDate,
+        endpoint: task.endpoint
+      }
+    })
+}
+
+const processExpenseRequestTasks = (
+  tasks: FlowExecutionTask[],
+  directReports: DirectReportLookup
+): ExpenseApproval[] => {
+  return tasks
+    .filter(task => task.inputs?.expenseRequest?.status === 'PENDING')
+    .map(task => {
+      const expenseRequest = task.inputs?.expenseRequest
+
+      return {
+        id: task.id,
+        title:
+          expenseRequest?.title ||
+          getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.initiate_title_header', 'Expense Request'),
+        description: expenseRequest?.description || null,
+        totalAmount: expenseRequest?.totalAmount || 0,
+        status: getActionRequiredStatus(),
+        requestDate: expenseRequest?.requestDate || task.started,
+        createdAt: task.started || new Date().toISOString(),
+        employee: buildEmployeeData(task, directReports),
+        type: 'expense-request' as const,
+        requestType: expenseRequest?.requestTypeRef || 'EXPENSE_REQUEST',
+        startDate: expenseRequest?.startDate,
+        endDate: expenseRequest?.endDate,
+        endpoint: task.endpoint
+      }
+    })
+}
+
+const processAdvancePaymentTasks = (
+  tasks: FlowExecutionTask[],
+  directReports: DirectReportLookup
+): ExpenseApproval[] => {
+  return tasks
+    .filter(task => task.inputs?.advancePayment?.status === 'PENDING')
+    .map(task => {
+      const advancePayment = task.inputs?.advancePayment
+
+      return {
+        id: task.id,
+        title:
+          advancePayment?.code ||
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:backoffice_expense_landing_page.advance_title',
+            'Advance Payment'
+          ),
+        description: advancePayment?.description || null,
+        totalAmount: advancePayment?.amount || 0,
+        status: getActionRequiredStatus(),
+        requestDate: advancePayment?.transactionDate || task.started,
+        createdAt: task.started || new Date().toISOString(),
+        employee: buildEmployeeData(task, directReports),
+        type: 'advance-payment' as const,
+        requestType: 'ADVANCE_PAYMENT',
+        endpoint: task.endpoint
+      }
+    })
+}
+
 export const useExpensesApprovals = ({
   accessToken,
   directReports
@@ -112,148 +216,9 @@ export const useExpensesApprovals = ({
     setError(null)
 
     try {
-      // Process expense plan tasks from flow
-      // Note: No filtering by directReports - the flow API returns tasks assigned to the current user
-      const processExpensePlanTasks = (tasks: FlowExecutionTask[]): ExpenseApproval[] => {
-        return tasks
-          .filter(task => {
-            const expensePlan = task.inputs?.expensePlan
-            return expensePlan && expensePlan.status === 'PENDING'
-          })
-          .map(task => {
-            const expensePlan = task.inputs?.expensePlan
-            const creatorName = task.creatorName || ''
-            const nameParts = creatorName.split(' ')
-
-            // Try to find the direct report data for this creator (for picture)
-            const directReport = directReports.find(report => report.userId === task.creatorUserId)
-
-            return {
-              id: task.id,
-              title:
-                expensePlan?.title ||
-                getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plan', 'Expense Plan'),
-              description: expensePlan?.description || null,
-              totalAmount: expensePlan?.totalAmount || 0,
-              status: getTranslationFromI18nKeyAndLabel(
-                'lowcoder:backoffice_expense_landing_page.action_required',
-                'Action Required'
-              ),
-              requestDate: expensePlan?.planDate || task.started,
-              createdAt: task.started || new Date().toISOString(),
-              employee: {
-                id: task.creatorUserId || '',
-                fullName: directReport?.displayName || creatorName,
-                firstName: nameParts[0] || '',
-                lastName: nameParts.slice(1).join(' ') || '',
-                pictureThumbnail: directReport?.pictureThumbnail
-              },
-              type: 'expense-plan' as const,
-              requestType: expensePlan?.requestTypeRef || 'EXPENSE_PLAN',
-              startDate: expensePlan?.startDate,
-              endDate: expensePlan?.endDate,
-              endpoint: task.endpoint
-            }
-          })
-      }
-
-      // Process expense request tasks from flow
-      const processExpenseRequestTasks = (tasks: FlowExecutionTask[]): ExpenseApproval[] => {
-        return tasks
-          .filter(task => {
-            const expenseRequest = task.inputs?.expenseRequest
-            return expenseRequest && expenseRequest.status === 'PENDING'
-          })
-          .map(task => {
-            const expenseRequest = task.inputs?.expenseRequest
-            const creatorName = task.creatorName || ''
-            const nameParts = creatorName.split(' ')
-
-            // Find the direct report data for this creator
-            const directReport = directReports.find(report => report.userId === task.creatorUserId)
-
-            return {
-              id: task.id,
-              title:
-                expenseRequest?.title ||
-                getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:create_expense_request.initiate_title_header',
-                  'Expense Request'
-                ),
-              description: expenseRequest?.description || null,
-              totalAmount: expenseRequest?.totalAmount || 0,
-              status: getTranslationFromI18nKeyAndLabel(
-                'lowcoder:backoffice_expense_landing_page.action_required',
-                'Action Required'
-              ),
-              requestDate: expenseRequest?.requestDate || task.started,
-              createdAt: task.started || new Date().toISOString(),
-              employee: {
-                id: task.creatorUserId || '',
-                fullName: directReport?.displayName || creatorName,
-                firstName: nameParts[0] || '',
-                lastName: nameParts.slice(1).join(' ') || '',
-                pictureThumbnail: directReport?.pictureThumbnail
-              },
-              type: 'expense-request' as const,
-              requestType: expenseRequest?.requestTypeRef || 'EXPENSE_REQUEST',
-              startDate: expenseRequest?.startDate,
-              endDate: expenseRequest?.endDate,
-              endpoint: task.endpoint
-            }
-          })
-      }
-
-      // Process advance payment tasks from flow
-      const processAdvancePaymentTasks = (tasks: FlowExecutionTask[]): ExpenseApproval[] => {
-        return tasks
-          .filter(task => {
-            const advancePayment = task.inputs?.advancePayment
-            return advancePayment && advancePayment.status === 'PENDING'
-          })
-          .map(task => {
-            const advancePayment = task.inputs?.advancePayment
-            const creatorName = task.creatorName || ''
-            const nameParts = creatorName.split(' ')
-
-            // Find the direct report data for this creator
-            const directReport = directReports.find(report => report.userId === task.creatorUserId)
-
-            return {
-              id: task.id,
-              title:
-                advancePayment?.code ||
-                getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:backoffice_expense_landing_page.advance_title',
-                  'Advance Payment'
-                ),
-              description: advancePayment?.description || null,
-              totalAmount: advancePayment?.amount || 0,
-              status: getTranslationFromI18nKeyAndLabel(
-                'lowcoder:backoffice_expense_landing_page.action_required',
-                'Action Required'
-              ),
-              requestDate: advancePayment?.transactionDate || task.started,
-              createdAt: task.started || new Date().toISOString(),
-              employee: {
-                id: task.creatorUserId || '',
-                fullName: directReport?.displayName || creatorName,
-                firstName: nameParts[0] || '',
-                lastName: nameParts.slice(1).join(' ') || '',
-                pictureThumbnail: directReport?.pictureThumbnail
-              },
-              type: 'advance-payment' as const,
-              requestType: 'ADVANCE_PAYMENT',
-              endpoint: task.endpoint
-            }
-          })
-      }
-
-      // Process all task types - no filtering by directReports
-      // The flow API returns tasks assigned to the current user (manager)
-      const expensePlans = processExpensePlanTasks(expensePlanTasks)
-      const expenseRequests = processExpenseRequestTasks(expenseRequestTasks)
-      const advancePayments = processAdvancePaymentTasks(advancePaymentTasks)
+      const expensePlans = processExpensePlanTasks(expensePlanTasks, directReports)
+      const expenseRequests = processExpenseRequestTasks(expenseRequestTasks, directReports)
+      const advancePayments = processAdvancePaymentTasks(advancePaymentTasks, directReports)
 
       // Combine and sort all expense approvals
       const allExpenseApprovals = [...expenseRequests, ...expensePlans, ...advancePayments].sort(
@@ -262,13 +227,12 @@ export const useExpensesApprovals = ({
 
       setExpenseApprovals(allExpenseApprovals)
       setTotalCount(allExpenseApprovals.length)
-      // Always set hasLoaded to true after processing
       setHasLoaded(true)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load expense approvals'
       setError(errorMessage)
       console.error('Error loading expense data:', err)
-      setHasLoaded(true) // Mark as loaded even on error
+      setHasLoaded(true)
     } finally {
       setIsLoading(false)
     }

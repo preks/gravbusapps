@@ -208,6 +208,8 @@ export const useTeamProjectAllocation = ({
     totalEmployees,
     loading,
     error,
-    refetch: fetchTeamProjectAllocation
+    refetch: () => {
+      fetchTeamProjectAllocation()
+    }
   }
 }

@@ -17,6 +17,12 @@ export interface TeamPerformanceViewProps {
   onNavigateToEmployee: (employeeId: string) => void
 }
 
+const getProgressColorClass = (progress: number): string => {
+  if (progress >= 70) return 'gba:bg-success'
+  if (progress >= 40) return 'gba:bg-warning'
+  return 'gba:bg-destructive'
+}
+
 export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
   teamPerformance,
   totalPerformanceGoals,
@@ -145,13 +151,7 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
                     </div>
                     <div className="gba:h-2 gba:bg-muted gba:rounded-full gba:overflow-hidden">
                       <div
-                        className={`gba:h-full gba:rounded-full gba:transition-all gba:duration-500 ${
-                          member.averageProgress >= 70
-                            ? 'gba:bg-success'
-                            : member.averageProgress >= 40
-                              ? 'gba:bg-warning'
-                              : 'gba:bg-destructive'
-                        }`}
+                        className={`gba:h-full gba:rounded-full gba:transition-all gba:duration-500 ${getProgressColorClass(member.averageProgress)}`}
                         style={{ width: `${member.averageProgress}%` }}
                       />
                     </div>

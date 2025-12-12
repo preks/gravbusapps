@@ -31,6 +31,31 @@ import { JobPositionDetails } from '@/business-apps/hr/core/apps/human-resources
 
 type InsightsTab = 'birthdays' | 'anniversaries' | 'open-positions'
 
+const LoadingState: React.FC = () => (
+  <div className="gba:flex gba:items-center gba:justify-center gba:py-12">
+    <Spinner size="lg" />
+  </div>
+)
+
+const EmptyState: React.FC<{ message: string }> = ({ message }) => (
+  <div className="gba:text-center gba:py-8 gba:bg-muted/30 gba:rounded-lg">
+    <p className="gba:text-sm gba:text-muted-foreground">{message}</p>
+  </div>
+)
+
+interface TabContentWrapperProps {
+  loading: boolean
+  isEmpty: boolean
+  emptyMessage: string
+  children: React.ReactNode
+}
+
+const TabContentWrapper: React.FC<TabContentWrapperProps> = ({ loading, isEmpty, emptyMessage, children }) => {
+  if (loading) return <LoadingState />
+  if (isEmpty) return <EmptyState message={emptyMessage} />
+  return <>{children}</>
+}
+
 export interface TeamInsightsViewProps {
   upcomingBirthdays: TeamBirthday[]
   upcomingAnniversaries: TeamAnniversary[]
@@ -134,20 +159,14 @@ export const TeamInsightsView: React.FC<TeamInsightsViewProps> = ({
 
               {/* Birthdays Tab */}
               <TabsContent value="birthdays" className="gba:flex-1 gba:overflow-y-auto gba:p-4">
-                {loadingBirthdays ? (
-                  <div className="gba:flex gba:items-center gba:justify-center gba:py-12">
-                    <Spinner size="lg" />
-                  </div>
-                ) : upcomingBirthdays.length === 0 ? (
-                  <div className="gba:text-center gba:py-8 gba:bg-muted/30 gba:rounded-lg">
-                    <p className="gba:text-sm gba:text-muted-foreground">
-                      {getTranslationFromI18nKeyAndLabel(
-                        'master-data:hr.manager_dashboard.no_upcoming_birthdays',
-                        'No upcoming birthdays in the next 30 days'
-                      )}
-                    </p>
-                  </div>
-                ) : (
+                <TabContentWrapper
+                  loading={loadingBirthdays}
+                  isEmpty={upcomingBirthdays.length === 0}
+                  emptyMessage={getTranslationFromI18nKeyAndLabel(
+                    'master-data:hr.manager_dashboard.no_upcoming_birthdays',
+                    'No upcoming birthdays in the next 30 days'
+                  )}
+                >
                   <div className="gba:border gba:rounded-lg gba:overflow-hidden">
                     <Table>
                       <TableHeader>
@@ -240,25 +259,19 @@ export const TeamInsightsView: React.FC<TeamInsightsViewProps> = ({
                       </TableBody>
                     </Table>
                   </div>
-                )}
+                </TabContentWrapper>
               </TabsContent>
 
               {/* Anniversaries Tab */}
               <TabsContent value="anniversaries" className="gba:flex-1 gba:overflow-y-auto gba:p-4">
-                {loadingAnniversaries ? (
-                  <div className="gba:flex gba:items-center gba:justify-center gba:py-12">
-                    <Spinner size="lg" />
-                  </div>
-                ) : upcomingAnniversaries.length === 0 ? (
-                  <div className="gba:text-center gba:py-8 gba:bg-muted/30 gba:rounded-lg">
-                    <p className="gba:text-sm gba:text-muted-foreground">
-                      {getTranslationFromI18nKeyAndLabel(
-                        'master-data:hr.manager_dashboard.no_upcoming_anniversaries',
-                        'No upcoming work anniversaries in the next 30 days'
-                      )}
-                    </p>
-                  </div>
-                ) : (
+                <TabContentWrapper
+                  loading={loadingAnniversaries}
+                  isEmpty={upcomingAnniversaries.length === 0}
+                  emptyMessage={getTranslationFromI18nKeyAndLabel(
+                    'master-data:hr.manager_dashboard.no_upcoming_anniversaries',
+                    'No upcoming work anniversaries in the next 30 days'
+                  )}
+                >
                   <div className="gba:border gba:rounded-lg gba:overflow-hidden">
                     <Table>
                       <TableHeader>
@@ -359,25 +372,19 @@ export const TeamInsightsView: React.FC<TeamInsightsViewProps> = ({
                       </TableBody>
                     </Table>
                   </div>
-                )}
+                </TabContentWrapper>
               </TabsContent>
 
               {/* Open Positions Tab */}
               <TabsContent value="open-positions" className="gba:flex-1 gba:overflow-y-auto gba:p-4">
-                {loadingOpenPositions ? (
-                  <div className="gba:flex gba:items-center gba:justify-center gba:py-12">
-                    <Spinner size="lg" />
-                  </div>
-                ) : openPositions.length === 0 ? (
-                  <div className="gba:text-center gba:py-8 gba:bg-muted/30 gba:rounded-lg">
-                    <p className="gba:text-sm gba:text-muted-foreground">
-                      {getTranslationFromI18nKeyAndLabel(
-                        'master-data:hr.manager_dashboard.no_open_positions',
-                        'No open positions in your team'
-                      )}
-                    </p>
-                  </div>
-                ) : (
+                <TabContentWrapper
+                  loading={loadingOpenPositions}
+                  isEmpty={openPositions.length === 0}
+                  emptyMessage={getTranslationFromI18nKeyAndLabel(
+                    'master-data:hr.manager_dashboard.no_open_positions',
+                    'No open positions in your team'
+                  )}
+                >
                   <div className="gba:border gba:rounded-lg gba:overflow-hidden">
                     <Table>
                       <TableHeader>
@@ -459,7 +466,7 @@ export const TeamInsightsView: React.FC<TeamInsightsViewProps> = ({
                       </TableBody>
                     </Table>
                   </div>
-                )}
+                </TabContentWrapper>
               </TabsContent>
             </Tabs>
           </CardContent>

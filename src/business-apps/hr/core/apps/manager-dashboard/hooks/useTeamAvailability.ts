@@ -204,6 +204,8 @@ export const useTeamAvailability = ({
     data,
     loading,
     error,
-    refetch: fetchTeamAvailability
+    refetch: () => {
+      fetchTeamAvailability()
+    }
   }
 }
