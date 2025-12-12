@@ -20,6 +20,10 @@ interface BenefitCatalogCardProps extends BusinessAppContextProps {
    */
   benefit: BenefitCatalogItem
   /**
+   * Employee ID for the profile being viewed (NOT the logged-in user)
+   */
+  employeeId: string
+  /**
    * Currency code for formatting amounts
    */
   currencyCode?: string
@@ -45,14 +49,12 @@ interface BenefitCatalogCardProps extends BusinessAppContextProps {
 const BenefitCatalogCard: React.FC<BenefitCatalogCardProps> = ({
   t,
   benefit,
+  employeeId,
   currencyCode = 'EUR',
   locale,
   onViewDetails,
-  accessToken,
-  userInfo
+  accessToken
 }) => {
-  const employeeId = userInfo?.employeeDetails?.employeeId
-
   // Request and Deactivate handled via AppAction
 
   /**
