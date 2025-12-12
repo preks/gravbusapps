@@ -86,9 +86,12 @@ const transformObjectValue = (value: any): any => {
  * Transforms a primitive value
  */
 const transformPrimitiveValue = (value: any): any => {
-  // Primitives: Keep numbers as numbers, convert others to string or undefined
+  // Primitives: Keep numbers and booleans as-is, convert others to string or undefined
   if (typeof value === 'number') {
     return Number.isNaN(value) ? undefined : value
+  }
+  if (typeof value === 'boolean') {
+    return value
   }
   return toStringOrUndefined(value)
 }

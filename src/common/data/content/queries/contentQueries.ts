@@ -2,145 +2,241 @@
  * Content Query Functions
  * Builds GraphQL queries for content entries and related entities
  */
-import type {
-  ContentEntryQueryParams,
-  ContentDocumentQueryParams,
-  ContentReactionQueryParams
-} from '../types/contentTypes'
+import { ContentRole } from '../types/contentEnums'
 import {
-  CONTENT_ENTRY_CORE_FRAGMENT,
   CONTENT_ENTRY_WITH_CATALOGS_FRAGMENT,
-  CONTENT_ENTRY_FULL_FRAGMENT,
   CONTENT_DOCUMENT_FRAGMENT,
-  CONTENT_ENTRY_REACTION_FRAGMENT
+  CONTENT_ENTRY_REACTION_FRAGMENT,
+  DESCENDANT_COMMENT_COUNT_FRAGMENT,
+  CHILD_ANSWER_COUNT_FRAGMENT
 } from './fragments/contentFragments'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+
+// =====================================================
+// QUERY PARAMETER INTERFACES
+// =====================================================
+
+export interface ContentEntryQueryParams {
+  offset?: number
+  limit?: number
+  search?: string
+  role?: string | null
+  contentGroupRef?: string | null
+  contentTypeRef?: string | null
+  categoryRefs?: string[]
+  tagRefs?: string[]
+  creatorEmployeeId?: string | null
+  parentContentEntryId?: string | null
+  activeFrom?: string
+  activeTo?: string
+  includeChildren?: boolean
+  sortBy?: string
+  sortOrder?: 'ASC' | 'DESC'
+}
+
+export interface ContentDocumentQueryParams {
+  contentEntryId?: string
+  parentDocumentId?: string | null
+  folder?: boolean | null
+  search?: string
+  offset?: number
+  limit?: number
+}
+
+export interface ContentReactionQueryParams {
+  contentEntryId: string
+  reaction?: string | null
+  groupBy?: boolean
+}
 
 /**
- * Build WHERE clause for content entry queries
+ * Build WHERE clause as object for GraphQL variables
  */
-const buildContentEntryWhereClause = (params: ContentEntryQueryParams): string => {
-  const conditions: string[] = []
+const buildContentEntryWhereClause = (params: ContentEntryQueryParams): Record<string, any> => {
+  const conditions: Record<string, any> = {}
 
   // Basic filters
   if (params.role) {
-    conditions.push(`role: { _eq: "${params.role}" }`)
+    conditions.role = { _eq: params.role }
   }
 
   if (params.contentGroupRef) {
-    conditions.push(`contentGroupRef: { _eq: "${params.contentGroupRef}" }`)
+    conditions.contentGroupRef = { _eq: params.contentGroupRef }
   }
 
   if (params.contentTypeRef) {
-    conditions.push(`contentTypeRef: { _eq: "${params.contentTypeRef}" }`)
+    conditions.contentTypeRef = { _eq: params.contentTypeRef }
   }
 
   if (params.creatorEmployeeId) {
-    conditions.push(`creatorEmployeeId: { _eq: "${params.creatorEmployeeId}" }`)
+    conditions.creatorEmployeeId = { _eq: params.creatorEmployeeId }
   }
 
-  if (params.parentContentEntryId !== undefined) {
-    if (params.parentContentEntryId === null) {
-      conditions.push(`parentContentEntryId: { _is_null: true }`)
-    } else {
-      conditions.push(`parentContentEntryId: { _eq: "${params.parentContentEntryId}" }`)
-    }
+  if (params.parentContentEntryId !== undefined && params.parentContentEntryId !== null) {
+    // Only filter by parent if a specific parent ID is provided
+    // If null is passed, we don't filter by parent (returns all entries including nested)
+    conditions.parentContentEntryId = { _eq: params.parentContentEntryId }
   }
 
   // Search across multiple fields
   if (params.search) {
-    const searchPattern = params.search.replace(/"/g, '\\"')
-    const searchConditions = [
-      `{ title: { _ilike: "%${searchPattern}%" } }`,
-      `{ preview: { _ilike: "%${searchPattern}%" } }`,
-      `{ content: { _ilike: "%${searchPattern}%" } }`
+    const searchPattern = `%${params.search}%`
+    conditions._or = [
+      { title: { _ilike: searchPattern } },
+      { preview: { _ilike: searchPattern } },
+      { content: { _ilike: searchPattern } }
     ]
-    conditions.push(`_or: [${searchConditions.join(', ')}]`)
   }
 
   // Category filter (relation)
   if (params.categoryRefs && params.categoryRefs.length > 0) {
-    const categoryConditions = params.categoryRefs.map(ref => `{ contentCategoryRef: { _eq: "${ref}" } }`)
-    conditions.push(`categories: { _or: [${categoryConditions.join(', ')}] }`)
+    conditions.contentEntryCategories = {
+      _or: params.categoryRefs.map(ref => ({ contentCategoryRef: { _eq: ref } }))
+    }
   }
 
   // Tag filter (relation)
   if (params.tagRefs && params.tagRefs.length > 0) {
-    const tagConditions = params.tagRefs.map(ref => `{ contentTagRef: { _eq: "${ref}" } }`)
-    conditions.push(`tags: { _or: [${tagConditions.join(', ')}] }`)
+    conditions.contentEntryTags = {
+      _or: params.tagRefs.map(ref => ({ contentTagRef: { _eq: ref } }))
+    }
+  }
+
+  // Active period filters
+  if (params.activeFrom) {
+    conditions.activeFrom = { _gte: params.activeFrom }
+  }
+  if (params.activeTo) {
+    conditions.activeTo = { _lte: params.activeTo }
   }
 
   // Always exclude deleted
-  conditions.push(`isDeleted: { _eq: false }`)
+  conditions.isDeleted = { _eq: false }
 
-  return conditions.length > 0 ? `where: { ${conditions.join(', ')} }` : ''
+  return conditions
 }
 
 /**
- * Build ORDER BY clause
+ * Build ORDER BY clause as array for GraphQL variables
+ * Supports both direct field sorting and aggregate sorting
  */
-const buildOrderByClause = (params: ContentEntryQueryParams): string => {
+const buildOrderByClause = (params: ContentEntryQueryParams): any[] => {
   const sortBy = params.sortBy || 'createdAt'
   const sortOrder = params.sortOrder || 'DESC'
-  return `orderBy: { ${sortBy}: ${sortOrder} }`
+
+  // Handle aggregate sorting (e.g., "contentEntryReactionAggregate.count")
+  if (sortBy.includes('.')) {
+    const [aggregateName, aggregateField] = sortBy.split('.')
+    return [
+      {
+        [aggregateName]: {
+          [aggregateField]: sortOrder
+        }
+      }
+    ]
+  }
+
+  // Regular field sorting
+  return [
+    {
+      [sortBy]: sortOrder
+    }
+  ]
 }
 
 /**
- * Query content entries with filters
+ * Query content entries with filters (using GraphQL variables)
+ * @param _params - Query parameters (not used directly, variables are built separately)
+ * @param useChildCount - If true, uses childContentEntriesAggregate (direct answers for Questions)
+ *                        If false, uses descendantContentEntriesAggregate (all nested comments)
  */
-export const buildContentEntriesQuery = (params: ContentEntryQueryParams = {}): string => {
-  const limit = params.limit || 20
-  const offset = params.offset || 0
-  const whereClause = buildContentEntryWhereClause(params)
-  const orderByClause = buildOrderByClause(params)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export const buildContentEntriesQuery = (_params: ContentEntryQueryParams = {}, useChildCount = false): string => {
+  const commentCountFragment = useChildCount ? CHILD_ANSWER_COUNT_FRAGMENT : DESCENDANT_COMMENT_COUNT_FRAGMENT
+  const localeCode = getCurrentActiveUserLocale()
+  const catalogFields = `
+  id
+  code
+  value
+  alternativeCode
+  description
+  additionalValue1
+  additionalValue2
+  additionalValue3
+  ${
+    localeCode
+      ? `translations(where: { localeCode: { _eq: "${localeCode}" } }) {
+    id
+    localeCode
+    value
+    additionalValue1
+    additionalValue2
+    additionalValue3
+    objectValue
+  }`
+      : `translations {
+    id
+    localeCode
+    value
+    additionalValue1
+    additionalValue2
+    additionalValue3
+    objectValue
+  }`
+  }
+  type
+  displayOrder
+  objectValue
+  activeFrom
+  activeTo
+  catalogId
+  parentEntryId
+  isDeleted
+  recordState
+  createdAt
+  createdBy
+  updatedAt
+  updatedBy
+`
 
   return `
-    query getContentEntries {
+    query getContentEntries(
+      $where: ContentEntryBoolExp
+      $orderBy: [ContentEntryOrderBy!]
+      $limit: Int
+      $offset: Int
+    ) {
       ContentEntry(
-        ${whereClause}
-        ${orderByClause}
-        limit: ${limit}
-        offset: ${offset}
+        where: $where
+        orderBy: $orderBy
+        limit: $limit
+        offset: $offset
       ) {
         ${CONTENT_ENTRY_WITH_CATALOGS_FRAGMENT}
         contentEntryCategories {
           id
           contentCategoryRef
           contentCategory {
-            id
-            key
-            value
+            ${catalogFields}
           }
         }
         contentEntryTags {
           id
           contentTagRef
           contentTag {
-            id
-            key
-            value
+            ${catalogFields}
           }
         }
-        ${
-          params.includeChildren
-            ? `
-          childContentEntries {
-            ${CONTENT_ENTRY_CORE_FRAGMENT}
-            creatorEmployee {
-              id
-              displayName
-              picture
-            }
-            contentEntryReactions {
-              id
-              reaction
-              creatorEmployeeId
-            }
+        contentEntryReactionCounts {
+          contentReactionRef
+          count
+          contentReaction {
+            ${catalogFields}
           }
-        `
-            : ''
         }
+        ${commentCountFragment}
       }
-      ContentEntryAggregate(${whereClause}) {
+      ContentEntryAggregate(where: $where) {
         aggregate {
           count
         }
@@ -150,9 +246,76 @@ export const buildContentEntriesQuery = (params: ContentEntryQueryParams = {}): 
 }
 
 /**
- * Query single content entry with full details
+ * Build variables object for content entries query
  */
-export const buildContentEntryQuery = (id: string, includeChildren = true): string => {
+export const buildContentEntriesVariables = (params: ContentEntryQueryParams = {}): Record<string, any> => {
+  const where = buildContentEntryWhereClause(params)
+  const orderBy = buildOrderByClause(params)
+  const limit = params.limit || 20
+  const offset = params.offset || 0
+
+  return {
+    where,
+    orderBy,
+    limit,
+    offset
+  }
+}
+
+/**
+ * Query single content entry with full details
+ * @param id - Content entry ID
+ * @param useChildCount - If true, uses childContentEntriesAggregate (direct answers for Questions)
+ *                        If false, uses descendantContentEntriesAggregate (all nested comments)
+ */
+export const buildContentEntryQuery = (id: string, useChildCount = false): string => {
+  const commentCountFragment = useChildCount ? CHILD_ANSWER_COUNT_FRAGMENT : DESCENDANT_COMMENT_COUNT_FRAGMENT
+  const localeCode = getCurrentActiveUserLocale()
+  const catalogFields = `
+  id
+  code
+  value
+  alternativeCode
+  description
+  additionalValue1
+  additionalValue2
+  additionalValue3
+  ${
+    localeCode
+      ? `translations(where: { localeCode: { _eq: "${localeCode}" } }) {
+    id
+    localeCode
+    value
+    additionalValue1
+    additionalValue2
+    additionalValue3
+    objectValue
+  }`
+      : `translations {
+    id
+    localeCode
+    value
+    additionalValue1
+    additionalValue2
+    additionalValue3
+    objectValue
+  }`
+  }
+  type
+  displayOrder
+  objectValue
+  activeFrom
+  activeTo
+  catalogId
+  parentEntryId
+  isDeleted
+  recordState
+  createdAt
+  createdBy
+  updatedAt
+  updatedBy
+`
+
   return `
     query getContentEntry {
       ContentEntry(
@@ -161,39 +324,61 @@ export const buildContentEntryQuery = (id: string, includeChildren = true): stri
           isDeleted: { _eq: false }
         }
       ) {
-        ${CONTENT_ENTRY_FULL_FRAGMENT}
-        ${
-          includeChildren
-            ? `
-          childContentEntries(
-            where: { isDeleted: { _eq: false } }
-            orderBy: { createdAt: ASC }
-          ) {
-            ${CONTENT_ENTRY_WITH_CATALOGS_FRAGMENT}
-            contentEntryReactions {
-              ${CONTENT_ENTRY_REACTION_FRAGMENT}
-            }
-            childContentEntries(
-              where: { isDeleted: { _eq: false } }
-              orderBy: { createdAt: ASC }
-            ) {
-              ${CONTENT_ENTRY_WITH_CATALOGS_FRAGMENT}
-              contentEntryReactions {
-                ${CONTENT_ENTRY_REACTION_FRAGMENT}
-              }
-              childContentEntries(
-                where: { isDeleted: { _eq: false } }
-                orderBy: { createdAt: ASC }
-              ) {
-                ${CONTENT_ENTRY_WITH_CATALOGS_FRAGMENT}
-                contentEntryReactions {
-                  ${CONTENT_ENTRY_REACTION_FRAGMENT}
-                }
-              }
-            }
+        ${CONTENT_ENTRY_WITH_CATALOGS_FRAGMENT}
+        contentEntryCategories {
+          id
+          contentCategoryRef
+          contentCategory {
+            ${catalogFields}
           }
-        `
-            : ''
+        }
+        contentEntryTags {
+          id
+          contentTagRef
+          contentTag {
+            ${catalogFields}
+          }
+        }
+        contentDocuments {
+          ${CONTENT_DOCUMENT_FRAGMENT}
+        }
+        contentEntryReactions {
+          ${CONTENT_ENTRY_REACTION_FRAGMENT}
+        }
+        ${commentCountFragment}
+      }
+    }
+  `
+}
+
+/**
+ * Query child content entries (comments) for a parent entry
+ */
+export const buildChildContentEntriesQuery = (parentId: string, limit = 50, offset = 0): string => {
+  return `
+    query getChildContentEntries {
+      ContentEntry(
+        where: { 
+          parentContentEntryId: { _eq: "${parentId}" }
+          isDeleted: { _eq: false }
+        }
+        orderBy: { createdAt: ASC }
+        limit: ${limit}
+        offset: ${offset}
+      ) {
+        ${CONTENT_ENTRY_WITH_CATALOGS_FRAGMENT}
+        contentEntryReactions {
+          ${CONTENT_ENTRY_REACTION_FRAGMENT}
+        }
+      }
+      ContentEntryAggregate(
+        where: { 
+          parentContentEntryId: { _eq: "${parentId}" }
+          isDeleted: { _eq: false }
+        }
+      ) {
+        aggregate {
+          count
         }
       }
     }
@@ -212,7 +397,9 @@ export const buildContentDocumentsQuery = (params: ContentDocumentQueryParams): 
 
   if (params.parentDocumentId !== undefined) {
     if (params.parentDocumentId === null) {
-      conditions.push(`parentDocumentId: { _is_null: true }`)
+      // For root level, exclude documents that have a parentDocumentId
+      // Since _is_null doesn't work for UUID, we need to filter client-side OR use a different approach
+      // For now, don't add a filter - we'll filter all documents and show root ones
     } else {
       conditions.push(`parentDocumentId: { _eq: "${params.parentDocumentId}" }`)
     }
@@ -306,7 +493,7 @@ export const buildContentStatisticsQuery = (): string => {
     query getContentStatistics {
       totalEntries: ContentEntryAggregate(
         where: { 
-          role: { _eq: "ROOT" }
+          role: { _eq: "${ContentRole.ROOT}" }
           isDeleted: { _eq: false }
         }
       ) {
@@ -316,7 +503,7 @@ export const buildContentStatisticsQuery = (): string => {
       }
       totalComments: ContentEntryAggregate(
         where: { 
-          role: { _eq: "COMMENT" }
+          role: { _eq: "${ContentRole.COMMENT}" }
           isDeleted: { _eq: false }
         }
       ) {

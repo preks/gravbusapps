@@ -127,6 +127,7 @@ export const useLiquidFundReports = (
             investmentId: report.investment?.id || '',
             investmentName: report.investment?.name || '',
             reportDate: report.date,
+            reportId: report.id, // Store InvestmentReport ID for actions column
 
             // Required fields for AnalyticsRowData
             cashBankIdentifier:

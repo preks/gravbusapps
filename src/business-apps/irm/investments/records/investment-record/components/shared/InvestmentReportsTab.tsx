@@ -31,7 +31,6 @@ interface InvestmentReportsTabProps extends BusinessAppContextProps {
   investmentTypeCode: string // Now required
   liquidFundTypeCode?: string
   investment?: any // Add the full investment record from header
-  typeSpecificData?: any // Add type-specific data from header
   filterHeaderActions?: React.ReactNode // Optional actions for filter header
   'data-testid'?: string
 }
@@ -45,7 +44,6 @@ const InvestmentReportsTab: React.FC<InvestmentReportsTabProps> = ({
   investmentTypeCode,
   liquidFundTypeCode,
   investment,
-  typeSpecificData,
   filterHeaderActions,
   accessToken,
   userInfo,
@@ -155,15 +153,8 @@ const InvestmentReportsTab: React.FC<InvestmentReportsTabProps> = ({
     if (customColumns && customColumns.length > 0) {
       return customColumns
     }
-    return createInvestmentReportColumns(
-      investmentTypeCode,
-      liquidFundTypeCode,
-      catalogData,
-      accessToken,
-      investment,
-      typeSpecificData
-    )
-  }, [customColumns, investmentTypeCode, liquidFundTypeCode, catalogData, accessToken, investment, typeSpecificData])
+    return createInvestmentReportColumns(investmentTypeCode, liquidFundTypeCode, catalogData, accessToken, investment)
+  }, [customColumns, investmentTypeCode, liquidFundTypeCode, catalogData, accessToken, investment])
 
   const handleTimeFilterChange = (value: string) => {
     setTimeFilter(value)
@@ -244,7 +235,16 @@ const InvestmentReportsTab: React.FC<InvestmentReportsTabProps> = ({
                       key={column.key}
                       className={column.sortable ? 'gba:cursor-pointer gba:select-none' : ''}
                       onClick={() => column.sortable && handleSort(column.key)}
-                      style={{ width: column.width }}
+                      style={{
+                        width: column.width,
+                        // Add sticky positioning for actions column
+                        ...(column.key === 'actions' && {
+                          position: 'sticky',
+                          right: 0,
+                          backgroundColor: 'var(--nw-color-surface-secondary)',
+                          zIndex: 10
+                        })
+                      }}
                     >
                       <div className="gba:flex gba:items-center gba:gap-1">
                         {column.title}
@@ -267,7 +267,20 @@ const InvestmentReportsTab: React.FC<InvestmentReportsTabProps> = ({
                   reports.map(report => (
                     <TableRow key={report.id}>
                       {columns.map(column => (
-                        <TableCell key={column.key}>{column.render(report)}</TableCell>
+                        <TableCell
+                          key={column.key}
+                          style={{
+                            // Add sticky positioning for actions column
+                            ...(column.key === 'actions' && {
+                              position: 'sticky',
+                              right: 0,
+                              backgroundColor: 'var(--nw-color-background)',
+                              zIndex: 5
+                            })
+                          }}
+                        >
+                          {column.render(report)}
+                        </TableCell>
                       ))}
                     </TableRow>
                   ))

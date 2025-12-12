@@ -342,8 +342,13 @@ export const EmployeeOpportunitiesTab: React.FC<EmployeeOpportunitiesTabProps> =
     setPagination(prev => ({ ...prev, pageIndex: 0 }))
   }, [selectedCurrency])
 
+  // Memoized callback for process completion
+  const handleProcessSuccess = useCallback(() => {
+    loadOpportunities()
+  }, [loadOpportunities])
+
   // Handle process completion to refresh data
-  useProcessCompletion({ onSuccess: () => void loadOpportunities() })
+  useProcessCompletion({ onSuccess: handleProcessSuccess })
 
   useEffect(() => {
     const handleProcessComplete = () => loadOpportunities()

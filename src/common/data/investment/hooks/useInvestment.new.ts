@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { buildInvestmentFragment, INVESTMENT_QUERY_CONFIGS } from '../queries/investmentQueries.new'
-import type { Investment } from '../types/investmentTypes.new'
+import { type Investment } from '../types/investmentTypes.new'
 
 export interface UseInvestmentResult {
   investment: Investment | null
@@ -82,10 +82,10 @@ export function useInvestment(
 
       // Execute query with ID as GraphQL variable
       const result = await graphqlClient.request<{
-        InvestmentByPk: Investment | null
+        InvestmentByPk: any
       }>(query, { id })
 
-      const investment = result.InvestmentByPk
+      const investment = result.InvestmentByPk as Investment | null
 
       setState({ investment, loading: false, error: null })
     } catch (error) {

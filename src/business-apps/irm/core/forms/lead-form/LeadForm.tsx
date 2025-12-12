@@ -9,11 +9,20 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { type InvestmentLead, buildInvestmentLeadPayload } from '@/common/data/investment/types/investmentLeadTypes'
 import { AppActionForm } from '@/components/app-action-form'
 import {
-  InvestmentProspectSegment,
-  useProspectFields,
-  useInvestmentProspectForm
-} from '@/common/components/investment/form-segments/investment-prospect-segment'
+  InvestmentProspectLayout,
+  createDynamicInvestmentProspectSchema
+} from '@/common/components/investment/form-layouts/investment-prospect-layout'
+import {
+  extractProspectFieldsFromFormValues,
+  extractProspectFieldsFromEntity
+} from '@/common/components/investment/form-layouts/investment-prospect-layout/utils/extractProspectFields'
+import { useInvestmentTypes } from '@/common/data/investment/hooks/useInvestmentTypes'
 import { CatalogSelect } from '@/components/catalog-select'
+import {
+  mapToSingleInvestmentTypeId,
+  mapFromSingleInvestmentTypeId
+} from '@/common/components/investment/form-layouts/investment-prospect-layout/utils/investmentTypeMapper'
+import { createInvestmentLeadSchema } from '@/common/components/investment/form-layouts/investment-prospect-layout/investmentProspectSchema'
 import {
   LEAD_STATUS,
   LEAD_SOURCE,
@@ -26,30 +35,14 @@ import { formatDataTestId } from '@/common/utils/formatDataTestId'
 
 type LeadFormProps = BusinessAppContextProps
 
-export const investmentLeadSchema = leadSchema.extend({
+// Base investment lead schema (will be extended with investmentTypeId)
+const baseInvestmentLeadSchema = leadSchema.extend({
   investmentName: z.string().min(1, 'Investment Name is required'),
-  investmentGroupRef: z
-    .union([
-      z.string().min(1),
-      z
-        .object({ id: z.string().min(1), code: z.string().optional(), value: z.string().optional() })
-        .catchall(z.unknown()),
-      z.null()
-    ])
-    .refine(val => val !== null && val !== undefined && val !== '', {
-      message: 'Investment group is required'
-    }),
-  investmentTypeRef: z
-    .union([
-      z.string().min(1),
-      z
-        .object({ id: z.string().min(1), code: z.string().optional(), value: z.string().optional() })
-        .catchall(z.unknown()),
-      z.null()
-    ])
-    .optional(),
   dealType: z.string().nullable().optional()
 })
+
+// Create investment lead schema with investmentTypeId
+export const investmentLeadSchema = createInvestmentLeadSchema(baseInvestmentLeadSchema)
 
 const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalData }) => {
   // Extract leadId from additionalData
@@ -59,114 +52,222 @@ const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalDa
   const { lead, loading, error } = useInvestmentLead(accessToken || '', leadId)
 
   // ALL HOOKS MUST BE CALLED BEFORE EARLY RETURN (Rules of Hooks)
-  // Initialize React Hook Form with base schema first (will be updated by hook)
-  // Note: Schema is dynamic, so we use 'as any' for TypeScript compatibility
+  // Create form instance - resolver will be updated dynamically
   const form = useForm({
-    resolver: zodResolver(investmentLeadSchema) as any,
     defaultValues: mapToFormValues(lead || {}, investmentLeadSchema) as Partial<InvestmentLead>,
     mode: 'onSubmit',
     reValidateMode: 'onSubmit'
   }) as any
 
-  // Watch form values for Investment Prospect fields
-  const watchedGroupRef = form.watch('investmentGroupRef')
-  const watchedTypeRef = form.watch('investmentTypeRef')
-
-  // Investment Prospect Fields Hook (reactive with watched values)
-  const effectiveGroupRef = (watchedGroupRef as string) || lead?.investmentGroupRef || null
-  const effectiveTypeRef = (watchedTypeRef as string) || lead?.investmentTypeRef || null
-
+  // Investment Types Hook - provides hierarchy and field definitions
+  const businessAppContext = { accessToken, userInfo, additionalData }
   const {
-    formFieldsDefinition,
-    groups,
-    types,
-    configuration,
-    loading: catalogLoading
-  } = useProspectFields({
-    investmentGroupRef: effectiveGroupRef,
-    investmentTypeRef: effectiveTypeRef,
-    accessToken
-  })
+    getTypesByLevel,
+    getTypesByParent,
+    getPathByType,
+    getInvestmentFieldsByType,
+    loading: investmentTypesLoading
+  } = useInvestmentTypes(businessAppContext, 'prospect')
 
-  // Investment Prospect Form Hook - handles dynamic schema and field extraction
-  const { schema, prospectSchema, extractDynamicFieldValuesFromEntity, updateDynamicFieldsInFormValues } =
-    useInvestmentProspectForm({
-      baseSchema: investmentLeadSchema,
-      formFieldsDefinition: formFieldsDefinition || undefined,
-      entity: lead
-    })
+  // Watch investmentTypeId from form
+  const watchedInvestmentTypeId = form.watch('investmentTypeId')
 
-  // Resolver memoization - MUST update when schema changes for validation
-  const resolver = useMemo(() => zodResolver(schema) as any, [schema])
+  // Get effective type ID from form or lead
+  const effectiveTypeId = (watchedInvestmentTypeId as string) || lead?.investmentTypeId || null
+
+  // Get prospect fields configuration (referenceFields) for selected type
+  const formFieldsDefinition = useMemo(() => {
+    if (!effectiveTypeId) {
+      return null
+    }
+    return getInvestmentFieldsByType(effectiveTypeId)
+  }, [effectiveTypeId, getInvestmentFieldsByType])
+
+  // Determine if we need to wait for formFieldsDefinition to be ready
+  // If we have an effectiveTypeId, we need to wait for formFieldsDefinition to be loaded (or confirmed as null)
+  // If we don't have an effectiveTypeId, we don't need to wait
+  const isFormFieldsDefinitionLoading =
+    effectiveTypeId !== null && formFieldsDefinition === undefined && investmentTypesLoading
+
+  // Show loading state until everything is ready
+  const isFormReady = !loading && !isFormFieldsDefinitionLoading && !investmentTypesLoading
+
+  // Build dynamic schema
+  const prospectSchema = useMemo(() => {
+    const existingFields = new Set(Object.keys(investmentLeadSchema.shape))
+    const dynamicFields = createDynamicInvestmentProspectSchema(formFieldsDefinition || null, existingFields)
+    return Object.keys(dynamicFields).length > 0 ? investmentLeadSchema.extend(dynamicFields) : investmentLeadSchema
+  }, [investmentLeadSchema, formFieldsDefinition])
+
+  // Create resolver dynamically based on schema
+  const formResolver = useMemo(() => {
+    return zodResolver(prospectSchema) as any
+  }, [prospectSchema])
 
   // Sync form when lead changes (like CRM LeadForm, but with dynamic field handling)
   const leadRef = useRef(lead)
   const previousSchemaKeysRef = useRef<string[]>([])
+  const previousFormFieldsDefinitionRef = useRef<typeof formFieldsDefinition>(null)
+
+  // Helper: Update form resolver
+  const updateResolver = useCallback(() => {
+    if (form && formResolver && form.control._options.resolver !== formResolver) {
+      form.control._options.resolver = formResolver
+    }
+  }, [form, formResolver])
+
+  // Helper: Check if schema changed
+  const checkSchemaChanged = useCallback((): boolean => {
+    const currentKeys = Object.keys(prospectSchema.shape)
+    const changed = JSON.stringify(previousSchemaKeysRef.current) !== JSON.stringify(currentKeys)
+    if (changed) {
+      previousSchemaKeysRef.current = currentKeys
+    }
+    return changed
+  }, [prospectSchema])
+
+  // Helper: Build investmentTypeId from lead
+  const buildInvestmentTypeIdFromLead = useCallback(
+    (leadData: typeof lead): string | null => {
+      if (!leadData) return null
+      if (leadData.investmentTypeId) return leadData.investmentTypeId
+      if ((leadData.investmentGroupRef || leadData.investmentTypeRef) && getPathByType) {
+        const groupId = leadData.investmentGroupRef || null
+        const typeId = leadData.investmentTypeRef || null
+        return mapToSingleInvestmentTypeId(groupId, typeId, getPathByType)
+      }
+      return null
+    },
+    [getPathByType]
+  )
+
+  // Helper: Build form values when entity ID changes
+  const buildFormValuesFromLead = useCallback(() => {
+    const baseValues = mapToFormValues(lead || {}, prospectSchema)
+
+    // Calculate investmentTypeId FIRST from lead data
+    const investmentTypeId = buildInvestmentTypeIdFromLead(lead)
+
+    // Get formFieldsDefinition for this specific investmentTypeId (not the component-level one)
+    const effectiveFormFieldsDefinition = investmentTypeId ? getInvestmentFieldsByType(investmentTypeId) : null
+
+    // Extract dynamic fields using the calculated formFieldsDefinition
+    const dynamicFieldValues = extractProspectFieldsFromEntity(lead, effectiveFormFieldsDefinition)
+
+    // investmentTypeId is the single source of truth
+    // InvestmentProspectLayout will derive baseTypeId (group) from investmentTypeId
+    if (investmentTypeId) {
+      baseValues.investmentTypeId = investmentTypeId
+    }
+
+    const mergedValues = { ...baseValues, ...dynamicFieldValues }
+    return mergedValues
+  }, [lead, prospectSchema, buildInvestmentTypeIdFromLead, getInvestmentFieldsByType])
+
+  // Helper: Update dynamic fields when schema changes
+  const updateDynamicFieldsFromLead = useCallback(() => {
+    const currentValues = form.getValues()
+    const updatedValues = { ...currentValues }
+
+    // Get investmentTypeId from form values first
+    const formInvestmentTypeId = currentValues.investmentTypeId || null
+
+    // Calculate investmentTypeId from lead if not in form
+    // ALWAYS preserve investmentTypeId - it's the single source of truth
+    const leadInvestmentTypeId = formInvestmentTypeId || buildInvestmentTypeIdFromLead(lead)
+
+    // Always set investmentTypeId in updatedValues to preserve it
+    if (leadInvestmentTypeId) {
+      updatedValues.investmentTypeId = leadInvestmentTypeId
+    }
+
+    // Get formFieldsDefinition for this specific investmentTypeId (fallback to component-level if not available)
+    const effectiveFormFieldsDefinition = leadInvestmentTypeId
+      ? getInvestmentFieldsByType(leadInvestmentTypeId)
+      : formFieldsDefinition
+
+    if (effectiveFormFieldsDefinition?.formFields) {
+      for (const group of effectiveFormFieldsDefinition.formFields) {
+        for (const field of group.fields) {
+          const property = field.property
+          const value = lead && property in lead ? (lead as any)[property] : undefined
+          updatedValues[property] = value
+        }
+      }
+    }
+
+    return updatedValues
+  }, [form, formFieldsDefinition, lead, buildInvestmentTypeIdFromLead, getInvestmentFieldsByType])
 
   useEffect(() => {
-    // Update resolver when schema changes
-    if (form.control._options.resolver !== resolver) {
-      form.control._options.resolver = resolver
-    }
+    updateResolver()
+    const schemaChanged = checkSchemaChanged()
 
-    const schemaChanged =
-      JSON.stringify(previousSchemaKeysRef.current) !== JSON.stringify(Object.keys(prospectSchema.shape))
-
-    if (schemaChanged) {
-      previousSchemaKeysRef.current = Object.keys(prospectSchema.shape)
-    }
+    // Detect when formFieldsDefinition changes from null to a value (or vice versa)
+    const formFieldsDefinitionChanged =
+      (previousFormFieldsDefinitionRef.current === null && formFieldsDefinition !== null) ||
+      (previousFormFieldsDefinitionRef.current !== null && formFieldsDefinition === null) ||
+      previousFormFieldsDefinitionRef.current !== formFieldsDefinition
 
     if (leadRef.current?.id !== lead?.id) {
-      // Entity ID changed: Load all values (like CRM LeadForm)
-      const baseValues = mapToFormValues(lead || {}, prospectSchema)
-      const dynamicFieldValues = extractDynamicFieldValuesFromEntity()
-
-      const mergedValues = { ...baseValues, ...dynamicFieldValues }
-
+      const mergedValues = buildFormValuesFromLead()
       form.reset(mergedValues as Partial<InvestmentLead>)
-
       leadRef.current = lead
-    } else if (schemaChanged) {
-      // Schema changed: Update only dynamic fields
-      const currentValues = form.getValues()
-      const updatedValues = updateDynamicFieldsInFormValues(currentValues)
-
-      // Preserve base fields (investmentGroupRef, investmentTypeRef) from entity if they're empty in form
-      // These are not dynamic fields, so they won't be updated by updateDynamicFieldsInFormValues
-      if (!updatedValues.investmentGroupRef && lead?.investmentGroupRef) {
-        updatedValues.investmentGroupRef = lead.investmentGroupRef
-      }
-      if (!updatedValues.investmentTypeRef && lead?.investmentTypeRef) {
-        updatedValues.investmentTypeRef = lead.investmentTypeRef
-      }
-
+      previousFormFieldsDefinitionRef.current = formFieldsDefinition
+    } else if (schemaChanged || formFieldsDefinitionChanged) {
+      const updatedValues = updateDynamicFieldsFromLead()
       form.reset(updatedValues as Partial<InvestmentLead>)
+      previousFormFieldsDefinitionRef.current = formFieldsDefinition
     }
   }, [
     lead?.id,
     lead,
     form,
     prospectSchema,
-    schema,
-    resolver,
-    extractDynamicFieldValuesFromEntity,
-    updateDynamicFieldsInFormValues
+    formResolver,
+    formFieldsDefinition,
+    getPathByType,
+    updateResolver,
+    checkSchemaChanged,
+    buildFormValuesFromLead,
+    updateDynamicFieldsFromLead
   ])
 
   // Handle form submission - returns payload for AppActionForm (like CRM LeadForm, but with dynamic fields)
-  const handleSubmit = useCallback(async (data: any) => {
-    try {
-      const { investmentLead } = buildInvestmentLeadPayload(data)
-      return {
-        investmentLead: {
-          ...investmentLead
+  const handleSubmit = useCallback(
+    async (data: any) => {
+      try {
+        // Extract dynamic prospect fields and merge with form data
+        const prospectFields = extractProspectFieldsFromFormValues(data, formFieldsDefinition)
+
+        // Convert investmentTypeId back to group/type for payload
+        const investmentTypeId = data.investmentTypeId
+        const { groupId, typeId } = mapFromSingleInvestmentTypeId(investmentTypeId, getPathByType)
+
+        const mergedData = {
+          ...data,
+          ...prospectFields,
+          // Remove investmentTypeId from payload (not part of API)
+          investmentTypeId: undefined,
+          // Add group/type for payload
+          investmentGroupRef: groupId,
+          investmentTypeRef: typeId
         }
+
+        const { investmentLead } = buildInvestmentLeadPayload(mergedData)
+
+        return {
+          investmentLead: {
+            ...investmentLead
+          }
+        }
+      } catch (error) {
+        console.error('Error submitting lead:', error)
+        throw error
       }
-    } catch (error) {
-      console.error('Error submitting lead:', error)
-      throw error
-    }
-  }, [])
+    },
+    [formFieldsDefinition, getPathByType]
+  )
 
   // Handle form cancellation
   const handleCancel = async () => {
@@ -199,7 +300,7 @@ const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalDa
       <AppActionForm
         processType={processType}
         form={form}
-        schema={schema}
+        schema={prospectSchema}
         onSubmit={handleSubmit}
         onCancel={handleCancel}
         handlePreSubmit={handlePreSubmit}
@@ -217,22 +318,21 @@ const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalDa
           leadRatingCatalogIdentifier={LEAD_RATING}
           companySizeCatalogIdentifier={COMPANY_SIZE}
           annualRevenueCatalogIdentifier={ANNUAL_REVENUE}
-          loading={loading && !!leadId}
+          loading={!isFormReady}
           customSegments={[
             {
               id: 'investment-prospect',
               title: 'Investment Information',
               content: (
-                <InvestmentProspectSegment
-                  investmentGroupRef={(watchedGroupRef as string) || lead?.investmentGroupRef || null}
-                  investmentTypeRef={(watchedTypeRef as string) || lead?.investmentTypeRef || null}
+                <InvestmentProspectLayout
                   businessAppContext={{ accessToken, userInfo, additionalData }}
-                  testIdPrefix={formatDataTestId('investment-lead-form', 'investment-prospect')}
+                  formFieldsDefinition={formFieldsDefinition}
+                  investmentCatalogLoading={investmentTypesLoading}
+                  getTypesByLevel={getTypesByLevel}
+                  getTypesByParent={getTypesByParent}
+                  getPathByType={getPathByType}
                   currencySymbol="€"
-                  configuration={configuration}
-                  groups={groups}
-                  types={types}
-                  isLoading={catalogLoading}
+                  testIdPrefix={formatDataTestId('investment-lead-form', 'investment-prospect')}
                 />
               )
             }

@@ -5,6 +5,7 @@ import { useFormSubmission } from './FormSubmissionContext'
 import { useVoiceFormContext } from '../context/VoiceFormContext'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { FormHeader, FormActions, FormStatusMessages, SchemaField, SecondaryCollapsible } from './forms'
+import { formatFlowName } from './forms/utils/formSchemaUtils'
 
 interface DynamicFormDisplayProps {
   data: FlowProposalOutput
@@ -17,6 +18,7 @@ interface DynamicFormDisplayProps {
 
 // SchemaField, SearchableUuidField, and SecondaryCollapsible have been moved to ./forms/
 // All old component definitions have been removed - they are now imported from ./forms
+// SchemaField now includes ReactQuill support for markdown content types
 
 export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
   data,
@@ -59,6 +61,45 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
   const [initialCheckComplete, setInitialCheckComplete] = useState(false)
   const submissionTriggeredRef = useRef(false)
 
+  // Track the current form key to detect when a new form instance is mounted
+  const previousFormKeyRef = useRef<string>(formKey)
+
+  // Reset form state and refs when a new form instance is detected (different formKey)
+  useEffect(() => {
+    const currentFormKey = formKey
+    const previousFormKey = previousFormKeyRef.current
+
+    // If formKey changed, this is a new form instance - reset everything
+    if (previousFormKey !== currentFormKey) {
+      console.log('[DynamicFormDisplay] New form instance detected (formKey changed). Resetting state.')
+      console.log('[DynamicFormDisplay] Previous formKey:', previousFormKey, 'Current formKey:', currentFormKey)
+
+      // Reset all refs
+      submissionTriggeredRef.current = false
+      initialCheckDoneRef.current = false
+      formSubmissionTurnIndexRef.current = -1
+      setInitialCheckComplete(false)
+
+      // Clear the previous form's state if it was submitted or cancelled
+      const previousState = getFormState(previousFormKey)
+      if (previousState.isSubmitted || previousState.isCancelled) {
+        clearFormState(previousFormKey)
+      }
+
+      // Reset UI state to default
+      setUiState({
+        isSubmitted: false,
+        isCancelled: false,
+        isLoading: false,
+        isFlowCompleted: false,
+        hasError: false
+      })
+    }
+
+    // Update the ref to track current formKey
+    previousFormKeyRef.current = currentFormKey
+  }, [formKey, clearFormState, getFormState])
+
   // Keep formDataRef in sync with formData state
   useEffect(() => {
     formDataRef.current = formData
@@ -90,11 +131,13 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
     setUiState(currentFormState)
   }, [JSON.stringify(currentFormState)])
 
-  // Check if form was already submitted - runs once on mount
-  const initialSubmitCheckRef = useRef(false)
+  // Check if form was already submitted - runs when form UUID changes
+  const initialSubmitCheckRef = useRef<string | undefined>(undefined)
   useEffect(() => {
-    if (initialSubmitCheckRef.current) return
-    initialSubmitCheckRef.current = true
+    const currentUuid = data.uuid
+    // Only run check once per form UUID
+    if (initialSubmitCheckRef.current === currentUuid) return
+    initialSubmitCheckRef.current = currentUuid
 
     // Check localStorage first
     const formId = data.uuid || formKey
@@ -113,12 +156,15 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
 
     // Mark initial check complete
     setInitialCheckComplete(true)
-  }, []) // Empty dependency array - only run once on mount
+  }, [data.uuid, formKey]) // Re-run when UUID changes (new form instance)
 
-  // Check conversation history for submission (fallback)
+  // Track which form UUID we've checked to avoid re-checking the same form
+  const checkedFormUuidRef = useRef<string | undefined>(undefined)
   useEffect(() => {
-    // If we already found a submission/cancellation, don't re-check
-    if (submissionTriggeredRef.current) {
+    const currentUuid = data.uuid
+
+    // If we already found a submission/cancellation for this specific form, don't re-check
+    if (submissionTriggeredRef.current && checkedFormUuidRef.current === currentUuid) {
       if (!initialCheckComplete) setInitialCheckComplete(true)
       return
     }
@@ -128,11 +174,15 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
     if (conversation.length === 0) {
       console.log('[DynamicFormDisplay] Conversation empty - marking check complete for new form')
       setInitialCheckComplete(true)
+      checkedFormUuidRef.current = currentUuid
       return
     }
 
-    // Mark that we've done the check (but allow re-check if conversation changes)
-    if (initialCheckDoneRef.current && initialCheckComplete) return
+    // If we've already checked this form UUID, skip
+    if (checkedFormUuidRef.current === currentUuid && initialCheckComplete) return
+
+    // Mark that we're checking this form UUID
+    checkedFormUuidRef.current = currentUuid
     initialCheckDoneRef.current = true
 
     console.log('[DynamicFormDisplay] === INITIAL CHECK ===')
@@ -151,14 +201,7 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
         // Debug: log user turn text (first 150 chars)
         console.log('[DynamicFormDisplay] User turn', i, ':', turn.text.substring(0, 150))
 
-        // Check for Cancel
-        if (turn.text === 'Cancel') {
-          console.log('[DynamicFormDisplay] Found Cancel at turn:', i)
-          foundCancellation = true
-          continue
-        }
-
-        // Check for form submission JSON
+        // Check for form submission or cancellation JSON
         try {
           const parsed = JSON.parse(turn.text)
           if (parsed?.action === 'form_submission') {
@@ -170,9 +213,11 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
               'flow_name:',
               parsed?.flow_name
             )
-            // Match by UUID, flow_name, or if this form has no UUID yet, match by flow_name
+            // Match by UUID first (most reliable)
+            // Only match by flow_name if NEITHER form has a UUID (both are new forms)
             const uuidMatch = parsed?.uuid && data.uuid && parsed.uuid === data.uuid
-            const flowNameMatch = parsed?.flow_name && data.flow_name && parsed.flow_name === data.flow_name
+            const flowNameMatch =
+              !parsed?.uuid && !data.uuid && parsed?.flow_name && data.flow_name && parsed.flow_name === data.flow_name
             if (uuidMatch || flowNameMatch) {
               console.log('[DynamicFormDisplay] MATCH! Form was submitted.')
               foundSubmission = true
@@ -213,6 +258,37 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
                 hasError: hasError
               })
               break
+            }
+          }
+          if (parsed?.action === 'form_cancel') {
+            console.log(
+              '[DynamicFormDisplay] Found form_cancel at turn:',
+              i,
+              'uuid:',
+              parsed?.uuid,
+              'flow_name:',
+              parsed?.flow_name
+            )
+            // Only match if UUID matches THIS specific form
+            // If both forms have UUIDs, require exact UUID match (prevents matching different form instances)
+            const uuidMatch = parsed?.uuid && data.uuid && parsed.uuid === data.uuid
+
+            // Only match by flow_name if NEITHER form has a UUID (both are new forms)
+            // This prevents matching a canceled form with UUID to a new form without UUID
+            const flowNameMatch =
+              !parsed?.uuid && !data.uuid && parsed?.flow_name && data.flow_name && parsed.flow_name === data.flow_name
+
+            if (uuidMatch || flowNameMatch) {
+              console.log('[DynamicFormDisplay] MATCH! Form was cancelled (matched by uuid or flow_name).')
+              foundCancellation = true
+            } else {
+              console.log(
+                '[DynamicFormDisplay] Ignoring form_cancel - does not match this form (this form uuid:',
+                data.uuid,
+                'flow_name:',
+                data.flow_name,
+                ')'
+              )
             }
           }
         } catch {
@@ -456,11 +532,18 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
     })
 
     if (sendMessage) {
-      sendMessage('Cancel', [])
+      const flowDisplayName = formatFlowName(data.flow_name || 'Form')
+      const cancelMessage = JSON.stringify({
+        action: 'form_cancel',
+        flow_name: data.flow_name || '',
+        uuid: data.uuid || '',
+        userMessage: `Cancelled: ${flowDisplayName}`
+      })
+      sendMessage(cancelMessage, [])
     }
 
     if (onCancel) onCancel()
-  }, [currentFormState, formKey, setFormState, sendMessage, onCancel])
+  }, [currentFormState, formKey, setFormState, sendMessage, onCancel, data.flow_name, data.uuid])
 
   useEffect(() => {
     return () => {

@@ -8,8 +8,6 @@ import { useBenefitsCatalog } from '../../hooks/useBenefitsCatalog'
 import BenefitCatalogCard from './BenefitCatalogCard'
 import { BenefitCatalogItem } from '../../types/benefitCatalogTypes'
 import { DebouncedInput } from '@/components/debounced-input'
-import BenefitRequestScreen from '@/business-apps/hr/core/forms/benefit-request-form'
-import BenefitDeactivateScreen from '@/business-apps/hr/core/forms/benefit-deactivate-form'
 import BenefitDetailsModal from './BenefitDetailsModal'
 
 interface BenefitsPerksProps extends BusinessAppContextProps {
@@ -63,8 +61,6 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
 }) => {
   // State
   const [searchQuery, setSearchQuery] = useState('')
-  const [requestModalOpen, setRequestModalOpen] = useState(false)
-  const [deactivateModalOpen, setDeactivateModalOpen] = useState(false)
   const [detailsModalOpen, setDetailsModalOpen] = useState(false)
   const [selectedBenefit, setSelectedBenefit] = useState<BenefitCatalogItem | null>(null)
 
@@ -137,40 +133,11 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
   }, [catalogData, searchQuery, hrBackofficeHasPermission])
 
   /**
-   * Handle benefit request action
-   */
-  const handleRequestBenefit = (benefitCatalogId: string) => {
-    const benefit = catalogData?.catalogBenefits.find(b => b.catalogId === benefitCatalogId)
-    if (benefit) {
-      setSelectedBenefit(benefit)
-      setRequestModalOpen(true)
-    }
-  }
-
-  /**
-   * Handle benefit deactivation action
-   */
-  const handleDeactivateBenefit = (employeeBenefitId: string) => {
-    const benefit = catalogData?.catalogBenefits.find(b => b.employeeBenefitId === employeeBenefitId)
-    if (benefit) {
-      setSelectedBenefit(benefit)
-      setDeactivateModalOpen(true)
-    }
-  }
-
-  /**
    * Handle view benefit details action
    */
   const handleViewDetails = (benefit: BenefitCatalogItem) => {
     setSelectedBenefit(benefit)
     setDetailsModalOpen(true)
-  }
-
-  /**
-   * Handle modal success - refresh data
-   */
-  const handleSuccess = () => {
-    refetch()
   }
 
   return (
@@ -282,8 +249,6 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
                     benefit={benefit}
                     currencyCode={currencyCode}
                     locale={locale}
-                    onRequest={handleRequestBenefit}
-                    onDeactivate={handleDeactivateBenefit}
                     onViewDetails={handleViewDetails}
                     accessToken={accessToken}
                     userInfo={userInfo}
@@ -311,8 +276,6 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
                     benefit={benefit}
                     currencyCode={currencyCode}
                     locale={locale}
-                    onRequest={handleRequestBenefit}
-                    onDeactivate={handleDeactivateBenefit}
                     onViewDetails={handleViewDetails}
                     accessToken={accessToken}
                     userInfo={userInfo}
@@ -328,32 +291,6 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
       {/* Modals */}
       {selectedBenefit && (
         <>
-          {/* Benefit Request Form */}
-          <BenefitRequestScreen
-            t={t}
-            isOpen={requestModalOpen}
-            onClose={() => setRequestModalOpen(false)}
-            benefit={selectedBenefit}
-            employeeId={employeeId}
-            accessToken={accessToken}
-            userInfo={userInfo}
-            additionalData={additionalData}
-            onSuccess={handleSuccess}
-          />
-
-          {/* Benefit Deactivate Form */}
-          <BenefitDeactivateScreen
-            t={t}
-            isOpen={deactivateModalOpen}
-            onClose={() => setDeactivateModalOpen(false)}
-            benefit={selectedBenefit}
-            employeeId={employeeId}
-            accessToken={accessToken}
-            userInfo={userInfo}
-            additionalData={additionalData}
-            onSuccess={handleSuccess}
-          />
-
           {/* Benefit Details Modal (Read-only) */}
           <BenefitDetailsModal
             t={t}

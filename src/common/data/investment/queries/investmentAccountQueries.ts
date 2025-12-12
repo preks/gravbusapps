@@ -15,7 +15,7 @@ import {
   type AccountRelationFields
 } from '@/common/data/relations/queries/accountQueries'
 import { InvestmentAccountFields, INVESTMENT_ACCOUNT_DESCRIPTORS } from '../types/investmentAccountTypes'
-import { INVESTMENT_REF, INVESTMENT_REPORT_REF } from './fragments/investmentReferenceFragments'
+import { INVESTMENT_REPORT_REF } from './fragments/investmentReferenceFragments'
 import { INVESTMENT_ADDRESS_FRAGMENT } from '../types/investmentAddressTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 
@@ -67,9 +67,8 @@ export const buildInvestmentAccountQuery = (
     }
     
     # IRM-specific relations
-    investment(where: { isDeleted: { _eq: false } }) {
-      ${INVESTMENT_REF}
-    }
+    # Note: investmentInvestmentAccount is accessed FROM Investment, not FROM InvestmentAccount
+    # Investments can be filtered via descriptors using the junction table path
     
     investmentReport(where: { isDeleted: { _eq: false } }) {
       ${INVESTMENT_REPORT_REF}
@@ -118,9 +117,8 @@ export const buildInvestmentAccountByIdQuery = (
     }
     
     # IRM-specific relations
-    investment(where: { isDeleted: { _eq: false } }) {
-      ${INVESTMENT_REF}
-    }
+    # Note: investmentInvestmentAccount is accessed FROM Investment, not FROM InvestmentAccount
+    # Investments can be filtered via descriptors using the junction table path
     
     investmentReport(where: { isDeleted: { _eq: false } }) {
       ${INVESTMENT_REPORT_REF}

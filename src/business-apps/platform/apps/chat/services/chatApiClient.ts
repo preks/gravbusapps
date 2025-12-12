@@ -167,6 +167,15 @@ export class ChatApiClient {
     await this.client.delete(`/conversations/${conversationId}/participants/${userId}`)
   }
 
+  async updateParticipantRole(conversationId: string, userId: string, role: 'owner' | 'admin' | 'member') {
+    const response = await this.client.patch(`/conversations/${conversationId}/participants/${userId}/role`, { role })
+    return response.data
+  }
+
+  async deleteConversation(conversationId: string) {
+    await this.client.delete(`/conversations/${conversationId}`)
+  }
+
   async updateConversation(conversationId: string, data: { name?: string; description?: string }) {
     const response = await this.client.patch<Conversation>(`/conversations/${conversationId}`, data)
     return response.data
@@ -225,6 +234,42 @@ export class ChatApiClient {
     await this.client.post(`/messages/conversation/${conversationId}/mark-read`)
   }
 
+  // WebRTC endpoints
+  /**
+   * Get ICE servers configuration from the backend
+   * Returns TURN servers with temporary credentials (if configured) or fallback STUN servers
+   */
+  async getIceServers(): Promise<IceServersResponse> {
+    const response = await this.client.get<IceServersResponse>('/webrtc/ice-servers')
+    return response.data
+  }
+
+  /**
+   * Get active WebRTC sessions for current user
+   */
+  async getActiveSessions() {
+    const response = await this.client.get('/webrtc/sessions/active')
+    return response.data
+  }
+
+  /**
+   * Get call history for current user
+   */
+  async getCallHistory(page: number = 1, limit: number = 20) {
+    const response = await this.client.get('/webrtc/sessions/history', {
+      params: { page, limit }
+    })
+    return response.data
+  }
+
+  /**
+   * Get call statistics for current user
+   */
+  async getCallStats() {
+    const response = await this.client.get('/webrtc/sessions/stats')
+    return response.data
+  }
+
   // File upload endpoints
   async uploadFiles(conversationId: string, files: File[]): Promise<UploadedAttachment[]> {
     const formData = new FormData()
@@ -239,6 +284,24 @@ export class ChatApiClient {
     })
     return response.data
   }
+
+  // Every Experts Management
+  async addExpert(conversationId: string, expertId: string) {
+    const response = await this.client.post<Conversation>(`/conversations/${conversationId}/experts`, {
+      expertId
+    })
+    return response.data
+  }
+
+  async removeExpert(conversationId: string, expertId: string) {
+    const response = await this.client.delete<Conversation>(`/conversations/${conversationId}/experts/${expertId}`)
+    return response.data
+  }
+
+  async getActiveExperts(conversationId: string) {
+    const response = await this.client.get<string[]>(`/conversations/${conversationId}/experts`)
+    return response.data
+  }
 }
 
 export interface UploadedAttachment {
@@ -247,4 +310,12 @@ export interface UploadedAttachment {
   size: number
   mimeType: string
   url: string
+}
+
+export interface IceServersResponse {
+  iceServers: Array<{
+    urls: string[]
+    username?: string
+    credential?: string
+  }>
 }

@@ -4,9 +4,10 @@
  *
  * Note: IRM uses 'InvestmentLead' as the entity name
  */
-import { useLeadsTrendData as useSharedLeadsTrendData } from '@/common/hooks/analytics/useLeadsTrendData'
-
-export type { LeadsTrendData, TimeFilter } from '@/common/hooks/analytics/useLeadsTrendData'
+import {
+  useLeadsTrendData as useSharedLeadsTrendData,
+  type TimeFilter
+} from '@/common/components/common-relations/view-layouts/analytics-layout/hooks'
 
 /**
  * Wrapper hook for IRM that uses 'InvestmentLead' entity
@@ -14,3 +15,8 @@ export type { LeadsTrendData, TimeFilter } from '@/common/hooks/analytics/useLea
 export const useLeadsTrendData = (accessToken: string, selectedTimeFilter: TimeFilter) => {
   return useSharedLeadsTrendData(accessToken, selectedTimeFilter, 'InvestmentLead')
 }
+
+export type {
+  LeadsTrendData,
+  TimeFilter
+} from '@/common/components/common-relations/view-layouts/analytics-layout/hooks'

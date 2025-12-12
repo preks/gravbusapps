@@ -10,6 +10,8 @@ import {
   InvestmentHomeTab,
   InvestmentReportsTab
 } from '../components/shared'
+import { AppAction } from '@/components/app-action/AppAction'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { EquityInvestmentRounds, RealEstateLiquidityForecast, EquityAnalyticsTab } from '../components/group-specific'
 import { InvestmentTilesTab } from '@/common/components/investment/tiles'
 import { DivestmentsTab } from '../components/DivestmentsTab'
@@ -255,11 +257,27 @@ export const createInvestmentTabsConfig = (
             investment={investment}
             typeSpecificData={typeSpecificData}
             filterHeaderActions={
-              <UploadReportButton
-                investmentId={investment?.id}
-                accessToken={props.accessToken}
-                data-testid="investment-upload-report-button"
-              />
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <UploadReportButton
+                  investmentId={investment?.id}
+                  accessToken={props.accessToken}
+                  data-testid="investment-upload-report-button"
+                />
+                <AppAction
+                  variant="create-primary"
+                  contexts={[
+                    {
+                      context: FlowContextName.investmentReportCreate,
+                      contextData: { investmentId: investment?.id }
+                    }
+                  ]}
+                  accessToken={props.accessToken || ''}
+                  data-testid="investment-record-add-report-action"
+                  emptyState="hide"
+                >
+                  {getTranslationFromI18nKeyAndLabel('investment.reports.addReport', 'Add Report')}
+                </AppAction>
+              </div>
             }
             accessToken={props.accessToken}
             userInfo={props.userInfo}

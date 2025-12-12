@@ -185,28 +185,41 @@ export default defineConfig(({ command, mode }) => {
   }
 
   // Define content for the __APP_BUILD_INFO__ banner
-  // Use VITE_GIT_USER if explicitly set (local publishing), otherwise try git commit author
+  // Helper to check if a name is a pipeline/bot user
+  const isPipelineUser = (name: string) => {
+    const pipelineNames = ['bitbucket pipeline', 'bitbucket-pipelines', 'bitbucket pipelines', 'update bot']
+    return pipelineNames.some(p => name.toLowerCase().includes(p))
+  }
+
+  // Try to find a human author (not pipeline/bot)
   let gitUserForBanner = 'N/A'
-  if (env.VITE_GIT_USER) {
-    // VITE_GIT_USER takes priority (set during local publish)
-    gitUserForBanner = env.VITE_GIT_USER
+  const viteGitUser = env.VITE_GIT_USER
+
+  // If VITE_GIT_USER is set and is a real human (not pipeline), use it directly
+  if (viteGitUser && !isPipelineUser(viteGitUser)) {
+    gitUserForBanner = viteGitUser
   } else {
+    // Need to find the actual human author from git history
     try {
-      // Get the author of the last commit that modified this specific screen's directory
       const screenDir = targetEntryFile ? path.dirname(targetEntryFile) : null
       let commitAuthor = ''
 
+      // Try to get author of last non-merge commit that modified this screen
       if (screenDir) {
-        // Get author of last commit that modified files in this screen's directory
-        commitAuthor = execSync(`git log -1 --pretty=format:%an -- "${screenDir}"`, { encoding: 'utf8' }).trim()
+        // --no-merges skips merge commits which are usually by pipelines
+        commitAuthor = execSync(`git log --no-merges -1 --pretty=format:%an -- "${screenDir}"`, {
+          encoding: 'utf8'
+        }).trim()
       }
 
-      // Fallback to last commit author if screen-specific lookup fails
-      if (!commitAuthor) {
-        commitAuthor = execSync('git log -1 --pretty=format:%an', { encoding: 'utf8' }).trim()
+      // Fallback: get any recent non-pipeline author
+      if (!commitAuthor || isPipelineUser(commitAuthor)) {
+        // Get authors of last 10 commits and find first human
+        const authors = execSync('git log -10 --pretty=format:%an', { encoding: 'utf8' }).trim().split('\n')
+        commitAuthor = authors.find(a => a && !isPipelineUser(a)) || ''
       }
 
-      if (commitAuthor && commitAuthor !== 'Bitbucket Pipeline' && commitAuthor !== 'bitbucket-pipelines') {
+      if (commitAuthor && !isPipelineUser(commitAuthor)) {
         gitUserForBanner = commitAuthor
       }
     } catch {

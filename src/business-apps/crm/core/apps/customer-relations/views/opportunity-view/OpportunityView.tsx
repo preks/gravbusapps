@@ -1,9 +1,10 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState, useCallback } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCustomerOpportunities } from '@/common/data/customer/hooks/useCustomerOpportunities'
 import { OpportunityLayout } from '@/common/components/common-relations/view-layouts/opportunity-layout'
 import { OpportunityStatisticsLayout } from '@/common/components/common-relations/view-layouts/opportunity-layout/components/OpportunityStatisticsLayout'
+import type { OpportunityStatisticsData } from '@/common/components/common-relations/view-layouts/opportunity-layout/components/OpportunityStatisticsLayout'
 import { createOpportunityConfig } from '@/common/components/common-relations/view-layouts/opportunity-layout/utils/opportunityConfigBuilder'
 import { createOpportunityColumns } from '@/common/components/common-relations/view-layouts/opportunity-layout/config/opportunityColumns'
 import type { CustomerOpportunity } from '@/common/data/customer/types/customerOpportunityTypes'
@@ -48,13 +49,30 @@ export type OpportunityViewProps = BusinessAppContextProps
 export const OpportunityView: React.FC<OpportunityViewProps> = context => {
   const { fetchCustomerOpportunities } = useCustomerOpportunities(context)
 
+  // State to trigger statistics refresh
+  const [statisticsRefreshKey, setStatisticsRefreshKey] = useState(0)
+
+  // Create a refetch callback for statistics
+  const refetchStatistics = useCallback(() => {
+    setStatisticsRefreshKey(prev => prev + 1)
+  }, [])
+
+  // Statistics data with refetch callback
+  const opportunityStatisticsData: OpportunityStatisticsData | undefined = useMemo(() => {
+    return {
+      recentOpportunities: { current: 0, previous: 0, change: 0, changePercent: 0, isPositive: false },
+      totalOpportunities: { current: 0, previous: 0, change: 0, changePercent: 0, isPositive: false },
+      opportunitiesThisQuarter: { current: 0, previous: 0, change: 0, changePercent: 0, isPositive: false },
+      opportunitiesThisYear: { current: 0, previous: 0, change: 0, changePercent: 0, isPositive: false },
+      isLoading: false,
+      error: null,
+      refetch: refetchStatistics
+    }
+  }, [refetchStatistics])
+
   const config = useMemo(() => {
     const baseConfig = createOpportunityConfig<CustomerOpportunity, CustomerOpportunityQueryVariables>({
       contextType: 'customer',
-
-      extendQueryVariables: vars => ({
-        ...vars
-      }),
 
       fetchOpportunities: async variables => {
         return await fetchCustomerOpportunities(variables)
@@ -92,9 +110,16 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
       extractBoardOpportunities: result => result.opportunities || [],
       extractBoardTotalCount: result => result.total || 0,
 
+      // Provide statistics data for refetch in handleProcessComplete
+      opportunityStatistics: opportunityStatisticsData,
+
       // Use renderStatistics to support currency filtering
       renderStatistics: (selectedCurrency?: string) => (
-        <CustomerOpportunityStatistics context={context} selectedCurrency={selectedCurrency} />
+        <CustomerOpportunityStatistics
+          key={statisticsRefreshKey}
+          context={context}
+          selectedCurrency={selectedCurrency}
+        />
       ),
 
       rowActionsContextArray: [FlowContextName.customerOpportunityEntity],
@@ -119,7 +144,7 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
         return [...baseSortable, ...additionalSortable]
       }
     } as typeof baseConfig
-  }, [context, fetchCustomerOpportunities])
+  }, [context, fetchCustomerOpportunities, opportunityStatisticsData, statisticsRefreshKey])
 
   return (
     <OpportunityLayout

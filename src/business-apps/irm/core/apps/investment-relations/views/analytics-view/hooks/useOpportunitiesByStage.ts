@@ -1,61 +1,22 @@
-import { useEffect, useState } from 'react'
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { useMemo } from 'react'
+import { useGenericOpportunitiesByStage } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericOpportunitiesByStage'
 
-export interface StageItem {
-  stage: string
-  count: number
-  value: number
-}
-
+/**
+ * IRM-specific wrapper for useGenericOpportunitiesByStage
+ */
 export const useOpportunitiesByStage = (accessToken: string, pipelineId?: string) => {
-  const [data, setData] = useState<StageItem[]>([])
-  const [isLoading, setIsLoading] = useState<boolean>(true)
-  const [error, setError] = useState<string | null>(null)
-  const graphqlClient = useGraphQLClient(accessToken)
+  const config = useMemo(
+    () => ({
+      opportunityEntity: 'InvestmentOpportunity',
+      opportunityAggregate: 'InvestmentOpportunityAggregate',
+      pipelineStageField: 'opportunityPipelineStage',
+      pipelineStageRefField: 'opportunityPipelineStageRef',
+      pipelineField: 'opportunityPipeline'
+    }),
+    []
+  )
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!accessToken) return
-      try {
-        setIsLoading(true)
-        setError(null)
-
-        // Build the pipeline filter - use string interpolation like useRevenueTrends/usePipelineHealth
-        const pipelineFilter = pipelineId ? `opportunityPipeline: {id: {_eq: "${pipelineId}"}}` : ''
-        const whereClause = pipelineFilter ? `isDeleted: {_eq: false}, ${pipelineFilter}` : `isDeleted: {_eq: false}`
-
-        const query = `
-          query GetInvestmentOpportunitiesByStage {
-            opportunities: InvestmentOpportunity(
-              where: { ${whereClause} }
-            ) {
-              id
-              opportunityPipelineStage {
-                value
-              }
-              estimatedAmount
-            }
-          }
-        `
-
-        const result = await graphqlClient.request<any>(query)
-        const stageGroups = (result.opportunities || []).reduce((acc: Record<string, StageItem>, opp: any) => {
-          const stage = opp.opportunityPipelineStage?.value || 'Unknown'
-          if (!acc[stage]) acc[stage] = { stage, count: 0, value: 0 }
-          acc[stage].count += 1
-          acc[stage].value += opp.estimatedAmount || 0
-          return acc
-        }, {})
-        setData(Object.values(stageGroups))
-      } catch (e: any) {
-        setError(e?.message || 'Failed to load stage data')
-        setData([])
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    fetchData()
-  }, [accessToken, graphqlClient, pipelineId])
-
-  return { data, isLoading, error }
+  return useGenericOpportunitiesByStage(accessToken, config, pipelineId)
 }
+
+export type { StageItem } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericOpportunitiesByStage'
