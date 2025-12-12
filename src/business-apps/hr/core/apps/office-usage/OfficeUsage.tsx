@@ -19,6 +19,7 @@ import { useSiteLocations } from './hooks/useSiteLocations'
 import { useOfficeAttendance } from './hooks/useOfficeAttendance'
 import { useLivePresence } from './hooks/useLivePresence'
 import { getCurrentActiveStructureId, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getDateRangeForPreset } from './utils/dateUtils'
 
 const OfficeUsage: React.FC<OfficeUsageProps> = ({ accessToken, prefixDataTestId = 'office-usage' }) => {
   const [activeTab, setActiveTab] = useState<'usage-overview' | 'live-presence'>('usage-overview')
@@ -46,6 +47,14 @@ const OfficeUsage: React.FC<OfficeUsageProps> = ({ accessToken, prefixDataTestId
     fetchAttendance
   } = useOfficeAttendance(accessToken, structureId)
 
+  // KPI attendance (independent, last 30 days, all locations)
+  const {
+    attendance: kpiAttendance,
+    isLoading: kpiLoading,
+    error: kpiError,
+    fetchAttendance: fetchKpiAttendance
+  } = useOfficeAttendance(accessToken, structureId)
+
   // Live presence data
   const {
     presence,
@@ -61,6 +70,14 @@ const OfficeUsage: React.FC<OfficeUsageProps> = ({ accessToken, prefixDataTestId
       fetchAttendance(filters.dateFrom, filters.dateTo)
     }
   }, [accessToken, filters.dateFrom, filters.dateTo, fetchAttendance])
+
+  // Fetch KPI attendance once (last 30 days, by day)
+  useEffect(() => {
+    if (accessToken) {
+      const { dateFrom, dateTo } = getDateRangeForPreset('last-30-days')
+      fetchKpiAttendance(dateFrom, dateTo)
+    }
+  }, [accessToken, fetchKpiAttendance])
 
   // Fetch live presence on tab change
   useEffect(() => {
@@ -166,14 +183,19 @@ const OfficeUsage: React.FC<OfficeUsageProps> = ({ accessToken, prefixDataTestId
         {/* Usage Overview Tab */}
         <TabsContent value="usage-overview">
           <UsageOverviewTab
+            kpiAttendance={kpiAttendance}
             attendance={attendance}
             locations={locations}
             filters={filters}
             onFiltersChange={updateFilters}
-            filtersLoading={locationsLoading || attendanceLoading}
-            isLoading={attendanceLoading}
-            error={attendanceError}
-            onRetry={() => fetchAttendance(filters.dateFrom, filters.dateTo)}
+            filtersLoading={locationsLoading || attendanceLoading || kpiLoading}
+            isLoading={attendanceLoading || kpiLoading}
+            error={attendanceError || kpiError}
+            onRetry={() => {
+              fetchAttendance(filters.dateFrom, filters.dateTo)
+              const { dateFrom, dateTo } = getDateRangeForPreset('last-30-days')
+              fetchKpiAttendance(dateFrom, dateTo)
+            }}
             onSwitchToLivePresence={handleSwitchToLivePresence}
             prefixDataTestId={`${prefixDataTestId}-usage-overview`}
           />

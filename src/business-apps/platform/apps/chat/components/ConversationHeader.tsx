@@ -86,23 +86,18 @@ const getConversationAvatarUrl = (conversation: Conversation, currentUserId?: st
   return otherParticipant?.user?.avatarUrl
 }
 
-// Presence status indicator component - only shows for online/away, not offline
-const PresenceIndicator: React.FC<{ status: 'online' | 'away' | 'offline'; size?: 'sm' | 'md' }> = ({
-  status,
-  size = 'md'
-}) => {
+// Presence status indicator component - only shows for online, not offline
+const PresenceIndicator: React.FC<{ status: 'online' | 'offline'; size?: 'sm' | 'md' }> = ({ status, size = 'md' }) => {
   // Don't show indicator for offline status
   if (status === 'offline') return null
 
   const statusColors = {
     online: 'gba:bg-success',
-    away: 'gba:bg-warning',
     offline: 'gba:bg-muted-foreground'
   }
 
   const statusTitles = {
     online: 'Online',
-    away: 'Away',
     offline: 'Offline'
   }
 
@@ -121,7 +116,6 @@ const getPresenceStatusText = (presence?: UserPresence): string | null => {
   if (!presence) return null
 
   if (presence.status === 'online') return getTranslationFromI18nKeyAndLabel('chat.statusOnline', 'Online')
-  if (presence.status === 'away') return getTranslationFromI18nKeyAndLabel('chat.statusAway', 'Away')
 
   // For offline status, show last seen if available
   if (presence.status === 'offline' && presence.lastSeen) {
@@ -269,11 +263,7 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
           {isDirectChat && !compact && presenceStatusText && (
             <p
               className={`gba:text-xs ${
-                presenceStatus === 'online'
-                  ? 'gba:text-success'
-                  : presenceStatus === 'away'
-                    ? 'gba:text-warning'
-                    : 'gba:text-muted-foreground'
+                presenceStatus === 'online' ? 'gba:text-success' : 'gba:text-muted-foreground'
               }`}
             >
               {presenceStatusText}

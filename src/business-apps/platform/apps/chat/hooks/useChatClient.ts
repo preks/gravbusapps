@@ -158,30 +158,40 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
 
     const key = `${wsUrl}|${wsSocketPath || '/socket.io'}|${accessToken}`
 
-    // If we already have a WebSocket for this key, reuse it
-    if (sharedWsClient && sharedWsKey === key) {
-      console.debug('[useChatClient] reusing existing websocket', { wsUrl, wsSocketPath, refCount: sharedWsRefCount })
-      wsClientRef.current = sharedWsClient
-      sharedWsRefCount++ // Increment reference count
+    // Check if we have an existing WebSocket connection
+    if (sharedWsClient) {
+      // If the key matches, reuse the existing connection
+      if (sharedWsKey === key) {
+        console.debug('[useChatClient] reusing existing websocket', { wsUrl, wsSocketPath, refCount: sharedWsRefCount })
+        wsClientRef.current = sharedWsClient
+        sharedWsRefCount++ // Increment reference count
 
-      // CRITICAL: Set isConnected to trigger event listener setup for this instance
-      if (sharedWsClient.isConnected()) {
-        setIsConnected(true)
-      }
-
-      // Return cleanup function that decrements ref count
-      return () => {
-        sharedWsRefCount--
-        console.debug('[useChatClient] component unmounting, decremented refCount', { refCount: sharedWsRefCount })
-
-        // Only disconnect when NO components are using it anymore
-        if (sharedWsRefCount <= 0) {
-          console.debug('[useChatClient] no more refs, disconnecting shared websocket')
-          sharedWsClient?.disconnect()
-          sharedWsClient = null
-          sharedWsKey = null
-          sharedWsRefCount = 0
+        // CRITICAL: Set isConnected to trigger event listener setup for this instance
+        if (sharedWsClient.isConnected()) {
+          setIsConnected(true)
         }
+
+        // Return cleanup function that decrements ref count
+        return () => {
+          sharedWsRefCount--
+          console.debug('[useChatClient] component unmounting, decremented refCount', { refCount: sharedWsRefCount })
+
+          // Only disconnect when NO components are using it anymore
+          if (sharedWsRefCount <= 0) {
+            console.debug('[useChatClient] no more refs, disconnecting shared websocket')
+            sharedWsClient?.disconnect()
+            sharedWsClient = null
+            sharedWsKey = null
+            sharedWsRefCount = 0
+          }
+        }
+      } else {
+        // Key changed - disconnect old connection before creating new one
+        console.log('[useChatClient] Token changed - disconnecting old websocket and creating new one')
+        sharedWsClient.disconnect()
+        sharedWsClient = null
+        sharedWsKey = null
+        sharedWsRefCount = 0
       }
     }
 

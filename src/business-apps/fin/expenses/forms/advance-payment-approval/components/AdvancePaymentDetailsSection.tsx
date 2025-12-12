@@ -2,22 +2,23 @@ import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Separator, Label, Spinner } from '@newwork/nw-design-system'
 import { PiHandCoins } from 'react-icons/pi'
 import { AdvancePaymentData } from '../types'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrency } from '../utils/formatters'
-import { formatDateTime } from '@/business-apps/core/every/apps/every-box/utils/taskFormatters'
+import { formatDateTime } from '@/common/utils/dateFormatter'
 
 interface AdvancePaymentDetailsSectionProps {
   advancePayment: AdvancePaymentData
   requestCreatedAt?: string | null
   isLoadingRequestDate?: boolean
   prefixDataTestId?: string
+  t: (key: string, vars?: Record<string, unknown>) => string
 }
 
 const AdvancePaymentDetailsSection: React.FC<AdvancePaymentDetailsSectionProps> = ({
   advancePayment,
   requestCreatedAt,
   isLoadingRequestDate = false,
-  prefixDataTestId = 'advance-payment-approval-v2'
+  prefixDataTestId = 'advance-payment-approval-v2',
+  t
 }) => {
   // Format payment method
   const formatPaymentMethod = (method?: string) => {
@@ -25,30 +26,18 @@ const AdvancePaymentDetailsSection: React.FC<AdvancePaymentDetailsSectionProps> 
     const methodString = String(method).trim()
 
     if (methodString === 'DIRECT_DEPOSIT') {
-      return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_direct_deposit',
-        'Direct Deposit'
-      )
+      return t('payment-method-direct-deposit')
     }
     if (methodString === 'CASH_PAYMENT') {
-      return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_cash_payment',
-        'Cash Payment'
-      )
+      return t('payment-method-cash')
     }
 
     const lowered = methodString.toLowerCase()
     if (lowered.includes('direct')) {
-      return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_direct_deposit',
-        'Direct Deposit'
-      )
+      return t('payment-method-direct-deposit')
     }
     if (lowered.includes('cash')) {
-      return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_cash_payment',
-        'Cash Payment'
-      )
+      return t('payment-method-cash')
     }
 
     return methodString
@@ -59,15 +48,13 @@ const AdvancePaymentDetailsSection: React.FC<AdvancePaymentDetailsSectionProps> 
       <CardHeader>
         <CardTitle className="gba:flex gba:items-center gba:gap-2">
           <PiHandCoins className="gba:h-5 gba:w-5" />
-          {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.advance_payment', 'Advance Payment')}
+          {t('section-advance-payment')}
         </CardTitle>
       </CardHeader>
       <CardContent className="gba:space-y-3">
         {/* Amount */}
         <div>
-          <Label className="gba:text-sm gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.amount', 'Amount')}
-          </Label>
+          <Label className="gba:text-sm gba:text-muted-foreground">{t('label-amount')}</Label>
           <p className="gba:text-sm gba:font-semibold gba:mt-1">
             {formatCurrency(advancePayment.amount, advancePayment.currency.code)}
           </p>
@@ -80,12 +67,7 @@ const AdvancePaymentDetailsSection: React.FC<AdvancePaymentDetailsSectionProps> 
           {/* Payment Method */}
           {advancePayment.paymentMethod && (
             <div>
-              <Label className="gba:text-sm gba:text-muted-foreground">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:create_expense_request.add_request_trip_details.payment_method',
-                  'Payment Method'
-                )}
-              </Label>
+              <Label className="gba:text-sm gba:text-muted-foreground">{t('label-payment-method')}</Label>
               <p className="gba:text-sm gba:font-medium gba:mt-1">
                 {formatPaymentMethod(advancePayment.paymentMethod)}
               </p>
@@ -95,12 +77,7 @@ const AdvancePaymentDetailsSection: React.FC<AdvancePaymentDetailsSectionProps> 
           {/* Cost Center */}
           {advancePayment.costCenter?.name && (
             <div>
-              <Label className="gba:text-sm gba:text-muted-foreground">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:expense_request_overview.side_bar.request_cost_center',
-                  'Cost Center'
-                )}
-              </Label>
+              <Label className="gba:text-sm gba:text-muted-foreground">{t('label-cost-center')}</Label>
               <p className="gba:text-sm gba:font-medium gba:mt-1">{advancePayment.costCenter.name}</p>
             </div>
           )}
@@ -111,9 +88,7 @@ const AdvancePaymentDetailsSection: React.FC<AdvancePaymentDetailsSectionProps> 
           <>
             <Separator />
             <div>
-              <Label className="gba:text-sm gba:text-muted-foreground">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.notes_area_label', 'Notes')}
-              </Label>
+              <Label className="gba:text-sm gba:text-muted-foreground">{t('label-notes')}</Label>
               <p className="gba:text-sm gba:text-muted-foreground gba:mt-1 gba:whitespace-pre-wrap">
                 {advancePayment.description}
               </p>
@@ -126,12 +101,7 @@ const AdvancePaymentDetailsSection: React.FC<AdvancePaymentDetailsSectionProps> 
         {/* Request Created - Show when available */}
         {requestCreatedAt && (
           <div>
-            <Label className="gba:text-sm gba:text-muted-foreground">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:expense_request_overview.request_created',
-                'Request Created'
-              )}
-            </Label>
+            <Label className="gba:text-sm gba:text-muted-foreground">{t('label-request-created')}</Label>
             <div className="gba:text-sm gba:font-medium gba:mt-1">
               {isLoadingRequestDate ? <Spinner size="sm" /> : formatDateTime(requestCreatedAt)}
             </div>

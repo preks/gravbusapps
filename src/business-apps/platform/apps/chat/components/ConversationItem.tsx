@@ -57,8 +57,8 @@ const getConversationName = (conversation: Conversation, currentUserId?: string 
   return getTranslationFromI18nKeyAndLabel('chat.directMessage', 'Direct Message')
 }
 
-// Presence status indicator component - only shows for online/away, not offline
-const PresenceIndicator: React.FC<{ status: 'online' | 'away' | 'offline'; className?: string }> = ({
+// Presence status indicator component - only shows for online, not offline
+const PresenceIndicator: React.FC<{ status: 'online' | 'offline'; className?: string }> = ({
   status,
   className = ''
 }) => {
@@ -67,13 +67,11 @@ const PresenceIndicator: React.FC<{ status: 'online' | 'away' | 'offline'; class
 
   const statusColors = {
     online: 'gba:bg-success',
-    away: 'gba:bg-warning',
     offline: 'gba:bg-muted-foreground'
   }
 
   const statusTitles = {
     online: 'Online',
-    away: 'Away',
     offline: 'Offline'
   }
 

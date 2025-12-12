@@ -36,6 +36,7 @@ interface CatalogEntry {
 interface UseAddressReviewDataProps {
   accessToken: string
   employeeId?: string
+  creatorUserId?: string // Optional: user ID to lookup employee if employeeId is not available
   newAddress: AddressData
   oldAddress: AddressData
 }
@@ -52,6 +53,22 @@ interface UseAddressReviewDataResult {
 const GET_EMPLOYEE_DATA = `
   query GetEmployeeById($employeeId: uuid!) {
     employee: EmployeeByPk(id: $employeeId) {
+      id
+      firstName
+      lastName
+      pictureThumbnail
+      employeePosition {
+        jobPosition {
+          name
+        }
+      }
+    }
+  }
+`
+
+const GET_EMPLOYEE_BY_USER_ID = `
+  query GetEmployeeByUserId($userId: String!) {
+    employee: Employee(where: {userId: {_eq: $userId}}, limit: 1) {
       id
       firstName
       lastName
@@ -92,26 +109,6 @@ const GET_EMPLOYEE_DOCUMENT = `
   }
 `
 
-// Helper: Collect catalog IDs from address data
-const collectAddressCatalogIds = (newAddr: AddressData, oldAddr: AddressData): string[] => {
-  return Array.from(
-    new Set(
-      [newAddr?.countryRef, oldAddr?.countryRef, newAddr?.regionRef, oldAddr?.regionRef].filter(Boolean).map(String)
-    )
-  )
-}
-
-// Helper: Collect document IDs from address data
-const collectDocumentIds = (newAddr: AddressData, oldAddr: AddressData): string[] => {
-  return Array.from(
-    new Set(
-      [String(oldAddr?.employeeDocument ?? ''), String(newAddr?.employeeDocument ?? '')]
-        .map(s => s?.trim())
-        .filter(Boolean)
-    )
-  )
-}
-
 // Helper: Build catalog map from entries
 const buildCatalogMap = (entries: CatalogEntry[] | undefined): Record<string, CatalogEntry> => {
   const catalog: Record<string, CatalogEntry> = {}
@@ -124,6 +121,7 @@ const buildCatalogMap = (entries: CatalogEntry[] | undefined): Record<string, Ca
 export const useAddressReviewData = ({
   accessToken,
   employeeId,
+  creatorUserId,
   newAddress,
   oldAddress
 }: UseAddressReviewDataProps): UseAddressReviewDataResult => {
@@ -135,18 +133,45 @@ export const useAddressReviewData = ({
 
   const graphqlClient = useGraphQLClient(accessToken)
 
+  // Extract specific fields to avoid object reference issues
+  const newCountryRef = newAddress?.countryRef
+  const oldCountryRef = oldAddress?.countryRef
+  const newRegionRef = newAddress?.regionRef
+  const oldRegionRef = oldAddress?.regionRef
+  const newEmployeeDocument = newAddress?.employeeDocument
+  const oldEmployeeDocument = oldAddress?.employeeDocument
+
   const fetchEmployeeData = useCallback(async () => {
-    if (!employeeId) return
-    try {
-      const result = await graphqlClient.request<{ employee: EmployeeData }>(GET_EMPLOYEE_DATA, { employeeId })
-      setEmployeeData(result.employee)
-    } catch (err) {
-      console.error('Error fetching employee:', err)
+    // If we have an employee ID, fetch directly
+    if (employeeId) {
+      try {
+        const result = await graphqlClient.request<{ employee: EmployeeData }>(GET_EMPLOYEE_DATA, { employeeId })
+        setEmployeeData(result.employee)
+      } catch (err) {
+        console.error('Error fetching employee by ID:', err)
+      }
+      return
     }
-  }, [employeeId, graphqlClient])
+
+    // If no employee ID but we have creator user ID, lookup employee by user ID
+    if (creatorUserId) {
+      try {
+        const result = await graphqlClient.request<{ employee: EmployeeData[] }>(GET_EMPLOYEE_BY_USER_ID, {
+          userId: creatorUserId
+        })
+        if (result.employee && result.employee.length > 0) {
+          setEmployeeData(result.employee[0])
+        }
+      } catch (err) {
+        console.error('Error fetching employee by user ID:', err)
+      }
+    }
+  }, [employeeId, creatorUserId, graphqlClient])
 
   const fetchCatalogData = useCallback(async () => {
-    const catalogIds = collectAddressCatalogIds(newAddress, oldAddress)
+    const catalogIds = Array.from(
+      new Set([newCountryRef, oldCountryRef, newRegionRef, oldRegionRef].filter(Boolean).map(String))
+    )
     if (catalogIds.length === 0) return
     try {
       const result = await graphqlClient.request<{ entries: CatalogEntry[] }>(GET_CATALOG_ENTRIES, {
@@ -157,10 +182,14 @@ export const useAddressReviewData = ({
     } catch (err) {
       console.error('Error fetching catalog data:', err)
     }
-  }, [graphqlClient, newAddress, oldAddress])
+  }, [graphqlClient, newCountryRef, oldCountryRef, newRegionRef, oldRegionRef])
 
   const fetchDocumentData = useCallback(async () => {
-    const docIds = collectDocumentIds(newAddress, oldAddress)
+    const docIds = Array.from(
+      new Set(
+        [String(oldEmployeeDocument ?? ''), String(newEmployeeDocument ?? '')].map(s => s?.trim()).filter(Boolean)
+      )
+    )
     if (docIds.length === 0) return
     try {
       const results = await Promise.all(
@@ -179,7 +208,7 @@ export const useAddressReviewData = ({
     } catch (err) {
       console.error('Error fetching document data:', err)
     }
-  }, [graphqlClient, newAddress, oldAddress])
+  }, [graphqlClient, newEmployeeDocument, oldEmployeeDocument])
 
   const fetchData = useCallback(async () => {
     setLoading(true)

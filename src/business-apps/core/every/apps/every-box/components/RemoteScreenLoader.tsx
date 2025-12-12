@@ -4,8 +4,9 @@ import {
   loadRemoteComponent,
   exposeRequiredDependencies
 } from '@/common/loaders/remote-component-loader/remoteComponentLoader'
-import { Spinner, Alert, AlertDescription, AlertTitle, Button } from '@newwork/nw-design-system'
+import { Spinner, Alert, AlertDescription, AlertTitle, Button, useTranslation } from '@newwork/nw-design-system'
 import { AlertCircle, RefreshCw } from 'lucide-react'
+import translations from '../_i18n'
 
 // CDN base URLs matching gravity-platform
 const REMOTE_COMPONENT_CDN_BASE_DEV = 'https://nwcdndevfiles.blob.core.windows.net/screens'
@@ -65,6 +66,7 @@ export const RemoteScreenLoader: React.FC<RemoteScreenLoaderProps> = ({
   isLoadingMetadata = false,
   cacheKey: propCacheKey
 }) => {
+  const { t } = useTranslation(translations)
   const [loading, setLoading] = useState(false)
   const [component, setComponent] = useState<React.ComponentType<any> | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -383,12 +385,12 @@ export const RemoteScreenLoader: React.FC<RemoteScreenLoaderProps> = ({
       <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:min-h-[200px] gba:p-6">
         <Alert variant="destructive" className="gba:max-w-md">
           <AlertCircle className="gba:h-4 gba:w-4" />
-          <AlertTitle>Failed to load screen</AlertTitle>
+          <AlertTitle>{t('remote-screen-failed')}</AlertTitle>
           <AlertDescription className="gba:mt-2">
             <p className="gba:mb-3">{error}</p>
             <Button variant="outline" size="sm" onClick={handleRetry} className="gba:gap-2">
               <RefreshCw className="gba:h-4 gba:w-4" />
-              Retry
+              {t('remote-screen-retry')}
             </Button>
           </AlertDescription>
         </Alert>

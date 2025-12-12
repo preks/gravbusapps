@@ -11,8 +11,7 @@ import { RemindersPanel } from './components/RemindersPanel'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { VoiceOverlay } from './components/voice/VoiceOverlay'
 import { Button } from '@newwork/nw-design-system'
-import { Bell, Sparkle, ArrowsOut } from '@phosphor-icons/react'
-import { navigateTo } from '@/common/utils/navigationUtils'
+import { Bell, Sparkle } from '@phosphor-icons/react'
 import type { OutputItem, AnswerOutput, NavigationData } from './types/models'
 import { VoiceFormProvider, useVoiceForm } from './context/VoiceFormContext'
 
@@ -47,24 +46,6 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
 
   // Voice form context for form interactions in voice mode
   const voiceForm = useVoiceForm()
-
-  // Detect if we're in sidepanel mode (not the fullscreen every-ai view)
-  const isInSidepanel = useMemo(() => {
-    if (typeof window === 'undefined') return false
-    // In dev mode, check if app param is exactly every-ai
-    const urlParams = new URLSearchParams(window.location.search)
-    const appParam = urlParams.get('app')
-    if (appParam === 'platform/apps/every-ai') return false
-    // In prod mode, check if we're on /platform/every-ai
-    if (window.location.pathname === '/platform/every-ai') return false
-    // Otherwise we're likely in a sidepanel or embedded
-    return true
-  }, [])
-
-  // Navigate to fullscreen mode
-  const openFullscreen = useCallback(() => {
-    navigateTo('/platform/every-ai')
-  }, [])
 
   const { conversation, isLoading, sendMessage, clearConversation, nextStepProposals, isPrechatLoading } =
     useFlowBot(accessToken)
@@ -510,26 +491,6 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
         onStopSpeaking={voiceSynthesis.stop}
         onSendTranscript={handleVoiceSend}
       />
-
-      {/* Top Left - Fullscreen button (only in sidepanel mode, hidden in speech mode and reminders) */}
-      {!isSpeechMode && isInSidepanel && !showRemindersPanel && (
-        <div className="gba:absolute gba:top-4 gba:left-4 gba:z-50">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={openFullscreen}
-            className="gba:relative gba:p-2 gba:rounded-full gba:bg-card/80 gba:backdrop-blur-sm gba:border gba:border-border hover:gba:bg-accent gba:transition-all hover:gba:shadow-lg gba:group"
-            data-testid="every-ai-fullscreen-button"
-            title="Open in Fullscreen"
-          >
-            <ArrowsOut
-              className="gba:h-5 gba:w-5 gba:text-muted-foreground group-hover:gba:text-ai gba:transition-colors"
-              weight="regular"
-              aria-hidden="true"
-            />
-          </Button>
-        </div>
-      )}
 
       {/* Top Right - Reminders button (hidden in speech mode) */}
       {!isSpeechMode && (

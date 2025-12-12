@@ -3,7 +3,7 @@ import { ChatWebSocketClient } from '../services/chatWebSocketClient'
 import { ChatApiClient } from '../services/chatApiClient'
 
 export type UserPresence = {
-  status: 'online' | 'away' | 'offline'
+  status: 'online' | 'offline'
   lastSeen?: Date | string
 }
 
@@ -56,18 +56,6 @@ export function usePresence({ wsClient, isConnected }: UsePresenceOptions) {
       })
       return newMap
     })
-
-    // NOTE: If you need 'away' status back, uncomment this code:
-    // let status: 'online' | 'away' | 'offline'
-    // if (data.isOnline) {
-    //   status = 'online'
-    // } else {
-    //   const lastSeenDate = new Date(timestamp)
-    //   const diffMinutes = (new Date().getTime() - lastSeenDate.getTime()) / (1000 * 60)
-    //   if (diffMinutes < 2) status = 'online'
-    //   else if (diffMinutes < 15) status = 'away'
-    //   else status = 'offline'
-    // }
   }, [])
 
   // Setup WebSocket listener for presence events
@@ -127,13 +115,14 @@ export function usePresence({ wsClient, isConnected }: UsePresenceOptions) {
   // Update presence from user's data (isOnline or lastSeen)
   const updatePresenceFromUser = useCallback(
     (userId: string, lastSeen?: Date | string, isOnline?: boolean) => {
-      let status: 'online' | 'away' | 'offline' = 'offline'
+      let status: 'online' | 'offline' = 'offline'
 
-      // CRITICAL FIX: Always prefer lastSeen calculation over isOnline
-      // The isOnline field from API can be stale (cached), but lastSeen is more reliable
-      // WebSocket events will override this with real-time data anyway
-      if (lastSeen) {
-        // Calculate status based on lastSeen timestamp
+      // Trust backend's isOnline value when provided (backend knows WebSocket connection state)
+      if (typeof isOnline === 'boolean') {
+        status = isOnline ? 'online' : 'offline'
+      }
+      // Fallback: Calculate from lastSeen only if isOnline is not provided
+      else if (lastSeen) {
         const lastSeenDate = new Date(lastSeen)
         const now = new Date()
         const diffMinutes = (now.getTime() - lastSeenDate.getTime()) / (1000 * 60)
@@ -141,18 +130,12 @@ export function usePresence({ wsClient, isConnected }: UsePresenceOptions) {
         if (diffMinutes < 2) {
           // Seen in last 2 minutes = online
           status = 'online'
-        } else if (diffMinutes < 15) {
-          // Seen in last 15 minutes = away
-          status = 'away'
         }
         // Otherwise offline (default)
-      } else if (typeof isOnline === 'boolean') {
-        // Only use isOnline as last resort if no lastSeen available
-        status = isOnline ? 'online' : 'offline'
       }
 
       console.log(
-        `[usePresence] API init: userId=${userId}, status=${status}, isOnline=${isOnline}, lastSeen=${lastSeen}, calculated from lastSeen=${!!lastSeen}`
+        `[usePresence] API init: userId=${userId}, status=${status}, isOnline=${isOnline}, lastSeen=${lastSeen}, used isOnline=${typeof isOnline === 'boolean'}`
       )
       updatePresence(userId, { status, lastSeen })
     },

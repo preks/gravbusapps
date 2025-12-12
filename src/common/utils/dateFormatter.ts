@@ -2,6 +2,17 @@
  * Date formatting utilities for consistent date handling across the application
  */
 
+import dayjs from 'dayjs'
+import 'dayjs/locale/ro' // Romanian
+import 'dayjs/locale/de' // German
+import 'dayjs/locale/en' // English
+import relativeTime from 'dayjs/plugin/relativeTime'
+import calendar from 'dayjs/plugin/calendar'
+
+// Load dayjs plugins
+dayjs.extend(relativeTime)
+dayjs.extend(calendar)
+
 /**
  * Converts a date string to ISO format
  * @param dateString - Date string in various formats (YYYY-MM-DD, ISO string, etc.)
@@ -133,4 +144,29 @@ export const isValidDate = (dateString: string | undefined | null): boolean => {
   } catch {
     return false
   }
+}
+
+/**
+ * Format date and time with locale support and relative time (Today/Yesterday)
+ * Useful for displaying user-friendly timestamps with relative time indicators
+ *
+ * Uses dayjs calendar plugin which automatically provides locale-specific
+ * translations for "Today", "Yesterday", and date/time formats based on the locale.
+ *
+ * @param date - Date string or Date object
+ * @param locale - Optional locale (e.g., 'ro', 'de', 'en', defaults to 'en')
+ * @returns Formatted date and time string with locale support
+ */
+export const formatDateTime = (date: string | Date | undefined | null, locale: string = 'en'): string => {
+  if (!date) return ''
+
+  const d = dayjs(date)
+  if (!d.isValid()) return ''
+
+  // Set locale (support full locale codes like 'ro-RO', extract base)
+  const baseLocale = locale.split('-')[0].toLowerCase()
+
+  // Use dayjs calendar with built-in locale support
+  // This automatically provides "Today", "Yesterday" in the correct language
+  return d.locale(baseLocale).calendar()
 }
