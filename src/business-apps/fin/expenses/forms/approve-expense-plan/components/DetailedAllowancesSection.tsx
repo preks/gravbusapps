@@ -34,7 +34,7 @@ const DetailedAllowancesSection: React.FC<DetailedAllowancesSectionProps> = ({
       <CardContent className="gba:space-y-3">
         {allowances.map((allowance, index) => (
           <div
-            key={allowance.id || `allowance-${allowance.allowanceDate}-${index}`}
+            key={`allowance-${allowance.allowanceDate}-${index}`}
             className="gba:border gba:border-border gba:rounded-lg gba:p-3 gba:space-y-2"
           >
             {/* Date and Day Rate */}

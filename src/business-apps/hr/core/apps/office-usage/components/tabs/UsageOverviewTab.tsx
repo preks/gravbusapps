@@ -11,6 +11,7 @@ import { useLocationDetail } from '../../hooks/useLocationDetail'
 import { OfficeUsageFilterBar } from '../filters/OfficeUsageFilterBar'
 
 interface UsageOverviewTabProps {
+  kpiAttendance: OfficeAttendanceRecord[]
   attendance: OfficeAttendanceRecord[]
   locations: SiteLocationCapacity[]
   filters: OfficeUsageFilters
@@ -24,6 +25,7 @@ interface UsageOverviewTabProps {
 }
 
 export const UsageOverviewTab: React.FC<UsageOverviewTabProps> = ({
+  kpiAttendance,
   attendance,
   locations,
   filters,
@@ -38,7 +40,10 @@ export const UsageOverviewTab: React.FC<UsageOverviewTabProps> = ({
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null)
 
   // Calculate aggregated data
-  const { kpis, locationUsageCards } = useUsageOverviewData(attendance, locations, filters.granularity)
+  // KPIs: always for last 30 days, all locations, by day (not affected by UI filters)
+  const { kpis } = useUsageOverviewData(kpiAttendance, locations, 'day')
+  // Cards/other sections: still reflect current filters/data
+  const { locationUsageCards } = useUsageOverviewData(attendance, locations, filters.granularity)
   const locationDetail = useLocationDetail(selectedLocationId, attendance, locations)
 
   // Apply optional location filter for the chart (graph-only as requested)

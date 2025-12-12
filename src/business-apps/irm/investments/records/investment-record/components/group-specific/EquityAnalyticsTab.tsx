@@ -8,7 +8,8 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { ShareholderStructureChart } from './ShareholderStructureChart'
 import { LiquidityPreferenceTable } from './LiquidityPreferenceTable'
 import { CombinedPpmChartsContainer } from './CombinedPpmChartsContainer'
-import { KPIsAtEntryVsCurrentChart } from './KPIsAtEntryVsCurrentChart'
+// TODO: Re-enable once IRR/MOIC data is properly integrated from database instead of hardcoded values
+// import { KPIsAtEntryVsCurrentChart } from './KPIsAtEntryVsCurrentChart'
 
 interface EquityAnalyticsTabProps extends BusinessAppContextProps {
   investmentId: string
@@ -51,8 +52,10 @@ const formatIRR = (value: number | null): string => {
 }
 
 export const EquityAnalyticsTab: React.FC<EquityAnalyticsTabProps> = ({ investment, equityData, ...props }) => {
-  // Calculate current MOIC from real data
-  const currentMOIC = calculateMOIC(investment?.investmentMarketValue, investment?.totalInvestmentAmount)
+  // Use database MOIC if available, otherwise calculate from market value
+  const currentMOIC = investment?.moic
+    ? Number(investment.moic)
+    : calculateMOIC(investment?.investmentMarketValue, investment?.totalInvestmentAmount)
 
   // Read KPI forecasts from additionalProperties.kpis
   const equityInvestment = Array.isArray(equityData?.equityInvestment)
@@ -144,10 +147,12 @@ export const EquityAnalyticsTab: React.FC<EquityAnalyticsTabProps> = ({ investme
                 </div>
                 {currentMOIC !== null && (
                   <div className="gba:text-xs gba:text-muted-foreground">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'crm.investments.analytics.moic.calculated',
-                      'Calculated from market value'
-                    )}
+                    {investment?.moic
+                      ? getTranslationFromI18nKeyAndLabel('crm.investments.analytics.moic.stored', 'From database')
+                      : getTranslationFromI18nKeyAndLabel(
+                          'crm.investments.analytics.moic.calculated',
+                          'Calculated from market value'
+                        )}
                   </div>
                 )}
               </div>
@@ -277,10 +282,17 @@ export const EquityAnalyticsTab: React.FC<EquityAnalyticsTabProps> = ({ investme
         <CombinedPpmChartsContainer investment={investment} equityData={equityData} {...props} />
       </div>
 
-      {/* KPIs at Entry vs Current */}
-      <div className="gba:mb-6">
+      {/* TODO: KPIs at Entry vs Current - Temporarily hidden
+          This chart needs to be updated to use real IRR/MOIC data from the database:
+          - Current IRR/MOIC should come from investment.irr and investment.moic fields
+          - Target/Planned IRR/MOIC should come from additionalProperties.kpis
+          - "At Entry" data should come from the oldest investment report
+          - Remove hardcoded values for Net Debt, Net Debt/EBITDA, Target MOIC, and Target IRR
+          Re-enable by uncommenting the import and the component below
+      */}
+      {/* <div className="gba:mb-6">
         <KPIsAtEntryVsCurrentChart investment={investment} equityData={equityData} {...props} />
-      </div>
+      </div> */}
     </div>
   )
 }

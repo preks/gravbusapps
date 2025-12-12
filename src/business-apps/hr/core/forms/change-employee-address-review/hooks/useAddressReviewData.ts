@@ -92,26 +92,6 @@ const GET_EMPLOYEE_DOCUMENT = `
   }
 `
 
-// Helper: Collect catalog IDs from address data
-const collectAddressCatalogIds = (newAddr: AddressData, oldAddr: AddressData): string[] => {
-  return Array.from(
-    new Set(
-      [newAddr?.countryRef, oldAddr?.countryRef, newAddr?.regionRef, oldAddr?.regionRef].filter(Boolean).map(String)
-    )
-  )
-}
-
-// Helper: Collect document IDs from address data
-const collectDocumentIds = (newAddr: AddressData, oldAddr: AddressData): string[] => {
-  return Array.from(
-    new Set(
-      [String(oldAddr?.employeeDocument ?? ''), String(newAddr?.employeeDocument ?? '')]
-        .map(s => s?.trim())
-        .filter(Boolean)
-    )
-  )
-}
-
 // Helper: Build catalog map from entries
 const buildCatalogMap = (entries: CatalogEntry[] | undefined): Record<string, CatalogEntry> => {
   const catalog: Record<string, CatalogEntry> = {}
@@ -135,6 +115,14 @@ export const useAddressReviewData = ({
 
   const graphqlClient = useGraphQLClient(accessToken)
 
+  // Extract specific fields to avoid object reference issues
+  const newCountryRef = newAddress?.countryRef
+  const oldCountryRef = oldAddress?.countryRef
+  const newRegionRef = newAddress?.regionRef
+  const oldRegionRef = oldAddress?.regionRef
+  const newEmployeeDocument = newAddress?.employeeDocument
+  const oldEmployeeDocument = oldAddress?.employeeDocument
+
   const fetchEmployeeData = useCallback(async () => {
     if (!employeeId) return
     try {
@@ -146,7 +134,9 @@ export const useAddressReviewData = ({
   }, [employeeId, graphqlClient])
 
   const fetchCatalogData = useCallback(async () => {
-    const catalogIds = collectAddressCatalogIds(newAddress, oldAddress)
+    const catalogIds = Array.from(
+      new Set([newCountryRef, oldCountryRef, newRegionRef, oldRegionRef].filter(Boolean).map(String))
+    )
     if (catalogIds.length === 0) return
     try {
       const result = await graphqlClient.request<{ entries: CatalogEntry[] }>(GET_CATALOG_ENTRIES, {
@@ -157,10 +147,14 @@ export const useAddressReviewData = ({
     } catch (err) {
       console.error('Error fetching catalog data:', err)
     }
-  }, [graphqlClient, newAddress, oldAddress])
+  }, [graphqlClient, newCountryRef, oldCountryRef, newRegionRef, oldRegionRef])
 
   const fetchDocumentData = useCallback(async () => {
-    const docIds = collectDocumentIds(newAddress, oldAddress)
+    const docIds = Array.from(
+      new Set(
+        [String(oldEmployeeDocument ?? ''), String(newEmployeeDocument ?? '')].map(s => s?.trim()).filter(Boolean)
+      )
+    )
     if (docIds.length === 0) return
     try {
       const results = await Promise.all(
@@ -179,7 +173,7 @@ export const useAddressReviewData = ({
     } catch (err) {
       console.error('Error fetching document data:', err)
     }
-  }, [graphqlClient, newAddress, oldAddress])
+  }, [graphqlClient, newEmployeeDocument, oldEmployeeDocument])
 
   const fetchData = useCallback(async () => {
     setLoading(true)

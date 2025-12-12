@@ -4,20 +4,20 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  Badge,
   Label,
   Spinner,
   Alert,
   AlertTitle,
   AlertDescription,
   Switch,
-  Textarea
+  Textarea,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { PiCalendarDuotone, PiClock, PiMapPin } from 'react-icons/pi'
 import { ThumbsUp, XCircle, MessageSquare } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
-import { formatDateTime } from '@/business-apps/core/every/apps/every-box/utils/taskFormatters'
+import { formatDateTime } from '@/common/utils/dateFormatter'
 import { splitExpenseItems } from './utils/expenseItemUtils'
 import { useExpensePlanData } from './hooks/useExpensePlanData'
 import { formatCurrency, getCatalogValue } from './utils/formatters'
@@ -37,6 +37,7 @@ import {
 import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/components/TaskDetailHeader'
 import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
 import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
+import translations from './_i18n'
 
 /**
  * Extended interface for additionalData with form-specific properties
@@ -67,6 +68,8 @@ const ApproveExpensePlanContent: React.FC<ApproveExpensePlanProps> = ({
   userInfo,
   onClose
 }) => {
+  const { t } = useTranslation(translations)
+
   // Cast additionalData to extended interface for proper typing
   const extendedAdditionalData = additionalData as ExtendedAdditionalData | undefined
 
@@ -103,8 +106,7 @@ const ApproveExpensePlanContent: React.FC<ApproveExpensePlanProps> = ({
   // Task is completed if status is COMPLETED OR if completedAt exists (matching InboxView logic)
   const isTaskCompleted = taskStatus === 'COMPLETED' || !!taskCompletedAt
   const taskTitle =
-    processMetadata?.referenceTaskName || processMetadata?.nodeName || expensePlan?.title || 'Approve Expense Plan'
-  const taskSource: 'kogito' | 'cflow' = processMetadata?.source || 'kogito'
+    processMetadata?.referenceTaskName || processMetadata?.nodeName || expensePlan?.title || t('task-title')
   const creatorName = taskPayload?.creatorName as string | undefined
 
   // Use generic hooks for entity dates (request created)
@@ -338,14 +340,14 @@ const ApproveExpensePlanContent: React.FC<ApproveExpensePlanProps> = ({
   if (error) {
     return (
       <Alert variant="destructive" data-testid="approve-expense-plan-error">
-        <AlertTitle>Error Loading Expense Plan</AlertTitle>
+        <AlertTitle>{t('error-loading-title')}</AlertTitle>
         <AlertDescription>
           {error}
           <button
             onClick={refetch}
             className="gba:mt-2 gba:px-3 gba:py-1 gba:bg-destructive gba:text-destructive-foreground gba:rounded gba:text-sm"
           >
-            Retry
+            {t('action-retry')}
           </button>
         </AlertDescription>
       </Alert>
@@ -355,8 +357,8 @@ const ApproveExpensePlanContent: React.FC<ApproveExpensePlanProps> = ({
   if (!expensePlan) {
     return (
       <Alert data-testid="approve-expense-plan-no-data">
-        <AlertTitle>No Data</AlertTitle>
-        <AlertDescription>Expense plan not found</AlertDescription>
+        <AlertTitle>{t('error-no-data-title')}</AlertTitle>
+        <AlertDescription>{t('error-no-data-description')}</AlertDescription>
       </Alert>
     )
   }
@@ -385,18 +387,8 @@ const ApproveExpensePlanContent: React.FC<ApproveExpensePlanProps> = ({
           0
         )
 
-  // Get status display
-  const getStatusDisplay = (status?: string) => {
-    if (!status) return { label: 'Pending', variant: 'default' as const }
-    const statusLower = status.toLowerCase()
-    if (statusLower.includes('approved')) return { label: 'Approved', variant: 'success' as const }
-    if (statusLower.includes('rejected')) return { label: 'Rejected', variant: 'destructive' as const }
-    return { label: status, variant: 'default' as const }
-  }
-
-  const statusDisplay = getStatusDisplay(expensePlan.status)
   const displayName =
-    `${expensePlan.employee?.firstName || ''} ${expensePlan.employee?.lastName || ''}`.trim() || 'Employee'
+    `${expensePlan.employee?.firstName || ''} ${expensePlan.employee?.lastName || ''}`.trim() || t('value-employee')
 
   return (
     <TaskFormLayout
@@ -404,8 +396,6 @@ const ApproveExpensePlanContent: React.FC<ApproveExpensePlanProps> = ({
       header={
         <TaskDetailHeader
           title={taskTitle}
-          status={taskStatus}
-          source={taskSource}
           showEmployeeInfo={true}
           employeeData={
             expensePlan?.employee
@@ -423,11 +413,6 @@ const ApproveExpensePlanContent: React.FC<ApproveExpensePlanProps> = ({
           isLoadingEmployee={loading}
           creatorName={creatorName}
           onClose={isEveryBoxContext ? handleClose : undefined}
-          customBadges={
-            <Badge variant={statusDisplay.variant} data-testid="expense-plan-status-badge">
-              {statusDisplay.label}
-            </Badge>
-          }
         />
       }
       footer={
@@ -436,7 +421,7 @@ const ApproveExpensePlanContent: React.FC<ApproveExpensePlanProps> = ({
             data-testid="approve-expense-plan-actions"
             actions={[
               {
-                label: 'Return',
+                label: t('action-return'),
                 onClick: handleReject,
                 variant: 'outline' as const,
                 disabled: isRejecting || isApproving,
@@ -445,7 +430,7 @@ const ApproveExpensePlanContent: React.FC<ApproveExpensePlanProps> = ({
                 testId: 'return-button'
               },
               {
-                label: 'Approve',
+                label: t('action-approve'),
                 onClick: handleApprove,
                 variant: 'default' as const,
                 disabled: isApproving || isRejecting,
@@ -470,6 +455,7 @@ const ApproveExpensePlanContent: React.FC<ApproveExpensePlanProps> = ({
           isLoadingApprover={isLoadingApproverName}
           isLoading={loading}
           prefixDataTestId="approve-expense-plan"
+          t={t}
         />
       )}
 
@@ -479,6 +465,7 @@ const ApproveExpensePlanContent: React.FC<ApproveExpensePlanProps> = ({
         requestCreatedAt={requestCreatedAt}
         isLoadingRequestDate={isLoadingRequestDate}
         prefixDataTestId="approve-expense-plan"
+        t={t}
       />
 
       {/* 3. Financial Overview */}
@@ -493,6 +480,7 @@ const ApproveExpensePlanContent: React.FC<ApproveExpensePlanProps> = ({
         advancePaymentAmount={advancePaymentAmount}
         currencyCode={currencyCode}
         formatCurrency={formatCurrency}
+        t={t}
       />
 
       {/* 4. Items */}
@@ -503,6 +491,7 @@ const ApproveExpensePlanContent: React.FC<ApproveExpensePlanProps> = ({
           formatCurrency={formatCurrency}
           getCatalogValue={getCatalogValue}
           prefixDataTestId="approve-expense-plan"
+          t={t}
         />
       )}
 
@@ -512,7 +501,7 @@ const ApproveExpensePlanContent: React.FC<ApproveExpensePlanProps> = ({
           <CardHeader>
             <CardTitle className="gba:flex gba:items-center gba:gap-2">
               <PiMapPin className="gba:h-5 gba:w-5" />
-              Trip Details
+              {t('section-trip-details')}
             </CardTitle>
           </CardHeader>
           <CardContent className="gba:space-y-4">
@@ -521,14 +510,16 @@ const ApproveExpensePlanContent: React.FC<ApproveExpensePlanProps> = ({
               <div className="gba:flex gba:items-start gba:gap-2">
                 <PiCalendarDuotone className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mt-0.5" />
                 <div>
-                  <Label className="gba:text-sm gba:font-medium gba:text-muted-foreground">Start Date</Label>
+                  <Label className="gba:text-sm gba:font-medium gba:text-muted-foreground">
+                    {t('label-start-date')}
+                  </Label>
                   <p className="gba:text-sm">{formatDateTime(expensePlan.startDate)}</p>
                 </div>
               </div>
               <div className="gba:flex gba:items-start gba:gap-2">
                 <PiClock className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mt-0.5" />
                 <div>
-                  <Label className="gba:text-sm gba:font-medium gba:text-muted-foreground">End Date</Label>
+                  <Label className="gba:text-sm gba:font-medium gba:text-muted-foreground">{t('label-end-date')}</Label>
                   <p className="gba:text-sm">{formatDateTime(expensePlan.endDate)}</p>
                 </div>
               </div>
@@ -537,9 +528,8 @@ const ApproveExpensePlanContent: React.FC<ApproveExpensePlanProps> = ({
             {/* Trip Table/Timeline */}
             <EnhancedTripSection
               expenseRequestTrip={expensePlan.expenseRequestTrip}
-              startDate={expensePlan.startDate}
-              endDate={expensePlan.endDate}
               prefixDataTestId="approve-expense-plan"
+              t={t}
             />
           </CardContent>
         </Card>
@@ -552,6 +542,7 @@ const ApproveExpensePlanContent: React.FC<ApproveExpensePlanProps> = ({
           currencyCode={currencyCode}
           formatCurrency={formatCurrency}
           prefixDataTestId="approve-expense-plan"
+          t={t}
         />
       )}
 
@@ -565,14 +556,14 @@ const ApproveExpensePlanContent: React.FC<ApproveExpensePlanProps> = ({
               className="gba:text-sm gba:font-medium gba:cursor-pointer gba:flex gba:items-center gba:gap-2"
             >
               <MessageSquare className="gba:h-4 gba:w-4" />
-              Add Comment (Required for rejection)
+              {t('comment-toggle-label')}
             </Label>
           </div>
 
           {showComment && (
             <Textarea
               id="comment"
-              placeholder="Enter your approval comment or rejection reason..."
+              placeholder={t('comment-placeholder')}
               value={comment}
               onChange={e => setComment(e.target.value)}
               rows={4}
