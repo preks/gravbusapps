@@ -16,7 +16,7 @@ import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/comp
 import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
 import { useEntityDates } from '@/common/data/common/hooks/useEntityDates'
 import { useApproverData } from '@/common/data/employee/hooks/useApproverData'
-import { formatWorkingDaysAndHours } from '@/business-apps/hr/absences/utils/formatters'
+import { formatWorkingDaysAndHours } from '@/business-apps/hr/absences/utils/absenceDurationFormatter'
 import { formatDateTime } from '@/common/utils/dateFormatter'
 import dayjs from 'dayjs'
 import translations from './_i18n'
