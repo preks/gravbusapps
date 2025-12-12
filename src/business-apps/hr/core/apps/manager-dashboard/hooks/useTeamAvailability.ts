@@ -38,9 +38,17 @@ interface UseTeamAvailabilityResult {
   refetch: () => void
 }
 
-/**
- * Hook to calculate team availability based on today's absences
- */
+interface EmployeeAbsenceResponse {
+  id: string
+  employeeId: string
+  startDate: string
+  endDate: string
+  status: string
+  type?: {
+    value: string
+  }
+}
+
 export const useTeamAvailability = ({
   accessToken,
   managerId
@@ -63,9 +71,8 @@ export const useTeamAvailability = ({
     try {
       const todayTimestamp = dayjs().startOf('day').toISOString()
 
-      // Query to get direct reports with their absences
-      const teamAvailabilityQuery = `
-        query GetTeamAvailability($managerId: uuid!, $todayTimestamp: timestamp!) {
+      const employeesQuery = `
+        query GetTeamMembers($managerId: uuid!) {
           Employee(
             where: {
               employeePosition: { supervisorEmployeeId: { _eq: $managerId } },
@@ -82,34 +89,64 @@ export const useTeamAvailability = ({
                 name
               }
             }
-            absences: employeeAbsence(
-              where: {
-                isDeleted: { _eq: false },
-                status: { _eq: "APPROVED" },
-                startDate: { _lte: $todayTimestamp },
-                endDate: { _gte: $todayTimestamp }
-              }
-            ) {
-              id
-              startDate
-              endDate
-              status
-              type {
-                value
-              }
+          }
+        }
+      `
+
+      const absencesQuery = `
+        query GetTeamAbsences($employeeIds: [uuid!]!, $todayTimestamp: timestamp!) {
+          EmployeeAbsence(
+            where: {
+              employeeId: { _in: $employeeIds },
+              isDeleted: { _eq: false },
+              status: { _eq: "APPROVED" },
+              startDate: { _lte: $todayTimestamp },
+              endDate: { _gte: $todayTimestamp }
+            }
+          ) {
+            id
+            employeeId
+            startDate
+            endDate
+            status
+            type {
+              value
             }
           }
         }
       `
 
-      const response = await graphQLClient.request(teamAvailabilityQuery, {
-        managerId,
-        todayTimestamp
-      })
+      const employeesResponse = await graphQLClient.request(employeesQuery, { managerId })
 
-      if (response?.Employee) {
-        const members: TeamMember[] = response.Employee.map((employee: any) => {
-          const currentAbsence = employee.absences?.[0]
+      if (employeesResponse?.Employee && employeesResponse.Employee.length > 0) {
+        const employees = employeesResponse.Employee
+        const employeeIds = employees.map((emp: { id: string }) => emp.id)
+
+        let absencesData: EmployeeAbsenceResponse[] = []
+        if (employeeIds.length > 0) {
+          try {
+            const absencesResponse = await graphQLClient.request(absencesQuery, {
+              employeeIds,
+              todayTimestamp
+            })
+            absencesData = absencesResponse?.EmployeeAbsence || []
+          } catch (absenceErr) {
+            console.warn('Could not fetch absence data:', absenceErr)
+          }
+        }
+
+        const absencesByEmployee = absencesData.reduce(
+          (acc: Record<string, EmployeeAbsenceResponse>, absence: EmployeeAbsenceResponse) => {
+            if (!acc[absence.employeeId]) {
+              acc[absence.employeeId] = absence
+            }
+            return acc
+          },
+          {}
+        )
+
+        const members: TeamMember[] = employees.map((employee: any) => {
+          const currentAbsence = absencesByEmployee[employee.id]
           const isAvailable = !currentAbsence
 
           return {
